@@ -5,16 +5,24 @@ description = "Simulation tools for the LiteBIRD experiment"
 authors = ["Maurizio Tomasi <maurizio.tomasi@unimi.it>"]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.6"
 numba = "^0.47.0"
 numpy = "^1.18"
 astropy = "^4.0"
 tomlkit = "^0.5.8"
+
+mpi4py = {version = "^3.0", optional = true}
+
 sphinx = {version = "^2.3", optional = true}
 sphinx_rtd_theme = {version = "^0.4.3", optional = true}
-jupyter = {version = "^1.0", extras = ["jupyter"]}
+
+jupyter = {version = "^1.0", optional = true}
+jupyterlab = {version = "^1.2", optional = true}
+
 [tool.poetry.extras]
+mpi = ["mpi4py"]
 docs = ["sphinx", "sphinx_rtd_theme"]
+jupyter = ["jupyter"]
 
 [tool.poetry.dev-dependencies]
 
