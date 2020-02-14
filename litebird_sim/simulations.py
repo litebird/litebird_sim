@@ -29,6 +29,12 @@ class Simulation:
     - `description` (``str``): a (possibly long) description of the
       simulation, to be put in the report saved in `base_path`).
 
+    You can access the fields `base_path`, `name`, `use_mpi`, and
+    `description` in the `Simulation` object::
+
+        sim = litebird_sim.Simulation(name="My simulation")
+        print(f"Running simulation {sim.name} and saving results in {sim.base_path}")
+
     """
 
     def __init__(
