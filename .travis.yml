@@ -9,7 +9,7 @@ before_install:
   - pip install poetry pytest
 
 install:
-  - poetry install --extras=docs --extras=mpi
+  - poetry install --extras=docs
 
 script:
   - poetry run python -m pytest
