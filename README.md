@@ -39,6 +39,12 @@ to the `poetry install` command above:
 - `--extras=mpi` will add support for MPI.
 
 
+## Source code formatting
+
+The code must be formatted using
+[`black`](https://github.com/psf/black).
+
+
 ## How to run tests
 
 You can use [pytest](https://docs.pytest.org/en/latest/), but remember

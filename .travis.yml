@@ -6,10 +6,11 @@ python:
   - "3.8"
 
 before_install:
-  - pip install poetry pytest
+  - pip install poetry pytest black
 
 install:
   - poetry install --extras=docs
 
 script:
+  - black --check -q .
   - poetry run python -m pytest
