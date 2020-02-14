@@ -1,0 +1,15 @@
+language: python
+
+python:
+  - "3.6"
+  - "3.7"
+  - "3.8"
+
+before_install:
+  - pip install poetry pytest
+
+install:
+  - poetry install --extras=docs --extras=mpi
+
+script:
+  - poetry run python -m pytest
