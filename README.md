@@ -37,3 +37,13 @@ to the `poetry install` command above:
 - `--extras=docs` will install Sphinx and all the tools to generate
   the documentation;
 - `--extras=mpi` will add support for MPI.
+
+
+## How to run tests
+
+You can use [pytest](https://docs.pytest.org/en/latest/), but remember
+to run `poetry`:
+
+```
+poetry run python -m pytest
+```
