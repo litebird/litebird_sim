@@ -2,6 +2,7 @@
 
 Simulation tools for LiteBIRD
 
+
 ## How to install the code
 
 This package uses [poetry](https://python-poetry.org/) to handle
@@ -47,9 +48,20 @@ The code must be formatted using
 
 ## How to run tests
 
-You can use [pytest](https://docs.pytest.org/en/latest/), but remember
-to run `poetry`:
+Use the following script to run tests on the code:
 
 ```
-poetry run python -m pytest
+./bin/run_test.sh
 ```
+
+On Windows, run this command:
+
+```
+.\bin\run_test.bat
+```
+
+
+## How to contribute
+
+See file
+[CONTRIBUTING.md](https://github.com/litebird/litebird_sim/blob/master/CONTRIBUTING.md)

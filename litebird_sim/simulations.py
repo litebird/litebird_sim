@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 from pathlib import Path
-from astropy.io import fits
 from . import write_healpix_map_to_file
 
 

@@ -20,6 +20,7 @@ sphinx_rtd_theme = {version = "^0.4.3", optional = true}
 
 jupyter = {version = "^1.0", optional = true}
 jupyterlab = {version = "^1.2", optional = true}
+pytest = "^5.3"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]

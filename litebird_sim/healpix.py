@@ -34,9 +34,10 @@ def nside_to_npix(nside):
 
 
 def npix_to_nside(num_of_pixels):
-    """Return the value of NSIDE for a Healpix map containing `num_of_pixels` pixels.
+    """Return NSIDE for a Healpix map containing `num_of_pixels` pixels.
 
-    If the number of pixels does not conform to the Healpix standard, an `AssertionError` exception is raised.
+    If the number of pixels does not conform to the Healpix standard,
+    an `AssertionError` exception is raised.
 
     .. doctest::
 
@@ -144,41 +145,41 @@ def get_pixel_format(t):
     try:
         if t in conv:
             return conv[t]
-    except:
+    except Exception:
         pass
     try:
         if np.dtype(t) in conv:
             return conv[np.dtype(t)]
-    except:
+    except Exception:
         pass
     try:
         if np.dtype(type(t)) in conv:
             return conv[np.dtype(type(t))]
-    except:
+    except Exception:
         pass
     try:
         if np.dtype(type(t[0])) in conv:
             return conv[np.dtype(type(t[0]))]
-    except:
+    except Exception:
         pass
     try:
         if t is str:
             return "A"
-    except:
+    except Exception:
         pass
     try:
         if type(t) is str:
             return "A%d" % (len(t))
-    except:
+    except Exception:
         pass
     try:
         if type(t[0]) is str:
-            l = max(len(s) for s in t)
-            return "A%d" % (l)
-    except:
+            length = max(len(s) for s in t)
+            return "A%d" % (length)
+    except Exception:
         pass
 
-    raise ValueError(f"I do not know how to convert type {t} into a CFITSIO data type")
+    raise ValueError(f"Unable to convert type {t} into a CFITSIO data type")
 
 
 # This is a simplified version of `healpy.save_map`, with more

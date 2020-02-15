@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Stash anything that is not going to be part of this commit
+STASH_NAME="pre-commit-$(date +%s)"
+git stash save -q --keep-index $STASH_NAME
+
+# Check that the code looks ok
+./bin/run_tests.sh
+
+# Revert the stash
+STASHES=$(git stash list)
+if [[ $STASHES == "$STASH_NAME" ]]; then
+  git stash pop -q
+fi
