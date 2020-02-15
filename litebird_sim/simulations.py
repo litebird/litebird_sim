@@ -1,7 +1,11 @@
 # -*- encoding: utf-8 -*-
 
+from collections import namedtuple
+from typing import List, Tuple, Any
 from pathlib import Path
 from . import write_healpix_map_to_file
+
+OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
 
 class Simulation:
@@ -12,27 +16,38 @@ class Simulation:
     of a simulation and will handle the generation of reports and
     writing of output files.
 
-    To create an object, you can pass one or more of the following
-    keywords:
+    Be sure to call :py:meth:`Simulation.flush` when the simulation is
+    completed. This ensures that all the information are saved to disk
+    before the completion of your script.
 
-    - `base_path` (either a ``str`` or ``pathlib.Path`` object): the
+    :param base_path: (either a ``str`` or ``pathlib.Path`` object): the
       folder that will contain the output. If this folder does not
       exist and the user has sufficient rights, it will be created.
 
-    - `name` (``str``): a string identifying the simulation. This will
+    :param name: a string identifying the simulation. This will
       be used in the reports.
 
-    - `use_mpi` (``bool``): a Boolean flag specifying if the simulation
+    :param use_mpi bool: a Boolean flag specifying if the simulation
       should take advantage of MPI or not.
 
-    - `description` (``str``): a (possibly long) description of the
+    :param description str: a (possibly long) description of the
       simulation, to be put in the report saved in `base_path`).
 
     You can access the fields `base_path`, `name`, `use_mpi`, and
     `description` in the `Simulation` object::
 
         sim = litebird_sim.Simulation(name="My simulation")
-        print(f"Running simulation {sim.name} and saving results in {sim.base_path}")
+        print(f"Running {sim.name}, saving results in {sim.base_path}")
+
+
+    This class keeps track of any output file saved in `base_path`
+    through the member variable `self.list_of_outputs`. This is a list
+    of objects of type :py:meth:`OutputFileRecord`, which are 2-tuples
+    of the form ``(path, description)``, where ``path`` is a
+    ``pathlib.Path`` object and ``description`` is a `str` object::
+
+        for curpath, curdescr in sim.list_of_outputs:
+            print(f"{curpath}: {curdescr}")
 
     """
 
@@ -48,21 +63,29 @@ class Simulation:
         # already exists
         self.base_path.mkdir(parents=True, exist_ok=True)
 
-    def write_healpix_map(
-        self, filename, pixels, **kwargs,
-    ):
+        self.list_of_outputs = []  # type: List[OutputFileRecord]
+
+        self.report = f"""# {name}
+
+{description}
+
+"""
+
+    def write_healpix_map(self, filename: str, pixels, **kwargs,) -> str:
         """Save a Healpix map in the output folder
 
         This function saves an Healpix map into a FITS files that is
-        written into the output folder for the simulation. It accepts
-        the following arguments:
+        written into the output folder for the simulation.
 
-        - `filename` (``str`` or ``pathlib.Path``): name of the
+        :param filename: (``str`` or ``pathlib.Path``) name of the
           file. It can contain subdirectories.
 
-        - `pixels`: array containing the pixels, or list of arrays if
+        :param pixels: array containing the pixels, or list of arrays if
           you want to save several maps into the same FITS table
           (e.g., I, Q, U components)
+
+        The function returns a ``pathlib.Path`` object containing the
+        path of the FITS file that has been saved.
 
         Here is a simple example::
 
@@ -73,6 +96,73 @@ class Simulation:
           sim.write_healpix_map("zero_map.fits.gz", pixels)
 
         """
+        filename = self.base_path / Path(filename)
         write_healpix_map_to_file(
-            filename=self.base_path / Path(filename), pixels=pixels, **kwargs,
+            filename=filename, pixels=pixels, **kwargs,
         )
+
+        self.list_of_outputs.append(
+            OutputFileRecord(path=filename, description="Healpix map")
+        )
+
+        return filename
+
+    def append_to_report(
+        self, markdown_text: str, figures: List[Tuple[Any, str]] = [], **kwargs
+    ):
+        """Append text and figures to the simulation report
+
+        A Simulation class can generate reports in Markdown
+        format. Use this function to add some text to the report,
+        possibly including figures.
+
+        Parameters:
+
+        :param markdown_text str: text to be appended to the report.
+
+        :param figures: (list of 2-tuples containing a Matplotlib
+          figure and a ``str``) list of Matplotlib figures to be saved
+          in the report. Each tuple must contain one figure and one
+          filename. The figures will be saved using the specified file
+          name in the output directory. The file name must match the
+          one used as reference in the Markdown text.
+
+        Images are saved immediately during the call, but the text
+        will be written to disk only when
+        :py:meth:`~litebird_sim.simulation.Simulation.flush` is called.
+
+        Here is an example::
+
+            import litebird_sim as lbs
+            import matplotlib.pylab as plt
+
+            sim = lbs.Simulation(name="My simulation", base_path="output")
+            plt.plot([0, 1, 2, 3])
+            sim.append_to_report('''
+            Here is a plot:
+
+            ![](myplot.png)
+            ''', [(plt.gcf(), "myplot.png")])
+
+            sim.flush()
+
+        """
+
+        self.report += markdown_text
+
+        for curfig, curfilename in figures:
+            curpath = self.base_path / curfilename
+            curfig.savefig(curpath, bbox_inches="tight", **kwargs)
+            self.list_of_outputs.append(
+                OutputFileRecord(path=curpath, description="Figure")
+            )
+
+    def flush(self):
+        """Terminate a simulation.
+
+        This function must be called when a simulation is complete. It
+        will save pending data to the output directory.
+
+        """
+        with open(self.base_path / "report.md", "wt") as outf:
+            outf.write(self.report)
