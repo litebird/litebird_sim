@@ -9,4 +9,4 @@ black --check --line-length=${MAX_LINE_LENGTH} -q .
 flake8 --max-line-length=${MAX_LINE_LENGTH}
 
 # Run the test suite
-poetry run python3 -m pytest
+poetry run python3 -m pytest -vv

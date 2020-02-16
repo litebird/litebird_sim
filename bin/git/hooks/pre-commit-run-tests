@@ -8,7 +8,4 @@ git stash save -q --keep-index $STASH_NAME
 ./bin/run_tests.sh
 
 # Revert the stash
-STASHES=$(git stash list)
-if [[ $STASHES == "$STASH_NAME" ]]; then
-  git stash pop -q
-fi
+git stash pop -q

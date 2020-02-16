@@ -1,9 +1,15 @@
 # -*- encoding: utf-8 -*-
 
+import codecs
 from collections import namedtuple
 from typing import List, Tuple, Any
 from pathlib import Path
+from shutil import copyfile
+
 from . import write_healpix_map_to_file
+
+import markdown
+import jinja2
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
@@ -116,6 +122,10 @@ class Simulation:
         format. Use this function to add some text to the report,
         possibly including figures.
 
+        It is possible to use objects other than Matplotlib
+        figures. The only method this function calls is `savefig`,
+        with no arguments.
+
         Parameters:
 
         :param markdown_text str: text to be appended to the report.
@@ -127,6 +137,10 @@ class Simulation:
           name in the output directory. The file name must match the
           one used as reference in the Markdown text.
 
+        :param kwargs: any other keyword argument will be used to
+        expand the text `markdown_text` using the `Jinja2 library
+        <https://palletsprojects.com/p/jinja/>`_ library.
+
         Images are saved immediately during the call, but the text
         will be written to disk only when
         :py:meth:`~litebird_sim.simulation.Simulation.flush` is called.
@@ -137,22 +151,34 @@ class Simulation:
             import matplotlib.pylab as plt
 
             sim = lbs.Simulation(name="My simulation", base_path="output")
-            plt.plot([0, 1, 2, 3])
+            data_points = [0, 1, 2, 3]
+
+            plt.plot(data_points)
+            fig = plt.gcf()
+
             sim.append_to_report('''
             Here is a plot:
 
             ![](myplot.png)
-            ''', [(plt.gcf(), "myplot.png")])
+
+            The data points have the following values:
+            {% for sample in data_points %}
+            - {{ sample }}
+            {% endfor %}
+            ''', figures=[(fig, "myplot.png")],
+                 data_points=data_points)
 
             sim.flush()
 
         """
 
-        self.report += markdown_text
+        template = jinja2.Template(markdown_text)
+        expanded_text = template.render(**kwargs)
+        self.report += expanded_text
 
         for curfig, curfilename in figures:
             curpath = self.base_path / curfilename
-            curfig.savefig(curpath, bbox_inches="tight", **kwargs)
+            curfig.savefig(curpath)
             self.list_of_outputs.append(
                 OutputFileRecord(path=curpath, description="Figure")
             )
@@ -164,5 +190,30 @@ class Simulation:
         will save pending data to the output directory.
 
         """
-        with open(self.base_path / "report.md", "wt") as outf:
+
+        # Expand the markdown text using Jinja2
+        with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
             outf.write(self.report)
+
+        # Now generate an HTML file from Markdown.
+
+        # Please keep these in alphabetic order, so we can detect duplicates!
+        md_extensions = ["sane_lists", "smarty", "tables"]
+        html = markdown.markdown(self.report, extensions=md_extensions)
+
+        static_path = Path(__file__).parent / ".." / "static"
+        with codecs.open(static_path / "report_template.html") as inpf:
+            html_full_report = jinja2.Template(inpf.read()).render(
+                name=self.name, html=html
+            )
+
+        # Copy all the files in static/
+        static_files_to_copy = ["sakura.css"]
+        for curfile in static_files_to_copy:
+            copyfile(src=static_path / curfile, dst=self.base_path / curfile)
+
+        # Finally, write down the full HTML report
+        with codecs.open(
+            self.base_path / "report.html", "w", encoding="utf-8",
+        ) as outf:
+            outf.write(html_full_report)
