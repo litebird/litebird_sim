@@ -4,38 +4,45 @@ Simulations
 Describe how to use a :class:`litebird_sim.simulations.Simulation`
 object.
 
-Here is an example, just to show how Python code can be included in
-RST files::
 
-  import litebird_sim as ls
-  import matplotlib.pylab as plt
+Generation of reports
+---------------------
 
-  simul = ls.Simulation(
-      base_path="/storage/mysimulations/adc-sim",
-      name="Simulation of ADC non-linearities",
-      use_mpi=False,
-      description="""
-  Simulate the acquisition of an ADC including non-linearities
-      """,
-  )
+This section should explain how reports can be generated, first from
+the perspective of a library user, and then describing how developers
+can generate plots for their own modules.
 
-  # Create a figure
-  plt.plot([1, 2, 4, 3])
+Here is an example, showing several advanced topics like mathematical
+formulae, plots, and value substitution::
 
-  simul.append_to_report(
-      markdown_text="""
-  In this simulation I have computed the following values:
+    import litebird_sim as lbs
+    import matplotlib.pylab as plt
 
-  ![](myplot.png)
+    sim = lbs.Simulation(name="My simulation", base_path="output")
+    data_points = [0, 1, 2, 3]
 
-  Nice!
-  """,
-      figures=[
-          (plt.gcf(), "myplot.png"),
-      ],
-  )
+    plt.plot(data_points)
+    fig = plt.gcf()
 
-  simul.flush()
+    sim.append_to_report('''
+    Here is a formula for $`f(x)`$:
+
+    ```math
+    f(x) = \sin x
+    ```
+
+    And here is a completely unrelated plot:
+
+    ![](myplot.png)
+
+    The data points have the following values:
+    {% for sample in data_points %}
+    - {{ sample }}
+    {% endfor %}
+    ''', figures=[(fig, "myplot.png")],
+         data_points=data_points)
+
+    sim.flush()
 
 
 API reference

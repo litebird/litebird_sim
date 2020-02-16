@@ -24,7 +24,8 @@ pytest = "^5.3"
 jinja2 = "^2.11"
 markdown = "^3.2"
 matplotlib = "^3.1"
-
+markdown-katex = {version = "^201905.2-alpha.0", allows-prereleases = true}
+katex = "^0.0.4"
 [tool.poetry.extras]
 mpi = ["mpi4py"]
 docs = ["sphinx", "sphinx_rtd_theme"]

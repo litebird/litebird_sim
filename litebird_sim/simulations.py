@@ -4,12 +4,14 @@ import codecs
 from collections import namedtuple
 from typing import List, Tuple, Any
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, copytree
 
 from . import write_healpix_map_to_file
 
 import markdown
 import jinja2
+
+from markdown_katex import KatexExtension
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
@@ -126,6 +128,14 @@ class Simulation:
         figures. The only method this function calls is `savefig`,
         with no arguments.
 
+        Images are saved immediately during the call, but the text
+        will be written to disk only when
+        :py:meth:`~litebird_sim.simulation.Simulation.flush` is called.
+
+        You can put LaTeX formulae in the text, using ``$`...`$``
+        for inline equations and the `math` tag in fenced text for
+        displayed equations.
+
         Parameters:
 
         :param markdown_text str: text to be appended to the report.
@@ -138,37 +148,8 @@ class Simulation:
           one used as reference in the Markdown text.
 
         :param kwargs: any other keyword argument will be used to
-        expand the text `markdown_text` using the `Jinja2 library
-        <https://palletsprojects.com/p/jinja/>`_ library.
-
-        Images are saved immediately during the call, but the text
-        will be written to disk only when
-        :py:meth:`~litebird_sim.simulation.Simulation.flush` is called.
-
-        Here is an example::
-
-            import litebird_sim as lbs
-            import matplotlib.pylab as plt
-
-            sim = lbs.Simulation(name="My simulation", base_path="output")
-            data_points = [0, 1, 2, 3]
-
-            plt.plot(data_points)
-            fig = plt.gcf()
-
-            sim.append_to_report('''
-            Here is a plot:
-
-            ![](myplot.png)
-
-            The data points have the following values:
-            {% for sample in data_points %}
-            - {{ sample }}
-            {% endfor %}
-            ''', figures=[(fig, "myplot.png")],
-                 data_points=data_points)
-
-            sim.flush()
+          expand the text `markdown_text` using the `Jinja2 library
+          <https://palletsprojects.com/p/jinja/>`_ library.
 
         """
 
@@ -198,7 +179,7 @@ class Simulation:
         # Now generate an HTML file from Markdown.
 
         # Please keep these in alphabetic order, so we can detect duplicates!
-        md_extensions = ["sane_lists", "smarty", "tables"]
+        md_extensions = [KatexExtension(), "sane_lists", "smarty", "tables"]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
         static_path = Path(__file__).parent / ".." / "static"
@@ -209,8 +190,12 @@ class Simulation:
 
         # Copy all the files in static/
         static_files_to_copy = ["sakura.css"]
-        for curfile in static_files_to_copy:
-            copyfile(src=static_path / curfile, dst=self.base_path / curfile)
+        for curitem in static_files_to_copy:
+            source = static_path / curitem
+            if source.is_dir():
+                copytree(src=source, dst=self.base_path)
+            else:
+                copyfile(src=source, dst=self.base_path / curitem)
 
         # Finally, write down the full HTML report
         with codecs.open(
