@@ -25,7 +25,7 @@ def nside_to_npix(nside):
 
     .. doctest::
 
-        >> nside_to_npix(1)
+        >>> nside_to_npix(1)
         12
 
     """
@@ -41,7 +41,7 @@ def npix_to_nside(num_of_pixels):
 
     .. doctest::
 
-        >> npix_to_nside(48)
+        >>> npix_to_nside(48)
         2
 
     """
@@ -127,7 +127,7 @@ def get_pixel_format(t):
 
     .. doctest::
 
-        >> get_pixel_format(numpy.uint8)
+        >>> get_pixel_format(numpy.uint8)
         "B"
 
     """
@@ -243,7 +243,7 @@ def write_healpix_map_to_hdu(
 
     .. doctest::
 
-        >> hdu = write_healpix_map_to_hdu(
+        >>> hdu = write_healpix_map_to_hdu(
                [
                    np.zeros(12),   # I map
                    np.zeros(12),   # Q map
@@ -370,7 +370,7 @@ def write_healpix_map_to_file(
 
     .. doctest::
 
-        >> write_healpix_map_to_file(
+        >>> write_healpix_map_to_file(
                filename="out.fits.gz",
                pixels=[
                    np.zeros(12),   # I map
