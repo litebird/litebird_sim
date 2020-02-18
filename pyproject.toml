@@ -9,6 +9,8 @@ python = "^3.6"
 numba = "^0.47.0"
 numpy = "^1.18"
 astropy = "^4.0"
+flake8 = "^3.7"
+black = {version = "^18.3-alpha.0", allows-prereleases = true}
 tomlkit = "^0.5.8"
 
 mpi4py = {version = "^3.0", optional = true}
@@ -18,13 +20,16 @@ sphinx_rtd_theme = {version = "^0.4.3", optional = true}
 
 jupyter = {version = "^1.0", optional = true}
 jupyterlab = {version = "^1.2", optional = true}
-
+pytest = "^5.3"
+jinja2 = "^2.11"
+markdown = "^3.2"
+matplotlib = "^3.1"
+markdown-katex = {version = "^201905.2-alpha.0", allows-prereleases = true}
+katex = "^0.0.4"
 [tool.poetry.extras]
 mpi = ["mpi4py"]
 docs = ["sphinx", "sphinx_rtd_theme"]
 jupyter = ["jupyter"]
-
-[tool.poetry.dev-dependencies]
 
 [build-system]
 requires = ["poetry>=0.12"]

@@ -1,0 +1,14 @@
+language: python
+
+python:
+  - "3.6"
+  - "3.7"
+
+before_install:
+  - pip install poetry
+
+install:
+  - poetry install --extras=docs
+
+script:
+  - sh ./bin/run_tests.sh

@@ -2,6 +2,7 @@
 
 Simulation tools for LiteBIRD
 
+
 ## How to install the code
 
 This package uses [poetry](https://python-poetry.org/) to handle
@@ -37,3 +38,30 @@ to the `poetry install` command above:
 - `--extras=docs` will install Sphinx and all the tools to generate
   the documentation;
 - `--extras=mpi` will add support for MPI.
+
+
+## Source code formatting
+
+The code must be formatted using
+[`black`](https://github.com/psf/black).
+
+
+## How to run tests
+
+Use the following script to run tests on the code:
+
+```
+./bin/run_test.sh
+```
+
+On Windows, run this command:
+
+```
+.\bin\run_test.bat
+```
+
+
+## How to contribute
+
+See file
+[CONTRIBUTING.md](https://github.com/litebird/litebird_sim/blob/master/CONTRIBUTING.md)
