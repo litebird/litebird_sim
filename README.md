@@ -152,7 +152,9 @@ Poetry, use one of the following commands:
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-We must put some usage examples here!
+To create a local copy of the documentation, enter the directory `docs` and run
+`make` (on Linux/Mac OS X) or `make.bat` (on Windows). The documentation will
+be available in `docs/build/html/index.html`.
 
 
 
