@@ -118,7 +118,9 @@ an URL in the form
 a number: follow the link and enter a few details about your
 change. Press the green button to submit a *pull request*, which will
 be reviewed by the Simulation Team. If everything goes well, your
-changes will be incorporated in `litebird_sim`.
+changes will be incorporated in `litebird_sim`, and
+[CHANGELOG.md](https://github.com/litebird/litebird_sim/blob/master/CHANGELOG.md)
+will be updated.
 
 
 ## Practical tips when implementing a change
