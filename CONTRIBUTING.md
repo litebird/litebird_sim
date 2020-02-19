@@ -157,7 +157,7 @@ modifications fulfill the following goals:
     ```
     poetry shell
     cd docs
-    make.bat
+    make.bat html
     ```
     
 -   Provide unit tests and possibly integration tests, adding scripts

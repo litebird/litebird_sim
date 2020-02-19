@@ -155,9 +155,21 @@ Poetry, use one of the following commands:
 The documentation is available online at
 [litebird.github.io/litebird_sim/index.html](https://litebird.github.io/litebird_sim/build/html/index.html).
 
-To create a local copy of the documentation, enter the directory `docs` and run
-`make` (on Linux/Mac OS X) or `make.bat` (on Windows). The documentation will
-be available in `docs/build/html/index.html`.
+To create a local copy of the documentation, make sure you ran
+`poetry` with the flag `--extras=docs`, then run the following
+command:
+
+-   Linux or Mac OS X:
+    ```
+    ./refresh_docs.sh
+    ```
+
+-   Windows:
+    ```
+    poetry shell
+    cd docs
+    make.bat html
+    ```
 
 
 
