@@ -35,7 +35,7 @@ Private repositories do not support shields :-(
   <p align="center">
     A set of Python modules to simulate the instruments on board the LiteBIRD spacecraft.
     <br />
-    <a href="https://github.com/litebird/litebird_sim"><strong>Explore the docs »</strong></a>
+    <a href="https://litebird.github.io/litebird_sim/build/html/index.html"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://github.com/litebird/litebird_sim">View Demo</a>
@@ -151,6 +151,9 @@ Poetry, use one of the following commands:
 
 <!-- USAGE EXAMPLES -->
 ## Usage
+
+The documentation is available online at
+[litebird.github.io/litebird_sim/index.html](https://litebird.github.io/litebird_sim/build/html/index.html).
 
 To create a local copy of the documentation, enter the directory `docs` and run
 `make` (on Linux/Mac OS X) or `make.bat` (on Windows). The documentation will
