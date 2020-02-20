@@ -139,13 +139,13 @@ Poetry, use one of the following commands:
 3.  Run the set of tests, to check that everything works. On Linux/Mac OS X:
 
     ```
-    ./bin/run_test.sh
+    ./bin/run_tests.sh
     ```
 
     On Windows:
 
     ```
-    .\bin\run_test.bat
+    .\bin\run_tests.bat
     ```
 
 
