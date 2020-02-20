@@ -155,9 +155,7 @@ modifications fulfill the following goals:
     Under Windows, run the following commands:
     
     ```
-    poetry shell
-    cd docs
-    make.bat
+    poetry run docs\make.bat html
     ```
     
 -   Provide unit tests and possibly integration tests, adding scripts
