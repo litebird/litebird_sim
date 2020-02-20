@@ -152,12 +152,10 @@ modifications fulfill the following goals:
     ./bin/refresh_docs.sh
     ```
     
-    Under Windows, run the following commands:
+    Under Windows, run the following command:
     
     ```
-    poetry shell
-    cd docs
-    make.bat html
+    poetry run docs\make.bat html
     ```
     
 -   Provide unit tests and possibly integration tests, adding scripts
