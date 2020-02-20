@@ -4,6 +4,11 @@ python:
   - "3.6"
   - "3.7"
 
+os:
+  - linux
+  - osx
+  - windows
+
 before_install:
   - pip install poetry
 
