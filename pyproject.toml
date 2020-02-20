@@ -10,7 +10,7 @@ numba = "^0.47.0"
 numpy = "^1.18"
 astropy = "^4.0"
 flake8 = "^3.7"
-black = {version = "^18.3-alpha.0", allows-prereleases = true}
+black = {version = "^18.3-alpha.0", allow-prereleases = true}
 tomlkit = "^0.5.8"
 
 mpi4py = {version = "^3.0", optional = true}
@@ -24,7 +24,7 @@ pytest = "^5.3"
 jinja2 = "^2.11"
 markdown = "^3.2"
 matplotlib = "^3.1"
-markdown-katex = {version = "^201905.2-alpha.0", allows-prereleases = true}
+markdown-katex = {version = "^201905.2-alpha.0", allow-prereleases = true}
 katex = "^0.0.4"
 [tool.poetry.extras]
 mpi = ["mpi4py"]
