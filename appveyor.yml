@@ -1,0 +1,13 @@
+image: 
+  - Ubuntu
+  - Visual Studio 2015
+
+stack: python 3.7
+
+install:
+  - pip install poetry
+  - poetry install --extras=docs
+
+test_script:
+  - sh: sh ./bin/run_tests.sh
+  - cmd: .\bin\run_tests.bat
