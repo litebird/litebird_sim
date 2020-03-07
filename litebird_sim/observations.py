@@ -17,24 +17,26 @@ class Observation:
 
     To access the TOD, use one of the following methods:
 
-    - :py:meth:`get_times` returns the array of time values (one per
+    - :py:meth:`.get_times` returns the array of time values (one per
       each sample in the TOD)
-    - :py:meth:`get_tod` returns the array of samples
+    - :py:meth:`.get_tod` returns the array of samples
 
-    :param detector str: Name of the detector
+    Args:
+        detector (str): Name of the detector
 
-    :param start_time: Start time of the observation. It can either be
-    a `astropy.time.Time` type or a floating-point number. In the
-    latter case, if `use_mjd` is ``False``, the number must be
-    expressed in seconds; otherwise, it must be a MJD.
+        start_time: Start time of the observation. It can either be a
+            `astropy.time.Time` type or a floating-point number. In
+            the latter case, if `use_mjd` is ``False``, the number
+            must be expressed in seconds; otherwise, it must be a MJD.
 
-    :param sampfreq: The sampling frequency. Regardless of the
-    measurement unit used for `start_time`, this *must* be expressed in Hertz.
+        sampfreq_hz (float): The sampling frequency. Regardless of the
+            measurement unit used for `start_time`, this *must* be
+            expressed in Hertz.
 
-    :param nsamples int: The number of samples in this observation.
+        nsamples (int): The number of samples in this observation.
 
-    :param use_mjd bool: If ``True``, the value of `start_time` is
-    expressed in MJD.
+        use_mjd (bool): If ``True``, the value of `start_time` is
+            expressed in MJD.
 
     """
 
@@ -70,6 +72,10 @@ class Observation:
         ``self.use_mjd`` is true (return MJD) or false (return
         seconds). The number of elements in the vector is equal to
         ``self.nsamples``.
+
+        This can be a costly operation; you should cache this result
+        if you plan to use it in your code, instead of calling this
+        method over and over again.
 
         See also :py:meth:`get_tod`.
 
