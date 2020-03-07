@@ -19,6 +19,21 @@ OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 class Simulation:
     """A container object for running simulations
 
+    Args:
+
+        base_path (str or `pathlib.Path`): the folder that will
+            contain the output. If this folder does not exist and the
+            user has sufficient rights, it will be created.
+
+        name (str): a string identifying the simulation. This will
+            be used in the reports.
+
+        use_mpi (bool): a Boolean flag specifying if the simulation
+            should take advantage of MPI or not.
+
+        description (str): a (possibly long) description of the
+            simulation, to be put in the report saved in `base_path`).
+
     This is the most important class in the Litebird_sim framework. It
     initializes an output directory that will contain all the products
     of a simulation and will handle the generation of reports and
@@ -27,19 +42,6 @@ class Simulation:
     Be sure to call :py:meth:`Simulation.flush` when the simulation is
     completed. This ensures that all the information are saved to disk
     before the completion of your script.
-
-    :param base_path: (either a ``str`` or ``pathlib.Path`` object): the
-      folder that will contain the output. If this folder does not
-      exist and the user has sufficient rights, it will be created.
-
-    :param name: a string identifying the simulation. This will
-      be used in the reports.
-
-    :param use_mpi bool: a Boolean flag specifying if the simulation
-      should take advantage of MPI or not.
-
-    :param description str: a (possibly long) description of the
-      simulation, to be put in the report saved in `base_path`).
 
     You can access the fields `base_path`, `name`, `use_mpi`, and
     `description` in the `Simulation` object::
@@ -82,26 +84,31 @@ class Simulation:
     def write_healpix_map(self, filename: str, pixels, **kwargs,) -> str:
         """Save a Healpix map in the output folder
 
-        This function saves an Healpix map into a FITS files that is
-        written into the output folder for the simulation.
+        Args:
 
-        :param filename: (``str`` or ``pathlib.Path``) name of the
-          file. It can contain subdirectories.
+            filename (``str`` or ``pathlib.Path``): Name of the
+                file. It must be a relative path, but it can include
+                subdirectories.
 
-        :param pixels: array containing the pixels, or list of arrays if
-          you want to save several maps into the same FITS table
-          (e.g., I, Q, U components)
+            pixels: array containing the pixels, or list of arrays if
+                you want to save several maps into the same FITS table
+                (e.g., I, Q, U components)
 
-        The function returns a ``pathlib.Path`` object containing the
-        path of the FITS file that has been saved.
+        Return:
 
-        Here is a simple example::
+            A `pathlib.Path` object containing the full path of the
+            FITS file that has been saved.
+
+        Example::
 
           import numpy as np
 
           sim = Simulation(base_path="/storage/litebird/mysim")
           pixels = np.zeros(12)
           sim.write_healpix_map("zero_map.fits.gz", pixels)
+
+        This method saves an Healpix map into a FITS files that is
+        written into the output folder for the simulation.
 
         """
         filename = self.base_path / Path(filename)
@@ -120,6 +127,21 @@ class Simulation:
     ):
         """Append text and figures to the simulation report
 
+        Args:
+
+            markdown_text (str): text to be appended to the report.
+
+            figures (list of 2-tuples): list of Matplotlib figures to
+                be saved in the report. Each tuple must contain one
+                figure and one filename. The figures will be saved
+                using the specified file name in the output
+                directory. The file name must match the one used as
+                reference in the Markdown text.
+
+            kwargs: any other keyword argument will be used to expand
+                the text `markdown_text` using the `Jinja2 library
+                <https://palletsprojects.com/p/jinja/>`_ library.
+
         A Simulation class can generate reports in Markdown
         format. Use this function to add some text to the report,
         possibly including figures.
@@ -135,21 +157,6 @@ class Simulation:
         You can put LaTeX formulae in the text, using ``$`...`$``
         for inline equations and the `math` tag in fenced text for
         displayed equations.
-
-        Parameters:
-
-        :param markdown_text str: text to be appended to the report.
-
-        :param figures: (list of 2-tuples containing a Matplotlib
-          figure and a ``str``) list of Matplotlib figures to be saved
-          in the report. Each tuple must contain one figure and one
-          filename. The figures will be saved using the specified file
-          name in the output directory. The file name must match the
-          one used as reference in the Markdown text.
-
-        :param kwargs: any other keyword argument will be used to
-          expand the text `markdown_text` using the `Jinja2 library
-          <https://palletsprojects.com/p/jinja/>`_ library.
 
         """
 
