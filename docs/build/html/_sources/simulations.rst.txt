@@ -1,8 +1,7 @@
 Simulations
 ===========
 
-Describe how to use a :class:`litebird_sim.simulations.Simulation`
-object.
+Describe how to use a :class:`.Simulation` object.
 
 
 Generation of reports

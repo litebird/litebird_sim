@@ -7,11 +7,11 @@
     <title>Simulations &#8212; LiteBIRD simulation pipeline 0.1.0 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
-    <script type="text/javascript" src="_static/jquery.js"></script>
-    <script type="text/javascript" src="_static/underscore.js"></script>
-    <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/language_data.js"></script>
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="prev" title="Tutorial" href="tutorial.html" />
@@ -33,8 +33,7 @@
             
   <div class="section" id="simulations">
 <h1>Simulations<a class="headerlink" href="#simulations" title="Permalink to this headline">¶</a></h1>
-<p>Describe how to use a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">litebird_sim.simulations.Simulation</span></code></a>
-object.</p>
+<p>Describe how to use a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object.</p>
 <div class="section" id="generation-of-reports">
 <h2>Generation of reports<a class="headerlink" href="#generation-of-reports" title="Permalink to this headline">¶</a></h2>
 <p>This section should explain how reports can be generated, first from
@@ -98,6 +97,21 @@ formulae, plots, and value substitution:</p>
 <em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">use_mpi=False</em>, <em class="sig-param">description=''</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A container object for running simulations</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>base_path</strong> (str or <cite>pathlib.Path</cite>) – the folder that will
+contain the output. If this folder does not exist and the
+user has sufficient rights, it will be created.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – a string identifying the simulation. This will
+be used in the reports.</p></li>
+<li><p><strong>use_mpi</strong> (<em>bool</em>) – a Boolean flag specifying if the simulation
+should take advantage of MPI or not.</p></li>
+<li><p><strong>description</strong> (<em>str</em>) – a (possibly long) description of the
+simulation, to be put in the report saved in <cite>base_path</cite>).</p></li>
+</ul>
+</dd>
+</dl>
 <p>This is the most important class in the Litebird_sim framework. It
 initializes an output directory that will contain all the products
 of a simulation and will handle the generation of reports and
@@ -105,21 +119,6 @@ writing of output files.</p>
 <p>Be sure to call <a class="reference internal" href="#litebird_sim.simulations.Simulation.flush" title="litebird_sim.simulations.Simulation.flush"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.flush()</span></code></a> when the simulation is
 completed. This ensures that all the information are saved to disk
 before the completion of your script.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>base_path</strong> – (either a <code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">pathlib.Path</span></code> object): the
-folder that will contain the output. If this folder does not
-exist and the user has sufficient rights, it will be created.</p></li>
-<li><p><strong>name</strong> – a string identifying the simulation. This will
-be used in the reports.</p></li>
-<li><p><strong>bool</strong> (<em>use_mpi</em>) – a Boolean flag specifying if the simulation
-should take advantage of MPI or not.</p></li>
-<li><p><strong>str</strong> (<em>description</em>) – a (possibly long) description of the
-simulation, to be put in the report saved in <cite>base_path</cite>).</p></li>
-</ul>
-</dd>
-</dl>
 <p>You can access the fields <cite>base_path</cite>, <cite>name</cite>, <cite>use_mpi</cite>, and
 <cite>description</cite> in the <cite>Simulation</cite> object:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">litebird_sim</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;My simulation&quot;</span><span class="p">)</span>
@@ -139,6 +138,21 @@ of the form <code class="docutils literal notranslate"><span class="pre">(path,<
 <dt id="litebird_sim.simulations.Simulation.append_to_report">
 <code class="sig-name descname">append_to_report</code><span class="sig-paren">(</span><em class="sig-param">markdown_text: str</em>, <em class="sig-param">figures: List[Tuple[Any</em>, <em class="sig-param">str]] = []</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.append_to_report" title="Permalink to this definition">¶</a></dt>
 <dd><p>Append text and figures to the simulation report</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>markdown_text</strong> (<em>str</em>) – text to be appended to the report.</p></li>
+<li><p><strong>figures</strong> (<em>list of 2-tuples</em>) – list of Matplotlib figures to
+be saved in the report. Each tuple must contain one
+figure and one filename. The figures will be saved
+using the specified file name in the output
+directory. The file name must match the one used as
+reference in the Markdown text.</p></li>
+<li><p><strong>kwargs</strong> – any other keyword argument will be used to expand
+the text <cite>markdown_text</cite> using the <a class="reference external" href="https://palletsprojects.com/p/jinja/">Jinja2 library</a> library.</p></li>
+</ul>
+</dd>
+</dl>
 <p>A Simulation class can generate reports in Markdown
 format. Use this function to add some text to the report,
 possibly including figures.</p>
@@ -151,22 +165,6 @@ will be written to disk only when
 <p>You can put LaTeX formulae in the text, using <code class="docutils literal notranslate"><span class="pre">$`...`$</span></code>
 for inline equations and the <cite>math</cite> tag in fenced text for
 displayed equations.</p>
-<p>Parameters:</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>str</strong> (<em>markdown_text</em>) – text to be appended to the report.</p></li>
-<li><p><strong>figures</strong> – (list of 2-tuples containing a Matplotlib
-figure and a <code class="docutils literal notranslate"><span class="pre">str</span></code>) list of Matplotlib figures to be saved
-in the report. Each tuple must contain one figure and one
-filename. The figures will be saved using the specified file
-name in the output directory. The file name must match the
-one used as reference in the Markdown text.</p></li>
-<li><p><strong>kwargs</strong> – any other keyword argument will be used to
-expand the text <cite>markdown_text</cite> using the <a class="reference external" href="https://palletsprojects.com/p/jinja/">Jinja2 library</a> library.</p></li>
-</ul>
-</dd>
-</dl>
 </dd></dl>
 
 <dl class="method">
@@ -181,22 +179,23 @@ will save pending data to the output directory.</p>
 <dt id="litebird_sim.simulations.Simulation.write_healpix_map">
 <code class="sig-name descname">write_healpix_map</code><span class="sig-paren">(</span><em class="sig-param">filename: str</em>, <em class="sig-param">pixels</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span> &#x2192; str<a class="headerlink" href="#litebird_sim.simulations.Simulation.write_healpix_map" title="Permalink to this definition">¶</a></dt>
 <dd><p>Save a Healpix map in the output folder</p>
-<p>This function saves an Healpix map into a FITS files that is
-written into the output folder for the simulation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>filename</strong> – (<code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">pathlib.Path</span></code>) name of the
-file. It can contain subdirectories.</p></li>
+<li><p><strong>filename</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">pathlib.Path</span></code>) – Name of the
+file. It must be a relative path, but it can include
+subdirectories.</p></li>
 <li><p><strong>pixels</strong> – array containing the pixels, or list of arrays if
 you want to save several maps into the same FITS table
 (e.g., I, Q, U components)</p></li>
 </ul>
 </dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A <cite>pathlib.Path</cite> object containing the full path of the
+FITS file that has been saved.</p>
+</dd>
 </dl>
-<p>The function returns a <code class="docutils literal notranslate"><span class="pre">pathlib.Path</span></code> object containing the
-path of the FITS file that has been saved.</p>
-<p>Here is a simple example:</p>
+<p>Example:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
 <span class="n">sim</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span><span class="n">base_path</span><span class="o">=</span><span class="s2">&quot;/storage/litebird/mysim&quot;</span><span class="p">)</span>
@@ -204,6 +203,8 @@ path of the FITS file that has been saved.</p>
 <span class="n">sim</span><span class="o">.</span><span class="n">write_healpix_map</span><span class="p">(</span><span class="s2">&quot;zero_map.fits.gz&quot;</span><span class="p">,</span> <span class="n">pixels</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>This method saves an Healpix map into a FITS files that is
+written into the output folder for the simulation.</p>
 </dd></dl>
 
 </dd></dl>
@@ -255,7 +256,7 @@ path of the FITS file that has been saved.</p>
     </form>
     </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
 
 
 
@@ -272,7 +273,7 @@ path of the FITS file that has been saved.</p>
       &copy;2020, The LiteBIRD Simulation Team.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.3.1</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.4</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
