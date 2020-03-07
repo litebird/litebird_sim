@@ -4,11 +4,9 @@ Observations
 In this section we describe the :class:`.Observation` class, which
 represents a sequence of time-ordered-data (TOD) acquired by a
 detector. An object of type :class:`Observation` is usually used to
-encode the TOD acquired during a short time span, because many codes
-in the `litebird_sim` framework assume that all the samples in a
-:class:`Observation` object have been acquired with the detector being
-in stable conditions (i.e., constant gain, no variations in the
-properties of noise and bandpass, etc.).
+encode the TOD acquired during a time span when the characteristics of
+the instrument can be assumed to be stable (i.e., constant gain, no
+variations in the properties of noise and bandpass, etc.).
 
 A :class:`Observation` object encodes two types of information:
 
