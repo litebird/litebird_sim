@@ -334,7 +334,7 @@ def write_healpix_map_to_hdu(
         "Last pixel # (0 based)",
     )
     tbhdu.header["INDXSCHM"] = (
-        "EXPLICIT",
+        "IMPLICIT",
         "Indexing: IMPLICIT or EXPLICIT",
     )
     tbhdu.header["OBJECT"] = (
