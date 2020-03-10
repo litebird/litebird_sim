@@ -12,6 +12,7 @@ Welcome to litebird_sim's documentation!
 
    tutorial
    simulations
+   observations
 
 Indices and tables
 ==================

@@ -9,6 +9,7 @@ from .healpix import (
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
 )
+from .observations import Observation
 from .simulations import Simulation
 
 __author__ = "The LiteBIRD simulation team"
@@ -21,5 +22,6 @@ __all__ = [
     "get_pixel_format",
     "write_healpix_map_to_hdu",
     "write_healpix_map_to_file",
+    "Observation",
     "Simulation",
 ]

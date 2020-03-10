@@ -15,7 +15,6 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join("..", "..")))
 
-
 # -- Project information -----------------------------------------------------
 
 project = "LiteBIRD simulation pipeline"
@@ -34,6 +33,8 @@ release = "0.1.0"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.napoleon",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
