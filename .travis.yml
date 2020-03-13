@@ -4,16 +4,8 @@ jobs:
       python:   # this works for Linux but is ignored on macOS or Windows
         - "3.6"
         - "3.7"
-      dist: trusty  # to get pip3 ->
-      addons:
-        apt:
-          update: true
-          packages:
-            - python3-pip # <-
       before_install:
-        - easy_install -U pip
-        - pip3 install --upgrade pip
-        - pip3 install poetry
+        - pip install poetry
     - name: "macOS"
       os: osx
       osx_image: xcode11.2  # Python 3.7.4 running on macOS 10.14.4
