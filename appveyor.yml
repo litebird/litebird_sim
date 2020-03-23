@@ -3,17 +3,17 @@ image:
 
 environment:
   matrix:
-    - PYTHON: "C:\Python36-x64"
+    - PYTHON: "C:\\Python36-x64"
       PYTHON_VERSION: "3.6"
       PYTHON_ARCH: "64"
-    - PYTHON: "C:\Python37-x64"
+    - PYTHON: "C:\\Python37-x64"
       PYTHON_VERSION: "3.7"
       PYTHON_ARCH: "64"
 
 install:
-  - cmd: "SET PATH=%PYTHON%;%PATH%"
-  - pip3 install poetry
-  - poetry install --extras=docs
+  - "SET PATH=%PYTHON%;%PATH%"
+  - "pip install poetry"
+  - "poetry install --extras=docs"
 
 test_script:
   - cmd: .\bin\run_tests.bat
