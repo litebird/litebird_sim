@@ -15,7 +15,7 @@ install:
   - "python --version"
   - "pip --version"
   - "pip install poetry"
-  - "poetry debug:info"
+  - "poetry debug"
   - "poetry install --extras=docs"
 
 test_script:
