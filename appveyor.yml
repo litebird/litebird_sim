@@ -1,13 +1,10 @@
 image: 
-  - Ubuntu
-  - Visual Studio 2015
-
-stack:  # Linux only
-  - python 3.7
+  - Visual Studio 2019
 
 environment:
   matrix:
-    - PYTHON: C:\Python37
+    - PYTHON: "C:\Python36-x64"
+    - PYTHON: "C:\Python37-x64"
 
 install:
   - cmd: "SET PATH=%PYTHON%;%PATH%"
@@ -15,5 +12,4 @@ install:
   - poetry install --extras=docs
 
 test_script:
-  - sh: sh ./bin/run_tests.sh
   - cmd: .\bin\run_tests.bat
