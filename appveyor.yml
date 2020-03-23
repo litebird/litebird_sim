@@ -18,5 +18,7 @@ install:
   - "poetry debug"
   - "poetry install --extras=docs"
 
+build: off
+
 test_script:
   - cmd: .\bin\run_tests.bat
