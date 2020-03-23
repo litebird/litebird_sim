@@ -12,10 +12,9 @@ environment:
 
 install:
   - "SET PATH=%PYTHON%;%PATH%"
-  - "echo %PATH"
+  - "echo %PATH%"
   - "python --version"
-  - "pip --version"
-  - "pip install poetry"
+  - ps: "(Invoke-WebRequest -Uri https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -UseBasicParsing).Content | python"
   - "poetry install --extras=docs"
 
 test_script:
