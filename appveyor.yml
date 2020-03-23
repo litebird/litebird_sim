@@ -12,7 +12,7 @@ environment:
 
 install:
   - cmd: "SET PATH=%PYTHON%;%PATH%"
-  - pip install poetry
+  - pip3 install poetry
   - poetry install --extras=docs
 
 test_script:
