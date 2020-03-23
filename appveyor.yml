@@ -23,4 +23,5 @@ build: off
 test_script:
   - "dir ."
   - "dir bin"
-  - "bin\\run_tests.bat"
+  - "type bin\\run_tests.bat"
+  - "%comspec% /k bin\\run_tests.bat"
