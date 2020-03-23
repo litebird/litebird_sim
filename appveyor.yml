@@ -21,4 +21,6 @@ install:
 build: off
 
 test_script:
-  - cmd: .\bin\run_tests.bat
+  - "dir ."
+  - "dir bin"
+  - "bin\\run_tests.bat"
