@@ -12,6 +12,9 @@ environment:
 
 install:
   - "SET PATH=%PYTHON%;%PATH%"
+  - "echo %PATH"
+  - "python --version"
+  - "pip --version"
   - "pip install poetry"
   - "poetry install --extras=docs"
 
