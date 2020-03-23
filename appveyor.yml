@@ -2,10 +2,15 @@ image:
   - Ubuntu
   - Visual Studio 2015
 
-stack: python 3.7
+stack:  # Linux only
+  - python 3.7
+
+environment:
+  matrix:
+    - PYTHON: C:\Python37
 
 install:
-  - cmd: SET PATH=%PYTHON%;%PATH%
+  - cmd: "SET PATH=%PYTHON%;%PATH%"
   - pip install poetry
   - poetry install --extras=docs
 
