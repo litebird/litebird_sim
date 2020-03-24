@@ -22,4 +22,4 @@ build: off
 
 test_script:
   - "poetry run flake8 --max-line-length 88"
-  - "poetry run python3 -m pytest"
+  - "poetry run python -m pytest"
