@@ -12,7 +12,6 @@ environment:
 
 install:
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-  - "SET MAX_LINE_LENGTH=88"
   - "python --version"
   - "pip --version"
   - "pip install poetry"
@@ -22,6 +21,6 @@ install:
 build: off
 
 test_script:
-  - "poetry run black --check --line-length %MAX_LINE_LENGTH% -q ."
-  - "poetry run flake8 --max-line-length %MAX_LINE_LENGTH%"
+  - "poetry run black --check --line-length 88 ."
+  - "poetry run flake8 --max-line-length 88"
   - "poetry run python3 -m pytest"
