@@ -21,6 +21,5 @@ install:
 build: off
 
 test_script:
-  - "poetry run black --check --line-length 88 ."
   - "poetry run flake8 --max-line-length 88"
   - "poetry run python3 -m pytest"
