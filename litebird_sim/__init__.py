@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from .distribute import distribute_evenly, distribute_optimally
+from .detectors import Detector
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -9,9 +11,8 @@ from .healpix import (
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
 )
-from .distribute import distribute_evenly, distribute_optimally
+from .mpi import HAVE_MPI4PY, MPI_RANK, MPI_SIZE, MPI_COMM_WORLD, MPI_CONFIGURATION
 from .observations import Observation
-from .detectors import Detector
 from .simulations import Simulation
 
 __author__ = "The LiteBIRD simulation team"
@@ -28,6 +29,12 @@ __all__ = [
     # distribute.py
     "distribute_evenly",
     "distribute_optimally",
+    # mpi.py
+    "HAVE_MPI4PY",
+    "MPI_RANK",
+    "MPI_SIZE",
+    "MPI_CONFIGURATION",
+    "MPI_COMM_WORLD",
     # observations.py
     "Observation",
     # detectors.py
