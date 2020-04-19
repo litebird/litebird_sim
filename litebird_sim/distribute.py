@@ -22,11 +22,11 @@ def distribute_evenly(num_of_elements, num_of_groups):
 
     .. doctest::
 
-      >>> distribute_evenly(8, 3)
-      [(0, 3), (3, 3), (6, 2)]
+      >>> distribute_evenly(5, 2)
+      [Span(start_idx=0, num_of_elements=3), Span(start_idx=3, num_of_elements=2)]
 
-      >>> distribute_evenly(2, 3)
-      [(0, 1), (1, 1), (2, 0)]
+      >>> distribute_evenly(1, 2)
+      [Span(start_idx=0, num_of_elements=1), Span(start_idx=1, num_of_elements=0)]
 
     Args:
         num_of_elements (int): The number of elements to distribute
@@ -159,7 +159,7 @@ def distribute_optimally(elements, num_of_groups, weight_fn=None):
       >>> distribute_optimally([10, 10, 10, 10], 2)
       [Span(start_idx=0, num_of_elements=2), Span(start_idx=2, num_of_elements=2)]
 
-      >>> distribute_optimally([10, 10, 10, 10], 2)
+      >>> distribute_optimally([10, 10, 10, 20], 2)
       [Span(start_idx=0, num_of_elements=3), Span(start_idx=3, num_of_elements=1)]
 
       >>> distribute_optimally([40, 10, 10, 10], 2)

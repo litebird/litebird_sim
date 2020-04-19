@@ -239,9 +239,7 @@ class Simulation:
         for detidx, cur_det in enumerate(detectors):
             cur_sampfreq_hz = cur_det.sampfreq_hz
             num_of_samples = cur_sampfreq_hz * duration_s
-            samples_per_obs = distribute_evenly(
-                num_of_samples[detidx], num_of_obs_per_detector
-            )
+            samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
             if isinstance(start_time, float):
                 cur_time = start_time
@@ -279,8 +277,12 @@ class Simulation:
             return
 
         cur_rank = self.mpi_rank
-        self.observations = distribute_optimally(
+        span = distribute_optimally(
             elements=observations,
             num_of_groups=self.mpi_size,
-            worker_fn=lambda obs: obs.nsamples,
+            weight_fn=lambda obs: obs.nsamples,
         )[cur_rank]
+
+        self.observations = observations[
+            span.start_idx : (span.start_idx + span.num_of_elements)
+        ]
