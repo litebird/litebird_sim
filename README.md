@@ -14,13 +14,11 @@ Template taken from https://github.com/othneildrew/Best-README-Template
 *** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
-<!--
-Private repositories do not support shields :-(
-
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://litebird.github.io/litebird_sim/build/html/index.html)
+[![Build Status](https://travis-ci.com/litebird/litebird_sim.svg?branch=master)](https://travis-ci.com/litebird/litebird_sim)
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/litebird/litebird-sim?svg=true)](https://ci.appveyor.com/project/litebird/litebird-sim)
 [![Issues][issues-shield]][issues-url]
 [![GPL3 License][license-shield]][license-url]
--->
-
 
 
 <!-- PROJECT LOGO -->

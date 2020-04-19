@@ -1,5 +1,3 @@
-@echo off
-
 set /a MAX_LINE_LENGTH = 88
 
 rem Verify that the code is properly formatted

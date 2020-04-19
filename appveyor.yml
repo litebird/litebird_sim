@@ -1,13 +1,25 @@
 image: 
-  - Ubuntu
-  - Visual Studio 2015
+  - Visual Studio 2019
 
-stack: python 3.7
+environment:
+  matrix:
+    - PYTHON: "C:\\Python36-x64"
+      PYTHON_VERSION: "3.6"
+      PYTHON_ARCH: "64"
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "64"
 
 install:
-  - pip install poetry
-  - poetry install --extras=docs
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - "python --version"
+  - "pip --version"
+  - "pip install poetry"
+  - "poetry debug"
+  - "poetry install --extras=docs"
+
+build: off
 
 test_script:
-  - sh: sh ./bin/run_tests.sh
-  - cmd: .\bin\run_tests.bat
+  - "poetry run flake8 --max-line-length 88"
+  - "poetry run python -m pytest"
