@@ -6,8 +6,13 @@ from typing import List, Tuple, Any
 from pathlib import Path
 from shutil import copyfile, copytree
 
-from . import write_healpix_map_to_file
+from .detectors import Detector
+from .distribute import distribute_evenly, distribute_optimally
+from .healpix import write_healpix_map_to_file
+from .mpi import HAVE_MPI4PY, MPI_RANK, MPI_SIZE
+from .observations import Observation
 
+from astropy.time import Time, TimeDelta
 import markdown
 import jinja2
 
@@ -66,7 +71,16 @@ class Simulation:
     ):
         self.base_path = Path(base_path)
         self.name = name
-        self.use_mpi = use_mpi
+        self.use_mpi = use_mpi and HAVE_MPI4PY
+        if use_mpi:
+            self.mpi_rank = MPI_RANK
+            self.mpi_size = MPI_SIZE
+        else:
+            self.mpi_rank = 0
+            self.mpi_size = 1
+
+        self.observations = []
+
         self.description = description
 
         # Create any parent folder, and don't complain if the folder
@@ -209,3 +223,64 @@ class Simulation:
             self.base_path / "report.html", "w", encoding="utf-8",
         ) as outf:
             outf.write(html_full_report)
+
+    def create_observations(
+        self,
+        detectors: List[Detector],
+        num_of_obs_per_detector: int,
+        start_time,
+        duration_s: float,
+        distribute=True,
+        use_mjd=False,
+    ):
+        "Create a set of Observation objects"
+
+        observations = []
+        for detidx, cur_det in enumerate(detectors):
+            cur_sampfreq_hz = cur_det.sampfreq_hz
+            num_of_samples = cur_sampfreq_hz * duration_s
+            samples_per_obs = distribute_evenly(
+                num_of_samples[detidx], num_of_obs_per_detector
+            )
+
+            if isinstance(start_time, float):
+                cur_time = start_time
+            else:
+                if use_mjd:
+                    cur_time = start_time
+                else:
+                    cur_time = start_time.mjd
+
+            for cur_obs_idx in range(num_of_obs_per_detector):
+                nsamples = samples_per_obs[cur_obs_idx].num_of_elements
+                cur_obs = Observation(
+                    detector=cur_det,
+                    start_time=cur_time,
+                    sampfreq_hz=cur_sampfreq_hz,
+                    nsamples=nsamples,
+                    use_mjd=use_mjd,
+                )
+                observations.append(cur_obs)
+                span_s = cur_sampfreq_hz * nsamples
+
+                if use_mjd:
+                    cur_time = Time(mjd=cur_time) + TimeDelta(seconds=span_s)
+                else:
+                    cur_time += span_s
+
+        if distribute:
+            self.distribute_workload(observations)
+
+        return observations
+
+    def distribute_workload(self, observations: List[Observation]):
+        if self.mpi_size == 1:
+            self.observations = observations
+            return
+
+        cur_rank = self.mpi_rank
+        self.observations = distribute_optimally(
+            elements=observations,
+            num_of_groups=self.mpi_size,
+            worker_fn=lambda obs: obs.nsamples,
+        )[cur_rank]

@@ -54,9 +54,9 @@ class Observation:
                 #    measures time in seconds (alongside with "unix"
                 #    and "gps")
                 #
-                # 2. Of the three choices, "cxcsec" uses a recent date
-                #    as reference (1998-01-01, vs. 1990-01-01 for
-                #    "gps" and 1980-01-06 for "unix").
+                # 2. Of the three choices, "cxcsec" uses the most
+                #    recent date as reference (1998-01-01, vs.
+                #    1990-01-01 for "gps" and 1980-01-06 for "unix").
                 self.start_time = start_time.cxcsec
         else:
             self.start_time = start_time
