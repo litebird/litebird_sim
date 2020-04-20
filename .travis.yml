@@ -1,39 +1,35 @@
 language: python
 
-python:
-  - "3.6"
-  - "3.7"
-
 matrix:
   include:
     - os: "osx"
       osx_image: "xcode10"
       env: "MPI=mpich EXTRAS=--extras=mpi"
       language: "generic"
-      python: 3
+      python: "3.6"
     - os: "osx"
       osx_image: "xcode10"
       env: "MPI=none EXTRAS="
       language: "generic"
-      python: 3
+      python: "3.6"
       
     - os: "linux"
       env: "MPI=openmpi EXTRAS=--extras=mpi"
       language: "generic"
-      python: 3
+      python: "3.6"
     - os: "linux"
       env: "MPI=none EXTRAS="
       language: "generic"
-      python: 3
+      python: "3.6"
 
     - os: "linux"
       env: "MPI=mpich EXTRAS=--extras=mpi"
       language: "generic"
-      python: 3
+      python: "3.6"
     - os: "linux"
       env: "MPI=none EXTRAS="
       language: "generic"
-      python: 3
+      python: "3.6"
   
 cache:
   apt: true
@@ -55,4 +51,10 @@ install:
 
 script:
   - sh ./bin/run_tests.sh
-  - if [[ "MPI" != "none"   ]]; then for proc in 1 2; do mpiexec -n $proc poetry run python ./test/mpi/test_mpi.py; done; fi
+  - |
+    if [[ "MPI" != "none"   ]]; then
+        for proc in 1 2; do
+            echo "Running MPI test ($MPI) with $proc processes"
+            mpiexec -n $proc poetry run python3 ./test/mpi/test_mpi.py
+        done
+    fi
