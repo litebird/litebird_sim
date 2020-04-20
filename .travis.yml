@@ -62,7 +62,7 @@ install:
 script:
   - sh ./bin/run_tests.sh
   - |
-    if [[ "MPI" != "none"   ]]; then
+    if [[ "$MPI" != "none"   ]]; then
         for proc in 1 2; do
             echo "Running MPI test ($MPI) with $proc processes"
             mpiexec -n $proc poetry run python3 ./test/mpi/test_mpi.py
