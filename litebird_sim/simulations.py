@@ -24,21 +24,6 @@ OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 class Simulation:
     """A container object for running simulations
 
-    Args:
-
-        base_path (str or `pathlib.Path`): the folder that will
-            contain the output. If this folder does not exist and the
-            user has sufficient rights, it will be created.
-
-        name (str): a string identifying the simulation. This will
-            be used in the reports.
-
-        use_mpi (bool): a Boolean flag specifying if the simulation
-            should take advantage of MPI or not.
-
-        description (str): a (possibly long) description of the
-            simulation, to be put in the report saved in `base_path`).
-
     This is the most important class in the Litebird_sim framework. It
     initializes an output directory that will contain all the products
     of a simulation and will handle the generation of reports and
@@ -54,6 +39,10 @@ class Simulation:
         sim = litebird_sim.Simulation(name="My simulation")
         print(f"Running {sim.name}, saving results in {sim.base_path}")
 
+    The member variable `observations` is a list of
+    :class:`.Observation` objects, which is initialized by the methods
+    :meth:`.create_observations` (when ``distribute=True``) and
+    :meth:`.distribute_workload`.
 
     This class keeps track of any output file saved in `base_path`
     through the member variable `self.list_of_outputs`. This is a list
@@ -64,6 +53,23 @@ class Simulation:
         for curpath, curdescr in sim.list_of_outputs:
             print(f"{curpath}: {curdescr}")
 
+    Args:
+
+        base_path (str or `pathlib.Path`): the folder that will
+            contain the output. If this folder does not exist and the
+            user has sufficient rights, it will be created.
+
+        name (str): a string identifying the simulation. This will
+            be used in the reports.
+
+        use_mpi (bool): a Boolean flag specifying if the simulation
+            should take advantage of MPI or not. If this flag is set
+            to ``True`` but MPI is not available, a ``RuntimeError``
+            exception will be raised.
+
+        description (str): a (possibly long) description of the
+            simulation, to be put in the report saved in `base_path`).
+
     """
 
     def __init__(
@@ -71,6 +77,10 @@ class Simulation:
     ):
         self.base_path = Path(base_path)
         self.name = name
+
+        if use_mpi and not HAVE_MPI4PY:
+            raise RuntimeError("use_mpi=True, but MPI is not available")
+
         self.use_mpi = use_mpi and HAVE_MPI4PY
         if use_mpi:
             self.mpi_rank = MPI_RANK
