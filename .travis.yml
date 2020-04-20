@@ -4,42 +4,15 @@ python:
   - 3.6
   - 3.7
 
+os:
+  - linux
+  - osx
+  
 env:
   matrix:
-    - MPI=none
-    - MPI=mpich
-    - MPI=openmpi
-
-matrix:
-  include:
-    - os: "osx"
-      osx_image: "xcode10"
-      env: "MPI=mpich EXTRAS=--extras=mpi"
-      language: "generic"
-      python: "3.6"
-    - os: "osx"
-      osx_image: "xcode10"
-      env: "MPI=none EXTRAS="
-      language: "generic"
-      python: "3.6"
-      
-    - os: "linux"
-      env: "MPI=openmpi EXTRAS=--extras=mpi"
-      language: "generic"
-      python: "3.6"
-    - os: "linux"
-      env: "MPI=none EXTRAS="
-      language: "generic"
-      python: "3.6"
-
-    - os: "linux"
-      env: "MPI=mpich EXTRAS=--extras=mpi"
-      language: "generic"
-      python: "3.6"
-    - os: "linux"
-      env: "MPI=none EXTRAS="
-      language: "generic"
-      python: "3.6"
+    - MPI=none     EXTRAS=
+    - MPI=mpich    EXTRAS=--extras=mpi
+    - MPI=openmpi  EXTRAS=--extras=mpi
   
 cache:
   apt: true
