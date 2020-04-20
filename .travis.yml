@@ -1,5 +1,15 @@
 language: python
 
+python:
+  - 3.6
+  - 3.7
+
+env:
+  matrix:
+    - MPI=none
+    - MPI=mpich
+    - MPI=openmpi
+
 matrix:
   include:
     - os: "osx"
@@ -44,7 +54,7 @@ before_install:
   - ./bin/install-mpi.sh $MPI
   - if [[ "$MPI" == "mpich"   ]]; then mpichversion; fi
   - if [[ "$MPI" == "openmpi" ]]; then ompi_info;    fi
-  - pip install poetry
+  - pip3 install poetry
 
 install:
   - poetry install --extras=docs $EXTRAS
