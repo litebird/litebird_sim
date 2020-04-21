@@ -101,18 +101,8 @@ def _num_of_workers(arr, n, maxLen, weight_fn):
 
 
 def _find_max_and_sum(arr, weight_fn):
-    max_value = None
-    sum_value = 0
-    for cur_element in arr:
-        cur_weight = weight_fn(cur_element)
-        if not max_value:
-            max_value = cur_weight
-        elif max_value < cur_weight:
-            max_value = cur_weight
-
-        sum_value += cur_weight
-
-    return (max_value, sum_value)
+    weights = list(map(weight_fn, arr))
+    return (max(weights), sum(weights))
 
 
 def _partition(arr, n, k, weight_fn):
