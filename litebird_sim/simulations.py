@@ -9,7 +9,7 @@ from shutil import copyfile, copytree
 from .detectors import Detector
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
-from .mpi import HAVE_MPI4PY, MPI_RANK, MPI_SIZE
+from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 
 from astropy.time import Time, TimeDelta
@@ -78,16 +78,11 @@ class Simulation:
         self.base_path = Path(base_path)
         self.name = name
 
-        if use_mpi and not HAVE_MPI4PY:
+        if use_mpi and not MPI_COMM_WORLD.have_mpi:
             raise RuntimeError("use_mpi=True, but MPI is not available")
 
-        self.use_mpi = use_mpi and HAVE_MPI4PY
-        if use_mpi:
-            self.mpi_rank = MPI_RANK
-            self.mpi_size = MPI_SIZE
-        else:
-            self.mpi_rank = 0
-            self.mpi_size = 1
+        self.use_mpi = use_mpi and MPI_COMM_WORLD.have_mpi
+        self.mpi_comm = MPI_COMM_WORLD
 
         self.observations = []
 
@@ -282,14 +277,14 @@ class Simulation:
         return observations
 
     def distribute_workload(self, observations: List[Observation]):
-        if self.mpi_size == 1:
+        if self.mpi_comm.size == 1:
             self.observations = observations
             return
 
-        cur_rank = self.mpi_rank
+        cur_rank = self.mpi_comm.rank
         span = distribute_optimally(
             elements=observations,
-            num_of_groups=self.mpi_size,
+            num_of_groups=self.mpi_comm.size,
             weight_fn=lambda obs: obs.nsamples,
         )[cur_rank]
 

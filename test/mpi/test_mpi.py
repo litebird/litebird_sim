@@ -4,14 +4,14 @@ import litebird_sim as lbs
 
 
 def test_distribution():
-    assert isinstance(lbs.HAVE_MPI4PY, bool)
+    comm_world = lbs.MPI_COMM_WORLD
 
-    if lbs.MPI_RANK == 0:
-        print(f"MPI_CONFIGURATION = {lbs.MPI_CONFIGURATION}")
+    if comm_world.rank == 0:
+        print(f"MPI configuration: {comm_world.configuration}")
 
-    sim = lbs.Simulation(use_mpi=lbs.HAVE_MPI4PY)
+    sim = lbs.Simulation(use_mpi=comm_world.have_mpi)
     det1 = lbs.Detector(name="pol01", beam_z=[0, 0, 1], sampfreq_hz=5, simulation=sim)
-    det2 = lbs.Detector(name="pol01", beam_z=[0, 0, 1], sampfreq_hz=50, simulation=sim)
+    det2 = lbs.Detector(name="pol02", beam_z=[0, 0, 1], sampfreq_hz=50, simulation=sim)
     sim.create_observations(
         [det1, det2],
         num_of_obs_per_detector=10,
@@ -23,8 +23,8 @@ def test_distribution():
         sim.observations
     ), "No observations have been defined for process {lbs.MPI_RANK + 1}/{lbs.MPI_SIZE}"
 
-    if lbs.MPI_SIZE > 1:
-        allobs = lbs.MPI_COMM_WORLD.allreduce(sim.observations)
+    if comm_world.size > 1:
+        allobs = comm_world.allreduce([x.detector.name for x in sim.observations])
     else:
         allobs = sim.observations
 

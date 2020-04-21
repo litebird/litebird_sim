@@ -11,7 +11,7 @@ from .healpix import (
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
 )
-from .mpi import HAVE_MPI4PY, MPI_RANK, MPI_SIZE, MPI_COMM_WORLD, MPI_CONFIGURATION
+from .mpi import MpiWrapper, MPI_COMM_WORLD
 from .observations import Observation
 from .simulations import Simulation
 
@@ -30,10 +30,7 @@ __all__ = [
     "distribute_evenly",
     "distribute_optimally",
     # mpi.py
-    "HAVE_MPI4PY",
-    "MPI_RANK",
-    "MPI_SIZE",
-    "MPI_CONFIGURATION",
+    "MpiWrapper",
     "MPI_COMM_WORLD",
     # observations.py
     "Observation",
