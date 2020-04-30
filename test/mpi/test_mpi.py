@@ -7,9 +7,9 @@ def test_distribution():
     comm_world = lbs.MPI_COMM_WORLD
 
     if comm_world.rank == 0:
-        print(f"MPI configuration: {comm_world.configuration}")
+        print(f"MPI configuration: {lbs.MPI_CONFIGURATION}")
 
-    sim = lbs.Simulation(use_mpi=comm_world.have_mpi)
+    sim = lbs.Simulation(mpi_comm=comm_world)
     det1 = lbs.Detector(name="pol01", beam_z=[0, 0, 1], sampfreq_hz=5, simulation=sim)
     det2 = lbs.Detector(name="pol02", beam_z=[0, 0, 1], sampfreq_hz=50, simulation=sim)
     sim.create_observations(

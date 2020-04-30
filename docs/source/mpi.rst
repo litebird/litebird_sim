@@ -7,36 +7,43 @@ The LiteBIRD Simulation Framework lists mpi4py as an *optional*
 dependency. This means that simulation codes should be able to cope
 with the lack of MPI.
 
-The framework provides a global variable, ``MPI_COMM_WORLD``, which
-behaves like ``mpi4py.MPI.COMM_WORLD`` but is defined even if MPI is
-not present. It has the following features:
+The framework can be forced to use MPI or not using the variable
+``LITEBIRD_SIM_MPI``:
 
-- The member variables ``rank`` and ``size`` are always defined, even
-  in absence of ``mpi4py`` (in this case they are set to 0 and 1,
-  respectively);
-- A member variable ``have_mpi`` is set to ``True`` if ``mpi4py`` was
-  imported;
-- Importing ``mpi4py`` can be controlled through the environment
-  variable ``LITEBIRD_SIM_MPI``.
+- Set the variable to 1 or an empty value to *force* importing `mpi4py`;
+- Set the variable to 0 to avoid importing `mpi4py`;
+- If the variable is not set, the code will try to import `mpi4py`,
+  but in case of error it will not complain and will silently shift to
+  serial execution.
 
-Thus, the following code will always work, regardless of the fact that
-``mpi4py`` was found and imported or not::
+The framework provides a global variable, :data:`.MPI_COMM_WORLD`,
+which is the same as ``mpi4py.MPI.COMM_WORLD`` if MPI is being used.
+Otherwise, it contains only the following members:
+
+- `rank` (set to ``0``);
+- `size` (set to ``1``).
+
+Thus, the following code works regardless whether MPI is present or
+not::
 
   import litebird_sim as lbs
 
   if lbs.MPI_COMM_WORLD.rank == 0:
       print("Hello, world!")
 
-However, you can call MPI functions only if
-``MPI.COMM_WORLD.have_mpi`` is ``True``:
+However, you can use :data:`.MPI_COMM_WORLD` to call MPI functions
+only if MPI was actually enabled. You can check this using the Boolean
+variable :data:`.MPI_ENABLED`::
 
   import litebird_sim as lbs
 
   comm = lbs.MPI_COMM_WORLD
-  if lbs.MPI_COMM_WORLD.have_mpi:
-      # The MPI call to "barrier" is broadcasted to mpi4py
+  if lbs.MPI_ENABLED:
       comm.barrier()
 
+
+To ensure that your code uses MPI in the proper way, you should always
+use ``.MPI_COMM_WORLD`` instead of importing ``mpi4py`` directly.
 
 
 Enabling/disabling MPI

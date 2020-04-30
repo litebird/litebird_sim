@@ -9,7 +9,6 @@ from shutil import copyfile, copytree
 from .detectors import Detector
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
-from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 
 from astropy.time import Time, TimeDelta
@@ -33,7 +32,7 @@ class Simulation:
     completed. This ensures that all the information are saved to disk
     before the completion of your script.
 
-    You can access the fields `base_path`, `name`, `use_mpi`, and
+    You can access the fields `base_path`, `name`, `mpi_comm`, and
     `description` in the `Simulation` object::
 
         sim = litebird_sim.Simulation(name="My simulation")
@@ -62,10 +61,8 @@ class Simulation:
         name (str): a string identifying the simulation. This will
             be used in the reports.
 
-        use_mpi (bool): a Boolean flag specifying if the simulation
-            should take advantage of MPI or not. If this flag is set
-            to ``True`` but MPI is not available, a ``RuntimeError``
-            exception will be raised.
+        mpi_comm: either `None` (do not use MPI) or a MPI communicator
+            object, like `mpi4py.MPI.COMM_WORLD`.
 
         description (str): a (possibly long) description of the
             simulation, to be put in the report saved in `base_path`).
@@ -73,16 +70,12 @@ class Simulation:
     """
 
     def __init__(
-        self, base_path=Path(), name=None, use_mpi=False, description="",
+        self, base_path=Path(), name=None, mpi_comm=None, description="",
     ):
         self.base_path = Path(base_path)
         self.name = name
 
-        if use_mpi and not MPI_COMM_WORLD.have_mpi:
-            raise RuntimeError("use_mpi=True, but MPI is not available")
-
-        self.use_mpi = use_mpi and MPI_COMM_WORLD.have_mpi
-        self.mpi_comm = MPI_COMM_WORLD
+        self.mpi_comm = mpi_comm
 
         self.observations = []
 

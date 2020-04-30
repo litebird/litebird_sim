@@ -3,90 +3,60 @@
 import os
 
 
-class MpiWrapper:
-    """Wrap optional MPI functionalities into a class.
+def _check_if_enable_mpi():
+    for keyword in ["LITEBIRD_SIM_MPI", "ENABLE_MPI"]:
+        if keyword not in os.environ:
+            continue
 
-    This class is used to create the global variable
-    :data:`MPI_COMM_WORLD`, which should be used whenever the code
-    provides optional support for MPI.
+        value = os.environ[keyword]
+        if value.lower() in ["1", "yes", "true", "on", ""]:
+            return True
+        if value.lower() in ["0", "no", "false", "off"]:
+            return False
 
-    The class behaves like ``mpi4py.MPI``, if ``mpi4py`` can be
-    imported, wrapping all the usual functions (``sendv``, ``recv``,
-    ``gather``, ``reduce``, etc.). It provides a few additional
-    members:
+    return None
 
-    - ``configuration`` (dict): the result of ``mpi4py.get_config``
-    - ``have_mpi`` (bool): ``True`` if ``mpi4py`` is being used,
-    - ``False`` otherwise.
 
-    If no MPI is available, the class defines the member variables
-    ``rank`` to 0 and ``size`` to 1. Using methods from
-    ``mpi4py.MPI.COMM_WORLD`` will result in a error.
+class _SerialMpiCommunicator:
+    rank = 0
+    size = 1
 
-    The behavior of this class is affected by the environment
-    variables ``LITEBIRD_SIM_MPI`` and ``ENABLE_MPI``, which are
-    checked in this order: if they are set to a null value or a true
-    Boolean string (either ``1``, ``yes``, ``true``, or ``on``,
-    case-insensitive), then the presence of ``mpi4py`` is forced and
-    an exception is thrown if ``mpi4py`` cannot be imported. If they
-    are set to a false Boolean string, then ``mpi4py`` is not
-    imported. If no environment variable is found, the code tries to
-    import ``mpi4py`` but does not complain if it fails to do so.
 
-    """
+#: Global variable equal either to `mpi4py.MPI.COMM_WORLD` or a object
+#: that defines the member variables `rank = 0` and `size = 1`.
+MPI_COMM_WORLD = _SerialMpiCommunicator()
 
-    def __init__(self):
-        self.have_mpi = False
-        self.rank = 0
-        self.size = 1
-        self.configuration = {}
-        self.comm_world = None
+#: `True` if MPI should be used by the application. The value of this
+#: variable is set according to the following rules:
+#:
+#:
+#: - If the environment variable :data:`.LITEBIRD_SIM_MPI` is set to
+#:   `1`, use MPI and fail if `mpi4py` cannot be imported;
+#:
+#: - If the environment variable :data:`.LITEBIRD_SIM_MPI` is set to
+#:   `0`, avoid using MPI even if `mpi4py` is present;
+#:
+#: - If the environment variable :data:`.LITEBIRD_SIM_MPI` is *not* set,
+#:   try to use MPI and gracefully revert to a serial mode of execution
+#:   if `mpi4py` cannot be imported.
+MPI_ENABLED = False
 
-        env_enable = self._check_if_enable_mpi()
-        if env_enable in (None, True):
-            try:
-                import mpi4py
-                from mpi4py import MPI
+#: If :data:`.MPI_ENABLED` is `True`, this is a dictionary containing
+#: information about the MPI configuration. Otherwise, it is an empty
+#: dictionary
+MPI_CONFIGURATION = {}
 
-                self.have_mpi = True
-                self.rank = MPI.COMM_WORLD.rank
-                self.size = MPI.COMM_WORLD.size
-                self.configuration = mpi4py.get_config()
-                self.comm_world = MPI.COMM_WORLD
-            except ModuleNotFoundError:
-                if env_enable:
-                    raise  # Rethrow exception
+_enable_mpi = _check_if_enable_mpi()
+if _enable_mpi in [True, None]:
+    try:
+        import mpi4py
+        from mpi4py import MPI
 
-    @staticmethod
-    def _check_if_enable_mpi():
-        for keyword in ["LITEBIRD_SIM_MPI", "ENABLE_MPI"]:
-            if keyword not in os.environ:
-                continue
-
-            value = os.environ[keyword]
-            if value.lower() in ["1", "yes", "true", "on", ""]:
-                return True
-            if value.lower() in ["0", "no", "false", "off"]:
-                return False
-
-        return None
-
-    def __getattr__(self, attr):
-        # Forward any call to self.comm_world, which is equal to
-        # MPI.COMM_WORLD; in this way, MpiWrapper can respond to any
-        # method call that is available by MPI.COMM_WORLD (e.g.,
-        # `barrier`, `allreduce`, etc.)
-        if attr in dir(self.comm_world):
-            return getattr(self.comm_world, attr)
+        MPI_COMM_WORLD = MPI.COMM_WORLD
+        MPI_ENABLED = True
+        MPI_CONFIGURATION = mpi4py.get_config()
+    except ImportError:
+        if _enable_mpi:
+            raise  # If MPI was explicitly requested, re-raise the exception
         else:
-            raise AttributeError(
-                (
-                    "Neither 'MpiWrapper' nor 'MPI.COMM_WORLD' "
-                    + "have a member named '{}'"
-                ).format(attr)
-            )
-
-
-#: Global variable of type :class:`MpiWrapper`. Use this whenever you
-#: might want to use MPI
-MPI_COMM_WORLD = MpiWrapper()
+            pass  # Ignore the error
