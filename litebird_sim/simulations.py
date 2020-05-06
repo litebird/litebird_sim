@@ -6,8 +6,12 @@ from typing import List, Tuple, Any
 from pathlib import Path
 from shutil import copyfile, copytree
 
-from . import write_healpix_map_to_file
+from .detectors import Detector
+from .distribute import distribute_evenly, distribute_optimally
+from .healpix import write_healpix_map_to_file
+from .observations import Observation
 
+from astropy.time import Time, TimeDelta
 import markdown
 import jinja2
 
@@ -19,21 +23,6 @@ OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 class Simulation:
     """A container object for running simulations
 
-    Args:
-
-        base_path (str or `pathlib.Path`): the folder that will
-            contain the output. If this folder does not exist and the
-            user has sufficient rights, it will be created.
-
-        name (str): a string identifying the simulation. This will
-            be used in the reports.
-
-        use_mpi (bool): a Boolean flag specifying if the simulation
-            should take advantage of MPI or not.
-
-        description (str): a (possibly long) description of the
-            simulation, to be put in the report saved in `base_path`).
-
     This is the most important class in the Litebird_sim framework. It
     initializes an output directory that will contain all the products
     of a simulation and will handle the generation of reports and
@@ -43,12 +32,16 @@ class Simulation:
     completed. This ensures that all the information are saved to disk
     before the completion of your script.
 
-    You can access the fields `base_path`, `name`, `use_mpi`, and
+    You can access the fields `base_path`, `name`, `mpi_comm`, and
     `description` in the `Simulation` object::
 
         sim = litebird_sim.Simulation(name="My simulation")
         print(f"Running {sim.name}, saving results in {sim.base_path}")
 
+    The member variable `observations` is a list of
+    :class:`.Observation` objects, which is initialized by the methods
+    :meth:`.create_observations` (when ``distribute=True``) and
+    :meth:`.distribute_workload`.
 
     This class keeps track of any output file saved in `base_path`
     through the member variable `self.list_of_outputs`. This is a list
@@ -59,14 +52,33 @@ class Simulation:
         for curpath, curdescr in sim.list_of_outputs:
             print(f"{curpath}: {curdescr}")
 
+    Args:
+
+        base_path (str or `pathlib.Path`): the folder that will
+            contain the output. If this folder does not exist and the
+            user has sufficient rights, it will be created.
+
+        name (str): a string identifying the simulation. This will
+            be used in the reports.
+
+        mpi_comm: either `None` (do not use MPI) or a MPI communicator
+            object, like `mpi4py.MPI.COMM_WORLD`.
+
+        description (str): a (possibly long) description of the
+            simulation, to be put in the report saved in `base_path`).
+
     """
 
     def __init__(
-        self, base_path=Path(), name=None, use_mpi=False, description="",
+        self, base_path=Path(), name=None, mpi_comm=None, description="",
     ):
         self.base_path = Path(base_path)
         self.name = name
-        self.use_mpi = use_mpi
+
+        self.mpi_comm = mpi_comm
+
+        self.observations = []
+
         self.description = description
 
         # Create any parent folder, and don't complain if the folder
@@ -209,3 +221,66 @@ class Simulation:
             self.base_path / "report.html", "w", encoding="utf-8",
         ) as outf:
             outf.write(html_full_report)
+
+    def create_observations(
+        self,
+        detectors: List[Detector],
+        num_of_obs_per_detector: int,
+        start_time,
+        duration_s: float,
+        distribute=True,
+        use_mjd=False,
+    ):
+        "Create a set of Observation objects"
+
+        observations = []
+        for detidx, cur_det in enumerate(detectors):
+            cur_sampfreq_hz = cur_det.sampfreq_hz
+            num_of_samples = cur_sampfreq_hz * duration_s
+            samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
+
+            if isinstance(start_time, float):
+                cur_time = start_time
+            else:
+                if use_mjd:
+                    cur_time = start_time
+                else:
+                    cur_time = start_time.mjd
+
+            for cur_obs_idx in range(num_of_obs_per_detector):
+                nsamples = samples_per_obs[cur_obs_idx].num_of_elements
+                cur_obs = Observation(
+                    detector=cur_det,
+                    start_time=cur_time,
+                    sampfreq_hz=cur_sampfreq_hz,
+                    nsamples=nsamples,
+                    use_mjd=use_mjd,
+                )
+                observations.append(cur_obs)
+                span_s = cur_sampfreq_hz * nsamples
+
+                if use_mjd:
+                    cur_time = Time(mjd=cur_time) + TimeDelta(seconds=span_s)
+                else:
+                    cur_time += span_s
+
+        if distribute:
+            self.distribute_workload(observations)
+
+        return observations
+
+    def distribute_workload(self, observations: List[Observation]):
+        if self.mpi_comm.size == 1:
+            self.observations = observations
+            return
+
+        cur_rank = self.mpi_comm.rank
+        span = distribute_optimally(
+            elements=observations,
+            num_of_groups=self.mpi_comm.size,
+            weight_fn=lambda obs: obs.nsamples,
+        )[cur_rank]
+
+        self.observations = observations[
+            span.start_idx : (span.start_idx + span.num_of_elements)
+        ]

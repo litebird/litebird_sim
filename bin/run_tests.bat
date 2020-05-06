@@ -7,4 +7,4 @@ rem Check for common errors
 poetry run flake8 --max-line-length %MAX_LINE_LENGTH%
 
 rem Run the test suite
-poetry run python3 -m pytest
+poetry run python3 -m pytest --doctest-modules -vv

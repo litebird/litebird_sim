@@ -99,16 +99,16 @@ def map_type(pixels):
     if npix is not None:
         for p in pixels[1:]:
             if len(p) != npix:
-                raise TypeError("input maps have different npix")
+                return -1
         if is_npix_ok(len(pixels[0])):
             return len(pixels)
         else:
-            raise TypeError("bad number of pixels")
+            return -1
     else:
         if is_npix_ok(len(pixels)):
             return 0
         else:
-            raise TypeError("bad number of pixels")
+            return -1
 
 
 def get_pixel_format(t):
@@ -127,8 +127,9 @@ def get_pixel_format(t):
 
     .. doctest::
 
+        >>> import numpy
         >>> get_pixel_format(numpy.uint8)
-        "B"
+        'B'
 
     """
     conv = {
@@ -241,18 +242,19 @@ def write_healpix_map_to_hdu(
     or ``(NAME, VALUE, COMMENT)``. These pairs are used to save
     additional metadata in the header of the FITS HDU.
 
-    .. doctest::
+    Here is an example::
 
-        >>> hdu = write_healpix_map_to_hdu(
-               [
-                   np.zeros(12),   # I map
-                   np.zeros(12),   # Q map
-                   np.zeros(12),   # U map
-               ],
-               column_names=["I", "Q", "U"],
-               column_units=["K", "mK", "mK"],
-               dtype=[np.float64, np.float32, np.float32],
-               name="MYMAP")
+        import numpy
+        hdu = write_healpix_map_to_hdu(
+           [
+               numpy.zeros(12),   # I map
+               numpy.zeros(12),   # Q map
+               numpy.zeros(12),   # U map
+           ],
+           column_names=["I", "Q", "U"],
+           column_units=["K", "mK", "mK"],
+           dtype=[np.float64, np.float32, np.float32],
+           name="MYMAP")
     """
 
     if not hasattr(pixels, "__len__"):
@@ -266,7 +268,9 @@ def write_healpix_map_to_hdu(
         except AttributeError:
             pass
 
-    if map_type(pixels) == 0:  # a single map is converted to a list
+    this_map_type = map_type(pixels)
+    assert this_map_type != -1, "Invalid map"
+    if this_map_type == 0:  # a single map is converted to a list
         pixels = [pixels]
 
     # check the dtype and convert it
@@ -370,17 +374,18 @@ def write_healpix_map_to_file(
 
     .. doctest::
 
-        >>> write_healpix_map_to_file(
-               filename="out.fits.gz",
-               pixels=[
-                   np.zeros(12),   # I map
-                   np.zeros(12),   # Q map
-                   np.zeros(12),   # U map
-               ],
-               column_names=["I", "Q", "U"],
-               column_units=["K", "mK", "mK"],
-               dtype=[np.float64, np.float32, np.float32],
-               name="MYMAP")
+        import numpy
+        write_healpix_map_to_file(
+           filename="out.fits.gz",
+           pixels=[
+               numpy.zeros(12),   # I map
+               numpy.zeros(12),   # Q map
+               numpy.zeros(12),   # U map
+           ],
+           column_names=["I", "Q", "U"],
+           column_units=["K", "mK", "mK"],
+           dtype=[np.float64, np.float32, np.float32],
+           name="MYMAP")
     """
     hdu = write_healpix_map_to_hdu(
         pixels=pixels,
