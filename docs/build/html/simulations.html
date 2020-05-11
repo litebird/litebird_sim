@@ -14,6 +14,7 @@
     <script src="_static/language_data.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Observations" href="observations.html" />
     <link rel="prev" title="Tutorial" href="tutorial.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -33,7 +34,70 @@
             
   <div class="section" id="simulations">
 <h1>Simulations<a class="headerlink" href="#simulations" title="Permalink to this headline">¶</a></h1>
-<p>Describe how to use a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object.</p>
+<p>The LiteBIRD Simulation Framework is built on the <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a>
+class, which should be instantiated in any pipeline built using this
+framework. The class acts as a container for the many analysis modules
+available to the user, and it offers the following features:</p>
+<ol class="arabic simple">
+<li><p>Provenance model;</p></li>
+<li><p>Interface with the instrument database;</p></li>
+<li><p>System abstractions;</p></li>
+<li><p>Generation of reports.</p></li>
+</ol>
+<div class="section" id="provenance-model">
+<h2>Provenance model<a class="headerlink" href="#provenance-model" title="Permalink to this headline">¶</a></h2>
+<p>A «provenance model» is, generally speaking, a way to track the
+history and origin of a data set by recording the following
+information:</p>
+<ol class="arabic simple">
+<li><p>Who or what created the dataset?</p></li>
+<li><p>Which algorithm or instrumentation was used to produce it?</p></li>
+<li><p>Which steps were undertaken to process the raw data?</p></li>
+<li><p>How can one get access to the raw samples used to produce the
+dataset?</p></li>
+</ol>
+<p>The LiteBIRD Simulation Framework tracks these information using
+parameter files (in TOML format) and generating reports at the end of
+a simulation.</p>
+</div>
+<div class="section" id="interface-with-the-instrument-database">
+<h2>Interface with the instrument database<a class="headerlink" href="#interface-with-the-instrument-database" title="Permalink to this headline">¶</a></h2>
+<p>To simulation LiteBIRD’s data acquisition, the simulation code must be
+aware of the characteristics of the instrument. These are specified in
+the LiteBIRD Instrument Model (IMO) database, which can be accessed by
+people with sufficient rights. This Simulation Framework has the
+ability to access the database and take the input parameters necessary
+for its analysis modules to produce the expected output.</p>
+</div>
+<div class="section" id="system-abstractions">
+<h2>System abstractions<a class="headerlink" href="#system-abstractions" title="Permalink to this headline">¶</a></h2>
+<p>In some cases, simulations must be ran on HPC computers, distributing
+the job on many processing units; in other cases, a simple laptop
+might be enough. The LiteBIRD Simulation Framework uses MPI to
+parallelize its codes, which is however an optional dependency: the
+code can be ran serially.</p>
+<p>When creating a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object, the user can tell the
+framework to use or not MPI using the flag <cite>use_mpi</cite>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="c1"># This simulation must be ran using MPI</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">use_mpi</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The framework sets a number of variables related to MPI; these
+variables are <em>always</em> defined, even if MPI is not available, and they
+can be used to make the code work in different situations. If your
+code must be able to run both with and without MPI, you should
+initialize a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object using the variable
+<code class="xref py py-class docutils literal notranslate"><span class="pre">HAVE_MPI4PY</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="c1"># This simulation can take advantage of MPI, if present</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">use_mpi</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">HAVE_MPI4PY</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See the page <a class="reference internal" href="mpi.html#using-mpi"><span class="std std-ref">Using MPI</span></a> for more information.</p>
+</div>
 <div class="section" id="generation-of-reports">
 <h2>Generation of reports<a class="headerlink" href="#generation-of-reports" title="Permalink to this headline">¶</a></h2>
 <p>This section should explain how reports can be generated, first from
@@ -94,24 +158,9 @@ formulae, plots, and value substitution:</p>
 
 <dl class="class">
 <dt id="litebird_sim.simulations.Simulation">
-<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">use_mpi=False</em>, <em class="sig-param">description=''</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">mpi_comm=None</em>, <em class="sig-param">description=''</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A container object for running simulations</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>base_path</strong> (str or <cite>pathlib.Path</cite>) – the folder that will
-contain the output. If this folder does not exist and the
-user has sufficient rights, it will be created.</p></li>
-<li><p><strong>name</strong> (<em>str</em>) – a string identifying the simulation. This will
-be used in the reports.</p></li>
-<li><p><strong>use_mpi</strong> (<em>bool</em>) – a Boolean flag specifying if the simulation
-should take advantage of MPI or not.</p></li>
-<li><p><strong>description</strong> (<em>str</em>) – a (possibly long) description of the
-simulation, to be put in the report saved in <cite>base_path</cite>).</p></li>
-</ul>
-</dd>
-</dl>
 <p>This is the most important class in the Litebird_sim framework. It
 initializes an output directory that will contain all the products
 of a simulation and will handle the generation of reports and
@@ -119,12 +168,16 @@ writing of output files.</p>
 <p>Be sure to call <a class="reference internal" href="#litebird_sim.simulations.Simulation.flush" title="litebird_sim.simulations.Simulation.flush"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.flush()</span></code></a> when the simulation is
 completed. This ensures that all the information are saved to disk
 before the completion of your script.</p>
-<p>You can access the fields <cite>base_path</cite>, <cite>name</cite>, <cite>use_mpi</cite>, and
+<p>You can access the fields <cite>base_path</cite>, <cite>name</cite>, <cite>mpi_comm</cite>, and
 <cite>description</cite> in the <cite>Simulation</cite> object:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">litebird_sim</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;My simulation&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running </span><span class="si">{sim.name}</span><span class="s2">, saving results in </span><span class="si">{sim.base_path}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>The member variable <cite>observations</cite> is a list of
+<a class="reference internal" href="observations.html#litebird_sim.observations.Observation" title="litebird_sim.observations.Observation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Observation</span></code></a> objects, which is initialized by the methods
+<a class="reference internal" href="#litebird_sim.simulations.Simulation.create_observations" title="litebird_sim.simulations.Simulation.create_observations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create_observations()</span></code></a> (when <code class="docutils literal notranslate"><span class="pre">distribute=True</span></code>) and
+<a class="reference internal" href="#litebird_sim.simulations.Simulation.distribute_workload" title="litebird_sim.simulations.Simulation.distribute_workload"><code class="xref py py-meth docutils literal notranslate"><span class="pre">distribute_workload()</span></code></a>.</p>
 <p>This class keeps track of any output file saved in <cite>base_path</cite>
 through the member variable <cite>self.list_of_outputs</cite>. This is a list
 of objects of type <a class="reference internal" href="#litebird_sim.simulations.OutputFileRecord" title="litebird_sim.simulations.OutputFileRecord"><code class="xref py py-meth docutils literal notranslate"><span class="pre">OutputFileRecord()</span></code></a>, which are 2-tuples
@@ -134,6 +187,21 @@ of the form <code class="docutils literal notranslate"><span class="pre">(path,<
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{curpath}</span><span class="s2">: </span><span class="si">{curdescr}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>base_path</strong> (str or <cite>pathlib.Path</cite>) – the folder that will
+contain the output. If this folder does not exist and the
+user has sufficient rights, it will be created.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – a string identifying the simulation. This will
+be used in the reports.</p></li>
+<li><p><strong>mpi_comm</strong> – either <cite>None</cite> (do not use MPI) or a MPI communicator
+object, like <cite>mpi4py.MPI.COMM_WORLD</cite>.</p></li>
+<li><p><strong>description</strong> (<em>str</em>) – a (possibly long) description of the
+simulation, to be put in the report saved in <cite>base_path</cite>).</p></li>
+</ul>
+</dd>
+</dl>
 <dl class="method">
 <dt id="litebird_sim.simulations.Simulation.append_to_report">
 <code class="sig-name descname">append_to_report</code><span class="sig-paren">(</span><em class="sig-param">markdown_text: str</em>, <em class="sig-param">figures: List[Tuple[Any</em>, <em class="sig-param">str]] = []</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.append_to_report" title="Permalink to this definition">¶</a></dt>
@@ -166,6 +234,17 @@ will be written to disk only when
 for inline equations and the <cite>math</cite> tag in fenced text for
 displayed equations.</p>
 </dd></dl>
+
+<dl class="method">
+<dt id="litebird_sim.simulations.Simulation.create_observations">
+<code class="sig-name descname">create_observations</code><span class="sig-paren">(</span><em class="sig-param">detectors: List[litebird_sim.detectors.Detector], num_of_obs_per_detector: int, start_time, duration_s: float, distribute=True, use_mjd=False</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.create_observations" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a set of Observation objects</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="litebird_sim.simulations.Simulation.distribute_workload">
+<code class="sig-name descname">distribute_workload</code><span class="sig-paren">(</span><em class="sig-param">observations: List[litebird_sim.observations.Observation]</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.distribute_workload" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="method">
 <dt id="litebird_sim.simulations.Simulation.flush">
@@ -233,10 +312,15 @@ written into the output folder for the simulation.</p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Simulations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#provenance-model">Provenance model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#interface-with-the-instrument-database">Interface with the instrument database</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#system-abstractions">System abstractions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#generation-of-reports">Generation of reports</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-litebird_sim.simulations">API reference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="observations.html">Observations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mpi.html">Using MPI</a></li>
 </ul>
 
 <div class="relations">
@@ -244,6 +328,7 @@ written into the output folder for the simulation.</p>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
       <li>Previous: <a href="tutorial.html" title="previous chapter">Tutorial</a></li>
+      <li>Next: <a href="observations.html" title="next chapter">Observations</a></li>
   </ul></li>
 </ul>
 </div>
