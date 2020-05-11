@@ -28,7 +28,16 @@ The LiteBIRD Simulation Framework tracks these information using
 parameter files (in TOML format) and generating reports at the end of
 a simulation.
 
+.. _parameter_files:
 
+Parameter files
+---------------
+
+To be written.
+
+
+.. _imo-interface:
+   
 Interface with the instrument database
 --------------------------------------
 
@@ -62,15 +71,17 @@ variables are *always* defined, even if MPI is not available, and they
 can be used to make the code work in different situations. If your
 code must be able to run both with and without MPI, you should
 initialize a :class:`.Simulation` object using the variable
-:class:`.HAVE_MPI4PY`::
+:class:`.MPI_ENABLED`::
 
   import litebird_sim as lbs
 
   # This simulation can take advantage of MPI, if present
-  sim = lbs.Simulation(use_mpi = lbs.HAVE_MPI4PY)
+  sim = lbs.Simulation(use_mpi = lbs.MPI_ENABLED)
          
 See the page :ref:`using_mpi` for more information.
 
+
+.. _report-generation:
 
 Generation of reports
 ---------------------

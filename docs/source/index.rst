@@ -14,6 +14,7 @@ Welcome to litebird_sim's documentation!
    simulations
    observations
    mpi
+   integrating
 
 Indices and tables
 ==================
