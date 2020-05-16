@@ -4,7 +4,7 @@ image:
 install:
   - "wsl bash bin/appveyor_wsl_install.bash"
 
-build: off
+build_script: off
 
 test_script:
   - "wsl bash bin/appveyor_run_tests.bash"
