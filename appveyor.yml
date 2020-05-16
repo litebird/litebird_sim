@@ -1,25 +1,10 @@
 image: 
   - Visual Studio 2019
 
-environment:
-  matrix:
-    - PYTHON: "C:\\Python36-x64"
-      PYTHON_VERSION: "3.6"
-      PYTHON_ARCH: "64"
-    - PYTHON: "C:\\Python37-x64"
-      PYTHON_VERSION: "3.7"
-      PYTHON_ARCH: "64"
-
 install:
-  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
-  - "python --version"
-  - "pip --version"
-  - "pip install poetry"
-  - "poetry debug"
-  - "poetry install --extras=docs"
+  - "wsl bash bin/appveyor_wsl_install.bash"
 
 build: off
 
 test_script:
-  - "poetry run flake8 --max-line-length 88"
-  - "poetry run python -m pytest"
+  - "wsl bash bin/appveyor_run_tests.bash"
