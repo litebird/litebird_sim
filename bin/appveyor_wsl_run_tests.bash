@@ -11,7 +11,7 @@ echo "# Entering $LITEBIRD_SIM_PATH"
 cd "$LITEBIRD_SIM_PATH"
 
 echo "# Verifying that the code is properly formatted"
-python3 "$POETRY_PATH" run black --check --line-length=${MAX_LINE_LENGTH} -q .
+python3 "$POETRY_PATH" run black --check --line-length=${MAX_LINE_LENGTH} .
 
 echo "# Checking for common errors"
 python3 "$POETRY_PATH" run flake8 --max-line-length=${MAX_LINE_LENGTH}
