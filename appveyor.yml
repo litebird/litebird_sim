@@ -4,7 +4,8 @@ image:
 install:
   - "wsl bash bin/appveyor_wsl_install.bash"
 
-build_script: off
+build_script:
+  - "echo 'No C/C++/Fortran code to compile'"
 
 test_script:
   - "wsl bash bin/appveyor_run_tests.bash"
