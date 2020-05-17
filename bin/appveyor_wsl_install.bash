@@ -7,9 +7,9 @@ readonly POETRY_PATH="$HOME/.poetry/bin/poetry"
 readonly LITEBIRD_SIM_PATH="$HOME/litebird_sim"
 
 # Update APT database and install basic Python3 tools
-sudo apt-get update
-sudo apt-get upgrade -y
-sudo apt-get install -y python3-venv python3-distutils git
+sudo DEBIAN_FRONTEND=noninteractive apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-distutils git
 
 python3 --version
 
