@@ -13,7 +13,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-dist
 python3 --version
 
 # Install Poetry
-sudo pip install poetry
+sudo pip3 install poetry
 
 # Useful for debugging
 poetry debug
