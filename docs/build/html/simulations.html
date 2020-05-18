@@ -60,8 +60,12 @@ dataset?</p></li>
 parameter files (in TOML format) and generating reports at the end of
 a simulation.</p>
 </div>
+<div class="section" id="parameter-files">
+<span id="id1"></span><h2>Parameter files<a class="headerlink" href="#parameter-files" title="Permalink to this headline">¶</a></h2>
+<p>To be written.</p>
+</div>
 <div class="section" id="interface-with-the-instrument-database">
-<h2>Interface with the instrument database<a class="headerlink" href="#interface-with-the-instrument-database" title="Permalink to this headline">¶</a></h2>
+<span id="imo-interface"></span><h2>Interface with the instrument database<a class="headerlink" href="#interface-with-the-instrument-database" title="Permalink to this headline">¶</a></h2>
 <p>To simulation LiteBIRD’s data acquisition, the simulation code must be
 aware of the characteristics of the instrument. These are specified in
 the LiteBIRD Instrument Model (IMO) database, which can be accessed by
@@ -89,17 +93,17 @@ variables are <em>always</em> defined, even if MPI is not available, and they
 can be used to make the code work in different situations. If your
 code must be able to run both with and without MPI, you should
 initialize a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object using the variable
-<code class="xref py py-class docutils literal notranslate"><span class="pre">HAVE_MPI4PY</span></code>:</p>
+<code class="xref py py-class docutils literal notranslate"><span class="pre">MPI_ENABLED</span></code>:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
 
 <span class="c1"># This simulation can take advantage of MPI, if present</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">use_mpi</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">HAVE_MPI4PY</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">use_mpi</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">MPI_ENABLED</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>See the page <a class="reference internal" href="mpi.html#using-mpi"><span class="std std-ref">Using MPI</span></a> for more information.</p>
 </div>
 <div class="section" id="generation-of-reports">
-<h2>Generation of reports<a class="headerlink" href="#generation-of-reports" title="Permalink to this headline">¶</a></h2>
+<span id="report-generation"></span><h2>Generation of reports<a class="headerlink" href="#generation-of-reports" title="Permalink to this headline">¶</a></h2>
 <p>This section should explain how reports can be generated, first from
 the perspective of a library user, and then describing how developers
 can generate plots for their own modules.</p>
@@ -313,6 +317,7 @@ written into the output folder for the simulation.</p>
 <li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Simulations</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#provenance-model">Provenance model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#parameter-files">Parameter files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#interface-with-the-instrument-database">Interface with the instrument database</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#system-abstractions">System abstractions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#generation-of-reports">Generation of reports</a></li>
@@ -321,6 +326,7 @@ written into the output folder for the simulation.</p>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="observations.html">Observations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mpi.html">Using MPI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integrating.html">Integrating existing codes</a></li>
 </ul>
 
 <div class="relations">
