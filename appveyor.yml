@@ -8,4 +8,4 @@ build_script:
   - "echo 'No C/C++/Fortran code to compile'"
 
 test_script:
-  - "wsl bash bin/run_tests.sh"
+  - "wsl bash bin/appveyor_wsl_run_tests.bash"
