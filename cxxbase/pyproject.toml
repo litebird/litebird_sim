@@ -1,3 +1,6 @@
-toml
 [tool.poetry]
 build = "build.py"
+name = "cxxbase"
+version = "0.1.0"
+description = "various numerical tools"
+authors = ["Martin Reinecke <martin@mpa-garching.mpg.de>"]
