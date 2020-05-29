@@ -4,10 +4,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Set, Union
 from uuid import UUID
+from backports.datetime_fromisoformat import MonkeyPatch
 
 import yaml
 
 from .imo import Imo
+
+# Enable datetime.fromisoformat even on Python 3.6
+MonkeyPatch.patch_fromisoformat()
 
 IMO_FLATFILE_SCHEMA_FILE_NAME = "schema.yaml"
 IMO_FLATFILE_DATA_FILES_DIR_NAME = "data_files"
