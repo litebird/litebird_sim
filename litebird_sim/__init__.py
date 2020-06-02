@@ -11,8 +11,8 @@ from .healpix import (
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
 )
-from .imo import Imo
-from .imofile import ImoFormatError, ImoFlatFile
+from .imo.imo import Imo
+from .imo.imofile import ImoFormatError, ImoFlatFile
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
 from .simulations import Simulation
