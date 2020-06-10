@@ -154,8 +154,10 @@ codes in the LiteBIRD Simulation Framework:
    docstrings or other tools. You can put most of your effort in
    documenting the wrapper class (in the example above,
    ``MyWrapper``), as this is the public interface most of the people
-   will use.
-   
+   will use. Prefer the 
+   `numpy sphinx syntax
+   <https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html>`_.
+
 3. All the measurement units should be stated clearly, possibly in
    parameter/variable/function names. Consider the following
    function::
@@ -179,3 +181,11 @@ codes in the LiteBIRD Simulation Framework:
 4. If you want to produce logging message, rely on the `logging
    library <https://docs.python.org/3/library/logging.html>`_ in the
    Python standard library.
+
+5. If you are unsure about your python coding practices, the 
+   `Google style guide
+   <https://github.com/google/styleguide/blob/gh-pages/pyguide.md>`_
+   is a good resource. TL;DR. Then run a static analyzer on your code,
+   like `Flake8 <https://pypi.org/project/flake8>`_.
+   See also our `CONTRIBUTING file
+   <https://github.com/litebird/litebird_sim/blob/master/CONTRIBUTING.md>`_

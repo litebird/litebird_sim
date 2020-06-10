@@ -179,7 +179,8 @@ uses a <a class="reference internal" href="simulations.html#litebird_sim.simulat
 docstrings or other tools. You can put most of your effort in
 documenting the wrapper class (in the example above,
 <code class="docutils literal notranslate"><span class="pre">MyWrapper</span></code>), as this is the public interface most of the people
-will use.</p></li>
+will use. Prefer the
+<a class="reference external" href="https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html">numpy sphinx syntax</a>.</p></li>
 <li><p>All the measurement units should be stated clearly, possibly in
 parameter/variable/function names. Consider the following
 function:</p>
@@ -203,6 +204,11 @@ be specified in Kelvin, and that the result is in K⋅√s.</p>
 <li><p>If you want to produce logging message, rely on the <a class="reference external" href="https://docs.python.org/3/library/logging.html">logging
 library</a> in the
 Python standard library.</p></li>
+<li><p>If you are unsure about your python coding practices, the
+<a class="reference external" href="https://github.com/google/styleguide/blob/gh-pages/pyguide.md">Google style guide</a>
+is a good resource. TL;DR. Then run a static analyzer on your code,
+like <a class="reference external" href="https://pypi.org/project/flake8">Flake8</a>.
+See also our <a class="reference external" href="https://github.com/litebird/litebird_sim/blob/master/CONTRIBUTING.md">CONTRIBUTING file</a></p></li>
 </ol>
 </div>
 </div>

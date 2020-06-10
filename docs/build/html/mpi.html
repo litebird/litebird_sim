@@ -14,6 +14,7 @@
     <script src="_static/language_data.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Integrating existing codes" href="integrating.html" />
     <link rel="prev" title="Observations" href="observations.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -93,14 +94,14 @@ to serial mode.</p></li>
 <span id="api-reference"></span><h2>API reference<a class="headerlink" href="#module-litebird_sim.mpi" title="Permalink to this headline">¶</a></h2>
 <dl class="data">
 <dt id="litebird_sim.mpi.MPI_COMM_WORLD">
-<code class="sig-prename descclassname">litebird_sim.mpi.</code><code class="sig-name descname">MPI_COMM_WORLD</code><em class="property"> = &lt;mpi4py.MPI.Intracomm object&gt;</em><a class="headerlink" href="#litebird_sim.mpi.MPI_COMM_WORLD" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">litebird_sim.mpi.</code><code class="sig-name descname">MPI_COMM_WORLD</code><em class="property"> = &lt;litebird_sim.mpi._SerialMpiCommunicator object&gt;</em><a class="headerlink" href="#litebird_sim.mpi.MPI_COMM_WORLD" title="Permalink to this definition">¶</a></dt>
 <dd><p>Global variable equal either to <cite>mpi4py.MPI.COMM_WORLD</cite> or a object
 that defines the member variables <cite>rank = 0</cite> and <cite>size = 1</cite>.</p>
 </dd></dl>
 
 <dl class="data">
 <dt id="litebird_sim.mpi.MPI_CONFIGURATION">
-<code class="sig-prename descclassname">litebird_sim.mpi.</code><code class="sig-name descname">MPI_CONFIGURATION</code><em class="property"> = {'mpicc': '/usr/bin/mpicc', 'mpicxx': '/usr/bin/mpicxx', 'mpif77': '/usr/bin/mpif77', 'mpif90': '/usr/bin/mpif90', 'mpifort': '/usr/bin/mpifort'}</em><a class="headerlink" href="#litebird_sim.mpi.MPI_CONFIGURATION" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">litebird_sim.mpi.</code><code class="sig-name descname">MPI_CONFIGURATION</code><em class="property"> = {}</em><a class="headerlink" href="#litebird_sim.mpi.MPI_CONFIGURATION" title="Permalink to this definition">¶</a></dt>
 <dd><p>If <a class="reference internal" href="#litebird_sim.mpi.MPI_ENABLED" title="litebird_sim.mpi.MPI_ENABLED"><code class="xref py py-data docutils literal notranslate"><span class="pre">MPI_ENABLED</span></code></a> is <cite>True</cite>, this is a dictionary containing
 information about the MPI configuration. Otherwise, it is an empty
 dictionary</p>
@@ -108,7 +109,7 @@ dictionary</p>
 
 <dl class="data">
 <dt id="litebird_sim.mpi.MPI_ENABLED">
-<code class="sig-prename descclassname">litebird_sim.mpi.</code><code class="sig-name descname">MPI_ENABLED</code><em class="property"> = True</em><a class="headerlink" href="#litebird_sim.mpi.MPI_ENABLED" title="Permalink to this definition">¶</a></dt>
+<code class="sig-prename descclassname">litebird_sim.mpi.</code><code class="sig-name descname">MPI_ENABLED</code><em class="property"> = False</em><a class="headerlink" href="#litebird_sim.mpi.MPI_ENABLED" title="Permalink to this definition">¶</a></dt>
 <dd><p><cite>True</cite> if MPI should be used by the application. The value of this
 variable is set according to the following rules:</p>
 <ul class="simple">
@@ -152,6 +153,7 @@ if <cite>mpi4py</cite> cannot be imported.</p></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-litebird_sim.mpi">API reference</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="integrating.html">Integrating existing codes</a></li>
 </ul>
 
 <div class="relations">
@@ -159,6 +161,7 @@ if <cite>mpi4py</cite> cannot be imported.</p></li>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
       <li>Previous: <a href="observations.html" title="previous chapter">Observations</a></li>
+      <li>Next: <a href="integrating.html" title="next chapter">Integrating existing codes</a></li>
   </ul></li>
 </ul>
 </div>
