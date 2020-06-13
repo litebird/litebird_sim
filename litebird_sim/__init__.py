@@ -12,7 +12,8 @@ from .healpix import (
     write_healpix_map_to_file,
 )
 from .imo.imo import Imo
-from .imo.imofile import ImoFormatError, ImoFlatFile
+from .imo.objects import FormatSpecification, Entity, Quantity, Release
+from .imo.flatfile import ImoFormatError, ImoFlatFile
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
 from .simulations import Simulation
@@ -36,6 +37,11 @@ __all__ = [
     # imofile.py
     "ImoFormatError",
     "ImoFlatFile",
+    # imoobjects
+    "FormatSpecification",
+    "Entity",
+    "Quantity",
+    "Release",
     # mpi.py
     "MPI_COMM_WORLD",
     "MPI_ENABLED",

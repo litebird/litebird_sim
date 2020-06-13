@@ -2,124 +2,41 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Set, Union
+from typing import Any, Dict, List, Set, Union, Tuple
 from uuid import UUID
 from backports.datetime_fromisoformat import MonkeyPatch
 
+import json
 import yaml
 
-from .imo import Imo
+from .objects import FormatSpecification, Entity, Quantity, DataFile, Release
 
 # Enable datetime.fromisoformat even on Python 3.6
 MonkeyPatch.patch_fromisoformat()
 
-IMO_FLATFILE_SCHEMA_FILE_NAME = "schema.yaml"
+IMO_FLATFILE_SCHEMA_FILE_NAMES = ["schema.json", "schema.yaml"]
 IMO_FLATFILE_DATA_FILES_DIR_NAME = "data_files"
 IMO_FLATFILE_FORMAT_SPEC_DIR_NAME = "format_spec"
 IMO_FLATFILE_PLOT_FILES_DIR_NAME = "plot_files"
 
 
-class FormatSpecification:
-    def __init__(
-        self,
-        uuid: UUID,
-        document_ref: UUID,
-        title: str,
-        doc_file: str,
-        doc_file_name: str,
-        doc_mime_type: str,
-        file_mime_type: str,
-    ):
-        self.uuid = uuid
-        self.document_ref = document_ref
-        self.title = title
-        self.doc_file = doc_file
-        self.doc_file_name = doc_file_name
-        self.doc_mime_type = doc_mime_type
-        self.file_mime_type = file_mime_type
+def parse_format_spec(obj_dict: Dict[str, Any]) -> FormatSpecification:
+    if "doc_file_name" in obj_dict:
+        doc_file_name = Path(obj_dict["doc_file_name"])
+    else:
+        doc_file_name = None
 
-
-class Entity:
-    def __init__(
-        self, uuid: UUID, name: str, full_path: str, parent: Union[UUID, None]
-    ):
-        self.uuid = uuid
-        self.name = name
-        self.full_path = full_path
-        self.parent = parent
-        self.quantities = set()  # type: Set[UUID]
-
-
-class Quantity:
-    def __init__(
-        self,
-        uuid: UUID,
-        name: str,
-        format_spec: Union[UUID, None],
-        entity: Union[UUID, None],
-    ):
-        self.uuid = uuid
-        self.name = name
-        self.format_spec = format_spec
-        self.entity = entity
-        self.data_files = set()  # type: Set[UUID]
-
-
-class DataFile:
-    def __init__(
-        self,
-        uuid: UUID,
-        name: str,
-        upload_date: Union[datetime, None],
-        metadata: Dict[str, Any],
-        file_data: str,
-        quantity: UUID,
-        spec_version: str,
-        dependencies: Set[UUID],
-        plot_file: str,
-        plot_mime_type: str,
-        comment: str,
-    ):
-        self.uuid = uuid
-        self.name = name
-        self.upload_date = upload_date
-        self.metadata = metadata
-        self.file_data = file_data
-        self.quantity = quantity
-        self.spec_version = spec_version
-        self.dependencies = dependencies
-        self.plot_file = plot_file
-        self.plot_mime_type = plot_mime_type
-        self.comment = comment
-
-
-class Release:
-    def __init__(
-        self,
-        tag: str,
-        rel_date: Union[datetime, None],
-        comments: str,
-        data_files: Set[UUID],
-    ):
-        self.tag = tag
-        self.rel_date = rel_date
-        self.comments = comments
-        self.data_files = data_files
-
-
-def parse_format_spec(obj_dict: Dict[str, Any]):
     return FormatSpecification(
         uuid=UUID(obj_dict["uuid"]),
         document_ref=obj_dict.get("document_ref", ""),
         title=obj_dict.get("title", ""),
-        doc_file=obj_dict.get("doc_file", ""),
-        doc_file_name=obj_dict.get("doc_file_name", ""),
+        doc_file_name=doc_file_name,
         doc_mime_type=obj_dict.get("doc_mime_type", ""),
         file_mime_type=obj_dict.get("file_mime_type", ""),
     )
 
 
-def parse_entity(obj_dict: Dict[str, Any], base_path=""):
+def parse_entity(obj_dict: Dict[str, Any], base_path="") -> Entity:
     parent = None  # type: Union[UUID, None]
     if "parent" in obj_dict:
         parent = UUID(obj_dict["parent"])
@@ -147,61 +64,59 @@ def walk_entity_tree_and_parse(
             walk_entity_tree_and_parse(dictionary, children, f"{base_path}/{obj.name}")
 
 
-def parse_quantity(obj_dict: Dict[str, Any]):
+def parse_quantity(obj_dict: Dict[str, Any]) -> Quantity:
     format_spec = None  # type: Union[UUID, None]
     if "format_spec" in obj_dict:
         format_spec = UUID(obj_dict["format_spec"])
-
-    entity = None  # type: Union[UUID, None]
-    if "entity" in obj_dict:
-        entity = UUID(obj_dict["entity"])
 
     return Quantity(
         uuid=UUID(obj_dict["uuid"]),
         name=obj_dict.get("name", ""),
         format_spec=format_spec,
-        entity=entity,
+        entity=UUID(obj_dict["entity"]),
     )
 
 
-def parse_data_file(obj_dict: Dict[str, Any]):
-    upload_date = None  # type: Union[datetime, None]
-    if "upload_date" in obj_dict:
-        upload_date = datetime.fromisoformat(obj_dict["upload_date"])
-
+def parse_data_file(obj_dict: Dict[str, Any]) -> DataFile:
     dependencies = set()  # type: Set[UUID]
     if "dependencies" in obj_dict:
         dependencies = set([UUID(x) for x in obj_dict["dependencies"]])
 
+    if "file_name" in obj_dict:
+        file_name = Path(obj_dict["file_name"])
+    else:
+        file_name = None
+
+    if "plot_file" in obj_dict:
+        plot_file_name = Path(obj_dict["plot_file"])
+    else:
+        plot_file_name = None
+
     return DataFile(
         uuid=UUID(obj_dict["uuid"]),
         name=obj_dict.get("name", ""),
-        upload_date=upload_date,
+        upload_date=datetime.fromisoformat(obj_dict["upload_date"]),
         metadata=obj_dict.get("metadata", {}),
-        file_data=obj_dict.get("file_data", ""),
+        file_name=file_name,
         quantity=UUID(obj_dict["quantity"]),
         spec_version=obj_dict.get("spec_version", ""),
         dependencies=dependencies,
-        plot_file=obj_dict.get("plot_file", ""),
+        plot_file_name=plot_file_name,
         plot_mime_type=obj_dict.get("plot_mime_type", ""),
         comment=obj_dict.get("comment", ""),
     )
 
 
-def parse_release(obj_dict: Dict[str, Any]):
-    rel_date = None  # type: Union[datetime, None]
-    if "rel_date" in obj_dict:
-        rel_date = datetime.fromisoformat(obj_dict["rel_date"])
-
+def parse_release(obj_dict: Dict[str, Any]) -> Release:
     return Release(
         tag=obj_dict["tag"],
-        rel_date=rel_date,
+        rel_date=datetime.fromisoformat(obj_dict["release_date"]),
         comments=obj_dict.get("comments", ""),
         data_files=set([UUID(x) for x in obj_dict.get("data_files", [])]),
     )
 
 
-def parse_data_file_path(path: str):
+def parse_data_file_path(path: str) -> Tuple[str, str, str]:
     """Split a path to a data file into its components.
 
     Assuming that the path is in the following form:
@@ -230,7 +145,10 @@ class ImoFormatError(Exception):
     pass
 
 
-class ImoFlatFile(Imo):
+class ImoFlatFile:
+    """A class that interfaces with a flat-file representation of an IMO.
+    """
+
     def __init__(self, path):
         self.path = Path(path)
 
@@ -255,10 +173,15 @@ class ImoFlatFile(Imo):
         obvious errors.
         """
 
-        if not (self.path / IMO_FLATFILE_SCHEMA_FILE_NAME).is_file():
+        schema_file_found = False
+        for schema_name in IMO_FLATFILE_SCHEMA_FILE_NAMES:
+            if (self.path / schema_name).is_file():
+                schema_file_found = True
+
+        if not schema_file_found:
             raise ImoFormatError(
-                ("Schema file {filename} not found " 'in "{path}"').format(
-                    filename=IMO_FLATFILE_SCHEMA_FILE_NAME, path=self.path.absolute(),
+                ("no valid schema file found " 'in "{path}"').format(
+                    path=self.path.absolute(),
                 )
             )
 
@@ -271,11 +194,25 @@ class ImoFlatFile(Imo):
                 raise ImoFormatError(f"Directory {dirname} not found in {self.path}")
 
     def read_schema(self):
-        "Read the YAML file containing the metadata"
-        schema_file = self.path / IMO_FLATFILE_SCHEMA_FILE_NAME
-        with schema_file.open("rt") as inpf:
-            schema = yaml.safe_load(inpf)
+        "Read the JSON file containing the metadata"
+        schema = None
+        for schema_file in IMO_FLATFILE_SCHEMA_FILE_NAMES:
+            schema_file = self.path / schema_file
+            if not schema_file.is_file():
+                continue
 
+            with schema_file.open("rt") as inpf:
+                if schema_file.suffix == ".yaml":
+                    schema = yaml.safe_load(inpf)
+                    break
+                else:
+                    schema = json.load(inpf)
+                    break
+
+        if not schema:
+            raise RuntimeError(
+                f"unable to find a valid schema file for the IMO in {self.path}"
+            )
         self.parse_schema(schema)
 
     def parse_schema(self, schema: Dict[str, Any]):
@@ -428,5 +365,9 @@ class ImoFlatFile(Imo):
                 uuid = UUID(identifier.split("/")[-1])
                 return collection[uuid]  # type: ignore
 
-        # No match, assume it's a release name
+        if identifier.startswith("/releases"):
+            # Drop the "/releases/" and go on
+            identifier = identifier[len("/releases/") :]
+
+        # Assume that "identifier" is a release name
         return self.query_data_file(identifier)
