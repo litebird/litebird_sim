@@ -186,6 +186,6 @@ codes in the LiteBIRD Simulation Framework:
    `Google style guide
    <https://github.com/google/styleguide/blob/gh-pages/pyguide.md>`_
    is a good resource. TL;DR. Then run a static analyzer on your code,
-   like `Flake8 <https://pypi.org/project/flake8>`_.
+   like `Flake8 <https://pypi.org/project/flake8>`_ (``poetry run flake8 path/to/my/file``).
    See also our `CONTRIBUTING file
    <https://github.com/litebird/litebird_sim/blob/master/CONTRIBUTING.md>`_
