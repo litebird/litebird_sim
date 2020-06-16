@@ -2,6 +2,7 @@
 
 import codecs
 from collections import namedtuple
+from datetime import datetime
 import logging as log
 import subprocess
 from typing import List, Tuple, Any
@@ -151,6 +152,7 @@ code that has been ran:
 ```
 {0}
 ```
+
 """.format(
                         proc.stdout.decode("utf-8").strip(),
                     )
@@ -265,6 +267,15 @@ code that has been ran:
         # Append to the repository a snapshot containing the status of
         # the source code
         self.write_code_status_to_report()
+
+        self.append_to_report(
+            """---
+
+Report written on {datetime}
+""".format(
+                datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        )
 
         # Expand the markdown text using Jinja2
         with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
