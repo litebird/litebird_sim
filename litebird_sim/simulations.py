@@ -2,6 +2,9 @@
 
 import codecs
 from collections import namedtuple
+from datetime import datetime
+import logging as log
+import subprocess
 from typing import List, Tuple, Any
 from pathlib import Path
 from shutil import copyfile, copytree
@@ -10,6 +13,10 @@ from .detectors import Detector
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
 from .observations import Observation
+from .version import (
+    __version__ as litebird_sim_version,
+    __author__ as litebird_sim_author,
+)
 
 from astropy.time import Time, TimeDelta
 import markdown
@@ -87,11 +94,83 @@ class Simulation:
 
         self.list_of_outputs = []  # type: List[OutputFileRecord]
 
-        self.report = f"""# {name}
+        self.report = """# {name}
 
 {description}
 
-"""
+""".format(
+            name=name if (name and (name != "")) else "<Untitled>",
+            description=description,
+        )
+
+    def write_code_status_to_report(self):
+        self.append_to_report(
+            """# Source code used in the simulation
+
+-   Main repository: [github.com/litebird/litebird_sim](https://github.com/litebird/litebird_sim)
+-   Version: {litebird_sim_version}, by {litebird_sim_author}
+""".format(
+                litebird_sim_version=litebird_sim_version,
+                litebird_sim_author=litebird_sim_author,
+            )
+        )
+
+        # Retrieve information about the last git commit
+        try:
+            proc = subprocess.run(
+                ["git", "log", "-1", "--format=format:%h%n%H%n%s%n%an"],
+                capture_output=True,
+                encoding="utf-8",
+            )
+
+            (
+                short_commit_hash,
+                commit_hash,
+                commit_message,
+                author,
+            ) = proc.stdout.strip().split("\n")
+
+            self.append_to_report(
+                """
+-   Commit hash: [{short_commit_hash}](https://github.com/litebird/litebird_sim/commit/{commit_hash})
+    (_{commit_message}_, by {author})
+
+""".format(
+                    short_commit_hash=short_commit_hash,
+                    commit_hash=commit_hash,
+                    author=author,
+                    commit_message=commit_message,
+                )
+            )
+
+            # Retrieve information about changes in the code since the last commit
+            proc = subprocess.run(
+                ["git", "diff", "--no-color", "--exit-code"],
+                capture_output=True,
+                encoding="utf-8",
+            )
+
+            if proc.returncode != 0:
+                self.append_to_report(
+                    """Since the last commit, the following changes have been made to the
+code that has been ran:
+
+```
+{0}
+```
+
+""".format(
+                        proc.stdout.strip(),
+                    )
+                )
+
+        except FileNotFoundError:
+            # Git is not installed, so ignore the error and continue
+            pass
+        except Exception as e:
+            log.warning(
+                f"unable to save information about latest git commit in the report: {e}"
+            )
 
     def write_healpix_map(self, filename: str, pixels, **kwargs,) -> str:
         """Save a Healpix map in the output folder
@@ -191,6 +270,19 @@ class Simulation:
 
         """
 
+        # Append to the repository a snapshot containing the status of
+        # the source code
+        self.write_code_status_to_report()
+
+        self.append_to_report(
+            """---
+
+Report written on {datetime}
+""".format(
+                datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        )
+
         # Expand the markdown text using Jinja2
         with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
             outf.write(self.report)
@@ -198,7 +290,13 @@ class Simulation:
         # Now generate an HTML file from Markdown.
 
         # Please keep these in alphabetic order, so we can detect duplicates!
-        md_extensions = [KatexExtension(), "sane_lists", "smarty", "tables"]
+        md_extensions = [
+            KatexExtension(),
+            "fenced_code",
+            "sane_lists",
+            "smarty",
+            "tables",
+        ]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
         static_path = Path(__file__).parent / ".." / "static"
