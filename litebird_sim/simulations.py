@@ -118,13 +118,17 @@ class Simulation:
         # Retrieve information about the last git commit
         try:
             proc = subprocess.run(
-                ["git", "log", "-1", '--format=format:"%h%n%H%n%s%n%an"'],
+                ["git", "log", "-1", "--format=format:%h%n%H%n%s%n%an"],
                 capture_output=True,
+                encoding="utf-8",
             )
 
-            (short_commit_hash, commit_hash, commit_message, author) = (
-                proc.stdout.decode("utf-8").strip().split("\n")
-            )
+            (
+                short_commit_hash,
+                commit_hash,
+                commit_message,
+                author,
+            ) = proc.stdout.strip().split("\n")
 
             self.append_to_report(
                 """
@@ -141,7 +145,9 @@ class Simulation:
 
             # Retrieve information about changes in the code since the last commit
             proc = subprocess.run(
-                ["git", "diff", "--no-color", "--exit-code"], capture_output=True
+                ["git", "diff", "--no-color", "--exit-code"],
+                capture_output=True,
+                encoding="utf-8",
             )
 
             if proc.returncode != 0:
@@ -154,7 +160,7 @@ code that has been ran:
 ```
 
 """.format(
-                        proc.stdout.decode("utf-8").strip(),
+                        proc.stdout.strip(),
                     )
                 )
 
