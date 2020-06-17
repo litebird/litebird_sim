@@ -17,10 +17,11 @@ from .imo.flatfile import ImoFormatError, ImoFlatFile
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
 from .simulations import Simulation
+from .version import __author__, __version__
 
-__author__ = "The LiteBIRD simulation team"
-__version__ = "0.1.0"
 __all__ = [
+    "__author__",
+    "__version__",
     # healpix.py
     "nside_to_npix",
     "npix_to_nside",

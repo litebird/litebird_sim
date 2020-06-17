@@ -122,6 +122,10 @@ formulae, plots, and value substitution::
 
     sim.flush()
 
+And here is the output, which is saved in ``output/report.html``:
+
+.. image:: images/report_example.png
+    
 
 API reference
 -------------
