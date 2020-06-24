@@ -72,6 +72,11 @@ def test_imo_get_queried_objects():
     quantity_uuid = UUID("e9916db9-a234-4921-adfd-6c3bb4f816e9")
     _ = imo.query(f"/quantities/{quantity_uuid}")
 
+    # This is not being tracked…
+    data_file_uuid = UUID("a6dd07ee-9721-4453-abb1-e58aa53a9c01")
+    _ = imo.query(f"/data_files/{data_file_uuid}", track=False)
+
+    # …but this will be
     data_file_uuid = UUID("37bb70e4-29b2-4657-ba0b-4ccefbc5ae36")
     _ = imo.query(f"/data_files/{data_file_uuid}")
 

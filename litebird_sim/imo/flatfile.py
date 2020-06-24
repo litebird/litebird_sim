@@ -263,7 +263,13 @@ class ImoFlatFile:
         entity = self.entities[quantity.entity]
         return f"{entity.full_path}/{quantity.name}"
 
-    def query_data_file(self, identifier: Union[str, UUID]):
+    def query_entity(self, identifier: UUID) -> Entity:
+        return self.entities[identifier]
+
+    def query_quantity(self, identifier: UUID) -> Quantity:
+        return self.quantities[identifier]
+
+    def query_data_file(self, identifier: Union[str, UUID]) -> DataFile:
         """Retrieve a data file
 
         The `identifier` parameter can be one of the following types:
