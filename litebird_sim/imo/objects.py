@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Set, Union
+from typing import Any, Dict, Set, Union
 from uuid import UUID
 
 
@@ -136,15 +136,6 @@ class Quantity:
         self.format_spec = format_spec
         self.entity = entity
         self.data_files = set()  # type: Set[UUID]
-
-    def get_list_of_data_files(self) -> List[UUID]:
-        """Return a sorted list of the UUIDs of the data files belonging to this quantity.
-
-        The result is sorted according to their upload date (oldest
-        first, newest last).
-
-        """
-        return sorted(self.data_files, key=lambda x: x.upload_date)
 
 
 class DataFile:
