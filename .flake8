@@ -1,0 +1,4 @@
+[flake8]
+# Flake8 complains about the formatting of ":" done by black
+# Since black is PEP8-compliant, we silence flake8.
+ignore = W503, E203
