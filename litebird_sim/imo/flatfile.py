@@ -185,14 +185,6 @@ class ImoFlatFile:
                 )
             )
 
-        for dirname in (
-            IMO_FLATFILE_DATA_FILES_DIR_NAME,
-            IMO_FLATFILE_FORMAT_SPEC_DIR_NAME,
-            IMO_FLATFILE_PLOT_FILES_DIR_NAME,
-        ):
-            if not (self.path / dirname).is_dir():
-                raise ImoFormatError(f"Directory {dirname} not found in {self.path}")
-
     def read_schema(self):
         "Read the JSON file containing the metadata"
         schema = None
