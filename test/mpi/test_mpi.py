@@ -10,8 +10,38 @@ def test_distribution():
         print(f"MPI configuration: {lbs.MPI_CONFIGURATION}")
 
     sim = lbs.Simulation(mpi_comm=comm_world)
-    det1 = lbs.Detector(name="pol01", beam_z=[0, 0, 1], sampfreq_hz=5, simulation=sim)
-    det2 = lbs.Detector(name="pol02", beam_z=[0, 0, 1], sampfreq_hz=50, simulation=sim)
+    det1 = lbs.Detector(
+        name="pol01",
+        wafer="mywafer",
+        pixel=1,
+        channel=30,
+        sampling_frequency_hz=5,
+        fwhm_arcmin=30,
+        ellipticity=1.0,
+        net_ukrts=1.0,
+        fknee_mhz=10,
+        fmin_hz=1e-6,
+        alpha=1.0,
+        pol="Q",
+        orientation="A",
+        quaternion=[0, 0, 0, 0],
+    )
+    det2 = lbs.Detector(
+        name="pol02",
+        wafer="mywafer",
+        pixel=2,
+        channel=44,
+        sampling_frequency_hz=50,
+        fwhm_arcmin=30,
+        ellipticity=1.0,
+        net_ukrts=1.0,
+        fknee_mhz=10,
+        fmin_hz=1e-6,
+        alpha=1.0,
+        pol="Q",
+        orientation="A",
+        quaternion=[0, 0, 0, 0],
+    )
     sim.create_observations(
         [det1, det2],
         num_of_obs_per_detector=10,
