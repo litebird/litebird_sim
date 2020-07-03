@@ -378,7 +378,7 @@ class Simulation:
 
         observations = []
         for detidx, cur_det in enumerate(detectors):
-            cur_sampfreq_hz = cur_det.sampfreq_hz
+            cur_sampfreq_hz = cur_det.sampling_frequency_hz
             num_of_samples = cur_sampfreq_hz * duration_s
             samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 

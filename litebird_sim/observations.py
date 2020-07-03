@@ -29,7 +29,7 @@ class Observation:
             the latter case, if `use_mjd` is ``False``, the number
             must be expressed in seconds; otherwise, it must be a MJD.
 
-        sampfreq_hz (float): The sampling frequency. Regardless of the
+        sampling_frequency_hz (float): The sampling frequency. Regardless of the
             measurement unit used for `start_time`, this *must* be
             expressed in Hertz.
 
@@ -40,7 +40,9 @@ class Observation:
 
     """
 
-    def __init__(self, detector, start_time, sampfreq_hz, nsamples, use_mjd=False):
+    def __init__(
+        self, detector, start_time, sampling_frequency_hz, nsamples, use_mjd=False
+    ):
         self.detector = detector
         self.use_mjd = use_mjd
 
@@ -61,7 +63,7 @@ class Observation:
         else:
             self.start_time = start_time
 
-        self.sampfreq_hz = sampfreq_hz
+        self.sampling_frequency_hz = sampling_frequency_hz
         self.nsamples = nsamples
         self.tod = None
 
@@ -81,14 +83,16 @@ class Observation:
 
         """
         if self.use_mjd:
-            delta = astrotime.TimeDelta(1.0 / self.sampfreq_hz, format="sec")
+            delta = astrotime.TimeDelta(1.0 / self.sampling_frequency_hz, format="sec")
             vec = (
                 astrotime.Time(self.start_time, format="mjd")
                 + np.arange(self.nsamples) * delta
             )
             return vec.mjd
         else:
-            return self.start_time + np.arange(self.nsamples) / self.sampfreq_hz
+            return (
+                self.start_time + np.arange(self.nsamples) / self.sampling_frequency_hz
+            )
 
     def get_tod(self):
         """Return the array of samples measured during this observation

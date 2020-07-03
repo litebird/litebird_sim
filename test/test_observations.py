@@ -9,17 +9,25 @@ def test_observation():
     ref_time = astrotime.Time("2020-02-20", format="iso")
 
     obs_no_mjd = lbs.Observation(
-        detector="A", start_time=0.0, sampfreq_hz=5.0, nsamples=5, use_mjd=False,
+        detector="A",
+        start_time=0.0,
+        sampling_frequency_hz=5.0,
+        nsamples=5,
+        use_mjd=False,
     )
     obs_mjd = lbs.Observation(
         detector="B",
         start_time=float(ref_time.mjd),
-        sampfreq_hz=5.0,
+        sampling_frequency_hz=5.0,
         nsamples=5,
         use_mjd=True,
     )
     obs_mjd_astropy = lbs.Observation(
-        detector="B", start_time=ref_time, sampfreq_hz=5.0, nsamples=5, use_mjd=True,
+        detector="B",
+        start_time=ref_time,
+        sampling_frequency_hz=5.0,
+        nsamples=5,
+        use_mjd=True,
     )
 
     assert np.allclose(obs_no_mjd.get_times(), np.array([0.0, 0.2, 0.4, 0.6, 0.8]))
