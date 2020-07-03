@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from .distribute import distribute_evenly, distribute_optimally
-from .detectors import Detector
+from .detectors import Detector, read_detector_from_dict, read_detector_from_imo
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -11,9 +11,15 @@ from .healpix import (
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
 )
-from .imo.imo import Imo
-from .imo.objects import FormatSpecification, Entity, Quantity, Release
-from .imo.flatfile import ImoFormatError, ImoFlatFile
+from .imo import (
+    Imo,
+    FormatSpecification,
+    Entity,
+    Quantity,
+    Release,
+    ImoFormatError,
+    ImoFlatFile,
+)
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
 from .simulations import Simulation
@@ -43,6 +49,10 @@ __all__ = [
     "Entity",
     "Quantity",
     "Release",
+    # detectors.py
+    "Detector",
+    "read_detector_from_dict",
+    "read_detector_from_imo",
     # mpi.py
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
