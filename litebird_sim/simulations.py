@@ -395,7 +395,7 @@ class Simulation:
                 cur_obs = Observation(
                     detector=cur_det,
                     start_time=cur_time,
-                    sampfreq_hz=cur_sampfreq_hz,
+                    sampling_frequency_hz=cur_sampfreq_hz,
                     nsamples=nsamples,
                     use_mjd=use_mjd,
                 )
