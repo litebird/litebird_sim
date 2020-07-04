@@ -113,6 +113,31 @@ quantities:
   format_spec: "d5b620bf-3737-4a9c-ab01-13d2203250fb"
   entity: "43377e3d-e457-43fe-baef-4017b0db53b2"
 data_files:
+- uuid: "78fe75f1-a011-44b6-86dd-445dc9634416"
+  name: "det01_metadata"
+  upload_date: "2020-07-04 13:00:00+01:00"
+  quantity: "ed00a4e7-4984-40c8-810d-c615361a493d"
+  spec_version: "0.1"
+  metadata:
+    name: "foo"
+    wafer: "bar"
+    pixel: "abc"
+    pixtype: "def"
+    channel: "ghi"
+    sampling_rate_hz: 12.0
+    fwhm_arcmin: 34.0
+    ellipticity: 56.0
+    net_ukrts: 78.0
+    fknee_mhz: 90.0
+    fmin_hz: 98.0
+    alpha: 76.0
+    pol: "jkl"
+    orient: "mno"
+    quat:
+      - 0.0
+      - 1.0
+      - 2.0
+      - 3.0
 - uuid: "a6dd07ee-9721-4453-abb1-e58aa53a9c01"
   name: "horn01_grasp.fits"
   upload_date: "2020-01-01 15:34:00+00:00"

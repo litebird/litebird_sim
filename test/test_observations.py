@@ -11,21 +11,21 @@ def test_observation():
     obs_no_mjd = lbs.Observation(
         detector="A",
         start_time=0.0,
-        sampling_frequency_hz=5.0,
+        sampling_rate_hz=5.0,
         nsamples=5,
         use_mjd=False,
     )
     obs_mjd = lbs.Observation(
         detector="B",
         start_time=float(ref_time.mjd),
-        sampling_frequency_hz=5.0,
+        sampling_rate_hz=5.0,
         nsamples=5,
         use_mjd=True,
     )
     obs_mjd_astropy = lbs.Observation(
         detector="B",
         start_time=ref_time,
-        sampling_frequency_hz=5.0,
+        sampling_rate_hz=5.0,
         nsamples=5,
         use_mjd=True,
     )

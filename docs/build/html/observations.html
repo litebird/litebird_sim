@@ -58,7 +58,7 @@ object:</p>
 <span class="n">obs_no_mjd</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Observation</span><span class="p">(</span>
     <span class="n">detector</span><span class="o">=</span><span class="s2">&quot;A&quot;</span><span class="p">,</span>
     <span class="n">start_time</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
-    <span class="n">sampling_frequency_hz</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
+    <span class="n">sampling_rate_hz</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
     <span class="n">nsamples</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
     <span class="n">use_mjd</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span>
@@ -67,7 +67,7 @@ object:</p>
 <span class="n">obs_mjd</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Observation</span><span class="p">(</span>
     <span class="n">detector</span><span class="o">=</span><span class="s2">&quot;B&quot;</span><span class="p">,</span>
     <span class="n">start_time</span><span class="o">=</span><span class="n">Time</span><span class="p">(</span><span class="s2">&quot;2020-02-20&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;iso&quot;</span><span class="p">),</span>
-    <span class="n">sampling_frequency_hz</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
+    <span class="n">sampling_rate_hz</span><span class="o">=</span><span class="mf">5.0</span><span class="p">,</span>
     <span class="n">nsamples</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
     <span class="n">use_mjd</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
@@ -77,7 +77,7 @@ object:</p>
 <span id="api-reference"></span><h2>API reference<a class="headerlink" href="#module-litebird_sim.observations" title="Permalink to this headline">¶</a></h2>
 <dl class="class">
 <dt id="litebird_sim.observations.Observation">
-<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.observations.</code><code class="sig-name descname">Observation</code><span class="sig-paren">(</span><em class="sig-param">detector</em>, <em class="sig-param">start_time</em>, <em class="sig-param">sampling_frequency_hz</em>, <em class="sig-param">nsamples</em>, <em class="sig-param">use_mjd=False</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.observations.Observation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.observations.</code><code class="sig-name descname">Observation</code><span class="sig-paren">(</span><em class="sig-param">detector</em>, <em class="sig-param">start_time</em>, <em class="sig-param">sampling_rate_hz</em>, <em class="sig-param">nsamples</em>, <em class="sig-param">use_mjd=False</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.observations.Observation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>An observation made by a detector over some time window</p>
 <p>This class encodes the data acquired by a detector over a finite
@@ -102,7 +102,7 @@ each sample in the TOD)</p></li>
 <cite>astropy.time.Time</cite> type or a floating-point number. In
 the latter case, if <cite>use_mjd</cite> is <code class="docutils literal notranslate"><span class="pre">False</span></code>, the number
 must be expressed in seconds; otherwise, it must be a MJD.</p></li>
-<li><p><strong>sampling_frequency_hz</strong> (<em>float</em>) – The sampling frequency. Regardless of the
+<li><p><strong>sampling_rate_hz</strong> (<em>float</em>) – The sampling frequency. Regardless of the
 measurement unit used for <cite>start_time</cite>, this <em>must</em> be
 expressed in Hertz.</p></li>
 <li><p><strong>nsamples</strong> (<em>int</em>) – The number of samples in this observation.</p></li>

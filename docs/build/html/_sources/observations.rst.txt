@@ -28,7 +28,7 @@ object::
   obs_no_mjd = lbs.Observation(
       detector="A",
       start_time=0.0,
-      sampling_frequency_hz=5.0,
+      sampling_rate_hz=5.0,
       nsamples=5,
       use_mjd=False,
   )
@@ -37,7 +37,7 @@ object::
   obs_mjd = lbs.Observation(
       detector="B",
       start_time=Time("2020-02-20", format="iso"),
-      sampling_frequency_hz=5.0,
+      sampling_rate_hz=5.0,
       nsamples=5,
       use_mjd=True,
   )
