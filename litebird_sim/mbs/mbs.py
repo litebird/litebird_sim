@@ -279,3 +279,66 @@ class Mbs:
                         file_name = f'{chnl}_{cmp}_{file_str}.fits'
                         file_tot_path = f'{out_dir}{cmp}/{file_name}'
                         hp.write_map(file_tot_path, sky_extrap_smt, overwrite=True, dtype=np.float32)
+
+    def coadd_signal_maps(self):
+        root_dir = self.out_dir
+        fg_dir = f'{root_dir}/foregrounds/'
+        cmb_dir = f'{root_dir}/cmb/'
+        nside = self.nside
+        file_str = self.file_string
+        instr = self.LB_inst
+        channels = instr.keys()
+        coadd_dir = f'{root_dir}/coadd_signal_maps/'
+        if not os.path.exists(coadd_dir):
+            os.makedirs(coadd_dir)
+        if os.path.exists(fg_dir):
+            fg_models = self.fg_models
+            components = list(fg_models.keys())
+            for chnl in channels:
+                fg_tot = np.zeros((3, hp.nside2npix(nside)))
+                for cmp in components:
+                    fg_dir_cmp = f'{fg_dir}{cmp}/'
+                    fg_file_name = f'{chnl}_{cmp}_{file_str}.fits'
+                    try:
+                        fg_cmp = hp.read_map(f'{fg_dir_cmp}{fg_file_name}', (0,1,2), verbose=False)
+                    except:
+                        fg_cmp = hp.read_map(f'{fg_for_cmp}{file_name}', verbose=False)
+                        fg_cmp = np.array([fg_cmp, fg_cmp*0., fg_cmp*0.])
+                    fg_tot += fg_cmp
+                if os.path.exists(cmb_dir):
+                    nmc_cmb = self.nmc_cmb
+                    for nmc in range(nmc_cmb):
+                        nmc_str = str(nmc).zfill(4)
+                        cmb_file_name = f'{chnl}_cmb_{nmc_str}_{file_str}.fits'
+                        cmb = hp.read_map(f'{cmb_dir}{nmc_str}/{cmb_file_name}', (0,1,2), verbose=False)
+                        map_tot = fg_tot+cmb
+                        if not os.path.exists(f'{coadd_dir}{nmc_str}'):
+                            os.makedirs(f'{coadd_dir}{nmc_str}')
+                        tot_file_name = f'{chnl}_coadd_signal_map_{nmc_str}_{file_str}.fits'
+                        hp.write_map(f'{coadd_dir}{nmc_str}/{tot_file_name}', map_tot, overwrite=True)
+                else:
+                    tot_file_name = f'{chnl}_coadd_signal_map_{file_str}.fits'
+                    hp.write_map(f'{coadd_dir}/{tot_file_name}', map_tot, overwrite=True)
+
+    def run_all(self):
+        self.check_and_fix_config()
+        self.read_imo()
+        rank = 0
+        if self.parallel:
+            from mpi4py import MPI
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+        if self.make_noise:
+            print_rnk0('generating noise simulations', rank)
+            self.make_noise_sims()
+        if self.make_cmb:
+            print_rnk0('generating cmb simulations', rank)
+            self.make_cmb_sims()
+        if self.make_fg:
+            print_rnk0('generating fg simulations', rank)
+            self.make_fg_sims()
+        if rank==0:
+            #write_summary(params, par_file)
+            if self.save_coadd:
+                print_rnk0('saving coadded signal maps', rank)
+                self.coadd_signal_maps()
