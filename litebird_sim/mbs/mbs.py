@@ -39,6 +39,8 @@ class Mbs:
         except:
             self.gaussian_smooth = False
             print_rnk0('WARNING: setting gaussian_smooth = False', rank)
+        self.units = 'muK_thermo'
+        print_rnk0('WARNING: all maps will be in muK_thermo', rank)
         try:
             self.save_coadd = config_mbs['maps']['save_coadd']
         except:
@@ -136,6 +138,7 @@ class Mbs:
         file_str = self.file_string
         channels = instr.keys()
         parallel = self.parallel
+        col_units = [self.units, self.units, self.units]
         rank = 0
         size = 1
         if parallel:
@@ -170,13 +173,13 @@ class Mbs:
                             noise_map += noise_map_split
                             file_name = f'{chnl}_noise_SPLIT_{hm+1}of{N_split}_{nmc_str}_{file_str}.fits'
                             file_tot_path = f'{out_dir}{nmc_str}/{file_name}'
-                            hp.write_map(file_tot_path, noise_map_split, overwrite=True)
+                            lbs.write_healpix_map_to_file(file_tot_path, noise_map_split, column_units=col_units)
                         noise_map = noise_map/N_split
                     else:
                         noise_map = np.random.randn(3, npix)*tot_rms
                     file_name = f'{chnl}_noise_FULL_{nmc_str}_{file_str}.fits'
                     file_tot_path = f'{out_dir}{nmc_str}/{file_name}'
-                    hp.write_map(file_tot_path, noise_map, overwrite=True, dtype=np.float32)
+                    lbs.write_healpix_map_to_file(file_tot_path, noise_map, column_units=col_units)
 
     def make_cmb_sims(self):
         instr = self.LB_inst
@@ -190,6 +193,7 @@ class Mbs:
         channels = instr.keys()
         seed_cmb = self.seed_cmb
         cmb_ps_file = self.cmb_ps_file
+        col_units = [self.units, self.units, self.units]
         rank = 0
         size = 1
         if parallel:
@@ -231,7 +235,7 @@ class Mbs:
                     cmb_map_smt = cmb_map
                 file_name = f'{chnl}_cmb_{nmc_str}_{file_str}.fits'
                 file_tot_path = f'{out_dir}{nmc_str}/{file_name}'
-                hp.write_map(file_tot_path, cmb_map_smt, overwrite=True, dtype=np.float32)
+                lbs.write_healpix_map_to_file(file_tot_path, cmb_map_smt, column_units=col_units)
 
     def make_fg_sims(self):
         parallel = self.parallel
@@ -246,6 +250,7 @@ class Mbs:
         components = list(fg_models.keys())
         ncomp = len(components)
         rank = 0
+        col_units = [self.units, self.units, self.units]
         if parallel:
             from mpi4py import MPI
             comm = MPI.COMM_WORLD
@@ -278,7 +283,7 @@ class Mbs:
                     if rank==0:
                         file_name = f'{chnl}_{cmp}_{file_str}.fits'
                         file_tot_path = f'{out_dir}{cmp}/{file_name}'
-                        hp.write_map(file_tot_path, sky_extrap_smt, overwrite=True, dtype=np.float32)
+                        lbs.write_healpix_map_to_file(file_tot_path, sky_extrap_smt, column_units=col_units)
 
     def coadd_signal_maps(self):
         root_dir = self.out_dir
@@ -289,6 +294,7 @@ class Mbs:
         instr = self.LB_inst
         channels = instr.keys()
         coadd_dir = f'{root_dir}/coadd_signal_maps/'
+        col_units = [self.units, self.units, self.units]
         if not os.path.exists(coadd_dir):
             os.makedirs(coadd_dir)
         if os.path.exists(fg_dir):
@@ -315,10 +321,10 @@ class Mbs:
                         if not os.path.exists(f'{coadd_dir}{nmc_str}'):
                             os.makedirs(f'{coadd_dir}{nmc_str}')
                         tot_file_name = f'{chnl}_coadd_signal_map_{nmc_str}_{file_str}.fits'
-                        hp.write_map(f'{coadd_dir}{nmc_str}/{tot_file_name}', map_tot, overwrite=True)
+                        lbs.write_healpix_map_to_file(f'{coadd_dir}{nmc_str}/{tot_file_name}', map_tot, column_units=col_units)
                 else:
                     tot_file_name = f'{chnl}_coadd_signal_map_{file_str}.fits'
-                    hp.write_map(f'{coadd_dir}/{tot_file_name}', map_tot, overwrite=True)
+                    lbs.write_healpix_map_to_file(f'{coadd_dir}/{tot_file_name}', map_tot, column_units=col_units)
 
     def run_all(self):
         self.check_and_fix_config()
