@@ -6,7 +6,7 @@ authors = ["Maurizio Tomasi <maurizio.tomasi@unimi.it>"]
 
 [tool.poetry.dependencies]
 python = "^3.6"
-numba = "^0.47.0"
+numba = "^0.49.1"
 numpy = "^1.18"
 astropy = "^4.0"
 flake8 = "^3.7"
@@ -29,6 +29,7 @@ katex = "^0.0.4"
 healpy = "^1.13.0"
 pyyaml = "^5.3.1"
 backports-datetime-fromisoformat = "^1.0.0"
+pysm3 = "^3.2.2"
 [tool.poetry.extras]
 mpi = ["mpi4py"]
 docs = ["sphinx", "sphinx_rtd_theme"]
