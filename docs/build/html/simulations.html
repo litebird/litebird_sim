@@ -62,7 +62,55 @@ a simulation.</p>
 </div>
 <div class="section" id="parameter-files">
 <span id="id1"></span><h2>Parameter files<a class="headerlink" href="#parameter-files" title="Permalink to this headline">¶</a></h2>
-<p>To be written.</p>
+<p>When you run a simulation, there are typically plenty of parameters
+that need to be passed to the code: the resolution of an output map,
+the names of the detectors to simulate, whether to include synchrotron
+emission in the sky model, etc.</p>
+<p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code> class eases this task by accepting the path to
+a TOML file as a parameter (<code class="docutils literal notranslate"><span class="pre">parameter_file</span></code>). Specifying this
+parameter triggers two actions:</p>
+<ol class="arabic simple">
+<li><p>The file is copied to the output directory where the simulation
+output files are going to be written;</p></li>
+<li><p>The file is read and made available in the field <code class="docutils literal notranslate"><span class="pre">parameters</span></code> (a
+Python dictionary).</p></li>
+</ol>
+<p>Take this example of a simple TOML file:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># This is file &quot;my_conf.toml&quot;</span>
+<span class="k">[general]</span>
+<span class="n">nside</span> <span class="o">=</span> <span class="mi">512</span>
+<span class="n">imo_version</span> <span class="o">=</span> <span class="s">&quot;v0.10&quot;</span>
+
+<span class="k">[sky_model]</span>
+<span class="n">components</span> <span class="o">=</span> <span class="k">[&quot;synchrotron&quot;, &quot;dust&quot;, &quot;cmb&quot;]</span>
+</pre></div>
+</div>
+<p>The following example loads the TOML file and prints its contents to
+the terminal:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">parameter_file</span><span class="o">=</span><span class="s2">&quot;my_conf.toml&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;NSIDE =&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;general&quot;</span><span class="p">][</span><span class="s2">&quot;nside&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The IMO I&#39;m going to use is&quot;</span><span class="p">,</span>
+      <span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;general&quot;</span><span class="p">][</span><span class="s2">&quot;imo_version&quot;</span><span class="p">])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Here are the sky components I&#39;m going to simulate:&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;sky_model&quot;</span><span class="p">][</span><span class="s2">&quot;components&quot;</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="n">component</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The output of the script is the following:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>NSIDE = 512
+The IMO I&#39;m going to use is v0.10
+Here are the sky components I&#39;m going to simulate:
+- synchrotron
+- dust
+- cmb
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object does not try to interpret parts of the
+parameter file: it’s up to the simulation modules to do it.</p>
 </div>
 <div class="section" id="interface-with-the-instrument-database">
 <span id="imo-interface"></span><h2>Interface with the instrument database<a class="headerlink" href="#interface-with-the-instrument-database" title="Permalink to this headline">¶</a></h2>
@@ -164,7 +212,7 @@ formulae, plots, and value substitution:</p>
 
 <dl class="class">
 <dt id="litebird_sim.simulations.Simulation">
-<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">mpi_comm=None</em>, <em class="sig-param">description=''</em>, <em class="sig-param">imo=None</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">mpi_comm=None</em>, <em class="sig-param">description=''</em>, <em class="sig-param">imo=None</em>, <em class="sig-param">parameter_file=None</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A container object for running simulations</p>
 <p>This is the most important class in the Litebird_sim framework. It
@@ -206,6 +254,10 @@ object, like <cite>mpi4py.MPI.COMM_WORLD</cite>.</p></li>
 <li><p><strong>description</strong> (<em>str</em>) – a (possibly long) description of the
 simulation, to be put in the report saved in <cite>base_path</cite>).</p></li>
 <li><p><strong>imo</strong> (<a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a>) – an instance of the <a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a> class</p></li>
+<li><p><strong>parameter_file</strong> (str or <cite>pathlib.Path</cite>) – path to a TOML file
+that contains the parameters for the simulation. This file
+will be copied into <cite>base_path</cite>, and its contents will be
+read into the field <cite>parameters</cite> (a Python dictionary).</p></li>
 </ul>
 </dd>
 </dl>
