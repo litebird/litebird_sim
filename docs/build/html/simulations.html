@@ -42,7 +42,8 @@ available to the user, and it offers the following features:</p>
 <li><p>Provenance model;</p></li>
 <li><p>Interface with the instrument database;</p></li>
 <li><p>System abstractions;</p></li>
-<li><p>Generation of reports.</p></li>
+<li><p>Generation of reports;</p></li>
+<li><p>Printing status messages on the terminal (logging).</p></li>
 </ol>
 <div class="section" id="provenance-model">
 <h2>Provenance model<a class="headerlink" href="#provenance-model" title="Permalink to this headline">¶</a></h2>
@@ -192,6 +193,73 @@ formulae, plots, and value substitution:</p>
 </div>
 <p>And here is the output, which is saved in <code class="docutils literal notranslate"><span class="pre">output/report.html</span></code>:</p>
 <img alt="_images/report_example.png" src="_images/report_example.png" />
+</div>
+<div class="section" id="logging">
+<h2>Logging<a class="headerlink" href="#logging" title="Permalink to this headline">¶</a></h2>
+<p>The report generation tools described above are useful to produce a
+synthetic report of the <em>scientific</em> outcomes of a simulation.
+However, one often wants to monitor the execution of the code in a
+more detailed manner, checking which functions have been called, how
+often, etc. In this case, the best option is to write messages to the
+terminal. Python provides the <a class="reference external" href="https://docs.python.org/3/library/logging.html">logging</a> module for this
+purpose, and when you initialize a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object, the
+module is initialize with a set of sensible defaults. In your code you
+can use the functions <code class="docutils literal notranslate"><span class="pre">debug</span></code>, <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">warning</span></code>, <code class="docutils literal notranslate"><span class="pre">error</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">critical</span></code> to monitor what’s happening during execution:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+<span class="kn">import</span> <span class="nn">logging</span> <span class="k">as</span> <span class="nn">log</span>       <span class="c1"># &quot;log&quot; is shorter to write</span>
+<span class="n">my_sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">()</span>
+<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;the simulation starts here!&quot;</span><span class="p">)</span>
+<span class="n">pi</span> <span class="o">=</span> <span class="mf">3.15</span>
+<span class="k">if</span> <span class="n">pi</span> <span class="o">!=</span> <span class="mf">3.14</span><span class="p">:</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;wrong value of pi!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The output of the code above is the following:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[2020-07-18 06:25:27,653 INFO] the simulation starts here!
+[2020-07-18 06:25:27,653 ERROR] wrong value of pi!
+</pre></div>
+</div>
+<p>Note that the messages are prepended with the date, time, and level of
+severity of the message.</p>
+<p>A few environment variables can taylor the way logging is done:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">LOG_DEBUG</span></code>: by default, debug messages are not printed to the
+terminal, because they are often too verbose for typical uses. If
+you want to debug your code, set a non-empty value to this variable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LOG_ALL_MPI</span></code>: by default, if you are using MPI then only messages
+from the process running with rank 0 will be printed. Setting this
+environment variable will make all the processes print their message
+to the terminal. (Caution: there might be overlapping messages, if
+two processes happen to write at the same time.)</p></li>
+</ul>
+<p>The way you use these variable from the terminal is illustrated with
+an example. Suppose that we changed our example above, so that
+<code class="docutils literal notranslate"><span class="pre">log.debug</span></code> is called instead of <code class="docutils literal notranslate"><span class="pre">log.info</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+<span class="kn">import</span> <span class="nn">logging</span> <span class="k">as</span> <span class="nn">log</span>  <span class="c1"># &quot;log&quot; is shorter to write</span>
+
+<span class="n">my_sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">()</span>
+<span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;the simulation starts here!&quot;</span><span class="p">)</span>
+<span class="n">pi</span> <span class="o">=</span> <span class="mf">3.15</span>
+<span class="k">if</span> <span class="n">pi</span> <span class="o">!=</span> <span class="mf">3.14</span><span class="p">:</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;wrong value of pi!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this case, running the script will produce no messages, as the
+default is to skip <code class="docutils literal notranslate"><span class="pre">log.debug</span></code> calls:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>$ poetry run python my_script.py
+$
+</pre></div>
+</div>
+<p>However, running the script with the environment variable
+<code class="docutils literal notranslate"><span class="pre">LOG_DEBUG</span></code> set will make the messages appear:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>$ LOG_DEBUG=1 poetry run python my_script.py  # No logging
+[2020-07-18 06:31:03,223 DEBUG] the simulation starts here!
+[2020-07-18 06:31:03,224 DEBUG] wrong value of pi!
+$
+</pre></div>
+</div>
 </div>
 <div class="section" id="module-litebird_sim.simulations">
 <span id="api-reference"></span><h2>API reference<a class="headerlink" href="#module-litebird_sim.simulations" title="Permalink to this headline">¶</a></h2>
@@ -393,6 +461,7 @@ folder of the <code class="docutils literal notranslate"><span class="pre">liteb
 <li class="toctree-l2"><a class="reference internal" href="#interface-with-the-instrument-database">Interface with the instrument database</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#system-abstractions">System abstractions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#generation-of-reports">Generation of reports</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#logging">Logging</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#module-litebird_sim.simulations">API reference</a></li>
 </ul>
 </li>

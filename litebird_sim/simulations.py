@@ -4,6 +4,7 @@ import codecs
 from collections import namedtuple
 from datetime import datetime
 import logging as log
+import os
 import subprocess
 from typing import List, Tuple, Union, Dict, Any
 from pathlib import Path
@@ -206,6 +207,31 @@ class Simulation:
             name=name if (name and (name != "")) else "<Untitled>",
             description=description,
         )
+
+        self._initialize_logging()
+
+    def _initialize_logging(self):
+        if self.mpi_comm:
+            mpi_rank = self.mpi_comm.rank
+            log_format = "[%(asctime)s %(levelname)s MPI#{0:04d}] %(message)s".format(
+                mpi_rank
+            )
+        else:
+            mpi_rank = 0
+            log_format = "[%(asctime)s %(levelname)s] %(message)s"
+
+        if "LOG_DEBUG" in os.environ:
+            log_level = log.DEBUG
+        else:
+            log_level = log.INFO
+
+        if "LOG_ALL_MPI" in os.environ:
+            log.basicConfig(level=log_level, format=log_format)
+        else:
+            if mpi_rank == 0:
+                log.basicConfig(level=log_level, format=log_format)
+            else:
+                log.basicConfig(level=log.CRITICAL, format=log_format)
 
     def write_healpix_map(self, filename: str, pixels, **kwargs,) -> str:
         """Save a Healpix map in the output folder

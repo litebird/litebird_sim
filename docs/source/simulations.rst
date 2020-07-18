@@ -9,7 +9,8 @@ available to the user, and it offers the following features:
 1. Provenance model;
 2. Interface with the instrument database;
 3. System abstractions;
-4. Generation of reports.
+4. Generation of reports;
+5. Printing status messages on the terminal (logging).
 
 Provenance model
 ----------------
@@ -182,7 +183,83 @@ formulae, plots, and value substitution::
 And here is the output, which is saved in ``output/report.html``:
 
 .. image:: images/report_example.png
-    
+
+
+Logging
+-------
+
+The report generation tools described above are useful to produce a
+synthetic report of the *scientific* outcomes of a simulation.
+However, one often wants to monitor the execution of the code in a
+more detailed manner, checking which functions have been called, how
+often, etc. In this case, the best option is to write messages to the
+terminal. Python provides the `logging
+<https://docs.python.org/3/library/logging.html>`_ module for this
+purpose, and when you initialize a :class:`.Simulation` object, the
+module is initialize with a set of sensible defaults. In your code you
+can use the functions ``debug``, ``info``, ``warning``, ``error``, and
+``critical`` to monitor what's happening during execution::
+
+  import litebird_sim as lbs
+  import logging as log       # "log" is shorter to write
+  my_sim = lbs.Simulation()
+  log.info("the simulation starts here!")
+  pi = 3.15
+  if pi != 3.14:
+      log.error("wrong value of pi!")
+
+The output of the code above is the following:
+
+.. code-block:: text
+
+  [2020-07-18 06:25:27,653 INFO] the simulation starts here!
+  [2020-07-18 06:25:27,653 ERROR] wrong value of pi!
+  
+Note that the messages are prepended with the date, time, and level of
+severity of the message.
+  
+A few environment variables can taylor the way logging is done:
+
+- ``LOG_DEBUG``: by default, debug messages are not printed to the
+  terminal, because they are often too verbose for typical uses. If
+  you want to debug your code, set a non-empty value to this variable.
+
+- ``LOG_ALL_MPI``: by default, if you are using MPI then only messages
+  from the process running with rank 0 will be printed. Setting this
+  environment variable will make all the processes print their message
+  to the terminal. (Caution: there might be overlapping messages, if
+  two processes happen to write at the same time.)
+
+The way you use these variable from the terminal is illustrated with
+an example. Suppose that we changed our example above, so that
+``log.debug`` is called instead of ``log.info``::
+
+  import litebird_sim as lbs
+  import logging as log  # "log" is shorter to write
+
+  my_sim = lbs.Simulation()
+  log.debug("the simulation starts here!")
+  pi = 3.15
+  if pi != 3.14:
+      log.debug("wrong value of pi!")
+
+In this case, running the script will produce no messages, as the
+default is to skip ``log.debug`` calls:
+
+.. code-block:: text
+
+  $ poetry run python my_script.py
+  $
+  
+However, running the script with the environment variable
+``LOG_DEBUG`` set will make the messages appear:
+
+.. code-block:: text
+
+  $ LOG_DEBUG=1 poetry run python my_script.py  # No logging
+  [2020-07-18 06:31:03,223 DEBUG] the simulation starts here!
+  [2020-07-18 06:31:03,224 DEBUG] wrong value of pi!
+  $
 
 API reference
 -------------
