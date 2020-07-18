@@ -187,6 +187,7 @@ class Simulation:
             self.parameters = _tomlkit_to_popo(tomlkit.parse(param_file_contents))
         else:
             self.parameter_file = None
+            self.parameters = {}
 
         # Create any parent folder, and don't complain if the folder
         # already exists
