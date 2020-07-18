@@ -47,6 +47,10 @@ parameter triggers two actions:
 2. The file is read and made available in the field ``parameters`` (a
    Python dictionary).
 
+The parameter is optional; if you do not specify ``parameter_file``
+when creating a :class:`Simulation` object, the `parameters` field
+will be set to an empty dictionary.
+   
 Take this example of a simple TOML file:
 
 .. code-block:: toml

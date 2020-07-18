@@ -75,6 +75,9 @@ output files are going to be written;</p></li>
 <li><p>The file is read and made available in the field <code class="docutils literal notranslate"><span class="pre">parameters</span></code> (a
 Python dictionary).</p></li>
 </ol>
+<p>The parameter is optional; if you do not specify <code class="docutils literal notranslate"><span class="pre">parameter_file</span></code>
+when creating a <code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code> object, the <cite>parameters</cite> field
+will be set to an empty dictionary.</p>
 <p>Take this example of a simple TOML file:</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># This is file &quot;my_conf.toml&quot;</span>
 <span class="k">[general]</span>
