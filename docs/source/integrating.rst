@@ -80,17 +80,13 @@ interface of this kind::
           # take advantage of the "sim" object. Here we
           # assume to load it using the "seed" key in a
           # section named "noise_generation"
-          self.seed = self.sim.query_input_parameter(
-              "noise_generation",
-              "seed",
-              type=int,
-              default=1234,
-          )
+          self.seed = self.sim.parameters["noise_generation"].get("seed, 1234)
           
           # Initialize your code
           self.generator = mynoisegen.NoiseGenerator(seed)
 
       def run(self):
+          # Call the function doing the *real* work
           noise = self.generator.generate_noise()
 
           self.sim.append_to_report("""
@@ -122,14 +118,17 @@ in the class ``NoiseGenerator``:
     seed = 6343
   
     [scanning_strategy]
-    parameters = imo://v1.0/scanning_strategy
+    parameters = "/releases/v1.0/Satellite/scanning_parameters/"
   
     [map_maker]
     nside = 512
 
-  The call to `sim.query_input_parameter` in the example above would
-  retrieve the number ``6343``. Note that the wrapper class does not
-  need to deal with the other sections in the file
+  The code above accesses the field ``sim.parameters``, which is a Python
+  dictionary containing the parsed content of the TOML file; the call to
+  the standard `get` method ensures that a default value (1234) is used
+  if parameter ``seed`` is not found in the TOML file, but in the example
+  above it would retrieve the number ``6343``. Note that the wrapper
+  class does not need to deal with the other sections in the file
   (``scanning_strategy``, ``map_maker``): they are handled by other
   modules in the pipeline. See :ref:`parameter_files`.
   
