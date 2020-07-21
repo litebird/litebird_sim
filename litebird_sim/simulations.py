@@ -2,14 +2,22 @@
 
 import codecs
 from collections import namedtuple
-from typing import List, Tuple, Any
+from datetime import datetime
+import logging as log
+import subprocess
+from typing import List, Tuple, Union, Dict, Any
 from pathlib import Path
 from shutil import copyfile, copytree
 
 from .detectors import Detector
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
+from .imo.imo import Imo
 from .observations import Observation
+from .version import (
+    __version__ as litebird_sim_version,
+    __author__ as litebird_sim_author,
+)
 
 from astropy.time import Time, TimeDelta
 import markdown
@@ -18,6 +26,20 @@ import jinja2
 from markdown_katex import KatexExtension
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
+
+
+def get_template_file_path(filename: Union[str, Path]) -> Path:
+    """Return a Path object pointing to the full path of a template file.
+
+    Template files are used by the framework to produce automatic
+    reports. They are produced using template files, which usually
+    reside in the ``templates`` subfolder of the main repository.
+
+    Given a filename (e.g., ``report_header.md``), this function
+    returns a full, absolute path to the file within the ``templates``
+    folder of the ``litebird_sim`` source code.
+    """
+    return Path(__file__).parent / ".." / "templates" / filename
 
 
 class Simulation:
@@ -67,10 +89,12 @@ class Simulation:
         description (str): a (possibly long) description of the
             simulation, to be put in the report saved in `base_path`).
 
+        imo (:class:`.Imo`): an instance of the :class:`.Imo` class
+
     """
 
     def __init__(
-        self, base_path=Path(), name=None, mpi_comm=None, description="",
+        self, base_path=Path(), name=None, mpi_comm=None, description="", imo=None,
     ):
         self.base_path = Path(base_path)
         self.name = name
@@ -81,17 +105,29 @@ class Simulation:
 
         self.description = description
 
+        if imo:
+            self.imo = imo
+        else:
+            # TODO: read where to read the IMO from some parameter file
+            self.imo = Imo()
+
         # Create any parent folder, and don't complain if the folder
         # already exists
         self.base_path.mkdir(parents=True, exist_ok=True)
 
         self.list_of_outputs = []  # type: List[OutputFileRecord]
 
-        self.report = f"""# {name}
+        self.report = ""
 
-{description}
-
-"""
+        # Add an header to the report
+        template_file_path = get_template_file_path("report_header.md")
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+        self.append_to_report(
+            markdown_template,
+            name=name if (name and (name != "")) else "<Untitled>",
+            description=description,
+        )
 
     def write_healpix_map(self, filename: str, pixels, **kwargs,) -> str:
         """Save a Healpix map in the output folder
@@ -183,13 +219,113 @@ class Simulation:
                 OutputFileRecord(path=curpath, description="Figure")
             )
 
+    def _fill_dictionary_with_imo_information(self, dictionary: Dict[str, Any]):
+        # Fill the variable "dictionary" with information about the
+        # objects retrieved from the IMO. This is used when producing
+        # the final report for a simulation
+        if not self.imo:
+            return
+
+        entities = [
+            self.imo.query_entity(x, track=False)
+            for x in self.imo.get_queried_entities()
+        ]
+        quantities = [
+            self.imo.query_quantity(x, track=False)
+            for x in self.imo.get_queried_quantities()
+        ]
+        data_files = [
+            self.imo.query_data_file(x, track=False)
+            for x in self.imo.get_queried_data_files()
+        ]
+        warnings = []
+
+        # Check if there are newer versions of the data files used in the simulation
+        for cur_data_file in data_files:
+            data_files = self.imo.get_list_of_data_files(
+                cur_data_file.quantity, track=False
+            )
+            if not data_files:
+                continue
+
+            if data_files[-1].uuid != cur_data_file.uuid:
+                warnings.append((cur_data_file, data_files[-1]))
+
+        if (not entities) and (not quantities) and (not data_files):
+            return
+
+        dictionary["entities"] = entities
+        dictionary["quantities"] = quantities
+        dictionary["data_files"] = data_files
+        dictionary["warnings"] = warnings
+
+    def _fill_dictionary_with_code_status(self, dictionary):
+        # Fill the variable "dictionary" with information about the
+        # status of the "litebird_sim" code (which version is it? was
+        # it patched? etc.) It is used when producing the final report
+        # for a simulation
+        dictionary["litebird_sim_version"] = litebird_sim_version
+        dictionary["litebird_sim_author"] = litebird_sim_author
+
+        # Retrieve information about the last git commit
+        try:
+            proc = subprocess.run(
+                ["git", "log", "-1", "--format=format:%h%n%H%n%s%n%an"],
+                capture_output=True,
+                encoding="utf-8",
+            )
+
+            (
+                short_commit_hash,
+                commit_hash,
+                commit_message,
+                author,
+            ) = proc.stdout.strip().split("\n")
+
+            dictionary["short_commit_hash"] = short_commit_hash
+            dictionary["commit_hash"] = commit_hash
+            dictionary["author"] = author
+            dictionary["commit_message"] = commit_message
+
+            # Retrieve information about changes in the code since the last commit
+            proc = subprocess.run(
+                ["git", "diff", "--no-color", "--exit-code"],
+                capture_output=True,
+                encoding="utf-8",
+            )
+
+            if proc.returncode != 0:
+                dictionary["code_diff"] = proc.stdout.strip()
+
+        except FileNotFoundError:
+            # Git is not installed, so ignore the error and continue
+            pass
+        except Exception as e:
+            log.warning(
+                f"unable to save information about latest git commit in the report: {e}"
+            )
+
     def flush(self):
         """Terminate a simulation.
 
         This function must be called when a simulation is complete. It
         will save pending data to the output directory.
 
+        It returns a `Path` object pointing to the HTML file that has
+        been saved in the directory pointed by ``self.base_path``.
+
         """
+
+        dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        self._fill_dictionary_with_imo_information(dictionary)
+        self._fill_dictionary_with_code_status(dictionary)
+
+        template_file_path = get_template_file_path("report_appendix.md")
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+        self.append_to_report(
+            markdown_template, **dictionary,
+        )
 
         # Expand the markdown text using Jinja2
         with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
@@ -198,7 +334,13 @@ class Simulation:
         # Now generate an HTML file from Markdown.
 
         # Please keep these in alphabetic order, so we can detect duplicates!
-        md_extensions = [KatexExtension(), "sane_lists", "smarty", "tables"]
+        md_extensions = [
+            KatexExtension(),
+            "fenced_code",
+            "sane_lists",
+            "smarty",
+            "tables",
+        ]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
         static_path = Path(__file__).parent / ".." / "static"
@@ -217,10 +359,11 @@ class Simulation:
                 copyfile(src=source, dst=self.base_path / curitem)
 
         # Finally, write down the full HTML report
-        with codecs.open(
-            self.base_path / "report.html", "w", encoding="utf-8",
-        ) as outf:
+        html_report_path = self.base_path / "report.html"
+        with codecs.open(html_report_path, "w", encoding="utf-8",) as outf:
             outf.write(html_full_report)
+
+        return html_report_path
 
     def create_observations(
         self,
@@ -235,7 +378,7 @@ class Simulation:
 
         observations = []
         for detidx, cur_det in enumerate(detectors):
-            cur_sampfreq_hz = cur_det.sampfreq_hz
+            cur_sampfreq_hz = cur_det.sampling_rate_hz
             num_of_samples = cur_sampfreq_hz * duration_s
             samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
@@ -252,7 +395,7 @@ class Simulation:
                 cur_obs = Observation(
                     detector=cur_det,
                     start_time=cur_time,
-                    sampfreq_hz=cur_sampfreq_hz,
+                    sampling_rate_hz=cur_sampfreq_hz,
                     nsamples=nsamples,
                     use_mjd=use_mjd,
                 )

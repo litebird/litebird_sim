@@ -116,7 +116,14 @@ Poetry, use one of the following commands:
 
 1.  Install the prerequisites listed above;
 
-2.  Run the following commands to clone this repository, install all
+2.  Be sure not to have a virtual environment/Conda custom environment
+    active, as `poetry` does not plays nicely with them (Poetry handles
+    a hidden virtual environment by itself, so there's little point in
+    creating one for `litebird_sim`.) See
+    [github.com/python-poetry/poetry/issues/1724](https://github.com/python-poetry/poetry/issues/1724)
+    for more details.
+    
+    Run the following commands to clone this repository, install all
     the dependencies and build the framework:
 
     ```
