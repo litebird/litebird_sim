@@ -76,8 +76,10 @@ output files are going to be written;</p></li>
 Python dictionary).</p></li>
 </ol>
 <p>The parameter is optional; if you do not specify <code class="docutils literal notranslate"><span class="pre">parameter_file</span></code>
-when creating a <code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code> object, the <cite>parameters</cite> field
-will be set to an empty dictionary.</p>
+when creating a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object, the <cite>parameters</cite> field
+will be set to an empty dictionary. (You can even directly pass a
+dictionary to a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object: this can be handy if you
+already constructed a parameter object somewhere else.)</p>
 <p>Take this example of a simple TOML file:</p>
 <div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># This is file &quot;my_conf.toml&quot;</span>
 <span class="k">[general]</span>
@@ -215,7 +217,7 @@ formulae, plots, and value substitution:</p>
 
 <dl class="class">
 <dt id="litebird_sim.simulations.Simulation">
-<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">mpi_comm=None</em>, <em class="sig-param">description=''</em>, <em class="sig-param">imo=None</em>, <em class="sig-param">parameter_file=None</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">mpi_comm=None</em>, <em class="sig-param">description=''</em>, <em class="sig-param">imo=None</em>, <em class="sig-param">parameter_file=None</em>, <em class="sig-param">parameters=None</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A container object for running simulations</p>
 <p>This is the most important class in the Litebird_sim framework. It

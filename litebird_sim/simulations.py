@@ -152,6 +152,7 @@ class Simulation:
         description="",
         imo=None,
         parameter_file=None,
+        parameters=None,
     ):
         self.base_path = Path(base_path)
         self.name = name
@@ -167,6 +168,11 @@ class Simulation:
         else:
             # TODO: read where to read the IMO from some parameter file
             self.imo = Imo()
+
+        assert not (parameter_file and parameters), (
+            "you cannot use parameter_file and parameters together "
+            + "when constructing a litebird_sim.Simulation object"
+        )
 
         if parameter_file:
             self.parameter_file = Path(parameter_file)
@@ -187,7 +193,7 @@ class Simulation:
             self.parameters = _tomlkit_to_popo(tomlkit.parse(param_file_contents))
         else:
             self.parameter_file = None
-            self.parameters = {}
+            self.parameters = parameters
 
         # Create any parent folder, and don't complain if the folder
         # already exists

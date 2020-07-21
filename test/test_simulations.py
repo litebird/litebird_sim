@@ -102,6 +102,39 @@ def test_imo_in_report(tmp_path):
     assert html_file.exists()
 
 
+def test_parameter_dict(tmp_path):
+    from datetime import date
+
+    sim = lbs.Simulation(
+        parameters={
+            "general": {
+                "a": 10,
+                "b": 20.0,
+                "c": False,
+                "subtable": {"d": date(2020, 7, 1), "e": "Hello, world!"},
+            }
+        }
+    )
+
+    assert not sim.parameter_file
+    assert isinstance(sim.parameters, dict)
+
+    assert "general" in sim.parameters
+    assert sim.parameters["general"]["a"] == 10
+    assert sim.parameters["general"]["b"] == 20.0
+    assert not sim.parameters["general"]["c"]
+
+    assert "subtable" in sim.parameters["general"]
+    assert sim.parameters["general"]["subtable"]["d"] == date(2020, 7, 1)
+    assert sim.parameters["general"]["subtable"]["e"] == "Hello, world!"
+
+    try:
+        sim = lbs.Simulation(parameter_file="dummy", parameters={"a": 10})
+        assert False, "Simulation object should have asserted"
+    except AssertionError:
+        pass
+
+
 def test_parameter_file(tmp_path):
     from datetime import date
 
