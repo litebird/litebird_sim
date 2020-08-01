@@ -14,6 +14,9 @@ compiler:
   - gcc-9
 
 env:
+  global:
+    - OMPI_MCA_plm=isolated
+    - OMPI_MCA_rmaps_base_oversubscribe=true
   matrix:
     - MPI=none     EXTRAS=
     - MPI=mpich    EXTRAS=--extras=mpi
@@ -63,6 +66,6 @@ script:
     if [[ "$MPI" != "none"   ]]; then
         for proc in 1 2; do
             echo "Running MPI test ($MPI) with $proc processes"
-            mpiexec -oversubscribe -n $proc poetry run python3 ./test/mpi/test_mpi.py
+            mpiexec -n $proc poetry run python3 ./test/mpi/test_mpi.py
         done
     fi
