@@ -61,12 +61,12 @@ before_install:
   - if [[ "$MPI" == "mpich"   ]]; then mpichversion; fi
   - if [[ "$MPI" == "openmpi" ]]; then ompi_info;    fi
   - pip3 install poetry
+  - gcc --version
 
 install:
   - poetry install --extras=docs $EXTRAS
 
 script:
-  - gcc --version
   - sh ./bin/run_tests.sh
   - |
     if [[ "$MPI" != "none"   ]]; then
