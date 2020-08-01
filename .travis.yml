@@ -27,17 +27,17 @@ matrix:
   include:
     - name: "Python 3.7 on MacOSX (no MPI)"
       os: osx
-      osx_image: xcode11
+      osx_image: xcode12
       language: shell
       env: MPI=none EXTRAS=
     - name: "Python 3.7 on MacOSX (mpich)"
       os: osx
-      osx_image: xcode11
+      osx_image: xcode12
       language: shell
       env: MPI=mpich EXTRAS=--extras=mpi
     - name: "Python 3.7 on MacOSX (openmpi)"
       os: osx
-      osx_image: xcode11
+      osx_image: xcode12
       language: shell
       env: MPI=openmpi EXTRAS=--extras=mpi
     
