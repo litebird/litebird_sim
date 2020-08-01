@@ -66,6 +66,7 @@ install:
   - poetry install --extras=docs $EXTRAS
 
 script:
+  - gcc --version
   - sh ./bin/run_tests.sh
   - |
     if [[ "$MPI" != "none"   ]]; then
