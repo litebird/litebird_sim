@@ -24,7 +24,7 @@ pytest = "^5.3"
 jinja2 = "^2.11"
 markdown = "^3.2"
 matplotlib = "^3.1"
-markdown-katex = {version = "^201905.2-alpha.0", allow-prereleases = true}
+markdown-katex = {version = "^202006.1021"}
 katex = "^0.0.4"
 healpy = "^1.13.0"
 pyyaml = "^5.3.1"

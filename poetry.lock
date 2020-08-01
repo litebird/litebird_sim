@@ -572,13 +572,12 @@ description = "katex extension for Python Markdown"
 name = "markdown-katex"
 optional = false
 python-versions = ">=2.7"
-version = "201905.7b0"
+version = "202006.1021"
 
 [package.dependencies]
-Markdown = "*"
+Markdown = ">=3.0"
 pathlib2 = "*"
 setuptools = "*"
-typing = "*"
 
 [[package]]
 category = "main"
@@ -1235,14 +1234,6 @@ test = ["pytest", "mock"]
 
 [[package]]
 category = "main"
-description = "Type Hints for Python"
-name = "typing"
-optional = false
-python-versions = "*"
-version = "3.7.4.1"
-
-[[package]]
-category = "main"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
 name = "urllib3"
 optional = true
@@ -1300,7 +1291,7 @@ jupyter = ["jupyter"]
 mpi = ["mpi4py"]
 
 [metadata]
-content-hash = "d2b17aee8765f99eb770ec543ce58f439e25b621b72ee1628baec06d21c7e187"
+content-hash = "3138b72fd60b10239b8365dc20824b4d49d56b3c85d3611281e86af53d507c7c"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -1565,8 +1556,8 @@ markdown = [
     {file = "Markdown-3.2.1.tar.gz", hash = "sha256:90fee683eeabe1a92e149f7ba74e5ccdc81cd397bd6c516d93a8da0ef90b6902"},
 ]
 markdown-katex = [
-    {file = "markdown-katex-201905.7b0.tar.gz", hash = "sha256:9613c27528e4b4a99bf5f1d15c1539171d231d74c48cc62bd7111b5547e5e1e0"},
-    {file = "markdown_katex-201905.7b0-py2.py3-none-any.whl", hash = "sha256:0937ae6131bd03b1a1d03ee11c9ca431a051f2a9d77e98b7a9b4235841d4cb13"},
+    {file = "markdown-katex-202006.1021.tar.gz", hash = "sha256:71d5525c8cf0510717ca79a5b80b82d2f7a1fc419333f74cfc3074429a177331"},
+    {file = "markdown_katex-202006.1021-py2.py3-none-any.whl", hash = "sha256:82b5fedb866f8fc2d66907d9046c936a2e7799e669b31ece99469b6e1e287de2"},
 ]
 markupsafe = [
     {file = "MarkupSafe-1.1.1-cp27-cp27m-macosx_10_6_intel.whl", hash = "sha256:09027a7803a62ca78792ad89403b1b7a73a01c8cb65909cd876f7fcebd79b161"},
@@ -1988,11 +1979,6 @@ tornado = [
 traitlets = [
     {file = "traitlets-4.3.3-py2.py3-none-any.whl", hash = "sha256:70b4c6a1d9019d7b4f6846832288f86998aa3b9207c6821f3578a6a6a467fe44"},
     {file = "traitlets-4.3.3.tar.gz", hash = "sha256:d023ee369ddd2763310e4c3eae1ff649689440d4ae59d7485eb4cfbbe3e359f7"},
-]
-typing = [
-    {file = "typing-3.7.4.1-py2-none-any.whl", hash = "sha256:c8cabb5ab8945cd2f54917be357d134db9cc1eb039e59d1606dc1e60cb1d9d36"},
-    {file = "typing-3.7.4.1-py3-none-any.whl", hash = "sha256:f38d83c5a7a7086543a0f649564d661859c5146a85775ab90c0d2f93ffaa9714"},
-    {file = "typing-3.7.4.1.tar.gz", hash = "sha256:91dfe6f3f706ee8cc32d38edbbf304e9b7583fb37108fef38229617f8b3eba23"},
 ]
 urllib3 = [
     {file = "urllib3-1.25.8-py2.py3-none-any.whl", hash = "sha256:2f3db8b19923a873b3e5256dc9c2dedfa883e33d87c690d9c7913e1f40673cdc"},
