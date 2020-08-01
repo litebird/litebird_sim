@@ -22,6 +22,20 @@ from .imo import (
 )
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
+from .scanning import (
+    qrotation_x,
+    qrotation_y,
+    qrotation_z,
+    quat_multiply,
+    rotate_vector,
+    all_rotate_vector,
+    rotate_z_vector,
+    all_rotate_z_vector,
+    boresight_to_sun_earth_axis,
+    boresight_to_ecliptic,
+    all_boresight_to_ecliptic,
+    ScanningStrategy,
+)
 from .simulations import Simulation
 from .version import __author__, __version__
 
@@ -61,6 +75,19 @@ __all__ = [
     "Observation",
     # detectors.py
     "Detector",
+    # scanning.py
+    "qrotation_x",
+    "qrotation_y",
+    "qrotation_z",
+    "quat_multiply",
+    "rotate_vector",
+    "all_rotate_vector",
+    "rotate_z_vector",
+    "all_rotate_z_vector",
+    "boresight_to_sun_earth_axis",
+    "boresight_to_ecliptic",
+    "all_boresight_to_ecliptic",
+    "ScanningStrategy",
     # simulations.py
     "Simulation",
 ]

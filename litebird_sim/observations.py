@@ -3,6 +3,8 @@
 import astropy.time as astrotime
 import numpy as np
 
+from .scanning import ScanningStrategy, calculate_sun_earth_angles_rad
+
 
 class Observation:
     """An observation made by a detector over some time window
@@ -40,9 +42,7 @@ class Observation:
 
     """
 
-    def __init__(
-        self, detector, start_time, sampling_rate_hz, nsamples, use_mjd=False
-    ):
+    def __init__(self, detector, start_time, sampling_rate_hz, nsamples, use_mjd=False):
         self.detector = detector
         self.use_mjd = use_mjd
 
@@ -65,6 +65,10 @@ class Observation:
 
         self.sampling_rate_hz = sampling_rate_hz
         self.nsamples = nsamples
+
+        self.pointing_time_s = None
+        self.bore2ecliptic_quat = None
+
         self.tod = None
 
     def get_times(self):
@@ -83,16 +87,16 @@ class Observation:
 
         """
         if self.use_mjd:
-            delta = astrotime.TimeDelta(1.0 / self.sampling_rate_hz, format="sec")
+            delta = astrotime.TimeDelta(
+                1.0 / self.sampling_rate_hz, format="sec", scale="tdb"
+            )
             vec = (
                 astrotime.Time(self.start_time, format="mjd")
                 + np.arange(self.nsamples) * delta
             )
             return vec.mjd
         else:
-            return (
-                self.start_time + np.arange(self.nsamples) / self.sampling_rate_hz
-            )
+            return self.start_time + np.arange(self.nsamples) / self.sampling_rate_hz
 
     def get_tod(self):
         """Return the array of samples measured during this observation
@@ -112,3 +116,36 @@ class Observation:
 
         """
         return self.tod
+
+    def generate_pointing_information(
+        self, scanning_strategy: ScanningStrategy, delta_time_s=60.0
+    ):
+        time_span_s = self.nsamples / self.sampling_rate_hz
+        num_of_quaternions = int(time_span_s / delta_time_s) + 1
+        self.bore2ecliptic_quat = np.empty((num_of_quaternions, 4))
+
+        if self.use_mjd:
+            time = astrotime.Time(self.start_time, format="mjd") + astrotime.TimeDelta(
+                np.arange(num_of_quaternions) * delta_time_s, format="sec", scale="tdb"
+            )
+            # self.pointing_time_s must always be measured in seconds!
+            self.pointing_time_s = (time - scanning_strategy.start_time).sec
+        else:
+            time = self.start_time + np.linspace(
+                start=0.0,
+                stop=num_of_quaternions * delta_time_s,
+                endpoint=False,
+                num=num_of_quaternions,
+            )
+            self.pointing_time_s = time
+            print(f"self.pointing_time_s = {self.pointing_time_s}")
+
+        sun_earth_angles_rad = calculate_sun_earth_angles_rad(
+            time, use_mjd=self.use_mjd
+        )
+
+        scanning_strategy.all_boresight_to_ecliptic(
+            result_matrix=self.bore2ecliptic_quat,
+            sun_earth_angles_rad=sun_earth_angles_rad,
+            time_vector_s=self.pointing_time_s,
+        )
