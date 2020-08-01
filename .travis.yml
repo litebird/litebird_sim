@@ -7,6 +7,12 @@ python:
 os:
   - linux
   
+dist:
+  - focal
+
+compiler:
+  - gcc-9
+
 env:
   matrix:
     - MPI=none     EXTRAS=
