@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from .distribute import distribute_evenly, distribute_optimally
+from .detectors import Detector
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -35,6 +36,8 @@ __all__ = [
     "MPI_CONFIGURATION",
     # observations.py
     "Observation",
+    # detectors.py
+    "Detector",
     # simulations.py
     "Simulation",
 ]

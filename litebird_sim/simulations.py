@@ -322,7 +322,7 @@ Report written on {datetime}
 
     def create_observations(
         self,
-        detectors: list,
+        detectors: List[str],
         num_of_obs_per_detector: int,
         start_time,
         duration_s: float,
@@ -334,25 +334,21 @@ Report written on {datetime}
 
         self.observations = []
         num_of_samples = sampfreq_hz * duration_s
-        samples_per_obss = distribute_evenly(num_of_samples, num_of_obs_per_detector)
-        start_samples = np.cumsum([0]+samples_per_obss[:-1])
+        obs_spans = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
         # Keep only one every comm.size starting at my rank
-        start_samples = start_samples[self.mpi_comm.rank::self.mpi_comm.size]
-        samples_per_obss = samples_per_obss[self.mpi_comm.rank::self.mpi_comm.size]
-
-        for start_sample, samples_per_obs in zip(start_samples, samples_per_obss):
-            span_s = sampfreq_hz * start_sample
+        obs_spans = obs_spans[self.mpi_comm.rank::self.mpi_comm.size]
+        for obs_span in obs_spans:
+            obs_start_time = obs_span.start_idx / sampfreq_hz
             if use_mjd:
-                cur_start_time = Time(mjd=start_time.mjd) + TimeDelta(seconds=span_s)
-            else:
-                cur_start_time += span_s
+                obs_start_time = (Time(mjd=start_time.mjd)
+                                  + TimeDelta(seconds=obs_start_time))
 
             cur_obs = Observation(
-                detector=detectors,
-                start_time=cur_start_time,
+                detectors=detectors,
+                start_time=obs_start_time,
                 sampfreq_hz=sampfreq_hz,
-                nsamples=samples_per_obs,
+                nsamples=obs_span.num_of_elements,
                 use_mjd=use_mjd,
             )
             self.observations.append(cur_obs)
