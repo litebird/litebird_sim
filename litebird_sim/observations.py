@@ -36,7 +36,7 @@ class Observation:
         nsamples (int): The number of samples in this observation.
 
         use_mjd (bool): If ``True``, the value of `start_time` is
-            expressed in MJD.
+            expressed in MJD, otherwise it's in seconds.
 
     """
 
