@@ -29,21 +29,24 @@ class Observation:
             the latter case, if `use_mjd` is ``False``, the number
             must be expressed in seconds; otherwise, it must be a MJD.
 
-        sampfreq_hz (float): The sampling frequency. Regardless of the
+        sampling_rate_hz (float): The sampling frequency. Regardless of the
             measurement unit used for `start_time`, this *must* be
             expressed in Hertz.
 
         nsamples (int): The number of samples in this observation.
 
         use_mjd (bool): If ``True``, the value of `start_time` is
-            expressed in MJD.
+            expressed in MJD, otherwise it's in seconds.
 
     """
 
-    def __init__(self, detectors, start_time, sampfreq_hz, nsamples,
-                 use_mjd=False, fields=[], dtype=np.float32):
-        self.sampfreq_hz = sampfreq_hz
+    def __init__(
+        self, detectors, start_time, sampling_rate_hz, nsamples, use_mjd=False
+    ):
+        self.detectors = detectors
         self.use_mjd = use_mjd
+        self.sampling_rate_hz = sampling_rate_hz
+
         if isinstance(start_time, astrotime.Time):
             if self.use_mjd:
                 self.start_time = start_time.mjd
@@ -87,11 +90,11 @@ class Observation:
 
         """
         if self.use_mjd:
-            delta = astrotime.TimeDelta(1.0 / self.sampfreq_hz, format="sec")
+            delta = astrotime.TimeDelta(1.0 / self.sampling_rate_hz, format="sec")
             vec = (
                 astrotime.Time(self.start_time, format="mjd")
                 + np.arange(self.nsamples) * delta
             )
             return vec.mjd
         else:
-            return self.start_time + np.arange(self.nsamples) / self.sampfreq_hz
+            return self.start_time + np.arange(self.nsamples) / self.sampling_rate_hz

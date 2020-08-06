@@ -164,7 +164,7 @@ formulae, plots, and value substitution:</p>
 
 <dl class="class">
 <dt id="litebird_sim.simulations.Simulation">
-<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">mpi_comm=None</em>, <em class="sig-param">description=''</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">mpi_comm=None</em>, <em class="sig-param">description=''</em>, <em class="sig-param">imo=None</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A container object for running simulations</p>
 <p>This is the most important class in the Litebird_sim framework. It
@@ -205,6 +205,7 @@ be used in the reports.</p></li>
 object, like <cite>mpi4py.MPI.COMM_WORLD</cite>.</p></li>
 <li><p><strong>description</strong> (<em>str</em>) – a (possibly long) description of the
 simulation, to be put in the report saved in <cite>base_path</cite>).</p></li>
+<li><p><strong>imo</strong> (<a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a>) – an instance of the <a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a> class</p></li>
 </ul>
 </dd>
 </dl>
@@ -258,12 +259,9 @@ displayed equations.</p>
 <dd><p>Terminate a simulation.</p>
 <p>This function must be called when a simulation is complete. It
 will save pending data to the output directory.</p>
+<p>It returns a <cite>Path</cite> object pointing to the HTML file that has
+been saved in the directory pointed by <code class="docutils literal notranslate"><span class="pre">self.base_path</span></code>.</p>
 </dd></dl>
-
-<dl class="method">
-<dt id="litebird_sim.simulations.Simulation.write_code_status_to_report">
-<code class="sig-name descname">write_code_status_to_report</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.write_code_status_to_report" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
 
 <dl class="method">
 <dt id="litebird_sim.simulations.Simulation.write_healpix_map">
@@ -299,6 +297,18 @@ written into the output folder for the simulation.</p>
 
 </dd></dl>
 
+<dl class="function">
+<dt id="litebird_sim.simulations.get_template_file_path">
+<code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">get_template_file_path</code><span class="sig-paren">(</span><em class="sig-param">filename: Union[str, pathlib.Path]</em><span class="sig-paren">)</span> &#x2192; pathlib.Path<a class="headerlink" href="#litebird_sim.simulations.get_template_file_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a Path object pointing to the full path of a template file.</p>
+<p>Template files are used by the framework to produce automatic
+reports. They are produced using template files, which usually
+reside in the <code class="docutils literal notranslate"><span class="pre">templates</span></code> subfolder of the main repository.</p>
+<p>Given a filename (e.g., <code class="docutils literal notranslate"><span class="pre">report_header.md</span></code>), this function
+returns a full, absolute path to the file within the <code class="docutils literal notranslate"><span class="pre">templates</span></code>
+folder of the <code class="docutils literal notranslate"><span class="pre">litebird_sim</span></code> source code.</p>
+</dd></dl>
+
 </div>
 </div>
 
@@ -332,8 +342,10 @@ written into the output folder for the simulation.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="observations.html">Observations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imo.html">The Instrument Model Database (IMO)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mpi.html">Using MPI</a></li>
 <li class="toctree-l1"><a class="reference internal" href="integrating.html">Integrating existing codes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integrating.html#always-implement-some-tests">6. Always implement some tests!</a></li>
 </ul>
 
 <div class="relations">
