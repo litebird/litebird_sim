@@ -4,9 +4,15 @@
 
 version: 2
 
+python:
+   version: 3.7
+   install:
+      - method: pip
+        path: .
+        extra_requirements:
+            - docs
+   system_packages: true
+
+
 sphinx:
   configuration: docs/source/conf.py
-
-python:
-  version: 3.6
-  pip_install: true
