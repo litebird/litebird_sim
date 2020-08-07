@@ -368,3 +368,32 @@ class ScanningStrategy:
             spin_rate_hz=self.spin_rate_hz,
             time_vector_s=time_vector_s,
         )
+
+    def __repr__(self):
+        return (
+            "ScanningStrategy(spin_sun_angle_rad={spin_sun_angle_rad}, "
+            "spin_boresight_angle_rad={spin_boresight_angle_rad}, "
+            "precession_rate_hz={precession_rate_hz}, "
+            "spin_rate_hz={spin_rate_hz}, "
+            "start_time={start_time})".format(
+                spin_sun_angle_rad=self.spin_sun_angle_rad,
+                spin_boresight_angle_rad=self.spin_boresight_angle_rad,
+                precession_rate_hz=self.precession_rate_hz,
+                spin_rate_hz=self.spin_rate_hz,
+                start_time=self.start_time,
+            )
+        )
+
+    def __str__(self):
+        return """Scanning strategy:
+    angle between the Sun and the spin axis:       {spin_sun_angle_deg:.1f}°
+    angle between the boresight and the spin axis: {spin_boresight_angle_deg:.1f}°
+    rotations around the precession angle:         {precession_rate_hz} rot/sec
+    rotations around the spinning axis:            {spin_rate_hz} rot/sec
+    start time of the simulation:                  {start_time}""".format(
+            spin_sun_angle_deg=np.rad2deg(self.spin_sun_angle_rad),
+            spin_boresight_angle_deg=np.rad2deg(self.spin_boresight_angle_rad),
+            precession_rate_hz=self.precession_rate_hz,
+            spin_rate_hz=self.spin_rate_hz,
+            start_time=self.start_time,
+        )
