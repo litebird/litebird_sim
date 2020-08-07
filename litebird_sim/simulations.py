@@ -13,6 +13,7 @@ from .detectors import Detector
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
 from .imo.imo import Imo
+from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 from .version import (
     __version__ as litebird_sim_version,
@@ -24,6 +25,9 @@ import markdown
 import jinja2
 
 from markdown_katex import KatexExtension
+
+from .scanning import ScanningStrategy
+
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
@@ -94,7 +98,12 @@ class Simulation:
     """
 
     def __init__(
-        self, base_path=Path(), name=None, mpi_comm=None, description="", imo=None,
+        self,
+        base_path=Path(),
+        name=None,
+        mpi_comm=MPI_COMM_WORLD,
+        description="",
+        imo=None,
     ):
         self.base_path = Path(base_path)
         self.name = name
@@ -372,7 +381,6 @@ class Simulation:
         start_time,
         duration_s: float,
         distribute=True,
-        use_mjd=False,
     ):
         "Create a set of Observation objects"
 
@@ -382,13 +390,7 @@ class Simulation:
             num_of_samples = cur_sampfreq_hz * duration_s
             samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
-            if isinstance(start_time, float):
-                cur_time = start_time
-            else:
-                if use_mjd:
-                    cur_time = start_time
-                else:
-                    cur_time = start_time.mjd
+            cur_time = start_time
 
             for cur_obs_idx in range(num_of_obs_per_detector):
                 nsamples = samples_per_obs[cur_obs_idx].num_of_elements
@@ -397,18 +399,19 @@ class Simulation:
                     start_time=cur_time,
                     sampling_rate_hz=cur_sampfreq_hz,
                     nsamples=nsamples,
-                    use_mjd=use_mjd,
                 )
                 observations.append(cur_obs)
-                span_s = cur_sampfreq_hz * nsamples
 
-                if use_mjd:
-                    cur_time = Time(mjd=cur_time) + TimeDelta(seconds=span_s)
-                else:
-                    cur_time += span_s
+                time_span = cur_sampfreq_hz * nsamples
+                if isinstance(start_time, Time):
+                    time_span = TimeDelta(time_span, format="sec")
+
+                cur_time += time_span
 
         if distribute:
             self.distribute_workload(observations)
+        else:
+            self.observations = observations
 
         return observations
 
@@ -427,3 +430,47 @@ class Simulation:
         self.observations = observations[
             span.start_idx : (span.start_idx + span.num_of_elements)
         ]
+
+    def generate_pointing_information(
+        self, scanning_strategy=None, imo_object=None, delta_time_s=60.0
+    ):
+        assert not (scanning_strategy and imo_object), (
+            "you must either specify scanning_strategy or imo_object (but not"
+            "the two together) when calling Simulation.generate_pointing_information"
+        )
+
+        if not scanning_strategy:
+            if not imo_object:
+                imo_object = "/releases/v1.0/Satellite/scanning_parameters/"
+
+            sstr_dict = self.imo.query(imo_object)
+            scanning_strategy = ScanningStrategy(**sstr_dict)
+
+        assert self.observations, "you must call Simulation.create_observations() first"
+        quat_memory_size_bytes = 0
+        quattime_memory_size_bytes = 0
+        for obs in self.observations:
+            obs.generate_pointing_information(
+                scanning_strategy, delta_time_s=delta_time_s
+            )
+            quat_memory_size_bytes += obs.bore2ecliptic_quats.nbytes
+
+        if self.mpi_comm.size > 1:
+            quat_memory_size_bytes = self.mpi_comm.reduce(
+                quat_memory_size_bytes, root=0
+            )
+            quattime_memory_size_bytes = self.mpi_comm.reduce(
+                quattime_memory_size_bytes, root=0
+            )
+
+        if self.mpi_comm.rank == 0:
+            template_file_path = get_template_file_path("report_generate_pointings.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                num_of_obs=len(self.observations),
+                delta_time_s=delta_time_s,
+                quat_memory_size_bytes=quat_memory_size_bytes,
+                quattime_memory_size_bytes=quattime_memory_size_bytes,
+            )

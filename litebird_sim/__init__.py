@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-
 from .distribute import distribute_evenly, distribute_optimally
 from .detectors import Detector, read_detector_from_dict, read_detector_from_imo
 from .healpix import (
@@ -26,14 +25,18 @@ from .scanning import (
     qrotation_x,
     qrotation_y,
     qrotation_z,
-    quat_multiply,
+    quat_right_multiply,
+    quat_left_multiply,
     rotate_vector,
-    all_rotate_vector,
+    rotate_x_vector,
+    rotate_y_vector,
     rotate_z_vector,
-    all_rotate_z_vector,
+    compute_pointing_and_polangle,
+    all_compute_pointing_and_polangle,
     boresight_to_sun_earth_axis,
     boresight_to_ecliptic,
     all_boresight_to_ecliptic,
+    calculate_sun_earth_angles_rad,
     ScanningStrategy,
 )
 from .simulations import Simulation
@@ -79,14 +82,18 @@ __all__ = [
     "qrotation_x",
     "qrotation_y",
     "qrotation_z",
-    "quat_multiply",
+    "quat_right_multiply",
+    "quat_left_multiply",
     "rotate_vector",
-    "all_rotate_vector",
+    "rotate_x_vector",
+    "rotate_y_vector",
     "rotate_z_vector",
-    "all_rotate_z_vector",
+    "compute_pointing_and_polangle",
+    "all_compute_pointing_and_polangle",
     "boresight_to_sun_earth_axis",
     "boresight_to_ecliptic",
     "all_boresight_to_ecliptic",
+    "calculate_sun_earth_angles_rad",
     "ScanningStrategy",
     # simulations.py
     "Simulation",
