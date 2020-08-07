@@ -29,6 +29,7 @@ katex = "^0.0.4"
 healpy = "^1.13.0"
 pyyaml = "^5.3.1"
 backports-datetime-fromisoformat = "^1.0.0"
+sphinxcontrib-contentui = "^0.2.5"
 [tool.poetry.extras]
 mpi = ["mpi4py"]
 docs = ["sphinx", "sphinx_rtd_theme"]

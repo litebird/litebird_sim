@@ -2,6 +2,13 @@ Observations
 ============
 
 In this section we describe the :class:`.Observation` class, which
+we use as the main container for the data acquired by the telescope during
+a scaning period (and the relevant information about it).
+
+For a dedicated discussion about how this data is organized in memory,
+see :doc:`data_layout`
+
+The :class:`.Observation` class
 represents a sequence of time-ordered-data (TOD) acquired by a
 detector. An object of type :class:`Observation` is usually used to
 encode the TOD acquired during a time span when the characteristics of
