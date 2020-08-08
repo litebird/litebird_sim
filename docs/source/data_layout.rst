@@ -38,27 +38,27 @@ TOD as two-dimensional arrays
 
     ``tod[3]`` gets the third row (the TOD of the third detector), ``tod[:, 3]`` is
     the third column. Both are views of the original memory allocations (no data
-    copy or movement) and both selctions are quick: The first because 
+    copy nor movement) and both selections are quick: The first because 
     it is one contiguous chuck of memory at known location, the second because
-    it is made of equally-spaced elments in memory. The first is much better than the
-    second, but this is the best you can do if want to access both many time samples
+    it is made of equally-spaced elements in memory. The first is much better than the
+    second, but this is the best you can do if you want to access both many time samples
     for fixed detector and many detectors at fixed time. "Equally-spaced" may
     seem a detail to a human but makes a ton of difference for a CPU:
-    Unpredicatable memory access is a performance killer.
+    Unpredictable memory access is a performance killer.
 
 .. toggle-header::
  :header: We want to operate on the detector dimension as easily as we operate on the time dimension.
 
    Having the detectors as an axis of a 2-dimensional ``numpy.ndarray`` 
    (i.e.  one index of a TOD matrix) allow to perform easily operation that
-   involve multiple detecors at fixed time.
+   involve multiple detectors at fixed time.
 
    As mentioned above accessing all the detectors at the ``i`` th time sample is as
-   easy as ``tod[:, i]``. Taking the timestream of the mean signal across the
+   easy as ``tod[:, i]``. Taking the time stream of the mean signal across the
    focal plane is simply ``tod.mean(axis=0)``, and taking the standard
    deviation is just as easy. In general, an extremely large number of
    operations can be expressed in terms of ``numpy`` functions and they can
-   operate easily and efficiently over axis of multi-dimentional arrays.
+   operate easily and efficiently over axes of multi-dimensional arrays.
    Suppose you have a cross-talk matrix ``C``, mixing the TODs accordingly is
    as easy as ``C @ tod``.
    
@@ -73,7 +73,7 @@ TOD as two-dimensional arrays
    Even when there is not really communications between detectors involved,
    having data in a 2-dimensional array produces (arguably) cleaner code and
    sometimes faster code (never slower). Suppose you have a *list* of
-   ``calibration_factors`` and a *list* of timestreams ``tod``. You can apply the
+   ``calibration_factors`` and a *list* of time streams ``tod``. You can apply the
    calibration factors with
 
    .. code-block:: python 
@@ -101,8 +101,8 @@ Splitting the TOD matrix
 .. toggle-header::
  :header: When working on clusters, we have to split this matrix into pieces.
 
-   We resort to supercomputes either when we want more CPU power than a laptop
-   or because the we need more momeory to store our data. Both motivations apply
+   We resort to supercomputers either when we want more CPU power than a laptop
+   or because the we need more memory to store our data. Both motivations apply
    to full-scale LiteBIRD simulations (4000 detectors, sampled at 30 GHz for 3
    years take approximately 15 TB). Therefore, we have to distribute the matrix
    and a compute node has access only to the portion of the matrix that is in its
@@ -114,7 +114,7 @@ Splitting the TOD matrix
    At the present stage, there is no constraint on the shape of these blocks,
    they can also be a single row or a single column. The important thing is
    that, if the block spans more than a row, it is stored as a matrix (a
-   2-dimensional array). This means that, for the the time- and detector-chunck
+   2-dimensional array). This means that, for the time- and detector-chunk
    assigned to a compute node, all the benefits discussed in the previous
    section apply.
 
@@ -125,7 +125,7 @@ The most convenient block shape depends on the application
 .. toggle-header::
  :header: Some operations prefer to store an entire row
 
-   For example, 4:math:`pi` beam comvolution has a memory overhead of the order
+   For example, :math:`4\pi` beam convolution has a memory overhead of the order
    of the GB for each beam, which is in principle different for each detector.
    For this operation is therefore more convenient to hold a detector for the
    entire length of the mission.
@@ -135,10 +135,10 @@ The most convenient block shape depends on the application
 
    For example, computing the common mode across the focal plane requires
    information from all the detectors at every time sample. This is trivial if
-   the full detector column is in the momory, but it is very complicated if it
+   the full detector column is in the memory, but it is very complicated if it
    is scattered across many compute nodes. Another example is cross-talks.
-   Mixing the TOD of different detecotrs is trivial when everything is in
-   memory, but it requires sending large messages across the network. Sending
+   Mixing the TOD of different detectors is trivial when everything is in
+   memory, but otherwise it requires sending large messages across the network. Sending
    messages is not only a performance issue, it means that probably a custom
    algorithm has to be written (there are tons of shared-memory libraries but
    only a few distributed-memory libraries). This algorithm would require the
@@ -167,23 +167,21 @@ Possible advantages of less general choices
    Of course this is equivalent to the previous point and
    not having any matrix structure in the data. This assumption still suits
    several applications and for them it is more convenient to deal with a 
-   lenght-T array rather than a 1-by-T matrix for API reasons
+   length-T array rather than a 1-by-T matrix for API reasons
    (there is no memory nor performance advantage)
    However, it seems to us that the potential advantages of allowing non-trivial
-   blocks largely outweight the possible API advantages of imposing row-blocks.
+   blocks largely outweighs the possible API advantages of imposing row-blocks.
 
 Beyond TOD
 ----------
 .. toggle-header::
- :header: Applying the same mindset to all the other detector quantities, we store them in arrays that cointaint a given inforamtion for all the detectors
+ :header: Applying the same mindset to all the other detector quantities, we store them in arrays that contain a given information for all the detectors
   
    Conceptually it may seem more natural to select a detector and have all its
    quantities as attributes. However, when we operate on the observations, we
    typically are interested only in one or few attributes of the detectors and
    we operate on all the detectors. Because of this pattern, it is more
    convenient from any computational point of view to stack a given attribute
-   for every detector into an array. This is likely to save tons of for loops
-   by expoiting ``numpy`` broadcasting rules in most of numerical operations,
+   for every detector into an array. This is likely to save many for loops
+   by exploiting ``numpy`` broadcasting rules in most of numerical operations,
    which results in both cleaner code and higher performance.
-
-
