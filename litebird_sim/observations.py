@@ -41,7 +41,8 @@ class Observation:
     """
 
     def __init__(
-        self, detectors, start_time, sampling_rate_hz, nsamples, use_mjd=False
+        self, detectors, start_time, sampling_rate_hz, nsamples, use_mjd=False,
+        fields=[], dtype=np.float32
     ):
         self.detectors = detectors
         self.use_mjd = use_mjd
