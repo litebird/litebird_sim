@@ -475,9 +475,9 @@ class Simulation:
 
         if not scanning_strategy:
             if not imo_url:
-                imo_url = "/releases/v1.0/Satellite/scanning_parameters/"
+                imo_url = "/releases/v1.0/satellite/scanning_parameters/"
 
-            scanning_strategy = ScanningStrategy.from_imo(self.imo, imo_url)
+            scanning_strategy = ScanningStrategy.from_imo(imo=self.imo, url=imo_url)
 
         # TODO: if MPI is enabled, we should probably parallelize this call
         self.bore2ecliptic_quats = scanning_strategy.generate_bore2ecl_quaternions(

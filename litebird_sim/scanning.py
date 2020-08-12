@@ -444,10 +444,6 @@ class Bore2EclipticQuaternions:
 
             time_skip_s = (time0 - self.start_time).sec
         else:
-            assert isinstance(time0, float), (
-                "you must pass a float to time0 here, as "
-                "Bore2EclipticQuaternions.start_time = {}"
-            ).format(self.start_time)
             time_skip_s = time0 - self.start_time
 
         pp = PointingProvider(0.0, self.pointing_freq_hz, self.quats)
@@ -566,7 +562,7 @@ class ScanningStrategy:
         )
 
     @classmethod
-    def from_imo(imo: Imo, object_ref: Union[str, UUID]):
+    def from_imo(cls, imo: Imo, url: Union[str, UUID]):
         """Read the definition of the scanning strategy from the IMO
 
         This function returns a :class:`.ScanningStrategy` object
@@ -578,7 +574,7 @@ class ScanningStrategy:
 
             imo (:class:`.Imo`): an instance of the :class:`.Imo` class
 
-            object_ref (str or ``UUID``): a reference to the data file
+            url (str or ``UUID``): a reference to the data file
                 containing the definition of the scanning strategy. It can
                 be either a string like
                 ``/releases/v1.0/satellite/scanning_parameters/`` or a
@@ -589,12 +585,12 @@ class ScanningStrategy:
             imo = Imo()
             sstr = ScanningStrategy.from_imo(
                 imo=imo,
-                object_ref="/releases/v1.0/satellite/scanning_parameters/",
+                url="/releases/v1.0/satellite/scanning_parameters/",
             )
             print(sstr)
 
         """
-        obj = imo.query(object_ref)
+        obj = imo.query(url)
         return ScanningStrategy(
             spin_sun_angle_deg=obj.metadata["spin_sun_angle_deg"],
             spin_boresight_angle_deg=obj.metadata["spin_boresight_angle_deg"],
