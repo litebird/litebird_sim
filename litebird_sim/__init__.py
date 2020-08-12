@@ -33,10 +33,10 @@ from .scanning import (
     rotate_z_vector,
     compute_pointing_and_polangle,
     all_compute_pointing_and_polangle,
-    boresight_to_sun_earth_axis,
     boresight_to_ecliptic,
     all_boresight_to_ecliptic,
     calculate_sun_earth_angles_rad,
+    Bore2EclipticQuaternions,
     ScanningStrategy,
 )
 from .simulations import Simulation
@@ -90,10 +90,10 @@ __all__ = [
     "rotate_z_vector",
     "compute_pointing_and_polangle",
     "all_compute_pointing_and_polangle",
-    "boresight_to_sun_earth_axis",
     "boresight_to_ecliptic",
     "all_boresight_to_ecliptic",
     "calculate_sun_earth_angles_rad",
+    "Bore2EclipticQuaternions",
     "ScanningStrategy",
     # simulations.py
     "Simulation",

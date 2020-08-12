@@ -20,7 +20,7 @@ from .version import (
     __author__ as litebird_sim_author,
 )
 
-from astropy.time import Time, TimeDelta
+import astropy.time
 import markdown
 import jinja2
 
@@ -78,6 +78,12 @@ class Simulation:
         for curpath, curdescr in sim.list_of_outputs:
             print(f"{curpath}: {curdescr}")
 
+    When pointing information is needed, you can call the method
+    :meth:`.Simulation.generate_bore2ecl_quaternions`, which
+    initializes the members `pointing_freq_hz` and
+    `bore2ecliptic_quats`; these members are used by functions like
+    :meth:`.Observation.get_pointings`.
+
     Args:
 
         base_path (str or `pathlib.Path`): the folder that will
@@ -93,6 +99,16 @@ class Simulation:
         description (str): a (possibly long) description of the
             simulation, to be put in the report saved in `base_path`).
 
+        start_time (float or ``astropy.time.Time``): the start time of
+            the simulation. It can be either an arbitrary
+            floating-point number (e.g., 0) or an
+            ``astropy.time.Time`` instance; in the latter case, this
+            triggers a more precise (and slower) computation of
+            pointing information.
+
+        duration_s (float): Number of seconds the simulation should
+            last.
+
         imo (:class:`.Imo`): an instance of the :class:`.Imo` class
 
     """
@@ -103,6 +119,8 @@ class Simulation:
         name=None,
         mpi_comm=MPI_COMM_WORLD,
         description="",
+        start_time=None,
+        duration_s=None,
         imo=None,
     ):
         self.base_path = Path(base_path)
@@ -111,6 +129,11 @@ class Simulation:
         self.mpi_comm = mpi_comm
 
         self.observations = []
+
+        self.start_time = start_time
+        self.duration_s = duration_s
+
+        self.bore2ecliptic_quats = None
 
         self.description = description
 
@@ -136,6 +159,10 @@ class Simulation:
             markdown_template,
             name=name if (name and (name != "")) else "<Untitled>",
             description=description,
+            start_time=start_time.to_datetime()
+            if isinstance(start_time, astropy.time.Time)
+            else start_time,
+            duration_s=duration_s,
         )
 
     def write_healpix_map(self, filename: str, pixels, **kwargs,) -> str:
@@ -375,22 +402,26 @@ class Simulation:
         return html_report_path
 
     def create_observations(
-        self,
-        detectors: List[Detector],
-        num_of_obs_per_detector: int,
-        start_time,
-        duration_s: float,
-        distribute=True,
+        self, detectors: List[Detector], num_of_obs_per_detector: int, distribute=True,
     ):
         "Create a set of Observation objects"
 
+        assert (
+            self.start_time is not None
+        ), "you must set start_time when creating the Simulation object"
+        assert isinstance(
+            self.duration_s, float
+        ), "you must set duration_s when creating the Simulation object"
+
         observations = []
+
+        duration_s = self.duration_s  # Cache the value to a local variable
         for detidx, cur_det in enumerate(detectors):
             cur_sampfreq_hz = cur_det.sampling_rate_hz
             num_of_samples = cur_sampfreq_hz * duration_s
             samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
-            cur_time = start_time
+            cur_time = self.start_time
 
             for cur_obs_idx in range(num_of_obs_per_detector):
                 nsamples = samples_per_obs[cur_obs_idx].num_of_elements
@@ -403,8 +434,8 @@ class Simulation:
                 observations.append(cur_obs)
 
                 time_span = cur_sampfreq_hz * nsamples
-                if isinstance(start_time, Time):
-                    time_span = TimeDelta(time_span, format="sec")
+                if isinstance(self.start_time, astropy.time.Time):
+                    time_span = astropy.time.TimeDelta(time_span, format="sec")
 
                 cur_time += time_span
 
@@ -432,36 +463,29 @@ class Simulation:
         ]
 
     def generate_pointing_information(
-        self, scanning_strategy=None, imo_object=None, delta_time_s=60.0
+        self,
+        scanning_strategy: Union[None, ScanningStrategy] = None,
+        imo_url: Union[None, str] = None,
+        delta_time_s: float = 60.0,
     ):
-        assert not (scanning_strategy and imo_object), (
-            "you must either specify scanning_strategy or imo_object (but not"
+        assert not (scanning_strategy and imo_url), (
+            "you must either specify scanning_strategy or imo_url (but not"
             "the two together) when calling Simulation.generate_pointing_information"
         )
 
         if not scanning_strategy:
-            if not imo_object:
-                imo_object = "/releases/v1.0/Satellite/scanning_parameters/"
+            if not imo_url:
+                imo_url = "/releases/v1.0/Satellite/scanning_parameters/"
 
-            sstr_dict = self.imo.query(imo_object)
-            scanning_strategy = ScanningStrategy(**sstr_dict)
+            scanning_strategy = ScanningStrategy.from_imo(self.imo, imo_url)
 
-        assert self.observations, "you must call Simulation.create_observations() first"
-        quat_memory_size_bytes = 0
-        quattime_memory_size_bytes = 0
-        for obs in self.observations:
-            obs.generate_pointing_information(
-                scanning_strategy, delta_time_s=delta_time_s
-            )
-            quat_memory_size_bytes += obs.bore2ecliptic_quats.nbytes
-
-        if self.mpi_comm.size > 1:
-            quat_memory_size_bytes = self.mpi_comm.reduce(
-                quat_memory_size_bytes, root=0
-            )
-            quattime_memory_size_bytes = self.mpi_comm.reduce(
-                quattime_memory_size_bytes, root=0
-            )
+        # TODO: if MPI is enabled, we should probably parallelize this call
+        self.bore2ecliptic_quats = scanning_strategy.generate_bore2ecl_quaternions(
+            start_time=self.start_time,
+            time_span_s=self.duration_s,
+            delta_time_s=delta_time_s,
+        )
+        quat_memory_size_bytes = self.bore2ecliptic_quats.nbytes()
 
         if self.mpi_comm.rank == 0:
             template_file_path = get_template_file_path("report_generate_pointings.md")
@@ -472,5 +496,4 @@ class Simulation:
                 num_of_obs=len(self.observations),
                 delta_time_s=delta_time_s,
                 quat_memory_size_bytes=quat_memory_size_bytes,
-                quattime_memory_size_bytes=quattime_memory_size_bytes,
             )

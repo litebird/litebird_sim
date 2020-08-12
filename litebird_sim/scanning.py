@@ -1,27 +1,36 @@
 # -*- encoding: utf-8 -*-
 
+from typing import Union
+from uuid import UUID
+
 from astropy.coordinates import ICRS, get_body_barycentric, BarycentricMeanEcliptic
-from astropy.time import Time
+import astropy.time
 import astropy.units as u
 from numba import njit
 import numpy as np
 
+from ducc0.pointingprovider import PointingProvider
+
+from .imo import Imo
 
 YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * u.year).to(u.s).value
 
 
 @njit
 def qrotation_x(theta):
+    # We assume the convention (v_x, v_y, v_z, w) for the quaternion
     return (np.sin(theta / 2), 0.0, 0.0, np.cos(theta / 2))
 
 
 @njit
 def qrotation_y(theta):
+    # We assume the convention (v_x, v_y, v_z, w) for the quaternion
     return (0.0, np.sin(theta / 2), 0.0, np.cos(theta / 2))
 
 
 @njit
 def qrotation_z(theta):
+    # We assume the convention (v_x, v_y, v_z, w) for the quaternion
     return (0.0, 0.0, np.sin(theta / 2), np.cos(theta / 2))
 
 
@@ -187,14 +196,58 @@ def clip_sincos(x):
 
 @njit
 def polarization_angle(theta, phi, poldir):
-    # Assuming that we're looking towards the direction (theta, phi),
-    # the vectors pointing towards North and East are:
+    # We want here to associate a polarization angle with a specific
+    # direction in the sky P = (θ, ϕ) and a polarization direction,
+    # which is a vector of length one starting from P. To compute the
+    # polarization angle with respect to a fixed frame on the
+    # celestial sphere, we need first to derive the two vectors
+    # pointing towards North and East.
     #
-    # North: [-cos(θ) * cos(ϕ), -cos(θ) * sin(ϕ), sin(θ)]
-    # East:  [-sin(ϕ), cos(ϕ), 0]
+    # Consider the following (ugly) figure, which shows how the North
+    # is computed for the point at P:
+    #
+    #                 z axis ^    North direction
+    #                        ▪.   .
+    #                       .■▪   ..
+    #                        |    .+
+    #                  ......+.++..+
+    #               ....     |   ...+...
+    #            ...         |    ..+   ..
+    #          ...           |      ▪     ..
+    #         ..             |      .+      ..
+    #        +               |       +       ..
+    #       +                |---    +▪. P    ..
+    #      ..                |   \ ...+        +
+    #      +                 | θ  .. ..         .
+    #     ..                 |  ..    .         .
+    #     +                  |..      ..        .
+    #  ---+----------------.+▪--------.+--------+--> y axis
+    #     .              ... |        ..        .
+    #      .          ...    |        .         +
+    #      +        ...      |        .        ..
+    #       .    ...         |        .        +
+    #       .....            |       ..       +
+    #      ++++              |       +       .
+    #     L    ..            |      +      ..
+    #   x axis  ...          |     ..    ..
+    #             ...        |    ..  ...
+    #                ......  | ..+....
+    #                      ..+...
+    #
+    # Since the vector v is
+    #
+    #   v = [sin(θ) * cos(ϕ), sin(θ) * sin(ϕ), cos(θ)]
+    #
+    # then North is -dv/dθ and East is dv/dϕ, which leads to
+    #
+    #   North = [-cos(θ) * cos(ϕ), -cos(θ) * sin(ϕ), sin(θ)]
+    #   East  = [-sin(ϕ), cos(ϕ), 0]
     #
     # To compute the polarization angle, we're just looking at the dot
-    # product between "poldir" and these two directions.
+    # product between "poldir" and these two directions. We use
+    # `clip_sincos` to prevent problems from values that are slightly
+    # outside the allowed range [-1,1] because of numerical roundoff
+    # errors.
 
     cos_psi = clip_sincos(-np.sin(phi) * poldir[0] + np.cos(phi) * poldir[1])
     sin_psi = clip_sincos(
@@ -207,6 +260,40 @@ def polarization_angle(theta, phi, poldir):
 
 @njit
 def compute_pointing_and_polangle(result, quaternion):
+    """Store in "result" the pointing direction and polarization angle.
+
+    The function assumes that `quaternion` encodes a rotation which
+    transforms the z axis into the direction of a beam in the sky,
+    i.e., it assumes that the beam points towards z in its own
+    reference frame and that `quaternion` transforms the reference
+    frame to celestial coordinates.
+
+    The variable `result` is used to save the result of the
+    computation, and it should be a 3-element NumPy array. On exit,
+    its values will be:
+
+    - ``result[0]``: the colatitude of the sky direction, in radians
+
+    - ``result[1]``: the longitude of the sky direction, in radians
+
+    - ``result[2]``: the polarization angle (assuming that in the beam
+      reference frame points towards x), measured with respect to the
+      North and East directions in the celestial sphere
+
+    This function does *not* support broadcasting; use
+    `all_compute_pointing_and_polangle` if you need to transform
+    several quaternions at once.
+
+    Example::
+
+        import numpy as np
+        result = np.empty(3)
+        compute_pointing_and_polangle(result, np.array([
+            0.0, np.sqrt(2) / 2, 0.0, np.sqrt(2) / 2,
+        ])
+
+    """
+
     vx, vy, vz, w = quaternion
 
     # Dirty trick: as "result" is a vector of three floats (θ, φ, ψ),
@@ -233,23 +320,15 @@ def compute_pointing_and_polangle(result, quaternion):
 
 @njit
 def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
+    """Repeatedly apply `compute_pointing_and_polangle`
+
+    Assuming that `result_matrix` is a (N×3) matrix and `quat_matrix`
+    a (N×4) matrix, iterate over all the N rows and apply
+    :func:`compute_pointing_and_polangle` to every row.
+
+    """
     for row in range(result_matrix.shape[0]):
         compute_pointing_and_polangle(result_matrix[row, :], quat_matrix[row, :])
-
-
-@njit
-def boresight_to_sun_earth_axis(
-    result,
-    spin_sun_angle_rad,
-    spin_boresight_angle_rad,
-    precession_rate_hz,
-    spin_rate_hz,
-    time_s,
-):
-    result[:] = qrotation_y(spin_boresight_angle_rad)
-    quat_left_multiply(result, *qrotation_z(2 * np.pi * spin_rate_hz * time_s))
-    quat_left_multiply(result, *qrotation_y(np.pi / 2 - spin_sun_angle_rad))
-    quat_left_multiply(result, *qrotation_x(2 * np.pi * precession_rate_hz * time_s))
 
 
 @njit
@@ -262,14 +341,10 @@ def boresight_to_ecliptic(
     spin_rate_hz,
     time_s,
 ):
-    boresight_to_sun_earth_axis(
-        result=result,
-        spin_sun_angle_rad=spin_sun_angle_rad,
-        spin_boresight_angle_rad=spin_boresight_angle_rad,
-        precession_rate_hz=precession_rate_hz,
-        spin_rate_hz=spin_rate_hz,
-        time_s=time_s,
-    )
+    result[:] = qrotation_y(spin_boresight_angle_rad)
+    quat_left_multiply(result, *qrotation_z(2 * np.pi * spin_rate_hz * time_s))
+    quat_left_multiply(result, *qrotation_y(np.pi / 2 - spin_sun_angle_rad))
+    quat_left_multiply(result, *qrotation_x(2 * np.pi * precession_rate_hz * time_s))
     quat_left_multiply(result, *qrotation_z(sun_earth_angle_rad))
 
 
@@ -327,7 +402,7 @@ def calculate_sun_earth_angles_rad(time_vector):
     # Earth follows a uniform circular motion around the Sun with
     # frequency ω = 2πν = YEARLY_OMEGA_SPIN_HZ.
 
-    if isinstance(time_vector, Time):
+    if isinstance(time_vector, astropy.time.Time):
         pos = get_body_barycentric("earth", time_vector)
         coord = ICRS(pos).transform_to(BarycentricMeanEcliptic).cartesian
         return np.arctan2(coord.x.value, coord.y.value)
@@ -335,14 +410,106 @@ def calculate_sun_earth_angles_rad(time_vector):
         return YEARLY_OMEGA_SPIN_HZ * time_vector
 
 
+class Bore2EclipticQuaternions:
+    def __init__(
+        self,
+        start_time: Union[float, astropy.time.Time],
+        pointing_freq_hz: float,
+        quats,
+    ):
+        self.start_time = start_time
+        self.pointing_freq_hz = pointing_freq_hz
+        self.quats = quats
+
+    def nbytes(self):
+        return self.quats.nbytes
+
+    def get_detector_quats(
+        self,
+        detector_quat,
+        time0: Union[float, astropy.time.Time],
+        sampling_rate_hz: float,
+        nsamples: int,
+    ):
+        assert len(detector_quat) == 4
+        assert (
+            self.quats.shape[0] > 1
+        ), "having only one quaternion is still unsupported"
+
+        if isinstance(self.start_time, astropy.time.Time):
+            assert isinstance(time0, astropy.time.Time), (
+                "you must pass an astropy.time.Time object to time0 here, as "
+                "Bore2EclipticQuaternions.start_time = {}"
+            ).format(self.start_time)
+
+            time_skip_s = (time0 - self.start_time).sec
+        else:
+            assert isinstance(time0, float), (
+                "you must pass a float to time0 here, as "
+                "Bore2EclipticQuaternions.start_time = {}"
+            ).format(self.start_time)
+            time_skip_s = time0 - self.start_time
+
+        pp = PointingProvider(0.0, self.pointing_freq_hz, self.quats)
+        return pp.get_rotated_quaternions(
+            time_skip_s, sampling_rate_hz, detector_quat, nsamples,
+        )
+
+
 class ScanningStrategy:
+    """A data class containing the parameters of the sky scanning strategy
+
+    This class is used to hold together the parameters that define the
+    scanning strategy of the spacecraft.
+
+    The constructor accepts the following parameters:
+
+    - `spin_sun_angle_deg`: angle between the spin axis and the
+      Sun-LiteBIRD direction (floating-point number, in degrees)
+
+    - `spin_boresight_angle_deg`: angle between the boresight
+      direction and the spin axis (floating-point number, in degrees)
+
+    - `precession_period_min`: the period of the precession rotation
+      (floating-point number, in minutes)
+
+    - `spin_rate_rpm`: the number of rotations per minute (RPM) around
+      the spin axis (floating-point number)
+
+    - `start_time`: an ``astropy.time.Time`` object representing the
+      start of the observation. It's currently unused, but it is meant
+      to represent the time when the rotation starts (i.e., the angle
+      ωt is zero).
+
+    Once the object is created, the following fields are available:
+
+    - `spin_sun_angle_rad`: the same as `spin_sun_angle_deg`, but in
+      radians
+
+    - `spin_boresight_angle_rad`: the same as
+      `spin_boresight_angle_deg`, but in radians
+
+    - `precession_rate_hz`: the frequency of the precession rotation,
+      in Hertz, or zero if no precession occurs (i.e.,
+      `precession_period_min` is zero)
+
+    - `spin_rate_hz`: the frequency of the spin rotation, in Hertz
+
+    - `start_time`: see above
+
+    You can create an instance of this class using the class method
+    :meth:`.from_imo`, which reads the
+    parameters from the IMO.
+
+    """
+
     def __init__(
         self,
         spin_sun_angle_deg,
         spin_boresight_angle_deg,
         precession_period_min,
         spin_rate_rpm,
-        start_time=Time("2027-01-01", scale="tdb"),
+        start_time=astropy.time.Time("2027-01-01", scale="tdb"),
     ):
         self.spin_sun_angle_rad = np.deg2rad(spin_sun_angle_deg)
         self.spin_boresight_angle_rad = np.deg2rad(spin_boresight_angle_deg)
@@ -388,12 +555,86 @@ class ScanningStrategy:
         return """Scanning strategy:
     angle between the Sun and the spin axis:       {spin_sun_angle_deg:.1f}°
     angle between the boresight and the spin axis: {spin_boresight_angle_deg:.1f}°
-    rotations around the precession angle:         {precession_rate_hz} rot/sec
-    rotations around the spinning axis:            {spin_rate_hz} rot/sec
+    rotations around the precession angle:         {precession_rate_hr} rot/hr
+    rotations around the spinning axis:            {spin_rate_min} rot/hr
     start time of the simulation:                  {start_time}""".format(
             spin_sun_angle_deg=np.rad2deg(self.spin_sun_angle_rad),
             spin_boresight_angle_deg=np.rad2deg(self.spin_boresight_angle_rad),
-            precession_rate_hz=self.precession_rate_hz,
-            spin_rate_hz=self.spin_rate_hz,
+            precession_rate_hr=3600.0 * self.precession_rate_hz,
+            spin_rate_min=3600.0 * self.spin_rate_hz,
             start_time=self.start_time,
+        )
+
+    @classmethod
+    def from_imo(imo: Imo, object_ref: Union[str, UUID]):
+        """Read the definition of the scanning strategy from the IMO
+
+        This function returns a :class:`.ScanningStrategy` object
+        containing the set of parameters that define the scanning strategy
+        of the spacecraft, i.e., the way it observes the sky during the
+        nominal mission.
+
+        Args:
+
+            imo (:class:`.Imo`): an instance of the :class:`.Imo` class
+
+            object_ref (str or ``UUID``): a reference to the data file
+                containing the definition of the scanning strategy. It can
+                be either a string like
+                ``/releases/v1.0/satellite/scanning_parameters/`` or a
+                UUID.
+
+        Example::
+
+            imo = Imo()
+            sstr = ScanningStrategy.from_imo(
+                imo=imo,
+                object_ref="/releases/v1.0/satellite/scanning_parameters/",
+            )
+            print(sstr)
+
+        """
+        obj = imo.query(object_ref)
+        return ScanningStrategy(
+            spin_sun_angle_deg=obj.metadata["spin_sun_angle_deg"],
+            spin_boresight_angle_deg=obj.metadata["spin_boresight_angle_deg"],
+            precession_period_min=obj.metadata["precession_period_min"],
+            spin_rate_rpm=obj.metadata["spin_rate_rpm"],
+        )
+
+    def generate_bore2ecl_quaternions(
+        self,
+        start_time: Union[float, astropy.time.Time],
+        time_span_s: float,
+        delta_time_s: float,
+    ) -> Bore2EclipticQuaternions:
+        pointing_freq_hz = 1.0 / delta_time_s
+        num_of_quaternions = int(time_span_s / delta_time_s) + 1
+        if delta_time_s * (num_of_quaternions - 1) < time_span_s:
+            num_of_quaternions += 1
+
+        bore2ecliptic_quats = np.empty((num_of_quaternions, 4))
+
+        if isinstance(start_time, astropy.time.Time):
+            delta_time = astropy.time.TimeDelta(
+                np.arange(num_of_quaternions) * delta_time_s, format="sec", scale="tdb"
+            )
+            time_s = delta_time.sec
+            time = start_time + delta_time
+        else:
+            time_s = start_time + np.arange(num_of_quaternions) * delta_time_s
+            time = time_s
+
+        sun_earth_angles_rad = calculate_sun_earth_angles_rad(time)
+
+        self.all_boresight_to_ecliptic(
+            result_matrix=bore2ecliptic_quats,
+            sun_earth_angles_rad=sun_earth_angles_rad,
+            time_vector_s=time_s,
+        )
+
+        return Bore2EclipticQuaternions(
+            start_time=start_time,
+            pointing_freq_hz=pointing_freq_hz,
+            quats=bore2ecliptic_quats,
         )

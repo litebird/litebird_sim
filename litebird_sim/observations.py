@@ -1,14 +1,14 @@
 # -*- encoding: utf-8 -*-
 
-import astropy.time as astrotime
+from typing import Union
+
+import astropy.time
 import numpy as np
 
 from .scanning import (
-    ScanningStrategy,
+    Bore2EclipticQuaternions,
     all_compute_pointing_and_polangle,
-    calculate_sun_earth_angles_rad,
 )
-from ducc0.pointingprovider import PointingProvider
 
 
 class Observation:
@@ -41,16 +41,19 @@ class Observation:
 
     """
 
-    def __init__(self, detector, start_time, sampling_rate_hz, nsamples):
+    def __init__(
+        self,
+        detector,
+        start_time: Union[float, astropy.time.Time],
+        sampling_rate_hz: float,
+        nsamples: int,
+    ):
         self.detector = detector
 
         self.start_time = start_time
 
         self.sampling_rate_hz = sampling_rate_hz
         self.nsamples = int(nsamples)
-
-        self.pointing_freq_hz = None
-        self.bore2ecliptic_quats = None
 
         self.tod = None
 
@@ -82,16 +85,16 @@ class Observation:
             return np.arange(self.nsamples) / self.sampling_rate_hz
 
         if astropy_times:
-            assert isinstance(self.start_time, astrotime.Time), (
+            assert isinstance(self.start_time, astropy.time.Time), (
                 "to use astropy_times=True you must specify an astropy.time.Time "
                 "object in Observation.__init__"
             )
-            delta = astrotime.TimeDelta(
+            delta = astropy.time.TimeDelta(
                 1.0 / self.sampling_rate_hz, format="sec", scale="tdb"
             )
             return self.start_time + np.arange(self.nsamples) * delta
         else:
-            if isinstance(self.start_time, astrotime.Time):
+            if isinstance(self.start_time, astropy.time.Time):
                 # We use "cxcsec" because of the following features:
                 #
                 # 1. It's one of the astropy.time.Time formats that
@@ -126,49 +129,14 @@ class Observation:
         """
         return self.tod
 
-    def generate_pointing_information(
-        self, scanning_strategy: ScanningStrategy, delta_time_s=60.0
+    def get_pointings(
+        self, bore2ecliptic_quats: Bore2EclipticQuaternions, detector_quat
     ):
-        self.pointing_freq_hz = 1.0 / delta_time_s
-
-        time_span_s = self.nsamples / self.sampling_rate_hz
-        num_of_quaternions = int(time_span_s / delta_time_s) + 1
-        if delta_time_s * (num_of_quaternions - 1) < time_span_s:
-            num_of_quaternions += 1
-
-        self.bore2ecliptic_quats = np.empty((num_of_quaternions, 4))
-
-        if isinstance(self.start_time, astrotime.Time):
-            delta_time = astrotime.TimeDelta(
-                np.arange(num_of_quaternions) * delta_time_s, format="sec", scale="tdb"
-            )
-            time_s = delta_time.sec
-            time = self.start_time + delta_time
-        else:
-            time_s = self.start_time + np.arange(num_of_quaternions) * delta_time_s
-            time = time_s
-
-        sun_earth_angles_rad = calculate_sun_earth_angles_rad(time)
-
-        scanning_strategy.all_boresight_to_ecliptic(
-            result_matrix=self.bore2ecliptic_quats,
-            sun_earth_angles_rad=sun_earth_angles_rad,
-            time_vector_s=time_s,
-        )
-
-    def get_pointings(self, detector_quat):
-        assert len(detector_quat) == 4
-        assert self.pointing_freq_hz is not None, (
-            "no pointing quaternions, did you forgot to call "
-            "Observation.generate_pointing_information?"
-        )
-        assert (
-            self.bore2ecliptic_quats.shape[0] > 1
-        ), "having only one quaternion is still unsupported"
-
-        pp = PointingProvider(0.0, self.pointing_freq_hz, self.bore2ecliptic_quats)
-        det2ecliptic_quats = pp.get_rotated_quaternions(
-            0.0, self.sampling_rate_hz, detector_quat, self.nsamples,
+        det2ecliptic_quats = bore2ecliptic_quats.get_detector_quats(
+            detector_quat=detector_quat,
+            time0=self.start_time,
+            sampling_rate_hz=self.sampling_rate_hz,
+            nsamples=self.nsamples,
         )
 
         # Compute the pointing direction for each sample

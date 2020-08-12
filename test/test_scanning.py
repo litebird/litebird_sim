@@ -182,16 +182,14 @@ def create_fake_detector(sampling_rate_hz=1):
 
 
 def test_simulation_pointings_still():
-    sim = lbs.Simulation()
+    sim = lbs.Simulation(start_time=0.0, duration_s=86400.0)
     fakedet = create_fake_detector(sampling_rate_hz=1 / 3600)
 
     sim.create_observations(
-        detectors=[fakedet],
-        num_of_obs_per_detector=1,
-        start_time=0.0,
-        duration_s=86400.0,
-        distribute=False,
+        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False,
     )
+    assert len(sim.observations) == 1
+    obs = sim.observations[0]
 
     # The spacecraft stands still in L2, with no spinning nor precession
     sstr = lbs.ScanningStrategy(
@@ -201,19 +199,19 @@ def test_simulation_pointings_still():
         spin_rate_rpm=0.0,
     )
     sim.generate_pointing_information(sstr, delta_time_s=60.0)
-
-    assert len(sim.observations) == 1
-    obs = sim.observations[0]
-    assert obs.bore2ecliptic_quats.shape == (24 * 60 + 1, 4)
+    assert sim.bore2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
 
     # Move the Z vector manually using the last quaternion and check
     # that it's rotated by 1/365.25 of a complete circle
     boresight = np.empty(3)
-    lbs.rotate_z_vector(boresight, *obs.bore2ecliptic_quats[-1, :])
+    lbs.rotate_z_vector(boresight, *sim.bore2ecliptic_quats.quats[-1, :])
     assert np.allclose(np.arctan2(boresight[1], boresight[0]), 2 * np.pi / 365.25)
 
     # Now redo the calculation using Observation.get_pointings
-    pointings_and_polangle = obs.get_pointings(np.array([0.0, 0.0, 0.0, 1.0]))
+    pointings_and_polangle = obs.get_pointings(
+        bore2ecliptic_quats=sim.bore2ecliptic_quats,
+        detector_quat=np.array([0.0, 0.0, 0.0, 1.0]),
+    )
 
     colatitude = pointings_and_polangle[:, 0]
     longitude = pointings_and_polangle[:, 1]
@@ -230,17 +228,17 @@ def test_simulation_pointings_still():
     )
 
 
-def test_simulation_pointings_polangle():
-    sim = lbs.Simulation()
+def test_simulation_pointings_polangle(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0,
+    )
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
     sim.create_observations(
-        detectors=[fakedet],
-        num_of_obs_per_detector=1,
-        start_time=0.0,
-        duration_s=61.0,
-        distribute=False,
+        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False,
     )
+    assert len(sim.observations) == 1
+    obs = sim.observations[0]
 
     sstr = lbs.ScanningStrategy(
         spin_sun_angle_deg=0.0,
@@ -248,11 +246,12 @@ def test_simulation_pointings_polangle():
         precession_period_min=0.0,
         spin_rate_rpm=1.0,
     )
-    sim.generate_pointing_information(sstr, delta_time_s=0.5)
+    sim.generate_pointing_information(scanning_strategy=sstr, delta_time_s=0.5)
 
-    assert len(sim.observations) == 1
-    obs = sim.observations[0]
-    pointings_and_polangle = obs.get_pointings(np.array([0.0, 0.0, 0.0, 1.0]))
+    pointings_and_polangle = obs.get_pointings(
+        bore2ecliptic_quats=sim.bore2ecliptic_quats,
+        detector_quat=np.array([0.0, 0.0, 0.0, 1.0]),
+    )
     polangle = pointings_and_polangle[:, 2]
 
     # Check that the polarization angle scans every value between -π
@@ -260,18 +259,21 @@ def test_simulation_pointings_polangle():
     assert np.allclose(np.max(polangle), np.pi, atol=0.01)
     assert np.allclose(np.min(polangle), -np.pi, atol=0.01)
 
+    # Simulate the generation of a report
+    sim.flush()
 
-def test_simulation_pointings_spinning():
-    sim = lbs.Simulation()
+
+def test_simulation_pointings_spinning(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0,
+    )
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
     sim.create_observations(
-        detectors=[fakedet],
-        num_of_obs_per_detector=1,
-        start_time=0.0,
-        duration_s=61.0,
-        distribute=False,
+        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False,
     )
+    assert len(sim.observations) == 1
+    obs = sim.observations[0]
 
     sstr = lbs.ScanningStrategy(
         spin_sun_angle_deg=0.0,
@@ -279,11 +281,12 @@ def test_simulation_pointings_spinning():
         precession_period_min=0.0,
         spin_rate_rpm=1.0,
     )
-    sim.generate_pointing_information(sstr, delta_time_s=0.5)
+    sim.generate_pointing_information(scanning_strategy=sstr, delta_time_s=0.5)
 
-    assert len(sim.observations) == 1
-    obs = sim.observations[0]
-    pointings_and_polangle = obs.get_pointings(np.array([0.0, 0.0, 0.0, 1.0]))
+    pointings_and_polangle = obs.get_pointings(
+        bore2ecliptic_quats=sim.bore2ecliptic_quats,
+        detector_quat=np.array([0.0, 0.0, 0.0, 1.0]),
+    )
     colatitude = pointings_and_polangle[:, 0]
 
     # Check that the colatitude does not depart more than ±15° from
@@ -291,17 +294,19 @@ def test_simulation_pointings_spinning():
     assert np.allclose(np.rad2deg(np.max(colatitude)), 90 + 15, atol=0.01)
     assert np.allclose(np.rad2deg(np.min(colatitude)), 90 - 15, atol=0.01)
 
+    sim.flush()
 
-def test_simulation_pointings_mjd():
-    sim = lbs.Simulation()
+
+def test_simulation_pointings_mjd(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=Time("2020-01-01T00:00:00"),
+        duration_s=130.0,
+    )
     fakedet = create_fake_detector()
 
     sim.create_observations(
-        detectors=[fakedet],
-        num_of_obs_per_detector=2,
-        start_time=Time("2020-01-01T00:00:00"),
-        duration_s=130.0,
-        distribute=False,
+        detectors=[fakedet], num_of_obs_per_detector=2, distribute=False,
     )
 
     sstr = lbs.ScanningStrategy(
@@ -310,9 +315,11 @@ def test_simulation_pointings_mjd():
         precession_period_min=10.0,
         spin_rate_rpm=0.1,
     )
-    sim.generate_pointing_information(sstr)
+    sim.generate_pointing_information(scanning_strategy=sstr, delta_time_s=60.0)
 
     for obs in sim.observations:
-        assert obs.bore2ecliptic_quats is not None
-        pointings_and_polangle = obs.get_pointings(np.array([0.0, 0.0, 0.0, 1.0]))
+        pointings_and_polangle = obs.get_pointings(
+            bore2ecliptic_quats=sim.bore2ecliptic_quats,
+            detector_quat=np.array([0.0, 0.0, 0.0, 1.0]),
+        )
         print(pointings_and_polangle)
