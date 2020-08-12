@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 from .distribute import distribute_evenly, distribute_optimally
-from .detectors import Detector, read_detector_from_dict, read_detector_from_imo
+from .detectors import Detector
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -68,8 +68,6 @@ __all__ = [
     "Release",
     # detectors.py
     "Detector",
-    "read_detector_from_dict",
-    "read_detector_from_imo",
     # mpi.py
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
