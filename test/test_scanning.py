@@ -164,20 +164,8 @@ def test_calculate_sun_earth_angles_rad():
 def create_fake_detector(sampling_rate_hz=1):
     return lbs.Detector(
         name="dummy",
-        wafer="",
-        pixel="",
-        pixtype="",
-        channel="",
         sampling_rate_hz=sampling_rate_hz,
-        fwhm_arcmin=3600.0,
-        ellipticity=1.0,
-        net_ukrts=1.0,
-        fknee_mhz=1.0,
-        fmin_hz=1.0,
-        alpha=1.0,
-        pol="",
-        orient="",
-        quat=np.array([0.0, 0.0, 0.0, 0.0]),
+        quat=np.array([0.0, 0.0, 0.0, 1.0]),
     )
 
 
@@ -192,13 +180,13 @@ def test_simulation_pointings_still():
     obs = sim.observations[0]
 
     # The spacecraft stands still in L2, with no spinning nor precession
-    sstr = lbs.ScanningStrategy(
+    sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_deg=0.0,
         spin_boresight_angle_deg=0.0,
         precession_period_min=0.0,
         spin_rate_rpm=0.0,
     )
-    sim.generate_pointing_information(sstr, delta_time_s=60.0)
+    sim.generate_bore2ecl_quaternions(sstr, delta_time_s=60.0)
     assert sim.bore2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
 
     # Move the Z vector manually using the last quaternion and check
@@ -240,13 +228,13 @@ def test_simulation_pointings_polangle(tmp_path):
     assert len(sim.observations) == 1
     obs = sim.observations[0]
 
-    sstr = lbs.ScanningStrategy(
+    sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_deg=0.0,
         spin_boresight_angle_deg=0.0,
         precession_period_min=0.0,
         spin_rate_rpm=1.0,
     )
-    sim.generate_pointing_information(scanning_strategy=sstr, delta_time_s=0.5)
+    sim.generate_bore2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
     pointings_and_polangle = obs.get_pointings(
         bore2ecliptic_quats=sim.bore2ecliptic_quats,
@@ -275,13 +263,13 @@ def test_simulation_pointings_spinning(tmp_path):
     assert len(sim.observations) == 1
     obs = sim.observations[0]
 
-    sstr = lbs.ScanningStrategy(
+    sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_deg=0.0,
         spin_boresight_angle_deg=15.0,
         precession_period_min=0.0,
         spin_rate_rpm=1.0,
     )
-    sim.generate_pointing_information(scanning_strategy=sstr, delta_time_s=0.5)
+    sim.generate_bore2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
     pointings_and_polangle = obs.get_pointings(
         bore2ecliptic_quats=sim.bore2ecliptic_quats,
@@ -309,13 +297,13 @@ def test_simulation_pointings_mjd(tmp_path):
         detectors=[fakedet], num_of_obs_per_detector=2, distribute=False,
     )
 
-    sstr = lbs.ScanningStrategy(
+    sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_deg=10.0,
         spin_boresight_angle_deg=20.0,
         precession_period_min=10.0,
         spin_rate_rpm=0.1,
     )
-    sim.generate_pointing_information(scanning_strategy=sstr, delta_time_s=60.0)
+    sim.generate_bore2ecl_quaternions(scanning_strategy=sstr, delta_time_s=60.0)
 
     for obs in sim.observations:
         pointings_and_polangle = obs.get_pointings(

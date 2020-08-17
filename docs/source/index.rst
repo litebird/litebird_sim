@@ -13,6 +13,7 @@ Welcome to litebird_sim's documentation!
    tutorial
    simulations
    observations
+   scanning
    imo
    mpi
    integrating

@@ -38,6 +38,7 @@ from .scanning import (
     calculate_sun_earth_angles_rad,
     Bore2EclipticQuaternions,
     ScanningStrategy,
+    SpinningScanningStrategy,
 )
 from .simulations import Simulation
 from .version import __author__, __version__
@@ -93,6 +94,7 @@ __all__ = [
     "calculate_sun_earth_angles_rad",
     "Bore2EclipticQuaternions",
     "ScanningStrategy",
+    "SpinningScanningStrategy",
     # simulations.py
     "Simulation",
 ]

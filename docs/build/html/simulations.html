@@ -12,6 +12,7 @@
     <script src="_static/underscore.js"></script>
     <script src="_static/doctools.js"></script>
     <script src="_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Observations" href="observations.html" />
@@ -148,15 +149,15 @@ formulae, plots, and value substitution:</p>
 <dt id="litebird_sim.simulations.OutputFileRecord">
 <em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">OutputFileRecord</code><span class="sig-paren">(</span><em class="sig-param">path</em>, <em class="sig-param">description</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.OutputFileRecord" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></p>
-<dl class="method">
+<dl class="attribute">
 <dt id="litebird_sim.simulations.OutputFileRecord.description">
-<em class="property">property </em><code class="sig-name descname">description</code><a class="headerlink" href="#litebird_sim.simulations.OutputFileRecord.description" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">description</code><a class="headerlink" href="#litebird_sim.simulations.OutputFileRecord.description" title="Permalink to this definition">¶</a></dt>
 <dd><p>Alias for field number 1</p>
 </dd></dl>
 
-<dl class="method">
+<dl class="attribute">
 <dt id="litebird_sim.simulations.OutputFileRecord.path">
-<em class="property">property </em><code class="sig-name descname">path</code><a class="headerlink" href="#litebird_sim.simulations.OutputFileRecord.path" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">path</code><a class="headerlink" href="#litebird_sim.simulations.OutputFileRecord.path" title="Permalink to this definition">¶</a></dt>
 <dd><p>Alias for field number 0</p>
 </dd></dl>
 
@@ -164,7 +165,7 @@ formulae, plots, and value substitution:</p>
 
 <dl class="class">
 <dt id="litebird_sim.simulations.Simulation">
-<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">mpi_comm=None</em>, <em class="sig-param">description=''</em>, <em class="sig-param">imo=None</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="sig-prename descclassname">litebird_sim.simulations.</code><code class="sig-name descname">Simulation</code><span class="sig-paren">(</span><em class="sig-param">base_path=PosixPath('.')</em>, <em class="sig-param">name=None</em>, <em class="sig-param">mpi_comm=&lt;mpi4py.MPI.Intracomm object&gt;</em>, <em class="sig-param">description=''</em>, <em class="sig-param">start_time=None</em>, <em class="sig-param">duration_s=None</em>, <em class="sig-param">imo=None</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>A container object for running simulations</p>
 <p>This is the most important class in the Litebird_sim framework. It
@@ -193,6 +194,11 @@ of the form <code class="docutils literal notranslate"><span class="pre">(path,<
     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{curpath}</span><span class="s2">: </span><span class="si">{curdescr}</span><span class="s2">&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>When pointing information is needed, you can call the method
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.generate_bore2ecl_quaternions()</span></code>, which
+initializes the members <cite>pointing_freq_hz</cite> and
+<cite>bore2ecliptic_quats</cite>; these members are used by functions like
+<a class="reference internal" href="observations.html#litebird_sim.observations.Observation.get_pointings" title="litebird_sim.observations.Observation.get_pointings"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Observation.get_pointings()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -205,6 +211,14 @@ be used in the reports.</p></li>
 object, like <cite>mpi4py.MPI.COMM_WORLD</cite>.</p></li>
 <li><p><strong>description</strong> (<em>str</em>) – a (possibly long) description of the
 simulation, to be put in the report saved in <cite>base_path</cite>).</p></li>
+<li><p><strong>start_time</strong> (float or <code class="docutils literal notranslate"><span class="pre">astropy.time.Time</span></code>) – the start time of
+the simulation. It can be either an arbitrary
+floating-point number (e.g., 0) or an
+<code class="docutils literal notranslate"><span class="pre">astropy.time.Time</span></code> instance; in the latter case, this
+triggers a more precise (and slower) computation of
+pointing information.</p></li>
+<li><p><strong>duration_s</strong> (<em>float</em>) – Number of seconds the simulation should
+last.</p></li>
 <li><p><strong>imo</strong> (<a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a>) – an instance of the <a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a> class</p></li>
 </ul>
 </dd>
@@ -244,7 +258,7 @@ displayed equations.</p>
 
 <dl class="method">
 <dt id="litebird_sim.simulations.Simulation.create_observations">
-<code class="sig-name descname">create_observations</code><span class="sig-paren">(</span><em class="sig-param">detectors: List[litebird_sim.detectors.Detector], num_of_obs_per_detector: int, start_time, duration_s: float, distribute=True, use_mjd=False</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.create_observations" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">create_observations</code><span class="sig-paren">(</span><em class="sig-param">detectors: List[litebird_sim.detectors.Detector], num_of_obs_per_detector: int = 1, distribute=True</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.create_observations" title="Permalink to this definition">¶</a></dt>
 <dd><p>Create a set of Observation objects</p>
 </dd></dl>
 
@@ -261,6 +275,20 @@ displayed equations.</p>
 will save pending data to the output directory.</p>
 <p>It returns a <cite>Path</cite> object pointing to the HTML file that has
 been saved in the directory pointed by <code class="docutils literal notranslate"><span class="pre">self.base_path</span></code>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="litebird_sim.simulations.Simulation.generate_pointing_information">
+<code class="sig-name descname">generate_pointing_information</code><span class="sig-paren">(</span><em class="sig-param">scanning_strategy: Union[None</em>, <em class="sig-param">litebird_sim.scanning.ScanningStrategy] = None</em>, <em class="sig-param">imo_url: Union[None</em>, <em class="sig-param">str] = None</em>, <em class="sig-param">delta_time_s: float = 60.0</em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.generate_pointing_information" title="Permalink to this definition">¶</a></dt>
+<dd><p>Simulate the motion of the spacecraft in free space</p>
+<p>This method computes the quaternions that encode the evolution
+of the spacecraft’s orientation in time, assuming the scanning
+strategy described in the parameter <cite>scanning_strategy</cite> (an
+object of type <a class="reference internal" href="scanning.html#litebird_sim.scanning.ScanningStrategy" title="litebird_sim.scanning.ScanningStrategy"><code class="xref py py-class docutils literal notranslate"><span class="pre">ScanningStrategy</span></code></a>).</p>
+<p>The parameter <cite>delta_time_s</cite> specifies how often should
+quaternions be computed again; see
+<a class="reference internal" href="scanning.html#litebird_sim.scanning.ScanningStrategy.generate_bore2ecl_quaternions" title="litebird_sim.scanning.ScanningStrategy.generate_bore2ecl_quaternions"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ScanningStrategy.generate_bore2ecl_quaternions()</span></code></a> for
+more information.</p>
 </dd></dl>
 
 <dl class="method">
@@ -342,10 +370,10 @@ folder of the <code class="docutils literal notranslate"><span class="pre">liteb
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="observations.html">Observations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="scanning.html">Scanning strategy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="imo.html">The Instrument Model Database (IMO)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="mpi.html">Using MPI</a></li>
 <li class="toctree-l1"><a class="reference internal" href="integrating.html">Integrating existing codes</a></li>
-<li class="toctree-l1"><a class="reference internal" href="integrating.html#always-implement-some-tests">6. Always implement some tests!</a></li>
 </ul>
 
 <div class="relations">

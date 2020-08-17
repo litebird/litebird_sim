@@ -26,7 +26,7 @@ import jinja2
 
 from markdown_katex import KatexExtension
 
-from .scanning import ScanningStrategy
+from .scanning import ScanningStrategy, SpinningScanningStrategy
 
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
@@ -402,7 +402,10 @@ class Simulation:
         return html_report_path
 
     def create_observations(
-        self, detectors: List[Detector], num_of_obs_per_detector: int, distribute=True,
+        self,
+        detectors: List[Detector],
+        num_of_obs_per_detector: int = 1,
+        distribute=True,
     ):
         "Create a set of Observation objects"
 
@@ -462,22 +465,47 @@ class Simulation:
             span.start_idx : (span.start_idx + span.num_of_elements)
         ]
 
-    def generate_pointing_information(
+    def generate_bore2ecl_quaternions(
         self,
         scanning_strategy: Union[None, ScanningStrategy] = None,
         imo_url: Union[None, str] = None,
         delta_time_s: float = 60.0,
     ):
+        """Simulate the motion of the spacecraft in free space
+
+        This method computes the quaternions that encode the evolution
+        of the spacecraft's orientation in time, assuming the scanning
+        strategy described in the parameter `scanning_strategy` (an
+        object of a class derived by :class:`.ScanningStrategy`; most
+        likely, you want to use :class:`SpinningScanningStrategy`).
+
+        You can choose to use the `imo_url` parameter instead of
+        `scanning_strategy`: in this case, it will be assumed that you
+        want to simulate a nominal, spinning scanning strategy, and
+        the object in the IMO with address `imo_url` (e.g.,
+        ``/releases/v1.0/satellite/scanning_parameters/``) describing
+        the parameters of the scanning strategy will be loaded. In
+        this case, a :class:`SpinningScanningStrategy` object will be
+        created automatically.
+
+        The parameter `delta_time_s` specifies how often should
+        quaternions be computed; see
+        :meth:`.ScanningStrategy.generate_bore2ecl_quaternions` for
+        more information.
+
+        """
         assert not (scanning_strategy and imo_url), (
             "you must either specify scanning_strategy or imo_url (but not"
-            "the two together) when calling Simulation.generate_pointing_information"
+            "the two together) when calling Simulation.generate_bore2ecl_quaternions"
         )
 
         if not scanning_strategy:
             if not imo_url:
                 imo_url = "/releases/v1.0/satellite/scanning_parameters/"
 
-            scanning_strategy = ScanningStrategy.from_imo(imo=self.imo, url=imo_url)
+            scanning_strategy = SpinningScanningStrategy.from_imo(
+                imo=self.imo, url=imo_url
+            )
 
         # TODO: if MPI is enabled, we should probably parallelize this call
         self.bore2ecliptic_quats = scanning_strategy.generate_bore2ecl_quaternions(

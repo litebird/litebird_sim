@@ -64,7 +64,8 @@ class Observation:
         `astropy_times`: if it's true, times are returned as
         `astropy.time.Time` objects, which can be converted to several
         units (MJD, seconds, etc.); if `astropy_times` is false (the
-        default), times are expressed in seconds.
+        default), times are expressed in seconds. In the latter case,
+        you should interpret these times as sidereal.
 
         If `normalize=True`, then the first time is zero. Setting
         this flag requires that `astropy_times=False`.
@@ -132,6 +133,41 @@ class Observation:
     def get_pointings(
         self, bore2ecliptic_quats: Bore2EclipticQuaternions, detector_quat
     ):
+        """Return the time stream of pointings for the detector
+
+        Given a :class:`Bore2EclipticQuaternions` and a quaternion
+        representing the transformation from the reference frame of a
+        detector to the boresight reference frame, compute a set of
+        pointings for the detector that encompass the time span
+        covered by this observation (i.e., starting from
+        `self.start_time` and including `self.nsamples` pointings).
+
+        The parameter to `bore2ecliptic_quats` can be easily retrieved
+        by the field `bore2ecliptic_quats` in a object of
+        :class:`.Simulation` object, once the method
+        :meth:`.Simulation.generate_bore2ecl_quaternions` is called.
+        The parameter `detector_quat` is typically one of the
+        following:
+
+        - The field `quat` of an instance of the class
+           :class:`.Detector`
+
+        - If all you want to do is a simulation using a boresight
+           direction, you can pass the value ``np.array([0., 0., 0.,
+           1.])``, which represents the null rotation.
+
+        The return value is a ``(N × 3)`` matrix: the colatitude (in
+        radians) is stored in column 0 (e.g., ``result[:, 0]``), the
+        longitude (ditto) in column 1, and the polarization angle
+        (ditto) in column 2. You can extract the three vectors using
+        the following idiom::
+
+            pointings = obs.get_pointings(...)
+            # Extract the colatitude (theta), longitude (psi), and
+            # polarization angle (psi) from pointings
+            theta, phi, psi = [pointings[:, i] for i in (0, 1, 2)]
+
+        """
         det2ecliptic_quats = bore2ecliptic_quats.get_detector_quats(
             detector_quat=detector_quat,
             time0=self.start_time,
