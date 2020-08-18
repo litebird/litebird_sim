@@ -67,9 +67,6 @@ class Observation:
 
         self.detectors = np.array(detectors)
         self.tod = np.empty(self.detectors.shape+(nsamples,), dtype=dtype)
-        for field in fields:
-            field_arr = np.array([some_method(field, d) for d in detectors])#XXX
-            setattr(self, field, field_arr)
 
     @property
     def nsamples(self):
