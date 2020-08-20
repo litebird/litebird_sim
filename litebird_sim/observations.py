@@ -6,10 +6,10 @@ import numpy as np
 
 
 class Observation:
-    """An observation made by a detector over some time window
+    """An observation made by one or multiple detectors over some time window
 
-    This class encodes the data acquired by a detector over a finite
-    amount of time, and it is the fundamental block of a
+    This class encodes the data acquired by one or multipel detectors over a
+    finite amount of time, and it is the fundamental block of a
     simulation. The characteristics of the detector are assumed to be
     stationary over the time span covered by a simulation; these include:
 
@@ -20,7 +20,7 @@ class Observation:
 
     - :py:meth:`.get_times` returns the array of time values (one per
       each sample in the TOD)
-    - :py:meth:`.get_tod` returns the array of samples
+    - :py:meth:`.tod` returns the array of samples
 
     Args:
         n_detectors (int): Number of detector
@@ -86,6 +86,32 @@ class Observation:
         self.tod = np.empty(
             self._get_tod_shape(n_blocks_det, n_blocks_time),
             dtype=dtype_tod)
+        self.det_info = []
+
+    @property
+    def n_samples(self):
+        """ Samples in the whole observation
+
+        Note
+        ----
+        If you need the time-lenght of the ``self.tod`` array, use directly
+        ``self.tod.shape[1]``: ``n_samples`` allways refers to the full
+        observation, even when it is distributed over multiple processes and
+        ``self.tod`` is just the local block.
+        """
+        return self._n_samples
+
+    @property
+    def n_detectors(self):
+        return self._n_detectors
+
+    @property
+    def n_blocks_time(self):
+        return self._n_blocks_time
+
+    @property
+    def n_blocks_det(self):
+        return self._n_blocks_det
 
     def _check_blocks(self, n_blocks_det, n_blocks_time):
         if self.comm is None:
@@ -106,6 +132,10 @@ class Observation:
                 f"processes is {self.comm.size}")
 
     def _get_start_and_num(self, n_blocks_det, n_blocks_time):
+        """ For both detectors and time, returns the starting (global)
+        index and lenght of each block if the number of blocks is changed to the
+        values passed as arguments
+        """ 
         det_start, det_n = np.array(
             [[span.start_idx, span.num_of_elements]
              for span in distribute_evenly(self._n_detectors, n_blocks_det)]).T
@@ -116,6 +146,9 @@ class Observation:
                 np.array(time_start), np.array(time_n))
 
     def _get_tod_shape(self, n_blocks_det, n_blocks_time):
+        """ Return what the shape of ``self.tod`` will be if the blocks are set
+        or changed to the values passed as arguments
+        """ 
         if self.comm is None:
             # Observation not spread across MPI processes -> only one block
             return (self._n_detectors, self._n_samples)
@@ -129,6 +162,14 @@ class Observation:
             return (0, 0)
 
     def set_n_blocks(self, n_blocks_det=1, n_blocks_time=1):
+        """ Change the number of blocks
+
+        Args:
+            n_blocks_det (int): new number of blocks in the detector direction
+            n_blocks_time (int): new number of blocks in the time direction
+            
+        """ 
+        # Checks and preliminaries
         self._check_blocks(n_blocks_det, n_blocks_time)
         if self.comm is None:
             return
@@ -143,17 +184,28 @@ class Observation:
             self._get_tod_shape(n_blocks_det, n_blocks_time),
             dtype=self.tod.dtype)
 
+        # Ranks owing the new (old) blocks. It assumes row-major contiguous
+        # ranks starting from zero, i.e. the ranks are assigned to the blocks as
+        #
+        #  0 1 2      0 1
+        #  3 4 5  or  2 3  etc.
+        #  6 7 8      4 5
+        #
         senders = np.arange(self.n_blocks_det * self.n_blocks_time)
         senders = senders.reshape(self.n_blocks_det, self.n_blocks_time)
         receivers = np.arange(n_blocks_det * n_blocks_time)
         receivers = receivers.reshape(n_blocks_det, n_blocks_time)
 
+        # Global start indices and number of elements of both the old and new
+        # blocking scheme
         det_start_sends, _, time_start_sends, time_num_sends =\
             self._get_start_and_num(self.n_blocks_det, self.n_blocks_time)
         det_start_recvs, _, time_start_recvs, time_num_recvs =\
             self._get_start_and_num(n_blocks_det, n_blocks_time)
 
-        # ith old block sends counts[i, j] elements to the jth new block
+        # Prepare a matrix with the message sizes to be sent/received
+        # For a given row, ith old block sends counts[i, j] elements to
+        # the jth new block
         counts = (np.append(time_start_recvs, self._n_samples)[1:]
                   - time_start_sends[:, None])
         counts = np.where(counts < 0, 0, counts)
@@ -172,8 +224,10 @@ class Observation:
         assert np.all(counts.sum(0) == time_num_recvs)
         assert np.all(counts.sum(1) == time_num_sends)
 
-        # Move the tod to the old to the new blocks row by row
+        # Move the tod to the new blocks (new_tod) row by row
         for d in range(self._n_detectors):
+            # Get the ranks of the processes involved in the send and in the
+            # receive. and create a communicator for them
             i_old_det_block = np.where(d >= det_start_sends)[0][-1]
             i_new_det_block = np.where(d >= det_start_recvs)[0][-1]
             row_senders = senders[i_old_det_block]
@@ -182,7 +236,7 @@ class Observation:
             is_rank_in_row = self.comm.rank in ranks
             comm_row = self.comm.Split(int(is_rank_in_row))
             if not is_rank_in_row:
-                continue
+                continue  # Process not involved, move to the next row
 
             # move now to the row ranks
             rank_gap = max(row_receivers[0] - row_senders[-1] - 1,
@@ -238,30 +292,43 @@ class Observation:
         self._n_blocks_det = n_blocks_det
         self._n_blocks_time = n_blocks_time
 
-    @property
-    def n_samples(self):
-        """ Samples in the whole observation
+    def detector_info(self, name, info):
+        """ Piece of information on the detectors
 
-        Note
-        ----
-        If you need the time-lenght of the ``self.tod`` array, use directly
-        ``self.tod.shape[1]``: ``n_samples`` allways refers to the full
-        observation, even when it is distributed over multiple processes and
-        ``self.tod`` is just the local block.
+        Store ``info`` as the attribute ``name`` of the observation.
+        The difference with respect to ``self.name = info``, relevant only
+        in MPI programs, are
+
+         * ``info`` is assumed to contain a number of elements equal to
+           ``self.tod.shape[0]`` and to have the same order (``info[i]`` is a
+           property of ``self.tod[i]``)
+         * When changing ``n_blocks_det``, :py:meth:`.set_n_blocks` is aware of
+           ``name`` and will redistribute ``info`` in such a way that
+           ``self.name[i]`` is a property of ``self.tod[i]`` in the new block
+           distribution
+
+        At
         """
-        return self._n_samples
+        raise NotImplementedError
 
-    @property
-    def n_detectors(self):
-        return self._n_detectors
+    def detector_global_info(self, name, info, root=0):
+        """ Piece of information on the detectors
 
-    @property
-    def n_blocks_time(self):
-        return self._n_blocks_time
+        Variant of :py:meth:`.detector_info` to be used when the information
+        comes from a single MPI rank (``root``). In particular,
 
-    @property
-    def n_blocks_det(self):
-        return self._n_blocks_det
+         * In the ``root`` process, ``info`` is required to have ``n_detectors``
+           elements (not ``self.tod.shape[1]``). For other processes info is
+           irrelevant
+         * ``info`` is scattered from the ``root`` rank to all the processes in
+           ``self.comm`` so that ``self.name`` will have ``self.tod.shape[0]``
+           elements and ``self.name[i]`` is a property of ``self.tod[i]``
+         * When changing ``n_blocks_det``, :py:meth:`.set_n_blocks` is aware of
+           ``name`` and will redistribute ``info`` in such a way that
+           ``self.name[i]`` is a property of ``self.tod[i]`` in the new block
+           distribution
+        """
+        raise NotImplementedError
 
     def get_times(self):
         """Return a vector containing the time of each sample in the observation

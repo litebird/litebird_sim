@@ -398,21 +398,3 @@ class Simulation:
             self.observations.append(cur_obs)
 
         return self.observations
-
-
-    def distribute_workload(self, observations: List[Observation]):
-        #XXX still necessary?
-        if self.mpi_comm.size == 1:
-            self.observations = observations
-            return
-
-        cur_rank = self.mpi_comm.rank
-        span = distribute_optimally(
-            elements=observations,
-            num_of_groups=self.mpi_comm.size,
-            weight_fn=lambda obs: obs.nsamples,
-        )[cur_rank]
-
-        self.observations = observations[
-            span.start_idx : (span.start_idx + span.num_of_elements)
-        ]
