@@ -184,18 +184,6 @@ class Observation:
             self._get_tod_shape(n_blocks_det, n_blocks_time),
             dtype=self.tod.dtype)
 
-        # Ranks owing the new (old) blocks. It assumes row-major contiguous
-        # ranks starting from zero, i.e. the ranks are assigned to the blocks as
-        #
-        #  0 1 2      0 1
-        #  3 4 5  or  2 3  etc.
-        #  6 7 8      4 5
-        #
-        senders = np.arange(self.n_blocks_det * self.n_blocks_time)
-        senders = senders.reshape(self.n_blocks_det, self.n_blocks_time)
-        receivers = np.arange(n_blocks_det * n_blocks_time)
-        receivers = receivers.reshape(n_blocks_det, n_blocks_time)
-
         # Global start indices and number of elements of both the old and new
         # blocking scheme
         det_start_sends, _, time_start_sends, time_num_sends =\
@@ -224,40 +212,39 @@ class Observation:
         assert np.all(counts.sum(0) == time_num_recvs)
         assert np.all(counts.sum(1) == time_num_sends)
 
-        # Move the tod to the new blocks (new_tod) row by row
-        for d in range(self._n_detectors):
+        # Move the tod to the new blocks (new_tod) row by row.
+        for d in range(self.n_detectors):
             # Get the ranks of the processes involved in the send and in the
             # receive. and create a communicator for them
-            i_old_det_block = np.where(d >= det_start_sends)[0][-1]
-            i_new_det_block = np.where(d >= det_start_recvs)[0][-1]
-            row_senders = senders[i_old_det_block]
-            row_receivers = receivers[i_new_det_block]
-            ranks = np.unique(np.concatenate([row_senders, row_receivers]))
-            is_rank_in_row = self.comm.rank in ranks
+            first_sender = (np.where(d >= det_start_sends)[0][-1]
+                            * self.n_blocks_time)
+            first_recver = (np.where(d >= det_start_recvs)[0][-1]
+                            * n_blocks_time)
+            is_rank_in_row = (
+                first_sender <= self.comm.rank < first_sender + self.n_blocks_time
+                or first_recver <= self.comm.rank < first_recver + n_blocks_time)
+
             comm_row = self.comm.Split(int(is_rank_in_row))
             if not is_rank_in_row:
                 continue  # Process not involved, move to the next row
 
-            # move now to the row ranks
-            rank_gap = max(row_receivers[0] - row_senders[-1] - 1,
-                           row_senders[0] - row_receivers[-1] - 1,
+            # first_sender and first_recver to the row ranks
+            rank_gap = max(first_recver - first_sender - self.n_blocks_time - 1,
+                           first_sender - first_recver - n_blocks_time - 1,
                            0)
-            if row_senders[0] < row_receivers[0]:
-                row_receivers -= row_senders[0] + rank_gap
-                row_senders -= row_senders[0]
+            if first_sender < first_recver:
+                first_recver -= first_sender + rank_gap
+                first_sender = 0
             else:
-                row_receivers -= row_receivers[0]
-                row_senders -= row_receivers[0] + rank_gap
+                first_sender -= first_recver + rank_gap
+                first_recver = 0
 
-            # send
+            # Prepare send data
             send_counts = np.zeros(comm_row.size, dtype=np.int32)
-            try:
-                i_block = np.where(comm_row.rank == row_senders)[0][0]
-            except IndexError:
-                pass
-            else:
-                send_counts[row_receivers[0]: row_receivers[-1] + 1] =\
-                    counts[i_block]
+            i_block = comm_row.rank - first_sender
+            if 0 <= i_block < self.n_blocks_time:
+                send_counts[first_recver: first_recver + n_blocks_time] =\
+                    counts[comm_row.rank - first_sender]
             send_disp = np.zeros_like(send_counts)
             np.cumsum(send_counts[:-1], out=send_disp[1:])
             try:
@@ -269,13 +256,11 @@ class Observation:
 
             # recv
             recv_counts = np.zeros(comm_row.size, dtype=np.int32)
-            try:
-                i_block = np.where(comm_row.rank == row_receivers)[0][0]
-            except IndexError:
-                pass
-            else:
-                recv_counts[row_senders[0]: row_senders[-1] + 1] =\
+            i_block = comm_row.rank - first_recver
+            if 0 <= i_block < n_blocks_time:
+                recv_counts[first_sender: first_sender + self.n_blocks_time] =\
                     counts[:, i_block]
+
             recv_disp = np.zeros_like(recv_counts)
             np.cumsum(recv_counts[:-1], out=recv_disp[1:])
 
