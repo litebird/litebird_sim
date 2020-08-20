@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import litebird_sim as lbs
+import numpy as np
 
 
 def test_distribution():
@@ -64,8 +65,195 @@ def test_distribution():
     assert len(allobs) == 20
 
 
-def main():
-    test_distribution()
+def test_observation_tod_single_block():
+    comm_world = lbs.MPI_COMM_WORLD
+    obs = lbs.Observation(
+        n_detectors = 3,
+        n_samples=9,
+        start_time=0.0,
+        sampling_rate_hz=1.0,
+        comm=comm_world,
+    )
 
+    if comm_world.rank == 0:
+        assert obs.tod.shape == (3, 9)
+        assert obs.tod.dtype == np.float32
+    else:
+        assert obs.tod.shape == (0, 0)
+
+
+def test_observation_tod_two_block_time():
+    comm_world = lbs.MPI_COMM_WORLD
+    try:
+        obs = lbs.Observation(
+            n_detectors = 3,
+            n_samples=9,
+            start_time=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=2,
+            comm=comm_world,
+        )
+    except ValueError:
+        # Not enough processes to split the TOD, constuctor expected to rise
+        if comm_world.size < 2:
+            return
+
+    if comm_world.rank == 0:
+        assert obs.tod.shape == (3, 5)
+    elif comm_world.rank == 1:
+        assert obs.tod.shape == (3, 4)
+    else:
+        assert obs.tod.shape == (0, 0)
+
+
+def test_observation_tod_two_block_det():
+    comm_world = lbs.MPI_COMM_WORLD
+    try:
+        obs = lbs.Observation(
+            n_detectors = 3,
+            n_samples=9,
+            start_time=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_det=2,
+            comm=comm_world,
+        )
+    except ValueError:
+        # Not enough processes to split the TOD, constuctor expected to rise
+        if comm_world.size < 2:
+            return
+
+    if comm_world.rank == 0:
+        assert obs.tod.shape == (2, 9)
+    elif comm_world.rank == 1:
+        assert obs.tod.shape == (1, 9)
+    else:
+        assert obs.tod.shape == (0, 0)
+
+
+def test_observation_tod_set_blocks():
+    comm_world = lbs.MPI_COMM_WORLD
+    try:
+        obs = lbs.Observation(
+            n_detectors=3,
+            n_samples=9,
+            start_time=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=2,
+            comm=comm_world,
+        )
+    except ValueError:
+        # Not enough processes to split the TOD, constuctor expected to rise
+        if comm_world.size < 2:
+            return
+    
+    # Two time blocks
+    ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
+    if comm_world.rank == 0:
+        obs.tod[:] = ref_tod[:, :5]
+    elif comm_world.rank == 1:
+        obs.tod[:] = ref_tod[:, 5:]
+
+    # Two detector blocks
+    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=2)
+    if comm_world.rank == 0:
+        assert np.all(obs.tod == ref_tod[:2])
+    elif comm_world.rank == 1:
+        assert np.all(obs.tod == ref_tod[2:])
+    else:
+        assert obs.tod.size == 0
+
+    # One block
+    obs.set_n_blocks(n_blocks_det=1, n_blocks_time=1)
+    if comm_world.rank == 0:
+        assert np.all(obs.tod == ref_tod)
+    else:
+        assert obs.tod.size == 0
+
+    # Three time blocks
+    if comm_world.size < 3:
+        return
+    obs.set_n_blocks(n_blocks_det=1, n_blocks_time=3)
+    if comm_world.rank == 0:
+        assert np.all(obs.tod == ref_tod[:, :3])
+    elif comm_world.rank == 1:
+        assert np.all(obs.tod == ref_tod[:, 3:6])
+    elif comm_world.rank == 2:
+        assert np.all(obs.tod == ref_tod[:, 6:])
+    else:
+        assert obs.tod.size == 0
+
+    # Two detector blocks and two time blocks
+    if comm_world.size < 4:
+        return
+    obs.set_n_blocks(n_blocks_time=2, n_blocks_det=2)
+    if comm_world.rank == 0:
+        assert np.all(obs.tod == ref_tod[:2, :5])
+    elif comm_world.rank == 1:
+        assert np.all(obs.tod == ref_tod[:2, 5:])
+    elif comm_world.rank == 2:
+        assert np.all(obs.tod == ref_tod[2:, :5])
+    elif comm_world.rank == 3:
+        assert np.all(obs.tod == ref_tod[2:, 5:])
+    else:
+        assert obs.tod.size == 0
+
+    try:
+        obs.set_n_blocks(n_blocks_det=4, n_blocks_time=1)
+    except ValueError:
+        pass
+    else:
+        raise Exception("ValueError expected")
+
+    # Two detector blocks and three time blocks
+    if comm_world.size < 6:
+        return
+    obs.set_n_blocks(n_blocks_det=2, n_blocks_time=3)
+    if comm_world.rank == 0:
+        assert np.all(obs.tod == ref_tod[:2, :3])
+    elif comm_world.rank == 1:
+        assert np.all(obs.tod == ref_tod[:2, 3:6])
+    elif comm_world.rank == 2:
+        assert np.all(obs.tod == ref_tod[:2, 6:])
+    elif comm_world.rank == 3:
+        assert np.all(obs.tod == ref_tod[2:, :3])
+    elif comm_world.rank == 4:
+        assert np.all(obs.tod == ref_tod[2:, 3:6])
+    elif comm_world.rank == 5:
+        assert np.all(obs.tod == ref_tod[2:, 6:])
+    else:
+        assert obs.tod.size == 0
+
+    # Three detector blocks and three time blocks
+    if comm_world.size < 9:
+        return
+    obs.set_n_blocks(n_blocks_det=3, n_blocks_time=3)
+    if comm_world.rank == 0:
+        assert np.all(obs.tod == ref_tod[:1, :3])
+    elif comm_world.rank == 1:
+        assert np.all(obs.tod == ref_tod[:1, 3:6])
+    elif comm_world.rank == 2:
+        assert np.all(obs.tod == ref_tod[:1, 6:])
+    elif comm_world.rank == 3:
+        assert np.all(obs.tod == ref_tod[1:2, :3])
+    elif comm_world.rank == 4:
+        assert np.all(obs.tod == ref_tod[1:2, 3:6])
+    elif comm_world.rank == 5:
+        assert np.all(obs.tod == ref_tod[1:2, 6:])
+    elif comm_world.rank == 6:
+        assert np.all(obs.tod == ref_tod[2:, :3])
+    elif comm_world.rank == 7:
+        assert np.all(obs.tod == ref_tod[2:, 3:6])
+    elif comm_world.rank == 8:
+        assert np.all(obs.tod == ref_tod[2:, 6:])
+    else:
+        assert obs.tod.size == 0
+
+
+def main():
+    #test_distribution()
+    test_observation_tod_single_block()
+    test_observation_tod_two_block_time()
+    test_observation_tod_two_block_det()
+    test_observation_tod_set_blocks()
 
 main()

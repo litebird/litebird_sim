@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from .distribute import distribute_evenly, distribute_optimally
 import astropy.time as astrotime
 import numpy as np
 
@@ -22,7 +23,9 @@ class Observation:
     - :py:meth:`.get_tod` returns the array of samples
 
     Args:
-        detector (str): Name of the detector
+        n_detectors (int): Number of detector
+
+        n_samples (int): The number of samples in this observation.
 
         start_time: Start time of the observation. It can either be a
             `astropy.time.Time` type or a floating-point number. In
@@ -33,18 +36,30 @@ class Observation:
             measurement unit used for `start_time`, this *must* be
             expressed in Hertz.
 
-        nsamples (int): The number of samples in this observation.
-
         use_mjd (bool): If ``True``, the value of `start_time` is
             expressed in MJD, otherwise it's in seconds.
 
+        dtype_tod (dtype): Data type of the TOD array
+
+        n_blocks_det (int): divide the detector axis of the tod in
+            `n_blocks_det` blocks
+
+        n_blocks_time (int): divide the time axis of the tod in
+            `n_blocks_time` blocks
+
+        comm: either `None` (do not use MPI) or a MPI communicator
+            object, like `mpi4py.MPI.COMM_WORLD`. Its size is required to be at
+            least `n_blocks_det` times `n_blocks_time`
     """
 
     def __init__(
-        self, detectors, start_time, sampling_rate_hz, nsamples, use_mjd=False,
-        dtype=np.float32
+        self, n_detectors, n_samples,
+        start_time, sampling_rate_hz, use_mjd=False,
+        dtype_tod=np.float32, n_blocks_det=1, n_blocks_time=1, comm=None
     ):
-        self.detectors = detectors
+        self.comm = comm
+        self._n_samples = n_samples
+        self._n_detectors = n_detectors
         self.use_mjd = use_mjd
         self.sampling_rate_hz = sampling_rate_hz
 
@@ -65,12 +80,188 @@ class Observation:
         else:
             self.start_time = start_time
 
-        self.detectors = np.array(detectors)
-        self.tod = np.empty(self.detectors.shape+(nsamples,), dtype=dtype)
+        self._check_blocks(n_blocks_det, n_blocks_time)
+        self._n_blocks_det = n_blocks_det
+        self._n_blocks_time = n_blocks_time
+        self.tod = np.empty(
+            self._get_tod_shape(n_blocks_det, n_blocks_time),
+            dtype=dtype_tod)
+
+    def _check_blocks(self, n_blocks_det, n_blocks_time):
+        if self.comm is None:
+            if n_blocks_det != 1 or n_blocks_time != 1:
+                raise ValueError("Only one block allowed without an MPI comm")
+        elif n_blocks_det > self.n_detectors:
+            raise ValueError(
+                "You can not have more detector blocks than detectors "
+                f"({n_blocks_det} > {self.n_detectors})")
+        elif n_blocks_time > self.n_samples:
+            raise ValueError(
+                "You can not have more time blocks than time samples "
+                f"({n_blocks_time} > {self.n_blocks_time})")
+        elif self.comm.size < n_blocks_det * n_blocks_time:
+            raise ValueError(
+                "Too many blocks: n_blocks_det x n_blocks_time = "
+                f"{n_blocks_det * n_blocks_time} but the number "
+                f"processes is {self.comm.size}")
+
+    def _get_start_and_num(self, n_blocks_det, n_blocks_time):
+        det_start, det_n = np.array(
+            [[span.start_idx, span.num_of_elements]
+             for span in distribute_evenly(self._n_detectors, n_blocks_det)]).T
+        time_start, time_n = np.array(
+            [[span.start_idx, span.num_of_elements]
+             for span in distribute_evenly(self._n_samples, n_blocks_time)]).T
+        return (np.array(det_start), np.array(det_n),
+                np.array(time_start), np.array(time_n))
+
+    def _get_tod_shape(self, n_blocks_det, n_blocks_time):
+        if self.comm is None:
+            # Observation not spread across MPI processes -> only one block
+            return (self._n_detectors, self._n_samples)
+
+        _, det_n, _, time_n = self._get_start_and_num(n_blocks_det,
+                                                      n_blocks_time)
+        try:
+            return (det_n[self.comm.rank // n_blocks_time],
+                    time_n[self.comm.rank % n_blocks_time])
+        except IndexError:
+            return (0, 0)
+
+    def set_n_blocks(self, n_blocks_det=1, n_blocks_time=1):
+        self._check_blocks(n_blocks_det, n_blocks_time)
+        if self.comm is None:
+            return
+        if self.tod.dtype == np.float32:
+            from mpi4py.MPI import REAL as mpi_dtype
+        elif self.tod.dtype == np.float64:
+            from mpi4py.MPI import DOUBLE as mpi_dtype
+        else:
+            raise ValueError("Unsupported MPI dtype")
+
+        new_tod = np.zeros(
+            self._get_tod_shape(n_blocks_det, n_blocks_time),
+            dtype=self.tod.dtype)
+
+        senders = np.arange(self.n_blocks_det * self.n_blocks_time)
+        senders = senders.reshape(self.n_blocks_det, self.n_blocks_time)
+        receivers = np.arange(n_blocks_det * n_blocks_time)
+        receivers = receivers.reshape(n_blocks_det, n_blocks_time)
+
+        det_start_sends, _, time_start_sends, time_num_sends =\
+            self._get_start_and_num(self.n_blocks_det, self.n_blocks_time)
+        det_start_recvs, _, time_start_recvs, time_num_recvs =\
+            self._get_start_and_num(n_blocks_det, n_blocks_time)
+
+        # ith old block sends counts[i, j] elements to the jth new block
+        counts = (np.append(time_start_recvs, self._n_samples)[1:]
+                  - time_start_sends[:, None])
+        counts = np.where(counts < 0, 0, counts)
+        counts = np.where(counts > time_num_sends[:, np.newaxis],
+                          time_num_sends[:, np.newaxis], counts)
+        counts = np.where(counts > time_num_recvs, time_num_recvs, counts)
+        cum_counts = np.cumsum(counts, 1)
+        excess = cum_counts - time_num_sends[:, np.newaxis]
+        for i in range(self.n_blocks_time):
+            for j in range(n_blocks_time):
+                if excess[i, j] > 0:
+                    counts[i, j] -= excess[i, j]
+                    counts[i, j + 1:] = 0
+                    break
+
+        assert np.all(counts.sum(0) == time_num_recvs)
+        assert np.all(counts.sum(1) == time_num_sends)
+
+        # Move the tod to the old to the new blocks row by row
+        for d in range(self._n_detectors):
+            i_old_det_block = np.where(d >= det_start_sends)[0][-1]
+            i_new_det_block = np.where(d >= det_start_recvs)[0][-1]
+            row_senders = senders[i_old_det_block]
+            row_receivers = receivers[i_new_det_block]
+            ranks = np.unique(np.concatenate([row_senders, row_receivers]))
+            is_rank_in_row = self.comm.rank in ranks
+            comm_row = self.comm.Split(int(is_rank_in_row))
+            if not is_rank_in_row:
+                continue
+
+            # move now to the row ranks
+            rank_gap = max(row_receivers[0] - row_senders[-1] - 1,
+                           row_senders[0] - row_receivers[-1] - 1,
+                           0)
+            if row_senders[0] < row_receivers[0]:
+                row_receivers -= row_senders[0] + rank_gap
+                row_senders -= row_senders[0]
+            else:
+                row_receivers -= row_receivers[0]
+                row_senders -= row_receivers[0] + rank_gap
+
+            # send
+            send_counts = np.zeros(comm_row.size, dtype=np.int32)
+            try:
+                i_block = np.where(comm_row.rank == row_senders)[0][0]
+            except IndexError:
+                pass
+            else:
+                send_counts[row_receivers[0]: row_receivers[-1] + 1] =\
+                    counts[i_block]
+            send_disp = np.zeros_like(send_counts)
+            np.cumsum(send_counts[:-1], out=send_disp[1:])
+            try:
+                send_buff = self.tod[
+                    d - det_start_sends[self.comm.rank // self.n_blocks_time]]
+            except IndexError:
+                send_buff = None
+            send_data = [send_buff, send_counts, send_disp, mpi_dtype]
+
+            # recv
+            recv_counts = np.zeros(comm_row.size, dtype=np.int32)
+            try:
+                i_block = np.where(comm_row.rank == row_receivers)[0][0]
+            except IndexError:
+                pass
+            else:
+                recv_counts[row_senders[0]: row_senders[-1] + 1] =\
+                    counts[:, i_block]
+            recv_disp = np.zeros_like(recv_counts)
+            np.cumsum(recv_counts[:-1], out=recv_disp[1:])
+
+            try:
+                recv_buff = new_tod[
+                    d - det_start_recvs[self.comm.rank // n_blocks_time]]
+            except IndexError:
+                recv_buff = None
+            recv_data = [recv_buff, recv_counts, recv_disp, mpi_dtype]
+
+            comm_row.Alltoallv(send_data, recv_data)
+
+        self.tod = new_tod
+        self._n_blocks_det = n_blocks_det
+        self._n_blocks_time = n_blocks_time
 
     @property
-    def nsamples(self):
-        return self.tod.shape[-1]
+    def n_samples(self):
+        """ Samples in the whole observation
+
+        Note
+        ----
+        If you need the time-lenght of the ``self.tod`` array, use directly
+        ``self.tod.shape[1]``: ``n_samples`` allways refers to the full
+        observation, even when it is distributed over multiple processes and
+        ``self.tod`` is just the local block.
+        """
+        return self._n_samples
+
+    @property
+    def n_detectors(self):
+        return self._n_detectors
+
+    @property
+    def n_blocks_time(self):
+        return self._n_blocks_time
+
+    @property
+    def n_blocks_det(self):
+        return self._n_blocks_det
 
     def get_times(self):
         """Return a vector containing the time of each sample in the observation
@@ -78,7 +269,7 @@ class Observation:
         The measure unit of the result depends whether
         ``self.use_mjd`` is true (return MJD) or false (return
         seconds). The number of elements in the vector is equal to
-        ``self.nsamples``.
+        ``self.n_samples``.
 
         This can be a costly operation; you should cache this result
         if you plan to use it in your code, instead of calling this
@@ -91,8 +282,8 @@ class Observation:
             delta = astrotime.TimeDelta(1.0 / self.sampling_rate_hz, format="sec")
             vec = (
                 astrotime.Time(self.start_time, format="mjd")
-                + np.arange(self.nsamples) * delta
+                + np.arange(self.n_samples) * delta
             )
             return vec.mjd
         else:
-            return self.start_time + np.arange(self.nsamples) / self.sampling_rate_hz
+            return self.start_time + np.arange(self.n_samples) / self.sampling_rate_hz
