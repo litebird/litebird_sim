@@ -6,7 +6,7 @@ import astropy.time
 import numpy as np
 
 from .scanning import (
-    Bore2EclipticQuaternions,
+    Spin2EclipticQuaternions,
     all_compute_pointing_and_polangle,
 )
 
@@ -131,21 +131,25 @@ class Observation:
         return self.tod
 
     def get_pointings(
-        self, bore2ecliptic_quats: Bore2EclipticQuaternions, detector_quat
+        self,
+        spin2ecliptic_quats: Spin2EclipticQuaternions,
+        detector_quat,
+        bore2spin_quat,
     ):
         """Return the time stream of pointings for the detector
 
-        Given a :class:`Bore2EclipticQuaternions` and a quaternion
+        Given a :class:`Spin2EclipticQuaternions` and a quaternion
         representing the transformation from the reference frame of a
         detector to the boresight reference frame, compute a set of
         pointings for the detector that encompass the time span
         covered by this observation (i.e., starting from
         `self.start_time` and including `self.nsamples` pointings).
 
-        The parameter to `bore2ecliptic_quats` can be easily retrieved
-        by the field `bore2ecliptic_quats` in a object of
+        The parameter `spin2ecliptic_quats` can be easily retrieved by
+        the field `spin2ecliptic_quats` in a object of
         :class:`.Simulation` object, once the method
-        :meth:`.Simulation.generate_bore2ecl_quaternions` is called.
+        :meth:`.Simulation.generate_spin2ecl_quaternions` is called.
+
         The parameter `detector_quat` is typically one of the
         following:
 
@@ -155,6 +159,11 @@ class Observation:
         - If all you want to do is a simulation using a boresight
            direction, you can pass the value ``np.array([0., 0., 0.,
            1.])``, which represents the null rotation.
+
+        The parameter `bore2spin_quat` is calculated through the class
+        :class:`.Instrument`, which has the field ``bore2spin_quat``.
+        If all you have is the angle β between the boresight and the
+        spin axis, just pass ``quat_rotation_y(β)`` here.
 
         The return value is a ``(N × 3)`` matrix: the colatitude (in
         radians) is stored in column 0 (e.g., ``result[:, 0]``), the
@@ -168,8 +177,9 @@ class Observation:
             theta, phi, psi = [pointings[:, i] for i in (0, 1, 2)]
 
         """
-        det2ecliptic_quats = bore2ecliptic_quats.get_detector_quats(
+        det2ecliptic_quats = spin2ecliptic_quats.get_detector_quats(
             detector_quat=detector_quat,
+            bore2spin_quat=bore2spin_quat,
             time0=self.start_time,
             sampling_rate_hz=self.sampling_rate_hz,
             nsamples=self.nsamples,

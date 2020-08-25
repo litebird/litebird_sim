@@ -79,9 +79,9 @@ class Simulation:
             print(f"{curpath}: {curdescr}")
 
     When pointing information is needed, you can call the method
-    :meth:`.Simulation.generate_bore2ecl_quaternions`, which
+    :meth:`.Simulation.generate_spin2ecl_quaternions`, which
     initializes the members `pointing_freq_hz` and
-    `bore2ecliptic_quats`; these members are used by functions like
+    `spin2ecliptic_quats`; these members are used by functions like
     :meth:`.Observation.get_pointings`.
 
     Args:
@@ -133,7 +133,7 @@ class Simulation:
         self.start_time = start_time
         self.duration_s = duration_s
 
-        self.bore2ecliptic_quats = None
+        self.spin2ecliptic_quats = None
 
         self.description = description
 
@@ -465,7 +465,7 @@ class Simulation:
             span.start_idx : (span.start_idx + span.num_of_elements)
         ]
 
-    def generate_bore2ecl_quaternions(
+    def generate_spin2ecl_quaternions(
         self,
         scanning_strategy: Union[None, ScanningStrategy] = None,
         imo_url: Union[None, str] = None,
@@ -490,13 +490,13 @@ class Simulation:
 
         The parameter `delta_time_s` specifies how often should
         quaternions be computed; see
-        :meth:`.ScanningStrategy.generate_bore2ecl_quaternions` for
+        :meth:`.ScanningStrategy.generate_spin2ecl_quaternions` for
         more information.
 
         """
         assert not (scanning_strategy and imo_url), (
             "you must either specify scanning_strategy or imo_url (but not"
-            "the two together) when calling Simulation.generate_bore2ecl_quaternions"
+            "the two together) when calling Simulation.generate_spin2ecl_quaternions"
         )
 
         if not scanning_strategy:
@@ -508,12 +508,12 @@ class Simulation:
             )
 
         # TODO: if MPI is enabled, we should probably parallelize this call
-        self.bore2ecliptic_quats = scanning_strategy.generate_bore2ecl_quaternions(
+        self.spin2ecliptic_quats = scanning_strategy.generate_spin2ecl_quaternions(
             start_time=self.start_time,
             time_span_s=self.duration_s,
             delta_time_s=delta_time_s,
         )
-        quat_memory_size_bytes = self.bore2ecliptic_quats.nbytes()
+        quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
         if self.mpi_comm.rank == 0:
             template_file_path = get_template_file_path("report_generate_pointings.md")

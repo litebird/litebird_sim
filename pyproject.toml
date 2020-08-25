@@ -17,6 +17,7 @@ mpi4py = {version = "^3.0", optional = true}
 
 sphinx = {version = "^2.3", optional = true}
 sphinx_rtd_theme = {version = "^0.4.3", optional = true}
+sphinxcontrib-bibtex = {version = "^1.0.0", optional = true}
 
 jupyter = {version = "^1.0", optional = true}
 jupyterlab = {version = "^1.2", optional = true}
@@ -29,11 +30,12 @@ katex = "^0.0.4"
 healpy = "^1.13.0"
 pyyaml = "^5.3.1"
 backports-datetime-fromisoformat = "^1.0.0"
-ducc0 = {git = "https://github.com/litebird/ducc", rev = "ducc0"}
+ducc0 = {git = "https://github.com/litebird/ducc", rev = "quat_rot_right"}
 pybind11 = "^2.5.0"
+
 [tool.poetry.extras]
 mpi = ["mpi4py"]
-docs = ["sphinx", "sphinx_rtd_theme"]
+docs = ["sphinx", "sphinx_rtd_theme", "sphinxcontrib-bibtex"]
 jupyter = ["jupyter"]
 
 [build-system]
