@@ -233,7 +233,7 @@ version = "0.4.0"
 numpy = ">=1.17.0"
 
 [package.source]
-reference = "5ddd8a63555beefbc5a3dd4e817cb41dfd30b6cb"
+reference = "d86009e9dd4967396163415d9ccca0993ed935d3"
 type = "git"
 url = "https://github.com/litebird/ducc"
 [[package]]
@@ -472,7 +472,7 @@ description = "Jupyter protocol implementation and client libraries"
 name = "jupyter-client"
 optional = true
 python-versions = ">=3.5"
-version = "6.1.6"
+version = "6.1.7"
 
 [package.dependencies]
 jupyter-core = ">=4.6.0"
@@ -482,7 +482,7 @@ tornado = ">=4.1"
 traitlets = "*"
 
 [package.extras]
-test = ["async-generator", "ipykernel", "ipython", "mock", "pytest", "pytest-asyncio", "pytest-timeout"]
+test = ["ipykernel", "ipython", "mock", "pytest", "pytest-asyncio", "async-generator", "pytest-timeout"]
 
 [[package]]
 category = "main"
@@ -1406,7 +1406,7 @@ jupyter = ["jupyter"]
 mpi = ["mpi4py"]
 
 [metadata]
-content-hash = "b0ad548fed9c46882ab929ebab9b3ce498f068e1e8014d4df6af6a6bb0ab7e48"
+content-hash = "37e2d66ae9a3ef5c0814b7dec80c1c16669416cf513ef65a48942f4526ea5b1c"
 lock-version = "1.0"
 python-versions = "^3.6"
 
@@ -1626,8 +1626,8 @@ jupyter = [
     {file = "jupyter-1.0.0.zip", hash = "sha256:3e1f86076bbb7c8c207829390305a2b1fe836d471ed54be66a3b8c41e7f46cc7"},
 ]
 jupyter-client = [
-    {file = "jupyter_client-6.1.6-py3-none-any.whl", hash = "sha256:7ad9aa91505786420d77edc5f9fb170d51050c007338ba8d196f603223fd3b3a"},
-    {file = "jupyter_client-6.1.6.tar.gz", hash = "sha256:b360f8d4638bc577a4656e93f86298db755f915098dc763f6fc05da0c5d7a595"},
+    {file = "jupyter_client-6.1.7-py3-none-any.whl", hash = "sha256:c958d24d6eacb975c1acebb68ac9077da61b5f5c040f22f6849928ad7393b950"},
+    {file = "jupyter_client-6.1.7.tar.gz", hash = "sha256:49e390b36fe4b4226724704ea28d9fb903f1a3601b6882ce3105221cd09377a1"},
 ]
 jupyter-console = [
     {file = "jupyter_console-6.1.0-py2.py3-none-any.whl", hash = "sha256:b392155112ec86a329df03b225749a0fa903aa80811e8eda55796a40b5e470d8"},
