@@ -25,7 +25,7 @@ motion is simulated by our framework:
     <iframe
         width="560"
         height="315"
-        src="https://www.youtube.com/embed/C0xdvI1rNzg"
+        src="https://youtu.be/Nh7pMSrVDZs"
         frameborder="0"
         allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
         allowfullscreen>
