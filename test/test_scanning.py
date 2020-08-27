@@ -4,109 +4,6 @@ from astropy.time import Time
 import numpy as np
 import litebird_sim as lbs
 
-x = np.array([1.0, 0.0, 0.0])
-y = np.array([0.0, 1.0, 0.0])
-z = np.array([0.0, 0.0, 1.0])
-
-
-def test_rotation_handedness():
-    result = np.empty(3)
-
-    lbs.rotate_vector(result, *lbs.quat_rotation_x(np.pi / 2), y)
-    assert np.allclose(result, z)
-    lbs.rotate_vector(result, *lbs.quat_rotation_x(np.pi / 2), z)
-    assert np.allclose(result, -y)
-    lbs.rotate_vector(result, *lbs.quat_rotation_y(np.pi / 2), x)
-    assert np.allclose(result, -z)
-    lbs.rotate_vector(result, *lbs.quat_rotation_y(np.pi / 2), z)
-    assert np.allclose(result, x)
-    lbs.rotate_vector(result, *lbs.quat_rotation_z(np.pi / 2), x)
-    assert np.allclose(result, y)
-    lbs.rotate_vector(result, *lbs.quat_rotation_z(np.pi / 2), y)
-    assert np.allclose(result, -x)
-
-
-def test_quat_multiply_and_rotations():
-    # Simple composition of rotations
-    quat = np.array(lbs.quat_rotation_x(np.pi / 3))
-    lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_x(2 * np.pi / 3)))
-
-    quat = np.array(lbs.quat_rotation_y(np.pi / 3))
-    lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_y(2 * np.pi / 3)))
-
-    quat = np.array(lbs.quat_rotation_z(np.pi / 3))
-    lbs.quat_right_multiply(quat, *lbs.quat_rotation_z(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_z(2 * np.pi / 3)))
-
-    quat = np.array(lbs.quat_rotation_x(np.pi / 3))
-    lbs.quat_left_multiply(quat, *lbs.quat_rotation_x(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_x(2 * np.pi / 3)))
-
-    quat = np.array(lbs.quat_rotation_y(np.pi / 3))
-    lbs.quat_left_multiply(quat, *lbs.quat_rotation_y(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_y(2 * np.pi / 3)))
-
-    quat = np.array(lbs.quat_rotation_z(np.pi / 3))
-    lbs.quat_left_multiply(quat, *lbs.quat_rotation_z(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_z(2 * np.pi / 3)))
-
-    # Now we test more complex compositions
-
-    vec = np.empty(3)
-
-    # Right multiplication
-    quat = np.array(lbs.quat_rotation_y(np.pi / 2))
-    lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
-    lbs.rotate_vector(vec, *quat, y)
-    assert np.allclose(vec, x)
-
-    quat = np.array(lbs.quat_rotation_z(np.pi / 2))
-    lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
-    lbs.rotate_vector(vec, *quat, z)
-    assert np.allclose(vec, y)
-
-    quat = np.array(lbs.quat_rotation_x(np.pi / 2))
-    lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
-    lbs.rotate_vector(vec, *quat, x)
-    assert np.allclose(vec, y)
-
-    # Left multiplication
-    quat = np.array(lbs.quat_rotation_y(np.pi / 2))
-    lbs.quat_left_multiply(quat, *lbs.quat_rotation_z(np.pi / 2))
-    lbs.rotate_vector(vec, *quat, z)
-    assert np.allclose(vec, y)
-
-    quat = np.array(lbs.quat_rotation_z(np.pi / 2))
-    lbs.quat_left_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
-    lbs.rotate_vector(vec, *quat, y)
-    assert np.allclose(vec, z)
-
-    quat = np.array(lbs.quat_rotation_z(np.pi / 2))
-    lbs.quat_left_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
-    lbs.rotate_vector(vec, *quat, x)
-    assert np.allclose(vec, z)
-
-
-def test_quick_rotations():
-    vec = np.empty(3)
-
-    quat = np.array(lbs.quat_rotation_z(np.pi / 2))
-    lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
-    lbs.rotate_z_vector(vec, *quat)
-    assert np.allclose(vec, y)
-
-    quat = np.array(lbs.quat_rotation_x(np.pi / 2))
-    lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
-    lbs.rotate_x_vector(vec, *quat)
-    assert np.allclose(vec, y)
-
-    quat = np.array(lbs.quat_rotation_y(np.pi / 2))
-    lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
-    lbs.rotate_y_vector(vec, *quat)
-    assert np.allclose(vec, x)
-
 
 def test_compute_pointing_and_polangle():
     quat = np.array(lbs.quat_rotation_y(np.pi / 2))
@@ -324,3 +221,44 @@ def test_simulation_pointings_mjd(tmp_path):
             bore2spin_quat=instr.bore2spin_quat,
         )
         print(pointings_and_polangle)
+
+
+def test_scanning_quaternions(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0,
+    )
+    fakedet = create_fake_detector(sampling_rate_hz=50.0)
+
+    sim.create_observations(
+        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False,
+    )
+    assert len(sim.observations) == 1
+    obs = sim.observations[0]
+
+    sstr = lbs.SpinningScanningStrategy(
+        spin_sun_angle_deg=0.0, precession_period_min=0.0, spin_rate_rpm=1.0,
+    )
+    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
+
+    instr = lbs.Instrument(spin_boresight_angle_deg=15.0)
+    detector_quat = np.array([0.0, 0.0, 0.0, 1.0])
+
+    det2ecl_quats = obs.get_det2ecl_quaternions(
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        detector_quat=detector_quat,
+        bore2spin_quat=instr.bore2spin_quat,
+    )
+
+    ecl2det_quats = obs.get_ecl2det_quaternions(
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        detector_quat=detector_quat,
+        bore2spin_quat=instr.bore2spin_quat,
+    )
+
+    identity = np.array([0, 0, 0, 1])
+    for i in range(det2ecl_quats.shape[0]):
+        # Check that the two quaternions (ecl2det and det2ecl) are
+        # actually one the inverse of the other
+        quat = np.copy(det2ecl_quats[i, :])
+        lbs.quat_right_multiply(quat, *ecl2det_quats[i, :])
+        assert np.allclose(quat, identity)

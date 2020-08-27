@@ -27,7 +27,7 @@ YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * u.year).to(u.s).value
 
 
 @njit
-def clip_sincos(x):
+def _clip_sincos(x):
     # Unfortunately, Numba 0.51 does not support np.clip, so we must
     # roll our own version (see
     # https://jcristharif.com/numba-overload.html)
@@ -37,6 +37,14 @@ def clip_sincos(x):
 @njit
 def polarization_angle(theta_rad, phi_rad, poldir):
     """Compute the polarization angle at a given point on the sky
+
+    Prototype::
+
+        polarization_angle(
+            theta_rad: float,
+            phi_rad: float,
+            poldir: numpy.array[3], 
+        )
 
     This function returns the polarization angle (in radians) with
     respect to the North Pole of the celestial sphere for the point at
@@ -100,8 +108,8 @@ def polarization_angle(theta_rad, phi_rad, poldir):
     # outside the allowed range [-1,1] because of numerical roundoff
     # errors.
 
-    cos_psi = clip_sincos(-np.sin(phi_rad) * poldir[0] + np.cos(phi_rad) * poldir[1])
-    sin_psi = clip_sincos(
+    cos_psi = _clip_sincos(-np.sin(phi_rad) * poldir[0] + np.cos(phi_rad) * poldir[1])
+    sin_psi = _clip_sincos(
         (-np.cos(theta_rad) * np.cos(phi_rad) * poldir[0])
         + (-np.cos(theta_rad) * np.sin(phi_rad) * poldir[1])
         + (np.sin(theta_rad) * poldir[2])
@@ -112,6 +120,13 @@ def polarization_angle(theta_rad, phi_rad, poldir):
 @njit
 def compute_pointing_and_polangle(result, quaternion):
     """Store in "result" the pointing direction and polarization angle.
+
+    Prototype::
+
+        compute_pointing_and_polangle(
+            result: numpy.array[3],
+            quaternion: numpy.array[4],
+        )
 
     The function assumes that `quaternion` encodes a rotation which
     transforms the z axis into the direction of a beam in the sky,
@@ -132,8 +147,8 @@ def compute_pointing_and_polangle(result, quaternion):
       North and East directions in the celestial sphere
 
     This function does *not* support broadcasting; use
-    `all_compute_pointing_and_polangle` if you need to transform
-    several quaternions at once.
+    :func:`all_compute_pointing_and_polangle` if you need to
+    transform several quaternions at once.
 
     Example::
 
@@ -171,7 +186,14 @@ def compute_pointing_and_polangle(result, quaternion):
 
 @njit
 def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
-    """Repeatedly apply `compute_pointing_and_polangle`
+    """Repeatedly apply :func:`compute_pointing_and_polangle`
+
+    Prototype::
+
+        all_compute_pointing_and_polangle(
+            result_matrix: numpy.array[N, 3],
+            quat_matrix: numpy.array[N, 4],
+        )
 
     Assuming that `result_matrix` is a (N×3) matrix and `quat_matrix`
     a (N×4) matrix, iterate over all the N rows and apply
@@ -192,6 +214,17 @@ def spin_to_ecliptic(
     time_s,
 ):
     """Compute a quaternion with the spin-axis-to-Ecliptic rotation
+
+    Prototype::
+
+        spin_to_ecliptic(
+            result: numpy.array[4],
+            sun_earth_angle_rad: float,
+            spin_sun_angle_rad: float,
+            precession_rate_hz: float,
+            spin_rate_hz: float,
+            time_s: float,
+        )
 
     This function computes the (normalized) quaternion that encodes
     the rotation which transforms the frame of reference of the
@@ -257,7 +290,18 @@ def all_spin_to_ecliptic(
     spin_rate_hz,
     time_vector_s,
 ):
-    """Apply the :func:`spin_to_ecliptic` function to the rows of a matrix
+    """Apply :func:`spin_to_ecliptic` to each row of a matrix
+
+    Prototype::
+
+        all_spin_to_ecliptic(
+            result_matrix: numpy.array[N, 4],
+            sun_earth_angle_rad: float,
+            spin_sun_angle_rad: float,
+            precession_rate_hz: float,
+            spin_rate_hz: float,
+            time_vector_s: numpy.array[N],
+        )
 
     This function extends :func:`spin_to_ecliptic` to work with
     the vector of times `time_vector_s`; all the other parameters must

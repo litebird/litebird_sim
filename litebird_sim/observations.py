@@ -130,6 +130,70 @@ class Observation:
         """
         return self.tod
 
+    def get_det2ecl_quaternions(
+        self,
+        spin2ecliptic_quats: Spin2EclipticQuaternions,
+        detector_quat,
+        bore2spin_quat,
+    ):
+        """Return the detector-to-Ecliptic quaternions
+
+        This function returns a ``(N, 4)`` matrix containing the
+        quaternions that convert a vector in detector's coordinates
+        into the frame of reference of the Ecliptic. The number of
+        quaternions is equal to the number of samples hold in this
+        observation.
+
+        Given that the z axis in the frame of reference of a detector
+        points along the main beam axis, this means that if you use
+        these quaternions to rotate the vector `z = [0, 0, 1]`, you
+        will end up with the sequence of vectors pointing towards the
+        points in the sky (in Ecliptic coordinates) that are observed
+        by the detector.
+
+        This is a low-level method; you should usually call the method
+        :meth:`.get_pointings`, which wraps this function to compute
+        both the pointing direction and the polarization angle.
+
+        See also the method :meth:`.get_ecl2det_quaternions`, which
+        mirrors this one.
+
+        """
+        return spin2ecliptic_quats.get_detector_quats(
+            detector_quat=detector_quat,
+            bore2spin_quat=bore2spin_quat,
+            time0=self.start_time,
+            sampling_rate_hz=self.sampling_rate_hz,
+            nsamples=self.nsamples,
+        )
+
+    def get_ecl2det_quaternions(
+        self,
+        spin2ecliptic_quats: Spin2EclipticQuaternions,
+        detector_quat,
+        bore2spin_quat,
+    ):
+        """Return the Ecliptic-to-detector quaternions
+
+        This function returns a ``(N, 4)`` matrix containing the ``N``
+        quaternions that convert a vector in Ecliptic coordinates into
+        the frame of reference of the detector itself. The number of
+        quaternions is equal to the number of samples hold in this
+        observation.
+
+        This method is useful when you want to simulate how a point
+        source is observed by the detector's beam: if you know the
+        Ecliptic coordinates of the point sources, you can easily
+        derive the location of the source with respect to the
+        reference frame of the detector's beam.
+        """
+
+        quats = self.get_det2ecl_quaternions(
+            spin2ecliptic_quats, detector_quat, bore2spin_quat
+        )
+        quats[:, 0:3] *= -1  # Apply the quaternion conjugate
+        return quats
+
     def get_pointings(
         self,
         spin2ecliptic_quats: Spin2EclipticQuaternions,
@@ -177,12 +241,8 @@ class Observation:
             theta, phi, psi = [pointings[:, i] for i in (0, 1, 2)]
 
         """
-        det2ecliptic_quats = spin2ecliptic_quats.get_detector_quats(
-            detector_quat=detector_quat,
-            bore2spin_quat=bore2spin_quat,
-            time0=self.start_time,
-            sampling_rate_hz=self.sampling_rate_hz,
-            nsamples=self.nsamples,
+        det2ecliptic_quats = self.get_det2ecl_quaternions(
+            spin2ecliptic_quats, detector_quat, bore2spin_quat,
         )
 
         # Compute the pointing direction for each sample

@@ -32,6 +32,10 @@ from .quaternions import (
     rotate_x_vector,
     rotate_y_vector,
     rotate_z_vector,
+    all_rotate_vectors,
+    all_rotate_x_vectors,
+    all_rotate_y_vectors,
+    all_rotate_z_vectors,
 )
 from .scanning import (
     compute_pointing_and_polangle,
@@ -92,6 +96,10 @@ __all__ = [
     "rotate_x_vector",
     "rotate_y_vector",
     "rotate_z_vector",
+    "all_rotate_vectors",
+    "all_rotate_x_vectors",
+    "all_rotate_y_vectors",
+    "all_rotate_z_vectors",
     # scanning.py
     "compute_pointing_and_polangle",
     "all_compute_pointing_and_polangle",
