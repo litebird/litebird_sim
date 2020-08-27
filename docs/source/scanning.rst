@@ -177,6 +177,12 @@ for now just keep in mind the overall shape of the code:
    the example above, this is done by the method
    :meth:`.Observation.get_pointings`.
 
+3. The method :meth:`.Observation.get_pointings` returns a ``(N, 3)``
+   matrix, where the first column contains the colatitude
+   :math:`\theta`, the second column the longitude :math:`\phi`, and
+   the third column the polarization angle :math:`\psi`, all expressed
+   in radians.
+
 
 Computing the spacecraft's orientation
 --------------------------------------
@@ -334,6 +340,13 @@ angle are computed as follows:
 
 .. image:: images/polarization-direction.svg
 
+The purpose of the method :meth:`.Observation.get_pointings`, used in
+the example at the beginning of this chapter, is to call
+:meth:`.Observation.get_det2ecl_quaternions` to compute the
+quaternions at the same sampling frequency as the scientific
+datastream, and then to apply the two definitions above to compute the
+direction and the polarization angle.
+
 
 How the boresight is specified
 ------------------------------
@@ -369,8 +382,8 @@ three angles:
        frameborder="0"
        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
        allowfullscreen>
-   </iframe>         
-           
+   </iframe>
+
 Interpretation of pointings
 ---------------------------
 
@@ -522,7 +535,7 @@ this weird syntax is efficiency, as this kind of function call can be
 easily optimized by Numba (which is used extensively in the code).
 
 
-Custom scanning strategies
+A simple scanning strategy
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We are now ready to discuss how to implement other types of scanning
@@ -662,16 +675,161 @@ computing one quaternion every minute, we compute one quaternion every
    healpy.mollview(m)
 
 Here is the result: we're indeed scanning the Ecliptic plane!
-   
+
 .. image:: images/simple-scanning-strategy.png
 
+
+Observing point sources in the sky
+----------------------------------
+
+It is useful to simulate the observation of point sources in the sky,
+both for a scientific purpose or for instrument calibration. For
+instance, an important task in the calibration of a CMB space
+experiment is the estimation of the radiation pattern
+:math:`\gamma(\theta, \phi)` for each detector (sometimes
+:math:`\gamma` is called the *beam function*). This task can be done
+through the observation of a bright point source, like one of the
+outer planets (Mars, Jupiter, Saturn, etc.): assuming that the source
+is really pointlike and neglecting every other emission from the sky,
+the response measured by a detector is proportional to the radiation
+pattern :math:`\gamma(\theta, \phi)`, where the angles :math:`\theta,
+\phi` identify the position of the planet *in the reference frame of
+the detector*, i.e., where :math:`\theta = 0` is the direction of the
+main beam axis.
+
+The functions described in this chapter can be used to analyze how
+detectors are going to observe point sources in the sky, properly
+taking into account proper motions of the sources (this applies to
+Solar System objects, like planets and comets). The class
+:class:`.Observation` provides the method
+:meth:`.get_ecl2det_quaternions`, which has the same syntax as
+:meth:`.get_pointings` but returns a matrix with shape ``(N, 4)``
+containing the ``N`` quaternions that transform from the Ecliptic
+reference frame to the detector's. Thus, this method can be used to
+estimate how far from the main beam axis a celestial object is, and
+its orientation with the polarization axis.
+
+Here we show a simple example; the first part is identical to the
+examples shown above (using the same scanning strategy as CORE's), but
+here we employ AstroPy to compute the Ecliptic coordinates of Jupiter
+during the simulation and convert them in the reference frame of the
+boresight detector using :meth:`.Observation.get_ecl2det_quaternions`:
+
+.. testcode::
+
+  import numpy as np
+  import litebird_sim as lbs
+  import astropy.time, astropy.units as u
+  from astropy.coordinates import (
+      ICRS,
+      get_body_barycentric,
+      BarycentricMeanEcliptic,
+      solar_system_ephemeris,
+  )
+
+  sim = lbs.Simulation(
+      # We use AstroPy times here!
+      start_time=astropy.time.Time("2020-01-01T00:00:00"),
+      duration_s=60.0,
+      description="Sample simulation",
+  )
+  sim.generate_spin2ecl_quaternions(
+      scanning_strategy=lbs.SpinningScanningStrategy(
+          spin_sun_angle_deg=30,
+          spin_rate_rpm=0.5,
+          precession_period_min=(4 * u.day).to("min").value,
+      )
+  )
+  instr = lbs.Instrument(name="core", spin_boresight_angle_deg=65)
+  det = lbs.Detector(name="foo", sampling_rate_hz=10)
+  obs, = sim.create_observations(detectors=[det])
+
+  #################################################################
+  # Here begins the juicy part
+  
+  solar_system_ephemeris.set("builtin")
+
+  # The variable "icrs_pos" contains the x,y,z coordinates of Jupiter
+  # in the ICRS reference frame for each sample time in the
+  # observation.
+  icrs_pos = get_body_barycentric(
+      "jupiter",
+      obs.get_times(astropy_times=True),
+  )
+  # Convert the ICRS r.f. into the barycentric mean Ecliptic r.f.,
+  # which is the reference frame used by the LiteBIRD simulation
+  # framework
+  ecl_vec = (ICRS(icrs_pos)
+      .transform_to(BarycentricMeanEcliptic)
+      .cartesian
+      .get_xyz()
+      .value
+  )
+
+  # The variable ecl_vec is a 3×N matrix containing the vectors.
+  # We normalize them so that each has length one (using the L_2
+  # norm, hence ord=2)
+  ecl_vec /= np.linalg.norm(ecl_vec, axis=0, ord=2)
+
+  # Convert the matrix to a N×3 shape
+  ecl_vec = ecl_vec.transpose()
+
+  # Calculate the quaternions that convert the Ecliptic
+  # reference system into the detector's reference system
+  quats = obs.get_ecl2det_quaternions(
+      sim.spin2ecliptic_quats,
+      detector_quat=det.quat,
+      bore2spin_quat=instr.bore2spin_quat,
+  )
+
+  # Make room for the xyz vectors in the detector's reference frame
+  det_vec = np.empty_like(ecl_vec)
+
+  # Do the rotation!
+  lbs.all_rotate_vectors(det_vec, quats, ecl_vec)
+
+  print(det_vec)
+
+.. testoutput::
+
+  [[-0.15605956 -0.96302723  0.21959958]
+   [-0.15393029 -0.96231749  0.22416628]
+   [-0.15180263 -0.96158138  0.22872956]
+   ...
+   [-0.26224282  0.96497767 -0.00684089]
+   [-0.2643768   0.96435188 -0.01141765]
+   [-0.26650937  0.96369966 -0.01599139]]
+
+
+Again, the vectors printed by this script are in the *reference frame
+of the detector*, where the vector ``[0 0 1]`` indicates the main axis
+of the detector. We can inspect how close Jupiter moves to the main
+beam axis during the simulation if we convert the set of `(x, y, z)`
+vectors into the angles :math:`\theta` (colatitude) and :math:`\phi`
+(longitude), as the colatitude is simply the angular distance from the
+main beam axis (:math:`\theta = 0`)::
+
+  import healpy
+  theta, phi = healpy.vec2ang(det_vec)
+
+  import matplotlib.pylab as plt
+
+  times = obs.get_times()
+  plt.plot(times - times[0], np.rad2deg(theta))
+  plt.xlabel("Time [s]")
+  plt.ylabel("Angular separation [deg]")
+
+.. image:: images/jupiter-angular-distance.svg
+
+We see that Jupiter is ~10° away from the beam axis after ~30 seconds
+since the start of the simulation.
            
 Bibliography
 ------------
-           
+
 .. bibliography:: refs.bib
    :style: plain
-                  
+
 
 API reference
 -------------
@@ -680,3 +838,9 @@ API reference
     :members:
     :undoc-members:
     :show-inheritance:
+
+.. automodule:: litebird_sim.quaternions
+    :members:
+    :undoc-members:
+    :show-inheritance:
+       
