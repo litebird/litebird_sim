@@ -356,7 +356,7 @@ specification of the boresight requires some care. In
 :cite:`2018:core:delabrouille` and :cite:`2019:pico:hanany`, the
 boresight direction is encoded using just one number, the angle
 between the boresight and the spin axis. However, both papers deal
-with spacecrafts hosting only /one/ focal plane.
+with spacecrafts hosting only *one* focal plane.
 
 The full orientation of the boresight direction is specified using
 three angles:
@@ -468,7 +468,7 @@ remove Quaternions from every 3D engine
 
 The LiteBIRD simulation framework models quaternions using the
 convention :math:`(v_x, v_y, v_z, w)`; be aware that some textbooks
-use the order :math:`w, v_x, v_y, v_z`. As the framework uses
+use the order :math:`(w, v_x, v_y, v_z)`. As the framework uses
 quaternions only to model rotations, they all must obey the relation
 :math:`v_x^2 + v_y^2 + v_z^2 + w^2 = 1` (*normalized* quaternions),
 which is a property satisfied by rotation quaternions.
@@ -533,6 +533,16 @@ with ``*`` to expand the result (a 4-element tuple) into the four
 parameters required by :func:`.quat_left_multiply`. The reason for
 this weird syntax is efficiency, as this kind of function call can be
 easily optimized by Numba (which is used extensively in the code).
+
+Finally, the framework provides the function :func:`.rotate_vector`,
+which applies the rotation described by a normalized quaternion to a
+vector. There are faster versions in :func:`.rotate_x_vector`,
+:func:`.rotate_y_vector`, and :func:`.rotate_z_vector` that rotate the
+three basis vectors ``(1, 0, 0)``, ``(0, 1, 0)``, and ``(0, 0, 1)``.
+The functions :func:`.all_rotate_vectors`,
+:func:`.all_rotate_x_vectors`, :func:`.all_rotate_y_vectors`, and
+:func:`.all_rotate_z_vectors` can be applied to arrays of quaternions
+and vectors.
 
 
 A simple scanning strategy
