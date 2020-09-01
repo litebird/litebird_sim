@@ -189,12 +189,12 @@ Beyond TOD
 .. toggle-header::
  :header: Note that if the TOD matrix is chunked along the detector dimension, only the corresponding portion of the property array is detained in memory. 
   
-   This implies that -- regardless if and how the TOD is distributed or not --
+   This implies that -- regardless if and how the TOD is distributed --
    ``obs.tod[i]`` and ``obs.wn_level[i]`` both refer to the same
    detector, ``obs.tod`` and ``obs.wn_level`` have the same length and
    ``obs.tod * obs.wn_level[:, None]`` is valid (and correct) operation.
    Compared to storying the full property array in every process, the main
-   drawback is that, whenever the the block distribution of the
+   drawback is that, whenever the block distribution of the
    TOD is changed, also the property arrays have to be redistributed. The pros
-   are a higher memory efficiency and are more consistend serial/parallel
+   are a higher memory efficiency and are more consistent serial/parallel
    experience for the user.
