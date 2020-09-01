@@ -196,5 +196,5 @@ Beyond TOD
    Compared to storying the full property array in every process, the main
    drawback is that, whenever the block distribution of the
    TOD is changed, also the property arrays have to be redistributed. The pros
-   are a higher memory efficiency and are more consistent serial/parallel
+   are a higher memory efficiency and a more consistent serial/parallel
    experience for the user.
