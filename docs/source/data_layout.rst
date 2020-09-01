@@ -175,7 +175,7 @@ Possible advantages of less general choices
 Beyond TOD
 ----------
 .. toggle-header::
- :header: Applying the same mindset to all the other detector quantities, we store them in arrays that contain a given information for all the detectors
+ :header: Applying the same mindset to all the other detector quantities and properties, we store them in arrays that contain a given information for all the detectors
   
    Conceptually it may seem more natural to select a detector and have all its
    quantities as attributes. However, when we operate on the observations, we
@@ -185,3 +185,16 @@ Beyond TOD
    for every detector into an array. This is likely to save many for loops
    by exploiting ``numpy`` broadcasting rules in most of numerical operations,
    which results in both cleaner code and higher performance.
+
+.. toggle-header::
+ :header: Note that if the TOD matrix is chunked along the detector dimension, only the corresponding portion of the property array is detained in memory. 
+  
+   This implies that -- regardless if and how the TOD is distributed or not --
+   ``obs.tod[i]`` and ``obs.wn_level[i]`` both refer to the same
+   detector, ``obs.tod`` and ``obs.wn_level`` have the same length and
+   ``obs.tod * obs.wn_level[:, None]`` is valid (and correct) operation.
+   Compared to storying the full property array in every process, the main
+   drawback is that, whenever the the block distribution of the
+   TOD is changed, also the property arrays have to be redistributed. The pros
+   are a higher memory efficiency and are more consistend serial/parallel
+   experience for the user.
