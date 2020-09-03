@@ -4,10 +4,11 @@ import codecs
 from collections import namedtuple
 from datetime import datetime
 import logging as log
+import os
 import subprocess
 from typing import List, Tuple, Union, Dict, Any
 from pathlib import Path
-from shutil import copyfile, copytree
+from shutil import copyfile, copytree, SameFileError
 
 from .detectors import Detector
 from .distribute import distribute_evenly, distribute_optimally
@@ -23,6 +24,7 @@ from .version import (
 import astropy.time
 import markdown
 import jinja2
+import tomlkit
 
 from markdown_katex import KatexExtension
 
@@ -30,6 +32,52 @@ from .scanning import ScanningStrategy, SpinningScanningStrategy
 
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
+
+
+def _tomlkit_to_popo(d):
+    from datetime import date, time, datetime
+
+    # This is a fix to issue
+    # https://github.com/sdispater/tomlkit/issues/43. It converts an
+    # object returned by tomlkit into a list of Plain Old Python
+    # Objects (POPOs).
+    try:
+        # Tomlkit's dictionaries, booleans, dates have a "value" field
+        # that returns a POPO
+        result = getattr(d, "value")
+    except AttributeError:
+        result = d
+
+    if isinstance(result, list):
+        result = [_tomlkit_to_popo(x) for x in result]
+    elif isinstance(result, dict):
+        result = {
+            _tomlkit_to_popo(key): _tomlkit_to_popo(val) for key, val in result.items()
+        }
+    elif isinstance(result, tomlkit.items.DateTime):
+        result = datetime(
+            result.year,
+            result.month,
+            result.day,
+            result.hour,
+            result.minute,
+            result.second,
+            tzinfo=result.tzinfo,
+        )
+    elif isinstance(result, tomlkit.items.Date):
+        result = date(result.year, result.month, result.day)
+    elif isinstance(result, tomlkit.items.Time):
+        result = time(result.hour, result.minute, result.second)
+    elif isinstance(result, tomlkit.items.Integer):
+        result = int(result)
+    elif isinstance(result, tomlkit.items.Float):
+        result = float(result)
+    elif isinstance(result, tomlkit.items.String):
+        result = str(result)
+    elif isinstance(result, tomlkit.items.Bool):
+        result = bool(result)
+
+    return result
 
 
 def get_template_file_path(filename: Union[str, Path]) -> Path:
@@ -111,6 +159,10 @@ class Simulation:
 
         imo (:class:`.Imo`): an instance of the :class:`.Imo` class
 
+        parameter_file (str or `pathlib.Path`): path to a TOML file
+            that contains the parameters for the simulation. This file
+            will be copied into `base_path`, and its contents will be
+            read into the field `parameters` (a Python dictionary).
     """
 
     def __init__(
@@ -122,6 +174,8 @@ class Simulation:
         start_time=None,
         duration_s=None,
         imo=None,
+        parameter_file=None,
+        parameters=None,
     ):
         self.base_path = Path(base_path)
         self.name = name
@@ -142,6 +196,32 @@ class Simulation:
         else:
             # TODO: read where to read the IMO from some parameter file
             self.imo = Imo()
+
+        assert not (parameter_file and parameters), (
+            "you cannot use parameter_file and parameters together "
+            + "when constructing a litebird_sim.Simulation object"
+        )
+
+        if parameter_file:
+            self.parameter_file = Path(parameter_file)
+
+            # Copy the parameter file to the output directory only if
+            # it is not already there (this might happen if you did
+            # not specify `base_path`, as the default for `base_path`
+            # is the current working directory)
+            dest_param_file = (self.base_path / self.parameter_file.name).resolve()
+            try:
+                copyfile(src=self.parameter_file, dst=dest_param_file)
+            except SameFileError:
+                pass
+
+            with self.parameter_file.open("rt") as inpf:
+                param_file_contents = "".join(inpf.readlines())
+
+            self.parameters = _tomlkit_to_popo(tomlkit.parse(param_file_contents))
+        else:
+            self.parameter_file = None
+            self.parameters = parameters
 
         # Create any parent folder, and don't complain if the folder
         # already exists
@@ -164,6 +244,31 @@ class Simulation:
             else start_time,
             duration_s=duration_s,
         )
+
+        self._initialize_logging()
+
+    def _initialize_logging(self):
+        if self.mpi_comm:
+            mpi_rank = self.mpi_comm.rank
+            log_format = "[%(asctime)s %(levelname)s MPI#{0:04d}] %(message)s".format(
+                mpi_rank
+            )
+        else:
+            mpi_rank = 0
+            log_format = "[%(asctime)s %(levelname)s] %(message)s"
+
+        if "LOG_DEBUG" in os.environ:
+            log_level = log.DEBUG
+        else:
+            log_level = log.INFO
+
+        if "LOG_ALL_MPI" in os.environ:
+            log.basicConfig(level=log_level, format=log_format)
+        else:
+            if mpi_rank == 0:
+                log.basicConfig(level=log_level, format=log_format)
+            else:
+                log.basicConfig(level=log.CRITICAL, format=log_format)
 
     def write_healpix_map(self, filename: str, pixels, **kwargs,) -> str:
         """Save a Healpix map in the output folder

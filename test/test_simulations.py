@@ -104,3 +104,73 @@ def test_imo_in_report(tmp_path):
     html_file = sim.flush()
     assert isinstance(html_file, pathlib.Path)
     assert html_file.exists()
+
+
+def test_parameter_dict(tmp_path):
+    from datetime import date
+
+    sim = lbs.Simulation(
+        parameters={
+            "general": {
+                "a": 10,
+                "b": 20.0,
+                "c": False,
+                "subtable": {"d": date(2020, 7, 1), "e": "Hello, world!"},
+            }
+        }
+    )
+
+    assert not sim.parameter_file
+    assert isinstance(sim.parameters, dict)
+
+    assert "general" in sim.parameters
+    assert sim.parameters["general"]["a"] == 10
+    assert sim.parameters["general"]["b"] == 20.0
+    assert not sim.parameters["general"]["c"]
+
+    assert "subtable" in sim.parameters["general"]
+    assert sim.parameters["general"]["subtable"]["d"] == date(2020, 7, 1)
+    assert sim.parameters["general"]["subtable"]["e"] == "Hello, world!"
+
+    try:
+        sim = lbs.Simulation(parameter_file="dummy", parameters={"a": 10})
+        assert False, "Simulation object should have asserted"
+    except AssertionError:
+        pass
+
+
+def test_parameter_file(tmp_path):
+    from datetime import date
+
+    conf_file = pathlib.Path(tmp_path) / "configuration.toml"
+    with conf_file.open("wt") as outf:
+        outf.write(
+            """[general]
+a = 10
+b = 20.0
+c = false
+
+[general.subtable]
+d = 2020-07-01
+e = "Hello, world!"
+"""
+        )
+
+    sim = lbs.Simulation(parameter_file=conf_file)
+
+    assert isinstance(sim.parameter_file, pathlib.Path)
+    assert isinstance(sim.parameters, dict)
+
+    assert "general" in sim.parameters
+    assert sim.parameters["general"]["a"] == 10
+    assert sim.parameters["general"]["b"] == 20.0
+    assert not sim.parameters["general"]["c"]
+
+    assert "subtable" in sim.parameters["general"]
+    assert sim.parameters["general"]["subtable"]["d"] == date(2020, 7, 1)
+    assert sim.parameters["general"]["subtable"]["e"] == "Hello, world!"
+
+    # Check that the code does not complain if the output directory is
+    # the same as the one containing the parameter file
+
+    sim = lbs.Simulation(base_path=tmp_path, parameter_file=conf_file)

@@ -14,7 +14,7 @@ Template taken from https://github.com/othneildrew/Best-README-Template
 *** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://litebird.github.io/litebird_sim/build/html/index.html)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://litebird-sim.readthedocs.io/en/latest/)
 [![Build Status](https://travis-ci.com/litebird/litebird_sim.svg?branch=master)](https://travis-ci.com/litebird/litebird_sim)
 [![Build Status](https://ci.appveyor.com/api/projects/status/github/litebird/litebird-sim?svg=true)](https://ci.appveyor.com/project/litebird/litebird-sim)
 [![Issues][issues-shield]][issues-url]
@@ -33,7 +33,7 @@ Template taken from https://github.com/othneildrew/Best-README-Template
   <p align="center">
     A set of Python modules to simulate the instruments on board the LiteBIRD spacecraft.
     <br />
-    <a href="https://litebird.github.io/litebird_sim/build/html/index.html"><strong>Explore the docs »</strong></a>
+    <a href="https://litebird-sim.readthedocs.io/en/latest/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://github.com/litebird/litebird_sim">View Demo</a>
@@ -78,7 +78,6 @@ Template taken from https://github.com/othneildrew/Best-README-Template
 -   [NumPy](https://numpy.org)
 -   [Astropy](https://www.astropy.org)
 -   [Healpix](https://healpix.jpl.nasa.gov)
-
 
 
 <!-- GETTING STARTED -->

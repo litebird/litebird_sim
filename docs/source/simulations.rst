@@ -9,7 +9,8 @@ available to the user, and it offers the following features:
 1. Provenance model;
 2. Interface with the instrument database;
 3. System abstractions;
-4. Generation of reports.
+4. Generation of reports;
+5. Printing status messages on the terminal (logging).
 
 Provenance model
 ----------------
@@ -33,8 +34,67 @@ a simulation.
 Parameter files
 ---------------
 
-To be written.
+When you run a simulation, there are typically plenty of parameters
+that need to be passed to the code: the resolution of an output map,
+the names of the detectors to simulate, whether to include synchrotron
+emission in the sky model, etc.
 
+The :class:`Simulation` class eases this task by accepting the path to
+a TOML file as a parameter (``parameter_file``). Specifying this
+parameter triggers two actions:
+
+1. The file is copied to the output directory where the simulation
+   output files are going to be written;
+2. The file is read and made available in the field ``parameters`` (a
+   Python dictionary).
+
+The parameter is optional; if you do not specify ``parameter_file``
+when creating a :class:`.Simulation` object, the `parameters` field
+will be set to an empty dictionary. (You can even directly pass a
+dictionary to a :class:`.Simulation` object: this can be handy if you
+already constructed a parameter object somewhere else.)
+   
+Take this example of a simple TOML file:
+
+.. code-block:: toml
+
+   # This is file "my_conf.toml"
+   [general]
+   nside = 512
+   imo_version = "v0.10"
+
+   [sky_model]
+   components = ["synchrotron", "dust", "cmb"]
+
+The following example loads the TOML file and prints its contents to
+the terminal::
+
+  import litebird_sim as lbs
+
+  sim = lbs.Simulation(parameter_file="my_conf.toml")
+
+  print("NSIDE =", sim.parameters["general"]["nside"])
+  print("The IMO I'm going to use is",
+        sim.parameters["general"]["imo_version"])
+
+  print("Here are the sky components I'm going to simulate:")
+  for component in sim.parameters["sky_model"]["components"]:
+      print("-", component)
+
+The output of the script is the following:
+
+.. code-block:: text
+
+    NSIDE = 512
+    The IMO I'm going to use is v0.10
+    Here are the sky components I'm going to simulate:
+    - synchrotron
+    - dust
+    - cmb
+
+      
+The :class:`.Simulation` object does not try to interpret parts of the
+parameter file: it's up to the simulation modules to do it.
 
 .. _imo-interface:
    
@@ -125,7 +185,83 @@ formulae, plots, and value substitution::
 And here is the output, which is saved in ``output/report.html``:
 
 .. image:: images/report_example.png
-    
+
+
+Logging
+-------
+
+The report generation tools described above are useful to produce a
+synthetic report of the *scientific* outcomes of a simulation.
+However, one often wants to monitor the execution of the code in a
+more detailed manner, checking which functions have been called, how
+often, etc. In this case, the best option is to write messages to the
+terminal. Python provides the `logging
+<https://docs.python.org/3/library/logging.html>`_ module for this
+purpose, and when you initialize a :class:`.Simulation` object, the
+module is initialize with a set of sensible defaults. In your code you
+can use the functions ``debug``, ``info``, ``warning``, ``error``, and
+``critical`` to monitor what's happening during execution::
+
+  import litebird_sim as lbs
+  import logging as log       # "log" is shorter to write
+  my_sim = lbs.Simulation()
+  log.info("the simulation starts here!")
+  pi = 3.15
+  if pi != 3.14:
+      log.error("wrong value of pi!")
+
+The output of the code above is the following:
+
+.. code-block:: text
+
+  [2020-07-18 06:25:27,653 INFO] the simulation starts here!
+  [2020-07-18 06:25:27,653 ERROR] wrong value of pi!
+  
+Note that the messages are prepended with the date, time, and level of
+severity of the message.
+  
+A few environment variables can taylor the way logging is done:
+
+- ``LOG_DEBUG``: by default, debug messages are not printed to the
+  terminal, because they are often too verbose for typical uses. If
+  you want to debug your code, set a non-empty value to this variable.
+
+- ``LOG_ALL_MPI``: by default, if you are using MPI then only messages
+  from the process running with rank 0 will be printed. Setting this
+  environment variable will make all the processes print their message
+  to the terminal. (Caution: there might be overlapping messages, if
+  two processes happen to write at the same time.)
+
+The way you use these variable from the terminal is illustrated with
+an example. Suppose that we changed our example above, so that
+``log.debug`` is called instead of ``log.info``::
+
+  import litebird_sim as lbs
+  import logging as log  # "log" is shorter to write
+
+  my_sim = lbs.Simulation()
+  log.debug("the simulation starts here!")
+  pi = 3.15
+  if pi != 3.14:
+      log.debug("wrong value of pi!")
+
+In this case, running the script will produce no messages, as the
+default is to skip ``log.debug`` calls:
+
+.. code-block:: text
+
+  $ poetry run python my_script.py
+  $
+  
+However, running the script with the environment variable
+``LOG_DEBUG`` set will make the messages appear:
+
+.. code-block:: text
+
+  $ LOG_DEBUG=1 poetry run python my_script.py  # No logging
+  [2020-07-18 06:31:03,223 DEBUG] the simulation starts here!
+  [2020-07-18 06:31:03,224 DEBUG] wrong value of pi!
+  $
 
 API reference
 -------------
