@@ -33,8 +33,67 @@ a simulation.
 Parameter files
 ---------------
 
-To be written.
+When you run a simulation, there are typically plenty of parameters
+that need to be passed to the code: the resolution of an output map,
+the names of the detectors to simulate, whether to include synchrotron
+emission in the sky model, etc.
 
+The :class:`Simulation` class eases this task by accepting the path to
+a TOML file as a parameter (``parameter_file``). Specifying this
+parameter triggers two actions:
+
+1. The file is copied to the output directory where the simulation
+   output files are going to be written;
+2. The file is read and made available in the field ``parameters`` (a
+   Python dictionary).
+
+The parameter is optional; if you do not specify ``parameter_file``
+when creating a :class:`.Simulation` object, the `parameters` field
+will be set to an empty dictionary. (You can even directly pass a
+dictionary to a :class:`.Simulation` object: this can be handy if you
+already constructed a parameter object somewhere else.)
+   
+Take this example of a simple TOML file:
+
+.. code-block:: toml
+
+   # This is file "my_conf.toml"
+   [general]
+   nside = 512
+   imo_version = "v0.10"
+
+   [sky_model]
+   components = ["synchrotron", "dust", "cmb"]
+
+The following example loads the TOML file and prints its contents to
+the terminal::
+
+  import litebird_sim as lbs
+
+  sim = lbs.Simulation(parameter_file="my_conf.toml")
+
+  print("NSIDE =", sim.parameters["general"]["nside"])
+  print("The IMO I'm going to use is",
+        sim.parameters["general"]["imo_version"])
+
+  print("Here are the sky components I'm going to simulate:")
+  for component in sim.parameters["sky_model"]["components"]:
+      print("-", component)
+
+The output of the script is the following:
+
+.. code-block:: text
+
+    NSIDE = 512
+    The IMO I'm going to use is v0.10
+    Here are the sky components I'm going to simulate:
+    - synchrotron
+    - dust
+    - cmb
+
+      
+The :class:`.Simulation` object does not try to interpret parts of the
+parameter file: it's up to the simulation modules to do it.
 
 .. _imo-interface:
    
