@@ -9,7 +9,7 @@ def test_distribution():
     if comm_world.rank == 0:
         print(f"MPI configuration: {lbs.MPI_CONFIGURATION}")
 
-    sim = lbs.Simulation(mpi_comm=comm_world)
+    sim = lbs.Simulation(mpi_comm=comm_world, start_time=0.0, duration_s=86400.0 * 10)
     det1 = lbs.Detector(
         name="pol01",
         wafer="mywafer",
@@ -45,10 +45,7 @@ def test_distribution():
         quat=[0, 0, 0, 0],
     )
     sim.create_observations(
-        [det1, det2],
-        num_of_obs_per_detector=10,
-        start_time=0.0,
-        duration_s=86400.0 * 10,
+        [det1, det2], num_of_obs_per_detector=10,
     )
 
     assert (

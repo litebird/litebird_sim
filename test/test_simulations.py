@@ -34,6 +34,8 @@ def test_markdown_report(tmp_path):
         base_path=tmp_path / "simulation_dir",
         name="My simulation",
         description="Lorem ipsum",
+        start_time=1.0,
+        duration_s=3600.0,
     )
     output_file = sim.write_healpix_map(filename="test.fits.gz", pixels=np.zeros(12))
 
@@ -57,6 +59,8 @@ And here are the data points:
     reference = """# My simulation
 
 Lorem ipsum
+The simulation starts at t0=1.0 and lasts 3600.0 seconds.
+
 Here is a plot:
 
 ![](myplot.png)

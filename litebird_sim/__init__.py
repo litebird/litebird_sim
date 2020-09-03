@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
-
 from .distribute import distribute_evenly, distribute_optimally
-from .detectors import Detector, read_detector_from_dict, read_detector_from_imo
+from .detectors import Detector
+from .instruments import Instrument
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -22,6 +22,31 @@ from .imo import (
 )
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
+from .quaternions import (
+    quat_rotation_x,
+    quat_rotation_y,
+    quat_rotation_z,
+    quat_right_multiply,
+    quat_left_multiply,
+    rotate_vector,
+    rotate_x_vector,
+    rotate_y_vector,
+    rotate_z_vector,
+    all_rotate_vectors,
+    all_rotate_x_vectors,
+    all_rotate_y_vectors,
+    all_rotate_z_vectors,
+)
+from .scanning import (
+    compute_pointing_and_polangle,
+    all_compute_pointing_and_polangle,
+    spin_to_ecliptic,
+    all_spin_to_ecliptic,
+    calculate_sun_earth_angles_rad,
+    Spin2EclipticQuaternions,
+    ScanningStrategy,
+    SpinningScanningStrategy,
+)
 from .simulations import Simulation
 from .version import __author__, __version__
 
@@ -51,8 +76,8 @@ __all__ = [
     "Release",
     # detectors.py
     "Detector",
-    "read_detector_from_dict",
-    "read_detector_from_imo",
+    # instruments.py
+    "Instrument",
     # mpi.py
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
@@ -61,6 +86,29 @@ __all__ = [
     "Observation",
     # detectors.py
     "Detector",
+    # quaternions.py
+    "quat_rotation_x",
+    "quat_rotation_y",
+    "quat_rotation_z",
+    "quat_right_multiply",
+    "quat_left_multiply",
+    "rotate_vector",
+    "rotate_x_vector",
+    "rotate_y_vector",
+    "rotate_z_vector",
+    "all_rotate_vectors",
+    "all_rotate_x_vectors",
+    "all_rotate_y_vectors",
+    "all_rotate_z_vectors",
+    # scanning.py
+    "compute_pointing_and_polangle",
+    "all_compute_pointing_and_polangle",
+    "spin_to_ecliptic",
+    "all_spin_to_ecliptic",
+    "calculate_sun_earth_angles_rad",
+    "Spin2EclipticQuaternions",
+    "ScanningStrategy",
+    "SpinningScanningStrategy",
     # simulations.py
     "Simulation",
 ]

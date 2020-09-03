@@ -14,18 +14,22 @@ from .detectors import Detector
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
 from .imo.imo import Imo
+from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
 
-from astropy.time import Time, TimeDelta
+import astropy.time
 import markdown
 import jinja2
 import tomlkit
 
 from markdown_katex import KatexExtension
+
+from .scanning import ScanningStrategy, SpinningScanningStrategy
+
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
@@ -122,6 +126,12 @@ class Simulation:
         for curpath, curdescr in sim.list_of_outputs:
             print(f"{curpath}: {curdescr}")
 
+    When pointing information is needed, you can call the method
+    :meth:`.Simulation.generate_spin2ecl_quaternions`, which
+    initializes the members `pointing_freq_hz` and
+    `spin2ecliptic_quats`; these members are used by functions like
+    :meth:`.Observation.get_pointings`.
+
     Args:
 
         base_path (str or `pathlib.Path`): the folder that will
@@ -137,6 +147,16 @@ class Simulation:
         description (str): a (possibly long) description of the
             simulation, to be put in the report saved in `base_path`).
 
+        start_time (float or ``astropy.time.Time``): the start time of
+            the simulation. It can be either an arbitrary
+            floating-point number (e.g., 0) or an
+            ``astropy.time.Time`` instance; in the latter case, this
+            triggers a more precise (and slower) computation of
+            pointing information.
+
+        duration_s (float): Number of seconds the simulation should
+            last.
+
         imo (:class:`.Imo`): an instance of the :class:`.Imo` class
 
         parameter_file (str or `pathlib.Path`): path to a TOML file
@@ -149,8 +169,10 @@ class Simulation:
         self,
         base_path=Path(),
         name=None,
-        mpi_comm=None,
+        mpi_comm=MPI_COMM_WORLD,
         description="",
+        start_time=None,
+        duration_s=None,
         imo=None,
         parameter_file=None,
         parameters=None,
@@ -161,6 +183,11 @@ class Simulation:
         self.mpi_comm = mpi_comm
 
         self.observations = []
+
+        self.start_time = start_time
+        self.duration_s = duration_s
+
+        self.spin2ecliptic_quats = None
 
         self.description = description
 
@@ -212,6 +239,10 @@ class Simulation:
             markdown_template,
             name=name if (name and (name != "")) else "<Untitled>",
             description=description,
+            start_time=start_time.to_datetime()
+            if isinstance(start_time, astropy.time.Time)
+            else start_time,
+            duration_s=duration_s,
         )
 
         self._initialize_logging()
@@ -478,27 +509,27 @@ class Simulation:
     def create_observations(
         self,
         detectors: List[Detector],
-        num_of_obs_per_detector: int,
-        start_time,
-        duration_s: float,
+        num_of_obs_per_detector: int = 1,
         distribute=True,
-        use_mjd=False,
     ):
         "Create a set of Observation objects"
 
+        assert (
+            self.start_time is not None
+        ), "you must set start_time when creating the Simulation object"
+        assert isinstance(
+            self.duration_s, float
+        ), "you must set duration_s when creating the Simulation object"
+
         observations = []
+
+        duration_s = self.duration_s  # Cache the value to a local variable
         for detidx, cur_det in enumerate(detectors):
             cur_sampfreq_hz = cur_det.sampling_rate_hz
             num_of_samples = cur_sampfreq_hz * duration_s
             samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
-            if isinstance(start_time, float):
-                cur_time = start_time
-            else:
-                if use_mjd:
-                    cur_time = start_time
-                else:
-                    cur_time = start_time.mjd
+            cur_time = self.start_time
 
             for cur_obs_idx in range(num_of_obs_per_detector):
                 nsamples = samples_per_obs[cur_obs_idx].num_of_elements
@@ -507,18 +538,19 @@ class Simulation:
                     start_time=cur_time,
                     sampling_rate_hz=cur_sampfreq_hz,
                     nsamples=nsamples,
-                    use_mjd=use_mjd,
                 )
                 observations.append(cur_obs)
-                span_s = cur_sampfreq_hz * nsamples
 
-                if use_mjd:
-                    cur_time = Time(mjd=cur_time) + TimeDelta(seconds=span_s)
-                else:
-                    cur_time += span_s
+                time_span = cur_sampfreq_hz * nsamples
+                if isinstance(self.start_time, astropy.time.Time):
+                    time_span = astropy.time.TimeDelta(time_span, format="sec")
+
+                cur_time += time_span
 
         if distribute:
             self.distribute_workload(observations)
+        else:
+            self.observations = observations
 
         return observations
 
@@ -537,3 +569,64 @@ class Simulation:
         self.observations = observations[
             span.start_idx : (span.start_idx + span.num_of_elements)
         ]
+
+    def generate_spin2ecl_quaternions(
+        self,
+        scanning_strategy: Union[None, ScanningStrategy] = None,
+        imo_url: Union[None, str] = None,
+        delta_time_s: float = 60.0,
+    ):
+        """Simulate the motion of the spacecraft in free space
+
+        This method computes the quaternions that encode the evolution
+        of the spacecraft's orientation in time, assuming the scanning
+        strategy described in the parameter `scanning_strategy` (an
+        object of a class derived by :class:`.ScanningStrategy`; most
+        likely, you want to use :class:`SpinningScanningStrategy`).
+
+        You can choose to use the `imo_url` parameter instead of
+        `scanning_strategy`: in this case, it will be assumed that you
+        want to simulate a nominal, spinning scanning strategy, and
+        the object in the IMO with address `imo_url` (e.g.,
+        ``/releases/v1.0/satellite/scanning_parameters/``) describing
+        the parameters of the scanning strategy will be loaded. In
+        this case, a :class:`SpinningScanningStrategy` object will be
+        created automatically.
+
+        The parameter `delta_time_s` specifies how often should
+        quaternions be computed; see
+        :meth:`.ScanningStrategy.generate_spin2ecl_quaternions` for
+        more information.
+
+        """
+        assert not (scanning_strategy and imo_url), (
+            "you must either specify scanning_strategy or imo_url (but not"
+            "the two together) when calling Simulation.generate_spin2ecl_quaternions"
+        )
+
+        if not scanning_strategy:
+            if not imo_url:
+                imo_url = "/releases/v1.0/satellite/scanning_parameters/"
+
+            scanning_strategy = SpinningScanningStrategy.from_imo(
+                imo=self.imo, url=imo_url
+            )
+
+        # TODO: if MPI is enabled, we should probably parallelize this call
+        self.spin2ecliptic_quats = scanning_strategy.generate_spin2ecl_quaternions(
+            start_time=self.start_time,
+            time_span_s=self.duration_s,
+            delta_time_s=delta_time_s,
+        )
+        quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
+
+        if self.mpi_comm.rank == 0:
+            template_file_path = get_template_file_path("report_generate_pointings.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                num_of_obs=len(self.observations),
+                delta_time_s=delta_time_s,
+                quat_memory_size_bytes=quat_memory_size_bytes,
+            )
