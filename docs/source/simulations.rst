@@ -49,8 +49,10 @@ parameter triggers two actions:
    Python dictionary).
 
 The parameter is optional; if you do not specify ``parameter_file``
-when creating a :class:`Simulation` object, the `parameters` field
-will be set to an empty dictionary.
+when creating a :class:`.Simulation` object, the `parameters` field
+will be set to an empty dictionary. (You can even directly pass a
+dictionary to a :class:`.Simulation` object: this can be handy if you
+already constructed a parameter object somewhere else.)
    
 Take this example of a simple TOML file:
 

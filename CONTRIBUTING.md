@@ -55,7 +55,7 @@ poetry install --extras=jupyter --extras=docs --extras=mpi
 poetry build
 
 # Install Git hooks
-sh /bin/git/init-hooks
+sh ./bin/git/init-hooks
 ```
 
 The latter command will install a `pre-commit` Git hook that will be
