@@ -63,6 +63,10 @@ class Observation:
         self.use_mjd = use_mjd
         self.sampling_rate_hz = sampling_rate_hz
 
+        # Neme of the attributes that store an array with the value of a
+        # property for each of the (local) detectors
+        self._detector_info_names = []
+
         if isinstance(start_time, astrotime.Time):
             if self.use_mjd:
                 self.start_time = start_time.mjd
@@ -86,7 +90,6 @@ class Observation:
         self.tod = np.empty(
             self._get_tod_shape(n_blocks_det, n_blocks_time),
             dtype=dtype_tod)
-        self.det_info = []
 
     @property
     def n_samples(self):
@@ -274,8 +277,22 @@ class Observation:
             comm_row.Alltoallv(send_data, recv_data)
 
         self.tod = new_tod
+
+        is_in_old_fist_col = (self.comm.rank % self._n_blocks_time == 0)
+        is_in_old_fist_col &= (self.comm.rank // self._n_blocks_time
+                               < self._n_blocks_det)
+        comm_first_col = self.comm.Split(int(is_in_old_fist_col))
+
         self._n_blocks_det = n_blocks_det
         self._n_blocks_time = n_blocks_time
+
+        for name in self._detector_info_names:
+            info = None
+            if is_in_old_fist_col:
+                info = comm_first_col.gather(getattr(self, name))
+                if self.comm.rank == 0:
+                    info = np.concatenate(info)
+            self.detector_global_info(name, info)
 
     def detector_info(self, name, info):
         """ Piece of information on the detectors
@@ -292,9 +309,15 @@ class Observation:
            ``self.name[i]`` is a property of ``self.tod[i]`` in the new block
            distribution
 
-        At
+        Args:
+            name (str): Name of the information
+            info (array): Information to be stored in the attribute ``name``.
+                The array must contain one entry for each *local* detector.
+
         """
-        raise NotImplementedError
+        self._detector_info_names.append(name)
+        assert len(info) == len(self.tod)
+        setattr(self, name, info)
 
     def detector_global_info(self, name, info, root=0):
         """ Piece of information on the detectors
@@ -302,9 +325,9 @@ class Observation:
         Variant of :py:meth:`.detector_info` to be used when the information
         comes from a single MPI rank (``root``). In particular,
 
-         * In the ``root`` process, ``info`` is required to have ``n_detectors``
-           elements (not ``self.tod.shape[1]``). For other processes info is
-           irrelevant
+         * In the ``root`` process, ``info`` is required to have
+           ``n_detectors`` elements (not ``self.tod.shape[1]``).
+           For other processes info is irrelevant
          * ``info`` is scattered from the ``root`` rank to all the processes in
            ``self.comm`` so that ``self.name`` will have ``self.tod.shape[0]``
            elements and ``self.name[i]`` is a property of ``self.tod[i]``
@@ -312,8 +335,38 @@ class Observation:
            ``name`` and will redistribute ``info`` in such a way that
            ``self.name[i]`` is a property of ``self.tod[i]`` in the new block
            distribution
+
+        Args:
+            name (str): Name of the information
+            info (array): Array containing ``n_detectors`` entries.
+                Relevant only for thr ``root`` process
+            root (int): Rank of the root process
+
         """
-        raise NotImplementedError
+        if name not in self._detector_info_names:
+            self._detector_info_names.append(name)
+
+        is_in_grid = self.comm.rank < self._n_blocks_det * self._n_blocks_time
+        comm_grid = self.comm.Split(int(is_in_grid))
+        if not is_in_grid:  # The process does not own any detector (and TOD)
+            setattr(self, name, None)
+            return
+
+        my_col = comm_grid.rank % self._n_blocks_time
+        comm_col = comm_grid.Split(my_col)
+        root_col = root // self._n_blocks_det
+        if my_col == root_col:
+            if comm_grid.rank == root:
+                starts, nums, _, _ = self._get_start_and_num(
+                    self._n_blocks_det, self._n_blocks_time)
+                info = [info[s:s + n] for s, n, in zip(starts, nums)]
+
+            info = comm_col.scatter(info, root)
+
+        comm_row = comm_grid.Split(comm_grid.rank // self._n_blocks_time)
+        info = comm_row.bcast(info, root_col)
+        assert len(info) == len(self.tod)
+        setattr(self, name, info)
 
     def get_times(self):
         """Return a vector containing the time of each sample in the observation

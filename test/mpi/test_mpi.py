@@ -5,8 +5,8 @@ import numpy as np
 
 
 def test_distribution():
-    return #XXX
     comm_world = lbs.MPI_COMM_WORLD
+    return #XXX
 
     if comm_world.rank == 0:
         print(f"MPI configuration: {lbs.MPI_CONFIGURATION}")
@@ -68,7 +68,7 @@ def test_distribution():
 def test_observation_tod_single_block():
     comm_world = lbs.MPI_COMM_WORLD
     obs = lbs.Observation(
-        n_detectors = 3,
+        n_detectors=3,
         n_samples=9,
         start_time=0.0,
         sampling_rate_hz=1.0,
@@ -86,7 +86,7 @@ def test_observation_tod_two_block_time():
     comm_world = lbs.MPI_COMM_WORLD
     try:
         obs = lbs.Observation(
-            n_detectors = 3,
+            n_detectors=3,
             n_samples=9,
             start_time=0.0,
             sampling_rate_hz=1.0,
@@ -145,6 +145,15 @@ def test_observation_tod_set_blocks():
         # Not enough processes to split the TOD, constuctor expected to rise
         if comm_world.size < 2:
             return
+
+    def assert_det_info():
+        if comm_world.rank < obs._n_blocks_time * obs._n_blocks_det:
+            assert np.all(obs.row_int
+                          == (obs.tod[:, 0] // obs._n_samples).astype(int))
+            assert np.all(obs.row_int.astype(str) == obs.row_str)
+        else:
+            assert obs.row_int is None
+            assert obs.row_str is None
     
     # Two time blocks
     ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
@@ -152,6 +161,11 @@ def test_observation_tod_set_blocks():
         obs.tod[:] = ref_tod[:, :5]
     elif comm_world.rank == 1:
         obs.tod[:] = ref_tod[:, 5:]
+
+    # Add detector info
+    obs.detector_global_info("row_int", np.arange(3))
+    obs.detector_global_info("row_str", np.array("0 1 2".split()))
+    assert_det_info()
 
     # Two detector blocks
     obs.set_n_blocks(n_blocks_time=1, n_blocks_det=2)
@@ -161,6 +175,7 @@ def test_observation_tod_set_blocks():
         assert np.all(obs.tod == ref_tod[2:])
     else:
         assert obs.tod.size == 0
+    assert_det_info()
 
     # One block
     obs.set_n_blocks(n_blocks_det=1, n_blocks_time=1)
@@ -168,6 +183,7 @@ def test_observation_tod_set_blocks():
         assert np.all(obs.tod == ref_tod)
     else:
         assert obs.tod.size == 0
+    assert_det_info()
 
     # Three time blocks
     if comm_world.size < 3:
@@ -181,6 +197,7 @@ def test_observation_tod_set_blocks():
         assert np.all(obs.tod == ref_tod[:, 6:])
     else:
         assert obs.tod.size == 0
+    assert_det_info()
 
     # Two detector blocks and two time blocks
     if comm_world.size < 4:
@@ -196,6 +213,7 @@ def test_observation_tod_set_blocks():
         assert np.all(obs.tod == ref_tod[2:, 5:])
     else:
         assert obs.tod.size == 0
+    assert_det_info()
 
     try:
         obs.set_n_blocks(n_blocks_det=4, n_blocks_time=1)
@@ -222,6 +240,7 @@ def test_observation_tod_set_blocks():
         assert np.all(obs.tod == ref_tod[2:, 6:])
     else:
         assert obs.tod.size == 0
+    assert_det_info()
 
     # Three detector blocks and three time blocks
     if comm_world.size < 9:
@@ -247,10 +266,11 @@ def test_observation_tod_set_blocks():
         assert np.all(obs.tod == ref_tod[2:, 6:])
     else:
         assert obs.tod.size == 0
+    assert_det_info()
 
 
 def main():
-    #test_distribution()
+    test_distribution()
     test_observation_tod_single_block()
     test_observation_tod_two_block_time()
     test_observation_tod_two_block_det()
