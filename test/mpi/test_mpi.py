@@ -4,15 +4,13 @@ import litebird_sim as lbs
 import numpy as np
 
 
-def test_distribution():
+def test_construction_from_detectors():
     comm_world = lbs.MPI_COMM_WORLD
-    return #XXX
 
     if comm_world.rank == 0:
         print(f"MPI configuration: {lbs.MPI_CONFIGURATION}")
 
-    sim = lbs.Simulation(mpi_comm=comm_world)
-    det1 = lbs.Detector(
+    det1 = dict(
         name="pol01",
         wafer="mywafer",
         pixel=1,
@@ -29,7 +27,7 @@ def test_distribution():
         orient="A",
         quat=[0, 0, 0, 0],
     )
-    det2 = lbs.Detector(
+    det2 = dict(
         name="pol02",
         wafer="mywafer",
         pixel=2,
@@ -37,7 +35,7 @@ def test_distribution():
         channel=44,
         sampling_rate_hz=50,
         fwhm_arcmin=30,
-        ellipticity=1.0,
+        ellipticity=2.0,
         net_ukrts=1.0,
         fknee_mhz=10,
         fmin_hz=1e-6,
@@ -46,29 +44,68 @@ def test_distribution():
         orient="A",
         quat=[0, 0, 0, 0],
     )
-    sim.create_observations(
-        [det1, det2],
-        num_of_obs_per_detector=10,
+
+    obs = lbs.Observation(
+        detectors=[det1, det2],
+        n_samples=100,
         start_time=0.0,
-        duration_s=86400.0 * 10,
+        sampling_rate_hz=1.0,
+        comm=comm_world,
+        root=0
     )
 
-    assert (
-        sim.observations
-    ), "No observations have been defined for process {lbs.MPI_RANK + 1}/{lbs.MPI_SIZE}"
+    if comm_world.rank == 0:
+        assert obs.name[0] == "pol01"
+        assert obs.name[1] == "pol02"
+        assert obs.wafer[0] == "mywafer"
+        assert obs.wafer[1] == "mywafer"
+        assert obs.pixel[0] == 1
+        assert obs.pixel[1] == 2
+        assert obs.pixtype[0] == "A"
+        assert obs.pixtype[1] == "B"
+        assert obs.ellipticity[0] == 1.0
+        assert obs.ellipticity[1] == 2.0
+        
+    if comm_world.size == 1:
+        return
 
-    if comm_world.size > 1:
-        allobs = comm_world.allreduce([x.detector.name for x in sim.observations])
+    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=2)
+    if comm_world.rank == 0:
+        assert obs.name[0] == "pol01"
+        assert obs.wafer[0] == "mywafer"
+        assert obs.pixel[0] == 1
+        assert obs.pixtype[0] == "A"
+        assert obs.ellipticity[0] == 1.0
+    elif comm_world.rank == 1:
+        assert obs.name[0] == "pol02"
+        assert obs.wafer[0] == "mywafer"
+        assert obs.pixel[0] == 2
+        assert obs.pixtype[0] == "B"
+        assert obs.ellipticity[0] == 2.0
     else:
-        allobs = sim.observations
+        assert obs.name is None
+        assert obs.wafer is None
+        assert obs.pixel is None
+        assert obs.pixtype is None
+        assert obs.ellipticity is None
 
-    assert len(allobs) == 20
-
+    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=1)
+    if comm_world.rank == 0:
+        assert obs.name[0] == "pol01"
+        assert obs.name[1] == "pol02"
+        assert obs.wafer[0] == "mywafer"
+        assert obs.wafer[1] == "mywafer"
+        assert obs.pixel[0] == 1
+        assert obs.pixel[1] == 2
+        assert obs.pixtype[0] == "A"
+        assert obs.pixtype[1] == "B"
+        assert obs.ellipticity[0] == 1.0
+        assert obs.ellipticity[1] == 2.0
 
 def test_observation_tod_single_block():
     comm_world = lbs.MPI_COMM_WORLD
     obs = lbs.Observation(
-        n_detectors=3,
+        detectors=3,
         n_samples=9,
         start_time=0.0,
         sampling_rate_hz=1.0,
@@ -86,7 +123,7 @@ def test_observation_tod_two_block_time():
     comm_world = lbs.MPI_COMM_WORLD
     try:
         obs = lbs.Observation(
-            n_detectors=3,
+            detectors=3,
             n_samples=9,
             start_time=0.0,
             sampling_rate_hz=1.0,
@@ -110,7 +147,7 @@ def test_observation_tod_two_block_det():
     comm_world = lbs.MPI_COMM_WORLD
     try:
         obs = lbs.Observation(
-            n_detectors = 3,
+            detectors = 3,
             n_samples=9,
             start_time=0.0,
             sampling_rate_hz=1.0,
@@ -134,7 +171,7 @@ def test_observation_tod_set_blocks():
     comm_world = lbs.MPI_COMM_WORLD
     try:
         obs = lbs.Observation(
-            n_detectors=3,
+            detectors=3,
             n_samples=9,
             start_time=0.0,
             sampling_rate_hz=1.0,
@@ -270,7 +307,7 @@ def test_observation_tod_set_blocks():
 
 
 def main():
-    test_distribution()
+    test_construction_from_detectors()
     test_observation_tod_single_block()
     test_observation_tod_two_block_time()
     test_observation_tod_two_block_det()

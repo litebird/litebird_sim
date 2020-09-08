@@ -23,7 +23,12 @@ class Observation:
     - :py:meth:`.tod` returns the array of samples
 
     Args:
-        n_detectors (int): Number of detector
+        detectors (int/list of dict): Either the number of detectors or
+            a list of dictionaries with one entry for each detector. The keys of
+            the dictionaries will become attributes of the observation. If a
+            detector is missing a key it will be set to ``nan``. 
+            If an MPI communicator is passed to ``comm``, ``detectors`` is
+            relevant only for the ``root`` process
 
         n_samples (int): The number of samples in this observation.
 
@@ -50,16 +55,26 @@ class Observation:
         comm: either `None` (do not use MPI) or a MPI communicator
             object, like `mpi4py.MPI.COMM_WORLD`. Its size is required to be at
             least `n_blocks_det` times `n_blocks_time`
+
+        root (int): rank of the process receiving the detector list, if
+            ``detectors`` is a list of dictionaries, otherwise it is ignored.
     """
 
     def __init__(
-        self, n_detectors, n_samples,
-        start_time, sampling_rate_hz, use_mjd=False,
-        dtype_tod=np.float32, n_blocks_det=1, n_blocks_time=1, comm=None
+        self, detectors, n_samples,
+        start_time, sampling_rate_hz, use_mjd=False, dtype_tod=np.float32,
+        n_blocks_det=1, n_blocks_time=1, comm=None, root=0
     ):
         self.comm = comm
         self._n_samples = n_samples
-        self._n_detectors = n_detectors
+        if isinstance(detectors, int):
+            self._n_detectors = detectors
+        else:
+            if comm:
+                self._n_detectors = comm.bcast(len(detectors), root)
+            else:
+                self._n_detectors = len(detectors)
+
         self.use_mjd = use_mjd
         self.sampling_rate_hz = sampling_rate_hz
 
@@ -85,11 +100,53 @@ class Observation:
             self.start_time = start_time
 
         self._check_blocks(n_blocks_det, n_blocks_time)
-        self._n_blocks_det = n_blocks_det
-        self._n_blocks_time = n_blocks_time
+        if comm:
+            self._n_blocks_det = n_blocks_det
+            self._n_blocks_time = n_blocks_time
+        else:
+            self._n_blocks_det = 1
+            self._n_blocks_time = 1
+
         self.tod = np.empty(
             self._get_tod_shape(n_blocks_det, n_blocks_time),
             dtype=dtype_tod)
+
+        if not isinstance(detectors, int):
+            self._set_attributes_from_list_of_dict(detectors, root)
+
+    def _set_attributes_from_list_of_dict(self, list_of_dict, root):
+        assert len(list_of_dict) == self.n_detectors
+
+        # Turn list of dict into dict of arrays
+        if not self.comm or self.comm.rank == root:
+            keys = list(set().union(*list_of_dict))
+            dict_of_array = {k: [] for k in keys}
+            nan_or_none = {}
+            for k in keys:
+                for d in list_of_dict:
+                    if k in d:
+                        try:
+                            nan_or_none[k] = np.nan * d[k]
+                        except TypeError:
+                            nan_or_none[k] = None
+                    break
+
+            for d in list_of_dict:
+                for k in keys:
+                    dict_of_array[k].append(d.get(k, nan_or_none[k]))
+
+            for k in keys:
+                dict_of_array = {k: np.array(dict_of_array[k]) for k in keys}
+        else:
+            keys = None
+            dict_of_array = {}
+
+        # Distribute the arrays
+        if self.comm:
+            keys = self.comm.bcast(keys)
+
+        for k in keys:
+            self.detector_global_info(k, dict_of_array.get(k), root)
 
     @property
     def n_samples(self):
