@@ -426,19 +426,24 @@ class Observation:
         setattr(self, name, info)
 
     def get_times(self):
-        """Return a vector containing the time of each sample in the observation
+        """Return a vector containing the time of each sample in the tod
 
         The measure unit of the result depends whether
         ``self.use_mjd`` is true (return MJD) or false (return
         seconds). The number of elements in the vector is equal to
-        ``self.n_samples``.
+        ``self.tod.shape[1]``.
+
+        Note for MPI-parallel codes: the times returned are only those of the
+        local portion of the data. This means that
+
+         * the size of the returned array is smaller than ``n_samples`` whenever
+           there is more than one time-block
+         * ``self.tod * self.get_times()`` is a meaningless but always
+           allowed operation
 
         This can be a costly operation; you should cache this result
         if you plan to use it in your code, instead of calling this
         method over and over again.
-
-        See also :py:meth:`get_tod`.
-
         """
         start = self._get_start_and_num(self._n_blocks_det,
                                         self._n_blocks_time)[2]
