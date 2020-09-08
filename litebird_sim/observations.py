@@ -440,12 +440,21 @@ class Observation:
         See also :py:meth:`get_tod`.
 
         """
+        start = self._get_start_and_num(self._n_blocks_det,
+                                        self._n_blocks_time)[2]
+
+        if self.comm:
+            start = start[self.comm.rank % self._n_blocks_time]
+        else:
+            start = start[0]
+
+        local_time_idx = start + np.arange(self.tod.shape[1])
         if self.use_mjd:
             delta = astrotime.TimeDelta(1.0 / self.sampling_rate_hz, format="sec")
             vec = (
                 astrotime.Time(self.start_time, format="mjd")
-                + np.arange(self.n_samples) * delta
+                + local_time_idx * delta
             )
             return vec.mjd
         else:
-            return self.start_time + np.arange(self.n_samples) / self.sampling_rate_hz
+            return (self.start_time + local_time_idx / self.sampling_rate_hz)

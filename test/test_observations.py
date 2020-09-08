@@ -9,24 +9,24 @@ def test_observation_time():
     ref_time = astrotime.Time("2020-02-20", format="iso")
 
     obs_no_mjd = lbs.Observation(
-        n_detectors=1,
+        detectors=1,
         start_time=0.0,
         sampling_rate_hz=5.0,
-        nsamples=5,
+        n_samples=5,
         use_mjd=False,
     )
     obs_mjd = lbs.Observation(
-        n_detectors=1,
+        detectors=1,
         start_time=float(ref_time.mjd),
         sampling_rate_hz=5.0,
-        nsamples=5,
+        n_samples=5,
         use_mjd=True,
     )
     obs_mjd_astropy = lbs.Observation(
-        n_detectors=1,
+        detectors=1,
         start_time=ref_time,
         sampling_rate_hz=5.0,
-        nsamples=5,
+        n_samples=5,
         use_mjd=True,
     )
 
@@ -42,12 +42,11 @@ def test_observation_time():
 
 def test_observation_tod_array():
     obs = lbs.Observation(
-        n_detectors = 3,
-        nsamples=10,
+        detectors=3,
+        n_samples=10,
         start_time=0.0,
         sampling_rate_hz=1.0,
     )
 
     assert obs.tod.shape == (3, 10)
     assert obs.tod.dtype == np.float32
-
