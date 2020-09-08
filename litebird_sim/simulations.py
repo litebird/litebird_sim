@@ -363,38 +363,3 @@ class Simulation:
             outf.write(html_full_report)
 
         return html_report_path
-
-    def create_observations(
-        self,
-        detectors: List[str],
-        num_of_obs_per_detector: int,
-        start_time,
-        duration_s: float,
-        sampling_rate_hz: float,
-        distribute=True,
-        use_mjd=False,
-    ):
-        "Create a set of Observation objects"
-
-        self.observations = []
-        num_of_samples = sampling_rate_hz * duration_s
-        obs_spans = distribute_evenly(num_of_samples, num_of_obs_per_detector)
-
-        # Keep only one every comm.size starting at my rank
-        obs_spans = obs_spans[self.mpi_comm.rank::self.mpi_comm.size]
-        for obs_span in obs_spans:
-            obs_start_time = obs_span.start_idx / sampling_rate_hz
-            if use_mjd:
-                obs_start_time = (Time(mjd=start_time.mjd)
-                                  + TimeDelta(seconds=obs_start_time))
-
-            cur_obs = Observation(
-                detectors=detectors,
-                start_time=obs_start_time,
-                sampling_rate_hz=sampling_rate_hz,
-                nsamples=obs_span.num_of_elements,
-                use_mjd=use_mjd,
-            )
-            self.observations.append(cur_obs)
-
-        return self.observations
