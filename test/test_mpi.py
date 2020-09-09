@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+# NOTE: all the following tests should be valid also in a serial execution
 
 import numpy as np
 import astropy.time as astrotime
