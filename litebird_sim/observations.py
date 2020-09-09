@@ -70,7 +70,7 @@ class Observation:
         if isinstance(detectors, int):
             self._n_detectors = detectors
         else:
-            if comm:
+            if comm and comm.size > 1:
                 self._n_detectors = comm.bcast(len(detectors), root)
             else:
                 self._n_detectors = len(detectors)
@@ -100,7 +100,7 @@ class Observation:
             self.start_time = start_time
 
         self._check_blocks(n_blocks_det, n_blocks_time)
-        if comm:
+        if comm and comm.size > 1:
             self._n_blocks_det = n_blocks_det
             self._n_blocks_time = n_blocks_time
         else:
@@ -142,7 +142,7 @@ class Observation:
             dict_of_array = {}
 
         # Distribute the arrays
-        if self.comm:
+        if self.comm and self.comm.size > 1:
             keys = self.comm.bcast(keys)
 
         for k in keys:
@@ -231,7 +231,7 @@ class Observation:
         """ 
         # Checks and preliminaries
         self._check_blocks(n_blocks_det, n_blocks_time)
-        if self.comm is None:
+        if self.comm is None or self.comm.size == 1:
             return
         if self.tod.dtype == np.float32:
             from mpi4py.MPI import REAL as mpi_dtype
@@ -403,6 +403,10 @@ class Observation:
         if name not in self._detector_info_names:
             self._detector_info_names.append(name)
 
+        if not self.comm or self.comm.size == 1:
+            assert len(info) == len(self.tod)
+            setattr(self, name, info)
+            
         is_in_grid = self.comm.rank < self._n_blocks_det * self._n_blocks_time
         comm_grid = self.comm.Split(int(is_in_grid))
         if not is_in_grid:  # The process does not own any detector (and TOD)
