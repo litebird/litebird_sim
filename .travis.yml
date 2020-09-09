@@ -73,7 +73,7 @@ script:
             echo "Running MPI test ($MPI) with $proc processes"
             if [[ "$MPI" == "openmpi" ]]; then
                 mpiexec --oversubscribe -n $proc poetry run python3 ./test/test_mpi.py
-            else:
+            else
                 mpiexec -n $proc poetry run python3 ./test/test_mpi.py
             fi
         done
