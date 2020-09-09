@@ -406,6 +406,7 @@ class Observation:
         if not self.comm or self.comm.size == 1:
             assert len(info) == len(self.tod)
             setattr(self, name, info)
+            return
             
         is_in_grid = self.comm.rank < self._n_blocks_det * self._n_blocks_time
         comm_grid = self.comm.Split(int(is_in_grid))
