@@ -223,6 +223,8 @@ class Simulation:
             self.parameter_file = None
             self.parameters = parameters
 
+        self._init_missing_params()
+
         # Create any parent folder, and don't complain if the folder
         # already exists
         self.base_path.mkdir(parents=True, exist_ok=True)
@@ -246,6 +248,37 @@ class Simulation:
         )
 
         self._initialize_logging()
+
+    def _init_missing_params(self):
+        """Initialize empty parameters using self.parameters
+
+        This function should only be called in the ``__init__``
+        constructor. It initializes a few member variables with the
+        values in self.parameters (usually read from a TOML file), if
+        these parameters do not already have a sensible value.
+
+        """
+        if not self.parameters:
+            return
+
+        try:
+            sim_params = self.parameters["simulation"]
+        except KeyError:
+            return
+
+        if not self.start_time:
+            self.start_time = sim_params.get("start_time", None)
+            if isinstance(self.start_time, str):
+                self.start_time = astropy.time.Time(self.start_time)
+
+        if not self.duration_s:
+            self.duration_s = sim_params.get("duration_s", None)
+
+        if not self.name:
+            self.name = sim_params.get("name", None)
+
+        if self.description == "":
+            self.description = sim_params.get("description", "")
 
     def _initialize_logging(self):
         if self.mpi_comm:
