@@ -168,7 +168,7 @@ class Simulation:
 
     def __init__(
         self,
-        base_path=Path(),
+        base_path=None,
         name=None,
         mpi_comm=MPI_COMM_WORLD,
         description="",
@@ -178,7 +178,7 @@ class Simulation:
         parameter_file=None,
         parameters=None,
     ):
-        self.base_path = Path(base_path)
+        self.base_path = base_path
         self.name = name
 
         self.mpi_comm = mpi_comm
@@ -206,16 +206,6 @@ class Simulation:
         if parameter_file:
             self.parameter_file = Path(parameter_file)
 
-            # Copy the parameter file to the output directory only if
-            # it is not already there (this might happen if you did
-            # not specify `base_path`, as the default for `base_path`
-            # is the current working directory)
-            dest_param_file = (self.base_path / self.parameter_file.name).resolve()
-            try:
-                copyfile(src=self.parameter_file, dst=dest_param_file)
-            except SameFileError:
-                pass
-
             with self.parameter_file.open("rt") as inpf:
                 param_file_contents = "".join(inpf.readlines())
 
@@ -226,9 +216,24 @@ class Simulation:
 
         self._init_missing_params()
 
+        if not self.base_path:
+            self.base_path = Path()
+
+        self.base_path = Path(self.base_path)
         # Create any parent folder, and don't complain if the folder
         # already exists
         self.base_path.mkdir(parents=True, exist_ok=True)
+
+        if parameter_file:
+            # Copy the parameter file to the output directory only if
+            # it is not already there (this might happen if you did
+            # not specify `base_path`, as the default for `base_path`
+            # is the current working directory)
+            dest_param_file = (self.base_path / self.parameter_file.name).resolve()
+            try:
+                copyfile(src=self.parameter_file, dst=dest_param_file)
+            except SameFileError:
+                pass
 
         self.list_of_outputs = []  # type: List[OutputFileRecord]
 
@@ -266,6 +271,9 @@ class Simulation:
             sim_params = self.parameters["simulation"]
         except KeyError:
             return
+
+        if not self.base_path:
+            self.base_path = Path(sim_params.get("base_path", None))
 
         if not self.start_time:
             from datetime import date, datetime

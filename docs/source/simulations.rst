@@ -98,6 +98,8 @@ A :class:`.Simulation` object only interprets the section
 simulation modules to make sense of any other section. The recognized
 parameters in the section named ``simulation`` are the following:
 
+- ``base_path``: a string containing the path where to save the
+  results of the simulation.
 - ``start_time``: the start time of the simulation. If it is a string
   or a `TOML datetime
   <https://github.com/toml-lang/toml/blob/master/toml.md#user-content-local-date-time>`_,
@@ -117,6 +119,7 @@ constructor of the :class:`.Simulation` class. Consider the following
 code::
 
   sim = Simulation(
+      base_path="/storage/output",
       start_time=astropy.time.Time("2020-02-01T10:30:00"),
       duration_s=3600.0,
       name="My simulation",
@@ -129,6 +132,7 @@ and containing the following lines:
 .. code-block:: toml
 
    [simulation]
+   base_path = "/storage/output"
    start_time = 2020-02-01T10:30:00
    duration_s = 3600.0
    name = "My simulation"
