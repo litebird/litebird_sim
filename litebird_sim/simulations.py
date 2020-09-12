@@ -22,6 +22,7 @@ from .version import (
 )
 
 import astropy.time
+import astropy.units
 import markdown
 import jinja2
 import tomlkit
@@ -279,6 +280,32 @@ class Simulation:
 
         if not self.duration_s:
             self.duration_s = sim_params.get("duration_s", None)
+
+            # Let's check if the user specified the measurement unit
+            # for the duration
+            if isinstance(self.duration_s, str):
+                conversions = [
+                    ("days", astropy.units.day),
+                    ("day", astropy.units.day),
+                    ("hours", astropy.units.hour),
+                    ("hour", astropy.units.hour),
+                    ("minutes", astropy.units.minute),
+                    ("min", astropy.units.minute),
+                    ("sec", astropy.units.second),
+                    ("s", astropy.units.second),
+                ]
+
+                for conv_str, conv_unit in conversions:
+                    if self.duration_s.endswith(" " + conv_str):
+                        value = float(self.duration_s.replace(conv_str, ""))
+                        self.duration_s = (value * conv_unit).to("s").value
+                        break
+
+                if isinstance(self.duration_s, str):
+                    # It's still a string, so no valid unit was found
+                    # in the for loop above: convert it back to a
+                    # number
+                    self.duration_s = float(self.duration_s)
 
         if not self.name:
             self.name = sim_params.get("name", None)

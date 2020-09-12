@@ -186,3 +186,20 @@ e = "Hello, world!"
     # the same as the one containing the parameter file
 
     sim = lbs.Simulation(base_path=tmp_path, parameter_file=conf_file)
+
+
+def test_duration_units_in_parameter_file(tmp_path):
+    conf_file = pathlib.Path(tmp_path) / "configuration.toml"
+    with conf_file.open("wt") as outf:
+        outf.write(
+            """[simulation]
+start_time = "2020-01-01T00:00:00"
+duration_s = "1 day"
+"""
+        )
+
+    sim = lbs.Simulation(parameter_file=conf_file)
+
+    assert "simulation" in sim.parameters
+    assert isinstance(sim.start_time, astropy.time.Time)
+    assert sim.duration_s == 86400.0

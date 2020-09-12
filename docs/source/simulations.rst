@@ -104,7 +104,10 @@ parameters in the section named ``simulation`` are the following:
   it will be passed to the constructor for ``astropy.time.Time``,
   otherwise it must be a floating-point value.
 - ``duration_s``: a floating-point number specifying how many seconds
-  the simulation should last.
+  the simulation should last. You can pass a string, which can contain
+  a measurement unit as well: in this case, you are not forced to
+  specify the duration in seconds. Valid units are: ``days`` (or
+  ``day``), ``hours`` (or ``hour``), ``min``, and ``sec`` (or ``s``).
 - ``name``: a string containing the name of the simulation.
 - ``description``: a string containing a (possibly long) description
   of what the simulation does.
@@ -120,12 +123,13 @@ code::
       description="A long description should be put here")
   )
 
-You can achieve the same if you create a TOML file named ``foo.toml`` and containing the following lines:
+You can achieve the same if you create a TOML file named ``foo.toml``
+and containing the following lines:
 
 .. code-block:: toml
 
    [simulation]
-   start_time = "2020-02-01T10:30:00"
+   start_time = 2020-02-01T10:30:00
    duration_s = 3600.0
    name = "My simulation"
    description = "A long description should be put here"
@@ -135,6 +139,15 @@ follows::
 
   sim = Simulation(parameter_file="foo.toml")
 
+You would achieve identical results if you specify the duration in one
+of the following ways:
+
+.. code-block:: toml
+
+   # All of these are the same
+   duration_s = "1 hour"
+   duration_s = "60 min"
+   duration_s = "3600 s"
 
 .. _imo-interface:
 
