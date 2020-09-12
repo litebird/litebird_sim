@@ -203,3 +203,29 @@ duration_s = "1 day"
     assert "simulation" in sim.parameters
     assert isinstance(sim.start_time, astropy.time.Time)
     assert sim.duration_s == 86400.0
+
+def test_distribute_observation(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir", start_time=1.0, duration_s=11.0
+    )
+    det = lbs.Detector("dummy", sampling_rate_hz=15)
+    obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
+
+    assert len(obs_list) == 5
+    assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
+    assert sum([o.nsamples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
+
+
+def test_distribute_observation_astropy(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=astropy.time.Time("2020-01-01T00:00:00"),
+        duration_s=11.0,
+    )
+    det = lbs.Detector("dummy", sampling_rate_hz=15)
+    obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
+
+    assert len(obs_list) == 5
+    assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
+    assert sum([o.nsamples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
+
