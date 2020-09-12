@@ -541,7 +541,7 @@ class Simulation:
                 )
                 observations.append(cur_obs)
 
-                time_span = cur_sampfreq_hz * nsamples
+                time_span = nsamples / cur_sampfreq_hz
                 if isinstance(self.start_time, astropy.time.Time):
                     time_span = astropy.time.TimeDelta(time_span, format="sec")
 
