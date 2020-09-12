@@ -98,7 +98,9 @@ A :class:`.Simulation` object only interprets the section
 simulation modules to make sense of any other section. The recognized
 parameters in the section named ``simulation`` are the following:
 
-- ``start_time``: the start time of the simulation. If it is a string,
+- ``start_time``: the start time of the simulation. If it is a string
+  or a `TOML datetime
+  <https://github.com/toml-lang/toml/blob/master/toml.md#user-content-local-date-time>`_,
   it will be passed to the constructor for ``astropy.time.Time``,
   otherwise it must be a floating-point value.
 - ``duration_s``: a floating-point number specifying how many seconds

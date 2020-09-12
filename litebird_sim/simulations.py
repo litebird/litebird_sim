@@ -267,8 +267,14 @@ class Simulation:
             return
 
         if not self.start_time:
+            from datetime import date, datetime
+
             self.start_time = sim_params.get("start_time", None)
-            if isinstance(self.start_time, str):
+            if (
+                isinstance(self.start_time, str)
+                or isinstance(self.start_time, date)
+                or isinstance(self.start_time, datetime)
+            ):
                 self.start_time = astropy.time.Time(self.start_time)
 
         if not self.duration_s:
