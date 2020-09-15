@@ -7,7 +7,16 @@ python:
 os:
   - linux
   
+dist:
+  - focal
+
+compiler:
+  - gcc-9
+
 env:
+  global:
+    - OMPI_MCA_plm=isolated
+    - OMPI_MCA_rmaps_base_oversubscribe=true
   matrix:
     - MPI=none     EXTRAS=
     - MPI=mpich    EXTRAS=--extras=mpi
@@ -16,34 +25,19 @@ env:
 
 matrix:
   include:
-    - name: "Python 3.6 on MacOSX (no MPI)"
-      os: osx
-      osx_image: xcode9.4
-      language: shell
-      env: MPI=none EXTRAS=
     - name: "Python 3.7 on MacOSX (no MPI)"
       os: osx
-      osx_image: xcode10.2
+      osx_image: xcode12
       language: shell
       env: MPI=none EXTRAS=
-    - name: "Python 3.6 on MacOSX (mpich)"
-      os: osx
-      osx_image: xcode9.4
-      language: shell
-      env: MPI=mpich EXTRAS=--extras=mpi
-    - name: "Python 3.6 on MacOSX (openmpi)"
-      os: osx
-      osx_image: xcode9.4
-      language: shell
-      env: MPI=openmpi EXTRAS=--extras=mpi
     - name: "Python 3.7 on MacOSX (mpich)"
       os: osx
-      osx_image: xcode10.2
+      osx_image: xcode12
       language: shell
       env: MPI=mpich EXTRAS=--extras=mpi
     - name: "Python 3.7 on MacOSX (openmpi)"
       os: osx
-      osx_image: xcode10.2
+      osx_image: xcode12
       language: shell
       env: MPI=openmpi EXTRAS=--extras=mpi
     
@@ -61,6 +55,7 @@ before_install:
   - if [[ "$MPI" == "mpich"   ]]; then mpichversion; fi
   - if [[ "$MPI" == "openmpi" ]]; then ompi_info;    fi
   - pip3 install poetry
+  - gcc --version
 
 install:
   - poetry install --extras=docs $EXTRAS

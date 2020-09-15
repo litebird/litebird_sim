@@ -30,14 +30,22 @@ def test_observation_time():
         use_mjd=True,
     )
 
-    assert np.allclose(obs_no_mjd.get_times(), np.array([0.0, 0.2, 0.4, 0.6, 0.8]))
+    plain_times = obs_no_mjd.get_times()
+    assert np.allclose(plain_times, np.array([0.0, 0.2, 0.4, 0.6, 0.8]))
+
+    assert isinstance(obs_mjd_astropy.get_times(astropy_times=True), astrotime.Time)
     assert np.allclose(
-        obs_mjd.get_times() - ref_time.mjd,
+        (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
         np.array([0.0, 2.31481681e-06, 4.62962635e-06, 6.94444316e-06, 9.25925997e-06]),
     )
     assert np.allclose(
-        obs_mjd_astropy.get_times() - ref_time.mjd,
-        np.array([0.0, 2.31481681e-06, 4.62962635e-06, 6.94444316e-06, 9.25925997e-06]),
+        obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
+        np.array(
+            [6.98544069e8, 6.98544069e8, 6.98544070e8, 6.98544070e8, 6.98544070e8]
+        ),
+    )
+    assert np.allclose(
+        obs_mjd_astropy.get_times(normalize=True), np.array([0.0, 0.2, 0.4, 0.6, 0.8])
     )
 
 def test_observation_tod_array():

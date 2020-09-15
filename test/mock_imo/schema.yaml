@@ -121,7 +121,7 @@ data_files:
   metadata:
     name: "foo"
     wafer: "bar"
-    pixel: "abc"
+    pixel: 10
     pixtype: "def"
     channel: "ghi"
     sampling_rate_hz: 12.0

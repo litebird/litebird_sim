@@ -14,6 +14,7 @@ Welcome to litebird_sim's documentation!
    simulations
    observations
    data_layout
+   scanning
    imo
    mpi
    integrating

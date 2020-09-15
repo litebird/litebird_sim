@@ -14,7 +14,7 @@ following paragraphs::
 
   imo = Imo(flatfile_location="/storage/litebird/my_imo")
   scan_params = imo.query(
-      "/releases/v0.10/Satellite/scanning_parameters"
+      "/releases/v0.10/satellite/scanning_parameters"
   )
   metadata = scan_params["metadata"]
   print(metadata["spin_sun_angle_deg"])
@@ -28,10 +28,10 @@ saved in the folder ``/storage/litebird/my_imo``.
 
 The call to ``imo.query`` retrieves a specific bit of information;
 note that the access to the parameters is done using a file-like path,
-``/releases/v0.10/Satellite/scanning_parameters``. This is not a real
+``/releases/v0.10/satellite/scanning_parameters``. This is not a real
 file, but a way to tell the IMO which kind of information is
 requested: the ``/releases/v0.10`` specifies the IMO version to use,
-and the remaining path ``/Satellite/scanning_parameters`` points to
+and the remaining path ``/satellite/scanning_parameters`` points to
 the information you're looking for.
 
 
@@ -59,7 +59,7 @@ and disadvantages:
          password="12345",
      )
      scan_params = imo.query(
-         "/releases/v0.10/Satellite/scanning_parameters"
+         "/releases/v0.10/satellite/scanning_parameters"
      )
 
 Once the :class:`.Imo` object has been created, accessing information
@@ -86,7 +86,7 @@ Here is an example:
 
 .. code-block:: text
 
-   Satellite
+   satellite
    |
    +--- spacecraft
    |    |
@@ -124,7 +124,7 @@ quantities like ``BAND_RESPONSE``.
 
 In the code example at the top of this page, we accessed the scanning
 strategy parameters using the string
-``/releases/v0.10/Satellite/scanning_parameters``. The meaning of the
+``/releases/v0.10/satellite/scanning_parameters``. The meaning of the
 string in terms of entities, quantities, and data files is the
 following:
 
@@ -136,7 +136,7 @@ following:
    that is part of IMO 0.10 (the string ``v0.10`` in the path).
 
 Apart from paths like
-``/releases/v0.10/Satellite/scanning_parameters``, there is a more
+``/releases/v0.10/satellite/scanning_parameters``, there is a more
 low-level method to access data files, using UUIDs. Each quantity and
 each datafile is identified by a unique UUID, an hexadecimal string
 that it's granted to be unique. This string is assigned automatically

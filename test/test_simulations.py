@@ -5,6 +5,8 @@ import litebird_sim as lbs
 import pathlib
 from uuid import UUID
 
+import astropy
+
 
 class MockPlot:
     def savefig(*args, **kwargs):
@@ -34,6 +36,8 @@ def test_markdown_report(tmp_path):
         base_path=tmp_path / "simulation_dir",
         name="My simulation",
         description="Lorem ipsum",
+        start_time=1.0,
+        duration_s=3600.0,
     )
     output_file = sim.write_healpix_map(filename="test.fits.gz", pixels=np.zeros(12))
 
@@ -57,6 +61,8 @@ And here are the data points:
     reference = """# My simulation
 
 Lorem ipsum
+The simulation starts at t0=1.0 and lasts 3600.0 seconds.
+
 Here is a plot:
 
 ![](myplot.png)
@@ -100,3 +106,99 @@ def test_imo_in_report(tmp_path):
     html_file = sim.flush()
     assert isinstance(html_file, pathlib.Path)
     assert html_file.exists()
+
+
+def test_parameter_dict(tmp_path):
+    from datetime import date
+
+    sim = lbs.Simulation(
+        parameters={
+            "general": {
+                "a": 10,
+                "b": 20.0,
+                "c": False,
+                "subtable": {"d": date(2020, 7, 1), "e": "Hello, world!"},
+            }
+        }
+    )
+
+    assert not sim.parameter_file
+    assert isinstance(sim.parameters, dict)
+
+    assert "general" in sim.parameters
+    assert sim.parameters["general"]["a"] == 10
+    assert sim.parameters["general"]["b"] == 20.0
+    assert not sim.parameters["general"]["c"]
+
+    assert "subtable" in sim.parameters["general"]
+    assert sim.parameters["general"]["subtable"]["d"] == date(2020, 7, 1)
+    assert sim.parameters["general"]["subtable"]["e"] == "Hello, world!"
+
+    try:
+        sim = lbs.Simulation(parameter_file="dummy", parameters={"a": 10})
+        assert False, "Simulation object should have asserted"
+    except AssertionError:
+        pass
+
+
+def test_parameter_file(tmp_path):
+    from datetime import date
+
+    conf_file = pathlib.Path(tmp_path) / "configuration.toml"
+    with conf_file.open("wt") as outf:
+        outf.write(
+            """[general]
+a = 10
+b = 20.0
+c = false
+
+[general.subtable]
+d = 2020-07-01
+e = "Hello, world!"
+"""
+        )
+
+    sim = lbs.Simulation(parameter_file=conf_file)
+
+    assert isinstance(sim.parameter_file, pathlib.Path)
+    assert isinstance(sim.parameters, dict)
+
+    assert "general" in sim.parameters
+    assert sim.parameters["general"]["a"] == 10
+    assert sim.parameters["general"]["b"] == 20.0
+    assert not sim.parameters["general"]["c"]
+
+    assert "subtable" in sim.parameters["general"]
+    assert sim.parameters["general"]["subtable"]["d"] == date(2020, 7, 1)
+    assert sim.parameters["general"]["subtable"]["e"] == "Hello, world!"
+
+    # Check that the code does not complain if the output directory is
+    # the same as the one containing the parameter file
+
+    sim = lbs.Simulation(base_path=tmp_path, parameter_file=conf_file)
+
+
+def test_distribute_observation(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir", start_time=1.0, duration_s=11.0
+    )
+    det = lbs.Detector("dummy", sampling_rate_hz=15)
+    obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
+
+    assert len(obs_list) == 5
+    assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
+    assert sum([o.nsamples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
+
+
+def test_distribute_observation_astropy(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=astropy.time.Time("2020-01-01T00:00:00"),
+        duration_s=11.0,
+    )
+    det = lbs.Detector("dummy", sampling_rate_hz=15)
+    obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
+
+    assert len(obs_list) == 5
+    assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
+    assert sum([o.nsamples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
