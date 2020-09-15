@@ -200,6 +200,10 @@ def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
     :func:`compute_pointing_and_polangle` to every row.
 
     """
+    assert quat_matrix[..., 0].size == result_matrix[..., 0].size
+    result_matrix = result_matrix.reshape(-1, 3)
+    quat_matrix = quat_matrix.reshape(-1, 4)
+
     for row in range(result_matrix.shape[0]):
         compute_pointing_and_polangle(result_matrix[row, :], quat_matrix[row, :])
 

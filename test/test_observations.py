@@ -13,21 +13,12 @@ def test_observation_time():
         start_time=0.0,
         sampling_rate_hz=5.0,
         n_samples=5,
-        use_mjd=False,
-    )
-    obs_mjd = lbs.Observation(
-        detectors=1,
-        start_time=float(ref_time.mjd),
-        sampling_rate_hz=5.0,
-        n_samples=5,
-        use_mjd=True,
     )
     obs_mjd_astropy = lbs.Observation(
         detectors=1,
         start_time=ref_time,
         sampling_rate_hz=5.0,
         n_samples=5,
-        use_mjd=True,
     )
 
     plain_times = obs_no_mjd.get_times()

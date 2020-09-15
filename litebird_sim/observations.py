@@ -120,6 +120,8 @@ class Observation:
         else:
             delta = 1.0 / self.sampling_rate_hz
 
+        if self.comm:
+            print(self.comm.rank, self.start_time + start * delta, start, num)
         return self.start_time + start * delta, start, num
 
     def _set_attributes_from_list_of_dict(self, list_of_dict, root):

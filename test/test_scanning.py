@@ -92,7 +92,7 @@ def test_simulation_pointings_still():
     # Now redo the calculation using Observation.get_pointings
     pointings_and_polangle = obs.get_pointings(
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quat=np.array([0.0, 0.0, 0.0, 1.0]),
+        detector_quat=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
     )
 
@@ -100,8 +100,8 @@ def test_simulation_pointings_still():
     longitude = pointings_and_polangle[:, 1]
     polangle = pointings_and_polangle[:, 2]
 
-    assert np.allclose(colatitude, np.pi / 2)
-    assert np.allclose(np.abs(polangle), np.pi / 2)
+    assert np.allclose(colatitude, np.pi / 2), colatitude
+    assert np.allclose(np.abs(polangle), np.pi / 2), polangle
 
     # The longitude should have changed by a fraction 23 hours /
     # 365.25 days of a complete circle (we have 24 samples, from t = 0
@@ -132,7 +132,7 @@ def test_simulation_pointings_polangle(tmp_path):
 
     pointings_and_polangle = obs.get_pointings(
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quat=np.array([0.0, 0.0, 0.0, 1.0]),
+        detector_quat=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
     )
     polangle = pointings_and_polangle[:, 2]
@@ -167,7 +167,7 @@ def test_simulation_pointings_spinning(tmp_path):
 
     pointings_and_polangle = obs.get_pointings(
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quat=np.array([0.0, 0.0, 0.0, 1.0]),
+        detector_quat=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
     )
     colatitude = pointings_and_polangle[:, 0]
@@ -217,7 +217,7 @@ def test_simulation_pointings_mjd(tmp_path):
     for obs in sim.observations:
         pointings_and_polangle = obs.get_pointings(
             spin2ecliptic_quats=sim.spin2ecliptic_quats,
-            detector_quat=np.array([0.0, 0.0, 0.0, 1.0]),
+            detector_quat=np.array([[0.0, 0.0, 0.0, 1.0]]),
             bore2spin_quat=instr.bore2spin_quat,
         )
         print(pointings_and_polangle)

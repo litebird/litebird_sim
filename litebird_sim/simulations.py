@@ -525,9 +525,9 @@ class Simulation:
         observations = []
 
         duration_s = self.duration_s  # Cache the value to a local variable
-        cur_sampfreq_hz = detectors[0].sampling_rate_hz
+        sampfreq_hz = detectors[0].sampling_rate_hz
         detectors = [d.to_dict() for d in detectors]
-        num_of_samples = cur_sampfreq_hz * duration_s
+        num_of_samples = int(sampfreq_hz * duration_s)
         samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
         cur_time = self.start_time
@@ -537,14 +537,14 @@ class Simulation:
             cur_obs = Observation(
                 detectors=detectors,
                 start_time=cur_time,
-                sampling_rate_hz=cur_sampfreq_hz,
+                sampling_rate_hz=sampfreq_hz,
                 n_samples=nsamples,
                 n_blocks_det=n_blocks_det, n_blocks_time=n_blocks_time,
                 comm=self.mpi_comm, root=0
             )
             observations.append(cur_obs)
 
-            time_span = nsamples / cur_sampfreq_hz
+            time_span = nsamples / sampfreq_hz
             if isinstance(self.start_time, astropy.time.Time):
                 time_span = astropy.time.TimeDelta(time_span, format="sec")
 

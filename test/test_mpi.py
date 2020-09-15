@@ -15,15 +15,6 @@ def test_observation_time():
         start_time=0.0,
         sampling_rate_hz=5.0,
         n_samples=5,
-        use_mjd=False,
-        comm=comm_world,
-    )
-    obs_mjd = lbs.Observation(
-        detectors=1,
-        start_time=float(ref_time.mjd),
-        sampling_rate_hz=5.0,
-        n_samples=5,
-        use_mjd=True,
         comm=comm_world,
     )
     obs_mjd_astropy = lbs.Observation(
@@ -31,26 +22,32 @@ def test_observation_time():
         start_time=ref_time,
         sampling_rate_hz=5.0,
         n_samples=5,
-        use_mjd=True,
         comm=comm_world,
     )
 
     res_times = np.array([0.0, 0.2, 0.4, 0.6, 0.8])
     res_mjd = np.array(
         [0.0, 2.31481681e-06, 4.62962635e-06, 6.94444316e-06, 9.25925997e-06])
+    res_cxcsec = np.array(
+        [6.98544069e8, 6.98544069e8, 6.98544070e8, 6.98544070e8, 6.98544070e8])
+
     if not comm_world or comm_world.rank == 0:
         assert np.allclose(obs_no_mjd.get_times(), res_times)
-        assert np.allclose(obs_mjd.get_times() - ref_time.mjd, res_mjd)
-        assert np.allclose(obs_mjd_astropy.get_times() - ref_time.mjd, res_mjd)
+        assert np.allclose(
+            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
+            res_mjd)
+        assert np.allclose(
+            obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
+            res_cxcsec)
     else:
         assert obs_no_mjd.get_times().size == 0
-        assert obs_mjd.get_times().size == 0
-        assert obs_mjd_astropy.get_times().size == 0
+        assert obs_mjd_astropy.get_times(astropy_times=True).size == 0
+        assert obs_mjd_astropy.get_times(
+            normalize=False, astropy_times=False).size == 0
 
     if not comm_world or comm_world.size == 1:
         return
     obs_no_mjd.set_n_blocks(n_blocks_time=2)
-    obs_mjd.set_n_blocks(n_blocks_time=2)
     obs_mjd_astropy.set_n_blocks(n_blocks_time=2)
     if comm_world.rank == 0:
         assert np.allclose(obs_no_mjd.get_times(), res_times[:3])
