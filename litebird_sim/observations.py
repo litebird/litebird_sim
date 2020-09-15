@@ -120,8 +120,6 @@ class Observation:
         else:
             delta = 1.0 / self.sampling_rate_hz
 
-        if self.comm:
-            print(self.comm.rank, self.start_time + start * delta, start, num)
         return self.start_time + start * delta, start, num
 
     def _set_attributes_from_list_of_dict(self, list_of_dict, root):
@@ -510,7 +508,7 @@ class Observation:
     def get_det2ecl_quaternions(
         self,
         spin2ecliptic_quats: Spin2EclipticQuaternions,
-        detector_quat,
+        detector_quats,
         bore2spin_quat,
     ):
         """Return the detector-to-Ecliptic quaternions
@@ -536,13 +534,14 @@ class Observation:
         mirrors this one.
 
         """
-        return spin2ecliptic_quats.get_detector_quats(
-            detector_quat=detector_quat,
-            bore2spin_quat=bore2spin_quat,
-            time0=self.local_start_time,
-            sampling_rate_hz=self.sampling_rate_hz,
-            nsamples=self.local_n_samples,
-        )
+        return np.array([spin2ecliptic_quats.get_detector_quats(
+                detector_quat=detector_quat,
+                bore2spin_quat=bore2spin_quat,
+                time0=self.local_start_time,
+                sampling_rate_hz=self.sampling_rate_hz,
+                nsamples=self.local_n_samples,
+            )
+            for detector_quat in detector_quats])
 
     def get_ecl2det_quaternions(
         self,

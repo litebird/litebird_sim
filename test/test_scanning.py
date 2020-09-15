@@ -96,9 +96,9 @@ def test_simulation_pointings_still():
         bore2spin_quat=instr.bore2spin_quat,
     )
 
-    colatitude = pointings_and_polangle[:, 0]
-    longitude = pointings_and_polangle[:, 1]
-    polangle = pointings_and_polangle[:, 2]
+    colatitude = pointings_and_polangle[..., 0]
+    longitude = pointings_and_polangle[..., 1]
+    polangle = pointings_and_polangle[..., 2]
 
     assert np.allclose(colatitude, np.pi / 2), colatitude
     assert np.allclose(np.abs(polangle), np.pi / 2), polangle
@@ -107,7 +107,8 @@ def test_simulation_pointings_still():
     # 365.25 days of a complete circle (we have 24 samples, from t = 0
     # to t = 23 hr)
     assert np.allclose(
-        np.abs(longitude[-1] - longitude[0]), 2 * np.pi * 23 / 365.25 / 24
+        np.abs(longitude[..., -1] - longitude[..., 0]),
+        2 * np.pi * 23 / 365.25 / 24
     )
 
 
@@ -135,7 +136,7 @@ def test_simulation_pointings_polangle(tmp_path):
         detector_quat=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
     )
-    polangle = pointings_and_polangle[:, 2]
+    polangle = pointings_and_polangle[..., 2]
 
     # Check that the polarization angle scans every value between -π
     # and +π
@@ -170,7 +171,7 @@ def test_simulation_pointings_spinning(tmp_path):
         detector_quat=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
     )
-    colatitude = pointings_and_polangle[:, 0]
+    colatitude = pointings_and_polangle[..., 0]
 
     with open("spin2ecliptic_quats.txt", "wt") as outf:
         for i in range(sim.spin2ecliptic_quats.quats.shape[0]):
@@ -179,10 +180,11 @@ def test_simulation_pointings_spinning(tmp_path):
     with open("pointings.txt", "wt") as outf:
         import healpy
 
-        for i in range(pointings_and_polangle.shape[0]):
+        for i in range(pointings_and_polangle.shape[1]):
             print(
                 *healpy.ang2vec(
-                    pointings_and_polangle[i, 0], pointings_and_polangle[i, 1]
+                    pointings_and_polangle[0, i, 0],
+                    pointings_and_polangle[0, i, 1]
                 ),
                 file=outf,
             )
@@ -220,7 +222,6 @@ def test_simulation_pointings_mjd(tmp_path):
             detector_quat=np.array([[0.0, 0.0, 0.0, 1.0]]),
             bore2spin_quat=instr.bore2spin_quat,
         )
-        print(pointings_and_polangle)
 
 
 def test_scanning_quaternions(tmp_path):
@@ -241,11 +242,11 @@ def test_scanning_quaternions(tmp_path):
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
     instr = lbs.Instrument(spin_boresight_angle_deg=15.0)
-    detector_quat = np.array([0.0, 0.0, 0.0, 1.0])
+    detector_quat = np.array([[0.0, 0.0, 0.0, 1.0]])
 
     det2ecl_quats = obs.get_det2ecl_quaternions(
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quat=detector_quat,
+        detector_quats=detector_quat,
         bore2spin_quat=instr.bore2spin_quat,
     )
 
@@ -256,6 +257,8 @@ def test_scanning_quaternions(tmp_path):
     )
 
     identity = np.array([0, 0, 0, 1])
+    det2ecl_quats = det2ecl_quats.reshape(-1, 4)
+    ecl2det_quats = ecl2det_quats.reshape(-1, 4)
     for i in range(det2ecl_quats.shape[0]):
         # Check that the two quaternions (ecl2det and det2ecl) are
         # actually one the inverse of the other
