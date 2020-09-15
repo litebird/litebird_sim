@@ -22,6 +22,7 @@ from .version import (
 )
 
 import astropy.time
+import astropy.units
 import markdown
 import jinja2
 import tomlkit
@@ -167,7 +168,7 @@ class Simulation:
 
     def __init__(
         self,
-        base_path=Path(),
+        base_path=None,
         name=None,
         mpi_comm=MPI_COMM_WORLD,
         description="",
@@ -177,7 +178,7 @@ class Simulation:
         parameter_file=None,
         parameters=None,
     ):
-        self.base_path = Path(base_path)
+        self.base_path = base_path
         self.name = name
 
         self.mpi_comm = mpi_comm
@@ -205,6 +206,25 @@ class Simulation:
         if parameter_file:
             self.parameter_file = Path(parameter_file)
 
+            with self.parameter_file.open("rt") as inpf:
+                param_file_contents = "".join(inpf.readlines())
+
+            self.parameters = _tomlkit_to_popo(tomlkit.parse(param_file_contents))
+        else:
+            self.parameter_file = None
+            self.parameters = parameters
+
+        self._init_missing_params()
+
+        if not self.base_path:
+            self.base_path = Path()
+
+        self.base_path = Path(self.base_path)
+        # Create any parent folder, and don't complain if the folder
+        # already exists
+        self.base_path.mkdir(parents=True, exist_ok=True)
+
+        if parameter_file:
             # Copy the parameter file to the output directory only if
             # it is not already there (this might happen if you did
             # not specify `base_path`, as the default for `base_path`
@@ -214,18 +234,6 @@ class Simulation:
                 copyfile(src=self.parameter_file, dst=dest_param_file)
             except SameFileError:
                 pass
-
-            with self.parameter_file.open("rt") as inpf:
-                param_file_contents = "".join(inpf.readlines())
-
-            self.parameters = _tomlkit_to_popo(tomlkit.parse(param_file_contents))
-        else:
-            self.parameter_file = None
-            self.parameters = parameters
-
-        # Create any parent folder, and don't complain if the folder
-        # already exists
-        self.base_path.mkdir(parents=True, exist_ok=True)
 
         self.list_of_outputs = []  # type: List[OutputFileRecord]
 
@@ -237,15 +245,81 @@ class Simulation:
             markdown_template = "".join(inpf.readlines())
         self.append_to_report(
             markdown_template,
-            name=name if (name and (name != "")) else "<Untitled>",
-            description=description,
-            start_time=start_time.to_datetime()
-            if isinstance(start_time, astropy.time.Time)
-            else start_time,
-            duration_s=duration_s,
+            name=self.name if (self.name and (self.name != "")) else "<Untitled>",
+            description=self.description,
+            start_time=self.start_time.to_datetime()
+            if isinstance(self.start_time, astropy.time.Time)
+            else self.start_time,
+            duration_s=self.duration_s,
         )
 
         self._initialize_logging()
+
+    def _init_missing_params(self):
+        """Initialize empty parameters using self.parameters
+
+        This function should only be called in the ``__init__``
+        constructor. It initializes a few member variables with the
+        values in self.parameters (usually read from a TOML file), if
+        these parameters do not already have a sensible value.
+
+        """
+        if not self.parameters:
+            return
+
+        try:
+            sim_params = self.parameters["simulation"]
+        except KeyError:
+            return
+
+        if not self.base_path:
+            self.base_path = Path(sim_params.get("base_path", Path()))
+
+        if not self.start_time:
+            from datetime import date, datetime
+
+            self.start_time = sim_params.get("start_time", None)
+            if (
+                isinstance(self.start_time, str)
+                or isinstance(self.start_time, date)
+                or isinstance(self.start_time, datetime)
+            ):
+                self.start_time = astropy.time.Time(self.start_time)
+
+        if not self.duration_s:
+            self.duration_s = sim_params.get("duration_s", None)
+
+            # Let's check if the user specified the measurement unit
+            # for the duration
+            if isinstance(self.duration_s, str):
+                conversions = [
+                    ("days", astropy.units.day),
+                    ("day", astropy.units.day),
+                    ("hours", astropy.units.hour),
+                    ("hour", astropy.units.hour),
+                    ("minutes", astropy.units.minute),
+                    ("min", astropy.units.minute),
+                    ("sec", astropy.units.second),
+                    ("s", astropy.units.second),
+                ]
+
+                for conv_str, conv_unit in conversions:
+                    if self.duration_s.endswith(" " + conv_str):
+                        value = float(self.duration_s.replace(conv_str, ""))
+                        self.duration_s = (value * conv_unit).to("s").value
+                        break
+
+                if isinstance(self.duration_s, str):
+                    # It's still a string, so no valid unit was found
+                    # in the for loop above: convert it back to a
+                    # number
+                    self.duration_s = float(self.duration_s)
+
+        if not self.name:
+            self.name = sim_params.get("name", None)
+
+        if self.description == "":
+            self.description = sim_params.get("description", "")
 
     def _initialize_logging(self):
         if self.mpi_comm:
@@ -312,13 +386,21 @@ class Simulation:
         return filename
 
     def append_to_report(
-        self, markdown_text: str, figures: List[Tuple[Any, str]] = [], **kwargs
+        self,
+        markdown_text: str,
+        append_newline=True,
+        figures: List[Tuple[Any, str]] = [],
+        **kwargs,
     ):
         """Append text and figures to the simulation report
 
         Args:
 
             markdown_text (str): text to be appended to the report.
+
+            append_newline (bool): append newlines to the end of the
+                text. This ensures that calling again this method will
+                produce a separate paragraph.
 
             figures (list of 2-tuples): list of Matplotlib figures to
                 be saved in the report. Each tuple must contain one
@@ -331,9 +413,10 @@ class Simulation:
                 the text `markdown_text` using the `Jinja2 library
                 <https://palletsprojects.com/p/jinja/>`_ library.
 
-        A Simulation class can generate reports in Markdown
-        format. Use this function to add some text to the report,
-        possibly including figures.
+        A Simulation class can generate reports in Markdown format.
+        Use this function to add some text to the report, possibly
+        including figures. The function has no effect if called from
+        an MPI rank different from #0.
 
         It is possible to use objects other than Matplotlib
         figures. The only method this function calls is `savefig`,
@@ -349,9 +432,16 @@ class Simulation:
 
         """
 
+        # Generate the report only if running on MPI rank #0
+        if self.mpi_comm.rank != 0:
+            return
+
         template = jinja2.Template(markdown_text)
         expanded_text = template.render(**kwargs)
         self.report += expanded_text
+
+        if append_newline:
+            self.report += "\n\n"
 
         for curfig, curfilename in figures:
             curpath = self.base_path / curfilename
@@ -383,14 +473,14 @@ class Simulation:
 
         # Check if there are newer versions of the data files used in the simulation
         for cur_data_file in data_files:
-            data_files = self.imo.get_list_of_data_files(
+            other_data_files = self.imo.get_list_of_data_files(
                 cur_data_file.quantity, track=False
             )
-            if not data_files:
+            if not other_data_files:
                 continue
 
-            if data_files[-1].uuid != cur_data_file.uuid:
-                warnings.append((cur_data_file, data_files[-1]))
+            if other_data_files[-1].uuid != cur_data_file.uuid:
+                warnings.append((cur_data_file, other_data_files[-1]))
 
         if (not entities) and (not quantities) and (not data_files):
             return
@@ -481,6 +571,7 @@ class Simulation:
             "sane_lists",
             "smarty",
             "tables",
+            "toc",
         ]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
@@ -620,13 +711,12 @@ class Simulation:
         )
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
-        if self.mpi_comm.rank == 0:
-            template_file_path = get_template_file_path("report_generate_pointings.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
-                num_of_obs=len(self.observations),
-                delta_time_s=delta_time_s,
-                quat_memory_size_bytes=quat_memory_size_bytes,
-            )
+        template_file_path = get_template_file_path("report_generate_pointings.md")
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+        self.append_to_report(
+            markdown_template,
+            num_of_obs=len(self.observations),
+            delta_time_s=delta_time_s,
+            quat_memory_size_bytes=quat_memory_size_bytes,
+        )

@@ -61,7 +61,11 @@ And here are the data points:
     reference = """# My simulation
 
 Lorem ipsum
+
+
 The simulation starts at t0=1.0 and lasts 3600.0 seconds.
+
+
 
 Here is a plot:
 
@@ -147,7 +151,12 @@ def test_parameter_file(tmp_path):
     conf_file = pathlib.Path(tmp_path) / "configuration.toml"
     with conf_file.open("wt") as outf:
         outf.write(
-            """[general]
+            """[simulation]
+start_time = "2020-01-01T00:00:00"
+duration_s = 11.0
+description = "Dummy description"
+
+[general]
 a = 10
 b = 20.0
 c = false
@@ -163,6 +172,11 @@ e = "Hello, world!"
     assert isinstance(sim.parameter_file, pathlib.Path)
     assert isinstance(sim.parameters, dict)
 
+    assert "simulation" in sim.parameters
+    assert isinstance(sim.start_time, astropy.time.Time)
+    assert sim.duration_s == 11.0
+    assert sim.description == "Dummy description"
+
     assert "general" in sim.parameters
     assert sim.parameters["general"]["a"] == 10
     assert sim.parameters["general"]["b"] == 20.0
@@ -176,6 +190,23 @@ e = "Hello, world!"
     # the same as the one containing the parameter file
 
     sim = lbs.Simulation(base_path=tmp_path, parameter_file=conf_file)
+
+
+def test_duration_units_in_parameter_file(tmp_path):
+    conf_file = pathlib.Path(tmp_path) / "configuration.toml"
+    with conf_file.open("wt") as outf:
+        outf.write(
+            """[simulation]
+start_time = "2020-01-01T00:00:00"
+duration_s = "1 day"
+"""
+        )
+
+    sim = lbs.Simulation(parameter_file=conf_file)
+
+    assert "simulation" in sim.parameters
+    assert isinstance(sim.start_time, astropy.time.Time)
+    assert sim.duration_s == 86400.0
 
 
 def test_distribute_observation(tmp_path):

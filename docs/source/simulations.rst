@@ -53,7 +53,7 @@ when creating a :class:`.Simulation` object, the `parameters` field
 will be set to an empty dictionary. (You can even directly pass a
 dictionary to a :class:`.Simulation` object: this can be handy if you
 already constructed a parameter object somewhere else.)
-   
+
 Take this example of a simple TOML file:
 
 .. code-block:: toml
@@ -92,12 +92,69 @@ The output of the script is the following:
     - dust
     - cmb
 
-      
-The :class:`.Simulation` object does not try to interpret parts of the
-parameter file: it's up to the simulation modules to do it.
+
+A :class:`.Simulation` object only interprets the section
+``simulation`` and leaves everything else unevaluated: it's up to the
+simulation modules to make sense of any other section. The recognized
+parameters in the section named ``simulation`` are the following:
+
+- ``base_path``: a string containing the path where to save the
+  results of the simulation.
+- ``start_time``: the start time of the simulation. If it is a string
+  or a `TOML datetime
+  <https://github.com/toml-lang/toml/blob/master/toml.md#user-content-local-date-time>`_,
+  it will be passed to the constructor for ``astropy.time.Time``,
+  otherwise it must be a floating-point value.
+- ``duration_s``: a floating-point number specifying how many seconds
+  the simulation should last. You can pass a string, which can contain
+  a measurement unit as well: in this case, you are not forced to
+  specify the duration in seconds. Valid units are: ``days`` (or
+  ``day``), ``hours`` (or ``hour``), ``min``, and ``sec`` (or ``s``).
+- ``name``: a string containing the name of the simulation.
+- ``description``: a string containing a (possibly long) description
+  of what the simulation does.
+
+These parameters can be used instead of the keywords in the
+constructor of the :class:`.Simulation` class. Consider the following
+code::
+
+  sim = Simulation(
+      base_path="/storage/output",
+      start_time=astropy.time.Time("2020-02-01T10:30:00"),
+      duration_s=3600.0,
+      name="My simulation",
+      description="A long description should be put here")
+  )
+
+You can achieve the same if you create a TOML file named ``foo.toml``
+and containing the following lines:
+
+.. code-block:: toml
+
+   [simulation]
+   base_path = "/storage/output"
+   start_time = 2020-02-01T10:30:00
+   duration_s = 3600.0
+   name = "My simulation"
+   description = "A long description should be put here"
+
+and then you initialize the `sim` variable in your Python code as
+follows::
+
+  sim = Simulation(parameter_file="foo.toml")
+
+You would achieve identical results if you specify the duration in one
+of the following ways:
+
+.. code-block:: toml
+
+   # All of these are the same
+   duration_s = "1 hour"
+   duration_s = "60 min"
+   duration_s = "3600 s"
 
 .. _imo-interface:
-   
+
 Interface with the instrument database
 --------------------------------------
 
@@ -108,7 +165,7 @@ people with sufficient rights. This Simulation Framework has the
 ability to access the database and take the input parameters necessary
 for its analysis modules to produce the expected output.
 
-   
+
 System abstractions
 -------------------
 
@@ -137,7 +194,7 @@ initialize a :class:`.Simulation` object using the variable
 
   # This simulation can take advantage of MPI, if present
   sim = lbs.Simulation(use_mpi = lbs.MPI_ENABLED)
-         
+
 See the page :ref:`using_mpi` for more information.
 
 
@@ -216,10 +273,10 @@ The output of the code above is the following:
 
   [2020-07-18 06:25:27,653 INFO] the simulation starts here!
   [2020-07-18 06:25:27,653 ERROR] wrong value of pi!
-  
+
 Note that the messages are prepended with the date, time, and level of
 severity of the message.
-  
+
 A few environment variables can taylor the way logging is done:
 
 - ``LOG_DEBUG``: by default, debug messages are not printed to the
@@ -252,7 +309,7 @@ default is to skip ``log.debug`` calls:
 
   $ poetry run python my_script.py
   $
-  
+
 However, running the script with the environment variable
 ``LOG_DEBUG`` set will make the messages appear:
 
