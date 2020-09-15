@@ -1,7 +1,8 @@
-# Instrument model objects
+## Instrument model objects
 
 {% if entities -%}
-## Entities
+
+### Entities
 
 Name                 | UUID
 -------------------- | --------------------------------------------------
@@ -11,7 +12,8 @@ Name                 | UUID
 {% endif -%}
 
 {% if quantities -%}
-## Quantities
+
+### Quantities
 
 Name                 | UUID
 -------------------- | --------------------------------------------------
@@ -21,7 +23,8 @@ Name                 | UUID
 {% endif -%}
 
 {% if data_files -%}
-## Data Files
+
+### Data Files
 
 Name                 | UUID                                 | Upload date
 -------------------- | ------------------------------------ | ------------
@@ -31,19 +34,19 @@ Name                 | UUID                                 | Upload date
 {% endif -%}
 
 {% if warnings -%}
-## Warnings
+
+### Warnings
 
 {% for w in warnings -%}
 -   {{ w[0].uuid|string|truncate(9) }} ({{ w[0].upload_date }}) has been
     superseded by {{ w[1].uuid }} ({{ w[1].upload_date }})
 {% endfor -%}
-{% endif -%}
+{% endif %}
 
-
-# Source code used in the simulation
+## Source code used in the simulation
 
 -   Main repository: [github.com/litebird/litebird_sim](https://github.com/litebird/litebird_sim)
--   Version: {litebird_sim_version}, by {litebird_sim_author}
+-   Version: {{ litebird_sim_version }}, by {{ litebird_sim_author }}
 {% if short_commit_hash -%}
 -   Commit hash: [{short_commit_hash}](https://github.com/litebird/litebird_sim/commit/{commit_hash})
     (_{commit_message}_, by {author})

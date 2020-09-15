@@ -61,7 +61,11 @@ And here are the data points:
     reference = """# My simulation
 
 Lorem ipsum
+
+
 The simulation starts at t0=1.0 and lasts 3600.0 seconds.
+
+
 
 Here is a plot:
 
