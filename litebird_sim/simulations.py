@@ -245,12 +245,12 @@ class Simulation:
             markdown_template = "".join(inpf.readlines())
         self.append_to_report(
             markdown_template,
-            name=name if (name and (name != "")) else "<Untitled>",
-            description=description,
-            start_time=start_time.to_datetime()
-            if isinstance(start_time, astropy.time.Time)
-            else start_time,
-            duration_s=duration_s,
+            name=self.name if (self.name and (self.name != "")) else "<Untitled>",
+            description=self.description,
+            start_time=self.start_time.to_datetime()
+            if isinstance(self.start_time, astropy.time.Time)
+            else self.start_time,
+            duration_s=self.duration_s,
         )
 
         self._initialize_logging()
@@ -273,7 +273,7 @@ class Simulation:
             return
 
         if not self.base_path:
-            self.base_path = Path(sim_params.get("base_path", None))
+            self.base_path = Path(sim_params.get("base_path", Path()))
 
         if not self.start_time:
             from datetime import date, datetime
@@ -386,13 +386,21 @@ class Simulation:
         return filename
 
     def append_to_report(
-        self, markdown_text: str, figures: List[Tuple[Any, str]] = [], **kwargs
+        self,
+        markdown_text: str,
+        append_newline=True,
+        figures: List[Tuple[Any, str]] = [],
+        **kwargs,
     ):
         """Append text and figures to the simulation report
 
         Args:
 
             markdown_text (str): text to be appended to the report.
+
+            append_newline (bool): append newlines to the end of the
+                text. This ensures that calling again this method will
+                produce a separate paragraph.
 
             figures (list of 2-tuples): list of Matplotlib figures to
                 be saved in the report. Each tuple must contain one
@@ -405,9 +413,10 @@ class Simulation:
                 the text `markdown_text` using the `Jinja2 library
                 <https://palletsprojects.com/p/jinja/>`_ library.
 
-        A Simulation class can generate reports in Markdown
-        format. Use this function to add some text to the report,
-        possibly including figures.
+        A Simulation class can generate reports in Markdown format.
+        Use this function to add some text to the report, possibly
+        including figures. The function has no effect if called from
+        an MPI rank different from #0.
 
         It is possible to use objects other than Matplotlib
         figures. The only method this function calls is `savefig`,
@@ -423,9 +432,16 @@ class Simulation:
 
         """
 
+        # Generate the report only if running on MPI rank #0
+        if self.mpi_comm.rank != 0:
+            return
+
         template = jinja2.Template(markdown_text)
         expanded_text = template.render(**kwargs)
         self.report += expanded_text
+
+        if append_newline:
+            self.report += "\n\n"
 
         for curfig, curfilename in figures:
             curpath = self.base_path / curfilename
@@ -457,14 +473,14 @@ class Simulation:
 
         # Check if there are newer versions of the data files used in the simulation
         for cur_data_file in data_files:
-            data_files = self.imo.get_list_of_data_files(
+            other_data_files = self.imo.get_list_of_data_files(
                 cur_data_file.quantity, track=False
             )
-            if not data_files:
+            if not other_data_files:
                 continue
 
-            if data_files[-1].uuid != cur_data_file.uuid:
-                warnings.append((cur_data_file, data_files[-1]))
+            if other_data_files[-1].uuid != cur_data_file.uuid:
+                warnings.append((cur_data_file, other_data_files[-1]))
 
         if (not entities) and (not quantities) and (not data_files):
             return
@@ -555,6 +571,7 @@ class Simulation:
             "sane_lists",
             "smarty",
             "tables",
+            "toc",
         ]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
@@ -694,13 +711,12 @@ class Simulation:
         )
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
-        if self.mpi_comm.rank == 0:
-            template_file_path = get_template_file_path("report_generate_pointings.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
-                num_of_obs=len(self.observations),
-                delta_time_s=delta_time_s,
-                quat_memory_size_bytes=quat_memory_size_bytes,
-            )
+        template_file_path = get_template_file_path("report_generate_pointings.md")
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+        self.append_to_report(
+            markdown_template,
+            num_of_obs=len(self.observations),
+            delta_time_s=delta_time_s,
+            quat_memory_size_bytes=quat_memory_size_bytes,
+        )

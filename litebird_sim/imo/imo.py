@@ -103,7 +103,6 @@ class Imo:
         result = self.imoobject.query(identifier)
         if result and track:
             self.queried_objects.add((type(result), result.uuid))
-
         return result
 
     def get_list_of_data_files(self, quantity_uuid: UUID, track=False) -> List[UUID]:
