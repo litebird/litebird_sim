@@ -65,6 +65,8 @@ Lorem ipsum
 
 The simulation starts at t0=1.0 and lasts 3600.0 seconds.
 
+[TOC]
+
 
 
 Here is a plot:
