@@ -67,7 +67,7 @@ class Observation:
         n_samples: int,
         start_time: Union[float, astropy.time.Time],
         sampling_rate_hz: float,
-        dtype_tod=np.float32,
+        allocate_tod=True, dtype_tod=np.float32,
         n_blocks_det=1, n_blocks_time=1, comm=None, root=0
     ):
         self.comm = comm
@@ -94,9 +94,10 @@ class Observation:
             self._n_blocks_det = 1
             self._n_blocks_time = 1
 
-        self.tod = np.empty(
-            self._get_tod_shape(n_blocks_det, n_blocks_time),
-            dtype=dtype_tod)
+        if allocate_tod:
+            self.tod = np.empty(
+                self._get_tod_shape(n_blocks_det, n_blocks_time),
+                dtype=dtype_tod)
 
         if not isinstance(detectors, int):
             self._set_attributes_from_list_of_dict(detectors, root)
