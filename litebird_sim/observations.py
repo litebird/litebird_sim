@@ -4,7 +4,7 @@ from typing import Union, List
 import astropy.time
 import numpy as np
 
-from .distribute import distribute_evenly, distribute_optimally
+from .distribute import distribute_evenly
 from .scanning import (
     Spin2EclipticQuaternions,
     all_compute_pointing_and_polangle,
@@ -32,7 +32,7 @@ class Observation:
         detectors (int/list of dict): Either the number of detectors or
             a list of dictionaries with one entry for each detector. The keys of
             the dictionaries will become attributes of the observation. If a
-            detector is missing a key it will be set to ``nan``. 
+            detector is missing a key it will be set to ``nan``.
             If an MPI communicator is passed to ``comm``, ``detectors`` is
             relevant only for the ``root`` process
 
@@ -99,6 +99,7 @@ class Observation:
                 self._get_tod_shape(n_blocks_det, n_blocks_time),
                 dtype=dtype_tod)
 
+        detector_global_info('det_idx', np.arange(self._n_detectors), root)
         if not isinstance(detectors, int):
             self._set_attributes_from_list_of_dict(detectors, root)
 
@@ -204,7 +205,7 @@ class Observation:
         """ For both detectors and time, returns the starting (global)
         index and lenght of each block if the number of blocks is changed to the
         values passed as arguments
-        """ 
+        """
         det_start, det_n = np.array(
             [[span.start_idx, span.num_of_elements]
              for span in distribute_evenly(self._n_detectors, n_blocks_det)]).T
@@ -217,7 +218,7 @@ class Observation:
     def _get_tod_shape(self, n_blocks_det, n_blocks_time):
         """ Return what the shape of ``self.tod`` will be if the blocks are set
         or changed to the values passed as arguments
-        """ 
+        """
         if self.comm is None:
             # Observation not spread across MPI processes -> only one block
             return (self._n_detectors, self._n_samples)
@@ -236,8 +237,7 @@ class Observation:
         Args:
             n_blocks_det (int): new number of blocks in the detector direction
             n_blocks_time (int): new number of blocks in the time direction
-            
-        """ 
+        """
         # Checks and preliminaries
         self._check_blocks(n_blocks_det, n_blocks_time)
         if self.comm is None or self.comm.size == 1:
@@ -419,7 +419,7 @@ class Observation:
             assert len(info) == len(self.tod)
             setattr(self, name, info)
             return
-            
+
         is_in_grid = self.comm.rank < self._n_blocks_det * self._n_blocks_time
         comm_grid = self.comm.Split(int(is_in_grid))
         if not is_in_grid:  # The process does not own any detector (and TOD)
@@ -504,8 +504,6 @@ class Observation:
 
         return t0 + np.arange(self.local_n_samples) / self.sampling_rate_hz
 
-
-
     def get_det2ecl_quaternions(
         self,
         spin2ecliptic_quats: Spin2EclipticQuaternions,
@@ -514,7 +512,7 @@ class Observation:
     ):
         """Return the detector-to-Ecliptic quaternions
 
-        This function returns a ``(N, 4)`` matrix containing the
+        This function returns a ``(D, N, 4)`` tensor containing the
         quaternions that convert a vector in detector's coordinates
         into the frame of reference of the Ecliptic. The number of
         quaternions is equal to the number of samples hold in this
@@ -547,13 +545,14 @@ class Observation:
     def get_ecl2det_quaternions(
         self,
         spin2ecliptic_quats: Spin2EclipticQuaternions,
-        detector_quat,
+        detector_quats,
         bore2spin_quat,
     ):
         """Return the Ecliptic-to-detector quaternions
 
-        This function returns a ``(N, 4)`` matrix containing the ``N``
-        quaternions that convert a vector in Ecliptic coordinates into
+        This function returns a ``(D, N, 4)`` matrix containing the ``N``
+        quaternions of alla the ``D`` detectors
+        that convert a vector in Ecliptic coordinates into
         the frame of reference of the detector itself. The number of
         quaternions is equal to the number of samples hold in this
         observation.
@@ -566,7 +565,7 @@ class Observation:
         """
 
         quats = self.get_det2ecl_quaternions(
-            spin2ecliptic_quats, detector_quat, bore2spin_quat
+            spin2ecliptic_quats, detector_quats, bore2spin_quat
         )
         quats[..., 0:3] *= -1  # Apply the quaternion conjugate
         return quats
@@ -574,7 +573,7 @@ class Observation:
     def get_pointings(
         self,
         spin2ecliptic_quats: Spin2EclipticQuaternions,
-        detector_quat,
+        detector_quats,
         bore2spin_quat,
     ):
         """Return the time stream of pointings for the detector
@@ -584,30 +583,30 @@ class Observation:
         detector to the boresight reference frame, compute a set of
         pointings for the detector that encompass the time span
         covered by this observation (i.e., starting from
-        `self.start_time` and including `self.nsamples` pointings).
+        `self.start_time` and including `self.n_samples` pointings).
 
         The parameter `spin2ecliptic_quats` can be easily retrieved by
         the field `spin2ecliptic_quats` in a object of
         :class:`.Simulation` object, once the method
         :meth:`.Simulation.generate_spin2ecl_quaternions` is called.
 
-        The parameter `detector_quat` is typically one of the
-        following:
+        The parameter `detector_quats` is a stack of detector quaternions. For
+        example, it can be
 
-        - The field `quat` of an instance of the class
+        - The stack of the field `quat` of an instance of the class
            :class:`.Detector`
 
         - If all you want to do is a simulation using a boresight
-           direction, you can pass the value ``np.array([0., 0., 0.,
-           1.])``, which represents the null rotation.
+           direction, you can pass the value ``np.array([[0., 0., 0.,
+           1.]])``, which represents the null rotation.
 
         The parameter `bore2spin_quat` is calculated through the class
         :class:`.Instrument`, which has the field ``bore2spin_quat``.
         If all you have is the angle β between the boresight and the
         spin axis, just pass ``quat_rotation_y(β)`` here.
 
-        The return value is a ``(N × 3)`` matrix: the colatitude (in
-        radians) is stored in column 0 (e.g., ``result[:, 0]``), the
+        The return value is a ``(D x N × 3)`` tensor: the colatitude (in
+        radians) is stored in column 0 (e.g., ``result[:, :, 0]``), the
         longitude (ditto) in column 1, and the polarization angle
         (ditto) in column 2. You can extract the three vectors using
         the following idiom::
@@ -615,11 +614,11 @@ class Observation:
             pointings = obs.get_pointings(...)
             # Extract the colatitude (theta), longitude (psi), and
             # polarization angle (psi) from pointings
-            theta, phi, psi = [pointings[:, i] for i in (0, 1, 2)]
+            theta, phi, psi = [pointings[:, :, i] for i in (0, 1, 2)]
 
         """
         det2ecliptic_quats = self.get_det2ecl_quaternions(
-            spin2ecliptic_quats, detector_quat, bore2spin_quat,
+            spin2ecliptic_quats, detector_quats, bore2spin_quat,
         )
 
         # Compute the pointing direction for each sample

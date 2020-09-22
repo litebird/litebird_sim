@@ -32,22 +32,33 @@ object::
   from astropy.time import Time
   
   # First case: use floating-point values to keep track of time
-  obs_no_mjd = lbs.Observation(
-      detector="A",
+  obs = lbs.Observation(
+      detectors=2,
       start_time=0.0,
       sampling_rate_hz=5.0,
-      nsamples=5,
-      use_mjd=False,
+      n_samples=5,
   )
 
   # Second case: use MJD to track the time
   obs_mjd = lbs.Observation(
-      detector="B",
+      detectors=[{"name": "A"}, {"name": "B"}]
       start_time=Time("2020-02-20", format="iso"),
       sampling_rate_hz=5.0,
       nsamples=5,
-      use_mjd=True,
   )
+
+Note that the 2-D array ``obs.tod`` is created for you. Its shape is
+``(n_detectors, n_samples)``. In full scale simulations it may get too large to
+fit in memory. You can chunk it along the time or detector dimension
+(or both) using ``n_blocks_det, n_blocks_time, comm`` at construction time or
+the `set_n_blocks` method. The same chunking is applied also to any detector
+information that you add with `detector_global_info` or `detector_info`. Note
+note ``det_idx`` is added for you at construction.
+
+When you distribute the observation the first
+``n_blocks_det x n_blocks_time``  MPI ranks are organized in a row-major grid
+with ``n_blocks_det`` rows and ``n_blocks_time`` columns. Each owns a block of
+the TOD and the information of the corresponding to the rows in its block.
 
 
 API reference

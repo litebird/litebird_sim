@@ -510,7 +510,7 @@ class Simulation:
         self,
         detectors: List[Detector],
         num_of_obs_per_detector: int = 1,
-        distribute=True,
+        distribute=True, #XXX If True distribute the list of observations, if False distribute the individial observation
         n_blocks_det=1, n_blocks_time=1, root=0
     ):
         "Create a set of Observation objects"
@@ -540,7 +540,8 @@ class Simulation:
                 sampling_rate_hz=sampfreq_hz,
                 n_samples=nsamples,
                 n_blocks_det=n_blocks_det, n_blocks_time=n_blocks_time,
-                comm=self.mpi_comm, root=0
+                comm=(None if distribute else self.mpi_comm),
+                root=0
             )
             observations.append(cur_obs)
 
@@ -566,7 +567,7 @@ class Simulation:
         span = distribute_optimally(
             elements=observations,
             num_of_groups=self.mpi_comm.size,
-            weight_fn=lambda obs: obs.nsamples,
+            weight_fn=lambda obs: obs.n_samples,
         )[cur_rank]
 
         self.observations = observations[

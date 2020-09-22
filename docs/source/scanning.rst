@@ -134,7 +134,7 @@ similar to what is going to be used for LiteBIRD:
   obs, = sim.create_observations(detectors=[det])
   pointings = obs.get_pointings(
       sim.spin2ecliptic_quats,
-      detector_quat=det.quat,
+      detector_quats=[det.quat],
       bore2spin_quat=instr.bore2spin_quat,
   )
 
@@ -144,15 +144,15 @@ similar to what is going to be used for LiteBIRD:
 
 .. testoutput::
 
-  Shape: (600, 3)
+  Shape: (1, 600, 3)
   Pointings:
-  [[ 2.18166156  0.         -1.57079633]
-   [ 2.18164984 -0.00579129 -1.57633021]
-   [ 2.18161186 -0.01158231 -1.58186382]
-   ...
-   [ 0.08854811 -2.96748668 -1.73767999]
-   [ 0.08788054 -3.0208052  -1.68678085]
-   [ 0.08745441 -3.07477554 -1.63522983]]
+  [[[ 2.18166156  0.         -1.57079633]
+    [ 2.18164984 -0.00579129 -1.57633021]
+    [ 2.18161186 -0.01158231 -1.58186382]
+    ...
+    [ 0.08854811 -2.96748668 -1.73767999]
+    [ 0.08788054 -3.0208052  -1.68678085]
+    [ 0.08745441 -3.07477554 -1.63522983]]]
 
 All the details in this code are explained in the next sections, so
 for now just keep in mind the overall shape of the code:
@@ -677,7 +677,7 @@ computing one quaternion every minute, we compute one quaternion every
        sampling_rate_hz=1.0 / ((1.0 * u.day).to("s").value),
    )
    (obs,) = sim.create_observations(detectors=[det])
-   pointings = obs.get_pointings(sim.spin2ecliptic_quats, det.quat)
+   pointings = obs.get_pointings(sim.spin2ecliptic_quats, np.array([det.quat]))
 
    m = np.zeros(healpy.nside2npix(64))
    pixidx = healpy.ang2pix(64, pointings[:, 0], pointings[:, 1])
@@ -788,7 +788,7 @@ boresight detector using :meth:`.Observation.get_ecl2det_quaternions`:
   # reference system into the detector's reference system
   quats = obs.get_ecl2det_quaternions(
       sim.spin2ecliptic_quats,
-      detector_quat=det.quat,
+      detector_quats=[det.quat],
       bore2spin_quat=instr.bore2spin_quat,
   )
 
@@ -796,7 +796,7 @@ boresight detector using :meth:`.Observation.get_ecl2det_quaternions`:
   det_vec = np.empty_like(ecl_vec)
 
   # Do the rotation!
-  lbs.all_rotate_vectors(det_vec, quats, ecl_vec)
+  lbs.all_rotate_vectors(det_vec, quats[0], ecl_vec)
 
   print(det_vec)
 
