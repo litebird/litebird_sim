@@ -99,7 +99,7 @@ class Observation:
                 self._get_tod_shape(n_blocks_det, n_blocks_time),
                 dtype=dtype_tod)
 
-        detector_global_info('det_idx', np.arange(self._n_detectors), root)
+        self.detector_global_info('det_idx', np.arange(self._n_detectors), root)
         if not isinstance(detectors, int):
             self._set_attributes_from_list_of_dict(detectors, root)
 
