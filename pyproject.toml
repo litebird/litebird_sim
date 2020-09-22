@@ -37,7 +37,7 @@ jplephem = "^2.14"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]
-docs = ["sphinx", "sphinx_rtd_theme", "sphinxcontrib-bibtex", "sphinxcontrib-contentui=^0.2.5"]
+docs = ["sphinx", "sphinx_rtd_theme", "sphinxcontrib-bibtex", "sphinxcontrib-contentui"]
 jupyter = ["jupyter"]
 
 [build-system]
