@@ -601,7 +601,8 @@ class Simulation:
         self,
         detectors: List[Detector],
         num_of_obs_per_detector: int = 1,
-        distribute=True,
+        distribute=True, #XXX If True distribute the list of observations, if False distribute the individial observation
+        n_blocks_det=1, n_blocks_time=1, root=0
     ):
         "Create a set of Observation objects"
 
@@ -615,28 +616,31 @@ class Simulation:
         observations = []
 
         duration_s = self.duration_s  # Cache the value to a local variable
-        for detidx, cur_det in enumerate(detectors):
-            cur_sampfreq_hz = cur_det.sampling_rate_hz
-            num_of_samples = cur_sampfreq_hz * duration_s
-            samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
+        sampfreq_hz = detectors[0].sampling_rate_hz
+        detectors = [d.to_dict() for d in detectors]
+        num_of_samples = int(sampfreq_hz * duration_s)
+        samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
-            cur_time = self.start_time
+        cur_time = self.start_time
 
-            for cur_obs_idx in range(num_of_obs_per_detector):
-                nsamples = samples_per_obs[cur_obs_idx].num_of_elements
-                cur_obs = Observation(
-                    detector=cur_det,
-                    start_time=cur_time,
-                    sampling_rate_hz=cur_sampfreq_hz,
-                    nsamples=nsamples,
-                )
-                observations.append(cur_obs)
+        for cur_obs_idx in range(num_of_obs_per_detector):
+            nsamples = samples_per_obs[cur_obs_idx].num_of_elements
+            cur_obs = Observation(
+                detectors=detectors,
+                start_time=cur_time,
+                sampling_rate_hz=sampfreq_hz,
+                n_samples=nsamples,
+                n_blocks_det=n_blocks_det, n_blocks_time=n_blocks_time,
+                comm=(None if distribute else self.mpi_comm),
+                root=0
+            )
+            observations.append(cur_obs)
 
-                time_span = nsamples / cur_sampfreq_hz
-                if isinstance(self.start_time, astropy.time.Time):
-                    time_span = astropy.time.TimeDelta(time_span, format="sec")
+            time_span = nsamples / sampfreq_hz
+            if isinstance(self.start_time, astropy.time.Time):
+                time_span = astropy.time.TimeDelta(time_span, format="sec")
 
-                cur_time += time_span
+            cur_time += time_span
 
         if distribute:
             self.distribute_workload(observations)
@@ -654,7 +658,7 @@ class Simulation:
         span = distribute_optimally(
             elements=observations,
             num_of_groups=self.mpi_comm.size,
-            weight_fn=lambda obs: obs.nsamples,
+            weight_fn=lambda obs: obs.n_samples,
         )[cur_rank]
 
         self.observations = observations[

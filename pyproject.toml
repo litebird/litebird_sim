@@ -35,6 +35,10 @@ ducc0 = {git = "https://github.com/litebird/ducc", rev = "ducc0"}
 pybind11 = "^2.5.0"
 jplephem = "^2.14"
 
+# For some reason, it doesn't get installed if in extras.docs
+# -> added to the global dependencies
+sphinxcontrib-contentui = "^0.2.5"
+
 [tool.poetry.extras]
 mpi = ["mpi4py"]
 docs = ["sphinx", "sphinx_rtd_theme", "sphinxcontrib-bibtex"]

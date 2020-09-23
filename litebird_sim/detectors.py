@@ -184,3 +184,24 @@ class Detector:
         """
         obj = imo.query(url)
         return Detector.from_dict(obj.metadata)
+
+    def to_dict(self):
+        """Conver to a dictionary
+        """
+        return dict(
+            name=self.name,
+            wafer=self.wafer,
+            pixel=self.pixel,
+            pixtype=self.pixtype,
+            channel=self.channel,
+            sampling_rate_hz=float(self.sampling_rate_hz),
+            fwhm_arcmin=float(self.fwhm_arcmin),
+            ellipticity=float(self.ellipticity),
+            net_ukrts=float(self.net_ukrts),
+            fknee_mhz=float(self.fknee_mhz),
+            fmin_hz=float(self.fmin_hz),
+            alpha=float(self.alpha),
+            pol=self.pol,
+            orient=self.orient,
+            quat=self.quat,
+        )

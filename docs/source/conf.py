@@ -36,6 +36,7 @@ extensions = [
     "sphinx.ext.doctest",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinxcontrib.contentui",
 ]
 
 
