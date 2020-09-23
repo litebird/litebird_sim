@@ -38,6 +38,7 @@ jplephem = "^2.14"
 # For some reason, it doesn't get installed if in extras.docs
 # -> added to the global dependencies
 sphinxcontrib-contentui = "^0.2.5"
+dataclasses = {version = "^0.7", python = "3.6"}
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]
