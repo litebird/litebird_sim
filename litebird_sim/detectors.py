@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from dataclasses import dataclass
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, List
 
 from uuid import UUID
 import numpy as np
@@ -153,3 +153,41 @@ class DetectorInfo:
         """
         obj = imo.query(url)
         return DetectorInfo.from_dict(obj.metadata)
+
+
+@dataclass
+class FreqChannelInfo:
+    channel: str
+    bandcenter_ghz: float
+    bandwidth_ghz: float
+    net_detector_ukrts: float
+    net_channel_ukrts: float
+    pol_sensitivity_channel_uKarcmin: float
+    fwhm_arcmin: float
+    fknee_mhz: float
+    fmin_hz: float
+    alpha: float
+    number_of_detectors: int
+    detector_names: List[str]
+
+    @staticmethod
+    def from_dict(dictionary):
+        return FreqChannelInfo(**dictionary)
+
+    @staticmethod
+    def from_imo(imo, objref):
+        obj = imo.query(objref)
+        return FreqChannelInfo.from_dict(obj.metadata)
+
+    def get_boresight_detector(self, name="mock") -> DetectorInfo:
+        return DetectorInfo(
+            name=name,
+            channel=self.channel,
+            fwhm_arcmin=self.fwhm_arcmin,
+            net_ukrts=self.net_detector_ukrts,
+            fknee_mhz=self.fknee_mhz,
+            fmin_hz=self.fmin_hz,
+            alpha=self.alpha,
+            bandwidth_ghz=self.bandwidth_ghz,
+            bandcenter_ghz=self.bandcenter_ghz,
+        )
