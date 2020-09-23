@@ -34,6 +34,9 @@ backports-datetime-fromisoformat = "^1.0.0"
 ducc0 = {git = "https://github.com/litebird/ducc", rev = "ducc0"}
 pybind11 = "^2.5.0"
 jplephem = "^2.14"
+PyGithub = "^1.53"
+requests = "^2.24.0"
+rich = "^6.2.0"
 
 # For some reason, it doesn't get installed if in extras.docs
 # -> added to the global dependencies

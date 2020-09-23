@@ -178,10 +178,12 @@ class Simulation:
         parameter_file=None,
         parameters=None,
     ):
+        self.mpi_comm = mpi_comm
+
+        self._initialize_logging()
+
         self.base_path = base_path
         self.name = name
-
-        self.mpi_comm = mpi_comm
 
         self.observations = []
 
@@ -253,8 +255,6 @@ class Simulation:
             duration_s=self.duration_s,
         )
 
-        self._initialize_logging()
-
     def _init_missing_params(self):
         """Initialize empty parameters using self.parameters
 
@@ -293,6 +293,8 @@ class Simulation:
             # for the duration
             if isinstance(self.duration_s, str):
                 conversions = [
+                    ("years", astropy.units.year),
+                    ("year", astropy.units.year),
                     ("days", astropy.units.day),
                     ("day", astropy.units.day),
                     ("hours", astropy.units.hour),

@@ -1,15 +1,34 @@
 # -*- encoding: utf-8 -*-
 
+import logging as log
+from pathlib import Path
 from uuid import UUID
 from typing import Union, Set, Tuple, List
 
+import tomlkit
+
 from .objects import Entity, Quantity, DataFile
 from .flatfile import ImoFlatFile
+
+CONFIG_FILE_PATH = Path.home() / ".config" / "litebird_imo" / "imo.toml"
 
 
 class Imo:
     def __init__(self, flatfile_location=None, url=None, user=None, password=None):
         self.imoobject = None
+        if (not flatfile_location) and (not url):
+            # Try to load the configuration file
+
+            try:
+                with CONFIG_FILE_PATH.open("rt") as inpf:
+                    config = tomlkit.loads("".join(inpf.readlines()))
+                location = config["repositories"][0]["location"]
+                self.imoobject = ImoFlatFile(location)
+            except FileNotFoundError:
+                log.warning('IMO config file "%s" not found', str(CONFIG_FILE_PATH))
+            except tomlkit.exceptions.NonExistentKey:
+                log.warning('no repositories in file "%s"', str(CONFIG_FILE_PATH))
+
         if flatfile_location:
             self.imoobject = ImoFlatFile(flatfile_location)
 
