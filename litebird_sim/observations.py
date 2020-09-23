@@ -81,7 +81,7 @@ class Observation:
             else:
                 self._n_detectors = len(detectors)
 
-        self.sampling_rate_hz = sampling_rate_hz
+        self._sampling_rate_hz = sampling_rate_hz
 
         # Neme of the attributes that store an array with the value of a
         # property for each of the (local) detectors
@@ -106,12 +106,20 @@ class Observation:
         self.local_start_time, self.local_start, self.local_n_samples = \
             self._get_local_start_time_start_and_n_samples()
 
+    @property
+    def sampling_rate_hz(self):
+        return self._sampling_rate_hz
+
     def _get_local_start_time_start_and_n_samples(self):
         _, _, start, num = self._get_start_and_num(self._n_blocks_det,
                                                    self._n_blocks_time)
         if self.comm:
-            start = start[self.comm.rank % self._n_blocks_time]
-            num = num[self.comm.rank % self._n_blocks_time]
+            if (self.comm.rank < self._n_blocks_time * self._n_blocks_det):
+                start = start[self.comm.rank % self._n_blocks_time]
+                num = num[self.comm.rank % self._n_blocks_time]
+            else:
+                start = 0
+                num = 0
         else:
             start = start[0]
             num = num[0]
@@ -129,7 +137,7 @@ class Observation:
 
         # Turn list of dict into dict of arrays
         if not self.comm or self.comm.rank == root:
-            keys = list(set().union(*list_of_dict))
+            keys = list(set().union(*list_of_dict) - set(dir(self)))
             dict_of_array = {k: [] for k in keys}
             nan_or_none = {}
             for k in keys:

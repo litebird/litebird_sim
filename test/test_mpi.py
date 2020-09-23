@@ -51,17 +51,22 @@ def test_observation_time():
     obs_mjd_astropy.set_n_blocks(n_blocks_time=2)
     if comm_world.rank == 0:
         assert np.allclose(obs_no_mjd.get_times(), res_times[:3])
-        assert np.allclose(obs_mjd.get_times() - ref_time.mjd, res_mjd[:3])
-        assert np.allclose(obs_mjd_astropy.get_times() - ref_time.mjd,
-                           res_mjd[:3])
+        assert np.allclose(
+            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
+            res_mjd[:3])
+        assert np.allclose(
+            obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
+            res_cxcsec[:3])
     elif comm_world.rank == 1:
         assert np.allclose(obs_no_mjd.get_times(), res_times[3:])
-        assert np.allclose(obs_mjd.get_times() - ref_time.mjd, res_mjd[3:])
-        assert np.allclose(obs_mjd_astropy.get_times() - ref_time.mjd,
-                           res_mjd[3:])
+        assert np.allclose(
+            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
+            res_mjd[3:])
+        assert np.allclose(
+            obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
+            res_cxcsec[3:])
     else:
         assert obs_no_mjd.get_times().size == 0
-        assert obs_mjd.get_times().size == 0
         assert obs_mjd_astropy.get_times().size == 0
 
 
