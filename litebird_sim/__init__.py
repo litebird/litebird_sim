@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 from .distribute import distribute_evenly, distribute_optimally
-from .detectors import Detector
+from .detectors import DetectorInfo
 from .instruments import Instrument
 from .healpix import (
     nside_to_npix,
@@ -75,7 +75,7 @@ __all__ = [
     "Quantity",
     "Release",
     # detectors.py
-    "Detector",
+    "DetectorInfo",
     # instruments.py
     "Instrument",
     # mpi.py
@@ -84,8 +84,6 @@ __all__ = [
     "MPI_CONFIGURATION",
     # observations.py
     "Observation",
-    # detectors.py
-    "Detector",
     # quaternions.py
     "quat_rotation_x",
     "quat_rotation_y",

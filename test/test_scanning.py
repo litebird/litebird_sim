@@ -57,7 +57,7 @@ def test_calculate_sun_earth_angles_rad():
 
 
 def create_fake_detector(sampling_rate_hz=1):
-    return lbs.Detector(
+    return lbs.DetectorInfo(
         name="dummy",
         sampling_rate_hz=sampling_rate_hz,
         quat=np.array([0.0, 0.0, 0.0, 1.0]),
@@ -107,8 +107,7 @@ def test_simulation_pointings_still():
     # 365.25 days of a complete circle (we have 24 samples, from t = 0
     # to t = 23 hr)
     assert np.allclose(
-        np.abs(longitude[..., -1] - longitude[..., 0]),
-        2 * np.pi * 23 / 365.25 / 24
+        np.abs(longitude[..., -1] - longitude[..., 0]), 2 * np.pi * 23 / 365.25 / 24
     )
 
 
@@ -183,8 +182,7 @@ def test_simulation_pointings_spinning(tmp_path):
         for i in range(pointings_and_polangle.shape[1]):
             print(
                 *healpy.ang2vec(
-                    pointings_and_polangle[0, i, 0],
-                    pointings_and_polangle[0, i, 1]
+                    pointings_and_polangle[0, i, 0], pointings_and_polangle[0, i, 1]
                 ),
                 file=outf,
             )

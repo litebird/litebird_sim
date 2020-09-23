@@ -10,7 +10,7 @@ import litebird_sim as lbs
 
 
 def check_detector(det):
-    assert isinstance(det, lbs.Detector)
+    assert isinstance(det, lbs.DetectorInfo)
     assert det.name == "foo"
     assert det.wafer == "bar"
     assert det.pixel == 10
@@ -29,7 +29,7 @@ def check_detector(det):
 
 
 def test_detector_from_dict():
-    det = lbs.Detector.from_dict(
+    det = lbs.DetectorInfo.from_dict(
         {
             "name": "foo",
             "wafer": "bar",
@@ -74,7 +74,7 @@ quat = [0.0, 1.0, 2.0, 3.0]
 """
     )
 
-    det = lbs.Detector.from_dict(doc["my_detector"])
+    det = lbs.DetectorInfo.from_dict(doc["my_detector"])
 
     check_detector(det)
 
@@ -88,6 +88,6 @@ def test_detector_from_imo():
     imo = load_mock_imo()
 
     uuid = UUID("78fe75f1-a011-44b6-86dd-445dc9634416")
-    det = lbs.Detector.from_imo(imo, uuid)
+    det = lbs.DetectorInfo.from_imo(imo, uuid)
 
     check_detector(det)

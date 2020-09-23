@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from dataclasses import dataclass
 from typing import Any, Dict, Union
 
 from uuid import UUID
@@ -8,7 +9,8 @@ import numpy as np
 from .imo import Imo
 
 
-class Detector:
+@dataclass
+class DetectorInfo:
     """A class wrapping the basic information about a detector.
 
     This is a data class that encodes the basic properties of a
@@ -18,7 +20,7 @@ class Detector:
       optional, but you probably want to specify at least `name` and
       `sampling_rate_hz`::
 
-          det = Detector(name="dummy", sampling_rate_hz=10.0)
+          det = DetectorInfo(name="dummy", sampling_rate_hz=10.0)
 
     - Through the class method :meth:`.from_dict`, which takes a
       dictionary as input.
@@ -81,54 +83,28 @@ class Detector:
 
     """
 
-    def __init__(
-        self,
-        name: str = "",
-        wafer: Union[str, None] = None,
-        pixel: Union[int, None] = None,
-        pixtype: Union[str, None] = None,
-        channel: Union[str, None] = None,
-        sampling_rate_hz: float = 0.0,
-        fwhm_arcmin: float = 0.0,
-        ellipticity: float = 0.0,
-        net_ukrts: float = 0.0,
-        fknee_mhz: float = 0.0,
-        fmin_hz: float = 0.0,
-        alpha: float = 0.0,
-        pol: Union[str, None] = None,
-        orient: Union[str, None] = None,
-        quat=np.array([0.0, 0.0, 0.0, 1.0]),
-    ):
-        self.name = name
-        self.wafer = wafer
-        self.pixel = int(pixel) if pixel is not None else None
-        self.pixtype = pixtype
-        self.channel = channel
-        self.sampling_rate_hz = float(sampling_rate_hz)
-        self.fwhm_arcmin = float(fwhm_arcmin)
-        self.ellipticity = float(ellipticity)
-        self.net_ukrts = float(net_ukrts)
-        self.fknee_mhz = float(fknee_mhz)
-        self.fmin_hz = float(fmin_hz)
-        self.alpha = float(alpha)
-        self.pol = pol
-        self.orient = orient
-
-        assert len(quat) == 4
-        self.quat = np.array([float(x) for x in quat])
-
-    def __repr__(self):
-        return (
-            'Detector(name="{name}", channel="{channel}", '
-            + 'pol="{pol}", orient="{orient}")'
-        ).format(name=self.name, channel=self.channel, pol=self.pol, orient=self.orient)
+    name: str = ""
+    wafer: Union[str, None] = None
+    pixel: Union[int, None] = None
+    pixtype: Union[str, None] = None
+    channel: Union[str, None] = None
+    sampling_rate_hz: float = 0.0
+    fwhm_arcmin: float = 0.0
+    ellipticity: float = 0.0
+    net_ukrts: float = 0.0
+    fknee_mhz: float = 0.0
+    fmin_hz: float = 0.0
+    alpha: float = 0.0
+    pol: Union[str, None] = None
+    orient: Union[str, None] = None
+    quat: Any = np.array([0.0, 0.0, 0.0, 1.0])
 
     @staticmethod
     def from_dict(dictionary: Dict[str, Any]):
         """Create a detector from the contents of a dictionary
 
-        The parameter `dictionary` must contain the following keys,
-        which correspond to the parameters used in the constructor:
+        The parameter `dictionary` must contain one key for each of
+        the fields in this dataclass:
 
         - ``name``
         - ``wafer``
@@ -147,27 +123,14 @@ class Detector:
         - ``quat``
 
         """
-        return Detector(
-            name=dictionary["name"],
-            wafer=dictionary["wafer"],
-            pixel=dictionary["pixel"],
-            pixtype=dictionary["pixtype"],
-            channel=dictionary["channel"],
-            sampling_rate_hz=float(dictionary["sampling_rate_hz"]),
-            fwhm_arcmin=float(dictionary["fwhm_arcmin"]),
-            ellipticity=float(dictionary["ellipticity"]),
-            net_ukrts=float(dictionary["net_ukrts"]),
-            fknee_mhz=float(dictionary["fknee_mhz"]),
-            fmin_hz=float(dictionary["fmin_hz"]),
-            alpha=float(dictionary["alpha"]),
-            pol=dictionary["pol"],
-            orient=dictionary["orient"],
-            quat=np.array([float(x) for x in dictionary["quat"]]),
-        )
+        dict_copy = dict(dictionary)
+        dict_copy["quat"] = np.array([float(x) for x in dictionary["quat"]])
+
+        return DetectorInfo(**dict_copy)
 
     @staticmethod
     def from_imo(imo: Imo, url: Union[UUID, str]):
-        """Create a `Detector` object from a definition in the IMO
+        """Create a `DetectorInfo` object from a definition in the IMO
 
         The `url` must either specify a UUID or a full URL to the
         object.
@@ -176,32 +139,11 @@ class Detector:
 
             import litebird_sim as lbs
             imo = Imo()
-            det = Detector.from_imo(
+            det = DetectorInfo.from_imo(
                 imo=imo,
                 url="/releases/v1.0/satellite/LFT/L03_006_QB_040T",
             )
 
         """
         obj = imo.query(url)
-        return Detector.from_dict(obj.metadata)
-
-    def to_dict(self):
-        """Conver to a dictionary
-        """
-        return dict(
-            name=self.name,
-            wafer=self.wafer,
-            pixel=self.pixel,
-            pixtype=self.pixtype,
-            channel=self.channel,
-            sampling_rate_hz=float(self.sampling_rate_hz),
-            fwhm_arcmin=float(self.fwhm_arcmin),
-            ellipticity=float(self.ellipticity),
-            net_ukrts=float(self.net_ukrts),
-            fknee_mhz=float(self.fknee_mhz),
-            fmin_hz=float(self.fmin_hz),
-            alpha=float(self.alpha),
-            pol=self.pol,
-            orient=self.orient,
-            quat=self.quat,
-        )
+        return DetectorInfo.from_dict(obj.metadata)

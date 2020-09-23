@@ -130,7 +130,7 @@ similar to what is going to be used for LiteBIRD:
   # pointing information for a fake boresight detector `det`, belonging
   # to the instrument `core` (unlike LiteBIRD, CORE had only one focal
   # plane and one instrument)
-  det = lbs.Detector(name="foo", sampling_rate_hz=10)
+  det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
   pointings = obs.get_pointings(
       sim.spin2ecliptic_quats,
@@ -255,10 +255,10 @@ that of the spin axis:
    pattern) can be converted to the reference frame of the focal plane
    (with the `z` axis aligned with the boresight). This information is
    included in the IMO and is properly initialized if you call
-   :meth:`.Detector.from_imo`. If you do not specify any quaternion,
-   the constructor for :class:`.Detector` will assume that the
-   detector is looking at the boresight, and it will thus use the
-   quaternion :math:`(0 0 0 1)`; this is the case of the simple
+   :meth:`.DetectorInfo.from_imo`. If you do not specify any
+   quaternion, the constructor for :class:`.DetectorInfo` will assume
+   that the detector is looking at the boresight, and it will thus use
+   the quaternion :math:`(0 0 0 1)`; this is the case of the simple
    example we presented above.
 
 2. The second quaternion describes how to convert the reference frame
@@ -672,7 +672,7 @@ computing one quaternion every minute, we compute one quaternion every
        delta_time_s=(30 * u.day).to("s").value
    )
 
-   det = lbs.Detector(
+   det = lbs.DetectorInfo(
        name="foo",
        sampling_rate_hz=1.0 / ((1.0 * u.day).to("s").value),
    )
@@ -751,7 +751,7 @@ boresight detector using :meth:`.Observation.get_ecl2det_quaternions`:
       )
   )
   instr = lbs.Instrument(name="core", spin_boresight_angle_deg=65)
-  det = lbs.Detector(name="foo", sampling_rate_hz=10)
+  det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
 
   #################################################################
