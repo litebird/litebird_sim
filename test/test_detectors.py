@@ -25,7 +25,9 @@ def check_detector(det):
     assert det.alpha == 76.0
     assert det.pol == "jkl"
     assert det.orient == "mno"
-    assert np.allclose(det.quat, [0.0, 1.0, 2.0, 3.0])
+
+    # The quaternion should be always normalized
+    assert np.allclose(det.quat, [0.00000000, 0.26726124, 0.53452248, 0.80178373])
 
 
 def test_detector_from_dict():

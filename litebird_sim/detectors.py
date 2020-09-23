@@ -99,6 +99,15 @@ class DetectorInfo:
     orient: Union[str, None] = None
     quat: Any = np.array([0.0, 0.0, 0.0, 1.0])
 
+    def __post_init__(self):
+        assert len(self.quat) == 4
+
+        # Ensure that the quaternion is a NumPy array
+        self.quat = np.array([float(x) for x in self.quat])
+
+        # Normalize the quaternion
+        self.quat /= np.sqrt(self.quat.dot(self.quat))
+
     @staticmethod
     def from_dict(dictionary: Dict[str, Any]):
         """Create a detector from the contents of a dictionary
@@ -123,10 +132,7 @@ class DetectorInfo:
         - ``quat``
 
         """
-        dict_copy = dict(dictionary)
-        dict_copy["quat"] = np.array([float(x) for x in dictionary["quat"]])
-
-        return DetectorInfo(**dict_copy)
+        return DetectorInfo(**dictionary)
 
     @staticmethod
     def from_imo(imo: Imo, url: Union[UUID, str]):
