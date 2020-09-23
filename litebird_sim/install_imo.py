@@ -180,13 +180,13 @@ Which one should I use?
     )
 
 
-def run_main_loop():
+def run_main_loop() -> bool:
     prompt = """Choose a source for the IMO:
 
 1.   [cyan]The [it]litebird_imo[/it] GitHub repository[/cyan]
 
      This will download a flatfile representation of the IMO
-     and make it available as a "local source" (like point 1).
+     and make it available as a "local source" (like point 3).
 
 
 2.   [cyan]Remote IMO database[/cyan]
