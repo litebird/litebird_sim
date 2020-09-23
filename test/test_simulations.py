@@ -220,7 +220,7 @@ def test_distribute_observation(tmp_path):
 
     assert len(obs_list) == 5
     assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
-    assert sum([o.nsamples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
+    assert sum([o.n_samples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
 
 
 def test_distribute_observation_astropy(tmp_path):
@@ -234,4 +234,4 @@ def test_distribute_observation_astropy(tmp_path):
 
     assert len(obs_list) == 5
     assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
-    assert sum([o.nsamples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
+    assert sum([o.n_samples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
