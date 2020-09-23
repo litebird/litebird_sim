@@ -222,7 +222,8 @@ q.   [cyan]Discard modifications and quit[/cyan]
 Saving changes and quitting...
 """
             )
-            break
+            return True
+
         elif choice in ("q", "Q"):
             print(
                 """
@@ -230,7 +231,7 @@ Saving changes and quitting...
 Discarding any change and quitting...
 """
             )
-            return
+            return False
 
         sleep(2)
 
@@ -249,23 +250,25 @@ The configuration has been saved into file
 
 
 def main():
-    run_main_loop()
+    if run_main_loop():
+        write_toml_configuration()
+        if len(repositories) > 0:
+            print(f"The following repositories have been configured successfully:")
 
-    write_toml_configuration()
-    if len(repositories) > 0:
-        print(f"The following repositories have been configured successfully:")
+            table = Table()
+            table.add_column("Name")
+            table.add_column("Location")
 
-        table = Table()
-        table.add_column("Name")
-        table.add_column("Location")
+            for row in repositories:
+                table.add_row(row["name"], row["location"])
 
-        for row in repositories:
-            table.add_row(row["name"], row["location"])
+            print(table)
 
-        print(table)
+        else:
+            print("No repositories have been configured")
 
     else:
-        print("No repositories have been configured")
+        print("Changes have been discarded")
 
 
 if __name__ == "__main__":
