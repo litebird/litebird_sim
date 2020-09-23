@@ -22,12 +22,10 @@ class Imo:
             try:
                 with CONFIG_FILE_PATH.open("rt") as inpf:
                     config = tomlkit.loads("".join(inpf.readlines()))
-            except FileNotFoundError:
-                log.warning('IMO config file "%s" not found', str(CONFIG_FILE_PATH))
-
-            try:
                 location = config["repositories"][0]["location"]
                 self.imoobject = ImoFlatFile(location)
+            except FileNotFoundError:
+                log.warning('IMO config file "%s" not found', str(CONFIG_FILE_PATH))
             except tomlkit.exceptions.NonExistentKey:
                 log.warning('no repositories in file "%s"', str(CONFIG_FILE_PATH))
 
