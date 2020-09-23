@@ -208,7 +208,7 @@ six = "*"
 [[package]]
 category = "main"
 description = "A backport of the dataclasses module for Python 3.6"
-marker = "python_version == \"3.6\""
+marker = "python_version >= \"3.6\" and python_version < \"3.7\""
 name = "dataclasses"
 optional = false
 python-versions = ">=3.6, <3.7"
@@ -253,6 +253,7 @@ numpy = ">=1.17.0"
 reference = "7233de51097a41a5d83615975eb4140162fe9f1c"
 type = "git"
 url = "https://github.com/litebird/ducc"
+
 [[package]]
 category = "main"
 description = "Discover and load entry points from installed packages."
@@ -961,7 +962,7 @@ wcwidth = "*"
 [[package]]
 category = "main"
 description = "Run a subprocess in a pseudo terminal"
-marker = "sys_platform != \"win32\" or os_name != \"nt\" or python_version >= \"3.3\" and sys_platform != \"win32\""
+marker = "python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\" or os_name != \"nt\" or python_version >= \"3.3\" and sys_platform != \"win32\" and (python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\")"
 name = "ptyprocess"
 optional = true
 python-versions = "*"
@@ -1480,7 +1481,7 @@ jupyter = ["jupyter"]
 mpi = ["mpi4py"]
 
 [metadata]
-content-hash = "7a6f0390b9e275801ca17f3738d8154164be3da1cef88f319f6279f7eba94956"
+content-hash = "1a7a1c6544055629397127bc5992b5fe7c6cef7de9f68b877b7b00b04941020d"
 lock-version = "1.0"
 python-versions = "^3.6"
 
