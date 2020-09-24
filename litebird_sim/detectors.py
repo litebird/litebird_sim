@@ -59,6 +59,12 @@ class DetectorInfo:
              signal produced by the detector in nominal conditions,
              expressed in μK/√s.. The default is 0.0
 
+        - bandcenter_ghz (float): The center frequency of the
+             detector, in GHz. The default is 0.0
+
+        - bandwidth_ghz (float): The bandwidth of the detector, in
+             GHz. The default is 0.0
+
         - fknee_mhz (float): The knee frequency between the 1/f and
              the white noise components in nominal conditions, in mHz.
              The default is 0.0
@@ -95,6 +101,8 @@ class DetectorInfo:
     fknee_mhz: float = 0.0
     fmin_hz: float = 0.0
     alpha: float = 0.0
+    bandcenter_ghz: float = 0.0
+    bandwidth_ghz: float = 0.0
     pol: Union[str, None] = None
     orient: Union[str, None] = None
     quat: Any = np.array([0.0, 0.0, 0.0, 1.0])
@@ -157,18 +165,42 @@ class DetectorInfo:
 
 @dataclass
 class FreqChannelInfo:
-    channel: str
     bandcenter_ghz: float
-    bandwidth_ghz: float
-    net_detector_ukrts: float
-    net_channel_ukrts: float
-    pol_sensitivity_channel_uKarcmin: float
-    fwhm_arcmin: float
-    fknee_mhz: float
-    fmin_hz: float
-    alpha: float
-    number_of_detectors: int
-    detector_names: List[str]
+    channel: Union[str, None] = None
+    bandwidth_ghz: float = 0.0
+    net_detector_ukrts: float = 0.0
+    net_channel_ukrts: float = 0.0
+    pol_sensitivity_channel_ukarcmin: float = 0.0
+    sampling_rate_hz: float = 0.0
+    fwhm_arcmin: float = 0.0
+    fknee_mhz: float = 0.0
+    fmin_hz: float = 1e-5
+    alpha: float = 1.0
+    number_of_detectors: Union[int, None] = None
+    detector_names: Union[List[str], None] = None
+
+    def __post_init__(self):
+        if self.channel is None:
+            self.channel = f"{self.bandcenter_ghz:.1f} GHz"
+
+        if self.number_of_detectors is not None:
+            # First hypothesis: we have set the number of detectors. Check
+            # that this is consistent with the field "self.detector_names"
+
+            if self.detector_names is not None:
+                assert len(self.detector_names) == self.number_of_detectors
+            else:
+                self.detector_names = [
+                    f"det{x:d}" for x in range(self.number_of_detectors)
+                ]
+        else:
+            # Second hypothesis: the number of detectors was not set.
+            # Check if we have detector names.
+            if self.detector_names is not None:
+                self.number_of_detectors = len(self.detector_names)
+            else:
+                self.number_of_detectors = 1
+                self.detector_names = ["det0"]
 
     @staticmethod
     def from_dict(dictionary):
@@ -177,6 +209,13 @@ class FreqChannelInfo:
     @staticmethod
     def from_imo(imo, objref):
         obj = imo.query(objref)
+        dictcopy = dict(obj.metadata)
+
+        # This field is in the imo but is redundant, so we do not
+        # store it in this class
+        if "number_of_detectors" in dictcopy:
+            del dictcopy["number_of_detectors"]
+
         return FreqChannelInfo.from_dict(obj.metadata)
 
     def get_boresight_detector(self, name="mock") -> DetectorInfo:
@@ -188,6 +227,7 @@ class FreqChannelInfo:
             fknee_mhz=self.fknee_mhz,
             fmin_hz=self.fmin_hz,
             alpha=self.alpha,
+            sampling_rate_hz=self.sampling_rate_hz,
             bandwidth_ghz=self.bandwidth_ghz,
             bandcenter_ghz=self.bandcenter_ghz,
         )

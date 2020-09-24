@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 from .distribute import distribute_evenly, distribute_optimally
-from .detectors import DetectorInfo
+from .detectors import DetectorInfo, FreqChannelInfo
 from .instruments import Instrument
 from .healpix import (
     nside_to_npix,
@@ -76,6 +76,7 @@ __all__ = [
     "Release",
     # detectors.py
     "DetectorInfo",
+    "FreqChannelInfo",
     # instruments.py
     "Instrument",
     # mpi.py
