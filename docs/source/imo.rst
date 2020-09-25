@@ -1,3 +1,5 @@
+.. _imo:
+
 The Instrument Model Database (IMO)
 ===================================
 
