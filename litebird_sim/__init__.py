@@ -20,6 +20,7 @@ from .imo import (
     ImoFormatError,
     ImoFlatFile,
 )
+from .mbs.mbs import Mbs
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
 from .quaternions import (
