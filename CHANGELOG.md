@@ -1,4 +1,7 @@
 # HEAD
 
-(Put here all the merged PR, with a link and a short description. Mark
-breaking changes in bold.)
+- [Fix issue #61](https://github.com/litebird/litebird_sim/pull/62)
+
+# Version 0.1.0
+
+- First release
