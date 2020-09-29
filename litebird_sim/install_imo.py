@@ -258,7 +258,7 @@ def main():
     if run_main_loop():
         write_toml_configuration()
         if len(repositories) > 0:
-            print(f"The following repositories have been configured successfully:")
+            print("The following repositories have been configured successfully:")
 
             table = Table()
             table.add_column("Name")
