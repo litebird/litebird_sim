@@ -1,3 +1,5 @@
+.. _simulations:
+
 Simulations
 ===========
 

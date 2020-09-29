@@ -1,3 +1,5 @@
+.. _scanning-strategy:
+
 Scanning strategy
 =================
 
@@ -418,7 +420,7 @@ Healpix map::
    import matplotlib.pylab as plt
 
    nside = 64
-   pixidx = healpy.ang2pix(nside, pointings[:, 0], pointings[:, 1])
+   pixidx = healpy.ang2pix(nside, pointings[0, :, 0], pointings[0, :, 1])
    m = np.zeros(healpy.nside2npix(nside))
    m[pixidx] = 1
    healpy.mollview(m)
