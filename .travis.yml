@@ -57,7 +57,7 @@ before_install:
   - pip3 install poetry
   - gcc --version
   - mkdir -p $HOME/.config/litebird_imo
-  - echo -e "[[repositories]]\nlocation = \"$HOME/litebird_sim/test/mock_imo/\"\nname = \"Mock IMO\"" > $HOME/.config/litebird_imo/imo.toml
+  - echo -e "[[repositories]]\nlocation = \"$HOME/litebird/litebird_sim/test/mock_imo/\"\nname = \"Mock IMO\"" > $HOME/.config/litebird_imo/imo.toml
   - cat $HOME/.config/litebird_imo/imo.toml
 
 install:
