@@ -58,7 +58,7 @@ before_install:
   - gcc --version
   - pwd
   - mkdir -p $HOME/.config/litebird_imo
-  - echo -e "[[repositories]]\nlocation = \"$HOME/litebird/litebird_sim/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
+  - echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
 install:
   - poetry install --extras=docs $EXTRAS
