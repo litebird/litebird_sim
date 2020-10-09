@@ -1,12 +1,13 @@
 # -*- encoding: utf-8 -*-
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, fields
 from typing import Any, Dict, Union, List
 
 from uuid import UUID
 import numpy as np
 
 from .imo import Imo
+from .quaternions import quat_rotation_y, quat_rotation_z, quat_left_multiply
 
 
 @dataclass
@@ -47,6 +48,11 @@ class DetectorInfo:
 
         - sampling_rate_hz (float): The sampling rate of the ADC
              associated with this detector. The default is 0.0
+
+        - bandwidth_ghz (float): The bandwidth of the channel, in GHz
+
+        - bandcenter_ghz (float): The central frequency of the
+             channel, in GHz
 
         - fwhm_arcmin: float): The Full Width Half Maximum of the
              radiation pattern associated with the detector, in
@@ -97,6 +103,8 @@ class DetectorInfo:
     sampling_rate_hz: float = 0.0
     fwhm_arcmin: float = 0.0
     ellipticity: float = 0.0
+    bandcenter_ghz: float = 0.0
+    bandwidth_ghz: float = 0.0
     net_ukrts: float = 0.0
     fknee_mhz: float = 0.0
     fmin_hz: float = 0.0
@@ -128,6 +136,8 @@ class DetectorInfo:
         - ``pixel``
         - ``pixtype``
         - ``channel``
+        - ``bandcenter_ghz``
+        - ``bandwidth_ghz``
         - ``sampling_rate_hz``
         - ``fwhm_arcmin``
         - ``ellipticity``
