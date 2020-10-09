@@ -439,7 +439,7 @@ class Spin2EclipticQuaternions:
 
         Usually, the parameter `detector_quat` is read from the IMO,
         and the parameter `bore2spin_quat` is calculated through the
-        class :class:`.Instrument`, which has the field
+        class :class:`.InstrumentInfo`, which has the field
         ``bore2spin_quat``. If all you have is the angle β (in
         radians) between the boresight and the spin axis, just pass
         ``quat_rotation_y(β)`` here.

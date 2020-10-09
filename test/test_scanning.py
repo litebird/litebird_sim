@@ -81,7 +81,7 @@ def test_simulation_pointings_still():
     sim.generate_spin2ecl_quaternions(sstr, delta_time_s=60.0)
     assert sim.spin2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=0.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
     # Move the Z vector manually using the last quaternion and check
     # that it's rotated by 1/365.25 of a complete circle
@@ -128,7 +128,7 @@ def test_simulation_pointings_polangle(tmp_path):
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=0.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
     pointings_and_polangle = obs.get_pointings(
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
@@ -163,7 +163,7 @@ def test_simulation_pointings_spinning(tmp_path):
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=15.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
 
     pointings_and_polangle = obs.get_pointings(
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
@@ -212,7 +212,7 @@ def test_simulation_pointings_mjd(tmp_path):
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=60.0)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=20.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
 
     for obs in sim.observations:
         pointings_and_polangle = obs.get_pointings(
@@ -239,7 +239,7 @@ def test_scanning_quaternions(tmp_path):
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=15.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
     detector_quat = np.array([[0.0, 0.0, 0.0, 1.0]])
 
     det2ecl_quats = obs.get_det2ecl_quaternions(

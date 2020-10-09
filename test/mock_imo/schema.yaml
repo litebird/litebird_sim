@@ -5,7 +5,7 @@ instrumentdb:
   repository: "https://github.com/ziotom78/instrumentdb"
 entities:
 - uuid: "2180affe-f9c3-4048-a407-6bd4d3ad71e5"
-  name: "focal_plane"
+  name: "instrument"
   children:
   - uuid: "04c53542-e8a8-421f-aa3c-201abba1575d"
     name: "beams"
@@ -94,19 +94,19 @@ quantities:
   format_spec: "b71b3ea1-e2e7-432f-9ddd-affb014e186f"
   entity: "939307a3-ee39-4a45-b993-8cb44ff851a2"
 - uuid: "ed00a4e7-4984-40c8-810d-c615361a493d"
-  name: "det01a_noise"
+  name: "det01a_info"
   format_spec: "d5b620bf-3737-4a9c-ab01-13d2203250fb"
   entity: "dd32cb51-f7d5-4c03-bf47-766ce87dc3ba"
 - uuid: "740636cc-70e0-4891-bbf7-9bf24fbb05e9"
-  name: "det01b_noise"
+  name: "det01b_info"
   format_spec: "d5b620bf-3737-4a9c-ab01-13d2203250fb"
   entity: "c12e5848-072f-46bc-a15b-a615a382db8d"
 - uuid: "f98d5ac7-108c-4a2f-be28-40b647b495ef"
-  name: "det02a_noise"
+  name: "det02a_info"
   format_spec: "d5b620bf-3737-4a9c-ab01-13d2203250fb"
   entity: "e49b2479-86e3-4087-81f8-8c202d424622"
 - uuid: "567110cd-2398-4185-85cb-26d231433a9b"
-  name: "det02b_noise"
+  name: "det02b_info"
   format_spec: "d5b620bf-3737-4a9c-ab01-13d2203250fb"
   entity: "c11a00b5-bcd7-42fc-bddf-8b19d8d7b974"
 - uuid: "46666bd6-4dff-4cc8-a5c1-e787c90dd8b1"
@@ -118,21 +118,47 @@ quantities:
   format_spec: "d5b620bf-3737-4a9c-ab01-13d2203250fb"
   entity: "43377e3d-e457-43fe-baef-4017b0db53b2"
 - uuid: "07d8960d-a5f7-407a-8538-eea0965e8bac"
-  name: "focal_plane_info"
+  name: "channel_info"
+  format_spec: "4dd36030-4067-418a-ba8a-8cbf45159f20"
+  entity: "2180affe-f9c3-4048-a407-6bd4d3ad71e5"
+- uuid: "3a6fa623-eec1-428d-a456-4ef47783f344"
+  name: "instrument_info"
   format_spec: "4dd36030-4067-418a-ba8a-8cbf45159f20"
   entity: "2180affe-f9c3-4048-a407-6bd4d3ad71e5"
 data_files:
+- uuid: "f58e1c9b-d2fe-4db4-9ad5-65f644f12db7"
+  name: "instrument1"
+  upload_date: "2020-10-04 13:00:00+01:00"
+  quantity: "3a6fa623-eec1-428d-a456-4ef47783f344"
+  spec_version: "0.1"
+  metadata:
+    name: "INSTR"
+    number_of_channels: 1
+    channel_names:
+      - "65 GHz"
+    channel_objs:
+      - "ff087ba3-d973-4dc3-b72b-b68abb979a90"
+    hwp_rpm: 10.0
+    spin_boresight_angle_deg: 10.0
+    boresight_rotangle_deg: 5.0
+    spin_rotangle_deg: 15.0
+    wafers:
+      - "A"
+      - "B"
+    waferspace: 1.0
 - uuid: "78fe75f1-a011-44b6-86dd-445dc9634416"
   name: "det01_metadata"
   upload_date: "2020-07-04 13:00:00+01:00"
   quantity: "ed00a4e7-4984-40c8-810d-c615361a493d"
   spec_version: "0.1"
   metadata:
-    name: "foo"
+    name: "foo1"
     wafer: "bar"
     pixel: 10
     pixtype: "def"
     channel: "ghi"
+    bandcenter_ghz: 65.0
+    bandwidth_ghz: 14.0
     sampling_rate_hz: 12.0
     fwhm_arcmin: 34.0
     ellipticity: 56.0
@@ -147,6 +173,87 @@ data_files:
       - 1.0
       - 2.0
       - 3.0
+- uuid: "58db7186-3ee7-49e5-8605-4a5ed084f99e"
+  name: "det02_metadata"
+  upload_date: "2020-07-04 13:00:00+01:00"
+  quantity: "740636cc-70e0-4891-bbf7-9bf24fbb05e9"
+  spec_version: "0.1"
+  metadata:
+    name: "foo2"
+    wafer: "bar"
+    pixel: 10
+    pixtype: "def"
+    channel: "ghi"
+    bandcenter_ghz: 66.0
+    bandwidth_ghz: 15.0
+    sampling_rate_hz: 13.0
+    fwhm_arcmin: 35.0
+    ellipticity: 57.0
+    net_ukrts: 79.0
+    fknee_mhz: 91.0
+    fmin_hz: 99.0
+    alpha: 77.0
+    pol: "jkl"
+    orient: "mno"
+    quat:
+      - 1.0
+      - 2.0
+      - 3.0
+      - 4.0
+- uuid: "8f23f893-c94f-4d24-afcd-4c6633eabb65"
+  name: "det03_metadata"
+  upload_date: "2020-07-04 13:00:00+01:00"
+  quantity: "f98d5ac7-108c-4a2f-be28-40b647b495ef"
+  spec_version: "0.1"
+  metadata:
+    name: "foo3"
+    wafer: "baz"
+    pixel: 10
+    pixtype: "def"
+    channel: "ghi"
+    bandcenter_ghz: 67.0
+    bandwidth_ghz: 16.0
+    sampling_rate_hz: 14.0
+    fwhm_arcmin: 36.0
+    ellipticity: 58.0
+    net_ukrts: 80.0
+    fknee_mhz: 92.0
+    fmin_hz: 100.0
+    alpha: 78.0
+    pol: "jkl"
+    orient: "mno"
+    quat:
+      - 2.0
+      - 3.0
+      - 4.0
+      - 5.0
+- uuid: "fde14ce8-6831-48d7-8410-81051a344fea"
+  name: "det01_metadata"
+  upload_date: "2020-07-04 13:00:00+01:00"
+  quantity: "f98d5ac7-108c-4a2f-be28-40b647b495ef"
+  spec_version: "0.1"
+  metadata:
+    name: "foo4"
+    wafer: "baz"
+    pixel: 10
+    pixtype: "def"
+    channel: "ghi"
+    bandcenter_ghz: 68.0
+    bandwidth_ghz: 17.0
+    sampling_rate_hz: 15.0
+    fwhm_arcmin: 37.0
+    ellipticity: 59.0
+    net_ukrts: 81.0
+    fknee_mhz: 93.0
+    fmin_hz: 101.0
+    alpha: 79.0
+    pol: "jkl"
+    orient: "mno"
+    quat:
+      - 3.0
+      - 4.0
+      - 5.0
+      - 6.0
 - uuid: "a6dd07ee-9721-4453-abb1-e58aa53a9c01"
   name: "horn01_grasp.fits"
   upload_date: "2020-01-01 15:34:00+00:00"
@@ -182,15 +289,20 @@ data_files:
     bandcenter_ghz: 65.0
     bandwidth_ghz: 14.0
     net_detector_ukrts: 300.0
-    net_channel_ukrts: 100.0
+    net_channel_ukrts: 150.0
     pol_sensitivity_channel_ukarcmin: 200.0
     sampling_rate_hz: 12.0
     fwhm_arcmin: 58.0
     fknee_mhz: 25.0
     fmin_hz: 1.0
     alpha: 2.0
-    number_of_detectors: 1
-    detector_names: [ "foo" ]
+    number_of_detectors: 4
+    detector_names: [ "foo1", "foo2", "foo3", "foo4" ]
+    detector_objs:
+      - "78fe75f1-a011-44b6-86dd-445dc9634416"
+      - "58db7186-3ee7-49e5-8605-4a5ed084f99e"
+      - "8f23f893-c94f-4d24-afcd-4c6633eabb65"
+      - "fde14ce8-6831-48d7-8410-81051a344fea"
   quantity: "07d8960d-a5f7-407a-8538-eea0965e8bac"
   spec_version: "1.0"
 releases:

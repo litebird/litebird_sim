@@ -1,7 +1,11 @@
 # -*- encoding: utf-8 -*-
 from .distribute import distribute_evenly, distribute_optimally
-from .detectors import DetectorInfo, FreqChannelInfo
-from .instruments import Instrument
+from .detectors import (
+    DetectorInfo,
+    FreqChannelInfo,
+    InstrumentInfo,
+    detector_list_from_parameters,
+)
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -77,8 +81,8 @@ __all__ = [
     # detectors.py
     "DetectorInfo",
     "FreqChannelInfo",
-    # instruments.py
-    "Instrument",
+    "InstrumentInfo",
+    "detector_list_from_parameters",
     # mpi.py
     "MPI_COMM_WORLD",
     "MPI_ENABLED",

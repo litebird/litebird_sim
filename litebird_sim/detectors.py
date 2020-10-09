@@ -150,7 +150,14 @@ class DetectorInfo:
         - ``quat``
 
         """
-        return DetectorInfo(**dictionary)
+        result = DetectorInfo()
+        for param in fields(DetectorInfo):
+            if param.name in dictionary:
+                setattr(result, param.name, dictionary[param.name])
+
+        # Force initializers to be called again
+        result.__post_init__()
+        return result
 
     @staticmethod
     def from_imo(imo: Imo, url: Union[UUID, str]):
@@ -165,7 +172,7 @@ class DetectorInfo:
             imo = Imo()
             det = DetectorInfo.from_imo(
                 imo=imo,
-                url="/releases/v1.0/satellite/LFT/L03_006_QB_040T",
+                url="/releases/v1.0/satellite/LFT/L1-040/L00_008_QA_040T/detector_info",
             )
 
         """
@@ -186,46 +193,70 @@ class FreqChannelInfo:
     fknee_mhz: float = 0.0
     fmin_hz: float = 1e-5
     alpha: float = 1.0
-    number_of_detectors: Union[int, None] = None
-    detector_names: Union[List[str], None] = None
+    number_of_detectors: int = 0
+    detector_names: List[str] = field(default_factory=list)
+    detector_objs: List[UUID] = field(default_factory=list)
 
     def __post_init__(self):
         if self.channel is None:
             self.channel = f"{self.bandcenter_ghz:.1f} GHz"
 
-        if self.number_of_detectors is not None:
+        if self.number_of_detectors > 0:
             # First hypothesis: we have set the number of detectors. Check
             # that this is consistent with the field "self.detector_names"
 
-            if self.detector_names is not None:
+            if self.detector_names:
                 assert len(self.detector_names) == self.number_of_detectors
             else:
                 self.detector_names = [
                     f"det{x:d}" for x in range(self.number_of_detectors)
                 ]
+
+            if self.detector_objs:
+                assert len(self.detector_objs) == self.number_of_detectors
         else:
             # Second hypothesis: the number of detectors was not set.
-            # Check if we have detector names.
-            if self.detector_names is not None:
+            # Check if we have detector names or objects.
+            if self.detector_names:
                 self.number_of_detectors = len(self.detector_names)
             else:
-                self.number_of_detectors = 1
-                self.detector_names = ["det0"]
+                if self.detector_objs:
+                    self.number_of_detectors = len(self.detector_objs)
+                else:
+                    self.number_of_detectors = 1
+                    self.detector_names = ["det0"]
+
+        # If either net_channel_ukrts or net_detector_ukrts were not
+        # set, derive one from another
+        if self.net_channel_ukrts == 0 and self.net_detector_ukrts > 0:
+            self.net_channel_ukrts = self.net_detector_ukrts / np.sqrt(
+                self.number_of_detectors
+            )
+        elif self.net_channel_ukrts > 0 and self.net_detector_ukrts == 0:
+            self.net_detector_ukrts = self.net_channel_ukrts * np.sqrt(
+                self.number_of_detectors
+            )
+
+        # Convert the items in the list of detector objects into
+        # proper UUIDs
+        for det_idx, det_obj in enumerate(self.detector_objs):
+            if not isinstance(det_obj, UUID):
+                self.detector_objs[det_idx] = UUID(det_obj)
 
     @staticmethod
-    def from_dict(dictionary):
-        return FreqChannelInfo(**dictionary)
+    def from_dict(dictionary: Dict[str, Any]):
+        result = FreqChannelInfo(bandcenter_ghz=0.0)
+        for param in fields(FreqChannelInfo):
+            if param.name in dictionary:
+                setattr(result, param.name, dictionary[param.name])
+
+        # Force initializers in __post_init__ to be called
+        result.__post_init__()
+        return result
 
     @staticmethod
-    def from_imo(imo, objref):
-        obj = imo.query(objref)
-        dictcopy = dict(obj.metadata)
-
-        # This field is in the imo but is redundant, so we do not
-        # store it in this class
-        if "number_of_detectors" in dictcopy:
-            del dictcopy["number_of_detectors"]
-
+    def from_imo(imo: Imo, url: Union[UUID, str]):
+        obj = imo.query(url)
         return FreqChannelInfo.from_dict(obj.metadata)
 
     def get_boresight_detector(self, name="mock") -> DetectorInfo:
@@ -241,3 +272,65 @@ class FreqChannelInfo:
             bandwidth_ghz=self.bandwidth_ghz,
             bandcenter_ghz=self.bandcenter_ghz,
         )
+
+
+@dataclass
+class InstrumentInfo:
+    name: str = ""
+    boresight_rotangle_rad: float = 0.0
+    spin_boresight_angle_rad: float = 0.0
+    spin_rotangle_rad: float = 0.0
+    bore2spin_quat = np.array([0.0, 0.0, 0.0, 1.0])
+    hwp_rpm: float = 0.0
+    number_of_channels: int = 0
+    channel_names: List[str] = field(default_factory=list)
+    channel_objs: List[UUID] = field(default_factory=list)
+    wafer_names: List[str] = field(default_factory=list)
+    wafer_space_cm: float = 0.0
+
+    def __post_init__(self):
+        self.bore2spin_quat = self.__compute_bore2spin_quat__()
+
+        for det_idx, det_obj in enumerate(self.channel_objs):
+            if not isinstance(det_obj, UUID):
+                self.channel_objs[det_idx] = UUID(det_obj)
+
+    def __compute_bore2spin_quat__(self):
+        quat = np.array(quat_rotation_z(self.boresight_rotangle_rad))
+        quat_left_multiply(quat, *quat_rotation_y(self.spin_boresight_angle_rad))
+        quat_left_multiply(quat, *quat_rotation_z(self.spin_rotangle_rad))
+        return quat
+
+    @staticmethod
+    def from_dict(dictionary: Dict[str, Any]):
+        name = dictionary.get("name", "mock-instrument")
+        boresight_rotangle_rad = np.deg2rad(
+            dictionary.get("boresight_rotangle_deg", 0.0)
+        )
+        spin_boresight_angle_rad = np.deg2rad(
+            dictionary.get("spin_boresight_angle_deg", 0.0)
+        )
+        spin_rotangle_rad = np.deg2rad(dictionary.get("spin_rotangle_deg", 0.0))
+        hwp_rpm = dictionary.get("hwp_rpm", 0.0)
+        number_of_channels = dictionary.get("number_of_channels", 0)
+        channel_names = dictionary.get("channel_names", [])
+        channel_objs = dictionary.get("channel_objs", [])
+        wafer_names = dictionary.get("wafers", [])
+        wafer_space_cm = dictionary.get("waferspace", 0.0)
+        return InstrumentInfo(
+            name=name,
+            boresight_rotangle_rad=boresight_rotangle_rad,
+            spin_boresight_angle_rad=spin_boresight_angle_rad,
+            spin_rotangle_rad=spin_rotangle_rad,
+            hwp_rpm=hwp_rpm,
+            number_of_channels=number_of_channels,
+            channel_names=channel_names,
+            channel_objs=channel_objs,
+            wafer_names=wafer_names,
+            wafer_space_cm=wafer_space_cm,
+        )
+
+    @staticmethod
+    def from_imo(imo: Imo, url: Union[UUID, str]):
+        obj = imo.query(url)
+        return InstrumentInfo.from_dict(obj.metadata)

@@ -107,6 +107,7 @@ similar to what is going to be used for LiteBIRD:
 
   import litebird_sim as lbs
   import astropy.units as u
+  import numpy as np
 
   sim = lbs.Simulation(
       start_time=0,
@@ -125,7 +126,10 @@ similar to what is going to be used for LiteBIRD:
           precession_period_min=(4 * u.day).to("min").value,
       )
   )
-  instr = lbs.Instrument(name="core", spin_boresight_angle_deg=65)
+  instr = lbs.InstrumentInfo(
+      name="core",
+      spin_boresight_angle_rad=np.deg2rad(65),
+  )
 
   # The motion of the spacecraft is now encoded in a set of quaternions,
   # in the field `sim.spin2ecliptic_quats`. We use it to produce the
@@ -204,8 +208,9 @@ is encoded in a quaternion that is saved in the IMO.
 
 Next, we move from the reference frame of the boresight to that of the
 spacecraft. The information about the placement of the boresight with
-respect to the spin axis is encoded in the class :class:`Instrument`.
-After this transformation, the spin axis is aligned with the `z` axis.
+respect to the spin axis is encoded in the class
+:class:`InstrumentInfo`. After this transformation, the spin axis is
+aligned with the `z` axis.
 
 The next transformation goes from the spacecraft's to the Ecliptic
 reference frame; the Ecliptic is on the `xy` plane, and the `z` axis
@@ -267,7 +272,7 @@ that of the spin axis:
    of the focal plane (with the `z` axis aligned with the boresight)
    to the reference frame of the spacecraft (where the `z` axis is
    aligned with its spin axis). This quaternion is stored in the field
-   ``bore2spin_quat`` of the class :class:`.Instrument`.
+   ``bore2spin_quat`` of the class :class:`.InstrumentInfo`.
 
 The LiteBIRD Simulation Framework recomputes the orientation of the
 spacecraft with a regular spacing in time (the default is one minute).
@@ -752,7 +757,10 @@ boresight detector using :meth:`.Observation.get_ecl2det_quaternions`:
           precession_period_min=(4 * u.day).to("min").value,
       )
   )
-  instr = lbs.Instrument(name="core", spin_boresight_angle_deg=65)
+  instr = lbs.InstrumentInfo(
+      name="core",
+      spin_boresight_angle_rad=np.deg2rad(65),
+  )
   det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
 
