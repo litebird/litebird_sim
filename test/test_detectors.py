@@ -240,3 +240,58 @@ def test_instrument_from_imo():
     instr = lbs.InstrumentInfo.from_imo(imo, uuid)
 
     check_instrument(instr)
+
+
+def test_det_list_from_imo():
+    with (Path(__file__).parent / ".." / "docs" / "det_list1.toml").open("rt") as inpf:
+        toml_contents = "".join(inpf.readlines())
+
+    doc = tomlkit.parse(toml_contents)
+
+    imo = load_mock_imo()
+    det_list = lbs.detector_list_from_parameters(imo, doc["detectors"])
+
+    assert len(det_list) == 6
+
+    # The first detector in the TOML file is the test data we used
+    # above, so we can employ "check_detector" again
+    check_detector(det_list[0])
+
+    # The second and third detectors should have been created from a
+    # channel_info
+    assert isinstance(det_list[1], lbs.DetectorInfo)
+    assert det_list[1].name == "foo1"
+    assert det_list[1].bandcenter_ghz == 65.0
+    assert det_list[1].net_ukrts == 78.0
+
+    assert det_list[2].name == "foo2"
+    assert det_list[2].bandcenter_ghz == 66.0
+    assert det_list[2].net_ukrts == 79.0
+
+    # The fourth detector is a mock detector representative of a
+    # frequency channel and aligned with the boresight
+    assert det_list[3].name == "foo_boresight"
+    assert det_list[3].bandcenter_ghz == 65.0
+    assert det_list[3].net_ukrts == 300.0
+    assert np.allclose(det_list[3].quat, np.array([0, 0, 0, 1]))
+
+    # The fifth detector must be a Planck-like radiometer
+    assert det_list[4].name == "planck30GHz"
+    assert det_list[4].channel == "30 GHz"
+    assert np.allclose(det_list[4].fwhm_arcmin, 33.10)
+    assert np.allclose(det_list[4].fknee_mhz, 113.9)
+    assert np.allclose(det_list[4].bandwidth_ghz, 9.89)
+    assert np.allclose(det_list[4].bandcenter_ghz, 28.4)
+    assert np.allclose(det_list[4].sampling_rate_hz, 32.5)
+
+    # Detector det_list[5] must be the same as det_list[0], but with a
+    # different sampling rate
+    assert np.allclose(det_list[0].quat, det_list[5].quat)
+    for cur_field in fields(lbs.DetectorInfo):
+        if cur_field.name in ["sampling_rate_hz", "quat"]:
+            continue
+
+        val = getattr(det_list[5], cur_field.name)
+        assert val == getattr(det_list[0], cur_field.name)
+
+    assert det_list[5].sampling_rate_hz == 1.0

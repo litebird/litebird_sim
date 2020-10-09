@@ -334,3 +334,55 @@ class InstrumentInfo:
     def from_imo(imo: Imo, url: Union[UUID, str]):
         obj = imo.query(url)
         return InstrumentInfo.from_dict(obj.metadata)
+
+
+################################################################################
+
+
+def detector_list_from_parameters(
+    imo: Imo, definition_list: List[Any]
+) -> List[DetectorInfo]:
+
+    result = []
+
+    for det_def in definition_list:
+        assert isinstance(det_def, dict)
+        det = DetectorInfo()
+
+        if "channel_info_obj" in det_def:
+            ch = FreqChannelInfo.from_imo(imo, det_def["channel_info_obj"])
+
+            use_only_one_boresight_detector = det_def.get(
+                "use_only_one_boresight_detector", False
+            )
+
+            if use_only_one_boresight_detector:
+                result.append(
+                    ch.get_boresight_detector(
+                        name=det_def.get("detector_name", "mock_boresight")
+                    )
+                )
+                continue
+
+            ch.number_of_detectors = det_def.get(
+                "num_of_detectors_from_channel", ch.number_of_detectors
+            )
+
+            result += [
+                DetectorInfo.from_imo(imo, url)
+                for url in ch.detector_objs[: ch.number_of_detectors]
+            ]
+            continue
+
+        if "detector_info_obj" in det_def:
+            det = DetectorInfo.from_imo(imo, det_def["detector_info_obj"])
+        else:
+            det = DetectorInfo()
+
+        for param in fields(DetectorInfo):
+            if param.name in det_def:
+                setattr(det, param.name, det_def[param.name])
+
+        result.append(det)
+
+    return result
