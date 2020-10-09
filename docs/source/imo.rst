@@ -18,7 +18,7 @@ following paragraphs::
   scan_params = imo.query(
       "/releases/v0.10/satellite/scanning_parameters"
   )
-  metadata = scan_params["metadata"]
+  metadata = scan_params.metadata
   print(metadata["spin_sun_angle_deg"])
 
   # Output: the angle between the sun and the spin axis, in degrees
