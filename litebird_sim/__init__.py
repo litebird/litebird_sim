@@ -47,6 +47,7 @@ from .scanning import (
     ScanningStrategy,
     SpinningScanningStrategy,
 )
+from .mapping import make_bin_map
 from .simulations import Simulation
 from .version import __author__, __version__
 
@@ -109,6 +110,8 @@ __all__ = [
     "Spin2EclipticQuaternions",
     "ScanningStrategy",
     "SpinningScanningStrategy",
+    # mapping.py
+    "make_bin_map",
     # simulations.py
     "Simulation",
 ]
