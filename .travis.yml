@@ -52,7 +52,7 @@ matrix:
         pip: true
         directories:
           - $HOME/Library/Caches/pypoetry
-    
+  
 before_cache:
   - rm -rf $HOME/.cache/pip/http
 
