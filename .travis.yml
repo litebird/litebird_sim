@@ -27,27 +27,27 @@ matrix:
   include:
     - name: "Python 3.7 on MacOSX (no MPI)"
       os: osx
-      osx_image: xcode12
+      osx_image: xcode10.2
       language: shell
-      env: PYTHON=37 MPI=none EXTRAS=
+      env: MPI=none EXTRAS=
       cache:
         pip: true
         directories:
           - $HOME/Library/Caches/pypoetry
     - name: "Python 3.7 on MacOSX (mpich)"
       os: osx
-      osx_image: xcode12
+      osx_image: xcode10.2
       language: shell
-      env: PYTHON=37 MPI=mpich EXTRAS=--extras=mpi
+      env: MPI=mpich EXTRAS=--extras=mpi
       cache:
         pip: true
         directories:
           - $HOME/Library/Caches/pypoetry
     - name: "Python 3.7 on MacOSX (openmpi)"
       os: osx
-      osx_image: xcode12
+      osx_image: xcode10.2
       language: shell
-      env: PYTHON=37 MPI=openmpi EXTRAS=--extras=mpi
+      env: MPI=openmpi EXTRAS=--extras=mpi
       cache:
         pip: true
         directories:
