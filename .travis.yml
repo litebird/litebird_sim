@@ -30,19 +30,30 @@ matrix:
       osx_image: xcode12
       language: shell
       env: MPI=none EXTRAS=
+      cache:
+        directories:
+          - $HOME/Library/Caches/pypoetry
     - name: "Python 3.7 on MacOSX (mpich)"
       os: osx
       osx_image: xcode12
       language: shell
       env: MPI=mpich EXTRAS=--extras=mpi
+      cache:
+        directories:
+          - $HOME/Library/Caches/pypoetry
     - name: "Python 3.7 on MacOSX (openmpi)"
       os: osx
       osx_image: xcode12
       language: shell
       env: MPI=openmpi EXTRAS=--extras=mpi
+      cache:
+        directories:
+          - $HOME/Library/Caches/pypoetry
     
 cache:
   apt: true
+  directories:
+    - $HOME/.cache/pypoetry
 
 addons:
   apt:
