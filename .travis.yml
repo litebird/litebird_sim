@@ -25,27 +25,27 @@ env:
 
 matrix:
   include:
-    - name: "Python 3.7 on MacOSX (no MPI)"
+    - name: "Python 3 on MacOSX (no MPI)"
       os: osx
-      osx_image: xcode10.2
+      osx_image: xcode12
       language: shell
       env: MPI=none EXTRAS=
       cache:
         pip: true
         directories:
           - $HOME/Library/Caches/pypoetry
-    - name: "Python 3.7 on MacOSX (mpich)"
+    - name: "Python 3 on MacOSX (mpich)"
       os: osx
-      osx_image: xcode10.2
+      osx_image: xcode12
       language: shell
       env: MPI=mpich EXTRAS=--extras=mpi
       cache:
         pip: true
         directories:
           - $HOME/Library/Caches/pypoetry
-    - name: "Python 3.7 on MacOSX (openmpi)"
+    - name: "Python 3 on MacOSX (openmpi)"
       os: osx
-      osx_image: xcode10.2
+      osx_image: xcode12
       language: shell
       env: MPI=openmpi EXTRAS=--extras=mpi
       cache:
@@ -53,6 +53,9 @@ matrix:
         directories:
           - $HOME/Library/Caches/pypoetry
     
+before_cache:
+  - rm -rf $HOME/.cache/pip/http
+
 cache:
   apt: true
   pip: true
