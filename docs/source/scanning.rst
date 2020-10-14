@@ -132,7 +132,7 @@ similar to what is going to be used for LiteBIRD:
   # pointing information for a fake boresight detector `det`, belonging
   # to the instrument `core` (unlike LiteBIRD, CORE had only one focal
   # plane and one instrument)
-  det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
+  det = lbs.Detector(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
   pointings = obs.get_pointings(
       sim.spin2ecliptic_quats,
@@ -674,7 +674,7 @@ computing one quaternion every minute, we compute one quaternion every
        delta_time_s=(30 * u.day).to("s").value
    )
 
-   det = lbs.DetectorInfo(
+   det = lbs.Detector(
        name="foo",
        sampling_rate_hz=1.0 / ((1.0 * u.day).to("s").value),
    )
@@ -753,7 +753,7 @@ boresight detector using :meth:`.Observation.get_ecl2det_quaternions`:
       )
   )
   instr = lbs.Instrument(name="core", spin_boresight_angle_deg=65)
-  det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
+  det = lbs.Detector(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
 
   #################################################################

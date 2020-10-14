@@ -211,7 +211,7 @@ report::
       )
   )
   instr = lbs.Instrument(name="core", spin_boresight_angle_deg=65)
-  det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
+  det = lbs.Detector(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
   pointings = obs.get_pointings(
       sim.spin2ecliptic_quats,
@@ -253,7 +253,7 @@ following things:
    the spacecraft for the whole duration of the simulation (86,400
    seconds, that is one day);
 2. It creates an instance of the :class:`.Instrument` and
-   :class:`.DetectorInfo` classes that represent a boresight detector;
+   :class:`.Detector` classes that represent a boresight detector;
 3. It generates a pointing information matrix;
 4. It produces a coverage map by setting to 1 all those pixels that
    are visited by the directions encoded in the pointing information
