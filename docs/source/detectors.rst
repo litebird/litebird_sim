@@ -148,7 +148,7 @@ with four detectors. Here is a summary of its contents:
    ch = imo.query("/data_files/ff087ba3-d973-4dc3-b72b-b68abb979a90")
    metadata = ch.metadata
 
-   print("Here are the contents of the mock IMO:"
+   print("Here are the contents of the mock IMO:")
    print(f'Channel: {metadata["channel"]}')
    print("Detectors in this channel:")
    for name, obj in zip(metadata["detector_names"],
