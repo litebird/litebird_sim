@@ -59,7 +59,11 @@ of the frequency channel:
       number_of_detectors=64, # 32 pairs
   )
 
+  # Return a "mock" detector that is representative of the
+  # frequency channel
   mock_det = chinfo.get_boresight_detector(name="mydet")
+
+  # Look, ma, a detector!
   assert isinstance(mock_det, lbs.DetectorInfo)
   assert mock_det.name == "mydet"
 
@@ -80,7 +84,7 @@ Reading from the IMO
 
 The way information about detectors and frequency channels is stored
 in the IMO closely match the :class:`.DetectorInfo` and
-:class:`.FreqChannelinfo` classes. In fact, they can be retrieved
+:class:`.FreqChannelInfo` classes. In fact, they can be retrieved
 easily from the IMO using the static methods
 :meth:`.DetectorInfo.from_imo` and :meth:`.FreqChannelInfo.from_imo`::
 
@@ -111,9 +115,9 @@ typically need to be accomodated:
 1. In some simulations, you just need to simulate one detector (whose
    parameters can be taken either from the IMO or from the parameter
    file itself);
-2. In other cases, you want to simulate all the detectors in a
-   frequency channel: in this case, you would like to avoid specifying
-   them one by one!
+2. In other cases, you want to simulate all the detectors in one or
+   more frequency channels: in this case, you would like to avoid
+   specifying them one by one!
 3. In other cases, you might want to specify just a subset
 4. Finally, you might base your simulation on the IMO definition of a
    detector/channel but twiddle a bit with some parameters.
@@ -144,6 +148,7 @@ with four detectors. Here is a summary of its contents:
    ch = imo.query("/data_files/ff087ba3-d973-4dc3-b72b-b68abb979a90")
    metadata = ch.metadata
 
+   print("Here are the contents of the mock IMO:"
    print(f'Channel: {metadata["channel"]}')
    print("Detectors in this channel:")
    for name, obj in zip(metadata["detector_names"],
@@ -155,6 +160,7 @@ with four detectors. Here is a summary of its contents:
 
 .. testoutput::
 
+    Here are the contents of the mock IMO:
     Channel: 65 GHz
     Detectors in this channel:
       foo1: band center at 65.0 GHz
