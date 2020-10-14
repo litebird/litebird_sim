@@ -29,7 +29,7 @@ matrix:
       os: osx
       osx_image: xcode12
       language: shell
-      env: MPI=none EXTRAS=
+      env: PYTHON=37 MPI=none EXTRAS=
       cache:
         pip: true
         directories:
@@ -38,7 +38,7 @@ matrix:
       os: osx
       osx_image: xcode12
       language: shell
-      env: MPI=mpich EXTRAS=--extras=mpi
+      env: PYTHON=37 MPI=mpich EXTRAS=--extras=mpi
       cache:
         pip: true
         directories:
@@ -47,7 +47,7 @@ matrix:
       os: osx
       osx_image: xcode12
       language: shell
-      env: MPI=openmpi EXTRAS=--extras=mpi
+      env: PYTHON=37 MPI=openmpi EXTRAS=--extras=mpi
       cache:
         pip: true
         directories:
