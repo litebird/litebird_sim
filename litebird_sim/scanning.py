@@ -612,13 +612,13 @@ class SpinningScanningStrategy(ScanningStrategy):
 
     The constructor accepts the following parameters:
 
-    - `spin_sun_angle_deg`: angle between the spin axis and the
-      Sun-LiteBIRD direction (floating-point number, in degrees)
+    - `spin_sun_angle_rad`: angle between the spin axis and the
+      Sun-LiteBIRD direction (floating-point number, in radians)
 
-    - `precession_period_min`: the period of the precession rotation
+    - `precession_rate_hz`: the period of the precession rotation
       (floating-point number, in minutes)
 
-    - `spin_rate_rpm`: the number of rotations per minute (RPM) around
+    - `spin_rate_hz`: the number of rotations per minute (RPM) around
       the spin axis (floating-point number)
 
     - `start_time`: an ``astropy.time.Time`` object representing the
@@ -626,18 +626,7 @@ class SpinningScanningStrategy(ScanningStrategy):
       to represent the time when the rotation starts (i.e., the angle
       ωt is zero).
 
-    Once the object is created, the following fields are available:
-
-    - `spin_sun_angle_rad`: the same as `spin_sun_angle_deg`, but in
-      radians
-
-    - `precession_rate_hz`: the frequency of the precession rotation,
-      in Hertz, or zero if no precession occurs (i.e.,
-      `precession_period_min` is zero)
-
-    - `spin_rate_hz`: the frequency of the spin rotation, in Hertz
-
-    - `start_time`: see above
+    These fields are available once the object has been initialized.
 
     You can create an instance of this class using the class method
     :meth:`.from_imo`, which reads the
@@ -647,17 +636,14 @@ class SpinningScanningStrategy(ScanningStrategy):
 
     def __init__(
         self,
-        spin_sun_angle_deg,
-        precession_period_min,
-        spin_rate_rpm,
+        spin_sun_angle_rad,
+        precession_rate_hz,
+        spin_rate_hz,
         start_time=astropy.time.Time("2027-01-01", scale="tdb"),
     ):
-        self.spin_sun_angle_rad = np.deg2rad(spin_sun_angle_deg)
-        if precession_period_min > 0:
-            self.precession_rate_hz = 1.0 / (60.0 * precession_period_min)
-        else:
-            self.precession_rate_hz = 0.0
-        self.spin_rate_hz = spin_rate_rpm / 60.0
+        self.spin_sun_angle_rad = spin_sun_angle_rad
+        self.precession_rate_hz = precession_rate_hz
+        self.spin_rate_hz = spin_rate_hz
         self.start_time = start_time
 
     def all_spin_to_ecliptic(self, result_matrix, sun_earth_angles_rad, time_vector_s):
@@ -690,11 +676,11 @@ class SpinningScanningStrategy(ScanningStrategy):
         return """Spinning scanning strategy:
     angle between the Sun and the spin axis:       {spin_sun_angle_deg:.1f}°
     rotations around the precession angle:         {precession_rate_hr} rot/hr
-    rotations around the spinning axis:            {spin_rate_min} rot/hr
+    rotations around the spinning axis:            {spin_rate_hr} rot/hr
     start time of the simulation:                  {start_time}""".format(
             spin_sun_angle_deg=np.rad2deg(self.spin_sun_angle_rad),
             precession_rate_hr=3600.0 * self.precession_rate_hz,
-            spin_rate_min=3600.0 * self.spin_rate_hz,
+            spin_rate_hr=3600.0 * self.spin_rate_hz,
             start_time=self.start_time,
         )
 
@@ -729,9 +715,9 @@ class SpinningScanningStrategy(ScanningStrategy):
         """
         obj = imo.query(url)
         return SpinningScanningStrategy(
-            spin_sun_angle_deg=obj.metadata["spin_sun_angle_deg"],
-            precession_period_min=obj.metadata["precession_period_min"],
-            spin_rate_rpm=obj.metadata["spin_rate_rpm"],
+            spin_sun_angle_rad=np.deg2rad(obj.metadata["spin_sun_angle_deg"]),
+            precession_rate_hz=1.0 / (60.0 * obj.metadata["precession_period_min"]),
+            spin_rate_hz=obj.metadata["spin_rate_rpm"] / 60.0,
         )
 
     def generate_spin2ecl_quaternions(

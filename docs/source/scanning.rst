@@ -119,11 +119,11 @@ similar to what is going to be used for LiteBIRD:
   # of one minute (specified in the `duration_s` parameter above).
   sim.generate_spin2ecl_quaternions(
       scanning_strategy=lbs.SpinningScanningStrategy(
-          spin_sun_angle_deg=30, # CORE-specific parameter
-          spin_rate_rpm=0.5,     # Ditto
+          spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
+          spin_rate_hz=0.5 / 60.0,     # Ditto
           # We use astropy to convert the period (4 days) in
-          # minutes, the unit expected for the precession period
-          precession_period_min=(4 * u.day).to("min").value,
+          # seconds
+          precession_rate_hz=1.0 / (4 * u.day).to("s").value,
       )
   )
   instr = lbs.InstrumentInfo(
@@ -752,9 +752,9 @@ boresight detector using :meth:`.Observation.get_ecl2det_quaternions`:
   )
   sim.generate_spin2ecl_quaternions(
       scanning_strategy=lbs.SpinningScanningStrategy(
-          spin_sun_angle_deg=30,
-          spin_rate_rpm=0.5,
-          precession_period_min=(4 * u.day).to("min").value,
+          spin_sun_angle_rad=np.deg2rad(30),
+          spin_rate_hz=0.5 / 60.0,
+          precession_rate_hz=1.0 / (4 * u.day).to("s").value,
       )
   )
   instr = lbs.InstrumentInfo(
