@@ -43,7 +43,7 @@ def polarization_angle(theta_rad, phi_rad, poldir):
         polarization_angle(
             theta_rad: float,
             phi_rad: float,
-            poldir: numpy.array[3], 
+            poldir: numpy.array[3],
         )
 
     This function returns the polarization angle (in radians) with

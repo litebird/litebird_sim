@@ -600,7 +600,9 @@ class Simulation:
         self,
         detectors: List[DetectorInfo],
         num_of_obs_per_detector: int = 1,
-        distribute=True,  # XXX If True distribute the list of observations, if False distribute the individial observation
+        # XXX If True distribute the list of observations,
+        # if False distribute the individial observation
+        distribute=True,
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
