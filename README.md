@@ -31,12 +31,12 @@ Template taken from https://github.com/othneildrew/Best-README-Template
   <h3 align="center">LiteBIRD Simulation Framework</h3>
 
   <p align="center">
-    A set of Python modules to simulate the instruments on board the LiteBIRD spacecraft.
+    Main repository of the LiteBIRD Simulation Framework, a set of Python modules to simulate the instruments onboard the LiteBIRD spacecraft.
     <br />
     <a href="https://litebird-sim.readthedocs.io/en/latest/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/litebird/litebird_sim">View Demo</a>
+    <a href="https://litebird-sim.readthedocs.io/en/latest/tutorial.html">View Demo</a>
     ·
     <a href="https://github.com/litebird/litebird_sim/issues">Report Bug</a>
     ·
@@ -66,91 +66,30 @@ Template taken from https://github.com/othneildrew/Best-README-Template
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-[![LiteBIRD collaboration][product-screenshot]](https://example.com)
-
+The LiteBIRD Simulation Framework is being developed for the
+[LiteBIRD collaboration](http://litebird.jp/eng/).
 
 
 ### Built With
 
 -   Love!
--   [Python](https://www.python.org)
+-   [Python 3](https://www.python.org)
 -   [Poetry](https://python-poetry.org/)
 -   [NumPy](https://numpy.org)
 -   [Astropy](https://www.astropy.org)
 -   [Healpix](https://healpix.jpl.nasa.gov)
+-   [Sphinx](https://www.sphinx-doc.org/en/master/)
+-   [Numba](https://numba.pydata.org/)
+-   [ducc](https://github.com/litebird/ducc)
 
 
 <!-- GETTING STARTED -->
 ## Getting Started
 
-To get a local copy up and running follow these simple steps.
-
-### Prerequisites
-
-The LiteBIRD Simulation Framework requires the following tools to be
-installed on your system:
-
-1.   Python 3.6 or newer;
-2.   [Poetry](https://python-poetry.org/), a Python package to handle
-     package dependencies and virtual environments.
-
-You probably already have Python installed on your system. To install
-Poetry, use one of the following commands:
-
--   On Linux/Mac OS X, run the following command from the terminal (no
-    `sudo` is required):
-
-    ```
-    curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
-    ```
-
--   On Windows, start a Powershell terminal and run the following command:
-
-    ```
-    (Invoke-WebRequest -Uri https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py -UseBasicParsing).Content | python
-    ```
-
-
-### Installation
-
-1.  Install the prerequisites listed above;
-
-2.  Be sure not to have a virtual environment/Conda custom environment
-    active, as `poetry` does not plays nicely with them (Poetry handles
-    a hidden virtual environment by itself, so there's little point in
-    creating one for `litebird_sim`.) See
-    [github.com/python-poetry/poetry/issues/1724](https://github.com/python-poetry/poetry/issues/1724)
-    for more details.
-    
-    Run the following commands to clone this repository, install all
-    the dependencies and build the framework:
-
-    ```
-    git clone git@github.com:litebird/litebird_sim.git
-    cd litebird_sim
-    poetry install --extras=jupyter --extras=docs
-    poetry build
-    ```
-
-    There are a few extras you can enable by adding proper `--extras` flag
-    to the `poetry install` command above:
-
-    -   `--extras=jupyter` will enable Jupyter;
-    -   `--extras=docs` will install Sphinx and all the tools to
-        generate the documentation;
-    -   `--extras=mpi` will add support for MPI.
-
-3.  Run the set of tests, to check that everything works. On Linux/Mac OS X:
-
-    ```
-    ./bin/run_tests.sh
-    ```
-
-    On Windows:
-
-    ```
-    .\bin\run_tests.bat
-    ```
+Refer to the
+[documentation](https://litebird-sim.readthedocs.io/en/latest/installation.html)
+to learn how to install the LiteBIRD simulation framework on your
+computer or on a HPC cluster.
 
 
 <!-- USAGE EXAMPLES -->
@@ -176,7 +115,6 @@ command:
     ```
 
 
-
 <!-- ROADMAP -->
 ## Roadmap
 
@@ -197,7 +135,6 @@ contributions you make are **greatly appreciated**.
 4.  Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 5.  Push to the Branch (`git push origin feature/AmazingFeature`)
 6.  Open a Pull Request
-
 
 
 <!-- LICENSE -->
