@@ -215,7 +215,7 @@ def test_distribute_observation(tmp_path):
     sim = lbs.Simulation(
         base_path=tmp_path / "simulation_dir", start_time=1.0, duration_s=11.0
     )
-    det = lbs.Detector("dummy", sampling_rate_hz=15)
+    det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
     obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
 
     assert len(obs_list) == 5
@@ -229,7 +229,7 @@ def test_distribute_observation_astropy(tmp_path):
         start_time=astropy.time.Time("2020-01-01T00:00:00"),
         duration_s=11.0,
     )
-    det = lbs.Detector("dummy", sampling_rate_hz=15)
+    det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
     obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
 
     assert len(obs_list) == 5

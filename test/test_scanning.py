@@ -57,7 +57,7 @@ def test_calculate_sun_earth_angles_rad():
 
 
 def create_fake_detector(sampling_rate_hz=1):
-    return lbs.Detector(
+    return lbs.DetectorInfo(
         name="dummy",
         sampling_rate_hz=sampling_rate_hz,
         quat=np.array([0.0, 0.0, 0.0, 1.0]),
@@ -81,7 +81,7 @@ def test_simulation_pointings_still():
     sim.generate_spin2ecl_quaternions(sstr, delta_time_s=60.0)
     assert sim.spin2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=0.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
     # Move the Z vector manually using the last quaternion and check
     # that it's rotated by 1/365.25 of a complete circle
@@ -107,8 +107,7 @@ def test_simulation_pointings_still():
     # 365.25 days of a complete circle (we have 24 samples, from t = 0
     # to t = 23 hr)
     assert np.allclose(
-        np.abs(longitude[..., -1] - longitude[..., 0]),
-        2 * np.pi * 23 / 365.25 / 24
+        np.abs(longitude[..., -1] - longitude[..., 0]), 2 * np.pi * 23 / 365.25 / 24
     )
 
 
@@ -129,7 +128,7 @@ def test_simulation_pointings_polangle(tmp_path):
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=0.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
     pointings_and_polangle = obs.get_pointings(
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
@@ -164,7 +163,7 @@ def test_simulation_pointings_spinning(tmp_path):
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=15.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
 
     pointings_and_polangle = obs.get_pointings(
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
@@ -183,8 +182,7 @@ def test_simulation_pointings_spinning(tmp_path):
         for i in range(pointings_and_polangle.shape[1]):
             print(
                 *healpy.ang2vec(
-                    pointings_and_polangle[0, i, 0],
-                    pointings_and_polangle[0, i, 1]
+                    pointings_and_polangle[0, i, 0], pointings_and_polangle[0, i, 1]
                 ),
                 file=outf,
             )
@@ -214,7 +212,7 @@ def test_simulation_pointings_mjd(tmp_path):
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=60.0)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=20.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
 
     for obs in sim.observations:
         pointings_and_polangle = obs.get_pointings(
@@ -241,7 +239,7 @@ def test_scanning_quaternions(tmp_path):
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
-    instr = lbs.Instrument(spin_boresight_angle_deg=15.0)
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
     detector_quat = np.array([[0.0, 0.0, 0.0, 1.0]])
 
     det2ecl_quats = obs.get_det2ecl_quaternions(

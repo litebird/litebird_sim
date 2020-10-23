@@ -1,0 +1,13 @@
+# This is file "det_list2.toml"
+
+[simulation1]
+
+# Detectors to be used for the first simulation
+[[simulation1.detectors]]
+detector_info_obj = "/data_files/78fe75f1-a011-44b6-86dd-445dc9634416"
+
+[simulation2]
+
+# Detectors to be used for the second simulation
+[[simulation2.detectors]]
+detector_info_obj = "/data_files/58db7186-3ee7-49e5-8605-4a5ed084f99e"

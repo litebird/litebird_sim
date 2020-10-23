@@ -210,7 +210,10 @@ report::
           precession_period_min=(4 * u.day).to("min").value,
       )
   )
-  instr = lbs.Instrument(name="core", spin_boresight_angle_deg=65)
+  instr = lbs.Instrument(
+      name="core",
+      spin_boresight_angle_rad=np.deg2rad(65),
+  )
   det = lbs.Detector(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
   pointings = obs.get_pointings(

@@ -67,8 +67,12 @@ class Observation:
         n_samples: int,
         start_time: Union[float, astropy.time.Time],
         sampling_rate_hz: float,
-        allocate_tod=True, dtype_tod=np.float32,
-        n_blocks_det=1, n_blocks_time=1, comm=None, root=0
+        allocate_tod=True,
+        dtype_tod=np.float32,
+        n_blocks_det=1,
+        n_blocks_time=1,
+        comm=None,
+        root=0,
     ):
         self.comm = comm
         self.start_time = start_time
@@ -96,25 +100,29 @@ class Observation:
 
         if allocate_tod:
             self.tod = np.empty(
-                self._get_tod_shape(n_blocks_det, n_blocks_time),
-                dtype=dtype_tod)
+                self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=dtype_tod
+            )
 
-        self.detector_global_info('det_idx', np.arange(self._n_detectors), root)
+        self.detector_global_info("det_idx", np.arange(self._n_detectors), root)
         if not isinstance(detectors, int):
             self._set_attributes_from_list_of_dict(detectors, root)
 
-        self.local_start_time, self.local_start, self.local_n_samples = \
-            self._get_local_start_time_start_and_n_samples()
+        (
+            self.local_start_time,
+            self.local_start,
+            self.local_n_samples,
+        ) = self._get_local_start_time_start_and_n_samples()
 
     @property
     def sampling_rate_hz(self):
         return self._sampling_rate_hz
 
     def _get_local_start_time_start_and_n_samples(self):
-        _, _, start, num = self._get_start_and_num(self._n_blocks_det,
-                                                   self._n_blocks_time)
+        _, _, start, num = self._get_start_and_num(
+            self._n_blocks_det, self._n_blocks_time
+        )
         if self.comm:
-            if (self.comm.rank < self._n_blocks_time * self._n_blocks_det):
+            if self.comm.rank < self._n_blocks_time * self._n_blocks_det:
                 start = start[self.comm.rank % self._n_blocks_time]
                 num = num[self.comm.rank % self._n_blocks_time]
             else:
@@ -125,8 +133,9 @@ class Observation:
             num = num[0]
 
         if isinstance(self.start_time, astropy.time.Time):
-            delta = astropy.time.TimeDelta(1.0 / self.sampling_rate_hz,
-                                           format="sec", scale="tdb")
+            delta = astropy.time.TimeDelta(
+                1.0 / self.sampling_rate_hz, format="sec", scale="tdb"
+            )
         else:
             delta = 1.0 / self.sampling_rate_hz
 
@@ -198,16 +207,19 @@ class Observation:
         elif n_blocks_det > self.n_detectors:
             raise ValueError(
                 "You can not have more detector blocks than detectors "
-                f"({n_blocks_det} > {self.n_detectors})")
+                f"({n_blocks_det} > {self.n_detectors})"
+            )
         elif n_blocks_time > self.n_samples:
             raise ValueError(
                 "You can not have more time blocks than time samples "
-                f"({n_blocks_time} > {self.n_blocks_time})")
+                f"({n_blocks_time} > {self.n_blocks_time})"
+            )
         elif self.comm.size < n_blocks_det * n_blocks_time:
             raise ValueError(
                 "Too many blocks: n_blocks_det x n_blocks_time = "
                 f"{n_blocks_det * n_blocks_time} but the number "
-                f"processes is {self.comm.size}")
+                f"processes is {self.comm.size}"
+            )
 
     def _get_start_and_num(self, n_blocks_det, n_blocks_time):
         """ For both detectors and time, returns the starting (global)
@@ -215,13 +227,23 @@ class Observation:
         values passed as arguments
         """
         det_start, det_n = np.array(
-            [[span.start_idx, span.num_of_elements]
-             for span in distribute_evenly(self._n_detectors, n_blocks_det)]).T
+            [
+                [span.start_idx, span.num_of_elements]
+                for span in distribute_evenly(self._n_detectors, n_blocks_det)
+            ]
+        ).T
         time_start, time_n = np.array(
-            [[span.start_idx, span.num_of_elements]
-             for span in distribute_evenly(self._n_samples, n_blocks_time)]).T
-        return (np.array(det_start), np.array(det_n),
-                np.array(time_start), np.array(time_n))
+            [
+                [span.start_idx, span.num_of_elements]
+                for span in distribute_evenly(self._n_samples, n_blocks_time)
+            ]
+        ).T
+        return (
+            np.array(det_start),
+            np.array(det_n),
+            np.array(time_start),
+            np.array(time_n),
+        )
 
     def _get_tod_shape(self, n_blocks_det, n_blocks_time):
         """ Return what the shape of ``self.tod`` will be if the blocks are set
@@ -231,11 +253,12 @@ class Observation:
             # Observation not spread across MPI processes -> only one block
             return (self._n_detectors, self._n_samples)
 
-        _, det_n, _, time_n = self._get_start_and_num(n_blocks_det,
-                                                      n_blocks_time)
+        _, det_n, _, time_n = self._get_start_and_num(n_blocks_det, n_blocks_time)
         try:
-            return (det_n[self.comm.rank // n_blocks_time],
-                    time_n[self.comm.rank % n_blocks_time])
+            return (
+                det_n[self.comm.rank // n_blocks_time],
+                time_n[self.comm.rank % n_blocks_time],
+            )
         except IndexError:
             return (0, 0)
 
@@ -258,24 +281,30 @@ class Observation:
             raise ValueError("Unsupported MPI dtype")
 
         new_tod = np.zeros(
-            self._get_tod_shape(n_blocks_det, n_blocks_time),
-            dtype=self.tod.dtype)
+            self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=self.tod.dtype
+        )
 
         # Global start indices and number of elements of both the old and new
         # blocking scheme
-        det_start_sends, _, time_start_sends, time_num_sends =\
-            self._get_start_and_num(self.n_blocks_det, self.n_blocks_time)
-        det_start_recvs, _, time_start_recvs, time_num_recvs =\
-            self._get_start_and_num(n_blocks_det, n_blocks_time)
+        det_start_sends, _, time_start_sends, time_num_sends = self._get_start_and_num(
+            self.n_blocks_det, self.n_blocks_time
+        )
+        det_start_recvs, _, time_start_recvs, time_num_recvs = self._get_start_and_num(
+            n_blocks_det, n_blocks_time
+        )
 
         # Prepare a matrix with the message sizes to be sent/received
         # For a given row, ith old block sends counts[i, j] elements to
         # the jth new block
-        counts = (np.append(time_start_recvs, self._n_samples)[1:]
-                  - time_start_sends[:, None])
+        counts = (
+            np.append(time_start_recvs, self._n_samples)[1:] - time_start_sends[:, None]
+        )
         counts = np.where(counts < 0, 0, counts)
-        counts = np.where(counts > time_num_sends[:, np.newaxis],
-                          time_num_sends[:, np.newaxis], counts)
+        counts = np.where(
+            counts > time_num_sends[:, np.newaxis],
+            time_num_sends[:, np.newaxis],
+            counts,
+        )
         counts = np.where(counts > time_num_recvs, time_num_recvs, counts)
         cum_counts = np.cumsum(counts, 1)
         excess = cum_counts - time_num_sends[:, np.newaxis]
@@ -283,7 +312,7 @@ class Observation:
             for j in range(n_blocks_time):
                 if excess[i, j] > 0:
                     counts[i, j] -= excess[i, j]
-                    counts[i, j + 1:] = 0
+                    counts[i, j + 1 :] = 0
                     break
 
         assert np.all(counts.sum(0) == time_num_recvs)
@@ -293,22 +322,23 @@ class Observation:
         for d in range(self.n_detectors):
             # Get the ranks of the processes involved in the send and in the
             # receive. and create a communicator for them
-            first_sender = (np.where(d >= det_start_sends)[0][-1]
-                            * self.n_blocks_time)
-            first_recver = (np.where(d >= det_start_recvs)[0][-1]
-                            * n_blocks_time)
+            first_sender = np.where(d >= det_start_sends)[0][-1] * self.n_blocks_time
+            first_recver = np.where(d >= det_start_recvs)[0][-1] * n_blocks_time
             is_rank_in_row = (
                 first_sender <= self.comm.rank < first_sender + self.n_blocks_time
-                or first_recver <= self.comm.rank < first_recver + n_blocks_time)
+                or first_recver <= self.comm.rank < first_recver + n_blocks_time
+            )
 
             comm_row = self.comm.Split(int(is_rank_in_row))
             if not is_rank_in_row:
                 continue  # Process not involved, move to the next row
 
             # first_sender and first_recver to the row ranks
-            rank_gap = max(first_recver - first_sender - self.n_blocks_time - 1,
-                           first_sender - first_recver - n_blocks_time - 1,
-                           0)
+            rank_gap = max(
+                first_recver - first_sender - self.n_blocks_time - 1,
+                first_sender - first_recver - n_blocks_time - 1,
+                0,
+            )
             if first_sender < first_recver:
                 first_recver -= first_sender + rank_gap
                 first_sender = 0
@@ -320,13 +350,15 @@ class Observation:
             send_counts = np.zeros(comm_row.size, dtype=np.int32)
             i_block = comm_row.rank - first_sender
             if 0 <= i_block < self.n_blocks_time:
-                send_counts[first_recver: first_recver + n_blocks_time] =\
-                    counts[comm_row.rank - first_sender]
+                send_counts[first_recver : first_recver + n_blocks_time] = counts[
+                    comm_row.rank - first_sender
+                ]
             send_disp = np.zeros_like(send_counts)
             np.cumsum(send_counts[:-1], out=send_disp[1:])
             try:
                 send_buff = self.tod[
-                    d - det_start_sends[self.comm.rank // self.n_blocks_time]]
+                    d - det_start_sends[self.comm.rank // self.n_blocks_time]
+                ]
             except IndexError:
                 send_buff = None
             send_data = [send_buff, send_counts, send_disp, mpi_dtype]
@@ -335,15 +367,17 @@ class Observation:
             recv_counts = np.zeros(comm_row.size, dtype=np.int32)
             i_block = comm_row.rank - first_recver
             if 0 <= i_block < n_blocks_time:
-                recv_counts[first_sender: first_sender + self.n_blocks_time] =\
-                    counts[:, i_block]
+                recv_counts[first_sender : first_sender + self.n_blocks_time] = counts[
+                    :, i_block
+                ]
 
             recv_disp = np.zeros_like(recv_counts)
             np.cumsum(recv_counts[:-1], out=recv_disp[1:])
 
             try:
                 recv_buff = new_tod[
-                    d - det_start_recvs[self.comm.rank // n_blocks_time]]
+                    d - det_start_recvs[self.comm.rank // n_blocks_time]
+                ]
             except IndexError:
                 recv_buff = None
             recv_data = [recv_buff, recv_counts, recv_disp, mpi_dtype]
@@ -352,9 +386,8 @@ class Observation:
 
         self.tod = new_tod
 
-        is_in_old_fist_col = (self.comm.rank % self._n_blocks_time == 0)
-        is_in_old_fist_col &= (self.comm.rank // self._n_blocks_time
-                               < self._n_blocks_det)
+        is_in_old_fist_col = self.comm.rank % self._n_blocks_time == 0
+        is_in_old_fist_col &= self.comm.rank // self._n_blocks_time < self._n_blocks_det
         comm_first_col = self.comm.Split(int(is_in_old_fist_col))
 
         self._n_blocks_det = n_blocks_det
@@ -368,8 +401,11 @@ class Observation:
                     info = np.concatenate(info)
             self.detector_global_info(name, info)
 
-        self.local_start_time, self.local_start, self.local_n_samples = \
-            self._get_local_start_time_start_and_n_samples()
+        (
+            self.local_start_time,
+            self.local_start,
+            self.local_n_samples,
+        ) = self._get_local_start_time_start_and_n_samples()
 
     def detector_info(self, name, info):
         """ Piece of information on the detectors
@@ -440,8 +476,9 @@ class Observation:
         if my_col == root_col:
             if comm_grid.rank == root:
                 starts, nums, _, _ = self._get_start_and_num(
-                    self._n_blocks_det, self._n_blocks_time)
-                info = [info[s:s + n] for s, n, in zip(starts, nums)]
+                    self._n_blocks_det, self._n_blocks_time
+                )
+                info = [info[s : s + n] for s, n, in zip(starts, nums)]
 
             info = comm_col.scatter(info, root)
 
@@ -482,8 +519,9 @@ class Observation:
                 not astropy_times
             ), "you cannot pass astropy_times=True *and* normalize=True"
 
-            return ((np.arange(self.local_n_samples) + self.local_start)
-                    / self.sampling_rate_hz)
+            return (
+                np.arange(self.local_n_samples) + self.local_start
+            ) / self.sampling_rate_hz
 
         if astropy_times:
             assert isinstance(self.start_time, astropy.time.Time), (
@@ -493,8 +531,7 @@ class Observation:
             delta = astropy.time.TimeDelta(
                 1.0 / self.sampling_rate_hz, format="sec", scale="tdb"
             )
-            return (self.local_start_time
-                    + np.arange(self.local_n_samples) * delta)
+            return self.local_start_time + np.arange(self.local_n_samples) * delta
 
         if isinstance(self.start_time, astropy.time.Time):
             # We use "cxcsec" because of the following features:
@@ -541,14 +578,18 @@ class Observation:
         mirrors this one.
 
         """
-        return np.array([spin2ecliptic_quats.get_detector_quats(
-                detector_quat=detector_quat,
-                bore2spin_quat=bore2spin_quat,
-                time0=self.local_start_time,
-                sampling_rate_hz=self.sampling_rate_hz,
-                nsamples=self.local_n_samples,
-            )
-            for detector_quat in detector_quats])
+        return np.array(
+            [
+                spin2ecliptic_quats.get_detector_quats(
+                    detector_quat=detector_quat,
+                    bore2spin_quat=bore2spin_quat,
+                    time0=self.local_start_time,
+                    sampling_rate_hz=self.sampling_rate_hz,
+                    nsamples=self.local_n_samples,
+                )
+                for detector_quat in detector_quats
+            ]
+        )
 
     def get_ecl2det_quaternions(
         self,
@@ -602,7 +643,7 @@ class Observation:
         example, it can be
 
         - The stack of the field `quat` of an instance of the class
-           :class:`.Detector`
+           :class:`.DetectorInfo`
 
         - If all you want to do is a simulation using a boresight
            direction, you can pass the value ``np.array([[0., 0., 0.,
