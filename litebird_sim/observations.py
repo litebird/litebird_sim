@@ -5,10 +5,7 @@ import astropy.time
 import numpy as np
 
 from .distribute import distribute_evenly
-from .scanning import (
-    Spin2EclipticQuaternions,
-    all_compute_pointing_and_polangle,
-)
+from .scanning import Spin2EclipticQuaternions, all_compute_pointing_and_polangle
 
 
 class Observation:
@@ -667,7 +664,7 @@ class Observation:
 
         """
         det2ecliptic_quats = self.get_det2ecl_quaternions(
-            spin2ecliptic_quats, detector_quats, bore2spin_quat,
+            spin2ecliptic_quats, detector_quats, bore2spin_quat
         )
 
         # Compute the pointing direction for each sample

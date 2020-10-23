@@ -69,14 +69,14 @@ def test_simulation_pointings_still():
     fakedet = create_fake_detector(sampling_rate_hz=1 / 3600)
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False,
+        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False
     )
     assert len(sim.observations) == 1
     obs = sim.observations[0]
 
     # The spacecraft stands still in L2, with no spinning nor precession
     sstr = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=0.0,
+        spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=0.0
     )
     sim.generate_spin2ecl_quaternions(sstr, delta_time_s=60.0)
     assert sim.spin2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
@@ -113,18 +113,18 @@ def test_simulation_pointings_still():
 
 def test_simulation_pointings_polangle(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0,
+        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0
     )
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False,
+        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False
     )
     assert len(sim.observations) == 1
     obs = sim.observations[0]
 
     sstr = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0 / 60,
+        spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0 / 60
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
@@ -148,18 +148,18 @@ def test_simulation_pointings_polangle(tmp_path):
 
 def test_simulation_pointings_spinning(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0,
+        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0
     )
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False,
+        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False
     )
     assert len(sim.observations) == 1
     obs = sim.observations[0]
 
     sstr = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0,
+        spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 
@@ -204,11 +204,11 @@ def test_simulation_pointings_mjd(tmp_path):
     fakedet = create_fake_detector()
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=2, distribute=False,
+        detectors=[fakedet], num_of_obs_per_detector=2, distribute=False
     )
 
     sstr = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=10.0, precession_rate_hz=10.0, spin_rate_hz=0.1,
+        spin_sun_angle_rad=10.0, precession_rate_hz=10.0, spin_rate_hz=0.1
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=60.0)
 
@@ -224,18 +224,18 @@ def test_simulation_pointings_mjd(tmp_path):
 
 def test_scanning_quaternions(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0,
+        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0
     )
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False,
+        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False
     )
     assert len(sim.observations) == 1
     obs = sim.observations[0]
 
     sstr = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0,
+        spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0
     )
     sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
 

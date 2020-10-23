@@ -347,7 +347,7 @@ class Simulation:
             else:
                 log.basicConfig(level=log.CRITICAL, format=log_format)
 
-    def write_healpix_map(self, filename: str, pixels, **kwargs,) -> str:
+    def write_healpix_map(self, filename: str, pixels, **kwargs) -> str:
         """Save a Healpix map in the output folder
 
         Args:
@@ -378,9 +378,7 @@ class Simulation:
 
         """
         filename = self.base_path / Path(filename)
-        write_healpix_map_to_file(
-            filename=filename, pixels=pixels, **kwargs,
-        )
+        write_healpix_map_to_file(filename=filename, pixels=pixels, **kwargs)
 
         self.list_of_outputs.append(
             OutputFileRecord(path=filename, description="Healpix map")
@@ -557,9 +555,7 @@ class Simulation:
         template_file_path = get_template_file_path("report_appendix.md")
         with template_file_path.open("rt") as inpf:
             markdown_template = "".join(inpf.readlines())
-        self.append_to_report(
-            markdown_template, **dictionary,
-        )
+        self.append_to_report(markdown_template, **dictionary)
 
         # Expand the markdown text using Jinja2
         with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
@@ -595,7 +591,7 @@ class Simulation:
 
         # Finally, write down the full HTML report
         html_report_path = self.base_path / "report.html"
-        with codecs.open(html_report_path, "w", encoding="utf-8",) as outf:
+        with codecs.open(html_report_path, "w", encoding="utf-8") as outf:
             outf.write(html_full_report)
 
         return html_report_path
