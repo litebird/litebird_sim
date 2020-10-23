@@ -151,7 +151,7 @@ def test_construction_from_detectors():
         assert obs.name[0] == "pol02"
         assert obs.wafer[0] == "mywafer"
         assert obs.pixel[0] == 2
-        assert obs.pixtype[0] == None
+        assert obs.pixtype[0] is None
         assert obs.ellipticity[0] == 2.0
         assert np.all(obs.quat[0] == np.ones(4))
         assert np.isnan(obs.alpha[0])
