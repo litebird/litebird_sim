@@ -96,7 +96,7 @@ computer or on a HPC cluster.
 ## Usage
 
 The documentation is available online at
-[litebird.github.io/litebird_sim/index.html](https://litebird.github.io/litebird_sim/build/html/index.html).
+[litebird-sim.readthedocs.io/en/latest/](https://litebird-sim.readthedocs.io/en/latest/).
 
 To create a local copy of the documentation, make sure you ran
 `poetry` with the flag `--extras=docs`, then run the following
