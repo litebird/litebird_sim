@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from pathlib import Path
+
 from astropy.time import Time
 import numpy as np
 import litebird_sim as lbs
@@ -172,20 +174,13 @@ def test_simulation_pointings_spinning(tmp_path):
     )
     colatitude = pointings_and_polangle[..., 0]
 
-    with open("spin2ecliptic_quats.txt", "wt") as outf:
-        for i in range(sim.spin2ecliptic_quats.quats.shape[0]):
-            print(*sim.spin2ecliptic_quats.quats[i, :], file=outf)
+    reference_spin2ecliptic_file = Path(__file__).parent / "reference_spin2ecl.txt.gz"
+    reference = np.loadtxt(reference_spin2ecliptic_file)
+    assert np.allclose(sim.spin2ecliptic_quats.quats, reference)
 
-    with open("pointings.txt", "wt") as outf:
-        import healpy
-
-        for i in range(pointings_and_polangle.shape[1]):
-            print(
-                *healpy.ang2vec(
-                    pointings_and_polangle[0, i, 0], pointings_and_polangle[0, i, 1]
-                ),
-                file=outf,
-            )
+    reference_pointings_file = Path(__file__).parent / "reference_pointings.txt.gz"
+    reference = np.loadtxt(reference_pointings_file)
+    assert np.allclose(pointings_and_polangle[0, :, :], reference)
 
     # Check that the colatitude does not depart more than ±15° from
     # the Ecliptic
@@ -214,12 +209,16 @@ def test_simulation_pointings_mjd(tmp_path):
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
 
-    for obs in sim.observations:
+    for idx, obs in enumerate(sim.observations):
         pointings_and_polangle = obs.get_pointings(
             spin2ecliptic_quats=sim.spin2ecliptic_quats,
             detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
             bore2spin_quat=instr.bore2spin_quat,
         )
+
+        filename = Path(__file__).parent / f"reference_obs_pointings{idx:03d}.npy"
+        reference = np.load(filename, allow_pickle=False)
+        assert np.allclose(pointings_and_polangle, reference)
 
 
 def test_scanning_quaternions(tmp_path):
