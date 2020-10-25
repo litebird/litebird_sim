@@ -11,11 +11,7 @@ def test_observation_time():
     ref_time = astrotime.Time("2020-02-20", format="iso")
 
     obs_no_mjd = lbs.Observation(
-        detectors=1,
-        start_time=0.0,
-        sampling_rate_hz=5.0,
-        n_samples=5,
-        comm=comm_world,
+        detectors=1, start_time=0.0, sampling_rate_hz=5.0, n_samples=5, comm=comm_world
     )
     obs_mjd_astropy = lbs.Observation(
         detectors=1,
@@ -27,23 +23,24 @@ def test_observation_time():
 
     res_times = np.array([0.0, 0.2, 0.4, 0.6, 0.8])
     res_mjd = np.array(
-        [0.0, 2.31481681e-06, 4.62962635e-06, 6.94444316e-06, 9.25925997e-06])
+        [0.0, 2.314_816_81e-06, 4.629_626_35e-06, 6.944_443_16e-06, 9.259_259_97e-06]
+    )
     res_cxcsec = np.array(
-        [6.98544069e8, 6.98544069e8, 6.98544070e8, 6.98544070e8, 6.98544070e8])
+        [6.985_440_69e8, 6.985_440_69e8, 6.985_440_70e8, 6.985_440_70e8, 6.985_440_70e8]
+    )
 
     if not comm_world or comm_world.rank == 0:
         assert np.allclose(obs_no_mjd.get_times(), res_times)
         assert np.allclose(
-            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
-            res_mjd)
+            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd, res_mjd
+        )
         assert np.allclose(
-            obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
-            res_cxcsec)
+            obs_mjd_astropy.get_times(normalize=False, astropy_times=False), res_cxcsec
+        )
     else:
         assert obs_no_mjd.get_times().size == 0
         assert obs_mjd_astropy.get_times(astropy_times=True).size == 0
-        assert obs_mjd_astropy.get_times(
-            normalize=False, astropy_times=False).size == 0
+        assert obs_mjd_astropy.get_times(normalize=False, astropy_times=False).size == 0
 
     if not comm_world or comm_world.size == 1:
         return
@@ -52,19 +49,21 @@ def test_observation_time():
     if comm_world.rank == 0:
         assert np.allclose(obs_no_mjd.get_times(), res_times[:3])
         assert np.allclose(
-            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
-            res_mjd[:3])
+            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd, res_mjd[:3]
+        )
         assert np.allclose(
             obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
-            res_cxcsec[:3])
+            res_cxcsec[:3],
+        )
     elif comm_world.rank == 1:
         assert np.allclose(obs_no_mjd.get_times(), res_times[3:])
         assert np.allclose(
-            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
-            res_mjd[3:])
+            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd, res_mjd[3:]
+        )
         assert np.allclose(
             obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
-            res_cxcsec[3:])
+            res_cxcsec[3:],
+        )
     else:
         assert obs_no_mjd.get_times().size == 0
         assert obs_mjd_astropy.get_times().size == 0
@@ -91,13 +90,13 @@ def test_construction_from_detectors():
         alpha=1.0,
         pol="Q",
         orient="A",
-        quat=[0., 0., 0., 0.],
+        quat=[0.0, 0.0, 0.0, 0.0],
     )
     det2 = dict(
         name="pol02",
         wafer="mywafer",
         pixel=2,
-        #pixtype="B",
+        # pixtype="B",
         channel=44,
         sampling_rate_hz=50,
         fwhm_arcmin=30,
@@ -105,10 +104,10 @@ def test_construction_from_detectors():
         net_ukrts=1.0,
         fknee_mhz=10,
         fmin_hz=1e-6,
-        #alpha=1.0,
+        # alpha=1.0,
         pol="Q",
         orient="A",
-        quat=[1., 1., 1., 1.],
+        quat=[1.0, 1.0, 1.0, 1.0],
     )
 
     obs = lbs.Observation(
@@ -117,7 +116,7 @@ def test_construction_from_detectors():
         start_time=0.0,
         sampling_rate_hz=1.0,
         comm=comm_world,
-        root=0
+        root=0,
     )
 
     if comm_world.rank == 0:
@@ -129,13 +128,13 @@ def test_construction_from_detectors():
         assert obs.pixel[1] == 2
         assert obs.pixtype[0] == "A"
         assert obs.pixtype[1] is None
-        assert obs.alpha[0] == 1.
+        assert obs.alpha[0] == 1.0
         assert np.isnan(obs.alpha[1])
         assert obs.ellipticity[0] == 1.0
         assert obs.ellipticity[1] == 2.0
         assert np.all(obs.quat[0] == np.zeros(4))
         assert np.all(obs.quat[1] == np.ones(4))
-        
+
     if comm_world.size == 1:
         return
 
@@ -147,12 +146,12 @@ def test_construction_from_detectors():
         assert obs.pixtype[0] == "A"
         assert obs.ellipticity[0] == 1.0
         assert np.all(obs.quat[0] == np.zeros(4))
-        assert obs.alpha[0] == 1.
+        assert obs.alpha[0] == 1.0
     elif comm_world.rank == 1:
         assert obs.name[0] == "pol02"
         assert obs.wafer[0] == "mywafer"
         assert obs.pixel[0] == 2
-        assert obs.pixtype[0] == None
+        assert obs.pixtype[0] is None
         assert obs.ellipticity[0] == 2.0
         assert np.all(obs.quat[0] == np.ones(4))
         assert np.isnan(obs.alpha[0])
@@ -177,7 +176,7 @@ def test_construction_from_detectors():
         assert obs.pixtype[1] is None
         assert obs.ellipticity[0] == 1.0
         assert obs.ellipticity[1] == 2.0
-        assert obs.alpha[0] == 1.
+        assert obs.alpha[0] == 1.0
         assert np.isnan(obs.alpha[1])
         assert np.allclose(obs.quat, np.arange(2)[:, None])
 
@@ -185,11 +184,7 @@ def test_construction_from_detectors():
 def test_observation_tod_single_block():
     comm_world = lbs.MPI_COMM_WORLD
     obs = lbs.Observation(
-        detectors=3,
-        n_samples=9,
-        start_time=0.0,
-        sampling_rate_hz=1.0,
-        comm=comm_world,
+        detectors=3, n_samples=9, start_time=0.0, sampling_rate_hz=1.0, comm=comm_world
     )
 
     if comm_world.rank == 0:
@@ -227,7 +222,7 @@ def test_observation_tod_two_block_det():
     comm_world = lbs.MPI_COMM_WORLD
     try:
         obs = lbs.Observation(
-            detectors = 3,
+            detectors=3,
             n_samples=9,
             start_time=0.0,
             sampling_rate_hz=1.0,
@@ -265,13 +260,12 @@ def test_observation_tod_set_blocks():
 
     def assert_det_info():
         if comm_world.rank < obs._n_blocks_time * obs._n_blocks_det:
-            assert np.all(obs.row_int
-                          == (obs.tod[:, 0] // obs._n_samples).astype(int))
+            assert np.all(obs.row_int == (obs.tod[:, 0] // obs._n_samples).astype(int))
             assert np.all(obs.row_int.astype(str) == obs.row_str)
         else:
             assert obs.row_int is None
             assert obs.row_str is None
-    
+
     # Two time blocks
     ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
     if comm_world.rank == 0:
@@ -393,5 +387,6 @@ def main():
     test_observation_tod_two_block_time()
     test_observation_tod_two_block_det()
     test_observation_tod_set_blocks()
+
 
 main()

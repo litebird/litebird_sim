@@ -181,7 +181,7 @@ class ImoFlatFile:
         if not schema_file_found:
             raise ImoFormatError(
                 ("no valid schema file found " 'in "{path}"').format(
-                    path=self.path.absolute(),
+                    path=self.path.absolute()
                 )
             )
 
@@ -302,9 +302,7 @@ class ImoFlatFile:
                             '"{path}", which does not have a quantity'
                             'named "{quantity}"'
                         ).format(
-                            id=identifier,
-                            path=entity.full_path,
-                            quantity=quantity_name,
+                            id=identifier, path=entity.full_path, quantity=quantity_name
                         )
                     )
 
