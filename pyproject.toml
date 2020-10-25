@@ -3,7 +3,12 @@ name = "litebird_sim"
 version = "0.1.0"
 description = "Simulation tools for the LiteBIRD experiment"
 authors = ["Maurizio Tomasi <maurizio.tomasi@unimi.it>"]
-include = ["static/report_template.html", "static/sakura.css", "templates/*.md"]
+include = [
+        "static/report_template.html",
+        "static/sakura.css",
+        "templates/*.md",
+        "misc/pandoc-filter.lua",
+]
 
 [tool.poetry.dependencies]
 python = "^3.6"
