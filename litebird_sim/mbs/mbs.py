@@ -16,16 +16,18 @@ def from_sens_to_rms(sens, nside):
     return rms
 
 class Mbs:
-    def __init__(self, simulation, inst=None):
+    def __init__(self, simulation, instrument=None):
         self.sim = simulation
         self.imo = self.sim.imo
         self.parameters = simulation.parameters['map_based_sims']
-        self.inst = inst
+        self.instrument = instrument
 
-    def read_instrument(self, inst=None):
+    def read_instrument(self, instrument=None):
         config_inst = self.parameters['instrument']
         custom_instrument = None
-        if self.inst==None:
+        if self.instrument:
+            log.info("using the passed instrument to generate maps")
+        if self.instrument==None:
             try:
                 custom_instrument = config_inst['custom_insturment']
             except KeyError:
@@ -39,13 +41,13 @@ class Mbs:
                             log.info("instrument dictonary should be pass to Mbs class")
             if custom_instrument:
                 if 'toml' in custom_instrument:
-                    self.inst = toml.load(custom_instrument)
+                    self.instrument = toml.load(custom_instrument)
                 elif 'npy' in custom_instrumet:
-                    self.inst = np.load(custom_instrument, allow_picke=True).item()
+                    self.instrument = np.load(custom_instrument, allow_picke=True).item()
                 else:
                     raise NameError('Wrong instrument dictonary format')
             else:
-                self.inst = {}
+                self.instrument = {}
                 if self.telescopes:
                     channels = []
                     for tel in self.telescopes:
@@ -66,7 +68,7 @@ class Mbs:
                     freq_band = data_file.metadata['bandwidth']
                     fwhm_arcmin = data_file.metadata['fwhm_arcmin']
                     P_sens = data_file.metadata['pol_sensitivity_channel_uKarcmin']
-                    self.inst[ch] = {'freq':freq, 'freq_band': freq_band, 'beam': fwhm_arcmin, 'P_sens': P_sens }
+                    self.instrument[ch] = {'freq':freq, 'freq_band': freq_band, 'beam': fwhm_arcmin, 'P_sens': P_sens }
 
     def check_parameters(self):
         config_mbs = self.parameters
@@ -161,13 +163,14 @@ class Mbs:
             self.fg_components = list(self.fg_models.keys())
         try: self.out_dir = config_mbs['output']['output_directory']
         except KeyError: self.out_dir = './'
+        log.info(f'saving files in {self.out_dir}')
         try: self.out_string = config_mbs['output']['output_string']
         except KeyError:
             self.out_string = f'date_{date.today().strftime("%y%m%d")}'
             log.info('no file_string defined, today date is set as string', rank)
 
     def generate_noise(self):
-        instr = self.inst
+        instr = self.instrument
         nmc_noise = self.nmc_noise
         nside = self.nside
         npix = hp.nside2npix(nside)
@@ -233,7 +236,7 @@ class Mbs:
             return None
 
     def generate_cmb(self):
-        instr = self.inst
+        instr = self.instrument
         nmc_cmb = self.nmc_cmb
         nside = self.nside
         npix = hp.nside2npix(nside)
@@ -321,7 +324,7 @@ class Mbs:
 
     def generate_fg(self):
         parallel = self.parallel_mc
-        instr = self.inst
+        instr = self.instrument
         nside = self.nside
         npix = hp.nside2npix(nside)
         smooth = self.gaussian_smooth
@@ -396,7 +399,7 @@ class Mbs:
         cmb_dir = f'{root_dir}/cmb/'
         nside = self.nside
         file_str = self.out_string
-        instr = self.inst
+        instr = self.instrument
         channels = instr.keys()
         coadd_dir = f'{root_dir}/coadd_signal_maps/'
         col_units = [self.units, self.units, self.units]
@@ -435,7 +438,7 @@ class Mbs:
         self.read_instrument(inst)
         self.check_parameters()
         rank = 0
-        instr = self.inst
+        instr = self.instrument
         nside = self.nside
         npix = hp.nside2npix(nside)
         channels = instr.keys()
