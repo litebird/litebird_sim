@@ -4,14 +4,11 @@ python:
   - 3.6
   - 3.8
 
-os:
-  - linux
+os: linux
   
-dist:
-  - focal
+dist: focal
 
-compiler:
-  - gcc-9
+compiler: gcc-9
 
 env:
   global:
@@ -29,33 +26,18 @@ matrix:
       osx_image: xcode12
       language: shell
       env: MPI=none EXTRAS=
-      cache:
-        directories:
-          - $HOME/Library/Caches/pypoetry
     - name: "Python 3 on MacOSX (mpich)"
       os: osx
       osx_image: xcode12
       language: shell
       env: MPI=mpich EXTRAS=--extras=mpi
-      cache:
-        directories:
-          - $HOME/Library/Caches/pypoetry
     - name: "Python 3 on MacOSX (openmpi)"
       os: osx
       osx_image: xcode12
       language: shell
       env: MPI=openmpi EXTRAS=--extras=mpi
-      cache:
-        directories:
-          - $HOME/Library/Caches/pypoetry
   
-before_cache:
-  - rm -rf $HOME/.cache/pip/http
-  - ls $HOME/.cache/pypoetry
-
-cache:
-  directories:
-    - $HOME/.cache/pypoetry
+cache: pip
 
 addons:
   apt:
