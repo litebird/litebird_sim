@@ -10,12 +10,15 @@ Welcome to litebird_sim's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   installation
    tutorial
    simulations
+   detectors
    observations
    data_layout
    scanning
    imo
+   reports
    mpi
    integrating
 

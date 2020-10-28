@@ -40,9 +40,7 @@ def retrieve_local_source():
     ).absolute()
 
     if not (path / "schema.json").is_file():
-        print(
-            f'[red]Error:[/red] the path {path} does not seem to contain a "schema.json" file'
-        )
+        print(f'[red]Error:[/red] {path} does not seem to contain a "schema.json" file')
         return
 
     name = input("Now insert a descriptive name for this location: ")
@@ -238,6 +236,11 @@ Discarding any change and quitting...
 
 def write_toml_configuration():
     file_path = CONFIG_FILE_PATH
+
+    # Create the directory containing the file, if it does not exist.
+    # https://github.com/litebird/litebird_sim/issues/61
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
     with file_path.open("wt") as outf:
         outf.write(tomlkit.dumps({"repositories": repositories}))
 
@@ -253,7 +256,7 @@ def main():
     if run_main_loop():
         write_toml_configuration()
         if len(repositories) > 0:
-            print(f"The following repositories have been configured successfully:")
+            print("The following repositories have been configured successfully:")
 
             table = Table()
             table.add_column("Name")

@@ -1,5 +1,9 @@
 # -*- encoding: utf-8 -*-
 
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory, NamedTemporaryFile
+
 import numpy as np
 import litebird_sim as lbs
 import pathlib
@@ -147,13 +151,14 @@ def test_parameter_dict(tmp_path):
         pass
 
 
-def test_parameter_file(tmp_path):
+def test_parameter_file():
     from datetime import date
 
-    conf_file = pathlib.Path(tmp_path) / "configuration.toml"
-    with conf_file.open("wt") as outf:
-        outf.write(
-            """[simulation]
+    with NamedTemporaryFile(mode="wt", delete=False) as conf_file:
+        conf_file_name = conf_file.name
+        conf_file.write(
+            """# test_parameter_file
+[simulation]
 start_time = "2020-01-01T00:00:00"
 duration_s = 11.0
 description = "Dummy description"
@@ -169,53 +174,60 @@ e = "Hello, world!"
 """
         )
 
-    sim = lbs.Simulation(parameter_file=conf_file)
+    with TemporaryDirectory() as tmpdirname:
+        sim = lbs.Simulation(base_path=tmpdirname, parameter_file=conf_file_name)
 
-    assert isinstance(sim.parameter_file, pathlib.Path)
-    assert isinstance(sim.parameters, dict)
+        assert isinstance(sim.parameter_file, pathlib.Path)
+        assert isinstance(sim.parameters, dict)
 
-    assert "simulation" in sim.parameters
-    assert isinstance(sim.start_time, astropy.time.Time)
-    assert sim.duration_s == 11.0
-    assert sim.description == "Dummy description"
+        assert "simulation" in sim.parameters
+        assert isinstance(sim.start_time, astropy.time.Time)
+        assert sim.duration_s == 11.0
+        assert sim.description == "Dummy description"
 
-    assert "general" in sim.parameters
-    assert sim.parameters["general"]["a"] == 10
-    assert sim.parameters["general"]["b"] == 20.0
-    assert not sim.parameters["general"]["c"]
+        assert "general" in sim.parameters
+        assert sim.parameters["general"]["a"] == 10
+        assert sim.parameters["general"]["b"] == 20.0
+        assert not sim.parameters["general"]["c"]
 
-    assert "subtable" in sim.parameters["general"]
-    assert sim.parameters["general"]["subtable"]["d"] == date(2020, 7, 1)
-    assert sim.parameters["general"]["subtable"]["e"] == "Hello, world!"
+        assert "subtable" in sim.parameters["general"]
+        assert sim.parameters["general"]["subtable"]["d"] == date(2020, 7, 1)
+        assert sim.parameters["general"]["subtable"]["e"] == "Hello, world!"
 
     # Check that the code does not complain if the output directory is
     # the same as the one containing the parameter file
 
-    sim = lbs.Simulation(base_path=tmp_path, parameter_file=conf_file)
+    sim = lbs.Simulation(
+        base_path=Path(conf_file_name).parent, parameter_file=conf_file_name
+    )
+
+    os.unlink(conf_file_name)
 
 
-def test_duration_units_in_parameter_file(tmp_path):
-    conf_file = pathlib.Path(tmp_path) / "configuration.toml"
-    with conf_file.open("wt") as outf:
-        outf.write(
-            """[simulation]
+def test_duration_units_in_parameter_file():
+    with NamedTemporaryFile(mode="wt", delete=False) as conf_file:
+        conf_file_name = conf_file.name
+        conf_file.write(
+            """# test_duration_units_in_parameter_file
+[simulation]
 start_time = "2020-01-01T00:00:00"
 duration_s = "1 day"
 """
         )
 
-    sim = lbs.Simulation(parameter_file=conf_file)
+    with TemporaryDirectory() as tmpdirname:
+        sim = lbs.Simulation(base_path=tmpdirname, parameter_file=conf_file_name)
 
-    assert "simulation" in sim.parameters
-    assert isinstance(sim.start_time, astropy.time.Time)
-    assert sim.duration_s == 86400.0
+        assert "simulation" in sim.parameters
+        assert isinstance(sim.start_time, astropy.time.Time)
+        assert sim.duration_s == 86400.0
 
 
 def test_distribute_observation(tmp_path):
     sim = lbs.Simulation(
         base_path=tmp_path / "simulation_dir", start_time=1.0, duration_s=11.0
     )
-    det = lbs.Detector("dummy", sampling_rate_hz=15)
+    det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
     obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
 
     assert len(obs_list) == 5
@@ -229,7 +241,7 @@ def test_distribute_observation_astropy(tmp_path):
         start_time=astropy.time.Time("2020-01-01T00:00:00"),
         duration_s=11.0,
     )
-    det = lbs.Detector("dummy", sampling_rate_hz=15)
+    det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
     obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
 
     assert len(obs_list) == 5
