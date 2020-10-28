@@ -40,6 +40,7 @@ matrix:
 before_cache:
   - rm -rf $HOME/.cache/pip/http
   - du -sch $HOME/.cache/pip
+  - du -sch $(python -m site --user-site)
 
 cache: pip
 
@@ -61,6 +62,7 @@ before_install:
 
 install:
   - du -sch $HOME/.cache/pip
+  - du -sch $(python -m site --user-site)
   - poetry install --extras=docs $EXTRAS
 
 script:
