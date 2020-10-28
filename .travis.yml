@@ -30,7 +30,6 @@ matrix:
       language: shell
       env: MPI=none EXTRAS=
       cache:
-        pip: true
         directories:
           - $HOME/Library/Caches/pypoetry
     - name: "Python 3 on MacOSX (mpich)"
@@ -39,7 +38,6 @@ matrix:
       language: shell
       env: MPI=mpich EXTRAS=--extras=mpi
       cache:
-        pip: true
         directories:
           - $HOME/Library/Caches/pypoetry
     - name: "Python 3 on MacOSX (openmpi)"
@@ -48,15 +46,14 @@ matrix:
       language: shell
       env: MPI=openmpi EXTRAS=--extras=mpi
       cache:
-        pip: true
         directories:
           - $HOME/Library/Caches/pypoetry
   
 before_cache:
   - rm -rf $HOME/.cache/pip/http
+  - ls $HOME/.cache/pypoetry
 
 cache:
-  pip: true
   directories:
     - $HOME/.cache/pypoetry
 
