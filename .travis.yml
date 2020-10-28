@@ -2,7 +2,7 @@ language: python
 
 python:
   - 3.6
-  - 3.7
+  - 3.8
 
 os:
   - linux
@@ -21,7 +21,6 @@ env:
     - MPI=none     EXTRAS=
     - MPI=mpich    EXTRAS=--extras=mpi
     - MPI=openmpi  EXTRAS=--extras=mpi
-
 
 matrix:
   include:
@@ -57,7 +56,6 @@ before_cache:
   - rm -rf $HOME/.cache/pip/http
 
 cache:
-  apt: true
   pip: true
   directories:
     - $HOME/.cache/pypoetry
@@ -73,6 +71,8 @@ before_install:
   - if [[ "$MPI" == "mpich"   ]]; then mpichversion; fi
   - if [[ "$MPI" == "openmpi" ]]; then ompi_info;    fi
   - pip3 install poetry
+  - poetry config virtualenvs.create false  # Disable virtual environments
+  - poetry config
   - gcc --version
 
 install:
