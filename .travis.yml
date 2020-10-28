@@ -39,6 +39,7 @@ matrix:
   
 before_cache:
   - rm -rf $HOME/.cache/pip/http
+  - du -sch $HOME/.cache/pip
 
 cache: pip
 
@@ -59,6 +60,7 @@ before_install:
   - echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
 install:
+  - du -sch $HOME/.cache/pip
   - poetry install --extras=docs $EXTRAS
 
 script:
