@@ -3,7 +3,12 @@ name = "litebird_sim"
 version = "0.1.0"
 description = "Simulation tools for the LiteBIRD experiment"
 authors = ["Maurizio Tomasi <maurizio.tomasi@unimi.it>"]
-include = ["static/report_template.html", "static/sakura.css", "templates/*.md"]
+include = [
+        "static/report_template.html",
+        "static/sakura.css",
+        "templates/*.md",
+        "misc/pandoc-filter.lua",
+]
 
 [tool.poetry.dependencies]
 python = "^3.6"
@@ -41,6 +46,7 @@ rich = "^6.2.0"
 # For some reason, it doesn't get installed if in extras.docs
 # -> added to the global dependencies
 sphinxcontrib-contentui = "^0.2.5"
+dataclasses = {version = "^0.7", python = ">=3.6, <3.7"}
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]

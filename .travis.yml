@@ -73,7 +73,8 @@ before_install:
   - pip3 install poetry
   - poetry config virtualenvs.create false  # Disable virtual environments
   - poetry config --list
-  - gcc --version
+  - mkdir -p $HOME/.config/litebird_imo
+  - echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
 install:
   - poetry install --extras=docs $EXTRAS

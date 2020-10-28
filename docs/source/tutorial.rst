@@ -203,14 +203,17 @@ report::
 
   sim.generate_spin2ecl_quaternions(
       scanning_strategy=lbs.SpinningScanningStrategy(
-          spin_sun_angle_deg=30, # CORE-specific parameter
-          spin_rate_rpm=0.5,     # Ditto
+          spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
+          spin_rate_hz=0.5 / 60,     # Ditto
           # We use astropy to convert the period (4 days) in
-          # minutes, the unit expected for the precession period
-          precession_period_min=(4 * u.day).to("min").value,
+          # seconds
+          precession_rate_hz=1.0 / (4 * u.day).to("s").value,
       )
   )
-  instr = lbs.Instrument(name="core", spin_boresight_angle_deg=65)
+  instr = lbs.Instrument(
+      name="core",
+      spin_boresight_angle_rad=np.deg2rad(65),
+  )
   det = lbs.Detector(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
   pointings = obs.get_pointings(
@@ -253,7 +256,7 @@ following things:
    the spacecraft for the whole duration of the simulation (86,400
    seconds, that is one day);
 2. It creates an instance of the :class:`.Instrument` and
-   :class:`.DetectorInfo` classes that represent a boresight detector;
+   :class:`.Detector` classes that represent a boresight detector;
 3. It generates a pointing information matrix;
 4. It produces a coverage map by setting to 1 all those pixels that
    are visited by the directions encoded in the pointing information
