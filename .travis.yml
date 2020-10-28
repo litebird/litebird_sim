@@ -37,6 +37,9 @@ matrix:
       language: shell
       env: MPI=openmpi EXTRAS=--extras=mpi
   
+before_cache:
+  - rm -rf $HOME/.cache/pip/http
+
 cache: pip
 
 addons:
