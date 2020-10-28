@@ -61,8 +61,8 @@ before_install:
   - echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
 install:
-  - du -sch $HOME/.cache/pip
-  - du -sch $(python -m site --user-site)
+  - pip cache info
+  - pip cache list
   - poetry install --extras=docs $EXTRAS
 
 script:
