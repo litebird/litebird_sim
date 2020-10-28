@@ -72,7 +72,7 @@ before_install:
   - if [[ "$MPI" == "openmpi" ]]; then ompi_info;    fi
   - pip3 install poetry
   - poetry config virtualenvs.create false  # Disable virtual environments
-  - poetry config
+  - poetry config --list
   - gcc --version
 
 install:
