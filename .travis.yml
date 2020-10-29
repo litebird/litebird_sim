@@ -38,7 +38,7 @@ matrix:
       env: MPI=openmpi EXTRAS=--extras=mpi
   
 cache:
-  directory:
+  directories:
     - $HOME/bundle
 
 addons:
