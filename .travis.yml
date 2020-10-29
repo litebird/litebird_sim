@@ -51,7 +51,9 @@ before_install:
   - ./bin/install-mpi.sh $MPI
   - if [[ "$MPI" == "mpich"   ]]; then mpichversion; fi
   - if [[ "$MPI" == "openmpi" ]]; then ompi_info;    fi
-  - pip3 install poetry
+  - python3 -m pip install --user --upgrade pip
+  - python3 -m pip --version
+  - python3 -m pip install poetry
   - poetry config virtualenvs.create false  # Disable virtual environments
   - poetry config --list
   - mkdir -p $HOME/.config/litebird_imo
@@ -59,7 +61,9 @@ before_install:
 
 install:
   - poetry export -f requirements.txt --extras=docs $EXTRAS --without-hashes > requirements.txt
-  - pip install -r requirements.txt -t $HOME/bundle/
+  - python3 -m pip install -r requirements.txt -t $HOME/bundle/
+  - export PYTHONPATH=$HOME/bundle:$PYTHONPATH
+  - echo $PYTHONPATH
 
 script:
   - sh ./bin/run_tests.sh
