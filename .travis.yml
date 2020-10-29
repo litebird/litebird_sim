@@ -28,16 +28,19 @@ matrix:
       osx_image: xcode12
       language: shell
       env: MPI=none EXTRAS=
+      cache: pip
     - name: "Python 3 on MacOSX (mpich)"
       os: osx
       osx_image: xcode12
       language: shell
       env: MPI=mpich EXTRAS=--extras=mpi
+      cache: pip
     - name: "Python 3 on MacOSX (openmpi)"
       os: osx
       osx_image: xcode12
       language: shell
       env: MPI=openmpi EXTRAS=--extras=mpi
+      cache: pip
 
 addons:
   apt:
