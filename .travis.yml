@@ -58,7 +58,7 @@ before_install:
 install:
   - poetry export -f requirements.txt --extras=docs $EXTRAS --without-hashes > requirements.txt
   - python3 -m pip install -r requirements.txt --upgrade
-  - cp requirements.txt $HOME/.cache/pip
+  - cp requirements.txt $(python3 -m pip cache dir)
 
 script:
   - sh ./bin/run_tests.sh
