@@ -51,7 +51,7 @@ before_install:
   - ./bin/install-mpi.sh $MPI
   - if [[ "$MPI" == "mpich"   ]]; then mpichversion; fi
   - if [[ "$MPI" == "openmpi" ]]; then ompi_info;    fi
-  - python3 -m pip install --user --upgrade pip
+  - python3 -m pip install --upgrade pip
   - python3 -m pip --version
   - python3 -m pip install poetry
   - poetry config virtualenvs.create false  # Disable virtual environments
