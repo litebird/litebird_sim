@@ -61,7 +61,8 @@ before_install:
 
 install:
   - poetry export -f requirements.txt --extras=docs $EXTRAS --without-hashes > requirements.txt
-  - python3 -m pip install -r requirements.txt --target=$HOME/bundle/
+  - python3 -m pip install -r requirements.txt --upgrade --target=$HOME/bundle/
+  - cp requirements.txt $HOME/bundle
   - export PYTHONPATH=$HOME/bundle:$PYTHONPATH
   - export PATH=$PATH:$HOME/bundle/bin
 
