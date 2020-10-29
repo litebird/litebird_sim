@@ -60,6 +60,8 @@ before_install:
   - echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
 install:
+  - mkdir -p $HOME/bundle/
+  - ls $HOME/bundle/
   - poetry export -f requirements.txt --extras=docs $EXTRAS --without-hashes > requirements.txt
   - python3 -m pip install -r requirements.txt --upgrade --target=$HOME/bundle/
   - cp requirements.txt $HOME/bundle
