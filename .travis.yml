@@ -12,6 +12,7 @@ compiler: gcc-9
   
 cache:
   directories:
+    - $HOME/.cache/pip
     - $HOME/bundle
 
 env:
