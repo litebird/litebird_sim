@@ -47,7 +47,9 @@ addons:
     update: true
   homebrew:
     update: true
-    
+    packages:
+    - llvm
+
 before_install:
   - ./bin/install-mpi.sh $MPI
   - if [[ "$MPI" == "mpich"   ]]; then mpichversion; fi
