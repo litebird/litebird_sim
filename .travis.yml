@@ -49,6 +49,7 @@ addons:
     update: true
     packages:
     - llvm
+    - zlib
 
 before_install:
   - ./bin/install-mpi.sh $MPI
@@ -81,3 +82,6 @@ script:
             PYTHONPATH=$(pwd):$PYTHONPATH mpiexec -n $proc python3 ./test/test_mpi.py
         done
     fi
+
+before_cache:
+  - rm -rf $(python3 -m pip cache dir)/http
