@@ -183,7 +183,7 @@ def test_freq_channel_from_imo():
 def test_freq_channel_noise():
     # Detector → channel
     ch = lbs.FreqChannelInfo(
-        bandcenter_ghz=60, net_detector_ukrts=10.0, number_of_detectors=4,
+        bandcenter_ghz=60, net_detector_ukrts=10.0, number_of_detectors=4
     )
     assert ch.net_channel_ukrts == 5.0
 

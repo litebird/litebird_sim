@@ -43,7 +43,7 @@ def polarization_angle(theta_rad, phi_rad, poldir):
         polarization_angle(
             theta_rad: float,
             phi_rad: float,
-            poldir: numpy.array[3], 
+            poldir: numpy.array[3],
         )
 
     This function returns the polarization angle (in radians) with
@@ -479,7 +479,7 @@ class Spin2EclipticQuaternions:
         # call, once https://github.com/litebird/ducc/issues/3 is
         # solved.
         return pp.get_rotated_quaternions(
-            time_skip_s, sampling_rate_hz, det2spin_quat, nsamples, rot_left=False,
+            time_skip_s, sampling_rate_hz, det2spin_quat, nsamples, rot_left=False
         )
 
 

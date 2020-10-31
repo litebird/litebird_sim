@@ -323,9 +323,7 @@ def all_rotate_vectors(result_matrix, quat_matrix, vec_matrix):
     """
     for rowidx in range(result_matrix.shape[0]):
         vx, vy, vz, w = quat_matrix[rowidx, :]
-        rotate_vector(
-            result_matrix[rowidx, :], vx, vy, vz, w, vec_matrix[rowidx, :],
-        )
+        rotate_vector(result_matrix[rowidx, :], vx, vy, vz, w, vec_matrix[rowidx, :])
 
 
 @njit
