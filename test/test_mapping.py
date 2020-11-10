@@ -4,6 +4,7 @@ import litebird_sim.mapping as mapping
 import healpy as hp
 import astropy.units as u
 
+
 def test_accumulate_map_and_info():
     # Parameters
     res_map = np.arange(6).reshape(2, 3) + 1
@@ -35,7 +36,7 @@ def test_accumulate_map_and_info():
     assert np.allclose(np.linalg.solve(info, rhs), res_map)
 
 
-def test_make_bin_map():
+def test_make_bin_map_api_simulation():
     # We should add a more meaningful observation:
     # Currently this test just shows the interface
     sim = lbs.Simulation(
@@ -66,3 +67,45 @@ def test_make_bin_map():
     obss[0].pixidx = hp.ang2pix(nside, pointings[..., 0], pointings[..., 1])
     obss[0].psi = pointings[..., 2]
     res = mapping.make_bin_map(obss, nside)
+
+
+def test_make_bin_map_basic_mpi():
+    if lbs.MPI_COMM_WORLD.size > 2:
+        return
+
+    # Parameters
+    res_map = np.arange(9).reshape(3, 3) + 1
+    n_samples = 10
+    psi = np.array([1, 2, 1, 4, 4, 1, 4, 0, 0, 0]) * np.pi / 5
+    pix = np.array([0, 0, 1, 0, 1, 2, 2, 0, 2, 1])
+
+    # Explicitely compute the dense pointing matrix and hence the TOD
+    pointing_matrix = np.zeros((n_samples,)+res_map.shape, dtype=np.float32)
+    for i in range(len(res_map)):
+        mask = pix == i
+        pointing_matrix[mask, i, 0] = 1
+        pointing_matrix[mask, i, 1] = np.cos(2 * psi[mask])
+        pointing_matrix[mask, i, 2] = np.sin(2 * psi[mask])
+
+    tod = pointing_matrix.reshape(n_samples, -1).dot(res_map.reshape(-1))
+
+    # Craft the observation with the attributes needed for map-making
+    obs = lbs.Observation(
+        detectors=2,
+        n_samples=5,
+        start_time=0.0,
+        sampling_rate_hz=1.0,
+        comm=lbs.MPI_COMM_WORLD,
+    )
+    if obs.comm.rank == 0:
+        obs.tod[:] = tod.reshape(2, 5)
+        obs.pixidx = pix.reshape(2, 5)
+        obs.psi = psi.reshape(2, 5)
+
+    obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
+    res = mapping.make_bin_map([obs], 1)[:len(res_map)]
+    assert np.allclose(res, res_map)
+
+    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=obs.comm.size)
+    res = mapping.make_bin_map([obs], 1)[:len(res_map)]
+    assert np.allclose(res, res_map)
