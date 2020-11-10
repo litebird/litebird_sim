@@ -64,7 +64,7 @@ def test_make_bin_map_api_simulation():
     )
 
     nside = 64
-    obss[0].pixidx = hp.ang2pix(nside, pointings[..., 0], pointings[..., 1])
+    obss[0].pixel = hp.ang2pix(nside, pointings[..., 0], pointings[..., 1])
     obss[0].psi = pointings[..., 2]
     res = mapping.make_bin_map(obss, nside)
 
@@ -99,7 +99,7 @@ def test_make_bin_map_basic_mpi():
     )
     if obs.comm.rank == 0:
         obs.tod[:] = tod.reshape(2, 5)
-        obs.pixidx = pix.reshape(2, 5)
+        obs.pixel = pix.reshape(2, 5)
         obs.psi = psi.reshape(2, 5)
 
     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)

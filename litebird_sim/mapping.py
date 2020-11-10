@@ -65,18 +65,11 @@ def make_bin_map(obss, nside):
             If the observations are distributed over some communicator(s), all
             the processes (contribute and) hold a copy of the map
     """
-    # obs required to have
-    # * tod
-    # * pixidx (the "tod" of observed pixel indices)
-    # * psi (the "tod" of the polarization angle)
-    #
-    # Note that
-    # * all the detectors contribute to the same map (for now)
     n_pix = hp.nside2npix(nside)
     info = np.zeros((n_pix, 3, 3))
 
     for obs in obss:
-        _accumulate_map_and_info(obs.tod, obs.pixidx, obs.psi, info)
+        _accumulate_map_and_info(obs.tod, obs.pixel, obs.psi, info)
 
     if all([obs.comm is None for obs in obss]) or not mpi.MPI_ENABLED:
         # Serial call
