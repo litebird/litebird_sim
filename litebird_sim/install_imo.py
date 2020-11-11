@@ -40,9 +40,7 @@ def retrieve_local_source():
     ).absolute()
 
     if not (path / "schema.json").is_file():
-        print(
-            f'[red]Error:[/red] the path {path} does not seem to contain a "schema.json" file'
-        )
+        print(f'[red]Error:[/red] {path} does not seem to contain a "schema.json" file')
         return
 
     name = input("Now insert a descriptive name for this location: ")

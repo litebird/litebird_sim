@@ -129,7 +129,7 @@ class Quantity:
     """
 
     def __init__(
-        self, uuid: UUID, name: str, format_spec: Union[UUID, None], entity: UUID,
+        self, uuid: UUID, name: str, format_spec: Union[UUID, None], entity: UUID
     ):
         self.uuid = uuid
         self.name = name
@@ -239,7 +239,7 @@ class Release:
     """
 
     def __init__(
-        self, tag: str, rel_date: datetime, comments: str, data_files: Set[UUID],
+        self, tag: str, rel_date: datetime, comments: str, data_files: Set[UUID]
     ):
         self.tag = tag
         self.rel_date = rel_date

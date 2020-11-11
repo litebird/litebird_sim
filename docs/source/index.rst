@@ -13,6 +13,7 @@ Welcome to litebird_sim's documentation!
    installation
    tutorial
    simulations
+   detectors
    observations
    data_layout
    scanning

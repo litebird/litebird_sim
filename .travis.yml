@@ -54,8 +54,12 @@ before_install:
   - ./bin/install-mpi.sh $MPI
   - if [[ "$MPI" == "mpich"   ]]; then mpichversion; fi
   - if [[ "$MPI" == "openmpi" ]]; then ompi_info;    fi
-  - pip3 install poetry
+  - python3 -m pip install -U --force-reinstall pip
+  - pip install poetry
   - gcc --version
+  - pwd
+  - mkdir -p $HOME/.config/litebird_imo
+  - echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
 install:
   - poetry install --extras=docs $EXTRAS

@@ -333,18 +333,9 @@ def write_healpix_map_to_hdu(
     )
     tbhdu.header["NSIDE"] = (nside, "Resolution parameter of HEALPIX")
     tbhdu.header["FIRSTPIX"] = (0, "First pixel # (0 based)")
-    tbhdu.header["LASTPIX"] = (
-        nside_to_npix(nside) - 1,
-        "Last pixel # (0 based)",
-    )
-    tbhdu.header["INDXSCHM"] = (
-        "IMPLICIT",
-        "Indexing: IMPLICIT or EXPLICIT",
-    )
-    tbhdu.header["OBJECT"] = (
-        "FULLSKY",
-        "Sky coverage, either FULLSKY or PARTIAL",
-    )
+    tbhdu.header["LASTPIX"] = (nside_to_npix(nside) - 1, "Last pixel # (0 based)")
+    tbhdu.header["INDXSCHM"] = ("IMPLICIT", "Indexing: IMPLICIT or EXPLICIT")
+    tbhdu.header["OBJECT"] = ("FULLSKY", "Sky coverage, either FULLSKY or PARTIAL")
 
     for args in extra_header:
         tbhdu.header[args[0]] = args[1:]

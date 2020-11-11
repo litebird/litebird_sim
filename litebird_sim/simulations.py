@@ -2,6 +2,7 @@
 
 import codecs
 from collections import namedtuple
+from dataclasses import asdict
 from datetime import datetime
 import logging as log
 import os
@@ -10,7 +11,7 @@ from typing import List, Tuple, Union, Dict, Any
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 
-from .detectors import Detector
+from .detectors import DetectorInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
 from .imo.imo import Imo
@@ -346,7 +347,7 @@ class Simulation:
             else:
                 log.basicConfig(level=log.CRITICAL, format=log_format)
 
-    def write_healpix_map(self, filename: str, pixels, **kwargs,) -> str:
+    def write_healpix_map(self, filename: str, pixels, **kwargs) -> str:
         """Save a Healpix map in the output folder
 
         Args:
@@ -377,9 +378,7 @@ class Simulation:
 
         """
         filename = self.base_path / Path(filename)
-        write_healpix_map_to_file(
-            filename=filename, pixels=pixels, **kwargs,
-        )
+        write_healpix_map_to_file(filename=filename, pixels=pixels, **kwargs)
 
         self.list_of_outputs.append(
             OutputFileRecord(path=filename, description="Healpix map")
@@ -556,9 +555,7 @@ class Simulation:
         template_file_path = get_template_file_path("report_appendix.md")
         with template_file_path.open("rt") as inpf:
             markdown_template = "".join(inpf.readlines())
-        self.append_to_report(
-            markdown_template, **dictionary,
-        )
+        self.append_to_report(markdown_template, **dictionary)
 
         # Expand the markdown text using Jinja2
         with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
@@ -594,17 +591,21 @@ class Simulation:
 
         # Finally, write down the full HTML report
         html_report_path = self.base_path / "report.html"
-        with codecs.open(html_report_path, "w", encoding="utf-8",) as outf:
+        with codecs.open(html_report_path, "w", encoding="utf-8") as outf:
             outf.write(html_full_report)
 
         return html_report_path
 
     def create_observations(
         self,
-        detectors: List[Detector],
+        detectors: List[DetectorInfo],
         num_of_obs_per_detector: int = 1,
-        distribute=True, #XXX If True distribute the list of observations, if False distribute the individial observation
-        n_blocks_det=1, n_blocks_time=1, root=0
+        # XXX If True distribute the list of observations,
+        # if False distribute the individial observation
+        distribute=True,
+        n_blocks_det=1,
+        n_blocks_time=1,
+        root=0,
     ):
         "Create a set of Observation objects"
 
@@ -619,7 +620,7 @@ class Simulation:
 
         duration_s = self.duration_s  # Cache the value to a local variable
         sampfreq_hz = detectors[0].sampling_rate_hz
-        detectors = [d.to_dict() for d in detectors]
+        detectors = [asdict(d) for d in detectors]
         num_of_samples = int(sampfreq_hz * duration_s)
         samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
@@ -632,9 +633,10 @@ class Simulation:
                 start_time=cur_time,
                 sampling_rate_hz=sampfreq_hz,
                 n_samples=nsamples,
-                n_blocks_det=n_blocks_det, n_blocks_time=n_blocks_time,
+                n_blocks_det=n_blocks_det,
+                n_blocks_time=n_blocks_time,
                 comm=(None if distribute else self.mpi_comm),
-                root=0
+                root=0,
             )
             observations.append(cur_obs)
 
