@@ -16,22 +16,39 @@ def from_sens_to_rms(sens, nside):
     return rms
 
 class Mbs:
-    def __init__(self, simulation, instrument=None, det_list=None):
+    def __init__(self, simulation, instrument=None, detector_list=None, channel_list=None):
         self.sim = simulation
         self.imo = self.sim.imo
         self.parameters = simulation.parameters['map_based_sims']
         self.instrument = instrument
-        self.det_list = det_list
+        self.det_list = detector_list
+        self.ch_list = channel_list
 
     def read_instrument(self, instrument=None, det_list=None):
         if self.det_list:
             self.instrument = {}
+            try:
+                len(self.det_list)
+            except TypeError:
+                self.det_list = [self.det_list]
             for d in self.det_list:
                 name = d.name
                 name = name.replace(" ", "_")
                 self.instrument[name] = {
                     'freq':d.bandcenter_ghz, 'freq_band':d.bandwidth_ghz,
                     'beam':d.fwhm_arcmin, 'P_sens':d.pol_sensitivity_ukarcmin}
+        elif self.ch_list:
+            self.instrument = {}
+            try:
+                len(self.ch_list)
+            except TypeError:
+                self.ch_list = [self.ch_list]
+            for c in self.ch_list:
+                name = c.channel
+                name = name.replace(" ", "_")
+                self.instrument[name] = {
+                    'freq':c.bandcenter_ghz, 'freq_band':c.bandwidth_ghz,
+                    'beam':c.fwhm_arcmin, 'P_sens':c.pol_sensitivity_channel_ukarcmin}
         else:
             config_inst = self.parameters['instrument']
             custom_instrument = None
@@ -74,10 +91,10 @@ class Mbs:
                         elif 'H' in ch:
                             tel = 'HFT'
                         data_file = self.imo.query(f'/releases/v{self.imo_version}/satellite/{tel}/{ch}/channel_info')
-                        freq = data_file.metadata['bandcenter']
-                        freq_band = data_file.metadata['bandwidth']
+                        freq = data_file.metadata['bandcenter_ghz']
+                        freq_band = data_file.metadata['bandwidth_ghz']
                         fwhm_arcmin = data_file.metadata['fwhm_arcmin']
-                        P_sens = data_file.metadata['pol_sensitivity_channel_uKarcmin']
+                        P_sens = data_file.metadata['pol_sensitivity_channel_ukarcmin']
                         self.instrument[ch] = {'freq':freq, 'freq_band': freq_band, 'beam': fwhm_arcmin, 'P_sens': P_sens }
 
     def check_parameters(self):
@@ -481,6 +498,9 @@ class Mbs:
                 log.info('saving coadded signal maps')
                 self.write_coadded_maps()
             if not self.save:
-                return tot
+                tot_dict = {}
+                for nch, chnl in enumerate(channels):
+                    tot_dict[chnl] =  tot[nch]
+                return tot_dict
             else:
                 return None
