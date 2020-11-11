@@ -213,8 +213,6 @@ class Mbs:
         rank = 0
         size = 1
         if parallel:
-            if lbs.MPI_ENABLED == False:
-                lbs.MPI_ENABLED == True
             comm = lbs.MPI_COMM_WORLD
             rank = comm.Get_rank()
             size = comm.Get_size()
@@ -280,8 +278,6 @@ class Mbs:
         rank = 0
         size = 1
         if parallel:
-            if lbs.MPI_ENABLED == False:
-                lbs.MPI_ENABLED == True
             comm = lbs.MPI_COMM_WORLD
             rank = comm.Get_rank()
             size = comm.Get_size()
@@ -366,8 +362,6 @@ class Mbs:
         rank = 0
         col_units = [self.units, self.units, self.units]
         if parallel:
-            if lbs.MPI_ENABLED == False:
-                lbs.MPI_ENABLED == True
             comm = lbs.MPI_COMM_WORLD
             rank = comm.Get_rank()
         if not os.path.exists(out_dir) and rank==0 and self.save:
@@ -473,8 +467,6 @@ class Mbs:
         if not self.save:
             tot = np.zeros((N_channels, 3, npix))
         if self.parallel_mc:
-            if lbs.MPI_ENABLED == False:
-                lbs.MPI_ENABLED == True
             comm = lbs.MPI_COMM_WORLD
             rank = comm.Get_rank()
         if self.make_noise:
