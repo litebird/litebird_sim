@@ -64,6 +64,9 @@ class DetectorInfo:
         - net_ukrts (float): The noise equivalent temperature of the
              signal produced by the detector in nominal conditions,
              expressed in μK/√s.. The default is 0.0
+        
+        - pol_sensitivity_ukarcmin (float): The detector sensitivity 
+            in microK_arcmin. The default is 0.0
 
         - bandcenter_ghz (float): The center frequency of the
              detector, in GHz. The default is 0.0
@@ -106,6 +109,7 @@ class DetectorInfo:
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
     net_ukrts: float = 0.0
+    pol_sensitivity_ukarcmin: float = 0.0
     fknee_mhz: float = 0.0
     fmin_hz: float = 0.0
     alpha: float = 0.0
@@ -142,6 +146,7 @@ class DetectorInfo:
         - ``fwhm_arcmin``
         - ``ellipticity``
         - ``net_ukrts``
+        - ``pol_sensitivity_ukarcmin``
         - ``fknee_mhz``
         - ``fmin_hz``
         - ``alpha``

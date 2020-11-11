@@ -16,59 +16,69 @@ def from_sens_to_rms(sens, nside):
     return rms
 
 class Mbs:
-    def __init__(self, simulation, instrument=None):
+    def __init__(self, simulation, instrument=None, det_list=None):
         self.sim = simulation
         self.imo = self.sim.imo
         self.parameters = simulation.parameters['map_based_sims']
         self.instrument = instrument
+        self.det_list = det_list
 
-    def read_instrument(self, instrument=None):
-        config_inst = self.parameters['instrument']
-        custom_instrument = None
-        if self.instrument:
-            log.info("using the passed instrument to generate maps")
-        if self.instrument==None:
-            try:
-                custom_instrument = config_inst['custom_insturment']
-            except KeyError:
-                self.imo_version = config_inst['IMO_version']
+    def read_instrument(self, instrument=None, det_list=None):
+        if self.det_list:
+            self.instrument = {}
+            for d in self.det_list:
+                name = d.name
+                name = name.replace(" ", "_")
+                self.instrument[name] = {
+                    'freq':d.bandcenter_ghz, 'freq_band':d.bandwidth_ghz,
+                    'beam':d.fwhm_arcmin, 'P_sens':d.pol_sensitivity_ukarcmin}
+        else:
+            config_inst = self.parameters['instrument']
+            custom_instrument = None
+            if self.instrument:
+                log.info("using the passed instrument to generate maps")
+            if self.instrument==None:
                 try:
-                    self.telescopes = config_inst['telescopes']
+                    custom_instrument = config_inst['custom_insturment']
                 except KeyError:
+                    self.imo_version = config_inst['IMO_version']
                     try:
-                        self.channels = config_inst['channels']
+                        self.telescopes = config_inst['telescopes']
                     except KeyError:
-                            log.info("instrument dictonary should be pass to Mbs class")
-            if custom_instrument:
-                if 'toml' in custom_instrument:
-                    self.instrument = toml.load(custom_instrument)
-                elif 'npy' in custom_instrumet:
-                    self.instrument = np.load(custom_instrument, allow_picke=True).item()
+                        try:
+                            self.channels = config_inst['channels']
+                        except KeyError:
+                                log.info("instrument dictonary should be pass to Mbs class")
+                if custom_instrument:
+                    if 'toml' in custom_instrument:
+                        self.instrument = toml.load(custom_instrument)
+                    elif 'npy' in custom_instrumet:
+                        self.instrument = np.load(custom_instrument, allow_picke=True).item()
+                    else:
+                        raise NameError('Wrong instrument dictonary format')
                 else:
-                    raise NameError('Wrong instrument dictonary format')
-            else:
-                self.instrument = {}
-                if self.telescopes:
-                    channels = []
-                    for tel in self.telescopes:
-                        channels.append(self.imo.query(
-                            f'/releases/v{self.imo_version}/satellite/{tel}/instrument_info').metadata['channel_names'])
-                    channels = [item for sublist in channels for item in sublist]
-                else:
-                    channels = self.channels
-                for ch in channels:
-                    if 'L' in ch:
-                        tel = 'LFT'
-                    elif 'M' in ch:
-                        tel = 'MFT'
-                    elif 'H' in ch:
-                        tel = 'HFT'
-                    data_file = self.imo.query(f'/releases/v{self.imo_version}/satellite/{tel}/{ch}/channel_info')
-                    freq = data_file.metadata['bandcenter']
-                    freq_band = data_file.metadata['bandwidth']
-                    fwhm_arcmin = data_file.metadata['fwhm_arcmin']
-                    P_sens = data_file.metadata['pol_sensitivity_channel_uKarcmin']
-                    self.instrument[ch] = {'freq':freq, 'freq_band': freq_band, 'beam': fwhm_arcmin, 'P_sens': P_sens }
+                    self.instrument = {}
+                    if self.telescopes:
+                        channels = []
+                        for tel in self.telescopes:
+                            channels.append(self.imo.query(
+                                f'/releases/v{self.imo_version}/satellite/{tel}/instrument_info').metadata['channel_names'])
+                        channels = [item for sublist in channels for item in sublist]
+                    else:
+                        channels = self.channels
+                    for ch in channels:
+                        if 'L' in ch:
+                            tel = 'LFT'
+                        elif 'M' in ch:
+                            tel = 'MFT'
+                        elif 'H' in ch:
+                            tel = 'HFT'
+                        data_file = self.imo.query(f'/releases/v{self.imo_version}/satellite/{tel}/{ch}/channel_info')
+                        freq = data_file.metadata['bandcenter']
+                        freq_band = data_file.metadata['bandwidth']
+                        fwhm_arcmin = data_file.metadata['fwhm_arcmin']
+                        P_sens = data_file.metadata['pol_sensitivity_channel_uKarcmin']
+                        self.instrument[ch] = {'freq':freq, 'freq_band': freq_band, 'beam': fwhm_arcmin, 'P_sens': P_sens }
 
     def check_parameters(self):
         config_mbs = self.parameters
@@ -434,8 +444,8 @@ class Mbs:
                     tot_file_name = f'{chnl}_coadd_signal_map_{file_str}.fits'
                     lbs.write_healpix_map_to_file(f'{coadd_dir}/{tot_file_name}', map_tot, column_units=col_units)
 
-    def run_all(self, inst=None):
-        self.read_instrument(inst)
+    def run_all(self, inst=None, det_list=None):
+        self.read_instrument(inst, det_list)
         self.check_parameters()
         rank = 0
         instr = self.instrument
