@@ -1,5 +1,7 @@
 # HEAD
 
+- Simple bin map-maker [PR#73](https://github.com/litebird/litebird_sim/pull/73)
+
 - Use SI units in class `SpinningScanningStrategy` (**breaking change**) [PR#69](https://github.com/litebird/litebird_sim/pull/69)
 
 - Use dataclasses, rename `Detector` to `DetectorInfo` and `Instrument` to `InstrumentInfo` (**breaking change**) [PR#60](https://github.com/litebird/litebird_sim/pull/60)
