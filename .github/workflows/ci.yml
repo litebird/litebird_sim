@@ -7,11 +7,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        mpi: [none, mpich, openmpi]
+        os: [ubuntu-latest] #, macos-latest]
+        mpi: [none] #, mpich, openmpi]
+        python: [3.6]
     steps:
-      - uses: actions/checkout@v2
-      - name: istall
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          - python-version: ${{ matrix.python }}
+      - name: Install
         run: |
-          pip3 install poetry
+          pip install poetry
           poetry install .
