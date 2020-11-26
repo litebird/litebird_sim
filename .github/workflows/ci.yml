@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest] #, macos-latest]
-        mpi: [none] #, mpich, openmpi]
+        mpi: [none, mpich] #, openmpi]
         python: [3.6]
     steps:
       - name: Checkout
@@ -17,7 +17,14 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python }}
-      - name: Install
+      - name: Install dependencies
         run: |
+          ./bin/install-mpi.sh ${{ matrix.mpi }}
           pip install poetry
-          poetry install
+      - name: Install litebird_sim
+        run: |
+          EXTRAS="-E docs"
+          if [ "${{ matrix.mpi }}" != "none" ]; then
+            EXTRAS="$EXTRAS -E mpi"
+          fi
+          poetry install $EXTRA
