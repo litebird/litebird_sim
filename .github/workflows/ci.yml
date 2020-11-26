@@ -21,6 +21,8 @@ jobs:
         run: |
           ./bin/install-mpi.sh ${{ matrix.mpi }}
           pip install poetry
+          mkdir -p $HOME/.config/litebird_imo
+          echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
       - name: Install litebird_sim
         run: |
           EXTRAS="-E docs"
