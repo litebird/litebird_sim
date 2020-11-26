@@ -20,4 +20,4 @@ jobs:
       - name: Install
         run: |
           pip install poetry
-          poetry install .
+          poetry install
