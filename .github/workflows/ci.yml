@@ -36,8 +36,6 @@ jobs:
 
       - name: Tests
         run: |
-          # TODO: fix doctests and reactivate them in bin/run_tests.sh once the
-          # GHA are setup
           sh ./bin/run_tests.sh
           if [ "${{ matrix.mpi }}" != "none" ]; then
             for proc in 1 2 5 9 ; do
