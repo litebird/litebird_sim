@@ -9,6 +9,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         mpi: [none, mpich, openmpi]
+        python: [3.6, 3.8]
         exclude:
           - os: macos-latest
           - python: 3.6
