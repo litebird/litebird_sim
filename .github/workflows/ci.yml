@@ -1,0 +1,17 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        mpi: [none, mpich, openmpi]
+    steps:
+      - name: istall
+        uses: actions/checkout@v2
+        run: |
+          pip3 install poetry
+          poetry install .
