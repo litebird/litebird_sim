@@ -28,9 +28,9 @@ jobs:
 
       - name: Install litebird_sim
         run: |
-          EXTRAS="-E docs"
+          EXTRAS="--extras=docs"
           if [ "${{ matrix.mpi }}" != "none" ]; then
-            EXTRAS="$EXTRAS -E mpi"
+            EXTRAS="$EXTRAS --extras=mpi"
           fi
           poetry install $EXTRA
 
