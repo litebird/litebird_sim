@@ -28,11 +28,11 @@ jobs:
 
       - name: Install litebird_sim
         run: |
-          EXTRAS="--extras=docs"
+          EXTRAS="-E docs"
           if [ "${{ matrix.mpi }}" != "none" ]; then
-            EXTRAS="$EXTRAS --extras=mpi"
+            EXTRAS="$EXTRAS -E mpi"
           fi
-          poetry install $EXTRA
+          poetry install $EXTRAS
 
       - name: Tests
         run: |
