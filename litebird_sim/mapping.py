@@ -76,7 +76,7 @@ def make_bin_map(obss, nside):
         pass
     elif all(
         [
-            MPI.Comm.Compare(obss[i].comm, obss[i + 1].comm) < 2
+            mpi.MPI.Comm.Compare(obss[i].comm, obss[i + 1].comm) < 2
             for i in range(len(obss) - 1)
         ]
     ):

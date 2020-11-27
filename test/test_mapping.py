@@ -1,8 +1,10 @@
+"""Test mapping routines
+"""
 import numpy as np
-import litebird_sim as lbs
-import litebird_sim.mapping as mapping
 import healpy as hp
 import astropy.units as u
+import litebird_sim as lbs
+import litebird_sim.mapping as mapping
 
 
 def test_accumulate_map_and_info():
@@ -26,7 +28,7 @@ def test_accumulate_map_and_info():
     res_info[:, 1, 0] = np.bincount(pix, tod)
     res_info[:, 2, 0] = np.bincount(pix, tod * np.cos(2 * psi))
     res_info[:, 2, 1] = np.bincount(pix, tod * np.sin(2 * psi))
-    
+
     info = np.zeros((2, 3, 3))
     mapping._accumulate_map_and_info(tod, pix, psi, info)
 
@@ -40,27 +42,28 @@ def test_make_bin_map_api_simulation():
     # We should add a more meaningful observation:
     # Currently this test just shows the interface
     sim = lbs.Simulation(
-	base_path="./tut04",
-	start_time=0,
-	duration_s=86400.,
+        base_path="./tut04",
+        start_time=0,
+        duration_s=86400.,
     )
 
     sim.generate_spin2ecl_quaternions(
-	scanning_strategy=lbs.SpinningScanningStrategy(
-	    spin_sun_angle_deg=30, # CORE-specific parameter
-	    spin_rate_rpm=0.5,     # Ditto
-	    # We use astropy to convert the period (4 days) in
-	    # minutes, the unit expected for the precession period
-	    precession_period_min=(4 * u.day).to("min").value,
-	)
+        scanning_strategy=lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.radians(30),  # CORE-specific parameter
+            spin_rate_hz=0.5 / 60,  # Ditto
+            # We use astropy to convert the period (4 days) in
+            # minutes, the unit expected for the precession period
+            precession_rate_hz=1 / (4 * u.day).to("s").value,
+        )
     )
-    instr = lbs.Instrument(name="core", spin_boresight_angle_deg=65)
-    det = lbs.Detector(name="foo", sampling_rate_hz=10)
+    instr = lbs.InstrumentInfo(name="core",
+                               spin_boresight_angle_rad=np.radians(65))
+    det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
     obss = sim.create_observations(detectors=[det])
     pointings = obss[0].get_pointings(
-	sim.spin2ecliptic_quats,
-	detector_quats=[det.quat],
-	bore2spin_quat=instr.bore2spin_quat,
+        sim.spin2ecliptic_quats,
+        detector_quats=[det.quat],
+        bore2spin_quat=instr.bore2spin_quat,
     )
 
     nside = 64
@@ -80,7 +83,7 @@ def test_make_bin_map_basic_mpi():
     pix = np.array([0, 0, 1, 0, 1, 2, 2, 0, 2, 1])
 
     # Explicitely compute the dense pointing matrix and hence the TOD
-    pointing_matrix = np.zeros((n_samples,)+res_map.shape, dtype=np.float32)
+    pointing_matrix = np.zeros((n_samples,) + res_map.shape, dtype=np.float32)
     for i in range(len(res_map)):
         mask = pix == i
         pointing_matrix[mask, i, 0] = 1
