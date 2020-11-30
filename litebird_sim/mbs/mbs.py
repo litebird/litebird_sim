@@ -24,7 +24,7 @@ class Mbs:
         self.det_list = detector_list
         self.ch_list = channel_list
 
-    def read_instrument(self, instrument=None, det_list=None):
+    def read_instrument(self):
         if self.det_list:
             self.instrument = {}
             try:
@@ -49,11 +49,11 @@ class Mbs:
                 self.instrument[name] = {
                     'freq':c.bandcenter_ghz, 'freq_band':c.bandwidth_ghz,
                     'beam':c.fwhm_arcmin, 'P_sens':c.pol_sensitivity_channel_ukarcmin}
+        elif self.instrument:
+            log.info("using the passed instrument to generate maps")
         else:
             config_inst = self.parameters['instrument']
             custom_instrument = None
-            if self.instrument:
-                log.info("using the passed instrument to generate maps")
             if self.instrument==None:
                 try:
                     custom_instrument = config_inst['custom_insturment']
@@ -69,7 +69,7 @@ class Mbs:
                 if custom_instrument:
                     if 'toml' in custom_instrument:
                         self.instrument = toml.load(custom_instrument)
-                    elif 'npy' in custom_instrumet:
+                    elif 'npy' in custom_instrument:
                         self.instrument = np.load(custom_instrument, allow_picke=True).item()
                     else:
                         raise NameError('Wrong instrument dictonary format')
@@ -455,8 +455,8 @@ class Mbs:
                     tot_file_name = f'{chnl}_coadd_signal_map_{file_str}.fits'
                     lbs.write_healpix_map_to_file(f'{coadd_dir}/{tot_file_name}', map_tot, column_units=col_units)
 
-    def run_all(self, inst=None, det_list=None):
-        self.read_instrument(inst, det_list)
+    def run_all(self):
+        self.read_instrument()
         self.check_parameters()
         rank = 0
         instr = self.instrument
