@@ -64,8 +64,8 @@ class DetectorInfo:
         - net_ukrts (float): The noise equivalent temperature of the
              signal produced by the detector in nominal conditions,
              expressed in μK/√s.. The default is 0.0
-        
-        - pol_sensitivity_ukarcmin (float): The detector sensitivity 
+
+        - pol_sensitivity_ukarcmin (float): The detector sensitivity
             in microK_arcmin. The default is 0.0
 
         - bandcenter_ghz (float): The center frequency of the
