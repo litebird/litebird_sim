@@ -84,6 +84,8 @@ __all__ = [
     "FreqChannelInfo",
     "InstrumentInfo",
     "detector_list_from_parameters",
+    # mbs.py
+    "Mbs",
     # mpi.py
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
