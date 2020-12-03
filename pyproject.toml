@@ -47,6 +47,7 @@ rich = "^6.2.0"
 # -> added to the global dependencies
 sphinxcontrib-contentui = "^0.2.5"
 dataclasses = {version = "^0.7", python = ">=3.6, <3.7"}
+pysm3 = "^3.3.0"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]
