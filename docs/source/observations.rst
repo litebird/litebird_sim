@@ -48,12 +48,31 @@ object::
   )
 
 Note that the 2-D array ``obs.tod`` is created for you. Its shape is
-``(n_detectors, n_samples)``. In full scale simulations it may get too large to
-fit in memory. You can chunk it along the time or detector dimension
-(or both) using ``n_blocks_det, n_blocks_time, comm`` at construction time or
-the `set_n_blocks` method. The same chunking is applied also to any detector
-information that you add with `detector_global_info` or `detector_info`. Note
-note ``det_idx`` is added for you at construction.
+``(n_detectors, n_samples)``, and the default type is
+``numpy.float32``: the choice of a 32-bit type is usually good enough
+for the purposes of LiteBIRD simulations, but if you need less/more
+precision, you are free to use any of the floating-point types
+provided by NumPy (``float16``, ``float32``, ``float64``,
+``float128``) using the keyword ``dtype_tod``::
+
+  import numpy as np
+  
+  obs = lbs.Observation(
+      detectors=2,
+      start_time=0.0,
+      sampling_rate_hz=5.0,
+      n_samples=5,
+      dtype_tod=np.float64,  # Use a 64-bit floating point type
+  )
+
+  
+In full scale simulations the TOD may get too large to fit in memory.
+You can chunk it along the time or detector dimension (or both) using
+``n_blocks_det, n_blocks_time, comm`` at construction time or the
+`set_n_blocks` method. The same chunking is applied also to any
+detector information that you add with `detector_global_info` or
+`detector_info`. Note note ``det_idx`` is added for you at
+construction.
 
 When you distribute the observation the first
 ``n_blocks_det x n_blocks_time``  MPI ranks are organized in a row-major grid

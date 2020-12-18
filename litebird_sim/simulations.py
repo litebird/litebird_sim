@@ -25,6 +25,7 @@ from .version import (
 import astropy.time
 import astropy.units
 import markdown
+import numpy as np
 import jinja2
 import tomlkit
 
@@ -606,6 +607,7 @@ class Simulation:
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
+        dtype_tod=np.float32,
     ):
         "Create a set of Observation objects"
 
@@ -637,6 +639,7 @@ class Simulation:
                 n_blocks_time=n_blocks_time,
                 comm=(None if distribute else self.mpi_comm),
                 root=0,
+                dtype_tod=dtype_tod,
             )
             observations.append(cur_obs)
 
