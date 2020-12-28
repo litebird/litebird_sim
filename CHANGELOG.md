@@ -1,7 +1,5 @@
 # HEAD
 
-# Version 0.2.0
-
 - Add the ability to specify the size of the floating-point type used in `Observation` objects [PR#79](https://github.com/litebird/litebird_sim/pull/79)
 
 - Simple bin map-maker [PR#73](https://github.com/litebird/litebird_sim/pull/73)
