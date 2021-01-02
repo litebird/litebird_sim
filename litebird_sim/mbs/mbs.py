@@ -154,14 +154,10 @@ class MbsParameters:
       is generated and added to the maps
 
     - ``fg_models`` (default: ``None``): this specifies the foreground
-      models as a dictionary associating ``str`` objects to a set of
-      parameters, according to the PySM3 documentation
-      (https://pysm3.readthedocs.io/)
-
-    - ``fg_components`` (default: ``None``): when specified, this must
-      be a list of strings specifying the foreground components to be
-      used to produce foreground maps. See the PySM3 documentation
-      (https://pysm3.readthedocs.io/)
+      models as a list of strings, each specifying a foreground
+      component. Alternatively, it can be provided as a dictionary
+      which associates a name to a component, e.g., ``{"ame":
+      "pysm_ame_1"}``.
 
     - ``output_string`` (default: ``""``): a string used to build the
       file names of the Healpix FITS files saved by the :class:`.Mbs`
@@ -190,7 +186,6 @@ class MbsParameters:
     seed_cmb: Union[int, None] = None
     make_fg: bool = False
     fg_models: Union[Dict[str, Any], None] = None
-    fg_components: Union[List[str], None] = None
     output_string: Union[str, None] = None
     units: str = "muK_thermo"
 
@@ -207,10 +202,13 @@ class MbsParameters:
         if self.fg_models:
             try:
                 del self.fg_models["make_fg"]
-            except KeyError:
+            except (TypeError, KeyError):
                 pass
 
-            self.fg_components = list(self.fg_models.keys())
+            if isinstance(self.fg_models, list):
+                self.fg_models = {x: x for x in self.fg_models}
+
+            self.make_fg = True
 
         if not self.output_string:
             self.output_string = "date_" + date.today().strftime("%y%m%d")
@@ -642,7 +640,7 @@ class Mbs:
         channels = instr.keys()
         n_channels = len(channels)
         fg_models = self.params.fg_models
-        components = self.params.fg_components
+        components = fg_models.keys()
         col_units = [self.params.units, self.params.units, self.params.units]
         saved_maps = []
 
@@ -742,7 +740,7 @@ class Mbs:
 
         coadd_dir.mkdir(parents=True, exist_ok=True)
 
-        components = self.fg_components
+        components = self.fg_models.keys()
         for chnl in channels:
             fg_tot = np.zeros((3, hp.nside2npix(nside)))
             for cmp in components:
