@@ -24,7 +24,7 @@ from .imo import (
     ImoFormatError,
     ImoFlatFile,
 )
-from .mbs.mbs import Mbs, MbsParameters
+from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
 from .quaternions import (
@@ -87,6 +87,7 @@ __all__ = [
     # mbs.py
     "Mbs",
     "MbsParameters",
+    "MbsSavedMapInfo",
     # mpi.py
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
