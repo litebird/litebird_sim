@@ -65,7 +65,7 @@ def test_mbs():
                 "p_sens_ukarcmin": 6.39,
             }
             mbs = lbs.Mbs(sim, sim.parameters["map_based_sims"], instrument=myinst)
-            maps = mbs.run_all()
+            (maps, saved_maps) = mbs.run_all()
 
             curpath = Path(__file__).parent
             map_ref = hp.read_map(curpath / "reference_mbs.fits", (0, 1, 2))
