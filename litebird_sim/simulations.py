@@ -492,7 +492,7 @@ class Simulation:
         dictionary["data_files"] = data_files
         dictionary["warnings"] = warnings
 
-    def _fill_dictionary_with_code_status(self, dictionary):
+    def _fill_dictionary_with_code_status(self, dictionary, include_git_diff):
         # Fill the variable "dictionary" with information about the
         # status of the "litebird_sim" code (which version is it? was
         # it patched? etc.) It is used when producing the final report
@@ -521,14 +521,18 @@ class Simulation:
             dictionary["commit_message"] = commit_message
 
             # Retrieve information about changes in the code since the last commit
-            proc = subprocess.run(
-                ["git", "diff", "--no-color", "--exit-code"],
-                capture_output=True,
-                encoding="utf-8",
-            )
+            if include_git_diff:
+                proc = subprocess.run(
+                    ["git", "diff", "--no-color", "--exit-code"],
+                    capture_output=True,
+                    encoding="utf-8",
+                )
 
-            if proc.returncode != 0:
-                dictionary["code_diff"] = proc.stdout.strip()
+                if proc.returncode != 0:
+                    dictionary["code_diff"] = proc.stdout.strip()
+
+            else:
+                dictionary["skip_code_diff"] = True
 
         except FileNotFoundError:
             # Git is not installed, so ignore the error and continue
@@ -538,7 +542,7 @@ class Simulation:
                 f"unable to save information about latest git commit in the report: {e}"
             )
 
-    def flush(self):
+    def flush(self, include_git_diff=True):
         """Terminate a simulation.
 
         This function must be called when a simulation is complete. It
@@ -551,7 +555,7 @@ class Simulation:
 
         dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         self._fill_dictionary_with_imo_information(dictionary)
-        self._fill_dictionary_with_code_status(dictionary)
+        self._fill_dictionary_with_code_status(dictionary, include_git_diff)
 
         template_file_path = get_template_file_path("report_appendix.md")
         with template_file_path.open("rt") as inpf:
