@@ -79,6 +79,12 @@ following:
   - ``pysm_synch_1``
 
 
+Monte Carlo simulations
+-----------------------
+
+To be written!
+    
+
 API reference
 -------------
 
