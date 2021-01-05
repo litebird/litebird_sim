@@ -16,6 +16,7 @@ Welcome to litebird_sim's documentation!
    detectors
    observations
    data_layout
+   sky_maps
    scanning
    imo
    reports
