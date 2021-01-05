@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 import numpy as np
 import healpy
@@ -16,7 +17,9 @@ class DestriperParameters:
 
     The list of fields in this dataclass is the following:
 
-    - ``nnz``:
+    - ``nside``: the NSIDE parameter used to create the maps
+
+    - ``nnz``: number of components per pixel. The default is 3 (I/Q/U).
 
     - ``baseline_length``: number of consecutive samples in a 1/f noise
       baseline
@@ -53,6 +56,7 @@ class DestriperParameters:
 
     """
 
+    nside: int = 512
     nnz: int = 3
     baseline_length: int = 100
     iter_max: int = 100
@@ -93,9 +97,9 @@ class DestriperResult:
 
 
 class _Toast2FakeCache:
-    def __init__(self, sim, obs, instr, nside):
     "This class simulates a TOAST2 cache"
 
+    def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
         self.obs = obs
 
         self.keydict = {
@@ -106,9 +110,9 @@ class _Toast2FakeCache:
         self.keydict["flags"] = np.zeros(nsamples, dtype="uint8")
 
         pointings = obs.get_pointings(
-            sim.spin2ecliptic_quats,
+            spin2ecliptic_quats,
             detector_quats=obs.quat,
-            bore2spin_quat=instr.bore2spin_quat,
+            bore2spin_quat=bore2spin_quat,
         )
         for (i, det) in enumerate(obs.name):
             curpnt = pointings[i]
@@ -147,12 +151,12 @@ class _Toast2FakeCache:
 
 
 class _Toast2FakeTod:
-    def __init__(self, sim, obs, instr, nside):
     "This class simulates a TOAST2 TOD"
 
+    def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
         self.obs = obs
         self.local_samples = (0, obs.tod[0].size)
-        self.cache = _Toast2FakeCache(sim, obs, instr, nside)
+        self.cache = _Toast2FakeCache(spin2ecliptic_quats, obs, bore2spin_quat, nside)
 
     def local_intervals(self, _):
         return [
@@ -190,17 +194,16 @@ class _Toast2FakeTod:
 
 
 class _Toast2FakeData:
-    def __init__(self, sim, obs, instr, nside):
-        self.sim = sim
     "This class simulates a TOAST2 Data class"
 
+    def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
         self.obs = [
             {
-                "tod": _Toast2FakeTod(sim, x, instr, nside),
+                "tod": _Toast2FakeTod(spin2ecliptic_quats, x, bore2spin_quat, nside),
             }
             for x in obs
         ]
-        self.instr = instr
+        self.bore2spin_quat = bore2spin_quat
         self.nside = nside
         if lbs.MPI_ENABLED:
             self.comm = toast.mpi.Comm(lbs.MPI_COMM_WORLD)
@@ -221,13 +224,12 @@ class _Toast2FakeData:
         self._metadata[key] = value
 
 
-def destripe(
-    sim: lbs.Simulation,
-    instrument,
-    nside,
+def destripe_observations(
+    observations,
+    bore2spin_quat,
+    spin2ecliptic_quats,
+    base_path: Path,
     params: DestriperParameters(),
-):
-    data = _Toast2FakeData(sim=sim, obs=sim.observations, instr=instrument, nside=nside)
 ) -> DestriperResult:
     """Run the destriper on the observations in a TOD
 
@@ -255,11 +257,17 @@ def destripe(
 
     """
 
+    data = _Toast2FakeData(
+        spin2ecliptic_quats=spin2ecliptic_quats,
+        obs=observations,
+        bore2spin_quat=bore2spin_quat,
+        nside=params.nside,
+    )
     mapmaker = toast.todmap.OpMapMaker(
-        nside=nside,
+        nside=params.nside,
         nnz=params.nnz,
         name="signal",
-        outdir=sim.base_path,
+        outdir=base_path,
         outprefix=params.output_file_prefix,
         baseline_length=params.baseline_length,
         iter_max=params.iter_max,
