@@ -268,42 +268,93 @@ def destripe(
 
     mapmaker.exec(data)
 
+    # Ensure that all the MPI processes are synchronized before
+    # attempting to load the FITS files saved by OpMapMaker
+    if lbs.MPI_ENABLED:
+        lbs.MPI_COMM_WORLD.barrier()
+
     result = DestriperResult()
 
     if params.return_hitmap:
         result.hitmap = healpy.read_map(
-            sim.base_path / (params.output_file_prefix + "_hits.fits"),
+            base_path / (params.output_file_prefix + "hits.fits"),
             field=None,
+            dtype=None,
         )
 
     if params.return_binned_map:
         result.binned_map = healpy.read_map(
-            sim.base_path / (params.output_file_prefix + "_binned.fits"),
+            base_path / (params.output_file_prefix + "binned.fits"),
             field=None,
+            dtype=None,
         )
 
     if params.return_destriped_map:
         result.destriped_map = healpy.read_map(
-            sim.base_path / (params.output_file_prefix + "_destriped.fits"),
+            base_path / (params.output_file_prefix + "destriped.fits"),
             field=None,
+            dtype=None,
         )
 
     if params.return_npp:
         result.npp = healpy.read_map(
-            sim.base_path / (params.output_file_prefix + "_npp.fits"),
+            base_path / (params.output_file_prefix + "npp.fits"),
             field=None,
+            dtype=None,
         )
 
     if params.return_invnpp:
         result.invnpp = healpy.read_map(
-            sim.base_path / (params.output_file_prefix + "_invnpp.fits"),
+            base_path / (params.output_file_prefix + "invnpp.fits"),
             field=None,
+            dtype=None,
         )
 
     if params.return_rcond:
         result.rcond = healpy.read_map(
-            sim.base_path / (params.output_file_prefix + "_rcond.fits"),
+            base_path / (params.output_file_prefix + "rcond.fits"),
             field=None,
+            dtype=None,
         )
 
     return result
+
+
+def destripe(
+    sim,
+    instrument,
+    params=DestriperParameters(),
+) -> DestriperResult:
+    """Run the destriper on a set of TODs.
+
+    Run the TOAST destriper on time-ordered data, producing one or
+    more Healpix maps. The `instrument` parameter must be an instance
+    of the :class:`.Instrument` class and is used to convert pointings
+    in Ecliptic coordinates, as it specifies the reference frame of
+    the instrument hosting the detectors that produced the TODs. The
+    `params` parameter is an instance of the
+    :class:`.DestriperParameters` class, and it can be used to tune
+    the way the TOAST destriper works.
+
+    The function returns an instance of the class
+    :class:`.DestriperResult`, which will contain only the maps
+    specified by the ``make_*`` fields of the `params` parameter. (The
+    default is only to return the destriped map in ``destriped_map``
+    and set to ``None`` all the other fields.)
+
+    The destriper will use *all* the observations in the `sim`
+    parameter (an instance of the :class:`.Simulation` class); if you
+    to run them only on a subset of observations (e.g., only the
+    channels belonging to one frequency), you should use the function
+    :func:`.destripe_observations` and pass it only the relevant
+    :class:`.Observation` objects.
+
+    """
+
+    return destripe_observations(
+        observations=sim.observations,
+        bore2spin_quat=instrument.bore2spin_quat,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        base_path=sim.base_path,
+        params=params,
+    )
