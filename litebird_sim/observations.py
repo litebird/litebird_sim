@@ -174,7 +174,7 @@ class Observation:
 
     @property
     def n_samples(self):
-        """ Samples in the whole observation
+        """Samples in the whole observation
 
         Note
         ----
@@ -219,7 +219,7 @@ class Observation:
             )
 
     def _get_start_and_num(self, n_blocks_det, n_blocks_time):
-        """ For both detectors and time, returns the starting (global)
+        """For both detectors and time, returns the starting (global)
         index and lenght of each block if the number of blocks is changed to the
         values passed as arguments
         """
@@ -243,7 +243,7 @@ class Observation:
         )
 
     def _get_tod_shape(self, n_blocks_det, n_blocks_time):
-        """ Return what the shape of ``self.tod`` will be if the blocks are set
+        """Return what the shape of ``self.tod`` will be if the blocks are set
         or changed to the values passed as arguments
         """
         if self.comm is None:
@@ -260,7 +260,7 @@ class Observation:
             return (0, 0)
 
     def set_n_blocks(self, n_blocks_det=1, n_blocks_time=1):
-        """ Change the number of blocks
+        """Change the number of blocks
 
         Args:
             n_blocks_det (int): new number of blocks in the detector direction
@@ -405,7 +405,7 @@ class Observation:
         ) = self._get_local_start_time_start_and_n_samples()
 
     def detector_info(self, name, info):
-        """ Piece of information on the detectors
+        """Piece of information on the detectors
 
         Store ``info`` as the attribute ``name`` of the observation.
         The difference with respect to ``self.name = info``, relevant only
@@ -430,7 +430,7 @@ class Observation:
         setattr(self, name, info)
 
     def detector_global_info(self, name, info, root=0):
-        """ Piece of information on the detectors
+        """Piece of information on the detectors
 
         Variant of :py:meth:`.detector_info` to be used when the information
         comes from a single MPI rank (``root``). In particular,

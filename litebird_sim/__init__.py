@@ -52,6 +52,7 @@ from .scanning import (
     SpinningScanningStrategy,
 )
 from .mapping import make_bin_map
+from .destriper import DestriperParameters, DestriperResult, destripe
 from .simulations import Simulation
 from .version import __author__, __version__
 
@@ -115,6 +116,10 @@ __all__ = [
     "SpinningScanningStrategy",
     # mapping.py
     "make_bin_map",
+    # destripe.py
+    "DestriperParameters",
+    "DestriperResult",
+    "destripe",
     # simulations.py
     "Simulation",
 ]
