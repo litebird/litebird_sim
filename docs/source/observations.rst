@@ -52,7 +52,7 @@ Thus, typical operations look like this::
 Parallel applications
 ---------------------
 
-The only work that the `.Observation` class actually does is handlying
+The only work that the :class:`.Observation` class actually does is handlying
 parallelism. ``obs.tod`` can be distributed over a 
 ``n_blocks_det`` by ``n_blocks_time`` grid of MPI ranks. The blocks can be
 changed at run-time.
