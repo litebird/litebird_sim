@@ -146,8 +146,7 @@ class ImoFormatError(Exception):
 
 
 class ImoFlatFile:
-    """A class that interfaces with a flat-file representation of an IMO.
-    """
+    """A class that interfaces with a flat-file representation of an IMO."""
 
     def __init__(self, path):
         self.path = Path(path)
@@ -298,8 +297,8 @@ class ImoFlatFile:
                 if not quantity:
                     raise KeyError(
                         (
-                            'wrong path: "{id}" points to entity'
-                            '"{path}", which does not have a quantity'
+                            'wrong path: "{id}" points to entity '
+                            '"{path}", which does not have a quantity '
                             'named "{quantity}"'
                         ).format(
                             id=identifier, path=entity.full_path, quantity=quantity_name

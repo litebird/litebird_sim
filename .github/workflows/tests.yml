@@ -1,0 +1,57 @@
+name: Tests
+
+on: [push]
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        mpi: [none, mpich, openmpi]
+        python: [3.6, 3.8]
+        exclude:
+          - os: macos-latest
+            python: 3.6
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install dependencies
+        run: |
+          ./bin/install-mpi.sh ${{ matrix.mpi }}
+          pip install poetry
+          mkdir -p $HOME/.config/litebird_imo
+          echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
+
+      - name: Install litebird_sim
+        run: |
+          EXTRAS="-E docs"
+          if [ "${{ matrix.mpi }}" != "none" ]; then
+            EXTRAS="$EXTRAS -E mpi"
+          fi
+          poetry install $EXTRAS
+
+      - name: Tests
+        run: sh ./bin/run_tests.sh
+
+      - name: Tests MPICH
+        if: ${{ matrix.mpi == 'mpich' }}
+        run: |
+            for proc in 1 5 9 ; do
+              echo "Running MPI test ($MPI) with $proc processes"
+              mpiexec -n $proc poetry run python3 ./test/test_mpi.py
+            done
+
+      - name: Tests OpenMPI
+        if: ${{ matrix.mpi == 'openmpi' }}
+        run: |
+            for proc in 1 2 ; do
+              echo "Running MPI test ($MPI) with $proc processes"
+              mpiexec -n $proc poetry run python3 ./test/test_mpi.py
+            done

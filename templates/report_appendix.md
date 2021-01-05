@@ -48,10 +48,14 @@ Name                 | UUID                                 | Upload date
 -   Main repository: [github.com/litebird/litebird_sim](https://github.com/litebird/litebird_sim)
 -   Version: {{ litebird_sim_version }}, by {{ litebird_sim_author }}
 {% if short_commit_hash -%}
--   Commit hash: [{short_commit_hash}](https://github.com/litebird/litebird_sim/commit/{commit_hash})
-    (_{commit_message}_, by {author})
-{% endif -%}
+-   Commit hash: [{{ short_commit_hash }}](https://github.com/litebird/litebird_sim/commit/{commit_hash})
+    (_{{ commit_message }}_, by {{ author }})
+{% endif %}
 
+{% if skip_code_diff %}
+The command `git diff` was skipped. Use `include_git_diff = True` when
+calling `Simulation.flush()` to enable it.
+{% else %}
 {% if code_diff -%}
 Since the last commit, the following changes have been made to the
 code that has been ran:
@@ -60,7 +64,7 @@ code that has been ran:
 {{code_diff}}
 ```
 {% endif -%}
-
+{% endif -%}
 ---
 
 Report written on {{datetime}}
