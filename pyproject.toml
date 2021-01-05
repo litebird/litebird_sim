@@ -48,6 +48,7 @@ rich = "^6.2.0"
 sphinxcontrib-contentui = "^0.2.5"
 
 dataclasses = {version = "^0.7", python = ">=3.6, <3.7"}
+toast-cmb = "^2.3.12"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]
