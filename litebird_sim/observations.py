@@ -668,7 +668,7 @@ class Observation:
         )
 
         # Compute the pointing direction for each sample
-        pointings_and_polangle = np.empty((self.n_detectors, self.n_samples, 3))
+        pointings_and_polangle = np.empty((self.n_detectors, self.local_n_samples, 3))
         all_compute_pointing_and_polangle(
             result_matrix=pointings_and_polangle, quat_matrix=det2ecliptic_quats
         )
