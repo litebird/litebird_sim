@@ -111,7 +111,7 @@ The price to pay is that you have to set detector properties with special method
 For clarity, here is a visualization of how data (a detector attribute and the
 TOD) gets distributed.
 
-.. image:: ./images/observation_data_distribution/observation_data_distribution/Untitled/Untitled.001.png
+.. image:: ./images/observation_data_distribution.png
 
 When ``n_blocks_det != 1``,  keep in mind that ``obs.tod[0]`` or
 ``obs.wn_levels[0]`` are quantities of the first *local* detector, not global.
