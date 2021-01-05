@@ -67,6 +67,23 @@ class DestriperParameters:
 
 @dataclass
 class DestriperResult:
+    """Result of a call to :func:`.destripe`
+
+    This dataclass has the following fields:
+
+    - ``hitmap``: Healpix map containing the number of hit counts (integer values) per pixel
+
+    - ``binned_map``: Healpix map containing the binned value for each pixel
+
+    - ``destriped_map``: destriped Healpix mapmaker
+
+    - ``npp``: covariance matrix elements for each pixel in the map
+
+    - ``invnpp``: inverse of the covariance matrix element for each pixel in the map
+
+    - ``rcond``: pixel condition number, stored as an Healpix map
+    """
+
     hitmap: Any = None
     binned_map: Any = None
     destriped_map: Any = None
@@ -77,6 +94,8 @@ class DestriperResult:
 
 class _Toast2FakeCache:
     def __init__(self, sim, obs, instr, nside):
+    "This class simulates a TOAST2 cache"
+
         self.obs = obs
 
         self.keydict = {
@@ -129,6 +148,8 @@ class _Toast2FakeCache:
 
 class _Toast2FakeTod:
     def __init__(self, sim, obs, instr, nside):
+    "This class simulates a TOAST2 TOD"
+
         self.obs = obs
         self.local_samples = (0, obs.tod[0].size)
         self.cache = _Toast2FakeCache(sim, obs, instr, nside)
@@ -171,6 +192,8 @@ class _Toast2FakeTod:
 class _Toast2FakeData:
     def __init__(self, sim, obs, instr, nside):
         self.sim = sim
+    "This class simulates a TOAST2 Data class"
+
         self.obs = [
             {
                 "tod": _Toast2FakeTod(sim, x, instr, nside),
@@ -205,6 +228,33 @@ def destripe(
     params: DestriperParameters(),
 ):
     data = _Toast2FakeData(sim=sim, obs=sim.observations, instr=instrument, nside=nside)
+) -> DestriperResult:
+    """Run the destriper on the observations in a TOD
+
+    This function is a low-level wrapper around the TOAST destriper.
+    For daily use, you should prefer the :func:`.destripe` function,
+    which takes its parameters from :class:`.Simulation` and
+    :class:`.Instrument` objects and is easier to call.
+
+    This function runs the TOAST destriper on a set of `observations`
+    (instances of the :class:`.Observation` class). The parameter
+    `bore2spin_quat` is the quaternion transforming the boresight
+    frame of reference into the frame of reference of the spin axis,
+    and it can be retrieved from an instance of the
+    :class:`.Instrument` class. The parameter `spin2ecliptic_quats` is
+    an array of quaternions transforming the spin-axis reference frame
+    in the Ecliptic frame; this is usually computed by an object of
+    type :class:`.Simulation` class.
+
+    The `params` parameter is an instance of the class
+    :class:`.DestriperParameters`, and it specifies the way the
+    destriper will be run and which kind of output is desired. The
+    `base_path` parameter specifies where the Healpix FITS map will be
+    saved. (TOAST's mapmaker cannot produce the maps in memory and
+    must save them in FITS files.)
+
+    """
+
     mapmaker = toast.todmap.OpMapMaker(
         nside=nside,
         nnz=params.nnz,
