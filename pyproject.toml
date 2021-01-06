@@ -1,8 +1,9 @@
 [tool.poetry]
 name = "litebird_sim"
-version = "0.1.0"
+version = "0.2.0"
 description = "Simulation tools for the LiteBIRD experiment"
 authors = ["Maurizio Tomasi <maurizio.tomasi@unimi.it>"]
+readme = "README.md"
 include = [
         "static/report_template.html",
         "static/sakura.css",

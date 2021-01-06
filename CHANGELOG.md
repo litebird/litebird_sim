@@ -1,5 +1,7 @@
 # HEAD
 
+# Version 0.2.0
+
 - Permit to use pre-allocated buffers when generating quaternions and pointing angles [PR#83](https://github.com/litebird/litebird_sim/pull/83)
 
 - Add support for PySM3 in new class `Mbs` [PR#76](https://github.com/litebird/litebird_sim/pull/76)
