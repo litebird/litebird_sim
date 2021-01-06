@@ -751,3 +751,192 @@ class SpinningScanningStrategy(ScanningStrategy):
             pointing_freq_hz=pointing_freq_hz,
             quats=spin2ecliptic_quats,
         )
+
+def get_quaternion_buffer_shape(obs, num_of_detectors=None):
+    """Return the shape of the buffer used to hold detector quaternions.
+    This function can be used to pre-allocate the buffer used by
+    :meth:`.Observation.get_det2ecl_quaternions` and
+    :meth:`.Observation.get_ecl2det_quaternions` to save the
+    quaternions representing the change of the orientation of the
+    detectors with time.
+    Here is a typical use::
+        import numpy as np
+        import litebird_sim as lbs
+        obs = lbs.Observation(...)
+        bufshape = get_quaternion_buffer_shape(obs, n_detectors)
+        quaternions = np.empty(bufshape, dtype=np.float64)
+        quats = get_det2ecl_quaternions(
+            ...,
+            quaternion_buffer=quaternions,
+        )
+    """
+
+    if not num_of_detectors:
+        num_of_detectors = obs.n_detectors
+
+    return (obs.n_samples, num_of_detectors, 4)
+
+def get_det2ecl_quaternions(
+    obs,
+    spin2ecliptic_quats: Spin2EclipticQuaternions,
+    detector_quats,
+    bore2spin_quat,
+    quaternion_buffer=None,
+    dtype=np.float64,
+):
+    """Return the detector-to-Ecliptic quaternions
+    This function returns a ``(D, N, 4)`` tensor containing the
+    quaternions that convert a vector in detector's coordinates
+    into the frame of reference of the Ecliptic. The number of
+    quaternions is equal to the number of samples hold in this
+    observation.
+    Given that the z axis in the frame of reference of a detector
+    points along the main beam axis, this means that if you use
+    these quaternions to rotate the vector `z = [0, 0, 1]`, you
+    will end up with the sequence of vectors pointing towards the
+    points in the sky (in Ecliptic coordinates) that are observed
+    by the detector.
+    This is a low-level method; you should usually call the method
+    :meth:`.get_pointings`, which wraps this function to compute
+    both the pointing direction and the polarization angle.
+    See also the method :meth:`.get_ecl2det_quaternions`, which
+    mirrors this one.
+    If you plan to call this function repeatedly, you can save
+    some running time by pre-allocating the buffer used to hold
+    the quaternions with the parameter `quaternion_buffer`. This
+    must be a NumPy floating-point array whose shape can be
+    computed using
+    :meth:`.Observation.get_quaternion_buffer_shape`. If you pass
+    `quaternion_buffer`, the return value will be a pointer to
+    this buffer.
+    """
+
+    bufshape = get_quaternion_buffer_shape(obs, len(detector_quats))
+    if quaternion_buffer is None:
+        quaternion_buffer = np.empty(bufshape, dtype=dtype)
+    else:
+        assert (
+            quaternion_buffer.shape == bufshape
+        ), f"error, wrong quaternion buffer size: {quaternion_buffer.size} != {bufshape}"
+
+    for (idx, detector_quat) in enumerate(detector_quats):
+        quaternion_buffer[:, idx, :] = spin2ecliptic_quats.get_detector_quats(
+            detector_quat=detector_quat,
+            bore2spin_quat=bore2spin_quat,
+            time0=obs.start_time,
+            sampling_rate_hz=obs.sampling_rate_hz,
+            nsamples=obs.n_samples,
+        )
+
+    return quaternion_buffer
+
+def get_ecl2det_quaternions(
+    obs,
+    spin2ecliptic_quats: Spin2EclipticQuaternions,
+    detector_quats,
+    bore2spin_quat,
+    quaternion_buffer=None,
+    dtype=np.float64,
+):
+    """Return the Ecliptic-to-detector quaternions
+    This function returns a ``(D, N, 4)`` matrix containing the ``N``
+    quaternions of alla the ``D`` detectors
+    that convert a vector in Ecliptic coordinates into
+    the frame of reference of the detector itself. The number of
+    quaternions is equal to the number of samples hold in this
+    observation.
+    This method is useful when you want to simulate how a point
+    source is observed by the detector's beam: if you know the
+    Ecliptic coordinates of the point sources, you can easily
+    derive the location of the source with respect to the
+    reference frame of the detector's beam.
+    """
+
+    quats = get_det2ecl_quaternions(
+        obs,
+        spin2ecliptic_quats,
+        detector_quats,
+        bore2spin_quat,
+        quaternion_buffer=quaternion_buffer,
+        dtype=dtype,
+    )
+    quats[..., 0:3] *= -1  # Apply the quaternion conjugate
+    return quats
+
+def get_pointing_buffer_shape(obs):
+    return (obs.n_detectors, obs.n_samples, 3)
+
+def get_pointings(
+    obs,
+    spin2ecliptic_quats: Spin2EclipticQuaternions,
+    detector_quats,
+    bore2spin_quat,
+    quaternion_buffer=None,
+    dtype_quaternion=np.float64,
+    pointing_buffer=None,
+    dtype_pointing=np.float32,
+):
+    """Return the time stream of pointings for the detector
+    Given a :class:`Spin2EclipticQuaternions` and a quaternion
+    representing the transformation from the reference frame of a
+    detector to the boresight reference frame, compute a set of
+    pointings for the detector that encompass the time span
+    covered by this observation (i.e., starting from
+    `obs.start_time` and including `obs.n_samples` pointings).
+    The parameter `spin2ecliptic_quats` can be easily retrieved by
+    the field `spin2ecliptic_quats` in a object of
+    :class:`.Simulation` object, once the method
+    :meth:`.Simulation.generate_spin2ecl_quaternions` is called.
+    The parameter `detector_quats` is a stack of detector quaternions. For
+    example, it can be
+    - The stack of the field `quat` of an instance of the class
+       :class:`.DetectorInfo`
+    - If all you want to do is a simulation using a boresight
+       direction, you can pass the value ``np.array([[0., 0., 0.,
+       1.]])``, which represents the null rotation.
+    The parameter `bore2spin_quat` is calculated through the class
+    :class:`.Instrument`, which has the field ``bore2spin_quat``.
+    If all you have is the angle β between the boresight and the
+    spin axis, just pass ``quat_rotation_y(β)`` here.
+    The return value is a ``(D x N × 3)`` tensor: the colatitude (in
+    radians) is stored in column 0 (e.g., ``result[:, :, 0]``), the
+    longitude (ditto) in column 1, and the polarization angle
+    (ditto) in column 2. You can extract the three vectors using
+    the following idiom::
+        pointings = obs.get_pointings(...)
+        # Extract the colatitude (theta), longitude (psi), and
+        # polarization angle (psi) from pointings
+        theta, phi, psi = [pointings[:, :, i] for i in (0, 1, 2)]
+    If you plan to call this function repeatedly, you can save
+    some running time by pre-allocating the buffer used to hold
+    the pointings and the quaternions with the parameters
+    `pointing_buffer` and `quaternion_buffer`. Both must be a
+    NumPy floating-point array whose shape can be computed using
+    :meth:`.Observation.get_quaternion_buffer_shape` and
+    :meth:`.Observation.get_pointing_buffer_shape`. If you use
+    these parameters, the return value will be a pointer to the
+    `pointing_buffer`.
+    """
+    det2ecliptic_quats = get_det2ecl_quaternions(
+        obs,
+        spin2ecliptic_quats,
+        detector_quats,
+        bore2spin_quat,
+        quaternion_buffer=quaternion_buffer,
+        dtype=dtype_quaternion,
+    )
+
+    bufshape = get_pointing_buffer_shape(obs)
+    if pointing_buffer is None:
+        pointing_buffer = np.empty(bufshape, dtype=dtype_pointing)
+    else:
+        assert (
+            pointing_buffer.shape == bufshape
+        ), f"error, wrong pointing buffer size: {pointing_buffer.size} != {bufshape}"
+
+    # Compute the pointing direction for each sample
+    all_compute_pointing_and_polangle(
+        result_matrix=pointing_buffer, quat_matrix=det2ecliptic_quats
+    )
+
+    return pointing_buffer

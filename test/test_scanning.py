@@ -91,8 +91,9 @@ def test_simulation_pointings_still():
     lbs.rotate_z_vector(boresight, *sim.spin2ecliptic_quats.quats[-1, :])
     assert np.allclose(np.arctan2(boresight[1], boresight[0]), 2 * np.pi / 365.25)
 
-    # Now redo the calculation using Observation.get_pointings
-    pointings_and_polangle = obs.get_pointings(
+    # Now redo the calculation using get_pointings
+    pointings_and_polangle = lbs.get_pointings(
+        obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
         detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
@@ -132,7 +133,8 @@ def test_simulation_pointings_polangle(tmp_path):
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
-    pointings_and_polangle = obs.get_pointings(
+    pointings_and_polangle = lbs.get_pointings(
+        obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
         detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
@@ -167,7 +169,8 @@ def test_simulation_pointings_spinning(tmp_path):
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
 
-    pointings_and_polangle = obs.get_pointings(
+    pointings_and_polangle = lbs.get_pointings(
+        obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
         detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
@@ -210,7 +213,8 @@ def test_simulation_pointings_mjd(tmp_path):
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
 
     for idx, obs in enumerate(sim.observations):
-        pointings_and_polangle = obs.get_pointings(
+        pointings_and_polangle = lbs.get_pointings(
+            obs,
             spin2ecliptic_quats=sim.spin2ecliptic_quats,
             detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
             bore2spin_quat=instr.bore2spin_quat,
@@ -241,13 +245,15 @@ def test_scanning_quaternions(tmp_path):
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
     detector_quat = np.array([[0.0, 0.0, 0.0, 1.0]])
 
-    det2ecl_quats = obs.get_det2ecl_quaternions(
+    det2ecl_quats = lbs.get_det2ecl_quaternions(
+        obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
         detector_quats=detector_quat,
         bore2spin_quat=instr.bore2spin_quat,
     )
 
-    ecl2det_quats = obs.get_ecl2det_quaternions(
+    ecl2det_quats = lbs.get_ecl2det_quaternions(
+        obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
         detector_quats=detector_quat,
         bore2spin_quat=instr.bore2spin_quat,

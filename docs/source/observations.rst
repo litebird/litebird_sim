@@ -27,8 +27,6 @@ Across the framework, the coherence in the names and content of the attributes
 is guaranteed **by convention** (no check is done by the :class:`.Observation`
 class).
 
-**DO WE NEED A LIST OF THEM?**
-
 There are two more conventions. First, ``obs.tod`` is a 2-D array.
 ``obs.tod[0]`` is the time stream of the first detector.
 ``obs.tod[:, 0]`` are the first time sample of all the detectors.
@@ -52,14 +50,14 @@ Thus, typical operations look like this::
 Parallel applications
 ---------------------
 
-The only work that the :class:`.Observation` class actually does is handlying
+The only work that the :class:`.Observation` class actually does is handling
 parallelism. ``obs.tod`` can be distributed over a 
 ``n_blocks_det`` by ``n_blocks_time`` grid of MPI ranks. The blocks can be
 changed at run-time.
 
 The coherence between the serial and parallel operations is achieved by
 distributing also the arrays of detector properties:
-each rank keep in memory only an interval of ``calibration_factors`` or
+each rank keeps in memory only an interval of ``calibration_factors`` or
 ``wn_levels``, the same detector interval of ``tod``.
 
 The main advantage is that the example operations in the Serial section are
@@ -115,20 +113,21 @@ TOD) gets distributed.
 
 When ``n_blocks_det != 1``,  keep in mind that ``obs.tod[0]`` or
 ``obs.wn_levels[0]`` are quantities of the first *local* detector, not global.
-This should not be a problem as the only thing that matter is that the two
+This should not be a problem as the only thing that matters is that the two
 quantities refer to the same detector. If you need the global detector index,
-you can get it with ``obs.det_idx[0]``, which is create at
+you can get it with ``obs.det_idx[0]``, which is created
 at construction time.
 
 Other notable functionalities
 -----------------------------
 
-Time starting time can be represented either as floating-point values
+The starting time can be represented either as floating-point values
 (appropriate in 99% of the cases) or MJD; in the latter case, it
 is handled through the `AstroPy <https://www.astropy.org/>`_ library.
 
 Instead of adding detector attributes after construction, you can pass a list of
-dictionaries (one entry for each detectors).
+dictionaries (one entry for each detectors). One attribute is created for every
+key.
 
 ::
 
@@ -142,6 +141,8 @@ dictionaries (one entry for each detectors).
       sampling_rate_hz=5.0,
       nsamples=5,
   )
+
+  obs.name == np.array(["A", "B"])  # True
 
 API reference
 -------------
