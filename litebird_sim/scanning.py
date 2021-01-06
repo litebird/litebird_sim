@@ -755,10 +755,10 @@ class SpinningScanningStrategy(ScanningStrategy):
 def get_quaternion_buffer_shape(obs, num_of_detectors=None):
     """Return the shape of the buffer used to hold detector quaternions.
     This function can be used to pre-allocate the buffer used by
-    :meth:`.Observation.get_det2ecl_quaternions` and
-    :meth:`.Observation.get_ecl2det_quaternions` to save the
-    quaternions representing the change of the orientation of the
+    :func:`.get_det2ecl_quaternions` and :func:`.get_ecl2det_quaternions` to
+    save the quaternions representing the change of the orientation of the
     detectors with time.
+    
     Here is a typical use::
         import numpy as np
         import litebird_sim as lbs
@@ -785,28 +785,29 @@ def get_det2ecl_quaternions(
     dtype=np.float64,
 ):
     """Return the detector-to-Ecliptic quaternions
+
     This function returns a ``(D, N, 4)`` tensor containing the
     quaternions that convert a vector in detector's coordinates
     into the frame of reference of the Ecliptic. The number of
     quaternions is equal to the number of samples hold in this
-    observation.
+    observation, ``obs.n_samples``.
     Given that the z axis in the frame of reference of a detector
     points along the main beam axis, this means that if you use
     these quaternions to rotate the vector `z = [0, 0, 1]`, you
     will end up with the sequence of vectors pointing towards the
     points in the sky (in Ecliptic coordinates) that are observed
     by the detector.
-    This is a low-level method; you should usually call the method
-    :meth:`.get_pointings`, which wraps this function to compute
+    This is a low-level function; you should usually call the function
+    :func:`.get_pointings`, which wraps this function to compute
     both the pointing direction and the polarization angle.
-    See also the method :meth:`.get_ecl2det_quaternions`, which
+    See also the method :func:`.get_ecl2det_quaternions`, which
     mirrors this one.
     If you plan to call this function repeatedly, you can save
     some running time by pre-allocating the buffer used to hold
     the quaternions with the parameter `quaternion_buffer`. This
     must be a NumPy floating-point array whose shape can be
     computed using
-    :meth:`.Observation.get_quaternion_buffer_shape`. If you pass
+    :func:`.get_quaternion_buffer_shape`. If you pass
     `quaternion_buffer`, the return value will be a pointer to
     this buffer.
     """
@@ -839,13 +840,14 @@ def get_ecl2det_quaternions(
     dtype=np.float64,
 ):
     """Return the Ecliptic-to-detector quaternions
+
     This function returns a ``(D, N, 4)`` matrix containing the ``N``
-    quaternions of alla the ``D`` detectors
+    quaternions of all the ``D`` detectors
     that convert a vector in Ecliptic coordinates into
     the frame of reference of the detector itself. The number of
     quaternions is equal to the number of samples hold in this
     observation.
-    This method is useful when you want to simulate how a point
+    This function is useful when you want to simulate how a point
     source is observed by the detector's beam: if you know the
     Ecliptic coordinates of the point sources, you can easily
     derive the location of the source with respect to the
@@ -877,6 +879,7 @@ def get_pointings(
     dtype_pointing=np.float32,
 ):
     """Return the time stream of pointings for the detector
+
     Given a :class:`Spin2EclipticQuaternions` and a quaternion
     representing the transformation from the reference frame of a
     detector to the boresight reference frame, compute a set of
@@ -912,8 +915,8 @@ def get_pointings(
     the pointings and the quaternions with the parameters
     `pointing_buffer` and `quaternion_buffer`. Both must be a
     NumPy floating-point array whose shape can be computed using
-    :meth:`.Observation.get_quaternion_buffer_shape` and
-    :meth:`.Observation.get_pointing_buffer_shape`. If you use
+    :func:`.get_quaternion_buffer_shape` and
+    :func:`.get_pointing_buffer_shape`. If you use
     these parameters, the return value will be a pointer to the
     `pointing_buffer`.
     """
