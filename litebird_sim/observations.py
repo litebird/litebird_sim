@@ -11,19 +11,22 @@ from .scanning import Spin2EclipticQuaternions, all_compute_pointing_and_polangl
 class Observation:
     """An observation made by one or multiple detectors over some time window
 
-    This class encodes the data acquired by one or multiple detectors over a
-    finite amount of time, and it is the fundamental block of a
-    simulation. The characteristics of the detector are assumed to be
-    stationary over the time span covered by a simulation; these can include:
+    After construction at least the following attributes are available
+    - :py:meth:`.start_time`
+    - :py:meth:`.n_detectors`
+    - :py:meth:`.n_samples`
+    - :py:meth:`.tod` 2D array (`n_detectors` by `n_samples)` stacking the times
+      streams of the detectors
 
-    - Noise parameters
-    - Gain
+    A note for MPI-parallel application: unless specified, all the variables are
+    *local*. Should you need the global counterparts, 1) think twice, 2) append
+    `_global` to the attribute name.
+    - :py:meth:`.start_time_global`
+    - :py:meth:`.n_detectors_global` `~ n_detectors * n_blocks_det`
+    - :py:meth:`.n_samples_global` `~ n_samples * n_blocks_time`
 
-    To access the TOD, use one of the following methods:
-
-    - :py:meth:`.get_times` returns the array of time values (one per
-      each sample in the TOD)
-    - :py:meth:`.tod` returns the array of samples
+    Following the same phylosophy also
+    - :py:meth:`.get_times` returns the time stamps of the local time interval
 
     Args:
         detectors (int/list of dict): Either the number of detectors or
@@ -35,17 +38,17 @@ class Observation:
 
         n_samples_global (int): The number of samples in this observation.
 
-        start_time: Start time of the observation. It can either be a
+        start_time_global: Start time of the observation. It can either be a
             `astropy.time.Time` type or a floating-point number. In
             the latter case, it must be expressed in seconds.
 
         sampling_rate_hz (float): The sampling frequency, in Hertz.
 
+        dtype_tod (dtype): Data type of the TOD array. Use it to balance
+            numerical precision and memory consumption.
 
-        dtype_tod (dtype): Data type of the TOD array
-
-        n_blocks_det (int): divide the detector axis of the tod in
-            `n_blocks_det` blocks
+        n_blocks_det (int): divide the detector axis of the tod (and all the
+            arrays of detector attributes) in `n_blocks_det` blocks
 
         n_blocks_time (int): divide the time axis of the tod in
             `n_blocks_time` blocks
@@ -180,17 +183,18 @@ class Observation:
     def n_samples_global(self):
         """ Samples in the whole observation
 
-        Note
-        ----
-        If you need the time-lenght of the ``self.tod`` array, use directly
-        ``self.tod.shape[1]``: ``n_samples_global`` allways refers to the full
-        observation, even when it is distributed over multiple processes and
-        ``self.tod`` is just the local block.
+        If you need the time-lenght of the local TOD block  ``self.tod``, use
+        either ``n_samples`` or ``self.tod.shape[1]``.
         """
         return self._n_samples_global
 
     @property
     def n_detectors_global(self):
+        """ Total number of detectors in the observation
+
+        If you need the number of detectors in the local TOD block ``self.tod``,
+        use either ``n_detectors`` or ``self.tod.shape[0]``.
+        """
         return self._n_detectors_global
 
     @property
@@ -409,7 +413,7 @@ class Observation:
         ) = self._get_local_start_time_start_and_n_samples()
 
     def setattr_det(self, name, info):
-        """ Piece of information on the detectors
+        """ Add a piece of information about the detectors
 
         Store ``info`` as the attribute ``name`` of the observation.
         The difference with respect to ``self.name = info``, relevant only
@@ -424,7 +428,7 @@ class Observation:
            distribution
 
         Args:
-            name (str): Name of the information
+            name (str): Name of the detector information
             info (array): Information to be stored in the attribute ``name``.
                 The array must contain one entry for each *local* detector.
 
@@ -434,17 +438,18 @@ class Observation:
         setattr(self, name, info)
 
     def setattr_det_global(self, name, info, root=0):
-        """ Piece of information on the detectors
+        """ Add a piece of information on the detectors
 
-        Variant of :py:meth:`.detector_info` to be used when the information
+        Variant of :py:meth:`.setattr_det` to be used when the information
         comes from a single MPI rank (``root``). In particular,
 
          * In the ``root`` process, ``info`` is required to have
            ``n_detectors_global`` elements (not ``self.tod.shape[1]``).
            For other processes info is irrelevant
-         * ``info`` is scattered from the ``root`` rank to all the processes in
-           ``self.comm`` so that ``self.name`` will have ``self.tod.shape[0]``
-           elements and ``self.name[i]`` is a property of ``self.tod[i]``
+         * ``info`` is scattered from the ``root`` rank to the relevant
+           processes in ``self.comm`` so that ``self.name`` will have
+           ``self.tod.shape[0]`` elements on all the processes  and
+           ``self.name[i]`` is a property of ``self.tod[i]``
          * When changing ``n_blocks_det``, :py:meth:`.set_n_blocks` is aware of
            ``name`` and will redistribute ``info`` in such a way that
            ``self.name[i]`` is a property of ``self.tod[i]`` in the new block
@@ -501,8 +506,6 @@ class Observation:
         If `normalize=True`, then the first time is zero. Setting
         this flag requires that `astropy_times=False`.
 
-        In any case the size of the returned array is ``self.tod.shape[1]``.
-
         This can be a costly operation; you should cache this result
         if you plan to use it in your code, instead of calling this
         method over and over again.
@@ -510,8 +513,8 @@ class Observation:
         Note for MPI-parallel codes: the times returned are only those of the
         local portion of the data. This means that
 
-         * the size of the returned array is smaller than ``n_samples_global``
-           whenever there is more than one time-block
+         * the size of the returned array is ``n_samples``, smaller than
+           ``n_samples_global`` whenever there is more than one time-block
          * ``self.tod * self.get_times()`` is a meaningless but always
            allowed operation
         """
@@ -549,4 +552,3 @@ class Observation:
             t0 = self.start_time
 
         return t0 + np.arange(self.n_samples) / self.sampling_rate_hz
-
