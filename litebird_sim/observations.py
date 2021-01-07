@@ -6,7 +6,8 @@ import numpy as np
 
 from .distribute import distribute_evenly
 
-# NOTE: remove these imports after the deprecated methods have been removed
+# NOTE: When the deprecated pointing methods will be removed, the following
+# imports should be removed as well
 import logging
 from .scanning import (
     Spin2EclipticQuaternions, get_quaternion_buffer_shape, get_det2ecl_quaternions,
