@@ -1,9 +1,15 @@
 [tool.poetry]
 name = "litebird_sim"
-version = "0.1.0"
+version = "0.2.0"
 description = "Simulation tools for the LiteBIRD experiment"
-authors = ["Maurizio Tomasi <maurizio.tomasi@unimi.it>"]
+authors = [
+	"The LiteBIRD Simulation Team",
+	"Maurizio Tomasi <maurizio.tomasi@unimi.it>",
+]
+readme = "README.md"
+license = "GPL3"
 include = [
+	"images/logo.png",
         "static/report_template.html",
         "static/sakura.css",
         "templates/*.md",
@@ -36,7 +42,6 @@ katex = "^0.0.4"
 healpy = "^1.13.0"
 pyyaml = "^5.3.1"
 backports-datetime-fromisoformat = "^1.0.0"
-ducc0 = {git = "https://github.com/litebird/ducc", rev = "ducc0"}
 pybind11 = "^2.5.0"
 jplephem = "^2.14"
 PyGithub = "^1.53"
@@ -48,6 +53,8 @@ rich = "^6.2.0"
 sphinxcontrib-contentui = "^0.2.5"
 
 dataclasses = {version = "^0.7", python = ">=3.6, <3.7"}
+ducc0 = "^0.7.0"
+pysm3 = "^3.3.0"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]
