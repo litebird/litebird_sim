@@ -797,7 +797,8 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
 
   # Calculate the quaternions that convert the Ecliptic
   # reference system into the detector's reference system
-  quats = obs.get_ecl2det_quaternions(
+  quats = lbs.get_ecl2det_quaternions(
+      obs,
       sim.spin2ecliptic_quats,
       detector_quats=[det.quat],
       bore2spin_quat=instr.bore2spin_quat,
