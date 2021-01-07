@@ -546,11 +546,42 @@ class Observation:
 
         return t0 + np.arange(self.local_n_samples) / self.sampling_rate_hz
 
+    def get_quaternion_buffer_shape(self, num_of_detectors=None):
+        """Return the shape of the buffer used to hold detector quaternions.
+
+        This function can be used to pre-allocate the buffer used by
+        :meth:`.Observation.get_det2ecl_quaternions` and
+        :meth:`.Observation.get_ecl2det_quaternions` to save the
+        quaternions representing the change of the orientation of the
+        detectors with time.
+
+        Here is a typical use::
+
+            import numpy as np
+            import litebird_sim as lbs
+
+            obs = lbs.Observation(...)
+            bufshape = obs.get_quaternion_buffer_shape(n_detectors)
+            quaternions = np.empty(bufshape, dtype=np.float64)
+            quats = obs.get_det2ecl_quaternions(
+                ...,
+                quaternion_buffer=quaternions,
+            )
+
+        """
+
+        if not num_of_detectors:
+            num_of_detectors = self.n_detectors
+
+        return (self.local_n_samples, num_of_detectors, 4)
+
     def get_det2ecl_quaternions(
         self,
         spin2ecliptic_quats: Spin2EclipticQuaternions,
         detector_quats,
         bore2spin_quat,
+        quaternion_buffer=None,
+        dtype=np.float64,
     ):
         """Return the detector-to-Ecliptic quaternions
 
@@ -574,25 +605,43 @@ class Observation:
         See also the method :meth:`.get_ecl2det_quaternions`, which
         mirrors this one.
 
+        If you plan to call this function repeatedly, you can save
+        some running time by pre-allocating the buffer used to hold
+        the quaternions with the parameter `quaternion_buffer`. This
+        must be a NumPy floating-point array whose shape can be
+        computed using
+        :meth:`.Observation.get_quaternion_buffer_shape`. If you pass
+        `quaternion_buffer`, the return value will be a pointer to
+        this buffer.
+
         """
-        return np.array(
-            [
-                spin2ecliptic_quats.get_detector_quats(
-                    detector_quat=detector_quat,
-                    bore2spin_quat=bore2spin_quat,
-                    time0=self.local_start_time,
-                    sampling_rate_hz=self.sampling_rate_hz,
-                    nsamples=self.local_n_samples,
-                )
-                for detector_quat in detector_quats
-            ]
-        )
+
+        bufshape = self.get_quaternion_buffer_shape(len(detector_quats))
+        if quaternion_buffer is None:
+            quaternion_buffer = np.empty(bufshape, dtype=dtype)
+        else:
+            assert (
+                quaternion_buffer.shape == bufshape
+            ), f"error, wrong quaternion buffer size: {quaternion_buffer.size} != {bufshape}"
+
+        for (idx, detector_quat) in enumerate(detector_quats):
+            quaternion_buffer[:, idx, :] = spin2ecliptic_quats.get_detector_quats(
+                detector_quat=detector_quat,
+                bore2spin_quat=bore2spin_quat,
+                time0=self.local_start_time,
+                sampling_rate_hz=self.sampling_rate_hz,
+                nsamples=self.local_n_samples,
+            )
+
+        return quaternion_buffer
 
     def get_ecl2det_quaternions(
         self,
         spin2ecliptic_quats: Spin2EclipticQuaternions,
         detector_quats,
         bore2spin_quat,
+        quaternion_buffer=None,
+        dtype=np.float64,
     ):
         """Return the Ecliptic-to-detector quaternions
 
@@ -611,16 +660,27 @@ class Observation:
         """
 
         quats = self.get_det2ecl_quaternions(
-            spin2ecliptic_quats, detector_quats, bore2spin_quat
+            spin2ecliptic_quats,
+            detector_quats,
+            bore2spin_quat,
+            quaternion_buffer=quaternion_buffer,
+            dtype=dtype,
         )
         quats[..., 0:3] *= -1  # Apply the quaternion conjugate
         return quats
+
+    def get_pointing_buffer_shape(self):
+        return (self.n_detectors, self.n_samples, 3)
 
     def get_pointings(
         self,
         spin2ecliptic_quats: Spin2EclipticQuaternions,
         detector_quats,
         bore2spin_quat,
+        quaternion_buffer=None,
+        dtype_quaternion=np.float64,
+        pointing_buffer=None,
+        dtype_pointing=np.float32,
     ):
         """Return the time stream of pointings for the detector
 
@@ -662,15 +722,36 @@ class Observation:
             # polarization angle (psi) from pointings
             theta, phi, psi = [pointings[:, :, i] for i in (0, 1, 2)]
 
+        If you plan to call this function repeatedly, you can save
+        some running time by pre-allocating the buffer used to hold
+        the pointings and the quaternions with the parameters
+        `pointing_buffer` and `quaternion_buffer`. Both must be a
+        NumPy floating-point array whose shape can be computed using
+        :meth:`.Observation.get_quaternion_buffer_shape` and
+        :meth:`.Observation.get_pointing_buffer_shape`. If you use
+        these parameters, the return value will be a pointer to the
+        `pointing_buffer`.
+
         """
         det2ecliptic_quats = self.get_det2ecl_quaternions(
-            spin2ecliptic_quats, detector_quats, bore2spin_quat
+            spin2ecliptic_quats,
+            detector_quats,
+            bore2spin_quat,
+            quaternion_buffer=quaternion_buffer,
+            dtype=dtype_quaternion,
         )
+
+        bufshape = self.get_pointing_buffer_shape()
+        if pointing_buffer is None:
+            pointing_buffer = np.empty(bufshape, dtype=dtype_pointing)
+        else:
+            assert (
+                pointing_buffer.shape == bufshape
+            ), f"error, wrong pointing buffer size: {pointing_buffer.size} != {bufshape}"
 
         # Compute the pointing direction for each sample
-        pointings_and_polangle = np.empty((self.n_detectors, self.local_n_samples, 3))
         all_compute_pointing_and_polangle(
-            result_matrix=pointings_and_polangle, quat_matrix=det2ecliptic_quats
+            result_matrix=pointing_buffer, quat_matrix=det2ecliptic_quats
         )
 
-        return pointings_and_polangle
+        return pointing_buffer
