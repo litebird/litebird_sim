@@ -752,8 +752,10 @@ class SpinningScanningStrategy(ScanningStrategy):
             quats=spin2ecliptic_quats,
         )
 
+
 def get_quaternion_buffer_shape(obs, num_of_detectors=None):
     """Return the shape of the buffer used to hold detector quaternions.
+
     This function can be used to pre-allocate the buffer used by
     :func:`.get_det2ecl_quaternions` and :func:`.get_ecl2det_quaternions` to
     save the quaternions representing the change of the orientation of the
@@ -775,6 +777,7 @@ def get_quaternion_buffer_shape(obs, num_of_detectors=None):
         num_of_detectors = obs.n_detectors
 
     return (obs.n_samples, num_of_detectors, 4)
+
 
 def get_det2ecl_quaternions(
     obs,
@@ -831,6 +834,7 @@ def get_det2ecl_quaternions(
 
     return quaternion_buffer
 
+
 def get_ecl2det_quaternions(
     obs,
     spin2ecliptic_quats: Spin2EclipticQuaternions,
@@ -865,8 +869,10 @@ def get_ecl2det_quaternions(
     quats[..., 0:3] *= -1  # Apply the quaternion conjugate
     return quats
 
+
 def get_pointing_buffer_shape(obs):
     return (obs.n_detectors, obs.n_samples, 3)
+
 
 def get_pointings(
     obs,

@@ -5,7 +5,13 @@ import astropy.time
 import numpy as np
 
 from .distribute import distribute_evenly
-from .scanning import Spin2EclipticQuaternions, all_compute_pointing_and_polangle
+
+# NOTE: remove these imports after the deprecated methods have been removed
+import logging
+from .scanning import (
+    Spin2EclipticQuaternions, get_quaternion_buffer_shape, get_det2ecl_quaternions,
+    get_pointing_buffer_shape, get_ecl2det_quaternions, get_pointings
+)
 
 
 class Observation:
@@ -552,3 +558,95 @@ class Observation:
             t0 = self.start_time
 
         return t0 + np.arange(self.n_samples) / self.sampling_rate_hz
+
+    # Deprecated methods: Remove ASAP >>>
+    def get_quaternion_buffer_shape(self, num_of_detectors=None):
+        """Deprecated: see scanning.get_quaternion_buffer_shape
+        """
+        logging.warn(
+            "Observation.get_quaternion_buffer_shape is deprecated and will be "
+            "removed soon, user scanning.get_quaternion_buffer_shape instead")
+        return get_quaternion_buffer_shape(self, num_of_detectors)
+
+    def get_det2ecl_quaternions(
+        self,
+        spin2ecliptic_quats: Spin2EclipticQuaternions,
+        detector_quats,
+        bore2spin_quat,
+        quaternion_buffer=None,
+        dtype=np.float64,
+    ):
+        """Deprecated: see scanning.get_det2ecl_quaternions
+        """
+        logging.warn(
+            "Observation.get_det2ecl_quaternions is deprecated and will be "
+            "removed soon, user scanning.get_det2ecl_quaternions instead")
+
+        return get_det2ecl_quaternions(
+            self,
+            spin2ecliptic_quats,
+            detector_quats,
+            bore2spin_quat,
+            quaternion_buffer,
+            dtype,
+        )
+
+    def get_ecl2det_quaternions(
+        self,
+        spin2ecliptic_quats: Spin2EclipticQuaternions,
+        detector_quats,
+        bore2spin_quat,
+        quaternion_buffer=None,
+        dtype=np.float64,
+    ):
+        """Deprecated: see scanning.get_ecl2det_quaternions
+        """
+        logging.warn(
+            "Observation.get_ecl2det_quaternions is deprecated and will be "
+            "removed soon, user scanning.get_ecl2det_quaternions instead")
+
+        return get_ecl2det_quaternions(
+            self,
+            spin2ecliptic_quats,
+            detector_quats,
+            bore2spin_quat,
+            quaternion_buffer,
+            dtype,
+        )
+
+    def get_pointing_buffer_shape(self):
+        """Deprecated: see scanning.get_pointing_buffer_shape
+        """
+        logging.warn(
+            "Observation.get_pointing_buffer_shape is deprecated and will be "
+            "removed soon, user scanning.get_pointing_buffer_shape instead")
+
+        return get_pointing_buffer_shape(self)
+
+    def get_pointings(
+        self,
+        spin2ecliptic_quats: Spin2EclipticQuaternions,
+        detector_quats,
+        bore2spin_quat,
+        quaternion_buffer=None,
+        dtype_quaternion=np.float64,
+        pointing_buffer=None,
+        dtype_pointing=np.float32,
+    ):
+        """Deprecated: see scanning.get_pointings
+        """
+        logging.warn(
+            "Observation.get_pointings is deprecated and will be "
+            "removed soon, user scanning.get_pointings instead")
+
+        return get_pointings(
+            self,
+            spin2ecliptic_quats,
+            detector_quats,
+            bore2spin_quat,
+            quaternion_buffer,
+            dtype_quaternion,
+            pointing_buffer,
+            dtype_pointing,
+        )
+    # <<< Remove ASAP
