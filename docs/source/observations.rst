@@ -15,9 +15,9 @@ can put anything::
 
   obs = lbs.Observation(
       detectors=2,
-      start_time=0.0,
+      start_time_global=0.0,
       sampling_rate_hz=5.0,
-      n_samples=5,
+      n_samples_global=5,
   )
 
   obs.my_new_attr = 'value'
@@ -73,9 +73,9 @@ The price to pay is that you have to set detector properties with special method
 
   obs = lbs.Observation(
       detectors=2,
-      start_time=0.0,
+      start_time_global=0.0,
       sampling_rate_hz=5.0,
-      n_samples=5,
+      n_samples_global=5,
       n_blocks_det=2, # Split the detector axis in 2
       comm=comm  # across the processes of this communicator
   )
@@ -137,9 +137,9 @@ key.
   # Second case: use MJD to track the time
   obs_mjd = lbs.Observation(
       detectors=[{"name": "A"}, {"name": "B"}]
-      start_time=Time("2020-02-20", format="iso"),
+      start_time_global=Time("2020-02-20", format="iso"),
       sampling_rate_hz=5.0,
-      nsamples=5,
+      nsamples_global=5,
   )
 
   obs.name == np.array(["A", "B"])  # True
