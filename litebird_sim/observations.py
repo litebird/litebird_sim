@@ -565,7 +565,7 @@ class Observation:
         """
         logging.warn(
             "Observation.get_quaternion_buffer_shape is deprecated and will be "
-            "removed soon, user scanning.get_quaternion_buffer_shape instead")
+            "removed soon, use scanning.get_quaternion_buffer_shape instead")
         return get_quaternion_buffer_shape(self, num_of_detectors)
 
     def get_det2ecl_quaternions(
@@ -580,7 +580,7 @@ class Observation:
         """
         logging.warn(
             "Observation.get_det2ecl_quaternions is deprecated and will be "
-            "removed soon, user scanning.get_det2ecl_quaternions instead")
+            "removed soon, use scanning.get_det2ecl_quaternions instead")
 
         return get_det2ecl_quaternions(
             self,
@@ -603,7 +603,7 @@ class Observation:
         """
         logging.warn(
             "Observation.get_ecl2det_quaternions is deprecated and will be "
-            "removed soon, user scanning.get_ecl2det_quaternions instead")
+            "removed soon, use scanning.get_ecl2det_quaternions instead")
 
         return get_ecl2det_quaternions(
             self,
@@ -619,7 +619,7 @@ class Observation:
         """
         logging.warn(
             "Observation.get_pointing_buffer_shape is deprecated and will be "
-            "removed soon, user scanning.get_pointing_buffer_shape instead")
+            "removed soon, use scanning.get_pointing_buffer_shape instead")
 
         return get_pointing_buffer_shape(self)
 
@@ -637,7 +637,7 @@ class Observation:
         """
         logging.warn(
             "Observation.get_pointings is deprecated and will be "
-            "removed soon, user scanning.get_pointings instead")
+            "removed soon, use scanning.get_pointings instead")
 
         return get_pointings(
             self,
