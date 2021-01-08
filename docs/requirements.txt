@@ -1,0 +1,4 @@
+sphinx >=2.3,<3
+sphinx_rtd_theme >=0.4.3,<0.5
+sphinxcontrib-bibtex >=1,<2
+backports.datetime_fromisoformat
