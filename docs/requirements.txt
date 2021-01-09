@@ -1,4 +1,14 @@
 sphinx >=2.3,<3
 sphinx_rtd_theme >=0.4.3,<0.5
 sphinxcontrib-bibtex >=1,<2
-backports.datetime_fromisoformat
+backports-datetime-fromisoformat >=1,<2
+sphinxcontrib-contentui >=0.2.5,<0.3
+numpy >=1.18,<2
+tomlkit >=0.5.8,<0.6
+numba >=0.51,<0.52
+astropy >=4,<5
+toml
+healpy >=1.13,<2
+pysm3 >=3.3,<4
+markdown >=3.2,<4
+markdown_katex >=202006.1021,<202007
