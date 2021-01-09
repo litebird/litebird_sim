@@ -10,8 +10,6 @@ import astropy.units as u
 from numba import njit
 import numpy as np
 
-from ducc0.pointingprovider import PointingProvider
-
 from .imo import Imo
 
 from .quaternions import (
@@ -456,6 +454,8 @@ class Spin2EclipticQuaternions:
         must match that of `self.start_time`.
 
         """
+        from ducc0.pointingprovider import PointingProvider
+
         assert len(detector_quat) == 4
         assert (
             self.quats.shape[0] > 1
