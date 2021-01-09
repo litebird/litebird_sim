@@ -216,7 +216,8 @@ report::
   )
   det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
-  pointings = obs.get_pointings(
+  pointings = lbs.get_pointings(
+      obs,
       sim.spin2ecliptic_quats,
       detector_quats=[det.quat],
       bore2spin_quat=instr.bore2spin_quat,
