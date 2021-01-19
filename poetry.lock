@@ -266,7 +266,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "ducc0"
-version = "0.7.0"
+version = "0.8.0"
 description = "Distinctly useful code collection"
 category = "main"
 optional = false
@@ -1593,7 +1593,7 @@ mpi = ["mpi4py"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "0e64bc460c448f8a18fbcd2f63a48d0c37b4a43c5b0507461bf9b39b846020bd"
+content-hash = "f97050dffe628e52d9441f207ff077b122d66fe9b166e8df649d323818ac635e"
 
 [metadata.files]
 alabaster = [
@@ -1762,7 +1762,7 @@ docutils = [
     {file = "docutils-0.16.tar.gz", hash = "sha256:c2de3a60e9e7d07be26b7f2b00ca0309c207e06c100f9cc2a94931fc75a478fc"},
 ]
 ducc0 = [
-    {file = "ducc0-0.7.0.tar.gz", hash = "sha256:3b1257417694c5f4e4211264b7110f7f6c704d5861aa80d24e6b1bf5dc18ea99"},
+    {file = "ducc0-0.8.0.tar.gz", hash = "sha256:b69beb38408dd8a350753271bd49ce03e60eb0c6ea255d6681e6b058c1c75b48"},
 ]
 entrypoints = [
     {file = "entrypoints-0.3-py2.py3-none-any.whl", hash = "sha256:589f874b313739ad35be6e0cd7efde2a4e9b6fea91edcc34e58ecbb8dbe56d19"},
