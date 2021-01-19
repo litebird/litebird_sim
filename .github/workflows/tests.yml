@@ -28,6 +28,8 @@ jobs:
           pip install poetry
           mkdir -p $HOME/.config/litebird_imo
           echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
+        env:
+          DUCC0_OPTIMIZATION: none
 
       - name: Install litebird_sim
         run: |
