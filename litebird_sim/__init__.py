@@ -51,6 +51,9 @@ from .scanning import (
     Spin2EclipticQuaternions,
     ScanningStrategy,
     SpinningScanningStrategy,
+    get_det2ecl_quaternions,
+    get_ecl2det_quaternions,
+    get_pointings
 )
 from .mapping import make_bin_map
 from .simulations import Simulation
@@ -118,6 +121,9 @@ __all__ = [
     "Spin2EclipticQuaternions",
     "ScanningStrategy",
     "SpinningScanningStrategy",
+    "get_det2ecl_quaternions",
+    "get_ecl2det_quaternions",
+    "get_pointings",
     # mapping.py
     "make_bin_map",
     # simulations.py

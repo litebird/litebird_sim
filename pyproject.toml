@@ -4,6 +4,7 @@ version = "0.2.0"
 description = "Simulation tools for the LiteBIRD experiment"
 authors = [
 	"The LiteBIRD Simulation Team",
+	"Ranajoy Banerji <ranajoy.cosmo@gmail.com>",
 	"Maurizio Tomasi <maurizio.tomasi@unimi.it>",
 ]
 readme = "README.md"
@@ -53,7 +54,7 @@ rich = "^6.2.0"
 sphinxcontrib-contentui = "^0.2.5"
 
 dataclasses = {version = "^0.7", python = ">=3.6, <3.7"}
-ducc0 = "^0.7.0"
+ducc0 = "^0.8.0"
 pysm3 = "^3.3.0"
 
 [tool.poetry.extras]

@@ -36,6 +36,8 @@ jobs:
             EXTRAS="$EXTRAS -E mpi"
           fi
           poetry install $EXTRAS
+        env:
+          DUCC0_OPTIMIZATION: none
 
       - name: Tests
         run: sh ./bin/run_tests.sh

@@ -60,7 +60,8 @@ def test_make_bin_map_api_simulation():
                                spin_boresight_angle_rad=np.radians(65))
     det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
     obss = sim.create_observations(detectors=[det])
-    pointings = obss[0].get_pointings(
+    pointings = lbs.get_pointings(
+        obss[0],
         sim.spin2ecliptic_quats,
         detector_quats=[det.quat],
         bore2spin_quat=instr.bore2spin_quat,
@@ -95,8 +96,8 @@ def test_make_bin_map_basic_mpi():
     # Craft the observation with the attributes needed for map-making
     obs = lbs.Observation(
         detectors=2,
-        n_samples=5,
-        start_time=0.0,
+        n_samples_global=5,
+        start_time_global=0.0,
         sampling_rate_hz=1.0,
         comm=lbs.MPI_COMM_WORLD,
     )
