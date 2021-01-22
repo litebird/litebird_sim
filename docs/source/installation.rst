@@ -107,6 +107,13 @@ Let's see the details of each step.
 Build a ``Singularity`` file
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+To build a file for Singularity, you must first clone the
+``litebird_sim`` repository:
+
+.. code-block: text
+
+   git clone https://github.com/litebird/litebird_sim litebird_sim
+
 Enter the directory ``litebird_sim/singularity`` and run the script
 ``create-singularity-file.sh``. It takes the following arguments:
 
