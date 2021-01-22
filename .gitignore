@@ -128,3 +128,7 @@ dmypy.json
 
 # macOS
 .DS_Store
+
+# Automatically-generated Singularity file
+Singularity
+singularity/*.img

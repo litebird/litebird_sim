@@ -31,6 +31,7 @@ release = "0.2.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinxcontrib.asciinema",
     "sphinx.ext.autodoc",
     "sphinxcontrib.bibtex",
     "sphinx.ext.doctest",
