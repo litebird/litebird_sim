@@ -93,7 +93,7 @@ Be aware that Singularity has a few disadvantages:
 To use Singularity, you must follow these steps:
 
 1. Build a ``Singularity`` file; using the scripts provided by the
-    LiteBIRD Simulation Framework, it is a matter of a few seconds;
+   LiteBIRD Simulation Framework, it is a matter of a few seconds;
 
 2. Build the container; this requires a working internet connection
    and will take a few minutes;
@@ -110,7 +110,7 @@ Build a ``Singularity`` file
 To build a file for Singularity, you must first clone the
 ``litebird_sim`` repository:
 
-.. code-block: text
+.. code-block:: text
 
    git clone https://github.com/litebird/litebird_sim litebird_sim
 
@@ -134,7 +134,7 @@ Enter the directory ``litebird_sim/singularity`` and run the script
 Here are a few usage examples; each of them creates a ``Singularity``
 file in the current directory (i.e., ``litebird_sim/singularity``):
 
-.. code-block: text
+.. code-block:: text
 
    # Use Ubuntu Linux 20.04 and OpenMPI
    $ ./create-singularity-file.sh 20.04 openmpi
@@ -152,7 +152,7 @@ Once you have executed ``create-singularity-file.sh``, you will have a
 ``Singularity`` file. It's time to run ``singularity`` and create the
 container:
 
-.. code-block: text
+.. code-block:: text
 
    singularity build --fakeroot litebird_sim.img Singularity
 
