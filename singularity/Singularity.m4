@@ -43,6 +43,11 @@ shell. Examples:
 %files
         runscript.py /opt/
 
+%test
+        cd /opt/litebird_sim && \
+           python3 -m pytest --doctest-modules -vv && \
+           make -C docs/ doctest
+
 %environment
         export LC_ALL=C
         export LC_NUMERIC=en_GB.UTF-8
