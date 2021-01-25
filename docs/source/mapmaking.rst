@@ -122,9 +122,11 @@ above (hit map, binned map, destriped map).
    The TOAST destriper only works with timelines containing 64-bit
    floating point numbers. As the default data type for timelines
    created by ``sim.create_observations`` is a 32-bit float, if you
-   plan to run the destriper you must pass the flag
-   ``dtype_tod=np.float64`` to ``sim.create_observations`` (see
-   the code above).
+   plan to run the destriper you should pass the flag
+   ``dtype_tod=np.float64`` to ``sim.create_observations`` (see the
+   code above), otherwise ``destripe`` will create an internal copy of
+   the TOD converted in 64-bit floating-point numbers, which is
+   usually a waste of space.
 
 Let's plot the binned map (the most reasonable output, as we have not
 included correlated noise in our example)::
