@@ -2,7 +2,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 import numpy as np
-import healpy
+from ducc0 import healpix
+
+import healpy  # We need healpy.read_map
 
 import litebird_sim as lbs
 from toast.todmap import OpMapMaker
@@ -114,15 +116,11 @@ class _Toast2FakeCache:
             detector_quats=obs.quat,
             bore2spin_quat=bore2spin_quat,
         )
+        healpix_base = healpix.Healpix_Base(nside=nside, scheme="NEST")
         for (i, det) in enumerate(obs.name):
-            curpnt = pointings[i]
+            curpnt = np.array(pointings[i], dtype="float64")
             self.keydict[f"signal_{det}"] = obs.tod[i]
-            self.keydict[f"pixels_{det}"] = healpy.ang2pix(
-                nside,
-                curpnt[:, 0],
-                curpnt[:, 1],
-                nest=True,
-            )
+            self.keydict[f"pixels_{det}"] = healpix_base.ang2pix(curpnt[:, 0:2])
             self.keydict[f"weights_{det}"] = np.stack(
                 (
                     np.ones(nsamples),
@@ -210,9 +208,10 @@ class _Toast2FakeData:
         else:
             self.comm = None
 
+        npix = 12 * (self.nside ** 2)
         self._metadata = {
-            "pixels_npix": healpy.nside2npix(self.nside),
-            "pixels_npix_submap": healpy.nside2npix(self.nside),
+            "pixels_npix": npix,
+            "pixels_npix_submap": npix,
             "pixels_nsubmap": 1,
             "pixels_local_submaps": np.array([0], dtype=np.uint8),
         }

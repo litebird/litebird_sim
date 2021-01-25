@@ -71,33 +71,93 @@ def test_destriper(tmp_path):
     ref_map_path = Path(__file__).parent / "destriper_reference"
 
     hit_map_filename = ref_map_path / "destriper_hit_map.fits.gz"
+    # healpy.write_map(hit_map_filename, results.hit_map, dtype=np.int32, overwrite=True)
     assert np.allclose(
-        results.hit_map, healpy.read_map(hit_map_filename, field=None, verbose=False)
+        results.hit_map,
+        healpy.read_map(hit_map_filename, field=None, verbose=False, dtype=np.int32),
     )
 
     binned_map_filename = ref_map_path / "destriper_binned_map.fits.gz"
+    # healpy.write_map(
+    #     binned_map_filename,
+    #     results.binned_map,
+    #     dtype=list((np.float32 for i in range(3))),
+    #     overwrite=True,
+    # )
     assert np.allclose(
         results.binned_map,
-        healpy.read_map(binned_map_filename, field=None, verbose=False),
+        healpy.read_map(
+            binned_map_filename,
+            field=None,
+            verbose=False,
+            dtype=list((np.float32 for i in range(3))),
+        ),
     )
 
     destriped_map_filename = ref_map_path / "destriper_destriped_map.fits.gz"
+    # healpy.write_map(
+    #     destriped_map_filename,
+    #     results.destriped_map,
+    #     dtype=list((np.float32 for i in range(3))),
+    #     overwrite=True,
+    # )
     assert np.allclose(
         results.destriped_map,
-        healpy.read_map(destriped_map_filename, field=None, verbose=False),
+        healpy.read_map(
+            destriped_map_filename,
+            field=None,
+            verbose=False,
+            dtype=list((np.float32 for i in range(3))),
+        ),
     )
 
     npp_filename = ref_map_path / "destriper_npp.fits.gz"
+    # healpy.write_map(
+    #     npp_filename,
+    #     results.npp,
+    #     dtype=list((np.float32 for i in range(6))),
+    #     overwrite=True,
+    # )
     assert np.allclose(
-        results.npp, healpy.read_map(npp_filename, field=None, verbose=False)
+        results.npp,
+        healpy.read_map(
+            npp_filename,
+            field=None,
+            verbose=False,
+            dtype=list((np.float32 for i in range(6))),
+        ),
     )
 
     invnpp_filename = ref_map_path / "destriper_invnpp.fits.gz"
+    # healpy.write_map(
+    #     invnpp_filename,
+    #     results.invnpp,
+    #     dtype=list((np.float32 for i in range(6))),
+    #     overwrite=True,
+    # )
     assert np.allclose(
-        results.invnpp, healpy.read_map(invnpp_filename, field=None, verbose=False)
+        results.invnpp,
+        healpy.read_map(
+            invnpp_filename,
+            field=None,
+            verbose=False,
+            dtype=list((np.float32 for i in range(6))),
+        ),
     )
 
     rcond_filename = ref_map_path / "destriper_rcond.fits.gz"
+    # healpy.write_map(
+    #     rcond_filename,
+    #     results.rcond,
+    #     dtype=np.float32,
+    #     overwrite=True,
+    # )
     assert np.allclose(
-        results.rcond, healpy.read_map(rcond_filename, field=None, verbose=False)
+        results.rcond,
+        healpy.read_map(
+            rcond_filename,
+            field=None,
+            verbose=False,
+            dtype=np.float32,
+        ),
     )
