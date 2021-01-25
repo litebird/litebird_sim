@@ -71,16 +71,22 @@ shell. Examples:
         curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3 -
         export PATH="$POETRY_HOME/bin:$PATH"
 
-        # Install all the dependencies
+        # Install all the dependencies, build a .tar.gz file, install
+        # it, run the tests and build all the documentation. (The
+        # reason why we run tests here is because AstroPy needs to
+        # download a few files, and if we postpone this to %test the
+        # filesystem will be read-only).
         git clone https://github.com/litebird/litebird_sim.git /opt/litebird_sim && \
             cd /opt/litebird_sim && \
             poetry export --without-hashes POETRY_MPI -E docs -E jupyter -o requirements.txt && \
             pip3 install -r requirements.txt && \
             poetry build -f sdist && \
-            pip3 install dist/litebird_sim-$(poetry version -s).tar.gz
+            pip3 install dist/litebird_sim-$(poetry version -s).tar.gz &&
+            sh bin/refresh_docs.sh
+
 
         # Install a few handy packages
-        pip3 install jupyterlab tqdm rich
+        pip3 install jupyterlab tqdm rich pudb
 
         # Print some information
         echo "Information about this Singularity image:"
