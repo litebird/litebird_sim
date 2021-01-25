@@ -164,6 +164,13 @@ If everything works as expected, in a few minutes you will have a
 working container in file ``litebird_sim.img`` (which should be about
 ~0.5 GB in size).
 
+To check that the container works correctly, run a self-test on it:
+
+.. code-block:: text
+
+   singularity test litebird_sim.img
+
+
 Running the container
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -202,3 +209,20 @@ To use MPI, you must call ``mpirun`` *outside* the container:
 
 .. asciinema:: singularity_demo3.cast
    :preload: 1
+
+To obtain a short help about how to use the container, you can use the
+command ``singularity run-help``:
+
+.. asciinema:: singularity_help.cast
+   :preload: 1
+
+Finally, the following demo shows how to test the correctness of the
+LiteBIRD Simulation Framework and to browse a local copy of the
+documentation:
+
+.. asciinema:: singularity_shell.cast
+   :preload: 1
+
+Running ``python3 -m http.server`` starts an HTTP server connected to
+http://0.0.0.0:8000/: browsing to that URL will open your own local
+copy of the User's manual for the LiteBIRD Simulation Framework.
