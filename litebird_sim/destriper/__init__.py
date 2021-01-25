@@ -32,7 +32,7 @@ class DestriperParameters:
     The following Boolean flags specify which maps should be returned
     by the function :func:`.destripe`:
 
-    - ``return_hitmap``: return the hit map (number of hits per
+    - ``return_hit_map``: return the hit map (number of hits per
       pixel)
 
     - ``return_binned_map``: return the binned map (i.e., the map with
@@ -61,7 +61,7 @@ class DestriperParameters:
     baseline_length: int = 100
     iter_max: int = 100
     output_file_prefix: str = "lbs_"
-    return_hitmap: bool = False
+    return_hit_map: bool = False
     return_binned_map: bool = False
     return_destriped_map: bool = True
     return_npp: bool = False
@@ -75,7 +75,7 @@ class DestriperResult:
 
     This dataclass has the following fields:
 
-    - ``hitmap``: Healpix map containing the number of hit counts (integer values) per pixel
+    - ``hit_map``: Healpix map containing the number of hit counts (integer values) per pixel
 
     - ``binned_map``: Healpix map containing the binned value for each pixel
 
@@ -88,7 +88,7 @@ class DestriperResult:
     - ``rcond``: pixel condition number, stored as an Healpix map
     """
 
-    hitmap: Any = None
+    hit_map: Any = None
     binned_map: Any = None
     destriped_map: Any = None
     npp: Any = None
@@ -163,9 +163,9 @@ class _Toast2FakeTod:
             toast.tod.interval.Interval(
                 start=self.obs.start_time,
                 stop=self.obs.start_time
-                + self.obs.sampling_rate_hz * self.obs.local_n_samples,
+                + self.obs.sampling_rate_hz * self.obs.n_samples,
                 first=0,
-                last=self.obs.local_n_samples - 1,
+                last=self.obs.n_samples - 1,
             )
         ]
 
@@ -283,8 +283,8 @@ def destripe_observations(
 
     result = DestriperResult()
 
-    if params.return_hitmap:
-        result.hitmap = healpy.read_map(
+    if params.return_hit_map:
+        result.hit_map = healpy.read_map(
             base_path / (params.output_file_prefix + "hits.fits"),
             field=None,
             dtype=None,
