@@ -67,7 +67,7 @@ detectors::
                 name="0B", sampling_rate_hz=10, quat=lbs.quat_rotation_z(np.pi / 2)
             ),
         ],
-        dtype_tod=np.float64,
+        dtype_tod=np.float64,  # Needed if you use the TOAST destriper
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         distribute=False,
     )
@@ -115,13 +115,23 @@ To run the destriper, you simply call :func:`.destripe`::
 as this is used by the destriper to determine pointing directions in
 Ecliptic coordinates.) The result is an instance of the class
 :class:`.DestriperResults` and contains the three maps we have asked
-above (hit map, binned map, destriped map). Let's plot the binned map
-(the most reasonable output, as we have not included correlated noise
-in our example)::
+above (hit map, binned map, destriped map).
+
+.. note::
+
+   The TOAST destriper only works with timelines containing 64-bit
+   floating point numbers. As the default data type for timelines
+   created by ``sim.create_observations`` is a 32-bit float, if you
+   plan to run the destriper you must pass the flag
+   ``dtype_tod=np.float64`` to ``sim.create_observations`` (see
+   the code above).
+
+Let's plot the binned map (the most reasonable output, as we have not
+included correlated noise in our example)::
 
   import healpy
 
-  # Plot the I map  
+  # Plot the I map
   healpy.mollview(result.binned_map[0])
 
 Here is the complete source code of the example and the result:

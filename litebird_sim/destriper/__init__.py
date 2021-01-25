@@ -1,4 +1,7 @@
+# -*- encoding: utf-8 -*-
+
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from typing import Any
 import numpy as np
@@ -77,7 +80,8 @@ class DestriperResult:
 
     This dataclass has the following fields:
 
-    - ``hit_map``: Healpix map containing the number of hit counts (integer values) per pixel
+    - ``hit_map``: Healpix map containing the number of hit counts
+      (integer values) per pixel
 
     - ``binned_map``: Healpix map containing the binned value for each pixel
 
@@ -85,9 +89,11 @@ class DestriperResult:
 
     - ``npp``: covariance matrix elements for each pixel in the map
 
-    - ``invnpp``: inverse of the covariance matrix element for each pixel in the map
+    - ``invnpp``: inverse of the covariance matrix element for each
+      pixel in the map
 
     - ``rcond``: pixel condition number, stored as an Healpix map
+
     """
 
     hit_map: Any = None
@@ -119,8 +125,26 @@ class _Toast2FakeCache:
         )
         healpix_base = healpix.Healpix_Base(nside=nside, scheme="NEST")
         for (i, det) in enumerate(obs.name):
-            curpnt = np.array(pointings[i], dtype="float64")
-            self.keydict[f"signal_{det}"] = obs.tod[i]
+            if pointings[i].dtype == np.float64:
+                curpnt = pointings[i]
+            else:
+                logging.warning(
+                    "converting pointings for %s from %s to float64",
+                    obs.name[i],
+                    str(pointings[i].dtype),
+                )
+                curpnt = np.array(pointings[i], dtype=np.float64)
+
+            if obs.tod[i].dtype == np.float64:
+                self.keydict[f"signal_{det}"] = obs.tod[i]
+            else:
+                logging.warning(
+                    "converting TODs for %s from %s to float64",
+                    obs.name[i],
+                    str(pointings[i].dtype),
+                )
+                self.keydict[f"signal_{det}"] = np.array(obs.tod[i], dtype=np.float64)
+
             self.keydict[f"pixels_{det}"] = healpix_base.ang2pix(curpnt[:, 0:2])
             self.keydict[f"weights_{det}"] = np.stack(
                 (
