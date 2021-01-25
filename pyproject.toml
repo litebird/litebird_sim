@@ -5,6 +5,8 @@ description = "Simulation tools for the LiteBIRD experiment"
 authors = [
 	"The LiteBIRD Simulation Team",
 	"Ranajoy Banerji <ranajoy.cosmo@gmail.com>",
+	"Davide Poletti <davide.poletti@sissa.it>",
+	"Martin Reinecke <martin@mpa-garching.mpg.de>",
 	"Maurizio Tomasi <maurizio.tomasi@unimi.it>",
 ]
 readme = "README.md"
