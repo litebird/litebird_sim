@@ -133,7 +133,7 @@ class Simulation:
     :meth:`.Simulation.generate_spin2ecl_quaternions`, which
     initializes the members `pointing_freq_hz` and
     `spin2ecliptic_quats`; these members are used by functions like
-    :meth:`.Observation.get_pointings`.
+    :func:`.get_pointings`.
 
     Args:
 
@@ -636,9 +636,9 @@ class Simulation:
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(
                 detectors=detectors,
-                start_time=cur_time,
+                start_time_global=cur_time,
                 sampling_rate_hz=sampfreq_hz,
-                n_samples=nsamples,
+                n_samples_global=nsamples,
                 n_blocks_det=n_blocks_det,
                 n_blocks_time=n_blocks_time,
                 comm=(None if distribute else self.mpi_comm),
@@ -669,7 +669,7 @@ class Simulation:
         span = distribute_optimally(
             elements=observations,
             num_of_groups=self.mpi_comm.size,
-            weight_fn=lambda obs: obs.n_samples,
+            weight_fn=lambda obs: obs.n_samples_global,
         )[cur_rank]
 
         self.observations = observations[
