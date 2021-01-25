@@ -111,8 +111,9 @@ class _Toast2FakeCache:
 
         self.keydict["flags"] = np.zeros(nsamples, dtype="uint8")
 
-        pointings = obs.get_pointings(
-            spin2ecliptic_quats,
+        pointings = lbs.get_pointings(
+            obs=obs,
+            spin2ecliptic_quats=spin2ecliptic_quats,
             detector_quats=obs.quat,
             bore2spin_quat=bore2spin_quat,
         )
