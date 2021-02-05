@@ -53,6 +53,7 @@ from .scanning import (
 )
 from .mapping import make_bin_map
 from .simulations import Simulation
+from .noise import add_noise
 from .version import __author__, __version__
 
 __all__ = [
@@ -117,4 +118,6 @@ __all__ = [
     "make_bin_map",
     # simulations.py
     "Simulation",
+    #noise.py
+    "add_noise",
 ]

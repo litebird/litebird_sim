@@ -15,6 +15,7 @@ from .detectors import DetectorInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
 from .imo.imo import Imo
+from .noise import add_noise
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 from .version import (
@@ -612,8 +613,9 @@ class Simulation:
         assert (
             self.start_time is not None
         ), "you must set start_time when creating the Simulation object"
+
         assert isinstance(
-            self.duration_s, float
+            self.duration_s, (float, int)
         ), "you must set duration_s when creating the Simulation object"
 
         observations = []
