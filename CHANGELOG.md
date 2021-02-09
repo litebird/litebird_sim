@@ -2,6 +2,8 @@
 
 # Version 0.2.0
 
+- Fix issue [#101](https://github.com/litebird/litebird_sim/issues/101) (*No proper "parents" in Entry objects*) [PR#102](https://github.com/litebird/litebird_sim/pull/102)
+
 - Make the README point to the latest version of the documentation [PR#99](https://github.com/litebird/litebird_sim/pull/99)
 
 - Ensure that tests do not write within the source-code directory [PR#97](https://github.com/litebird/litebird_sim/pull/97)

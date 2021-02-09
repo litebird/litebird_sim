@@ -36,11 +36,7 @@ def parse_format_spec(obj_dict: Dict[str, Any]) -> FormatSpecification:
     )
 
 
-def parse_entity(obj_dict: Dict[str, Any], base_path="") -> Entity:
-    parent = None  # type: Union[UUID, None]
-    if "parent" in obj_dict:
-        parent = UUID(obj_dict["parent"])
-
+def parse_entity(obj_dict: Dict[str, Any], base_path="", parent=None) -> Entity:
     name = obj_dict["name"]
     return (
         Entity(
@@ -54,14 +50,16 @@ def parse_entity(obj_dict: Dict[str, Any], base_path="") -> Entity:
 
 
 def walk_entity_tree_and_parse(
-    dictionary: Dict[UUID, Any], objs: List[Dict[str, Any]], base_path=""
+    dictionary: Dict[UUID, Any], objs: List[Dict[str, Any]], base_path="", parent=None
 ):
     for obj_dict in objs:
-        obj, children = parse_entity(obj_dict, base_path)
+        obj, children = parse_entity(obj_dict, base_path, parent=parent)
         dictionary[obj.uuid] = obj
 
         if children:
-            walk_entity_tree_and_parse(dictionary, children, f"{base_path}/{obj.name}")
+            walk_entity_tree_and_parse(
+                dictionary, children, f"{base_path}/{obj.name}", parent=obj
+            )
 
 
 def parse_quantity(obj_dict: Dict[str, Any]) -> Quantity:
