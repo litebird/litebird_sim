@@ -164,7 +164,7 @@ class EntityBrowser(object):
             key=lambda x: x.rel_date,
             reverse=True,
         )
-        return f"/releases/{releases[0].tag}{quantity_path}/{data_file_name}"
+        return f"/releases/{releases[0].tag}{quantity_path}"
 
     def go_up(self):
         if self._base:
