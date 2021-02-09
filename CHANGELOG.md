@@ -2,6 +2,8 @@
 
 # Version 0.2.0
 
+- Implement the tools to build a Singularity container [PR#96](https://github.com/litebird/litebird_sim/pull/96/)
+
 - Implement an interface to the TOAST mapmaker [PR#86](https://github.com/litebird/litebird_sim/pull/86/)
 
 - Fix issue [#101](https://github.com/litebird/litebird_sim/issues/101) (*No proper "parents" in Entry objects*) [PR#102](https://github.com/litebird/litebird_sim/pull/102)
