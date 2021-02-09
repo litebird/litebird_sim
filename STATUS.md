@@ -11,8 +11,8 @@ Simulation Team plans to implement in `litebird_sim`.
 | Interface with Ephemerides       | Complete |            | Through AstroPy                 | [PR#48](https://github.com/litebird/litebird_sim/pull/48)                                       |
 | Synthetic sky map generation     | Complete |            | Based on PySM3                  | [PR#76](https://github.com/litebird/litebird_sim/pull/76)                                       |
 | Binning map-maker                | Complete |            |                                 | [PR#73](https://github.com/litebird/litebird_sim/pull/76)                                       |
+| Destriping+calibration map-maker | Complete |            | Provided by TOAST               | [PR#86](https://github.com/litebird/litebird_sim/pull/86)                                       |
 | Beam convolution                 | Partial  |            | Through ducc0                   | [ducc.totalconvolve](https://gitlab.mpcdf.mpg.de/mtr/ducc/-/tree/ducc0/)                        |
-| Destriping+calibration map-maker | Partial  |            | Provided by TOAST               | [PR#86](https://github.com/litebird/litebird_sim/pull/86)                                       |
 | Calibration non-idealities       | Partial  |            | Code in toast-litebird          | [`OpGainDrifter`](https://github.com/hpc4cmb/toast-litebird/blob/master/toast_litebird/gain.py) |
 | Cosmic-ray glitch generation     | Partial  |            |                                 | No PRs yet                                                                                      |
 | HWP simulation                   | Partial  |            |                                 | No PRs yet                                                                                      |
