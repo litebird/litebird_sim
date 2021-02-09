@@ -2,6 +2,10 @@
 
 # Version 0.2.0
 
+- Fix bug #104 [PR#105](https://github.com/litebird/litebird_sim/pull/105)
+
+# Version 0.2.0 alpha
+
 - Add a text-mode browser for the IMO [PR#103](https://github.com/litebird/litebird_sim/pull/103)
 
 - Implement the tools to build a Singularity container [PR#96](https://github.com/litebird/litebird_sim/pull/96/)
