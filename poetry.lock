@@ -1494,6 +1494,17 @@ lint = ["flake8", "mypy", "docutils-stubs"]
 test = ["pytest"]
 
 [[package]]
+name = "sphinxcontrib.asciinema"
+version = "0.2.1"
+description = "Embed asciinema casts in your Sphinx docs"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+sphinx = "*"
+
+[[package]]
 name = "terminado"
 version = "0.9.2"
 description = "Tornado websocket backend for the Xterm.js Javascript terminal emulator library."
@@ -1653,7 +1664,7 @@ mpi = ["mpi4py"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.6,<3.9"  # <3.9 because of Numba 0.52
-content-hash = "e3a7851316cda8b620e25223d93a185c22bbabd959ac3755e5a72fe0a65500ff"
+content-hash = "8e78aa2933b3dab67f2d1a217ada34b5a514507d481e4112278162b3b125b90a"
 
 [metadata.files]
 alabaster = [
@@ -2531,6 +2542,9 @@ sphinxcontrib-qthelp = [
 sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib-serializinghtml-1.1.4.tar.gz", hash = "sha256:eaa0eccc86e982a9b939b2b82d12cc5d013385ba5eadcc7e4fed23f4405f77bc"},
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
+]
+"sphinxcontrib.asciinema" = [
+    {file = "sphinxcontrib.asciinema-0.2.1.tar.gz", hash = "sha256:f02e663977077c9fb72685e12d15bf145c41e1b6f411c34354bed2460f19aa9a"},
 ]
 terminado = [
     {file = "terminado-0.9.2-py3-none-any.whl", hash = "sha256:23a053e06b22711269563c8bb96b36a036a86be8b5353e85e804f89b84aaa23f"},
