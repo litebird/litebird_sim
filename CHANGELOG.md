@@ -2,6 +2,8 @@
 
 # Version 0.2.0
 
+- Add a text-mode browser for the IMO [PR#103](https://github.com/litebird/litebird_sim/pull/103)
+
 - Implement the tools to build a Singularity container [PR#96](https://github.com/litebird/litebird_sim/pull/96/)
 
 - Implement an interface to the TOAST mapmaker [PR#86](https://github.com/litebird/litebird_sim/pull/86/)

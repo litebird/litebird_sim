@@ -177,6 +177,38 @@ encode this information from a string::
 The advantage of the latter method is that you can access data files
 that have not been formally included in a versioned IMO.
 
+Browsing the IMO database
+-------------------------
+
+The LiteBIRD Simulation Framework provides a text-mode program to
+navigate the contents of the IMO. You can start it using the following
+command:
+
+.. code-block:: text
+
+    python3 -m litebird_sim.imobrowser
+
+Here is a short demo of its capabilities:
+
+.. asciinema:: imobrowser.cast
+   :preload: 1
+
+When «opening» a data file, you can copy either the full path of the
+data file or its UUID (the hexadecimal string uniquely identifying it)
+in the clipboard: this can be handy when you are developing codes that
+need to access specific objects. On Ubuntu, clipboard copying only
+works if you have ``xclip`` or ``xsel`` installed; on
+Ubuntu/Mint/Debian Linux, you can install ``xclip`` with the following
+command:
+
+.. code-block:: text
+
+    sudo apt-get install xclip
+
+If ``xclip`` is not installed, clipboard functions are automatically
+disabled.
+
+
 IMO and reports
 ---------------
 
