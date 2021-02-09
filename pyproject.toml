@@ -63,6 +63,8 @@ toast-cmb = "^2.3.12"
 ducc0 = "^0.8.0"
 pysm3 = "^3.3.0"
 "sphinxcontrib.asciinema" = "^0.2.1"
+asciimatics = "^1.12.0"
+pyperclip = "^1.8.1"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]
