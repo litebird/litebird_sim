@@ -5,6 +5,11 @@ description = "Simulation tools for the LiteBIRD experiment"
 authors = [
 	"The LiteBIRD Simulation Team",
 	"Ranajoy Banerji <ranajoy.cosmo@gmail.com>",
+	"Mathew Galloway <mathew.galloway@astro.uio.no>",
+	"Nicoletta Krachmalnicoff <nkrach@sissa.it>",
+	"Luca Pagano <luca.pagano@unife.it>",
+	"Davide Poletti <davide.poletti@sissa.it>",
+	"Martin Reinecke <martin@mpa-garching.mpg.de>",
 	"Maurizio Tomasi <maurizio.tomasi@unimi.it>",
 ]
 readme = "README.md"
@@ -18,8 +23,8 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-numba = "0.51"
+python = ">=3.6,<3.9"  # <3.9 because of Numba 0.52
+numba = "0.52"
 numpy = "^1.18"
 astropy = "^4.0"
 flake8 = "^3.7"
