@@ -59,6 +59,7 @@ rich = "^6.2.0"
 sphinxcontrib-contentui = "^0.2.5"
 
 dataclasses = {version = "^0.7", python = ">=3.6, <3.7"}
+toast-cmb = "^2.3.12"
 ducc0 = "^0.8.0"
 pysm3 = "^3.3.0"
 

@@ -143,6 +143,14 @@ six = ">=1.9.0"
 webencodings = "*"
 
 [[package]]
+name = "cached-property"
+version = "1.5.2"
+description = "A decorator for caching properties in classes."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "certifi"
 version = "2020.12.5"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -176,6 +184,14 @@ description = "Composable command line interface toolkit"
 category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+
+[[package]]
+name = "cmake"
+version = "3.18.4.post1"
+description = "CMake is an open-source, cross-platform family of tools designed to build, test and package software"
+category = "main"
+optional = false
+python-versions = "*"
 
 [[package]]
 name = "colorama"
@@ -284,6 +300,14 @@ optional = true
 python-versions = ">=2.7"
 
 [[package]]
+name = "ephem"
+version = "3.7.7.1"
+description = "Compute positions of the planets and stars"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "flake8"
 version = "3.8.4"
 description = "the modular source code checker: pep8 pyflakes and co"
@@ -296,6 +320,22 @@ importlib-metadata = {version = "*", markers = "python_version < \"3.8\""}
 mccabe = ">=0.6.0,<0.7.0"
 pycodestyle = ">=2.6.0a1,<2.7.0"
 pyflakes = ">=2.2.0,<2.3.0"
+
+[[package]]
+name = "h5py"
+version = "3.1.0"
+description = "Read and write HDF5 files from Python"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+cached-property = {version = "*", markers = "python_version < \"3.8\""}
+numpy = [
+    {version = ">=1.12", markers = "python_version == \"3.6\""},
+    {version = ">=1.14.5", markers = "python_version == \"3.7\""},
+    {version = ">=1.17.5", markers = "python_version == \"3.8\""},
+]
 
 [[package]]
 name = "healpy"
@@ -1478,6 +1518,26 @@ python-versions = "*"
 test = ["pathlib2"]
 
 [[package]]
+name = "toast-cmb"
+version = "2.3.12"
+description = "Time Ordered Astrophysics Scalable Tools"
+category = "main"
+optional = false
+python-versions = ">=3.6.0"
+
+[package.dependencies]
+cmake = "*"
+ephem = "*"
+h5py = "*"
+healpy = "*"
+matplotlib = "*"
+numpy = "*"
+scipy = "*"
+
+[package.extras]
+mpi = ["mpi4py (>=3.0)"]
+
+[[package]]
 name = "toml"
 version = "0.10.2"
 description = "Python Library for Tom's Obvious, Minimal Language"
@@ -1593,7 +1653,7 @@ mpi = ["mpi4py"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.6,<3.9"  # <3.9 because of Numba 0.52
-content-hash = "f369b39d10a3dc80598328abf803942a1110e49d61c10243c3d9fda48046fca8"
+content-hash = "e3a7851316cda8b620e25223d93a185c22bbabd959ac3755e5a72fe0a65500ff"
 
 [metadata.files]
 alabaster = [
@@ -1675,6 +1735,10 @@ bleach = [
     {file = "bleach-3.3.0-py2.py3-none-any.whl", hash = "sha256:6123ddc1052673e52bab52cdc955bcb57a015264a1c57d37bea2f6b817af0125"},
     {file = "bleach-3.3.0.tar.gz", hash = "sha256:98b3170739e5e83dd9dc19633f074727ad848cbedb6026708c8ac2d3b697a433"},
 ]
+cached-property = [
+    {file = "cached-property-1.5.2.tar.gz", hash = "sha256:9fa5755838eecbb2d234c3aa390bd80fbd3ac6b6869109bfc1b499f7bd89a130"},
+    {file = "cached_property-1.5.2-py2.py3-none-any.whl", hash = "sha256:df4f613cf7ad9a588cc381aaf4a512d26265ecebd5eb9e1ba12f1319eb85a6a0"},
+]
 certifi = [
     {file = "certifi-2020.12.5-py2.py3-none-any.whl", hash = "sha256:719a74fb9e33b9bd44cc7f3a8d94bc35e4049deebe19ba7d8e108280cfd59830"},
     {file = "certifi-2020.12.5.tar.gz", hash = "sha256:1a4995114262bffbc2413b159f2a1a480c969de6e6eb13ee966d470af86af59c"},
@@ -1725,6 +1789,20 @@ click = [
     {file = "click-7.1.2-py2.py3-none-any.whl", hash = "sha256:dacca89f4bfadd5de3d7489b7c8a566eee0d3676333fbb50030263894c38c0dc"},
     {file = "click-7.1.2.tar.gz", hash = "sha256:d2b5255c7c6349bc1bd1e59e08cd12acbbd63ce649f2588755783aa94dfb6b1a"},
 ]
+cmake = [
+    {file = "cmake-3.18.4.post1-py2-none-macosx_10_6_x86_64.whl", hash = "sha256:10c46b0fd2c087b0cae611d1e734f065a1a8169d0b54ec834a9dff005c1857ca"},
+    {file = "cmake-3.18.4.post1-py2-none-manylinux1_i686.whl", hash = "sha256:65cd763dd232973a0deedf1f349e229fa3bf1357e0e2576da65ad118ff53b070"},
+    {file = "cmake-3.18.4.post1-py2-none-manylinux1_x86_64.whl", hash = "sha256:1c900642859c5970d81ae8821ae05a2af93d2630cd1c0f2bffc80e7abdbc087d"},
+    {file = "cmake-3.18.4.post1-py2-none-win32.whl", hash = "sha256:605c2a07c9ebf332319106bffb11941463d18e586902e3659c315cae9f0caaeb"},
+    {file = "cmake-3.18.4.post1-py2-none-win_amd64.whl", hash = "sha256:c1b14b302d3def2672968cd675031793e193382d0e4a00e2121af4b333d62ece"},
+    {file = "cmake-3.18.4.post1-py3-none-macosx_10_6_x86_64.whl", hash = "sha256:6dd3abb1afdd9a986a55977ef85a0d245ebf289cc704b687f061294c48c126ec"},
+    {file = "cmake-3.18.4.post1-py3-none-manylinux1_i686.whl", hash = "sha256:1c86369700f74363ee46de64e4167ac2d292a7c7f1606e372b8dcaf3108d0cc7"},
+    {file = "cmake-3.18.4.post1-py3-none-manylinux1_x86_64.whl", hash = "sha256:34f7ee67cef21b178a793fe760c979608d4ac66a1697cae6b382dbcc5d1ec485"},
+    {file = "cmake-3.18.4.post1-py3-none-manylinux2014_aarch64.whl", hash = "sha256:e8ef8dab578e8ca85724b8506f230a5a5017ead67cb9da60fe1240fc9ab24135"},
+    {file = "cmake-3.18.4.post1-py3-none-win32.whl", hash = "sha256:5096f5d4541b5d0040bae9dbc364bb1c8cd9211e273c481baf9a1a3635be1d00"},
+    {file = "cmake-3.18.4.post1-py3-none-win_amd64.whl", hash = "sha256:ac062ac13591e4acbb6e919e5b1196a3b04f8d1022eb3ab4dbd20779ade9d5ab"},
+    {file = "cmake-3.18.4.post1.tar.gz", hash = "sha256:d7981ac85f1abb75c24eb14936d56dafbd327e7ba371d91007e38704af7b52b5"},
+]
 colorama = [
     {file = "colorama-0.4.4-py2.py3-none-any.whl", hash = "sha256:9f47eda37229f68eee03b24b9748937c7dc3868f906e8ba69fbcbdd3bc5dc3e2"},
     {file = "colorama-0.4.4.tar.gz", hash = "sha256:5941b2b48a20143d2267e95b1c2a7603ce057ee39fd88e7329b0c292aa16869b"},
@@ -1768,9 +1846,52 @@ entrypoints = [
     {file = "entrypoints-0.3-py2.py3-none-any.whl", hash = "sha256:589f874b313739ad35be6e0cd7efde2a4e9b6fea91edcc34e58ecbb8dbe56d19"},
     {file = "entrypoints-0.3.tar.gz", hash = "sha256:c70dd71abe5a8c85e55e12c19bd91ccfeec11a6e99044204511f9ed547d48451"},
 ]
+ephem = [
+    {file = "ephem-3.7.7.1-cp27-cp27m-macosx_10_6_intel.whl", hash = "sha256:0a6d6ed003383f702695094399728052981c567d423b25aa7163b3fd40de3d5a"},
+    {file = "ephem-3.7.7.1-cp27-cp27m-manylinux2010_i686.whl", hash = "sha256:e73b9997d7b844fabff988d7f66c3bad4e76ec8975ec9c60ec988037bb5c04b1"},
+    {file = "ephem-3.7.7.1-cp27-cp27m-manylinux2010_x86_64.whl", hash = "sha256:7619297a1103f6b3dac0c609bfa7c31e17678fb1a02653347ec030487e412031"},
+    {file = "ephem-3.7.7.1-cp27-cp27mu-manylinux2010_i686.whl", hash = "sha256:37fd1abbebb821381d2865064a6fa9484ffdcd2161cf92193da8d42da79aa7db"},
+    {file = "ephem-3.7.7.1-cp27-cp27mu-manylinux2010_x86_64.whl", hash = "sha256:ff4e1584cc232d8bc4aea405346eeb8a24b0fbe84c6331d4edb5d4456d19f1c3"},
+    {file = "ephem-3.7.7.1-cp35-cp35m-macosx_10_6_intel.whl", hash = "sha256:c6081a9791e9de6511cddbeb9529bd5550fdb6f9e2a8dc9c2ec85911d67c6d11"},
+    {file = "ephem-3.7.7.1-cp35-cp35m-manylinux2010_i686.whl", hash = "sha256:7f781d73e49caf7989c503a948471f1c8c1f738a450d557413999fb732f4dba3"},
+    {file = "ephem-3.7.7.1-cp35-cp35m-manylinux2010_x86_64.whl", hash = "sha256:f0959882bf73c8fe1cb801f42b0989e0ecb9d84b99eb8b8f70d61d16767a1e8a"},
+    {file = "ephem-3.7.7.1-cp35-cp35m-win32.whl", hash = "sha256:2bcd953cced045e4232bcb71d60f6ba237f7944c880e83e74cc959449b192dee"},
+    {file = "ephem-3.7.7.1-cp35-cp35m-win_amd64.whl", hash = "sha256:fd0b922387df1ad8721f2fafd5dca51ce7105238f968e1532a177b781b8cae0e"},
+    {file = "ephem-3.7.7.1-cp36-cp36m-macosx_10_6_intel.whl", hash = "sha256:e10c2c8afbb9e927d46d9bf3562441da2173ff196790a75ad0e5c5ee920d5922"},
+    {file = "ephem-3.7.7.1-cp36-cp36m-manylinux2010_i686.whl", hash = "sha256:8d586d970c42d62b1fc757a1c7c10679416a43e9e4a77391a05907159ce346f8"},
+    {file = "ephem-3.7.7.1-cp36-cp36m-manylinux2010_x86_64.whl", hash = "sha256:1a8ea6a045ff669011f8ecdeffadfc5eaa519fb56ab8dd40508910e9db5ec7b0"},
+    {file = "ephem-3.7.7.1-cp36-cp36m-win32.whl", hash = "sha256:72fdb72c813fc9780726aa732eb2193bbe1663549265ca5a746899215ecfbffd"},
+    {file = "ephem-3.7.7.1-cp36-cp36m-win_amd64.whl", hash = "sha256:f5af029f8814aa8617e73b2ddcad2bd1c682ca13c31ee3b6f5825dd5cb43e777"},
+    {file = "ephem-3.7.7.1-cp37-cp37m-macosx_10_6_intel.whl", hash = "sha256:e61c68f1c7d304a130bb6b88c1fca6600bbc1a1df6ca9a109b6eba4c6cbd3376"},
+    {file = "ephem-3.7.7.1-cp37-cp37m-manylinux2010_i686.whl", hash = "sha256:31e2a17ca6f8d6bd44832574fea5461938ba034e52bf551e15e1a4c8f8c6c4fb"},
+    {file = "ephem-3.7.7.1-cp37-cp37m-manylinux2010_x86_64.whl", hash = "sha256:1ff5abefa230d5ab40846f1cb27d4f5583d46044fecf10e17bfb559bdc766a47"},
+    {file = "ephem-3.7.7.1-cp37-cp37m-win32.whl", hash = "sha256:71ea3935c658ee184575fd4cc2aa3e7fd6d6bac4a1ccff9ee5549cee67ff0385"},
+    {file = "ephem-3.7.7.1-cp37-cp37m-win_amd64.whl", hash = "sha256:34fd228105b89fefd20608420861a75a184db1edeaf0056cf2f85d2a2f768aee"},
+    {file = "ephem-3.7.7.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:189fcaeacb44dc5a1684ad489542f126d99d4a85e87d2fe73864c902f0bc2c71"},
+    {file = "ephem-3.7.7.1-cp38-cp38-manylinux2010_i686.whl", hash = "sha256:a5ddf46ced515e4b81dfd22e6408fd06a329c31c6abb10af48d392641c490b0e"},
+    {file = "ephem-3.7.7.1-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:3530bee3eb7458d86d4c399f51f5b73ad7ea0441f0b2fb03de41d623789935af"},
+    {file = "ephem-3.7.7.1-cp38-cp38-win32.whl", hash = "sha256:33ad1a71b204aff123250b04e0ff2d5c3b8e9c6c814bf2c675d7752ce5896c02"},
+    {file = "ephem-3.7.7.1-cp38-cp38-win_amd64.whl", hash = "sha256:4bc5140cc7218a53ee6d949110f6ed413b8e3165294100515cd0fb29aa8e3637"},
+    {file = "ephem-3.7.7.1.tar.gz", hash = "sha256:36b51a8dc7cfdeb456dd6b8ab811accab8341b2d562ee3c6f4c86f6d3dbb984e"},
+]
 flake8 = [
     {file = "flake8-3.8.4-py2.py3-none-any.whl", hash = "sha256:749dbbd6bfd0cf1318af27bf97a14e28e5ff548ef8e5b1566ccfb25a11e7c839"},
     {file = "flake8-3.8.4.tar.gz", hash = "sha256:aadae8761ec651813c24be05c6f7b4680857ef6afaae4651a4eccaef97ce6c3b"},
+]
+h5py = [
+    {file = "h5py-3.1.0-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:1cd367f89a5441236bdbb795e9fb9a9e3424929c00b4a54254ca760437f83d69"},
+    {file = "h5py-3.1.0-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:fea05349f63625a8fb808e57e42bb4c76930cf5d50ac58b678c52f913a48a89b"},
+    {file = "h5py-3.1.0-cp36-cp36m-win_amd64.whl", hash = "sha256:2e37352ddfcf9d77a2a47f7c8f7e125c6d20cc06c2995edeb7be222d4e152636"},
+    {file = "h5py-3.1.0-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:e33f61d3eb862614c0f273a1f993a64dc2f093e1a3094932c50ada9d2db2170f"},
+    {file = "h5py-3.1.0-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:236ac8d943be30b617ab615c3d4a4bf4a438add2be87e54af3687ab721a18fac"},
+    {file = "h5py-3.1.0-cp37-cp37m-win_amd64.whl", hash = "sha256:02c391fdb980762a1cc03a4bcaecd03dc463994a9a63a02264830114a96e111f"},
+    {file = "h5py-3.1.0-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:f89a3dae38843ffa49d17a31a3509a8129e9b46ece602a0138e1ed79e685c361"},
+    {file = "h5py-3.1.0-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:ba71f6229d2013fbb606476ecc29c6223fc16b244d35fcd8566ad9dbaf910857"},
+    {file = "h5py-3.1.0-cp38-cp38-win_amd64.whl", hash = "sha256:dccb89358bc84abcd711363c3e138f9f4eccfdf866f2139a8e72308328765b2c"},
+    {file = "h5py-3.1.0-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:cb74df83709d6d03d11e60b9480812f58da34f194beafa8c8314dbbeeedfe0a6"},
+    {file = "h5py-3.1.0-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:80c623be10479e81b64fa713b7ed4c0bbe9f02e8e7d2a2e5382336087b615ce4"},
+    {file = "h5py-3.1.0-cp39-cp39-win_amd64.whl", hash = "sha256:1cdfd1c5449ca1329d152f0b66830e93226ebce4f5e07dd8dc16bfc2b1a49d7b"},
+    {file = "h5py-3.1.0.tar.gz", hash = "sha256:1e2516f190652beedcb8c7acfa1c6fa92d99b42331cbef5e5c7ec2d65b0fc3c2"},
 ]
 healpy = [
     {file = "healpy-1.14.0-cp27-cp27m-macosx_10_15_x86_64.whl", hash = "sha256:c3c7a564364e6b92eea93ad239207ba6123802916948002068333d08d2d3812d"},
@@ -2418,6 +2539,15 @@ terminado = [
 testpath = [
     {file = "testpath-0.4.4-py2.py3-none-any.whl", hash = "sha256:bfcf9411ef4bf3db7579063e0546938b1edda3d69f4e1fb8756991f5951f85d4"},
     {file = "testpath-0.4.4.tar.gz", hash = "sha256:60e0a3261c149755f4399a1fff7d37523179a70fdc3abdf78de9fc2604aeec7e"},
+]
+toast-cmb = [
+    {file = "toast-cmb-2.3.12.tar.gz", hash = "sha256:0cf9bd8ae1c78a3079e0e01361440ab558bbc9da999d216e32afdbb7f68e5271"},
+    {file = "toast_cmb-2.3.12-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:8e12d73236fc3e78fce0a7d7650dff513dc66c01497715541e7ba7c161aa52bc"},
+    {file = "toast_cmb-2.3.12-cp36-cp36m-manylinux2010_x86_64.whl", hash = "sha256:22c642e8dfd059f01d48b31b681474d57d5c86a43c458abe7e1cb2f310a2ce92"},
+    {file = "toast_cmb-2.3.12-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:d6ab7d8c667db89eeae80c0b0d01a80efc784e256d1e9f6f0cf4166c34150c77"},
+    {file = "toast_cmb-2.3.12-cp37-cp37m-manylinux2010_x86_64.whl", hash = "sha256:d80bb973dee6ce74fe735aff1190bed81c9c2a2e46cd42d3f2c68685a5276c8e"},
+    {file = "toast_cmb-2.3.12-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:a279d77d3efbcd32e907d7b8457cbf071455543f25d99656efc37c64dd53f65f"},
+    {file = "toast_cmb-2.3.12-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:62df2c9e0aebf8e0dae6f8a8cfedc1e31f174afe4aaf3512816d858ab8e1bed8"},
 ]
 toml = [
     {file = "toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b"},
