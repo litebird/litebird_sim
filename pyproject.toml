@@ -21,8 +21,8 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-numba = "0.51"
+python = ">=3.6,<3.9"  # <3.9 because of Numba 0.52
+numba = "0.52"
 numpy = "^1.18"
 astropy = "^4.0"
 flake8 = "^3.7"
