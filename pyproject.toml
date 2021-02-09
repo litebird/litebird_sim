@@ -5,6 +5,9 @@ description = "Simulation tools for the LiteBIRD experiment"
 authors = [
 	"The LiteBIRD Simulation Team",
 	"Ranajoy Banerji <ranajoy.cosmo@gmail.com>",
+	"Mathew Galloway <mathew.galloway@astro.uio.no>",
+	"Nicoletta Krachmalnicoff <nkrach@sissa.it>",
+	"Luca Pagano <luca.pagano@unife.it>",
 	"Davide Poletti <davide.poletti@sissa.it>",
 	"Martin Reinecke <martin@mpa-garching.mpg.de>",
 	"Maurizio Tomasi <maurizio.tomasi@unimi.it>",
@@ -20,8 +23,8 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-numba = "0.51"
+python = ">=3.6,<3.9"  # <3.9 because of Numba 0.52
+numba = "0.52"
 numpy = "^1.18"
 astropy = "^4.0"
 flake8 = "^3.7"
@@ -56,6 +59,7 @@ rich = "^6.2.0"
 sphinxcontrib-contentui = "^0.2.5"
 
 dataclasses = {version = "^0.7", python = ">=3.6, <3.7"}
+toast-cmb = "^2.3.12"
 ducc0 = "^0.8.0"
 pysm3 = "^3.3.0"
 "sphinxcontrib.asciinema" = "^0.2.1"

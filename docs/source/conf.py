@@ -38,6 +38,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinxcontrib.contentui",
+    "matplotlib.sphinxext.plot_directive",
 ]
 
 
