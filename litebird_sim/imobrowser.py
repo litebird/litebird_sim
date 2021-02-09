@@ -24,6 +24,17 @@ from litebird_sim import Imo
 from collections import defaultdict
 import sys
 
+# On Linux, pyperclip only works if you have installed either "xclip"
+# or "xsel"
+try:
+    pyperclip.copy("test")
+    USE_PYPERCLIP = True
+except pyperclip.PyperclipException:
+    USE_PYPERCLIP = False
+
+# Implement a custom theme, mostly similar to the default "monochrome"
+# theme provided by Asciimatics, but with better contrast for selected
+# buttons and list items
 asciimatics.widgets.THEMES["custom"] = defaultdict(
     lambda: (Screen.COLOUR_WHITE, Screen.A_NORMAL, Screen.COLOUR_BLACK),
     {
@@ -273,6 +284,9 @@ class QuantityDetailsView(Frame):
         )
         self._copy_path_button = Button("Copy path", self._copy_path)
         self._copy_uuid_button = Button("Copy UUID", self._copy_uuid)
+
+        self._copy_path_button.disabled = not USE_PYPERCLIP
+        self._copy_uuid_button.disabled = not USE_PYPERCLIP
 
         info_layout = Layout([100], fill_frame=True)
         self.add_layout(info_layout)
