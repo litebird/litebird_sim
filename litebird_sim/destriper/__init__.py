@@ -10,10 +10,11 @@ from ducc0 import healpix
 import healpy  # We need healpy.read_map
 
 import litebird_sim as lbs
-from toast.todmap import OpMapMaker
+import toast.todmap
+import toast.tod.interval
+import toast.mpi
 
-if lbs.MPI_ENABLED:
-    import toast.mpi
+toast.mpi.use_mpi = lbs.MPI_ENABLED
 
 
 @dataclass
@@ -229,9 +230,9 @@ class _Toast2FakeData:
         self.bore2spin_quat = bore2spin_quat
         self.nside = nside
         if lbs.MPI_ENABLED:
-            self.comm = toast.mpi.Comm(lbs.MPI_COMM_WORLD)
+            self.comm = toast.mpi.Comm(world=lbs.MPI_COMM_WORLD)
         else:
-            self.comm = None
+            self.comm = toast.mpi.Comm(world=None)
 
         npix = 12 * (self.nside ** 2)
         self._metadata = {
