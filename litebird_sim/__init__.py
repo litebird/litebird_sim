@@ -56,6 +56,7 @@ from .scanning import (
     get_pointings
 )
 from .mapping import make_bin_map
+from .destriper import DestriperParameters, DestriperResult, destripe
 from .simulations import Simulation
 from .version import __author__, __version__
 
@@ -126,6 +127,10 @@ __all__ = [
     "get_pointings",
     # mapping.py
     "make_bin_map",
+    # destripe.py
+    "DestriperParameters",
+    "DestriperResult",
+    "destripe",
     # simulations.py
     "Simulation",
 ]
