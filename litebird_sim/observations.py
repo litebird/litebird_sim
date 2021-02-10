@@ -96,7 +96,7 @@ class Observation:
             self._n_blocks_time = 1
 
         if allocate_tod:
-            self.tod = np.empty(
+            self.tod = np.zeros(
                 self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=dtype_tod
             )
 
