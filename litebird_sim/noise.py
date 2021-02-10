@@ -25,14 +25,14 @@ def add_noise(obs, noisetype):
             if noisetype == 'white':
                 generate_white_noise(ob.tod, ob.net_ukrts*np.sqrt(ob.sampling_rate_hz))
             elif noisetype == 'one_over_f':
-                generate_one_over_f_noise(ob.tod, ob.fknee_mhz, ob.alpha, ob.net_ukrts, ob.sampling_rate_hz)
+                generate_one_over_f_noise(ob.tod, ob.fknee_mhz, ob.alpha, ob.net_ukrts*np.sqrt(ob.sampling_rate_hz), ob.sampling_rate_hz)
 
         elif len(ob.tod.shape) == 2:
             for i in range(ob.tod.shape[0]):
                 if noisetype == 'white':
                     generate_white_noise(ob.tod[i][:], ob.net_ukrts[i]*np.sqrt(ob.sampling_rate_hz))
                 elif noisetype == 'one_over_f':
-                    generate_one_over_f_noise(ob.tod[i][:], ob.fknee_mhz[i], ob.alpha[i], ob.net_ukrts[i], ob.sampling_rate_hz)
+                    generate_one_over_f_noise(ob.tod[i][:], ob.fknee_mhz[i], ob.alpha[i], ob.net_ukrts[i]*np.sqrt(ob.sampling_rate_hz), ob.sampling_rate_hz)
 
         else:
             raise TypeError("Array with shape " + ob.tod.shape + " not supported in add_noise. Try a 1 or 2 D array instead.")
@@ -69,7 +69,7 @@ def generate_one_over_f_noise(data, fknee, alpha, sigma0, freq):
     #filters the white noise in the frequency domain with the 1/f filter
 
     model = freqs
-    model[freqs != 0] = (1 + pow(abs(freqs[freqs != 0])/(fknee/1000), -1*alpha)) * sigma0*sigma0
+    model[freqs != 0] = np.sqrt((1 + pow(abs(freqs[freqs != 0])/(fknee/1000), -1*alpha))) * sigma0
 
     model[freqs == 0] = 0
 
