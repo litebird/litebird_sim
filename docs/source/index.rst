@@ -18,6 +18,7 @@ Welcome to litebird_sim's documentation!
    data_layout
    scanning
    imo
+   timeordered
    reports
    mpi
    integrating
