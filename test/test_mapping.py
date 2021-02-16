@@ -24,7 +24,7 @@ def test_accumulate_map_and_info():
 
     # Create the TOD and the target result
     tod = pointing_matrix.reshape(n_samples, -1).dot(res_map.reshape(-1))
-    res_info = np.einsum('tpi,tpj->pij', pointing_matrix, pointing_matrix)
+    res_info = np.einsum("tpi,tpj->pij", pointing_matrix, pointing_matrix)
     res_info[:, 1, 0] = np.bincount(pix, tod)
     res_info[:, 2, 0] = np.bincount(pix, tod * np.cos(2 * psi))
     res_info[:, 2, 1] = np.bincount(pix, tod * np.sin(2 * psi))
@@ -38,13 +38,13 @@ def test_accumulate_map_and_info():
     assert np.allclose(np.linalg.solve(info, rhs), res_map)
 
 
-def test_make_bin_map_api_simulation():
+def test_make_bin_map_api_simulation(tmp_path):
     # We should add a more meaningful observation:
     # Currently this test just shows the interface
     sim = lbs.Simulation(
-        base_path="./tut04",
-        start_time=0,
-        duration_s=86400.,
+        base_path=tmp_path / "tut04",
+        start_time=0.0,
+        duration_s=86400.0,
     )
 
     sim.generate_spin2ecl_quaternions(
@@ -56,11 +56,11 @@ def test_make_bin_map_api_simulation():
             precession_rate_hz=1 / (4 * u.day).to("s").value,
         )
     )
-    instr = lbs.InstrumentInfo(name="core",
-                               spin_boresight_angle_rad=np.radians(65))
+    instr = lbs.InstrumentInfo(name="core", spin_boresight_angle_rad=np.radians(65))
     det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
     obss = sim.create_observations(detectors=[det])
-    pointings = obss[0].get_pointings(
+    pointings = lbs.get_pointings(
+        obss[0],
         sim.spin2ecliptic_quats,
         detector_quats=[det.quat],
         bore2spin_quat=instr.bore2spin_quat,
@@ -95,8 +95,8 @@ def test_make_bin_map_basic_mpi():
     # Craft the observation with the attributes needed for map-making
     obs = lbs.Observation(
         detectors=2,
-        n_samples=5,
-        start_time=0.0,
+        n_samples_global=5,
+        start_time_global=0.0,
         sampling_rate_hz=1.0,
         comm=lbs.MPI_COMM_WORLD,
     )
@@ -106,9 +106,9 @@ def test_make_bin_map_basic_mpi():
         obs.psi = psi.reshape(2, 5)
 
     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
-    res = mapping.make_bin_map([obs], 1)[:len(res_map)]
+    res = mapping.make_bin_map([obs], 1)[: len(res_map)]
     assert np.allclose(res, res_map)
 
     obs.set_n_blocks(n_blocks_time=1, n_blocks_det=obs.comm.size)
-    res = mapping.make_bin_map([obs], 1)[:len(res_map)]
+    res = mapping.make_bin_map([obs], 1)[: len(res_map)]
     assert np.allclose(res, res_map)

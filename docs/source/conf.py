@@ -22,7 +22,7 @@ copyright = "2020, The LiteBIRD Simulation Team"
 author = "The LiteBIRD Simulation Team"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
+release = "0.2.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -31,12 +31,14 @@ release = "0.1.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinxcontrib.asciinema",
     "sphinx.ext.autodoc",
     "sphinxcontrib.bibtex",
     "sphinx.ext.doctest",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinxcontrib.contentui",
+    "matplotlib.sphinxext.plot_directive",
 ]
 
 

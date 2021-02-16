@@ -14,7 +14,7 @@ Template taken from https://github.com/othneildrew/Best-README-Template
 *** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://litebird-sim.readthedocs.io/en/latest/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://litebird-sim.readthedocs.io/en/master/)
 [![Tests](https://github.com/litebird/litebird_sim/workflows/Tests/badge.svg?branch=master&event=push)](https://github.com/litebird/litebird_sim/actions?query=workflow%3ATests+branch%3Amaster)
 [![Build Status](https://ci.appveyor.com/api/projects/status/github/litebird/litebird-sim?svg=true)](https://ci.appveyor.com/project/litebird/litebird-sim)
 [![Issues][issues-shield]][issues-url]
@@ -33,10 +33,10 @@ Template taken from https://github.com/othneildrew/Best-README-Template
   <p align="center">
     Main repository of the LiteBIRD Simulation Framework, a set of Python modules to simulate the instruments onboard the LiteBIRD spacecraft.
     <br />
-    <a href="https://litebird-sim.readthedocs.io/en/latest/"><strong>Explore the docs »</strong></a>
+    <a href="https://litebird-sim.readthedocs.io/en/master/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://litebird-sim.readthedocs.io/en/latest/tutorial.html">View Demo</a>
+    <a href="https://litebird-sim.readthedocs.io/en/master/tutorial.html">View Demo</a>
     ·
     <a href="https://github.com/litebird/litebird_sim/issues">Report Bug</a>
     ·
@@ -87,7 +87,7 @@ The LiteBIRD Simulation Framework is being developed for the
 ## Getting Started
 
 Refer to the
-[documentation](https://litebird-sim.readthedocs.io/en/latest/installation.html)
+[documentation](https://litebird-sim.readthedocs.io/en/master/installation.html)
 to learn how to install the LiteBIRD simulation framework on your
 computer or on a HPC cluster.
 
@@ -96,7 +96,7 @@ computer or on a HPC cluster.
 ## Usage
 
 The documentation is available online at
-[litebird-sim.readthedocs.io/en/latest/](https://litebird-sim.readthedocs.io/en/latest/).
+[litebird-sim.readthedocs.io/en/master/](https://litebird-sim.readthedocs.io/en/master/).
 
 To create a local copy of the documentation, make sure you ran
 `poetry` with the flag `--extras=docs`, then run the following

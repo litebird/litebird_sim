@@ -25,6 +25,7 @@ from .version import (
 import astropy.time
 import astropy.units
 import markdown
+import numpy as np
 import jinja2
 import tomlkit
 
@@ -132,7 +133,7 @@ class Simulation:
     :meth:`.Simulation.generate_spin2ecl_quaternions`, which
     initializes the members `pointing_freq_hz` and
     `spin2ecliptic_quats`; these members are used by functions like
-    :meth:`.Observation.get_pointings`.
+    :func:`.get_pointings`.
 
     Args:
 
@@ -491,7 +492,7 @@ class Simulation:
         dictionary["data_files"] = data_files
         dictionary["warnings"] = warnings
 
-    def _fill_dictionary_with_code_status(self, dictionary):
+    def _fill_dictionary_with_code_status(self, dictionary, include_git_diff):
         # Fill the variable "dictionary" with information about the
         # status of the "litebird_sim" code (which version is it? was
         # it patched? etc.) It is used when producing the final report
@@ -520,14 +521,18 @@ class Simulation:
             dictionary["commit_message"] = commit_message
 
             # Retrieve information about changes in the code since the last commit
-            proc = subprocess.run(
-                ["git", "diff", "--no-color", "--exit-code"],
-                capture_output=True,
-                encoding="utf-8",
-            )
+            if include_git_diff:
+                proc = subprocess.run(
+                    ["git", "diff", "--no-color", "--exit-code"],
+                    capture_output=True,
+                    encoding="utf-8",
+                )
 
-            if proc.returncode != 0:
-                dictionary["code_diff"] = proc.stdout.strip()
+                if proc.returncode != 0:
+                    dictionary["code_diff"] = proc.stdout.strip()
+
+            else:
+                dictionary["skip_code_diff"] = True
 
         except FileNotFoundError:
             # Git is not installed, so ignore the error and continue
@@ -537,7 +542,7 @@ class Simulation:
                 f"unable to save information about latest git commit in the report: {e}"
             )
 
-    def flush(self):
+    def flush(self, include_git_diff=True):
         """Terminate a simulation.
 
         This function must be called when a simulation is complete. It
@@ -550,7 +555,7 @@ class Simulation:
 
         dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         self._fill_dictionary_with_imo_information(dictionary)
-        self._fill_dictionary_with_code_status(dictionary)
+        self._fill_dictionary_with_code_status(dictionary, include_git_diff)
 
         template_file_path = get_template_file_path("report_appendix.md")
         with template_file_path.open("rt") as inpf:
@@ -606,6 +611,7 @@ class Simulation:
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
+        dtype_tod=np.float32,
     ):
         "Create a set of Observation objects"
 
@@ -630,13 +636,14 @@ class Simulation:
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(
                 detectors=detectors,
-                start_time=cur_time,
+                start_time_global=cur_time,
                 sampling_rate_hz=sampfreq_hz,
-                n_samples=nsamples,
+                n_samples_global=nsamples,
                 n_blocks_det=n_blocks_det,
                 n_blocks_time=n_blocks_time,
                 comm=(None if distribute else self.mpi_comm),
                 root=0,
+                dtype_tod=dtype_tod,
             )
             observations.append(cur_obs)
 
@@ -662,7 +669,7 @@ class Simulation:
         span = distribute_optimally(
             elements=observations,
             num_of_groups=self.mpi_comm.size,
-            weight_fn=lambda obs: obs.n_samples,
+            weight_fn=lambda obs: obs.n_samples_global,
         )[cur_rank]
 
         self.observations = observations[

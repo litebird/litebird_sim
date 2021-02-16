@@ -9,6 +9,20 @@ the beams, etc. This kind of information is stored in an «instrument
 model database», called IMO, and the LiteBIRD Simulation Framework
 provides a few facilities to access it.
 
+.. note::
+
+   The type of information stored in the LiteBIRD Instrument Model
+   Database is extremely diverse: it goes from CAD/optical/thermal
+   models to high-level parameters representing some general
+   characteristics of the instrument.
+
+   The LiteBIRD Simulation Framework enables to access any information
+   stored in the IMO, but it only provides full support for those
+   parameters that are actually used by the framework itself. (As an
+   example, you can use this interface to download a CAD file, but the
+   framework does not implement any facility to render/analyze the
+   file.)
+
 Let's start from a simple example, which will guide us in the
 following paragraphs::
 
@@ -46,7 +60,12 @@ and disadvantages:
 
 1. Having the IMO saved in a local file (like in the example above) is
    the fastest way to access its contents. However, it might not
-   contain the latest version of the data you're looking for.
+   contain the latest version of the data you're looking for. Note
+   that the framework does not require that a *full* database be
+   available, as only the data that are actually needed in a
+   simulation are retrieved: for this reason, you might opt to
+   download a reduced version of the IMO containing only the
+   high-level parameters used by the Simulation Framework.
 
 2. Using a remote IMO through an Internet connection ensures that you
    have access to the most updated version of the instrument; however,
@@ -157,6 +176,38 @@ encode this information from a string::
 
 The advantage of the latter method is that you can access data files
 that have not been formally included in a versioned IMO.
+
+Browsing the IMO database
+-------------------------
+
+The LiteBIRD Simulation Framework provides a text-mode program to
+navigate the contents of the IMO. You can start it using the following
+command:
+
+.. code-block:: text
+
+    python3 -m litebird_sim.imobrowser
+
+Here is a short demo of its capabilities:
+
+.. asciinema:: imobrowser.cast
+   :preload: 1
+
+When «opening» a data file, you can copy either the full path of the
+data file or its UUID (the hexadecimal string uniquely identifying it)
+in the clipboard: this can be handy when you are developing codes that
+need to access specific objects. On Ubuntu, clipboard copying only
+works if you have ``xclip`` or ``xsel`` installed; on
+Ubuntu/Mint/Debian Linux, you can install ``xclip`` with the following
+command:
+
+.. code-block:: text
+
+    sudo apt-get install xclip
+
+If ``xclip`` is not installed, clipboard functions are automatically
+disabled.
+
 
 IMO and reports
 ---------------

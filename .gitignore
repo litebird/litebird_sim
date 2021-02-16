@@ -125,3 +125,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# macOS
+.DS_Store
+
+# Automatically-generated Singularity file
+Singularity
+singularity/*.img
