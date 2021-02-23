@@ -108,7 +108,7 @@ Again, to generate noise with custom parameters, we can either use the low level
    custom_alpha = 1.234
 
    #option 1, where we call the low lever function directly
-   lbs.noise.generate_one_over_f_noise(obs[0].tod[0], custom_fknee_mhz, custom_alpha, custom_sigma_uk, obs.sampling_rate_hz)
+   lbs.noise.generate_one_over_f_noise(obs[0].tod[0], custom_fknee_mhz, custom_alpha, custom_sigma_uk, obs[0].sampling_rate_hz)
 
    #option 2 where we change the values in the observation object
    obs.fknee_mhz[0] = custom_fknee_mhz
