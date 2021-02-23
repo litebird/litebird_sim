@@ -24,7 +24,13 @@ noise. Firstly, we can add white noise like this:
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
    #This will make us 100 seconds of noise
 
-   obs = sim.create_observations(detectors=[lbs.DetectorInfo.from_imo(sim.imo, '8b20679d-f30e-4d17-8b72-276e926fea73')], num_of_obs_per_detector=1)
+   det = lbs.DetectorInfo(
+     fknee_mhz = 1.0,
+     net_ukrts = 100,
+     sampling_rate_hz = 10
+   )#make a detector object, could also load from the imo
+     
+   obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
    lbs.noise.add_noise(obs, 'white')
    #here we add white noise using the detector noise parameters from the Imo
@@ -46,7 +52,13 @@ function directly:
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
    #This will make us 100 seconds of noise
 
-   obs = sim.create_observations(detectors=[lbs.DetectorInfo.from_imo(sim.imo, '8b20679d-f30e-4d17-8b72-276e926fea73')], num_of_obs_per_detector=1)
+   det = lbs.DetectorInfo(
+     net_ukrts = 100,
+     sampling_rate_hz = 10,
+   )#in real code this would be read from the imo
+
+
+   obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
    custom_sigma_uk = 1234
 
@@ -60,10 +72,17 @@ We can also add 1/f noise using a very similar call to the above:
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
    #This will make us 100 seconds of noise
 
-   obs = sim.create_observations(detectors=[lbs.DetectorInfo.from_imo(sim.imo, '8b20679d-f30e-4d17-8b72-276e926fea73')], num_of_obs_per_detector=1)
+   det = lbs.DetectorInfo(
+     net_ukrts = 100,
+     sampling_rate_hz = 10,
+     alpha = 1,
+     fknee_mhz = 10
+   )#in real code this would be read from the imo
+
+   obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
    lbs.noise.add_noise(obs, 'one_over_f')
-   #here we add 1/f noise using the detector noise parameters from the Imo
+   #here we add 1/f noise using the detector noise parameters from the detector object
 
 Again, to generate noise with custom parameters, we can either use the low level function directly, or edit the observation object to contain the desired noise parameters. 
 
@@ -75,7 +94,14 @@ Again, to generate noise with custom parameters, we can either use the low level
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
    #This will make us 100 seconds of noise
 
-   obs = sim.create_observations(detectors=[lbs.DetectorInfo.from_imo(sim.imo, '8b20679d-f30e-4d17-8b72-276e926fea73')], num_of_obs_per_detector=1)
+   det = lbs.DetectorInfo(
+     net_ukrts = 100,
+     sampling_rate_hz = 10,
+     alpha = 1,
+     fknee_mhz = 10
+   )#in real code this would be read from the imo
+
+   obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
    custom_sigma_uk = 1234
    custom_fknee_mhz = 12.34
