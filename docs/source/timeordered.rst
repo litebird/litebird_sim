@@ -113,7 +113,7 @@ Again, to generate noise with custom parameters, we can either use the low level
    #option 2 where we change the values in the observation object
    obs[0].fknee_mhz[0] = custom_fknee_mhz
    obs[0].alpha[0] = custom_alpha
-   obs[0].net_ukrthz[0] = custom_sigma_uk * np.sqrt(obs[0].sampling_rate_hz)
+   obs[0].net_ukrts[0] = custom_sigma_uk * np.sqrt(obs[0].sampling_rate_hz)
 
    lbs.noise.add_noise(obs, 'one_over_f')
 
