@@ -19,6 +19,7 @@ The ability to add noise to your detector timestreams is supported through the
 noise. Firstly, we can add white noise like this:
 
 .. testcode::
+   
    import litebird_sim as lbs
 
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
@@ -67,6 +68,7 @@ function directly:
 We can also add 1/f noise using a very similar call to the above:
 
 .. testcode::
+   
    import litebird_sim as lbs
 
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
