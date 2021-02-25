@@ -36,12 +36,6 @@ noise. Firstly, we can add white noise like this:
    lbs.noise.add_noise(obs, 'white')
    #here we add white noise using the detector noise parameters from the Imo
 
-   print(obs[0].tod[0], len(obs[0].tod[0]))
-
-.. testoutput::
-   [-4.1348690e-06 -6.5450854e-06 -3.6649195e-05 ...  1.0698411e-05
- -3.7251013e-07  7.8516023e-06] 1900
-
 
 To add white noise using a custom white noise sigma, in uK, we can call the low level
 function directly:
