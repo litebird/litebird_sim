@@ -15,7 +15,6 @@ from .detectors import DetectorInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
 from .imo.imo import Imo
-from .noise import add_noise
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 from .version import (

@@ -3,11 +3,12 @@ import math
 import scipy as sp
 
 
-def add_noise(obs, noisetype):
+def add_noise(obs, noisetype, random=None):
     ''' adds noise of the defined type to the observations in obs
 
     obs: an Observation object
     noisetype: 'white' or 'one_over_f'
+    random: a random number generator if you want reproducible randomness
     '''
     if noisetype not in ['white', 'one_over_f']:
         raise ValueError("Unknown noise type " + noisetype)
@@ -22,28 +23,32 @@ def add_noise(obs, noisetype):
             if noisetype == 'white':
                 generate_white_noise(
                     ob.tod,
-                    ob.net_ukrts / np.sqrt(ob.sampling_rate_hz))
+                    ob.net_ukrts / np.sqrt(ob.sampling_rate_hz),
+                    random=random)
             elif noisetype == 'one_over_f':
                 generate_one_over_f_noise(
                     ob.tod,
                     ob.fknee_mhz,
                     ob.alpha,
                     ob.net_ukrts / np.sqrt(ob.sampling_rate_hz),
-                    ob.sampling_rate_hz)
+                    ob.sampling_rate_hz,
+                    random=random)
 
         elif len(ob.tod.shape) == 2:
             for i in range(ob.tod.shape[0]):
                 if noisetype == 'white':
                     generate_white_noise(
                         ob.tod[i][:],
-                        ob.net_ukrts[i] / np.sqrt(ob.sampling_rate_hz))
+                        ob.net_ukrts[i] / np.sqrt(ob.sampling_rate_hz),
+                        random=random)
                 elif noisetype == 'one_over_f':
                     generate_one_over_f_noise(
                         ob.tod[i][:],
                         ob.fknee_mhz[i],
                         ob.alpha[i],
                         ob.net_ukrts[i] / np.sqrt(ob.sampling_rate_hz),
-                        ob.sampling_rate_hz)
+                        ob.sampling_rate_hz,
+                        random=random)
 
         else:
             raise TypeError("Array with shape " + ob.tod.shape
@@ -51,18 +56,21 @@ def add_noise(obs, noisetype):
                             + " Try a 1 or 2 D array instead.")
 
 
-def generate_white_noise(data, sigma_uk):
+def generate_white_noise(data, sigma_uk, random=None):
     '''Adds white noise with the given sigma to the array data
     To be called from add_noise.
 
     data: 1-D numpy array
     sigma: the varience of the desired white noise
-
+    random: a random number generator if you want reproducible randomness
     '''
-    data += np.random.default_rng().normal(0, sigma_uk / 1000000, data.shape)
+    if random is None:
+        random = np.random.default_rng()
+
+    data += random.normal(0, sigma_uk / 1000000, data.shape)
 
 
-def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz):
+def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz, random=None):
     '''Adds a 1/f noise timestream with the given f knee and alpha to data
     To be called from add_noise
 
@@ -71,12 +79,16 @@ def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz):
     alpha: low frequency spectral tilt
     sigma0: white noise level
     freq: the sampling frequency of the data
+    random: a random number generator if you want reproducible randomness
     '''
+
+    if random is None:
+        random = np.random.default_rng()
 
     noiselen = nearest_pow2(data)
 
     # makes a white noise timestream with unit varience
-    noise = np.random.default_rng().normal(0, 1, noiselen)
+    noise = random.normal(0, 1, noiselen)
 
     ft = sp.fft.fft(noise, n=noiselen)
     freqs = sp.fft.fftfreq(noiselen, d=1 / (2 * freq_hz))

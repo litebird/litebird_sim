@@ -21,6 +21,7 @@ noise. Firstly, we can add white noise like this:
 .. testcode::
    
    import litebird_sim as lbs
+   import numpy as np
 
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
    #This will make us 100 seconds of noise
@@ -33,8 +34,19 @@ noise. Firstly, we can add white noise like this:
      
    obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
-   lbs.noise.add_noise(obs, 'white')
+   #set up our own random number generator so we can get deterministic test resutls
+   random = np.random.default_rng(1234567890)
+
+   lbs.noise.add_noise(obs, 'white', random=random)
    #here we add white noise using the detector noise parameters from the Imo
+
+   print(obs[0].tod[0][0:10], len(obs[0].tod[0]))
+
+.. testoutput::
+
+   [-6.4489184e-05  5.7713163e-07 -2.3167042e-05  2.5590667e-05
+   1.8826951e-05  8.6506352e-06 -1.6396152e-05  1.7891365e-05
+   -7.7826235e-06  1.0882791e-07] 1000
 
 
 To add white noise using a custom white noise sigma, in uK, we can call the low level

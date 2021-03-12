@@ -118,6 +118,6 @@ __all__ = [
     "make_bin_map",
     # simulations.py
     "Simulation",
-    #noise.py
+    # noise.py
     "add_noise",
 ]
