@@ -1,5 +1,7 @@
 # HEAD
 
+- White and 1/f noise generation [PR#100](https://github.com/litebird/litebird_sim/pull/100)
+
 - Simple bin map-maker [PR#73](https://github.com/litebird/litebird_sim/pull/73)
 
 - Use SI units in class `SpinningScanningStrategy` (**breaking change**) [PR#69](https://github.com/litebird/litebird_sim/pull/69)
