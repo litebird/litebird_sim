@@ -210,13 +210,14 @@ report::
           precession_rate_hz=1.0 / (4 * u.day).to("s").value,
       )
   )
-  instr = lbs.Instrument(
+  instr = lbs.InstrumentInfo(
       name="core",
       spin_boresight_angle_rad=np.deg2rad(65),
   )
-  det = lbs.Detector(name="foo", sampling_rate_hz=10)
+  det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
-  pointings = obs.get_pointings(
+  pointings = lbs.get_pointings(
+      obs,
       sim.spin2ecliptic_quats,
       detector_quats=[det.quat],
       bore2spin_quat=instr.bore2spin_quat,
@@ -255,8 +256,8 @@ following things:
 1. It generates a set of quaternions that encode the orientation of
    the spacecraft for the whole duration of the simulation (86,400
    seconds, that is one day);
-2. It creates an instance of the :class:`.Instrument` and
-   :class:`.Detector` classes that represent a boresight detector;
+2. It creates an instance of the :class:`.InstrumentInfo` and
+   :class:`.DetectorInfo` classes that represent a boresightdetector;
 3. It generates a pointing information matrix;
 4. It produces a coverage map by setting to 1 all those pixels that
    are visited by the directions encoded in the pointing information

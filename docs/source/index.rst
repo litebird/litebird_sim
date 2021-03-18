@@ -16,6 +16,8 @@ Welcome to litebird_sim's documentation!
    detectors
    observations
    data_layout
+   mapmaking
+   sky_maps
    scanning
    imo
    timeordered

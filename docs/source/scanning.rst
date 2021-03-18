@@ -138,7 +138,8 @@ similar to what is going to be used for LiteBIRD:
   # plane and one instrument)
   det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
-  pointings = obs.get_pointings(
+  pointings = lbs.get_pointings(
+      obs,
       sim.spin2ecliptic_quats,
       detector_quats=[det.quat],
       bore2spin_quat=instr.bore2spin_quat,
@@ -146,19 +147,19 @@ similar to what is going to be used for LiteBIRD:
 
   print("Shape:", pointings.shape)
   print("Pointings:")
-  print(pointings)
+  print(np.array_str(pointings, precision=3))
 
 .. testoutput::
 
   Shape: (1, 600, 3)
   Pointings:
-  [[[ 2.18166156  0.         -1.57079633]
-    [ 2.18164984 -0.00579129 -1.57633021]
-    [ 2.18161186 -0.01158231 -1.58186382]
+  [[[ 2.182  0.    -1.571]
+    [ 2.182 -0.006 -1.576]
+    [ 2.182 -0.012 -1.582]
     ...
-    [ 0.08854811 -2.96748668 -1.73767999]
-    [ 0.08788054 -3.0208052  -1.68678085]
-    [ 0.08745441 -3.07477554 -1.63522983]]]
+    [ 0.089 -2.967 -1.738]
+    [ 0.088 -3.021 -1.687]
+    [ 0.087 -3.075 -1.635]]]
 
 All the details in this code are explained in the next sections, so
 for now just keep in mind the overall shape of the code:
@@ -180,10 +181,10 @@ for now just keep in mind the overall shape of the code:
    the polarization angle. Both quantities are computed in the
    Ecliptic reference frame using the sampling rate of the detector,
    which in our example is 10 Hz (i.e., ten samples per second). In
-   the example above, this is done by the method
-   :meth:`.Observation.get_pointings`.
+   the example above, this is done by the function
+   :func:`.get_pointings`.
 
-3. The method :meth:`.Observation.get_pointings` returns a ``(N, 3)``
+3. The function :func:`.get_pointings` returns a ``(N, 3)``
    matrix, where the first column contains the colatitude
    :math:`\theta`, the second column the longitude :math:`\phi`, and
    the third column the polarization angle :math:`\psi`, all expressed
@@ -316,7 +317,7 @@ When using MPI, the relatively small size in memory of the quaternions
 (the thick black lines in the figure) enables the framework to keep
 the a duplicate of the list in all the MPI processes. This is unlike
 what happens with the data in TODs (the thin gray lines), which are
-split in several instances of the :class:`.Observation` class.
+split in several blocks inside the :class:`.Observation` class.
 
 .. note::
 
@@ -347,9 +348,9 @@ angle are computed as follows:
 
 .. image:: images/polarization-direction.svg
 
-The purpose of the method :meth:`.Observation.get_pointings`, used in
+The purpose of the function :func:`.get_pointings`, used in
 the example at the beginning of this chapter, is to call
-:meth:`.Observation.get_det2ecl_quaternions` to compute the
+:func:`.get_det2ecl_quaternions` to compute the
 quaternions at the same sampling frequency as the scientific
 datastream, and then to apply the two definitions above to compute the
 direction and the polarization angle.
@@ -415,7 +416,7 @@ calculated with respect to the meridian/parallel going through the
 point the detector is looking at. Again, to reduce memory usage, our
 framework only encodes the angle.
 
-Thus, the method :meth:`.Observation.get_pointings` returns a N×3
+Thus, the function :func:`.get_pointings` returns a N×3
 matrix whose columns contain the colatitude (in radians), longitude
 (ditto), and polarization angle with respect to the North and South
 poles of the sky. Let's visualize the position of these pointings on a
@@ -684,7 +685,7 @@ computing one quaternion every minute, we compute one quaternion every
        sampling_rate_hz=1.0 / ((1.0 * u.day).to("s").value),
    )
    (obs,) = sim.create_observations(detectors=[det])
-   pointings = obs.get_pointings(sim.spin2ecliptic_quats, np.array([det.quat]))
+   pointings = lbs.get_pointings(obs, sim.spin2ecliptic_quats, np.array([det.quat]))
 
    m = np.zeros(healpy.nside2npix(64))
    pixidx = healpy.ang2pix(64, pointings[:, 0], pointings[:, 1])
@@ -717,10 +718,10 @@ main beam axis.
 The functions described in this chapter can be used to analyze how
 detectors are going to observe point sources in the sky, properly
 taking into account proper motions of the sources (this applies to
-Solar System objects, like planets and comets). The class
-:class:`.Observation` provides the method
-:meth:`.get_ecl2det_quaternions`, which has the same syntax as
-:meth:`.get_pointings` but returns a matrix with shape ``(N, 4)``
+Solar System objects, like planets and comets). The library
+provides the functions
+:func:`.get_ecl2det_quaternions`, which has the same syntax as
+:func:`.get_pointings` but returns a matrix with shape ``(N, 4)``
 containing the ``N`` quaternions that transform from the Ecliptic
 reference frame to the detector's. Thus, this method can be used to
 estimate how far from the main beam axis a celestial object is, and
@@ -730,7 +731,7 @@ Here we show a simple example; the first part is identical to the
 examples shown above (using the same scanning strategy as CORE's), but
 here we employ AstroPy to compute the Ecliptic coordinates of Jupiter
 during the simulation and convert them in the reference frame of the
-boresight detector using :meth:`.Observation.get_ecl2det_quaternions`:
+boresight detector using :func:`.get_ecl2det_quaternions`:
 
 .. testcode::
 
@@ -796,7 +797,8 @@ boresight detector using :meth:`.Observation.get_ecl2det_quaternions`:
 
   # Calculate the quaternions that convert the Ecliptic
   # reference system into the detector's reference system
-  quats = obs.get_ecl2det_quaternions(
+  quats = lbs.get_ecl2det_quaternions(
+      obs,
       sim.spin2ecliptic_quats,
       detector_quats=[det.quat],
       bore2spin_quat=instr.bore2spin_quat,

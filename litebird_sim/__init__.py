@@ -24,6 +24,7 @@ from .imo import (
     ImoFormatError,
     ImoFlatFile,
 )
+from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
 from .quaternions import (
@@ -50,8 +51,12 @@ from .scanning import (
     Spin2EclipticQuaternions,
     ScanningStrategy,
     SpinningScanningStrategy,
+    get_det2ecl_quaternions,
+    get_ecl2det_quaternions,
+    get_pointings
 )
 from .mapping import make_bin_map
+from .destriper import DestriperParameters, DestriperResult, destripe
 from .simulations import Simulation
 from .noise import add_noise
 from .version import __author__, __version__
@@ -85,6 +90,10 @@ __all__ = [
     "FreqChannelInfo",
     "InstrumentInfo",
     "detector_list_from_parameters",
+    # mbs.py
+    "Mbs",
+    "MbsParameters",
+    "MbsSavedMapInfo",
     # mpi.py
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
@@ -114,8 +123,15 @@ __all__ = [
     "Spin2EclipticQuaternions",
     "ScanningStrategy",
     "SpinningScanningStrategy",
+    "get_det2ecl_quaternions",
+    "get_ecl2det_quaternions",
+    "get_pointings",
     # mapping.py
     "make_bin_map",
+    # destripe.py
+    "DestriperParameters",
+    "DestriperResult",
+    "destripe",
     # simulations.py
     "Simulation",
     # noise.py

@@ -101,3 +101,12 @@ def test_imo_query_release():
 
     data_file = imo.query("/1.0/instrument/beams/horn01/horn01_grasp")
     assert data_file.uuid == uuid
+
+
+def test_imo_entry_hierarchy():
+    imo = load_mock_imo()
+
+    # This is the "beams" object
+    uuid = UUID("04c53542-e8a8-421f-aa3c-201abba1575d")
+    child_entity = imo.query_entity(uuid)
+    assert child_entity.parent.uuid == UUID("2180affe-f9c3-4048-a407-6bd4d3ad71e5")
