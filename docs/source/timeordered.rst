@@ -23,30 +23,40 @@ noise. Firstly, we can add white noise like this:
    import litebird_sim as lbs
    import numpy as np
 
+   # Create a simulation lasting 100 seconds
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
-   #This will make us 100 seconds of noise
 
+   # Create a detector object
    det = lbs.DetectorInfo(
-     fknee_mhz = 1.0,
-     net_ukrts = 100,
-     sampling_rate_hz = 10
-   )#make a detector object, could also load from the imo
+     fknee_mhz=1.0,
+     net_ukrts=100,
+     sampling_rate_hz=10
+   )
      
    obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
-   #set up our own random number generator so we can get deterministic test resutls
+   # Set up our own random number generator so that we can get
+   # deterministic test results
    random = np.random.default_rng(1234567890)
 
+   # Here we add white noise using the detector noise parameters from the Imo
    lbs.noise.add_noise(obs, 'white', random=random)
-   #here we add white noise using the detector noise parameters from the Imo
 
-   print(obs[0].tod[0][0:10], len(obs[0].tod[0]))
+   for i in range(10):
+       print(f"{obs[0].tod[0][i]:.5e}")
 
 .. testoutput::
 
-   [-6.4489184e-05  5.7713163e-07 -2.3167042e-05  2.5590667e-05
-   1.8826951e-05  8.6506352e-06 -1.6396152e-05  1.7891365e-05
-   -7.7826235e-06  1.0882791e-07] 1000
+   -6.44892e-05
+   5.77132e-07
+   -2.31670e-05
+   2.55907e-05
+   1.88270e-05
+   8.65064e-06
+   -1.63962e-05
+   1.78914e-05
+   -7.78262e-06
+   1.08828e-07
 
 
 To add white noise using a custom white noise sigma, in uK, we can call the low level
@@ -57,18 +67,15 @@ function directly:
    import litebird_sim as lbs
 
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
-   #This will make us 100 seconds of noise
 
    det = lbs.DetectorInfo(
-     net_ukrts = 100,
-     sampling_rate_hz = 10,
-   )#in real code this would be read from the imo
-
+     net_ukrts=100,
+     sampling_rate_hz=10,
+   )
 
    obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
    custom_sigma_uk = 1234
-
    lbs.noise.generate_white_noise(obs[0].tod[0], custom_sigma_uk)
 
 We can also add 1/f noise using a very similar call to the above:
@@ -78,19 +85,19 @@ We can also add 1/f noise using a very similar call to the above:
    import litebird_sim as lbs
 
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
-   #This will make us 100 seconds of noise
 
    det = lbs.DetectorInfo(
-     net_ukrts = 100,
-     sampling_rate_hz = 10,
-     alpha = 1,
-     fknee_mhz = 10
-   )#in real code this would be read from the imo
+     net_ukrts=100,
+     sampling_rate_hz=10,
+     alpha=1,
+     fknee_mhz=10
+   )
 
    obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
+   # Here we add 1/f noise using the detector noise parameters from the
+   # detector object
    lbs.noise.add_noise(obs, 'one_over_f')
-   #here we add 1/f noise using the detector noise parameters from the detector object
 
 Again, to generate noise with custom parameters, we can either use the low level function directly, or edit the observation object to contain the desired noise parameters. 
 
@@ -100,14 +107,13 @@ Again, to generate noise with custom parameters, we can either use the low level
    import numpy as np
 
    sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
-   #This will make us 100 seconds of noise
 
    det = lbs.DetectorInfo(
-     net_ukrts = 100,
-     sampling_rate_hz = 10,
-     alpha = 1,
-     fknee_mhz = 10
-   )#in real code this would be read from the imo
+     net_ukrts=100,
+     sampling_rate_hz=10,
+     alpha=1,
+     fknee_mhz=10
+   )
 
    obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
@@ -115,10 +121,16 @@ Again, to generate noise with custom parameters, we can either use the low level
    custom_fknee_mhz = 12.34
    custom_alpha = 1.234
 
-   #option 1, where we call the low lever function directly
-   lbs.noise.generate_one_over_f_noise(obs[0].tod[0], custom_fknee_mhz, custom_alpha, custom_sigma_uk, obs[0].sampling_rate_hz)
+   # Option 1, where we call the low lever function directly
+   lbs.noise.generate_one_over_f_noise(
+       obs[0].tod[0],
+       custom_fknee_mhz,
+       custom_alpha,
+       custom_sigma_uk,
+       obs[0].sampling_rate_hz,
+   )
 
-   #option 2 where we change the values in the observation object
+   # Option 2, where we change the values in the observation object
    obs[0].fknee_mhz[0] = custom_fknee_mhz
    obs[0].alpha[0] = custom_alpha
    obs[0].net_ukrts[0] = custom_sigma_uk * np.sqrt(obs[0].sampling_rate_hz)
