@@ -2,6 +2,8 @@
 
 # Version 0.2.0
 
+- White and 1/f noise generation [PR#100](https://github.com/litebird/litebird_sim/pull/100)
+
 - Fix bug #104 [PR#105](https://github.com/litebird/litebird_sim/pull/105)
 
 # Version 0.2.0 alpha

@@ -618,8 +618,9 @@ class Simulation:
         assert (
             self.start_time is not None
         ), "you must set start_time when creating the Simulation object"
+
         assert isinstance(
-            self.duration_s, float
+            self.duration_s, (float, int)
         ), "you must set duration_s when creating the Simulation object"
 
         observations = []
