@@ -26,8 +26,14 @@ class HwpSys:
 #        self.parameters = simulation.parameters['hwp_sys']
 
 
-    def input_parameters(self,channel,Mbsparams=None,nside=None):
-        #booo=self.parameters['booo']
+    def input_parameters(self,channel,
+    	Mbsparams=None,
+    	nside=None,
+    	integrate_in_band=None,
+    	built_map_on_the_fly=None,
+    	correct_in_solver=None,
+    	integrate_in_band_solver=None,
+    	):
 
         if nside==None:
         	self.nside = 512
@@ -36,17 +42,32 @@ class HwpSys:
 
         self.npix = hp.nside2npix(self.nside)
 
-        self.integrate_in_band = False
-        self.built_map_on_the_fly = True
+        if integrate_in_band==None:
+        	self.integrate_in_band = False
+        else:
+        	self.integrate_in_band = integrate_in_band
 
-        self.correct_in_solver = True
-        self.integrate_in_band_solver = False
+        if built_map_on_the_fly==None:
+        	self.built_map_on_the_fly = True
+        else:
+        	self.built_map_on_the_fly = built_map_on_the_fly
+
+        if correct_in_solver==None:
+        	self.correct_in_solver = True
+        else:
+        	self.correct_in_solver = correct_in_solver
+
+        if integrate_in_band_solver==None:
+        	self.integrate_in_band_solver = True
+        else:
+        	self.integrate_in_band_solver = integrate_in_band_solver
+
 
         if Mbsparams==None:
             Mbsparams = lbs.MbsParameters(
-                make_cmb =True,
+                make_cmb = True,
                 make_fg = True,
-                fg_models =["pysm_synch_0", "pysm_freefree_1","pysm_dust_0"],
+                fg_models = ["pysm_synch_0", "pysm_freefree_1","pysm_dust_0"],
                 gaussian_smooth = True,
                 bandpass_int = False,
             )
@@ -70,7 +91,7 @@ class HwpSys:
 
             mbs = lbs.Mbs(
                 simulation = self.sim,
-                parameters = Mbsparams ,
+                parameters = Mbsparams,
                 instrument = myinstr,
             )
 
@@ -157,6 +178,7 @@ class HwpSys:
                         (J11*J12.conjugate()).real*self.maps[2,pix])
 
             if self.built_map_on_the_fly:
+
                 if self.correct_in_solver:
 
                     if self.integrate_in_band_solver:
@@ -213,13 +235,4 @@ class HwpSys:
         mask = cond < COND_THRESHOLD
         res[mask] = np.linalg.solve(self.ata[mask], self.atd[mask])
         return res.T
-
-#    def fill_ata_atd(self,obs,pointings,hwp_radpsec):
-
-
-
-
-
-
-
 
