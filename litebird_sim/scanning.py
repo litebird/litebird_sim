@@ -379,7 +379,7 @@ def calculate_sun_earth_angles_rad(time_vector):
     if isinstance(time_vector, astropy.time.Time):
         pos = get_body_barycentric("earth", time_vector)
         coord = ICRS(pos).transform_to(BarycentricMeanEcliptic).cartesian
-        return np.arctan2(coord.x.value, coord.y.value)
+        return np.arctan2(coord.y.value, coord.x.value)
     else:
         return YEARLY_OMEGA_SPIN_HZ * time_vector
 
@@ -760,8 +760,9 @@ def get_quaternion_buffer_shape(obs, num_of_detectors=None):
     :func:`.get_det2ecl_quaternions` and :func:`.get_ecl2det_quaternions` to
     save the quaternions representing the change of the orientation of the
     detectors with time.
-    
+
     Here is a typical use::
+
         import numpy as np
         import litebird_sim as lbs
         obs = lbs.Observation(...)
@@ -771,6 +772,7 @@ def get_quaternion_buffer_shape(obs, num_of_detectors=None):
             ...,
             quaternion_buffer=quaternions,
         )
+
     """
 
     if not num_of_detectors:
@@ -897,25 +899,32 @@ def get_pointings(
     :class:`.Simulation` object, once the method
     :meth:`.Simulation.generate_spin2ecl_quaternions` is called.
     The parameter `detector_quats` is a stack of detector quaternions. For
-    example, it can be
+    example, it can be:
+
     - The stack of the field `quat` of an instance of the class
        :class:`.DetectorInfo`
+
     - If all you want to do is a simulation using a boresight
        direction, you can pass the value ``np.array([[0., 0., 0.,
        1.]])``, which represents the null rotation.
+
     The parameter `bore2spin_quat` is calculated through the class
     :class:`.Instrument`, which has the field ``bore2spin_quat``.
     If all you have is the angle β between the boresight and the
     spin axis, just pass ``quat_rotation_y(β)`` here.
+
     The return value is a ``(D x N × 3)`` tensor: the colatitude (in
     radians) is stored in column 0 (e.g., ``result[:, :, 0]``), the
     longitude (ditto) in column 1, and the polarization angle
     (ditto) in column 2. You can extract the three vectors using
     the following idiom::
+
         pointings = obs.get_pointings(...)
+
         # Extract the colatitude (theta), longitude (psi), and
         # polarization angle (psi) from pointings
         theta, phi, psi = [pointings[:, :, i] for i in (0, 1, 2)]
+
     If you plan to call this function repeatedly, you can save
     some running time by pre-allocating the buffer used to hold
     the pointings and the quaternions with the parameters
@@ -925,6 +934,7 @@ def get_pointings(
     :func:`.get_pointing_buffer_shape`. If you use
     these parameters, the return value will be a pointer to the
     `pointing_buffer`.
+
     """
     det2ecliptic_quats = get_det2ecl_quaternions(
         obs,
