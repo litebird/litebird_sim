@@ -1,5 +1,7 @@
 # HEAD
 
+# Version 0.2.1
+
 - Fix bug [#107](https://github.com/litebird/litebird_sim/pull/107) [PR#108](https://github.com/litebird/litebird_sim/pull/108)
 
 # Version 0.2.0
