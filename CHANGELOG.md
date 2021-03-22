@@ -1,5 +1,7 @@
 # HEAD
 
+- Fix bug [#107](https://github.com/litebird/litebird_sim/pull/107) [PR#108](https://github.com/litebird/litebird_sim/pull/108)
+
 # Version 0.2.0
 
 - White and 1/f noise generation [PR#100](https://github.com/litebird/litebird_sim/pull/100)
