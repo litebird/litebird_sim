@@ -55,7 +55,7 @@ def test_calculate_sun_earth_angles_rad():
     # reference frame used to compute equinoxes (which use the center
     # of the Sun instead of the barycentre)
     time = Time("2020-06-21T12:02:47")
-    assert np.allclose(lbs.calculate_sun_earth_angles_rad(time), -np.pi)
+    assert np.allclose(lbs.calculate_sun_earth_angles_rad(time), -1.5707963643879557)
 
 
 def create_fake_detector(sampling_rate_hz=1):
