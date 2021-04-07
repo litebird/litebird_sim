@@ -43,7 +43,7 @@ variable :data:`.MPI_ENABLED`::
 
 
 To ensure that your code uses MPI in the proper way, you should always
-use ``.MPI_COMM_WORLD`` instead of importing ``mpi4py`` directly.
+use :data:`.MPI_COMM_WORLD` instead of importing ``mpi4py`` directly.
 
 
 Enabling/disabling MPI
