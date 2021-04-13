@@ -197,7 +197,7 @@ initialize a :class:`.Simulation` object using the variable
   import litebird_sim as lbs
 
   # This simulation can take advantage of MPI, if present
-  sim = lbs.Simulation(use_mpi = lbs.MPI_COMM_WORLD)
+  sim = lbs.Simulation(mpi_comm = lbs.MPI_COMM_WORLD)
 
 See the page :ref:`using_mpi` for more information.
 
