@@ -6,6 +6,8 @@ import numpy as np
 import healpy as hp
 from astropy import constants as const
 from astropy.cosmology import Planck18_arXiv_v2 as cosmo
+from . import mpi
+
 
 COND_THRESHOLD = 1e10
 
@@ -19,6 +21,13 @@ def _dBodTth(nu):
     return 2*const.h.value*nu*nu*nu*1e27/const.c.value/const.c.value/exm1/exm1*ex*x/cosmo.Tcmb0.value
 
 class HwpSys:
+    """A container object for handling hwp systematics 
+    following the approach of Gardiello et al. 2021
+
+    Args:
+         simulation (:class:`.Simulation`): an instance of the :class:`.Simulation` class
+    """
+
     def __init__(self, simulation):
         self.sim = simulation
         self.imo = self.sim.imo
@@ -58,10 +67,9 @@ class HwpSys:
         	self.correct_in_solver = correct_in_solver
 
         if integrate_in_band_solver==None:
-        	self.integrate_in_band_solver = True
+        	self.integrate_in_band_solver = False
         else:
         	self.integrate_in_band_solver = integrate_in_band_solver
-
 
         if Mbsparams==None:
             Mbsparams = lbs.MbsParameters(
@@ -223,9 +231,26 @@ class HwpSys:
 
         return
 
-    def make_map(self):
-        #mpi?
-        #reduce here
+    def make_map(self,obss):
+    	assert self.built_map_on_the_fly, "make_map available only for "
+
+        #from mapping.py
+    	if all([obs.comm is None for obs in obss]) or not mpi.MPI_ENABLED:
+            # Serial call
+            pass
+        elif all(
+        	[
+        	mpi.MPI.Comm.Compare(obss[i].comm, obss[i + 1].comm) < 2
+            for i in range(len(obss) - 1)
+            ]
+        ):
+            self.atd = obss[0].comm.allreduce(self.atd, mpi.MPI.SUM)
+            self.atd = obss[0].comm.allreduce(self.atd, mpi.MPI.SUM)
+        else:
+        	raise NotImplementedError(
+            "All observations must be distributed over the same MPI groups"
+            )
+
         self.ata[:,0,1] = self.ata[:,1,0]
         self.ata[:,0,2] = self.ata[:,2,0]
         self.ata[:,1,2] = self.ata[:,2,1]
