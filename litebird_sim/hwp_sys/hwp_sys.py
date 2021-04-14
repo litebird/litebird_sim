@@ -1,12 +1,13 @@
 import toml
 import distutils
+from typing import Union, List
 import litebird_sim as lbs
 import logging as log
 import numpy as np
 import healpy as hp
 from astropy import constants as const
 from astropy.cosmology import Planck18_arXiv_v2 as cosmo
-from . import mpi
+from litebird_sim import mpi
 
 
 COND_THRESHOLD = 1e10
@@ -231,23 +232,25 @@ class HwpSys:
 
         return
 
-    def make_map(self,obss):
-    	assert self.built_map_on_the_fly, "make_map available only for "
+    def make_map(self,
+        obss,
+        ):
+        assert self.built_map_on_the_fly, "make_map available only for "
 
         #from mapping.py
-    	if all([obs.comm is None for obs in obss]) or not mpi.MPI_ENABLED:
+        if all([obs.comm is None for obs in obss]) or not mpi.MPI_ENABLED:
             # Serial call
             pass
         elif all(
-        	[
-        	mpi.MPI.Comm.Compare(obss[i].comm, obss[i + 1].comm) < 2
+            [
+            mpi.MPI.Comm.Compare(obss[i].comm, obss[i + 1].comm) < 2
             for i in range(len(obss) - 1)
             ]
         ):
             self.atd = obss[0].comm.allreduce(self.atd, mpi.MPI.SUM)
             self.atd = obss[0].comm.allreduce(self.atd, mpi.MPI.SUM)
         else:
-        	raise NotImplementedError(
+            raise NotImplementedError(
             "All observations must be distributed over the same MPI groups"
             )
 
