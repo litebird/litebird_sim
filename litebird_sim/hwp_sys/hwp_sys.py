@@ -58,7 +58,7 @@ class HwpSys:
         	self.integrate_in_band = integrate_in_band
 
         if built_map_on_the_fly==None:
-        	self.built_map_on_the_fly = True
+        	self.built_map_on_the_fly = False
         else:
         	self.built_map_on_the_fly = built_map_on_the_fly
 
@@ -146,6 +146,9 @@ class HwpSys:
         if self.built_map_on_the_fly:
         	self.atd = np.zeros((self.npix,3))
         	self.ata = np.zeros((self.npix,3,3))
+        else:
+            obs.psi = np.empty_like(obs.tod)
+            obs.pixel = np.empty_like(obs.tod,dtype=np.int)
 
         for idet in range(obs.n_detectors):
             pix = hp.ang2pix(self.nside,pointings[idet,:,0],pointings[idet,:,1])
@@ -229,6 +232,9 @@ class HwpSys:
                     self.ata[pix,1,1] += ca*ca
                     self.ata[pix,2,1] += ca*sa
                     self.ata[pix,2,2] += sa*sa
+            else:
+                obs.psi[idet,:] = pointings[idet,:,2]+2*times*hwp_radpsec
+                obs.pixel[idet,:] = pix
 
         return
 
