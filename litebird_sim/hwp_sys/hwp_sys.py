@@ -48,6 +48,11 @@ class HwpSys:
         	
             if 'nside' in paramdict.keys():
                 self.nside = paramdict['nside']
+                if ('general' in self.sim.parameters.keys()):
+                    if ('nside' in self.sim.parameters['general'].keys()):
+                        if (self.sim.parameters['general']['nside'] != self.nside):
+                            print('Warning!! nside from general (=%i) and hwp_sys (=%i) do not match. Using hwp_sys'
+                            	% (self.sim.parameters['general']['nside'],self.nside))
 
             if 'integrate_in_band' in paramdict.keys():
                 self.integrate_in_band = paramdict['integrate_in_band']
