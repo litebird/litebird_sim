@@ -33,9 +33,6 @@ class HwpSys:
         self.sim = simulation
         self.imo = self.sim.imo
 
-#        self.parameters = simulation.parameters['hwp_sys']
-
-
     def input_parameters(self,channel,
     	Mbsparams=None,
     	nside=None,
@@ -45,6 +42,83 @@ class HwpSys:
     	integrate_in_band_solver=None,
     	):
 
+#This part sets from parameter file
+        if (self.sim.parameter_file != None) and ('hwp_sys' in self.sim.parameters.keys()):
+            paramdict = self.sim.parameters['hwp_sys']
+        	
+            if 'nside' in paramdict.keys():
+                self.nside = paramdict['nside']
+
+            if 'integrate_in_band' in paramdict.keys():
+                self.integrate_in_band = paramdict['integrate_in_band']
+
+            if 'built_map_on_the_fly' in paramdict.keys():
+                self.built_map_on_the_fly = paramdict['built_map_on_the_fly']
+
+            if 'correct_in_solver' in paramdict.keys():
+                self.correct_in_solver = paramdict['correct_in_solver']
+
+            if 'integrate_in_band_solver' in paramdict.keys():
+                self.integrate_in_band_solver = paramdict['integrate_in_band_solver']
+
+            if 'h1' in paramdict.keys():
+                self.h1 = paramdict['h1']
+
+            if 'h2' in paramdict.keys():
+                self.h2 = paramdict['h2']
+
+            if 'beta' in paramdict.keys():
+                self.beta = paramdict['beta']
+
+            if 'z1' in paramdict.keys():
+                self.z1 = paramdict['z1']
+
+            if 'z2' in paramdict.keys():
+                self.z2 = paramdict['z2']
+
+            if 'h1s' in paramdict.keys():
+                self.h1s = paramdict['h1s']
+
+            if 'h2s' in paramdict.keys():
+                self.h2s = paramdict['h2s']
+
+            if 'betas' in paramdict.keys():
+                self.betas = paramdict['betas']
+
+            if 'z1s' in paramdict.keys():
+                self.z1s = paramdict['z1s']
+
+            if 'z2s' in paramdict.keys():
+                self.z2s = paramdict['z2s']
+
+            if 'band_filename' in paramdict.keys():
+                self.band_filename = paramdict['band_filename']
+
+            if 'band_filename_solver' in paramdict.keys():
+                self.band_filename_solver = paramdict['band_filename_solver']
+ 
+            #here we set the values for Mbs used in the code
+            if 'hwp_sys_Mbs_make_cmb' in paramdict.keys():
+                hwp_sys_Mbs_make_cmb = paramdict['hwp_sys_Mbs_make_cmb']
+            else:
+                hwp_sys_Mbs_make_cmb = True
+
+            if 'hwp_sys_Mbs_make_fg' in paramdict.keys():
+                hwp_sys_Mbs_make_fg = paramdict['hwp_sys_Mbs_make_fg']
+            else:
+                hwp_sys_Mbs_make_fg = True
+
+            if 'hwp_sys_Mbs_fg_models' in paramdict.keys():
+                hwp_sys_Mbs_fg_models = paramdict['hwp_sys_Mbs_fg_models']
+            else:
+                hwp_sys_Mbs_fg_models = ["pysm_synch_0", "pysm_freefree_1","pysm_dust_0"]
+
+            if 'hwp_sys_Mbs_gaussian_smooth' in paramdict.keys():
+                hwp_sys_Mbs_gaussian_smooth = paramdict['hwp_sys_Mbs_gaussian_smooth']
+            else:
+                hwp_sys_Mbs_gaussian_smooth = True
+
+#This part sets from input_parameters()
         if nside==None:
         	self.nside = 512
         else:
@@ -74,10 +148,10 @@ class HwpSys:
 
         if Mbsparams==None:
             Mbsparams = lbs.MbsParameters(
-                make_cmb = True,
-                make_fg = True,
-                fg_models = ["pysm_synch_0", "pysm_freefree_1","pysm_dust_0"],
-                gaussian_smooth = True,
+                make_cmb = hwp_sys_Mbs_make_cmb,
+                make_fg = hwp_sys_Mbs_make_fg,
+                fg_models = hwp_sys_Mbs_fg_models,
+                gaussian_smooth = hwp_sys_Mbs_gaussian_smooth,
                 bandpass_int = False,
             )
 
@@ -112,11 +186,16 @@ class HwpSys:
 
         else:
 
-            self.h1 = 0.0
-            self.h2 = 0.0
-            self.beta = 0.0
-            self.z1 = 0.0
-            self.z2 = 0.0
+            if not hasattr(self,'h1'):
+                self.h1 = 0.0
+            if not hasattr(self,'h2'):
+                self.h2 = 0.0
+            if not hasattr(self,'beta'):
+                self.beta = 0.0
+            if not hasattr(self,'z1'):
+                self.z1 = 0.0
+            if not hasattr(self,'z2'):
+                self.z2 = 0.0
 
             mbs = lbs.Mbs(
                 simulation=self.sim,
@@ -132,11 +211,16 @@ class HwpSys:
                 self.h1,self.h2,self.beta,self.z1,self.z2 = np.loadtxt(
                 	self.band_filename_solver,usecols=(1,2,3,4,5),unpack=True,skiprows=1)
             else:
-                self.h1s = 0.0
-                self.h2s = 0.0
-                self.betas = 0.0
-                self.z1s = 0.0
-                self.z2s = 0.0            	
+                if not hasattr(self,'h1s'):
+                    self.h1s = 0.0
+                if not hasattr(self,'h2s'):
+                    self.h2s = 0.0
+                if not hasattr(self,'betas'):
+                    self.betas = 0.0
+                if not hasattr(self,'z1s'):
+                    self.z1s = 0.0
+                if not hasattr(self,'z2s'):
+                    self.z2s = 0.0
 
 
     def fill_tod(self,obs,pointings,hwp_radpsec):
