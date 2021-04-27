@@ -1,8 +1,4 @@
-import toml
-import distutils
-from typing import Union, List
 import litebird_sim as lbs
-import logging as log
 import numpy as np
 import healpy as hp
 from astropy import constants as const
@@ -12,14 +8,17 @@ from litebird_sim import mpi
 
 COND_THRESHOLD = 1e10
 
+
 def _dBodTrj(nu):
     return 2*const.k_B.value*nu*nu*1e18/const.c.value/const.c.value
 
+
 def _dBodTth(nu):
     x = const.h.value*nu*1e9/const.k_B.value/cosmo.Tcmb0.value
-    ex=np.exp(x)
-    exm1=ex-1.e0
+    ex = np.exp(x)
+    exm1 = ex-1.e0
     return 2*const.h.value*nu*nu*nu*1e27/const.c.value/const.c.value/exm1/exm1*ex*x/cosmo.Tcmb0.value
+
 
 class HwpSys:
     """A container object for handling hwp systematics 
@@ -34,30 +33,37 @@ class HwpSys:
         self.imo = self.sim.imo
 
     def input_parameters(self,channel,
-    	Mbsparams=None,
-    	nside=None,
-    	integrate_in_band=None,
-    	built_map_on_the_fly=None,
-    	correct_in_solver=None,
-    	integrate_in_band_solver=None,
-    	):
+        Mbsparams=None,
+        nside=None,
+        integrate_in_band=None,
+        built_map_on_the_fly=None,
+        correct_in_solver=None,
+        integrate_in_band_solver=None,
+        ):
+
+#set defaults for band integration
+        hwp_sys_Mbs_make_cmb = True
+        hwp_sys_Mbs_make_fg = True
+        hwp_sys_Mbs_fg_models = ["pysm_synch_0", "pysm_freefree_1","pysm_dust_0"]
+        hwp_sys_Mbs_gaussian_smooth = True
 
 #This part sets from parameter file
         if (self.sim.parameter_file != None) and ('hwp_sys' in self.sim.parameters.keys()):
             paramdict = self.sim.parameters['hwp_sys']
-        	
+        
             if 'nside' in paramdict.keys():
                 self.nside = paramdict['nside']
                 if ('general' in self.sim.parameters.keys()):
                     if ('nside' in self.sim.parameters['general'].keys()):
                         if (self.sim.parameters['general']['nside'] != self.nside):
-                            print('Warning!! nside from general (=%i) and hwp_sys (=%i) do not match. Using hwp_sys'
+                            print('Warning!! nside from general (=%i) and	 hwp_sys (=%i) do not match. Using hwp_sys'
                             	% (self.sim.parameters['general']['nside'],self.nside))
 
             if 'integrate_in_band' in paramdict.keys():
                 self.integrate_in_band = paramdict['integrate_in_band']
 
             if 'built_map_on_the_fly' in paramdict.keys():
+                print(paramdict['built_map_on_the_fly'])
                 self.built_map_on_the_fly = paramdict['built_map_on_the_fly']
 
             if 'correct_in_solver' in paramdict.keys():
@@ -105,51 +111,56 @@ class HwpSys:
             #here we set the values for Mbs used in the code
             if 'hwp_sys_Mbs_make_cmb' in paramdict.keys():
                 hwp_sys_Mbs_make_cmb = paramdict['hwp_sys_Mbs_make_cmb']
-            else:
-                hwp_sys_Mbs_make_cmb = True
 
             if 'hwp_sys_Mbs_make_fg' in paramdict.keys():
                 hwp_sys_Mbs_make_fg = paramdict['hwp_sys_Mbs_make_fg']
-            else:
-                hwp_sys_Mbs_make_fg = True
 
             if 'hwp_sys_Mbs_fg_models' in paramdict.keys():
                 hwp_sys_Mbs_fg_models = paramdict['hwp_sys_Mbs_fg_models']
-            else:
-                hwp_sys_Mbs_fg_models = ["pysm_synch_0", "pysm_freefree_1","pysm_dust_0"]
 
             if 'hwp_sys_Mbs_gaussian_smooth' in paramdict.keys():
                 hwp_sys_Mbs_gaussian_smooth = paramdict['hwp_sys_Mbs_gaussian_smooth']
-            else:
-                hwp_sys_Mbs_gaussian_smooth = True
 
 #This part sets from input_parameters()
-        if nside==None:
-        	self.nside = 512
-        else:
-        	self.nside = nside
+        try:
+            self.nside
+        except:
+            if nside==None:
+                self.nside = 512
+            else:
+                self.nside = nside
 
-        self.npix = hp.nside2npix(self.nside)
+        try:
+            self.integrate_in_band
+        except:
+            if integrate_in_band==None:
+                self.integrate_in_band = False
+            else:
+                self.integrate_in_band = integrate_in_band
 
-        if integrate_in_band==None:
-        	self.integrate_in_band = False
-        else:
-        	self.integrate_in_band = integrate_in_band
+        try:
+            self.built_map_on_the_fly
+        except:
+            if built_map_on_the_fly==None:
+                self.built_map_on_the_fly = False
+            else:
+                self.built_map_on_the_fly = built_map_on_the_fly
 
-        if built_map_on_the_fly==None:
-        	self.built_map_on_the_fly = False
-        else:
-        	self.built_map_on_the_fly = built_map_on_the_fly
+        try:
+            self.correct_in_solver
+        except:
+            if correct_in_solver==None:
+                self.correct_in_solver = True
+            else:
+                self.correct_in_solver = correct_in_solver
 
-        if correct_in_solver==None:
-        	self.correct_in_solver = True
-        else:
-        	self.correct_in_solver = correct_in_solver
-
-        if integrate_in_band_solver==None:
-        	self.integrate_in_band_solver = False
-        else:
-        	self.integrate_in_band_solver = integrate_in_band_solver
+        try:
+            self.integrate_in_band_solver
+        except:
+            if integrate_in_band_solver==None:
+                self.integrate_in_band_solver = False
+            else:
+                self.integrate_in_band_solver = integrate_in_band_solver
 
         if Mbsparams==None:
             Mbsparams = lbs.MbsParameters(
@@ -161,9 +172,10 @@ class HwpSys:
             )
 
         Mbsparams.nside = self.nside
+        self.npix = hp.nside2npix(self.nside)
+
 
         if self.integrate_in_band:
-            self.band_filename = 'inputs/MFT_band166_noxpol.txt'
             self.freqs,self.h1,self.h2,self.beta,self.z1,self.z2 = np.loadtxt(
             	self.band_filename,unpack=True,skiprows=1)
 
@@ -212,7 +224,6 @@ class HwpSys:
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
-                self.band_filename_solver = 'inputs/MFT_band166_noxpol.txt'
                 self.h1,self.h2,self.beta,self.z1,self.z2 = np.loadtxt(
                 	self.band_filename_solver,usecols=(1,2,3,4,5),unpack=True,skiprows=1)
             else:
@@ -326,6 +337,7 @@ class HwpSys:
                 obs.pixel[idet,:] = pix
 
         return
+
 
     def make_map(self,
         obss,
