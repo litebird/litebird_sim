@@ -21,7 +21,7 @@ def _dBodTth(nu):
 
 
 class HwpSys:
-    """A container object for handling hwp systematics 
+    """A container object for handling hwp non-idealities 
     following the approach of Gardiello et al. 2021
 
     Args:
@@ -32,14 +32,28 @@ class HwpSys:
         self.sim = simulation
         self.imo = self.sim.imo
 
-    def input_parameters(self,channel,
-        Mbsparams=None,
+    def set_parameters(self,
         nside=None,
+        Mbsparams=None,
         integrate_in_band=None,
         built_map_on_the_fly=None,
         correct_in_solver=None,
         integrate_in_band_solver=None,
+        Channel = None,
+        maps = None,
         ):
+        """It sets the input paramters 
+
+        Args:
+             nside (integer): nside used in the analysis
+             Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
+             integrate_in_band (bool): performs the band integration for tod generation 
+             built_map_on_the_fly (bool): fills A^TA and A^Td for integrating 
+             correct_in_solver (bool): if the map is computed on the fly, A^TA 
+             integrate_in_band_solver (bool): performs the band integration for the map-making solver
+             Channel (:class:`.FreqChannelInfo`): an instance of the :class:`.FreqChannelInfo` class
+             maps (float): input maps (3, npix) coherent with nside provided 
+        """
 
 #set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
@@ -172,8 +186,11 @@ class HwpSys:
             )
 
         Mbsparams.nside = self.nside
+
         self.npix = hp.nside2npix(self.nside)
 
+        if (Channel == None):
+            Channel = lbs.FreqChannelInfo(bandcenter_ghz = 100)
 
         if self.integrate_in_band:
             self.freqs,self.h1,self.h2,self.beta,self.z1,self.z2 = np.loadtxt(
@@ -187,7 +204,7 @@ class HwpSys:
             myinstr = {}
             for ifreq in range(self.nfreqs):
                  myinstr['ch'+str(ifreq)] = {'bandcenter_ghz':self.freqs[ifreq], 'bandwidth_ghz': 0,
-                    'fwhm_arcmin':channel.fwhm_arcmin, 'p_sens_ukarcmin':0.}
+                    'fwhm_arcmin':Channel.fwhm_arcmin, 'p_sens_ukarcmin':0.}
 
             mbs = lbs.Mbs(
                 simulation = self.sim,
@@ -214,13 +231,13 @@ class HwpSys:
             if not hasattr(self,'z2'):
                 self.z2 = 0.0
 
-            mbs = lbs.Mbs(
-                simulation=self.sim,
-                parameters=Mbsparams,
-                channel_list=channel
-            )
-
-            self.maps = mbs.run_all()[0][channel.channel]
+            if (maps != None):
+                mbs = lbs.Mbs(
+                    simulation=self.sim,
+                    parameters=Mbsparams,
+                    channel_list=Channel
+                )
+                self.maps = mbs.run_all()[0][Channel.channel]
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
@@ -240,12 +257,12 @@ class HwpSys:
 
 
     def fill_tod(self,obs,pointings,hwp_radpsec):
-                
+        
         times = obs.get_times()
         
         if self.built_map_on_the_fly:
-        	self.atd = np.zeros((self.npix,3))
-        	self.ata = np.zeros((self.npix,3,3))
+            self.atd = np.zeros((self.npix,3))
+            self.ata = np.zeros((self.npix,3,3))
         else:
             obs.psi = np.empty_like(obs.tod)
             obs.pixel = np.empty_like(obs.tod,dtype=np.int)
@@ -259,11 +276,11 @@ class HwpSys:
 
             if self.integrate_in_band:
                 J11 = ((1+self.h1[:,np.newaxis])*ca**2-
-                	(1+self.h2[:,np.newaxis])*sa**2*np.exp(1j*self.beta[:,np.newaxis])-
-                	(self.z1[:,np.newaxis]+self.z2[:,np.newaxis])*ca*sa)
+                    (1+self.h2[:,np.newaxis])*sa**2*np.exp(1j*self.beta[:,np.newaxis])-
+                    (self.z1[:,np.newaxis]+self.z2[:,np.newaxis])*ca*sa)
                 J12 = (((1+self.h1[:,np.newaxis])+(1+self.h2[:,np.newaxis])*
-                	np.exp(1j*self.beta[:,np.newaxis]))*ca*sa+
-                	self.z1[:,np.newaxis]*ca**2-self.z2[:,np.newaxis]*sa**2)
+                    np.exp(1j*self.beta[:,np.newaxis]))*ca*sa+
+                    self.z1[:,np.newaxis]*ca**2-self.z2[:,np.newaxis]*sa**2)
                 
                 if self.built_map_on_the_fly:
                     tod = ((0.5*(np.abs(J11)**2+np.abs(J12)**2)*self.maps[:,0,pix] + 
@@ -295,11 +312,11 @@ class HwpSys:
 
                     if self.integrate_in_band_solver:
                         J11 = ((1+self.h1s[:,np.newaxis])*ca**2-
-                        	(1+self.h2s[:,np.newaxis])*sa**2*np.exp(1j*self.betas[:,np.newaxis])-
-                        	(self.z1s[:,np.newaxis]+self.z2s[:,np.newaxis])*ca*sa)
+                            (1+self.h2s[:,np.newaxis])*sa**2*np.exp(1j*self.betas[:,np.newaxis])-
+                            (self.z1s[:,np.newaxis]+self.z2s[:,np.newaxis])*ca*sa)
                         J12 = (((1+self.h1s[:,np.newaxis])+(1+self.h2s[:,np.newaxis])*
-                        	np.exp(1j*self.betas[:,np.newaxis]))*ca*sa+
-                        	self.z1s[:,np.newaxis]*ca**2-self.z2s[:,np.newaxis]*sa**2)
+                            np.exp(1j*self.betas[:,np.newaxis]))*ca*sa+
+                            self.z1s[:,np.newaxis]*ca**2-self.z2s[:,np.newaxis]*sa**2)
                     else:
                         J11 = (1+self.h1s)*ca**2-(1+self.h2s)*sa**2*np.exp(1j*self.betas)-(self.z1s+self.z2s)*ca*sa
                         J12 = ((1+self.h1s)+(1+self.h2s)*np.exp(1j*self.betas))*ca*sa+self.z1s*ca**2-self.z2s*sa**2
