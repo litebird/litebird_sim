@@ -271,8 +271,8 @@ class HwpSys:
             pix = hp.ang2pix(self.nside,pointings[idet,:,0],pointings[idet,:,1])
 
             #add hwp rotation
-            ca = np.cos(pointings[idet,:,2]+2*times*hwp_radpsec)
-            sa = np.sin(pointings[idet,:,2]+2*times*hwp_radpsec)
+            ca = np.cos(0.5*pointings[idet,:,2]+times*hwp_radpsec)
+            sa = np.sin(0.5*pointings[idet,:,2]+times*hwp_radpsec)
 
             if self.integrate_in_band:
                 J11 = ((1+self.h1[:,np.newaxis])*ca**2-
@@ -339,6 +339,10 @@ class HwpSys:
                     self.ata[pix,2,2] += Uterm*Uterm
 
                 else:
+                    #re-use ca and sa, factor 4 included here 
+                    ca = np.cos(2*pointings[idet,:,2]+4*times*hwp_radpsec)
+                    sa = np.sin(2*pointings[idet,:,2]+4*times*hwp_radpsec)
+
                     self.atd[pix,0] += tod*0.5
                     self.atd[pix,1] += tod*ca
                     self.atd[pix,2] += tod*sa
