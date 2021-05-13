@@ -20,6 +20,7 @@ Welcome to litebird_sim's documentation!
    sky_maps
    scanning
    imo
+   timeordered
    reports
    mpi
    integrating
