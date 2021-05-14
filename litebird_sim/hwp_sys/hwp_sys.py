@@ -193,8 +193,8 @@ class HwpSys:
         if (Channel == None):
             Channel = lbs.FreqChannelInfo(bandcenter_ghz = 100)
 
-        if (not self.integrate_in_band and (np.any(maps) == None)):
-            raise ValueError("If HWP band integration is not performed, maps should be passed to set_parameters") 
+#        if (not self.integrate_in_band and (np.any(maps) == None)):
+#            raise ValueError("If HWP band integration is not performed, maps should be passed to set_parameters") 
 
         if self.integrate_in_band:
             self.freqs,self.h1,self.h2,self.beta,self.z1,self.z2 = np.loadtxt(
@@ -235,7 +235,7 @@ class HwpSys:
             if not hasattr(self,'z2'):
                 self.z2 = 0.0
 
-            if (np.any(maps) != None):
+            if (np.any(maps) == None):
                 mbs = lbs.Mbs(
                     simulation=self.sim,
                     parameters=Mbsparams,
