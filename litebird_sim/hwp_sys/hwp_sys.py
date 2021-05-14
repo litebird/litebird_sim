@@ -52,7 +52,8 @@ class HwpSys:
              correct_in_solver (bool): if the map is computed on the fly, A^TA 
              integrate_in_band_solver (bool): performs the band integration for the map-making solver
              Channel (:class:`.FreqChannelInfo`): an instance of the :class:`.FreqChannelInfo` class
-             maps (float): input maps (3, npix) coherent with nside provided 
+             maps (float): input maps (3, npix) coherent with nside provided, 
+                 if integrate_in_band=False, maps should be provided
         """
 
 #set defaults for band integration
@@ -70,7 +71,7 @@ class HwpSys:
                 if ('general' in self.sim.parameters.keys()):
                     if ('nside' in self.sim.parameters['general'].keys()):
                         if (self.sim.parameters['general']['nside'] != self.nside):
-                            print('Warning!! nside from general (=%i) and	 hwp_sys (=%i) do not match. Using hwp_sys'
+                            print('Warning!! nside from general (=%i) and hwp_sys (=%i) do not match. Using hwp_sys'
                             	% (self.sim.parameters['general']['nside'],self.nside))
 
             if 'integrate_in_band' in paramdict.keys():
@@ -192,13 +193,16 @@ class HwpSys:
         if (Channel == None):
             Channel = lbs.FreqChannelInfo(bandcenter_ghz = 100)
 
+        if (not self.integrate_in_band and (np.any(maps) == None)):
+            raise ValueError("If HWP band integration is not performed, maps should be passed to set_parameters") 
+
         if self.integrate_in_band:
             self.freqs,self.h1,self.h2,self.beta,self.z1,self.z2 = np.loadtxt(
             	self.band_filename,unpack=True,skiprows=1)
 
             self.nfreqs = len(self.freqs)
 
-            self.cmb2bb = _dBodTth(self.freqs)
+            self.cmb2bb = _dBodTth(self.freqs)	
             self.norm = self.cmb2bb.sum()
 
             myinstr = {}
@@ -231,7 +235,7 @@ class HwpSys:
             if not hasattr(self,'z2'):
                 self.z2 = 0.0
 
-            if (maps != None):
+            if (np.any(maps) != None):
                 mbs = lbs.Mbs(
                     simulation=self.sim,
                     parameters=Mbsparams,
