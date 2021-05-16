@@ -53,7 +53,6 @@ class HwpSys:
              integrate_in_band_solver (bool): performs the band integration for the map-making solver
              Channel (:class:`.FreqChannelInfo`): an instance of the :class:`.FreqChannelInfo` class
              maps (float): input maps (3, npix) coherent with nside provided, 
-                 if integrate_in_band=False, maps should be provided
         """
 
 #set defaults for band integration
@@ -165,7 +164,7 @@ class HwpSys:
             self.correct_in_solver
         except:
             if correct_in_solver==None:
-                self.correct_in_solver = True
+                self.correct_in_solver = False
             else:
                 self.correct_in_solver = correct_in_solver
 
@@ -192,9 +191,6 @@ class HwpSys:
 
         if (Channel == None):
             Channel = lbs.FreqChannelInfo(bandcenter_ghz = 100)
-
-#        if (not self.integrate_in_band and (np.any(maps) == None)):
-#            raise ValueError("If HWP band integration is not performed, maps should be passed to set_parameters") 
 
         if self.integrate_in_band:
             self.freqs,self.h1,self.h2,self.beta,self.z1,self.z2 = np.loadtxt(
@@ -242,6 +238,10 @@ class HwpSys:
                     channel_list=Channel
                 )
                 self.maps = mbs.run_all()[0][Channel.channel]
+            else:
+                assert hp.npix2nside(len(maps[0,:])) == self.nside, "wrong nside in the input map!"
+                self.maps = maps
+
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
