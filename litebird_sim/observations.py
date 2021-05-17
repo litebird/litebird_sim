@@ -122,6 +122,8 @@ class Observation:
             self.tod = np.zeros(
                 self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=dtype_tod
             )
+        else:
+            self.tod = None
 
         self.setattr_det_global("det_idx", np.arange(self._n_detectors_global), root)
         if not isinstance(detectors, int):
