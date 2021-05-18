@@ -5,7 +5,6 @@ from astropy import constants as const
 from astropy.cosmology import Planck18_arXiv_v2 as cosmo
 from litebird_sim import mpi
 
-
 COND_THRESHOLD = 1e10
 
 
@@ -21,7 +20,7 @@ def _dBodTth(nu):
 
 
 class HwpSys:
-    """A container object for handling hwp non-idealities 
+    """A container object for handling tod filling in presence of hwp non-idealities 
     following the approach of Gardiello et al. 2021
 
     Args:
@@ -30,7 +29,7 @@ class HwpSys:
 
     def __init__(self, simulation):
         self.sim = simulation
-        self.imo = self.sim.imo
+
 
     def set_parameters(self,
         nside=None,
@@ -42,7 +41,7 @@ class HwpSys:
         Channel = None,
         maps = None,
         ):
-        """It sets the input paramters 
+        """It sets the input paramters
 
         Args:
              nside (integer): nside used in the analysis
