@@ -307,7 +307,7 @@ class HwpSys:
                         (J11*J12.conjugate()).real*self.maps[:,2,pix]
                         )*self.cmb2bb[:,np.newaxis]).sum(axis=0)/self.norm
                 else: 
-                    obs.tod[idet,:] = ((0.5*(np.abs(J11)**2+np.abs(J12)**2)*self.maps[:,0,pix] + 
+                    obs.tod[idet,:] += ((0.5*(np.abs(J11)**2+np.abs(J12)**2)*self.maps[:,0,pix] + 
                         0.5*(np.abs(J11)**2-np.abs(J12)**2)*self.maps[:,1,pix] +
                         (J11*J12.conjugate()).real*self.maps[:,2,pix]
                         )*self.cmb2bb[:,np.newaxis]).sum(axis=0)/self.norm
@@ -321,7 +321,7 @@ class HwpSys:
                         0.5*(np.abs(J11)**2-np.abs(J12)**2)*self.maps[1,pix] +
                         (J11*J12.conjugate()).real*self.maps[2,pix])
                 else:
-                    obs.tod[idet,:] = (0.5*(np.abs(J11)**2+np.abs(J12)**2)*self.maps[0,pix] + 
+                    obs.tod[idet,:] += (0.5*(np.abs(J11)**2+np.abs(J12)**2)*self.maps[0,pix] + 
                         0.5*(np.abs(J11)**2-np.abs(J12)**2)*self.maps[1,pix] +
                         (J11*J12.conjugate()).real*self.maps[2,pix])
 
@@ -363,15 +363,15 @@ class HwpSys:
                     sa = np.sin(2*pointings[idet,:,2]+4*times*hwp_radpsec)
 
                     self.atd[pix,0] += tod*0.5
-                    self.atd[pix,1] += tod*ca
-                    self.atd[pix,2] += tod*sa
+                    self.atd[pix,1] += tod*ca*0.5
+                    self.atd[pix,2] += tod*sa*0.5
 
                     self.ata[pix,0,0] += 0.25
-                    self.ata[pix,1,0] += 0.5*ca
-                    self.ata[pix,2,0] += 0.5*sa
-                    self.ata[pix,1,1] += ca*ca
-                    self.ata[pix,2,1] += ca*sa
-                    self.ata[pix,2,2] += sa*sa
+                    self.ata[pix,1,0] += 0.25*ca
+                    self.ata[pix,2,0] += 0.25*sa
+                    self.ata[pix,1,1] += 0.25*ca*ca
+                    self.ata[pix,2,1] += 0.25*ca*sa
+                    self.ata[pix,2,2] += 0.25*sa*sa
             else:
                 obs.psi[idet,:] = pointings[idet,:,2]+2*times*hwp_radpsec
                 obs.pixel[idet,:] = pix
