@@ -3,10 +3,8 @@
 Installing the framework
 ========================
 
-Until the framework is not published on PyPI, you have to grab a
-``.tar.gz`` file from the `litebird_sim release page
-<https://github.com/litebird/litebird_sim/releases>`_ and install it
-manually with the following procedure:
+The framework is `registered on PyPI <https://pypi.org/project/litebird-sim/>`_,
+it can be installed with the following procedure:
 
 .. code-block:: text
 
@@ -14,48 +12,52 @@ manually with the following procedure:
    # notebooks, etc.
    mkdir -p ~/litebird && cd ~/litebird
 
-   # Create a virtual environment
-   virtualenv venv
+   # Create a virtual environment with
+   virtualenv lbs_env
+   # or with
+   python3 -m venv lbs_env 
+   #NB make sure you are using python >=3.6, <3.9
 
    # Activate the environment
-   . venv/bin/activate
+   . lbs_env/bin/activate
 
-   # Here you must specify the path to the .tar.gz file
-   # that you downloaded before
-   pip install ~/Downloads/litebird_sim-X.Y.Z.tar.gz
+   # Finally install litebird_sim with pip 
+   pip install litebird_sim
 
 When the command is completed, check that everything works by issuing
 the following command at the terminal prompt:
 
 .. code-block:: text
 
-   python -c "import litebird_sim; print(litebird_sim.__version__)"
+   python -c "import litebird_sim"
 
-If it prints a version number that matches the one of the ``.tar.gz``
-file, this means you are done!
+A similar procedure can be used with conda:
+
+.. code-block:: text
+
+   # Create a conda environment
+   conda create -n lbs_env python=3.8 
+
+   # Activate the environment
+   conda activate lbs_env
+
+   # Finally install litebird_sim with pip 
+   pip install litebird_sim
 
 
 Hacking litebird_sim
 --------------------
 
-To develop ``litebird_sim``, you should first install `poetry
-<https://poetry.eustace.io/>`_ and then build the framework with the
-following commands:
+To develop ``litebird_sim``, you can create an enviroment, as described 
+above, then checkout and install a local copy of the framework. 
 
 .. code-block:: text
 
+   # First clone the code
    git clone https://github.com/litebird/litebird_sim litebird_sim
-   cd litebird_sim && poetry install
-
-Be sure **not** to work within a Conda environment, nor to create a
-virtual environment! The purpose of the ``poetry`` command is exactly
-to transparently manage virtual environments.
-
-To produce new releases, you can use ``poetry build -f sdist``: this
-will create a ``.tar.gz`` file in the directory ``dist``, which can be
-uploaded in the `release page
-<https://github.com/litebird/litebird_sim/releases>`_ of
-``litebird_sim``.
+   
+   # Then install it with pip
+   cd litebird_sim && pip install .
 
 
 Using Singularity
