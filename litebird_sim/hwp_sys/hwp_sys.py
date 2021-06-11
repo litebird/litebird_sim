@@ -21,7 +21,7 @@ def _dBodTth(nu):
 
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities 
-    following the approach of Gardiello et al. 2021
+    following the approach of Giardiello et al. 2021
 
     Args:
          simulation (:class:`.Simulation`): an instance of the :class:`.Simulation` class
