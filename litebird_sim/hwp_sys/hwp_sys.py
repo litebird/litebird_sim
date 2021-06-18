@@ -22,6 +22,7 @@ def _dBodTth(nu):
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities 
     following the approach of Giardiello et al. 2021
+    https://arxiv.org/abs/2106.08031
 
     Args:
          simulation (:class:`.Simulation`): an instance of the :class:`.Simulation` class
@@ -76,7 +77,6 @@ class HwpSys:
                 self.integrate_in_band = paramdict['integrate_in_band']
 
             if 'built_map_on_the_fly' in paramdict.keys():
-                print(paramdict['built_map_on_the_fly'])
                 self.built_map_on_the_fly = paramdict['built_map_on_the_fly']
 
             if 'correct_in_solver' in paramdict.keys():
@@ -281,8 +281,8 @@ class HwpSys:
             self.atd = np.zeros((self.npix,3))
             self.ata = np.zeros((self.npix,3,3))
         else:
-        	#allocate those for "make_bin_map"
-        	#later filled
+            #allocate those for "make_bin_map"
+            #later filled
             obs.psi = np.empty_like(obs.tod)
             obs.pixel = np.empty_like(obs.tod,dtype=np.int)
 
