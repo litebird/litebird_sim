@@ -34,7 +34,7 @@ sim.create_observations(
     ],
     dtype_tod=np.float64,
     n_blocks_time=lbs.MPI_COMM_WORLD.size,
-    distribute=False,
+    split_list_over_processes=False,
 )
 
 # Generate some white noise

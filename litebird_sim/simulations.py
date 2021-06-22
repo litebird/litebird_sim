@@ -604,7 +604,7 @@ class Simulation:
         self,
         detectors: List[DetectorInfo],
         num_of_obs_per_detector: int = 1,
-        distribute=True,
+        split_list_over_processes=True,
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
