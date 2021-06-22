@@ -26,8 +26,10 @@ class Imo:
                 self.imoobject = ImoFlatFile(location)
             except FileNotFoundError:
                 log.warning('IMO config file "%s" not found.', str(CONFIG_FILE_PATH))
-                log.warning('Have you run the initial setup procedure ',
-                            '(python -m litebird_sim.install_imo)?')
+                log.warning(
+                    "Have you run the initial setup procedure ",
+                    "(python -m litebird_sim.install_imo)?",
+                )
             except tomlkit.exceptions.NonExistentKey:
                 log.warning('no repositories in file "%s"', str(CONFIG_FILE_PATH))
 

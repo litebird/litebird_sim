@@ -12,7 +12,10 @@ def test_observation_time():
         detectors=1, start_time_global=0.0, sampling_rate_hz=5.0, n_samples_global=5
     )
     obs_mjd_astropy = lbs.Observation(
-        detectors=1, start_time_global=ref_time, sampling_rate_hz=5.0, n_samples_global=5
+        detectors=1,
+        start_time_global=ref_time,
+        sampling_rate_hz=5.0,
+        n_samples_global=5,
     )
 
     plain_times = obs_no_mjd.get_times()

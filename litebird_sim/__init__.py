@@ -53,7 +53,7 @@ from .scanning import (
     SpinningScanningStrategy,
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
-    get_pointings
+    get_pointings,
 )
 from .mapping import make_bin_map
 from .destriper import DestriperParameters, DestriperResult, destripe
