@@ -676,7 +676,7 @@ class Simulation:
                 n_samples_global=nsamples,
                 n_blocks_det=n_blocks_det,
                 n_blocks_time=n_blocks_time,
-                comm=(None if distribute else self.mpi_comm),
+                comm=(None if split_list_over_processes else self.mpi_comm),
                 root=0,
                 dtype_tod=dtype_tod,
             )
@@ -688,7 +688,7 @@ class Simulation:
 
             cur_time += time_span
 
-        if distribute:
+        if split_list_over_processes:
             self.distribute_workload(observations)
         else:
             self.observations = observations
