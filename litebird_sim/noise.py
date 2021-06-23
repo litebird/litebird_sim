@@ -23,14 +23,14 @@ def add_noise(obs, noisetype, random=None):
             if noisetype == 'white':
                 generate_white_noise(
                     ob.tod,
-                    ob.net_ukrts / np.sqrt(ob.sampling_rate_hz),
+                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz),
                     random=random)
             elif noisetype == 'one_over_f':
                 generate_one_over_f_noise(
                     ob.tod,
                     ob.fknee_mhz,
                     ob.alpha,
-                    ob.net_ukrts / np.sqrt(ob.sampling_rate_hz),
+                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz),
                     ob.sampling_rate_hz,
                     random=random)
 
@@ -39,14 +39,14 @@ def add_noise(obs, noisetype, random=None):
                 if noisetype == 'white':
                     generate_white_noise(
                         ob.tod[i][:],
-                        ob.net_ukrts[i] / np.sqrt(ob.sampling_rate_hz),
+                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz),
                         random=random)
                 elif noisetype == 'one_over_f':
                     generate_one_over_f_noise(
                         ob.tod[i][:],
                         ob.fknee_mhz[i],
                         ob.alpha[i],
-                        ob.net_ukrts[i] / np.sqrt(ob.sampling_rate_hz),
+                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz),
                         ob.sampling_rate_hz,
                         random=random)
 
