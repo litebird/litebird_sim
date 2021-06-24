@@ -67,7 +67,7 @@ def generate_white_noise(data, sigma_uk, random=None):
     if random is None:
         random = np.random.default_rng()
 
-    data += random.normal(0, sigma_uk / 1000000, data.shape)
+    data += random.normal(0, sigma_uk , data.shape)
 
 
 def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz, random=None):
@@ -99,7 +99,7 @@ def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz, random
     # This is what the style checker wants but it looks rediculous to me
     model[freqs != 0] = np.sqrt((1 + pow(abs(freqs[freqs != 0])
                                          / (fknee_mhz / 1000), -1 * alpha))) \
-        * (sigma0_uk / 1000000)
+        * sigma0_uk
 
     model[freqs == 0] = 0
 
