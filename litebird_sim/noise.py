@@ -8,7 +8,7 @@ def add_noise(obs, noisetype, scale=1, random=None):
 
     obs: an Observation object
     noisetype: 'white' or 'one_over_f'
-    scale: rescales the noise timeline, the default produces noise in uK  
+    scale: rescales the noise timeline, the default produces noise in K  
     random: a random number generator if you want reproducible randomness
     '''
     if noisetype not in ['white', 'one_over_f']:
@@ -24,14 +24,14 @@ def add_noise(obs, noisetype, scale=1, random=None):
             if noisetype == 'white':
                 generate_white_noise(
                     ob.tod,
-                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz) * scale,
+                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
                     random=random)
             elif noisetype == 'one_over_f':
                 generate_one_over_f_noise(
                     ob.tod,
                     ob.fknee_mhz,
                     ob.alpha,
-                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz) * scale,
+                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
                     ob.sampling_rate_hz,
                     random=random)
 
@@ -40,14 +40,14 @@ def add_noise(obs, noisetype, scale=1, random=None):
                 if noisetype == 'white':
                     generate_white_noise(
                         ob.tod[i][:],
-                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale,
+                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
                         random=random)
                 elif noisetype == 'one_over_f':
                     generate_one_over_f_noise(
                         ob.tod[i][:],
                         ob.fknee_mhz[i],
                         ob.alpha[i],
-                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale,
+                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
                         ob.sampling_rate_hz,
                         random=random)
 
