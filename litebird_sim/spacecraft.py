@@ -73,7 +73,13 @@ def compute_lissajous_pos_and_vel(
     ang_speed2_rad_s,
     phase_rad,
 ):
-    # earth_angle_rad = np.arctan(l2_pos.y / l2_pos.x)
+    """Compute the position and velocity of the spacecraft assuming a Lissajous orbit
+
+    The position and velocity are calculated in a reference frame centered on the L2 point, whose axes
+    are aligned with the Solar System Barycenter. This means that the position and velocity of the spacecraft
+    with respect to the Solar System Barycenter itself can be calculated by summing the result of this function
+    with the result of a call to :func:`.compute_l2_pos_and_vel`.
+    """
 
     φ1 = ang_speed1_rad_s * time0
     φ2 = ang_speed2_rad_s * time0
