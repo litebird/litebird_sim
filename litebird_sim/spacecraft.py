@@ -58,3 +58,31 @@ def compute_l2_pos_and_vel(time0: astropy.time.Time, earth_l2_distance_km: float
     l2_vel = earth_vel * (1.0 + fudge_factor)
 
     return l2_pos.xyz.to("km").value, l2_vel.xyz.to("km/s").value
+
+
+@njit
+def compute_lissajous_pos_and_vel(time0, earth_angle_rad, earth_ang_speed_rad_s, radius1_km, radius2_km,
+                                  ang_speed1_rad_s,
+                                  ang_speed2_rad_s, phase_rad):
+    # earth_angle_rad = np.arctan(l2_pos.y / l2_pos.x)
+
+    φ1 = ang_speed1_rad_s * time0
+    φ2 = ang_speed2_rad_s * time0
+    φ_earth = earth_ang_speed_rad_s * time0
+
+    pos_x, pos_y, pos_z = (
+        -radius1_km * np.sin(earth_angle_rad) * np.cos(φ1),
+        radius1_km * np.cos(earth_angle_rad) * np.cos(φ1),
+        radius2_km * np.sin(φ2 + phase_rad),
+    )
+
+    # This is the analytical derivative of the position (see above)
+    cos1, sin1 = np.cos(φ1), np.sin(φ1)
+    cos_earth, sin_earth = np.cos(φ_earth), np.sin(φ_earth)
+    vel_x, vel_y, vel_z = (
+        -radius1_km * (earth_ang_speed_rad_s * cos1 * cos_earth - ang_speed1_rad_s * sin1 * sin_earth),
+        -radius1_km * (earth_ang_speed_rad_s * cos1 * sin_earth + ang_speed1_rad_s * sin1 * cos_earth),
+        ang_speed2_rad_s * radius2_km * np.cos(φ2 + phase_rad)
+    )
+
+    return pos_x, pos_y, pos_z, vel_x, vel_y, vel_z
