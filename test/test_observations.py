@@ -15,6 +15,11 @@ def test_observation_time():
         detectors=1, start_time_global=ref_time, sampling_rate_hz=5.0, n_samples_global=5
     )
 
+    assert isinstance(obs_no_mjd.get_delta_time(), float)
+    assert np.allclose(obs_no_mjd.get_delta_time(), 0.2)
+    assert isinstance(obs_mjd_astropy.get_delta_time(), astrotime.TimeDelta)
+    assert np.allclose(obs_mjd_astropy.get_delta_time().to("ms").value, 200.0)
+
     plain_times = obs_no_mjd.get_times()
     assert np.allclose(plain_times, np.array([0.0, 0.2, 0.4, 0.6, 0.8]))
 
