@@ -86,3 +86,27 @@ def compute_lissajous_pos_and_vel(time0, earth_angle_rad, earth_ang_speed_rad_s,
     )
 
     return pos_x, pos_y, pos_z, vel_x, vel_y, vel_z
+
+
+@dataclass
+class SpacecraftOrbit:
+    """A dataclass describing the orbit of the LiteBIRD spacecraft
+
+    This structure has the following fields:
+
+    - `earth_l2_distance_km`: distance between the Earth's barycenter and the L2 point, in km
+    - `radius1_km`: first radius describing the Lissajous orbit followed by the spacecraft, in km
+    - `radius2_km`: second radius describing the Lissajous orbit followed by the spacecraft, in km
+    - `ang_speed1_rad_s`: first angular speed of the Lissajous orbit, in rad/s
+    - `ang_speed2_rad_s`: second angular speed of the Lissajous orbit, in rad/s
+    - `phase_rad`: phase difference between the two periodic motions in the Lissajous orbit, in radians.
+
+    The default values are the nominal numbers of the orbit followed by WMAP, described in Cavaluzzi,
+    Fink & Coyle (2008).
+    """
+    earth_l2_distance_km: float = EARTH_L2_DISTANCE_KM
+    radius1_km: float = 244_450.0
+    radius2_km: float = 137_388.0
+    ang_speed1_rad_s: float = cycles_per_year_to_rad_per_s(2.021_04)
+    ang_speed2_rad_s: float = cycles_per_year_to_rad_per_s(1.985_07)
+    phase_rad: float = np.deg2rad(-47.944)
