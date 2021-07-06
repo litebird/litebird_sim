@@ -17,8 +17,13 @@ def test_observation_time():
 
     assert isinstance(obs_no_mjd.get_delta_time(), float)
     assert np.allclose(obs_no_mjd.get_delta_time(), 0.2)
+    assert isinstance(obs_no_mjd.get_time_span(), float)
+    assert np.allclose(obs_no_mjd.get_time_span(), 1.0)
+
     assert isinstance(obs_mjd_astropy.get_delta_time(), astrotime.TimeDelta)
     assert np.allclose(obs_mjd_astropy.get_delta_time().to("ms").value, 200.0)
+    assert isinstance(obs_mjd_astropy.get_time_span(), astrotime.TimeDelta)
+    assert np.allclose(obs_mjd_astropy.get_time_span().to("ms").value, 1000.0)
 
     plain_times = obs_no_mjd.get_times()
     assert np.allclose(plain_times, np.array([0.0, 0.2, 0.4, 0.6, 0.8]))
