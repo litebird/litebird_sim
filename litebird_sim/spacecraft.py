@@ -25,7 +25,9 @@ def get_ecliptic_vec(vec):
     return ICRS(vec).transform_to(DEFAULT_COORDINATE_SYSTEM).cartesian.get_xyz()
 
 
-def compute_l2_pos_and_vel(time0: astropy.time.Time, earth_l2_distance_km: float = EARTH_L2_DISTANCE_KM):
+def compute_l2_pos_and_vel(
+    time0: astropy.time.Time, earth_l2_distance_km: float = EARTH_L2_DISTANCE_KM
+):
     """
     Compute the position and velocity of the L2 Sun-Earth point at a given time, specified as a AstroPy time.
 
@@ -61,9 +63,16 @@ def compute_l2_pos_and_vel(time0: astropy.time.Time, earth_l2_distance_km: float
 
 
 @njit
-def compute_lissajous_pos_and_vel(time0, earth_angle_rad, earth_ang_speed_rad_s, radius1_km, radius2_km,
-                                  ang_speed1_rad_s,
-                                  ang_speed2_rad_s, phase_rad):
+def compute_lissajous_pos_and_vel(
+    time0,
+    earth_angle_rad,
+    earth_ang_speed_rad_s,
+    radius1_km,
+    radius2_km,
+    ang_speed1_rad_s,
+    ang_speed2_rad_s,
+    phase_rad,
+):
     # earth_angle_rad = np.arctan(l2_pos.y / l2_pos.x)
 
     φ1 = ang_speed1_rad_s * time0
@@ -80,9 +89,17 @@ def compute_lissajous_pos_and_vel(time0, earth_angle_rad, earth_ang_speed_rad_s,
     cos1, sin1 = np.cos(φ1), np.sin(φ1)
     cos_earth, sin_earth = np.cos(φ_earth), np.sin(φ_earth)
     vel_x, vel_y, vel_z = (
-        -radius1_km * (earth_ang_speed_rad_s * cos1 * cos_earth - ang_speed1_rad_s * sin1 * sin_earth),
-        -radius1_km * (earth_ang_speed_rad_s * cos1 * sin_earth + ang_speed1_rad_s * sin1 * cos_earth),
-        ang_speed2_rad_s * radius2_km * np.cos(φ2 + phase_rad)
+        -radius1_km
+        * (
+            earth_ang_speed_rad_s * cos1 * cos_earth
+            - ang_speed1_rad_s * sin1 * sin_earth
+        ),
+        -radius1_km
+        * (
+            earth_ang_speed_rad_s * cos1 * sin_earth
+            + ang_speed1_rad_s * sin1 * cos_earth
+        ),
+        ang_speed2_rad_s * radius2_km * np.cos(φ2 + phase_rad),
     )
 
     return pos_x, pos_y, pos_z, vel_x, vel_y, vel_z
@@ -104,6 +121,7 @@ class SpacecraftOrbit:
     The default values are the nominal numbers of the orbit followed by WMAP, described in Cavaluzzi,
     Fink & Coyle (2008).
     """
+
     earth_l2_distance_km: float = EARTH_L2_DISTANCE_KM
     radius1_km: float = 244_450.0
     radius2_km: float = 137_388.0
