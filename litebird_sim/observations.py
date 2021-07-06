@@ -519,9 +519,9 @@ class Observation:
     def get_delta_time(self) -> Union[float, astropy.time.TimeDelta]:
         """Return the time interval between two consecutive samples in this observation
 
-        Depending whether the field ``start_time`` of the :class:`.Observation` object is a ``float``
-        or a ``astropy.time.Time`` object, the return value is either a ``float`` or an instance
-        of ``astropy.time.TimeDelta``. See also :meth:`.get_time_span`."""
+        Depending whether the field ``start_time`` of the :class:`.Observation` object is a ``float`` or a
+        ``astropy.time.Time`` object, the return value is either a ``float`` (in seconds) or an instance of
+        ``astropy.time.TimeDelta``. See also :meth:`.get_time_span`. """
 
         delta = 1.0 / self.sampling_rate_hz
         if isinstance(self.start_time, astropy.time.Time):
@@ -532,9 +532,9 @@ class Observation:
     def get_time_span(self) -> Union[float, astropy.time.TimeDelta]:
         """Return the temporal length of the current observation
 
-        This method can either return a ``float`` or a ``astropy.time.TimeDelta`` object, depending
-        whether the field ``start_time`` of the :class:`.Observation` object is a ``float`` or
-        a ``astropy.time.Time`` instance. See also :meth:`.get_delta_time`."""
+        This method can either return a ``float`` (in seconds) or a ``astropy.time.TimeDelta`` object, depending
+        whether the field ``start_time`` of the :class:`.Observation` object is a ``float`` or a
+        ``astropy.time.Time`` instance. See also :meth:`.get_delta_time`. """
         return self.get_delta_time() * self.n_samples
 
     def get_times(self, normalize=False, astropy_times=False):
