@@ -59,7 +59,7 @@ from .mapping import make_bin_map
 from .destriper import DestriperParameters, DestriperResult, destripe
 from .simulations import Simulation
 from .noise import add_noise
-from .coordinates import DEFAULT_COORDINATE_SYSTEM
+from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
 from .version import __author__, __version__
 
 __all__ = [
@@ -139,4 +139,5 @@ __all__ = [
     "add_noise",
     # coordinates.py
     "DEFAULT_COORDINATE_SYSTEM",
+    "DEFAULT_TIME_SCALE",
 ]
