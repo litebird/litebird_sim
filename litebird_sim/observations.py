@@ -122,6 +122,8 @@ class Observation:
             self.tod = np.zeros(
                 self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=dtype_tod
             )
+        else:
+            self.tod = None
 
         self.setattr_det_global("det_idx", np.arange(self._n_detectors_global), root)
         if not isinstance(detectors, int):
@@ -455,7 +457,7 @@ class Observation:
 
         """
         self._attr_det_names.append(name)
-        assert len(info) == len(self.tod)
+        assert len(info) == self.n_detectors
         setattr(self, name, info)
 
     def setattr_det_global(self, name, info, root=0):
@@ -487,7 +489,7 @@ class Observation:
             self._attr_det_names.append(name)
 
         if not self.comm or self.comm.size == 1:
-            assert len(info) == len(self.tod)
+            assert len(info) == self.n_detectors_global
             setattr(self, name, info)
             return
 
@@ -511,7 +513,7 @@ class Observation:
 
         comm_row = comm_grid.Split(comm_grid.rank // self._n_blocks_time)
         info = comm_row.bcast(info, root_col)
-        assert len(info) == len(self.tod)
+        assert self.tod is None or len(info) == len(self.tod)
         setattr(self, name, info)
 
     def get_times(self, normalize=False, astropy_times=False):

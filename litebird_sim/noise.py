@@ -8,6 +8,7 @@ def add_noise(obs, noisetype, random=None):
 
     obs: an Observation object
     noisetype: 'white' or 'one_over_f'
+    scale: rescales the noise timeline, the default produces noise in K  
     random: a random number generator if you want reproducible randomness
     """
     if noisetype not in ["white", "one_over_f"]:
@@ -22,14 +23,15 @@ def add_noise(obs, noisetype, random=None):
 
             if noisetype == "white":
                 generate_white_noise(
-                    ob.tod, ob.net_ukrts / np.sqrt(ob.sampling_rate_hz), random=random
-                )
-            elif noisetype == "one_over_f":
+                    ob.tod,
+                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
+                    random=random)
+            elif noisetype == 'one_over_f':
                 generate_one_over_f_noise(
                     ob.tod,
                     ob.fknee_mhz,
                     ob.alpha,
-                    ob.net_ukrts / np.sqrt(ob.sampling_rate_hz),
+                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
                     ob.sampling_rate_hz,
                     random=random,
                 )
@@ -39,15 +41,14 @@ def add_noise(obs, noisetype, random=None):
                 if noisetype == "white":
                     generate_white_noise(
                         ob.tod[i][:],
-                        ob.net_ukrts[i] / np.sqrt(ob.sampling_rate_hz),
-                        random=random,
-                    )
-                elif noisetype == "one_over_f":
+                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
+                        random=random)
+                elif noisetype == 'one_over_f':
                     generate_one_over_f_noise(
                         ob.tod[i][:],
                         ob.fknee_mhz[i],
                         ob.alpha[i],
-                        ob.net_ukrts[i] / np.sqrt(ob.sampling_rate_hz),
+                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
                         ob.sampling_rate_hz,
                         random=random,
                     )
@@ -66,13 +67,13 @@ def generate_white_noise(data, sigma_uk, random=None):
     To be called from add_noise.
 
     data: 1-D numpy array
-    sigma: the varience of the desired white noise
+    sigma: white noise level
     random: a random number generator if you want reproducible randomness
     """
     if random is None:
         random = np.random.default_rng()
 
-    data += random.normal(0, sigma_uk / 1000000, data.shape)
+    data += random.normal(0, sigma , data.shape)
 
 
 def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz, random=None):
@@ -82,7 +83,7 @@ def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz, random
     data: 1-D numpy array
     fknee: knee frequency
     alpha: low frequency spectral tilt
-    sigma0: white noise level
+    sigma: white noise level
     freq: the sampling frequency of the data
     random: a random number generator if you want reproducible randomness
     """
@@ -102,9 +103,9 @@ def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz, random
 
     model = freqs
     # This is what the style checker wants but it looks rediculous to me
-    model[freqs != 0] = np.sqrt(
-        (1 + pow(abs(freqs[freqs != 0]) / (fknee_mhz / 1000), -1 * alpha))
-    ) * (sigma0_uk / 1000000)
+    model[freqs != 0] = np.sqrt((1 + pow(abs(freqs[freqs != 0])
+                                         / (fknee_mhz / 1000), -1 * alpha))) \
+        * sigma
 
     model[freqs == 0] = 0
 
