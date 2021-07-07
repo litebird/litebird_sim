@@ -67,13 +67,13 @@ def generate_white_noise(data, sigma_uk, random=None):
     To be called from add_noise.
 
     data: 1-D numpy array
-    sigma: white noise level
+    sigma_uk: white noise level
     random: a random number generator if you want reproducible randomness
     """
     if random is None:
         random = np.random.default_rng()
 
-    data += random.normal(0, sigma , data.shape)
+    data += random.normal(0, sigma_uk, data.shape)
 
 
 def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz, random=None):
@@ -83,7 +83,7 @@ def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz, random
     data: 1-D numpy array
     fknee: knee frequency
     alpha: low frequency spectral tilt
-    sigma: white noise level
+    sigma0_uk: white noise level
     freq: the sampling frequency of the data
     random: a random number generator if you want reproducible randomness
     """
@@ -105,7 +105,7 @@ def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma0_uk, freq_hz, random
     # This is what the style checker wants but it looks rediculous to me
     model[freqs != 0] = np.sqrt((1 + pow(abs(freqs[freqs != 0])
                                          / (fknee_mhz / 1000), -1 * alpha))) \
-        * sigma
+        * sigma0_uk
 
     model[freqs == 0] = 0
 
