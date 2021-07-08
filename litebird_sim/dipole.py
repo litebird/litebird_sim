@@ -13,8 +13,10 @@ def compute_scalar_product(
 	vy,
 	vz,
 	):
+	dx, dy, dz = np.sin(theta)*np.cos(phi),np.sin(theta)*np.sin(phi),np.cos(theta)
+	prod = dx*vx+dy*vy+dz*vz
+	return prod
 
-return
 	
 @njit
 def compute_dipole_for_one_sample(
@@ -32,7 +34,7 @@ def compute_dipole_for_one_sample(
 
    	dip = T_CMB*(1+beta)
 
-return
+    return dip
 
 
 @njit
@@ -59,7 +61,6 @@ def add_dipole_for_one_detector(
     		T_CMB,
     		)
 
-return
 
 
 def add_dipole(
@@ -82,8 +83,7 @@ def add_dipole(
     		pointings[idet,:,1],
     		velocity,
     		)
-
-    return
+    
 
 
     
