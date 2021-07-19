@@ -140,13 +140,6 @@ def test_simulation_two_detectors():
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
-    # Move the Z vector manually using the last quaternion and check
-    # that it's rotated by 1/365.25 of a complete circle
-    boresight = np.empty(3)
-    lbs.rotate_z_vector(boresight, *sim.spin2ecliptic_quats.quats[-1, :])
-    assert np.allclose(np.arctan2(boresight[1], boresight[0]), 2 * np.pi / 365.25)
-
-    # Now redo the calculation using get_pointings
     pointings_and_polangle = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
