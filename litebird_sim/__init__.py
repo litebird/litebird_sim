@@ -53,13 +53,20 @@ from .scanning import (
     SpinningScanningStrategy,
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
-    get_pointings
+    get_pointings,
 )
 from .mapping import make_bin_map
 from .destriper import DestriperParameters, DestriperResult, destripe
 from .simulations import Simulation
 from .noise import add_noise
 from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
+from .spacecraft import (
+    compute_l2_pos_and_vel,
+    compute_lissajous_pos_and_vel,
+    l2_pos_and_vel_in_obs,
+    SpacecraftOrbit,
+    SpacecraftPositionAndVelocity,
+)
 from .version import __author__, __version__
 
 __all__ = [
@@ -140,4 +147,10 @@ __all__ = [
     # coordinates.py
     "DEFAULT_COORDINATE_SYSTEM",
     "DEFAULT_TIME_SCALE",
+    # spacecraft.py
+    "compute_l2_pos_and_vel",
+    "compute_lissajous_pos_and_vel",
+    "l2_pos_and_vel_in_obs",
+    "SpacecraftOrbit",
+    "SpacecraftPositionAndVelocity",
 ]
