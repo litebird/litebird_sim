@@ -58,11 +58,11 @@ def test_calculate_sun_earth_angles_rad():
     assert np.allclose(lbs.calculate_sun_earth_angles_rad(time), -1.5707963643879557)
 
 
-def create_fake_detector(sampling_rate_hz=1):
+def create_fake_detector(sampling_rate_hz=1, quat=np.array([0.0, 0.0, 0.0, 1.0])):
     return lbs.DetectorInfo(
         name="dummy",
         sampling_rate_hz=sampling_rate_hz,
-        quat=np.array([0.0, 0.0, 0.0, 1.0]),
+        quat=quat,
     )
 
 
@@ -112,6 +112,48 @@ def test_simulation_pointings_still():
     assert np.allclose(
         np.abs(longitude[..., -1] - longitude[..., 0]), 2 * np.pi * 23 / 365.25 / 24
     )
+
+
+def test_simulation_two_detectors():
+    sim = lbs.Simulation(start_time=0.0, duration_s=86400.0)
+
+    # Two detectors, the second rotated by 45°
+    quaternions = [
+        np.array([0.0, 0.0, 0.0, 1.0]),
+        np.array([0.0, 0.0, 1.0, 1.0]) / np.sqrt(2),
+    ]
+    fakedet1 = create_fake_detector(sampling_rate_hz=1 / 3600, quat=quaternions[0])
+    fakedet2 = create_fake_detector(sampling_rate_hz=1 / 3600, quat=quaternions[1])
+
+    sim.create_observations(
+        detectors=[fakedet1, fakedet2], num_of_obs_per_detector=1, distribute=False
+    )
+    assert len(sim.observations) == 1
+    obs = sim.observations[0]
+
+    # The spacecraft stands still in L2, with no spinning nor precession
+    sstr = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=0.0
+    )
+    sim.generate_spin2ecl_quaternions(sstr, delta_time_s=60.0)
+    assert sim.spin2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
+
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
+
+    pointings_and_polangle = lbs.get_pointings(
+        obs,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        detector_quats=quaternions,
+        bore2spin_quat=instr.bore2spin_quat,
+    )
+
+    assert pointings_and_polangle.shape == (2, 24, 3)
+
+    assert np.allclose(pointings_and_polangle[0, :, 0], pointings_and_polangle[1, :, 0])
+    assert np.allclose(pointings_and_polangle[0, :, 1], pointings_and_polangle[1, :, 1])
+
+    # The ψ angle should differ by 45°
+    assert np.allclose(np.abs(pointings_and_polangle[0, :, 2] - pointings_and_polangle[1, :, 2]), np.pi / 2)
 
 
 def test_simulation_pointings_polangle(tmp_path):
