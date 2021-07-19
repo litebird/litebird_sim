@@ -8,7 +8,8 @@ simulate many effects in detector timestreams. This page will detail these
 simulated effects as they become available. The timestreams are stored in
 `.Observation` objects in the `.Observation.tod` arrays. These arrays are of 
 the shape (n_detectors, n_samples), where detectors are indexed in the same 
-order as the `.Observation.detector_global_info` array. The timestreams inside the framework all use Kelvin as the default unit.
+order as the `.Observation.detector_global_info` array. The timestreams inside 
+the framework all use Kelvin as the default unit.
 
 
 Adding Noise
@@ -47,16 +48,16 @@ noise. Firstly, we can add white noise like this:
 
 .. testoutput::
 
-   -6.44892e-05
-   5.77132e-07
-   -2.31670e-05
-   2.55907e-05
-   1.88270e-05
-   8.65064e-06
-   -1.63962e-05
-   1.78914e-05
-   -7.78262e-06
-   1.08828e-07
+    -6.44892e-04
+    5.77132e-06
+    -2.31670e-04
+    2.55907e-04
+    1.88270e-04
+    8.65064e-05
+    -1.63962e-04
+    1.78914e-04
+    -7.78262e-05
+    1.08828e-06
 
 
 To add white noise using a custom white noise sigma, in uK, we can call the low level
@@ -133,7 +134,7 @@ Again, to generate noise with custom parameters, we can either use the low level
    # Option 2, where we change the values in the observation object
    obs[0].fknee_mhz[0] = custom_fknee_mhz
    obs[0].alpha[0] = custom_alpha
-   obs[0].net_ukrts[0] = custom_sigma_uk * np.sqrt(obs[0].sampling_rate_hz)
+   obs[0].net_ukrts[0] = custom_sigma_uk / np.sqrt(obs[0].sampling_rate_hz)
 
    lbs.noise.add_noise(obs, 'one_over_f')
 

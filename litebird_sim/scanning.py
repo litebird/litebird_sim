@@ -192,21 +192,25 @@ def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
     Prototype::
 
         all_compute_pointing_and_polangle(
-            result_matrix: numpy.array[N, 3],
-            quat_matrix: numpy.array[N, 4],
+            result_matrix: numpy.array[D, N, 3],
+            quat_matrix: numpy.array[N, D, 4],
         )
 
-    Assuming that `result_matrix` is a (N×3) matrix and `quat_matrix`
-    a (N×4) matrix, iterate over all the N rows and apply
-    :func:`compute_pointing_and_polangle` to every row.
+    Assuming that `result_matrix` is a (D, N, 3) matrix and `quat_matrix` a (N, D, 4) matrix, iterate over all the N
+    samples and D detectors and apply :func:`compute_pointing_and_polangle` to every item.
 
     """
-    assert quat_matrix[..., 0].size == result_matrix[..., 0].size
-    result_matrix = result_matrix.reshape(-1, 3)
-    quat_matrix = quat_matrix.reshape(-1, 4)
 
-    for row in range(result_matrix.shape[0]):
-        compute_pointing_and_polangle(result_matrix[row, :], quat_matrix[row, :])
+    n_dets, n_samples, _ = result_matrix.shape
+
+    assert result_matrix.shape[2] == 3
+    assert quat_matrix.shape[0] == n_samples
+    assert quat_matrix.shape[1] == n_dets
+    assert quat_matrix.shape[2] == 4
+
+    for det_idx in range(n_dets):
+        for sample_idx in range(n_samples):
+            compute_pointing_and_polangle(result_matrix[det_idx, sample_idx, :], quat_matrix[sample_idx, det_idx, :])
 
 
 @njit
