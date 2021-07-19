@@ -1,5 +1,7 @@
 # HEAD
 
+- Fix bug [#124](https://github.com/litebird/litebird_sim/issues/124)
+- 
 - Fix bug [#120](https://github.com/litebird/litebird_sim/issues/120)
 
 - Fix bug [#111](https://github.com/litebird/litebird_sim/pull/111)
