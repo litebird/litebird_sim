@@ -84,6 +84,7 @@ def add_dipole(
     pointings,
     velocity, #should be the vel. vector from lbs.l2_pos_and_vel_in_obs but with
               #the length of nsamples in order to make the product with the direction
+    dipoletype,
     dipoleunits, #?
     T_CMB,
     frequency    #e.g. central frequency of channel from 
