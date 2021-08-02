@@ -92,7 +92,7 @@ def add_dipole(
     ):
     
     nu = frequency*10**6.  #freq in GHz
-    x = h*nu/(k_B*T_CMB)
+    x = h.value*nu/(k_B.value*T_CMB)
 
     q_x = 0.5*x*(np.exp(x)+1)/(np.exp(x)-1)  
 
