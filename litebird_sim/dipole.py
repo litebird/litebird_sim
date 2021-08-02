@@ -36,7 +36,7 @@ def compute_dipole_for_one_sample(
     ):
     
     beta_dot_n = compute_scalar_product(theta,phi,vx,vy,vz)/C_LIGHT_KM_S
-    beta = np.sqrt(vx*vx+vy*vy+vz*vz)   #here? or returned from compute_scalar_product?
+    beta = np.sqrt(vx*vx+vy*vy+vz*vz)/C_LIGHT_KM_S   #here? or returned from compute_scalar_product?
     gamma = 1/np.sqrt(1-beta**2)
 
     if dipoletype == 'linear':
