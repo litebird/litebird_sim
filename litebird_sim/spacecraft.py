@@ -227,6 +227,7 @@ class SpacecraftPositionAndVelocity:
 
     This class contains information that characterize the motion of the spacecraft. It is mainly useful to simulate
     the so-called CMB «orbital dipole» and to properly check the visibility of the Sun, the Moon and inner planets.
+    The coordinate system used by this class is the standard Barycentric Ecliptic reference frame.
 
     The fields of this class are the following:
 
@@ -266,6 +267,21 @@ class SpacecraftPositionAndVelocity:
     def __repr__(self):
         return str(self)
 
+    def compute_velocities(self, time0: astropy.time.Time, delta_time_s: float, num_of_samples: int):
+        """Perform a linear interpolation to sample the satellite velocity according to some δt
+
+        Return a N×3 array containing a set of `num_of_samples` 3D vectors with the velocity of the spacecraft (in km/s)
+        computed every `delta_time_s` seconds starting from time `time0`.
+        """
+        delta_start_s = (time0 - self.start_time).sec
+        t = delta_start_s + np.linspace(start=0.0, stop=delta_time_s * num_of_samples, endpoint=False, num=num_of_samples)
+        tp = np.linspace(start=0.0, stop=self.time_span_s, num=self.velocities_km_s.shape[0])
+        vel_x = np.interp(x=t, xp=tp, yp=self.velocities_km_s[:, 0])
+        vel_y = np.interp(x=t, xp=tp, yp=self.velocities_km_s[:, 1])
+        vel_z = np.interp(x=t, xp=tp, yp=self.velocities_km_s[:, 2])
+
+        return np.array([vel_x, vel_y, vel_z]).transpose()
+
 
 def l2_pos_and_vel_in_obs(
     orbit: SpacecraftOrbit,
@@ -277,7 +293,8 @@ def l2_pos_and_vel_in_obs(
 
     This function computes the XYZ position and velocity of the second Sun-Earth Lagrangean point (L2) over a
     time span specified either by a :class:`.Observation` object or by an explicit pair of values `start_time`
-    (an ``astropy.time.Time`` object) and `time_span_s` (length in seconds).
+    (an ``astropy.time.Time`` object) and `time_span_s` (length in seconds). The position is specified in the
+    standard Barycentric Ecliptic reference frame.
 
     The position of the L2 point is computed starting from the position of the Earth and moving away along
     the anti-Sun direction by a number of kilometers equal to `earth_l2_distance_km`.
