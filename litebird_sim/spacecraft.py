@@ -276,9 +276,9 @@ class SpacecraftPositionAndVelocity:
         delta_start_s = (time0 - self.start_time).sec
         t = delta_start_s + np.linspace(start=0.0, stop=delta_time_s * num_of_samples, endpoint=False, num=num_of_samples)
         tp = np.linspace(start=0.0, stop=self.time_span_s, num=self.velocities_km_s.shape[0])
-        vel_x = np.interp(x=t, xp=tp, yp=self.velocities_km_s[:, 0])
-        vel_y = np.interp(x=t, xp=tp, yp=self.velocities_km_s[:, 1])
-        vel_z = np.interp(x=t, xp=tp, yp=self.velocities_km_s[:, 2])
+        vel_x = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 0])
+        vel_y = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 1])
+        vel_z = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 2])
 
         return np.array([vel_x, vel_y, vel_z]).transpose()
 
