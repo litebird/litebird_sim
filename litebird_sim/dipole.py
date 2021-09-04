@@ -4,6 +4,9 @@ from enum import IntEnum
 
 from numba import njit
 import numpy as np
+
+from typing import Union
+
 from astropy.constants import c as c_light
 import astropy
 from astropy.constants import h, k_B
@@ -127,20 +130,22 @@ def add_dipole(
     pointings,
     velocity,
     t_cmb_k: float,
-    frequency_ghz: float,  # e.g. central frequency of channel from
+    frequency_ghz: np.ndarray,  # e.g. central frequency of channel from
     # lbs.FreqChannelInfo.from_imo(url=f"/releases/v1.0/satellite/{telescope}/{channel}/channel_info",imo=imo).bandcenter_ghz
     dipole_type: DipoleType,
 ):
-    nu_hz = frequency_ghz * 1e6  # freq in GHz
-    # Note that x is a dimensionless parameter
-    x = h.value * nu_hz / (k_B.value * t_cmb_k)
-
-    q_x = 0.5 * x * (np.exp(x) + 1) / (np.exp(x) - 1)
 
     assert tod.shape == pointings.shape[0:2]
     assert tod.shape[1] == velocity.shape[0]
 
     for detector_idx in range(tod.shape[0]):
+
+        nu_hz = frequency_ghz[detector_idx] * 1e9  # freq in GHz
+        # Note that x is a dimensionless parameter
+        x = h.value * nu_hz / (k_B.value * t_cmb_k)
+
+        q_x = 0.5 * x * (np.exp(x) + 1) / (np.exp(x) - 1)
+
         add_dipole_for_one_detector(
             tod_det=tod[detector_idx],
             theta_det=pointings[detector_idx, :, 0],
@@ -157,8 +162,8 @@ def add_dipole_to_observation(
     pointings,
     pos_and_vel: SpacecraftPositionAndVelocity,
     t_cmb_k: float,
-    frequency_ghz: float,  # e.g. central frequency of channel from
     dipole_type: DipoleType,
+    frequency_ghz: Union[np.ndarray, None] = None,  # e.g. central frequency of channel from
 ):
     # Alas, this allocates memory for the velocity vector! At the moment it is the simplest implementation, but
     # in the future we might want to inline the interpolation code within "add_dipole" to save memory
@@ -167,6 +172,11 @@ def add_dipole_to_observation(
         delta_time_s=obs.get_delta_time().value,
         num_of_samples=obs.tod.shape[1],
     )
+
+    if frequency_ghz == None:
+        frequency_ghz = obs.bandcenter_ghz
+    else:
+        frequency_ghz = np.repeat(frequency_ghz,obs.tod.shape[0])
 
     add_dipole(
         tod=obs.tod,

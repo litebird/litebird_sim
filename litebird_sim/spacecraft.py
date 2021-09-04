@@ -240,7 +240,7 @@ class SpacecraftPositionAndVelocity:
     - ``positions_km``: a ``N×3`` matrix, representing a list of ``N`` XYZ vectors encoding the position
       of the spacecraft in the Barycentric Ecliptic reference frame (in kilometers);
 
-    - ``velocities_km``: a ``N×3`` matrix, representing a list of ``N`` XYZ vectors encoding the linear
+    - ``velocities_km_s``: a ``N×3`` matrix, representing a list of ``N`` XYZ vectors encoding the linear
       velocity of the spacecraft in the Barycentric Ecliptic reference frame (in km/s).
 
     """
