@@ -213,8 +213,8 @@ def add_dipole_to_observation(
     obs: Observation,
     pointings,
     pos_and_vel: SpacecraftPositionAndVelocity,
-    t_cmb_k: float,
-    dipole_type: DipoleType,
+    t_cmb_k: float = 2.72548, # Fixsen 2009 http://arxiv.org/abs/0911.1955
+    dipole_type: DipoleType = 4, #Default: total contribution, using the linear temperature approximation 
     frequency_ghz: Union[np.ndarray, None] = None,  # e.g. central frequency of channel from
 ):
     # Alas, this allocates memory for the velocity vector! At the moment it is the simplest implementation, but
