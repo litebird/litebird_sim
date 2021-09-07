@@ -10,17 +10,19 @@ def test_spacecraft_orbit():
 
     # We simulate two orbits: the first one is the «nominal» orbit, which includes a Lissajous
     # motion around the L2 point, while the second one follows the L2 point (no Lissajous).
-    orbit = lbs.SpacecraftOrbit(start_time=start_time)
+    orbit = lbs.SpacecraftOrbit(
+        start_time=start_time, solar_velocity_km_s=0, 
+    )
     no_lj_orbit = lbs.SpacecraftOrbit(
-        start_time=start_time, radius1_km=0.0, radius2_km=0.0
+        start_time=start_time, radius1_km=0.0, radius2_km=0.0, solar_velocity_km_s=0,
     )
 
     time_span_s = astropy.time.TimeDelta(86400.0 * 365, format="sec").to("s").value
     posvel = lbs.l2_pos_and_vel_in_obs(
-        orbit, start_time=start_time, time_span_s=time_span_s, solar_velocity_km_s=0
+        orbit, start_time=start_time, time_span_s=time_span_s,
     )
     posvel_no_lissajous = lbs.l2_pos_and_vel_in_obs(
-        no_lj_orbit, start_time=start_time, time_span_s=time_span_s, solar_velocity_km_s=0
+        no_lj_orbit, start_time=start_time, time_span_s=time_span_s,
     )
 
     assert posvel.start_time == start_time
