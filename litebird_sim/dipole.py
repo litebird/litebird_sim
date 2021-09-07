@@ -15,8 +15,8 @@ from .observations import Observation
 from .spacecraft import SpacecraftPositionAndVelocity
 
 C_LIGHT_KM_S = c_light.value / 1e3
-
-
+H_OVER_K_B = h.value / k_B.value
+ 
 # We use a IntEnum class so that comparisons are much faster than with strings
 class DipoleType(IntEnum):
     """Kind of calculation to use when estimating the Doppler shift caused by the motion of the spacecraft"""
@@ -40,9 +40,9 @@ class DipoleType(IntEnum):
     TOTAL_FROM_LIN_T = 4
 
 @njit
-def planck(nu_hz , t_k, h_over_k_B):
+def planck(nu_hz , t_k):
     """Return occupation number at frequency nu_hz and temperature t_k"""
-    return 1 / (np.exp(h_over_k_B * nu_hz / t_k)-1)
+    return 1 / (np.exp(H_OVER_K_B * nu_hz / t_k)-1)
 
 @njit
 def compute_scalar_product(theta, phi, v):
@@ -98,12 +98,12 @@ def compute_dipole_for_one_sample_quadratic_from_lin_t(
 
 @njit
 def compute_dipole_for_one_sample_total_from_lin_t(
-    theta, phi, v_km_s, t_cmb_k, nu_hz, f_x , planck_t0, h_over_k_B
+    theta, phi, v_km_s, t_cmb_k, nu_hz, f_x , planck_t0
 ):
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
     gamma = 1 / np.sqrt(1 - beta ** 2)
 
-    planck_t = planck(nu_hz, t_cmb_k / gamma / (1 - beta_dot_n), h_over_k_B)
+    planck_t = planck(nu_hz, t_cmb_k / gamma / (1 - beta_dot_n))
 
     return t_cmb_k / f_x * (planck_t / planck_t0 - 1)
 
@@ -118,7 +118,6 @@ def add_dipole_for_one_detector(
     nu_hz,
     f_x,
     q_x,
-    h_over_k_B,
     dipole_type: DipoleType,
 ):
 
@@ -156,7 +155,7 @@ def add_dipole_for_one_detector(
                 q_x=q_x,
             )            
     elif dipole_type == DipoleType.TOTAL_FROM_LIN_T:
-        planck_t0 = planck(nu_hz , t_cmb_k, h_over_k_B)
+        planck_t0 = planck(nu_hz , t_cmb_k)
         for i in range(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_total_from_lin_t(
                 theta=theta_det[i],
@@ -166,7 +165,6 @@ def add_dipole_for_one_detector(
                 nu_hz=nu_hz,
                 f_x=f_x,
                 planck_t0=planck_t0,
-                h_over_k_B=h_over_k_B,
             )
     else:
         print('Dipole Type not implemented!!!')
@@ -207,7 +205,6 @@ def add_dipole(
             nu_hz=nu_hz,
             f_x=f_x,
             q_x=q_x,
-            h_over_k_B=h.value / k_B.value,
             dipole_type=dipole_type,
         )
 

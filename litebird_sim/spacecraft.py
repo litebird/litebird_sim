@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import Union
 
 import astropy
-from astropy.coordinates import ICRS, get_body_barycentric_posvel
+from astropy.coordinates import ICRS, get_body_barycentric_posvel, SkyCoord
 import astropy.time
+
 from numba import njit
 import numpy as np
 
@@ -207,7 +208,10 @@ class SpacecraftOrbit:
     - `radius2_km`: second radius describing the Lissajous orbit followed by the spacecraft, in km
     - `ang_speed1_rad_s`: first angular speed of the Lissajous orbit, in rad/s
     - `ang_speed2_rad_s`: second angular speed of the Lissajous orbit, in rad/s
-    - `phase_rad`: phase difference between the two periodic motions in the Lissajous orbit, in radians.
+    - `phase_rad`: phase difference between the two periodic motions in the Lissajous orbit, in radians
+    - `solar_velocity_km_s`: velocity of the Sun as estimated from Planck 2018 Solar dipole arxiv: 1807.06207
+    - `solar_velocity_gal_lat_rad`: galactic latitude direction of the Planck 2018 Solar dipole
+    - `solar_velocity_gal_lon_rad`: galactic longitude direction of the Planck 2018 Solar dipole    
 
     The default values are the nominal numbers of the orbit followed by WMAP, described in Cavaluzzi,
     Fink & Coyle (2008).
@@ -220,7 +224,16 @@ class SpacecraftOrbit:
     ang_speed1_rad_s: float = cycles_per_year_to_rad_per_s(2.02104)
     ang_speed2_rad_s: float = cycles_per_year_to_rad_per_s(1.98507)
     phase_rad: float = np.deg2rad(-47.944)
+    solar_velocity_km_s: float = 369.8160
+    solar_velocity_gal_lat_rad: float = 0.842173724
+    solar_velocity_gal_lon_rad: float = 4.6080357444
 
+    solar_velocity_ecl_xyz_km_s = SkyCoord(
+        solar_velocity_gal_lon_rad, 
+        solar_velocity_gal_lat_rad, 
+        unit="rad", 
+        frame="galactic",
+        ).transform_to(DEFAULT_COORDINATE_SYSTEM).cartesian.get_xyz().value * solar_velocity_km_s
 
 class SpacecraftPositionAndVelocity:
     """Encode the position and velocity of the spacecraft with respect to the Solar System
@@ -338,6 +351,10 @@ def l2_pos_and_vel_in_obs(
             ang_speed2_rad_s=orbit.ang_speed2_rad_s,
             phase_rad=orbit.phase_rad,
         )
+
+    if orbit.solar_velocity_km_s > 0:
+        vel += orbit.solar_velocity_ecl_xyz_km_s[np.newaxis,:]
+
 
     return SpacecraftPositionAndVelocity(
         orbit=orbit,
