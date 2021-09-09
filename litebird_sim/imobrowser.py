@@ -277,10 +277,7 @@ class QuantityDetailsView(Frame):
         self._model = model
 
         self._data_files_view = MultiColumnListBox(
-            Widget.FILL_FRAME,
-            ["<40", "<64"],
-            model.get_data_files(),
-            name="data_files",
+            Widget.FILL_FRAME, ["<40", "<64"], model.get_data_files(), name="data_files"
         )
         self._copy_path_button = Button("Copy path", self._copy_path)
         self._copy_uuid_button = Button("Copy UUID", self._copy_uuid)

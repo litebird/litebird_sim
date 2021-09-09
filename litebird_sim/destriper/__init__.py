@@ -110,9 +110,7 @@ class _Toast2FakeCache:
     def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
         self.obs = obs
 
-        self.keydict = {
-            "timestamps": obs.get_times(),
-        }
+        self.keydict = {"timestamps": obs.get_times()}
         nsamples = len(self.keydict["timestamps"])
 
         self.keydict["flags"] = np.zeros(nsamples, dtype="uint8")
@@ -147,11 +145,7 @@ class _Toast2FakeCache:
 
             self.keydict[f"pixels_{det}"] = healpix_base.ang2pix(curpnt[:, 0:2])
             self.keydict[f"weights_{det}"] = np.stack(
-                (
-                    np.ones(nsamples),
-                    np.cos(2 * curpnt[:, 2]),
-                    np.sin(2 * curpnt[:, 2]),
-                )
+                (np.ones(nsamples), np.cos(2 * curpnt[:, 2]), np.sin(2 * curpnt[:, 2]))
             ).transpose()
 
     def keys(self):
@@ -221,9 +215,7 @@ class _Toast2FakeData:
 
     def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
         self.obs = [
-            {
-                "tod": _Toast2FakeTod(spin2ecliptic_quats, x, bore2spin_quat, nside),
-            }
+            {"tod": _Toast2FakeTod(spin2ecliptic_quats, x, bore2spin_quat, nside)}
             for x in obs
         ]
         self.bore2spin_quat = bore2spin_quat
@@ -330,9 +322,7 @@ def destripe_observations(
 
     if params.return_npp:
         result.npp = healpy.read_map(
-            base_path / (params.output_file_prefix + "npp.fits"),
-            field=None,
-            dtype=None,
+            base_path / (params.output_file_prefix + "npp.fits"), field=None, dtype=None
         )
 
     if params.return_invnpp:
@@ -352,11 +342,7 @@ def destripe_observations(
     return result
 
 
-def destripe(
-    sim,
-    instrument,
-    params=DestriperParameters(),
-) -> DestriperResult:
+def destripe(sim, instrument, params=DestriperParameters()) -> DestriperResult:
     """Run the destriper on a set of TODs.
 
     Run the TOAST destriper on time-ordered data, producing one or

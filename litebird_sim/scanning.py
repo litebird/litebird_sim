@@ -209,7 +209,10 @@ def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
 
     for det_idx in range(n_dets):
         for sample_idx in range(n_samples):
-            compute_pointing_and_polangle(result_matrix[det_idx, sample_idx, :], quat_matrix[sample_idx, det_idx, :])
+            compute_pointing_and_polangle(
+                result_matrix[det_idx, sample_idx, :],
+                quat_matrix[sample_idx, det_idx, :],
+            )
 
 
 @njit

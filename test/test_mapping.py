@@ -42,9 +42,7 @@ def test_make_bin_map_api_simulation(tmp_path):
     # We should add a more meaningful observation:
     # Currently this test just shows the interface
     sim = lbs.Simulation(
-        base_path=tmp_path / "tut04",
-        start_time=0.0,
-        duration_s=86400.0,
+        base_path=tmp_path / "tut04", start_time=0.0, duration_s=86400.0
     )
 
     sim.generate_spin2ecl_quaternions(

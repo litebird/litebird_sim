@@ -12,9 +12,7 @@ from numpy.random import MT19937, RandomState, SeedSequence
 
 def test_destriper(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "destriper_output",
-        start_time=0,
-        duration_s=86400.0,
+        base_path=tmp_path / "destriper_output", start_time=0, duration_s=86400.0
     )
 
     sim.generate_spin2ecl_quaternions(
@@ -26,10 +24,7 @@ def test_destriper(tmp_path):
             precession_rate_hz=1.0 / (4 * u.day).to("s").value,
         )
     )
-    instr = lbs.InstrumentInfo(
-        name="core",
-        spin_boresight_angle_rad=np.deg2rad(65),
-    )
+    instr = lbs.InstrumentInfo(name="core", spin_boresight_angle_rad=np.deg2rad(65))
     sim.create_observations(
         detectors=[
             lbs.DetectorInfo(name="0A", sampling_rate_hz=10),
@@ -62,11 +57,7 @@ def test_destriper(tmp_path):
         return_rcond=True,
     )
 
-    results = lbs.destripe(
-        sim,
-        instr,
-        params=params,
-    )
+    results = lbs.destripe(sim, instr, params=params)
 
     ref_map_path = Path(__file__).parent / "destriper_reference"
 
@@ -154,10 +145,5 @@ def test_destriper(tmp_path):
     # )
     assert np.allclose(
         results.rcond,
-        healpy.read_map(
-            rcond_filename,
-            field=None,
-            verbose=False,
-            dtype=np.float32,
-        ),
+        healpy.read_map(rcond_filename, field=None, verbose=False, dtype=np.float32),
     )
