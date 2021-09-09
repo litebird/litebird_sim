@@ -195,8 +195,9 @@ def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
             quat_matrix: numpy.array[N, D, 4],
         )
 
-    Assuming that `result_matrix` is a (D, N, 3) matrix and `quat_matrix` a (N, D, 4) matrix, iterate over all the N
-    samples and D detectors and apply :func:`compute_pointing_and_polangle` to every item.
+    Assuming that `result_matrix` is a (D, N, 3) matrix and `quat_matrix` a (N, D, 4)
+    matrix, iterate over all the N samples and D detectors and apply
+    :func:`compute_pointing_and_polangle` to every item.
 
     """
 
@@ -830,7 +831,7 @@ def get_det2ecl_quaternions(
     else:
         assert (
             quaternion_buffer.shape == bufshape
-        ), f"error, wrong quaternion buffer size: {quaternion_buffer.size} != {bufshape}"
+        ), f"error, wrong buffer size: {quaternion_buffer.size} != {bufshape}"
 
     for (idx, detector_quat) in enumerate(detector_quats):
         quaternion_buffer[:, idx, :] = spin2ecliptic_quats.get_detector_quats(

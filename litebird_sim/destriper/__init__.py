@@ -10,7 +10,7 @@ from ducc0 import healpix
 import healpy  # We need healpy.read_map
 
 import litebird_sim as lbs
-from toast.todmap import OpMapMaker
+from toast.todmap import OpMapMaker  # noqa: F401
 
 if lbs.MPI_ENABLED:
     import toast.mpi

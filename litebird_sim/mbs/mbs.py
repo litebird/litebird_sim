@@ -6,7 +6,7 @@ import logging as log
 import math
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Union
 
 import toml
 import numpy as np

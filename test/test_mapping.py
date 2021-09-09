@@ -67,7 +67,7 @@ def test_make_bin_map_api_simulation(tmp_path):
     nside = 64
     obss[0].pixel = hp.ang2pix(nside, pointings[..., 0], pointings[..., 1])
     obss[0].psi = pointings[..., 2]
-    res = mapping.make_bin_map(obss, nside)
+    mapping.make_bin_map(obss, nside)
 
 
 def test_make_bin_map_basic_mpi():

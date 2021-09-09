@@ -62,7 +62,7 @@ def test_destriper(tmp_path):
     ref_map_path = Path(__file__).parent / "destriper_reference"
 
     hit_map_filename = ref_map_path / "destriper_hit_map.fits.gz"
-    # healpy.write_map(hit_map_filename, results.hit_map, dtype=np.int32, overwrite=True)
+    # healpy.write_map(hit_map_filename, results.hit_map, dtype="int32", overwrite=True)
     assert np.allclose(
         results.hit_map,
         healpy.read_map(hit_map_filename, field=None, verbose=False, dtype=np.int32),

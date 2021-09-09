@@ -4,12 +4,9 @@
 from asciimatics.widgets import (
     Frame,
     MultiColumnListBox,
-    ListBox,
     Layout,
     Divider,
-    Text,
     Button,
-    TextBox,
     Widget,
 )
 from asciimatics.scene import Scene
@@ -157,7 +154,6 @@ class EntityBrowser(object):
             return ""
 
         quantity_path = self.get_quantity_path()
-        data_file_name = self._imo.imoobject.data_files[uuid].name
         # Get a list of releases, sorted from the most recent to the oldest
         releases = sorted(
             [x for x in self._imo.imoobject.releases.values() if uuid in x.data_files],
