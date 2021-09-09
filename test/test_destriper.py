@@ -82,7 +82,7 @@ def test_destriper(tmp_path):
         dtype=list((np.float32 for i in range(3))),
     )
     assert results.binned_map.shape == ref_binned.shape
-    np.testing.assert_allclose(results.binned_map, ref_binned)
+    np.testing.assert_allclose(results.binned_map, ref_binned, rtol=1e-2)
 
     destriped_map_filename = ref_map_path / "destriper_destriped_map.fits.gz"
     # healpy.write_map(
@@ -98,7 +98,7 @@ def test_destriper(tmp_path):
         dtype=list((np.float32 for i in range(3))),
     )
     assert results.destriped_map.shape == ref_destriped.shape
-    np.testing.assert_allclose(results.destriped_map, ref_destriped)
+    np.testing.assert_allclose(results.destriped_map, ref_destriped, rtol=1e-2)
 
     npp_filename = ref_map_path / "destriper_npp.fits.gz"
     # healpy.write_map(
