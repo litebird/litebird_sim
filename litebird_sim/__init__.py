@@ -67,7 +67,7 @@ from .spacecraft import (
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
 )
-from .dipole import add_dipole,add_dipole_to_observation
+from .dipole import add_dipole, add_dipole_to_observation
 from .version import __author__, __version__
 
 __all__ = [

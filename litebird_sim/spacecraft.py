@@ -225,15 +225,22 @@ class SpacecraftOrbit:
     ang_speed2_rad_s: float = cycles_per_year_to_rad_per_s(1.98507)
     phase_rad: float = np.deg2rad(-47.944)
     solar_velocity_km_s: float = 369.8160
-    solar_velocity_gal_lat_rad: float = 0.842173724
-    solar_velocity_gal_lon_rad: float = 4.6080357444
+    solar_velocity_gal_lat_rad: float = 0.842_173_724
+    solar_velocity_gal_lon_rad: float = 4.608_035_744_4
 
-    solar_velocity_ecl_xyz_km_s = SkyCoord(
-        solar_velocity_gal_lon_rad, 
-        solar_velocity_gal_lat_rad, 
-        unit="rad", 
-        frame="galactic",
-        ).transform_to(DEFAULT_COORDINATE_SYSTEM).cartesian.get_xyz().value * solar_velocity_km_s
+    solar_velocity_ecl_xyz_km_s = (
+        SkyCoord(
+            solar_velocity_gal_lon_rad,
+            solar_velocity_gal_lat_rad,
+            unit="rad",
+            frame="galactic",
+        )
+        .transform_to(DEFAULT_COORDINATE_SYSTEM)
+        .cartesian.get_xyz()
+        .value
+        * solar_velocity_km_s
+    )
+
 
 class SpacecraftPositionAndVelocity:
     """Encode the position and velocity of the spacecraft with respect to the Solar System
@@ -280,15 +287,24 @@ class SpacecraftPositionAndVelocity:
     def __repr__(self):
         return str(self)
 
-    def compute_velocities(self, time0: astropy.time.Time, delta_time_s: float, num_of_samples: int):
+    def compute_velocities(
+        self, time0: astropy.time.Time, delta_time_s: float, num_of_samples: int
+    ):
         """Perform a linear interpolation to sample the satellite velocity according to some δt
 
         Return a N×3 array containing a set of `num_of_samples` 3D vectors with the velocity of the spacecraft (in km/s)
         computed every `delta_time_s` seconds starting from time `time0`.
         """
         delta_start_s = (time0 - self.start_time).sec
-        t = delta_start_s + np.linspace(start=0.0, stop=delta_time_s * num_of_samples, endpoint=False, num=num_of_samples)
-        tp = np.linspace(start=0.0, stop=self.time_span_s, num=self.velocities_km_s.shape[0])
+        t = delta_start_s + np.linspace(
+            start=0.0,
+            stop=delta_time_s * num_of_samples,
+            endpoint=False,
+            num=num_of_samples,
+        )
+        tp = np.linspace(
+            start=0.0, stop=self.time_span_s, num=self.velocities_km_s.shape[0]
+        )
         vel_x = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 0])
         vel_y = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 1])
         vel_z = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 2])
@@ -353,8 +369,7 @@ def l2_pos_and_vel_in_obs(
         )
 
     if orbit.solar_velocity_km_s > 0:
-        vel += orbit.solar_velocity_ecl_xyz_km_s[np.newaxis,:]
-
+        vel += orbit.solar_velocity_ecl_xyz_km_s[np.newaxis, :]
 
     return SpacecraftPositionAndVelocity(
         orbit=orbit,

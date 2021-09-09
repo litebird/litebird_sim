@@ -16,7 +16,7 @@ from .spacecraft import SpacecraftPositionAndVelocity
 
 C_LIGHT_KM_S = c_light.value / 1e3
 H_OVER_K_B = h.value / k_B.value
- 
+
 # We use a IntEnum class so that comparisons are much faster than with strings
 class DipoleType(IntEnum):
     """Kind of calculation to use when estimating the Doppler shift caused by the motion of the spacecraft"""
@@ -27,7 +27,7 @@ class DipoleType(IntEnum):
     # Up to second order in β, including second order in the expansion of the thermodynamic temperature
     QUADRATIC_EXACT = 1
 
-    # Total contribution (the slowest but more accurate formula, correct only in true thermodynamic units) 
+    # Total contribution (the slowest but more accurate formula, correct only in true thermodynamic units)
     TOTAL_EXACT = 2
 
     # Up to second order in β, using the linear temperature approximation (linearization of thermodynamic temperature)
@@ -35,14 +35,16 @@ class DipoleType(IntEnum):
     QUADRATIC_FROM_LIN_T = 3
 
     # Total contribution, using the linear temperature approximation (the slowest but more accurate formula)
-    # Linear temperature approximation is tipically used in CMB experiments 
+    # Linear temperature approximation is tipically used in CMB experiments
     # This is the formula to use if you want the frequency dependent terms at all orders
     TOTAL_FROM_LIN_T = 4
 
+
 @njit
-def planck(nu_hz , t_k):
+def planck(nu_hz, t_k):
     """Return occupation number at frequency nu_hz and temperature t_k"""
-    return 1 / (np.exp(H_OVER_K_B * nu_hz / t_k)-1)
+    return 1 / (np.exp(H_OVER_K_B * nu_hz / t_k) - 1)
+
 
 @njit
 def compute_scalar_product(theta, phi, v):
@@ -82,7 +84,7 @@ def compute_dipole_for_one_sample_total_exact(theta, phi, v_km_s, t_cmb_k):
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
     gamma = 1 / np.sqrt(1 - beta ** 2)
 
-    return t_cmb_k / gamma / (1 - beta_dot_n) - t_cmb_k 
+    return t_cmb_k / gamma / (1 - beta_dot_n) - t_cmb_k
 
 
 @njit
@@ -98,7 +100,7 @@ def compute_dipole_for_one_sample_quadratic_from_lin_t(
 
 @njit
 def compute_dipole_for_one_sample_total_from_lin_t(
-    theta, phi, v_km_s, t_cmb_k, nu_hz, f_x , planck_t0
+    theta, phi, v_km_s, t_cmb_k, nu_hz, f_x, planck_t0
 ):
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
     gamma = 1 / np.sqrt(1 - beta ** 2)
@@ -124,26 +126,17 @@ def add_dipole_for_one_detector(
     if dipole_type == DipoleType.LINEAR:
         for i in range(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_linear(
-                theta=theta_det[i],
-                phi=phi_det[i],
-                v_km_s=velocity[i],
-                t_cmb_k=t_cmb_k,
+                theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
             )
     elif dipole_type == DipoleType.QUADRATIC_EXACT:
         for i in range(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_quadratic_exact(
-                theta=theta_det[i],
-                phi=phi_det[i],
-                v_km_s=velocity[i],
-                t_cmb_k=t_cmb_k,
+                theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
             )
     elif dipole_type == DipoleType.TOTAL_EXACT:
         for i in range(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_total_exact(
-                theta=theta_det[i],
-                phi=phi_det[i],
-                v_km_s=velocity[i],
-                t_cmb_k=t_cmb_k,
+                theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
             )
     elif dipole_type == DipoleType.QUADRATIC_FROM_LIN_T:
         for i in range(len(tod_det)):
@@ -153,9 +146,9 @@ def add_dipole_for_one_detector(
                 v_km_s=velocity[i],
                 t_cmb_k=t_cmb_k,
                 q_x=q_x,
-            )            
+            )
     elif dipole_type == DipoleType.TOTAL_FROM_LIN_T:
-        planck_t0 = planck(nu_hz , t_cmb_k)
+        planck_t0 = planck(nu_hz, t_cmb_k)
         for i in range(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_total_from_lin_t(
                 theta=theta_det[i],
@@ -167,7 +160,7 @@ def add_dipole_for_one_detector(
                 planck_t0=planck_t0,
             )
     else:
-        print('Dipole Type not implemented!!!')
+        print("Dipole Type not implemented!!!")
 
 
 def add_dipole(
@@ -213,9 +206,11 @@ def add_dipole_to_observation(
     obs: Observation,
     pointings,
     pos_and_vel: SpacecraftPositionAndVelocity,
-    t_cmb_k: float = 2.72548, # Fixsen 2009 http://arxiv.org/abs/0911.1955
-    dipole_type: DipoleType = 4, #Default: total contribution, using the linear temperature approximation 
-    frequency_ghz: Union[np.ndarray, None] = None,  # e.g. central frequency of channel from
+    t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
+    dipole_type: DipoleType = 4,  # Default: total contribution, using the linear temperature approximation
+    frequency_ghz: Union[
+        np.ndarray, None
+    ] = None,  # e.g. central frequency of channel from
 ):
     # Alas, this allocates memory for the velocity vector! At the moment it is the simplest implementation, but
     # in the future we might want to inline the interpolation code within "add_dipole" to save memory
@@ -228,7 +223,7 @@ def add_dipole_to_observation(
     if frequency_ghz == None:
         frequency_ghz = obs.bandcenter_ghz
     else:
-        frequency_ghz = np.repeat(frequency_ghz,obs.tod.shape[0])
+        frequency_ghz = np.repeat(frequency_ghz, obs.tod.shape[0])
 
     add_dipole(
         tod=obs.tod,

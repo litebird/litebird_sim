@@ -161,9 +161,7 @@ class Observation:
 
         if isinstance(self.start_time_global, astropy.time.Time):
             delta = astropy.time.TimeDelta(
-                1.0 / self.sampling_rate_hz,
-                format="sec",
-                scale=DEFAULT_TIME_SCALE,
+                1.0 / self.sampling_rate_hz, format="sec", scale=DEFAULT_TIME_SCALE
             )
         else:
             delta = 1.0 / self.sampling_rate_hz
