@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+
+set -o errexit
 
 readonly MAX_LINE_LENGTH=88
 
