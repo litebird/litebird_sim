@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-
+from collections import namedtuple
 from dataclasses import dataclass
 import logging
 from pathlib import Path
@@ -11,6 +11,7 @@ import healpy  # We need healpy.read_map
 
 import litebird_sim as lbs
 from toast.todmap import OpMapMaker  # noqa: F401
+from toast.tod.interval import Interval
 
 if lbs.MPI_ENABLED:
     import toast.mpi
@@ -177,7 +178,7 @@ class _Toast2FakeTod:
 
     def local_intervals(self, _):
         return [
-            toast.tod.interval.Interval(
+            Interval(
                 start=self.obs.start_time,
                 stop=self.obs.start_time
                 + self.obs.sampling_rate_hz * self.obs.n_samples,
@@ -223,7 +224,8 @@ class _Toast2FakeData:
         if lbs.MPI_ENABLED:
             self.comm = toast.mpi.Comm(lbs.MPI_COMM_WORLD)
         else:
-            self.comm = None
+            CommWorld = namedtuple("CommWorld", ["comm_world", "comm_group", "comm_rank", "comm_size"])
+            self.comm = CommWorld(comm_world=None, comm_group=None, comm_rank=0, comm_size=1)
 
         npix = 12 * (self.nside ** 2)
         self._metadata = {
