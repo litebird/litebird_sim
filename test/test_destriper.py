@@ -98,7 +98,9 @@ def test_destriper(tmp_path):
         dtype=list((np.float32 for i in range(3))),
     )
     assert results.destriped_map.shape == ref_destriped.shape
-    np.testing.assert_allclose(results.destriped_map, ref_destriped, rtol=1e-2, atol=1e-5)
+    np.testing.assert_allclose(
+        results.destriped_map, ref_destriped, rtol=1e-2, atol=1e-5
+    )
 
     npp_filename = ref_map_path / "destriper_npp.fits.gz"
     # healpy.write_map(
