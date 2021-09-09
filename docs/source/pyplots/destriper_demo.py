@@ -5,9 +5,7 @@ from numpy.random import MT19937, RandomState, SeedSequence
 import litebird_sim as lbs
 
 sim = lbs.Simulation(
-    base_path="/tmp/destriper_output",
-    start_time=0,
-    duration_s=86400.0,
+    base_path="/tmp/destriper_output", start_time=0, duration_s=86400.0
 )
 
 sim.generate_spin2ecl_quaternions(
@@ -19,10 +17,7 @@ sim.generate_spin2ecl_quaternions(
         precession_rate_hz=1.0 / (4 * u.day).to("s").value,
     )
 )
-instr = lbs.InstrumentInfo(
-    name="core",
-    spin_boresight_angle_rad=np.deg2rad(65),
-)
+instr = lbs.InstrumentInfo(name="core", spin_boresight_angle_rad=np.deg2rad(65))
 
 # We create two detectors, whose polarization angles are separated by π/2
 sim.create_observations(
@@ -44,10 +39,7 @@ for curobs in sim.observations:
     curobs.tod += rs.randn(*curobs.tod.shape)
 
 params = lbs.DestriperParameters(
-    nside=16,
-    return_hit_map=True,
-    return_binned_map=True,
-    return_destriped_map=True,
+    nside=16, return_hit_map=True, return_binned_map=True, return_destriped_map=True
 )
 
 result = lbs.destripe(sim, instr, params)

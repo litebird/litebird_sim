@@ -11,7 +11,11 @@ def test_observation_time():
     ref_time = astrotime.Time("2020-02-20", format="iso")
 
     obs_no_mjd = lbs.Observation(
-        detectors=1, start_time_global=0.0, sampling_rate_hz=5.0, n_samples_global=5, comm=comm_world
+        detectors=1,
+        start_time_global=0.0,
+        sampling_rate_hz=5.0,
+        n_samples_global=5,
+        comm=comm_world,
     )
     obs_mjd_astropy = lbs.Observation(
         detectors=1,
@@ -184,7 +188,11 @@ def test_construction_from_detectors():
 def test_observation_tod_single_block():
     comm_world = lbs.MPI_COMM_WORLD
     obs = lbs.Observation(
-        detectors=3, n_samples_global=9, start_time_global=0.0, sampling_rate_hz=1.0, comm=comm_world
+        detectors=3,
+        n_samples_global=9,
+        start_time_global=0.0,
+        sampling_rate_hz=1.0,
+        comm=comm_world,
     )
 
     if comm_world.rank == 0:
@@ -260,7 +268,9 @@ def test_observation_tod_set_blocks():
 
     def assert_det_info():
         if comm_world.rank < obs._n_blocks_time * obs._n_blocks_det:
-            assert np.all(obs.row_int == (obs.tod[:, 0] // obs._n_samples_global).astype(int))
+            assert np.all(
+                obs.row_int == (obs.tod[:, 0] // obs._n_samples_global).astype(int)
+            )
             assert np.all(obs.row_int.astype(str) == obs.row_str)
         else:
             assert obs.row_int is None
