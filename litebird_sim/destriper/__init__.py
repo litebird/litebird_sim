@@ -224,8 +224,12 @@ class _Toast2FakeData:
         if lbs.MPI_ENABLED:
             self.comm = toast.mpi.Comm(lbs.MPI_COMM_WORLD)
         else:
-            CommWorld = namedtuple("CommWorld", ["comm_world", "comm_group", "comm_rank", "comm_size"])
-            self.comm = CommWorld(comm_world=None, comm_group=None, comm_rank=0, comm_size=1)
+            CommWorld = namedtuple(
+                "CommWorld", ["comm_world", "comm_group", "comm_rank", "comm_size"]
+            )
+            self.comm = CommWorld(
+                comm_world=None, comm_group=None, comm_rank=0, comm_size=1
+            )
 
         npix = 12 * (self.nside ** 2)
         self._metadata = {
