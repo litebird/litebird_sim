@@ -7,6 +7,7 @@ from numba import njit
 from astropy.time import Time
 import unittest
 
+
 @njit
 def bin_map(tod, pixel_indexes, binned_map, accum_map, hit_map):
     # This is a helper function that implements a quick-and-dirty mapmaker.
@@ -112,6 +113,7 @@ def test_solar_dipole_fit():
         hit_map=h,
     )
     import healpy
+
     healpy.write_map("map_s_o.fits.gz", map_s_o, overwrite=True)
 
     bin_map(
@@ -122,6 +124,7 @@ def test_solar_dipole_fit():
         hit_map=h,
     )
     import healpy
+
     healpy.write_map("map_o.fits.gz", map_s_o, overwrite=True)
 
     dip_map = map_s_o - map_o
