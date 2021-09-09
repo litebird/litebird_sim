@@ -8,7 +8,7 @@ readonly MAX_LINE_LENGTH=88
 poetry run black --check --line-length=${MAX_LINE_LENGTH} .
 
 # Check for common errors
-poetry run flake8 --max-line-length=${MAX_LINE_LENGTH}
+poetry run flake8 --max-line-length=${MAX_LINE_LENGTH} --extend-exclude docs
 
 # Run the test suite
 poetry run python3 -m pytest -vv
