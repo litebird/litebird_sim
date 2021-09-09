@@ -279,7 +279,7 @@ def destripe_observations(
         bore2spin_quat=bore2spin_quat,
         nside=params.nside,
     )
-    mapmaker = toast.todmap.OpMapMaker(
+    mapmaker = OpMapMaker(
         nside=params.nside,
         nnz=params.nnz,
         name="signal",
