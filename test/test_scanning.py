@@ -55,15 +55,13 @@ def test_calculate_sun_earth_angles_rad():
     # reference frame used to compute equinoxes (which use the center
     # of the Sun instead of the barycentre)
     time = Time("2020-06-21T12:02:47")
-    assert np.allclose(lbs.calculate_sun_earth_angles_rad(time), -1.5707963643879557)
+    assert np.allclose(
+        lbs.calculate_sun_earth_angles_rad(time), -1.570_796_364_387_955_7
+    )
 
 
 def create_fake_detector(sampling_rate_hz=1, quat=np.array([0.0, 0.0, 0.0, 1.0])):
-    return lbs.DetectorInfo(
-        name="dummy",
-        sampling_rate_hz=sampling_rate_hz,
-        quat=quat,
-    )
+    return lbs.DetectorInfo(name="dummy", sampling_rate_hz=sampling_rate_hz, quat=quat)
 
 
 def test_simulation_pointings_still():
@@ -153,7 +151,10 @@ def test_simulation_two_detectors():
     assert np.allclose(pointings_and_polangle[0, :, 1], pointings_and_polangle[1, :, 1])
 
     # The ψ angle should differ by 45°
-    assert np.allclose(np.abs(pointings_and_polangle[0, :, 2] - pointings_and_polangle[1, :, 2]), np.pi / 2)
+    assert np.allclose(
+        np.abs(pointings_and_polangle[0, :, 2] - pointings_and_polangle[1, :, 2]),
+        np.pi / 2,
+    )
 
 
 def test_simulation_pointings_polangle(tmp_path):

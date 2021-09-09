@@ -40,7 +40,7 @@ jobs:
           DUCC0_OPTIMIZATION: none
 
       - name: Tests
-        run: sh ./bin/run_tests.sh
+        run: bash ./bin/run_tests.sh
 
       - name: Tests MPICH
         if: ${{ matrix.mpi == 'mpich' }}
