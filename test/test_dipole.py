@@ -8,8 +8,14 @@ import unittest
 
 
 def test_solar_dipole_fit():
-
     test = unittest.TestCase()
+
+    # The purpose of this test is to simulate the motion of the spacecraft
+    # for one year (see `time_span`) and produce *two* timelines: the first
+    # is associated with variables `*_s_o` and refers to the case of a nonzero
+    # velocity of the Solar System, and the second is associated with variables
+    # `*_o` and assumes that the reference frame of the Solar System is the
+    # same as the CMB's (so that there is no dipole).
 
     start_time = astropy.time.Time("2022-01-01")
     time_span = 365 * 24 * 3600
@@ -42,33 +48,33 @@ def test_solar_dipole_fit():
         quat=[0.0, 0.0, 0.0, 1.0],
     )
 
-    obs_S_O, = sim.create_observations(detectors=[det])
-    obs_O, = sim.create_observations(detectors=[det])
+    obs_s_o, = sim.create_observations(detectors=[det])
+    obs_o, = sim.create_observations(detectors=[det])
 
     pointings = lbs.scanning.get_pointings(
-        obs_S_O,
+        obs_s_o,
         spin2ecliptic_quats=spin2ecliptic_quats,
         detector_quats=[det.quat],
         bore2spin_quat=instr.bore2spin_quat,
     )
 
-    orbit_S_O = lbs.SpacecraftOrbit(obs_S_O.start_time)
-    orbit_O = lbs.SpacecraftOrbit(obs_O.start_time, solar_velocity_km_s=0.0)
+    orbit_s_o = lbs.SpacecraftOrbit(obs_s_o.start_time)
+    orbit_o = lbs.SpacecraftOrbit(obs_o.start_time, solar_velocity_km_s=0.0)
 
-    assert orbit_S_O.solar_velocity_km_s == 369.8160
-    assert orbit_O.solar_velocity_km_s == 0.0
+    assert orbit_s_o.solar_velocity_km_s == 369.8160
+    assert orbit_o.solar_velocity_km_s == 0.0
 
-    pos_vel_S_O = lbs.l2_pos_and_vel_in_obs(orbit_S_O, obs_S_O)
-    pos_vel_O = lbs.l2_pos_and_vel_in_obs(orbit_O, obs_O)
+    pos_vel_s_o = lbs.l2_pos_and_vel_in_obs(orbit_s_o, obs_s_o)
+    pos_vel_o = lbs.l2_pos_and_vel_in_obs(orbit_o, obs_o)
 
-    assert pos_vel_S_O.velocities_km_s.shape == (366, 3)
-    assert pos_vel_O.velocities_km_s.shape == (366, 3)
+    assert pos_vel_s_o.velocities_km_s.shape == (366, 3)
+    assert pos_vel_o.velocities_km_s.shape == (366, 3)
 
     lbs.add_dipole_to_observation(
-        obs_S_O, pointings, pos_vel_S_O, dipole_type=lbs.DipoleType.LINEAR
+        obs_s_o, pointings, pos_vel_s_o, dipole_type=lbs.DipoleType.LINEAR
     )
     lbs.add_dipole_to_observation(
-        obs_O, pointings, pos_vel_O, dipole_type=lbs.DipoleType.LINEAR
+        obs_o, pointings, pos_vel_o, dipole_type=lbs.DipoleType.LINEAR
     )
 
     npix = hp.nside2npix(nside)
@@ -77,28 +83,28 @@ def test_solar_dipole_fit():
 
     h = np.zeros(npix)
     m = np.zeros(npix)
-    pixidx = hp.ang2pix(nside, pointings[0, :, 0], pointings[0, :, 1])
-    pixel_occurrences = np.bincount(pixidx)
+    pix_indexes = hp.ang2pix(nside, pointings[0, :, 0], pointings[0, :, 1])
+    pixel_occurrences = np.bincount(pix_indexes)
     h[0 : len(pixel_occurrences)] += pixel_occurrences
-    for isamp, ipix in enumerate(pixidx):
-        m[ipix] += obs_S_O.tod[0, isamp]
+    for sample_idx, pix_idx in enumerate(pix_indexes):
+        m[pix_idx] += obs_s_o.tod[0, sample_idx]
 
-    map_S_O = m / h
+    map_s_o = m / h
 
     h = np.zeros(npix)
     m = np.zeros(npix)
-    pixidx = hp.ang2pix(nside, pointings[0, :, 0], pointings[0, :, 1])
-    pixel_occurrences = np.bincount(pixidx)
+    pix_indexes = hp.ang2pix(nside, pointings[0, :, 0], pointings[0, :, 1])
+    pixel_occurrences = np.bincount(pix_indexes)
     h[0 : len(pixel_occurrences)] += pixel_occurrences
-    for isamp, ipix in enumerate(pixidx):
-        m[ipix] += obs_O.tod[0, isamp]
+    for sample_idx, pix_idx in enumerate(pix_indexes):
+        m[pix_idx] += obs_o.tod[0, sample_idx]
 
-    map_O = m / h
+    map_o = m / h
 
-    dip_map = map_S_O - map_O
+    dip_map = map_s_o - map_o
 
-    assert np.abs(map_S_O.mean() * 1e6) < 1
-    assert np.abs(map_O.mean() * 1e6) < 1
+    assert np.abs(map_s_o.mean() * 1e6) < 1
+    assert np.abs(map_o.mean() * 1e6) < 1
     assert np.abs(dip_map.mean() * 1e6) < 1
 
     mono, dip = hp.fit_dipole(dip_map)
