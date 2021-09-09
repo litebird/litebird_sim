@@ -8,8 +8,9 @@ import astropy
 def test_spacecraft_orbit():
     start_time = astropy.time.Time("2020-01-01")
 
-    # We simulate two orbits: the first one is the «nominal» orbit, which includes a Lissajous
-    # motion around the L2 point, while the second one follows the L2 point (no Lissajous).
+    # We simulate two orbits: the first one is the «nominal» orbit, which includes
+    # a Lissajous motion around the L2 point, while the second one follows the L2
+    # point (no Lissajous).
     orbit = lbs.SpacecraftOrbit(start_time=start_time, solar_velocity_km_s=0)
     no_lj_orbit = lbs.SpacecraftOrbit(
         start_time=start_time, radius1_km=0.0, radius2_km=0.0, solar_velocity_km_s=0
@@ -40,7 +41,8 @@ def test_spacecraft_orbit():
     assert posvel.velocities_km_s.shape == (366, 3)
     assert posvel_no_lissajous.velocities_km_s.shape == (366, 3)
 
-    # Compute the average distance from the Sun and check that it's approximately 150 Mkm
+    # Compute the average distance from the Sun and check that
+    # it's approximately 150 Mkm
     assert (
         np.round(np.median(np.linalg.norm(posvel.positions_km, axis=1)) / 1e6) == 151.0
     )
@@ -51,8 +53,8 @@ def test_spacecraft_orbit():
         == 151.0
     )
 
-    # Compute the average speed with respect to the Barycentric Ecliptic system and check that it's
-    # approximately 30 km/s
+    # Compute the average speed with respect to the Barycentric
+    # Ecliptic system and check that it's approximately 30 km/s
     assert np.round(np.median(np.linalg.norm(posvel.velocities_km_s, axis=1))) == 30.0
     assert (
         np.round(np.median(np.linalg.norm(posvel_no_lissajous.velocities_km_s, axis=1)))

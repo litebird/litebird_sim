@@ -67,7 +67,7 @@ from .spacecraft import (
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
 )
-from .dipole import add_dipole, add_dipole_to_observation
+from .dipole import add_dipole, add_dipole_to_observation, DipoleType
 from .version import __author__, __version__
 
 __all__ = [
@@ -148,6 +148,7 @@ __all__ = [
     # dipole.py
     "add_dipole",
     "add_dipole_to_observation",
+    "DipoleType",
     # coordinates.py
     "DEFAULT_COORDINATE_SYSTEM",
     "DEFAULT_TIME_SCALE",

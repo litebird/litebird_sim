@@ -64,8 +64,12 @@ def test_solar_dipole_fit():
     assert pos_vel_S_O.velocities_km_s.shape == (366, 3)
     assert pos_vel_O.velocities_km_s.shape == (366, 3)
 
-    lbs.add_dipole_to_observation(obs_S_O, pointings, pos_vel_S_O, dipole_type=0)
-    lbs.add_dipole_to_observation(obs_O, pointings, pos_vel_O, dipole_type=0)
+    lbs.add_dipole_to_observation(
+        obs_S_O, pointings, pos_vel_S_O, dipole_type=lbs.DipoleType.LINEAR
+    )
+    lbs.add_dipole_to_observation(
+        obs_O, pointings, pos_vel_O, dipole_type=lbs.DipoleType.LINEAR
+    )
 
     npix = hp.nside2npix(nside)
 

@@ -30,19 +30,24 @@ def compute_l2_pos_and_vel(
     time0: astropy.time.Time, earth_l2_distance_km: float = EARTH_L2_DISTANCE_KM
 ):
     """
-    Compute the position and velocity of the L2 Sun-Earth point at a given time, specified as a AstroPy time.
+    Compute the position and velocity of the L2 Sun-Earth point at a given time.
 
-    The L2 point is not calculated using Lagrange's equations; instead, its distance from the Earth must be
-    provided as the parameter `earth_l2_distance_km`. The default value is a reasonable estimate. The L2 point
-    is assumed to lie along the line that connects the Solar System Barycenter with the Earth's gravitational center.
+    The L2 point is not calculated using Lagrange's equations; instead, its
+    distance from the Earth must be provided as the parameter `earth_l2_distance_km`.
+    The default value is a reasonable estimate. The L2 point is assumed to lie along
+    the line that connects the Solar System Barycenter with the Earth's gravitational
+    center.
 
     The return value is a 2-tuple containing two NumPy arrays:
 
-    1. A 3D array containing the XYZ components of the vector specifying the position of the L2 point, in km
-    2. A 3D array containing the XYZ components of the velocity vector of the L2 point, in km/s
+    1. A 3D array containing the XYZ components of the vector specifying the position
+       of the L2 point, in km
+    2. A 3D array containing the XYZ components of the velocity vector of the L2 point,
+       in km/s
 
-    The two vectors are always roughly perpendicular, but they are not exactly due to the irregular motion of the
-    Earth (caused by gravitational interactions with other solar system bodies, like the Moon and Jupiter).
+    The two vectors are always roughly perpendicular, but they are not exactly due to
+    the irregular motion of the Earth (caused by gravitational interactions with other
+    Solar System bodies, like the Moon and Jupiter).
     """
     # Use
     #
@@ -79,10 +84,11 @@ def compute_lissajous_pos_and_vel(
 ):
     """Compute the position and velocity of the spacecraft assuming a Lissajous orbit
 
-    The position and velocity are calculated in a reference frame centered on the L2 point, whose axes
-    are aligned with the Solar System Barycenter. This means that the position and velocity of the spacecraft
-    with respect to the Solar System Barycenter itself can be calculated by summing the result of this function
-    with the result of a call to :func:`.compute_l2_pos_and_vel`.
+    The position and velocity are calculated in a reference frame centered on the L2
+    point, whose axes are aligned with the Solar System Barycenter. This means that
+    the position and velocity of the spacecraft with respect to the Solar System
+    Barycenter itself can be calculated by summing the result of this function with
+    the result of a call to :func:`.compute_l2_pos_and_vel`.
     """
 
     φ1 = ang_speed1_rad_s * time0
@@ -127,18 +133,20 @@ def sum_lissajous_pos_and_vel(
     ang_speed2_rad_s,
     phase_rad,
 ):
-    """Add the position and velocity of a Lissajous orbit to a precomputed set of positions/velocities
+    """Add the position and velocity of a Lissajous orbit to some positions/velocities
 
-    The `pos` and `vel` arrays must have the same shape (N×3, with N being the number of position-velocity pairs);
-    The 3D position and velocity of the Lissajous orbit will be summed to these arrays.
+    The `pos` and `vel` arrays must have the same shape (N×3, with N being the number
+    of position-velocity pairs); the 3D position and velocity of the Lissajous orbit
+    will be added to these arrays.
 
-    The `times` array must be an array of *float* values, typically starting from zero, and they must measure the
-    time in seconds. All the other parameters are usually taken from a :class:`.SpacecraftOrbit` object.
+    The `times` array must be an array of *float* values, typically starting from zero,
+    and they must measure the time in seconds. All the other parameters are usually
+    taken from a :class:`.SpacecraftOrbit` object.
 
     This function has no return value, as the result is stored in `pos` and `vel`."""
 
-    # This code might look weird if you have never used Numba. However, it is extremely efficient, as it
-    # completely avoids memory allocations.
+    # This code might look weird if you have never used Numba. However, it is extremely
+    # efficient, as it completely avoids memory allocations.
 
     n_elements = pos.shape[
         0
@@ -150,22 +158,25 @@ def sum_lissajous_pos_and_vel(
         l2_pos_x, l2_pos_y, l2_pos_z = pos[idx, :]
         l2_vel_x, l2_vel_y, l2_vel_z = vel[idx, :]
 
-        # The parameter `earth_angle_rad` is the angular position of the Earth (in radians) on the Ecliptic plane with
-        # respect to the Vernal Equinox. If we denote with r = (x, y) the projected position of the L2 point on the
+        # The parameter `earth_angle_rad` is the angular position of the Earth (in
+        # radians) on the Ecliptic plane with respect to the Vernal Equinox. If we
+        # denote with r = (x, y) the projected position of the L2 point on the
         # Ecliptic plane, then the angle is just atan(y/x).
         earth_angle_rad = np.arctan2(l2_pos_y, l2_pos_x)
 
-        # `earth_ang_speed_rad_s` is the angular speed of the Earth on the Ecliptic plane (in rad/s). We calculate
-        # it by projecting the motion of L2 on the Ecliptic plane and determining the tangential component of its
-        # velocity. the vector perpendicular to it and directed counterclockwise is
+        # `earth_ang_speed_rad_s` is the angular speed of the Earth on the Ecliptic
+        # plane (in rad/s). We calculate it by projecting the motion of L2 on the
+        # Ecliptic plane and determining the tangential component of its velocity.
+        # The vector perpendicular to it and directed counterclockwise is
         #
         #           | 0   −1 |   | x |   | −y |
         #     e⟂ =  |        | · |   | = |    |,
         #           | 1    0 |   | y |   |  x |
         #
-        # which must be normalized, so that e⟂ = (−y, x) / √(x² + y²). Then, the component of the velocity vector
-        # aligned along this vector is v·e⟂. However, we are interested in the *angular*
-        # speed, so we must use the relation v·e⟂ = ω r, which leads to
+        # which must be normalized, so that e⟂ = (−y, x) / √(x² + y²). Then, the
+        # component of the velocity vector aligned along this vector is v·e⟂.
+        # However, we are interested in the *angular* speed, so we must use the
+        # relation v·e⟂ = ω r, which leads to
         #
         #     ω = v·e⟂ / r
         #       = (v_x, v_y) · (−y / √(x² + y²), x / √(x² + y²)) / √(x² + y²) =
@@ -203,18 +214,25 @@ class SpacecraftOrbit:
     This structure has the following fields:
 
     - `start_time`: Date and time when the spacecraft starts its nominal orbit
-    - `earth_l2_distance_km`: distance between the Earth's barycenter and the L2 point, in km
-    - `radius1_km`: first radius describing the Lissajous orbit followed by the spacecraft, in km
-    - `radius2_km`: second radius describing the Lissajous orbit followed by the spacecraft, in km
+    - `earth_l2_distance_km`: distance between the Earth's barycenter and the L2
+      point, in km
+    - `radius1_km`: first radius describing the Lissajous orbit followed by the
+      spacecraft, in km
+    - `radius2_km`: second radius describing the Lissajous orbit followed by the
+      spacecraft, in km
     - `ang_speed1_rad_s`: first angular speed of the Lissajous orbit, in rad/s
     - `ang_speed2_rad_s`: second angular speed of the Lissajous orbit, in rad/s
-    - `phase_rad`: phase difference between the two periodic motions in the Lissajous orbit, in radians
-    - `solar_velocity_km_s`: velocity of the Sun as estimated from Planck 2018 Solar dipole arxiv: 1807.06207
-    - `solar_velocity_gal_lat_rad`: galactic latitude direction of the Planck 2018 Solar dipole
-    - `solar_velocity_gal_lon_rad`: galactic longitude direction of the Planck 2018 Solar dipole    
+    - `phase_rad`: phase difference between the two periodic motions in the Lissajous
+      orbit, in radians
+    - `solar_velocity_km_s`: velocity of the Sun as estimated from Planck 2018 Solar
+      dipole (see arxiv: 1807.06207)
+    - `solar_velocity_gal_lat_rad`: galactic latitude direction of the Planck 2018
+      Solar dipole
+    - `solar_velocity_gal_lon_rad`: galactic longitude direction of the Planck 2018
+      Solar dipole
 
-    The default values are the nominal numbers of the orbit followed by WMAP, described in Cavaluzzi,
-    Fink & Coyle (2008).
+    The default values are the nominal numbers of the orbit followed by WMAP, described
+    in Cavaluzzi, Fink & Coyle (2008).
     """
 
     start_time: astropy.time.Time
@@ -243,25 +261,30 @@ class SpacecraftOrbit:
 
 
 class SpacecraftPositionAndVelocity:
-    """Encode the position and velocity of the spacecraft with respect to the Solar System
+    """Encode the position/velocity of the spacecraft with respect to the Solar System
 
-    This class contains information that characterize the motion of the spacecraft. It is mainly useful to simulate
-    the so-called CMB «orbital dipole» and to properly check the visibility of the Sun, the Moon and inner planets.
-    The coordinate system used by this class is the standard Barycentric Ecliptic reference frame.
+    This class contains information that characterize the motion of the spacecraft.
+    It is mainly useful to simulate the so-called CMB «orbital dipole» and to properly
+    check the visibility of the Sun, the Moon and inner planets.  The coordinate
+    system used by this class is the standard Barycentric Ecliptic reference frame.
 
     The fields of this class are the following:
 
-    - ``orbit``: a :class:`.SpacecraftOrbit` object used to compute the positions and velocities in this object;
+    - ``orbit``: a :class:`.SpacecraftOrbit` object used to compute the positions and
+                 velocities in this object;
 
-    - ``start_time``: the time when the nominal orbit started (a ``astropy.time.Time`` object);
+    - ``start_time``: the time when the nominal orbit started (a ``astropy.time.Time``
+                      object);
 
     - ``time_span_s``: the time span covered by this object, in seconds;
 
-    - ``positions_km``: a ``N×3`` matrix, representing a list of ``N`` XYZ vectors encoding the position
-      of the spacecraft in the Barycentric Ecliptic reference frame (in kilometers);
+    - ``positions_km``: a ``N×3`` matrix, representing a list of ``N`` XYZ vectors
+                        encoding the position of the spacecraft in the Barycentric
+                        Ecliptic reference frame (in kilometers);
 
-    - ``velocities_km_s``: a ``N×3`` matrix, representing a list of ``N`` XYZ vectors encoding the linear
-      velocity of the spacecraft in the Barycentric Ecliptic reference frame (in km/s).
+    - ``velocities_km_s``: a ``N×3`` matrix, representing a list of ``N`` XYZ vectors
+                           encoding the linear velocity of the spacecraft in the
+                           Barycentric Ecliptic reference frame (in km/s).
 
     """
 
@@ -280,9 +303,10 @@ class SpacecraftPositionAndVelocity:
         self.velocities_km_s = velocities_km_s
 
     def __str__(self):
-        return "SpacecraftPositionAndVelocity(start_time={0}, time_span_s={1}, nsamples={2})".format(
-            self.start_time, self.time_span_s, len(self.positions_km)
-        )
+        return (
+            "SpacecraftPositionAndVelocity(start_time={0}, "
+            "time_span_s={1}, nsamples={2})"
+        ).format(self.start_time, self.time_span_s, len(self.positions_km))
 
     def __repr__(self):
         return str(self)
@@ -290,10 +314,11 @@ class SpacecraftPositionAndVelocity:
     def compute_velocities(
         self, time0: astropy.time.Time, delta_time_s: float, num_of_samples: int
     ):
-        """Perform a linear interpolation to sample the satellite velocity according to some δt
+        """Perform a linear interpolation to sample the satellite velocity in time
 
-        Return a N×3 array containing a set of `num_of_samples` 3D vectors with the velocity of the spacecraft (in km/s)
-        computed every `delta_time_s` seconds starting from time `time0`.
+        Return a N×3 array containing a set of `num_of_samples` 3D vectors with the
+        velocity of the spacecraft (in km/s) computed every `delta_time_s` seconds
+        starting from time `time0`.
         """
         delta_start_s = (time0 - self.start_time).sec
         t = delta_start_s + np.linspace(
@@ -320,13 +345,15 @@ def l2_pos_and_vel_in_obs(
 ) -> SpacecraftPositionAndVelocity:
     """Compute the position and velocity of the L2 point within some time span
 
-    This function computes the XYZ position and velocity of the second Sun-Earth Lagrangean point (L2) over a
-    time span specified either by a :class:`.Observation` object or by an explicit pair of values `start_time`
-    (an ``astropy.time.Time`` object) and `time_span_s` (length in seconds). The position is specified in the
-    standard Barycentric Ecliptic reference frame.
+    This function computes the XYZ position and velocity of the second Sun-Earth
+    Lagrangean point (L2) over a time span specified either by a
+    :class:`.Observation` object or by an explicit pair of values `start_time`
+    (an ``astropy.time.Time`` object) and `time_span_s` (length in seconds). The
+    position is specified in the standard Barycentric Ecliptic reference frame.
 
-    The position of the L2 point is computed starting from the position of the Earth and moving away along
-    the anti-Sun direction by a number of kilometers equal to `earth_l2_distance_km`.
+    The position of the L2 point is computed starting from the position of the
+    Earth and moving away along the anti-Sun direction by a number of kilometers
+    equal to `earth_l2_distance_km`.
 
     The result is an object of type :class:`.SpacecraftPositionAndVelocity`.
     """
@@ -341,8 +368,9 @@ def l2_pos_and_vel_in_obs(
         start_time = obs.start_time
         time_span_s = obs.get_time_span().to("s").value
 
-    # We are going to compute the position of the L2 point at N times. The value N is chosen such that the spacing
-    # between two consecutive times is never longer than ~1 day
+    # We are going to compute the position of the L2 point at N times. The value N
+    # is chosen such that the spacing between two consecutive times is never longer
+    # than ~1 day
     times = astropy.time.TimeDelta(
         np.linspace(
             start=0.0, stop=time_span_s, num=int(np.ceil(time_span_s / 86400.0)) + 1

@@ -8,7 +8,6 @@ import numpy as np
 from typing import Union
 
 from astropy.constants import c as c_light
-import astropy
 from astropy.constants import h, k_B
 
 from .observations import Observation
@@ -17,26 +16,32 @@ from .spacecraft import SpacecraftPositionAndVelocity
 C_LIGHT_KM_S = c_light.value / 1e3
 H_OVER_K_B = h.value / k_B.value
 
+
 # We use a IntEnum class so that comparisons are much faster than with strings
 class DipoleType(IntEnum):
-    """Kind of calculation to use when estimating the Doppler shift caused by the motion of the spacecraft"""
+    """Approximation for the Doppler shift caused by the motion of the spacecraft"""
 
     # Simple linear approximation (the fastest calculation)
     LINEAR = 0
 
-    # Up to second order in β, including second order in the expansion of the thermodynamic temperature
+    # Up to second order in β, including second order in the expansion of the
+    # thermodynamic temperature
     QUADRATIC_EXACT = 1
 
-    # Total contribution (the slowest but more accurate formula, correct only in true thermodynamic units)
+    # Total contribution (the slowest but more accurate formula, correct only in
+    # true thermodynamic units)
     TOTAL_EXACT = 2
 
-    # Up to second order in β, using the linear temperature approximation (linearization of thermodynamic temperature)
-    # This is the formula to use if you want the leading frequency dependent term (second order) neglecting the boosting induced monopoles
+    # Up to second order in β, using the linear temperature approximation
+    # (linearization of thermodynamic temperature). This is the formula to use if
+    # you want the leading frequency dependent term (second order) without the
+    # boosting induced monopoles
     QUADRATIC_FROM_LIN_T = 3
 
-    # Total contribution, using the linear temperature approximation (the slowest but more accurate formula)
-    # Linear temperature approximation is tipically used in CMB experiments
-    # This is the formula to use if you want the frequency dependent terms at all orders
+    # Total contribution, using the linear temperature approximation (the
+    # most accurate formula), which is typically used in CMB experiments.
+    # This is the formula to use if you want the frequency dependent terms at all
+    # orders
     TOTAL_FROM_LIN_T = 4
 
 
@@ -73,9 +78,9 @@ def compute_dipole_for_one_sample_linear(theta, phi, v_km_s, t_cmb_k):
 def compute_dipole_for_one_sample_quadratic_exact(theta, phi, v_km_s, t_cmb_k):
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
 
-    # up to second order in beta, including second order in the expansion of thermodynamic temperature
-    # this is in true temperature
-    # no boosting induced monopoles added
+    # Up to second order in beta, including second order in the expansion of
+    # thermodynamic temperature. This is in true temperature, and
+    # no boosting induced monopoles are added.
     return t_cmb_k * (beta_dot_n + beta_dot_n ** 2)
 
 
@@ -91,9 +96,9 @@ def compute_dipole_for_one_sample_total_exact(theta, phi, v_km_s, t_cmb_k):
 def compute_dipole_for_one_sample_quadratic_from_lin_t(
     theta, phi, v_km_s, t_cmb_k, q_x
 ):
-    # up to second order in beta, including second order in the expansion of thermodynamic temperature
-    # this is in linearized thermodynamic temperature
-    # no boosting induced monopoles added
+    # Up to second order in beta, including second order in the expansion of
+    # thermodynamic temperature. This is in linearized thermodynamic temperature.
+    # No boosting induced monopoles are added
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
     return t_cmb_k * (beta_dot_n + q_x * beta_dot_n ** 2)
 
@@ -169,10 +174,11 @@ def add_dipole(
     velocity,
     t_cmb_k: float,
     frequency_ghz: np.ndarray,  # e.g. central frequency of channel from
-    # lbs.FreqChannelInfo.from_imo(url=f"/releases/v1.0/satellite/{telescope}/{channel}/channel_info",imo=imo).bandcenter_ghz
+    # lbs.FreqChannelInfo.from_imo(url=…, imo=imo).bandcenter_ghz
+    # using as url f"/releases/v1.0/satellite/{telescope}/{channel}/channel_info"
     dipole_type: DipoleType,
 ):
-    """Add dipole to tod 
+    """Add dipole to tod
 
     """
 
@@ -207,20 +213,21 @@ def add_dipole_to_observation(
     pointings,
     pos_and_vel: SpacecraftPositionAndVelocity,
     t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
-    dipole_type: DipoleType = 4,  # Default: total contribution, using the linear temperature approximation
+    dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
     frequency_ghz: Union[
         np.ndarray, None
     ] = None,  # e.g. central frequency of channel from
 ):
-    # Alas, this allocates memory for the velocity vector! At the moment it is the simplest implementation, but
-    # in the future we might want to inline the interpolation code within "add_dipole" to save memory
+    # Alas, this allocates memory for the velocity vector! At the moment it is the
+    # simplest implementation, but in the future we might want to inline the
+    # interpolation code within "add_dipole" to save memory
     velocity = pos_and_vel.compute_velocities(
         time0=obs.start_time,
         delta_time_s=obs.get_delta_time().value,
         num_of_samples=obs.tod.shape[1],
     )
 
-    if frequency_ghz == None:
+    if frequency_ghz is None:
         frequency_ghz = obs.bandcenter_ghz
     else:
         frequency_ghz = np.repeat(frequency_ghz, obs.tod.shape[0])
