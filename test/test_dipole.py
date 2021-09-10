@@ -12,7 +12,7 @@ import unittest
 def bin_map(tod, pixel_indexes, binned_map, accum_map, hit_map):
     # This is a helper function that implements a quick-and-dirty mapmaker.
     # We implement here a simple binner that works only in temperature (unlike
-    # lbs.make_bin_maps, which solves for the I/Q/U Stokes components and it
+    # lbs.make_bin_maps, which solves for the I/Q/U Stokes components and is
     # an overkill here).
 
     for idx in range(len(accum_map)):
@@ -123,9 +123,8 @@ def test_solar_dipole_fit():
         accum_map=m,
         hit_map=h,
     )
-    import healpy
 
-    healpy.write_map("map_o.fits.gz", map_s_o, overwrite=True)
+    healpy.write_map("map_o.fits.gz", map_o, overwrite=True)
 
     dip_map = map_s_o - map_o
 
