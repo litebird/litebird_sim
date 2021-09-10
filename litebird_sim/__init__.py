@@ -67,7 +67,7 @@ from .spacecraft import (
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
 )
-from .dipole import add_dipole, add_dipole_to_observation, DipoleType
+from .dipole import add_dipole, add_dipole_to_observations, DipoleType
 from .version import __author__, __version__
 
 __all__ = [
@@ -147,7 +147,7 @@ __all__ = [
     "add_noise",
     # dipole.py
     "add_dipole",
-    "add_dipole_to_observation",
+    "add_dipole_to_observations",
     "DipoleType",
     # coordinates.py
     "DEFAULT_COORDINATE_SYSTEM",

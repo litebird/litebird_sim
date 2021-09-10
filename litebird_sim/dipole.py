@@ -5,7 +5,7 @@ from enum import IntEnum
 from numba import njit
 import numpy as np
 
-from typing import Union
+from typing import Union, List
 
 from astropy.constants import c as c_light
 from astropy.constants import h, k_B
@@ -178,9 +178,7 @@ def add_dipole(
     # using as url f"/releases/v1.0/satellite/{telescope}/{channel}/channel_info"
     dipole_type: DipoleType,
 ):
-    """Add dipole to tod
-
-    """
+    """Add dipole to tod"""
 
     assert tod.shape == pointings.shape[0:2]
     assert tod.shape[1] == velocity.shape[0]
@@ -208,8 +206,8 @@ def add_dipole(
         )
 
 
-def add_dipole_to_observation(
-    obs: Observation,
+def add_dipole_to_observations(
+    obs: Union[Observation, List[Observation]],
     pointings,
     pos_and_vel: SpacecraftPositionAndVelocity,
     t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
@@ -218,25 +216,31 @@ def add_dipole_to_observation(
         np.ndarray, None
     ] = None,  # e.g. central frequency of channel from
 ):
-    # Alas, this allocates memory for the velocity vector! At the moment it is the
-    # simplest implementation, but in the future we might want to inline the
-    # interpolation code within "add_dipole" to save memory
-    velocity = pos_and_vel.compute_velocities(
-        time0=obs.start_time,
-        delta_time_s=obs.get_delta_time().value,
-        num_of_samples=obs.tod.shape[1],
-    )
-
-    if frequency_ghz is None:
-        frequency_ghz = obs.bandcenter_ghz
+    if isinstance(obs, Observation):
+        obs_list = [obs]
     else:
-        frequency_ghz = np.repeat(frequency_ghz, obs.tod.shape[0])
+        obs_list = obs
 
-    add_dipole(
-        tod=obs.tod,
-        pointings=pointings,
-        velocity=velocity,
-        t_cmb_k=t_cmb_k,
-        frequency_ghz=frequency_ghz,
-        dipole_type=dipole_type,
-    )
+    for cur_obs in obs_list:
+        # Alas, this allocates memory for the velocity vector! At the moment it is the
+        # simplest implementation, but in the future we might want to inline the
+        # interpolation code within "add_dipole" to save memory
+        velocity = pos_and_vel.compute_velocities(
+            time0=cur_obs.start_time,
+            delta_time_s=cur_obs.get_delta_time().value,
+            num_of_samples=cur_obs.tod.shape[1],
+        )
+
+        if frequency_ghz is None:
+            frequency_ghz = cur_obs.bandcenter_ghz
+        else:
+            frequency_ghz = np.repeat(frequency_ghz, cur_obs.tod.shape[0])
+
+        add_dipole(
+            tod=cur_obs.tod,
+            pointings=pointings,
+            velocity=velocity,
+            t_cmb_k=t_cmb_k,
+            frequency_ghz=frequency_ghz,
+            dipole_type=dipole_type,
+        )

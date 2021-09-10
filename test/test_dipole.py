@@ -68,8 +68,8 @@ def test_solar_dipole_fit():
         quat=[0.0, 0.0, 0.0, 1.0],
     )
 
-    obs_s_o, = sim.create_observations(detectors=[det])
-    obs_o, = sim.create_observations(detectors=[det])
+    (obs_s_o,) = sim.create_observations(detectors=[det])
+    (obs_o,) = sim.create_observations(detectors=[det])
 
     pointings = lbs.scanning.get_pointings(
         obs_s_o,
@@ -90,10 +90,10 @@ def test_solar_dipole_fit():
     assert pos_vel_s_o.velocities_km_s.shape == (366, 3)
     assert pos_vel_o.velocities_km_s.shape == (366, 3)
 
-    lbs.add_dipole_to_observation(
+    lbs.add_dipole_to_observations(
         obs_s_o, pointings, pos_vel_s_o, dipole_type=lbs.DipoleType.LINEAR
     )
-    lbs.add_dipole_to_observation(
+    lbs.add_dipole_to_observations(
         obs_o, pointings, pos_vel_o, dipole_type=lbs.DipoleType.LINEAR
     )
 
