@@ -24,7 +24,10 @@ def bin_map(tod, pixel_indexes, binned_map, accum_map, hit_map):
         hit_map[pix_idx] += 1
 
     for idx in range(len(binned_map)):
-        binned_map[idx] = accum_map[idx] / hit_map[idx]
+        if hit_map[idx] > 0:
+            binned_map[idx] = accum_map[idx] / hit_map[idx]
+        else:
+            binned_map[idx] = np.nan
 
 
 def test_solar_dipole_fit():
@@ -45,20 +48,20 @@ def test_solar_dipole_fit():
     sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
 
     scanning = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=0.7853981633974483,
-        precession_rate_hz=8.664850513998931e-05,
-        spin_rate_hz=0.0008333333333333334,
+        spin_sun_angle_rad=0.785_398_163_397_448_3,
+        precession_rate_hz=8.664_850_513_998_931e-05,
+        spin_rate_hz=0.000_833_333_333_333_333_4,
         start_time=start_time,
     )
 
     spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-        start_time, time_span_s, 100
+        start_time, time_span_s, delta_time_s=7200
     )
 
     instr = lbs.InstrumentInfo(
         boresight_rotangle_rad=0.0,
-        spin_boresight_angle_rad=0.8726646259971648,
-        spin_rotangle_rad=3.141592653589793,
+        spin_boresight_angle_rad=0.872_664_625_997_164_8,
+        spin_rotangle_rad=3.141_592_653_589_793,
     )
 
     det = lbs.DetectorInfo(
@@ -84,8 +87,8 @@ def test_solar_dipole_fit():
     assert orbit_s_o.solar_velocity_km_s == 369.8160
     assert orbit_o.solar_velocity_km_s == 0.0
 
-    pos_vel_s_o = lbs.l2_pos_and_vel_in_obs(orbit_s_o, obs_s_o)
-    pos_vel_o = lbs.l2_pos_and_vel_in_obs(orbit_o, obs_o)
+    pos_vel_s_o = lbs.spacecraft_pos_and_vel(orbit_s_o, obs_s_o, delta_time_s=86400.0)
+    pos_vel_o = lbs.spacecraft_pos_and_vel(orbit_o, obs_o, delta_time_s=86400.0)
 
     assert pos_vel_s_o.velocities_km_s.shape == (366, 3)
     assert pos_vel_o.velocities_km_s.shape == (366, 3)
@@ -128,10 +131,11 @@ def test_solar_dipole_fit():
 
     dip_map = map_s_o - map_o
 
-    assert np.abs(map_s_o.mean() * 1e6) < 1
-    assert np.abs(map_o.mean() * 1e6) < 1
-    assert np.abs(dip_map.mean() * 1e6) < 1
+    assert np.abs(np.nanmean(map_s_o) * 1e6) < 1
+    assert np.abs(np.nanmean(map_o) * 1e6) < 1
+    assert np.abs(np.nanmean(dip_map) * 1e6) < 1
 
+    dip_map[np.isnan(dip_map)] = healpy.UNSEEN
     mono, dip = hp.fit_dipole(dip_map)
 
     r = hp.Rotator(coord=["E", "G"])
