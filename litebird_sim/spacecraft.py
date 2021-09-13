@@ -330,18 +330,21 @@ class SpacecraftPositionAndVelocity:
         tp = np.linspace(
             start=0.0, stop=self.time_span_s, num=self.velocities_km_s.shape[0]
         )
-        vel_x = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 0])
-        vel_y = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 1])
-        vel_z = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 2])
 
-        return np.array([vel_x, vel_y, vel_z]).transpose()
+        velocities = np.empty((num_of_samples, 3))
+        velocities[:, 0] = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 0])
+        velocities[:, 1] = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 1])
+        velocities[:, 2] = np.interp(x=t, xp=tp, fp=self.velocities_km_s[:, 2])
+
+        return velocities
 
 
-def l2_pos_and_vel_in_obs(
+def spacecraft_pos_and_vel(
     orbit: SpacecraftOrbit,
     obs: Union[Observation, None] = None,
     start_time: Union[astropy.time.Time, None] = None,
     time_span_s: Union[float, None] = None,
+    delta_time_s: float = 86400.0,
 ) -> SpacecraftPositionAndVelocity:
     """Compute the position and velocity of the L2 point within some time span
 
@@ -373,7 +376,9 @@ def l2_pos_and_vel_in_obs(
     # than ~1 day
     times = astropy.time.TimeDelta(
         np.linspace(
-            start=0.0, stop=time_span_s, num=int(np.ceil(time_span_s / 86400.0)) + 1
+            start=0.0,
+            stop=time_span_s,
+            num=int(np.ceil(time_span_s / delta_time_s)) + 1,
         ),
         format="sec",
         scale=DEFAULT_TIME_SCALE,

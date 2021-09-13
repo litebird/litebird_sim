@@ -63,7 +63,7 @@ from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
 from .spacecraft import (
     compute_l2_pos_and_vel,
     compute_lissajous_pos_and_vel,
-    l2_pos_and_vel_in_obs,
+    spacecraft_pos_and_vel,
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
 )
@@ -155,7 +155,7 @@ __all__ = [
     # spacecraft.py
     "compute_l2_pos_and_vel",
     "compute_lissajous_pos_and_vel",
-    "l2_pos_and_vel_in_obs",
+    "spacecraft_pos_and_vel",
     "SpacecraftOrbit",
     "SpacecraftPositionAndVelocity",
 ]

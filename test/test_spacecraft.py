@@ -17,10 +17,10 @@ def test_spacecraft_orbit():
     )
 
     time_span_s = astropy.time.TimeDelta(86400.0 * 365, format="sec").to("s").value
-    posvel = lbs.l2_pos_and_vel_in_obs(
+    posvel = lbs.spacecraft_pos_and_vel(
         orbit, start_time=start_time, time_span_s=time_span_s
     )
-    posvel_no_lissajous = lbs.l2_pos_and_vel_in_obs(
+    posvel_no_lissajous = lbs.spacecraft_pos_and_vel(
         no_lj_orbit, start_time=start_time, time_span_s=time_span_s
     )
 
