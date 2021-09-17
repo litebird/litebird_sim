@@ -8,6 +8,47 @@ from astropy.time import Time
 import unittest
 
 
+def test_dipole_models():
+    pointings = np.deg2rad(
+        np.array(
+            [
+                [
+                    [0, 0, 0],  # Theta, phi, psi for the #1 sample
+                    [90, 0, 0],  # Theta, phi, psi for the #2 sample
+                    [180, 0, 0],  # Theta, phi, psi for the #3 sample
+                ]
+            ]
+        )
+    )
+    tod = np.empty((1, 3))
+
+    # These velocities are expressed as a fraction of the speed of light
+    velocity = 299_792.458 * np.array(
+        [[0.1, 0.0, 0.0], [0.1, 0.0, 0.0], [0.1, 0.0, 0.0]]
+    )
+
+    # All these numbers have been calculated using a Mathematica notebook
+    reference = {
+        lbs.DipoleType.LINEAR: [[0.0, 0.1, 0.0]],
+        lbs.DipoleType.QUADRATIC_EXACT: [[0.0, 0.11, 0.0]],
+        lbs.DipoleType.TOTAL_EXACT: [[-0.005_012_56, 0.105_542, -0.005_012_56]],
+        lbs.DipoleType.QUADRATIC_FROM_LIN_T: [[0.0, 0.124_395, 0.0]],
+        lbs.DipoleType.TOTAL_FROM_LIN_T: [[-0.004_976, 0.121_683, -0.004_976]],
+    }
+
+    for (cur_type, cur_ref) in reference.items():
+        tod[:] = 0.0
+        lbs.add_dipole(
+            tod,
+            pointings,
+            velocity,
+            t_cmb_k=1.0,
+            frequency_ghz=[100],
+            dipole_type=cur_type,
+        )
+        np.testing.assert_allclose(tod, cur_ref, rtol=1e-6, atol=1e-6)
+
+
 @njit
 def bin_map(tod, pixel_indexes, binned_map, accum_map, hit_map):
     # This is a helper function that implements a quick-and-dirty mapmaker.

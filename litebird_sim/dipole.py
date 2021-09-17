@@ -201,10 +201,9 @@ def add_dipole(
     CMB dipole. Use `dipole_type` to specify which kind of approximation to use
     for the dipole component. The `pointings` argument must be a N×3 matrix containing
     the pointing information, where N is the size of the `tod` array. The `velocity`
-    argument is usually computed through :func:`.spacecraft_pos_and_vel`. Finaly,
-    `t_cmb_k` is the temperature of the monopole and `frequency_ghz` is the frequency
-    of the detector (only relevant if you are using linearized temperatures, see
-    :class:`DipoleType`)."""
+    argument is usually computed through :func:`.spacecraft_pos_and_vel`. Finally,
+    `t_cmb_k` is the temperature of the monopole and `frequency_ghz` is an array
+    containing the frequencies of each detector in the TOD."""
 
     assert tod.shape == pointings.shape[0:2]
     assert tod.shape[1] == velocity.shape[0]
