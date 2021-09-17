@@ -59,6 +59,15 @@ from .mapping import make_bin_map
 from .destriper import DestriperParameters, DestriperResult, destripe
 from .simulations import Simulation
 from .noise import add_noise
+from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
+from .spacecraft import (
+    compute_l2_pos_and_vel,
+    compute_lissajous_pos_and_vel,
+    spacecraft_pos_and_vel,
+    SpacecraftOrbit,
+    SpacecraftPositionAndVelocity,
+)
+from .dipole import add_dipole, add_dipole_to_observations, DipoleType
 from .version import __author__, __version__
 
 __all__ = [
@@ -136,4 +145,17 @@ __all__ = [
     "Simulation",
     # noise.py
     "add_noise",
+    # dipole.py
+    "add_dipole",
+    "add_dipole_to_observations",
+    "DipoleType",
+    # coordinates.py
+    "DEFAULT_COORDINATE_SYSTEM",
+    "DEFAULT_TIME_SCALE",
+    # spacecraft.py
+    "compute_l2_pos_and_vel",
+    "compute_lissajous_pos_and_vel",
+    "spacecraft_pos_and_vel",
+    "SpacecraftOrbit",
+    "SpacecraftPositionAndVelocity",
 ]

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Union
 from uuid import UUID
 
-from astropy.coordinates import ICRS, get_body_barycentric, BarycentricMeanEcliptic
+from astropy.coordinates import ICRS, get_body_barycentric
 import astropy.time
 import astropy.units as u
 from numba import njit
@@ -12,6 +12,7 @@ import numpy as np
 
 from ducc0.pointingprovider import PointingProvider
 
+from .coordinates import DEFAULT_COORDINATE_SYSTEM
 from .imo import Imo
 
 from .quaternions import (
@@ -386,7 +387,7 @@ def calculate_sun_earth_angles_rad(time_vector):
 
     if isinstance(time_vector, astropy.time.Time):
         pos = get_body_barycentric("earth", time_vector)
-        coord = ICRS(pos).transform_to(BarycentricMeanEcliptic).cartesian
+        coord = ICRS(pos).transform_to(DEFAULT_COORDINATE_SYSTEM).cartesian
         return np.arctan2(coord.y.value, coord.x.value)
     else:
         return YEARLY_OMEGA_SPIN_HZ * time_vector
