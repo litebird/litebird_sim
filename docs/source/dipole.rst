@@ -67,7 +67,8 @@ position/velocity pairs evenly spaced between 2023-01-01 and
 2023-01-02: one at midnight, one at 1:00, etc., till midnight
 2023-01-02. The :class:`.SpacecraftPositionAndVelocity` class keeps
 the table with the positions and the velocities in the fields
-``positions_km`` and ``velocities_km_s``, respectively.
+``positions_km`` and ``velocities_km_s``, respectively, which are
+arrays of shape ``(nsamples, 3)``.
 
 Here is a slightly more complex example that shows how to plot the
 distance between the spacecraft and the Sun as a function of time, as
@@ -82,34 +83,94 @@ Computing the dipole
 --------------------
 
 The CMB dipole is caused by a Doppler shift of the frequencies
-observed while looking at the CMB blackbody spectrum; the shift
-depends on the relative velocity of the observer with respect to the
-CMB rest frame, and this explains the reason why the class
-:class:`.SpacecraftPositionAndVelocity` was implemented.
+observed while looking at the CMB blackbody spectrum, according to the formula
 
-The CMB dipole signal is a deceptively simple phenomenon that has many
-small quirks. Here are a few of them:
+.. math::
+   :label: dipole
 
-1. While the motion of the Solar System with respect to the CMB rest
-   frame can be considered constant throughout the mission, this is
-   not the case for the orbital motion of the spacecraft around the
-   Sun. This means that the dipole has a constant component (which can
-   be plotted as a map over the 4π sphere) and a variable component;
-   the latter cannot be represented on a map but must be studied in
-   the detector timelines.
-2. When considering relativistic corrections to the classical Doppler
-   formula, any motion with respect to the CMB rest frame changes the
-   apparent arrival direction of photons, thus inducing higher-order
-   perturbations (the so-called Doppler quadrupole, octupole, etc.).
-   See :cite:`2015:quadrupole:notari` for more information.
-3. The relativistic corrections to the quadrupole are
-   frequency-dependent and need to be computed over the band response
-   of each detector.
-4. Finally, the dipole is always observed through a *realistic* beam,
-   which means that the actual signal is the convolution of the dipole
-   (plus its corrective terms at higher orders) with a beam function.
+   T(\vec\beta, \hat n) = \frac{T_0}{\gamma \bigl(1 - \vec\beta \cdot \hat n\bigr)},
 
+where :math:`T_0` is the temperature in the rest frame of the CMB,
+:math:`\vec \beta = \vec v / c` is the dimensionless velocity vector,
+:math:`\hat n` is the direction of the line of sight, and
+:math:`\gamma = \bigl(1 - \vec\beta \cdot \vec\beta\bigr)^2`.
 
+However, CMB experiments usually employ the linear thermodynamic
+temperature definition, where temperature differences :math:`\Delta_1 T`
+are related to the actual temperature difference :math:`\Delta T` by
+the relation
+
+.. math::
+   :label: linearized-dipole
+
+   \Delta_1 T = \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}(T_0 + \Delta T)}{\mathrm{BB}(T_0)} - 1\right) =
+   \frac{T_0}{f(x)} \left(\frac{\exp x - 1}{\exp\left(x\frac{T_0}{T_0 + \Delta T}\right) - 1} - 1\right),
+
+where :math:`x = h \nu / k_B T`,
+
+.. math:: f(x) = \frac{x e^x}{e^x - 1},
+
+and :math:`\mathrm{BB}(\nu, T)` is the spectral radiance of a
+black-body according to Planck's law:
+
+.. math:: \mathrm{BB}(\nu, T) = \frac{2h\nu^3}{c^2} \frac1{e^{h\nu/k_B T} - 1} = \frac{2h\nu^3}{c^2} \frac1{e^x - 1}.
+      
+There is no numerical issue in computing the full formula, but often
+models use some simplifications, to make the math easier to work on
+the blackboard. The LiteBIRD Simulation Framework implements several
+simplifications of the formula, which are based on a series expansion
+of :eq:`dipole`; the caller must pass an object of type
+:class:`DipoleType` (an `enum class
+<https://docs.python.org/3/library/enum.html>`_), whose value signals
+which kind of approximation to use:
+
+1. The most simple formula uses a series expansion of :eq:`dipole` at
+   the first order:
+
+   .. math:: \Delta T(\vec\beta, \hat n) = T_0 \vec\beta\cdot\hat n,
+
+   which is associated to the constant ``DipoleType.LINEAR``.
+
+2. The same series expansion for :eq:`dipole`, but stopped at the
+   second order (``DipoleType.QUADRATIC_EXACT``):
+
+   .. math:: \Delta T(\vec\beta, \hat n) = T_0\left(\vec\beta\cdot\hat n + \bigl(\vec\beta\cdot\hat n\bigr)^2\right),
+
+   which discards a :math:`-T_0\,\beta^2/2` term (monopole).
+
+3. The exact formula as in :eq:`dipole` (``DipoleType.TOTAL_EXACT``).
+
+4. Using a series expansion to the second order of
+   :eq:`linearized-dipole` instead of :eq:`dipole` and neglecting
+   monopoles (``DipoleTotal.QUADRATIC_FROM_LIN_T``):
+
+   .. math:: \Delta_2 T(\nu) = T_0 \left(\vec\beta\cdot\hat n + q(x) \bigl(\vec\beta\cdot\hat n\bigr)^2\right),
+
+   where the dependence on the frequency ν is due to the presence of
+   the term :math:`x = h\nu / k_B T` in the equation.
+
+5. Finally, linearizing :eq:`dipole` through :eq:`linearized-dipole`
+   (``DipoleTotal.TOTAL_FROM_LIN_T``):
+
+   .. math::
+
+      \Delta T = \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\left(T_0 / \gamma\bigl(1 - \vec\beta\cdot\hat n\bigr)\right)}{\mathrm{BB}(T_0)} - 1\right) =
+      \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\bigl(\nu\gamma(1-\vec\beta\cdot\hat n), T_0\bigr)}{\bigl(\gamma(1-\vec\beta\cdot\hat n)\bigr)^3\mathrm{BB}(t_0)}\right).
+
+   In this case too, the temperature variation depends on the
+   frequency because of :eq:`linearized-dipole`.
+
+You can *add* the dipole signal to an existing TOD through the
+function :func:`.add_dipole_to_observations`, as the following example
+shows:
+
+.. plot:: pyplots/dipole_demo.py
+   :include-source:
+
+The example plots two minutes of a simulated timeline for a very
+simple instrument, and it zooms over the very first points to show
+that there is indeed some difference in the estimate provided by each
+method.
 
            
 API reference
