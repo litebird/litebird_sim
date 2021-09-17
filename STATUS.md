@@ -17,7 +17,7 @@ Simulation Team plans to implement in `litebird_sim`.
 | Beam convolution                 | Partial  |            | Through ducc0                   | [ducc.totalconvolve](https://gitlab.mpcdf.mpg.de/mtr/ducc/-/tree/ducc0/)                        |
 | Calibration non-idealities       | Partial  |            | Code in toast-litebird          | [`OpGainDrifter`](https://github.com/hpc4cmb/toast-litebird/blob/master/toast_litebird/gain.py) |
 | Cosmic-ray glitch generation     | Partial  |            |                                 | No PRs yet                                                                                      |
-| HWP simulation                   | Partial  |            |                                 | No PRs yet                                                                                      |
+| HWP simulation                   | Partial  |            |                                 | [PR#117](https://github.com/litebird/litebird_sim/pull/117)                                    |
 | ADC simulation                   | Partial  |            | Through the CR glitch generator | No PRs yet                                                                                      |
 | Map scanning                     | Missing  |            |                                 |                                                                                                 |
 | White+1/f noise generation       | Missing  |            |                                 |                                                                                                 |
