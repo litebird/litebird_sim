@@ -160,7 +160,8 @@ which kind of approximation to use:
       \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\bigl(\nu\gamma(1-\vec\beta\cdot\hat n), T_0\bigr)}{\bigl(\gamma(1-\vec\beta\cdot\hat n)\bigr)^3\mathrm{BB}(t_0)}\right).
 
    In this case too, the temperature variation depends on the
-   frequency because of :eq:`linearized-dipole`.
+   frequency because of :eq:`linearized-dipole`. This is the formula
+   that is typically used by CMB experiments.
 
 You can *add* the dipole signal to an existing TOD through the
 function :func:`.add_dipole_to_observations`, as the following example
