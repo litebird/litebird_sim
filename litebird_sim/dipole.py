@@ -21,28 +21,45 @@ H_OVER_K_B = h.value / k_B.value
 class DipoleType(IntEnum):
     """Approximation for the Doppler shift caused by the motion of the spacecraft"""
 
-    # Simple linear approximation (the fastest calculation)
     LINEAR = 0
+    r"""Linear approximation in β using thermodynamic units:
 
-    # Up to second order in β, including second order in the expansion of the
-    # thermodynamic temperature
+    .. math:: \Delta T(\vec\beta, \hat n) = T_0 \vec\beta\cdot\hat n
+
+    """ ""
+
     QUADRATIC_EXACT = 1
+    r"""Second-order approximation in β using thermodynamic units:
 
-    # Total contribution (the slowest but more accurate formula, correct only in
-    # true thermodynamic units)
+    .. math:: \Delta T(\vec\beta, \hat n) = T_0\left(\vec\beta\cdot\hat n +
+              \bigl(\vec\beta\cdot\hat n\bigr)^2\right)
+
+    """
+
     TOTAL_EXACT = 2
+    r"""Exact formula in true thermodynamic units:
 
-    # Up to second order in β, using the linear temperature approximation
-    # (linearization of thermodynamic temperature). This is the formula to use if
-    # you want the leading frequency dependent term (second order) without the
-    # boosting induced monopoles
+    .. math:: \frac{T_0}{\gamma \bigl(1 - \vec\beta \cdot \hat n\bigr)}
+    """
+
     QUADRATIC_FROM_LIN_T = 3
+    r"""Second-order approximation in β using linearized units:
 
-    # Total contribution, using the linear temperature approximation (the
-    # most accurate formula), which is typically used in CMB experiments.
-    # This is the formula to use if you want the frequency dependent terms at all
-    # orders
+    .. math:: \Delta_2 T(\nu) = T_0 \left(\vec\beta\cdot\hat n + q(x)
+              \bigl(\vec\beta\cdot\hat n\bigr)^2\right)
+    """
+
     TOTAL_FROM_LIN_T = 4
+    r"""Full formula in linearized units (the most widely used):
+
+    .. math::
+
+       \Delta T = \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\left(T_0 /
+       \gamma\bigl(1 - \vec\beta\cdot\hat n\bigr)\right)}{\mathrm{BB}(T_0)}
+       - 1\right) = \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\bigl(\nu
+       \gamma(1-\vec\beta\cdot\hat n), T_0\bigr)}{\bigl(\gamma(1-
+       \vec\beta\cdot\hat n)\bigr)^3\mathrm{BB}(t_0)}\right).
+    """
 
 
 @njit
@@ -178,7 +195,16 @@ def add_dipole(
     # using as url f"/releases/v1.0/satellite/{telescope}/{channel}/channel_info"
     dipole_type: DipoleType,
 ):
-    """Add dipole to tod"""
+    """Add the CMB dipole to some time-ordered data
+
+    This functions modifies the values in `tod` by adding the contribution of the
+    CMB dipole. Use `dipole_type` to specify which kind of approximation to use
+    for the dipole component. The `pointings` argument must be a N×3 matrix containing
+    the pointing information, where N is the size of the `tod` array. The `velocity`
+    argument is usually computed through :func:`.spacecraft_pos_and_vel`. Finaly,
+    `t_cmb_k` is the temperature of the monopole and `frequency_ghz` is the frequency
+    of the detector (only relevant if you are using linearized temperatures, see
+    :class:`DipoleType`)."""
 
     assert tod.shape == pointings.shape[0:2]
     assert tod.shape[1] == velocity.shape[0]
@@ -216,6 +242,13 @@ def add_dipole_to_observations(
         np.ndarray, None
     ] = None,  # e.g. central frequency of channel from
 ):
+    """Add the CMB dipole to some time-ordered data
+
+    This is a wrapper around the :func:`.add_dipole` function that applies to the TOD
+    stored in `obs`, which can either be one :class:`.Observation` instance or a list
+    of observations.
+    """
+
     if isinstance(obs, Observation):
         obs_list = [obs]
     else:

@@ -147,7 +147,9 @@ which kind of approximation to use:
    .. math:: \Delta_2 T(\nu) = T_0 \left(\vec\beta\cdot\hat n + q(x) \bigl(\vec\beta\cdot\hat n\bigr)^2\right),
 
    where the dependence on the frequency ν is due to the presence of
-   the term :math:`x = h\nu / k_B T` in the equation.
+   the term :math:`x = h\nu / k_B T` in the equation. This is the
+   formula to use if you want the leading frequency-dependent term
+   (second order) without the boosting induced monopoles.
 
 5. Finally, linearizing :eq:`dipole` through :eq:`linearized-dipole`
    (``DipoleTotal.TOTAL_FROM_LIN_T``):
