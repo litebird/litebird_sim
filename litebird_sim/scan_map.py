@@ -17,12 +17,7 @@ def compute_signal_for_one_sample(T, Q, U, co, si):
 
 
 @njit
-def scan_map_for_one_detector(
-    tod_det,
-    pixel_ind_det,
-    pol_angle_det,
-    maps,
-):
+def scan_map_for_one_detector(tod_det, pixel_ind_det, pol_angle_det, maps):
 
     for i in range(len(tod_det)):
 
@@ -30,12 +25,12 @@ def scan_map_for_one_detector(
         si = np.sin(2 * pol_angle_det[i])
 
         tod_det[i] += compute_signal_for_one_sample(
-            T=maps[0,pixel_ind_det[i]],
-            Q=maps[1,pixel_ind_det[i]],
-            U=maps[2,pixel_ind_det[i]],
+            T=maps[0, pixel_ind_det[i]],
+            Q=maps[1, pixel_ind_det[i]],
+            U=maps[2, pixel_ind_det[i]],
             co=co,
             si=si,
-            )
+        )
 
 
 def scan_map(
@@ -46,8 +41,8 @@ def scan_map(
     input_names,
     start_time_s,
     delta_time_s,
-    pol_angle : Union[np.ndarray, None] = None,
-    pixel_ind : Union[np.ndarray, None] = None,
+    pol_angle: Union[np.ndarray, None] = None,
+    pixel_ind: Union[np.ndarray, None] = None,
 ):
 
     assert tod.shape == pointings.shape[0:2]
@@ -59,13 +54,17 @@ def scan_map(
 
         n_samples = len(pointings[detector_idx, :, 0])
 
-        pixel_ind_det = hp.ang2pix(nside,pointings[detector_idx, :, 0],pointings[detector_idx, :, 1])
-        pol_angle_det = (pointings[detector_idx,:,2] + 
-            2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec)
+        pixel_ind_det = hp.ang2pix(
+            nside, pointings[detector_idx, :, 0], pointings[detector_idx, :, 1]
+        )
+        pol_angle_det = (
+            pointings[detector_idx, :, 2] + 
+            2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec
+        )
 
         scan_map_for_one_detector(
             tod_det=tod[detector_idx],
-            pixel_ind_det = pixel_ind_det,
+            pixel_ind_det=pixel_ind_det,
             pol_angle_det=pol_angle_det,
             maps=maps_det,
         )
@@ -98,9 +97,9 @@ def scan_map_in_observations(
 
 
         if isinstance(obs.start_time, Time):
-            start_time_s = (cur_obs.start_time-cur_obs.start_time_global).sec
+            start_time_s = (cur_obs.start_time - cur_obs.start_time_global).sec
         else:
-            start_time_s = cur_obs.start_time-cur_obs.start_time_global
+            start_time_s = cur_obs.start_time - cur_obs.start_time_global
 
         if fill_psi_and_pix:
             cur_obs.psi = np.empty_like(cur_obs.tod)
