@@ -59,6 +59,7 @@ from .mapping import make_bin_map
 from .destriper import DestriperParameters, DestriperResult, destripe
 from .simulations import Simulation
 from .noise import add_noise
+from .scan_map import scan_map, scan_map_in_observations
 from .version import __author__, __version__
 
 __all__ = [
@@ -136,4 +137,7 @@ __all__ = [
     "Simulation",
     # noise.py
     "add_noise",
+    #scan_map.py
+    "scan_map",
+    "scan_map_in_observations",
 ]
