@@ -52,7 +52,7 @@ def make_bin_map(obss, nside):
             shapes
 
             * `tod`: the time-ordered data to be mapped
-            * `pixel`: the index of the pixel observed for each tod sample in a
+            * `pixind`: the index of the pixel observed for each tod sample in a
               HEALpix map at nside `nside`
             * `psi`: the polarization angle (in radians) for each tod sample
 
@@ -69,7 +69,7 @@ def make_bin_map(obss, nside):
     info = np.zeros((n_pix, 3, 3))
 
     for obs in obss:
-        _accumulate_map_and_info(obs.tod, obs.pixel, obs.psi, info)
+        _accumulate_map_and_info(obs.tod, obs.pixind, obs.psi, info)
 
     if all([obs.comm is None for obs in obss]) or not mpi.MPI_ENABLED:
         # Serial call

@@ -6,14 +6,14 @@ import healpy as hp
 
 from astropy.time import Time
 
-from typing import Union, List
+from typing import Union
 
 from .observations import Observation
 
 
 @njit
 def compute_signal_for_one_sample(T, Q, U, co, si):
-    return 0.5 * (T + co*Q + si*U)
+    return 0.5 * (T + co * Q + si * U)
 
 
 @njit
@@ -58,8 +58,8 @@ def scan_map(
             nside, pointings[detector_idx, :, 0], pointings[detector_idx, :, 1]
         )
         pol_angle_det = (
-            pointings[detector_idx, :, 2] + 
-            2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec
+            pointings[detector_idx, :, 2]
+            + 2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec
         )
 
         scan_map_for_one_detector(
@@ -81,7 +81,7 @@ def scan_map_in_observations(
     pointings,
     hwp_radpsec,
     maps: List,
-    fill_psi_and_pix: bool = False,
+    fill_psi_and_pixel_in_obs: bool = False,
 ):
     if isinstance(obs, Observation):
         obs_list = [obs]
@@ -95,15 +95,14 @@ def scan_map_in_observations(
         else:
             input_names = cur_obs.channel
 
-
         if isinstance(obs.start_time, Time):
             start_time_s = (cur_obs.start_time - cur_obs.start_time_global).sec
         else:
             start_time_s = cur_obs.start_time - cur_obs.start_time_global
 
-        if fill_psi_and_pix:
+        if fill_psi_and_pixind_in_obs:
             cur_obs.psi = np.empty_like(cur_obs.tod)
-            cur_obs.pixel = np.empty_like(cur_obs.tod,dtype=np.int)
+            cur_obs.pixind = np.empty_like(cur_obs.tod, dtype=np.int)
 
             scan_map(
                 tod=cur_obs.tod,
@@ -114,7 +113,7 @@ def scan_map_in_observations(
                 start_time_s=start_time_s,
                 delta_time_s=cur_obs.get_delta_time().value,
                 pol_angle=cur_obs.psi,
-                pixel_ind=cur_obs.pixel,
+                pixel_ind=cur_obs.pixind,
             )
         else:
             scan_map(
@@ -126,6 +125,3 @@ def scan_map_in_observations(
                 start_time_s=start_time_s,
                 delta_time_s=cur_obs.get_delta_time().value,
             )            
-
-
-

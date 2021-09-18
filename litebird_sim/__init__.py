@@ -146,7 +146,7 @@ __all__ = [
     "Simulation",
     # noise.py
     "add_noise",
-    #scan_map.py
+    # scan_map.py
     "scan_map",
     "scan_map_in_observations",
     # dipole.py
