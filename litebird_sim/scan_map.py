@@ -58,7 +58,6 @@ def scan_map(
     and the pixel index `pixel_ind` in arrays of size N.
     """
 
-
     assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(tod.shape[0]):
