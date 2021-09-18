@@ -10,6 +10,12 @@ of directions and orientations of each detector is usually called
 *pointing information*, and we'll consistently use this jargon in the
 documentation.
 
+Note that this chapter only deals with the *direction* some detector
+is looking at, but the actual position/velocity of the spacecraft is
+not needed to do this calculation. The framework provide other
+facilities to compute this information, and they are described in
+:ref:`dipole-anisotropy`.
+
 This chapter provides an in-depth explanation about how to use the
 facilities provided by the framework to compute the pointing
 information for any detector in one of the focal planes.
@@ -846,13 +852,6 @@ main beam axis (:math:`\theta = 0`)::
 We see that Jupiter is ~10° away from the beam axis after ~30 seconds
 since the start of the simulation.
            
-Bibliography
-------------
-
-.. bibliography:: refs.bib
-   :style: plain
-
-
 API reference
 -------------
 
