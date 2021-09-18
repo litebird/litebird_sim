@@ -6,13 +6,14 @@ import healpy as hp
 
 from astropy.time import Time
 
-from typing import Union
+from typing import Union, List
 
 from .observations import Observation
 
 
 @njit
 def compute_signal_for_one_sample(T, Q, U, co, si):
+    """Bolometric equation"""
     return 0.5 * (T + co * Q + si * U)
 
 
@@ -44,6 +45,19 @@ def scan_map(
     pol_angle: Union[np.ndarray, None] = None,
     pixel_ind: Union[np.ndarray, None] = None,
 ):
+    """Scan a map filling time-ordered data
+
+    This function modifies the values in `tod` by adding the contribution of the
+    bolometric equation given a list of TQU maps `maps`. The `pointings` argument
+    must be a N×3 matrix containing the pointing information, where N is the size
+    of the `tod` array. `hwp_radpsec` is the hwp rotation speed in radiants per
+    second.`input_names` is an array containing the keywords that allow to select
+    the proper input in `maps` for each detector in the TOD. `start_time_s` and
+    `delta_time_s` are respectively the start time of the TOD and the time step
+    between two samples. Optionally it can return the polarization angle `pol_angle`
+    and the pixel index `pixel_ind` in arrays of size N.
+    """
+
 
     assert tod.shape == pointings.shape[0:2]
 
@@ -81,8 +95,15 @@ def scan_map_in_observations(
     pointings,
     hwp_radpsec,
     maps: List,
-    fill_psi_and_pixel_in_obs: bool = False,
+    fill_psi_and_pixind_in_obs: bool = False,
 ):
+    """Scan a map filling time-ordered data
+
+    This is a wrapper around the :func:`.scan_map` function that applies to the TOD
+    stored in `obs`, which can either be one :class:`.Observation` instance or a list
+    of observations.
+    """
+
     if isinstance(obs, Observation):
         obs_list = [obs]
     else:
@@ -124,4 +145,4 @@ def scan_map_in_observations(
                 input_names=input_names,
                 start_time_s=start_time_s,
                 delta_time_s=cur_obs.get_delta_time().value,
-            )            
+            )
