@@ -1,6 +1,12 @@
+# -*- encoding: utf-8 -*-
+
 import numpy as np
 from numba import njit
 import healpy as hp
+
+from typing import Union, List
+
+from .observations import Observation
 
 from . import mpi
 
@@ -41,7 +47,7 @@ def _extract_map_and_fill_info(info):
     return rhs
 
 
-def make_bin_map(obss, nside):
+def make_bin_map(obss: Union[Observation, List[Observation]], nside):
     """Bin Map-maker
 
     Map a list of observations
@@ -68,19 +74,24 @@ def make_bin_map(obss, nside):
     n_pix = hp.nside2npix(nside)
     info = np.zeros((n_pix, 3, 3))
 
-    for obs in obss:
+    if isinstance(obss, Observation):
+        obs_list = [obss]
+    else:
+        obs_list = obss
+
+    for obs in obs_list:
         _accumulate_map_and_info(obs.tod, obs.pixind, obs.psi, info)
 
-    if all([obs.comm is None for obs in obss]) or not mpi.MPI_ENABLED:
+    if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
         pass
     elif all(
         [
-            mpi.MPI.Comm.Compare(obss[i].comm, obss[i + 1].comm) < 2
-            for i in range(len(obss) - 1)
+            mpi.MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
+            for i in range(len(obs_list) - 1)
         ]
     ):
-        info = obss[0].comm.allreduce(info, mpi.MPI.SUM)
+        info = obs_list[0].comm.allreduce(info, mpi.MPI.SUM)
     else:
         raise NotImplementedError(
             "All observations must be distributed over the same MPI groups"
