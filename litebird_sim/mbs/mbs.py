@@ -168,8 +168,8 @@ class MbsParameters:
       :class:`.Mbs` class.
 
     - ``maps_in_ecliptic`` (default: ``False``): when ``True`` the maps
-      produced are rotated in ecliptic coordinates using the `healpy`
-      routine `Rotator.rotate_map_alms`
+      contained in the dictionary returned by `Mbs.run_all` are converted
+      in ecliptic coordinates using the `healpy` routine `rotate_map_alms`
 
     """
 
