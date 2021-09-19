@@ -6,7 +6,7 @@ import logging as log
 import math
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Union
 
 import toml
 import numpy as np
@@ -472,9 +472,7 @@ class Mbs:
                         )
                         cur_map_path = nmc_output_directory / file_name
                         lbs.write_healpix_map_to_file(
-                            cur_map_path,
-                            noise_map_split,
-                            column_units=col_units,
+                            cur_map_path, noise_map_split, column_units=col_units
                         )
                         saved_maps.append(
                             MbsSavedMapInfo(
@@ -491,15 +489,11 @@ class Mbs:
                     file_name = f"{chnl}_noise_FULL_{nmc_str}_{file_str}.fits"
                     cur_map_path = nmc_output_directory / file_name
                     lbs.write_healpix_map_to_file(
-                        cur_map_path,
-                        noise_map,
-                        column_units=col_units,
+                        cur_map_path, noise_map, column_units=col_units
                     )
                     saved_maps.append(
                         MbsSavedMapInfo(
-                            path=cur_map_path,
-                            component="noise",
-                            channel=chnl,
+                            path=cur_map_path, component="noise", channel=chnl
                         )
                     )
                 else:
@@ -583,7 +577,7 @@ class Mbs:
             sky = pysm3.Sky(
                 nside=nside,
                 component_objects=[
-                    pysm3.CMBMap(nside, map_IQU=Path(nmc_str) / file_name),
+                    pysm3.CMBMap(nside, map_IQU=Path(nmc_str) / file_name)
                 ],
             )
 
@@ -616,9 +610,7 @@ class Mbs:
                     file_name = f"{chnl}_cmb_{nmc_str}_{file_str}.fits"
                     cur_map_path = nmc_output_directory / file_name
                     lbs.write_healpix_map_to_file(
-                        cur_map_path,
-                        cmb_map_smt,
-                        column_units=col_units,
+                        cur_map_path, cmb_map_smt, column_units=col_units
                     )
                     saved_maps.append(
                         MbsSavedMapInfo(path=cur_map_path, component="cmb")
@@ -711,11 +703,7 @@ class Mbs:
                         cur_map_path, sky_extrap_smt, column_units=col_units
                     )
                     saved_maps.append(
-                        MbsSavedMapInfo(
-                            path=cur_map_path,
-                            component="fg",
-                            channel=chnl,
-                        ),
+                        MbsSavedMapInfo(path=cur_map_path, component="fg", channel=chnl)
                     )
                 else:
                     fg_map_matrix[Nchnl] = sky_extrap_smt
@@ -767,11 +755,7 @@ class Mbs:
                     ]
 
                     assert len(cmb_map_path) == 1
-                    cmb = hp.read_map(
-                        cmb_map_path[0],
-                        (0, 1, 2),
-                        verbose=False,
-                    )
+                    cmb = hp.read_map(cmb_map_path[0], (0, 1, 2), verbose=False)
                     map_tot = fg_tot + cmb
 
                     nmc_str = f"{nmc:04d}"
@@ -781,9 +765,7 @@ class Mbs:
                     tot_file_name = f"{chnl}_coadd_signal_map_{nmc_str}_{file_str}.fits"
                     tot_file_path = nmc_dir / tot_file_name
                     lbs.write_healpix_map_to_file(
-                        tot_file_path,
-                        map_tot,
-                        column_units=col_units,
+                        tot_file_path, map_tot, column_units=col_units
                     )
                     saved_maps.append(
                         MbsSavedMapInfo(
@@ -801,9 +783,7 @@ class Mbs:
                 )
                 saved_maps.append(
                     MbsSavedMapInfo(
-                        path=tot_file_path,
-                        component="coadded",
-                        channel=chnl,
+                        path=tot_file_path, component="coadded", channel=chnl
                     )
                 )
 

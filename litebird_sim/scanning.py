@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Union
 from uuid import UUID
 
-from astropy.coordinates import ICRS, get_body_barycentric, BarycentricMeanEcliptic
+from astropy.coordinates import ICRS, get_body_barycentric
 import astropy.time
 import astropy.units as u
 from numba import njit
@@ -12,6 +12,7 @@ import numpy as np
 
 from ducc0.pointingprovider import PointingProvider
 
+from .coordinates import DEFAULT_COORDINATE_SYSTEM
 from .imo import Imo
 
 from .quaternions import (
@@ -191,21 +192,29 @@ def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
     Prototype::
 
         all_compute_pointing_and_polangle(
-            result_matrix: numpy.array[N, 3],
-            quat_matrix: numpy.array[N, 4],
+            result_matrix: numpy.array[D, N, 3],
+            quat_matrix: numpy.array[N, D, 4],
         )
 
-    Assuming that `result_matrix` is a (N×3) matrix and `quat_matrix`
-    a (N×4) matrix, iterate over all the N rows and apply
-    :func:`compute_pointing_and_polangle` to every row.
+    Assuming that `result_matrix` is a (D, N, 3) matrix and `quat_matrix` a (N, D, 4)
+    matrix, iterate over all the N samples and D detectors and apply
+    :func:`compute_pointing_and_polangle` to every item.
 
     """
-    assert quat_matrix[..., 0].size == result_matrix[..., 0].size
-    result_matrix = result_matrix.reshape(-1, 3)
-    quat_matrix = quat_matrix.reshape(-1, 4)
 
-    for row in range(result_matrix.shape[0]):
-        compute_pointing_and_polangle(result_matrix[row, :], quat_matrix[row, :])
+    n_dets, n_samples, _ = result_matrix.shape
+
+    assert result_matrix.shape[2] == 3
+    assert quat_matrix.shape[0] == n_samples
+    assert quat_matrix.shape[1] == n_dets
+    assert quat_matrix.shape[2] == 4
+
+    for det_idx in range(n_dets):
+        for sample_idx in range(n_samples):
+            compute_pointing_and_polangle(
+                result_matrix[det_idx, sample_idx, :],
+                quat_matrix[sample_idx, det_idx, :],
+            )
 
 
 @njit
@@ -378,7 +387,7 @@ def calculate_sun_earth_angles_rad(time_vector):
 
     if isinstance(time_vector, astropy.time.Time):
         pos = get_body_barycentric("earth", time_vector)
-        coord = ICRS(pos).transform_to(BarycentricMeanEcliptic).cartesian
+        coord = ICRS(pos).transform_to(DEFAULT_COORDINATE_SYSTEM).cartesian
         return np.arctan2(coord.y.value, coord.x.value)
     else:
         return YEARLY_OMEGA_SPIN_HZ * time_vector
@@ -823,7 +832,7 @@ def get_det2ecl_quaternions(
     else:
         assert (
             quaternion_buffer.shape == bufshape
-        ), f"error, wrong quaternion buffer size: {quaternion_buffer.size} != {bufshape}"
+        ), f"error, wrong buffer size: {quaternion_buffer.size} != {bufshape}"
 
     for (idx, detector_quat) in enumerate(detector_quats):
         quaternion_buffer[:, idx, :] = spin2ecliptic_quats.get_detector_quats(
