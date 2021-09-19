@@ -4,7 +4,7 @@ from numba import njit
 import numpy as np
 import healpy as hp
 
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 
 from typing import Union, List
 
@@ -14,7 +14,7 @@ from .observations import Observation
 @njit
 def compute_signal_for_one_sample(T, Q, U, co, si):
     """Bolometric equation"""
-    return 0.5 * (T + co * Q + si * U)
+    return T + co * Q + si * U
 
 
 @njit
@@ -22,15 +22,12 @@ def scan_map_for_one_detector(tod_det, pixel_ind_det, pol_angle_det, maps):
 
     for i in range(len(tod_det)):
 
-        co = np.cos(2 * pol_angle_det[i])
-        si = np.sin(2 * pol_angle_det[i])
-
         tod_det[i] += compute_signal_for_one_sample(
             T=maps[0, pixel_ind_det[i]],
             Q=maps[1, pixel_ind_det[i]],
             U=maps[2, pixel_ind_det[i]],
-            co=co,
-            si=si,
+            co=np.cos(2 * pol_angle_det[i]),
+            si=np.sin(2 * pol_angle_det[i]),
         )
 
 
@@ -70,10 +67,10 @@ def scan_map(
         pixel_ind_det = hp.ang2pix(
             nside, pointings[detector_idx, :, 0], pointings[detector_idx, :, 1]
         )
-        pol_angle_det = (
+        pol_angle_det = np.mod(
             pointings[detector_idx, :, 2]
-            + 2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec
-        )
+            + 2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec,
+        2*np.pi)
 
         scan_map_for_one_detector(
             tod_det=tod[detector_idx],
@@ -115,14 +112,19 @@ def scan_map_in_observations(
         else:
             input_names = cur_obs.channel
 
-        if isinstance(obs.start_time, Time):
+        if isinstance(cur_obs.start_time, Time):
             start_time_s = (cur_obs.start_time - cur_obs.start_time_global).sec
         else:
             start_time_s = cur_obs.start_time - cur_obs.start_time_global
 
+        if isinstance(cur_obs.get_delta_time(), TimeDelta):
+            delta_time_s = cur_obs.get_delta_time().value
+        else:
+            delta_time_s = cur_obs.get_delta_time()
+
         if fill_psi_and_pixind_in_obs:
             cur_obs.psi = np.empty_like(cur_obs.tod)
-            cur_obs.pixind = np.empty_like(cur_obs.tod, dtype=np.int)
+            cur_obs.pixind = np.empty_like(cur_obs.tod, dtype=np.int32)
 
             scan_map(
                 tod=cur_obs.tod,
@@ -131,7 +133,7 @@ def scan_map_in_observations(
                 maps=maps,
                 input_names=input_names,
                 start_time_s=start_time_s,
-                delta_time_s=cur_obs.get_delta_time().value,
+                delta_time_s=delta_time_s,
                 pol_angle=cur_obs.psi,
                 pixel_ind=cur_obs.pixind,
             )
@@ -143,5 +145,5 @@ def scan_map_in_observations(
                 maps=maps,
                 input_names=input_names,
                 start_time_s=start_time_s,
-                delta_time_s=cur_obs.get_delta_time().value,
+                delta_time_s=delta_time_s,
             )
