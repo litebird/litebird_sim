@@ -1,12 +1,12 @@
-#!/bin/sh
+#!/bin/bash
 
-readonly MAX_LINE_LENGTH=88
+set -o errexit
 
 # Verify that the code is properly formatted
-poetry run black --check --line-length=${MAX_LINE_LENGTH} -q .
+poetry run black --check --diff .
 
 # Check for common errors
-poetry run flake8 --max-line-length=${MAX_LINE_LENGTH}
+poetry run flake8
 
 # Run the test suite
 poetry run python3 -m pytest -vv

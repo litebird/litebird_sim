@@ -1,10 +1,10 @@
 # HEAD
 
-- Fix bug [#124](https://github.com/litebird/litebird_sim/issues/124)
-- 
-- Fix bug [#120](https://github.com/litebird/litebird_sim/issues/120)
+- Spacecraft simulator and dipole computation [#122](https://github.com/litebird/litebird_sim/pull/122)
 
-- Fix bug [#111](https://github.com/litebird/litebird_sim/pull/111)
+- Improve the way code is checked [#130](https://github.com/litebird/litebird_sim/pull/130)
+
+- Fix bugs [#126](https://github.com/litebird/litebird_sim/issues/126), [#124](https://github.com/litebird/litebird_sim/issues/124), [#120](https://github.com/litebird/litebird_sim/issues/120), [#111](https://github.com/litebird/litebird_sim/pull/111)
 
 # Version 0.2.1
 

@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-
+from collections import namedtuple
 from dataclasses import dataclass
 import logging
 from pathlib import Path
@@ -10,7 +10,8 @@ from ducc0 import healpix
 import healpy  # We need healpy.read_map
 
 import litebird_sim as lbs
-from toast.todmap import OpMapMaker
+from toast.todmap import OpMapMaker  # noqa: F401
+from toast.tod.interval import Interval
 
 if lbs.MPI_ENABLED:
     import toast.mpi
@@ -110,9 +111,7 @@ class _Toast2FakeCache:
     def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
         self.obs = obs
 
-        self.keydict = {
-            "timestamps": obs.get_times(),
-        }
+        self.keydict = {"timestamps": obs.get_times()}
         nsamples = len(self.keydict["timestamps"])
 
         self.keydict["flags"] = np.zeros(nsamples, dtype="uint8")
@@ -147,11 +146,7 @@ class _Toast2FakeCache:
 
             self.keydict[f"pixels_{det}"] = healpix_base.ang2pix(curpnt[:, 0:2])
             self.keydict[f"weights_{det}"] = np.stack(
-                (
-                    np.ones(nsamples),
-                    np.cos(2 * curpnt[:, 2]),
-                    np.sin(2 * curpnt[:, 2]),
-                )
+                (np.ones(nsamples), np.cos(2 * curpnt[:, 2]), np.sin(2 * curpnt[:, 2]))
             ).transpose()
 
     def keys(self):
@@ -183,7 +178,7 @@ class _Toast2FakeTod:
 
     def local_intervals(self, _):
         return [
-            toast.tod.interval.Interval(
+            Interval(
                 start=self.obs.start_time,
                 stop=self.obs.start_time
                 + self.obs.sampling_rate_hz * self.obs.n_samples,
@@ -221,9 +216,7 @@ class _Toast2FakeData:
 
     def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
         self.obs = [
-            {
-                "tod": _Toast2FakeTod(spin2ecliptic_quats, x, bore2spin_quat, nside),
-            }
+            {"tod": _Toast2FakeTod(spin2ecliptic_quats, x, bore2spin_quat, nside)}
             for x in obs
         ]
         self.bore2spin_quat = bore2spin_quat
@@ -231,7 +224,12 @@ class _Toast2FakeData:
         if lbs.MPI_ENABLED:
             self.comm = toast.mpi.Comm(lbs.MPI_COMM_WORLD)
         else:
-            self.comm = None
+            CommWorld = namedtuple(
+                "CommWorld", ["comm_world", "comm_group", "comm_rank", "comm_size"]
+            )
+            self.comm = CommWorld(
+                comm_world=None, comm_group=None, comm_rank=0, comm_size=1
+            )
 
         npix = 12 * (self.nside ** 2)
         self._metadata = {
@@ -287,7 +285,7 @@ def destripe_observations(
         bore2spin_quat=bore2spin_quat,
         nside=params.nside,
     )
-    mapmaker = toast.todmap.OpMapMaker(
+    mapmaker = OpMapMaker(
         nside=params.nside,
         nnz=params.nnz,
         name="signal",
@@ -330,9 +328,7 @@ def destripe_observations(
 
     if params.return_npp:
         result.npp = healpy.read_map(
-            base_path / (params.output_file_prefix + "npp.fits"),
-            field=None,
-            dtype=None,
+            base_path / (params.output_file_prefix + "npp.fits"), field=None, dtype=None
         )
 
     if params.return_invnpp:
@@ -352,11 +348,7 @@ def destripe_observations(
     return result
 
 
-def destripe(
-    sim,
-    instrument,
-    params=DestriperParameters(),
-) -> DestriperResult:
+def destripe(sim, instrument, params=DestriperParameters()) -> DestriperResult:
     """Run the destriper on a set of TODs.
 
     Run the TOAST destriper on time-ordered data, producing one or
