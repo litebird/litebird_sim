@@ -70,7 +70,8 @@ def scan_map(
         pol_angle_det = np.mod(
             pointings[detector_idx, :, 2]
             + 2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec,
-        2*np.pi)
+            2 * np.pi,
+        )
 
         scan_map_for_one_detector(
             tod_det=tod[detector_idx],

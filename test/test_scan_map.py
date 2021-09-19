@@ -9,11 +9,14 @@ from astropy.time import Time
 def test_scan_map():
 
     # The purpose of this test is to simulate the motion of the spacecraft
-    # for one year (see `time_span_s`) and produce *two* timelines: the first
-    # is associated with variables `*_s_o` and refers to the case of a nonzero
-    # velocity of the Solar System, and the second is associated with variables
-    # `*_o` and assumes that the reference frame of the Solar System is the
-    # same as the CMB's (so that there is no dipole).
+    # for one year (see `time_span_s`) and produce *two* maps: the first
+    # is associated with the Observation `obs1` and is built using
+    # `scan_map_in_observations` and `make_bin_map`, the second is associated
+    # the Observation `obs2` and is built directly filling in the test
+    # `tod`, `psi` and `pixind` and then using `make_bin_map`
+    # In the final test `out_map1` is compared with both `out_map2` and the
+    # input map. Both simulations use two orthogonal detectors at the boresight
+    # and input maps generated with `np.random.normal`.
 
     start_time = 0
     time_span_s = 365 * 24 * 3600
@@ -56,7 +59,7 @@ def test_scan_map():
         quat=[0.0, 0.0, 1.0 / np.sqrt(2.0), 1.0 / np.sqrt(2.0)],
     )
 
-    np.random.seed(seed=123456789)
+    np.random.seed(seed=123_456_789)
     maps = np.random.normal(0, 1, (3, npix))
 
     in_map = {"Boresight_detector_T": maps, "Boresight_detector_B": maps}
