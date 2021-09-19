@@ -843,7 +843,7 @@ class Mbs:
                     tot += fg[cmp]
 
         if self.params.maps_in_ecliptic:
-            r = hp.Rotator(coord=['G', 'E'])
+            r = hp.Rotator(coord=["G", "E"])
 
         if rank == 0:
             if self.params.save and self.params.coadd:
@@ -854,8 +854,7 @@ class Mbs:
                 for nch, chnl in enumerate(channels):
                     if self.params.maps_in_ecliptic:
                         tot[nch] = r.rotate_map_alms(
-                            tot[nch],
-                            lmax=4 * self.params.nside,
+                            tot[nch], lmax=4 * self.params.nside
                         )
                     tot_dict[chnl] = tot[nch]
                 return (tot_dict, saved_maps)
