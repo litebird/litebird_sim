@@ -29,12 +29,13 @@ shows:
 
    hwp_radpsec = np.pi / 8
    start_time_s = 0
+   time_span_s = 1
 
    nside = 256
    npix = 12 * nside * nside
 
    # Create a simulation
-   sim = lbs.Simulation(base_path='./output', start_time=start_time_s, duration_s=1)
+   sim = lbs.Simulation(base_path='./output', start_time=start_time_s, duration_s=time_span_s)
 
    # Create a detector object
    det = lbs.DetectorInfo(
@@ -48,11 +49,11 @@ shows:
        spin_sun_angle_rad=0.785_398_163_397_448_3,
        precession_rate_hz=8.664_850_513_998_931e-05,
        spin_rate_hz=0.000_833_333_333_333_333_4,
-       start_time=start_time,
+       start_time=start_time_s,
    )
 
    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-       start_time, time_span_s, delta_time_s=7200
+       start_time_s, time_span_s, delta_time_s=7200
    )
 
    instr = lbs.InstrumentInfo(
@@ -62,7 +63,7 @@ shows:
    )
 
    # Initialize the observation
-   obs = sim.create_observations(detectors=[det])
+   (obs,) = sim.create_observations(detectors=[det])
 
    # Compute the pointing
    pointings = lbs.scanning.get_pointings(
