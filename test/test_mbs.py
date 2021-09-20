@@ -18,6 +18,7 @@ PARAMETER_FILE = """
   bandpass_int = true
   parallel_mc = false
   coadd = true
+  units = "uK_CMB"
   maps_in_ecliptic = false
 
   [map_based_sims.noise]

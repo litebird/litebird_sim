@@ -4,7 +4,7 @@ import scipy as sp
 
 
 def add_noise(obs, noisetype, scale=1, random=None):
-    """ adds noise of the defined type to the observations in obs
+    """adds noise of the defined type to the observations in obs
 
     Args:
         obs (:class:`Observation`): an Observation object
