@@ -1,5 +1,7 @@
 # HEAD
 
+- Switch to thermodynamic units in the MBS module [#123](https://github.com/litebird/litebird_sim/pull/123)
+
 # Version 0.3.0
 
 - Spacecraft simulator and dipole computation [#122](https://github.com/litebird/litebird_sim/pull/122)

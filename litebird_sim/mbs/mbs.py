@@ -209,7 +209,6 @@ class MbsParameters:
             if isinstance(self.fg_models, list):
                 self.fg_models = {x: x for x in self.fg_models}
 
-
         if not self.output_string:
             self.output_string = "date_" + date.today().strftime("%y%m%d")
 
@@ -451,8 +450,9 @@ class Mbs:
             freq = instr[chnl].bandcenter_ghz
             chnl_seed += 67
             p_sens = instr[chnl].p_sens_ukarcmin * u.uK_CMB
-            p_sens = p_sens.to_value((self.pysm_units),
-                equivalencies=u.cmb_equivalencies(freq * u.GHz))
+            p_sens = p_sens.to_value(
+                (self.pysm_units), equivalencies=u.cmb_equivalencies(freq * u.GHz)
+            )
             P_rms = _from_sens_to_rms(p_sens, nside)
             T_rms = P_rms / np.sqrt(2.0)
             tot_rms = np.array([T_rms, P_rms, P_rms]).reshape(3, 1)
