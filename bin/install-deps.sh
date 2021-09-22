@@ -6,7 +6,7 @@
 set -e
 case `uname` in
     Linux)
-        apt-get install libfftw3-dev
+        sudo apt-get install libfftw3-dev
         ;;
     Darwin)
         brew install fftw
