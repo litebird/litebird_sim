@@ -75,7 +75,7 @@ def generate_white_noise(data, sigma, random=None):
     To be called from add_noise.
 
     data: 1-D numpy array
-    sigma: white noise level
+    sigma_uk: white noise level
     random: a random number generator if you want reproducible randomness
     """
     if random is None:
@@ -91,7 +91,7 @@ def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma, freq_hz, random=Non
     data: 1-D numpy array
     fknee: knee frequency
     alpha: low frequency spectral tilt
-    sigma: white noise level
+    sigma0_uk: white noise level
     freq: the sampling frequency of the data
     random: a random number generator if you want reproducible randomness
     """
