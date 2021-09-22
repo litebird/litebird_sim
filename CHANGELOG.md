@@ -1,6 +1,8 @@
 # HEAD
 
-- Switch to thermodynamic units in the MBS module [#123](https://github.com/litebird/litebird_sim/pull/123)
+- **Breaking change** Rename keyword `distribute` to `split_list_over_processes` in `Simulation.create_observations` [#110](https://github.com/litebird/litebird_sim/pull/110)
+
+- **Breaking change** Switch to thermodynamic units in the MBS module [#123](https://github.com/litebird/litebird_sim/pull/123)
 
 # Version 0.3.0
 
