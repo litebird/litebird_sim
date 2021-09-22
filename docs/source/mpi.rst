@@ -50,7 +50,7 @@ Enabling/disabling MPI
 ----------------------
 
 The user can control whether MPI must be used or not in a script,
-through the environment variable ``LITEBIRD_SIM_PI`` (``ENABLE_MPI``
+through the environment variable ``LITEBIRD_SIM_MPI`` (``ENABLE_MPI``
 is accepted as well):
 
 - If the variable is set to the empty string or to ``1``, ``true``,
