@@ -80,7 +80,9 @@ shows:
    lbs.scan_map_in_observations(obs, pointings, hwp_radpsec, in_map)
    
    for i in range(obs.n_samples):
-       print(f"{obs.tod[0][i]:.5f}")
+       # + 0. removes leading minus from negative zero
+       value = np.round(obs.tod[0][i], 5) + 0.
+       print(f"{value:.5f}")
 
 .. testoutput::
 
@@ -93,7 +95,7 @@ shows:
    -0.39579
    -0.34267
    -0.25618
-   -0.13846   
+   -0.13846
 
 
 The input maps to scan must be included in a dictionary with either the name of
