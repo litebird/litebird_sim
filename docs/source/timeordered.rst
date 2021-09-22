@@ -80,20 +80,20 @@ shows:
    lbs.scan_map_in_observations(obs, pointings, hwp_radpsec, in_map)
    
    for i in range(obs.n_samples):
-       print(f"{obs.tod[0][i]:.5e}")
+       print(f"{obs.tod[0][i]:.5f}")
 
 .. testoutput::
 
-   -3.89414e-07
-   -1.44749e-01
-   -2.61039e-01
-   -3.45981e-01
-   -3.97462e-01
-   -4.14204e-01
-   -3.95788e-01
-   -3.42674e-01
-   -2.56182e-01
-   -1.38462e-01
+   0.00000
+   -0.14475
+   -0.26104
+   -0.34598
+   -0.39746
+   -0.41420
+   -0.39579
+   -0.34267
+   -0.25618
+   -0.13846   
 
 
 The input maps to scan must be included in a dictionary with either the name of
