@@ -20,7 +20,7 @@ Linux)
       sudo apt-get install -y -q openmpi-bin libopenmpi-dev libfftw3-dev
       ;;
     *)
-      echo "Unknown MPI implementation:" $1
+      echo "Unknown MPI implementation: \"$1\""
       exit 1
       ;;
   esac
