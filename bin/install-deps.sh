@@ -5,10 +5,44 @@
 
 set -e
 case `uname` in
-    Linux)
-        sudo apt-get install libfftw3-dev
-        ;;
-    Darwin)
-        brew install fftw
-        ;;
+Linux)
+  case $1 in
+    none)
+      echo "Skipping the installation of a MPI library"
+      sudo apt-get install -y -q libfftw3-dev
+      ;;      
+    mpich) set -x;
+      echo "Installing mpich"
+      sudo apt-get install -y -q mpich libmpich-dev libfftw3-dev
+      ;;
+    openmpi) set -x; 
+      echo "Installing openmpi"
+      sudo apt-get install -y -q openmpi-bin libopenmpi-dev libfftw3-dev
+      ;;
+    *)
+      echo "Unknown MPI implementation:" $1
+      exit 1
+      ;;
+  esac
+  ;;
+Darwin)
+  case $1 in
+    none)
+      brew install fftw
+      ;;      
+    mpich) set -x;
+      echo "Installing mpich"
+      # See https://github.com/Homebrew/homebrew-core/issues/36871#issuecomment-462129434
+      brew install mpich JBlaschke/homebrew-mpich-tools
+      ;;
+    openmpi) set -x;
+      echo "Installing openmpi"
+      brew install openmpi fftw
+      ;;
+    *)
+      echo "Unknown MPI implementation:" $1
+      exit 1
+      ;;
+  esac
+  ;;
 esac
