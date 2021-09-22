@@ -619,14 +619,15 @@ class Simulation:
         the parameter `num_of_obs_per_detector`: this is useful if you
         are simulating a long experiment in a MPI job.
 
-        If `distribute` is set to ``True`` (the default), the set of
-        observations will be distributed evenly among the MPI
-        processes associated with ``self.mpi_comm`` (initialized in
-        :meth:`.Simulation.__init__`). If `distribute` is ``False``,
-        then no distribution will happen: this can be useful if you
-        are running a MPI job but you want to take care of the actual
-        distribution of the observations among the MPI workers instead
-        of relying on the default distribution algorithm.
+        If `split_list_over_processes` is set to ``True`` (the
+        default), the set of observations will be distributed evenly
+        among the MPI processes associated with ``self.mpi_comm``
+        (initialized in :meth:`.Simulation.__init__`). If
+        `split_list_over_processes` is ``False``, then no distribution
+        will happen: this can be useful if you are running a MPI job
+        but you want to take care of the actual distribution of the
+        observations among the MPI workers instead of relying on the
+        default distribution algorithm.
 
         Each observation can hold information about more than one
         detector; the parameters `n_blocks_det` specify how many
