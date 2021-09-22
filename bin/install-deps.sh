@@ -30,11 +30,6 @@ Darwin)
     none)
       brew install fftw
       ;;      
-    mpich) set -x;
-      echo "Installing mpich"
-      # See https://github.com/Homebrew/homebrew-core/issues/36871#issuecomment-462129434
-      brew install mpich JBlaschke/homebrew-mpich-tools
-      ;;
     openmpi) set -x;
       echo "Installing openmpi"
       brew install openmpi fftw
