@@ -69,6 +69,7 @@ def add_noise(obs, noisetype, scale=1, random=None):
                 + " Try a 1 or 2 D array instead."
             )
 
+
 def generate_white_noise(data, sigma, random=None):
     """Adds white noise with the given sigma to the array data
     To be called from add_noise.
@@ -114,7 +115,7 @@ def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma, freq_hz, random=Non
         np.sqrt((1 + pow(abs(freqs[freqs != 0]) / (fknee_mhz / 1000), -1 * alpha)))
         * sigma
     )
-    
+
     model[freqs == 0] = 0
 
     # transforms the data back to the time domain
