@@ -69,7 +69,7 @@ def test_simulation_pointings_still():
     fakedet = create_fake_detector(sampling_rate_hz=1 / 3600)
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False
+        detectors=[fakedet], num_of_obs_per_detector=1, split_list_over_processes=False
     )
     assert len(sim.observations) == 1
     obs = sim.observations[0]
@@ -124,7 +124,9 @@ def test_simulation_two_detectors():
     fakedet2 = create_fake_detector(sampling_rate_hz=1 / 3600, quat=quaternions[1])
 
     sim.create_observations(
-        detectors=[fakedet1, fakedet2], num_of_obs_per_detector=1, distribute=False
+        detectors=[fakedet1, fakedet2],
+        num_of_obs_per_detector=1,
+        split_list_over_processes=False,
     )
     assert len(sim.observations) == 1
     obs = sim.observations[0]
@@ -164,7 +166,7 @@ def test_simulation_pointings_polangle(tmp_path):
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False
+        detectors=[fakedet], num_of_obs_per_detector=1, split_list_over_processes=False
     )
     assert len(sim.observations) == 1
     obs = sim.observations[0]
@@ -200,7 +202,7 @@ def test_simulation_pointings_spinning(tmp_path):
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False
+        detectors=[fakedet], num_of_obs_per_detector=1, split_list_over_processes=False
     )
     assert len(sim.observations) == 1
     obs = sim.observations[0]
@@ -245,7 +247,7 @@ def test_simulation_pointings_mjd(tmp_path):
     fakedet = create_fake_detector()
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=2, distribute=False
+        detectors=[fakedet], num_of_obs_per_detector=2, split_list_over_processes=False
     )
 
     sstr = lbs.SpinningScanningStrategy(
@@ -275,7 +277,7 @@ def test_scanning_quaternions(tmp_path):
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
     sim.create_observations(
-        detectors=[fakedet], num_of_obs_per_detector=1, distribute=False
+        detectors=[fakedet], num_of_obs_per_detector=1, split_list_over_processes=False
     )
     assert len(sim.observations) == 1
     obs = sim.observations[0]

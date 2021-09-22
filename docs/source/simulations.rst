@@ -178,24 +178,26 @@ parallelize its codes, which is however an optional dependency: the
 code can be ran serially.
 
 When creating a :class:`.Simulation` object, the user can tell the
-framework to use or not MPI using the flag `use_mpi`::
+framework to use or not MPI by either passing ``None`` or a valid MPI communicator::
 
   import litebird_sim as lbs
+  import mpi4py
 
   # This simulation must be ran using MPI
-  sim = lbs.Simulation(use_mpi = True)
+  sim = lbs.Simulation(mpi_comm = mpi4py.MPI.COMM_WORLD)
 
 The framework sets a number of variables related to MPI; these
 variables are *always* defined, even if MPI is not available, and they
 can be used to make the code work in different situations. If your
 code must be able to run both with and without MPI, you should
 initialize a :class:`.Simulation` object using the variable
-:class:`.MPI_ENABLED`::
+:data:`.MPI_COMM_WORLD`, which is either ``mpi4py.MPI.COMM_WORLD``
+(the default MPI communicator) or a dummy class if MPI is disabled::
 
   import litebird_sim as lbs
 
   # This simulation can take advantage of MPI, if present
-  sim = lbs.Simulation(use_mpi = lbs.MPI_ENABLED)
+  sim = lbs.Simulation(mpi_comm = lbs.MPI_COMM_WORLD)
 
 See the page :ref:`using_mpi` for more information.
 
@@ -317,7 +319,7 @@ However, running the script with the environment variable
 
 .. code-block:: text
 
-  $ LOG_DEBUG=1 poetry run python my_script.py  # No logging
+  $ LOG_DEBUG=1 poetry run python my_script.py
   [2020-07-18 06:31:03,223 DEBUG] the simulation starts here!
   [2020-07-18 06:31:03,224 DEBUG] wrong value of pi!
   $
