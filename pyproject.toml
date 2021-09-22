@@ -37,19 +37,20 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.6.1,<3.9"  # <3.9 because of Numba 0.52
-numba = "0.52"
+python = ">=3.7.1,<3.10"
+numba = "^0.54"
 numpy = "^1.18"
 astropy = "^4.0"
 flake8 = "^3.7"
-black = {version = "^18.3-alpha.0", allow-prereleases = true}
+black = {version = "^21.9b", allow-prereleases = true}
 tomlkit = "^0.5.8"
 
 mpi4py = {version = "^3.0", optional = true}
 
-sphinx = {version = "^2.3", optional = true}
-sphinx_rtd_theme = {version = "^0.4.3", optional = true}
-sphinxcontrib-bibtex = {version = "^2.4.0", optional = true}
+sphinx = "^2.3"
+sphinx_rtd_theme = "^0.4.3"
+sphinxcontrib-bibtex = "^2.4.0"
+sphinxcontrib-contentui = "^0.2.5"
 
 jupyter = {version = "^1.0", optional = true}
 jupyterlab = {version = "^1.2", optional = true}
@@ -68,13 +69,8 @@ PyGithub = "^1.53"
 requests = "^2.24.0"
 rich = "^6.2.0"
 
-# For some reason, these don't get installed if in extras.docs
-# -> added to the global dependencies
-sphinxcontrib-contentui = "^0.2.5"
-
-dataclasses = {version = "^0.7", python = ">=3.6, <3.7"}
 toast-cmb = "^2.3.12"
-ducc0 = "^0.8.0"
+ducc0 = "^0.20.0"
 pysm3 = "^3.3.0"
 "sphinxcontrib.asciinema" = "^0.2.1"
 asciimatics = "^1.12.0"
@@ -83,7 +79,6 @@ pre-commit = "^2.15.0"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]
-docs = ["sphinx", "sphinx_rtd_theme", "sphinxcontrib-bibtex"]
 jupyter = ["jupyter"]
 
 [build-system]
