@@ -22,28 +22,26 @@ through the :file: `.scan_map.py`. You can fill with signal an existing TOD
 by using the function :func:`.scan_map_in_observations`, as the following example
 shows:
 
- .. testcode::
-   
+.. testcode::
+      
    import litebird_sim as lbs
    import numpy as np
-
+   
    hwp_radpsec = np.pi / 8
    start_time_s = 0
    time_span_s = 1
-
+   
    nside = 256
    npix = 12 * nside * nside
-
+   
    # Create a simulation
-   sim = lbs.Simulation(base_path='./output', start_time=start_time_s, duration_s=time_span_s)
-
+   sim = lbs.Simulation(
+       base_path="./output", start_time=start_time_s, duration_s=time_span_s
+   )
+   
    # Create a detector object
-   det = lbs.DetectorInfo(
-     name="Detector",
-     sampling_rate_hz=10,
-     quat=[0.0, 0.0, 0.0, 1.0],
-   )     
-
+   det = lbs.DetectorInfo(name="Detector", sampling_rate_hz=10, quat=[0.0, 0.0, 0.0, 1.0])
+   
    # Define the scanning strategy
    scanning = lbs.SpinningScanningStrategy(
        spin_sun_angle_rad=0.785_398_163_397_448_3,
@@ -51,20 +49,20 @@ shows:
        spin_rate_hz=0.000_833_333_333_333_333_4,
        start_time=start_time_s,
    )
-
+   
    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
        start_time_s, time_span_s, delta_time_s=7200
    )
-
+   
    instr = lbs.InstrumentInfo(
        boresight_rotangle_rad=0.0,
        spin_boresight_angle_rad=0.872_664_625_997_164_8,
        spin_rotangle_rad=3.141_592_653_589_793,
    )
-
+   
    # Initialize the observation
    (obs,) = sim.create_observations(detectors=[det])
-
+   
    # Compute the pointing
    pointings = lbs.scanning.get_pointings(
        obs,
@@ -72,17 +70,15 @@ shows:
        detector_quats=[det.quat],
        bore2spin_quat=instr.bore2spin_quat,
    )
-
-   # Create a map to scan 
+   
+   # Create a map to scan
    # In a realistic simulation use Mbs
    maps = np.ones((3, npix))
    in_map = {"Detector": maps}
 
    # Here scan the map and fill tod
-   lbs.scan_map_in_observations(
-       obs, pointings, hwp_radpsec, in_map,
-   )
-
+   lbs.scan_map_in_observations(obs, pointings, hwp_radpsec, in_map)
+   
    for i in range(obs.n_samples):
        print(f"{obs.tod[0][i]:.5e}")
 
