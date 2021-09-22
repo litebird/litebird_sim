@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get install -y -q libfftw3-dev
+          ./bin/install-deps.sh
           ./bin/install-mpi.sh ${{ matrix.mpi }}
           pip install poetry
           mkdir -p $HOME/.config/litebird_imo
