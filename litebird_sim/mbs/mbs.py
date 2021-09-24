@@ -168,6 +168,10 @@ class MbsParameters:
       :class:`.Mbs` class. It follows the naming of the pysm3 units,
       e.g. "K_CMB" / "K_RJ" / "uK_CMB" / "uK_RJ"
 
+    - ``maps_in_ecliptic`` (default: ``False``): when ``True`` the maps
+      contained in the dictionary returned by `Mbs.run_all` are converted
+      in ecliptic coordinates using the `healpy` routine `rotate_map_alms`
+
     """
 
     nside: int = 512
@@ -189,6 +193,7 @@ class MbsParameters:
     fg_models: Union[Dict[str, Any], None] = None
     output_string: Union[str, None] = None
     units: str = "K_CMB"
+    maps_in_ecliptic: bool = False
 
     def __post_init__(self):
         if self.n_split == 1:
@@ -841,6 +846,9 @@ class Mbs:
                 for cmp in fg.keys():
                     tot += fg[cmp]
 
+        if self.params.maps_in_ecliptic:
+            r = hp.Rotator(coord=["G", "E"])
+
         if rank == 0:
             if self.params.save and self.params.coadd:
                 log.info("saving coadded signal maps")
@@ -848,6 +856,10 @@ class Mbs:
             if not self.params.save:
                 tot_dict = {}
                 for nch, chnl in enumerate(channels):
+                    if self.params.maps_in_ecliptic:
+                        tot[nch] = r.rotate_map_alms(
+                            tot[nch], lmax=4 * self.params.nside
+                        )
                     tot_dict[chnl] = tot[nch]
                 return (tot_dict, saved_maps)
 

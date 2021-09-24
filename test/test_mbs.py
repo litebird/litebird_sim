@@ -19,6 +19,7 @@ PARAMETER_FILE = """
   parallel_mc = false
   coadd = true
   units = "uK_CMB"
+  maps_in_ecliptic = false
 
   [map_based_sims.noise]
   make_noise = true
