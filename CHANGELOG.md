@@ -6,6 +6,8 @@
 
 - Option in Mbs for maps in ecliptoc coordinates [#133](https://github.com/litebird/litebird_sim/pull/133)
 
+- Module for scanning a map and filling TOD [#131](https://github.com/litebird/litebird_sim/pull/131)
+
 # Version 0.3.0
 
 - Spacecraft simulator and dipole computation [#122](https://github.com/litebird/litebird_sim/pull/122)
