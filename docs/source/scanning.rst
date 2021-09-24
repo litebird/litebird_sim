@@ -10,6 +10,12 @@ of directions and orientations of each detector is usually called
 *pointing information*, and we'll consistently use this jargon in the
 documentation.
 
+Note that this chapter only deals with the *direction* some detector
+is looking at, but the actual position/velocity of the spacecraft is
+not needed to do this calculation. The framework provide other
+facilities to compute this information, and they are described in
+:ref:`dipole-anisotropy`.
+
 This chapter provides an in-depth explanation about how to use the
 facilities provided by the framework to compute the pointing
 information for any detector in one of the focal planes.
@@ -814,13 +820,13 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
 
 .. testoutput::
 
-  [[-0.15605956 -0.96302723  0.21959958]
-   [-0.15393029 -0.96231749  0.22416628]
-   [-0.15180263 -0.96158138  0.22872956]
+  [[ 0.57053937  0.07219102 -0.81809124]
+   [ 0.57038372  0.06957116 -0.8184267 ]
+   [ 0.57023386  0.0669494  -0.81874973]
    ...
-   [-0.26224282  0.96497767 -0.00684089]
-   [-0.2643768   0.96435188 -0.01141765]
-   [-0.26650937  0.96369966 -0.01599139]]
+   [ 0.99293109 -0.0800506   0.08763421]
+   [ 0.99310516 -0.07743726  0.08800916]
+   [ 0.99327345 -0.07482179  0.08837171]]
 
 
 Again, the vectors printed by this script are in the *reference frame
@@ -846,13 +852,6 @@ main beam axis (:math:`\theta = 0`)::
 We see that Jupiter is ~10° away from the beam axis after ~30 seconds
 since the start of the simulation.
            
-Bibliography
-------------
-
-.. bibliography:: refs.bib
-   :style: plain
-
-
 API reference
 -------------
 

@@ -1,6 +1,28 @@
 # HEAD
 
+- **Breaking change** Rename keyword `distribute` to `split_list_over_processes` in `Simulation.create_observations` [#110](https://github.com/litebird/litebird_sim/pull/110)
+
+- **Breaking change** Switch to thermodynamic units in the MBS module [#123](https://github.com/litebird/litebird_sim/pull/123)
+
+- Option in Mbs for maps in ecliptoc coordinates [#133](https://github.com/litebird/litebird_sim/pull/133)
+
+- Module for scanning a map and filling TOD [#131](https://github.com/litebird/litebird_sim/pull/131)
+
+# Version 0.3.0
+
+- Spacecraft simulator and dipole computation [#122](https://github.com/litebird/litebird_sim/pull/122)
+
+- Improve the way code is checked [#130](https://github.com/litebird/litebird_sim/pull/130)
+
+- Fix bugs [#126](https://github.com/litebird/litebird_sim/issues/126), [#124](https://github.com/litebird/litebird_sim/issues/124), [#120](https://github.com/litebird/litebird_sim/issues/120), [#111](https://github.com/litebird/litebird_sim/pull/111)
+
+# Version 0.2.1
+
+- Fix bug [#107](https://github.com/litebird/litebird_sim/pull/107) [PR#108](https://github.com/litebird/litebird_sim/pull/108)
+
 # Version 0.2.0
+
+- White and 1/f noise generation [PR#100](https://github.com/litebird/litebird_sim/pull/100)
 
 - Fix bug #104 [PR#105](https://github.com/litebird/litebird_sim/pull/105)
 

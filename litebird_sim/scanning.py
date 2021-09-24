@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Union
 from uuid import UUID
 
-from astropy.coordinates import ICRS, get_body_barycentric, BarycentricMeanEcliptic
+from astropy.coordinates import ICRS, get_body_barycentric
 import astropy.time
 import astropy.units as u
 from numba import njit
@@ -12,6 +12,7 @@ import numpy as np
 
 from ducc0.pointingprovider import PointingProvider
 
+from .coordinates import DEFAULT_COORDINATE_SYSTEM
 from .imo import Imo
 
 from .quaternions import (
@@ -191,21 +192,29 @@ def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
     Prototype::
 
         all_compute_pointing_and_polangle(
-            result_matrix: numpy.array[N, 3],
-            quat_matrix: numpy.array[N, 4],
+            result_matrix: numpy.array[D, N, 3],
+            quat_matrix: numpy.array[N, D, 4],
         )
 
-    Assuming that `result_matrix` is a (N×3) matrix and `quat_matrix`
-    a (N×4) matrix, iterate over all the N rows and apply
-    :func:`compute_pointing_and_polangle` to every row.
+    Assuming that `result_matrix` is a (D, N, 3) matrix and `quat_matrix` a (N, D, 4)
+    matrix, iterate over all the N samples and D detectors and apply
+    :func:`compute_pointing_and_polangle` to every item.
 
     """
-    assert quat_matrix[..., 0].size == result_matrix[..., 0].size
-    result_matrix = result_matrix.reshape(-1, 3)
-    quat_matrix = quat_matrix.reshape(-1, 4)
 
-    for row in range(result_matrix.shape[0]):
-        compute_pointing_and_polangle(result_matrix[row, :], quat_matrix[row, :])
+    n_dets, n_samples, _ = result_matrix.shape
+
+    assert result_matrix.shape[2] == 3
+    assert quat_matrix.shape[0] == n_samples
+    assert quat_matrix.shape[1] == n_dets
+    assert quat_matrix.shape[2] == 4
+
+    for det_idx in range(n_dets):
+        for sample_idx in range(n_samples):
+            compute_pointing_and_polangle(
+                result_matrix[det_idx, sample_idx, :],
+                quat_matrix[sample_idx, det_idx, :],
+            )
 
 
 @njit
@@ -378,8 +387,8 @@ def calculate_sun_earth_angles_rad(time_vector):
 
     if isinstance(time_vector, astropy.time.Time):
         pos = get_body_barycentric("earth", time_vector)
-        coord = ICRS(pos).transform_to(BarycentricMeanEcliptic).cartesian
-        return np.arctan2(coord.x.value, coord.y.value)
+        coord = ICRS(pos).transform_to(DEFAULT_COORDINATE_SYSTEM).cartesian
+        return np.arctan2(coord.y.value, coord.x.value)
     else:
         return YEARLY_OMEGA_SPIN_HZ * time_vector
 
@@ -760,8 +769,9 @@ def get_quaternion_buffer_shape(obs, num_of_detectors=None):
     :func:`.get_det2ecl_quaternions` and :func:`.get_ecl2det_quaternions` to
     save the quaternions representing the change of the orientation of the
     detectors with time.
-    
+
     Here is a typical use::
+
         import numpy as np
         import litebird_sim as lbs
         obs = lbs.Observation(...)
@@ -771,6 +781,7 @@ def get_quaternion_buffer_shape(obs, num_of_detectors=None):
             ...,
             quaternion_buffer=quaternions,
         )
+
     """
 
     if not num_of_detectors:
@@ -821,7 +832,7 @@ def get_det2ecl_quaternions(
     else:
         assert (
             quaternion_buffer.shape == bufshape
-        ), f"error, wrong quaternion buffer size: {quaternion_buffer.size} != {bufshape}"
+        ), f"error, wrong buffer size: {quaternion_buffer.size} != {bufshape}"
 
     for (idx, detector_quat) in enumerate(detector_quats):
         quaternion_buffer[:, idx, :] = spin2ecliptic_quats.get_detector_quats(
@@ -897,25 +908,32 @@ def get_pointings(
     :class:`.Simulation` object, once the method
     :meth:`.Simulation.generate_spin2ecl_quaternions` is called.
     The parameter `detector_quats` is a stack of detector quaternions. For
-    example, it can be
+    example, it can be:
+
     - The stack of the field `quat` of an instance of the class
        :class:`.DetectorInfo`
+
     - If all you want to do is a simulation using a boresight
        direction, you can pass the value ``np.array([[0., 0., 0.,
        1.]])``, which represents the null rotation.
+
     The parameter `bore2spin_quat` is calculated through the class
     :class:`.Instrument`, which has the field ``bore2spin_quat``.
     If all you have is the angle β between the boresight and the
     spin axis, just pass ``quat_rotation_y(β)`` here.
+
     The return value is a ``(D x N × 3)`` tensor: the colatitude (in
     radians) is stored in column 0 (e.g., ``result[:, :, 0]``), the
     longitude (ditto) in column 1, and the polarization angle
     (ditto) in column 2. You can extract the three vectors using
     the following idiom::
+
         pointings = obs.get_pointings(...)
+
         # Extract the colatitude (theta), longitude (psi), and
         # polarization angle (psi) from pointings
         theta, phi, psi = [pointings[:, :, i] for i in (0, 1, 2)]
+
     If you plan to call this function repeatedly, you can save
     some running time by pre-allocating the buffer used to hold
     the pointings and the quaternions with the parameters
@@ -925,6 +943,7 @@ def get_pointings(
     :func:`.get_pointing_buffer_shape`. If you use
     these parameters, the return value will be a pointer to the
     `pointing_buffer`.
+
     """
     det2ecliptic_quats = get_det2ecl_quaternions(
         obs,

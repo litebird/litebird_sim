@@ -4,14 +4,19 @@ from typing import Union, List
 import astropy.time
 import numpy as np
 
+from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly
 
 # NOTE: When the deprecated pointing methods will be removed, the following
 # imports should be removed as well
 import logging
 from .scanning import (
-    Spin2EclipticQuaternions, get_quaternion_buffer_shape, get_det2ecl_quaternions,
-    get_pointing_buffer_shape, get_ecl2det_quaternions, get_pointings
+    Spin2EclipticQuaternions,
+    get_quaternion_buffer_shape,
+    get_det2ecl_quaternions,
+    get_pointing_buffer_shape,
+    get_ecl2det_quaternions,
+    get_pointings,
 )
 
 
@@ -19,21 +24,29 @@ class Observation:
     """An observation made by one or multiple detectors over some time window
 
     After construction at least the following attributes are available
-    - :py:meth:`.start_time`
-    - :py:meth:`.n_detectors`
-    - :py:meth:`.n_samples`
-    - :py:meth:`.tod` 2D array (`n_detectors` by `n_samples)` stacking the times
-      streams of the detectors
 
-    A note for MPI-parallel application: unless specified, all the variables are
-    *local*. Should you need the global counterparts, 1) think twice, 2) append
-    `_global` to the attribute name.
+    - :py:meth:`.start_time`
+
+    - :py:meth:`.n_detectors`
+
+    - :py:meth:`.n_samples`
+
+    - :py:meth:`.tod` 2D array (`n_detectors` by `n_samples)` stacking
+      the times streams of the detectors.
+
+    A note for MPI-parallel application: unless specified, all the
+      variables are *local*. Should you need the global counterparts,
+      1) think twice, 2) append `_global` to the attribute name, like
+      in the following:
+
     - :py:meth:`.start_time_global`
+
     - :py:meth:`.n_detectors_global` `~ n_detectors * n_blocks_det`
+
     - :py:meth:`.n_samples_global` `~ n_samples * n_blocks_time`
 
-    Following the same phylosophy also
-    - :py:meth:`.get_times` returns the time stamps of the local time interval
+    Following the same philosophy, :py:meth:`.get_times` returns the
+    time stamps of the local time interval
 
     Args:
         detectors (int/list of dict): Either the number of detectors or
@@ -66,6 +79,7 @@ class Observation:
 
         root (int): rank of the process receiving the detector list, if
             ``detectors`` is a list of dictionaries, otherwise it is ignored.
+
     """
 
     def __init__(
@@ -106,9 +120,11 @@ class Observation:
             self._n_blocks_time = 1
 
         if allocate_tod:
-            self.tod = np.empty(
+            self.tod = np.zeros(
                 self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=dtype_tod
             )
+        else:
+            self.tod = None
 
         self.setattr_det_global("det_idx", np.arange(self._n_detectors_global), root)
         if not isinstance(detectors, int):
@@ -145,7 +161,7 @@ class Observation:
 
         if isinstance(self.start_time_global, astropy.time.Time):
             delta = astropy.time.TimeDelta(
-                1.0 / self.sampling_rate_hz, format="sec", scale="tdb"
+                1.0 / self.sampling_rate_hz, format="sec", scale=DEFAULT_TIME_SCALE
             )
         else:
             delta = 1.0 / self.sampling_rate_hz
@@ -188,7 +204,7 @@ class Observation:
 
     @property
     def n_samples_global(self):
-        """ Samples in the whole observation
+        """Samples in the whole observation
 
         If you need the time-lenght of the local TOD block  ``self.tod``, use
         either ``n_samples`` or ``self.tod.shape[1]``.
@@ -197,7 +213,7 @@ class Observation:
 
     @property
     def n_detectors_global(self):
-        """ Total number of detectors in the observation
+        """Total number of detectors in the observation
 
         If you need the number of detectors in the local TOD block ``self.tod``,
         use either ``n_detectors`` or ``self.tod.shape[0]``.
@@ -309,7 +325,8 @@ class Observation:
         # For a given row, ith old block sends counts[i, j] elements to
         # the jth new block
         counts = (
-            np.append(time_start_recvs, self._n_samples_global)[1:] - time_start_sends[:, None]
+            np.append(time_start_recvs, self._n_samples_global)[1:]
+            - time_start_sends[:, None]
         )
         counts = np.where(counts < 0, 0, counts)
         counts = np.where(
@@ -420,7 +437,7 @@ class Observation:
         ) = self._get_local_start_time_start_and_n_samples()
 
     def setattr_det(self, name, info):
-        """ Add a piece of information about the detectors
+        """Add a piece of information about the detectors
 
         Store ``info`` as the attribute ``name`` of the observation.
         The difference with respect to ``self.name = info``, relevant only
@@ -441,11 +458,11 @@ class Observation:
 
         """
         self._attr_det_names.append(name)
-        assert len(info) == len(self.tod)
+        assert len(info) == self.n_detectors
         setattr(self, name, info)
 
     def setattr_det_global(self, name, info, root=0):
-        """ Add a piece of information on the detectors
+        """Add a piece of information on the detectors
 
         Variant of :py:meth:`.setattr_det` to be used when the information
         comes from a single MPI rank (``root``). In particular,
@@ -473,7 +490,7 @@ class Observation:
             self._attr_det_names.append(name)
 
         if not self.comm or self.comm.size == 1:
-            assert len(info) == len(self.tod)
+            assert len(info) == self.n_detectors_global
             setattr(self, name, info)
             return
 
@@ -497,8 +514,31 @@ class Observation:
 
         comm_row = comm_grid.Split(comm_grid.rank // self._n_blocks_time)
         info = comm_row.bcast(info, root_col)
-        assert len(info) == len(self.tod)
+        assert self.tod is None or len(info) == len(self.tod)
         setattr(self, name, info)
+
+    def get_delta_time(self) -> Union[float, astropy.time.TimeDelta]:
+        """Return the time interval between two consecutive samples in this observation
+
+        Depending whether the field ``start_time`` of the :class:`.Observation` object
+        is a ``float`` or a ``astropy.time.Time`` object, the return value is either a
+        ``float`` (in seconds) or an instance of ``astropy.time.TimeDelta``. See also
+        :meth:`.get_time_span`."""
+
+        delta = 1.0 / self.sampling_rate_hz
+        if isinstance(self.start_time, astropy.time.Time):
+            delta = astropy.time.TimeDelta(delta, format="sec", scale="tdb")
+
+        return delta
+
+    def get_time_span(self) -> Union[float, astropy.time.TimeDelta]:
+        """Return the temporal length of the current observation
+
+        This method can either return a ``float`` (in seconds) or a
+        ``astropy.time.TimeDelta`` object, depending whether the field ``start_time``
+        of the :class:`.Observation` object is a ``float`` or a
+        ``astropy.time.Time`` instance. See also :meth:`.get_delta_time`."""
+        return self.get_delta_time() * self.n_samples
 
     def get_times(self, normalize=False, astropy_times=False):
         """Return a vector containing the time of each sample in the observation
@@ -539,9 +579,7 @@ class Observation:
                 "to use astropy_times=True you must specify an astropy.time.Time "
                 "object in Observation.__init__"
             )
-            delta = astropy.time.TimeDelta(
-                1.0 / self.sampling_rate_hz, format="sec", scale="tdb"
-            )
+            delta = self.get_delta_time()
             return self.start_time + np.arange(self.n_samples) * delta
 
         if isinstance(self.start_time, astropy.time.Time):
@@ -562,11 +600,11 @@ class Observation:
 
     # Deprecated methods: Remove ASAP >>>
     def get_quaternion_buffer_shape(self, num_of_detectors=None):
-        """Deprecated: see scanning.get_quaternion_buffer_shape
-        """
+        """Deprecated: see scanning.get_quaternion_buffer_shape"""
         logging.warn(
             "Observation.get_quaternion_buffer_shape is deprecated and will be "
-            "removed soon, use scanning.get_quaternion_buffer_shape instead")
+            "removed soon, use scanning.get_quaternion_buffer_shape instead"
+        )
         return get_quaternion_buffer_shape(self, num_of_detectors)
 
     def get_det2ecl_quaternions(
@@ -577,11 +615,11 @@ class Observation:
         quaternion_buffer=None,
         dtype=np.float64,
     ):
-        """Deprecated: see scanning.get_det2ecl_quaternions
-        """
+        """Deprecated: see scanning.get_det2ecl_quaternions"""
         logging.warn(
             "Observation.get_det2ecl_quaternions is deprecated and will be "
-            "removed soon, use scanning.get_det2ecl_quaternions instead")
+            "removed soon, use scanning.get_det2ecl_quaternions instead"
+        )
 
         return get_det2ecl_quaternions(
             self,
@@ -600,11 +638,11 @@ class Observation:
         quaternion_buffer=None,
         dtype=np.float64,
     ):
-        """Deprecated: see scanning.get_ecl2det_quaternions
-        """
+        """Deprecated: see scanning.get_ecl2det_quaternions"""
         logging.warn(
             "Observation.get_ecl2det_quaternions is deprecated and will be "
-            "removed soon, use scanning.get_ecl2det_quaternions instead")
+            "removed soon, use scanning.get_ecl2det_quaternions instead"
+        )
 
         return get_ecl2det_quaternions(
             self,
@@ -616,11 +654,11 @@ class Observation:
         )
 
     def get_pointing_buffer_shape(self):
-        """Deprecated: see scanning.get_pointing_buffer_shape
-        """
+        """Deprecated: see scanning.get_pointing_buffer_shape"""
         logging.warn(
             "Observation.get_pointing_buffer_shape is deprecated and will be "
-            "removed soon, use scanning.get_pointing_buffer_shape instead")
+            "removed soon, use scanning.get_pointing_buffer_shape instead"
+        )
 
         return get_pointing_buffer_shape(self)
 
@@ -634,11 +672,11 @@ class Observation:
         pointing_buffer=None,
         dtype_pointing=np.float32,
     ):
-        """Deprecated: see scanning.get_pointings
-        """
+        """Deprecated: see scanning.get_pointings"""
         logging.warn(
             "Observation.get_pointings is deprecated and will be "
-            "removed soon, use scanning.get_pointings instead")
+            "removed soon, use scanning.get_pointings instead"
+        )
 
         return get_pointings(
             self,
@@ -650,4 +688,5 @@ class Observation:
             pointing_buffer,
             dtype_pointing,
         )
+
     # <<< Remove ASAP

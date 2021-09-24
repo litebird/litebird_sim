@@ -19,10 +19,14 @@ Welcome to litebird_sim's documentation!
    mapmaking
    sky_maps
    scanning
+   dipole
    imo
+   timeordered
    reports
    mpi
    integrating
+   bibliography
+
 
 Indices and tables
 ==================

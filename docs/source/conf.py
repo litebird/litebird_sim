@@ -22,7 +22,7 @@ copyright = "2020, The LiteBIRD Simulation Team"
 author = "The LiteBIRD Simulation Team"
 
 # The full version, including alpha/beta/rc tags
-release = "0.2.0"
+release = "0.3.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -40,6 +40,8 @@ extensions = [
     "sphinxcontrib.contentui",
     "matplotlib.sphinxext.plot_directive",
 ]
+
+bibtex_bibfiles = ["refs.bib"]
 
 
 # Add any paths that contain templates here, relative to this directory.

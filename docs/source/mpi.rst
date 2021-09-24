@@ -43,14 +43,14 @@ variable :data:`.MPI_ENABLED`::
 
 
 To ensure that your code uses MPI in the proper way, you should always
-use ``.MPI_COMM_WORLD`` instead of importing ``mpi4py`` directly.
+use :data:`.MPI_COMM_WORLD` instead of importing ``mpi4py`` directly.
 
 
 Enabling/disabling MPI
 ----------------------
 
 The user can control whether MPI must be used or not in a script,
-through the environment variable ``LITEBIRD_SIM_PI`` (``ENABLE_MPI``
+through the environment variable ``LITEBIRD_SIM_MPI`` (``ENABLE_MPI``
 is accepted as well):
 
 - If the variable is set to the empty string or to ``1``, ``true``,

@@ -42,9 +42,7 @@ def test_make_bin_map_api_simulation(tmp_path):
     # We should add a more meaningful observation:
     # Currently this test just shows the interface
     sim = lbs.Simulation(
-        base_path=tmp_path / "tut04",
-        start_time=0.0,
-        duration_s=86400.0,
+        base_path=tmp_path / "tut04", start_time=0.0, duration_s=86400.0
     )
 
     sim.generate_spin2ecl_quaternions(
@@ -67,9 +65,9 @@ def test_make_bin_map_api_simulation(tmp_path):
     )
 
     nside = 64
-    obss[0].pixel = hp.ang2pix(nside, pointings[..., 0], pointings[..., 1])
+    obss[0].pixind = hp.ang2pix(nside, pointings[..., 0], pointings[..., 1])
     obss[0].psi = pointings[..., 2]
-    res = mapping.make_bin_map(obss, nside)
+    mapping.make_bin_map(obss, nside)
 
 
 def test_make_bin_map_basic_mpi():
@@ -102,7 +100,7 @@ def test_make_bin_map_basic_mpi():
     )
     if obs.comm.rank == 0:
         obs.tod[:] = tod.reshape(2, 5)
-        obs.pixel = pix.reshape(2, 5)
+        obs.pixind = pix.reshape(2, 5)
         obs.psi = psi.reshape(2, 5)
 
     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
