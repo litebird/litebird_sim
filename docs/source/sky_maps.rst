@@ -1,3 +1,5 @@
+.. _Mbs:
+
 Synthetic sky maps
 ==================
 

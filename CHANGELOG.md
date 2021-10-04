@@ -1,5 +1,17 @@
 # HEAD
 
+- **Breaking change** Rename keyword `distribute` to `split_list_over_processes` in `Simulation.create_observations` [#110](https://github.com/litebird/litebird_sim/pull/110)
+
+- **Breaking change** Switch to thermodynamic units in the MBS module [#123](https://github.com/litebird/litebird_sim/pull/123)
+
+- Make the TOAST destriper more robust when MPI is/isn't present [#106](https://github.com/litebird/litebird_sim/pull/106)
+
+- Option in Mbs for maps in ecliptoc coordinates [#133](https://github.com/litebird/litebird_sim/pull/133)
+
+- Module for scanning a map and filling TOD [#131](https://github.com/litebird/litebird_sim/pull/131)
+
+# Version 0.3.0
+
 - Spacecraft simulator and dipole computation [#122](https://github.com/litebird/litebird_sim/pull/122)
 
 - Improve the way code is checked [#130](https://github.com/litebird/litebird_sim/pull/130)

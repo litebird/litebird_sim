@@ -116,9 +116,8 @@ class Simulation:
         print(f"Running {sim.name}, saving results in {sim.base_path}")
 
     The member variable `observations` is a list of
-    :class:`.Observation` objects, which is initialized by the methods
-    :meth:`.create_observations` (when ``distribute=True``) and
-    :meth:`.distribute_workload`.
+    :class:`.Observation` objects, which is initialized by the method
+    :meth:`.create_observations`.
 
     This class keeps track of any output file saved in `base_path`
     through the member variable `self.list_of_outputs`. This is a list
@@ -605,15 +604,51 @@ class Simulation:
         self,
         detectors: List[DetectorInfo],
         num_of_obs_per_detector: int = 1,
-        # XXX If True distribute the list of observations,
-        # if False distribute the individial observation
-        distribute=True,
+        split_list_over_processes=True,
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
         dtype_tod=np.float32,
     ):
-        "Create a set of Observation objects"
+        """Create a set of Observation objects.
+
+        This method initializes the `Simulation.observations` field of
+        the class with a list of observations referring to the
+        detectors listed in `detectors`. By default there is *one*
+        observation per detector, but you can tune the number using
+        the parameter `num_of_obs_per_detector`: this is useful if you
+        are simulating a long experiment in a MPI job.
+
+        If `split_list_over_processes` is set to ``True`` (the
+        default), the set of observations will be distributed evenly
+        among the MPI processes associated with ``self.mpi_comm``
+        (initialized in :meth:`.Simulation.__init__`). If
+        `split_list_over_processes` is ``False``, then no distribution
+        will happen: this can be useful if you are running a MPI job
+        but you want to take care of the actual distribution of the
+        observations among the MPI workers instead of relying on the
+        default distribution algorithm.
+
+        Each observation can hold information about more than one
+        detector; the parameters `n_blocks_det` specify how many
+        groups of detectors will be created. For instance, if you are
+        simulating 10 detectors and you specify ``nblocks_det=5``,
+        this means that each observation will handle ``10 / 5 = 2``
+        detectors. The default is that *all* the detectors be kept
+        together (``nblocks_det=1``).
+
+        The parameter `n_blocks_time` specifies the number of time
+        splits of the observations. In the case of a 3-month-long
+        observation, `n_blocks_time=3` means that each observation
+        will cover one month.
+
+        The parameter `dtype_tod` specifies the data type to be used
+        for the samples in the timestream. The default is
+        ``numpy.float32``, which should be adequate for LiteBIRD's
+        purposes; if you want greater accuracy at the expense of
+        doubling memory occupation, choose ``numpy.float64``.
+
+        """
 
         assert (
             self.start_time is not None
@@ -642,7 +677,7 @@ class Simulation:
                 n_samples_global=nsamples,
                 n_blocks_det=n_blocks_det,
                 n_blocks_time=n_blocks_time,
-                comm=(None if distribute else self.mpi_comm),
+                comm=(None if split_list_over_processes else self.mpi_comm),
                 root=0,
                 dtype_tod=dtype_tod,
             )
@@ -654,7 +689,7 @@ class Simulation:
 
             cur_time += time_span
 
-        if distribute:
+        if split_list_over_processes:
             self.distribute_workload(observations)
         else:
             self.observations = observations
