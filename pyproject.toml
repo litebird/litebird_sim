@@ -80,6 +80,7 @@ pysm3 = "^3.3.0"
 asciimatics = "^1.12.0"
 pyperclip = "^1.8.1"
 pre-commit = "^2.15.0"
+h5py = "3.1"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]
