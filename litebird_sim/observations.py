@@ -6,6 +6,7 @@ import numpy as np
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly
+from .detectors import DetectorInfo
 
 # NOTE: When the deprecated pointing methods will be removed, the following
 # imports should be removed as well
@@ -84,7 +85,7 @@ class Observation:
 
     def __init__(
         self,
-        detectors: Union[int, List[dict]],
+        detectors: Union[int, List[dict], List[DetectorInfo]],
         n_samples_global: int,
         start_time_global: Union[float, astropy.time.Time],
         sampling_rate_hz: float,
