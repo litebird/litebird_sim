@@ -68,6 +68,7 @@ from .spacecraft import (
     SpacecraftPositionAndVelocity,
 )
 from .dipole import add_dipole, add_dipole_to_observations, DipoleType
+from .io import write_list_of_observations, write_observations
 from .version import __author__, __version__
 
 __all__ = [
@@ -158,4 +159,7 @@ __all__ = [
     "spacecraft_pos_and_vel",
     "SpacecraftOrbit",
     "SpacecraftPositionAndVelocity",
+    # io
+    "write_list_of_observations",
+    "write_observations",
 ]
