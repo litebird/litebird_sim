@@ -65,7 +65,7 @@ def test_destriper(tmp_path):
     # healpy.write_map(hit_map_filename, results.hit_map, dtype="int32", overwrite=True)
     np.testing.assert_allclose(
         results.hit_map,
-        healpy.read_map(hit_map_filename, field=None, verbose=False, dtype=np.int32),
+        healpy.read_map(hit_map_filename, field=None, dtype=np.int32),
     )
 
     binned_map_filename = ref_map_path / "destriper_binned_map.fits.gz"
@@ -78,7 +78,6 @@ def test_destriper(tmp_path):
     ref_binned = healpy.read_map(
         binned_map_filename,
         field=None,
-        verbose=False,
         dtype=list((np.float32 for i in range(3))),
     )
     assert results.binned_map.shape == ref_binned.shape
@@ -94,7 +93,6 @@ def test_destriper(tmp_path):
     ref_destriped = healpy.read_map(
         destriped_map_filename,
         field=None,
-        verbose=False,
         dtype=list((np.float32 for i in range(3))),
     )
     assert results.destriped_map.shape == ref_destriped.shape
@@ -112,7 +110,6 @@ def test_destriper(tmp_path):
     ref_npp = healpy.read_map(
         npp_filename,
         field=None,
-        verbose=False,
         dtype=list((np.float32 for i in range(6))),
     )
     assert results.npp.shape == ref_npp.shape
@@ -128,7 +125,6 @@ def test_destriper(tmp_path):
     ref_invnpp = healpy.read_map(
         invnpp_filename,
         field=None,
-        verbose=False,
         dtype=list((np.float32 for i in range(6))),
     )
     assert results.invnpp.shape == ref_invnpp.shape
@@ -143,5 +139,5 @@ def test_destriper(tmp_path):
     # )
     assert np.allclose(
         results.rcond,
-        healpy.read_map(rcond_filename, field=None, verbose=False, dtype=np.float32),
+        healpy.read_map(rcond_filename, field=None, dtype=np.float32),
     )
