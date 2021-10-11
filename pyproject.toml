@@ -69,7 +69,7 @@ PyGithub = "^1.53"
 requests = "^2.24.0"
 rich = "^6.2.0"
 
-toast-cmb = "^2.3.12"
+toast-cmb = "^2.3"
 ducc0 = "^0.20.0"
 pysm3 = "^3.3.0"
 "sphinxcontrib.asciinema" = "^0.2.1"
