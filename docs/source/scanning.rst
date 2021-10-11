@@ -787,7 +787,7 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
   # which is the reference frame used by the LiteBIRD simulation
   # framework
   ecl_vec = (ICRS(icrs_pos)
-      .transform_to(BarycentricMeanEcliptic)
+      .transform_to(BarycentricMeanEcliptic())
       .cartesian
       .get_xyz()
       .value

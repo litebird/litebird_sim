@@ -64,8 +64,7 @@ def test_destriper(tmp_path):
     hit_map_filename = ref_map_path / "destriper_hit_map.fits.gz"
     # healpy.write_map(hit_map_filename, results.hit_map, dtype="int32", overwrite=True)
     np.testing.assert_allclose(
-        results.hit_map,
-        healpy.read_map(hit_map_filename, field=None, dtype=np.int32),
+        results.hit_map, healpy.read_map(hit_map_filename, field=None, dtype=np.int32)
     )
 
     binned_map_filename = ref_map_path / "destriper_binned_map.fits.gz"
@@ -76,9 +75,7 @@ def test_destriper(tmp_path):
     #     overwrite=True,
     # )
     ref_binned = healpy.read_map(
-        binned_map_filename,
-        field=None,
-        dtype=list((np.float32 for i in range(3))),
+        binned_map_filename, field=None, dtype=list((np.float32 for i in range(3)))
     )
     assert results.binned_map.shape == ref_binned.shape
     np.testing.assert_allclose(results.binned_map, ref_binned, rtol=1e-2, atol=1e-3)
@@ -91,9 +88,7 @@ def test_destriper(tmp_path):
     #     overwrite=True,
     # )
     ref_destriped = healpy.read_map(
-        destriped_map_filename,
-        field=None,
-        dtype=list((np.float32 for i in range(3))),
+        destriped_map_filename, field=None, dtype=list((np.float32 for i in range(3)))
     )
     assert results.destriped_map.shape == ref_destriped.shape
     np.testing.assert_allclose(
@@ -108,9 +103,7 @@ def test_destriper(tmp_path):
     #     overwrite=True,
     # )
     ref_npp = healpy.read_map(
-        npp_filename,
-        field=None,
-        dtype=list((np.float32 for i in range(6))),
+        npp_filename, field=None, dtype=list((np.float32 for i in range(6)))
     )
     assert results.npp.shape == ref_npp.shape
     np.testing.assert_allclose(results.npp, ref_npp, rtol=1e-2, atol=1e-3)
@@ -123,9 +116,7 @@ def test_destriper(tmp_path):
     #     overwrite=True,
     # )
     ref_invnpp = healpy.read_map(
-        invnpp_filename,
-        field=None,
-        dtype=list((np.float32 for i in range(6))),
+        invnpp_filename, field=None, dtype=list((np.float32 for i in range(6)))
     )
     assert results.invnpp.shape == ref_invnpp.shape
     np.testing.assert_allclose(results.invnpp, ref_invnpp, rtol=1e-2, atol=1e-3)
@@ -138,6 +129,5 @@ def test_destriper(tmp_path):
     #     overwrite=True,
     # )
     assert np.allclose(
-        results.rcond,
-        healpy.read_map(rcond_filename, field=None, dtype=np.float32),
+        results.rcond, healpy.read_map(rcond_filename, field=None, dtype=np.float32)
     )
