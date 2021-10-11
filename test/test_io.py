@@ -10,7 +10,7 @@ NUMPY_TYPES = [
     (np.int16, "int16"),
     (np.int32, "int32"),
     (np.int64, "int64"),
-    (np.bool, "bool"),
+    (bool, "bool"),
 ]
 
 
