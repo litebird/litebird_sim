@@ -14,15 +14,15 @@ Simulation Team plans to implement in `litebird_sim`.
 | Destriping+calibration map-maker | Complete |            | Provided by TOAST               | [PR#86](https://github.com/litebird/litebird_sim/pull/86)                                       |
 | Spacecraft simulator             | Complete |            |                                 | [PR#122](https://github.com/litebird/litebird_sim/pull/122)                                     |
 | Dipole calculation               | Complete |            |                                 | [PR#122](https://github.com/litebird/litebird_sim/pull/122)                                     |
+| Map scanning                     | Complete |            |                                 | [PR#131](https://github.com/litebird/litebird_sim/pull/131)                                    |
+| White+1/f noise generation       | Complete |            |                                 | [PR#100](https://github.com/litebird/litebird_sim/pull/100)                                    |
 | Beam convolution                 | Partial  |            | Through ducc0                   | [ducc.totalconvolve](https://gitlab.mpcdf.mpg.de/mtr/ducc/-/tree/ducc0/)                        |
 | Calibration non-idealities       | Partial  |            | Code in toast-litebird          | [`OpGainDrifter`](https://github.com/hpc4cmb/toast-litebird/blob/master/toast_litebird/gain.py) |
 | Cosmic-ray glitch generation     | Partial  |            |                                 | No PRs yet                                                                                      |
 | HWP simulation                   | Partial  |            |                                 | [PR#117](https://github.com/litebird/litebird_sim/pull/117)                                    |
 | ADC simulation                   | Partial  |            | Through the CR glitch generator | No PRs yet                                                                                      |
-| Map scanning                     | Missing  |            |                                 |                                                                                                 |
-| White+1/f noise generation       | Missing  |            |                                 |                                                                                                 |
-| Correlated noise generation      | Missing  |            |                                 |                                                                                                 |
-| Dipole calibration               | Missing  |            |                                 |                                                                                                 |
+| Correlated noise generation      | Missing  |            |                                 |                                                                                                |
+| Dipole calibration               | Missing  |            |                                 |                                                                                                |
 
 ## Beam convolution
 
@@ -49,9 +49,8 @@ Simulation Team plans to implement in `litebird_sim`.
 
 ## HWP simulation
 
--   A mathematical model is already available
--   Code is being written by Luca Pagano and Serena Giardiello
--   No PR yet
+-   A mathematical model is already available, based on [Giardiello et al. (2021)](https://ui.adsabs.harvard.edu/abs/2021arXiv210608031G/abstract).
+-   [PR#117](https://github.com/litebird/litebird_sim/pull/117).
 
 ## ADC simulation
 
@@ -65,16 +64,6 @@ Simulation Team plans to implement in `litebird_sim`.
     
 -   Signal clipping is already available in the Cosmic-ray glitch
     generator (see above)
-
-## Map scanning
-
--   Not implemented yet
-
-## White+1/f noise generation
-
--   Work is in progress (Mathew Galloway)
-
--   No PRs yet
 
 ## Correlated noise generation
 
