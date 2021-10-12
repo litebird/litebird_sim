@@ -1,11 +1,14 @@
 # -*- encoding: utf-8 -*-
-
 import litebird_sim as lbs
 import numpy as np
 import healpy as hp
 from astropy import constants as const
 from astropy.cosmology import Planck18_arXiv_v2 as cosmo
 from litebird_sim import mpi
+from typing import Union, List
+from ..mbs.mbs import MbsParameters
+from ..detectors import FreqChannelInfo
+from ..observations import Observation
 
 COND_THRESHOLD = 1e10
 
@@ -36,12 +39,13 @@ def _dBodTth(nu):
 
 
 class HwpSys:
-    """A container object for handling tod filling in presence of hwp non-idealities 
+    """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
     https://arxiv.org/abs/2106.08031
 
     Args:
-         simulation (:class:`.Simulation`): an instance of the :class:`.Simulation` class
+         simulation (:class:`.Simulation`): an instance of the :class:`.Simulation`
+         class
     """
 
     def __init__(self, simulation):
@@ -49,26 +53,28 @@ class HwpSys:
 
     def set_parameters(
         self,
-        nside=None,
-        Mbsparams=None,
-        integrate_in_band=None,
-        built_map_on_the_fly=None,
-        correct_in_solver=None,
-        integrate_in_band_solver=None,
-        Channel=None,
-        maps=None,
+        nside: Union[int, None] = None,
+        Mbsparams: Union[MbsParameters, None] = None,
+        integrate_in_band: Union[bool, None] = None,
+        built_map_on_the_fly: Union[bool, None] = None,
+        correct_in_solver: Union[bool, None] = None,
+        integrate_in_band_solver: Union[bool, None] = None,
+        Channel: Union[FreqChannelInfo, None] = None,
+        maps: Union[np.ndarray, None] = None,
     ):
         """It sets the input paramters
 
         Args:
              nside (integer): nside used in the analysis
              Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
-             integrate_in_band (bool): performs the band integration for tod generation 
-             built_map_on_the_fly (bool): fills A^TA and A^Td for integrating 
-             correct_in_solver (bool): if the map is computed on the fly, A^TA 
-             integrate_in_band_solver (bool): performs the band integration for the map-making solver
-             Channel (:class:`.FreqChannelInfo`): an instance of the :class:`.FreqChannelInfo` class
-             maps (float): input maps (3, npix) coherent with nside provided, 
+             integrate_in_band (bool): performs the band integration for tod generation
+             built_map_on_the_fly (bool): fills A^TA and A^Td for integrating
+             correct_in_solver (bool): if the map is computed on the fly, A^TA
+             integrate_in_band_solver (bool): performs the band integration for the
+                                              map-making solver
+             Channel (:class:`.FreqChannelInfo`): an instance of the
+                                                  :class:`.FreqChannelInfo` class
+             maps (float): input maps (3, npix) coherent with nside provided,
         """
 
         # set defaults for band integration
@@ -78,7 +84,7 @@ class HwpSys:
         hwp_sys_Mbs_gaussian_smooth = True
 
         # This part sets from parameter file
-        if (self.sim.parameter_file != None) and (
+        if (self.sim.parameter_file is not None) and (
             "hwp_sys" in self.sim.parameters.keys()
         ):
             paramdict = self.sim.parameters["hwp_sys"]
@@ -89,7 +95,8 @@ class HwpSys:
                     if "nside" in self.sim.parameters["general"].keys():
                         if self.sim.parameters["general"]["nside"] != self.nside:
                             print(
-                                "Warning!! nside from general (=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
+                                "Warning!! nside from general "
+                                "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
                                 % (self.sim.parameters["general"]["nside"], self.nside)
                             )
 
@@ -157,58 +164,59 @@ class HwpSys:
         # This part sets from input_parameters()
         try:
             self.nside
-        except:
-            if nside == None:
+        except Exception:
+            if nside is None:
                 self.nside = 512
             else:
                 self.nside = nside
 
         try:
             self.integrate_in_band
-        except:
-            if integrate_in_band == None:
+        except Exception:
+            if integrate_in_band is None:
                 self.integrate_in_band = False
             else:
                 self.integrate_in_band = integrate_in_band
 
         try:
             self.built_map_on_the_fly
-        except:
-            if built_map_on_the_fly == None:
+        except Exception:
+            if built_map_on_the_fly is None:
                 self.built_map_on_the_fly = False
             else:
                 self.built_map_on_the_fly = built_map_on_the_fly
 
         try:
             self.correct_in_solver
-        except:
-            if correct_in_solver == None:
+        except Exception:
+            if correct_in_solver is None:
                 self.correct_in_solver = False
             else:
                 self.correct_in_solver = correct_in_solver
 
         try:
             self.integrate_in_band_solver
-        except:
-            if integrate_in_band_solver == None:
+        except Exception:
+            if integrate_in_band_solver is None:
                 self.integrate_in_band_solver = False
             else:
                 self.integrate_in_band_solver = integrate_in_band_solver
 
-        if Mbsparams == None:
+        if Mbsparams is None:
             Mbsparams = lbs.MbsParameters(
                 make_cmb=hwp_sys_Mbs_make_cmb,
                 make_fg=hwp_sys_Mbs_make_fg,
                 fg_models=hwp_sys_Mbs_fg_models,
                 gaussian_smooth=hwp_sys_Mbs_gaussian_smooth,
                 bandpass_int=False,
+                maps_in_ecliptic=True,
             )
 
         Mbsparams.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
 
-        if Channel == None:
+        if Channel is None:
             Channel = lbs.FreqChannelInfo(bandcenter_ghz=100)
 
         if self.integrate_in_band:
@@ -236,7 +244,7 @@ class HwpSys:
             self.maps = np.empty((self.nfreqs, 3, self.npix))
             for ifreq in range(self.nfreqs):
                 self.maps[ifreq] = maps["ch" + str(ifreq)]
-            del (maps)
+            del maps
 
         else:
 
@@ -251,7 +259,7 @@ class HwpSys:
             if not hasattr(self, "z2"):
                 self.z2 = 0.0
 
-            if np.any(maps) == None:
+            if np.any(maps) is None:
                 mbs = lbs.Mbs(
                     simulation=self.sim, parameters=Mbsparams, channel_list=Channel
                 )
@@ -282,8 +290,8 @@ class HwpSys:
                 if not hasattr(self, "z2s"):
                     self.z2s = 0.0
 
-    def fill_tod(self, obs, pointings, hwp_radpsec):
-        """It fills tod and/or A^TA and A^Td for the "on the fly" map production 
+    def fill_tod(self, obs: Observation, pointings: np.ndarray, hwp_radpsec: float):
+        """It fills tod and/or A^TA and A^Td for the "on the fly" map production
 
         Args:
              obs (class:`Observations`): container for tod.
@@ -475,7 +483,7 @@ class HwpSys:
                  generated by lbs.scanning.get_pointings
              hwp_radpsec (float): hwp rotation speed in radiants per second
         Returs:
-            map (float): rebinned T,Q,U maps  
+            map (float): rebinned T,Q,U maps
         """
 
         assert (
