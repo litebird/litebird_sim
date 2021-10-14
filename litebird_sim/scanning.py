@@ -29,9 +29,10 @@ YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * u.year).to(u.s).value
 
 @njit
 def _clip_sincos(x):
-    # Unfortunately, Numba 0.51 does not support np.clip, so we must
-    # roll our own version (see
-    # https://jcristharif.com/numba-overload.html)
+    # np.clip would be perfect here, but it is slightly inefficient to use here
+    # because `x` might either be a float64 or a float32, and we would need to
+    # define the −1 and 1 constant accordingly. Better to resort to a combination
+    # of calls to min/max, as they are efficiently optimized by LLVM.
     return min(max(x, -1), 1)
 
 

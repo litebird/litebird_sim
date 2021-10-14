@@ -133,7 +133,7 @@ def get_pixel_format(t):
 
     """
     conv = {
-        np.dtype(np.bool): "L",
+        np.dtype(bool): "L",
         np.dtype(np.uint8): "B",
         np.dtype(np.int16): "I",
         np.dtype(np.int32): "J",
