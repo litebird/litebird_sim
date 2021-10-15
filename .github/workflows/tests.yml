@@ -8,11 +8,16 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        mpi: [none, mpich, openmpi]
-        python: [3.6, 3.8]
+        mpi: ["none", mpich, openmpi]
+        python: [3.7, 3.9]
         exclude:
           - os: macos-latest
-            python: 3.6
+            mpi: mpich
+            python: 3.7
+          - os: macos-latest
+            mpi: mpich
+            python: 3.9
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -24,14 +29,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          ./bin/install-mpi.sh ${{ matrix.mpi }}
+          ./bin/install-deps.sh ${{ matrix.mpi }}
           pip install poetry
           mkdir -p $HOME/.config/litebird_imo
           echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
       - name: Install litebird_sim
         run: |
-          EXTRAS="-E docs"
+          EXTRAS=""
           if [ "${{ matrix.mpi }}" != "none" ]; then
             EXTRAS="$EXTRAS -E mpi"
           fi

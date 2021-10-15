@@ -13,6 +13,7 @@ from asciimatics.scene import Scene
 from asciimatics.screen import Screen
 from asciimatics.exceptions import ResizeScreenError, NextScene, StopApplication
 import asciimatics.widgets
+from asciimatics.widgets.utilities import THEMES
 
 import pyperclip
 
@@ -32,7 +33,7 @@ except pyperclip.PyperclipException:
 # Implement a custom theme, mostly similar to the default "monochrome"
 # theme provided by Asciimatics, but with better contrast for selected
 # buttons and list items
-asciimatics.widgets.THEMES["custom"] = defaultdict(
+THEMES["custom"] = defaultdict(
     lambda: (Screen.COLOUR_WHITE, Screen.A_NORMAL, Screen.COLOUR_BLACK),
     {
         "invalid": (Screen.COLOUR_BLACK, Screen.A_NORMAL, Screen.COLOUR_RED),
