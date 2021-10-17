@@ -44,8 +44,9 @@ class HwpSys:
     https://arxiv.org/abs/2106.08031
 
     Args:
-         simulation (:class:`.Simulation`): an instance of the class :class:`.Simulation`
-         
+         simulation (:class:`.Simulation`): an instance of the class \
+         :class:`.Simulation`
+
     """
 
     def __init__(self, simulation):
@@ -74,7 +75,8 @@ class HwpSys:
                                               map-making solver
              Channel (:class:`.FreqChannelInfo`): an instance of the
                                                   :class:`.FreqChannelInfo` class
-             maps (float): input maps (3, npix) coherent with nside provided,
+             maps (float): input maps (3, npix) coherent with nside provided.
+
         """
 
         # set defaults for band integration
@@ -290,13 +292,8 @@ class HwpSys:
                 if not hasattr(self, "z2s"):
                     self.z2s = 0.0
 
-    def fill_tod(
-        self, 
-        obs: Observation, 
-        pointings: np.ndarray, 
-        hwp_radpsec: float,
-        ):
-        
+    def fill_tod(self, obs: Observation, pointings: np.ndarray, hwp_radpsec: float):
+
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
 
         Args:
@@ -479,10 +476,7 @@ class HwpSys:
 
         return
 
-    def make_map(
-        self, 
-        obss,
-        ):
+    def make_map(self, obss):
 
         """It generates "on the fly" map. This option is only availabe if `built_map_on_the_fly`
         is set to True.
@@ -494,6 +488,7 @@ class HwpSys:
              hwp_radpsec (float): hwp rotation speed in radiants per second
         Returns:
             map (float): rebinned T,Q,U maps
+            
         """
 
         assert (
