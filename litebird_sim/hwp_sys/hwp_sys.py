@@ -46,7 +46,6 @@ class HwpSys:
     Args:
          simulation (:class:`.Simulation`): an instance of the class \
          :class:`.Simulation`
-
     """
 
     def __init__(self, simulation):
@@ -76,7 +75,6 @@ class HwpSys:
              Channel (:class:`.FreqChannelInfo`): an instance of the
                                                   :class:`.FreqChannelInfo` class
              maps (float): input maps (3, npix) coherent with nside provided.
-
         """
 
         # set defaults for band integration
@@ -488,7 +486,6 @@ class HwpSys:
              hwp_radpsec (float): hwp rotation speed in radiants per second
         Returns:
             map (float): rebinned T,Q,U maps
-            
         """
 
         assert (
