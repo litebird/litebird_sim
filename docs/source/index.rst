@@ -24,6 +24,7 @@ Welcome to litebird_sim's documentation!
    timeordered
    reports
    mpi
+   external_modules
    integrating
    bibliography
 
