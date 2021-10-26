@@ -58,7 +58,15 @@ def write_one_observation(
 
         for attribute in detector_info_fields:
             try:
-                new_detector[attribute] = obs.__getattribute__(attribute)[det_idx]
+                if isinstance(obs.__getattribute__(attribute),float):
+                    new_detector[attribute] = obs.__getattribute__(attribute)
+                else:
+                    if type(obs.__getattribute__(attribute)[det_idx]) is np.int64:
+                        new_detector[attribute] = int(obs.__getattribute__(attribute)[det_idx])
+                    if type(obs.__getattribute__(attribute)[det_idx]) is np.ndarray:
+                        new_detector[attribute] = obs.__getattribute__(attribute)[det_idx].tolist()
+                    else: 
+                        new_detector[attribute] = obs.__getattribute__(attribute)[det_idx]
             except AttributeError:
                 pass
 
