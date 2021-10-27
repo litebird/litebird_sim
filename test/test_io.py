@@ -82,6 +82,7 @@ def test_write_complex_observation(tmp_path):
     )
 
     sim.create_observations(detectors=[det])
+    sim.observations[0].tod = np.random.random(sim.observations[0].tod.shape)
 
     sim.observations[0].pointings = lbs.scanning.get_pointings(
         sim.observations[0],
@@ -120,3 +121,6 @@ def test_write_complex_observation(tmp_path):
         assert det_dictionary[0]["name"] == det.name
         assert det_dictionary[0]["bandcenter_ghz"] == det.bandcenter_ghz
         assert det_dictionary[0]["quat"] == list(det.quat)
+
+        assert np.allclose(tod_dataset, sim.observations[0].tod)
+        assert np.allclose(pointings_dataset, sim.observations[0].pointings)
