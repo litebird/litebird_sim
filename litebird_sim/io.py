@@ -14,6 +14,22 @@ from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 from .simulations import Simulation
 
+__NUMPY_INT_TYPES = [
+    np.int8,
+    np.int16,
+    np.int32,
+    np.int64,
+]
+
+__NUMPY_FLOAT_TYPES = [
+    np.float16,
+    np.float32,
+    np.float64,
+    np.float128,
+]
+
+__NUMPY_SCALAR_TYPES = __NUMPY_INT_TYPES + __NUMPY_FLOAT_TYPES
+
 
 def write_one_observation(
     output_file: h5py.File, obs: Observation, tod_dtype, pointings_dtype
@@ -25,11 +41,19 @@ def write_one_observation(
         output_file.create_dataset(
             "pointings", data=obs.__getattribute__("pointings"), dtype=pointings_dtype
         )
+    except (AttributeError, TypeError):
+        pass
+
+    try:
         output_file.create_dataset("pixel_index", data=obs.__getattribute__("pixel"))
+    except (AttributeError, TypeError):
+        pass
+
+    try:
         output_file.create_dataset(
             "psi", data=obs.__getattribute__("psi"), dtype=pointings_dtype
         )
-    except AttributeError:
+    except (AttributeError, TypeError):
         pass
 
     if isinstance(obs.start_time, astropy.time.Time):
@@ -52,23 +76,35 @@ def write_one_observation(
     # be too bothersome to understand which keys should be saved here.
 
     det_info = []
+    # We must use this ugly hack because Observation does not store DetectorInfo
+    # classes but «spreads» their fields in the namespace of the class Observation.
     detector_info_fields = [x.name for x in fields(DetectorInfo())]
     for det_idx in range(obs.n_detectors):
         new_detector = {}
 
         for attribute in detector_info_fields:
             try:
-                if isinstance(obs.__getattribute__(attribute),float):
-                    new_detector[attribute] = obs.__getattribute__(attribute)
-                else:
-                    if type(obs.__getattribute__(attribute)[det_idx]) is np.int64:
-                        new_detector[attribute] = int(obs.__getattribute__(attribute)[det_idx])
-                    if type(obs.__getattribute__(attribute)[det_idx]) is np.ndarray:
-                        new_detector[attribute] = obs.__getattribute__(attribute)[det_idx].tolist()
-                    else: 
-                        new_detector[attribute] = obs.__getattribute__(attribute)[det_idx]
+                attr_value = obs.__getattribute__(attribute)
             except AttributeError:
-                pass
+                continue
+
+            if type(attr_value) in (str, bool, int, float, dict):
+                # Plain Python type
+                new_detector[attribute] = attr_value
+            elif type(attr_value) in __NUMPY_SCALAR_TYPES:
+                # Convert a NumPy type into a Python type
+                new_detector[attribute] = attr_value.item()
+            else:
+                # From now on, assume that this attribute is an array whose length
+                # is the same as `obs.n_detectors`
+                attr_value = attr_value[det_idx]
+                if type(attr_value) in __NUMPY_SCALAR_TYPES:
+                    new_detector[attribute] = attr_value.item()
+                elif type(attr_value) is np.ndarray:
+                    new_detector[attribute] = [x.item() for x in attr_value]
+                else:
+                    # Fallback: we assume this is a plain Python type
+                    new_detector[attribute] = attr_value
 
         det_info.append(new_detector)
 
@@ -84,14 +120,15 @@ def write_list_of_observations(
     file_name_mask: str = "tod_mpi{mpi_rank:04d}_{index:04d}.h5",
     custom_placeholders: Union[None, List[Dict[str, Any]]] = None,
     start_index: int = 0,
-):
+) -> List[Path]:
     """
     Save a list of observations in a set of HDF5 files
 
     This function takes one or more observations and saves the TODs in several
     HDF5 (each observation leads to *one* file), using `tod_dtype` and
     `pointings_dtype` as the default datatypes for the samples and the pointing
-    angles.
+    angles. The function returns a list of the file written (``pathlib.Path``
+    objects).
 
     The name of the HDF5 files is built using the variable `file_name_mask`,
     which can contain placeholders in the form ``{name}``, where ``name`` can
@@ -137,6 +174,7 @@ def write_list_of_observations(
         path = Path(path)
 
     # Iterate over all the observations and create one HDF5 file for each of them
+    file_list = []
     for obs_idx, cur_obs in enumerate(obs):
         params = {
             "mpi_rank": MPI_COMM_WORLD.rank,
@@ -164,10 +202,14 @@ def write_list_of_observations(
                 pointings_dtype=pointings_dtype,
             )
 
+        file_list.append(file_name)
+
+    return file_list
+
 
 def write_observations(
     sim: Simulation, subdir_name: Union[None, str] = "tod", *args, **kwargs
-):
+) -> List[Path]:
     """Write a set of observations as HDF5
 
     This function is a wrapper to :func:`.write_list_of_observations` that saves
@@ -187,4 +229,25 @@ def write_observations(
     else:
         tod_path = sim.base_path
 
-    write_list_of_observations(obs=sim.observations, path=tod_path, *args, **kwargs)
+    file_list = write_list_of_observations(
+        obs=sim.observations, path=tod_path, *args, **kwargs
+    )
+
+    sim.append_to_report(
+        """
+## TOD files
+
+{% if file_list %}
+The following files containing Time-Ordered Data (TOD) have been written:
+
+{% for file in file_list %}
+- {{ file }}
+{% endfor %}
+{% else %}
+No TOD files have been written to disk.
+{% endif %}
+""",
+        file_list=file_list,
+    )
+
+    return file_list
