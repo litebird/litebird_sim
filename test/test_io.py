@@ -48,13 +48,13 @@ def test_write_simple_observation(tmp_path):
         pass
 
 
-def __test_write_complex_observation(tmp_path, use_mjd: bool):
+def __write_complex_observation(tmp_path, use_mjd: bool):
     start_time = AstroTime("2021-01-01") if use_mjd else 0
     time_span_s = 60
     sampling_hz = 1
 
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir",
+        base_path=tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
     )
@@ -92,7 +92,14 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         bore2spin_quat=instr.bore2spin_quat,
     )
 
-    file_list = lbs.write_observations(sim=sim)
+    return sim.observations[0], det, lbs.write_observations(sim=sim, subdir_name="")
+
+
+def __test_write_complex_observation(tmp_path, use_mjd: bool):
+    original_obs, det, file_list = __write_complex_observation(
+        tmp_path=tmp_path, use_mjd=use_mjd
+    )
+
     assert len(file_list) == 1
 
     with h5py.File(file_list[0], "r") as inpf:
@@ -107,13 +114,14 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
 
         if use_mjd:
             assert (
-                AstroTime(tod_dataset.attrs["start_time"], format="mjd") == start_time
+                AstroTime(tod_dataset.attrs["start_time"], format="mjd")
+                == original_obs.start_time
             )
         else:
-            assert tod_dataset.attrs["start_time"] == start_time
+            assert tod_dataset.attrs["start_time"] == original_obs.start_time
 
         assert tod_dataset.attrs["mjd_time"] == use_mjd
-        assert tod_dataset.attrs["sampling_rate_hz"] == sampling_hz
+        assert tod_dataset.attrs["sampling_rate_hz"] == original_obs.sampling_rate_hz
         assert "mpi_rank" in tod_dataset.attrs
         assert "mpi_size" in tod_dataset.attrs
 
@@ -126,8 +134,8 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         assert det_dictionary[0]["bandcenter_ghz"] == det.bandcenter_ghz
         assert det_dictionary[0]["quat"] == list(det.quat)
 
-        assert np.allclose(tod_dataset, sim.observations[0].tod)
-        assert np.allclose(pointings_dataset, sim.observations[0].pointings)
+        assert np.allclose(tod_dataset, original_obs.tod)
+        assert np.allclose(pointings_dataset, original_obs.pointings)
 
 
 def test_write_complex_observation_mjd(tmp_path):
@@ -136,3 +144,29 @@ def test_write_complex_observation_mjd(tmp_path):
 
 def test_write_complex_observation_no_mjd(tmp_path):
     __test_write_complex_observation(tmp_path, use_mjd=False)
+
+
+def __test_read_complex_observation(tmp_path, use_mjd: bool):
+    original_obs, det, file_list = __write_complex_observation(tmp_path, use_mjd)
+
+    observations = lbs.read_list_of_observations(path=tmp_path)
+    assert len(observations) == 1
+
+    obs = observations[0]
+    assert isinstance(obs, lbs.Observation)
+    assert obs.start_time == original_obs.start_time
+    assert obs.sampling_rate_hz == original_obs.sampling_rate_hz
+
+    assert obs.tod.shape == (1, 60)
+    assert np.allclose(obs.tod, original_obs.tod)
+
+    assert obs.pointings.shape == (1, 60, 3)
+    assert np.allclose(obs.pointings, original_obs.pointings)
+
+
+def test_read_complex_observation_mjd(tmp_path):
+    __test_read_complex_observation(tmp_path, use_mjd=True)
+
+
+def test_read_complex_observation_no_mjd(tmp_path):
+    __test_read_complex_observation(tmp_path, use_mjd=True)

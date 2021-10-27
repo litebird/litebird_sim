@@ -1,9 +1,9 @@
 # -*- encoding: utf-8 -*-
 
-from dataclasses import fields
+from dataclasses import fields, asdict
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional
 
 import astropy.time
 import h5py
@@ -29,6 +29,9 @@ __NUMPY_FLOAT_TYPES = [
 ]
 
 __NUMPY_SCALAR_TYPES = __NUMPY_INT_TYPES + __NUMPY_FLOAT_TYPES
+
+
+__OBSERVATION_FILE_NAME_MASK = "tod_mpi{mpi_rank:04d}_{index:04d}.h5"
 
 
 def write_one_observation(
@@ -117,8 +120,8 @@ def write_list_of_observations(
     path: Union[str, Path],
     tod_dtype=np.float32,
     pointings_dtype=np.float32,
-    file_name_mask: str = "tod_mpi{mpi_rank:04d}_{index:04d}.h5",
-    custom_placeholders: Union[None, List[Dict[str, Any]]] = None,
+    file_name_mask: str = __OBSERVATION_FILE_NAME_MASK,
+    custom_placeholders: Optional[List[Dict[str, Any]]] = None,
     start_index: int = 0,
 ) -> List[Path]:
     """
@@ -251,3 +254,123 @@ No TOD files have been written to disk.
     )
 
     return file_list
+
+
+def read_one_observation(
+    path: Union[str, Path],
+    limit_mpi_rank=True,
+    tod_dtype=np.float32,
+    pointings_dtype=np.float32,
+    read_pointings_if_present=True,
+    read_pixidx_if_present=True,
+    read_psi_if_present=True,
+) -> Optional[Observation]:
+    with h5py.File(str(path), "r") as inpf:
+        assert "tod" in inpf
+        hdf5_tod = inpf["tod"]
+
+        if limit_mpi_rank:
+            mpi_size = hdf5_tod.attrs["mpi_size"]
+            assert mpi_size == MPI_COMM_WORLD.size, (
+                '"{name}" was created using {orig_size} MPI processes, '
+                + "but now {actual_size} are available"
+            ).format(
+                name=str(path), orig_size=mpi_size, actual_size=MPI_COMM_WORLD.size
+            )
+            if hdf5_tod.attrs["mpi_rank"] != MPI_COMM_WORLD.rank:
+                # We are not supposed to load this observation in this MPI process
+                return None
+
+        if hdf5_tod.attrs["mjd_time"]:
+            start_time = astropy.time.Time(hdf5_tod.attrs["start_time"], format="mjd")
+        else:
+            start_time = hdf5_tod.attrs["start_time"]
+
+        detectors = [
+            DetectorInfo.from_dict(x) for x in json.loads(hdf5_tod.attrs["detectors"])
+        ]
+        result = Observation(
+            detectors=[asdict(d) for d in detectors],
+            n_samples_global=hdf5_tod.shape[1],
+            start_time_global=start_time,
+            n_blocks_det=1,
+            n_blocks_time=1,
+            allocate_tod=True,
+            sampling_rate_hz=hdf5_tod.attrs["sampling_rate_hz"],
+            comm=None if limit_mpi_rank else MPI_COMM_WORLD,
+            dtype_tod=hdf5_tod.dtype,
+        )
+
+        # Copy the TOD in the newly created observation
+        assert result.tod.shape == hdf5_tod.shape
+        result.tod[:] = hdf5_tod.astype(tod_dtype)[:]
+
+        # Do the same for other optional datasets
+        for attr, attr_type, should_read in [
+            ("pointings", pointings_dtype, read_pointings_if_present),
+            ("pixidx", np.int32, read_pixidx_if_present),
+            ("psi", pointings_dtype, read_psi_if_present),
+        ]:
+            if (attr in inpf) and should_read:
+                result.__setattr__(attr, inpf[attr].astype(attr_type)[:])
+
+    return result
+
+
+def read_list_of_observations(
+    path: Union[str, Path],
+    tod_dtype=np.float32,
+    pointings_dtype=np.float32,
+    file_name_mask: str = __OBSERVATION_FILE_NAME_MASK,
+    custom_placeholders: Optional[List[Dict[str, Any]]] = None,
+    start_index: int = 0,
+    limit_mpi_rank: bool = True,
+) -> List[Observation]:
+
+    path = Path(path)
+
+    cur_file_index = start_index
+    observations = []
+    while True:
+        params = {
+            "mpi_rank": MPI_COMM_WORLD.rank,
+            "mpi_size": MPI_COMM_WORLD.size,
+            "index": cur_file_index,
+        }
+
+        # Merge the standard dictionary used to build the file name with any other
+        # key in `custom_placeholders`. If `custom_placeholders` contains some
+        # duplicated key, it will take the precedence over our default here.
+        if custom_placeholders is not None:
+            cur_placeholders = custom_placeholders[cur_file_index]
+            params = dict(params, **cur_placeholders)
+
+        cur_file_name = path / file_name_mask.format(**params)
+
+        try:
+            observations.append(
+                read_one_observation(
+                    cur_file_name,
+                    limit_mpi_rank=limit_mpi_rank,
+                    tod_dtype=tod_dtype,
+                    pointings_dtype=pointings_dtype,
+                )
+            )
+        except FileNotFoundError:
+            print(f"{cur_file_name} with index {cur_file_index} not found")
+            break
+
+        cur_file_index += 1
+
+    return observations
+
+
+def read_observations(
+    sim: Simulation,
+    path: Union[str, Path],
+    subdir_name: Union[None, str] = "tod",
+    *args,
+    **kwargs,
+):
+    obs = read_list_of_observations(path=path / subdir_name, *args, **kwargs)
+    sim.observations = obs
