@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 import json
 
+from astropy.time import Time as AstroTime
 import numpy as np
 import litebird_sim as lbs
 import h5py
@@ -47,8 +48,8 @@ def test_write_simple_observation(tmp_path):
         pass
 
 
-def test_write_complex_observation(tmp_path):
-    start_time = 0
+def __test_write_complex_observation(tmp_path, use_mjd: bool):
+    start_time = AstroTime("2021-01-01") if use_mjd else 0
     time_span_s = 60
     sampling_hz = 1
 
@@ -107,8 +108,14 @@ def test_write_complex_observation(tmp_path):
         assert tod_dataset.shape == (1, 60)
         assert pointings_dataset.shape == (1, 60, 3)
 
-        assert tod_dataset.attrs["start_time"] == 0.0
-        assert not tod_dataset.attrs["mjd_time"]
+        if use_mjd:
+            assert (
+                AstroTime(tod_dataset.attrs["start_time"], format="mjd") == start_time
+            )
+        else:
+            assert tod_dataset.attrs["start_time"] == start_time
+
+        assert tod_dataset.attrs["mjd_time"] == use_mjd
         assert tod_dataset.attrs["sampling_rate_hz"] == sampling_hz
         assert "mpi_rank" in tod_dataset.attrs
         assert "mpi_size" in tod_dataset.attrs
@@ -124,3 +131,11 @@ def test_write_complex_observation(tmp_path):
 
         assert np.allclose(tod_dataset, sim.observations[0].tod)
         assert np.allclose(pointings_dataset, sim.observations[0].pointings)
+
+
+def test_write_complex_observation_mjd(tmp_path):
+    __test_write_complex_observation(tmp_path, use_mjd=True)
+
+
+def test_write_complex_observation_no_mjd(tmp_path):
+    __test_write_complex_observation(tmp_path, use_mjd=False)
