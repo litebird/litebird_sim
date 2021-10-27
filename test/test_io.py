@@ -93,10 +93,7 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
     )
 
     file_list = lbs.write_observations(sim=sim)
-
     assert len(file_list) == 1
-
-    import sys
 
     with h5py.File(file_list[0], "r") as inpf:
         assert "tod" in inpf
