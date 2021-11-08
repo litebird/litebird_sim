@@ -76,19 +76,30 @@ shell. Examples:
         # reason why we run tests here is because AstroPy needs to
         # download a few files, and if we postpone this to %test the
         # filesystem will be read-only).
-        git clone https://github.com/litebird/litebird_sim.git /opt/litebird_sim && \
-            cd /opt/litebird_sim && \
-            poetry export --without-hashes POETRY_MPI -E docs -E jupyter -o requirements.txt && \
-            pip3 install -r requirements.txt && \
-            poetry build -f sdist && \
-            pip3 install dist/litebird_sim-$(poetry version -s).tar.gz &&
-            sh bin/refresh_docs.sh
+        git clone https://github.com/litebird/litebird_sim.git /opt/litebird_sim
 
+        cd /opt/litebird_sim
+        git checkout fix145
+
+        poetry export --without-hashes POETRY_MPI -E docs -E jupyter -o requirements.txt
+        pip3 install -r requirements.txt
+        poetry build -f sdist
+        pip3 install dist/litebird_sim-$(poetry version --short).tar.gz
 
         # Install a few handy packages
         pip3 install jupyterlab tqdm rich pudb
+
+        echo "Regenerating the documentation..."
+        sh bin/refresh_docs.sh
+
+        echo "Running the tests..."
+        python3 -m pytest -vv
 
         # Print some information
         echo "Information about this Singularity image:"
         python3 --version
         gcc --version
+        python3 -c "import litebird_sim as lbs; print('Litebird_sim version: ', lbs.__version__)"
+
+%test
+	(cd /opt/litebird_sim && python3 -m pytest)
