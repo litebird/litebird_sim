@@ -8,6 +8,8 @@
 
 - **Breaking change** Switch to thermodynamic units in the MBS module [#123](https://github.com/litebird/litebird_sim/pull/123)
 
+- Fix Singularity builds [#145](https://github.com/litebird/litebird_sim/issues/145)
+
 - Make the TOAST destriper more robust when MPI is/isn't present [#106](https://github.com/litebird/litebird_sim/pull/106)
 
 - Option in Mbs for maps in ecliptoc coordinates [#133](https://github.com/litebird/litebird_sim/pull/133)

@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from pathlib import Path
 import litebird_sim as lbs
 import numpy as np
 import healpy as hp
@@ -71,7 +72,9 @@ def bin_map(tod, pixel_indexes, binned_map, accum_map, hit_map):
             binned_map[idx] = np.nan
 
 
-def test_solar_dipole_fit():
+def test_solar_dipole_fit(tmpdir):
+    tmpdir = Path(tmpdir)
+
     test = unittest.TestCase()
 
     # The purpose of this test is to simulate the motion of the spacecraft
@@ -158,7 +161,7 @@ def test_solar_dipole_fit():
     )
     import healpy
 
-    healpy.write_map("map_s_o.fits.gz", map_s_o, overwrite=True)
+    healpy.write_map(tmpdir / "map_s_o.fits.gz", map_s_o, overwrite=True)
 
     bin_map(
         tod=obs_o.tod,
@@ -168,7 +171,7 @@ def test_solar_dipole_fit():
         hit_map=h,
     )
 
-    healpy.write_map("map_o.fits.gz", map_o, overwrite=True)
+    healpy.write_map(tmpdir / "map_o.fits.gz", map_o, overwrite=True)
 
     dip_map = map_s_o - map_o
 
