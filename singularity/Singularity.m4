@@ -65,10 +65,10 @@ shell. Examples:
         # Install poetry. Do *not* use the default destination, as
         # Singularity exports the host's home directory by default,
         # thus incrementing the chance of clashes
-        export POETRY_VERSION=1.1.4
+        export POETRY_VERSION=1.1.11
         export POETRY_HOME=/opt/poetry
-        
-        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3 -
+
+        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python3 -
         export PATH="$POETRY_HOME/bin:$PATH"
 
         # Install all the dependencies, build a .tar.gz file, install
@@ -76,19 +76,30 @@ shell. Examples:
         # reason why we run tests here is because AstroPy needs to
         # download a few files, and if we postpone this to %test the
         # filesystem will be read-only).
-        git clone https://github.com/litebird/litebird_sim.git /opt/litebird_sim && \
-            cd /opt/litebird_sim && \
-            poetry export --without-hashes POETRY_MPI -E docs -E jupyter -o requirements.txt && \
-            pip3 install -r requirements.txt && \
-            poetry build -f sdist && \
-            pip3 install dist/litebird_sim-$(poetry version -s).tar.gz &&
-            sh bin/refresh_docs.sh
+        git clone https://github.com/litebird/litebird_sim.git /opt/litebird_sim
 
+        cd /opt/litebird_sim
+        git checkout fix145
+
+        poetry export --without-hashes POETRY_MPI -E docs -E jupyter -o requirements.txt
+        pip3 install -r requirements.txt
+        poetry build -f sdist
+        pip3 install dist/litebird_sim-$(poetry version --short).tar.gz
 
         # Install a few handy packages
         pip3 install jupyterlab tqdm rich pudb
+
+        echo "Regenerating the documentation..."
+        sh bin/refresh_docs.sh
+
+        echo "Running the tests..."
+        python3 -m pytest -vv
 
         # Print some information
         echo "Information about this Singularity image:"
         python3 --version
         gcc --version
+        python3 -c "import litebird_sim as lbs; print('Litebird_sim version: ', lbs.__version__)"
+
+%test
+	(cd /opt/litebird_sim && python3 -m pytest)
