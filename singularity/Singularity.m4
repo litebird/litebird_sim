@@ -65,10 +65,10 @@ shell. Examples:
         # Install poetry. Do *not* use the default destination, as
         # Singularity exports the host's home directory by default,
         # thus incrementing the chance of clashes
-        export POETRY_VERSION=1.1.4
+        export POETRY_VERSION=1.1.11
         export POETRY_HOME=/opt/poetry
-        
-        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3 -
+
+        curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python3 -
         export PATH="$POETRY_HOME/bin:$PATH"
 
         # Install all the dependencies, build a .tar.gz file, install
