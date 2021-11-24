@@ -169,4 +169,4 @@ def test_read_complex_observation_mjd(tmp_path):
 
 
 def test_read_complex_observation_no_mjd(tmp_path):
-    __test_read_complex_observation(tmp_path, use_mjd=True)
+    __test_read_complex_observation(tmp_path, use_mjd=False)
