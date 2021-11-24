@@ -83,16 +83,24 @@ def __write_complex_observation(tmp_path, use_mjd: bool):
     )
 
     sim.create_observations(detectors=[det])
-    sim.observations[0].tod = np.random.random(sim.observations[0].tod.shape)
 
-    sim.observations[0].pointings = lbs.scanning.get_pointings(
-        sim.observations[0],
+    obs = sim.observations[0]
+    obs.tod = np.random.random(obs.tod.shape)
+
+    obs.pointings = lbs.scanning.get_pointings(
+        obs,
         spin2ecliptic_quats=spin2ecliptic_quats,
         detector_quats=[det.quat],
         bore2spin_quat=instr.bore2spin_quat,
     )
 
-    return sim.observations[0], det, lbs.write_observations(sim=sim, subdir_name="")
+    obs.local_flags = np.zeros(obs.tod.shape, dtype="uint16")
+    obs.local_flags[0, 12:15] = 1
+
+    obs.global_flags = np.zeros(obs.tod.shape[1], dtype="uint32")
+    obs.global_flags[12:15] = 15
+
+    return obs, det, lbs.write_observations(sim=sim, subdir_name="")
 
 
 def __test_write_complex_observation(tmp_path, use_mjd: bool):
@@ -105,12 +113,18 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
     with h5py.File(file_list[0], "r") as inpf:
         assert "tod" in inpf
         assert "pointings" in inpf
+        assert "global_flags" in inpf
+        assert "flags_0000" in inpf
 
         tod_dataset = inpf["tod"]
         pointings_dataset = inpf["pointings"]
+        global_flags = inpf["global_flags"]
+        local_flags = inpf["flags_0000"]
 
         assert tod_dataset.shape == (1, 60)
         assert pointings_dataset.shape == (1, 60, 3)
+        assert global_flags.shape == (2, 3)
+        assert local_flags.shape == (2, 3)
 
         if use_mjd:
             assert (
@@ -137,6 +151,22 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         assert np.allclose(tod_dataset, original_obs.tod)
         assert np.allclose(pointings_dataset, original_obs.pointings)
 
+        assert np.all(
+            global_flags[:]
+            == np.array(
+                [[12, 3, 45], [0, 15, 0]],
+                dtype="uint32",
+            )
+        )
+
+        assert np.all(
+            local_flags[:]
+            == np.array(
+                [[12, 3, 45], [0, 1, 0]],
+                dtype="uint16",
+            )
+        )
+
 
 def test_write_complex_observation_mjd(tmp_path):
     __test_write_complex_observation(tmp_path, use_mjd=True)
@@ -162,6 +192,11 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool):
 
     assert obs.pointings.shape == (1, 60, 3)
     assert np.allclose(obs.pointings, original_obs.pointings)
+
+    ref_flags = np.zeros((1, 60), dtype="uint16")
+    ref_flags[0, 12:15] = 1
+
+    assert np.all(ref_flags == obs.local_flags)
 
 
 def test_read_complex_observation_mjd(tmp_path):

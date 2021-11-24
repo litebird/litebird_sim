@@ -2,13 +2,16 @@
 
 from dataclasses import fields, asdict
 import json
+import logging as log
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Union, Optional
 
 import astropy.time
 import h5py
 import numpy as np
 
+from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
@@ -34,6 +37,9 @@ __NUMPY_SCALAR_TYPES = __NUMPY_INT_TYPES + __NUMPY_FLOAT_TYPES
 __OBSERVATION_FILE_NAME_MASK = "tod_mpi{mpi_rank:04d}_{index:04d}.h5"
 
 
+__FLAGS_GROUP_NAME_REGEXP = re.compile("flags_([0-9]+)")
+
+
 def write_one_observation(
     output_file: h5py.File, obs: Observation, tod_dtype, pointings_dtype
 ):
@@ -56,6 +62,26 @@ def write_one_observation(
         output_file.create_dataset(
             "psi", data=obs.__getattribute__("psi"), dtype=pointings_dtype
         )
+    except (AttributeError, TypeError):
+        pass
+
+    try:
+        output_file.create_dataset(
+            "global_flags",
+            data=rle_compress(obs.__getattribute__("global_flags")),
+        )
+    except (AttributeError, TypeError):
+        pass
+
+    try:
+        # We must separate the flags belonging to different detectors because they
+        # might have different shapes
+        for det_idx in range(obs.local_flags.shape[0]):
+            flags = obs.__getattribute__("local_flags")
+            compressed_flags = rle_compress(flags[det_idx, :])
+            output_file.create_dataset(
+                f"flags_{det_idx:04d}", data=compressed_flags, dtype=flags.dtype
+            )
     except (AttributeError, TypeError):
         pass
 
@@ -256,6 +282,32 @@ No TOD files have been written to disk.
     return file_list
 
 
+def __find_flags(inpf, expected_num_of_dets: int, expected_num_of_samples: int):
+    flags_matches = [__FLAGS_GROUP_NAME_REGEXP.fullmatch(x) for x in inpf]
+    flags_matches = [x for x in flags_matches if x]
+    if not flags_matches:
+        return None
+
+    if len(flags_matches) < expected_num_of_dets:
+        log.warning(
+            f"only {len(flags_matches)} flag datasets have been found in "
+            + f"file {inpf.name}, but {expected_num_of_dets} were expected"
+        )
+
+    # We use np.zeros instead of np.empty because in this way we set to zero flags
+    # for those detectors that do not have a "flags_NNNN" dataset in the HDF5 file
+    flags = np.zeros(
+        (expected_num_of_dets, expected_num_of_samples),
+        dtype=inpf[flags_matches[0].string].dtype,
+    )
+
+    for match in flags_matches:
+        det_idx = int(match.groups()[0])
+        flags[det_idx, :] = rle_decompress(inpf[match.string][:])
+
+    return flags
+
+
 def read_one_observation(
     path: Union[str, Path],
     limit_mpi_rank=True,
@@ -264,6 +316,8 @@ def read_one_observation(
     read_pointings_if_present=True,
     read_pixidx_if_present=True,
     read_psi_if_present=True,
+    read_global_flags_if_present=True,
+    read_flags_if_present=True,
 ) -> Optional[Observation]:
     with h5py.File(str(path), "r") as inpf:
         assert "tod" in inpf
@@ -310,9 +364,21 @@ def read_one_observation(
             ("pointings", pointings_dtype, read_pointings_if_present),
             ("pixidx", np.int32, read_pixidx_if_present),
             ("psi", pointings_dtype, read_psi_if_present),
+            ("global_flags", None, read_global_flags_if_present),
         ]:
             if (attr in inpf) and should_read:
                 result.__setattr__(attr, inpf[attr].astype(attr_type)[:])
+
+        # Checking if flags are present is trickier because there should be N
+        # datasets, where N is the number of detectors
+        if read_flags_if_present:
+            flags = __find_flags(
+                inpf,
+                expected_num_of_dets=result.tod.shape[0],
+                expected_num_of_samples=result.tod.shape[1],
+            )
+            if flags is not None:
+                result.__setattr__("local_flags", flags)
 
     return result
 
