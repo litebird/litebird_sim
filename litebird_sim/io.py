@@ -34,7 +34,7 @@ __NUMPY_FLOAT_TYPES = [
 __NUMPY_SCALAR_TYPES = __NUMPY_INT_TYPES + __NUMPY_FLOAT_TYPES
 
 
-__OBSERVATION_FILE_NAME_MASK = "tod_mpi{mpi_rank:04d}_{index:04d}.h5"
+__OBSERVATION_FILE_NAME_MASK = "litebird_tod_mpi{mpi_rank:04d}_{index:04d}.h5"
 
 
 __FLAGS_GROUP_NAME_REGEXP = re.compile("flags_([0-9]+)")
