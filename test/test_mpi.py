@@ -1,6 +1,9 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
 
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import numpy as np
 import astropy.time as astrotime
 import litebird_sim as lbs
@@ -390,6 +393,44 @@ def test_observation_tod_set_blocks():
     assert_det_info()
 
 
+def test_write_hdf5_mpi(tmp_path):
+    start_time = 0
+    time_span_s = 60
+    sampling_hz = 1
+
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=start_time,
+        duration_s=time_span_s,
+    )
+
+    det = lbs.DetectorInfo(
+        name="Dummy detector",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    num_of_obs = 7
+    sim.create_observations(detectors=[det], num_of_obs_per_detector=num_of_obs)
+
+    lbs.write_observations(
+        sim, subdir_name="tod", file_name_mask="litebird_tod{global_index:04d}.h5"
+    )
+
+    if lbs.MPI_ENABLED:
+        # Wait that all the processes have completed writing the files
+        lbs.MPI_COMM_WORLD.barrier()
+
+    tod_path = sim.base_path / "tod"
+
+    for idx in range(num_of_obs):
+        cur_tod = tod_path / f"litebird_tod{idx:04d}.h5"
+        assert (
+            cur_tod.is_file()
+        ), f"File {cur_tod} not found, but {num_of_obs} observations were expected"
+
+
 def main():
     test_observation_time()
     test_construction_from_detectors()
@@ -397,6 +438,25 @@ def main():
     test_observation_tod_two_block_time()
     test_observation_tod_two_block_det()
     test_observation_tod_set_blocks()
+
+    # It's critical that all MPI processes use the same output directory
+    if lbs.MPI_ENABLED:
+        if lbs.MPI_COMM_WORLD.rank == 0:
+            tmp_dir = TemporaryDirectory()
+            tmp_path = tmp_dir.name
+            lbs.MPI_COMM_WORLD.bcast(tmp_path, root=0)
+        else:
+            tmp_dir = None
+            tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
+    else:
+        tmp_dir = TemporaryDirectory()
+        tmp_path = tmp_dir.name
+
+    try:
+        test_write_hdf5_mpi(tmp_path)
+    finally:
+        if tmp_dir:
+            tmp_dir.cleanup()
 
 
 main()

@@ -13,7 +13,7 @@ import numpy as np
 
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
-from .mpi import MPI_COMM_WORLD
+from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation
 from .simulations import Simulation
 
@@ -34,7 +34,7 @@ __NUMPY_FLOAT_TYPES = [
 __NUMPY_SCALAR_TYPES = __NUMPY_INT_TYPES + __NUMPY_FLOAT_TYPES
 
 
-__OBSERVATION_FILE_NAME_MASK = "litebird_tod_mpi{mpi_rank:04d}_{index:04d}.h5"
+__OBSERVATION_FILE_NAME_MASK = "litebird_tod{global_index:04d}.h5"
 
 
 __FLAGS_GROUP_NAME_REGEXP = re.compile("flags_([0-9]+)")
@@ -149,6 +149,7 @@ def write_list_of_observations(
     file_name_mask: str = __OBSERVATION_FILE_NAME_MASK,
     custom_placeholders: Optional[List[Dict[str, Any]]] = None,
     start_index: int = 0,
+    collective_mpi_call: bool = True,
 ) -> List[Path]:
     """
     Save a list of observations in a set of HDF5 files
@@ -167,7 +168,9 @@ def write_list_of_observations(
       observation (starting from zero)
     - ``mpi_size``: the number of running MPI processes
     - ``num_of_obs``: the number of observations
-    - ``index``: the number of the current observation (see below)
+    - ``global_index``: an unique index identifying this observation among
+      all the observations used by MPI processes
+    - ``local_index``: the number of the current observation (see below)
 
     The ``index`` placeholder starts from zero, but this can be changed using
     the parameter `start_index`.
@@ -193,6 +196,24 @@ def write_list_of_observations(
         # The two observations will be saved in
         # - tod_A.h5
         # - tod_B.h5
+
+    If the parameter `collective_mpi_call` is ``True`` and MPI is enabled
+    (see ``litebird_sim.MPI_ENABLED``), the code assumes that this function
+    was called at the same time by *all* the MPI processes that are currently
+    running. This is the most typical case, i.e., you have several MPI
+    processes and want that each of them save their observations in HDF5 files.
+    Pass ``collective_mpi_call=False`` only if you are calling this function
+    on some of the MPI processes. Here is an example::
+
+        if lbs.MPI_COMM_WORLD.rank == 0:
+            # Do this only for the first MPI process
+            write_list_of_observations(
+                ...,
+                collective_mpi_call=False,
+            )
+
+    In the example, ``collective_mpi_call=False`` signals that not every MPI
+    process is writing their observations to disk.
     """
     try:
         obs[0]
@@ -202,6 +223,14 @@ def write_list_of_observations(
     if not isinstance(path, Path):
         path = Path(path)
 
+    if MPI_ENABLED and collective_mpi_call:
+        # Count how many observations are kept in the MPI processes with lower rank
+        # than this one.
+        num_of_obs = np.asarray(MPI_COMM_WORLD.allgather(len(obs)))
+        global_start_index = np.sum(num_of_obs[0 : MPI_COMM_WORLD.rank])
+    else:
+        global_start_index = 0
+
     # Iterate over all the observations and create one HDF5 file for each of them
     file_list = []
     for obs_idx, cur_obs in enumerate(obs):
@@ -209,7 +238,8 @@ def write_list_of_observations(
             "mpi_rank": MPI_COMM_WORLD.rank,
             "mpi_size": MPI_COMM_WORLD.size,
             "num_of_obs": len(obs),
-            "index": start_index + obs_idx,
+            "global_index": global_start_index + obs_idx,
+            "local_index": start_index + obs_idx,
         }
 
         # Merge the standard dictionary used to build the file name with any other
@@ -249,6 +279,9 @@ def write_observations(
     This function only writes HDF5 for the observations that belong to the current
     MPI process. If you have distributed the observations over several processes,
     you must call this function on each MPI process.
+
+    For a full explanation of the available parameters, see the documentation for
+    :func:`.write_list_of_observations`.
     """
 
     if subdir_name:
