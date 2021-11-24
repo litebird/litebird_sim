@@ -1,4 +1,9 @@
 # -*- encoding: utf-8 -*-
+
+from .compress import (
+    rle_compress,
+    rle_decompress,
+)
 from .distribute import distribute_evenly, distribute_optimally
 from .detectors import (
     DetectorInfo,
@@ -81,6 +86,9 @@ from .version import __author__, __version__
 __all__ = [
     "__author__",
     "__version__",
+    # compress.py
+    "rle_compress",
+    "rle_decompress",
     # healpix.py
     "nside_to_npix",
     "npix_to_nside",
