@@ -396,7 +396,7 @@ def test_observation_tod_set_blocks():
 def test_write_hdf5_mpi(tmp_path):
     start_time = 0
     time_span_s = 60
-    sampling_hz = 1
+    sampling_hz = 10
 
     sim = lbs.Simulation(
         base_path=tmp_path,
@@ -411,7 +411,7 @@ def test_write_hdf5_mpi(tmp_path):
         quat=[0.0, 0.0, 0.0, 1.0],
     )
 
-    num_of_obs = 7
+    num_of_obs = 12
     sim.create_observations(detectors=[det], num_of_obs_per_detector=num_of_obs)
 
     lbs.write_observations(
