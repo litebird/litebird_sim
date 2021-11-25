@@ -51,7 +51,7 @@ def test_write_simple_observation(tmp_path):
 def __write_complex_observation(tmp_path, use_mjd: bool):
     start_time = AstroTime("2021-01-01") if use_mjd else 0
     time_span_s = 60
-    sampling_hz = 1
+    sampling_hz = 10
 
     sim = lbs.Simulation(
         base_path=tmp_path,
@@ -126,8 +126,8 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         global_flags = inpf["global_flags"]
         local_flags = inpf["flags_0000"]
 
-        assert tod_dataset.shape == (1, 60)
-        assert pointings_dataset.shape == (1, 60, 3)
+        assert tod_dataset.shape == (1, 600)
+        assert pointings_dataset.shape == (1, 600, 3)
         assert global_flags.shape == (2, 3)
         assert local_flags.shape == (2, 3)
 
@@ -157,7 +157,7 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         assert np.all(
             global_flags[:]
             == np.array(
-                [[12, 3, 45], [0, 15, 0]],
+                [[12, 3, 585], [0, 15, 0]],
                 dtype="uint32",
             )
         )
@@ -165,7 +165,7 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         assert np.all(
             local_flags[:]
             == np.array(
-                [[12, 3, 45], [0, 1, 0]],
+                [[12, 3, 585], [0, 1, 0]],
                 dtype="uint16",
             )
         )
@@ -190,13 +190,13 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool):
     assert obs.start_time == original_obs.start_time
     assert obs.sampling_rate_hz == original_obs.sampling_rate_hz
 
-    assert obs.tod.shape == (1, 60)
+    assert obs.tod.shape == (1, 600)
     assert np.allclose(obs.tod, original_obs.tod)
 
-    assert obs.pointings.shape == (1, 60, 3)
+    assert obs.pointings.shape == (1, 600, 3)
     assert np.allclose(obs.pointings, original_obs.pointings)
 
-    ref_flags = np.zeros((1, 60), dtype="uint16")
+    ref_flags = np.zeros(obs.tod.shape, dtype="uint16")
     ref_flags[0, 12:15] = 1
 
     assert np.all(ref_flags == obs.local_flags)
