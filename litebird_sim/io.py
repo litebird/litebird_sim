@@ -236,11 +236,21 @@ def write_list_of_observations(
 
     In the example, ``collective_mpi_call=False`` signals that not every MPI
     process is writing their observations to disk.
+
+    The ``local_index`` and ``global_index`` placeholders used in the template
+    file name start from zero,
+    but this can be changed using the parameter `start_index`.
+
     """
     try:
         obs[0]
     except TypeError:
         obs = [obs]
+    except IndexError:
+        # Empty list
+        # We do not want to return here, as we still need to participate to
+        # the call to _compute_global_start_index below
+        obs = []  # type: List[Observation]
 
     if not isinstance(path, Path):
         path = Path(path)
