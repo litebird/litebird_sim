@@ -150,14 +150,15 @@ def write_one_observation(
     tod_dataset.attrs["detectors"] = json.dumps(det_info)
 
 
-def _compute_global_start_index(num_of_obs: int, collective_mpi_call: bool) -> int:
+def _compute_global_start_index(
+    num_of_obs: int, start_index: int, collective_mpi_call: bool
+) -> int:
+    global_start_index = start_index
     if MPI_ENABLED and collective_mpi_call:
         # Count how many observations are kept in the MPI processes with lower rank
         # than this one.
         num_of_obs = np.asarray(MPI_COMM_WORLD.allgather(num_of_obs))
-        global_start_index = np.sum(num_of_obs[0 : MPI_COMM_WORLD.rank])
-    else:
-        global_start_index = 0
+        global_start_index += np.sum(num_of_obs[0 : MPI_COMM_WORLD.rank])
 
     return global_start_index
 
@@ -245,7 +246,9 @@ def write_list_of_observations(
         path = Path(path)
 
     global_start_index = _compute_global_start_index(
-        num_of_obs=len(obs), collective_mpi_call=collective_mpi_call
+        num_of_obs=len(obs),
+        start_index=start_index,
+        collective_mpi_call=collective_mpi_call,
     )
 
     # Iterate over all the observations and create one HDF5 file for each of them
