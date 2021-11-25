@@ -75,8 +75,9 @@ def distribute_evenly(num_of_elements, num_of_groups):
         result.append(Span(start_idx=cur_pos, num_of_elements=cur_length))
 
     assert len(result) == num_of_groups, (
-        f"wrong result({len(result)=}) in "
-        + f"distribute_evenly({num_of_elements=}, {num_of_groups=})"
+        f"wrong result(len(result)={len(result)}) in "
+        + f"distribute_evenly(num_of_elements={num_of_elements}, "
+        + f"num_of_groups={num_of_groups})"
     )
     assert sum([pair.num_of_elements for pair in result]) == num_of_elements
     return result
@@ -204,8 +205,9 @@ def distribute_optimally(elements, num_of_groups, weight_fn=None):
     result.append(Span(start_idx=start_idx, num_of_elements=cur_num))
 
     assert len(result) == num_of_groups, (
-        f"wrong result({len(result)=}) in "
-        + f"distribute_optimally({len(elements)=}, {num_of_groups=})"
+        f"wrong result(len(result)={len(result)}) in "
+        + f"distribute_optimally(len(elements)={len(elements)}, "
+        + f"num_of_groups={num_of_groups})"
     )
     assert sum([r.num_of_elements for r in result]) == len(elements)
     return result
