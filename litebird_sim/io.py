@@ -49,6 +49,20 @@ def write_one_observation(
     global_index: int,
     local_index: int,
 ):
+    """Write one :class:`Observation` object in a HDF5 file.
+
+    This is a low-level function that stores a TOD in a HDF5 file. You should usually
+    use more high-level functions that are able to write several observations at once,
+    like :func:`.write_list_of_observations` and :func:`.write_observations`.
+
+    The output file is specified by `output_file` and should be opened for writing; the
+    observation to be written is passed through the `obs` parameter. The data type to
+    use for writing TODs and pointings is specified in the `tod_dtype` and
+    `pointings_dtype` (it can either be a NumPy type like ``numpy.float64` or a
+    string). The `global_index` and `local_index` parameters are two integers that are
+    used by high-level functions like :func:`.write_observations` to understand how to
+    read several HDF5 files at once; if you do not need them, you can pass 0 to both.
+    """
     tod_dataset = output_file.create_dataset("tod", data=obs.tod, dtype=tod_dtype)
 
     # Save pointing information only if it is available
@@ -190,12 +204,10 @@ def write_list_of_observations(
       observation (starting from zero)
     - ``mpi_size``: the number of running MPI processes
     - ``num_of_obs``: the number of observations
-    - ``global_index``: an unique index identifying this observation among
-      all the observations used by MPI processes
-    - ``local_index``: the number of the current observation (see below)
-
-    The ``index`` placeholder starts from zero, but this can be changed using
-    the parameter `start_index`.
+    - ``global_index``: an unique increasing index identifying this observation
+      among all the observations used by MPI processes (see below)
+    - ``local_index``: the number of the current observation within the current
+      MPI process (see below)
 
     You can provide other placeholders through `custom_dicts`, which must be
     a list of dictionaries. The number of elements in the list must be the
@@ -387,8 +399,29 @@ def read_one_observation(
     read_pixidx_if_present=True,
     read_psi_if_present=True,
     read_global_flags_if_present=True,
-    read_flags_if_present=True,
+    read_local_flags_if_present=True,
 ) -> Optional[Observation]:
+    """Read one :class:`.Observation` object from a HDF5 file.
+
+    This is a low-level function that is wrapped by :func:`.read_list_of_observations`
+    and :func:`.read_observations`. It returns a :class:`.Observation` object filled
+    with the data read from the HDF5 file pointed by `path`.
+
+    If `limit_mpi_rank` is ``True`` (the default), the function makes sure that the
+    rank of the MPI process reading this file is the same as the rank of the process
+    that originally wrote it.
+
+    The flags `tod_dtype` and `pointings_dtype` permit to override the data type of
+    TOD samples and pointing angles used in the HDF5 file.
+
+    The parameters `read_pointings_if_present`, `read_pixidx_if_present`,
+    `read_psi_if_present`, `read_global_flags_if_present`, and
+    `read_local_flags_if_present` permit to avoid loading some parts of the HDF5 if
+    they are not needed.
+
+    The function returns a :class:`.Observation`, or ``Nothing`` if the HDF5 file
+    was ill-formed.
+    """
     with h5py.File(str(path), "r") as inpf:
         assert "tod" in inpf
         hdf5_tod = inpf["tod"]
@@ -441,7 +474,7 @@ def read_one_observation(
 
         # Checking if flags are present is trickier because there should be N
         # datasets, where N is the number of detectors
-        if read_flags_if_present:
+        if read_local_flags_if_present:
             flags = __find_flags(
                 inpf,
                 expected_num_of_dets=result.tod.shape[0],
@@ -484,6 +517,18 @@ def read_list_of_observations(
     pointings_dtype=np.float32,
     limit_mpi_rank: bool = True,
 ) -> List[Observation]:
+    """Read a list of HDF5 files containing TODs and return a list of observations
+
+    The function reads all the HDF5 files listed in `file_name_list` (either a list of
+    strings or ``pathlib.Path`` objects) and assigns them to the various MPI processes
+    that are currently running, provided that `limit_mpi_rank` is ``True``; otherwise,
+    all the files are read by the current process and returned in a list.
+
+    When using MPI, the observations are distributed among the MPI processes using the
+    same layout that was used to save them; this means that you are forced to use the
+    same number of processes you used when saving the files. This number is saved in
+    the attribute ``mpi_size`` in each of the HDF5 files.
+    """
 
     observations = []
 
@@ -518,10 +563,26 @@ def read_list_of_observations(
 
 def read_observations(
     sim: Simulation,
-    path: Union[str, Path],
+    path: Union[str, Path] = None,
     subdir_name: Union[None, str] = "tod",
     *args,
     **kwargs,
 ):
-    obs = read_list_of_observations(path=path / subdir_name, *args, **kwargs)
+    """Read a list of observations from a set of files in a simulation
+
+    This function is a wrapper around the function :func:`.read_list_of_observations`.
+    It reads all the HDF5 files that are present in the directory whose name is
+    `subdir_name` and is a child of `path`, and it stores them in the
+    :class:`.Simulation` object `sim`.
+
+    If `path` is not specified, the default is to use the value of ``sim.base_path``;
+    this is meaningful if you are trying to read back HDF5 files that have been saved
+    earlier in the same session.
+    """
+    if path is None:
+        path = sim.base_path
+
+    obs = read_list_of_observations(
+        file_name_list=list((path / subdir_name).glob("**/*.h5")), *args, **kwargs
+    )
     sim.observations = obs
