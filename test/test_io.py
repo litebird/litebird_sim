@@ -116,6 +116,11 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         assert "global_flags" in inpf
         assert "flags_0000" in inpf
 
+        assert "mpi_rank" in inpf.attrs
+        assert "mpi_size" in inpf.attrs
+        assert "global_index" in inpf.attrs
+        assert "local_index" in inpf.attrs
+
         tod_dataset = inpf["tod"]
         pointings_dataset = inpf["pointings"]
         global_flags = inpf["global_flags"]
@@ -136,8 +141,6 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
 
         assert tod_dataset.attrs["mjd_time"] == use_mjd
         assert tod_dataset.attrs["sampling_rate_hz"] == original_obs.sampling_rate_hz
-        assert "mpi_rank" in tod_dataset.attrs
-        assert "mpi_size" in tod_dataset.attrs
 
         detectors = tod_dataset.attrs["detectors"]
         assert isinstance(detectors, str)
@@ -179,7 +182,7 @@ def test_write_complex_observation_no_mjd(tmp_path):
 def __test_read_complex_observation(tmp_path, use_mjd: bool):
     original_obs, det, file_list = __write_complex_observation(tmp_path, use_mjd)
 
-    observations = lbs.read_list_of_observations(path=tmp_path)
+    observations = lbs.read_list_of_observations(file_name_list=tmp_path.glob("*.h5"))
     assert len(observations) == 1
 
     obs = observations[0]

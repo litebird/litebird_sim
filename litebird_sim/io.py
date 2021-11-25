@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from collections import namedtuple
 from dataclasses import fields, asdict
 import json
 import logging as log
@@ -41,7 +42,12 @@ __FLAGS_GROUP_NAME_REGEXP = re.compile("flags_([0-9]+)")
 
 
 def write_one_observation(
-    output_file: h5py.File, obs: Observation, tod_dtype, pointings_dtype
+    output_file: h5py.File,
+    obs: Observation,
+    tod_dtype,
+    pointings_dtype,
+    global_index: int,
+    local_index: int,
 ):
     tod_dataset = output_file.create_dataset("tod", data=obs.tod, dtype=tod_dtype)
 
@@ -95,8 +101,11 @@ def write_one_observation(
         tod_dataset.attrs["mjd_time"] = False
 
     tod_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
-    tod_dataset.attrs["mpi_rank"] = MPI_COMM_WORLD.rank
-    tod_dataset.attrs["mpi_size"] = MPI_COMM_WORLD.size
+
+    output_file.attrs["mpi_rank"] = MPI_COMM_WORLD.rank
+    output_file.attrs["mpi_size"] = MPI_COMM_WORLD.size
+    output_file.attrs["global_index"] = global_index
+    output_file.attrs["local_index"] = local_index
 
     # This code assumes that the parameter `detectors` passed to Observation
     # was either an integer or a list of `DetectorInfo` objects, i.e., we
@@ -139,6 +148,18 @@ def write_one_observation(
 
     # Now encode `det_info` in a JSON string and save it as an attribute
     tod_dataset.attrs["detectors"] = json.dumps(det_info)
+
+
+def _compute_global_start_index(num_of_obs: int, collective_mpi_call: bool) -> int:
+    if MPI_ENABLED and collective_mpi_call:
+        # Count how many observations are kept in the MPI processes with lower rank
+        # than this one.
+        num_of_obs = np.asarray(MPI_COMM_WORLD.allgather(num_of_obs))
+        global_start_index = np.sum(num_of_obs[0 : MPI_COMM_WORLD.rank])
+    else:
+        global_start_index = 0
+
+    return global_start_index
 
 
 def write_list_of_observations(
@@ -223,13 +244,9 @@ def write_list_of_observations(
     if not isinstance(path, Path):
         path = Path(path)
 
-    if MPI_ENABLED and collective_mpi_call:
-        # Count how many observations are kept in the MPI processes with lower rank
-        # than this one.
-        num_of_obs = np.asarray(MPI_COMM_WORLD.allgather(len(obs)))
-        global_start_index = np.sum(num_of_obs[0 : MPI_COMM_WORLD.rank])
-    else:
-        global_start_index = 0
+    global_start_index = _compute_global_start_index(
+        num_of_obs=len(obs), collective_mpi_call=collective_mpi_call
+    )
 
     # Iterate over all the observations and create one HDF5 file for each of them
     file_list = []
@@ -259,6 +276,8 @@ def write_list_of_observations(
                 obs=cur_obs,
                 tod_dtype=tod_dtype,
                 pointings_dtype=pointings_dtype,
+                global_index=params["global_index"],
+                local_index=params["local_index"],
             )
 
         file_list.append(file_name)
@@ -267,7 +286,11 @@ def write_list_of_observations(
 
 
 def write_observations(
-    sim: Simulation, subdir_name: Union[None, str] = "tod", *args, **kwargs
+    sim: Simulation,
+    subdir_name: Union[None, str] = "tod",
+    include_in_report: bool = True,
+    *args,
+    **kwargs,
 ) -> List[Path]:
     """Write a set of observations as HDF5
 
@@ -295,8 +318,9 @@ def write_observations(
         obs=sim.observations, path=tod_path, *args, **kwargs
     )
 
-    sim.append_to_report(
-        """
+    if include_in_report:
+        sim.append_to_report(
+            """
 ## TOD files
 
 {% if file_list %}
@@ -309,8 +333,8 @@ The following files containing Time-Ordered Data (TOD) have been written:
 No TOD files have been written to disk.
 {% endif %}
 """,
-        file_list=file_list,
-    )
+            file_list=file_list,
+        )
 
     return file_list
 
@@ -357,14 +381,14 @@ def read_one_observation(
         hdf5_tod = inpf["tod"]
 
         if limit_mpi_rank:
-            mpi_size = hdf5_tod.attrs["mpi_size"]
+            mpi_size = inpf.attrs["mpi_size"]
             assert mpi_size == MPI_COMM_WORLD.size, (
                 '"{name}" was created using {orig_size} MPI processes, '
                 + "but now {actual_size} are available"
             ).format(
                 name=str(path), orig_size=mpi_size, actual_size=MPI_COMM_WORLD.size
             )
-            if hdf5_tod.attrs["mpi_rank"] != MPI_COMM_WORLD.rank:
+            if inpf.attrs["mpi_rank"] != MPI_COMM_WORLD.rank:
                 # We are not supposed to load this observation in this MPI process
                 return None
 
@@ -416,50 +440,65 @@ def read_one_observation(
     return result
 
 
+_FileEntry = namedtuple(
+    "_FileEntry", ["path", "mpi_size", "mpi_rank", "global_index", "local_index"]
+)
+
+
+def _build_file_entry_table(file_name_list: List[Union[str, Path]]) -> List[_FileEntry]:
+    file_entries = []  # type: List[_FileEntry]
+    for cur_file_name in file_name_list:
+        with h5py.File(cur_file_name, "r") as inpf:
+            try:
+                file_entries.append(
+                    _FileEntry(
+                        path=Path(cur_file_name),
+                        mpi_size=inpf.attrs.get("mpi_size", 1),
+                        mpi_rank=inpf.attrs.get("mpi_rank", 0),
+                        global_index=inpf.attrs["global_index"],
+                        local_index=inpf.attrs["local_index"],
+                    )
+                )
+            except KeyError as e:
+                print(f"List of keys in {cur_file_name}:", list(inpf.attrs.keys()))
+                raise RuntimeError(f"malformed TOD file {cur_file_name}: {e}")
+    return file_entries
+
+
 def read_list_of_observations(
-    path: Union[str, Path],
+    file_name_list: List[Union[str, Path]],
     tod_dtype=np.float32,
     pointings_dtype=np.float32,
-    file_name_mask: str = __OBSERVATION_FILE_NAME_MASK,
-    custom_placeholders: Optional[List[Dict[str, Any]]] = None,
-    start_index: int = 0,
     limit_mpi_rank: bool = True,
 ) -> List[Observation]:
 
-    path = Path(path)
-
-    cur_file_index = start_index
     observations = []
-    while True:
-        params = {
-            "mpi_rank": MPI_COMM_WORLD.rank,
-            "mpi_size": MPI_COMM_WORLD.size,
-            "index": cur_file_index,
-        }
 
-        # Merge the standard dictionary used to build the file name with any other
-        # key in `custom_placeholders`. If `custom_placeholders` contains some
-        # duplicated key, it will take the precedence over our default here.
-        if custom_placeholders is not None:
-            cur_placeholders = custom_placeholders[cur_file_index]
-            params = dict(params, **cur_placeholders)
+    # When running several MPI processes, make just one of them read the HDF5 metadata,
+    # otherwise we put too much burden on the storage filesystem
+    if MPI_ENABLED:
+        file_entries = (
+            _build_file_entry_table(file_name_list)
+            if (MPI_COMM_WORLD.rank == 0)
+            else None
+        )
+        file_entries = MPI_COMM_WORLD.bcast(file_entries, root=0)
+    else:
+        file_entries = _build_file_entry_table(file_name_list)
 
-        cur_file_name = path / file_name_mask.format(**params)
+    # Decide which files should be read by this process
+    if limit_mpi_rank and MPI_ENABLED:
+        file_entries = [x for x in file_entries if x.mpi_rank == MPI_COMM_WORLD.rank]
 
-        try:
-            observations.append(
-                read_one_observation(
-                    cur_file_name,
-                    limit_mpi_rank=limit_mpi_rank,
-                    tod_dtype=tod_dtype,
-                    pointings_dtype=pointings_dtype,
-                )
+    for cur_file_entry in file_entries:
+        observations.append(
+            read_one_observation(
+                cur_file_entry.path,
+                limit_mpi_rank=limit_mpi_rank,
+                tod_dtype=tod_dtype,
+                pointings_dtype=pointings_dtype,
             )
-        except FileNotFoundError:
-            print(f"{cur_file_name} with index {cur_file_index} not found")
-            break
-
-        cur_file_index += 1
+        )
 
     return observations
 
