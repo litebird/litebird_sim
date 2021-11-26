@@ -574,7 +574,7 @@ class Mbs:
             nmc_output_directory = output_directory / nmc_str
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
-            cmb_temp = hp.synfast(cl_cmb, nside, new=True, verbose=False)
+            cmb_temp = hp.synfast(cl_cmb, nside, new=True)
             file_name = f"cmb_{nmc_str}_{file_str}.fits"
             cur_map_path = nmc_output_directory / file_name
             lbs.write_healpix_map_to_file(
