@@ -34,7 +34,7 @@ jobs:
         id: cache-pysm3
         uses: actions/cache@v2
         with:
-          path: pysm3-data
+          path: ~/pysm3-data
           key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}
 
       - name: Register PySM3 data path
