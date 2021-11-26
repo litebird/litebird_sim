@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
 
-from pathlib import Path
+import logging as log
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -414,9 +414,16 @@ def test_write_hdf5_mpi(tmp_path):
     num_of_obs = 12
     sim.create_observations(detectors=[det], num_of_obs_per_detector=num_of_obs)
 
-    lbs.write_observations(
+    log.warning(
+        f"Process #{lbs.MPI_COMM_WORLD.rank} has {len(sim.observations)} observations"
+    )
+
+    file_names = lbs.write_observations(
         sim, subdir_name="tod", file_name_mask="litebird_tod{global_index:04d}.h5"
     )
+
+    log.warning(f"The following files should have been written {file_names}")
+    assert len(file_names) == len(sim.observations)
 
     if lbs.MPI_ENABLED:
         # Wait that all the processes have completed writing the files
@@ -424,14 +431,13 @@ def test_write_hdf5_mpi(tmp_path):
 
     tod_path = sim.base_path / "tod"
     files_found = list(tod_path.glob("litebird_tod*.h5"))
-    assert (
-        len(files_found) == num_of_obs
-    ), f"{len(files_found)} files found instead of {num_of_obs}: {files_found}"
+    assert len(files_found) == num_of_obs, (
+        f"{len(files_found)} files found in {tod_path} instead of "
+        + f"{num_of_obs}: {files_found}"
+    )
     for idx in range(num_of_obs):
         cur_tod = tod_path / f"litebird_tod{idx:04d}.h5"
-        assert (
-            cur_tod.is_file()
-        ), f"File {cur_tod} not found, but {num_of_obs} observations were expected"
+        assert cur_tod.is_file(), f"File {cur_tod} was expected but not found"
 
 
 def main():
