@@ -464,6 +464,12 @@ def main():
     try:
         test_write_hdf5_mpi(tmp_path)
     finally:
+        # Now we can remove the temporary directory, but first make
+        # sure that there are no other MPI processes still waiting to
+        # finish
+        if lbs.MPI_ENABLED:
+            lbs.MPI_COMM_WORLD.barrier()
+
         if tmp_dir:
             tmp_dir.cleanup()
 
