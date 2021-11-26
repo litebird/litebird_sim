@@ -66,7 +66,7 @@ jobs:
       - name: Enable rich traceback
         run: |
           export DESTPATH="$(poetry env info -p)/lib/python${{ matrix.python }}/site-packages/sitecustomize.py"
-          echo -n "from rich.traceback import install\ninstall(show_locals=True)\n" > "$DESTPATH"
+          echo -e "from rich.traceback import install\ninstall(show_locals=True)\n" > "$DESTPATH"
           echo "$DESTPATH"
           cat "$DESTPATH"
           
