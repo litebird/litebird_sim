@@ -27,12 +27,15 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      # Unfortunately we must use different keys to store the same data,
+      # otherwise GitHub will complain when multiple jobs are going to
+      # store it
       - name: Cache PySM3 data files
         id: cache-pysm3
         uses: actions/cache@v2
         with:
           path: pysm3-data
-          key: pysm3-data
+          key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ mpi }}
 
       - name: Register PySM3 data path
         run: |
