@@ -423,7 +423,10 @@ def test_write_hdf5_mpi(tmp_path):
         lbs.MPI_COMM_WORLD.barrier()
 
     tod_path = sim.base_path / "tod"
-
+    files_found = list(tod_path.glob("litebird_tod*.h5"))
+    assert (
+        len(files_found) == num_of_obs
+    ), f"{len(files_found)} files found instead of {num_of_obs}: {files_found}"
     for idx in range(num_of_obs):
         cur_tod = tod_path / f"litebird_tod{idx:04d}.h5"
         assert (
