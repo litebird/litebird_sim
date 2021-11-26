@@ -27,6 +27,22 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      - name: Cache PySM3 data files
+        id: cache-pysm3
+        uses: actions/cache@v2
+        with:
+          path: pysm3-data
+          key: pysm3-data
+
+      - name: Register PySM3 data path
+        run: |
+          echo "PYSM_LOCAL_DATA=$HOME/pysm3-data" >> $GITHUB_ENV
+
+      - name: Download PySM3 data files
+        if: steps.cache-pysm3.outputs.cache_hit != 'true'
+        run: |
+          git clone https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
+
       - name: Install dependencies
         run: |
           ./bin/install-deps.sh ${{ matrix.mpi }}
