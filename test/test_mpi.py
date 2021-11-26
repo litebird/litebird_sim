@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
 
-import logging as log
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -414,15 +413,10 @@ def test_write_hdf5_mpi(tmp_path):
     num_of_obs = 12
     sim.create_observations(detectors=[det], num_of_obs_per_detector=num_of_obs)
 
-    log.warning(
-        f"Process #{lbs.MPI_COMM_WORLD.rank} has {len(sim.observations)} observations"
-    )
-
     file_names = lbs.write_observations(
         sim, subdir_name="tod", file_name_mask="litebird_tod{global_index:04d}.h5"
     )
 
-    log.warning(f"The following files should have been written {file_names}")
     assert len(file_names) == len(sim.observations)
 
     if lbs.MPI_ENABLED:
