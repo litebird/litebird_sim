@@ -216,7 +216,7 @@ def write_list_of_observations(
     - ``local_index``: the number of the current observation within the current
       MPI process (see below)
 
-    You can provide other placeholders through `custom_dicts`, which must be
+    You can provide other placeholders through `custom_placeholders`, which must be
     a list of dictionaries. The number of elements in the list must be the
     same as the number of observations, and each dictionary will be used to
     determine the placeholders for the file name related to the corresponding
@@ -224,14 +224,14 @@ def write_list_of_observations(
 
         custom_dicts = [
             { "myvalue": "A" },
-            { "myvalue", "B" },
+            { "myvalue": "B" },
         ]
 
         write_list_of_observations(
             obs=[obs1, obs2],  # Write two observations
             path=".",
             file_name_mask="tod_{myvalue}.h5",
-            custom_dicts=custom_dicts,
+            custom_placeholders=custom_dicts,
         )
 
         # The two observations will be saved in
