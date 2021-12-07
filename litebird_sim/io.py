@@ -48,6 +48,7 @@ def write_one_observation(
     pointings_dtype,
     global_index: int,
     local_index: int,
+    tod_fields: List[str] = ["tod"],
 ):
     """Write one :class:`Observation` object in a HDF5 file.
 
@@ -63,7 +64,65 @@ def write_one_observation(
     used by high-level functions like :func:`.write_observations` to understand how to
     read several HDF5 files at once; if you do not need them, you can pass 0 to both.
     """
-    tod_dataset = output_file.create_dataset("tod", data=obs.tod, dtype=tod_dtype)
+
+    # This code assumes that the parameter `detectors` passed to Observation
+    # was either an integer or a list of `DetectorInfo` objects, i.e., we
+    # neglect the possibility that it was a list of dictionaries passing
+    # custom keys that have no parallel in DetectorInfo, as it would
+    # be too bothersome to understand which keys should be saved here.
+
+    det_info = []
+    # We must use this ugly hack because Observation does not store DetectorInfo
+    # classes but «spreads» their fields in the namespace of the class Observation.
+    detector_info_fields = [x.name for x in fields(DetectorInfo())]
+    for det_idx in range(obs.n_detectors):
+        new_detector = {}
+
+        for attribute in detector_info_fields:
+            try:
+                attr_value = obs.__getattribute__(attribute)
+            except AttributeError:
+                continue
+
+            if type(attr_value) in (str, bool, int, float, dict):
+                # Plain Python type
+                new_detector[attribute] = attr_value
+            elif type(attr_value) in __NUMPY_SCALAR_TYPES:
+                # Convert a NumPy type into a Python type
+                new_detector[attribute] = attr_value.item()
+            else:
+                # From now on, assume that this attribute is an array whose length
+                # is the same as `obs.n_detectors`
+                attr_value = attr_value[det_idx]
+                if type(attr_value) in __NUMPY_SCALAR_TYPES:
+                    new_detector[attribute] = attr_value.item()
+                elif type(attr_value) is np.ndarray:
+                    new_detector[attribute] = [x.item() for x in attr_value]
+                else:
+                    # Fallback: we assume this is a plain Python type
+                    new_detector[attribute] = attr_value
+
+        det_info.append(new_detector)
+
+    # Now encode `det_info` in a JSON string that will be saved later as an attribute
+    detectors_json = json.dumps(det_info)
+
+    # Write all the TOD timelines in the HDF5 file, in separate datasets
+    for field_name in tod_fields:
+        cur_dataset = output_file.create_dataset(
+            field_name, data=obs.__getattribute__(field_name), dtype=tod_dtype
+        )
+        if isinstance(obs.start_time, astropy.time.Time):
+            cur_dataset.attrs["start_time"] = obs.start_time.to_value(
+                format="mjd", subfmt="bytes"
+            )
+            cur_dataset.attrs["mjd_time"] = True
+        else:
+            cur_dataset.attrs["start_time"] = obs.start_time
+            cur_dataset.attrs["mjd_time"] = False
+
+        cur_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
+        cur_dataset.attrs["detectors"] = detectors_json
 
     # Save pointing information only if it is available
     try:
@@ -105,63 +164,10 @@ def write_one_observation(
     except (AttributeError, TypeError):
         pass
 
-    if isinstance(obs.start_time, astropy.time.Time):
-        tod_dataset.attrs["start_time"] = obs.start_time.to_value(
-            format="mjd", subfmt="bytes"
-        )
-        tod_dataset.attrs["mjd_time"] = True
-    else:
-        tod_dataset.attrs["start_time"] = obs.start_time
-        tod_dataset.attrs["mjd_time"] = False
-
-    tod_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
-
     output_file.attrs["mpi_rank"] = MPI_COMM_WORLD.rank
     output_file.attrs["mpi_size"] = MPI_COMM_WORLD.size
     output_file.attrs["global_index"] = global_index
     output_file.attrs["local_index"] = local_index
-
-    # This code assumes that the parameter `detectors` passed to Observation
-    # was either an integer or a list of `DetectorInfo` objects, i.e., we
-    # neglect the possibility that it was a list of dictionaries passing
-    # custom keys that have no parallel in DetectorInfo, as it would
-    # be too bothersome to understand which keys should be saved here.
-
-    det_info = []
-    # We must use this ugly hack because Observation does not store DetectorInfo
-    # classes but «spreads» their fields in the namespace of the class Observation.
-    detector_info_fields = [x.name for x in fields(DetectorInfo())]
-    for det_idx in range(obs.n_detectors):
-        new_detector = {}
-
-        for attribute in detector_info_fields:
-            try:
-                attr_value = obs.__getattribute__(attribute)
-            except AttributeError:
-                continue
-
-            if type(attr_value) in (str, bool, int, float, dict):
-                # Plain Python type
-                new_detector[attribute] = attr_value
-            elif type(attr_value) in __NUMPY_SCALAR_TYPES:
-                # Convert a NumPy type into a Python type
-                new_detector[attribute] = attr_value.item()
-            else:
-                # From now on, assume that this attribute is an array whose length
-                # is the same as `obs.n_detectors`
-                attr_value = attr_value[det_idx]
-                if type(attr_value) in __NUMPY_SCALAR_TYPES:
-                    new_detector[attribute] = attr_value.item()
-                elif type(attr_value) is np.ndarray:
-                    new_detector[attribute] = [x.item() for x in attr_value]
-                else:
-                    # Fallback: we assume this is a plain Python type
-                    new_detector[attribute] = attr_value
-
-        det_info.append(new_detector)
-
-    # Now encode `det_info` in a JSON string and save it as an attribute
-    tod_dataset.attrs["detectors"] = json.dumps(det_info)
 
 
 def _compute_global_start_index(
@@ -186,6 +192,7 @@ def write_list_of_observations(
     custom_placeholders: Optional[List[Dict[str, Any]]] = None,
     start_index: int = 0,
     collective_mpi_call: bool = True,
+    tod_fields: List[str] = ["tod"],
 ) -> List[Path]:
     """
     Save a list of observations in a set of HDF5 files
@@ -250,8 +257,13 @@ def write_list_of_observations(
     process is writing their observations to disk.
 
     The ``local_index`` and ``global_index`` placeholders used in the template
-    file name start from zero,
-    but this can be changed using the parameter `start_index`.
+    file name start from zero, but this can be changed using the parameter
+    `start_index`.
+
+    If observations contain more than one timeline in separate fields
+    (e.g., foregrounds, dipole, noise…), you can specify the names of the
+    fields using the parameter ``tod_fields`` (list of strings), which by
+    default will only save `Observation.tod`.
 
     """
     try:
@@ -303,6 +315,7 @@ def write_list_of_observations(
                 pointings_dtype=pointings_dtype,
                 global_index=params["global_index"],
                 local_index=params["local_index"],
+                tod_fields=tod_fields,
             )
 
         file_list.append(file_name)
@@ -400,6 +413,7 @@ def read_one_observation(
     read_psi_if_present=True,
     read_global_flags_if_present=True,
     read_local_flags_if_present=True,
+    tod_fields: List[str] = ["tod"],
 ) -> Optional[Observation]:
     """Read one :class:`.Observation` object from a HDF5 file.
 
@@ -422,10 +436,10 @@ def read_one_observation(
     The function returns a :class:`.Observation`, or ``Nothing`` if the HDF5 file
     was ill-formed.
     """
-    with h5py.File(str(path), "r") as inpf:
-        assert "tod" in inpf
-        hdf5_tod = inpf["tod"]
 
+    assert len(tod_fields) > 0
+
+    with h5py.File(str(path), "r") as inpf:
         if limit_mpi_rank:
             mpi_size = inpf.attrs["mpi_size"]
             assert mpi_size == MPI_COMM_WORLD.size, (
@@ -438,31 +452,48 @@ def read_one_observation(
                 # We are not supposed to load this observation in this MPI process
                 return None
 
-        if hdf5_tod.attrs["mjd_time"]:
-            start_time = astropy.time.Time(hdf5_tod.attrs["start_time"], format="mjd")
-        else:
-            start_time = hdf5_tod.attrs["start_time"]
+        # Load the TOD(s)
+        result = None  # Optional[Observation]
 
-        detectors = [
-            DetectorInfo.from_dict(x) for x in json.loads(hdf5_tod.attrs["detectors"])
-        ]
-        result = Observation(
-            detectors=[asdict(d) for d in detectors],
-            n_samples_global=hdf5_tod.shape[1],
-            start_time_global=start_time,
-            n_blocks_det=1,
-            n_blocks_time=1,
-            allocate_tod=True,
-            sampling_rate_hz=hdf5_tod.attrs["sampling_rate_hz"],
-            comm=None if limit_mpi_rank else MPI_COMM_WORLD,
-            dtype_tod=hdf5_tod.dtype,
-        )
+        for cur_field in tod_fields:
+            assert cur_field in inpf
+            hdf5_tod = inpf[cur_field]
 
-        # Copy the TOD in the newly created observation
-        assert result.tod.shape == hdf5_tod.shape
-        result.tod[:] = hdf5_tod.astype(tod_dtype)[:]
+            if hdf5_tod.attrs["mjd_time"]:
+                start_time = astropy.time.Time(
+                    hdf5_tod.attrs["start_time"], format="mjd"
+                )
+            else:
+                start_time = hdf5_tod.attrs["start_time"]
 
-        # Do the same for other optional datasets
+            if result is None:
+                detectors = [
+                    DetectorInfo.from_dict(x)
+                    for x in json.loads(hdf5_tod.attrs["detectors"])
+                ]
+
+                result = Observation(
+                    detectors=[asdict(d) for d in detectors],
+                    n_samples_global=hdf5_tod.shape[1],
+                    start_time_global=start_time,
+                    n_blocks_det=1,
+                    n_blocks_time=1,
+                    allocate_tod=True,
+                    sampling_rate_hz=hdf5_tod.attrs["sampling_rate_hz"],
+                    comm=None if limit_mpi_rank else MPI_COMM_WORLD,
+                    dtype_tod=hdf5_tod.dtype,
+                )
+                # Copy the TOD in the newly created observation
+                result.__setattr__(cur_field, hdf5_tod.astype(tod_dtype)[:])
+            else:
+                # All the fields must conform to the same shape as `Observation.tod`
+                assert result.tod.shape == hdf5_tod.shape
+                result.__setattr__(cur_field, hdf5_tod.astype(tod_dtype)[:])
+
+        # If we arrive here, we must have read at least one TOD
+        assert result is not None
+
+        # If it is required, read other optional datasets
         for attr, attr_type, should_read in [
             ("pointings", pointings_dtype, read_pointings_if_present),
             ("pixidx", np.int32, read_pixidx_if_present),
@@ -516,6 +547,7 @@ def read_list_of_observations(
     tod_dtype=np.float32,
     pointings_dtype=np.float32,
     limit_mpi_rank: bool = True,
+    tod_fields: List[str] = ["tod"],
 ) -> List[Observation]:
     """Read a list of HDF5 files containing TODs and return a list of observations
 
@@ -528,6 +560,11 @@ def read_list_of_observations(
     same layout that was used to save them; this means that you are forced to use the
     same number of processes you used when saving the files. This number is saved in
     the attribute ``mpi_size`` in each of the HDF5 files.
+
+    If the HDF5 file contains more than one TOD, e.g., foregrounds, dipole, noise…,
+    you can specify which datasets to load with ``tod_fields``, that by default is
+    equal to ``["tod"]``. Each dataset will be initialized as a member field of
+    the :class:`.Observation` class, like ``Observation.tod``.
     """
 
     observations = []
@@ -555,6 +592,7 @@ def read_list_of_observations(
                 limit_mpi_rank=limit_mpi_rank,
                 tod_dtype=tod_dtype,
                 pointings_dtype=pointings_dtype,
+                tod_fields=tod_fields,
             )
         )
 
