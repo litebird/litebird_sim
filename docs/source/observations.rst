@@ -144,10 +144,75 @@ key.
 
   obs.name == np.array(["A", "B"])  # True
 
+
+Reading/writing observations to disk
+------------------------------------
+
+The framework implements a couple of functions to write/read
+:class:`.Observation` objects to disk, using the HDF5 file format. By
+default, each observation is saved in a separate HDF5 file; the
+following information are saved and restored:
+
+- Whether times are tracked as floating-point numbers or proper
+  AstroPy dates;
+- The TOD matrix (in ``.tod``);
+- Any pointing information stored in ``.pointings`` (the matrix
+  containing the colatitude and longitude of the direction of the main
+  beam axis), ``.psi`` (the polarization angle), and ``.pixidx`` (the
+  index of the pixel in the Healpix pixelization scheme).
+- Global and local flags saved in ``.global_flags`` and
+  ``.local_flags`` (see below).
+
+The function used to save observations is :func:`.write_observations`,
+which works with a :class:`.Simulation` object; if you prefer to
+operate without a :class:`.Simulation` object, you can call
+:func:`.write_list_of_observations`.
+
+To read observations, you can use :func:`.read_observations` and
+:func:`.read_list_of_observations`.
+
+  
+Flags
+-----
+
+The LiteBIRD Simulation Framework permits to associate flags with the
+scientific samples in a TOD. These flags are usually unsigned integer
+numbers that are treated like bitmasks that signal peculiarities in
+the data. They are especially useful when dealing with data that have
+been acquired by some real instrument to signal if the hardware was
+malfunctioning or if some disturbance was recorded by the detectors.
+Other possible applications are possible:
+
+1. Marking samples that should be left out of map-making (e.g.,
+   because a planet or some other transient source was being observed
+   by the detector).
+
+2. Flagging potentially interesting observations that should be used
+   in data analysis (e.g., observations of the Crab nebula that are
+   considered good enough for polarization angle calibration).
+
+Similarly to other frameworks like TOAST, the LiteBIRD Simulation
+Framework lets to store both «global» and «local» flags associated
+with the scientific samples in TODs. Global flags are associated with
+all the samples in an Observation, and they must be a vector of ``M``
+elements, where ``M`` is the number of samples in the TOD. Local
+samples are stored in a matrix of shape ``N × M``, where ``N`` is the
+number of detectors in the observation.
+
+The framework encourages to store these flags in the fields
+``local_flags`` and ``global_flags``: in this way, they can be saved
+correctly in HDF5 files by functions like :func:`.write_observations`.
+
+
 API reference
 -------------
 
 .. automodule:: litebird_sim.observations
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. automodule:: litebird_sim.io
     :members:
     :undoc-members:
     :show-inheritance:
