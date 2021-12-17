@@ -30,3 +30,12 @@
     ```
     twine upload dist/litebird_sim_*
     ```
+
+-   Create a new tag and push it to GitHub:
+
+    ```
+    git tag -a vX.Y.Z -m "Version X.Y.Z"
+    git push origin vX.Y.Z
+    ```
+    
+-   Open the page https://github.com/litebird/litebird_sim/releases and create a new release from the tag you have just created.

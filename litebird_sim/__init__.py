@@ -1,4 +1,9 @@
 # -*- encoding: utf-8 -*-
+
+from .compress import (
+    rle_compress,
+    rle_decompress,
+)
 from .distribute import distribute_evenly, distribute_optimally
 from .detectors import (
     DetectorInfo,
@@ -70,11 +75,20 @@ from .spacecraft import (
     SpacecraftPositionAndVelocity,
 )
 from .dipole import add_dipole, add_dipole_to_observations, DipoleType
+from .io import (
+    write_list_of_observations,
+    write_observations,
+    read_list_of_observations,
+    read_observations,
+)
 from .version import __author__, __version__
 
 __all__ = [
     "__author__",
     "__version__",
+    # compress.py
+    "rle_compress",
+    "rle_decompress",
     # healpix.py
     "nside_to_npix",
     "npix_to_nside",
@@ -163,4 +177,9 @@ __all__ = [
     "spacecraft_pos_and_vel",
     "SpacecraftOrbit",
     "SpacecraftPositionAndVelocity",
+    # io
+    "write_list_of_observations",
+    "write_observations",
+    "read_list_of_observations",
+    "read_observations",
 ]
