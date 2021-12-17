@@ -56,7 +56,7 @@ shell. Examples:
 
         apt-get update
         DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
-        apt-get install -y build-essential curl git python3 python3-dev python3-pip MPI_LIB
+        apt-get install -y build-essential curl git python3 python3-dev python3-pip python3-venv MPI_LIB
 
         # Configure pip
         export PIP_DISABLE_PIP_VERSION_CHECK=on
@@ -79,7 +79,6 @@ shell. Examples:
         git clone https://github.com/litebird/litebird_sim.git /opt/litebird_sim
 
         cd /opt/litebird_sim
-        git checkout fix145
 
         poetry export --without-hashes POETRY_MPI -E docs -E jupyter -o requirements.txt
         pip3 install -r requirements.txt
