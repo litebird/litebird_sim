@@ -12,11 +12,11 @@ from ..observations import Observation
 
 COND_THRESHOLD = 1e10
 
-
+# Radiance to Rayleigh-Jeans conversion factor
 def _dBodTrj(nu):
     return 2 * const.k_B.value * nu * nu * 1e18 / const.c.value / const.c.value
 
-
+# Radiance to CMB-units conversion factor (dB/dT)
 def _dBodTth(nu):
     x = const.h.value * nu * 1e9 / const.k_B.value / cosmo.Tcmb0.value
     ex = np.exp(x)
