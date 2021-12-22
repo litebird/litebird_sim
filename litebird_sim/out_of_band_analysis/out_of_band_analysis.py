@@ -76,7 +76,7 @@ def decaying_bandpass(freqs, f0, f1, alpha):
 
 def beam_throughtput(freqs):
     
-    return 1. / freqs / freqs
+    return 1. / freqs / freqs / 1.e9 / 1.e9
 
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
