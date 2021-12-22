@@ -12,15 +12,21 @@ from ..observations import Observation
 
 COND_THRESHOLD = 1e10
 
-# Radiance to Rayleigh-Jeans conversion factor
 def _dBodTrj(nu):
+    """Radiance to Rayleigh-Jeans conversion factor
+    nu: frequency in Ghz
+    """
     return 2 * const.k_B.value * nu * nu * 1e18 / const.c.value / const.c.value
 
-# Radiance to CMB-units conversion factor (dB/dT)
 def _dBodTth(nu):
+    """Radiance to CMB-units conversion factor (dB/dT)
+    nu: frwquency in GHz
+    """
+    
     x = const.h.value * nu * 1e9 / const.k_B.value / cosmo.Tcmb0.value
     ex = np.exp(x)
     exm1 = ex - 1.0e0
+    
     return (
         2
         * const.h.value
@@ -39,7 +45,11 @@ def _dBodTth(nu):
 
 
 def top_hat_bandpass(freqs, f0, f1):
-    
+    """Define a top-hat bandpass
+    freqs: frequency in GHz
+    f0: low-frequency edge of the top-hat in GHz
+    f1: high-frequency edge of the top-hat in GHz
+    """
     transmission = np.zeros_like(freqs)
     
     for i in range(len(freqs)):
@@ -55,6 +65,12 @@ def top_hat_bandpass(freqs, f0, f1):
     return transmission
 
 def decaying_bandpass(freqs, f0, f1, alpha):
+    """Define a bandpass with exponential tails and unit transmission in band
+    freqs: frequency in GHz
+    f0: low-frequency edge of the band in GHz
+    f1: high-frequency edge of the band in GHz
+    alpha: out-of-band exponential decay index 
+    """
     
     transmission = np.zeros_like(freqs)
     
@@ -75,7 +91,9 @@ def decaying_bandpass(freqs, f0, f1, alpha):
     return transmission
 
 def beam_throughtput(freqs):
-    
+    """ Beam throughtput factor
+    freqs: frequency in GHz
+    """
     return 1. / freqs / freqs / 1.e9 / 1.e9
 
 class HwpSys:
