@@ -38,6 +38,46 @@ def _dBodTth(nu):
     )
 
 
+def top_hat_bandpass(freqs, f0, f1):
+    
+    transmission = np.zeros_like(freqs)
+    
+    for i in range(len(freqs)):
+        
+        if freqs[i] >= f0 and freqs[i] <= f1:
+        
+            transmission[i] = 1.
+            
+        else:
+            
+            transmission[i] = 0.
+    
+    return transmission
+
+def decaying_bandpass(freqs, f0, f1, alpha):
+    
+    transmission = np.zeros_like(freqs)
+    
+    for i in range(len(freqs)):
+        
+        if freqs[i] >= f0 and freqs[i] <= f1:
+        
+            transmission[i] = 1.
+            
+        elif freqs[i] > f1:
+            
+            transmission[i] = np.exp(-alpha*(freqs[i]-f1))
+            
+        elif freqs[i] < f0:
+            
+            transmission[i] = np.exp(alpha*(freqs[i]-f0))
+    
+    return transmission
+
+def beam_throughtput(freqs):
+    
+    return 1. / freqs / freqs
+
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
