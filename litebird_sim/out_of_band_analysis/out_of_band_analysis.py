@@ -119,6 +119,8 @@ class HwpSys:
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
+        bandpass_parameters: Union[dict, None] = None,
+        include_beam_throughput: Union[bool, None] = None,
     ):
         """It sets the input paramters
 
@@ -133,6 +135,12 @@ class HwpSys:
              Channel (:class:`.FreqChannelInfo`): an instance of the
                                                   :class:`.FreqChannelInfo` class
              maps (float): input maps (3, npix) coherent with nside provided.
+             bandpass_parameters (dictionary): defines the bandpass shape to perform
+             the integration. Contains 2 (float) keys for top hat (low-frequency and 
+             high-frequency edge values), or 3 (float) for decaying_bandpass 
+             (low-frequency, high-frequency edge values and decaying index alpha)
+             include_beam_throughput (bool): if beam throughput factor 1/nu2 needs 
+             to be added or not
         """
 
         # set defaults for band integration
@@ -169,6 +177,12 @@ class HwpSys:
 
             if "integrate_in_band_solver" in paramdict.keys():
                 self.integrate_in_band_solver = paramdict["integrate_in_band_solver"]
+                
+            if "bandpass_parameters" in paramdict.keys():
+                self.bandpass_parameters = paramdict["bandpass_parameters"]
+                
+            if "include_beam_throughput" in paramdict.keys():
+                self.include_beam_throughput = paramdict["include_beam_throughput"]
 
             if "h1" in paramdict.keys():
                 self.h1 = paramdict["h1"]
@@ -259,6 +273,22 @@ class HwpSys:
                 self.integrate_in_band_solver = False
             else:
                 self.integrate_in_band_solver = integrate_in_band_solver
+                
+        try:
+            self.bandpass_parameters
+        except Exception:
+            if bandpass_parameters is None:
+                self.bandpass_parameters = None
+            else:
+                self.bandpass_parameters = bandpass_parameters
+        
+        try:
+            self.include_beam_throughput
+        except Exception:
+            if include_beam_throughput is None:
+                self.include_beam_throughput = False
+            else:
+                self.include_beam_throughput = include_beam_throughput
 
         if Mbsparams is None:
             Mbsparams = lbs.MbsParameters(
@@ -284,7 +314,34 @@ class HwpSys:
 
             self.nfreqs = len(self.freqs)
 
-            self.cmb2bb = _dBodTth(self.freqs)
+	    if self.bandpass_parameters = None:
+
+            	self.cmb2bb = _dBodTth(self.freqs)
+            
+            elif self.bandpass_parameters != None:
+            
+            	if len(self.bandpass_parameters) = 2:
+            	
+            	    self.bandpass = top_hat_bandpass(self.freqs, self.bandpass_parameters['low edge'], self.bandpass_parameters['high edge'])
+            	    
+            	elif len(self.bandpass_parameters) = 3:
+            	
+            	    self.bandpass = decaying_bandpass(self.freqs, self.bandpass_parameters['low edge'], self.bandpass_parameters['high edge'], self.bandpass_parameters['alpha'])
+            	    
+            	else:
+            	
+            	    print('Error in the bandpass definition!')
+            	    
+                self.cmb2bb = _dBodTth(self.freqs)*self.bandpass
+                
+            if self.include_beam_throughput = False:
+            
+            	self.cmb2bb = self.cmb2bb
+            	
+            elif self.include_beam_throughput = True:
+            
+            	self.cmb2bb = self.cmb2bb * beam_throughtput(self.freqs)
+            
             self.norm = self.cmb2bb.sum()
 
             myinstr = {}
@@ -330,7 +387,7 @@ class HwpSys:
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
-                self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
+                self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
                     self.band_filename_solver,
                     usecols=(1, 2, 3, 4, 5),
                     unpack=True,
