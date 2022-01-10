@@ -97,7 +97,10 @@ class HwpSys:
                             print(
                                 "Warning!! nside from general "
                                 "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
-                                % (self.sim.parameter_file["general"]["nside"], self.nside)
+                                % (
+                                    self.sim.parameter_file["general"]["nside"],
+                                    self.nside,
+                                )
                             )
 
             if "integrate_in_band" in paramdict.keys():
