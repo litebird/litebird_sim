@@ -23,52 +23,23 @@ def add_noise(obs, noisetype, scale=1, random=None):
 
     # iterate through each observation
     for ob in obs:
-        if len(ob.tod.shape) == 1:
-            # single detector data
-            # I'm not sure if this mode can ever be called because it's possible
-            # that the array is always 2-D
-
+        assert len(ob.tod.shape) == 2
+        for i in range(ob.tod.shape[0]):
             if noisetype == "white":
                 generate_white_noise(
-                    ob.tod,
-                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
+                    ob.tod[i][:],
+                    ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
                     random=random,
                 )
             elif noisetype == "one_over_f":
                 generate_one_over_f_noise(
-                    ob.tod,
-                    ob.fknee_mhz,
-                    ob.alpha,
-                    ob.net_ukrts * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
+                    ob.tod[i][:],
+                    ob.fknee_mhz[i],
+                    ob.alpha[i],
+                    ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
                     ob.sampling_rate_hz,
                     random=random,
                 )
-
-        elif len(ob.tod.shape) == 2:
-            for i in range(ob.tod.shape[0]):
-                if noisetype == "white":
-                    generate_white_noise(
-                        ob.tod[i][:],
-                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
-                        random=random,
-                    )
-                elif noisetype == "one_over_f":
-                    generate_one_over_f_noise(
-                        ob.tod[i][:],
-                        ob.fknee_mhz[i],
-                        ob.alpha[i],
-                        ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
-                        ob.sampling_rate_hz,
-                        random=random,
-                    )
-
-        else:
-            raise TypeError(
-                "Array with shape "
-                + ob.tod.shape
-                + " not supported in add_noise."
-                + " Try a 1 or 2 D array instead."
-            )
 
 
 def generate_white_noise(data, sigma, random=None):
