@@ -263,6 +263,20 @@ class Simulation:
         self.init_random()
 
     def init_random(self, seed=12345):
+        """
+        Initialize a random number generator in the `random` field
+
+        This function creates a random number generator and saves it in the
+        field `random`. It should be used whenever a random number generator
+        is needed in the simulation. It ensures that different MPI processes
+        have their own different seed, which stems from the parameter `seed`.
+        The generator is PCG64, and it is ensured that the sequences in
+        each MPI process are independent.
+
+        This method is automatically called in the constructor, but it can be
+        called again as many times as required. The typical case is when
+        one wants to use a seed that has been read from a parameter file.
+        """
         from numpy.random import Generator, PCG64, SeedSequence
 
         # We need to assign a different random number generator to each MPI
