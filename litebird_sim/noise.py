@@ -52,13 +52,11 @@ def generate_one_over_f_noise(data, fknee_mhz, alpha, sigma, freq_hz, random=Non
     # filters the white noise in the frequency domain with the 1/f filter
 
     model = freqs
-    # This is what the style checker wants but it looks rediculous to me
-    model[freqs != 0] = (
-        np.sqrt((1 + pow(abs(freqs[freqs != 0]) / (fknee_mhz / 1000), -1 * alpha)))
-        * sigma
+    mask = freqs != 0
+    model[~mask] = 0
+    model[mask] = (
+        np.sqrt((1 + pow(abs(freqs[mask]) / (fknee_mhz / 1000), -1 * alpha))) * sigma
     )
-
-    model[freqs == 0] = 0
 
     # transforms the data back to the time domain
     ifft = sp.fft.ifft(ft * model)
