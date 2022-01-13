@@ -130,4 +130,4 @@ def nearest_pow2(data):
 
     data: 1-D numpy array
     """
-    return pow(2, np.ceil(np.log(len(data), 2)))
+    return int(2 ** np.ceil(np.log2(len(data))))
