@@ -1,5 +1,14 @@
 # HEAD
 
+-   **Breaking change** New API for noise module:
+
+    -   Function `add_noise` has been renamed to `add_noise_to_observations`, and its parameter `noisetype` has been renamed into `noise_type` for consistency with other parameters (**breaking**)
+
+    -   New functions `add_white_noise` and `add_one_over_f_noise` are exported (they were already implemented but were not visible)
+
+    -   Each `Simulation` object creates random number generators (field `Simulation.random`), in a way that is safe even for MPI applications
+
+
 # Version 0.4.0
 
 - **Breaking change** Drop support for Python 3.6, enable Python 3.9 [#136](https://github.com/litebird/litebird_sim/pull/136)
