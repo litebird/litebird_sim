@@ -29,7 +29,7 @@ def test_add_noise_to_observations():
     sim.create_observations(detectors=[det1, det2])
 
     random = np.random.default_rng(1234567890)
-    lbs.noise.add_noise(sim.observations, "white", random=random)
+    lbs.noise.add_noise_to_observations(sim.observations, "white", random=random)
 
     assert len(sim.observations) == 1
 

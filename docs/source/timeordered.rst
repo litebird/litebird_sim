@@ -135,7 +135,7 @@ noise. Firstly, we can add white noise like this:
    random = np.random.default_rng(1234567890)
 
    # Here we add white noise using the detector noise parameters from the Imo
-   lbs.noise.add_noise(obs, 'white', random=random)
+   lbs.noise.add_noise_to_observations(obs, 'white', random=random)
 
    for i in range(10):
        print(f"{obs[0].tod[0][i]:.5e}")
@@ -171,7 +171,7 @@ function directly:
    obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
 
    custom_sigma_uk = 1234
-   lbs.noise.generate_white_noise(obs[0].tod[0], custom_sigma_uk)
+   lbs.noise.add_white_noise(obs[0].tod[0], custom_sigma_uk)
 
 We can also add 1/f noise using a very similar call to the above:
 
@@ -192,7 +192,7 @@ We can also add 1/f noise using a very similar call to the above:
 
    # Here we add 1/f noise using the detector noise parameters from the
    # detector object
-   lbs.noise.add_noise(obs, 'one_over_f')
+   lbs.noise.add_noise_to_observations(obs, 'one_over_f')
 
 Again, to generate noise with custom parameters, we can either use the low level function directly, or edit the observation object to contain the desired noise parameters. 
 
@@ -217,7 +217,7 @@ Again, to generate noise with custom parameters, we can either use the low level
    custom_alpha = 1.234
 
    # Option 1, where we call the low lever function directly
-   lbs.noise.generate_one_over_f_noise(
+   lbs.noise.add_one_over_f_noise(
        obs[0].tod[0],
        custom_fknee_mhz,
        custom_alpha,
@@ -230,7 +230,7 @@ Again, to generate noise with custom parameters, we can either use the low level
    obs[0].alpha[0] = custom_alpha
    obs[0].net_ukrts[0] = custom_sigma_uk / np.sqrt(obs[0].sampling_rate_hz)
 
-   lbs.noise.add_noise(obs, 'one_over_f')
+   lbs.noise.add_noise_to_observations(obs, 'one_over_f')
 
 API reference
 -------------
