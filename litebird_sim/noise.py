@@ -1,3 +1,5 @@
+# -*- encoding: utf-8 -*-
+
 import numpy as np
 import math
 import scipy as sp
