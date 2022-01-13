@@ -1,8 +1,13 @@
 # -*- encoding: utf-8 -*-
 
 from numbers import Number
+from typing import List
+
 import numpy as np
 import scipy as sp
+from numba import njit
+
+from litebird_sim import Observation
 
 
 def nearest_pow2(data):
@@ -13,12 +18,12 @@ def nearest_pow2(data):
     return int(2 ** np.ceil(np.log2(len(data))))
 
 
-def add_white_noise(data, sigma, random=None):
+def add_white_noise(data, sigma: float, random=None):
     """Adds white noise with the given sigma to the array data
     To be called from add_noise_to_observations.
 
     data: 1-D numpy array
-    sigma_uk: white noise level
+    sigma: white noise level
     random: a random number generator if you want reproducible randomness
     """
     if random is None:
@@ -27,7 +32,23 @@ def add_white_noise(data, sigma, random=None):
     data += random.normal(0, sigma, data.shape)
 
 
-def add_one_over_f_noise(data, fknee_mhz, alpha, sigma, freq_hz, random=None):
+@njit
+def build_one_over_f_model(ft, freqs, fknee_mhz, alpha, sigma):
+    fknee_hz = fknee_mhz / 1000
+
+    # Skip the first element, as it is the constant offset
+    for i in range(1, len(ft)):
+        ft[i] *= np.sqrt((1 + pow(abs(freqs[i]) / fknee_hz, -alpha))) * sigma
+
+
+def add_one_over_f_noise(
+    data,
+    fknee_mhz: float,
+    alpha: float,
+    sigma: float,
+    sampling_rate_hz: float,
+    random=None,
+):
     """Adds a 1/f noise timestream with the given f knee and alpha to data
     To be called from add_noise_to_observations
 
@@ -48,34 +69,52 @@ def add_one_over_f_noise(data, fknee_mhz, alpha, sigma, freq_hz, random=None):
     noise = random.normal(0, 1, noiselen)
 
     ft = sp.fft.fft(noise, n=noiselen)
-    freqs = sp.fft.fftfreq(noiselen, d=1 / (2 * freq_hz))
+    freqs = sp.fft.fftfreq(noiselen, d=1 / (2 * sampling_rate_hz))
 
     # filters the white noise in the frequency domain with the 1/f filter
-
-    mask = freqs != 0
-
-    # We are soon no longer using "freqs", so we reuse the memory allocated for it to
-    # build the 1/f model profile
-    model = freqs
-
-    model[~mask] = 0
-    model[mask] = (
-        np.sqrt((1 + pow(abs(freqs[mask]) / (fknee_mhz / 1000), -1 * alpha))) * sigma
-    )
+    build_one_over_f_model(ft, freqs, fknee_mhz, alpha, sigma)
 
     # transforms the data back to the time domain
-    ifft = sp.fft.ifft(ft * model)
+    ifft = sp.fft.ifft(ft)
 
     data += np.real(ifft[: len(data)])
 
 
-def rescale_noise(net_ukrts, sampling_rate_hz, scale):
+def rescale_noise(net_ukrts: float, sampling_rate_hz: float, scale: float):
     return net_ukrts * np.sqrt(sampling_rate_hz) * scale / 1e6
 
 
 def add_noise(
-    tod, sampling_rate_hz, net_ukrts, fknee_mhz, alpha, noisetype, scale=1, random=None
+    tod,
+    noise_type: str,
+    sampling_rate_hz: float,
+    net_ukrts,
+    fknee_mhz,
+    alpha,
+    scale=1.0,
+    random=None,
 ):
+    """
+    Add noise (white or 1/f) to a 2D array of floating-point values
+
+    This function sums an array of random number following a white noise model with
+    an optional 1/f component to `data`, which is assumed to be a D×N array containing
+    the TOD for D detectors, each containing N samples.
+
+    The parameter `noisetype` must either be ``white`` or ``one_over_f``; in the latter
+    case, the noise will contain a 1/f part and a white noise part.
+
+    The parameter `scale` can be used to introduce measurement unit conversions when
+    appropriate.
+
+    The parameter `random`, if specified, must be a random number generator that
+    implements the ``normal`` method. You should typically use the `random` field
+    of a :class:`.Simulation` object for this.
+
+    The parameters `net_ukrts`, `fknee_mhz`, `alpha`, and `scale` can either be scalars
+    or arrays; in the latter case, their size must be the same as ``tod.shape[0]``,
+    which is the number of detectors in the TOD.
+    """
     assert len(tod.shape) == 2
     num_of_dets = tod.shape[0]
 
@@ -97,54 +136,52 @@ def add_noise(
     assert len(scale) == num_of_dets
 
     for i in range(num_of_dets):
-        if noisetype == "white":
+        if noise_type == "white":
             add_white_noise(
-                tod[i][:],
-                rescale_noise(
+                data=tod[i][:],
+                sigma=rescale_noise(
                     net_ukrts=net_ukrts[i],
                     sampling_rate_hz=sampling_rate_hz,
                     scale=scale[i],
                 ),
                 random=random,
             )
-        elif noisetype == "one_over_f":
+        elif noise_type == "one_over_f":
             add_one_over_f_noise(
-                tod[i][:],
-                fknee_mhz[i],
-                alpha[i],
-                rescale_noise(
+                data=tod[i][:],
+                fknee_mhz=fknee_mhz[i],
+                alpha=alpha[i],
+                sigma=rescale_noise(
                     net_ukrts=net_ukrts[i],
                     sampling_rate_hz=sampling_rate_hz,
                     scale=scale[i],
                 ),
-                sampling_rate_hz,
+                sampling_rate_hz=sampling_rate_hz,
                 random=random,
             )
 
 
-def add_noise_to_observations(obs, noisetype, scale=1, random=None):
-    """adds noise of the defined type to the observations in obs
+def add_noise_to_observations(
+    obs: List[Observation], noise_type: str, scale: float = 1.0, random=None
+):
+    """Add noise of the defined type to the observations in obs
 
-    Args:
-        obs (:class:`Observation`): an Observation object
+    This class provides an interface to the low-level function :func:`.add_noise`.
+    The parameter `obs` is a list of :class:`.Observation` objects, which are
+    typically taken from the field `observations` of a :class:`.Simulation` object.
+    Unlike :func:`.add_noise`, it is not needed to pass the noise parameters here,
+    as they are taken from the characteristics of the detectors saved in `obs`.
 
-        noisetype (str): 'white' or 'one_over_f'. In the latter case, 1/f *and*
-                       white noise will be present
-
-        scale (float): multiplicative factor used to rescale the noise timeline.
-                       The default produces noise in K
-
-        random: a random number generator (default is None, which will use the default
-                generator)
+    See :func:`.add_noise` for more information.
     """
-    if noisetype not in ["white", "one_over_f"]:
-        raise ValueError("Unknown noise type " + noisetype)
+    if noise_type not in ["white", "one_over_f"]:
+        raise ValueError("Unknown noise type " + noise_type)
 
     # iterate through each observation
     for i, ob in enumerate(obs):
         add_noise(
             tod=ob.tod,
-            noisetype=noisetype,
+            noise_type=noise_type,
             sampling_rate_hz=ob.sampling_rate_hz,
             net_ukrts=ob.net_ukrts,
             fknee_mhz=ob.fknee_mhz,
