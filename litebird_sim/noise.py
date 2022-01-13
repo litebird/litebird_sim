@@ -52,8 +52,12 @@ def add_one_over_f_noise(data, fknee_mhz, alpha, sigma, freq_hz, random=None):
 
     # filters the white noise in the frequency domain with the 1/f filter
 
-    model = freqs
     mask = freqs != 0
+
+    # We are soon no longer using "freqs", so we reuse the memory allocated for it to
+    # build the 1/f model profile
+    model = freqs
+
     model[~mask] = 0
     model[mask] = (
         np.sqrt((1 + pow(abs(freqs[mask]) / (fknee_mhz / 1000), -1 * alpha))) * sigma
@@ -137,21 +141,14 @@ def add_noise_to_observations(obs, noisetype, scale=1, random=None):
         raise ValueError("Unknown noise type " + noisetype)
 
     # iterate through each observation
-    for ob in obs:
-        assert len(ob.tod.shape) == 2
-        for i in range(ob.tod.shape[0]):
-            if noisetype == "white":
-                add_white_noise(
-                    ob.tod[i][:],
-                    ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
-                    random=random,
-                )
-            elif noisetype == "one_over_f":
-                add_one_over_f_noise(
-                    ob.tod[i][:],
-                    ob.fknee_mhz[i],
-                    ob.alpha[i],
-                    ob.net_ukrts[i] * np.sqrt(ob.sampling_rate_hz) * scale / 1e6,
-                    ob.sampling_rate_hz,
-                    random=random,
-                )
+    for i, ob in enumerate(obs):
+        add_noise(
+            tod=ob.tod,
+            noisetype=noisetype,
+            sampling_rate_hz=ob.sampling_rate_hz,
+            net_ukrts=ob.net_ukrts,
+            fknee_mhz=ob.fknee_mhz,
+            alpha=ob.alpha,
+            scale=scale,
+            random=random,
+        )
