@@ -242,7 +242,7 @@ class Simulation:
 
         self.report = ""
 
-        # Add an header to the report
+        # Add a header to the report
         template_file_path = get_template_file_path("report_header.md")
         with template_file_path.open("rt") as inpf:
             markdown_template = "".join(inpf.readlines())
