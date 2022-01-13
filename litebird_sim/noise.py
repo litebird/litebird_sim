@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 import numpy as np
-import math
 import scipy as sp
 
 
@@ -131,4 +130,4 @@ def nearest_pow2(data):
 
     data: 1-D numpy array
     """
-    return pow(2, math.ceil(math.log(len(data), 2)))
+    return pow(2, np.ceil(np.log(len(data), 2)))
