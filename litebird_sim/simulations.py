@@ -195,6 +195,8 @@ class Simulation:
 
         self.description = description
 
+        self.random = None
+
         if imo:
             self.imo = imo
         else:
@@ -255,6 +257,23 @@ class Simulation:
             else self.start_time,
             duration_s=self.duration_s,
         )
+
+        # Make sure that self.random is initialized to something meaningful.
+        # The user is free to call self.init_random() again later
+        self.init_random()
+
+    def init_random(self, seed=12345):
+        from numpy.random import Generator, PCG64, SeedSequence
+
+        # We need to assign a different random number generator to each MPI
+        # process, otherwise noise will be correlated. The following code
+        # works even if MPI is not used
+
+        # Create a list of N seeds, one per each MPI process
+        seed_seq = SeedSequence(seed).spawn(self.mpi_comm.size)
+
+        # Pick the seed for this process
+        self.random = Generator(PCG64(seed_seq[self.mpi_comm.rank]))
 
     def _init_missing_params(self):
         """Initialize empty parameters using self.parameters

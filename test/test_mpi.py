@@ -434,6 +434,31 @@ def test_write_hdf5_mpi(tmp_path):
         assert cur_tod.is_file(), f"File {cur_tod} was expected but not found"
 
 
+def test_simulation_random():
+    sim = lbs.Simulation()
+    assert sim.random is not None
+
+    state = sim.random.bit_generator.state
+
+    comm_world = lbs.MPI_COMM_WORLD
+
+    assert state["bit_generator"] == "PCG64"
+    assert state["has_uint32"] == 0
+    assert state["uinteger"] == 0
+
+    # We only check the state of the first four MPI process. It's important
+    # to ensure that they are all different, but there is little sense in
+    # checking *every* process.
+    if comm_world.rank == 0:
+        assert state["state"]["state"] == 24896973052328222577814399574126207392
+    elif comm_world.rank == 1:
+        assert state["state"]["state"] == 158287254809478086677339590508859947181
+    elif comm_world.rank == 2:
+        assert state["state"]["state"] == 133763967953742274472419503117976972596
+    elif comm_world.rank == 3:
+        assert state["state"]["state"] == 233910118701024945237145923486727240452
+
+
 def main():
     test_observation_time()
     test_construction_from_detectors()
@@ -441,6 +466,7 @@ def main():
     test_observation_tod_two_block_time()
     test_observation_tod_two_block_det()
     test_observation_tod_set_blocks()
+    test_simulation_random()
 
     # It's critical that all MPI processes use the same output directory
     if lbs.MPI_ENABLED:

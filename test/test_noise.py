@@ -25,28 +25,26 @@ def test_add_noise_to_observations():
         fknee_mhz=2e3,
     )
 
-    np.random.seed(seed=123_456_789)
     sim.create_observations(detectors=[det1, det2])
 
-    random = np.random.default_rng(1234567890)
-    lbs.noise.add_noise_to_observations(sim.observations, "white", random=random)
+    sim.init_random(seed=12_345)
+    lbs.noise.add_noise_to_observations(sim.observations, "white", random=sim.random)
 
     assert len(sim.observations) == 1
 
     tod = sim.observations[0].tod
     assert tod.shape == (2, 10)
 
+    print(repr(tod))
     # fmt: off
-    reference = np.array(
-        [
-            [-2.0393272e-06, +1.8250503e-08, -7.3260622e-07, +8.0924798e-07,
-             +5.9536052e-07, +2.7355711e-07, -5.1849185e-07, +5.6577466e-07,
-             -2.4610816e-07, +3.4414407e-09],
-            [-1.4176262e-05, -1.0636459e-06, -2.9512157e-06, +1.6421784e-06,
-             -7.8052644e-06, -6.4513415e-06, +2.3054397e-05, +2.9360060e-06,
-             +1.1997460e-06, +1.5504318e-05],
-        ]
-    )
+    reference = np.array([
+        [+1.7875197e-06, -4.8864092e-07, +1.0823729e-06, -4.4991100e-07,
+         -5.4109887e-07, +2.7580990e-07, -3.9022507e-07, -2.2114153e-07,
+         +2.0820102e-07, +1.7433838e-06],
+        [+1.0560724e-05, -1.1145157e-05, +8.1773060e-06, +4.4965477e-06,
+         +4.2855218e-06, +9.2935315e-06, -7.5876560e-06, +3.3198667e-06,
+         +5.1126663e-06, -9.2129788e-08],
+    ])
     # fmt: on
 
     assert np.allclose(tod, reference)
