@@ -12,21 +12,23 @@ from ..observations import Observation
 
 COND_THRESHOLD = 1e10
 
+
 def _dBodTrj(nu):
     """Radiance to Rayleigh-Jeans conversion factor
     nu: frequency in Ghz
     """
     return 2 * const.k_B.value * nu * nu * 1e18 / const.c.value / const.c.value
 
+
 def _dBodTth(nu):
     """Radiance to CMB-units conversion factor (dB/dT)
     nu: frwquency in GHz
     """
-    
+
     x = const.h.value * nu * 1e9 / const.k_B.value / cosmo.Tcmb0.value
     ex = np.exp(x)
     exm1 = ex - 1.0e0
-    
+
     return (
         2
         * const.h.value
@@ -51,18 +53,19 @@ def top_hat_bandpass(freqs, f0, f1):
     f1: high-frequency edge of the top-hat in GHz
     """
     transmission = np.zeros_like(freqs)
-    
+
     for i in range(len(freqs)):
-        
+
         if freqs[i] >= f0 and freqs[i] <= f1:
-        
+
             transmission[i] = 1.
-            
+
         else:
-            
+
             transmission[i] = 0.
-    
+
     return transmission
+
 
 def decaying_bandpass(freqs, f0, f1, alpha):
     """Define a bandpass with exponential tails and unit transmission in band
@@ -71,30 +74,32 @@ def decaying_bandpass(freqs, f0, f1, alpha):
     f1: high-frequency edge of the band in GHz
     alpha: out-of-band exponential decay index 
     """
-    
+
     transmission = np.zeros_like(freqs)
-    
+
     for i in range(len(freqs)):
-        
+
         if freqs[i] >= f0 and freqs[i] <= f1:
-        
+
             transmission[i] = 1.
-            
+
         elif freqs[i] > f1:
-            
-            transmission[i] = np.exp(-alpha*(freqs[i]-f1))
-            
+
+            transmission[i] = np.exp(-alpha * (freqs[i] - f1))
+
         elif freqs[i] < f0:
-            
-            transmission[i] = np.exp(alpha*(freqs[i]-f0))
-    
+
+            transmission[i] = np.exp(alpha * (freqs[i] - f0))
+
     return transmission
+
 
 def beam_throughtput(freqs):
     """ Beam throughtput factor
     freqs: frequency in GHz
     """
     return 1. / freqs / freqs / 1.e9 / 1.e9
+
 
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
@@ -151,19 +156,19 @@ class HwpSys:
 
         # This part sets from parameter file
         if (self.sim.parameter_file is not None) and (
-            "hwp_sys" in self.sim.parameters.keys()
+            "hwp_sys" in self.sim.parameter_file.keys()
         ):
-            paramdict = self.sim.parameters["hwp_sys"]
+            paramdict = self.sim.parameter_file["hwp_sys"]
 
             if "nside" in paramdict.keys():
                 self.nside = paramdict["nside"]
-                if "general" in self.sim.parameters.keys():
-                    if "nside" in self.sim.parameters["general"].keys():
-                        if self.sim.parameters["general"]["nside"] != self.nside:
+                if "general" in self.sim.parameter_file.keys():
+                    if "nside" in self.sim.parameter_file["general"].keys():
+                        if self.sim.parameter_file["general"]["nside"] != self.nside:
                             print(
                                 "Warning!! nside from general "
                                 "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
-                                % (self.sim.parameters["general"]["nside"], self.nside)
+                                % (self.sim.parameter_file["general"]["nside"], self.nside)
                             )
 
             if "integrate_in_band" in paramdict.keys():
@@ -177,10 +182,10 @@ class HwpSys:
 
             if "integrate_in_band_solver" in paramdict.keys():
                 self.integrate_in_band_solver = paramdict["integrate_in_band_solver"]
-                
+
             if "bandpass_parameters" in paramdict.keys():
                 self.bandpass_parameters = paramdict["bandpass_parameters"]
-                
+
             if "include_beam_throughput" in paramdict.keys():
                 self.include_beam_throughput = paramdict["include_beam_throughput"]
 
@@ -273,7 +278,7 @@ class HwpSys:
                 self.integrate_in_band_solver = False
             else:
                 self.integrate_in_band_solver = integrate_in_band_solver
-                
+
         try:
             self.bandpass_parameters
         except Exception:
@@ -281,7 +286,7 @@ class HwpSys:
                 self.bandpass_parameters = None
             else:
                 self.bandpass_parameters = bandpass_parameters
-        
+
         try:
             self.include_beam_throughput
         except Exception:
@@ -314,34 +319,36 @@ class HwpSys:
 
             self.nfreqs = len(self.freqs)
 
-	    if self.bandpass_parameters = None:
+            if self.bandpass_parameters == None:
 
-            	self.cmb2bb = _dBodTth(self.freqs)
-            
+                self.cmb2bb = _dBodTth(self.freqs)
+
             elif self.bandpass_parameters != None:
-            
-            	if len(self.bandpass_parameters) = 2:
-            	
-            	    self.bandpass = top_hat_bandpass(self.freqs, self.bandpass_parameters['low edge'], self.bandpass_parameters['high edge'])
-            	    
-            	elif len(self.bandpass_parameters) = 3:
-            	
-            	    self.bandpass = decaying_bandpass(self.freqs, self.bandpass_parameters['low edge'], self.bandpass_parameters['high edge'], self.bandpass_parameters['alpha'])
-            	    
-            	else:
-            	
-            	    print('Error in the bandpass definition!')
-            	    
-                self.cmb2bb = _dBodTth(self.freqs)*self.bandpass
-                
-            if self.include_beam_throughput = False:
-            
-            	self.cmb2bb = self.cmb2bb
-            	
-            elif self.include_beam_throughput = True:
-            
-            	self.cmb2bb = self.cmb2bb * beam_throughtput(self.freqs)
-            
+
+                if len(self.bandpass_parameters) == 2:
+
+                    self.bandpass = top_hat_bandpass(
+                        self.freqs, self.bandpass_parameters['low edge'], self.bandpass_parameters['high edge'])
+
+                elif len(self.bandpass_parameters) == 3:
+
+                    self.bandpass = decaying_bandpass(
+                        self.freqs, self.bandpass_parameters['low edge'], self.bandpass_parameters['high edge'], self.bandpass_parameters['alpha'])
+
+                else:
+
+                    print('Error in the bandpass definition!')
+
+                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass
+
+            if self.include_beam_throughput == False:
+
+                self.cmb2bb = self.cmb2bb
+
+            elif self.include_beam_throughput == True:
+
+                self.cmb2bb = self.cmb2bb * beam_throughtput(self.freqs)
+
             self.norm = self.cmb2bb.sum()
 
             myinstr = {}
@@ -406,7 +413,6 @@ class HwpSys:
                     self.z2s = 0.0
 
     def fill_tod(self, obs: Observation, pointings: np.ndarray, hwp_radpsec: float):
-
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
 
         Args:
@@ -590,7 +596,6 @@ class HwpSys:
         return
 
     def make_map(self, obss):
-
         """It generates "on the fly" map. This option is only availabe if `built_map_on_the_fly`
         is set to True.
 
