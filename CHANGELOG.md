@@ -1,6 +1,6 @@
 # HEAD
 
--   **Breaking change** New API for noise module:
+-   **Breaking change** New API for noise module [#151](https://github.com/litebird/litebird_sim/pull/151):
 
     -   Function `add_noise` has been renamed to `add_noise_to_observations`, and its parameter `noisetype` has been renamed into `noise_type` for consistency with other parameters (**breaking**)
 
@@ -8,6 +8,7 @@
 
     -   Each `Simulation` object creates random number generators (field `Simulation.random`), in a way that is safe even for MPI applications
 
+-   Upgrade NumPy from 1.20 to 1.21, Numba from 0.54 to 0.55, Rich from 6.2 to 11.0 [#152](https://github.com/litebird/litebird_sim/pull/152)
 
 # Version 0.4.0
 
