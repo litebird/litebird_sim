@@ -2,6 +2,8 @@
 
 -   Upgrade NumPy from 1.20 to 1.21, Numba from 0.54 to 0.55, Rich from 6.2 to 11.0 [#152](https://github.com/litebird/litebird_sim/pull/152)
 
+-   Fix issue [#148](https://github.com/litebird/litebird_sim/issues/148)
+
 # Version 0.4.0
 
 - **Breaking change** Drop support for Python 3.6, enable Python 3.9 [#136](https://github.com/litebird/litebird_sim/pull/136)
