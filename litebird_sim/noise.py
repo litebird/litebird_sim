@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from numbers import Number
-from typing import List
+from typing import List, Union
 
 import numpy as np
 import scipy as sp
@@ -19,12 +19,17 @@ def nearest_pow2(data):
 
 
 def add_white_noise(data, sigma: float, random=None):
-    """Adds white noise with the given sigma to the array data
+    """Adds white noise with the given sigma to the array data.
+
     To be called from add_noise_to_observations.
 
-    data: 1-D numpy array
-    sigma: white noise level
-    random: a random number generator if you want reproducible randomness
+    Args:
+
+        `data` : 1-D numpy array
+
+        `sigma` : white noise level
+
+        `random` : a random number generator if you want reproducible randomness
     """
     if random is None:
         random = np.random.default_rng()
@@ -39,6 +44,7 @@ def build_one_over_f_model(ft, freqs, fknee_mhz, alpha, sigma):
     # Skip the first element, as it is the constant offset
     for i in range(1, len(ft)):
         ft[i] *= np.sqrt((1 + pow(abs(freqs[i]) / fknee_hz, -alpha))) * sigma
+    ft[0] = 0
 
 
 def add_one_over_f_noise(
@@ -52,12 +58,19 @@ def add_one_over_f_noise(
     """Adds a 1/f noise timestream with the given f knee and alpha to data
     To be called from add_noise_to_observations
 
-    data: 1-D numpy array
-    fknee: knee frequency
-    alpha: low frequency spectral tilt
-    sigma0_uk: white noise level
-    freq: the sampling frequency of the data
-    random: a random number generator if you want reproducible randomness
+    Args:
+
+        `data` : 1-D numpy array
+
+        `fknee_mhz` : knee frequency in mHz
+
+        `alpha` : low frequency spectral tilt
+
+        `sigma` : white noise level
+
+        `sampling_rate_hz` : the sampling frequency of the data
+
+        `random` : a random number generator if you want reproducible randomness
     """
 
     if random is None:
@@ -105,7 +118,7 @@ def add_noise(
     case, the noise will contain a 1/f part and a white noise part.
 
     The parameter `scale` can be used to introduce measurement unit conversions when
-    appropriate.
+    appropriate. Default units: [K].
 
     The parameter `random`, if specified, must be a random number generator that
     implements the ``normal`` method. You should typically use the `random` field
@@ -162,7 +175,10 @@ def add_noise(
 
 
 def add_noise_to_observations(
-    obs: List[Observation], noise_type: str, scale: float = 1.0, random=None
+    obs: List[Observation],
+    noise_type: str,
+    scale: float = 1.0,
+    random: Union[np.random.Generator, None] = None,
 ):
     """Add noise of the defined type to the observations in obs
 
