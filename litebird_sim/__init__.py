@@ -29,7 +29,8 @@ from .imo import (
     ImoFormatError,
     ImoFlatFile,
 )
-from .hwp_sys.hwp_sys import HwpSys
+#from .hwp_sys.hwp_sys import HwpSys
+from .out_of_band_analysis.out_of_band_analysis import HwpSys
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
