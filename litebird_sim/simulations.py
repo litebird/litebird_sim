@@ -195,6 +195,8 @@ class Simulation:
 
         self.description = description
 
+        self.random = None
+
         if imo:
             self.imo = imo
         else:
@@ -242,7 +244,7 @@ class Simulation:
 
         self.report = ""
 
-        # Add an header to the report
+        # Add a header to the report
         template_file_path = get_template_file_path("report_header.md")
         with template_file_path.open("rt") as inpf:
             markdown_template = "".join(inpf.readlines())
@@ -255,6 +257,37 @@ class Simulation:
             else self.start_time,
             duration_s=self.duration_s,
         )
+
+        # Make sure that self.random is initialized to something meaningful.
+        # The user is free to call self.init_random() again later
+        self.init_random()
+
+    def init_random(self, seed=12345):
+        """
+        Initialize a random number generator in the `random` field
+
+        This function creates a random number generator and saves it in the
+        field `random`. It should be used whenever a random number generator
+        is needed in the simulation. It ensures that different MPI processes
+        have their own different seed, which stems from the parameter `seed`.
+        The generator is PCG64, and it is ensured that the sequences in
+        each MPI process are independent.
+
+        This method is automatically called in the constructor, but it can be
+        called again as many times as required. The typical case is when
+        one wants to use a seed that has been read from a parameter file.
+        """
+        from numpy.random import Generator, PCG64, SeedSequence
+
+        # We need to assign a different random number generator to each MPI
+        # process, otherwise noise will be correlated. The following code
+        # works even if MPI is not used
+
+        # Create a list of N seeds, one per each MPI process
+        seed_seq = SeedSequence(seed).spawn(self.mpi_comm.size)
+
+        # Pick the seed for this process
+        self.random = Generator(PCG64(seed_seq[self.mpi_comm.rank]))
 
     def _init_missing_params(self):
         """Initialize empty parameters using self.parameters

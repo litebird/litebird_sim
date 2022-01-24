@@ -65,7 +65,12 @@ from .scanning import (
 from .mapping import make_bin_map
 from .destriper import DestriperParameters, DestriperResult, destripe
 from .simulations import Simulation
-from .noise import add_noise
+from .noise import (
+    add_white_noise,
+    add_one_over_f_noise,
+    add_noise,
+    add_noise_to_observations,
+)
 from .scan_map import scan_map, scan_map_in_observations
 from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
 from .spacecraft import (
@@ -161,7 +166,10 @@ __all__ = [
     # simulations.py
     "Simulation",
     # noise.py
+    "add_white_noise",
+    "add_one_over_f_noise",
     "add_noise",
+    "add_noise_to_observations",
     # scan_map.py
     "scan_map",
     "scan_map_in_observations",
