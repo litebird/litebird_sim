@@ -101,7 +101,7 @@ def beam_throughtput(freqs):
     return 1. / freqs / freqs / 1.e9 / 1.e9
 
 
-class HwpSys:
+class HwpSysAndBandpass:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
     https://arxiv.org/abs/2106.08031
