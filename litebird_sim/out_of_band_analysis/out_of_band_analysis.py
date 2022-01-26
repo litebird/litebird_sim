@@ -58,11 +58,11 @@ def top_hat_bandpass(freqs, f0, f1):
 
         if freqs[i] >= f0 and freqs[i] <= f1:
 
-            transmission[i] = 1.
+            transmission[i] = 1.0
 
         else:
 
-            transmission[i] = 0.
+            transmission[i] = 0.0
 
     return transmission
 
@@ -72,7 +72,7 @@ def decaying_bandpass(freqs, f0, f1, alpha):
     freqs: frequency in GHz
     f0: low-frequency edge of the band in GHz
     f1: high-frequency edge of the band in GHz
-    alpha: out-of-band exponential decay index 
+    alpha: out-of-band exponential decay index
     """
 
     transmission = np.zeros_like(freqs)
@@ -81,7 +81,7 @@ def decaying_bandpass(freqs, f0, f1, alpha):
 
         if freqs[i] >= f0 and freqs[i] <= f1:
 
-            transmission[i] = 1.
+            transmission[i] = 1.0
 
         elif freqs[i] > f1:
 
@@ -95,10 +95,10 @@ def decaying_bandpass(freqs, f0, f1, alpha):
 
 
 def beam_throughtput(freqs):
-    """ Beam throughtput factor
+    """Beam throughtput factor
     freqs: frequency in GHz
     """
-    return 1. / freqs / freqs / 1.e9 / 1.e9
+    return 1.0 / freqs / freqs / 1.0e9 / 1.0e9
 
 
 class HwpSysAndBandpass:
@@ -141,10 +141,10 @@ class HwpSysAndBandpass:
                                                   :class:`.FreqChannelInfo` class
              maps (float): input maps (3, npix) coherent with nside provided.
              bandpass_parameters (dictionary): defines the bandpass shape to perform
-             the integration. Contains 2 (float) keys for top hat (low-frequency and 
-             high-frequency edge values), or 3 (float) for decaying_bandpass 
+             the integration. Contains 2 (float) keys for top hat (low-frequency and
+             high-frequency edge values), or 3 (float) for decaying_bandpass
              (low-frequency, high-frequency edge values and decaying index alpha)
-             include_beam_throughput (bool): if beam throughput factor 1/nu2 needs 
+             include_beam_throughput (bool): if beam throughput factor 1/nu2 needs
              to be added or not
         """
 
@@ -168,7 +168,10 @@ class HwpSysAndBandpass:
                             print(
                                 "Warning!! nside from general "
                                 "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
-                                % (self.sim.parameter_file["general"]["nside"], self.nside)
+                                % (
+                                    self.sim.parameter_file["general"]["nside"],
+                                    self.nside,
+                                )
                             )
 
             if "integrate_in_band" in paramdict.keys():
@@ -328,16 +331,23 @@ class HwpSysAndBandpass:
                 if len(self.bandpass_parameters) == 2:
 
                     self.bandpass = top_hat_bandpass(
-                        self.freqs, self.bandpass_parameters['low edge'], self.bandpass_parameters['high edge'])
+                        self.freqs,
+                        self.bandpass_parameters["low edge"],
+                        self.bandpass_parameters["high edge"],
+                    )
 
                 elif len(self.bandpass_parameters) == 3:
 
                     self.bandpass = decaying_bandpass(
-                        self.freqs, self.bandpass_parameters['low edge'], self.bandpass_parameters['high edge'], self.bandpass_parameters['alpha'])
+                        self.freqs,
+                        self.bandpass_parameters["low edge"],
+                        self.bandpass_parameters["high edge"],
+                        self.bandpass_parameters["alpha"],
+                    )
 
                 else:
 
-                    print('Error in the bandpass definition!')
+                    print("Error in the bandpass definition!")
 
                 self.cmb2bb = _dBodTth(self.freqs) * self.bandpass
 
