@@ -565,8 +565,6 @@ class Mbs:
         else:
             cmb_map_matrix = None
 
-        os.environ["PYSM_LOCAL_DATA"] = str(output_directory)
-
         for nmc in range(rank * perrank, (rank + 1) * perrank):
             if seed_cmb:
                 np.random.seed(seed_cmb + nmc)
@@ -586,7 +584,7 @@ class Mbs:
             sky = pysm3.Sky(
                 nside=nside,
                 component_objects=[
-                    pysm3.CMBMap(nside, map_IQU=Path(nmc_str) / file_name)
+                    pysm3.CMBMap(nside, map_IQU=(Path(cur_map_path)).absolute())
                 ],
             )
 
