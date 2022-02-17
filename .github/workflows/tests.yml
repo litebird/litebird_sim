@@ -45,7 +45,7 @@ jobs:
       - name: Download PySM3 data files
         if: steps.cache-pysm3.outputs.cache_hit != 'true'
         run: |
-          git clone https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
+          rm -rf "$PYSM_LOCAL_DATA" && git clone https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
 
       - name: Install dependencies
         run: |
