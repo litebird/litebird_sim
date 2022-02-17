@@ -1,12 +1,14 @@
 # HEAD
 
-- Module for simulating hwp systematics (hwp_sys) [PR#117](https://github.com/litebird/litebird_sim/pull/117). The algebra is described in [Giardiello et al.](https://arxiv.org/abs/2106.08031)
-
 - **Breaking change** Drop support for Python 3.6, enable Python 3.9 [#136](https://github.com/litebird/litebird_sim/pull/136)
 
 - **Breaking change** Rename keyword `distribute` to `split_list_over_processes` in `Simulation.create_observations` [#110](https://github.com/litebird/litebird_sim/pull/110)
 
 - **Breaking change** Switch to thermodynamic units in the MBS module [#123](https://github.com/litebird/litebird_sim/pull/123)
+
+- Use a cache to speed up CI builds [PR#147](https://github.com/litebird/litebird_sim/pull/147)
+
+- Module for simulating hwp systematics (hwp_sys) [PR#117](https://github.com/litebird/litebird_sim/pull/117). The algebra is described in [Giardiello et al.](https://arxiv.org/abs/2106.08031)
 
 - Fix Singularity builds [#145](https://github.com/litebird/litebird_sim/issues/145)
 
