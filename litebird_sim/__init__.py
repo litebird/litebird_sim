@@ -1,4 +1,9 @@
 # -*- encoding: utf-8 -*-
+
+from .compress import (
+    rle_compress,
+    rle_decompress,
+)
 from .distribute import distribute_evenly, distribute_optimally
 from .detectors import (
     DetectorInfo,
@@ -59,7 +64,12 @@ from .scanning import (
 from .mapping import make_bin_map
 from .destriper import DestriperParameters, DestriperResult, destripe
 from .simulations import Simulation
-from .noise import add_noise
+from .noise import (
+    add_white_noise,
+    add_one_over_f_noise,
+    add_noise,
+    add_noise_to_observations,
+)
 from .scan_map import scan_map, scan_map_in_observations
 from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
 from .spacecraft import (
@@ -70,11 +80,20 @@ from .spacecraft import (
     SpacecraftPositionAndVelocity,
 )
 from .dipole import add_dipole, add_dipole_to_observations, DipoleType
+from .io import (
+    write_list_of_observations,
+    write_observations,
+    read_list_of_observations,
+    read_observations,
+)
 from .version import __author__, __version__
 
 __all__ = [
     "__author__",
     "__version__",
+    # compress.py
+    "rle_compress",
+    "rle_decompress",
     # healpix.py
     "nside_to_npix",
     "npix_to_nside",
@@ -146,7 +165,10 @@ __all__ = [
     # simulations.py
     "Simulation",
     # noise.py
+    "add_white_noise",
+    "add_one_over_f_noise",
     "add_noise",
+    "add_noise_to_observations",
     # scan_map.py
     "scan_map",
     "scan_map_in_observations",
@@ -163,4 +185,9 @@ __all__ = [
     "spacecraft_pos_and_vel",
     "SpacecraftOrbit",
     "SpacecraftPositionAndVelocity",
+    # io
+    "write_list_of_observations",
+    "write_observations",
+    "read_list_of_observations",
+    "read_observations",
 ]

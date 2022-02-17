@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from collections import namedtuple
+from typing import List
 
 Span = namedtuple("Span", ["start_idx", "num_of_elements"])
 """A sub-range in a sequence of elements.
@@ -74,7 +75,11 @@ def distribute_evenly(num_of_elements, num_of_groups):
 
         result.append(Span(start_idx=cur_pos, num_of_elements=cur_length))
 
-    assert len(result) == num_of_groups
+    assert len(result) == num_of_groups, (
+        f"wrong result(len(result)={len(result)}) in "
+        + f"distribute_evenly(num_of_elements={num_of_elements}, "
+        + f"num_of_groups={num_of_groups})"
+    )
     assert sum([pair.num_of_elements for pair in result]) == num_of_elements
     return result
 
@@ -132,7 +137,7 @@ def __identity_fn(x):
     return x
 
 
-def distribute_optimally(elements, num_of_groups, weight_fn=None):
+def distribute_optimally(elements, num_of_groups, weight_fn=None) -> List[Span]:
     """Evenly distribute a set of equal elements between groups.
 
     Assuming that we have a set of elements, each having its own
@@ -183,7 +188,7 @@ def distribute_optimally(elements, num_of_groups, weight_fn=None):
 
     max_weight = _partition(elements, len(elements), num_of_groups, weight_fn)
 
-    result = []
+    result = []  # type: List[Span]
     start_idx = 0
     weight = 0
     cur_num = 0
@@ -200,6 +205,14 @@ def distribute_optimally(elements, num_of_groups, weight_fn=None):
 
     result.append(Span(start_idx=start_idx, num_of_elements=cur_num))
 
-    assert len(result) == num_of_groups
+    # The way we implemented this implies the possibility that not every processor
+    # is being used. We just fill with empty elements the end of `result`
+    result += [Span(start_idx=0, num_of_elements=0)] * (num_of_groups - len(result))
+
+    assert len(result) == num_of_groups, (
+        f"wrong result(len(result)={len(result)}) in "
+        + f"distribute_optimally(len(elements)={len(elements)}, "
+        + f"num_of_groups={num_of_groups})"
+    )
     assert sum([r.num_of_elements for r in result]) == len(elements)
     return result

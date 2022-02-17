@@ -85,19 +85,22 @@ class HwpSys:
 
         # This part sets from parameter file
         if (self.sim.parameter_file is not None) and (
-            "hwp_sys" in self.sim.parameters.keys()
+            "hwp_sys" in self.sim.parameter_file.keys()
         ):
-            paramdict = self.sim.parameters["hwp_sys"]
+            paramdict = self.sim.parameter_file["hwp_sys"]
 
             if "nside" in paramdict.keys():
                 self.nside = paramdict["nside"]
-                if "general" in self.sim.parameters.keys():
-                    if "nside" in self.sim.parameters["general"].keys():
-                        if self.sim.parameters["general"]["nside"] != self.nside:
+                if "general" in self.sim.parameter_file.keys():
+                    if "nside" in self.sim.parameter_file["general"].keys():
+                        if self.sim.parameter_file["general"]["nside"] != self.nside:
                             print(
                                 "Warning!! nside from general "
                                 "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
-                                % (self.sim.parameters["general"]["nside"], self.nside)
+                                % (
+                                    self.sim.parameter_file["general"]["nside"],
+                                    self.nside,
+                                )
                             )
 
             if "integrate_in_band" in paramdict.keys():
@@ -272,7 +275,7 @@ class HwpSys:
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
-                self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
+                self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
                     self.band_filename_solver,
                     usecols=(1, 2, 3, 4, 5),
                     unpack=True,
