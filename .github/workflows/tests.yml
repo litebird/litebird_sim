@@ -27,6 +27,26 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      # Unfortunately we must use different keys to store the same data,
+      # otherwise GitHub will complain when multiple jobs are going to
+      # store it
+      - name: Cache PySM3 data files
+        id: cache-pysm3
+        uses: actions/cache@v2
+        with:
+          path: ~/pysm3-data
+          key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}
+
+
+      - name: Register PySM3 data path
+        run: |
+          echo "PYSM_LOCAL_DATA=$HOME/pysm3-data" >> $GITHUB_ENV
+
+      - name: Download PySM3 data files
+        if: steps.cache-pysm3.outputs.cache_hit != 'true'
+        run: |
+          git clone https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
+
       - name: Install dependencies
         run: |
           ./bin/install-deps.sh ${{ matrix.mpi }}
@@ -44,6 +64,13 @@ jobs:
         env:
           DUCC0_OPTIMIZATION: none
 
+      - name: Enable rich traceback
+        run: |
+          export DESTPATH="$(poetry env info -p)/lib/python${{ matrix.python }}/site-packages/sitecustomize.py"
+          echo -e "from rich.traceback import install\ninstall(show_locals=True)\n" > "$DESTPATH"
+          echo "$DESTPATH"
+          cat "$DESTPATH"
+          
       - name: Tests
         run: bash ./bin/run_tests.sh
 

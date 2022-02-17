@@ -565,8 +565,6 @@ class Mbs:
         else:
             cmb_map_matrix = None
 
-        os.environ["PYSM_LOCAL_DATA"] = str(output_directory)
-
         for nmc in range(rank * perrank, (rank + 1) * perrank):
             if seed_cmb:
                 np.random.seed(seed_cmb + nmc)
@@ -574,7 +572,7 @@ class Mbs:
             nmc_output_directory = output_directory / nmc_str
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
-            cmb_temp = hp.synfast(cl_cmb, nside, new=True, verbose=False)
+            cmb_temp = hp.synfast(cl_cmb, nside, new=True)
             file_name = f"cmb_{nmc_str}_{file_str}.fits"
             cur_map_path = nmc_output_directory / file_name
             lbs.write_healpix_map_to_file(
@@ -586,7 +584,7 @@ class Mbs:
             sky = pysm3.Sky(
                 nside=nside,
                 component_objects=[
-                    pysm3.CMBMap(nside, map_IQU=Path(nmc_str) / file_name)
+                    pysm3.CMBMap(nside, map_IQU=(Path(cur_map_path)).absolute())
                 ],
             )
 
