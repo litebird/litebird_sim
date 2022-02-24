@@ -1,17 +1,158 @@
 # -*- encoding: utf-8 -*-
-import litebird_sim as lbs
+from numba import njit
 import numpy as np
+
 import healpy as hp
 from astropy import constants as const
 from astropy.cosmology import Planck18_arXiv_v2 as cosmo
-from litebird_sim import mpi
+
 from typing import Union, List
+
+import litebird_sim as lbs
+from litebird_sim import mpi
 from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation
 
+
 COND_THRESHOLD = 1e10
 
+
+@njit
+def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
+    Tterm = 0.25 * (
+        2 + h1 * (2 + h1) + h2 * (2 + h2) + z1
+        ^ 2 + z2
+        ^ 2
+        + 4 * (-((1 + h1) * z2) + (1 + h2) * z1 * cb) * co * si
+        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2)(z1 + z2)) * (co ** 2 - si ** 2)
+    )
+    return Tterm
+
+
+@njit
+def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
+    Qterm = 0.125 * (
+        2
+        + h1 * (2 + h1)
+        + h2 * (2 + h2)
+        - (z1 - z2) ** 2
+        + 2
+        * (
+            h1 * (2 + h1)
+            - h2 * (2 + h2)
+            - z1 ** 2
+            + z2 ** 2
+            - 4 * (z1 + z2) * (1 + h1 + cb + h2 * cb) * co * si
+        )
+        * (co ** 2 - si ** 2)
+        + (2 + h1 * (2 + h1) + h2 * (2 + h2) - (z1 + z2) ** 2)
+        * (co ** 4 - 6 * co ** 2 * si ** 2 + si ** 4)
+        + 8
+        * co
+        * si
+        * (-((1 + h1) * z1) - (1 + h2) * cb * (-z2 + 2 * (1 + h1) * co * si))
+    )
+    return Qterm
+
+
+@njit
+def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
+    Uterm = (
+        (1 + h1) * z1 * co ** 4
+        + ((1 + h1 - z1)(1 + h1 + z1) - z1 * z2 + (1 + h1) * (1 + h2) * cb)
+        * co ** 3
+        * si
+        - ((1 + h1) * z1 + 2(1 + h1) * z2 + 2 * (1 + h2) * z1 * cb + (1 + h2) * z2 * cb)
+        * co ** 2
+        * si ** 2
+        - (-z1 * z2 + (1 + h2 - z2) * (1 + h2 + z2) + (1 + h1) * (1 + h2) * cb)
+        * co
+        * si ** 3
+        + (1 + h2) * z2 * cb * si ** 4
+    )
+    return Uterm
+
+
+@njit
+def compute_signal_for_one_sample(T, Q, U, h1, h2, cb, z1, z2, co, si):
+    """Bolometric equation"""
+    d = T * compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    d += Q * compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    d += U * compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    return d
+
+
+@njit
+def integrate_in_band_signal_for_one_sample(T, Q, U, band, h1, h2, cb, z1, z2, co, si):
+    tod = 0
+    for i in range(len(h1)):
+        tod += band[i] * compute_signal_for_one_sample(
+            T[i], Q[i], U[i], h1[i], h2[i], cb[i], z1[i], z2[i], co, si
+        )
+
+    return tod
+
+
+@njit
+def compute_signal_for_one_detector(
+    tod_det, h1, h2, cb, z1, z2, pixel_ind, cosangle, sinangle, maps
+):
+
+    for i in range(len(tod_det)):
+        tod_det[i] += compute_signal_for_one_sample(
+            T=maps[0, pixel_ind[i]],
+            Q=maps[1, pixel_ind[i]],
+            U=maps[2, pixel_ind[i]],
+            h1=h1,
+            h2=h2,
+            cb=cb,
+            z1=z1,
+            z2=z2,
+            co=cosangle[i],
+            si=sinangle[i],
+        )
+
+
+@njit
+def integrate_in_band_signal_for_one_detector(
+    tod_det, band, h1, h2, cb, z1, z2, pixel_ind, cosangle, sinangle, maps
+):
+
+    for i in range(len(tod_det)):
+        tod_det[i] += integrate_in_band_signal_for_one_sample(
+            T=maps[:, 0, pixel_ind[i]],
+            Q=maps[:, 1, pixel_ind[i]],
+            U=maps[:, 2, pixel_ind[i]],
+            band=band,
+            h1=h1,
+            h2=h2,
+            cb=cb,
+            z1=z1,
+            z2=z2,
+            co=cosangle[i],
+            si=sinangle[i],
+        )
+
+@njit
+def integrate_in_band_atd_for_one_detector(
+    atd, band, h1, h2, cb, z1, z2, pixel_ind, cosangle, sinangle, maps
+):
+
+    for i in range(len(tod_det)):
+        tod_det[i] += integrate_in_band_signal_for_one_sample(
+            T=maps[:, 0, pixel_ind[i]],
+            Q=maps[:, 1, pixel_ind[i]],
+            U=maps[:, 2, pixel_ind[i]],
+            band=band,
+            h1=h1,
+            h2=h2,
+            cb=cb,
+            z1=z1,
+            z2=z2,
+            co=cosangle[i],
+            si=sinangle[i],
+        )
 
 def _dBodTrj(nu):
     """Radiance to Rayleigh-Jeans conversion factor
@@ -422,6 +563,9 @@ class HwpSysAndBandpass:
                 if not hasattr(self, "z2s"):
                     self.z2s = 0.0
 
+        self.cbeta = np.cos(self.beta)
+        self.cbetas = np.cos(self.betas)
+
     def fill_tod(self, obs: Observation, pointings: np.ndarray, hwp_radpsec: float):
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
 
@@ -453,79 +597,61 @@ class HwpSysAndBandpass:
             sa = np.sin(0.5 * pointings[idet, :, 2] + times * hwp_radpsec)
 
             if self.integrate_in_band:
-                J11 = (
-                    (1 + self.h1[:, np.newaxis]) * ca ** 2
-                    - (1 + self.h2[:, np.newaxis])
-                    * sa ** 2
-                    * np.exp(1j * self.beta[:, np.newaxis])
-                    - (self.z1[:, np.newaxis] + self.z2[:, np.newaxis]) * ca * sa
-                )
-                J12 = (
-                    (
-                        (1 + self.h1[:, np.newaxis])
-                        + (1 + self.h2[:, np.newaxis])
-                        * np.exp(1j * self.beta[:, np.newaxis])
-                    )
-                    * ca
-                    * sa
-                    + self.z1[:, np.newaxis] * ca ** 2
-                    - self.z2[:, np.newaxis] * sa ** 2
-                )
-
+                tod = np.empty_like(pix)
                 if self.built_map_on_the_fly:
-                    tod = (
-                        (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[:, 0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[:, 1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
-                        )
-                        * self.cmb2bb[:, np.newaxis]
-                    ).sum(axis=0) / self.norm
+                    integrate_in_band_signal_for_one_detector(
+                        tod_det=tod,
+                        band=self.bandpass * self.cmb2bb / self.norm,
+                        h1=self.h1,
+                        h2=self.h2,
+                        cb=self.cbeta,
+                        z1=self.z1,
+                        z2=self.z2,
+                        pixel_ind=pix,
+                        cosangle=ca,
+                        sinangle=sa,
+                        maps=self.maps,
+                    )
                 else:
-                    obs.tod[idet, :] += (
-                        (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[:, 0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[:, 1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
-                        )
-                        * self.cmb2bb[:, np.newaxis]
-                    ).sum(axis=0) / self.norm
-
+                    integrate_in_band_signal_for_one_detector(
+                        tod_det=obs.tod[idet, :],
+                        band=self.bandpass * self.cmb2bb / self.norm,
+                        h1=self.h1,
+                        h2=self.h2,
+                        cb=self.cbeta,
+                        z1=self.z1,
+                        z2=self.z2,
+                        pixel_ind=pix,
+                        cosangle=ca,
+                        sinangle=sa,
+                        maps=self.maps,
+                    )
             else:
-                J11 = (
-                    (1 + self.h1) * ca ** 2
-                    - (1 + self.h2) * sa ** 2 * np.exp(1j * self.beta)
-                    - (self.z1 + self.z2) * ca * sa
-                )
-                J12 = (
-                    ((1 + self.h1) + (1 + self.h2) * np.exp(1j * self.beta)) * ca * sa
-                    + self.z1 * ca ** 2
-                    - self.z2 * sa ** 2
-                )
-
                 if self.built_map_on_the_fly:
-                    tod = (
-                        0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2) * self.maps[0, pix]
-                        + 0.5
-                        * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                        * self.maps[1, pix]
-                        + (J11 * J12.conjugate()).real * self.maps[2, pix]
+                    compute_signal_for_one_detector(
+                        tod_det=tod,
+                        h1=self.h1,
+                        h2=self.h2,
+                        cb=self.cbeta,
+                        z1=self.z1,
+                        z2=self.z2,
+                        pixel_ind=pix,
+                        cosangle=ca,
+                        sinangle=sa,
+                        maps=self.maps,
                     )
                 else:
-                    obs.tod[idet, :] += (
-                        0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2) * self.maps[0, pix]
-                        + 0.5
-                        * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                        * self.maps[1, pix]
-                        + (J11 * J12.conjugate()).real * self.maps[2, pix]
+                    compute_signal_for_one_detector(
+                        tod_det=obs.tod[idet, :],
+                        h1=self.h1,
+                        h2=self.h2,
+                        cb=self.cbeta,
+                        z1=self.z1,
+                        z2=self.z2,
+                        pixel_ind=pix,
+                        cosangle=ca,
+                        sinangle=sa,
+                        maps=self.maps,
                     )
 
             if self.built_map_on_the_fly:
@@ -600,6 +726,7 @@ class HwpSysAndBandpass:
                     self.ata[pix, 2, 1] += 0.25 * ca * sa
                     self.ata[pix, 2, 2] += 0.25 * sa * sa
             else:
+                #this fills variables needed by bin_map
                 obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
                 obs.pixind[idet, :] = pix
 
