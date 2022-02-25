@@ -21,11 +21,9 @@ COND_THRESHOLD = 1e10
 @njit
 def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
     Tterm = 0.25 * (
-        2 + h1 * (2 + h1) + h2 * (2 + h2) + z1
-        ^ 2 + z2
-        ^ 2
+        2 + h1 * (2 + h1) + h2 * (2 + h2) + z1 *z1 + z2 * z2
         + 4 * (-((1 + h1) * z2) + (1 + h2) * z1 * cb) * co * si
-        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2)(z1 + z2)) * (co ** 2 - si ** 2)
+        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2)(z1 + z2)) * (co * co - si * si)
     )
     return Tterm
 
@@ -36,21 +34,19 @@ def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
         2
         + h1 * (2 + h1)
         + h2 * (2 + h2)
-        - (z1 - z2) ** 2
+        - (z1 - z2) * (z1 - z2)
         + 2
         * (
             h1 * (2 + h1)
             - h2 * (2 + h2)
-            - z1 ** 2
-            + z2 ** 2
+            - z1 * z1 
+            + z2 * z2
             - 4 * (z1 + z2) * (1 + h1 + cb + h2 * cb) * co * si
         )
-        * (co ** 2 - si ** 2)
-        + (2 + h1 * (2 + h1) + h2 * (2 + h2) - (z1 + z2) ** 2)
-        * (co ** 4 - 6 * co ** 2 * si ** 2 + si ** 4)
-        + 8
-        * co
-        * si
+        * (co * co - si * si)
+        + (2 + h1 * (2 + h1) + h2 * (2 + h2) - (z1 + z2) * (z1 + z2))
+        * (co * co * co * co - 6 * co * co * si * si + si * si * si * si)
+        + 8 * co * si
         * (-((1 + h1) * z1) - (1 + h2) * cb * (-z2 + 2 * (1 + h1) * co * si))
     )
     return Qterm
@@ -59,17 +55,17 @@ def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
 @njit
 def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
     Uterm = (
-        (1 + h1) * z1 * co ** 4
+        (1 + h1) * z1 * co * co * co * co
         + ((1 + h1 - z1)(1 + h1 + z1) - z1 * z2 + (1 + h1) * (1 + h2) * cb)
-        * co ** 3
+        * co * co * co
         * si
         - ((1 + h1) * z1 + 2(1 + h1) * z2 + 2 * (1 + h2) * z1 * cb + (1 + h2) * z2 * cb)
-        * co ** 2
-        * si ** 2
+        * co * co
+        * si * si
         - (-z1 * z2 + (1 + h2 - z2) * (1 + h2 + z2) + (1 + h1) * (1 + h2) * cb)
         * co
-        * si ** 3
-        + (1 + h2) * z2 * cb * si ** 4
+        * si * si * si
+        + (1 + h2) * z2 * cb * si * si * si * si
     )
     return Uterm
 
