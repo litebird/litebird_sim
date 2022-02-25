@@ -62,12 +62,12 @@ def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
 def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
     Uterm = (
         (1 + h1) * z1 * co * co * co * co
-        + ((1 + h1 - z1)(1 + h1 + z1) - z1 * z2 + (1 + h1) * (1 + h2) * cb)
+        + ((1 + h1 - z1)*(1 + h1 + z1) - z1 * z2 + (1 + h1) * (1 + h2) * cb)
         * co
         * co
         * co
         * si
-        - ((1 + h1) * z1 + 2(1 + h1) * z2 + 2 * (1 + h2) * z1 * cb + (1 + h2) * z2 * cb)
+        - ((1 + h1) * z1 + 2*(1 + h1) * z2 + 2 * (1 + h2) * z1 * cb + (1 + h2) * z2 * cb)
         * co
         * co
         * si
