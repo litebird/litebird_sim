@@ -156,7 +156,7 @@ def integrate_in_band_mueller_for_one_sample(band, h1, h2, cb, z1, z2, co, si):
         intQterm += band[i] * Qterm
         intUterm += band[i] * Uterm
 
-    return Tterm, Qterm, Uterm
+    return intTterm, intQterm, intUterm
 
 
 @njit
@@ -677,68 +677,41 @@ class HwpSysAndBandpass:
             ca = np.cos(0.5 * pointings[idet, :, 2] + times * hwp_radpsec)
             sa = np.sin(0.5 * pointings[idet, :, 2] + times * hwp_radpsec)
 
-            if self.integrate_in_band:
+            if self.built_map_on_the_fly:
                 tod = np.empty_like(pix)
-                if self.built_map_on_the_fly:
-                    integrate_in_band_signal_for_one_detector(
-                        tod_det=tod,
-                        band=self.bandpass * self.cmb2bb / self.norm,
-                        h1=self.h1,
-                        h2=self.h2,
-                        cb=self.cbeta,
-                        z1=self.z1,
-                        z2=self.z2,
-                        pixel_ind=pix,
-                        cosangle=ca,
-                        sinangle=sa,
-                        maps=self.maps,
-                    )
-                else:
-                    integrate_in_band_signal_for_one_detector(
-                        tod_det=obs.tod[idet, :],
-                        band=self.bandpass * self.cmb2bb / self.norm,
-                        h1=self.h1,
-                        h2=self.h2,
-                        cb=self.cbeta,
-                        z1=self.z1,
-                        z2=self.z2,
-                        pixel_ind=pix,
-                        cosangle=ca,
-                        sinangle=sa,
-                        maps=self.maps,
-                    )
             else:
-                if self.built_map_on_the_fly:
-                    compute_signal_for_one_detector(
-                        tod_det=tod,
-                        h1=self.h1,
-                        h2=self.h2,
-                        cb=self.cbeta,
-                        z1=self.z1,
-                        z2=self.z2,
-                        pixel_ind=pix,
-                        cosangle=ca,
-                        sinangle=sa,
-                        maps=self.maps,
-                    )
-                else:
-                    compute_signal_for_one_detector(
-                        tod_det=obs.tod[idet, :],
-                        h1=self.h1,
-                        h2=self.h2,
-                        cb=self.cbeta,
-                        z1=self.z1,
-                        z2=self.z2,
-                        pixel_ind=pix,
-                        cosangle=ca,
-                        sinangle=sa,
-                        maps=self.maps,
-                    )
+                tod = obs.tod[idet, :]
+
+            if self.integrate_in_band:
+                integrate_in_band_signal_for_one_detector(
+                    tod_det=tod,
+                    band=self.bandpass * self.cmb2bb / self.norm,
+                    h1=self.h1,
+                    h2=self.h2,
+                    cb=self.cbeta,
+                    z1=self.z1,
+                    z2=self.z2,
+                    pixel_ind=pix,
+                    cosangle=ca,
+                    sinangle=sa,
+                    maps=self.maps,
+                )
+            else:
+                compute_signal_for_one_detector(
+                    tod_det=tod,
+                    h1=self.h1,
+                    h2=self.h2,
+                    cb=self.cbeta,
+                    z1=self.z1,
+                    z2=self.z2,
+                    pixel_ind=pix,
+                    cosangle=ca,
+                    sinangle=sa,
+                    maps=self.maps,
+                )
 
             if self.built_map_on_the_fly:
-
                 if self.correct_in_solver:
-
                     if self.integrate_in_band_solver:
                         integrate_in_band_atd_ata_for_one_detector(
                             atd=self.atd,
@@ -768,7 +741,7 @@ class HwpSysAndBandpass:
                             cosangle=ca,
                             sinangle=sa,
                         )
-                    del (ca, sa)
+                    del (ca, sa, tod)
 
                 else:
                     # re-use ca and sa, factor 4 included here
@@ -785,6 +758,7 @@ class HwpSysAndBandpass:
                     self.ata[pix, 1, 1] += 0.25 * ca * ca
                     self.ata[pix, 2, 1] += 0.25 * ca * sa
                     self.ata[pix, 2, 2] += 0.25 * sa * sa
+                    del (ca, sa, tod)
             else:
                 # this fills variables needed by bin_map
                 obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
