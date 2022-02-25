@@ -86,7 +86,7 @@ def compute_signal_for_one_sample(T, Q, U, h1, h2, cb, z1, z2, co, si):
 @njit
 def integrate_in_band_signal_for_one_sample(T, Q, U, band, h1, h2, cb, z1, z2, co, si):
     tod = 0
-    for i in range(len(h1)):
+    for i in range(len(band)):
         tod += band[i] * compute_signal_for_one_sample(
             T[i], Q[i], U[i], h1[i], h2[i], cb[i], z1[i], z2[i], co, si
         )
@@ -134,16 +134,86 @@ def integrate_in_band_signal_for_one_detector(
             si=sinangle[i],
         )
 
+
 @njit
-def integrate_in_band_atd_for_one_detector(
-    atd, band, h1, h2, cb, z1, z2, pixel_ind, cosangle, sinangle, maps
+def compute_mueller_for_one_sample(h1, h2, cb, z1, z2, co, si):
+    Tterm = compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    Qterm = compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    Uterm = compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    return Tterm, Qterm, Uterm
+
+
+@njit
+def integrate_in_band_mueller_for_one_sample(band, h1, h2, cb, z1, z2, co, si):
+    intTterm = 0
+    intQterm = 0
+    intUterm = 0
+    for i in range(len(band)):
+        Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
+            h1[i], h2[i], cb[i], z1[i], z2[i], co, si
+        )
+        intTterm += band[i] * Tterm
+        intQterm += band[i] * Qterm
+        intUterm += band[i] * Uterm
+
+    return Tterm, Qterm, Uterm
+
+
+@njit
+def compute_atd_ata_for_one_detector(
+    atd,
+    ata,
+    tod,
+    h1,
+    h2,
+    cb,
+    z1,
+    z2,
+    pixel_ind,
+    cosangle,
+    sinangle,
 ):
 
-    for i in range(len(tod_det)):
-        tod_det[i] += integrate_in_band_signal_for_one_sample(
-            T=maps[:, 0, pixel_ind[i]],
-            Q=maps[:, 1, pixel_ind[i]],
-            U=maps[:, 2, pixel_ind[i]],
+    for i in range(len(tod)):
+        Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
+            h1=h1,
+            h2=h2,
+            cb=cb,
+            z1=z1,
+            z2=z2,
+            co=cosangle[i],
+            si=sinangle[i],
+        )
+        atd[pixel_ind[i], 0] += tod[i] * Tterm
+        atd[pixel_ind[i], 1] += tod[i] * Qterm
+        atd[pixel_ind[i], 2] += tod[i] * Uterm
+
+        ata[pixel_ind[i], 0, 0] += Tterm * Tterm
+        ata[pixel_ind[i], 1, 0] += Tterm * Qterm
+        ata[pixel_ind[i], 2, 0] += Tterm * Uterm
+        ata[pixel_ind[i], 1, 1] += Qterm * Qterm
+        ata[pixel_ind[i], 2, 1] += Qterm * Uterm
+        ata[pixel_ind[i], 2, 2] += Uterm * Uterm
+
+
+@njit
+def integrate_in_band_atd_ata_for_one_detector(
+    atd,
+    ata,
+    tod,
+    band,
+    h1,
+    h2,
+    cb,
+    z1,
+    z2,
+    pixel_ind,
+    cosangle,
+    sinangle,
+):
+
+    for i in range(len(tod)):
+        Tterm, Qterm, Uterm = integrate_in_band_mueller_for_one_sample(
             band=band,
             h1=h1,
             h2=h2,
@@ -153,6 +223,17 @@ def integrate_in_band_atd_for_one_detector(
             co=cosangle[i],
             si=sinangle[i],
         )
+        atd[pixel_ind[i], 0] += tod[i] * Tterm
+        atd[pixel_ind[i], 1] += tod[i] * Qterm
+        atd[pixel_ind[i], 2] += tod[i] * Uterm
+
+        ata[pixel_ind[i], 0, 0] += Tterm * Tterm
+        ata[pixel_ind[i], 1, 0] += Tterm * Qterm
+        ata[pixel_ind[i], 2, 0] += Tterm * Uterm
+        ata[pixel_ind[i], 1, 1] += Qterm * Qterm
+        ata[pixel_ind[i], 2, 1] += Qterm * Uterm
+        ata[pixel_ind[i], 2, 2] += Uterm * Uterm
+
 
 def _dBodTrj(nu):
     """Radiance to Rayleigh-Jeans conversion factor
@@ -659,56 +740,35 @@ class HwpSysAndBandpass:
                 if self.correct_in_solver:
 
                     if self.integrate_in_band_solver:
-                        J11 = (
-                            (1 + self.h1s[:, np.newaxis]) * ca ** 2
-                            - (1 + self.h2s[:, np.newaxis])
-                            * sa ** 2
-                            * np.exp(1j * self.betas[:, np.newaxis])
-                            - (self.z1s[:, np.newaxis] + self.z2s[:, np.newaxis])
-                            * ca
-                            * sa
-                        )
-                        J12 = (
-                            (
-                                (1 + self.h1s[:, np.newaxis])
-                                + (1 + self.h2s[:, np.newaxis])
-                                * np.exp(1j * self.betas[:, np.newaxis])
-                            )
-                            * ca
-                            * sa
-                            + self.z1s[:, np.newaxis] * ca ** 2
-                            - self.z2s[:, np.newaxis] * sa ** 2
+                        integrate_in_band_atd_ata_for_one_detector(
+                            atd=self.atd,
+                            ata=self.ata,
+                            tod=tod,
+                            band=self.bandpass * self.cmb2bb / self.norm,
+                            h1=self.h1s,
+                            h2=self.h2s,
+                            cb=self.cbs,
+                            z1=self.z1s,
+                            z2=self.z2s,
+                            pixel_ind=pix,
+                            cosangle=ca,
+                            sinangle=sa,
                         )
                     else:
-                        J11 = (
-                            (1 + self.h1s) * ca ** 2
-                            - (1 + self.h2s) * sa ** 2 * np.exp(1j * self.betas)
-                            - (self.z1s + self.z2s) * ca * sa
+                        compute_atd_ata_for_one_detector(
+                            atd=self.atd,
+                            ata=self.ata,
+                            tod=tod,
+                            h1=self.h1s,
+                            h2=self.h2s,
+                            cb=self.cbs,
+                            z1=self.z1s,
+                            z2=self.z2s,
+                            pixel_ind=pix,
+                            cosangle=ca,
+                            sinangle=sa,
                         )
-                        J12 = (
-                            ((1 + self.h1s) + (1 + self.h2s) * np.exp(1j * self.betas))
-                            * ca
-                            * sa
-                            + self.z1s * ca ** 2
-                            - self.z2s * sa ** 2
-                        )
-
                     del (ca, sa)
-
-                    Tterm = 0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                    Qterm = 0.5 * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                    Uterm = (J11 * J12.conjugate()).real
-
-                    self.atd[pix, 0] += tod * Tterm
-                    self.atd[pix, 1] += tod * Qterm
-                    self.atd[pix, 2] += tod * Uterm
-
-                    self.ata[pix, 0, 0] += Tterm * Tterm
-                    self.ata[pix, 1, 0] += Tterm * Qterm
-                    self.ata[pix, 2, 0] += Tterm * Uterm
-                    self.ata[pix, 1, 1] += Qterm * Qterm
-                    self.ata[pix, 2, 1] += Qterm * Uterm
-                    self.ata[pix, 2, 2] += Uterm * Uterm
 
                 else:
                     # re-use ca and sa, factor 4 included here
@@ -726,7 +786,7 @@ class HwpSysAndBandpass:
                     self.ata[pix, 2, 1] += 0.25 * ca * sa
                     self.ata[pix, 2, 2] += 0.25 * sa * sa
             else:
-                #this fills variables needed by bin_map
+                # this fills variables needed by bin_map
                 obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
                 obs.pixind[idet, :] = pix
 
