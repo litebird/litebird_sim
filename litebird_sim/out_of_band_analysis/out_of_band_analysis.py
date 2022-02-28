@@ -62,12 +62,17 @@ def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
 def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
     Uterm = (
         (1 + h1) * z1 * co * co * co * co
-        + ((1 + h1 - z1)*(1 + h1 + z1) - z1 * z2 + (1 + h1) * (1 + h2) * cb)
+        + ((1 + h1 - z1) * (1 + h1 + z1) - z1 * z2 + (1 + h1) * (1 + h2) * cb)
         * co
         * co
         * co
         * si
-        - ((1 + h1) * z1 + 2*(1 + h1) * z2 + 2 * (1 + h2) * z1 * cb + (1 + h2) * z2 * cb)
+        - (
+            (1 + h1) * z1
+            + 2 * (1 + h1) * z2
+            + 2 * (1 + h2) * z1 * cb
+            + (1 + h2) * z2 * cb
+        )
         * co
         * co
         * si
@@ -104,7 +109,7 @@ def integrate_in_band_signal_for_one_sample(T, Q, U, band, h1, h2, cb, z1, z2, c
 
 @njit
 def compute_signal_for_one_detector(
-    tod_det, h1, h2, cb, z1, z2, pixel_ind, cosangle, sinangle, maps
+    tod_det, h1, h2, cb, z1, z2, pixel_ind, polangle, maps
 ):
 
     for i in range(len(tod_det)):
@@ -117,14 +122,14 @@ def compute_signal_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            co=cosangle[i],
-            si=sinangle[i],
+            co=np.cos(polangle[i]),
+            si=np.sin(polangle[i]),
         )
 
 
 @njit
 def integrate_in_band_signal_for_one_detector(
-    tod_det, band, h1, h2, cb, z1, z2, pixel_ind, cosangle, sinangle, maps
+    tod_det, band, h1, h2, cb, z1, z2, pixel_ind, polangle, maps
 ):
 
     for i in range(len(tod_det)):
@@ -138,8 +143,8 @@ def integrate_in_band_signal_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            co=cosangle[i],
-            si=sinangle[i],
+            co=np.cos(polangle[i]),
+            si=np.sin(polangle[i]),
         )
 
 
@@ -178,8 +183,7 @@ def compute_atd_ata_for_one_detector(
     z1,
     z2,
     pixel_ind,
-    cosangle,
-    sinangle,
+    polangle,
 ):
 
     for i in range(len(tod)):
@@ -189,8 +193,8 @@ def compute_atd_ata_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            co=cosangle[i],
-            si=sinangle[i],
+            co=np.cos(polangle[i]),
+            si=np.sin(polangle[i]),
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
@@ -216,8 +220,7 @@ def integrate_in_band_atd_ata_for_one_detector(
     z1,
     z2,
     pixel_ind,
-    cosangle,
-    sinangle,
+    polangle,
 ):
 
     for i in range(len(tod)):
@@ -228,8 +231,8 @@ def integrate_in_band_atd_ata_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            co=cosangle[i],
-            si=sinangle[i],
+            co=np.cos(polangle[i]),
+            si=np.sin(polangle[i]),
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
@@ -681,10 +684,6 @@ class HwpSysAndBandpass:
         for idet in range(obs.n_detectors):
             pix = hp.ang2pix(self.nside, pointings[idet, :, 0], pointings[idet, :, 1])
 
-            # add hwp rotation
-            ca = np.cos(0.5 * pointings[idet, :, 2] + times * hwp_radpsec)
-            sa = np.sin(0.5 * pointings[idet, :, 2] + times * hwp_radpsec)
-
             if self.built_map_on_the_fly:
                 tod = np.empty_like(pix)
             else:
@@ -700,8 +699,7 @@ class HwpSysAndBandpass:
                     z1=self.z1,
                     z2=self.z2,
                     pixel_ind=pix,
-                    cosangle=ca,
-                    sinangle=sa,
+                    polangle=0.5 * pointings[idet, :, 2] + times * hwp_radpsec,
                     maps=self.maps,
                 )
             else:
@@ -713,8 +711,7 @@ class HwpSysAndBandpass:
                     z1=self.z1,
                     z2=self.z2,
                     pixel_ind=pix,
-                    cosangle=ca,
-                    sinangle=sa,
+                    polangle=0.5 * pointings[idet, :, 2] + times * hwp_radpsec,
                     maps=self.maps,
                 )
 
@@ -732,8 +729,7 @@ class HwpSysAndBandpass:
                             z1=self.z1s,
                             z2=self.z2s,
                             pixel_ind=pix,
-                            cosangle=ca,
-                            sinangle=sa,
+                            polangle=0.5 * pointings[idet, :, 2] + times * hwp_radpsec,
                         )
                     else:
                         compute_atd_ata_for_one_detector(
@@ -746,13 +742,12 @@ class HwpSysAndBandpass:
                             z1=self.z1s,
                             z2=self.z2s,
                             pixel_ind=pix,
-                            cosangle=ca,
-                            sinangle=sa,
+                            polangle=0.5 * pointings[idet, :, 2] + times * hwp_radpsec,
                         )
                     del (ca, sa, tod)
 
                 else:
-                    # re-use ca and sa, factor 4 included here
+                    # in this case factor 4 included here
                     ca = np.cos(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
                     sa = np.sin(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
 
