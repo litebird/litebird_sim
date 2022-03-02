@@ -744,7 +744,6 @@ class HwpSysAndBandpass:
                             pixel_ind=pix,
                             polangle=0.5 * pointings[idet, :, 2] + times * hwp_radpsec,
                         )
-                    del (ca, sa, tod)
 
                 else:
                     # in this case factor 4 included here
@@ -761,7 +760,10 @@ class HwpSysAndBandpass:
                     self.ata[pix, 1, 1] += 0.25 * ca * ca
                     self.ata[pix, 2, 1] += 0.25 * ca * sa
                     self.ata[pix, 2, 2] += 0.25 * sa * sa
-                    del (ca, sa, tod)
+                    del (ca, sa)
+
+                del tod
+
             else:
                 # this fills variables needed by bin_map
                 obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
