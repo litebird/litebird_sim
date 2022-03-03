@@ -559,11 +559,11 @@ class HwpSysAndBandpass:
 
                 self.cmb2bb = _dBodTth(self.freqs)
 
-            elif self.bandpass_parameters != None:
+            else:
 
                 if len(self.bandpass_parameters) == 2:
 
-                    self.bandpass = top_hat_bandpass(
+                    bandpass = top_hat_bandpass(
                         self.freqs,
                         self.bandpass_parameters["low edge"],
                         self.bandpass_parameters["high edge"],
@@ -571,7 +571,7 @@ class HwpSysAndBandpass:
 
                 elif len(self.bandpass_parameters) == 3:
 
-                    self.bandpass = decaying_bandpass(
+                    bandpass = decaying_bandpass(
                         self.freqs,
                         self.bandpass_parameters["low edge"],
                         self.bandpass_parameters["high edge"],
@@ -582,17 +582,14 @@ class HwpSysAndBandpass:
 
                     print("Error in the bandpass definition!")
 
-                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass
+                self.cmb2bb = _dBodTth(self.freqs) * bandpass
 
-            if self.include_beam_throughput == False:
-
-                self.cmb2bb = self.cmb2bb
-
-            elif self.include_beam_throughput == True:
+            if self.include_beam_throughput:
 
                 self.cmb2bb = self.cmb2bb * beam_throughtput(self.freqs)
 
-            self.norm = self.cmb2bb.sum()
+            # Normalize the band
+            self.cmb2bb /= self.cmb2bb.sum()
 
             myinstr = {}
             for ifreq in range(self.nfreqs):
@@ -692,7 +689,7 @@ class HwpSysAndBandpass:
             if self.integrate_in_band:
                 integrate_in_band_signal_for_one_detector(
                     tod_det=tod,
-                    band= self.cmb2bb / self.norm,
+                    band= self.cmb2bb,
                     h1=self.h1,
                     h2=self.h2,
                     cb=self.cbeta,
@@ -722,7 +719,7 @@ class HwpSysAndBandpass:
                             atd=self.atd,
                             ata=self.ata,
                             tod=tod,
-                            band= self.cmb2bb / self.norm,
+                            band= self.cmb2bb,
                             h1=self.h1s,
                             h2=self.h2s,
                             cb=self.cbetas,
