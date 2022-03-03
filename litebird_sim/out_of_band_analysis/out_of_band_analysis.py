@@ -655,8 +655,8 @@ class HwpSysAndBandpass:
                 if not hasattr(self, "z2s"):
                     self.z2s = 0.0
 
-        self.cbeta = np.cos(self.beta)
-        self.cbetas = np.cos(self.betas)
+        self.cbeta = np.cos(np.deg2rad(self.beta))
+        self.cbetas = np.cos(np.deg2rad(self.betas))
 
     def fill_tod(self, obs: Observation, pointings: np.ndarray, hwp_radpsec: float):
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
@@ -685,7 +685,7 @@ class HwpSysAndBandpass:
             pix = hp.ang2pix(self.nside, pointings[idet, :, 0], pointings[idet, :, 1])
 
             if self.built_map_on_the_fly:
-                tod = np.empty_like(pix)
+                tod = np.zeros_like(pointings[idet,:,0])
             else:
                 tod = obs.tod[idet, :]
 
