@@ -692,7 +692,7 @@ class HwpSysAndBandpass:
             if self.integrate_in_band:
                 integrate_in_band_signal_for_one_detector(
                     tod_det=tod,
-                    band=self.bandpass * self.cmb2bb / self.norm,
+                    band= self.cmb2bb / self.norm,
                     h1=self.h1,
                     h2=self.h2,
                     cb=self.cbeta,
@@ -722,7 +722,7 @@ class HwpSysAndBandpass:
                             atd=self.atd,
                             ata=self.ata,
                             tod=tod,
-                            band=self.bandpass * self.cmb2bb / self.norm,
+                            band= self.cmb2bb / self.norm,
                             h1=self.h1s,
                             h2=self.h2s,
                             cb=self.cbetas,
