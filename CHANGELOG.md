@@ -14,6 +14,8 @@
 
 -   Use a cache to speed up CI builds [PR#147](https://github.com/litebird/litebird_sim/pull/147)
 
+-   Create a script that fetches information about the latest release and produce a release announcement [PR#156](https://github.com/litebird/litebird_sim/pull/156)
+
 # Version 0.4.0
 
 - **Breaking change** Drop support for Python 3.6, enable Python 3.9 [#136](https://github.com/litebird/litebird_sim/pull/136)
