@@ -27,7 +27,7 @@ def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
         + z1 * z1
         + z2 * z2
         + 4 * (-((1 + h1) * z2) + (1 + h2) * z1 * cb) * co * si
-        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2) * (z1 + z2)) * (co * co - si * si)
+        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2) * (z1 + z2)) * (co ** 2 - si ** 2)
     )
     return Tterm
 
@@ -47,9 +47,9 @@ def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
             + z2 * z2
             - 4 * (z1 + z2) * (1 + h1 + cb + h2 * cb) * co * si
         )
-        * (co * co - si * si)
+        * (co ** 2 - si ** 2)
         + (2 + h1 * (2 + h1) + h2 * (2 + h2) - (z1 + z2) * (z1 + z2))
-        * (co * co * co * co - 6 * co * co * si * si + si * si * si * si)
+        * (co ** 4 - 6 * co ** 2 * si ** 2 + si ** 2)
         + 8
         * co
         * si
@@ -61,11 +61,9 @@ def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
 @njit
 def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
     Uterm = (
-        (1 + h1) * z1 * co * co * co * co
+        (1 + h1) * z1 * co ** 4
         + ((1 + h1 - z1) * (1 + h1 + z1) - z1 * z2 + (1 + h1) * (1 + h2) * cb)
-        * co
-        * co
-        * co
+        * co ** 3
         * si
         - (
             (1 + h1) * z1
@@ -73,16 +71,12 @@ def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
             + 2 * (1 + h2) * z1 * cb
             + (1 + h2) * z2 * cb
         )
-        * co
-        * co
-        * si
-        * si
+        * co ** 2
+        * si ** 2
         - (-z1 * z2 + (1 + h2 - z2) * (1 + h2 + z2) + (1 + h1) * (1 + h2) * cb)
         * co
-        * si
-        * si
-        * si
-        + (1 + h2) * z2 * cb * si * si * si * si
+        * si ** 3
+        + (1 + h2) * z2 * cb * si ** 2
     )
     return Uterm
 
@@ -407,72 +401,40 @@ class HwpSysAndBandpass:
                                 )
                             )
 
-            if "integrate_in_band" in paramdict.keys():
-                self.integrate_in_band = paramdict["integrate_in_band"]
+            self.integrate_in_band = paramdict.get("integrate_in_band", False)
+            self.built_map_on_the_fly = paramdict.get("built_map_on_the_fly", False)
+            self.correct_in_solver = paramdict.get("correct_in_solver", False)
+            self.integrate_in_band_solver = paramdict.get(
+                "integrate_in_band_solver", False
+            )
+            self.bandpass_parameters = paramdict.get("bandpass_parameters", False)
+            self.include_beam_throughput = paramdict.get(
+                "include_beam_throughput", False
+            )
 
-            if "built_map_on_the_fly" in paramdict.keys():
-                self.built_map_on_the_fly = paramdict["built_map_on_the_fly"]
+            self.h1 = paramdict.get("h1", False)
+            self.h2 = paramdict.get("h2", False)
+            self.beta = paramdict.get("beta", False)
+            self.z1 = paramdict.get("z1", False)
+            self.z2 = paramdict.get("z2", False)
 
-            if "correct_in_solver" in paramdict.keys():
-                self.correct_in_solver = paramdict["correct_in_solver"]
+            self.h1s = paramdict.get("h1s", False)
+            self.h2s = paramdict.get("h2s", False)
+            self.betas = paramdict.get("betas", False)
+            self.z1s = paramdict.get("z1s", False)
+            self.z2s = paramdict.get("z2s", False)
 
-            if "integrate_in_band_solver" in paramdict.keys():
-                self.integrate_in_band_solver = paramdict["integrate_in_band_solver"]
+            self.band_filename = paramdict.get("band_filename", False)
 
-            if "bandpass_parameters" in paramdict.keys():
-                self.bandpass_parameters = paramdict["bandpass_parameters"]
-
-            if "include_beam_throughput" in paramdict.keys():
-                self.include_beam_throughput = paramdict["include_beam_throughput"]
-
-            if "h1" in paramdict.keys():
-                self.h1 = paramdict["h1"]
-
-            if "h2" in paramdict.keys():
-                self.h2 = paramdict["h2"]
-
-            if "beta" in paramdict.keys():
-                self.beta = paramdict["beta"]
-
-            if "z1" in paramdict.keys():
-                self.z1 = paramdict["z1"]
-
-            if "z2" in paramdict.keys():
-                self.z2 = paramdict["z2"]
-
-            if "h1s" in paramdict.keys():
-                self.h1s = paramdict["h1s"]
-
-            if "h2s" in paramdict.keys():
-                self.h2s = paramdict["h2s"]
-
-            if "betas" in paramdict.keys():
-                self.betas = paramdict["betas"]
-
-            if "z1s" in paramdict.keys():
-                self.z1s = paramdict["z1s"]
-
-            if "z2s" in paramdict.keys():
-                self.z2s = paramdict["z2s"]
-
-            if "band_filename" in paramdict.keys():
-                self.band_filename = paramdict["band_filename"]
-
-            if "band_filename_solver" in paramdict.keys():
-                self.band_filename_solver = paramdict["band_filename_solver"]
+            self.band_filename_solver = paramdict.get("band_filename_solver", False)
 
             # here we set the values for Mbs used in the code
-            if "hwp_sys_Mbs_make_cmb" in paramdict.keys():
-                hwp_sys_Mbs_make_cmb = paramdict["hwp_sys_Mbs_make_cmb"]
-
-            if "hwp_sys_Mbs_make_fg" in paramdict.keys():
-                hwp_sys_Mbs_make_fg = paramdict["hwp_sys_Mbs_make_fg"]
-
-            if "hwp_sys_Mbs_fg_models" in paramdict.keys():
-                hwp_sys_Mbs_fg_models = paramdict["hwp_sys_Mbs_fg_models"]
-
-            if "hwp_sys_Mbs_gaussian_smooth" in paramdict.keys():
-                hwp_sys_Mbs_gaussian_smooth = paramdict["hwp_sys_Mbs_gaussian_smooth"]
+            hwp_sys_Mbs_make_cmb = paramdict.get("hwp_sys_Mbs_make_cmb", False)
+            hwp_sys_Mbs_make_fg = paramdict.get("hwp_sys_Mbs_make_fg", False)
+            hwp_sys_Mbs_fg_models = paramdict.get("hwp_sys_Mbs_fg_models", False)
+            hwp_sys_Mbs_gaussian_smooth = paramdict.get(
+                "hwp_sys_Mbs_gaussian_smooth", False
+            )
 
         # This part sets from input_parameters()
         try:
@@ -682,14 +644,14 @@ class HwpSysAndBandpass:
             pix = hp.ang2pix(self.nside, pointings[idet, :, 0], pointings[idet, :, 1])
 
             if self.built_map_on_the_fly:
-                tod = np.zeros_like(pointings[idet,:,0])
+                tod = np.zeros_like(pointings[idet, :, 0])
             else:
                 tod = obs.tod[idet, :]
 
             if self.integrate_in_band:
                 integrate_in_band_signal_for_one_detector(
                     tod_det=tod,
-                    band= self.cmb2bb,
+                    band=self.cmb2bb,
                     h1=self.h1,
                     h2=self.h2,
                     cb=self.cbeta,
@@ -719,7 +681,7 @@ class HwpSysAndBandpass:
                             atd=self.atd,
                             ata=self.ata,
                             tod=tod,
-                            band= self.cmb2bb,
+                            band=self.cmb2bb,
                             h1=self.h1s,
                             h2=self.h2s,
                             cb=self.cbetas,
