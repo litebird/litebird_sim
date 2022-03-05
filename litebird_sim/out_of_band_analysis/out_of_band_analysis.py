@@ -49,7 +49,7 @@ def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
         )
         * (co ** 2 - si ** 2)
         + (2 + h1 * (2 + h1) + h2 * (2 + h2) - (z1 + z2) * (z1 + z2))
-        * (co ** 4 - 6 * co ** 2 * si ** 2 + si ** 2)
+        * (co ** 4 - 6 * co ** 2 * si ** 2 + si ** 4)
         + 8
         * co
         * si
@@ -76,7 +76,7 @@ def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
         - (-z1 * z2 + (1 + h2 - z2) * (1 + h2 + z2) + (1 + h1) * (1 + h2) * cb)
         * co
         * si ** 3
-        + (1 + h2) * z2 * cb * si ** 2
+        + (1 + h2) * z2 * cb * si ** 4
     )
     return Uterm
 
