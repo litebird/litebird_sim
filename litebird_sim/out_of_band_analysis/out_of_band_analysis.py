@@ -387,12 +387,11 @@ class HwpSysAndBandpass:
         ):
             paramdict = self.sim.parameter_file["hwp_sys"]
 
-            if "nside" in paramdict.keys():
-                self.nside = paramdict["nside"]
-                if "general" in self.sim.parameter_file.keys():
-                    if "nside" in self.sim.parameter_file["general"].keys():
-                        if self.sim.parameter_file["general"]["nside"] != self.nside:
-                            print(
+            self.nside = paramdict.get("nside", False)
+            if "general" in self.sim.parameter_file.keys():
+                if "nside" in self.sim.parameter_file["general"].keys():
+                    if self.sim.parameter_file["general"]["nside"] != self.nside:
+                        print(
                                 "Warning!! nside from general "
                                 "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
                                 % (
@@ -428,69 +427,43 @@ class HwpSysAndBandpass:
 
             self.band_filename_solver = paramdict.get("band_filename_solver", False)
 
-            # here we set the values for Mbs used in the code
-            hwp_sys_Mbs_make_cmb = paramdict.get("hwp_sys_Mbs_make_cmb", False)
-            hwp_sys_Mbs_make_fg = paramdict.get("hwp_sys_Mbs_make_fg", False)
-            hwp_sys_Mbs_fg_models = paramdict.get("hwp_sys_Mbs_fg_models", False)
+            # here we set the values for Mbs used in the code if present in paramdict, otherwise defaults
+            hwp_sys_Mbs_make_cmb = paramdict.get("hwp_sys_Mbs_make_cmb", True)
+            hwp_sys_Mbs_make_fg = paramdict.get("hwp_sys_Mbs_make_fg", True)
+            hwp_sys_Mbs_fg_models = paramdict.get("hwp_sys_Mbs_fg_models", ["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"])
             hwp_sys_Mbs_gaussian_smooth = paramdict.get(
-                "hwp_sys_Mbs_gaussian_smooth", False
+                "hwp_sys_Mbs_gaussian_smooth", True
             )
 
         # This part sets from input_parameters()
-        try:
-            self.nside
-        except Exception:
+        if not self.nside:
             if nside is None:
                 self.nside = 512
             else:
                 self.nside = nside
 
-        try:
-            self.integrate_in_band
-        except Exception:
-            if integrate_in_band is None:
-                self.integrate_in_band = False
-            else:
+        if not self.integrate_in_band:
+            if integrate_in_band is not None:
                 self.integrate_in_band = integrate_in_band
 
-        try:
-            self.built_map_on_the_fly
-        except Exception:
-            if built_map_on_the_fly is None:
-                self.built_map_on_the_fly = False
-            else:
+        if not self.built_map_on_the_fly:
+            if built_map_on_the_fly is not None:
                 self.built_map_on_the_fly = built_map_on_the_fly
 
-        try:
-            self.correct_in_solver
-        except Exception:
-            if correct_in_solver is None:
-                self.correct_in_solver = False
-            else:
+        if not self.correct_in_solver:
+            if correct_in_solver is not None:
                 self.correct_in_solver = correct_in_solver
 
-        try:
-            self.integrate_in_band_solver
-        except Exception:
-            if integrate_in_band_solver is None:
-                self.integrate_in_band_solver = False
-            else:
+        if not self.integrate_in_band_solver:
+            if integrate_in_band_solver is not None:
                 self.integrate_in_band_solver = integrate_in_band_solver
 
-        try:
-            self.bandpass_parameters
-        except Exception:
-            if bandpass_parameters is None:
-                self.bandpass_parameters = None
-            else:
+        if not self.bandpass_parameters:
+            if bandpass_parameters is not None:
                 self.bandpass_parameters = bandpass_parameters
 
-        try:
-            self.include_beam_throughput
-        except Exception:
-            if include_beam_throughput is None:
-                self.include_beam_throughput = False
-            else:
+        if not self.include_beam_throughput:
+            if include_beam_throughput is not None:
                 self.include_beam_throughput = include_beam_throughput
 
         if Mbsparams is None:
@@ -511,13 +484,16 @@ class HwpSysAndBandpass:
             Channel = lbs.FreqChannelInfo(bandcenter_ghz=100)
 
         if self.integrate_in_band:
-            self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
-                self.band_filename, unpack=True, skiprows=1
+            try:
+                self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
+                self.band_filename, unpack=True, skiprows = 1
             )
+            except:
+                print('you have not provided a band_filename in the parameter file!')
 
             self.nfreqs = len(self.freqs)
 
-            if self.bandpass_parameters == None:
+            if not self.bandpass_parameters:
 
                 self.cmb2bb = _dBodTth(self.freqs)
 
@@ -572,15 +548,15 @@ class HwpSysAndBandpass:
 
         else:
 
-            if not hasattr(self, "h1"):
+            if not self.h1:
                 self.h1 = 0.0
-            if not hasattr(self, "h2"):
+            if not self.h2:
                 self.h2 = 0.0
-            if not hasattr(self, "beta"):
+            if not self.beta:
                 self.beta = 0.0
-            if not hasattr(self, "z1"):
+            if not self.z1:
                 self.z1 = 0.0
-            if not hasattr(self, "z2"):
+            if not self.z2:
                 self.z2 = 0.0
 
             if np.any(maps) is None:
@@ -596,22 +572,26 @@ class HwpSysAndBandpass:
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
-                self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
+                try:
+                    self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
                     self.band_filename_solver,
                     usecols=(1, 2, 3, 4, 5),
                     unpack=True,
-                    skiprows=1,
+                    skiprows = 1
                 )
+                except:
+                    print('you have not provided a band_filename_solver in the parameter file!')
+
             else:
-                if not hasattr(self, "h1s"):
+                if not self.h1s:
                     self.h1s = 0.0
-                if not hasattr(self, "h2s"):
+                if not self.h2s:
                     self.h2s = 0.0
-                if not hasattr(self, "betas"):
+                if not self.betas:
                     self.betas = 0.0
-                if not hasattr(self, "z1s"):
+                if not self.z1s:
                     self.z1s = 0.0
-                if not hasattr(self, "z2s"):
+                if not self.z2s:
                     self.z2s = 0.0
 
         self.cbeta = np.cos(np.deg2rad(self.beta))
