@@ -1,16 +1,243 @@
 # -*- encoding: utf-8 -*-
-import litebird_sim as lbs
+from numba import njit
 import numpy as np
+
 import healpy as hp
 from astropy import constants as const
 from astropy.cosmology import Planck18_arXiv_v2 as cosmo
-from litebird_sim import mpi
+
 from typing import Union, List
+
+import litebird_sim as lbs
+from litebird_sim import mpi
 from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation
 
+
 COND_THRESHOLD = 1e10
+
+
+@njit
+def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
+    Tterm = 0.25 * (
+        2
+        + h1 * (2 + h1)
+        + h2 * (2 + h2)
+        + z1 * z1
+        + z2 * z2
+        + 4 * (-((1 + h1) * z2) + (1 + h2) * z1 * cb) * co * si
+        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2) * (z1 + z2)) * (co ** 2 - si ** 2)
+    )
+    return Tterm
+
+
+@njit
+def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
+    Qterm = 0.125 * (
+        2
+        + h1 * (2 + h1)
+        + h2 * (2 + h2)
+        - (z1 - z2) * (z1 - z2)
+        + 2
+        * (
+            h1 * (2 + h1)
+            - h2 * (2 + h2)
+            - z1 * z1
+            + z2 * z2
+            - 4 * (z1 + z2) * (1 + h1 + cb + h2 * cb) * co * si
+        )
+        * (co ** 2 - si ** 2)
+        + (2 + h1 * (2 + h1) + h2 * (2 + h2) - (z1 + z2) * (z1 + z2))
+        * (co ** 4 - 6 * co ** 2 * si ** 2 + si ** 4)
+        + 8
+        * co
+        * si
+        * (-((1 + h1) * z1) - (1 + h2) * cb * (-z2 + 2 * (1 + h1) * co * si))
+    )
+    return Qterm
+
+
+@njit
+def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
+    Uterm = (
+        (1 + h1) * z1 * co ** 4
+        + ((1 + h1 - z1) * (1 + h1 + z1) - z1 * z2 + (1 + h1) * (1 + h2) * cb)
+        * co ** 3
+        * si
+        - (
+            (1 + h1) * z1
+            + 2 * (1 + h1) * z2
+            + 2 * (1 + h2) * z1 * cb
+            + (1 + h2) * z2 * cb
+        )
+        * co ** 2
+        * si ** 2
+        - (-z1 * z2 + (1 + h2 - z2) * (1 + h2 + z2) + (1 + h1) * (1 + h2) * cb)
+        * co
+        * si ** 3
+        + (1 + h2) * z2 * cb * si ** 4
+    )
+    return Uterm
+
+
+@njit
+def compute_signal_for_one_sample(T, Q, U, h1, h2, cb, z1, z2, co, si):
+    """Bolometric equation"""
+    d = T * compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    d += Q * compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    d += U * compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    return d
+
+
+@njit
+def integrate_in_band_signal_for_one_sample(T, Q, U, band, h1, h2, cb, z1, z2, co, si):
+    tod = 0
+    for i in range(len(band)):
+        tod += band[i] * compute_signal_for_one_sample(
+            T[i], Q[i], U[i], h1[i], h2[i], cb[i], z1[i], z2[i], co, si
+        )
+
+    return tod
+
+
+@njit
+def compute_signal_for_one_detector(
+    tod_det, h1, h2, cb, z1, z2, pixel_ind, polangle, maps
+):
+
+    for i in range(len(tod_det)):
+        tod_det[i] += compute_signal_for_one_sample(
+            T=maps[0, pixel_ind[i]],
+            Q=maps[1, pixel_ind[i]],
+            U=maps[2, pixel_ind[i]],
+            h1=h1,
+            h2=h2,
+            cb=cb,
+            z1=z1,
+            z2=z2,
+            co=np.cos(polangle[i]),
+            si=np.sin(polangle[i]),
+        )
+
+
+@njit
+def integrate_in_band_signal_for_one_detector(
+    tod_det, band, h1, h2, cb, z1, z2, pixel_ind, polangle, maps
+):
+
+    for i in range(len(tod_det)):
+        tod_det[i] += integrate_in_band_signal_for_one_sample(
+            T=maps[:, 0, pixel_ind[i]],
+            Q=maps[:, 1, pixel_ind[i]],
+            U=maps[:, 2, pixel_ind[i]],
+            band=band,
+            h1=h1,
+            h2=h2,
+            cb=cb,
+            z1=z1,
+            z2=z2,
+            co=np.cos(polangle[i]),
+            si=np.sin(polangle[i]),
+        )
+
+
+@njit
+def compute_mueller_for_one_sample(h1, h2, cb, z1, z2, co, si):
+    Tterm = compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    Qterm = compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    Uterm = compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    return Tterm, Qterm, Uterm
+
+
+@njit
+def integrate_in_band_mueller_for_one_sample(band, h1, h2, cb, z1, z2, co, si):
+    intTterm = 0
+    intQterm = 0
+    intUterm = 0
+    for i in range(len(band)):
+        Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
+            h1[i], h2[i], cb[i], z1[i], z2[i], co, si
+        )
+        intTterm += band[i] * Tterm
+        intQterm += band[i] * Qterm
+        intUterm += band[i] * Uterm
+
+    return intTterm, intQterm, intUterm
+
+
+@njit
+def compute_atd_ata_for_one_detector(
+    atd,
+    ata,
+    tod,
+    h1,
+    h2,
+    cb,
+    z1,
+    z2,
+    pixel_ind,
+    polangle,
+):
+
+    for i in range(len(tod)):
+        Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
+            h1=h1,
+            h2=h2,
+            cb=cb,
+            z1=z1,
+            z2=z2,
+            co=np.cos(polangle[i]),
+            si=np.sin(polangle[i]),
+        )
+        atd[pixel_ind[i], 0] += tod[i] * Tterm
+        atd[pixel_ind[i], 1] += tod[i] * Qterm
+        atd[pixel_ind[i], 2] += tod[i] * Uterm
+
+        ata[pixel_ind[i], 0, 0] += Tterm * Tterm
+        ata[pixel_ind[i], 1, 0] += Tterm * Qterm
+        ata[pixel_ind[i], 2, 0] += Tterm * Uterm
+        ata[pixel_ind[i], 1, 1] += Qterm * Qterm
+        ata[pixel_ind[i], 2, 1] += Qterm * Uterm
+        ata[pixel_ind[i], 2, 2] += Uterm * Uterm
+
+
+@njit
+def integrate_in_band_atd_ata_for_one_detector(
+    atd,
+    ata,
+    tod,
+    band,
+    h1,
+    h2,
+    cb,
+    z1,
+    z2,
+    pixel_ind,
+    polangle,
+):
+
+    for i in range(len(tod)):
+        Tterm, Qterm, Uterm = integrate_in_band_mueller_for_one_sample(
+            band=band,
+            h1=h1,
+            h2=h2,
+            cb=cb,
+            z1=z1,
+            z2=z2,
+            co=np.cos(polangle[i]),
+            si=np.sin(polangle[i]),
+        )
+        atd[pixel_ind[i], 0] += tod[i] * Tterm
+        atd[pixel_ind[i], 1] += tod[i] * Qterm
+        atd[pixel_ind[i], 2] += tod[i] * Uterm
+
+        ata[pixel_ind[i], 0, 0] += Tterm * Tterm
+        ata[pixel_ind[i], 1, 0] += Tterm * Qterm
+        ata[pixel_ind[i], 2, 0] += Tterm * Uterm
+        ata[pixel_ind[i], 1, 1] += Qterm * Qterm
+        ata[pixel_ind[i], 2, 1] += Qterm * Uterm
+        ata[pixel_ind[i], 2, 2] += Uterm * Uterm
 
 
 def _dBodTrj(nu):
@@ -160,12 +387,11 @@ class HwpSysAndBandpass:
         ):
             paramdict = self.sim.parameter_file["hwp_sys"]
 
-            if "nside" in paramdict.keys():
-                self.nside = paramdict["nside"]
-                if "general" in self.sim.parameter_file.keys():
-                    if "nside" in self.sim.parameter_file["general"].keys():
-                        if self.sim.parameter_file["general"]["nside"] != self.nside:
-                            print(
+            self.nside = paramdict.get("nside", False)
+            if "general" in self.sim.parameter_file.keys():
+                if "nside" in self.sim.parameter_file["general"].keys():
+                    if self.sim.parameter_file["general"]["nside"] != self.nside:
+                        print(
                                 "Warning!! nside from general "
                                 "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
                                 % (
@@ -174,128 +400,70 @@ class HwpSysAndBandpass:
                                 )
                             )
 
-            if "integrate_in_band" in paramdict.keys():
-                self.integrate_in_band = paramdict["integrate_in_band"]
+            self.integrate_in_band = paramdict.get("integrate_in_band", False)
+            self.built_map_on_the_fly = paramdict.get("built_map_on_the_fly", False)
+            self.correct_in_solver = paramdict.get("correct_in_solver", False)
+            self.integrate_in_band_solver = paramdict.get(
+                "integrate_in_band_solver", False
+            )
+            self.bandpass_parameters = paramdict.get("bandpass_parameters", False)
+            self.include_beam_throughput = paramdict.get(
+                "include_beam_throughput", False
+            )
 
-            if "built_map_on_the_fly" in paramdict.keys():
-                self.built_map_on_the_fly = paramdict["built_map_on_the_fly"]
+            self.h1 = paramdict.get("h1", False)
+            self.h2 = paramdict.get("h2", False)
+            self.beta = paramdict.get("beta", False)
+            self.z1 = paramdict.get("z1", False)
+            self.z2 = paramdict.get("z2", False)
 
-            if "correct_in_solver" in paramdict.keys():
-                self.correct_in_solver = paramdict["correct_in_solver"]
+            self.h1s = paramdict.get("h1s", False)
+            self.h2s = paramdict.get("h2s", False)
+            self.betas = paramdict.get("betas", False)
+            self.z1s = paramdict.get("z1s", False)
+            self.z2s = paramdict.get("z2s", False)
 
-            if "integrate_in_band_solver" in paramdict.keys():
-                self.integrate_in_band_solver = paramdict["integrate_in_band_solver"]
+            self.band_filename = paramdict.get("band_filename", False)
 
-            if "bandpass_parameters" in paramdict.keys():
-                self.bandpass_parameters = paramdict["bandpass_parameters"]
+            self.band_filename_solver = paramdict.get("band_filename_solver", False)
 
-            if "include_beam_throughput" in paramdict.keys():
-                self.include_beam_throughput = paramdict["include_beam_throughput"]
-
-            if "h1" in paramdict.keys():
-                self.h1 = paramdict["h1"]
-
-            if "h2" in paramdict.keys():
-                self.h2 = paramdict["h2"]
-
-            if "beta" in paramdict.keys():
-                self.beta = paramdict["beta"]
-
-            if "z1" in paramdict.keys():
-                self.z1 = paramdict["z1"]
-
-            if "z2" in paramdict.keys():
-                self.z2 = paramdict["z2"]
-
-            if "h1s" in paramdict.keys():
-                self.h1s = paramdict["h1s"]
-
-            if "h2s" in paramdict.keys():
-                self.h2s = paramdict["h2s"]
-
-            if "betas" in paramdict.keys():
-                self.betas = paramdict["betas"]
-
-            if "z1s" in paramdict.keys():
-                self.z1s = paramdict["z1s"]
-
-            if "z2s" in paramdict.keys():
-                self.z2s = paramdict["z2s"]
-
-            if "band_filename" in paramdict.keys():
-                self.band_filename = paramdict["band_filename"]
-
-            if "band_filename_solver" in paramdict.keys():
-                self.band_filename_solver = paramdict["band_filename_solver"]
-
-            # here we set the values for Mbs used in the code
-            if "hwp_sys_Mbs_make_cmb" in paramdict.keys():
-                hwp_sys_Mbs_make_cmb = paramdict["hwp_sys_Mbs_make_cmb"]
-
-            if "hwp_sys_Mbs_make_fg" in paramdict.keys():
-                hwp_sys_Mbs_make_fg = paramdict["hwp_sys_Mbs_make_fg"]
-
-            if "hwp_sys_Mbs_fg_models" in paramdict.keys():
-                hwp_sys_Mbs_fg_models = paramdict["hwp_sys_Mbs_fg_models"]
-
-            if "hwp_sys_Mbs_gaussian_smooth" in paramdict.keys():
-                hwp_sys_Mbs_gaussian_smooth = paramdict["hwp_sys_Mbs_gaussian_smooth"]
+            # here we set the values for Mbs used in the code if present in paramdict, otherwise defaults
+            hwp_sys_Mbs_make_cmb = paramdict.get("hwp_sys_Mbs_make_cmb", True)
+            hwp_sys_Mbs_make_fg = paramdict.get("hwp_sys_Mbs_make_fg", True)
+            hwp_sys_Mbs_fg_models = paramdict.get("hwp_sys_Mbs_fg_models", ["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"])
+            hwp_sys_Mbs_gaussian_smooth = paramdict.get(
+                "hwp_sys_Mbs_gaussian_smooth", True
+            )
 
         # This part sets from input_parameters()
-        try:
-            self.nside
-        except Exception:
+        if not self.nside:
             if nside is None:
                 self.nside = 512
             else:
                 self.nside = nside
 
-        try:
-            self.integrate_in_band
-        except Exception:
-            if integrate_in_band is None:
-                self.integrate_in_band = False
-            else:
+        if not self.integrate_in_band:
+            if integrate_in_band is not None:
                 self.integrate_in_band = integrate_in_band
 
-        try:
-            self.built_map_on_the_fly
-        except Exception:
-            if built_map_on_the_fly is None:
-                self.built_map_on_the_fly = False
-            else:
+        if not self.built_map_on_the_fly:
+            if built_map_on_the_fly is not None:
                 self.built_map_on_the_fly = built_map_on_the_fly
 
-        try:
-            self.correct_in_solver
-        except Exception:
-            if correct_in_solver is None:
-                self.correct_in_solver = False
-            else:
+        if not self.correct_in_solver:
+            if correct_in_solver is not None:
                 self.correct_in_solver = correct_in_solver
 
-        try:
-            self.integrate_in_band_solver
-        except Exception:
-            if integrate_in_band_solver is None:
-                self.integrate_in_band_solver = False
-            else:
+        if not self.integrate_in_band_solver:
+            if integrate_in_band_solver is not None:
                 self.integrate_in_band_solver = integrate_in_band_solver
 
-        try:
-            self.bandpass_parameters
-        except Exception:
-            if bandpass_parameters is None:
-                self.bandpass_parameters = None
-            else:
+        if not self.bandpass_parameters:
+            if bandpass_parameters is not None:
                 self.bandpass_parameters = bandpass_parameters
 
-        try:
-            self.include_beam_throughput
-        except Exception:
-            if include_beam_throughput is None:
-                self.include_beam_throughput = False
-            else:
+        if not self.include_beam_throughput:
+            if include_beam_throughput is not None:
                 self.include_beam_throughput = include_beam_throughput
 
         if Mbsparams is None:
@@ -316,21 +484,24 @@ class HwpSysAndBandpass:
             Channel = lbs.FreqChannelInfo(bandcenter_ghz=100)
 
         if self.integrate_in_band:
-            self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
-                self.band_filename, unpack=True, skiprows=1
+            try:
+                self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
+                self.band_filename, unpack=True, skiprows = 1
             )
+            except:
+                print('you have not provided a band_filename in the parameter file!')
 
             self.nfreqs = len(self.freqs)
 
-            if self.bandpass_parameters == None:
+            if not self.bandpass_parameters:
 
                 self.cmb2bb = _dBodTth(self.freqs)
 
-            elif self.bandpass_parameters != None:
+            else:
 
                 if len(self.bandpass_parameters) == 2:
 
-                    self.bandpass = top_hat_bandpass(
+                    bandpass = top_hat_bandpass(
                         self.freqs,
                         self.bandpass_parameters["low edge"],
                         self.bandpass_parameters["high edge"],
@@ -338,7 +509,7 @@ class HwpSysAndBandpass:
 
                 elif len(self.bandpass_parameters) == 3:
 
-                    self.bandpass = decaying_bandpass(
+                    bandpass = decaying_bandpass(
                         self.freqs,
                         self.bandpass_parameters["low edge"],
                         self.bandpass_parameters["high edge"],
@@ -349,17 +520,14 @@ class HwpSysAndBandpass:
 
                     print("Error in the bandpass definition!")
 
-                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass
+                self.cmb2bb = _dBodTth(self.freqs) * bandpass
 
-            if self.include_beam_throughput == False:
-
-                self.cmb2bb = self.cmb2bb
-
-            elif self.include_beam_throughput == True:
+            if self.include_beam_throughput:
 
                 self.cmb2bb = self.cmb2bb * beam_throughtput(self.freqs)
 
-            self.norm = self.cmb2bb.sum()
+            # Normalize the band
+            self.cmb2bb /= self.cmb2bb.sum()
 
             myinstr = {}
             for ifreq in range(self.nfreqs):
@@ -380,15 +548,15 @@ class HwpSysAndBandpass:
 
         else:
 
-            if not hasattr(self, "h1"):
+            if not self.h1:
                 self.h1 = 0.0
-            if not hasattr(self, "h2"):
+            if not self.h2:
                 self.h2 = 0.0
-            if not hasattr(self, "beta"):
+            if not self.beta:
                 self.beta = 0.0
-            if not hasattr(self, "z1"):
+            if not self.z1:
                 self.z1 = 0.0
-            if not hasattr(self, "z2"):
+            if not self.z2:
                 self.z2 = 0.0
 
             if np.any(maps) is None:
@@ -404,23 +572,30 @@ class HwpSysAndBandpass:
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
-                self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
+                try:
+                    self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
                     self.band_filename_solver,
                     usecols=(1, 2, 3, 4, 5),
                     unpack=True,
-                    skiprows=1,
+                    skiprows = 1
                 )
+                except:
+                    print('you have not provided a band_filename_solver in the parameter file!')
+
             else:
-                if not hasattr(self, "h1s"):
+                if not self.h1s:
                     self.h1s = 0.0
-                if not hasattr(self, "h2s"):
+                if not self.h2s:
                     self.h2s = 0.0
-                if not hasattr(self, "betas"):
+                if not self.betas:
                     self.betas = 0.0
-                if not hasattr(self, "z1s"):
+                if not self.z1s:
                     self.z1s = 0.0
-                if not hasattr(self, "z2s"):
+                if not self.z2s:
                     self.z2s = 0.0
+
+        self.cbeta = np.cos(np.deg2rad(self.beta))
+        self.cbetas = np.cos(np.deg2rad(self.betas))
 
     def fill_tod(self, obs: Observation, pointings: np.ndarray, hwp_radpsec: float):
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
@@ -448,144 +623,69 @@ class HwpSysAndBandpass:
         for idet in range(obs.n_detectors):
             pix = hp.ang2pix(self.nside, pointings[idet, :, 0], pointings[idet, :, 1])
 
-            # add hwp rotation
-            ca = np.cos(0.5 * pointings[idet, :, 2] + times * hwp_radpsec)
-            sa = np.sin(0.5 * pointings[idet, :, 2] + times * hwp_radpsec)
+            if self.built_map_on_the_fly:
+                tod = np.zeros_like(pointings[idet, :, 0])
+            else:
+                tod = obs.tod[idet, :]
 
             if self.integrate_in_band:
-                J11 = (
-                    (1 + self.h1[:, np.newaxis]) * ca ** 2
-                    - (1 + self.h2[:, np.newaxis])
-                    * sa ** 2
-                    * np.exp(1j * self.beta[:, np.newaxis])
-                    - (self.z1[:, np.newaxis] + self.z2[:, np.newaxis]) * ca * sa
+                integrate_in_band_signal_for_one_detector(
+                    tod_det=tod,
+                    band=self.cmb2bb,
+                    h1=self.h1,
+                    h2=self.h2,
+                    cb=self.cbeta,
+                    z1=self.z1,
+                    z2=self.z2,
+                    pixel_ind=pix,
+                    polangle=0.5 * pointings[idet, :, 2] + times * hwp_radpsec,
+                    maps=self.maps,
                 )
-                J12 = (
-                    (
-                        (1 + self.h1[:, np.newaxis])
-                        + (1 + self.h2[:, np.newaxis])
-                        * np.exp(1j * self.beta[:, np.newaxis])
-                    )
-                    * ca
-                    * sa
-                    + self.z1[:, np.newaxis] * ca ** 2
-                    - self.z2[:, np.newaxis] * sa ** 2
-                )
-
-                if self.built_map_on_the_fly:
-                    tod = (
-                        (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[:, 0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[:, 1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
-                        )
-                        * self.cmb2bb[:, np.newaxis]
-                    ).sum(axis=0) / self.norm
-                else:
-                    obs.tod[idet, :] += (
-                        (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[:, 0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[:, 1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
-                        )
-                        * self.cmb2bb[:, np.newaxis]
-                    ).sum(axis=0) / self.norm
-
             else:
-                J11 = (
-                    (1 + self.h1) * ca ** 2
-                    - (1 + self.h2) * sa ** 2 * np.exp(1j * self.beta)
-                    - (self.z1 + self.z2) * ca * sa
+                compute_signal_for_one_detector(
+                    tod_det=tod,
+                    h1=self.h1,
+                    h2=self.h2,
+                    cb=self.cbeta,
+                    z1=self.z1,
+                    z2=self.z2,
+                    pixel_ind=pix,
+                    polangle=0.5 * pointings[idet, :, 2] + times * hwp_radpsec,
+                    maps=self.maps,
                 )
-                J12 = (
-                    ((1 + self.h1) + (1 + self.h2) * np.exp(1j * self.beta)) * ca * sa
-                    + self.z1 * ca ** 2
-                    - self.z2 * sa ** 2
-                )
-
-                if self.built_map_on_the_fly:
-                    tod = (
-                        0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2) * self.maps[0, pix]
-                        + 0.5
-                        * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                        * self.maps[1, pix]
-                        + (J11 * J12.conjugate()).real * self.maps[2, pix]
-                    )
-                else:
-                    obs.tod[idet, :] += (
-                        0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2) * self.maps[0, pix]
-                        + 0.5
-                        * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                        * self.maps[1, pix]
-                        + (J11 * J12.conjugate()).real * self.maps[2, pix]
-                    )
 
             if self.built_map_on_the_fly:
-
                 if self.correct_in_solver:
-
                     if self.integrate_in_band_solver:
-                        J11 = (
-                            (1 + self.h1s[:, np.newaxis]) * ca ** 2
-                            - (1 + self.h2s[:, np.newaxis])
-                            * sa ** 2
-                            * np.exp(1j * self.betas[:, np.newaxis])
-                            - (self.z1s[:, np.newaxis] + self.z2s[:, np.newaxis])
-                            * ca
-                            * sa
-                        )
-                        J12 = (
-                            (
-                                (1 + self.h1s[:, np.newaxis])
-                                + (1 + self.h2s[:, np.newaxis])
-                                * np.exp(1j * self.betas[:, np.newaxis])
-                            )
-                            * ca
-                            * sa
-                            + self.z1s[:, np.newaxis] * ca ** 2
-                            - self.z2s[:, np.newaxis] * sa ** 2
+                        integrate_in_band_atd_ata_for_one_detector(
+                            atd=self.atd,
+                            ata=self.ata,
+                            tod=tod,
+                            band=self.cmb2bb,
+                            h1=self.h1s,
+                            h2=self.h2s,
+                            cb=self.cbetas,
+                            z1=self.z1s,
+                            z2=self.z2s,
+                            pixel_ind=pix,
+                            polangle=0.5 * pointings[idet, :, 2] + times * hwp_radpsec,
                         )
                     else:
-                        J11 = (
-                            (1 + self.h1s) * ca ** 2
-                            - (1 + self.h2s) * sa ** 2 * np.exp(1j * self.betas)
-                            - (self.z1s + self.z2s) * ca * sa
+                        compute_atd_ata_for_one_detector(
+                            atd=self.atd,
+                            ata=self.ata,
+                            tod=tod,
+                            h1=self.h1s,
+                            h2=self.h2s,
+                            cb=self.cbetas,
+                            z1=self.z1s,
+                            z2=self.z2s,
+                            pixel_ind=pix,
+                            polangle=0.5 * pointings[idet, :, 2] + times * hwp_radpsec,
                         )
-                        J12 = (
-                            ((1 + self.h1s) + (1 + self.h2s) * np.exp(1j * self.betas))
-                            * ca
-                            * sa
-                            + self.z1s * ca ** 2
-                            - self.z2s * sa ** 2
-                        )
-
-                    del (ca, sa)
-
-                    Tterm = 0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                    Qterm = 0.5 * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                    Uterm = (J11 * J12.conjugate()).real
-
-                    self.atd[pix, 0] += tod * Tterm
-                    self.atd[pix, 1] += tod * Qterm
-                    self.atd[pix, 2] += tod * Uterm
-
-                    self.ata[pix, 0, 0] += Tterm * Tterm
-                    self.ata[pix, 1, 0] += Tterm * Qterm
-                    self.ata[pix, 2, 0] += Tterm * Uterm
-                    self.ata[pix, 1, 1] += Qterm * Qterm
-                    self.ata[pix, 2, 1] += Qterm * Uterm
-                    self.ata[pix, 2, 2] += Uterm * Uterm
 
                 else:
-                    # re-use ca and sa, factor 4 included here
+                    # in this case factor 4 included here
                     ca = np.cos(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
                     sa = np.sin(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
 
@@ -599,7 +699,12 @@ class HwpSysAndBandpass:
                     self.ata[pix, 1, 1] += 0.25 * ca * ca
                     self.ata[pix, 2, 1] += 0.25 * ca * sa
                     self.ata[pix, 2, 2] += 0.25 * sa * sa
+                    del (ca, sa)
+
+                del tod
+
             else:
+                # this fills variables needed by bin_map
                 obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
                 obs.pixind[idet, :] = pix
 

@@ -293,6 +293,9 @@ class HwpSys:
                 if not hasattr(self, "z2s"):
                     self.z2s = 0.0
 
+        self.beta = np.deg2rad(self.beta)
+        self.betas = np.deg2rad(self.betas)
+
     def fill_tod(self, obs: Observation, pointings: np.ndarray, hwp_radpsec: float):
 
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
