@@ -1,5 +1,6 @@
 import litebird_sim as lbs
 import numpy as np
+from typing import Union, List
 from scipy import signal
 
 # Top-hat Bandpass
@@ -141,3 +142,88 @@ def add_high_frequency_transmission(freqs, bandpass, location = 3, transmission 
             bandpass_new[i] = transmission*bandpass[i-int((location-1)*i_fc)]
             
     return freqs_new, bandpass_new
+
+# Beam throughput
+def beam_throughtput(freqs):
+    """Beam throughtput factor
+    freqs: frequency in GHz
+    """
+    return 1.0 / freqs / freqs / 1.0e9 / 1.0e9
+
+# Define bandpass profile
+def bandpass_profile(
+ freqs: Union[np.array, None] = None,
+ bandpass: Union[dict, None] = None,
+ include_beam_throughput: Union[bool, None] = None,
+):
+    
+    profile = np.ones_like(freqs)
+    
+    if 'bandpass_file' in bandpass.keys():
+        
+        profile = np.ones_like(freqs)
+        print('We can not process bandpass files yet. This will be implemented in the future. For now we define a top-hat between ', freqs[0], ' and ', freqs[-1], ' GHz.')
+               
+    elif 'band_type' in bandpass.keys():
+    
+        if bandpass['band_type'] == 'top_hat':
+        
+            profile = top_hat_bandpass(freqs,
+                                       bandpass['band_low_edge'],
+                                       bandpass['band_high_edge'],
+                                       )
+                                           
+        elif bandpass['band_type'] == 'top_hat_with_exp_wings':
+        
+            if 'band_alpha' not in bandpass.keys() and 'band_beta' not in bandpass.keys():
+        
+                profile = top_hat_bandpass_with_exp_wings(freqs,
+                                                          bandpass['band_low_edge'],
+                                                          bandpass['band_high_edge'],
+                                                          )
+                                           
+            else:
+            
+                profile = top_hat_bandpass_with_exp_wings(freqs,
+                                                              bandpass['band_low_edge'],
+                                                              bandpass['band_high_edge'],
+                                                              bandpass['band_alpha'],
+                                                              bandpass['band_beta']
+                                                              )
+                                           
+        elif bandpass['band_type'] == 'chebyshev':
+        
+            if 'band_order' not in bandpass.keys() and 'band_ripple_dB' not in bandpass.keys():
+        
+                profile = bandpass_chebyshev(freqs,
+                                        bandpass['band_low_edge'],
+                                        bandpass['band_high_edge'],
+                                        )
+                                        
+            else:
+            
+                profile = bandpass_chebyshev(freqs,
+                                        bandpass['band_low_edge'],
+                                        bandpass['band_high_edge'],
+                                        bandpass['band_order'],
+                                        bandpass['band_ripple_dB']
+                                        )
+                                        
+    if 'band_high_freq_leak' in bandpass.keys() and bandpass['band_high_freq_leak'] == True:
+    
+        if 'band_high_freq_loc' not in bandpass.keys() and 'band_high_freq_trans' not in bandpass.keys():
+    
+            freqs, profile = add_high_frequency_transmission(freqs, profile)
+            
+        else:
+        
+            freqs, profile = add_high_frequency_transmission(freqs, 
+                                                             profile, 
+                                                             bandpass['band_high_freq_loc'],
+                                                             bandpass['band_high_freq_trans'])
+                                                             
+    if include_beam_throughput == True:
+    
+        profile = profile * beam_throughtput(freqs)
+                                                             
+    return freqs, profile

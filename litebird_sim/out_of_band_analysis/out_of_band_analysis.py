@@ -13,6 +13,7 @@ from litebird_sim import mpi
 from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation
+from .bandpass_template_module import bandpass_profile
 
 
 COND_THRESHOLD = 1e10
@@ -273,61 +274,6 @@ def _dBodTth(nu):
     )
 
 
-def top_hat_bandpass(freqs, f0, f1):
-    """Define a top-hat bandpass
-    freqs: frequency in GHz
-    f0: low-frequency edge of the top-hat in GHz
-    f1: high-frequency edge of the top-hat in GHz
-    """
-    transmission = np.zeros_like(freqs)
-
-    for i in range(len(freqs)):
-
-        if freqs[i] >= f0 and freqs[i] <= f1:
-
-            transmission[i] = 1.0
-
-        else:
-
-            transmission[i] = 0.0
-
-    return transmission
-
-
-def decaying_bandpass(freqs, f0, f1, alpha):
-    """Define a bandpass with exponential tails and unit transmission in band
-    freqs: frequency in GHz
-    f0: low-frequency edge of the band in GHz
-    f1: high-frequency edge of the band in GHz
-    alpha: out-of-band exponential decay index
-    """
-
-    transmission = np.zeros_like(freqs)
-
-    for i in range(len(freqs)):
-
-        if freqs[i] >= f0 and freqs[i] <= f1:
-
-            transmission[i] = 1.0
-
-        elif freqs[i] > f1:
-
-            transmission[i] = np.exp(-alpha * (freqs[i] - f1))
-
-        elif freqs[i] < f0:
-
-            transmission[i] = np.exp(alpha * (freqs[i] - f0))
-
-    return transmission
-
-
-def beam_throughtput(freqs):
-    """Beam throughtput factor
-    freqs: frequency in GHz
-    """
-    return 1.0 / freqs / freqs / 1.0e9 / 1.0e9
-
-
 class HwpSysAndBandpass:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
@@ -351,8 +297,6 @@ class HwpSysAndBandpass:
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
-        bandpass_parameters: Union[dict, None] = None,
-        include_beam_throughput: Union[bool, None] = None,
     ):
         """It sets the input paramters
 
@@ -367,12 +311,7 @@ class HwpSysAndBandpass:
              Channel (:class:`.FreqChannelInfo`): an instance of the
                                                   :class:`.FreqChannelInfo` class
              maps (float): input maps (3, npix) coherent with nside provided.
-             bandpass_parameters (dictionary): defines the bandpass shape to perform
-             the integration. Contains 2 (float) keys for top hat (low-frequency and
-             high-frequency edge values), or 3 (float) for decaying_bandpass
-             (low-frequency, high-frequency edge values and decaying index alpha)
-             include_beam_throughput (bool): if beam throughput factor 1/nu2 needs
-             to be added or not
+             
         """
 
         # set defaults for band integration
@@ -406,7 +345,8 @@ class HwpSysAndBandpass:
             self.integrate_in_band_solver = paramdict.get(
                 "integrate_in_band_solver", False
             )
-            self.bandpass_parameters = paramdict.get("bandpass_parameters", False)
+            self.bandpass = paramdict.get("bandpass", False)
+            self.bandpass_solver = paramdict.get("bandpass_solver", False)
             self.include_beam_throughput = paramdict.get(
                 "include_beam_throughput", False
             )
@@ -424,7 +364,6 @@ class HwpSysAndBandpass:
             self.z2s = paramdict.get("z2s", False)
 
             self.band_filename = paramdict.get("band_filename", False)
-
             self.band_filename_solver = paramdict.get("band_filename_solver", False)
 
             # here we set the values for Mbs used in the code if present in paramdict, otherwise defaults
@@ -458,14 +397,6 @@ class HwpSysAndBandpass:
             if integrate_in_band_solver is not None:
                 self.integrate_in_band_solver = integrate_in_band_solver
 
-        if not self.bandpass_parameters:
-            if bandpass_parameters is not None:
-                self.bandpass_parameters = bandpass_parameters
-
-        if not self.include_beam_throughput:
-            if include_beam_throughput is not None:
-                self.include_beam_throughput = include_beam_throughput
-
         if Mbsparams is None:
             Mbsparams = lbs.MbsParameters(
                 make_cmb=hwp_sys_Mbs_make_cmb,
@@ -493,41 +424,35 @@ class HwpSysAndBandpass:
 
             self.nfreqs = len(self.freqs)
 
-            if not self.bandpass_parameters:
+            if not self.bandpass:
 
                 self.cmb2bb = _dBodTth(self.freqs)
-
-            else:
-
-                if len(self.bandpass_parameters) == 2:
-
-                    bandpass = top_hat_bandpass(
-                        self.freqs,
-                        self.bandpass_parameters["low edge"],
-                        self.bandpass_parameters["high edge"],
-                    )
-
-                elif len(self.bandpass_parameters) == 3:
-
-                    bandpass = decaying_bandpass(
-                        self.freqs,
-                        self.bandpass_parameters["low edge"],
-                        self.bandpass_parameters["high edge"],
-                        self.bandpass_parameters["alpha"],
-                    )
-
-                else:
-
-                    print("Error in the bandpass definition!")
-
-                self.cmb2bb = _dBodTth(self.freqs) * bandpass
-
-            if self.include_beam_throughput:
-
-                self.cmb2bb = self.cmb2bb * beam_throughtput(self.freqs)
+                self.cmb2bb_solver = self.cmb2bb
+                
+            elif self.bandpass and not self.bandpass_solver:
+                    
+                self.freqs, self.bandpass_profile = bandpass_profile(self.freqs, 
+                                                                         self.bandpass,
+                                                                         self.include_beam_throughput)
+                                                                         
+                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
+                self.cmb2bb_solver = self.cmb2bb
+                    
+            
+            elif self.bandpass and self.bandpass_solver:
+                    
+                self.freqs, self.bandpass_profile = bandpass_profile(self.freqs, 
+                                                                         self.bandpass,
+                                                                         self.include_beam_throughput)
+                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
+                self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(self.freqs, 
+                                                                         self.bandpass_solver,
+                                                                         self.include_beam_throughput)
+                self.cmb2bb_solver = _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
 
             # Normalize the band
             self.cmb2bb /= self.cmb2bb.sum()
+            self.cmb2bb_solver /= self.cmb2bb_solver.sum()
 
             myinstr = {}
             for ifreq in range(self.nfreqs):
@@ -661,7 +586,7 @@ class HwpSysAndBandpass:
                             atd=self.atd,
                             ata=self.ata,
                             tod=tod,
-                            band=self.cmb2bb,
+                            band=self.cmb2bb_solver,
                             h1=self.h1s,
                             h2=self.h2s,
                             cb=self.cbetas,
