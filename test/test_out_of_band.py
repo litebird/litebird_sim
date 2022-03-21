@@ -2,6 +2,7 @@ import litebird_sim as lbs
 import numpy as np
 import healpy as hp
 from astropy.time import Time
+import os
 
 def test_out_of_band():
 
@@ -54,24 +55,25 @@ def test_out_of_band():
 
     pointings = lbs.scanning.get_pointings(obs_o,
                         spin2ecliptic_quats=spin2ecliptic_quats,
-                        detector_quats=[detT,detB],
+                        detector_quats=[detT.quat,detB.quat],
                         bore2spin_quat=instr.bore2spin_quat,
                                       )
 
-    mft = np.loadtxt('../litebird_sim/out_of_band_analysis/examples/MFT_100_h_beta_z.txt')
+    filepath = os.path.dirname(os.getcwd())+'/litebird_sim/out_of_band_analysis/examples/MFT_100_h_beta_z.txt'
+    mft = np.loadtxt(filepath)
 
     nu = mft[:,0]
-    h1 = np.sqrt(mft[:,1]) - 1.
-    h2 = np.sqrt(mft[:,3]) - 1.
-    beta  = mft[:,5] - 180.
-    z1 = 0.01*np.ones_like(nu)
-    z2 = 0.01*np.ones_like(nu)
+    h1 = mft[:,1]
+    h2 = mft[:,2]
+    beta  = mft[:,3] 
+    z1 = mft[:,4]
+    z2 = mft[:,5]
 
 
 
     par = { 'hwp_sys':
-       {'band_filename': '../litebird_sim/out_of_band_analysis/examples/MFT_100_h_beta_z.txt',
-        'band_filename_solver': '../litebird_sim/out_of_band_analysis/examples/MFT_100_h_beta_z.txt',  #same as tod parameters
+       {'band_filename': filepath,
+        'band_filename_solver': filepath,  #same as tod parameters
         'bandpass':{
             'band_type': 'top_hat',
             'band_low_edge': nu[0],
@@ -102,6 +104,7 @@ def test_out_of_band():
 
     hwp_sys_band.set_parameters(
                        integrate_in_band=True,
+                       integrate_in_band_solver=True,
                        correct_in_solver=True,
                        built_map_on_the_fly=False,
                        nside=nside,
@@ -126,8 +129,9 @@ def test_out_of_band():
 
     hwp_sys = lbs.HwpSys(sim)
 
-    hwp_sys.set_parameters(#maps=maps,    # ---> to use without band integration
+    hwp_sys.set_parameters(
                        integrate_in_band=True,
+                       integrate_in_band_solver=True,
                        correct_in_solver=True,
                        built_map_on_the_fly=False,
                        nside=nside,
@@ -135,9 +139,20 @@ def test_out_of_band():
                       #Channel = channelinfo
                       )
 
-    hwp_sys.fill_tod(obs_h,pointintgs,hwp_radpsec)
+    np.testing.assert_equal(hwp_sys.h1, h1)
+    np.testing.assert_equal(hwp_sys.h1s, h1)
+    np.testing.assert_equal(hwp_sys.h2, h2)
+    np.testing.assert_equal(hwp_sys.h2s, h2)
+    np.testing.assert_equal(np.cos(hwp_sys.beta), np.cos(np.deg2rad(beta)))
+    np.testing.assert_equal(np.cos(hwp_sys.betas), np.cos(np.deg2rad(beta)))
+    np.testing.assert_equal(hwp_sys.z1, z1)
+    np.testing.assert_equal(hwp_sys.z1s, z1)
+    np.testing.assert_equal(hwp_sys.z2, z2)
+    np.testing.assert_equal(hwp_sys.z2s, z2)
 
-    np.testing.assert_equal(obs_o.maps,obs_h.maps)
+    hwp_sys.fill_tod(obs_h,pointings,hwp_radpsec)
+
+    np.testing.assert_equal(hwp_sys_band.maps,hwp_sys.maps)
 
     np.testing.assert_equal(obs_o.tod, obs_h.tod)
 
