@@ -120,16 +120,19 @@ def add_high_frequency_transmission(freqs, bandpass, location = 3, transmission 
     fc = find_central_frequency(freqs, bandpass)
     
     diff_freq = abs(freqs-fc)
-    i_fc = np.where(diff_freq == min(diff_freq))[0]
+    i_fc = np.where(diff_freq == min(diff_freq))[0][0]
     delta_fc = abs(freqs[-1] - freqs[i_fc])
     
     high_freq_fc = location*fc
     
     new_freqs_min = freqs[0]
     new_freqs_max = high_freq_fc + delta_fc
+
         
     freqs_new = np.linspace(freqs[0], new_freqs_max, int((new_freqs_max-new_freqs_min)/df + 1))
     bandpass_new = np.zeros_like(freqs_new)
+    #finding the shifted position of freqs[0] i.e. the position in freqs_new from which the band is transmitted at a higher frequency 
+    i_nf0 = np.where(np.round(freqs_new - (high_freq_fc-delta_fc)) == 0)[0][0] 
     
     for i in range(len(freqs_new)):
         
@@ -137,10 +140,9 @@ def add_high_frequency_transmission(freqs, bandpass, location = 3, transmission 
             
             bandpass_new[i] = bandpass[i]
             
-        elif i >= (location-1)*i_fc:
-            
-            bandpass_new[i] = transmission*bandpass[i-int((location-1)*i_fc)]
-            
+        elif i >= int(i_nf0):
+            bandpass_new[i] = transmission*bandpass[i-int(i_nf0)]
+
     return freqs_new, bandpass_new
 
 # Beam throughput
