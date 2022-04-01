@@ -10,6 +10,8 @@
 
 -   Upgrade NumPy from 1.20 to 1.21, Numba from 0.54 to 0.55, Rich from 6.2 to 11.0 [#152](https://github.com/litebird/litebird_sim/pull/152)
 
+-   Remove NumPy's and Healpy's deprecation warnings [#158](https://github.com/litebird/litebird_sim/pull/158)
+
 -   Fix issue [#148](https://github.com/litebird/litebird_sim/issues/148)
 
 -   Use a cache to speed up CI builds [PR#147](https://github.com/litebird/litebird_sim/pull/147)
