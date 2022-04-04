@@ -11,6 +11,9 @@ from .detectors import (
     InstrumentInfo,
     detector_list_from_parameters,
 )
+from .bandpasses import (
+    BandPassInfo
+        )
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
