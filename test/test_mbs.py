@@ -50,20 +50,20 @@ def test_mbs():
     with NamedTemporaryFile(mode="w+t", suffix=".toml") as simfile:
         with TemporaryDirectory() as outdir:
             simfile.write(PARAMETER_FILE.format(output_directory=outdir))
-        simfile.flush()
+            simfile.flush()
 
-        sim = lbs.Simulation(base_path=outdir, parameter_file=simfile.name)
+            sim = lbs.Simulation(base_path=outdir, parameter_file=simfile.name)
 
-        myinst = {}
-        myinst["mock"] = {
-            "bandcenter_ghz": 140.0,
-            "bandwidth_ghz": 42.0,
-            "fwhm_arcmin": 30.8,
-            "p_sens_ukarcmin": 6.39,
-        }
-        mbs = lbs.Mbs(sim, sim.parameters["map_based_sims"], instrument=myinst)
-        (maps, saved_maps) = mbs.run_all()
+            myinst = {}
+            myinst["mock"] = {
+                "bandcenter_ghz": 140.0,
+                "bandwidth_ghz": 42.0,
+                "fwhm_arcmin": 30.8,
+                "p_sens_ukarcmin": 6.39,
+            }
+            mbs = lbs.Mbs(sim, sim.parameters["map_based_sims"], instrument=myinst)
+            (maps, saved_maps) = mbs.run_all()
 
-        curpath = Path(__file__).parent
-        map_ref = hp.read_map(curpath / "reference_mbs.fits", (0, 1, 2))
-        assert np.allclose(maps["mock"], map_ref, atol=1e-6)
+            curpath = Path(__file__).parent
+            map_ref = hp.read_map(curpath / "reference_mbs.fits", (0, 1, 2))
+            assert np.allclose(maps["mock"], map_ref, atol=1e-6)
