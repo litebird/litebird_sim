@@ -10,6 +10,8 @@
 
 -   Upgrade NumPy from 1.20 to 1.21, Numba from 0.54 to 0.55, Rich from 6.2 to 11.0 [#152](https://github.com/litebird/litebird_sim/pull/152)
 
+-   Add the ability to create Singularity container from branches different than `master` [#163](https://github.com/litebird/litebird_sim/pull/163)
+
 -   Make MBS tests more robust against disappearing temporary directories [#162](https://github.com/litebird/litebird_sim/pull/162)
 
 -   Remove NumPy's and Healpy's deprecation warnings [#158](https://github.com/litebird/litebird_sim/pull/158)
