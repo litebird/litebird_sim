@@ -54,17 +54,20 @@ def scan_map(
     second.`input_names` is an array containing the keywords that allow to select
     the proper input in `maps` for each detector in the TOD. `start_time_s` and
     `delta_time_s` are respectively the start time of the TOD and the time step
-    between two samples. Optionally it can return the polarization angle `pol_angle`
-    and the pixel index `pixel_ind` in arrays of size N.
+    between two samples. If `input_map_in_galactic` is set to False the input map
+    is assumed in ecliptic coordinates, default galactic. Optionally it can return
+    the polarization angle `pol_angle` and the pixel index `pixel_ind` in arrays
+    of size N.
     """
 
     assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(tod.shape[0]):
-        curr_pointings = pointings[detector_idx, :, :]
 
         if input_map_in_galactic:
-            rotate_coordinates_e2g(curr_pointings)
+            curr_pointings = rotate_coordinates_e2g(pointings[detector_idx, :, :])
+        else:
+            curr_pointings = pointings[detector_idx, :, :]
 
         maps_det = maps[input_names[detector_idx]]
         nside = hp.npix2nside(maps_det.shape[1])

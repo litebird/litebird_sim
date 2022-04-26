@@ -43,10 +43,11 @@ def vec2ang(vx, vy, vz):
 
 
 def rotate_coordinates_e2g(pointings):
+    curr_pointings = np.empty_like(pointings)
     vec = np.tensordot(e2g, ang2vec(pointings[:, 0], pointings[:, 1]), axes=(1, 0))
     north_pole = np.tensordot(e2g, [0.0, 0.0, 1.0], axes=(1, 0))
     sinalpha = north_pole[0] * vec[1] - north_pole[1] * vec[0]
     cosalpha = north_pole[2] - vec[2] * np.dot(north_pole, vec)
-    pointings[:, 0], pointings[:, 1] = vec2ang(vec[0], vec[1], vec[2])
-    pointings[:, 2] += np.arctan2(sinalpha, cosalpha)
-    return
+    curr_pointings[:, 0], curr_pointings[:, 1] = vec2ang(vec[0], vec[1], vec[2])
+    curr_pointings[:, 2] = pointings[:, 2] + np.arctan2(sinalpha, cosalpha)
+    return curr_pointings
