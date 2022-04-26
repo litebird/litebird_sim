@@ -75,7 +75,12 @@ def test_scan_map():
     )
 
     lbs.scan_map_in_observations(
-        obs1, pointings, hwp_radpsec, in_map, fill_psi_and_pixind_in_obs=True
+        obs1,
+        pointings,
+        hwp_radpsec,
+        in_map,
+        input_map_in_galactic=False,
+        fill_psi_and_pixind_in_obs=True,
     )
     out_map1 = lbs.make_bin_map(obs1, nside).T
 

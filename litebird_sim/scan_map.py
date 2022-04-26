@@ -12,6 +12,7 @@ from .observations import Observation
 
 from .coordinates import rotate_coordinates_e2g
 
+
 @njit
 def compute_signal_for_one_sample(T, Q, U, co, si):
     """Bolometric equation"""
@@ -68,13 +69,11 @@ def scan_map(
         maps_det = maps[input_names[detector_idx]]
         nside = hp.npix2nside(maps_det.shape[1])
 
-        n_samples = len(curr_pointings[ :, 0])
+        n_samples = len(curr_pointings[:, 0])
 
-        pixel_ind_det = hp.ang2pix(
-            nside, curr_pointings[ :, 0], curr_pointings[ :, 1]
-        )
+        pixel_ind_det = hp.ang2pix(nside, curr_pointings[:, 0], curr_pointings[:, 1])
         pol_angle_det = np.mod(
-            curr_pointings[ :, 2]
+            curr_pointings[:, 2]
             + 2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec,
             2 * np.pi,
         )
@@ -137,7 +136,7 @@ def scan_map_in_observations(
             if input_map_in_galactic:
                 cur_obs.psi_and_pixind_coords = "Galactic"
             else:
-                cur_obs.psi_and_pixind_coords = "Ecliptic"                
+                cur_obs.psi_and_pixind_coords = "Ecliptic"
 
             scan_map(
                 tod=cur_obs.tod,

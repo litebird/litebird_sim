@@ -12,9 +12,9 @@ DEFAULT_TIME_SCALE = "tdb"
 
 e2g = (
     SkyCoord(
-        x=[1., 0., 0.],
-        y=[0., 1., 0.],
-        z=[0., 0., 1.],
+        x=[1.0, 0.0, 0.0],
+        y=[0.0, 1.0, 0.0],
+        z=[0.0, 0.0, 1.0],
         frame=DEFAULT_COORDINATE_SYSTEM.name,
         representation_type="cartesian",
     )
@@ -24,6 +24,7 @@ e2g = (
     .value
 )
 
+
 def ang2vec(theta, phi):
     ct, st, cp, sp = np.cos(theta), np.sin(theta), np.cos(phi), np.sin(phi)
     vec = np.empty((3, ct.size), np.float64)
@@ -32,6 +33,7 @@ def ang2vec(theta, phi):
     vec[2, :] = ct
     return vec.squeeze()
 
+
 def vec2ang(vx, vy, vz):
     r = np.sqrt(vx ** 2 + vy ** 2 + vz ** 2)
     ang = np.empty((2, r.size))
@@ -39,12 +41,12 @@ def vec2ang(vx, vy, vz):
     ang[1, :] = np.arctan2(vy, vx)
     return ang.squeeze()
 
+
 def rotate_coordinates_e2g(pointings):
-    vec = np.tensordot(e2g, ang2vec(pointings[:,0], pointings[:,1]), axes=(1, 0))
+    vec = np.tensordot(e2g, ang2vec(pointings[:, 0], pointings[:, 1]), axes=(1, 0))
     north_pole = np.tensordot(e2g, [0.0, 0.0, 1.0], axes=(1, 0))
     sinalpha = north_pole[0] * vec[1] - north_pole[1] * vec[0]
     cosalpha = north_pole[2] - vec[2] * np.dot(north_pole, vec)
-    pointings[:,0], pointings[:,1] = vec2ang(vec[0], vec[1], vec[2])
-    pointings[:,2] += np.arctan2(sinalpha, cosalpha)
+    pointings[:, 0], pointings[:, 1] = vec2ang(vec[0], vec[1], vec[2])
+    pointings[:, 2] += np.arctan2(sinalpha, cosalpha)
     return
-
