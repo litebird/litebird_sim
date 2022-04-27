@@ -87,14 +87,14 @@ def rotate_coordinates_e2g(pointings_elc):
     Parameters
     ----------
     pointings_elc : array
-      ``(N × 3)`` array containing the colatitude, the longitude and the polarization angle
-      (in radians) in ecliptic coordinates
+      ``(N × 3)`` array containing the colatitude, the longitude and the polarization
+      angle (in radians) in ecliptic coordinates
 
     Returns
     -------
     pointings_gal : array
-      ``(N × 3)`` array containing the colatitude, the longitude and the polarization angle
-      (in radians) in galactic coordinates
+      ``(N × 3)`` array containing the colatitude, the longitude and the polarization
+      angle (in radians) in galactic coordinates
 
     See Also
     --------
