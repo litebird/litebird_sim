@@ -26,6 +26,24 @@ e2g = (
 
 
 def ang2vec(theta, phi):
+    """Transform a direction theta,phi to a unit vector.
+
+    Parameters
+    ----------
+    theta : float, scalar or array-like
+      The angle theta (scalar or shape (N,))
+    phi : float, scalar or array-like
+      The angle phi (scalar or shape (N,)).
+
+    Returns
+    -------
+    vec : array
+      The vector(s) corresponding to given angles, shape is (3,) or (3, N).
+
+    See Also
+    --------
+    https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L657
+    """
     ct, st, cp, sp = np.cos(theta), np.sin(theta), np.cos(phi), np.sin(phi)
     vec = np.empty((3, ct.size), np.float64)
     vec[0, :] = st * cp
@@ -35,19 +53,60 @@ def ang2vec(theta, phi):
 
 
 def vec2ang(vx, vy, vz):
+    """Transform a vector to angle given by theta,phi.
+
+    Parameters
+    ----------
+    vx : float, scalar or array-like
+      The x component of the vector (scalar or shape (N,))
+    vy : float, scalar or array-like, optional
+      The y component of the vector (scalar or shape (N,))
+    vz : float, scalar or array-like, optional
+      The z component of the vector (scalar or shape (N,))
+
+    Returns
+    -------
+    angles : float, array
+      The angles in radiants in an array of shape (2, N)
+
+    See Also
+    --------
+    https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L610
+    """
+
     r = np.sqrt(vx ** 2 + vy ** 2 + vz ** 2)
     ang = np.empty((2, r.size))
     ang[0, :] = np.arccos(vz / r)
     ang[1, :] = np.arctan2(vy, vx)
     return ang.squeeze()
 
+def rotate_coordinates_e2g(pointings_elc):
+    """Rotate the angles theta,phi and psi from ecliptic to galactic coordinates
+   
+    Parameters
+    ----------
+    pointings_elc : array
+      ``(N × 3)`` array containing the colatitude, the longitude and the polarization angle
+      (in radians) in ecliptic coordinates
 
-def rotate_coordinates_e2g(pointings):
-    curr_pointings = np.empty_like(pointings)
-    vec = np.tensordot(e2g, ang2vec(pointings[:, 0], pointings[:, 1]), axes=(1, 0))
+    Returns
+    -------
+    pointings_gal : array
+      ``(N × 3)`` array containing the colatitude, the longitude and the polarization angle
+      (in radians) in galactic coordinates
+
+    See Also
+    --------
+    https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L578
+    https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L537
+    https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L357
+    """
+
+    pointings_gal = np.empty_like(pointings_elc)
+    vec = np.tensordot(e2g, ang2vec(pointings_elc[:, 0], pointings_elc[:, 1]), axes=(1, 0))
     north_pole = np.tensordot(e2g, [0.0, 0.0, 1.0], axes=(1, 0))
     sinalpha = north_pole[0] * vec[1] - north_pole[1] * vec[0]
     cosalpha = north_pole[2] - vec[2] * np.dot(north_pole, vec)
-    curr_pointings[:, 0], curr_pointings[:, 1] = vec2ang(vec[0], vec[1], vec[2])
-    curr_pointings[:, 2] = pointings[:, 2] + np.arctan2(sinalpha, cosalpha)
-    return curr_pointings
+    pointings_gal[:, 0], pointings_gal[:, 1] = vec2ang(vec[0], vec[1], vec[2])
+    pointings_gal[:, 2] = pointings_elc[:, 2] + np.arctan2(sinalpha, cosalpha)
+    return pointings_gal
