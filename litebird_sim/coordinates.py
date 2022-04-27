@@ -4,13 +4,15 @@ import numpy as np
 from astropy.coordinates import BarycentricMeanEcliptic
 from astropy.coordinates import SkyCoord
 
+from enum import Enum
+
 """The coordinate system used by the framework"""
 DEFAULT_COORDINATE_SYSTEM = BarycentricMeanEcliptic()
 
 """The time scale used by the framework"""
 DEFAULT_TIME_SCALE = "tdb"
 
-e2g = (
+ECL_TO_GAL_ROT_MATRIX = (
     SkyCoord(
         x=[1.0, 0.0, 0.0],
         y=[0.0, 1.0, 0.0],
@@ -23,6 +25,8 @@ e2g = (
     .get_xyz()
     .value
 )
+
+CoordinateSystem = Enum("CoordinateSystem", ["Ecliptic", "Galactic"])
 
 
 def ang2vec(theta, phi):
@@ -105,9 +109,11 @@ def rotate_coordinates_e2g(pointings_elc):
 
     pointings_gal = np.empty_like(pointings_elc)
     vec = np.tensordot(
-        e2g, ang2vec(pointings_elc[:, 0], pointings_elc[:, 1]), axes=(1, 0)
+        ECL_TO_GAL_ROT_MATRIX,
+        ang2vec(pointings_elc[:, 0], pointings_elc[:, 1]),
+        axes=(1, 0),
     )
-    north_pole = np.tensordot(e2g, [0.0, 0.0, 1.0], axes=(1, 0))
+    north_pole = np.tensordot(ECL_TO_GAL_ROT_MATRIX, [0.0, 0.0, 1.0], axes=(1, 0))
     sinalpha = north_pole[0] * vec[1] - north_pole[1] * vec[0]
     cosalpha = north_pole[2] - vec[2] * np.dot(north_pole, vec)
     pointings_gal[:, 0], pointings_gal[:, 1] = vec2ang(vec[0], vec[1], vec[2])

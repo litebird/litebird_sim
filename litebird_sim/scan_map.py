@@ -10,7 +10,7 @@ from typing import Union, List
 
 from .observations import Observation
 
-from .coordinates import rotate_coordinates_e2g
+from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 
 
 @njit
@@ -137,9 +137,9 @@ def scan_map_in_observations(
             cur_obs.pixind = np.empty_like(cur_obs.tod, dtype=np.int32)
 
             if input_map_in_galactic:
-                cur_obs.psi_and_pixind_coords = "Galactic"
+                cur_obs.psi_and_pixind_coords = CoordinateSystem.Galactic
             else:
-                cur_obs.psi_and_pixind_coords = "Ecliptic"
+                cur_obs.psi_and_pixind_coords = CoordinateSystem.Ecliptic
 
             scan_map(
                 tod=cur_obs.tod,
