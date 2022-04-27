@@ -80,9 +80,10 @@ def vec2ang(vx, vy, vz):
     ang[1, :] = np.arctan2(vy, vx)
     return ang.squeeze()
 
+
 def rotate_coordinates_e2g(pointings_elc):
     """Rotate the angles theta,phi and psi from ecliptic to galactic coordinates
-   
+
     Parameters
     ----------
     pointings_elc : array
@@ -103,7 +104,9 @@ def rotate_coordinates_e2g(pointings_elc):
     """
 
     pointings_gal = np.empty_like(pointings_elc)
-    vec = np.tensordot(e2g, ang2vec(pointings_elc[:, 0], pointings_elc[:, 1]), axes=(1, 0))
+    vec = np.tensordot(
+        e2g, ang2vec(pointings_elc[:, 0], pointings_elc[:, 1]), axes=(1, 0)
+    )
     north_pole = np.tensordot(e2g, [0.0, 0.0, 1.0], axes=(1, 0))
     sinalpha = north_pole[0] * vec[1] - north_pole[1] * vec[0]
     cosalpha = north_pole[2] - vec[2] * np.dot(north_pole, vec)
