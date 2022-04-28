@@ -78,9 +78,8 @@ def vec2ang(vx, vy, vz):
     https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L610
     """
 
-    r = np.sqrt(vx ** 2 + vy ** 2 + vz ** 2)
-    ang = np.empty((2, r.size))
-    ang[0, :] = np.arccos(vz / r)
+    ang = np.empty((2, vx.size))
+    ang[0, :] = np.arctan2(np.sqrt(vx ** 2 + vy ** 2), vz)
     ang[1, :] = np.arctan2(vy, vx)
     return ang.squeeze()
 
