@@ -71,7 +71,13 @@ from .noise import (
     add_noise_to_observations,
 )
 from .scan_map import scan_map, scan_map_in_observations
-from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
+from .coordinates import (
+    DEFAULT_COORDINATE_SYSTEM,
+    DEFAULT_TIME_SCALE,
+    ECL_TO_GAL_ROT_MATRIX,
+    CoordinateSystem,
+)
+
 from .spacecraft import (
     compute_l2_pos_and_vel,
     compute_lissajous_pos_and_vel,
@@ -179,6 +185,8 @@ __all__ = [
     # coordinates.py
     "DEFAULT_COORDINATE_SYSTEM",
     "DEFAULT_TIME_SCALE",
+    "ECL_TO_GAL_ROT_MATRIX",
+    "CoordinateSystem",
     # spacecraft.py
     "compute_l2_pos_and_vel",
     "compute_lissajous_pos_and_vel",
