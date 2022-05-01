@@ -3,7 +3,6 @@
 import litebird_sim as lbs
 import numpy as np
 import healpy as hp
-from astropy.time import Time
 
 
 def test_scan_map():
@@ -14,13 +13,15 @@ def test_scan_map():
     # `scan_map_in_observations` and `make_bin_map`, the second is associated
     # the Observation `obs2` and is built directly filling in the test
     # `tod`, `psi` and `pixind` and then using `make_bin_map`
-    # In the final test `out_map1` is compared with both `out_map2` and the
+    # In the second test `out_map1` is compared with both `out_map2` and the
     # input map. Both simulations use two orthogonal detectors at the boresight
     # and input maps generated with `np.random.normal`.
+    # The final test verifies that scan_map with the option `input_map_in_galactic`
+    # activated correctly handles internaly the coordinate rotation
 
     start_time = 0
     time_span_s = 365 * 24 * 3600
-    nside = 16
+    nside = 256
     sampling_hz = 1
     hwp_radpsec = 4.084_070_449_666_731
 
@@ -36,7 +37,7 @@ def test_scan_map():
     )
 
     spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-        start_time, time_span_s, delta_time_s=7200
+        start_time, time_span_s, delta_time_s=60
     )
 
     instr = lbs.InstrumentInfo(
@@ -62,6 +63,7 @@ def test_scan_map():
     np.random.seed(seed=123_456_789)
     maps = np.random.normal(0, 1, (3, npix))
 
+    # This part tests the ecliptic coordinates
     in_map = {"Boresight_detector_T": maps, "Boresight_detector_B": maps}
 
     (obs1,) = sim.create_observations(detectors=[detT, detB])
@@ -75,7 +77,12 @@ def test_scan_map():
     )
 
     lbs.scan_map_in_observations(
-        obs1, pointings, hwp_radpsec, in_map, fill_psi_and_pixind_in_obs=True
+        obs1,
+        pointings,
+        hwp_radpsec,
+        in_map,
+        input_map_in_galactic=False,
+        fill_psi_and_pixind_in_obs=True,
     )
     out_map1 = lbs.make_bin_map(obs1, nside).T
 
@@ -104,3 +111,32 @@ def test_scan_map():
     )
 
     np.testing.assert_allclose(out_map1, out_map2, rtol=1e-6, atol=1e-6)
+
+    # This part tests the galactic coordinates
+    r = hp.Rotator(coord=["E", "G"])
+    maps = r.rotate_map_alms(maps, use_pixel_weights=False)
+
+    in_map_G = {"Boresight_detector_T": maps, "Boresight_detector_B": maps}
+
+    (obs1,) = sim.create_observations(detectors=[detT, detB])
+
+    pointings = lbs.scanning.get_pointings(
+        obs1,
+        spin2ecliptic_quats=spin2ecliptic_quats,
+        detector_quats=[detT.quat, detB.quat],
+        bore2spin_quat=instr.bore2spin_quat,
+    )
+
+    lbs.scan_map_in_observations(
+        obs1,
+        pointings,
+        hwp_radpsec,
+        in_map_G,
+        input_map_in_galactic=True,
+        fill_psi_and_pixind_in_obs=True,
+    )
+    out_map1 = lbs.make_bin_map(obs1, nside).T
+
+    np.testing.assert_allclose(
+        out_map1, in_map_G["Boresight_detector_T"], rtol=1e-6, atol=1e-6
+    )

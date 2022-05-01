@@ -665,10 +665,10 @@ class Simulation:
         Each observation can hold information about more than one
         detector; the parameters `n_blocks_det` specify how many
         groups of detectors will be created. For instance, if you are
-        simulating 10 detectors and you specify ``nblocks_det=5``,
+        simulating 10 detectors and you specify ``n_blocks_det=5``,
         this means that each observation will handle ``10 / 5 = 2``
         detectors. The default is that *all* the detectors be kept
-        together (``nblocks_det=1``).
+        together (``n_blocks_det=1``).
 
         The parameter `n_blocks_time` specifies the number of time
         splits of the observations. In the case of a 3-month-long

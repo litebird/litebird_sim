@@ -10,6 +10,8 @@ from typing import Union, List
 
 from .observations import Observation
 
+from .coordinates import rotate_coordinates_e2g, CoordinateSystem
+
 
 @njit
 def compute_signal_for_one_sample(T, Q, U, co, si):
@@ -39,6 +41,7 @@ def scan_map(
     input_names,
     start_time_s,
     delta_time_s,
+    input_map_in_galactic,
     pol_angle: Union[np.ndarray, None] = None,
     pixel_ind: Union[np.ndarray, None] = None,
 ):
@@ -51,24 +54,29 @@ def scan_map(
     second.`input_names` is an array containing the keywords that allow to select
     the proper input in `maps` for each detector in the TOD. `start_time_s` and
     `delta_time_s` are respectively the start time of the TOD and the time step
-    between two samples. Optionally it can return the polarization angle `pol_angle`
-    and the pixel index `pixel_ind` in arrays of size N.
+    between two samples. If `input_map_in_galactic` is set to False the input map
+    is assumed in ecliptic coordinates, default galactic. Optionally it can return
+    the polarization angle `pol_angle` and the pixel index `pixel_ind` in arrays
+    of size N.
     """
 
     assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(tod.shape[0]):
 
+        if input_map_in_galactic:
+            curr_pointings = rotate_coordinates_e2g(pointings[detector_idx, :, :])
+        else:
+            curr_pointings = pointings[detector_idx, :, :]
+
         maps_det = maps[input_names[detector_idx]]
         nside = hp.npix2nside(maps_det.shape[1])
 
-        n_samples = len(pointings[detector_idx, :, 0])
+        n_samples = len(curr_pointings[:, 0])
 
-        pixel_ind_det = hp.ang2pix(
-            nside, pointings[detector_idx, :, 0], pointings[detector_idx, :, 1]
-        )
+        pixel_ind_det = hp.ang2pix(nside, curr_pointings[:, 0], curr_pointings[:, 1])
         pol_angle_det = np.mod(
-            pointings[detector_idx, :, 2]
+            curr_pointings[:, 2]
             + 2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec,
             2 * np.pi,
         )
@@ -92,6 +100,7 @@ def scan_map_in_observations(
     pointings,
     hwp_radpsec,
     maps: List,
+    input_map_in_galactic: bool = True,
     fill_psi_and_pixind_in_obs: bool = False,
 ):
     """Scan a map filling time-ordered data
@@ -127,6 +136,11 @@ def scan_map_in_observations(
             cur_obs.psi = np.empty_like(cur_obs.tod)
             cur_obs.pixind = np.empty_like(cur_obs.tod, dtype=np.int32)
 
+            if input_map_in_galactic:
+                cur_obs.psi_and_pixind_coords = CoordinateSystem.Galactic
+            else:
+                cur_obs.psi_and_pixind_coords = CoordinateSystem.Ecliptic
+
             scan_map(
                 tod=cur_obs.tod,
                 pointings=pointings,
@@ -135,6 +149,7 @@ def scan_map_in_observations(
                 input_names=input_names,
                 start_time_s=start_time_s,
                 delta_time_s=delta_time_s,
+                input_map_in_galactic=input_map_in_galactic,
                 pol_angle=cur_obs.psi,
                 pixel_ind=cur_obs.pixind,
             )
@@ -147,4 +162,5 @@ def scan_map_in_observations(
                 input_names=input_names,
                 start_time_s=start_time_s,
                 delta_time_s=delta_time_s,
+                input_map_in_galactic=input_map_in_galactic,
             )

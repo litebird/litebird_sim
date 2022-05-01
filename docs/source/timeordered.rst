@@ -77,7 +77,13 @@ shows:
    in_map = {"Detector": maps}
 
    # Here scan the map and fill tod
-   lbs.scan_map_in_observations(obs, pointings, hwp_radpsec, in_map)
+   lbs.scan_map_in_observations(
+       obs, 
+       pointings, 
+       hwp_radpsec, 
+       in_map,
+       input_map_in_galactic = False,
+       )
    
    for i in range(obs.n_samples):
        # + 0. removes leading minus from negative zero
@@ -104,6 +110,7 @@ the channel or the name of the dectector as keyword. The routines described in
 When set `True` the option `fill_psi_and_pixind_in_obs` fills the polarization
 angle `obs.psi` and the pixel index `obs.pixind` for each sample, allowing to 
 quickly bin the Observations through the function :func:`.make_bin_map`.
+If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`
 
 
 Adding Noise
