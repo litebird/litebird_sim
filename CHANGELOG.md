@@ -22,6 +22,8 @@
 
 -   Create a script that fetches information about the latest release and produce a release announcement [PR#156](https://github.com/litebird/litebird_sim/pull/156)
 
+-   Option for rotating the pointing from ecliptic to galactic coordinates in scan_map [#164](https://github.com/litebird/litebird_sim/pull/164)
+
 # Version 0.4.0
 
 - **Breaking change** Drop support for Python 3.6, enable Python 3.9 [#136](https://github.com/litebird/litebird_sim/pull/136)
@@ -38,7 +40,7 @@
 
 - Make the TOAST destriper more robust when MPI is/isn't present [#106](https://github.com/litebird/litebird_sim/pull/106)
 
-- Option in Mbs for maps in ecliptoc coordinates [#133](https://github.com/litebird/litebird_sim/pull/133)
+- Option in Mbs for maps in ecliptic coordinates [#133](https://github.com/litebird/litebird_sim/pull/133)
 
 - Module for scanning a map and filling TOD [#131](https://github.com/litebird/litebird_sim/pull/131)
 
