@@ -227,7 +227,7 @@ Again, to generate noise with custom parameters, we can either use the low level
    custom_sigma_uk = 1234
    custom_fknee_mhz = 12.34
    custom_alpha = 1.234
-   custom_fmin_hz = 0.0123,
+   custom_fmin_hz = 0.0123
 
    # Option 1, where we call the low lever function directly
    lbs.noise.add_one_over_f_noise(
