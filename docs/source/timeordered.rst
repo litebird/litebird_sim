@@ -218,8 +218,8 @@ Again, to generate noise with custom parameters, we can either use the low level
      net_ukrts=100,
      sampling_rate_hz=10,
      alpha=1,
-     fknee_mhz=10
-     fmin_hz=0.001
+     fknee_mhz=10,
+     fmin_hz=0.001,
    )
 
    obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
