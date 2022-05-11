@@ -891,9 +891,11 @@ def add_hwp_angle(pointing_buffer, start_time_s, delta_time_s, hwp_rad_sec):
     detectors, samples, _ = pointing_buffer.shape
     for det_idx in range(detectors):
         for sample_idx in range(samples):
-            pointing_buffer[det_idx, sample_idx, 2] += (
-                (start_time_s + delta_time_s * sample_idx) * 2 * hwp_rad_sec
+            angle = ((start_time_s + delta_time_s * sample_idx) * 2 * hwp_rad_sec) % (
+                2 * np.pi
             )
+
+            pointing_buffer[det_idx, sample_idx, 2] += angle
 
 
 def get_pointings(
