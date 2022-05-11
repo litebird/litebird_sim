@@ -886,6 +886,16 @@ def get_pointing_buffer_shape(obs):
     return (obs.n_detectors, obs.n_samples, 3)
 
 
+@njit
+def add_hwp_angle(pointing_buffer, start_time_s, delta_time_s, hwp_rad_sec):
+    detectors, samples, _ = pointing_buffer.shape
+    for det_idx in range(detectors):
+        for sample_idx in range(samples):
+            pointing_buffer[det_idx, sample_idx, 2] += (
+                (start_time_s + delta_time_s * sample_idx) * 2 * hwp_rad_sec
+            )
+
+
 def get_pointings(
     obs,
     spin2ecliptic_quats: Spin2EclipticQuaternions,
@@ -895,13 +905,15 @@ def get_pointings(
     dtype_quaternion=np.float64,
     pointing_buffer=None,
     dtype_pointing=np.float32,
+    hwp_rad_sec=0.0,
+    hwp_start_angle_rad=0.0,
 ):
     """Return the time stream of pointings for the detector
 
     Given a :class:`Spin2EclipticQuaternions` and a quaternion
     representing the transformation from the reference frame of a
     detector to the boresight reference frame, compute a set of
-    pointings for the detector that encompass the time span
+    pointings for the detector that encompasses the time span
     covered by this observation (i.e., starting from
     `obs.start_time` and including `obs.n_samples` pointings).
     The parameter `spin2ecliptic_quats` can be easily retrieved by
@@ -922,6 +934,13 @@ def get_pointings(
     :class:`.Instrument`, which has the field ``bore2spin_quat``.
     If all you have is the angle β between the boresight and the
     spin axis, just pass ``quat_rotation_y(β)`` here.
+
+    If `hwp_rad_sec` is not zero, this is the angular speed of the
+    Half-Wave plate in rad/sec. The value ``2 * hwp_rad_sec * t``
+    will be added to each polarization angle. It is assumed that at
+    the time when the simulation starts (as encoded in
+    ``obs.start_time_global``) the angle of the HWP is
+    ``hwp_start_angle_rad``.
 
     The return value is a ``(D x N × 3)`` tensor: the colatitude (in
     radians) is stored in column 0 (e.g., ``result[:, :, 0]``), the
@@ -965,7 +984,19 @@ def get_pointings(
 
     # Compute the pointing direction for each sample
     all_compute_pointing_and_polangle(
-        result_matrix=pointing_buffer, quat_matrix=det2ecliptic_quats
+        result_matrix=pointing_buffer,
+        quat_matrix=det2ecliptic_quats,
     )
+
+    if hwp_rad_sec != 0.0:
+        start_time = obs.start_time - obs.start_time_global
+        if isinstance(start_time, astropy.time.TimeDelta):
+            start_time_s = start_time.to("s").value
+        else:
+            start_time_s = start_time
+
+        add_hwp_angle(
+            pointing_buffer, start_time_s, 1.0 / obs.sampling_rate_hz, hwp_rad_sec
+        )
 
     return pointing_buffer

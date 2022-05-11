@@ -270,6 +270,39 @@ def test_simulation_pointings_mjd(tmp_path):
         assert np.allclose(pointings_and_polangle, reference)
 
 
+def test_simulation_pointings_hwp_mjd(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=Time("2020-01-01T00:00:00"),
+        duration_s=130.0,
+    )
+    fakedet = create_fake_detector()
+
+    sim.create_observations(
+        detectors=[fakedet], num_of_obs_per_detector=2, split_list_over_processes=False
+    )
+
+    sstr = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=10.0, precession_rate_hz=10.0, spin_rate_hz=0.1
+    )
+    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=60.0)
+
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
+
+    for idx, obs in enumerate(sim.observations):
+        pointings_and_polangle = lbs.get_pointings(
+            obs,
+            spin2ecliptic_quats=sim.spin2ecliptic_quats,
+            detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
+            bore2spin_quat=instr.bore2spin_quat,
+            hwp_rad_sec=1.0,
+        )
+
+        filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"
+        reference = np.load(filename, allow_pickle=False)
+        assert np.allclose(pointings_and_polangle, reference)
+
+
 def test_scanning_quaternions(tmp_path):
     sim = lbs.Simulation(
         base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0
