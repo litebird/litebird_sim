@@ -40,12 +40,15 @@ def add_white_noise(data, sigma: float, random=None):
 @njit
 def build_one_over_f_model(ft, freqs, fknee_mhz, fmin_hz, alpha, sigma):
     fknee_hz_alpha = pow(fknee_mhz / 1000, alpha)
-    fmin_hz_alpha = pow(fmin_hz , alpha)
+    fmin_hz_alpha = pow(fmin_hz, alpha)
 
     # Skip the first element, as it is the constant offset
     for i in range(1, len(ft)):
-        f_hz_alpha = pow(abs(freqs[i]),alpha)
-        ft[i] *= np.sqrt((f_hz_alpha + fknee_hz_alpha) / (f_hz_alpha + fmin_hz_alpha))* sigma
+        f_hz_alpha = pow(abs(freqs[i]), alpha)
+        ft[i] *= (
+            np.sqrt((f_hz_alpha + fknee_hz_alpha) / (f_hz_alpha + fmin_hz_alpha))
+            * sigma
+        )
     ft[0] = 0
 
 
@@ -130,7 +133,7 @@ def add_noise(
     implements the ``normal`` method. You should typically use the `random` field
     of a :class:`.Simulation` object for this.
 
-    The parameters `net_ukrts`, `fknee_mhz`, `fmin_hz`, `alpha`, and `scale` can 
+    The parameters `net_ukrts`, `fknee_mhz`, `fmin_hz`, `alpha`, and `scale` can
     either be scalars or arrays; in the latter case, their size must be the same as
     ``tod.shape[0]``, which is the number of detectors in the TOD.
     """
@@ -195,8 +198,8 @@ def add_noise_to_observations(
 
     This class provides an interface to the low-level function :func:`.add_noise`.
     The parameter `obs` can either be one :class:`.Observation` instance or a list
-    of observations, which are typically taken from the field `observations` of a 
-    :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to 
+    of observations, which are typically taken from the field `observations` of a
+    :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to
     pass the noise parameters here, as they are taken from the characteristics of
     the detectors saved in `obs`.
 
