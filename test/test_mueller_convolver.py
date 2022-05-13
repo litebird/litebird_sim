@@ -71,6 +71,7 @@ def test_trivial_mueller_matrix(fct, lkmax, ncomp):
 # I would expect a signal modulated with exp(i*2*alpha), but the result is
 # actually constant. Any insights are welcome!
 
+
 @pmp("lmax", [100])
 def test_polarized(lmax):
     rng = np.random.default_rng(41)
@@ -85,19 +86,19 @@ def test_polarized(lmax):
     # completely dark sky
     slm = random_alm(lmax, lmax, ncomp, rng) * 0
     # add uniform unpolarized emission
-    slm[0,0] = 1
+    slm[0, 0] = 1
     # generate a Gaussian beam using healpy
-    blm = healpy.blm_gauss(1.*np.pi/180., lmax=lmax, pol=True)
+    blm = healpy.blm_gauss(1.0 * np.pi / 180.0, lmax=lmax, pol=True)
 
     ptg = np.empty((nptg, 3))
     ptg[:, 0] = 0.5 * np.pi
-    ptg[:, 1] = 0.
-    ptg[:, 2] = 0.
+    ptg[:, 1] = 0.0
+    ptg[:, 2] = 0.0
     alpha = rng.random(nptg) * 2 * np.pi
 
     # Linear polarizer (see last page of https://www.brown.edu/research/labs/mittleman/sites/brown.edu.research.labs.mittleman/files/uploads/lecture17_0.pdf)
-    mueller = np.zeros((4,4))
-    mueller[:2,:2] = 1
+    mueller = np.zeros((4, 4))
+    mueller[:2, :2] = 1
 
     fullconv = MuellerConvolver(
         lmax,
@@ -114,4 +115,4 @@ def test_polarized(lmax):
 
     # I'm testing for near-constness for now, to detect that I'm not getting the
     # result I expect. This has to improve once we have found the bug.
-    np.testing.assert_array_less(1e-4, np.max(sig)-np.min(sig))
+    np.testing.assert_array_less(1e-4, np.max(sig) - np.min(sig))
