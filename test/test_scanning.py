@@ -5,6 +5,7 @@ from pathlib import Path
 from astropy.time import Time
 import numpy as np
 import litebird_sim as lbs
+from litebird_sim import IdealHWP
 
 
 def test_compute_pointing_and_polangle():
@@ -295,7 +296,7 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
             spin2ecliptic_quats=sim.spin2ecliptic_quats,
             detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
             bore2spin_quat=instr.bore2spin_quat,
-            hwp_rad_sec=1.0,
+            hwp=IdealHWP(hwp_rad_sec=1.0, start_angle_rad=0.0),
         )
 
         filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"

@@ -20,6 +20,10 @@ from .healpix import (
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
 )
+from .hwp import (
+    HWP,
+    IdealHWP,
+)
 from .imo import (
     Imo,
     FormatSpecification,
@@ -126,6 +130,9 @@ __all__ = [
     "FreqChannelInfo",
     "InstrumentInfo",
     "detector_list_from_parameters",
+    # hwp.py
+    "HWP",
+    "IdealHWP",
     # mbs.py
     "Mbs",
     "MbsParameters",
