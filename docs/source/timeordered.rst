@@ -133,7 +133,6 @@ Here is a short example that shows how to add noise:
 
    # Create a detector object
    det = lbs.DetectorInfo(
-     fknee_mhz=1.0,
      net_ukrts=100,
      sampling_rate_hz=10
    )
@@ -219,7 +218,8 @@ Again, to generate noise with custom parameters, we can either use the low level
      net_ukrts=100,
      sampling_rate_hz=10,
      alpha=1,
-     fknee_mhz=10
+     fknee_mhz=10,
+     fmin_hz=0.001,
    )
 
    obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
@@ -227,11 +227,13 @@ Again, to generate noise with custom parameters, we can either use the low level
    custom_sigma_uk = 1234
    custom_fknee_mhz = 12.34
    custom_alpha = 1.234
+   custom_fmin_hz = 0.0123
 
    # Option 1, where we call the low lever function directly
    lbs.noise.add_one_over_f_noise(
        obs[0].tod[0],
        custom_fknee_mhz,
+       custom_fmin_hz,
        custom_alpha,
        custom_sigma_uk,
        obs[0].sampling_rate_hz,
@@ -239,6 +241,7 @@ Again, to generate noise with custom parameters, we can either use the low level
 
    # Option 2, where we change the values in the observation object
    obs[0].fknee_mhz[0] = custom_fknee_mhz
+   obs[0].fmin_hz[0] = custom_fmin_hz
    obs[0].alpha[0] = custom_alpha
    obs[0].net_ukrts[0] = custom_sigma_uk / np.sqrt(obs[0].sampling_rate_hz)
 
