@@ -51,14 +51,19 @@ def _add_ideal_hwp_angle(
 
 
 class IdealHWP(HWP):
-    """
-    A ideal HWP that spins regularly
+    r"""
+    A ideal half-wave plate that spins regularly
 
     This class represents a perfect HWP that spins with constant angular velocity.
     The constructor accepts the angular speed, expressed in rad/sec, and the
     start angle (in radians). The latter should be referred to the first time
     sample in the simulation, i.e., the earliest sample simulated in any of the
     MPI processes used for the simulation.
+
+    Given a polarization angle :math:`\psi`, this class turns it into
+    :math:`\psi + \psi_\text{hwp,0} + 2 \omega_\text{hwp} t`, where
+    :math:`\psi_\text{hwp,0}` is the start angle specified in the constructor
+    and :math:`\omega_\text{hwp}` is the angular speed of the HWP.
     """
 
     def __init__(self, hwp_rad_sec: float, start_angle_rad=0.0):
