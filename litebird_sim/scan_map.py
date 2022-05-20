@@ -108,7 +108,8 @@ def scan_map_in_observations(
     This is a wrapper around the :func:`.scan_map` function that applies to the TOD
     stored in `obs` and the pointings stored in `pointings`. The two types can either
     bed a :class:`.Observation` instance and a NumPy matrix, or a list
-    of observations and a list of NumPy matrices.
+    of observations and a list of NumPy matrices; in the latter case, they must have
+    the same number of elements.
     """
 
     if isinstance(obs, Observation):
@@ -119,6 +120,14 @@ def scan_map_in_observations(
         obs_list = [obs]
         ptg_list = [pointings]
     else:
+        assert isinstance(pointings, list), (
+            "When you pass a list of observations to scan_map_in_observations, "
+            + "you must do the same for `pointings`"
+        )
+        assert len(obs) == len(pointings), (
+            f"The list of observations has {len(obs)} elements, but "
+            + f"the list of pointings has {len(pointings)} elements"
+        )
         obs_list = obs
         ptg_list = pointings
 
