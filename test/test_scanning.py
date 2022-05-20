@@ -296,7 +296,7 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
             spin2ecliptic_quats=sim.spin2ecliptic_quats,
             detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
             bore2spin_quat=instr.bore2spin_quat,
-            hwp=IdealHWP(ang_speed_rad_sec=1.0, start_angle_rad=0.0),
+            hwp=IdealHWP(ang_speed_radpsec=1.0, start_angle_rad=0.0),
         )
 
         filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"

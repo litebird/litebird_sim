@@ -37,14 +37,14 @@ class HWP:
 
 @njit
 def _add_ideal_hwp_angle(
-    pointing_buffer, start_time_s, delta_time_s, start_angle_rad, ang_speed_rad_sec
+    pointing_buffer, start_time_s, delta_time_s, start_angle_rad, ang_speed_radpsec
 ):
     detectors, samples, _ = pointing_buffer.shape
     for det_idx in range(detectors):
         for sample_idx in range(samples):
             angle = (
                 start_angle_rad
-                + (start_time_s + delta_time_s * sample_idx) * 2 * ang_speed_rad_sec
+                + (start_time_s + delta_time_s * sample_idx) * 2 * ang_speed_radpsec
             ) % (2 * np.pi)
 
             pointing_buffer[det_idx, sample_idx, 2] += angle
@@ -66,8 +66,8 @@ class IdealHWP(HWP):
     and :math:`\omega_\text{hwp}` is the angular speed of the HWP.
     """
 
-    def __init__(self, ang_speed_rad_sec: float, start_angle_rad=0.0):
-        self.ang_speed_rad_sec = ang_speed_rad_sec
+    def __init__(self, ang_speed_radpsec: float, start_angle_rad=0.0):
+        self.ang_speed_radpsec = ang_speed_radpsec
         self.start_angle_rad = start_angle_rad
 
     def add_hwp_angle(self, pointing_buffer, start_time_s: float, delta_time_s: float):
@@ -76,5 +76,5 @@ class IdealHWP(HWP):
             start_time_s=start_time_s,
             delta_time_s=delta_time_s,
             start_angle_rad=self.start_angle_rad,
-            ang_speed_rad_sec=self.ang_speed_rad_sec,
+            ang_speed_radpsec=self.ang_speed_radpsec,
         )
