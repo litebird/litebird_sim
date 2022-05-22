@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, List
 from uuid import UUID
 
 from astropy.coordinates import ICRS, get_body_barycentric
@@ -918,6 +918,11 @@ def get_pointings(
        direction, you can pass the value ``np.array([[0., 0., 0.,
        1.]])``, which represents the null rotation.
 
+    If you passed an array of :class:`.DetectorInfo` objects to the
+    method :meth:`.Simulation.create_observations` through the
+    parameter `detectors`, you can pass ``None`` and it will use the
+    detector quaternions from the same :class:`.DetectorInfo` objects.
+
     The parameter `bore2spin_quat` is calculated through the class
     :class:`.Instrument`, which has the field ``bore2spin_quat``.
     If all you have is the angle β between the boresight and the
@@ -946,6 +951,14 @@ def get_pointings(
     `pointing_buffer`.
 
     """
+
+    if detector_quats is None:
+        assert "quat" in dir(obs), (
+            "No detector quaternions found, have you passed "
+            + '"detectors=" to Simulation.create_observations?'
+        )
+        detector_quats = obs.quat
+
     det2ecliptic_quats = get_det2ecl_quaternions(
         obs,
         spin2ecliptic_quats,

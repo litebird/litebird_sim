@@ -6,7 +6,7 @@ import healpy as hp
 
 from astropy.time import Time, TimeDelta
 
-from typing import Union, List
+from typing import Union, List, Dict
 
 from .observations import Observation
 
@@ -37,7 +37,7 @@ def scan_map(
     tod,
     pointings,
     hwp_radpsec,
-    maps,
+    maps: Dict[str, np.ndarray],
     input_names,
     start_time_s,
     delta_time_s,
@@ -97,25 +97,41 @@ def scan_map(
 
 def scan_map_in_observations(
     obs: Union[Observation, List[Observation]],
-    pointings,
+    pointings: Union[np.ndarray, List[np.ndarray]],
     hwp_radpsec,
-    maps: List,
+    maps: Dict[str, np.ndarray],
     input_map_in_galactic: bool = True,
     fill_psi_and_pixind_in_obs: bool = False,
 ):
     """Scan a map filling time-ordered data
 
     This is a wrapper around the :func:`.scan_map` function that applies to the TOD
-    stored in `obs`, which can either be one :class:`.Observation` instance or a list
-    of observations.
+    stored in `obs` and the pointings stored in `pointings`. The two types can either
+    bed a :class:`.Observation` instance and a NumPy matrix, or a list
+    of observations and a list of NumPy matrices; in the latter case, they must have
+    the same number of elements.
     """
 
     if isinstance(obs, Observation):
+        assert isinstance(pointings, np.ndarray), (
+            "You must pass a list of observations *and* a list "
+            + "of pointing matrices to scan_map_in_observations"
+        )
         obs_list = [obs]
+        ptg_list = [pointings]
     else:
+        assert isinstance(pointings, list), (
+            "When you pass a list of observations to scan_map_in_observations, "
+            + "you must do the same for `pointings`"
+        )
+        assert len(obs) == len(pointings), (
+            f"The list of observations has {len(obs)} elements, but "
+            + f"the list of pointings has {len(pointings)} elements"
+        )
         obs_list = obs
+        ptg_list = pointings
 
-    for cur_obs in obs_list:
+    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
 
         if cur_obs.name[0] in maps:
             input_names = cur_obs.name
@@ -143,7 +159,7 @@ def scan_map_in_observations(
 
             scan_map(
                 tod=cur_obs.tod,
-                pointings=pointings,
+                pointings=cur_ptg,
                 hwp_radpsec=hwp_radpsec,
                 maps=maps,
                 input_names=input_names,
@@ -156,7 +172,7 @@ def scan_map_in_observations(
         else:
             scan_map(
                 tod=cur_obs.tod,
-                pointings=pointings,
+                pointings=cur_ptg,
                 hwp_radpsec=hwp_radpsec,
                 maps=maps,
                 input_names=input_names,

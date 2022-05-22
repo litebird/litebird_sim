@@ -1,4 +1,5 @@
 # -*- encoding: utf-8 -*-
+import astropy
 
 import litebird_sim as lbs
 import numpy as np
@@ -139,4 +140,69 @@ def test_scan_map():
 
     np.testing.assert_allclose(
         out_map1, in_map_G["Boresight_detector_T"], rtol=1e-6, atol=1e-6
+    )
+
+
+def test_scanning_list_of_obs(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=astropy.time.Time("2020-01-01T00:00:00"),
+        duration_s=100.0,
+    )
+    dets = [
+        lbs.DetectorInfo(name="A", sampling_rate_hz=1),
+        lbs.DetectorInfo(name="B", sampling_rate_hz=1),
+    ]
+
+    sim.create_observations(
+        detectors=dets,
+        num_of_obs_per_detector=2,
+    )
+
+    scanning = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=0.785_398_163_397_448_3,
+        precession_rate_hz=8.664_850_513_998_931e-05,
+        spin_rate_hz=0.000_833_333_333_333_333_4,
+        start_time=sim.start_time,
+    )
+
+    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+        sim.start_time,
+        sim.duration_s,
+        delta_time_s=60,
+    )
+
+    instr = lbs.InstrumentInfo(
+        boresight_rotangle_rad=0.0,
+        spin_boresight_angle_rad=0.872_664_625_997_164_8,
+        spin_rotangle_rad=3.141_592_653_589_793,
+    )
+
+    pointings = []
+    for cur_obs in sim.observations:
+        pointings.append(
+            lbs.scanning.get_pointings(
+                cur_obs,
+                spin2ecliptic_quats=spin2ecliptic_quats,
+                detector_quats=None,
+                bore2spin_quat=instr.bore2spin_quat,
+            )
+        )
+
+    np.random.seed(seed=123_456_789)
+    base_map = np.zeros((3, hp.nside2npix(128)))
+
+    # This part tests the ecliptic coordinates
+    maps = {"A": base_map, "B": base_map}
+
+    # Just call the function and check that it does not raise any of the
+    # "assert" that are placed at the beginning to check the consistency
+    # of observations and pointings
+    lbs.scan_map_in_observations(
+        sim.observations,
+        pointings,
+        0,
+        maps,
+        input_map_in_galactic=True,
+        fill_psi_and_pixind_in_obs=True,
     )
