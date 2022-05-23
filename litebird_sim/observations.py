@@ -7,18 +7,12 @@ import numpy as np
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly
 
-# NOTE: When the deprecated pointing methods will be removed, the following
-# imports should be removed as well
 import logging
 from .scanning import (
     Spin2EclipticQuaternions,
     get_quaternion_buffer_shape,
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
-)
-from .pointings import (
-    get_pointing_buffer_shape,
-    get_pointings,
 )
 
 
@@ -654,41 +648,3 @@ class Observation:
             quaternion_buffer,
             dtype,
         )
-
-    def get_pointing_buffer_shape(self):
-        """Deprecated: see scanning.get_pointing_buffer_shape"""
-        logging.warn(
-            "Observation.get_pointing_buffer_shape is deprecated and will be "
-            "removed soon, use scanning.get_pointing_buffer_shape instead"
-        )
-
-        return get_pointing_buffer_shape(self)
-
-    def get_pointings(
-        self,
-        spin2ecliptic_quats: Spin2EclipticQuaternions,
-        detector_quats,
-        bore2spin_quat,
-        quaternion_buffer=None,
-        dtype_quaternion=np.float64,
-        pointing_buffer=None,
-        dtype_pointing=np.float32,
-    ):
-        """Deprecated: see scanning.get_pointings"""
-        logging.warn(
-            "Observation.get_pointings is deprecated and will be "
-            "removed soon, use scanning.get_pointings instead"
-        )
-
-        return get_pointings(
-            self,
-            spin2ecliptic_quats,
-            detector_quats,
-            bore2spin_quat,
-            quaternion_buffer,
-            dtype_quaternion,
-            pointing_buffer,
-            dtype_pointing,
-        )
-
-    # <<< Remove ASAP
