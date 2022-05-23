@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import astropy.time
 import numpy as np
 from numba import njit
 

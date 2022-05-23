@@ -37,6 +37,11 @@ from .hwp_sys.hwp_sys import HwpSys
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
+from .pointings import (
+    apply_hwp_to_obs,
+    get_pointing_buffer_shape,
+    get_pointings,
+)
 from .quaternions import (
     quat_rotation_x,
     quat_rotation_y,
@@ -63,7 +68,6 @@ from .scanning import (
     SpinningScanningStrategy,
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
-    get_pointings,
 )
 from .mapping import make_bin_map
 from .destriper import DestriperParameters, DestriperResult, destripe
@@ -168,6 +172,9 @@ __all__ = [
     "SpinningScanningStrategy",
     "get_det2ecl_quaternions",
     "get_ecl2det_quaternions",
+    # pointings.py
+    "apply_hwp_to_obs",
+    "get_pointing_buffer_shape",
     "get_pointings",
     # mapping.py
     "make_bin_map",

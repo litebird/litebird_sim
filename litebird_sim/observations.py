@@ -14,8 +14,10 @@ from .scanning import (
     Spin2EclipticQuaternions,
     get_quaternion_buffer_shape,
     get_det2ecl_quaternions,
-    get_pointing_buffer_shape,
     get_ecl2det_quaternions,
+)
+from .pointings import (
+    get_pointing_buffer_shape,
     get_pointings,
 )
 
