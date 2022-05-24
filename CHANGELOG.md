@@ -12,6 +12,8 @@
 
 -   Make `scan_map_in_observations` and `add_dipole_to_observations` accept list of pointing matrices [#171](https://github.com/litebird/litebird_sim/pull/171)
 
+-   Add a high-pass filter for the noise [#169](https://github.com/litebird/litebird_sim/pull/169)
+
 -   Upgrade NumPy from 1.20 to 1.21, Numba from 0.54 to 0.55, Rich from 6.2 to 11.0 [#152](https://github.com/litebird/litebird_sim/pull/152)
 
 -   Add the ability to create Singularity container from branches different than `master` [#163](https://github.com/litebird/litebird_sim/pull/163)
