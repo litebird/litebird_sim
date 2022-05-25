@@ -30,7 +30,11 @@ def test_accumulate_map_and_info():
     res_info[:, 2, 1] = np.bincount(pix, tod * np.sin(2 * psi))
 
     info = np.zeros((2, 3, 3))
-    mapping._accumulate_map_and_info(tod, pix, psi, info)
+    weights = np.ones(1)
+    tod = np.expand_dims(tod, axis=0)
+    psi = np.expand_dims(psi, axis=0)
+    pix = np.expand_dims(pix, axis=0)
+    mapping._accumulate_map_and_info(tod, pix, psi, weights, info)
 
     assert np.allclose(res_info, info)
 
@@ -55,7 +59,7 @@ def test_make_bin_map_api_simulation(tmp_path):
         )
     )
     instr = lbs.InstrumentInfo(name="core", spin_boresight_angle_rad=np.radians(65))
-    det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
+    det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10, net_ukrts=1.0)
     obss = sim.create_observations(detectors=[det])
     pointings = lbs.get_pointings(
         obss[0],

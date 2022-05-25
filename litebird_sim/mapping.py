@@ -85,8 +85,12 @@ def make_bin_map(
         obs_list = obss
 
     for obs in obs_list:
-        weights = obs.sampling_rate_hz * obs.net_ukrts ** 2
-        _accumulate_map_and_info(obs.tod, obs.pixind, obs.psi, weights, info)
+        try:
+            weights = obs.sampling_rate_shz * obs.net_ukrts ** 2
+        except:
+            weights = np.ones(obs.n_detectors)
+
+            _accumulate_map_and_info(obs.tod, obs.pixind, obs.psi, weights, info)
 
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
@@ -119,3 +123,5 @@ def make_bin_map(
             covmat = np.full_like(info, hp.UNSEEN)
             covmat[mask] = np.linalg.inv(info[mask])
             return res, covmat
+    else:
+        return res
