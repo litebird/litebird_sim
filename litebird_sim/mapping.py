@@ -69,7 +69,9 @@ def make_bin_map(
             If the observations are distributed over some communicator(s), they
             must share the same group processes.
         nside (int): HEALPix nside of the output map
-    Returs:
+        do_covariance (bool): optional, if true it returns also covariance
+
+    Returns:
         array: T, Q, U maps (stacked). The shape is `(3, 12 * nside * nside)`.
             All the detectors of all the observations contribute to the map.
             If the observations are distributed over some communicator(s), all
