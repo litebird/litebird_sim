@@ -21,7 +21,6 @@ def _accumulate_map_and_info(tod, pix, psi, weights, info):
     assert tod.shape == pix.shape == psi.shape
 
     ndets = tod.shape[0]
-    nsamples = tod.shape[1]
 
     for idet in range(ndets):
         for d, p, a in zip(tod[idet], pix[idet], psi[idet]):
@@ -74,7 +73,9 @@ def make_bin_map(
         array: T, Q, U maps (stacked). The shape is `(3, 12 * nside * nside)`.
             All the detectors of all the observations contribute to the map.
             If the observations are distributed over some communicator(s), all
-            the processes (contribute and) hold a copy of the map
+            the processes (contribute and) hold a copy of the map.
+            Optionally can return the covariance matrix in an array with shape
+            `(12 * nside * nside, 3, 3)`
     """
     n_pix = hp.nside2npix(nside)
     info = np.zeros((n_pix, 3, 3))
@@ -87,7 +88,7 @@ def make_bin_map(
     for obs in obs_list:
         try:
             weights = obs.sampling_rate_shz * obs.net_ukrts ** 2
-        except:
+        except AttributeError:
             weights = np.ones(obs.n_detectors)
 
             _accumulate_map_and_info(obs.tod, obs.pixind, obs.psi, weights, info)
