@@ -74,7 +74,7 @@ def make_bin_map(
             All the detectors of all the observations contribute to the map.
             If the observations are distributed over some communicator(s), all
             the processes (contribute and) hold a copy of the map.
-            Optionally can return the covariance matrix in an array with shape
+            Optionally can return the covariance matrix in an array of shape
             `(12 * nside * nside, 3, 3)`
     """
     n_pix = hp.nside2npix(nside)
@@ -119,10 +119,10 @@ def make_bin_map(
 
     if docovariance:
         try:
-            return res, np.linalg.inv(info)
+            return res.T, np.linalg.inv(info)
         except np.linalg.LinAlgError:
             covmat = np.full_like(info, hp.UNSEEN)
             covmat[mask] = np.linalg.inv(info[mask])
-            return res, covmat
+            return res.T, covmat
     else:
-        return res
+        return res.T

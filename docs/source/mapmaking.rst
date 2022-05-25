@@ -69,7 +69,7 @@ detectors::
         ],
         dtype_tod=np.float64,  # Needed if you use the TOAST destriper
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
-        distribute=False,
+        split_list_over_processes=False,
     )
 
     # Generate some white noise
@@ -84,13 +84,15 @@ Binner
 
 Once you have generated a set of observations, either on a single
 process or distributed over several mpi processes, you can create a 
-simple binned map with the :func:`.make_bin_map`. This function
+simple binned map with the function :func:`.make_bin_map`. This function
 takes: a single (or a list) of :class:`.Observations`, the Healpix
 resolution of the output map (``nside``) and produces a coadded map.
 It assumes white noise and each detector gets weighted by 
 :math:`1 / NET^2`. Optionally, if the parameter docovariance is True,
 it can output the covariance matrix in an array of shape 
-`(12 * nside * nside, 3, 3)`.
+`(12 * nside * nside, 3, 3)`. This is how should be called::
+
+    map, cov = lbs.make_bin_map(obs, 128, docovariance=True)
 
 
 Destriper
