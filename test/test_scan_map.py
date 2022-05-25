@@ -84,7 +84,7 @@ def test_scan_map():
         input_map_in_galactic=False,
         fill_psi_and_pixind_in_obs=True,
     )
-    out_map1 = lbs.make_bin_map(obs1, nside).T
+    out_map1 = lbs.make_bin_map(obs1, nside)
 
     times = obs2.get_times()
     obs2.pixind = np.empty(obs2.tod.shape, dtype=np.int32)
@@ -104,7 +104,7 @@ def test_scan_map():
             + np.sin(2 * obs2.psi[idet, :]) * maps[2, obs2.pixind[idet, :]]
         )
 
-    out_map2 = lbs.make_bin_map(obs2, nside).T
+    out_map2 = lbs.make_bin_map(obs2, nside)
 
     np.testing.assert_allclose(
         out_map1, in_map["Boresight_detector_T"], rtol=1e-6, atol=1e-6
@@ -135,7 +135,7 @@ def test_scan_map():
         input_map_in_galactic=True,
         fill_psi_and_pixind_in_obs=True,
     )
-    out_map1 = lbs.make_bin_map(obs1, nside).T
+    out_map1 = lbs.make_bin_map(obs1, nside)
 
     np.testing.assert_allclose(
         out_map1, in_map_G["Boresight_detector_T"], rtol=1e-6, atol=1e-6

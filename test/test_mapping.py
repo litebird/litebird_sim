@@ -108,9 +108,9 @@ def test_make_bin_map_basic_mpi():
         obs.psi = psi.reshape(2, 5)
 
     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
-    res = mapping.make_bin_map([obs], 1)[: len(res_map)]
+    res = mapping.make_bin_map([obs], 1).T[: len(res_map)]
     assert np.allclose(res, res_map)
 
     obs.set_n_blocks(n_blocks_time=1, n_blocks_det=obs.comm.size)
-    res = mapping.make_bin_map([obs], 1)[: len(res_map)]
+    res = mapping.make_bin_map([obs], 1).T[: len(res_map)]
     assert np.allclose(res, res_map)

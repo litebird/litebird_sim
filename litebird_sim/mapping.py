@@ -50,7 +50,7 @@ def _extract_map_and_fill_info(info):
 
 
 def make_bin_map(
-    obss: Union[Observation, List[Observation]], nside, docovariance=False
+    obss: Union[Observation, List[Observation]], nside, do_covariance=False
 ):
     """Bin Map-maker
 
@@ -117,7 +117,7 @@ def make_bin_map(
         mask = cond < COND_THRESHOLD
         res[mask] = np.linalg.solve(info[mask], rhs[mask])
 
-    if docovariance:
+    if do_covariance:
         try:
             return res.T, np.linalg.inv(info)
         except np.linalg.LinAlgError:

@@ -88,11 +88,11 @@ simple binned map with the function :func:`.make_bin_map`. This function
 takes: a single (or a list) of :class:`.Observations`, the Healpix
 resolution of the output map (``nside``) and produces a coadded map.
 It assumes white noise and each detector gets weighted by 
-:math:`1 / NET^2`. Optionally, if the parameter docovariance is True,
+:math:`1 / NET^2`. Optionally, if the parameter do_covariance is True,
 it can output the covariance matrix in an array of shape 
 `(12 * nside * nside, 3, 3)`. This is how should be called::
 
-    map, cov = lbs.make_bin_map(obs, 128, docovariance=True)
+    map, cov = lbs.make_bin_map(obs, 128, do_covariance=True)
 
 
 Destriper
