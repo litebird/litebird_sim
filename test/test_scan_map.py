@@ -69,7 +69,7 @@ def test_scan_map():
     (obs1,) = sim.create_observations(detectors=[detT, detB])
     (obs2,) = sim.create_observations(detectors=[detT, detB])
 
-    pointings = lbs.scanning.get_pointings(
+    pointings = lbs.get_pointings(
         obs1,
         spin2ecliptic_quats=spin2ecliptic_quats,
         detector_quats=[detT.quat, detB.quat],
@@ -120,7 +120,7 @@ def test_scan_map():
 
     (obs1,) = sim.create_observations(detectors=[detT, detB])
 
-    pointings = lbs.scanning.get_pointings(
+    pointings = lbs.get_pointings(
         obs1,
         spin2ecliptic_quats=spin2ecliptic_quats,
         detector_quats=[detT.quat, detB.quat],

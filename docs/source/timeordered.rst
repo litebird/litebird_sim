@@ -64,7 +64,7 @@ shows:
    (obs,) = sim.create_observations(detectors=[det])
    
    # Compute the pointing
-   pointings = lbs.scanning.get_pointings(
+   pointings = lbs.get_pointings(
        obs,
        spin2ecliptic_quats=spin2ecliptic_quats,
        detector_quats=[det.quat],

@@ -87,7 +87,7 @@ def __write_complex_observation(tmp_path, use_mjd: bool):
     obs = sim.observations[0]
     obs.tod = np.random.random(obs.tod.shape)
 
-    obs.pointings = lbs.scanning.get_pointings(
+    obs.pointings = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=spin2ecliptic_quats,
         detector_quats=[det.quat],

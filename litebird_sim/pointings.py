@@ -5,10 +5,14 @@ from typing import Optional
 import numpy as np
 import astropy.time
 
-from litebird_sim import (
+from .observations import (
     Observation,
     Spin2EclipticQuaternions,
-    HWP,
+)
+
+from .hwp import HWP
+
+from .scanning import (
     get_det2ecl_quaternions,
     all_compute_pointing_and_polangle,
 )
