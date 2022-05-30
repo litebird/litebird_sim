@@ -60,6 +60,7 @@ def get_pointings(
     pointing_buffer=None,
     dtype_pointing=np.float32,
     hwp: Optional[HWP] = None,
+    store_pointings_in_obs=True,
 ):
     """Return the time stream of pointings for the detector
 
@@ -139,5 +140,9 @@ def get_pointings(
 
     if hwp:
         apply_hwp_to_obs(obs=obs, hwp=hwp, pointing_matrix=pointing_buffer)
+
+    if store_pointings_in_obs:
+        obs.pointings = pointing_buffer[:, :, 0:2]
+        obs.psi = pointing_buffer[:, :, 2]
 
     return pointing_buffer
