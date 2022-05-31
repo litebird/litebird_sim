@@ -17,6 +17,8 @@ from .scanning import (
     all_compute_pointing_and_polangle,
 )
 
+from .coordinates import CoordinateSystem
+
 
 def apply_hwp_to_obs(obs, hwp: HWP, pointing_matrix):
     """Modify a pointing matrix to consider the effect of a HWP
@@ -157,5 +159,6 @@ def get_pointings(
     if store_pointings_in_obs:
         obs.pointings = pointing_buffer[:, :, 0:2]
         obs.psi = pointing_buffer[:, :, 2]
+        obs.pointing_coords = CoordinateSystem.Ecliptic
 
     return pointing_buffer

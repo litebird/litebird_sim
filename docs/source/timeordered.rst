@@ -69,6 +69,7 @@ shows:
        spin2ecliptic_quats=spin2ecliptic_quats,
        detector_quats=[det.quat],
        bore2spin_quat=instr.bore2spin_quat,
+       hwp=lbs.hwp.IdealHWP(hwp_radpsec),
    )
    
    # Create a map to scan
@@ -79,9 +80,8 @@ shows:
    # Here scan the map and fill tod
    lbs.scan_map_in_observations(
        obs, 
-       pointings, 
-       hwp_radpsec, 
        in_map,
+       pointings = pointings, 
        input_map_in_galactic = False,
        )
    
@@ -107,9 +107,10 @@ shows:
 The input maps to scan must be included in a dictionary with either the name of
 the channel or the name of the dectector as keyword. The routines described in 
 :ref:`Mbs` already provied the inputs in the correct format. 
-When set `True` the option `fill_psi_and_pixind_in_obs` fills the polarization
-angle `obs.psi` and the pixel index `obs.pixind` for each sample, allowing to 
-quickly bin the Observations through the function :func:`.make_bin_map`.
+The pointing information can be included in the observation or passed through 
+`pointings`. If both `obs` and `pointings` are provided, they must be coherent,
+so either a single Observation and a single numpy array, or both a list of 
+Observations and numpy arrays.
 If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`
 
 

@@ -60,8 +60,12 @@ def test_coordinates():
         pointings[0, :, 0], pointings[0, :, 1]
     )
 
-    pointings_gal_lbs = lbs.coordinates.rotate_coordinates_e2g(pointings[0])
+    pointings_gal_lbs, psi_gal_lbs = lbs.coordinates.rotate_coordinates_e2g(pointings[0,:,0:2],pointings[0,:,2])
 
     np.testing.assert_allclose(
-        pointings_gal_hp, pointings_gal_lbs, rtol=1e-6, atol=1e-6
+        pointings_gal_hp[:,0:2], pointings_gal_lbs, rtol=1e-6, atol=1e-6
+    )
+
+    np.testing.assert_allclose(
+        pointings_gal_hp[:,2], psi_gal_lbs, rtol=1e-6, atol=1e-6
     )

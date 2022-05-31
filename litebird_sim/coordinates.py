@@ -84,20 +84,27 @@ def vec2ang(vx, vy, vz):
     return ang.squeeze()
 
 
-def rotate_coordinates_e2g(pointings_elc):
+def rotate_coordinates_e2g(pointings_ecl, pol_angle_ecl=None):
     """Rotate the angles theta,phi and psi from ecliptic to galactic coordinates
 
     Parameters
     ----------
-    pointings_elc : array
-      ``(N × 3)`` array containing the colatitude, the longitude and the polarization
-      angle (in radians) in ecliptic coordinates
+    pointings_ecl : array
+      ``(N × 2)`` array containing the colatitude and the longitude in ecliptic
+      coordinates
+
+    pol_angle_ecl : array
+      ``(N)`` polarization angle (in radians) in ecliptic coordinates, otional
 
     Returns
     -------
     pointings_gal : array
-      ``(N × 3)`` array containing the colatitude, the longitude and the polarization
-      angle (in radians) in galactic coordinates
+      ``(N × 2)`` array containing the colatitude and the longitude in galactic
+      coordinates
+
+    pol_angle_gal: array
+      ``(N)`` polarization angle (in radians) in galactic coordinates, returned
+      if pol_angle_ecl is passed
 
     See Also
     --------
@@ -106,15 +113,24 @@ def rotate_coordinates_e2g(pointings_elc):
     https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L357
     """
 
-    pointings_gal = np.empty_like(pointings_elc)
+    pointings_gal = np.empty_like(pointings_ecl)
+
     vec = np.tensordot(
         ECL_TO_GAL_ROT_MATRIX,
-        ang2vec(pointings_elc[:, 0], pointings_elc[:, 1]),
+        ang2vec(pointings_ecl[:, 0], pointings_ecl[:, 1]),
         axes=(1, 0),
     )
     north_pole = np.tensordot(ECL_TO_GAL_ROT_MATRIX, [0.0, 0.0, 1.0], axes=(1, 0))
-    sinalpha = north_pole[0] * vec[1] - north_pole[1] * vec[0]
-    cosalpha = north_pole[2] - vec[2] * np.dot(north_pole, vec)
     pointings_gal[:, 0], pointings_gal[:, 1] = vec2ang(vec[0], vec[1], vec[2])
-    pointings_gal[:, 2] = pointings_elc[:, 2] + np.arctan2(sinalpha, cosalpha)
-    return pointings_gal
+
+    if type(pol_angle_ecl) is np.ndarray:
+        pol_angle_gal = np.empty_like(pol_angle_ecl)
+
+        sinalpha = north_pole[0] * vec[1] - north_pole[1] * vec[0]
+        cosalpha = north_pole[2] - vec[2] * np.dot(north_pole, vec)
+        pol_angle_gal = pol_angle_ecl + np.arctan2(sinalpha, cosalpha)
+
+        return pointings_gal, pol_angle_gal
+
+    else:
+        return pointings_gal
