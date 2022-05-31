@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from abc import ABC, abstractmethod
-from typing import Union, Optional
+from typing import Union, Optional, List
 from uuid import UUID
 
 from astropy.coordinates import ICRS, get_body_barycentric

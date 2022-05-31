@@ -40,7 +40,7 @@ detectors::
     import litebird_sim as lbs
     
     sim = lbs.Simulation(
-        base_path=tmp_path / "destriper_output",
+        base_path="destriper_output",
         start_time=0,
         duration_s=86400.0,
     )
@@ -69,7 +69,7 @@ detectors::
         ],
         dtype_tod=np.float64,  # Needed if you use the TOAST destriper
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
-        distribute=False,
+        split_list_over_processes=False,
     )
 
     # Generate some white noise
