@@ -229,7 +229,7 @@ def test_dipole_list_of_obs(tmp_path):
     pointings = []
     for cur_obs in sim.observations:
         pointings.append(
-            lbs.scanning.get_pointings(
+            lbs.get_pointings(
                 cur_obs,
                 spin2ecliptic_quats=spin2ecliptic_quats,
                 detector_quats=None,

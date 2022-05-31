@@ -11,7 +11,7 @@ class HWP:
 
     Being an abstract class, you should never instantiate it. It is used
     to signal the type of parameters to some functions (e.g.,
-    :func:`.scanning.get_pointings`).
+    :func:`.get_pointings`).
 
     If you need to use a HWP object, you should better use derived
     classes like :class:`.IdealHWP`.
