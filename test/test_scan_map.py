@@ -75,15 +75,14 @@ def test_scan_map():
         spin2ecliptic_quats=spin2ecliptic_quats,
         detector_quats=[detT.quat, detB.quat],
         bore2spin_quat=instr.bore2spin_quat,
+        hwp=lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec),
     )
 
     lbs.scan_map_in_observations(
-        obs1,
-        pointings,
-        hwp_radpsec,
-        in_map,
+        obs=obs1,
+        pointings=pointings,
+        maps=in_map,
         input_map_in_galactic=False,
-        fill_psi_and_pixind_in_obs=True,
     )
     out_map1 = lbs.make_bin_map(obs1, nside).T
 
@@ -199,10 +198,8 @@ def test_scanning_list_of_obs(tmp_path):
     # "assert" that are placed at the beginning to check the consistency
     # of observations and pointings
     lbs.scan_map_in_observations(
-        sim.observations,
-        pointings,
-        0,
-        maps,
+        obs=sim.observations,
+        pointings=pointings,
+        maps=maps,
         input_map_in_galactic=True,
-        fill_psi_and_pixind_in_obs=True,
     )
