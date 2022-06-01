@@ -68,11 +68,14 @@ def scan_map(
             curr_pointings_det = pointings[detector_idx, :, :]
             curr_pol_angle_det = pol_angle[detector_idx, :]
 
-        maps_det = maps[input_names[detector_idx]]
+        if input_names is None:
+            maps_det = maps
+        else:
+            maps_det = maps[input_names[detector_idx]]
+
         nside = npix_to_nside(maps_det.shape[1])
 
         HB = Healpix_Base(nside, "RING")
-
         pixel_ind_det = HB.ang2pix(curr_pointings_det.astype("float64"))
 
         scan_map_for_one_detector(
@@ -131,10 +134,22 @@ def scan_map_in_observations(
 
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
 
-        if cur_obs.name[0] in maps:
-            input_names = cur_obs.name
+        if type(maps) is dict:
+            if all(item in maps.keys() for item in cur_obs.name):
+                input_names = cur_obs.name
+            elif all(item in maps.keys() for item in cur_obs.channel):
+                input_names = cur_obs.channel
+            else:
+                print(
+                    "The dictionary maps does not contain all the relevant"
+                    + "keys, please check the list of detectors and channels"
+                )
         else:
-            input_names = cur_obs.channel
+            assert isinstance(maps, np.ndarray), (
+                "maps must either a dictionary contaning keys for all the"
+                + "channels/detectors, or be a numpy array of dim (3 x Npix)"
+            )
+            input_names = None
 
         scan_map(
             tod=cur_obs.tod,

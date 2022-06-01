@@ -104,9 +104,10 @@ shows:
    -0.13846
 
 
-The input maps to scan must be included in a dictionary with either the name of
-the channel or the name of the dectector as keyword. The routines described in 
-:ref:`Mbs` already provied the inputs in the correct format. 
+The input maps to scan can be either included in a dictionary with the name of
+the channel or the name of the dectector as keyword (the routines described in 
+:ref:`Mbs` already provied the inputs in the correct format), or a numpy array
+with shape (3, n_pixels).
 The pointing information can be included in the observation or passed through 
 `pointings`. If both `obs` and `pointings` are provided, they must be coherent,
 so either a single Observation and a single numpy array, or both a list of 
