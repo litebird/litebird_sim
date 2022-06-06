@@ -8,6 +8,8 @@
 
     -   Each `Simulation` object creates random number generators (field `Simulation.random`), in a way that is safe even for MPI applications
 
+-   Use a more robust algorithm to compute pointings [#175](https://github.com/litebird/litebird_sim/pull/175)
+
 -   Improve the documentation for the destriper [#172](https://github.com/litebird/litebird_sim/pull/172)
 
 -   Make `scan_map_in_observations` and `add_dipole_to_observations` accept list of pointing matrices [#171](https://github.com/litebird/litebird_sim/pull/171)

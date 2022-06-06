@@ -169,7 +169,7 @@ def compute_pointing_and_polangle(result, quaternion):
     # vectors before the final result. First, we use it to compute the
     # (x, y, z) pointing direction
     rotate_z_vector(result, vx, vy, vz, w)
-    theta_pointing = np.arccos(result[2])
+    theta_pointing = np.arctan2(np.sqrt(result[0] ** 2 + result[1] ** 2), result[2])
     phi_pointing = np.arctan2(result[1], result[0])
 
     # Now reuse "result" to compute the polarization direction
