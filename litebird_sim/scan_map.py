@@ -75,8 +75,8 @@ def scan_map(
 
         nside = npix_to_nside(maps_det.shape[1])
 
-        HB = Healpix_Base(nside, "RING")
-        pixel_ind_det = HB.ang2pix(curr_pointings_det.astype("float64"))
+        hpx = Healpix_Base(nside, "RING")
+        pixel_ind_det = hpx.ang2pix(curr_pointings_det)
 
         scan_map_for_one_detector(
             tod_det=tod[detector_idx],
