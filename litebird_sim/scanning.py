@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from abc import ABC, abstractmethod
-from typing import Union, List
+from typing import Union, Optional, List
 from uuid import UUID
 
 from astropy.coordinates import ICRS, get_body_barycentric
@@ -13,6 +13,7 @@ import numpy as np
 from ducc0.pointingprovider import PointingProvider
 
 from .coordinates import DEFAULT_COORDINATE_SYSTEM
+from .hwp import HWP
 from .imo import Imo
 
 from .quaternions import (
@@ -880,105 +881,3 @@ def get_ecl2det_quaternions(
     )
     quats[..., 0:3] *= -1  # Apply the quaternion conjugate
     return quats
-
-
-def get_pointing_buffer_shape(obs):
-    return (obs.n_detectors, obs.n_samples, 3)
-
-
-def get_pointings(
-    obs,
-    spin2ecliptic_quats: Spin2EclipticQuaternions,
-    detector_quats,
-    bore2spin_quat,
-    quaternion_buffer=None,
-    dtype_quaternion=np.float64,
-    pointing_buffer=None,
-    dtype_pointing=np.float32,
-):
-    """Return the time stream of pointings for the detector
-
-    Given a :class:`Spin2EclipticQuaternions` and a quaternion
-    representing the transformation from the reference frame of a
-    detector to the boresight reference frame, compute a set of
-    pointings for the detector that encompass the time span
-    covered by this observation (i.e., starting from
-    `obs.start_time` and including `obs.n_samples` pointings).
-    The parameter `spin2ecliptic_quats` can be easily retrieved by
-    the field `spin2ecliptic_quats` in a object of
-    :class:`.Simulation` object, once the method
-    :meth:`.Simulation.generate_spin2ecl_quaternions` is called.
-    The parameter `detector_quats` is a stack of detector quaternions. For
-    example, it can be:
-
-    - The stack of the field `quat` of an instance of the class
-       :class:`.DetectorInfo`
-
-    - If all you want to do is a simulation using a boresight
-       direction, you can pass the value ``np.array([[0., 0., 0.,
-       1.]])``, which represents the null rotation.
-
-    If you passed an array of :class:`.DetectorInfo` objects to the
-    method :meth:`.Simulation.create_observations` through the
-    parameter `detectors`, you can pass ``None`` and it will use the
-    detector quaternions from the same :class:`.DetectorInfo` objects.
-
-    The parameter `bore2spin_quat` is calculated through the class
-    :class:`.Instrument`, which has the field ``bore2spin_quat``.
-    If all you have is the angle β between the boresight and the
-    spin axis, just pass ``quat_rotation_y(β)`` here.
-
-    The return value is a ``(D x N × 3)`` tensor: the colatitude (in
-    radians) is stored in column 0 (e.g., ``result[:, :, 0]``), the
-    longitude (ditto) in column 1, and the polarization angle
-    (ditto) in column 2. You can extract the three vectors using
-    the following idiom::
-
-        pointings = obs.get_pointings(...)
-
-        # Extract the colatitude (theta), longitude (psi), and
-        # polarization angle (psi) from pointings
-        theta, phi, psi = [pointings[:, :, i] for i in (0, 1, 2)]
-
-    If you plan to call this function repeatedly, you can save
-    some running time by pre-allocating the buffer used to hold
-    the pointings and the quaternions with the parameters
-    `pointing_buffer` and `quaternion_buffer`. Both must be a
-    NumPy floating-point array whose shape can be computed using
-    :func:`.get_quaternion_buffer_shape` and
-    :func:`.get_pointing_buffer_shape`. If you use
-    these parameters, the return value will be a pointer to the
-    `pointing_buffer`.
-
-    """
-
-    if detector_quats is None:
-        assert "quat" in dir(obs), (
-            "No detector quaternions found, have you passed "
-            + '"detectors=" to Simulation.create_observations?'
-        )
-        detector_quats = obs.quat
-
-    det2ecliptic_quats = get_det2ecl_quaternions(
-        obs,
-        spin2ecliptic_quats,
-        detector_quats,
-        bore2spin_quat,
-        quaternion_buffer=quaternion_buffer,
-        dtype=dtype_quaternion,
-    )
-
-    bufshape = get_pointing_buffer_shape(obs)
-    if pointing_buffer is None:
-        pointing_buffer = np.empty(bufshape, dtype=dtype_pointing)
-    else:
-        assert (
-            pointing_buffer.shape == bufshape
-        ), f"error, wrong pointing buffer size: {pointing_buffer.size} != {bufshape}"
-
-    # Compute the pointing direction for each sample
-    all_compute_pointing_and_polangle(
-        result_matrix=pointing_buffer, quat_matrix=det2ecliptic_quats
-    )
-
-    return pointing_buffer

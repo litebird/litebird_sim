@@ -2,7 +2,8 @@
 
 from numba import njit
 import numpy as np
-import healpy as hp
+
+from ducc0.healpix import Healpix_Base
 
 from astropy.time import Time, TimeDelta
 
@@ -11,6 +12,8 @@ from typing import Union, List, Dict
 from .observations import Observation
 
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
+
+from .healpix import npix_to_nside
 
 
 @njit
@@ -36,28 +39,21 @@ def scan_map_for_one_detector(tod_det, pixel_ind_det, pol_angle_det, maps):
 def scan_map(
     tod,
     pointings,
-    hwp_radpsec,
+    pol_angle,
     maps: Dict[str, np.ndarray],
     input_names,
-    start_time_s,
-    delta_time_s,
     input_map_in_galactic,
-    pol_angle: Union[np.ndarray, None] = None,
-    pixel_ind: Union[np.ndarray, None] = None,
 ):
     """Scan a map filling time-ordered data
 
     This function modifies the values in `tod` by adding the contribution of the
     bolometric equation given a list of TQU maps `maps`. The `pointings` argument
-    must be a N×3 matrix containing the pointing information, where N is the size
-    of the `tod` array. `hwp_radpsec` is the hwp rotation speed in radiants per
-    second.`input_names` is an array containing the keywords that allow to select
-    the proper input in `maps` for each detector in the TOD. `start_time_s` and
-    `delta_time_s` are respectively the start time of the TOD and the time step
-    between two samples. If `input_map_in_galactic` is set to False the input map
-    is assumed in ecliptic coordinates, default galactic. Optionally it can return
-    the polarization angle `pol_angle` and the pixel index `pixel_ind` in arrays
-    of size N.
+    must be a DxN×2 matrix containing the pointing information, where D is the number
+    of detector for the current observation and N is the size of the `tod` array.
+    `pol_angle` is the array of size DxN containing the polarization angle in radiants.
+    `input_names` is an array containing the keywords that allow to select the proper
+    input in `maps` for each detector in the TOD. If `input_map_in_galactic` is set to
+    False the input map is assumed in ecliptic coordinates, default galactic.
     """
 
     assert tod.shape == pointings.shape[0:2]
@@ -65,43 +61,36 @@ def scan_map(
     for detector_idx in range(tod.shape[0]):
 
         if input_map_in_galactic:
-            curr_pointings = rotate_coordinates_e2g(pointings[detector_idx, :, :])
+            curr_pointings_det, curr_pol_angle_det = rotate_coordinates_e2g(
+                pointings[detector_idx, :, :], pol_angle[detector_idx, :]
+            )
         else:
-            curr_pointings = pointings[detector_idx, :, :]
+            curr_pointings_det = pointings[detector_idx, :, :]
+            curr_pol_angle_det = pol_angle[detector_idx, :]
 
-        maps_det = maps[input_names[detector_idx]]
-        nside = hp.npix2nside(maps_det.shape[1])
+        if input_names is None:
+            maps_det = maps
+        else:
+            maps_det = maps[input_names[detector_idx]]
 
-        n_samples = len(curr_pointings[:, 0])
+        nside = npix_to_nside(maps_det.shape[1])
 
-        pixel_ind_det = hp.ang2pix(nside, curr_pointings[:, 0], curr_pointings[:, 1])
-        pol_angle_det = np.mod(
-            curr_pointings[:, 2]
-            + 2 * (start_time_s + np.arange(n_samples) * delta_time_s) * hwp_radpsec,
-            2 * np.pi,
-        )
+        hpx = Healpix_Base(nside, "RING")
+        pixel_ind_det = hpx.ang2pix(curr_pointings_det)
 
         scan_map_for_one_detector(
             tod_det=tod[detector_idx],
             pixel_ind_det=pixel_ind_det,
-            pol_angle_det=pol_angle_det,
+            pol_angle_det=curr_pol_angle_det,
             maps=maps_det,
         )
-
-        if pixel_ind is not None:
-            pixel_ind[detector_idx] = pixel_ind_det
-
-        if pol_angle is not None:
-            pol_angle[detector_idx] = pol_angle_det
 
 
 def scan_map_in_observations(
     obs: Union[Observation, List[Observation]],
-    pointings: Union[np.ndarray, List[np.ndarray]],
-    hwp_radpsec,
     maps: Dict[str, np.ndarray],
+    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     input_map_in_galactic: bool = True,
-    fill_psi_and_pixind_in_obs: bool = False,
 ):
     """Scan a map filling time-ordered data
 
@@ -112,71 +101,61 @@ def scan_map_in_observations(
     the same number of elements.
     """
 
-    if isinstance(obs, Observation):
-        assert isinstance(pointings, np.ndarray), (
-            "You must pass a list of observations *and* a list "
-            + "of pointing matrices to scan_map_in_observations"
-        )
-        obs_list = [obs]
-        ptg_list = [pointings]
+    if pointings is None:
+        if isinstance(obs, Observation):
+            obs_list = [obs]
+            ptg_list = [obs.pointings]
+            psi_list = [obs.psi]
+        else:
+            obs_list = obs
+            ptg_list = [ob.pointings for ob in obs]
+            psi_list = [ob.psi for ob in obs]
     else:
-        assert isinstance(pointings, list), (
-            "When you pass a list of observations to scan_map_in_observations, "
-            + "you must do the same for `pointings`"
-        )
-        assert len(obs) == len(pointings), (
-            f"The list of observations has {len(obs)} elements, but "
-            + f"the list of pointings has {len(pointings)} elements"
-        )
-        obs_list = obs
-        ptg_list = pointings
-
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
-
-        if cur_obs.name[0] in maps:
-            input_names = cur_obs.name
+        if isinstance(obs, Observation):
+            assert isinstance(pointings, np.ndarray), (
+                "You must pass a list of observations *and* a list "
+                + "of pointing matrices to scan_map_in_observations"
+            )
+            obs_list = [obs]
+            ptg_list = [pointings[:, :, 0:2]]
+            psi_list = [pointings[:, :, 2]]
         else:
-            input_names = cur_obs.channel
+            assert isinstance(pointings, list), (
+                "When you pass a list of observations to scan_map_in_observations, "
+                + "you must do the same for `pointings`"
+            )
+            assert len(obs) == len(pointings), (
+                f"The list of observations has {len(obs)} elements, but "
+                + f"the list of pointings has {len(pointings)} elements"
+            )
+            obs_list = obs
+            ptg_list = [point[:, :, 0:2] for point in pointings]
+            psi_list = [point[:, :, 2] for point in pointings]
 
-        if isinstance(cur_obs.start_time, Time):
-            start_time_s = (cur_obs.start_time - cur_obs.start_time_global).sec
-        else:
-            start_time_s = cur_obs.start_time - cur_obs.start_time_global
+    for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
 
-        if isinstance(cur_obs.get_delta_time(), TimeDelta):
-            delta_time_s = cur_obs.get_delta_time().value
-        else:
-            delta_time_s = cur_obs.get_delta_time()
-
-        if fill_psi_and_pixind_in_obs:
-            cur_obs.psi = np.empty_like(cur_obs.tod)
-            cur_obs.pixind = np.empty_like(cur_obs.tod, dtype=np.int32)
-
-            if input_map_in_galactic:
-                cur_obs.psi_and_pixind_coords = CoordinateSystem.Galactic
+        if type(maps) is dict:
+            if all(item in maps.keys() for item in cur_obs.name):
+                input_names = cur_obs.name
+            elif all(item in maps.keys() for item in cur_obs.channel):
+                input_names = cur_obs.channel
             else:
-                cur_obs.psi_and_pixind_coords = CoordinateSystem.Ecliptic
-
-            scan_map(
-                tod=cur_obs.tod,
-                pointings=cur_ptg,
-                hwp_radpsec=hwp_radpsec,
-                maps=maps,
-                input_names=input_names,
-                start_time_s=start_time_s,
-                delta_time_s=delta_time_s,
-                input_map_in_galactic=input_map_in_galactic,
-                pol_angle=cur_obs.psi,
-                pixel_ind=cur_obs.pixind,
-            )
+                print(
+                    "The dictionary maps does not contain all the relevant"
+                    + "keys, please check the list of detectors and channels"
+                )
         else:
-            scan_map(
-                tod=cur_obs.tod,
-                pointings=cur_ptg,
-                hwp_radpsec=hwp_radpsec,
-                maps=maps,
-                input_names=input_names,
-                start_time_s=start_time_s,
-                delta_time_s=delta_time_s,
-                input_map_in_galactic=input_map_in_galactic,
+            assert isinstance(maps, np.ndarray), (
+                "maps must either a dictionary contaning keys for all the"
+                + "channels/detectors, or be a numpy array of dim (3 x Npix)"
             )
+            input_names = None
+
+        scan_map(
+            tod=cur_obs.tod,
+            pointings=cur_ptg,
+            pol_angle=cur_psi,
+            maps=maps,
+            input_names=input_names,
+            input_map_in_galactic=input_map_in_galactic,
+        )
