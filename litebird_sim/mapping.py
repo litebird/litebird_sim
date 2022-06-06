@@ -8,8 +8,13 @@ from typing import Union, List
 
 from .observations import Observation
 
+from .coordinates import rotate_coordinates_e2g
+
 from . import mpi
 
+from ducc0.healpix import Healpix_Base
+
+from .healpix import nside_to_npix
 
 COND_THRESHOLD = 1e10
 
@@ -50,7 +55,11 @@ def _extract_map_and_fill_info(info):
 
 
 def make_bin_map(
-    obss: Union[Observation, List[Observation]], nside, do_covariance=False
+    obs: Union[Observation, List[Observation]],
+    nside,
+    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    do_covariance=False,
+    output_map_in_galactic: bool = True,
 ):
     """Bin Map-maker
 
@@ -70,6 +79,8 @@ def make_bin_map(
             must share the same group processes.
         nside (int): HEALPix nside of the output map
         do_covariance (bool): optional, if true it returns also covariance
+        output_map_in_galactic (bool): optional, if true maps in Galactic
+            coordinates
 
     Returns:
         array: T, Q, U maps (stacked). The shape is `(3, 12 * nside * nside)`.
@@ -78,22 +89,69 @@ def make_bin_map(
             the processes (contribute and) hold a copy of the map.
             Optionally can return the covariance matrix in an array of shape
             `(12 * nside * nside, 3, 3)`
+            Map and covariance are in Galactic coordinates unless
+            output_map_in_galactic is set to False
     """
-    n_pix = hp.nside2npix(nside)
+
+    hpx = Healpix_Base(nside, "RING")
+
+    n_pix = nside_to_npix(nside)
     info = np.zeros((n_pix, 3, 3))
 
-    if isinstance(obss, Observation):
-        obs_list = [obss]
+    if pointings is None:
+        if isinstance(obs, Observation):
+            obs_list = [obs]
+            ptg_list = [obs.pointings]
+            psi_list = [obs.psi]
+        else:
+            obs_list = obs
+            ptg_list = [ob.pointings for ob in obs]
+            psi_list = [ob.psi for ob in obs]
     else:
-        obs_list = obss
+        if isinstance(obs, Observation):
+            assert isinstance(pointings, np.ndarray), (
+                "You must pass a list of observations *and* a list "
+                + "of pointing matrices to scan_map_in_observations"
+            )
+            obs_list = [obs]
+            ptg_list = [pointings[:, :, 0:2]]
+            psi_list = [pointings[:, :, 2]]
+        else:
+            assert isinstance(pointings, list), (
+                "When you pass a list of observations to make_bin_map, "
+                + "you must do the same for `pointings`"
+            )
+            assert len(obs) == len(pointings), (
+                f"The list of observations has {len(obs)} elements, but "
+                + f"the list of pointings has {len(pointings)} elements"
+            )
+            obs_list = obs
+            ptg_list = [point[:, :, 0:2] for point in pointings]
+            psi_list = [point[:, :, 2] for point in pointings]
 
-    for obs in obs_list:
+    for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
         try:
-            weights = obs.sampling_rate_shz * obs.net_ukrts ** 2
+            weights = cur_obs.sampling_rate_shz * cur_obs.net_ukrts ** 2
         except AttributeError:
-            weights = np.ones(obs.n_detectors)
+            weights = np.ones(cur_obs.n_detectors)
 
-            _accumulate_map_and_info(obs.tod, obs.pixind, obs.psi, weights, info)
+        ndets = cur_obs.tod.shape[0]
+        pixidx_all = np.empty_like(cur_obs.tod, dtype=int)
+        polang_all = np.empty_like(cur_obs.tod)
+
+        for idet in range(ndets):
+            if output_map_in_galactic:
+                curr_pointings_det, curr_pol_angle_det = rotate_coordinates_e2g(
+                    cur_ptg[idet, :, :], cur_psi[idet, :]
+                )
+            else:
+                curr_pointings_det = cur_ptg[idet, :, :]
+                curr_pol_angle_det = cur_psi[idet, :]
+
+            pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
+            polang_all[idet] = curr_pol_angle_det
+
+        _accumulate_map_and_info(cur_obs.tod, pixidx_all, polang_all, weights, info)
 
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
