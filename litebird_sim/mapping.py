@@ -71,17 +71,17 @@ def make_bin_map(
 
             * `tod`: the time-ordered data to be mapped
             * `pointings`: the pointing information (in radians) for each tod
-               sample  
+               sample
             * `psi`: the polarization angle (in radians) for each tod sample
 
             If the observations are distributed over some communicator(s), they
             must share the same group processes.
             If pointings and psi are not included in the observations, they can
-            be provided through an array (or a list of arrays) of dimention
+            be provided through an array (or a list of arrays) of dimension
             (Ndetectors x Nsamples x 3), containing theta, phi and psi
         nside (int): HEALPix nside of the output map
-        pointings (array or list of arrays): optional, external pointing 
-            information, if not provided by the observation
+        pointings (array or list of arrays): optional, external pointing
+            information, if not included in the observations
         do_covariance (bool): optional, if true it returns also covariance
         output_map_in_galactic (bool): optional, if true maps in Galactic
             coordinates
