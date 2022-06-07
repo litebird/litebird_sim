@@ -3,6 +3,7 @@ import astropy
 
 import litebird_sim as lbs
 import numpy as np
+from ducc0.healpix import Healpix_Base
 import healpy as hp
 
 
@@ -26,7 +27,9 @@ def test_scan_map():
     sampling_hz = 1
     hwp_radpsec = 4.084_070_449_666_731
 
-    npix = hp.nside2npix(nside)
+    hpx = Healpix_Base(nside, "RING")
+
+    npix = lbs.nside_to_npix(nside)
 
     sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
 
@@ -84,27 +87,20 @@ def test_scan_map():
         maps=in_map,
         input_map_in_galactic=False,
     )
-    out_map1 = lbs.make_bin_map(obs1, nside)
+    out_map1 = lbs.make_bin_map(obs1, nside, output_map_in_galactic=False)
 
-    times = obs2.get_times()
-    obs2.pixind = np.empty(obs2.tod.shape, dtype=np.int32)
-    obs2.psi = np.empty(obs2.tod.shape)
-    for idet in range(obs2.n_detectors):
-        obs2.pixind[idet, :] = hp.ang2pix(
-            nside, pointings[idet, :, 0], pointings[idet, :, 1]
-        )
-        obs2.psi[idet, :] = np.mod(
-            pointings[idet, :, 2] + 2 * times * hwp_radpsec, 2 * np.pi
-        )
+    obs2.pointings = pointings[:, :, 0:2]
+    obs2.psi = pointings[:, :, 2]
 
     for idet in range(obs2.n_detectors):
+        pixind = hpx.ang2pix(obs2.pointings[idet])
         obs2.tod[idet, :] = (
-            maps[0, obs2.pixind[idet, :]]
-            + np.cos(2 * obs2.psi[idet, :]) * maps[1, obs2.pixind[idet, :]]
-            + np.sin(2 * obs2.psi[idet, :]) * maps[2, obs2.pixind[idet, :]]
+            maps[0, pixind]
+            + np.cos(2 * obs2.psi[idet, :]) * maps[1, pixind]
+            + np.sin(2 * obs2.psi[idet, :]) * maps[2, pixind]
         )
 
-    out_map2 = lbs.make_bin_map(obs2, nside)
+    out_map2 = lbs.make_bin_map(obs2, nside, output_map_in_galactic=False)
 
     np.testing.assert_allclose(
         out_map1, in_map["Boresight_detector_T"], rtol=1e-6, atol=1e-6
@@ -129,11 +125,9 @@ def test_scan_map():
 
     lbs.scan_map_in_observations(
         obs1,
-        pointings,
-        hwp_radpsec,
         in_map_G,
+        pointings=pointings,
         input_map_in_galactic=True,
-        fill_psi_and_pixind_in_obs=True,
     )
     out_map1 = lbs.make_bin_map(obs1, nside)
 
@@ -189,7 +183,7 @@ def test_scanning_list_of_obs(tmp_path):
         )
 
     np.random.seed(seed=123_456_789)
-    base_map = np.zeros((3, hp.nside2npix(128)))
+    base_map = np.zeros((3, lbs.nside_to_npix(128)))
 
     # This part tests the ecliptic coordinates
     maps = {"A": base_map, "B": base_map}
@@ -199,7 +193,7 @@ def test_scanning_list_of_obs(tmp_path):
     # of observations and pointings
     lbs.scan_map_in_observations(
         obs=sim.observations,
-        pointings=pointings,
         maps=maps,
+        pointings=pointings,
         input_map_in_galactic=True,
     )
