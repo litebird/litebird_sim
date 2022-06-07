@@ -140,7 +140,7 @@ def scan_map_in_observations(
             elif all(item in maps.keys() for item in cur_obs.channel):
                 input_names = cur_obs.channel
             else:
-                print(
+                raise ValueError(
                     "The dictionary maps does not contain all the relevant"
                     + "keys, please check the list of detectors and channels"
                 )

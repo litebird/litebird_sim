@@ -15,6 +15,8 @@ from toast.todmap import OpMapMaker  # noqa: F401
 from toast.tod.interval import Interval
 import toast.mpi
 
+from litebird_sim.coordinates import CoordinateSystem, rotate_coordinates_e2g
+
 toast.mpi.use_mpi = lbs.MPI_ENABLED
 
 
@@ -25,6 +27,10 @@ class DestriperParameters:
     The list of fields in this dataclass is the following:
 
     - ``nside``: the NSIDE parameter used to create the maps
+
+    - ``coordinate_system``: an instance of the :class:`.CoordinateSystem` enum.
+      It specifies if the map must be created in ecliptic (default) or
+      galactic coordinates.
 
     - ``nnz``: number of components per pixel. The default is 3 (I/Q/U).
 
@@ -64,6 +70,7 @@ class DestriperParameters:
     """
 
     nside: int = 512
+    coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
     nnz: int = 3
     baseline_length: int = 100
     iter_max: int = 100
@@ -104,12 +111,20 @@ class DestriperResult:
     npp: Any = None
     invnpp: Any = None
     rcond: Any = None
+    coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
 
 
 class _Toast2FakeCache:
     "This class simulates a TOAST2 cache"
 
-    def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
+    def __init__(
+        self,
+        spin2ecliptic_quats,
+        obs,
+        bore2spin_quat,
+        nside,
+        coordinates: CoordinateSystem,
+    ):
         self.obs = obs
 
         self.keydict = {"timestamps": obs.get_times()}
@@ -141,13 +156,27 @@ class _Toast2FakeCache:
                 logging.warning(
                     "converting TODs for %s from %s to float64",
                     obs.name[i],
-                    str(pointings[i].dtype),
+                    str(obs.tod[i].dtype),
                 )
                 self.keydict[f"signal_{det}"] = np.array(obs.tod[i], dtype=np.float64)
 
-            self.keydict[f"pixels_{det}"] = healpix_base.ang2pix(curpnt[:, 0:2])
+            theta_phi = curpnt[:, 0:2]
+            polangle = curpnt[:, 2]
+
+            if coordinates == CoordinateSystem.Galactic:
+                theta_phi, polangle = rotate_coordinates_e2g(
+                    pointings_ecl=theta_phi, pol_angle_ecl=polangle
+                )
+            elif coordinates == CoordinateSystem.Ecliptic:
+                pass  # Do nothing, "theta_phi" and "polangle" are ok
+            else:
+                assert ValueError(
+                    "unable to handle coordinate system {coordinates} in `destripe`"
+                )
+
+            self.keydict[f"pixels_{det}"] = healpix_base.ang2pix(theta_phi)
             self.keydict[f"weights_{det}"] = np.stack(
-                (np.ones(nsamples), np.cos(2 * curpnt[:, 2]), np.sin(2 * curpnt[:, 2]))
+                (np.ones(nsamples), np.cos(2 * polangle), np.sin(2 * polangle))
             ).transpose()
 
     def keys(self):
@@ -172,10 +201,19 @@ class _Toast2FakeCache:
 class _Toast2FakeTod:
     "This class simulates a TOAST2 TOD"
 
-    def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
+    def __init__(
+        self,
+        spin2ecliptic_quats,
+        obs,
+        bore2spin_quat,
+        nside,
+        coordinates: CoordinateSystem,
+    ):
         self.obs = obs
         self.local_samples = (0, obs.tod[0].size)
-        self.cache = _Toast2FakeCache(spin2ecliptic_quats, obs, bore2spin_quat, nside)
+        self.cache = _Toast2FakeCache(
+            spin2ecliptic_quats, obs, bore2spin_quat, nside, coordinates
+        )
 
     def local_intervals(self, _):
         return [
@@ -215,9 +253,20 @@ class _Toast2FakeTod:
 class _Toast2FakeData:
     "This class simulates a TOAST2 Data class"
 
-    def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
+    def __init__(
+        self,
+        spin2ecliptic_quats,
+        obs,
+        bore2spin_quat,
+        nside,
+        coordinates: CoordinateSystem,
+    ):
         self.obs = [
-            {"tod": _Toast2FakeTod(spin2ecliptic_quats, x, bore2spin_quat, nside)}
+            {
+                "tod": _Toast2FakeTod(
+                    spin2ecliptic_quats, x, bore2spin_quat, nside, coordinates
+                )
+            }
             for x in obs
         ]
         self.bore2spin_quat = bore2spin_quat
@@ -285,6 +334,7 @@ def destripe_observations(
         obs=observations,
         bore2spin_quat=bore2spin_quat,
         nside=params.nside,
+        coordinates=params.coordinate_system,
     )
     mapmaker = OpMapMaker(
         nside=params.nside,
@@ -305,6 +355,8 @@ def destripe_observations(
         lbs.MPI_COMM_WORLD.barrier()
 
     result = DestriperResult()
+
+    result.coordinate_system = params.coordinate_system
 
     if params.return_hit_map:
         result.hit_map = healpy.read_map(

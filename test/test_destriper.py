@@ -9,8 +9,18 @@ import litebird_sim as lbs
 import healpy
 from numpy.random import MT19937, RandomState, SeedSequence
 
+from litebird_sim import CoordinateSystem
 
-def run_destriper_tests(tmp_path, coordinates: str):
+
+COORDINATE_SYSTEM_STR = {
+    CoordinateSystem.Ecliptic: "ecliptic",
+    CoordinateSystem.Galactic: "galactic",
+}
+
+
+def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
+    coordinates_str = COORDINATE_SYSTEM_STR[coordinates]
+
     sim = lbs.Simulation(
         base_path=tmp_path / "destriper_output", start_time=0, duration_s=86400.0
     )
@@ -49,6 +59,7 @@ def run_destriper_tests(tmp_path, coordinates: str):
         nnz=3,
         baseline_length=100,
         iter_max=10,
+        coordinate_system=coordinates,
         return_hit_map=True,
         return_binned_map=True,
         return_destriped_map=True,
@@ -58,16 +69,19 @@ def run_destriper_tests(tmp_path, coordinates: str):
     )
 
     results = lbs.destripe(sim, instr, params=params)
+    assert results.coordinate_system == coordinates
 
     ref_map_path = Path(__file__).parent / "destriper_reference"
 
-    hit_map_filename = ref_map_path / f"destriper_hit_map_{coordinates}.fits.gz"
+    hit_map_filename = ref_map_path / f"destriper_hit_map_{coordinates_str}.fits.gz"
     # healpy.write_map(hit_map_filename, results.hit_map, dtype="int32", overwrite=True)
     np.testing.assert_allclose(
         results.hit_map, healpy.read_map(hit_map_filename, field=None, dtype=np.int32)
     )
 
-    binned_map_filename = ref_map_path / f"destriper_binned_map_{coordinates}.fits.gz"
+    binned_map_filename = (
+        ref_map_path / f"destriper_binned_map_{coordinates_str}.fits.gz"
+    )
     # healpy.write_map(
     #     binned_map_filename,
     #     results.binned_map,
@@ -81,7 +95,7 @@ def run_destriper_tests(tmp_path, coordinates: str):
     np.testing.assert_allclose(results.binned_map, ref_binned, rtol=1e-2, atol=1e-3)
 
     destriped_map_filename = (
-        ref_map_path / f"destriper_destriped_map_{coordinates}.fits.gz"
+        ref_map_path / f"destriper_destriped_map_{coordinates_str}.fits.gz"
     )
     # healpy.write_map(
     #     destriped_map_filename,
@@ -97,7 +111,7 @@ def run_destriper_tests(tmp_path, coordinates: str):
         results.destriped_map, ref_destriped, rtol=1e-2, atol=1e-3
     )
 
-    npp_filename = ref_map_path / f"destriper_npp_{coordinates}.fits.gz"
+    npp_filename = ref_map_path / f"destriper_npp_{coordinates_str}.fits.gz"
     # healpy.write_map(
     #     npp_filename,
     #     results.npp,
@@ -110,7 +124,7 @@ def run_destriper_tests(tmp_path, coordinates: str):
     assert results.npp.shape == ref_npp.shape
     np.testing.assert_allclose(results.npp, ref_npp, rtol=1e-2, atol=1e-3)
 
-    invnpp_filename = ref_map_path / f"destriper_invnpp_{coordinates}.fits.gz"
+    invnpp_filename = ref_map_path / f"destriper_invnpp_{coordinates_str}.fits.gz"
     # healpy.write_map(
     #     invnpp_filename,
     #     results.invnpp,
@@ -123,7 +137,7 @@ def run_destriper_tests(tmp_path, coordinates: str):
     assert results.invnpp.shape == ref_invnpp.shape
     np.testing.assert_allclose(results.invnpp, ref_invnpp, rtol=1e-2, atol=1e-3)
 
-    rcond_filename = ref_map_path / f"destriper_rcond_{coordinates}.fits.gz"
+    rcond_filename = ref_map_path / f"destriper_rcond_{coordinates_str}.fits.gz"
     # healpy.write_map(
     #     rcond_filename,
     #     results.rcond,
@@ -135,6 +149,9 @@ def run_destriper_tests(tmp_path, coordinates: str):
     )
 
 
-def test_destriper(tmp_path):
-    for coordinates in ["ecliptic"]:
-        run_destriper_tests(tmp_path=tmp_path, coordinates=coordinates)
+def test_destriper_ecliptic(tmp_path):
+    run_destriper_tests(tmp_path=tmp_path, coordinates=CoordinateSystem.Ecliptic)
+
+
+def test_destriper_galactic(tmp_path):
+    run_destriper_tests(tmp_path=tmp_path, coordinates=CoordinateSystem.Galactic)
