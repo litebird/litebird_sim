@@ -10,7 +10,7 @@ import healpy
 from numpy.random import MT19937, RandomState, SeedSequence
 
 
-def test_destriper(tmp_path):
+def run_destriper_tests(tmp_path, coordinates: str):
     sim = lbs.Simulation(
         base_path=tmp_path / "destriper_output", start_time=0, duration_s=86400.0
     )
@@ -61,13 +61,13 @@ def test_destriper(tmp_path):
 
     ref_map_path = Path(__file__).parent / "destriper_reference"
 
-    hit_map_filename = ref_map_path / "destriper_hit_map.fits.gz"
+    hit_map_filename = ref_map_path / f"destriper_hit_map_{coordinates}.fits.gz"
     # healpy.write_map(hit_map_filename, results.hit_map, dtype="int32", overwrite=True)
     np.testing.assert_allclose(
         results.hit_map, healpy.read_map(hit_map_filename, field=None, dtype=np.int32)
     )
 
-    binned_map_filename = ref_map_path / "destriper_binned_map.fits.gz"
+    binned_map_filename = ref_map_path / f"destriper_binned_map_{coordinates}.fits.gz"
     # healpy.write_map(
     #     binned_map_filename,
     #     results.binned_map,
@@ -80,7 +80,9 @@ def test_destriper(tmp_path):
     assert results.binned_map.shape == ref_binned.shape
     np.testing.assert_allclose(results.binned_map, ref_binned, rtol=1e-2, atol=1e-3)
 
-    destriped_map_filename = ref_map_path / "destriper_destriped_map.fits.gz"
+    destriped_map_filename = (
+        ref_map_path / f"destriper_destriped_map_{coordinates}.fits.gz"
+    )
     # healpy.write_map(
     #     destriped_map_filename,
     #     results.destriped_map,
@@ -95,7 +97,7 @@ def test_destriper(tmp_path):
         results.destriped_map, ref_destriped, rtol=1e-2, atol=1e-3
     )
 
-    npp_filename = ref_map_path / "destriper_npp.fits.gz"
+    npp_filename = ref_map_path / f"destriper_npp_{coordinates}.fits.gz"
     # healpy.write_map(
     #     npp_filename,
     #     results.npp,
@@ -108,7 +110,7 @@ def test_destriper(tmp_path):
     assert results.npp.shape == ref_npp.shape
     np.testing.assert_allclose(results.npp, ref_npp, rtol=1e-2, atol=1e-3)
 
-    invnpp_filename = ref_map_path / "destriper_invnpp.fits.gz"
+    invnpp_filename = ref_map_path / f"destriper_invnpp_{coordinates}.fits.gz"
     # healpy.write_map(
     #     invnpp_filename,
     #     results.invnpp,
@@ -121,7 +123,7 @@ def test_destriper(tmp_path):
     assert results.invnpp.shape == ref_invnpp.shape
     np.testing.assert_allclose(results.invnpp, ref_invnpp, rtol=1e-2, atol=1e-3)
 
-    rcond_filename = ref_map_path / "destriper_rcond.fits.gz"
+    rcond_filename = ref_map_path / f"destriper_rcond_{coordinates}.fits.gz"
     # healpy.write_map(
     #     rcond_filename,
     #     results.rcond,
@@ -131,3 +133,8 @@ def test_destriper(tmp_path):
     assert np.allclose(
         results.rcond, healpy.read_map(rcond_filename, field=None, dtype=np.float32)
     )
+
+
+def test_destriper(tmp_path):
+    for coordinates in ["ecliptic"]:
+        run_destriper_tests(tmp_path=tmp_path, coordinates=coordinates)
