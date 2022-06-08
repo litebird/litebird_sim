@@ -233,8 +233,8 @@ def add_dipole(
 
 def add_dipole_to_observations(
     obs: Union[Observation, List[Observation]],
-    pointings: Union[np.ndarray, List[np.ndarray]],
     pos_and_vel: SpacecraftPositionAndVelocity,
+    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
     dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
     frequency_ghz: Union[
@@ -248,24 +248,32 @@ def add_dipole_to_observations(
     of observations.
     """
 
-    if isinstance(obs, Observation):
-        assert isinstance(pointings, np.ndarray), (
-            "You must pass a list of observations *and* a list "
-            + "of pointing matrices to scan_map_in_observations"
-        )
-        obs_list = [obs]
-        ptg_list = [pointings]
+    if pointings is None:
+        if isinstance(obs, Observation):
+            obs_list = [obs]
+            ptg_list = [obs.pointings]
+        else:
+            obs_list = obs
+            ptg_list = [ob.pointings for ob in obs]
     else:
-        assert isinstance(pointings, list), (
-            "When you pass a list of observations to scan_map_in_observations, "
-            + "you must do the same for `pointings`"
-        )
-        assert len(obs) == len(pointings), (
-            f"The list of observations has {len(obs)} elements, but "
-            + f"the list of pointings has {len(pointings)} elements"
-        )
-        obs_list = obs
-        ptg_list = pointings
+        if isinstance(obs, Observation):
+            assert isinstance(pointings, np.ndarray), (
+                "You must pass a list of observations *and* a list "
+                + "of pointing matrices to add_dipole_to_observations"
+            )
+            obs_list = [obs]
+            ptg_list = [pointings[:, :, 0:2]]
+        else:
+            assert isinstance(pointings, list), (
+                "When you pass a list of observations to add_dipole_to_observations"
+                + ", you must do the same for `pointings`"
+            )
+            assert len(obs) == len(pointings), (
+                f"The list of observations has {len(obs)} elements, but "
+                + f"the list of pointings has {len(pointings)} elements"
+            )
+            obs_list = obs
+            ptg_list = [point[:, :, 0:2] for point in pointings]
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         # Alas, this allocates memory for the velocity vector! At the moment it is the
