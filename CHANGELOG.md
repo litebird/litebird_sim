@@ -8,6 +8,8 @@
 
     -   Each `Simulation` object creates random number generators (field `Simulation.random`), in a way that is safe even for MPI applications
 
+-   Support the production of maps in Galactic coordinates through the TOAST2 map-maker
+
 -   Make `make_bin_map` compute pixel indices instead of requiring them as input [#176](https://github.com/litebird/litebird_sim/pull/176)
 
 -   Use a more robust algorithm to compute pointings [#175](https://github.com/litebird/litebird_sim/pull/175)
