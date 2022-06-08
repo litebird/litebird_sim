@@ -155,3 +155,104 @@ def test_destriper_ecliptic(tmp_path):
 
 def test_destriper_galactic(tmp_path):
     run_destriper_tests(tmp_path=tmp_path, coordinates=CoordinateSystem.Galactic)
+
+
+def test_destriper_coordinate_consistency(tmp_path):
+    # Here we check that MBS uses the same coordinate system as the destriper
+    # in «Galactic» mode: specifically, we create a noiseless TOD from a CMB
+    # map in Galactic coordinates and run the destriper asking to use Galactic
+    # coordinates again. Since the TOD was noiseless, the binned map should be
+    # the same as the input map, except for two features:
+    #
+    # 1. It does not cover the whole sky
+    # 2. A few pixels at the border of the observed region are not properly
+    #    constrained and their value will be set to zero
+    #
+    # This test checks that «most» of the two maps agree, i.e., the 5% and 95%
+    # percentiles are smaller than some (small) threshold.
+
+    sim = lbs.Simulation(
+        base_path="destriper_output",
+        start_time=0,
+        duration_s=10 * 86400.0,
+    )
+
+    sim.generate_spin2ecl_quaternions(
+        scanning_strategy=lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(30),  # CORE-specific parameter
+            spin_rate_hz=0.5 / 60,  # Ditto
+            # We use astropy to convert the period (4 days) in
+            # seconds
+            precession_rate_hz=1.0 / (4 * u.day).to("s").value,
+        )
+    )
+    instr = lbs.InstrumentInfo(
+        name="mock_instrument",
+        spin_boresight_angle_rad=np.deg2rad(65),
+    )
+
+    detectors = [
+        lbs.DetectorInfo(
+            name="noiseless_detector",
+            sampling_rate_hz=10.0,
+            fwhm_arcmin=60.0,
+            bandcenter_ghz=40.0,
+            bandwidth_ghz=12.0,
+        ),
+    ]
+
+    # We create two detectors, whose polarization angles are separated by π/2
+    sim.create_observations(
+        detectors=detectors,
+        dtype_tod=np.float64,  # Needed if you use the TOAST destriper
+        n_blocks_time=lbs.MPI_COMM_WORLD.size,
+        split_list_over_processes=False,
+    )
+
+    for obs in sim.observations:
+        lbs.get_pointings(
+            obs,
+            spin2ecliptic_quats=sim.spin2ecliptic_quats,
+            detector_quats=None,
+            bore2spin_quat=instr.bore2spin_quat,
+        )
+
+    params = lbs.MbsParameters(
+        make_cmb=True,
+    )
+    mbs = lbs.Mbs(
+        simulation=sim,
+        parameters=params,
+        detector_list=detectors,
+    )
+    (healpix_maps, file_paths) = mbs.run_all()
+
+    lbs.scan_map_in_observations(obs=sim.observations, maps=healpix_maps)
+
+    params = lbs.DestriperParameters(
+        nside=healpy.npix2nside(len(healpix_maps[detectors[0].name][0])),
+        coordinate_system=lbs.CoordinateSystem.Galactic,
+        return_hit_map=True,
+        return_binned_map=True,
+        return_destriped_map=True,
+    )
+
+    result = lbs.destripe(sim, instr, params)
+
+    inp = healpix_maps[detectors[0].name]  # Input CMB map in Galactic coordinates
+    out = result.binned_map  # The binned map produced by the destriper
+    hit = result.hit_map  # The hit map produced by the destriper
+
+    # We do not consider unseen pixels nor pixels that have not been properly
+    # constrained by our mock detector
+    mask = (hit == 0) | (out == 0.0)
+    inp[mask] = np.NaN
+    out[mask] = np.NaN
+
+    # Ideally this should be ≈0
+    diff = inp - out
+
+    # We check the closeness of `diff` to zero through the 5% and 95% percentiles
+    low_limit, high_limit = np.percentile(diff[np.isfinite(diff)], (0.05, 0.95))
+    assert np.abs(low_limit) < 1e-9
+    assert np.abs(high_limit) < 1e-9
