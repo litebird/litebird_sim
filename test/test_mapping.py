@@ -79,7 +79,7 @@ def test_make_bin_map_basic_mpi():
         return
 
     # Parameters
-    res_map = np.tile([10.0, 1.0, 1.0], 12).reshape(12, 3).T
+    res_map = np.arange(36, dtype=float).reshape(3, 12) + 1.0
     psi = np.tile([0, np.pi / 4.0, np.pi / 2.0], 12)
     pix = np.repeat(np.arange(12), 3)
     pointings = hp.pix2ang(1, pix)

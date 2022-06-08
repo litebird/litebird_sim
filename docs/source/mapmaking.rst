@@ -93,8 +93,8 @@ observation, it can be passed through the optional argument `pointings`,
 with a syntax similar to :func:`.scan_map_in_observations`.
 The output map is in Galactic coordinates, unless the optional prameter
 `output_map_in_galactic` is set to False. If the parameter `do_covariance` 
-is True, it can output the covariance matrix in an array of shape 
-`(12 * nside * nside, 3, 3)`. This is how it should be called::
+is True, it return also the white noise covariance per pixel in an array 
+of shape `(12 * nside * nside, 3, 3)`. This is how it should be called::
 
     map, cov = lbs.make_bin_map(obs, 128, do_covariance=True)
 
