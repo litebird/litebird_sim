@@ -138,10 +138,10 @@ def test_solar_dipole_fit(tmpdir):
     assert pos_vel_o.velocities_km_s.shape == (367, 3)
 
     lbs.add_dipole_to_observations(
-        obs_s_o, pointings, pos_vel_s_o, dipole_type=lbs.DipoleType.LINEAR
+        obs_s_o, pos_vel_s_o, dipole_type=lbs.DipoleType.LINEAR
     )
     lbs.add_dipole_to_observations(
-        obs_o, pointings, pos_vel_o, dipole_type=lbs.DipoleType.LINEAR
+        obs_o, pos_vel_o, pointings=pointings, dipole_type=lbs.DipoleType.LINEAR
     )
 
     npix = hp.nside2npix(nside)
@@ -243,7 +243,7 @@ def test_dipole_list_of_obs(tmp_path):
     # Just check that the call works
     lbs.add_dipole_to_observations(
         obs=sim.observations,
-        pointings=pointings,
         pos_and_vel=pos_vel,
+        pointings=pointings,
         frequency_ghz=[100.0],
     )
