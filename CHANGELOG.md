@@ -8,15 +8,15 @@
 
     -   Each `Simulation` object creates random number generators (field `Simulation.random`), in a way that is safe even for MPI applications
 
--   Support the production of maps in Galactic coordinates through the TOAST2 map-maker ([#177](https://github.com/litebird/litebird_sim/pull/177))
+-   **Breaking change** New API for `scan_map_in_observations` and `add_dipole_to_observations`, which now accept list of pointing matrices and simplify the parameters describing the HWP [#171](https://github.com/litebird/litebird_sim/pull/171)
 
--   Make `make_bin_map` compute pixel indices instead of requiring them as input [#176](https://github.com/litebird/litebird_sim/pull/176)
+-   Support the production of maps in Galactic coordinates through the TOAST2 wrapper to the Madam map-maker ([#177](https://github.com/litebird/litebird_sim/pull/177))
+
+-   Make `make_bin_map` compute pixel indices instead of requiring them as input, add support for Galactic coordinates [#176](https://github.com/litebird/litebird_sim/pull/176)
 
 -   Use a more robust algorithm to compute pointings [#175](https://github.com/litebird/litebird_sim/pull/175)
 
 -   Improve the documentation for the destriper [#172](https://github.com/litebird/litebird_sim/pull/172)
-
--   Make `scan_map_in_observations` and `add_dipole_to_observations` accept list of pointing matrices [#171](https://github.com/litebird/litebird_sim/pull/171)
 
 -   Add a high-pass filter for the noise [#169](https://github.com/litebird/litebird_sim/pull/169)
 
@@ -28,13 +28,13 @@
 
 -   Remove NumPy's and Healpy's deprecation warnings [#158](https://github.com/litebird/litebird_sim/pull/158)
 
--   Fix issue [#148](https://github.com/litebird/litebird_sim/issues/148)
-
 -   Use a cache to speed up CI builds [PR#147](https://github.com/litebird/litebird_sim/pull/147)
 
 -   Create a script that fetches information about the latest release and produce a release announcement [PR#156](https://github.com/litebird/litebird_sim/pull/156)
 
 -   Option for rotating the pointing from ecliptic to galactic coordinates in scan_map [#164](https://github.com/litebird/litebird_sim/pull/164)
+
+-   Fix issue [#148](https://github.com/litebird/litebird_sim/issues/148)
 
 # Version 0.4.0
 
