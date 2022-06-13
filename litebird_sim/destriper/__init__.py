@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 import numpy as np
 from ducc0 import healpix
+from astropy.time import Time
 
 import healpy  # We need healpy.read_map
 
@@ -216,11 +217,15 @@ class _Toast2FakeTod:
         )
 
     def local_intervals(self, _):
+        start_time = (
+            self.obs.start_time.cxcsec
+            if isinstance(self.obs.start_time, Time)
+            else self.obs.start_time
+        )
         return [
             Interval(
-                start=self.obs.start_time,
-                stop=self.obs.start_time
-                + self.obs.sampling_rate_hz * self.obs.n_samples,
+                start=start_time,
+                stop=start_time + self.obs.sampling_rate_hz * self.obs.n_samples,
                 first=0,
                 last=self.obs.n_samples - 1,
             )
