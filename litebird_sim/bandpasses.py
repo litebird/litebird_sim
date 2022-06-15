@@ -1,4 +1,4 @@
-import litebird_sim as lbs
+
 import numpy as np
 from scipy import signal
 
@@ -16,10 +16,9 @@ class  BandPassInfo(object) :
       the :class:`.Imo` class).
 
     Args:
-        - nu_center (float):  center frequency in GHz
+        - bandcenter_ghz (float):  center frequency in GHz
         - bandwidth (float):  width of the band (default=0.2)
-        - range_offset (int): increase the freq. range by an offset (default +- 10 from the edges)
-        - nsamp (int): number of elements to sample the band (default=128)
+        - nsamples_inband (int): number of elements to sample the band (default=128)
         - name (str) : ID of the band
         - normalize(bool) : If set to true bandpass weights will be normalized to 1
         - bandtype (str): choose between:
@@ -31,9 +30,8 @@ class  BandPassInfo(object) :
 
 
     bandcenter_ghz : float = 0.0
-    bandwidth_ghz: float = 0.0
-    range_offset: int = 10
-    nsamp : int =128
+    bandwidth: float = 0.0
+    nsamples_inband : int =128
     name : str =""
     bandtype : str ="top-hat"
     normalize : bool = False
@@ -46,11 +44,10 @@ class  BandPassInfo(object) :
         """
 
         self.f0, self. f1  = self.get_edges ()
-
-        # we extend the wings of the top-hat bandpass  with 10 samples
+        # we extend the wings out-of-band of the top-hat bandpass  
         #before  and after the edges
-        bandrange =self. f0 -range_offset ,self. f1 +range_offset
-        self.freqs  = np.linspace(bandrange[0], bandrange[1], nsamp )
+        bandrange =self. f0 * (1- self.bandwidth ) ,self. f1 * (1+ self.bandwidth )
+        self.freqs  = np.linspace(bandrange[0], bandrange[1], self.nsamples_inband )
         self.isnormalized = False
         if self.bandtype == "top-hat" :
             self.get_top_hat_bandpass(normalize=self.normalize )
@@ -69,7 +66,7 @@ class  BandPassInfo(object) :
         """
         get the edges of the tophat band
         """
-        return self.bandcenter_ghz*(1- self.bandwidth_ghz /2),self.bandcenter_ghz*(1+self.bandwidth_ghz/2)
+        return self.bandcenter_ghz*(1- self.bandwidth /2),self.bandcenter_ghz*(1+self.bandwidth/2)
 
 
 
@@ -140,10 +137,10 @@ class  BandPassInfo(object) :
 
         """
 
-        apolength =   self.bandwidth_ghz/a
+        apolength =   self.bandwidth/a
         apod = lambda x, a,b: (1 + np.cos((x-a)/(b-a)  *np.pi ))/2
-        f_above= self.bandcenter_ghz * ( 1 + self.bandwidth_ghz/2 + apolength )
-        f_below= self.bandcenter_ghz * ( 1 - self.bandwidth_ghz/2 - apolength )
+        f_above= self.bandcenter_ghz * ( 1 + self.bandwidth/2 + apolength )
+        f_below= self.bandcenter_ghz * ( 1 - self.bandwidth/2 - apolength )
         mask_above=np.ma.masked_inside(self.freqs,self.f1 , f_above  ).mask
 
         x_ab = np.linspace(self.f1 , f_above,self.freqs[mask_above].size )
