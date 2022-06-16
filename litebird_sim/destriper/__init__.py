@@ -8,6 +8,8 @@ import numpy as np
 from ducc0 import healpix
 from astropy.time import Time
 
+from typing import Union, List
+
 import healpy  # We need healpy.read_map
 
 import litebird_sim as lbs
@@ -120,9 +122,8 @@ class _Toast2FakeCache:
 
     def __init__(
         self,
-        spin2ecliptic_quats,
         obs,
-        bore2spin_quat,
+        pointings,
         nside,
         coordinates: CoordinateSystem,
     ):
@@ -133,23 +134,22 @@ class _Toast2FakeCache:
 
         self.keydict["flags"] = np.zeros(nsamples, dtype="uint8")
 
-        pointings = lbs.get_pointings(
-            obs=obs,
-            spin2ecliptic_quats=spin2ecliptic_quats,
-            detector_quats=obs.quat,
-            bore2spin_quat=bore2spin_quat,
-        )
+        if pointings is None:
+            point = np.concatenate((obs.pointings, obs.psi[:, :, np.newaxis]), axis=2)
+        else:
+            point = pointings
+
         healpix_base = healpix.Healpix_Base(nside=nside, scheme="NEST")
         for (i, det) in enumerate(obs.name):
-            if pointings[i].dtype == np.float64:
-                curpnt = pointings[i]
+            if point[i].dtype == np.float64:
+                curpnt = point[i]
             else:
                 logging.warning(
                     "converting pointings for %s from %s to float64",
                     obs.name[i],
-                    str(pointings[i].dtype),
+                    str(point[i].dtype),
                 )
-                curpnt = np.array(pointings[i], dtype=np.float64)
+                curpnt = np.array(point[i], dtype=np.float64)
 
             if obs.tod[i].dtype == np.float64:
                 self.keydict[f"signal_{det}"] = obs.tod[i]
@@ -204,17 +204,14 @@ class _Toast2FakeTod:
 
     def __init__(
         self,
-        spin2ecliptic_quats,
         obs,
-        bore2spin_quat,
+        pointings,
         nside,
         coordinates: CoordinateSystem,
     ):
         self.obs = obs
         self.local_samples = (0, obs.tod[0].size)
-        self.cache = _Toast2FakeCache(
-            spin2ecliptic_quats, obs, bore2spin_quat, nside, coordinates
-        )
+        self.cache = _Toast2FakeCache(obs, pointings, nside, coordinates)
 
     def local_intervals(self, _):
         start_time = (
@@ -260,21 +257,20 @@ class _Toast2FakeData:
 
     def __init__(
         self,
-        spin2ecliptic_quats,
         obs,
-        bore2spin_quat,
+        pointings,
         nside,
         coordinates: CoordinateSystem,
     ):
-        self.obs = [
-            {
-                "tod": _Toast2FakeTod(
-                    spin2ecliptic_quats, x, bore2spin_quat, nside, coordinates
-                )
-            }
-            for x in obs
-        ]
-        self.bore2spin_quat = bore2spin_quat
+        if pointings is None:
+            self.obs = [
+                {"tod": _Toast2FakeTod(ob, None, nside, coordinates)} for ob in obs
+            ]
+        else:
+            self.obs = [
+                {"tod": _Toast2FakeTod(ob, po, nside, coordinates)}
+                for ob, po in zip(obs, pointings)
+            ]
         self.nside = nside
         if lbs.MPI_ENABLED:
             self.comm = toast.mpi.Comm(world=lbs.MPI_COMM_WORLD)
@@ -303,27 +299,21 @@ class _Toast2FakeData:
 
 def destripe_observations(
     observations,
-    bore2spin_quat,
-    spin2ecliptic_quats,
     base_path: Path,
     params: DestriperParameters(),
+    pointings: Union[List[np.ndarray], None] = None,
 ) -> DestriperResult:
     """Run the destriper on the observations in a TOD
 
     This function is a low-level wrapper around the TOAST destriper.
     For daily use, you should prefer the :func:`.destripe` function,
-    which takes its parameters from :class:`.Simulation` and
-    :class:`.Instrument` objects and is easier to call.
+    which takes its parameters from :class:`.Simulation` object and 
+    is easier to call.
 
     This function runs the TOAST destriper on a set of `observations`
-    (instances of the :class:`.Observation` class). The parameter
-    `bore2spin_quat` is the quaternion transforming the boresight
-    frame of reference into the frame of reference of the spin axis,
-    and it can be retrieved from an instance of the
-    :class:`.Instrument` class. The parameter `spin2ecliptic_quats` is
-    an array of quaternions transforming the spin-axis reference frame
-    in the Ecliptic frame; this is usually computed by an object of
-    type :class:`.Simulation` class.
+    (instances of the :class:`.Observation` class). The pointing 
+    information can be stored in the `observations` or passed through
+    the variable `pointings`.
 
     The `params` parameter is an instance of the class
     :class:`.DestriperParameters`, and it specifies the way the
@@ -334,10 +324,15 @@ def destripe_observations(
 
     """
 
+    if pointings is not None:
+        assert len(observations) == len(pointings), (
+            f"The list of observations has {len(observations)}"
+            + f" elements, but the list of pointings has {len(pointings)}"
+        )
+
     data = _Toast2FakeData(
-        spin2ecliptic_quats=spin2ecliptic_quats,
         obs=observations,
-        bore2spin_quat=bore2spin_quat,
+        pointings=pointings,
         nside=params.nside,
         coordinates=params.coordinate_system,
     )
@@ -406,7 +401,11 @@ def destripe_observations(
     return result
 
 
-def destripe(sim, instrument, params=DestriperParameters()) -> DestriperResult:
+def destripe(
+    sim,
+    params=DestriperParameters(),
+    pointings: Union[List[np.ndarray], None] = None,
+) -> DestriperResult:
     """Run the destriper on a set of TODs.
 
     Run the TOAST destriper on time-ordered data, producing one or
@@ -435,8 +434,7 @@ def destripe(sim, instrument, params=DestriperParameters()) -> DestriperResult:
 
     return destripe_observations(
         observations=sim.observations,
-        bore2spin_quat=instrument.bore2spin_quat,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
         base_path=sim.base_path,
         params=params,
+        pointings=pointings,
     )

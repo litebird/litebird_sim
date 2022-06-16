@@ -48,6 +48,14 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
         split_list_over_processes=False,
     )
 
+    for obs in sim.observations:
+        lbs.get_pointings(
+            obs,
+            spin2ecliptic_quats=sim.spin2ecliptic_quats,
+            detector_quats=None,
+            bore2spin_quat=instr.bore2spin_quat,
+        )
+
     # Generate some white noise
     rs = RandomState(MT19937(SeedSequence(123456789)))
     for curobs in sim.observations:
@@ -68,7 +76,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
         return_rcond=True,
     )
 
-    results = lbs.destripe(sim, instr, params=params)
+    results = lbs.destripe(sim, params=params)
     assert results.coordinate_system == coordinates
 
     ref_map_path = Path(__file__).parent / "destriper_reference"
@@ -237,7 +245,7 @@ def test_destriper_coordinate_consistency(tmp_path):
         return_destriped_map=True,
     )
 
-    result = lbs.destripe(sim, instr, params)
+    result = lbs.destripe(sim, params)
 
     inp = healpix_maps[detectors[0].name]  # Input CMB map in Galactic coordinates
     out = result.binned_map  # The binned map produced by the destriper
