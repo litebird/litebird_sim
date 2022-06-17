@@ -123,13 +123,13 @@ would be produced by the *binner*, see above), and the *destriped map*
 
 To run the destriper, you simply call :func:`.destripe`::
 
-  result = lbs.destripe(sim, instr, params)
+  result = lbs.destripe(sim, params)
 
-(You must provide an instance of the :class:`.InstrumentInfo` class,
-as this is used by the destriper to determine pointing directions in
-Ecliptic coordinates.) The result is an instance of the class
-:class:`.DestriperResults` and contains the three maps we have asked
-above (hit map, binned map, destriped map).
+(The pointing information is included in the :class:`.Observations`,
+alternatively pointings can be provided as a list of numpy arrays)
+The result is an instance of the class :class:`.DestriperResults` and 
+contains the three maps we have asked above (hit map, binned map, 
+destriped map).
 
 .. note::
 
