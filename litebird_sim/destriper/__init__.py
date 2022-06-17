@@ -268,8 +268,7 @@ class _Toast2FakeData:
             ]
         else:
             self.obs = [
-                {"tod": _Toast2FakeTod(ob, po, nside, coordinates)}
-                for ob, po in zip(obs, pointings)
+                {"tod": _Toast2FakeTod(ob, pointings, nside, coordinates)} for ob in obs
             ]
         self.nside = nside
         if lbs.MPI_ENABLED:
@@ -307,11 +306,11 @@ def destripe_observations(
 
     This function is a low-level wrapper around the TOAST destriper.
     For daily use, you should prefer the :func:`.destripe` function,
-    which takes its parameters from :class:`.Simulation` object and 
+    which takes its parameters from :class:`.Simulation` object and
     is easier to call.
 
     This function runs the TOAST destriper on a set of `observations`
-    (instances of the :class:`.Observation` class). The pointing 
+    (instances of the :class:`.Observation` class). The pointing
     information can be stored in the `observations` or passed through
     the variable `pointings`.
 
@@ -325,7 +324,7 @@ def destripe_observations(
     """
 
     if pointings is not None:
-        assert len(observations) == len(pointings), (
+        assert len(observations[0].tod) == len(pointings), (
             f"The list of observations has {len(observations)}"
             + f" elements, but the list of pointings has {len(pointings)}"
         )
