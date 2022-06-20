@@ -268,7 +268,8 @@ class _Toast2FakeData:
             ]
         else:
             self.obs = [
-                {"tod": _Toast2FakeTod(ob, pointings, nside, coordinates)} for ob in obs
+                {"tod": _Toast2FakeTod(ob, po, nside, coordinates)}
+                for ob, po in zip(obs, pointings)
             ]
         self.nside = nside
         if lbs.MPI_ENABLED:
@@ -324,7 +325,7 @@ def destripe_observations(
     """
 
     if pointings is not None:
-        assert len(observations[0].tod) == len(pointings), (
+        assert len(observations) == len(pointings), (
             f"The list of observations has {len(observations)}"
             + f" elements, but the list of pointings has {len(pointings)}"
         )
