@@ -56,9 +56,9 @@ def _extract_map_and_fill_info(info):
 
 def make_bin_map(
     obs: Union[Observation, List[Observation]],
-    nside,
+    nside: int,
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-    do_covariance=False,
+    do_covariance: bool = False,
     output_map_in_galactic: bool = True,
 ):
     """Bin Map-maker
@@ -67,17 +67,21 @@ def make_bin_map(
 
     Args:
         obss (list of :class:`Observations`): observations to be mapped. They
-            are required to have the following attributes as arrays of identical
-            shapes
+            are required to have the following attributes as arrays
 
             * `tod`: the time-ordered data to be mapped
-            * `pixind`: the index of the pixel observed for each tod sample in a
-              HEALpix map at nside `nside`
+            * `pointings`: the pointing information (in radians) for each tod
+               sample
             * `psi`: the polarization angle (in radians) for each tod sample
 
             If the observations are distributed over some communicator(s), they
             must share the same group processes.
+            If pointings and psi are not included in the observations, they can
+            be provided through an array (or a list of arrays) of dimension
+            (Ndetectors x Nsamples x 3), containing theta, phi and psi
         nside (int): HEALPix nside of the output map
+        pointings (array or list of arrays): optional, external pointing
+            information, if not included in the observations
         do_covariance (bool): optional, if true it returns also covariance
         output_map_in_galactic (bool): optional, if true maps in Galactic
             coordinates
@@ -131,7 +135,7 @@ def make_bin_map(
 
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
         try:
-            weights = cur_obs.sampling_rate_shz * cur_obs.net_ukrts**2
+            weights = cur_obs.sampling_rate_ghz * cur_obs.net_ukrts**2
         except AttributeError:
             weights = np.ones(cur_obs.n_detectors)
 

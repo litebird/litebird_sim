@@ -74,43 +74,41 @@ def test_make_bin_map_api_simulation(tmp_path):
     mapping.make_bin_map(obss, nside, pointings=[pointings])
 
 
-# def test_make_bin_map_basic_mpi():
-#     if lbs.MPI_COMM_WORLD.size > 2:
-#         return
+def test_make_bin_map_basic_mpi():
+    if lbs.MPI_COMM_WORLD.size > 2:
+        return
 
-#     # Parameters
-#     res_map = np.tile([10,1,1],12).reshape(12,3).T
-#     n_samples = 36
-#     psi = np.tile([0,pi/4.,pi/2.],12)
-#     pix = np.repeat(np.arange(12),3)
-#     pointings = hp.pix2ang(1,pix)
+    # Parameters
+    res_map = np.arange(36, dtype=float).reshape(3, 12) + 1.0
+    psi = np.tile([0, np.pi / 4.0, np.pi / 2.0], 12)
+    pix = np.repeat(np.arange(12), 3)
+    pointings = hp.pix2ang(1, pix)
 
-#     tod = np.empty(36)
-#     for i in range(len(tod)):
-#         tod[i] = (res_map[0,pix[i]]+np.cos(2 * psi[i])*
-#           res_map[1,pix[i]]+np.sin(2 * psi[i])*res_map[2,pix[i]])
+    tod = np.empty(36)
+    for i in range(len(tod)):
+        tod[i] = (
+            res_map[0, pix[i]]
+            + np.cos(2 * psi[i]) * res_map[1, pix[i]]
+            + np.sin(2 * psi[i]) * res_map[2, pix[i]]
+        )
 
-#     # Craft the observation with the attributes needed for map-making
-#     obs = lbs.Observation(
-#         detectors=2,
-#         n_samples_global=18,
-#         start_time_global=0.0,
-#         sampling_rate_hz=1.0,
-#         comm=lbs.MPI_COMM_WORLD,
-#     )
-#     if obs.comm.rank == 0:
-#         obs.tod[:] = tod.reshape(2, 18)
-#         obs.pointings = np.empty((2,18,2))
-#         obs.pointings[0,:,0] = pointings[0][0:18]
-#         obs.pointings[0,:,1] = pointings[1][0:18]
-#         obs.pointings[1,:,0] = pointings[0][18:36]
-#         obs.pointings[1,:,1] = pointings[1][18:36]
-#         obs.psi = psi.reshape(2, 18)
+    # Craft the observation with the attributes needed for map-making
+    obs = lbs.Observation(
+        detectors=2,
+        n_samples_global=18,
+        start_time_global=0.0,
+        sampling_rate_hz=1.0,
+        comm=lbs.MPI_COMM_WORLD,
+    )
+    if obs.comm.rank == 0:
+        obs.tod[:] = tod.reshape(2, 18)
+        obs.pointings = np.array(pointings).T.reshape((2, 18, 2))
+        obs.psi = psi.reshape(2, 18)
 
-#     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
-#     res = mapping.make_bin_map([obs], 1)
-#     assert np.allclose(res, res_map)
+    obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
+    res = mapping.make_bin_map([obs], 1, output_map_in_galactic=False)
+    assert np.allclose(res, res_map)
 
-#     obs.set_n_blocks(n_blocks_time=1, n_blocks_det=obs.comm.size)
-#     res = mapping.make_bin_map([obs], 1)
-#     assert np.allclose(res, res_map)
+    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=obs.comm.size)
+    res = mapping.make_bin_map([obs], 1, output_map_in_galactic=False)
+    assert np.allclose(res, res_map)

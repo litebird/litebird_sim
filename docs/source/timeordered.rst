@@ -18,7 +18,7 @@ Filling TOD with signal
 
 The framework provides a basic routine which scans an input map accordingly to
 the scanning strategy and fills the detector timestreams. This is supported
-through the :file: `.scan_map.py`. You can fill with signal an existing TOD
+through :func:`.scan_map`. You can fill with signal an existing TOD
 by using the function :func:`.scan_map_in_observations`, as the following example
 shows:
 
