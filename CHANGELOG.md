@@ -10,6 +10,8 @@
 
 -   **Breaking change** New API for `scan_map_in_observations` and `add_dipole_to_observations`, which now accept list of pointing matrices and simplify the parameters describing the HWP [#171](https://github.com/litebird/litebird_sim/pull/171)
 
+-   Add a notebook to show an example of how to use the framework ([#178](https://github.com/litebird/litebird_sim/pull/178))
+
 -   Support the production of maps in Galactic coordinates through the TOAST2 wrapper to the Madam map-maker ([#177](https://github.com/litebird/litebird_sim/pull/177))
 
 -   Make `make_bin_map` compute pixel indices instead of requiring them as input, add support for Galactic coordinates [#176](https://github.com/litebird/litebird_sim/pull/176)
