@@ -1,5 +1,7 @@
 # HEAD
 
+# Version 0.5.0
+
 -   **Breaking change** New API for noise module [#151](https://github.com/litebird/litebird_sim/pull/151):
 
     -   Function `add_noise` has been renamed to `add_noise_to_observations`, and its parameter `noisetype` has been renamed into `noise_type` for consistency with other parameters (**breaking**)
