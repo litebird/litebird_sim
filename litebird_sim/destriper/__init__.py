@@ -186,8 +186,15 @@ class _Toast2FakeCache:
     def reference(self, name):
         return self.keydict[name]
 
-    def put(self, name, data, **kwargs):
-        self.keydict[name] = data
+    def put(self, name, data, replace=False):
+        if name is None:
+            raise ValueError("Cache name cannot be None")
+
+        if self.exists(name):
+            if not replace:
+                raise RuntimeError(f"Cache buffer {name} exists, but replace is False")
+
+        self.keydict[name] = np.copy(data)
 
     def exists(self, name):
         return name in self.keydict
@@ -197,6 +204,9 @@ class _Toast2FakeCache:
 
     def destroy(self, name):
         del self.keydict[name]
+
+    def __getitem__(self, item):
+        return self.keydict[item]
 
 
 class _Toast2FakeTod:
