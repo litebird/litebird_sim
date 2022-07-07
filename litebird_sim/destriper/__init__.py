@@ -37,8 +37,7 @@ class DestriperParameters:
 
     - ``nnz``: number of components per pixel. The default is 3 (I/Q/U).
 
-    - ``baseline_length``: number of consecutive samples in a 1/f noise
-      baseline
+    - ``baseline_length``: length of the baseline for 1/f noise in seconds 
 
     - ``iter_max``: maximum number of iterations
 
@@ -75,7 +74,7 @@ class DestriperParameters:
     nside: int = 512
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
     nnz: int = 3
-    baseline_length: int = 100
+    baseline_length: float = 60.0
     iter_max: int = 100
     output_file_prefix: str = "lbs_"
     return_hit_map: bool = False
