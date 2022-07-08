@@ -65,7 +65,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
     params = lbs.DestriperParameters(
         nside=16,
         nnz=3,
-        baseline_length=100,
+        baseline_length_s=100,
         iter_max=10,
         coordinate_system=coordinates,
         return_hit_map=True,

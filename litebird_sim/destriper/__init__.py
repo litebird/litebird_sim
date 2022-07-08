@@ -37,7 +37,7 @@ class DestriperParameters:
 
     - ``nnz``: number of components per pixel. The default is 3 (I/Q/U).
 
-    - ``baseline_length``: length of the baseline for 1/f noise in seconds 
+    - ``baseline_length_s``: length of the baseline for 1/f noise in seconds
 
     - ``iter_max``: maximum number of iterations
 
@@ -74,7 +74,7 @@ class DestriperParameters:
     nside: int = 512
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
     nnz: int = 3
-    baseline_length: float = 60.0
+    baseline_length_s: float = 60.0
     iter_max: int = 100
     output_file_prefix: str = "lbs_"
     return_hit_map: bool = False
@@ -351,7 +351,7 @@ def destripe_observations(
         name="signal",
         outdir=base_path,
         outprefix=params.output_file_prefix,
-        baseline_length=params.baseline_length,
+        baseline_length=params.baseline_length_s,
         iter_max=params.iter_max,
         use_noise_prior=False,
     )
