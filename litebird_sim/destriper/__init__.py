@@ -37,8 +37,7 @@ class DestriperParameters:
 
     - ``nnz``: number of components per pixel. The default is 3 (I/Q/U).
 
-    - ``baseline_length``: number of consecutive samples in a 1/f noise
-      baseline
+    - ``baseline_length_s``: length of the baseline for 1/f noise in seconds
 
     - ``iter_max``: maximum number of iterations
 
@@ -75,7 +74,7 @@ class DestriperParameters:
     nside: int = 512
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
     nnz: int = 3
-    baseline_length: int = 100
+    baseline_length_s: float = 60.0
     iter_max: int = 100
     output_file_prefix: str = "lbs_"
     return_hit_map: bool = False
@@ -186,8 +185,15 @@ class _Toast2FakeCache:
     def reference(self, name):
         return self.keydict[name]
 
-    def put(self, name, data, **kwargs):
-        self.keydict[name] = data
+    def put(self, name, data, replace=False):
+        if name is None:
+            raise ValueError("Cache name cannot be None")
+
+        if self.exists(name):
+            if not replace:
+                raise RuntimeError(f"Cache buffer {name} exists, but replace is False")
+
+        self.keydict[name] = np.copy(data)
 
     def exists(self, name):
         return name in self.keydict
@@ -197,6 +203,9 @@ class _Toast2FakeCache:
 
     def destroy(self, name):
         del self.keydict[name]
+
+    def __getitem__(self, item):
+        return self.keydict[item]
 
 
 class _Toast2FakeTod:
@@ -342,7 +351,7 @@ def destripe_observations(
         name="signal",
         outdir=base_path,
         outprefix=params.output_file_prefix,
-        baseline_length=params.baseline_length,
+        baseline_length=params.baseline_length_s,
         iter_max=params.iter_max,
         use_noise_prior=False,
     )
