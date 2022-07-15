@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change** The wrapper to the TOAST2 mapmaker has been fixed, and the parameter `baseline_length` was renamed to `baseline_length_s` to make clear what the measurement unit is [#182](https://github.com/litebird/litebird_sim/pull/182)
+
 # Version 0.5.0
 
 -   **Breaking change** New API for noise module [#151](https://github.com/litebird/litebird_sim/pull/151):
