@@ -7,6 +7,7 @@ from astropy import constants as const
 from astropy.cosmology import Planck18_arXiv_v2 as cosmo
 
 from typing import Union, List
+from pathlib import Path
 
 import litebird_sim as lbs
 from litebird_sim import mpi
@@ -297,6 +298,8 @@ class HwpSysAndBandpass:
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
+        save_input_maps: Union[bool, None] = None,
+        read_input_maps: Union[bool, None] = None,
     ):
         """It sets the input paramters
 
@@ -311,13 +314,16 @@ class HwpSysAndBandpass:
              Channel (:class:`.FreqChannelInfo`): an instance of the
                                                   :class:`.FreqChannelInfo` class
              maps (float): input maps (3, npix) coherent with nside provided.
-             
-        """
+             save_input_maps: (bool) if True, input maps are saved from simulation base path. If False, the maps are assigned to a variable and
+             then deleted
+             read_input_maps: (bool) if True, input maps are read from simulation base path.
+         """
 
+                
         # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
         hwp_sys_Mbs_make_fg = True
-        hwp_sys_Mbs_fg_models = ["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"]
+        hwp_sys_Mbs_fg_models = ["pysm_synch_1", "pysm_freefree_1", "pysm_dust_1", "pysm_ame_1"]
         hwp_sys_Mbs_gaussian_smooth = True
 
         # This part sets from parameter file
@@ -369,10 +375,13 @@ class HwpSysAndBandpass:
             # here we set the values for Mbs used in the code if present in paramdict, otherwise defaults
             hwp_sys_Mbs_make_cmb = paramdict.get("hwp_sys_Mbs_make_cmb", True)
             hwp_sys_Mbs_make_fg = paramdict.get("hwp_sys_Mbs_make_fg", True)
-            hwp_sys_Mbs_fg_models = paramdict.get("hwp_sys_Mbs_fg_models", ["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"])
+            hwp_sys_Mbs_fg_models = paramdict.get("hwp_sys_Mbs_fg_models", ["pysm_synch_1", "pysm_freefree_1", "pysm_dust_1", "pysm_ame_1"])
             hwp_sys_Mbs_gaussian_smooth = paramdict.get(
-                "hwp_sys_Mbs_gaussian_smooth", True
-            )
+                 "hwp_sys_Mbs_gaussian_smooth", True
+             )
+            save_input_maps = paramdict.get("save_input_maps", False)
+            read_input_maps = paramdict.get("read_input_maps", False)
+
 
         # This part sets from input_parameters()
         if not self.nside:
@@ -397,23 +406,26 @@ class HwpSysAndBandpass:
             if integrate_in_band_solver is not None:
                 self.integrate_in_band_solver = integrate_in_band_solver
 
+        if Channel is None:
+            Channel = lbs.FreqChannelInfo(bandcenter_ghz=100)
+
         if Mbsparams is None:
             Mbsparams = lbs.MbsParameters(
-                make_cmb=hwp_sys_Mbs_make_cmb,
-                make_fg=hwp_sys_Mbs_make_fg,
-                fg_models=hwp_sys_Mbs_fg_models,
-                gaussian_smooth=hwp_sys_Mbs_gaussian_smooth,
-                bandpass_int=False,
-                maps_in_ecliptic=True,
-            )
+                    make_cmb=hwp_sys_Mbs_make_cmb,
+                    make_fg=hwp_sys_Mbs_make_fg,
+                    fg_models=hwp_sys_Mbs_fg_models,
+                    gaussian_smooth=hwp_sys_Mbs_gaussian_smooth,
+                    bandpass_int=False,
+                    maps_in_ecliptic=True,
+                    save = save_input_maps,
+                    output_string= Channel.channel
+                )
 
         Mbsparams.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
 
-        if Channel is None:
-            Channel = lbs.FreqChannelInfo(bandcenter_ghz=100)
-
+        
         if self.integrate_in_band:
             try:
                 self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
@@ -465,11 +477,31 @@ class HwpSysAndBandpass:
 
             mbs = lbs.Mbs(simulation=self.sim, parameters=Mbsparams, instrument=myinstr)
 
-            maps = mbs.run_all()[0]
             self.maps = np.empty((self.nfreqs, 3, self.npix))
-            for ifreq in range(self.nfreqs):
-                self.maps[ifreq] = maps["ch" + str(ifreq)]
-            del maps
+
+            if read_input_maps:
+                if save_input_maps:
+                    mbs.run_all()
+                for ifreq in range(self.nfreqs):
+                    cmbpath = Path(str(self.sim.base_path)+f'/cmb/0000/ch{ifreq}_cmb_0000_{Mbsparams.output_string}.fits')
+                    #print(str(cmbpath))
+                    if not cmbpath.is_file():
+                        print(str(cmbpath)+' has to be saved first!')
+                    self.maps[ifreq] = hp.read_map(cmbpath, field = None)
+                    for fg in hwp_sys_Mbs_fg_models:                        
+                        fgpath = Path(str(self.sim.base_path)+f'/foregrounds/{fg}/ch{ifreq}_{fg}_{Mbsparams.output_string}.fits')
+                        #print(str(fgpath))
+                        if not fgpath.is_file():
+                            print(str(fgpath)+' has to be saved first!')
+                        self.maps[ifreq] += hp.read_map(fgpath, field = None) 
+            else:                
+                maps = mbs.run_all()[0]
+                if not save_input_maps:
+                    for ifreq in range(self.nfreqs):
+                        self.maps[ifreq] = maps["ch" + str(ifreq)]
+                else:
+                    print("maps need to be read, set read_input_maps = True")
+                del maps
 
         else:
 
