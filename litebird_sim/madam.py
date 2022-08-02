@@ -2,11 +2,12 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 from astropy.io import fits
 import jinja2
 
+from . import DetectorInfo
 from .mapping import DestriperParameters
 from .observations import Observation
 from .simulations import Simulation
@@ -74,12 +75,29 @@ def _save_tod_to_fits(
 
 def save_simulation_for_madam(
     sim: Simulation,
-    detectors,
+    detectors: List[DetectorInfo],
     params: DestriperParameters,
-    use_gzip=False,
+    use_gzip: bool = False,
     output_path: Optional[Union[str, Path]] = None,
-    absolute_paths=True,
+    absolute_paths: bool = True,
 ):
+    """
+    Save the TODs and pointings of a simulation to files suitable to be read by Madam
+
+    This function takes all the TOD samples and pointing angles from `sim` and saves
+    them to the directory specified by `output_path` (the default is to save them
+    in a sub-folder of the output path of the simulation). The parameter `detector`
+    must be a list of :class:`.DetectorInfo` objects, and it specifies which detectors
+    will be saved to disk. The variable `params` specifies how Madam should produce
+    the maps; see the documentation for :class:`.DestriperParameters` for more
+    information.
+
+    If `use_gzip` is true, the TOD and pointing files will be compressed using Gzip
+    (the default is false, as this might slow down I/O). If `absolute_paths` is ``True``
+    (the default), the parameter and simulation files produced by this routine will
+    be *absolute*; set it to `False` if you plan to move the FITS files to some other
+    directory or computer before running Madam.
+    """
     sim_template, par_template = _read_templates()
 
     if not output_path:
