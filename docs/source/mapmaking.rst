@@ -24,6 +24,10 @@ There are two available map-makers:
    contribution and remove it from the timelines; then, a classical
    *binner* is ran over the cleaned timelines.
 
+3. You can also use :func:`.save_simulation_for_madam` to save TODs
+   and pointing information to disk and then manually call the `Madam
+   mapmaker <https://arxiv.org/abs/astro-ph/0412517>`_.
+
 The LiteBIRD Simulation Framework provides a binner on its own, and it
 internally uses `TOAST <https://github.com/hpc4cmb/toast>`_ to provide
 the destriper.
@@ -155,6 +159,37 @@ Here is the complete source code of the example and the result:
 .. plot:: pyplots/destriper_demo.py
    :include-source:
 
+
+Saving files for Madam
+----------------------
+
+The function :func:`.save_simulation_for_madam` takes a :class:`.Simulation`
+object, a list of detectors and a output path (the default is a subfolder of
+the output path of the simulation) and saves a set of files in it:
+
+1. Pointing information, saved as FITS files;
+2. TOD samples, saved as FITS files;
+3. A so-called «simulation file», named ``madam.sim``;
+4. A so-called «parameter file», named ``madam.par``.
+
+These files are ready to be used with the Madam map-maker; you just need
+to pass the parameter file ``madam.par`` to one of the executables provided
+by Madam (the other ones are referenced by the parameter file). For instance,
+the following command will compute the amount of memory needed to run Madam:
+
+.. code-block:: text
+
+    $ inputcheck madam.par
+
+The following command will run Madam:
+
+.. code-block:: text
+
+    $ madam madam.par
+
+Of course, in a realistic situation you want to run ``madam`` using MPI,
+so you should call ``mpiexec``, ``mpirun``, or something similar.
+
    
 API reference
 -------------
@@ -165,6 +200,11 @@ API reference
     :show-inheritance:
 
 .. automodule:: litebird_sim.destriper
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. automodule:: litebird_sim.madam
     :members:
     :undoc-members:
     :show-inheritance:

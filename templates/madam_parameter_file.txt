@@ -1,0 +1,37 @@
+simulation    = {{ simulation_file_name }}
+tod_1         = tod
+
+# Detectors
+{% for det in detectors %}
+detector_{{ loop.index }} = {{ det.name }}
+{% endfor %}
+
+# Destriping parameters
+kfirst        =   T
+ksecond       =   F
+kfilter       =   F
+iter_max      =   {{ iter_max }}
+
+# Baseline length
+base_first    =  {{ samples_per_baseline }}   # These are *samples*, not seconds!
+
+# Resolution
+nside_map     =  {{ nside }}
+
+# Output
+path_output   =  {{ madam_output_path }}
+{% if madam_destriped_file_name %}
+file_map      =  !{{ madam_destriped_file_name }}
+{% endif %}
+{% if madam_baseline_file_name %}
+file_base     =  !{{ madam_baseline_file_name }}
+{% endif %}
+{% if madam_binned_file_name %}
+file_binmap   =  !{{ madam_binned_file_name }}
+{% endif %}
+{% if madam_cov_file_name %}
+file_cov      =  !{{ madam_cov_file_name }}
+{% endif %}
+{% if madam_hit_file_name %}
+file_hit      =  !{{ madam_hit_file_name }}
+{% endif %}

@@ -34,6 +34,7 @@ from .imo import (
     ImoFlatFile,
 )
 from .hwp_sys.hwp_sys import HwpSys
+from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
@@ -69,8 +70,8 @@ from .scanning import (
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
 )
-from .mapping import make_bin_map
-from .destriper import DestriperParameters, DestriperResult, destripe
+from .mapping import DestriperParameters, DestriperResult, make_bin_map
+from .destriper import destripe
 from .simulations import Simulation
 from .noise import (
     add_white_noise,
@@ -137,6 +138,8 @@ __all__ = [
     # hwp.py
     "HWP",
     "IdealHWP",
+    # madam.py
+    "save_simulation_for_madam",
     # mbs.py
     "Mbs",
     "MbsParameters",
