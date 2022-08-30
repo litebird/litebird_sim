@@ -881,3 +881,25 @@ def get_ecl2det_quaternions(
     )
     quats[..., 0:3] *= -1  # Apply the quaternion conjugate
     return quats
+
+
+def _precompile():
+    """Trigger Numba's to pre-compile a few functions defined in this module"""
+    result = np.empty((10, 4))
+    all_spin_to_ecliptic(
+        result_matrix=result,
+        sun_earth_angles_rad=np.linspace(start=0, stop=np.pi, num=result.shape[0]),
+        spin_sun_angle_rad=0.1,
+        precession_rate_hz=0.2,
+        spin_rate_hz=0.3,
+        time_vector_s=np.linspace(start=0.0, stop=1.0, num=result.shape[0]),
+    )
+
+    result = np.empty((1, 10, 3))
+    all_compute_pointing_and_polangle(
+        result_matrix=result,
+        quat_matrix=np.random.rand(result.shape[1], result.shape[0], 4),
+    )
+
+
+_precompile()
