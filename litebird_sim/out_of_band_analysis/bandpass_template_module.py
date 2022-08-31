@@ -160,11 +160,10 @@ def bandpass_profile(
 ):
     
     profile = np.ones_like(freqs)
-    
+
     if 'bandpass_file' in bandpass.keys():
-        
-        profile = np.ones_like(freqs)
-        print('We can not process bandpass files yet. This will be implemented in the future. For now we define a top-hat between ', freqs[0], ' and ', freqs[-1], ' GHz.')
+
+        profile = np.loadtxt(bandpass['bandpass_file'])[:,1]
                
     elif 'band_type' in bandpass.keys():
     
