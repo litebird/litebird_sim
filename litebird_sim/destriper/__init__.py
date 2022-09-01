@@ -33,6 +33,7 @@ class _Toast2FakeCache:
         pointings,
         nside,
         coordinates: CoordinateSystem,
+        polarization: bool = True,
     ):
         self.obs = obs
 
@@ -83,9 +84,15 @@ class _Toast2FakeCache:
                 )
 
             self.keydict[f"pixels_{det}"] = healpix_base.ang2pix(theta_phi)
-            self.keydict[f"weights_{det}"] = np.stack(
-                (np.ones(nsamples), np.cos(2 * polangle), np.sin(2 * polangle))
-            ).transpose()
+
+            if polarization:
+                weights = np.stack(
+                    (np.ones(nsamples), np.cos(2 * polangle), np.sin(2 * polangle))
+                ).transpose()
+            else:
+                weights = np.ones(nsamples).reshape((-1, 1))
+
+            self.keydict[f"weights_{det}"] = weights
 
     def keys(self):
         return self.keydict.keys()
@@ -125,10 +132,13 @@ class _Toast2FakeTod:
         pointings,
         nside,
         coordinates: CoordinateSystem,
+        polarization: bool = True,
     ):
         self.obs = obs
         self.local_samples = (0, obs.tod[0].size)
-        self.cache = _Toast2FakeCache(obs, pointings, nside, coordinates)
+        self.cache = _Toast2FakeCache(
+            obs, pointings, nside, coordinates, polarization=polarization
+        )
 
     def local_intervals(self, _):
         start_time = (
@@ -178,14 +188,24 @@ class _Toast2FakeData:
         pointings,
         nside,
         coordinates: CoordinateSystem,
+        polarization: bool = True,
     ):
         if pointings is None:
             self.obs = [
-                {"tod": _Toast2FakeTod(ob, None, nside, coordinates)} for ob in obs
+                {
+                    "tod": _Toast2FakeTod(
+                        ob, None, nside, coordinates, polarization=polarization
+                    )
+                }
+                for ob in obs
             ]
         else:
             self.obs = [
-                {"tod": _Toast2FakeTod(ob, po, nside, coordinates)}
+                {
+                    "tod": _Toast2FakeTod(
+                        ob, po, nside, coordinates, polarization=polarization
+                    )
+                }
                 for ob, po in zip(obs, pointings)
             ]
         self.nside = nside
@@ -247,11 +267,14 @@ def destripe_observations(
             + f" elements, but the list of pointings has {len(pointings)}"
         )
 
+    polarization = params.nnz == 3
+
     data = _Toast2FakeData(
         obs=observations,
         pointings=pointings,
         nside=params.nside,
         coordinates=params.coordinate_system,
+        polarization=polarization,
     )
     mapmaker = OpMapMaker(
         nside=params.nside,
