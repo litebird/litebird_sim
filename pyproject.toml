@@ -73,7 +73,7 @@ rich = "^11.0.0"
 
 ducc0 = "^0.23.0"
 pysm3 = "^3.3.0"
-"sphinxcontrib.asciinema" = "^0.2.1"
+"sphinxcontrib.asciinema" = "^0.3.4"
 asciimatics = "^1.12.0"
 pyperclip = "^1.8.1"
 pre-commit = "^2.15.0"
