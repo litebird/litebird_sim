@@ -86,4 +86,4 @@ docs = ["sphinx", "sphinx_rtd_theme", "sphinxcontrib-bibtex", "sphinxcontrib-con
 
 [build-system]
 requires = ["poetry_core>=1.0"]
-build-backend = "poetry.masonry.api"
+build-backend = "poetry.core.masonry.api"
