@@ -60,7 +60,8 @@ jobs:
           if [ "${{ matrix.mpi }}" != "none" ]; then
             EXTRAS="$EXTRAS -E mpi"
           fi
-          poetry install $EXTRAS
+          poetry export --without-hashes $EXTRAS > requirements.txt
+          pip install -r requirements.txt
         env:
           DUCC0_OPTIMIZATION: none
 
@@ -79,7 +80,7 @@ jobs:
         run: |
             for proc in 1 5 9 ; do
               echo "Running MPI test ($MPI) with $proc processes"
-              mpiexec -n $proc poetry run python3 ./test/test_mpi.py
+              mpiexec -n $proc python3 ./test/test_mpi.py
             done
 
       - name: Tests OpenMPI
@@ -87,5 +88,5 @@ jobs:
         run: |
             for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
-              mpiexec -n $proc poetry run python3 ./test/test_mpi.py
+              mpiexec -n $proc python3 ./test/test_mpi.py
             done
