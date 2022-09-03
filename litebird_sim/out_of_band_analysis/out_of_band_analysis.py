@@ -483,13 +483,13 @@ class HwpSysAndBandpass:
                 if save_input_maps:
                     mbs.run_all()
                 for ifreq in range(self.nfreqs):
-                    cmbpath = Path(str(self.sim.base_path)+f'/cmb/0000_ns{self.nside}/ch{ifreq}_cmb_0000_{Mbsparams.output_string}.fits')
+                    cmbpath = Path(str(self.sim.base_path)+f'/cmb/0000/ch{ifreq}_cmb_0000_{Mbsparams.output_string}.fits')
                     #print(str(cmbpath))
                     if not cmbpath.is_file():
                         print(str(cmbpath)+' has to be saved first!')
                     self.maps[ifreq] = hp.read_map(cmbpath, field = None)
                     for fg in hwp_sys_Mbs_fg_models:                        
-                        fgpath = Path(str(self.sim.base_path)+f'/foregrounds/{fg}_ns{self.nside}/ch{ifreq}_{fg}_{Mbsparams.output_string}.fits')
+                        fgpath = Path(str(self.sim.base_path)+f'/foregrounds/{fg}/ch{ifreq}_{fg}_{Mbsparams.output_string}.fits')
                         #print(str(fgpath))
                         if not fgpath.is_file():
                             print(str(fgpath)+' has to be saved first!')
