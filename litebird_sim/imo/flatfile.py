@@ -4,15 +4,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Set, Union, Tuple
 from uuid import UUID
-from backports.datetime_fromisoformat import MonkeyPatch
 
 import json
 import yaml
 
 from .objects import FormatSpecification, Entity, Quantity, DataFile, Release
-
-# Enable datetime.fromisoformat even on Python 3.6
-MonkeyPatch.patch_fromisoformat()
 
 IMO_FLATFILE_SCHEMA_FILE_NAMES = ["schema.json", "schema.yaml"]
 IMO_FLATFILE_DATA_FILES_DIR_NAME = "data_files"
