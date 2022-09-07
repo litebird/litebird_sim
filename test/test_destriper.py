@@ -18,6 +18,134 @@ COORDINATE_SYSTEM_STR = {
 }
 
 
+def test_basic_functionality(tmp_path):
+    # This tests checks that the destriper «does the right thing» with a
+    # very simple TOD that is created by hand, i.e., where pointings and
+    # TOD samples are created manually one by one instead of resorting
+    # to objects like "SpinningScanningStrategy" and noise generators.
+    #
+    # The TOD is just the summation of constant baselines and a sky map,
+    # and there is no white noise added. The map is at very low resolution,
+    # and only a handful of samples are considered. Plus, we consider here
+    # just temperature, not polarization.
+
+    # Resolution of the output map
+    nside = 1
+
+    # The fake sky map we are going to observe: just a sequence of numbers
+    sky_map = np.arange(healpy.nside2npix(nside))
+
+    # Samples per each 1/f baseline
+    samples_per_baseline = 3
+
+    # Value of each baseline
+    baselines = np.array([1.0, 4.0, -2.0], dtype=np.float32)
+
+    # Number of samples we're going to have in the TOD
+    num_of_samples = samples_per_baseline * len(baselines)
+
+    # Sampling frequency
+    sampling_frequency_hz = 1.0
+
+    # Duration of the simulation
+    duration_s = num_of_samples * sampling_frequency_hz
+
+    # Initializing the simulation
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=0.0,
+        duration_s=duration_s,
+    )
+
+    detectors = [
+        lbs.DetectorInfo(name="mock_detector", sampling_rate_hz=sampling_frequency_hz)
+    ]
+
+    # creating one observation
+    sim.create_observations(
+        detectors=detectors,
+        n_blocks_det=1,
+        n_blocks_time=1,
+    )
+
+    # Now create a simple TOD
+
+    # Let's start from the pixels we're going to observe. Note that we
+    # want many repetitions for the destriper to work correctly!
+    pixidx = np.array([0, 0, 1, 0, 1, 2, 2, 0, 2], dtype=np.int8)
+    assert len(pixidx) == num_of_samples
+
+    # Now generate 1/f baselines with the same number of samples as the TOD
+    expected_baselines = np.repeat(baselines, samples_per_baseline).reshape(1, -1)
+
+    # The sky TOD is just the sky map unrolled over the observed pixels
+    sky_tod = sky_map[pixidx]
+
+    theta, phi = healpy.pix2ang(nside, pixidx, nest=True)
+
+    # Let's create the TOD, pointings, and polarization angles with our
+    # new simple values
+    sim.observations[0].tod = expected_baselines + sky_tod
+    sim.observations[0].pointings = np.empty((1, num_of_samples, 2))
+    sim.observations[0].psi = np.empty((1, num_of_samples))
+    sim.observations[0].pointings[0, :, 0] = theta
+    sim.observations[0].pointings[0, :, 1] = phi
+    sim.observations[0].pointing_coords = lbs.CoordinateSystem.Ecliptic
+    sim.observations[0].psi[0, :] = np.linspace(
+        start=0.0,
+        stop=np.pi,
+        num=num_of_samples,
+    )
+
+    param_noise_madam = lbs.DestriperParameters(
+        nside=nside,
+        nnz=1,  # Compute just I
+        baseline_length_s=samples_per_baseline / sampling_frequency_hz,
+        return_hit_map=True,
+        return_binned_map=True,
+        return_destriped_map=True,
+        coordinate_system=lbs.coordinates.CoordinateSystem.Ecliptic,
+        iter_max=10,
+    )
+
+    # The call to round(10) means that we clip to zero those samples whose
+    # value is negligible (e.g., 4e-16). As the destriper is going to
+    # overwrite the TOD, we keep a copy in "input_tod"
+    input_tod = np.copy(sim.observations[0].tod).round(10)
+
+    # Run the destriper and modify the TOD in place
+    result = lbs.destripe(
+        sim=sim,
+        params=param_noise_madam,
+    )
+
+    # Let's retrieve the TOD and clip small values as above
+    output_tod = np.copy(sim.observations[0].tod).round(10)
+
+    # These are the baselines computed by the destriper (we must compute
+    # them manually, because unfortunately TOAST2 does not save them)
+    computed_baselines = input_tod - output_tod
+
+    # The expected difference between the input baselines and the computed
+    # ones is not necessarily zero, as the offset of the baselines is not
+    # constrained by the destriping equations. We just check that this
+    # mismatch is constant.
+    mismatch = computed_baselines - expected_baselines
+    assert np.allclose(mismatch, mismatch[0])
+
+    # Compute the expected hit map and check that the destriper got it
+    # right
+    expected_hit_map = np.bincount(pixidx, minlength=len(result.hit_map))
+    assert np.allclose(expected_hit_map, result.hit_map)
+
+    # Compute the difference between the input map and the destriped map,
+    # and check that their difference is a constant (see above the
+    # discussion for "mismatch").
+    hit_mask = result.hit_map > 0
+    map_mismatch = sky_map[hit_mask] - result.destriped_map[hit_mask]
+    assert np.allclose(map_mismatch, map_mismatch[0])
+
+
 def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
     coordinates_str = COORDINATE_SYSTEM_STR[coordinates]
 
