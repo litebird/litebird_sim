@@ -1,5 +1,11 @@
 # HEAD
 
+-   Update and fix dependencies [#192](https://github.com/litebird/litebird_sim/pull/192)
+
+-   Allow nnz=1 in the destriper [#191](https://github.com/litebird/litebird_sim/pull/191)
+
+-   Improve the performance of the pointing generator [#190](https://github.com/litebird/litebird_sim/pull/190)
+
 -   Add support for Madam (through an external call) [#186](https://github.com/litebird/litebird_sim/pull/186)
 
 # Version 0.6.0
