@@ -68,7 +68,8 @@ jobs:
 
       - name: Enable rich traceback
         run: |
-          export DESTPATH="$VIRTUAL_ENV/lib/python${{ matrix.python }}/site-packages/sitecustomize.py"
+          export PYTHON_ENV_PATH="$(dirname $(which python))/.."
+          export DESTPATH="$PYTHON_ENV_PATH/lib/python${{ matrix.python }}/site-packages/sitecustomize.py"
           mkdir -p $(dirname $DESTPATH)
           echo -e "from rich.traceback import install\ninstall(show_locals=True)\n" > "$DESTPATH"
           echo "$DESTPATH"
