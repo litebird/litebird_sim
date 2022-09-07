@@ -337,7 +337,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "ducc0"
-version = "0.23.0"
+version = "0.25.0"
 description = "Distinctly useful code collection: contains efficient algorithms for Fast Fourier (and related) transforms, spherical harmonic transforms involving very general spherical grids, gridding/degridding tools for radio interferometry, 4pi spherical convolution operators and much more."
 category = "main"
 optional = false
@@ -2322,28 +2322,7 @@ docutils = [
     {file = "docutils-0.17.1-py2.py3-none-any.whl", hash = "sha256:cf316c8370a737a022b72b56874f6602acf974a37a9fba42ec2876387549fc61"},
     {file = "docutils-0.17.1.tar.gz", hash = "sha256:686577d2e4c32380bb50cbb22f575ed742d58168cee37e99117a854bcd88f125"},
 ]
-ducc0 = [
-    {file = "ducc0-0.23.0-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:8c67c7c7d7088b2f473cb9b29e5f7e32df453a35aa869018693a3c2c4003f0c7"},
-    {file = "ducc0-0.23.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:5a6024a053b3a5b3d6313595d52e96d721cb942f46c9db1b9304c3d664feb546"},
-    {file = "ducc0-0.23.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6133d38a1a41f52d26720ccfde1fb92e7e542388ee9632a5dc62a6eb0b234726"},
-    {file = "ducc0-0.23.0-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:f901c1bb6d2bf24b0ccf9e0e6a364bb9e1441d7b294b667fff78e4b8eaed5ffc"},
-    {file = "ducc0-0.23.0-cp310-cp310-win_amd64.whl", hash = "sha256:df6a670569c64cf333eaf8792b0e54fe1cd29b1737d73174dd5aedfd56ddc51e"},
-    {file = "ducc0-0.23.0-cp37-cp37m-macosx_10_14_x86_64.whl", hash = "sha256:1ac2ff1020bddbc220870433ac5159667f06147a5de2560158390159506e70af"},
-    {file = "ducc0-0.23.0-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:015df2084d084f32b11a357f2b2a87bafbab409aab5c14d0ac95fed7c07255ab"},
-    {file = "ducc0-0.23.0-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:58220f1af59821a15ad32139c50c7b4e8fe3c42459b602cd8c83b8f294a04c48"},
-    {file = "ducc0-0.23.0-cp37-cp37m-win_amd64.whl", hash = "sha256:96b2bee0a769ec0f85aea6ea06f939aebef35d75e8a960c26c736be3a132b7f9"},
-    {file = "ducc0-0.23.0-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:d2d6cba7f4bdf456da060054e6800a90d2e126450d53d8db8463ed2808f3fc1a"},
-    {file = "ducc0-0.23.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:bf2563ecbab1ea773bc81356984f69949b647bfaf29e71d108e560382dea4c69"},
-    {file = "ducc0-0.23.0-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:345874be875f2fab157c362b8bfa3895a25d2ed6644b0fb9dded615ed3dd79ee"},
-    {file = "ducc0-0.23.0-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:1cd9c569f5ddc59754b96150bcc3a5e30ea7b1d30b18bbf0dbfc90ca3c024258"},
-    {file = "ducc0-0.23.0-cp38-cp38-win_amd64.whl", hash = "sha256:4e3c1cf87bbccf988a638c1dc89bbf9923ab576f43eae29fadd92cbd8ffe81fc"},
-    {file = "ducc0-0.23.0-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:9aad402e6c169202fabb9cc830bf8de19e8e99b5a42250c772cc8c3112b119fd"},
-    {file = "ducc0-0.23.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:b2c10935ffc13cc7d1c0f7267530be7960a8a5fe40a7ab3b478b002ebe88191f"},
-    {file = "ducc0-0.23.0-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1cfa392c09d98aae6e6aa8035fe7b3ce07811fcc9cc9921cee9ca91d3eb68eae"},
-    {file = "ducc0-0.23.0-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:208dfb9d34f6228e6d8a899827de93f88fd835dbdcfe16ddc80087deffc45550"},
-    {file = "ducc0-0.23.0-cp39-cp39-win_amd64.whl", hash = "sha256:bc7932187e1d521bd3a7b4e990bdddfba04669910366f331bcc65d4b798f4fd9"},
-    {file = "ducc0-0.23.0.tar.gz", hash = "sha256:33844bd0dfa4ce1a43810c70a21b9d6254f7d55c7f5a28126a587145c6fcbba1"},
-]
+ducc0 = []
 entrypoints = [
     {file = "entrypoints-0.4-py3-none-any.whl", hash = "sha256:f174b5ff827504fd3cd97cc3f8649f3693f51538c7e4bdf3ef002c8429d42f9f"},
     {file = "entrypoints-0.4.tar.gz", hash = "sha256:b706eddaa9218a19ebcd67b56818f05bb27589b1ca9e8d797b74affad4ccacd4"},
@@ -2493,7 +2472,6 @@ Jinja2 = [
     {file = "Jinja2-3.1.2.tar.gz", hash = "sha256:31351a702a408a9e7595a8fc6150fc3f43bb6bf7e319770cbc0db9df9437e852"},
 ]
 jplephem = [
-    {file = "jplephem-2.17-py3-none-any.whl", hash = "sha256:76efa1290c93ec6c34c7d21345b937f2563e266de34c40c0f55b0ecc56c0f825"},
     {file = "jplephem-2.17.tar.gz", hash = "sha256:e1c6e5565c4d00485f1063241b4d1eff044585c22b8e97fad0ff2f6efb8aaa27"},
 ]
 json5 = [
