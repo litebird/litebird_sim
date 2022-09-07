@@ -2054,7 +2054,7 @@ mpi = ["mpi4py"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.7.1,<3.11"
-content-hash = "90299cb74d3c06b92c8836a8f139688467de470cfeac46b206e43b8ade8b4aab"
+content-hash = "78f91c20a7fab1dbcf2bc49763b7f211e40d49b5107fc7ca8dc557aeb7868066"
 
 [metadata.files]
 alabaster = [
