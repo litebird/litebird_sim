@@ -64,7 +64,6 @@ markdown-katex = {version = "^202006.1021"}
 katex = "^0.0.4"
 healpy = "^1.15.0"
 pyyaml = "^5.3.1"
-backports-datetime-fromisoformat = "^1.0.0"
 pybind11 = "^2.5.0"
 jplephem = "^2.14"
 PyGithub = "^1.53"
