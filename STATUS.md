@@ -32,8 +32,9 @@ Simulation Team plans to implement in `litebird_sim`.
 
 ## Destriping+calibration map-maker
 
--   Provided by TOAST2
--   [PR#86](https://github.com/litebird/litebird_sim/pull/86)
+-   Provided by TOAST2, [PR#86](https://github.com/litebird/litebird_sim/pull/86)
+
+-   [PR#186](https://github.com/litebird/litebird_sim/pull/186) adds the possibility to interface Madam
 
 ## Calibration non-idealities
 

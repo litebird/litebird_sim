@@ -1,5 +1,7 @@
 # HEAD
 
+# Version 0.7.0
+
 -   Update and fix dependencies [#192](https://github.com/litebird/litebird_sim/pull/192)
 
 -   Allow nnz=1 in the destriper [#191](https://github.com/litebird/litebird_sim/pull/191)
