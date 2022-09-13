@@ -107,7 +107,7 @@ def get_pointings(
 
         pointings = obs.get_pointings(...)
 
-        # Extract the colatitude (theta), longitude (psi), and
+        # Extract the colatitude (theta), longitude (phi), and
         # polarization angle (psi) from pointings
         theta, phi, psi = [pointings[:, :, i] for i in (0, 1, 2)]
 

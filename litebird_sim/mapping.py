@@ -229,7 +229,7 @@ def make_bin_map(
 
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
         try:
-            weights = cur_obs.sampling_rate_ghz * cur_obs.net_ukrts**2
+            weights = cur_obs.sampling_rate_hz * cur_obs.net_ukrts**2
         except AttributeError:
             weights = np.ones(cur_obs.n_detectors)
 
