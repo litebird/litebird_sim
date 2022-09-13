@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fix bug in `make_bin_map` [#196](https://github.com/litebird/litebird_sim/pull/196)
+
 # Version 0.7.0
 
 -   Update and fix dependencies [#192](https://github.com/litebird/litebird_sim/pull/192)
