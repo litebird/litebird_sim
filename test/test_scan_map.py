@@ -25,6 +25,7 @@ def test_scan_map():
     time_span_s = 365 * 24 * 3600
     nside = 256
     sampling_hz = 1
+    net = 50.0
     hwp_radpsec = 4.084_070_449_666_731
 
     hpx = Healpix_Base(nside, "RING")
@@ -53,6 +54,7 @@ def test_scan_map():
     detT = lbs.DetectorInfo(
         name="Boresight_detector_T",
         sampling_rate_hz=sampling_hz,
+        net_ukrts=net,
         bandcenter_ghz=100.0,
         quat=[0.0, 0.0, 0.0, 1.0],
     )
@@ -60,6 +62,7 @@ def test_scan_map():
     detB = lbs.DetectorInfo(
         name="Boresight_detector_B",
         sampling_rate_hz=sampling_hz,
+        net_ukrts=net,
         bandcenter_ghz=100.0,
         quat=[0.0, 0.0, 1.0 / np.sqrt(2.0), 1.0 / np.sqrt(2.0)],
     )
