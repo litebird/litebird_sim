@@ -31,6 +31,12 @@ class BandPassInfo(object):
             - "top-hat-exp" : the edges of the band are apodized with an exponential profile
             - "top-hat-cosine" : the edges of the band are apodized with a cosine profile
             - "cheby" : the bandpass encodes a _Chebyshev_  profile
+        - alpha_exp (float): out-of-band exponential decay index for low freq edge.
+        - beta_exp (float) : out-of-band exponential decay index for high freq edge
+        - cosine_apo_length (int): the numerical factor related to the  cosine apodization length
+
+        - cheby_poly_order (int): chebyshev filter order.
+        - cheby_ripple_dB (int): maximum ripple amplitude in decibels.
     """
 
 
@@ -41,6 +47,13 @@ class BandPassInfo(object):
     bandtype : str ="top-hat"
     normalize : bool = False
     model:  str = None
+
+
+    alpha_exp: float = 1
+    beta_exp :  float = 1
+    cosine_apo_length: float = 5
+    cheby_poly_order: int = 3
+    cheby_ripple_dB: int  = 3
 
     def __post_init__(self):
         """
@@ -119,32 +132,21 @@ class BandPassInfo(object):
         self.isnormalized = True
 
 
-    def _exp_apodize_bandpass( self,  alpha = 1, beta = 1):
+    def _exp_apodize_bandpass( self):
         """Define a bandpass with exponential tails and unit transmission in band
         freqs: frequency in GHz
-
-        Args:
-        - alpha (float): out-of-band exponential decay index for low freq edge
-        - beta (float) : out-of-band exponential decay index for high freq edge
-
-        If alpha and beta are not specified a value of 1 is used for both.
-
         """
         mask_beta = np.ma.masked_greater(self.freqs_ghz, self.f1).mask
-        self.weights[mask_beta] = np.exp(-beta * (self.freqs_ghz[mask_beta] - self.f1))
+        self.weights[mask_beta] = np.exp(-self.beta_exp * (self.freqs_ghz[mask_beta] - self.f1))
         mask_alpha = np.ma.masked_less(self.freqs_ghz, self.f0).mask
-        self.weights[mask_alpha] = np.exp(alpha * (self.freqs_ghz[mask_alpha] - self.f0))
+        self.weights[mask_alpha] = np.exp(self.alpha_exp * (self.freqs_ghz[mask_alpha] - self.f0))
 
-    def _cosine_apodize_bandpass( self, a = 5  ):
+    def _cosine_apodize_bandpass( self ):
         """
         Define a bandpass with cosine tails and unit transmission in band
-
-        Args:
-        - a (int): the numerical factor related to the apodization length
-
         """
 
-        apolength = self.bandwidth_ghz / a
+        apolength = self.bandwidth_ghz / self.cosine_apo_length
         apod = lambda x, a, b: (1 + np.cos((x - a) / (b - a) * np.pi)) / 2
         f_above = self.bandcenter_ghz * (1 + self.bandwidth_ghz / 2 + apolength)
         f_below = self.bandcenter_ghz * (1 - self.bandwidth_ghz / 2 - apolength)
@@ -159,20 +161,13 @@ class BandPassInfo(object):
         self.weights[mask_below] = apod(x_bel, self.f0, f_below)
 
     # Chebyshev profile bandpass
-    def _get_chebyshev_bandpass(self,  order = 3, ripple_dB = 3, normalize=False ):
+    def _get_chebyshev_bandpass(self,  normalize=False ):
         """
         Define a bandpass with chebyshev prototype.
-
-        Args:
-        - order (int): chebyshev filter order
-        - ripple_dB (int): maximum ripple amplitude in decibels
-
-        If order and ripple_dB are not specified a value of 3 is used for both.
-
         """
         b, a = sp.signal.cheby1(
-            order,
-            ripple_dB,
+            self.cheby_poly_order,
+            self.cheby_ripple_dB,
             [2.0 * np.pi * self.f0 * 1e9, 2.0 * np.pi * self.f1 * 1e9],
             "bandpass",
             analog=True,
