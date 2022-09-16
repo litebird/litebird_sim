@@ -40,7 +40,7 @@ class BandPassInfo(object):
     name : str =""
     bandtype : str ="top-hat"
     normalize : bool = False
-
+    model:  str = None
 
     def __post_init__(self):
         """
@@ -240,15 +240,23 @@ class BandPassInfo(object):
             fill_value="extrapolate",
         )
 
-    def bandpass_resampling(self, bstrap_size=1000, nresample=54, model=None):
+    def bandpass_resampling(self, bstrap_size=1000, nresample=54, model=None ):
         """
         Resample a  bandpass with bootstrap resampling.
         Notice that the user can provide any sampler built with the `interpolate_band`
-        method, if not provided an error will be raised!
+        method, if not   an error will be raised! The use case for this function is
+        the case when the user wants to generate many realizations of  bandpasses, e.g.
+        per detector bands. There is no need to initialize many instances of the class
+        `BandPassInfo` but just rerun this functions multiple times issuing the same
+        bpass model instance.
 
         Args :
         - bstrap_size (int) : encodes the size of the random dataset  to be generated from the Sampler
         - nresample (int) : define how fine is the grid for the resampled bandpass
+        - model (BandPassInfo.model ) : We can resample from a model previously constructed
+                with this function. The default value is set to `None`, than it initializes
+                the bandpass sampler with the model  set in the class instance
+                (recommended use).
         """
 
         if model is not  None :

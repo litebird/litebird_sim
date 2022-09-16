@@ -68,7 +68,7 @@ def test_bpass_resampling():
                         normalize=norm, name='cosine band' )
     Bcos._interpolate_band()
     bpass_resampled = Bcos.bandpass_resampling(   nresample=48 ,
-                        bstrap_size=5000 , model=Bcos)
+                        bstrap_size=5000 , model=Bcos.model )
 
     test.assertAlmostEqual (np.trapz(bpass_resampled, Bcos.freqs_ghz ), Bcos.get_normalization() )
 
