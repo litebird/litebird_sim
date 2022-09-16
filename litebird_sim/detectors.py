@@ -49,13 +49,7 @@ class DetectorInfo:
 
         - sampling_rate_hz (float): The sampling rate of the ADC
              associated with this detector. The default is 0.0
-
-        - bandwidth_ghz (float): The bandwidth of the channel, in GHz
-
-        - bandcenter_ghz (float): The central frequency of the
-             channel, in GHz
-
-        - fwhm_arcmin: float): The Full Width Half Maximum of the
+        - fwhm_arcmin: (float): The Full Width Half Maximum of the
              radiation pattern associated with the detector, in
              arcminutes. The default is 0.0
 
@@ -75,10 +69,10 @@ class DetectorInfo:
         - bandwidth_ghz (float): The bandwidth of the detector, in
              GHz. The default is 0.0
 
-        - band_freqs_ghz (float): band sampled frequencies, in GHz.
+        - band_freqs_ghz (float array): band sampled frequencies, in GHz.
              The default is None
 
-        - band_weights (float): band profile. The default is None
+        - band_weights (float array): band profile. The default is None
 
         - fknee_mhz (float): The knee frequency between the 1/f and
              the white noise components in nominal conditions, in mHz.
@@ -173,7 +167,7 @@ class DetectorInfo:
             if param.name in dictionary:
                 setattr(result, param.name, dictionary[param.name])
 
-        if type(result.band_freqs_ghz) != np.ndarray: 
+        if type(result.band_freqs_ghz) != np.ndarray:
             result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
             result.band_freqs_ghz, result.band_weights = [result.band.freqs_ghz, result.band.weights]
 

@@ -22,7 +22,7 @@ class BandPassInfo(object):
 
     Args:
         - bandcenter_ghz (float):  center frequency in GHz
-        - bandwidth (float):  width of the band (default=0.2)
+        - bandwidth_ghz (float):  width of the band (default=0.2)
         - nsamples_inband (int): number of elements to sample the band (default=128)
         - name (str) : ID of the band
         - normalize(bool) : If set to true bandpass weights will be normalized to 1
