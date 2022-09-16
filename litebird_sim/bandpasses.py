@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 import numpy as np
-from scipy import signal
+import scipy as sp
 import logging
 from typing import Union
 from uuid import UUID
@@ -35,7 +35,7 @@ class BandPassInfo(object):
 
 
     bandcenter_ghz : float = 0.0
-    bandwidth: float = 0.0
+    bandwidth_ghz: float = 0.0
     nsamples_inband : int =128
     name : str =""
     bandtype : str ="top-hat"
@@ -51,20 +51,20 @@ class BandPassInfo(object):
         self.f0, self. f1  = self.get_edges ()
         # we extend the wings out-of-band of the top-hat bandpass
         #before  and after the edges
-        bandrange =self. f0 * (1- self.bandwidth ) ,self. f1 * (1+ self.bandwidth )
-        self.freqs  = np.linspace(bandrange[0], bandrange[1], self.nsamples_inband )
+        bandrange =(self. f0 - self.bandwidth_ghz  ,self. f1  + self.bandwidth_ghz )
+        self.freqs_ghz  = np.linspace(bandrange[0], bandrange[1], self.nsamples_inband )
         self.isnormalized = False
         if self.bandtype == "top-hat":
-            self.get_top_hat_bandpass(normalize=self.normalize)
+            self._get_top_hat_bandpass(normalize=self.normalize)
         elif self.bandtype == "top-hat-cosine":
-            self.get_top_hat_bandpass(apodization="cosine", normalize=self.normalize)
+            self._get_top_hat_bandpass(apodization="cosine", normalize=self.normalize)
         elif self.bandtype == "top-hat-exp":
-            self.get_top_hat_bandpass(apodization="exp", normalize=self.normalize)
+            self._get_top_hat_bandpass(apodization="exp", normalize=self.normalize)
         elif self.bandtype == "cheby":
-            self.get_chebyshev_bandpass(normalize=self.normalize)
+            self._get_chebyshev_bandpass(normalize=self.normalize)
         else:
             logging.warning( f"{self.bandtype} profile not implemented. Assume top-hat")
-            self.get_top_hat_bandpass(normalize=self.normalize)
+            self._get_top_hat_bandpass(normalize=self.normalize)
 
     def get_edges(self):
         """
@@ -94,15 +94,15 @@ class BandPassInfo(object):
 
         if apodization == "cosine":
             # print(f"Apodizing w/ {apodization} profile")
-            self.cosine_apodize_bandpass()
+            self._cosine_apodize_bandpass()
 
         if apodization == 'cosine' :
             logging.warning(f"Apodizing w/ {apodization} profile")
-            self. cosine_apodize_bandpass()
+            self. _cosine_apodize_bandpass()
 
         elif apodization == 'exp':
             logging.warning(f"Apodizing w/ {apodization} profile")
-            self. exp_apodize_bandpass()
+            self._exp_apodize_bandpass()
 
         elif  apodization   is None:
             logging.warning("/!\ Band is not apodized")
@@ -170,14 +170,14 @@ class BandPassInfo(object):
         If order and ripple_dB are not specified a value of 3 is used for both.
 
         """
-        b, a = signal.cheby1(
+        b, a = sp.signal.cheby1(
             order,
             ripple_dB,
             [2.0 * np.pi * self.f0 * 1e9, 2.0 * np.pi * self.f1 * 1e9],
             "bandpass",
             analog=True,
         )
-        w, h = signal.freqs(b, a, worN=self.freqs_ghz * 2 * np.pi * 1e9)
+        w, h = sp.signal.freqs(b, a, worN=self.freqs_ghz * 2 * np.pi * 1e9)
 
         self.weights = abs(h)
         if normalize:
@@ -261,11 +261,11 @@ class BandPassInfo(object):
                 print(
                     "Can't resample if no sampler is built and/or provided, interpolating the band"
                 )
-                self.interpolate_band()
+                self._interpolate_band()
                 Sampler = self.Sampler
             except AttributeError :
                 logging.warning("Can't resample if no sampler is built and/or provided, interpolating the band")
-                self. interpolate_band()
+                self._interpolate_band()
                 Sampler= self.Sampler
 
 

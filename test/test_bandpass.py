@@ -17,6 +17,7 @@ def test_tophat_bpass():
     f0,f1 =B0.get_edges()
     bandrange = f0  -  bwidth_ghz  , f1  + bwidth_ghz
     freqs_ghz =np.linspace(bandrange[0], bandrange[1],Nsamp )
+
     assert np.allclose(B0.freqs_ghz, freqs_ghz )
 
     weights = np.zeros_like(freqs_ghz)
@@ -65,7 +66,7 @@ def test_bpass_resampling():
                         nsamples_inband=Nsamp  ,
                         bandtype='top-hat-cosine',
                         normalize=norm, name='cosine band' )
-    Bcos.interpolate_band()
+    Bcos._interpolate_band()
     bpass_resampled = Bcos.bandpass_resampling(   nresample=48 ,
                         bstrap_size=5000 , model=Bcos)
 
