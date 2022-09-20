@@ -90,7 +90,6 @@ def __write_complex_observation(tmp_path, use_mjd: bool):
     obs.pointings = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=spin2ecliptic_quats,
-        detector_quats=[det.quat],
         bore2spin_quat=instr.bore2spin_quat,
     )
 

@@ -42,6 +42,7 @@ from .pointings import (
     apply_hwp_to_obs,
     get_pointing_buffer_shape,
     get_pointings,
+    get_pointings_for_observations,
 )
 from .quaternions import (
     quat_rotation_x,

@@ -79,8 +79,8 @@ def test_scan_map():
     pointings = lbs.get_pointings(
         obs1,
         spin2ecliptic_quats=spin2ecliptic_quats,
-        detector_quats=[detT.quat, detB.quat],
         bore2spin_quat=instr.bore2spin_quat,
+        detector_quats=[detT.quat, detB.quat],
         hwp=lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec),
     )
 
@@ -122,8 +122,8 @@ def test_scan_map():
     pointings = lbs.get_pointings(
         obs1,
         spin2ecliptic_quats=spin2ecliptic_quats,
-        detector_quats=[detT.quat, detB.quat],
         bore2spin_quat=instr.bore2spin_quat,
+        detector_quats=[detT.quat, detB.quat],
     )
 
     lbs.scan_map_in_observations(
@@ -174,16 +174,11 @@ def test_scanning_list_of_obs(tmp_path):
         spin_rotangle_rad=3.141_592_653_589_793,
     )
 
-    pointings = []
-    for cur_obs in sim.observations:
-        pointings.append(
-            lbs.get_pointings(
-                cur_obs,
-                spin2ecliptic_quats=spin2ecliptic_quats,
-                detector_quats=None,
-                bore2spin_quat=instr.bore2spin_quat,
-            )
-        )
+    pointings = lbs.get_pointings_for_observations(
+        sim.observations,
+        spin2ecliptic_quats=spin2ecliptic_quats,
+        bore2spin_quat=instr.bore2spin_quat,
+    )
 
     np.random.seed(seed=123_456_789)
     base_map = np.zeros((3, lbs.nside_to_npix(128)))
