@@ -1,5 +1,23 @@
 # HEAD
 
+-   Fix bug in `make_bin_map` [#196](https://github.com/litebird/litebird_sim/pull/196)
+
+# Version 0.7.0
+
+-   Update and fix dependencies [#192](https://github.com/litebird/litebird_sim/pull/192)
+
+-   Allow nnz=1 in the destriper [#191](https://github.com/litebird/litebird_sim/pull/191)
+
+-   Improve the performance of the pointing generator [#190](https://github.com/litebird/litebird_sim/pull/190)
+
+-   Add support for Madam (through an external call) [#186](https://github.com/litebird/litebird_sim/pull/186)
+
+# Version 0.6.0
+
+-   **Breaking change** The wrapper to the TOAST2 mapmaker has been fixed, and the parameter `baseline_length` was renamed to `baseline_length_s` to make clear what the measurement unit is [#182](https://github.com/litebird/litebird_sim/pull/182)
+
+# Version 0.5.0
+
 -   **Breaking change** New API for noise module [#151](https://github.com/litebird/litebird_sim/pull/151):
 
     -   Function `add_noise` has been renamed to `add_noise_to_observations`, and its parameter `noisetype` has been renamed into `noise_type` for consistency with other parameters (**breaking**)
@@ -8,13 +26,35 @@
 
     -   Each `Simulation` object creates random number generators (field `Simulation.random`), in a way that is safe even for MPI applications
 
+-   **Breaking change** New API for `scan_map_in_observations` and `add_dipole_to_observations`, which now accept list of pointing matrices and simplify the parameters describing the HWP [#171](https://github.com/litebird/litebird_sim/pull/171)
+
+-   Add a notebook to show an example of how to use the framework ([#178](https://github.com/litebird/litebird_sim/pull/178))
+
+-   Support the production of maps in Galactic coordinates through the TOAST2 wrapper to the Madam map-maker ([#177](https://github.com/litebird/litebird_sim/pull/177))
+
+-   Make `make_bin_map` compute pixel indices instead of requiring them as input, add support for Galactic coordinates [#176](https://github.com/litebird/litebird_sim/pull/176)
+
+-   Use a more robust algorithm to compute pointings [#175](https://github.com/litebird/litebird_sim/pull/175)
+
+-   Improve the documentation for the destriper [#172](https://github.com/litebird/litebird_sim/pull/172)
+
+-   Add a high-pass filter for the noise [#169](https://github.com/litebird/litebird_sim/pull/169)
+
 -   Upgrade NumPy from 1.20 to 1.21, Numba from 0.54 to 0.55, Rich from 6.2 to 11.0 [#152](https://github.com/litebird/litebird_sim/pull/152)
 
--   Fix issue [#148](https://github.com/litebird/litebird_sim/issues/148)
+-   Add the ability to create Singularity container from branches different than `master` [#163](https://github.com/litebird/litebird_sim/pull/163)
+
+-   Make MBS tests more robust against disappearing temporary directories [#162](https://github.com/litebird/litebird_sim/pull/162)
+
+-   Remove NumPy's and Healpy's deprecation warnings [#158](https://github.com/litebird/litebird_sim/pull/158)
 
 -   Use a cache to speed up CI builds [PR#147](https://github.com/litebird/litebird_sim/pull/147)
 
 -   Create a script that fetches information about the latest release and produce a release announcement [PR#156](https://github.com/litebird/litebird_sim/pull/156)
+
+-   Option for rotating the pointing from ecliptic to galactic coordinates in scan_map [#164](https://github.com/litebird/litebird_sim/pull/164)
+
+-   Fix issue [#148](https://github.com/litebird/litebird_sim/issues/148)
 
 # Version 0.4.0
 
@@ -32,7 +72,7 @@
 
 - Make the TOAST destriper more robust when MPI is/isn't present [#106](https://github.com/litebird/litebird_sim/pull/106)
 
-- Option in Mbs for maps in ecliptoc coordinates [#133](https://github.com/litebird/litebird_sim/pull/133)
+- Option in Mbs for maps in ecliptic coordinates [#133](https://github.com/litebird/litebird_sim/pull/133)
 
 - Module for scanning a map and filling TOD [#131](https://github.com/litebird/litebird_sim/pull/131)
 

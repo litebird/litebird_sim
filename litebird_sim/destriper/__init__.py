@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import Any
 import numpy as np
 from ducc0 import healpix
+from astropy.time import Time
+
+from typing import Union, List
 
 import healpy  # We need healpy.read_map
 
@@ -15,101 +18,23 @@ from toast.todmap import OpMapMaker  # noqa: F401
 from toast.tod.interval import Interval
 import toast.mpi
 
+from litebird_sim.coordinates import CoordinateSystem, rotate_coordinates_e2g
+from litebird_sim.mapping import DestriperParameters, DestriperResult
+
 toast.mpi.use_mpi = lbs.MPI_ENABLED
-
-
-@dataclass
-class DestriperParameters:
-    """Parameters used by the destriper to produce a map.
-
-    The list of fields in this dataclass is the following:
-
-    - ``nside``: the NSIDE parameter used to create the maps
-
-    - ``nnz``: number of components per pixel. The default is 3 (I/Q/U).
-
-    - ``baseline_length``: number of consecutive samples in a 1/f noise
-      baseline
-
-    - ``iter_max``: maximum number of iterations
-
-    - ``output_file_prefix``: prefix to be used for the filenames of the
-      Healpix FITS maps saved in the output directory
-
-    The following Boolean flags specify which maps should be returned
-    by the function :func:`.destripe`:
-
-    - ``return_hit_map``: return the hit map (number of hits per
-      pixel)
-
-    - ``return_binned_map``: return the binned map (i.e., the map with
-      no baselines removed).
-
-    - ``return_destriped_map``: return the destriped map. If pure
-      white noise is present in the timelines, this should be the same
-      as the binned map.
-
-    - ``return_npp``: return the map of the white noise covariance per
-      pixel. It contains the following fields: ``II``, ``IQ``, ``IU``,
-      ``QQ``, ``QU``, and ``UU`` (in this order).
-
-    - ``return_invnpp``: return the map of the inverse covariance per
-      pixel. It contains the following fields: ``II``, ``IQ``, ``IU``,
-      ``QQ``, ``QU``, and ``UU`` (in this order).
-
-    - ``return_rcond``: return the map of condition numbers.
-
-    The default is to only return the destriped map.
-
-    """
-
-    nside: int = 512
-    nnz: int = 3
-    baseline_length: int = 100
-    iter_max: int = 100
-    output_file_prefix: str = "lbs_"
-    return_hit_map: bool = False
-    return_binned_map: bool = False
-    return_destriped_map: bool = True
-    return_npp: bool = False
-    return_invnpp: bool = False
-    return_rcond: bool = False
-
-
-@dataclass
-class DestriperResult:
-    """Result of a call to :func:`.destripe`
-
-    This dataclass has the following fields:
-
-    - ``hit_map``: Healpix map containing the number of hit counts
-      (integer values) per pixel
-
-    - ``binned_map``: Healpix map containing the binned value for each pixel
-
-    - ``destriped_map``: destriped Healpix mapmaker
-
-    - ``npp``: covariance matrix elements for each pixel in the map
-
-    - ``invnpp``: inverse of the covariance matrix element for each
-      pixel in the map
-
-    - ``rcond``: pixel condition number, stored as an Healpix map
-
-    """
-
-    hit_map: Any = None
-    binned_map: Any = None
-    destriped_map: Any = None
-    npp: Any = None
-    invnpp: Any = None
-    rcond: Any = None
 
 
 class _Toast2FakeCache:
     "This class simulates a TOAST2 cache"
 
-    def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
+    def __init__(
+        self,
+        obs,
+        pointings,
+        nside,
+        coordinates: CoordinateSystem,
+        polarization: bool = True,
+    ):
         self.obs = obs
 
         self.keydict = {"timestamps": obs.get_times()}
@@ -117,23 +42,22 @@ class _Toast2FakeCache:
 
         self.keydict["flags"] = np.zeros(nsamples, dtype="uint8")
 
-        pointings = lbs.get_pointings(
-            obs=obs,
-            spin2ecliptic_quats=spin2ecliptic_quats,
-            detector_quats=obs.quat,
-            bore2spin_quat=bore2spin_quat,
-        )
+        if pointings is None:
+            point = np.concatenate((obs.pointings, obs.psi[:, :, np.newaxis]), axis=2)
+        else:
+            point = pointings
+
         healpix_base = healpix.Healpix_Base(nside=nside, scheme="NEST")
         for (i, det) in enumerate(obs.name):
-            if pointings[i].dtype == np.float64:
-                curpnt = pointings[i]
+            if point[i].dtype == np.float64:
+                curpnt = point[i]
             else:
                 logging.warning(
                     "converting pointings for %s from %s to float64",
                     obs.name[i],
-                    str(pointings[i].dtype),
+                    str(point[i].dtype),
                 )
-                curpnt = np.array(pointings[i], dtype=np.float64)
+                curpnt = np.array(point[i], dtype=np.float64)
 
             if obs.tod[i].dtype == np.float64:
                 self.keydict[f"signal_{det}"] = obs.tod[i]
@@ -141,14 +65,34 @@ class _Toast2FakeCache:
                 logging.warning(
                     "converting TODs for %s from %s to float64",
                     obs.name[i],
-                    str(pointings[i].dtype),
+                    str(obs.tod[i].dtype),
                 )
                 self.keydict[f"signal_{det}"] = np.array(obs.tod[i], dtype=np.float64)
 
-            self.keydict[f"pixels_{det}"] = healpix_base.ang2pix(curpnt[:, 0:2])
-            self.keydict[f"weights_{det}"] = np.stack(
-                (np.ones(nsamples), np.cos(2 * curpnt[:, 2]), np.sin(2 * curpnt[:, 2]))
-            ).transpose()
+            theta_phi = curpnt[:, 0:2]
+            polangle = curpnt[:, 2]
+
+            if coordinates == CoordinateSystem.Galactic:
+                theta_phi, polangle = rotate_coordinates_e2g(
+                    pointings_ecl=theta_phi, pol_angle_ecl=polangle
+                )
+            elif coordinates == CoordinateSystem.Ecliptic:
+                pass  # Do nothing, "theta_phi" and "polangle" are ok
+            else:
+                assert ValueError(
+                    "unable to handle coordinate system {coordinates} in `destripe`"
+                )
+
+            self.keydict[f"pixels_{det}"] = healpix_base.ang2pix(theta_phi)
+
+            if polarization:
+                weights = np.stack(
+                    (np.ones(nsamples), np.cos(2 * polangle), np.sin(2 * polangle))
+                ).transpose()
+            else:
+                weights = np.ones(nsamples).reshape((-1, 1))
+
+            self.keydict[f"weights_{det}"] = weights
 
     def keys(self):
         return self.keydict.keys()
@@ -156,8 +100,15 @@ class _Toast2FakeCache:
     def reference(self, name):
         return self.keydict[name]
 
-    def put(self, name, data, **kwargs):
-        self.keydict[name] = data
+    def put(self, name, data, replace=False):
+        if name is None:
+            raise ValueError("Cache name cannot be None")
+
+        if self.exists(name):
+            if not replace:
+                raise RuntimeError(f"Cache buffer {name} exists, but replace is False")
+
+        self.keydict[name] = np.copy(data)
 
     def exists(self, name):
         return name in self.keydict
@@ -168,21 +119,37 @@ class _Toast2FakeCache:
     def destroy(self, name):
         del self.keydict[name]
 
+    def __getitem__(self, item):
+        return self.keydict[item]
+
 
 class _Toast2FakeTod:
     "This class simulates a TOAST2 TOD"
 
-    def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
+    def __init__(
+        self,
+        obs,
+        pointings,
+        nside,
+        coordinates: CoordinateSystem,
+        polarization: bool = True,
+    ):
         self.obs = obs
         self.local_samples = (0, obs.tod[0].size)
-        self.cache = _Toast2FakeCache(spin2ecliptic_quats, obs, bore2spin_quat, nside)
+        self.cache = _Toast2FakeCache(
+            obs, pointings, nside, coordinates, polarization=polarization
+        )
 
     def local_intervals(self, _):
+        start_time = (
+            self.obs.start_time.cxcsec
+            if isinstance(self.obs.start_time, Time)
+            else self.obs.start_time
+        )
         return [
             Interval(
-                start=self.obs.start_time,
-                stop=self.obs.start_time
-                + self.obs.sampling_rate_hz * self.obs.n_samples,
+                start=start_time,
+                stop=start_time + self.obs.sampling_rate_hz * self.obs.n_samples,
                 first=0,
                 last=self.obs.n_samples - 1,
             )
@@ -215,12 +182,32 @@ class _Toast2FakeTod:
 class _Toast2FakeData:
     "This class simulates a TOAST2 Data class"
 
-    def __init__(self, spin2ecliptic_quats, obs, bore2spin_quat, nside):
-        self.obs = [
-            {"tod": _Toast2FakeTod(spin2ecliptic_quats, x, bore2spin_quat, nside)}
-            for x in obs
-        ]
-        self.bore2spin_quat = bore2spin_quat
+    def __init__(
+        self,
+        obs,
+        pointings,
+        nside,
+        coordinates: CoordinateSystem,
+        polarization: bool = True,
+    ):
+        if pointings is None:
+            self.obs = [
+                {
+                    "tod": _Toast2FakeTod(
+                        ob, None, nside, coordinates, polarization=polarization
+                    )
+                }
+                for ob in obs
+            ]
+        else:
+            self.obs = [
+                {
+                    "tod": _Toast2FakeTod(
+                        ob, po, nside, coordinates, polarization=polarization
+                    )
+                }
+                for ob, po in zip(obs, pointings)
+            ]
         self.nside = nside
         if lbs.MPI_ENABLED:
             self.comm = toast.mpi.Comm(world=lbs.MPI_COMM_WORLD)
@@ -232,7 +219,7 @@ class _Toast2FakeData:
                 comm_world=None, comm_group=None, comm_rank=0, comm_size=1
             )
 
-        npix = 12 * (self.nside ** 2)
+        npix = 12 * (self.nside**2)
         self._metadata = {
             "pixels_npix": npix,
             "pixels_npix_submap": npix,
@@ -249,27 +236,21 @@ class _Toast2FakeData:
 
 def destripe_observations(
     observations,
-    bore2spin_quat,
-    spin2ecliptic_quats,
     base_path: Path,
     params: DestriperParameters(),
+    pointings: Union[List[np.ndarray], None] = None,
 ) -> DestriperResult:
     """Run the destriper on the observations in a TOD
 
     This function is a low-level wrapper around the TOAST destriper.
     For daily use, you should prefer the :func:`.destripe` function,
-    which takes its parameters from :class:`.Simulation` and
-    :class:`.Instrument` objects and is easier to call.
+    which takes its parameters from :class:`.Simulation` object and
+    is easier to call.
 
     This function runs the TOAST destriper on a set of `observations`
-    (instances of the :class:`.Observation` class). The parameter
-    `bore2spin_quat` is the quaternion transforming the boresight
-    frame of reference into the frame of reference of the spin axis,
-    and it can be retrieved from an instance of the
-    :class:`.Instrument` class. The parameter `spin2ecliptic_quats` is
-    an array of quaternions transforming the spin-axis reference frame
-    in the Ecliptic frame; this is usually computed by an object of
-    type :class:`.Simulation` class.
+    (instances of the :class:`.Observation` class). The pointing
+    information can be stored in the `observations` or passed through
+    the variable `pointings`.
 
     The `params` parameter is an instance of the class
     :class:`.DestriperParameters`, and it specifies the way the
@@ -280,11 +261,20 @@ def destripe_observations(
 
     """
 
+    if pointings is not None:
+        assert len(observations) == len(pointings), (
+            f"The list of observations has {len(observations)}"
+            + f" elements, but the list of pointings has {len(pointings)}"
+        )
+
+    polarization = params.nnz == 3
+
     data = _Toast2FakeData(
-        spin2ecliptic_quats=spin2ecliptic_quats,
         obs=observations,
-        bore2spin_quat=bore2spin_quat,
+        pointings=pointings,
         nside=params.nside,
+        coordinates=params.coordinate_system,
+        polarization=polarization,
     )
     mapmaker = OpMapMaker(
         nside=params.nside,
@@ -292,7 +282,7 @@ def destripe_observations(
         name="signal",
         outdir=base_path,
         outprefix=params.output_file_prefix,
-        baseline_length=params.baseline_length,
+        baseline_length=params.baseline_length_s,
         iter_max=params.iter_max,
         use_noise_prior=False,
     )
@@ -305,6 +295,8 @@ def destripe_observations(
         lbs.MPI_COMM_WORLD.barrier()
 
     result = DestriperResult()
+
+    result.coordinate_system = params.coordinate_system
 
     if params.return_hit_map:
         result.hit_map = healpy.read_map(
@@ -349,7 +341,11 @@ def destripe_observations(
     return result
 
 
-def destripe(sim, instrument, params=DestriperParameters()) -> DestriperResult:
+def destripe(
+    sim,
+    params=DestriperParameters(),
+    pointings: Union[List[np.ndarray], None] = None,
+) -> DestriperResult:
     """Run the destriper on a set of TODs.
 
     Run the TOAST destriper on time-ordered data, producing one or
@@ -378,8 +374,7 @@ def destripe(sim, instrument, params=DestriperParameters()) -> DestriperResult:
 
     return destripe_observations(
         observations=sim.observations,
-        bore2spin_quat=instrument.bore2spin_quat,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
         base_path=sim.base_path,
         params=params,
+        pointings=pointings,
     )

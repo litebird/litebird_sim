@@ -98,13 +98,13 @@ def compute_dipole_for_one_sample_quadratic_exact(theta, phi, v_km_s, t_cmb_k):
     # Up to second order in beta, including second order in the expansion of
     # thermodynamic temperature. This is in true temperature, and
     # no boosting induced monopoles are added.
-    return t_cmb_k * (beta_dot_n + beta_dot_n ** 2)
+    return t_cmb_k * (beta_dot_n + beta_dot_n**2)
 
 
 @njit
 def compute_dipole_for_one_sample_total_exact(theta, phi, v_km_s, t_cmb_k):
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
-    gamma = 1 / np.sqrt(1 - beta ** 2)
+    gamma = 1 / np.sqrt(1 - beta**2)
 
     return t_cmb_k / gamma / (1 - beta_dot_n) - t_cmb_k
 
@@ -117,7 +117,7 @@ def compute_dipole_for_one_sample_quadratic_from_lin_t(
     # thermodynamic temperature. This is in linearized thermodynamic temperature.
     # No boosting induced monopoles are added
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
-    return t_cmb_k * (beta_dot_n + q_x * beta_dot_n ** 2)
+    return t_cmb_k * (beta_dot_n + q_x * beta_dot_n**2)
 
 
 @njit
@@ -125,7 +125,7 @@ def compute_dipole_for_one_sample_total_from_lin_t(
     theta, phi, v_km_s, t_cmb_k, nu_hz, f_x, planck_t0
 ):
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
-    gamma = 1 / np.sqrt(1 - beta ** 2)
+    gamma = 1 / np.sqrt(1 - beta**2)
 
     planck_t = planck(nu_hz, t_cmb_k / gamma / (1 - beta_dot_n))
 
@@ -233,8 +233,8 @@ def add_dipole(
 
 def add_dipole_to_observations(
     obs: Union[Observation, List[Observation]],
-    pointings,
     pos_and_vel: SpacecraftPositionAndVelocity,
+    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
     dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
     frequency_ghz: Union[
@@ -248,12 +248,34 @@ def add_dipole_to_observations(
     of observations.
     """
 
-    if isinstance(obs, Observation):
-        obs_list = [obs]
+    if pointings is None:
+        if isinstance(obs, Observation):
+            obs_list = [obs]
+            ptg_list = [obs.pointings]
+        else:
+            obs_list = obs
+            ptg_list = [ob.pointings for ob in obs]
     else:
-        obs_list = obs
+        if isinstance(obs, Observation):
+            assert isinstance(pointings, np.ndarray), (
+                "You must pass a list of observations *and* a list "
+                + "of pointing matrices to add_dipole_to_observations"
+            )
+            obs_list = [obs]
+            ptg_list = [pointings[:, :, 0:2]]
+        else:
+            assert isinstance(pointings, list), (
+                "When you pass a list of observations to add_dipole_to_observations"
+                + ", you must do the same for `pointings`"
+            )
+            assert len(obs) == len(pointings), (
+                f"The list of observations has {len(obs)} elements, but "
+                + f"the list of pointings has {len(pointings)} elements"
+            )
+            obs_list = obs
+            ptg_list = [point[:, :, 0:2] for point in pointings]
 
-    for cur_obs in obs_list:
+    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         # Alas, this allocates memory for the velocity vector! At the moment it is the
         # simplest implementation, but in the future we might want to inline the
         # interpolation code within "add_dipole" to save memory
@@ -270,7 +292,7 @@ def add_dipole_to_observations(
 
         add_dipole(
             tod=cur_obs.tod,
-            pointings=pointings,
+            pointings=cur_ptg,
             velocity=velocity,
             t_cmb_k=t_cmb_k,
             frequency_ghz=frequency_ghz,

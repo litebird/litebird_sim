@@ -665,10 +665,10 @@ class Simulation:
         Each observation can hold information about more than one
         detector; the parameters `n_blocks_det` specify how many
         groups of detectors will be created. For instance, if you are
-        simulating 10 detectors and you specify ``nblocks_det=5``,
+        simulating 10 detectors and you specify ``n_blocks_det=5``,
         this means that each observation will handle ``10 / 5 = 2``
         detectors. The default is that *all* the detectors be kept
-        together (``nblocks_det=1``).
+        together (``n_blocks_det=1``).
 
         The parameter `n_blocks_time` specifies the number of time
         splits of the observations. In the case of a 3-month-long
@@ -750,6 +750,7 @@ class Simulation:
         scanning_strategy: Union[None, ScanningStrategy] = None,
         imo_url: Union[None, str] = None,
         delta_time_s: float = 60.0,
+        append_to_report=True,
     ):
         """Simulate the motion of the spacecraft in free space
 
@@ -758,6 +759,9 @@ class Simulation:
         strategy described in the parameter `scanning_strategy` (an
         object of a class derived by :class:`.ScanningStrategy`; most
         likely, you want to use :class:`SpinningScanningStrategy`).
+        The result is saved in the member variable
+        ``spin2ecliptic_quats``, which is an instance of the class
+        :class:`.Spin2EclipticQuaternions`.
 
         You can choose to use the `imo_url` parameter instead of
         `scanning_strategy`: in this case, it will be assumed that you
@@ -772,6 +776,10 @@ class Simulation:
         quaternions be computed; see
         :meth:`.ScanningStrategy.generate_spin2ecl_quaternions` for
         more information.
+
+        If the parameter `append_to_report` is set to ``True`` (the
+        default), some information about the pointings will be included
+        in the report saved by the :class:`.Simulation` object.
 
         """
         assert not (scanning_strategy and imo_url), (

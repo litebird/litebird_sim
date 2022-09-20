@@ -24,6 +24,10 @@ There are two available map-makers:
    contribution and remove it from the timelines; then, a classical
    *binner* is ran over the cleaned timelines.
 
+3. You can also use :func:`.save_simulation_for_madam` to save TODs
+   and pointing information to disk and then manually call the `Madam
+   mapmaker <https://arxiv.org/abs/astro-ph/0412517>`_.
+
 The LiteBIRD Simulation Framework provides a binner on its own, and it
 internally uses `TOAST <https://github.com/hpc4cmb/toast>`_ to provide
 the destriper.
@@ -40,7 +44,7 @@ detectors::
     import litebird_sim as lbs
     
     sim = lbs.Simulation(
-        base_path=tmp_path / "destriper_output",
+        base_path="destriper_output",
         start_time=0,
         duration_s=86400.0,
     )
@@ -69,7 +73,7 @@ detectors::
         ],
         dtype_tod=np.float64,  # Needed if you use the TOAST destriper
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
-        distribute=False,
+        split_list_over_processes=False,
     )
 
     # Generate some white noise
@@ -82,7 +86,21 @@ detectors::
 Binner
 ------
 
-To be written.
+Once you have generated a set of observations, either on a single
+process or distributed over several mpi processes, you can create a 
+simple binned map with the function :func:`.make_bin_map`. This function
+takes: a single (or a list) of :class:`.Observations`, the Healpix
+resolution of the output map (``nside``) and produces a coadded map.
+It assumes white noise and each detector gets weighted by 
+:math:`1 / NET^2`. If the pointing information is not provided in the 
+observation, it can be passed through the optional argument `pointings`, 
+with a syntax similar to :func:`.scan_map_in_observations`.
+The output map is in Galactic coordinates, unless the optional prameter
+`output_map_in_galactic` is set to False. If the parameter `do_covariance` 
+is True, it return also the white noise covariance per pixel in an array 
+of shape `(12 * nside * nside, 3, 3)`. This is how it should be called::
+
+    map, cov = lbs.make_bin_map(obs, 128, do_covariance=True)
 
 
 Destriper
@@ -109,13 +127,13 @@ would be produced by the *binner*, see above), and the *destriped map*
 
 To run the destriper, you simply call :func:`.destripe`::
 
-  result = lbs.destripe(sim, instr, params)
+  result = lbs.destripe(sim, params)
 
-(You must provide an instance of the :class:`.InstrumentInfo` class,
-as this is used by the destriper to determine pointing directions in
-Ecliptic coordinates.) The result is an instance of the class
-:class:`.DestriperResults` and contains the three maps we have asked
-above (hit map, binned map, destriped map).
+(The pointing information is included in the :class:`.Observations`,
+alternatively pointings can be provided as a list of numpy arrays)
+The result is an instance of the class :class:`.DestriperResults` and 
+contains the three maps we have asked above (hit map, binned map, 
+destriped map).
 
 .. note::
 
@@ -141,11 +159,52 @@ Here is the complete source code of the example and the result:
 .. plot:: pyplots/destriper_demo.py
    :include-source:
 
+
+Saving files for Madam
+----------------------
+
+The function :func:`.save_simulation_for_madam` takes a :class:`.Simulation`
+object, a list of detectors and a output path (the default is a subfolder of
+the output path of the simulation) and saves a set of files in it:
+
+1. Pointing information, saved as FITS files;
+2. TOD samples, saved as FITS files;
+3. A so-called «simulation file», named ``madam.sim``;
+4. A so-called «parameter file», named ``madam.par``.
+
+These files are ready to be used with the Madam map-maker; you just need
+to pass the parameter file ``madam.par`` to one of the executables provided
+by Madam (the other ones are referenced by the parameter file). For instance,
+the following command will compute the amount of memory needed to run Madam:
+
+.. code-block:: text
+
+    $ inputcheck madam.par
+
+The following command will run Madam:
+
+.. code-block:: text
+
+    $ madam madam.par
+
+Of course, in a realistic situation you want to run ``madam`` using MPI,
+so you should call ``mpiexec``, ``mpirun``, or something similar.
+
    
 API reference
 -------------
 
+.. automodule:: litebird_sim.mapping
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 .. automodule:: litebird_sim.destriper
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. automodule:: litebird_sim.madam
     :members:
     :undoc-members:
     :show-inheritance:
