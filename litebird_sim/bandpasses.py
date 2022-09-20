@@ -1,12 +1,19 @@
+# -*- encoding: utf-8 -*-
+
 from dataclasses import dataclass
 
 import numpy as np
 import scipy as sp
 import logging
-from typing import Union
+from typing import Optional, Union
 from uuid import UUID
 
 from .imo import Imo
+
+
+def _apod(x, a, b):
+    return (1 + np.cos((x - a) / (b - a) * np.pi)) / 2
+
 
 @dataclass
 class BandPassInfo(object):
@@ -28,32 +35,33 @@ class BandPassInfo(object):
         - normalize(bool) : If set to true bandpass weights will be normalized to 1
         - bandtype (str): choose between:
             - "top-hat" (default)
-            - "top-hat-exp" : the edges of the band are apodized with an exponential profile
-            - "top-hat-cosine" : the edges of the band are apodized with a cosine profile
+            - "top-hat-exp" : the edges of the band are apodized with an
+                exponential profile
+            - "top-hat-cosine" : the edges of the band are apodized with
+                a cosine profile
             - "cheby" : the bandpass encodes a _Chebyshev_  profile
         - alpha_exp (float): out-of-band exponential decay index for low freq edge.
         - beta_exp (float) : out-of-band exponential decay index for high freq edge
-        - cosine_apo_length (int): the numerical factor related to the  cosine apodization length
+        - cosine_apo_length (int): the numerical factor related to the cosine
+            apodization length
 
         - cheby_poly_order (int): chebyshev filter order.
         - cheby_ripple_dB (int): maximum ripple amplitude in decibels.
     """
 
-
-    bandcenter_ghz : float = 0.0
+    bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
-    nsamples_inband : int =128
-    name : str =""
-    bandtype : str ="top-hat"
-    normalize : bool = False
-    model:  str = None
-
+    nsamples_inband: int = 128
+    name: str = ""
+    bandtype: str = "top-hat"
+    normalize: bool = False
+    model: str = None
 
     alpha_exp: float = 1
-    beta_exp :  float = 1
+    beta_exp: float = 1
     cosine_apo_length: float = 5
     cheby_poly_order: int = 3
-    cheby_ripple_dB: int  = 3
+    cheby_ripple_dB: int = 3
 
     def __post_init__(self):
         """
@@ -61,11 +69,11 @@ class BandPassInfo(object):
 
         """
 
-        self.f0, self. f1  = self.get_edges ()
+        self.f0, self.f1 = self.get_edges()
         # we extend the wings out-of-band of the top-hat bandpass
-        #before  and after the edges
-        bandrange =(self. f0 - self.bandwidth_ghz  ,self. f1  + self.bandwidth_ghz )
-        self.freqs_ghz  = np.linspace(bandrange[0], bandrange[1], self.nsamples_inband )
+        # before  and after the edges
+        bandrange = (self.f0 - self.bandwidth_ghz, self.f1 + self.bandwidth_ghz)
+        self.freqs_ghz = np.linspace(bandrange[0], bandrange[1], self.nsamples_inband)
         self.isnormalized = False
         if self.bandtype == "top-hat":
             self._get_top_hat_bandpass(normalize=self.normalize)
@@ -76,7 +84,7 @@ class BandPassInfo(object):
         elif self.bandtype == "cheby":
             self._get_chebyshev_bandpass(normalize=self.normalize)
         else:
-            logging.warning( f"{self.bandtype} profile not implemented. Assume top-hat")
+            logging.warning(f"{self.bandtype} profile not implemented. Assume top-hat")
             self._get_top_hat_bandpass(normalize=self.normalize)
 
     def get_edges(self):
@@ -88,17 +96,13 @@ class BandPassInfo(object):
             self.bandcenter_ghz + self.bandwidth_ghz / 2,
         )
 
-
-
-    def _get_top_hat_bandpass( self  ,
-                             normalize= False  , apodization= None  ):
+    def _get_top_hat_bandpass(self, normalize=False, apodization: Optional[str] = None):
         """
-        Sample  a top-hat bandpass, givn the centroid and the bandwidth
-        normalize:
-        normalize the transmission coefficients so that its integral = 1 over the freq.  band
-        apodization:
-        if None no apodization is applied to the edges, otherwise a string between `cosine` or `exp` will
-        apodize the edges following the chosen  profile
+        Sample a top-hat bandpass, given the centroid and the bandwidth. If the
+        `normalize` flag is set to ``True``, the transmission coefficients are
+        normalized so that its integral is 1 over the frequency band. The parameter
+        `apodization` must be either ``"cosine"``, ``"exp"``, or ``None``: in the
+        latter case, no apodization of the beamshape is performed.
         """
 
         self.weights = np.zeros_like(self.freqs_ghz)
@@ -109,17 +113,17 @@ class BandPassInfo(object):
             # print(f"Apodizing w/ {apodization} profile")
             self._cosine_apodize_bandpass()
 
-        if apodization == 'cosine' :
+        if apodization == "cosine":
             logging.warning(f"Apodizing w/ {apodization} profile")
-            self. _cosine_apodize_bandpass()
+            self._cosine_apodize_bandpass()
 
-        elif apodization == 'exp':
+        elif apodization == "exp":
             logging.warning(f"Apodizing w/ {apodization} profile")
             self._exp_apodize_bandpass()
 
-        elif  apodization   is None:
-            logging.warning("/!\ Band is not apodized")
-        if normalize :
+        elif apodization is None:
+            logging.warning("Band is not apodized")
+        if normalize:
             self.normalize_band()
 
     def normalize_band(self):
@@ -131,37 +135,39 @@ class BandPassInfo(object):
         self.weights /= A
         self.isnormalized = True
 
-
-    def _exp_apodize_bandpass( self):
+    def _exp_apodize_bandpass(self):
         """Define a bandpass with exponential tails and unit transmission in band
         freqs: frequency in GHz
         """
         mask_beta = np.ma.masked_greater(self.freqs_ghz, self.f1).mask
-        self.weights[mask_beta] = np.exp(-self.beta_exp * (self.freqs_ghz[mask_beta] - self.f1))
+        self.weights[mask_beta] = np.exp(
+            -self.beta_exp * (self.freqs_ghz[mask_beta] - self.f1)
+        )
         mask_alpha = np.ma.masked_less(self.freqs_ghz, self.f0).mask
-        self.weights[mask_alpha] = np.exp(self.alpha_exp * (self.freqs_ghz[mask_alpha] - self.f0))
+        self.weights[mask_alpha] = np.exp(
+            self.alpha_exp * (self.freqs_ghz[mask_alpha] - self.f0)
+        )
 
-    def _cosine_apodize_bandpass( self ):
+    def _cosine_apodize_bandpass(self):
         """
         Define a bandpass with cosine tails and unit transmission in band
         """
 
         apolength = self.bandwidth_ghz / self.cosine_apo_length
-        apod = lambda x, a, b: (1 + np.cos((x - a) / (b - a) * np.pi)) / 2
         f_above = self.bandcenter_ghz * (1 + self.bandwidth_ghz / 2 + apolength)
         f_below = self.bandcenter_ghz * (1 - self.bandwidth_ghz / 2 - apolength)
         mask_above = np.ma.masked_inside(self.freqs_ghz, self.f1, f_above).mask
 
         x_ab = np.linspace(self.f1, f_above, self.freqs_ghz[mask_above].size)
 
-        self.weights[mask_above] = apod(x_ab, self.f1, f_above)
+        self.weights[mask_above] = _apod(x_ab, self.f1, f_above)
 
         mask_below = np.ma.masked_inside(self.freqs_ghz, f_below, self.f0).mask
         x_bel = np.linspace(f_below, self.f0, self.freqs_ghz[mask_below].size)
-        self.weights[mask_below] = apod(x_bel, self.f0, f_below)
+        self.weights[mask_below] = _apod(x_bel, self.f0, f_below)
 
     # Chebyshev profile bandpass
-    def _get_chebyshev_bandpass(self,  normalize=False ):
+    def _get_chebyshev_bandpass(self, normalize=False):
         """
         Define a bandpass with chebyshev prototype.
         """
@@ -209,7 +215,7 @@ class BandPassInfo(object):
         obj = imo.query(url)
         return BandPassInfo.from_dict(obj.metadata)
 
-    def _interpolate_band  (self ):
+    def _interpolate_band(self):
         """
         This function aims at building the sampler in order to generate random samples
         statistically equivalent to the model bandpass
@@ -235,7 +241,7 @@ class BandPassInfo(object):
             fill_value="extrapolate",
         )
 
-    def bandpass_resampling(self, bstrap_size=1000, nresample=54, model=None ):
+    def bandpass_resampling(self, bstrap_size=1000, nresample=54, model=None):
         """
         Resample a  bandpass with bootstrap resampling.
         Notice that the user can provide any sampler built with the `interpolate_band`
@@ -246,32 +252,35 @@ class BandPassInfo(object):
         bpass model instance.
 
         Args :
-        - bstrap_size (int) : encodes the size of the random dataset  to be generated from the Sampler
+        - bstrap_size (int) : encodes the size of the random dataset
+            to be generated from the Sampler
         - nresample (int) : define how fine is the grid for the resampled bandpass
-        - model (BandPassInfo.model ) : We can resample from a model previously constructed
-                with this function. The default value is set to `None`, than it initializes
-                the bandpass sampler with the model  set in the class instance
-                (recommended use).
+        - model (BandPassInfo.model ) : We can resample from a model previously
+            constructed with this function. The default value is set to `None`,
+            than it initializes the bandpass sampler with the model  set in the
+            class instance (recommended use).
         """
 
-        if model is not  None :
+        if model is not None:
             logging.warning(f"Sampler  from {model.name }")
-            Sampler= model.Sampler
+            Sampler = model.Sampler
         else:
             try:
                 Sampler = self.Sampler
             except AttributeError:
                 print(
-                    "Can't resample if no sampler is built and/or provided, interpolating the band"
+                    "Can't resample if no sampler is built and/or provided, "
+                    "interpolating the band"
                 )
                 self._interpolate_band()
                 Sampler = self.Sampler
-            except AttributeError :
-                logging.warning("Can't resample if no sampler is built and/or provided, interpolating the band")
+            except AttributeError:
+                logging.warning(
+                    "Can't resample if no sampler is built and/or provided, "
+                    "interpolating the band"
+                )
                 self._interpolate_band()
-                Sampler= self.Sampler
-
-
+                Sampler = self.Sampler
 
         X = np.random.uniform(size=bstrap_size)
         bins_nu = np.linspace(self.freqs_ghz.min(), self.freqs_ghz.max(), nresample)

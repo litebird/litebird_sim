@@ -11,6 +11,7 @@ from .quaternions import quat_rotation_y, quat_rotation_z, quat_left_multiply
 
 from .bandpasses import BandPassInfo
 
+
 @dataclass
 class DetectorInfo:
     """A class wrapping the basic information about a detector.
@@ -169,7 +170,10 @@ class DetectorInfo:
 
         if type(result.band_freqs_ghz) != np.ndarray:
             result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
-            result.band_freqs_ghz, result.band_weights = [result.band.freqs_ghz, result.band.weights]
+            result.band_freqs_ghz, result.band_weights = [
+                result.band.freqs_ghz,
+                result.band.weights,
+            ]
 
         # Force initializers to be called again
         result.__post_init__()
@@ -270,7 +274,10 @@ class FreqChannelInfo:
 
         if type(result.band_freqs_ghz) != np.ndarray:
             result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
-            result.band_freqs_ghz, result.band_weights = [result.band.freqs_ghz, result.band.weights]
+            result.band_freqs_ghz, result.band_weights = [
+                result.band.freqs_ghz,
+                result.band.weights,
+            ]
 
         # Force initializers in __post_init__ to be called
         result.__post_init__()
