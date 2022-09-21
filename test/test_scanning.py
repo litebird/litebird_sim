@@ -94,8 +94,8 @@ def test_simulation_pointings_still():
     pointings_and_polangle = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
+        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
     )
 
     colatitude = pointings_and_polangle[..., 0]
@@ -144,8 +144,8 @@ def test_simulation_two_detectors():
     pointings_and_polangle = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=quaternions,
         bore2spin_quat=instr.bore2spin_quat,
+        detector_quats=quaternions,
     )
 
     assert pointings_and_polangle.shape == (2, 24, 3)
@@ -182,8 +182,8 @@ def test_simulation_pointings_polangle(tmp_path):
     pointings_and_polangle = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
+        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
     )
     polangle = pointings_and_polangle[..., 2]
 

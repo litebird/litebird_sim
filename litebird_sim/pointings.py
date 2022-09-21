@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional
+from typing import Optional, List, Union
 
 import numpy as np
 import astropy.time
@@ -55,8 +55,8 @@ def get_pointing_buffer_shape(obs: Observation):
 def get_pointings(
     obs,
     spin2ecliptic_quats: Spin2EclipticQuaternions,
-    detector_quats,
     bore2spin_quat,
+    detector_quats=None,
     quaternion_buffer=None,
     dtype_quaternion=np.float64,
     pointing_buffer=None,
@@ -76,8 +76,19 @@ def get_pointings(
     the field `spin2ecliptic_quats` in a object of
     :class:`.Simulation` object, once the method
     :meth:`.Simulation.generate_spin2ecl_quaternions` is called.
-    The parameter `detector_quats` is a stack of detector quaternions. For
-    example, it can be:
+
+    The parameter `bore2spin_quat` is calculated through the class
+    :class:`.Instrument`, which has the field ``bore2spin_quat``.
+    If all you have is the angle β between the boresight and the
+    spin axis, just pass ``quat_rotation_y(β)`` here.
+
+    The parameter `detector_quats` is optional. By default is ``None``,
+    in this case, if you passed an array of :class:`.DetectorInfo`
+    objects to the method :meth:`.Simulation.create_observations`
+    through the parameter ``detectors``, get_pointings will use
+    the detector quaternions from the same :class:`.DetectorInfo` objects.
+    Otherwise it can contain a stack of detector quaternions. For example,
+    it can be:
 
     - The stack of the field `quat` of an instance of the class
        :class:`.DetectorInfo`
@@ -85,16 +96,6 @@ def get_pointings(
     - If all you want to do is a simulation using a boresight
        direction, you can pass the value ``np.array([[0., 0., 0.,
        1.]])``, which represents the null rotation.
-
-    If you passed an array of :class:`.DetectorInfo` objects to the
-    method :meth:`.Simulation.create_observations` through the
-    parameter ``detectors``, you can pass ``None`` and it will use the
-    detector quaternions from the same :class:`.DetectorInfo` objects.
-
-    The parameter `bore2spin_quat` is calculated through the class
-    :class:`.Instrument`, which has the field ``bore2spin_quat``.
-    If all you have is the angle β between the boresight and the
-    spin axis, just pass ``quat_rotation_y(β)`` here.
 
     If `HWP` is not ``None``, this specifies the HWP to use for the
     computation of proper polarization angles.
@@ -162,3 +163,43 @@ def get_pointings(
         obs.pointing_coords = CoordinateSystem.Ecliptic
 
     return pointing_buffer
+
+
+def get_pointings_for_observations(
+    obs: Union[Observation, List[Observation]],
+    spin2ecliptic_quats: Spin2EclipticQuaternions,
+    bore2spin_quat,
+    hwp: Optional[HWP] = None,
+    store_pointings_in_obs=True,
+):
+
+    """Obtain pointings for a list of observations
+
+    This is a wrapper around the :func:`.get_pointings` function that computes
+    pointing information for a list of observations and returns a list of pointings.
+    If a single observation is passed then a single pointing array is returned, and,
+    practically, this function only calls :func:`.get_pointings`.
+    """
+
+    if isinstance(obs, Observation):
+        pointings = get_pointings(
+            obs,
+            spin2ecliptic_quats,
+            bore2spin_quat,
+            hwp=hwp,
+            store_pointings_in_obs=store_pointings_in_obs,
+        )
+    else:
+        pointings = []
+        for ob in obs:
+            pointings.append(
+                get_pointings(
+                    ob,
+                    spin2ecliptic_quats,
+                    bore2spin_quat,
+                    hwp=hwp,
+                    store_pointings_in_obs=store_pointings_in_obs,
+                )
+            )
+
+    return pointings

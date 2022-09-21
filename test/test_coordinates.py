@@ -47,7 +47,6 @@ def test_coordinates():
     pointings = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=spin2ecliptic_quats,
-        detector_quats=[det.quat],
         bore2spin_quat=instr.bore2spin_quat,
     )
 

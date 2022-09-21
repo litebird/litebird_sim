@@ -121,7 +121,6 @@ def test_solar_dipole_fit(tmpdir):
     pointings = lbs.get_pointings(
         obs_s_o,
         spin2ecliptic_quats=spin2ecliptic_quats,
-        detector_quats=[det.quat],
         bore2spin_quat=instr.bore2spin_quat,
     )
 
@@ -226,16 +225,11 @@ def test_dipole_list_of_obs(tmp_path):
         spin_rotangle_rad=3.141_592_653_589_793,
     )
 
-    pointings = []
-    for cur_obs in sim.observations:
-        pointings.append(
-            lbs.get_pointings(
-                cur_obs,
-                spin2ecliptic_quats=spin2ecliptic_quats,
-                detector_quats=None,
-                bore2spin_quat=instr.bore2spin_quat,
-            )
-        )
+    pointings = lbs.get_pointings_for_observations(
+        sim.observations,
+        spin2ecliptic_quats=spin2ecliptic_quats,
+        bore2spin_quat=instr.bore2spin_quat,
+    )
 
     orbit = lbs.SpacecraftOrbit(sim.start_time)
     pos_vel = lbs.spacecraft_pos_and_vel(orbit, obs=sim.observations, delta_time_s=10.0)

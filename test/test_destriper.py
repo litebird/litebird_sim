@@ -176,13 +176,11 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
         split_list_over_processes=False,
     )
 
-    for obs in sim.observations:
-        lbs.get_pointings(
-            obs,
-            spin2ecliptic_quats=sim.spin2ecliptic_quats,
-            detector_quats=None,
-            bore2spin_quat=instr.bore2spin_quat,
-        )
+    lbs.get_pointings_for_observations(
+        sim.observations,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        bore2spin_quat=instr.bore2spin_quat,
+    )
 
     # Generate some white noise
     rs = RandomState(MT19937(SeedSequence(123456789)))
@@ -345,13 +343,11 @@ def test_destriper_coordinate_consistency(tmp_path):
         split_list_over_processes=False,
     )
 
-    for obs in sim.observations:
-        lbs.get_pointings(
-            obs,
-            spin2ecliptic_quats=sim.spin2ecliptic_quats,
-            detector_quats=None,
-            bore2spin_quat=instr.bore2spin_quat,
-        )
+    lbs.get_pointings_for_observations(
+        sim.observations,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        bore2spin_quat=instr.bore2spin_quat,
+    )
 
     params = lbs.MbsParameters(
         make_cmb=True,
