@@ -1,5 +1,7 @@
 # HEAD
 
+-   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
+
 -   Mark installation errors for rich traceback in CI builds as non fatal [#199](https://github.com/litebird/litebird_sim/pull/199)
 
 -   Fix bug in `make_bin_map` [#196](https://github.com/litebird/litebird_sim/pull/196)
