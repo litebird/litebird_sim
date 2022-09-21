@@ -9,8 +9,6 @@ import numpy as np
 from .imo import Imo
 from .quaternions import quat_rotation_y, quat_rotation_z, quat_left_multiply
 
-from .bandpasses import BandPassInfo
-
 
 @dataclass
 class DetectorInfo:
@@ -50,7 +48,13 @@ class DetectorInfo:
 
         - sampling_rate_hz (float): The sampling rate of the ADC
              associated with this detector. The default is 0.0
-        - fwhm_arcmin: (float): The Full Width Half Maximum of the
+
+        - bandwidth_ghz (float): The bandwidth of the channel, in GHz
+
+        - bandcenter_ghz (float): The central frequency of the
+             channel, in GHz
+
+        - fwhm_arcmin: float): The Full Width Half Maximum of the
              radiation pattern associated with the detector, in
              arcminutes. The default is 0.0
 
@@ -69,11 +73,6 @@ class DetectorInfo:
 
         - bandwidth_ghz (float): The bandwidth of the detector, in
              GHz. The default is 0.0
-
-        - band_freqs_ghz (float array): band sampled frequencies, in GHz.
-             The default is None
-
-        - band_weights (float array): band profile. The default is None
 
         - fknee_mhz (float): The knee frequency between the 1/f and
              the white noise components in nominal conditions, in mHz.
@@ -109,8 +108,6 @@ class DetectorInfo:
     ellipticity: float = 0.0
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
-    band_freqs_ghz: Union[None, np.ndarray] = None
-    band_weights: Union[None, np.ndarray] = None
     net_ukrts: float = 0.0
     pol_sensitivity_ukarcmin: float = 0.0
     fknee_mhz: float = 0.0
@@ -131,9 +128,6 @@ class DetectorInfo:
         # Normalize the quaternion
         self.quat /= np.sqrt(self.quat.dot(self.quat))
 
-        if type(self.band_freqs_ghz) == np.ndarray:
-            assert len(self.band_freqs_ghz) == len(self.band_weights)
-
     @staticmethod
     def from_dict(dictionary: Dict[str, Any]):
         """Create a detector from the contents of a dictionary
@@ -148,8 +142,6 @@ class DetectorInfo:
         - ``channel``
         - ``bandcenter_ghz``
         - ``bandwidth_ghz``
-        - ``band_freqs_ghz``
-        - ``band_weights``
         - ``sampling_rate_hz``
         - ``fwhm_arcmin``
         - ``ellipticity``
@@ -167,13 +159,6 @@ class DetectorInfo:
         for param in fields(DetectorInfo):
             if param.name in dictionary:
                 setattr(result, param.name, dictionary[param.name])
-
-        if type(result.band_freqs_ghz) != np.ndarray:
-            result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
-            result.band_freqs_ghz, result.band_weights = [
-                result.band.freqs_ghz,
-                result.band.weights,
-            ]
 
         # Force initializers to be called again
         result.__post_init__()
@@ -205,8 +190,6 @@ class FreqChannelInfo:
     bandcenter_ghz: float
     channel: Union[str, None] = None
     bandwidth_ghz: float = 0.0
-    band_freqs_ghz: Union[None, np.ndarray] = None
-    band_weights: Union[None, np.ndarray] = None
     net_detector_ukrts: float = 0.0
     net_channel_ukrts: float = 0.0
     pol_sensitivity_channel_ukarcmin: float = 0.0
@@ -271,13 +254,6 @@ class FreqChannelInfo:
         for param in fields(FreqChannelInfo):
             if param.name in dictionary:
                 setattr(result, param.name, dictionary[param.name])
-
-        if type(result.band_freqs_ghz) != np.ndarray:
-            result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
-            result.band_freqs_ghz, result.band_weights = [
-                result.band.freqs_ghz,
-                result.band.weights,
-            ]
 
         # Force initializers in __post_init__ to be called
         result.__post_init__()
