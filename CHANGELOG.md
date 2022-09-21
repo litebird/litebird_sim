@@ -1,5 +1,7 @@
 # HEAD
 
+-   Mark installation errors for rich traceback in CI builds as non fatal [#199](https://github.com/litebird/litebird_sim/pull/199)
+
 -   Fix bug in `make_bin_map` [#196](https://github.com/litebird/litebird_sim/pull/196)
 
 # Version 0.7.0
