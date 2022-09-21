@@ -67,8 +67,8 @@ shows:
    pointings = lbs.get_pointings(
        obs,
        spin2ecliptic_quats=spin2ecliptic_quats,
-       detector_quats=[det.quat],
        bore2spin_quat=instr.bore2spin_quat,
+       detector_quats=[det.quat],
        hwp=lbs.hwp.IdealHWP(hwp_radpsec),
    )
    
@@ -112,8 +112,9 @@ The pointing information can be included in the observation or passed through
 `pointings`. If both `obs` and `pointings` are provided, they must be coherent,
 so either a single Observation and a single numpy array, or same lenght list of
 Observations and numpy arrays.
-If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`
-
+If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`.
+The effect of a possible HWP is included in the pointing information, see 
+:ref:`scanning-strategy`.
 
 Adding Noise
 ------------

@@ -64,7 +64,6 @@ def test_make_bin_map_api_simulation(tmp_path):
     pointings = lbs.get_pointings(
         obss[0],
         sim.spin2ecliptic_quats,
-        detector_quats=[det.quat],
         bore2spin_quat=instr.bore2spin_quat,
     )
 
