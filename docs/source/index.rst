@@ -19,7 +19,6 @@ Welcome to litebird_sim's documentation!
    mapmaking
    sky_maps
    scanning
-   bandpasses
    dipole
    imo
    timeordered
