@@ -35,6 +35,7 @@ include = [
         "static/report_template.html",
         "static/sakura.css",
         "templates/*.md",
+        "templates/*.txt",
         "misc/pandoc-filter.lua",
 ]
 
