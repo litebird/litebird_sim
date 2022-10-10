@@ -2,6 +2,8 @@
 
 -   **Breaking change** Interface of `get_pointings` modified, new function `get_pointings_for_observation` simplifies the pointing generation for a list of observations [#198](https://github.com/litebird/litebird_sim/pull/198)
 
+-   Properly install Madam template files [#202](https://github.com/litebird/litebird_sim/pull/202)
+
 -   Mark installation errors for rich traceback in CI builds as non fatal [#199](https://github.com/litebird/litebird_sim/pull/199)
 
 -   Fix bug in `make_bin_map` [#196](https://github.com/litebird/litebird_sim/pull/196)
