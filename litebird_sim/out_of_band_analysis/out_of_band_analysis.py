@@ -298,8 +298,6 @@ class HwpSysAndBandpass:
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
-        save_input_maps: Union[bool, None] = None,
-        read_input_maps: Union[bool, None] = None,
     ):
         """It sets the input paramters
 
@@ -314,10 +312,7 @@ class HwpSysAndBandpass:
              Channel (:class:`.FreqChannelInfo`): an instance of the
                                                   :class:`.FreqChannelInfo` class
              maps (float): input maps (3, npix) coherent with nside provided.
-             save_input_maps: (bool) if True, input maps are saved from simulation base path. If False, the maps are assigned to a variable and
-             then deleted
-             read_input_maps: (bool) if True, input maps are read from simulation base path.
-         """
+          """
 
                 
         # set defaults for band integration
@@ -379,8 +374,6 @@ class HwpSysAndBandpass:
             hwp_sys_Mbs_gaussian_smooth = paramdict.get(
                  "hwp_sys_Mbs_gaussian_smooth", True
              )
-            save_input_maps = paramdict.get("save_input_maps", False)
-            read_input_maps = paramdict.get("read_input_maps", False)
 
 
         # This part sets from input_parameters()
@@ -417,7 +410,7 @@ class HwpSysAndBandpass:
                     gaussian_smooth=hwp_sys_Mbs_gaussian_smooth,
                     bandpass_int=False,
                     maps_in_ecliptic=True,
-                    save = save_input_maps,
+                    save = False,
                     output_string= Channel.channel
                 )
 
@@ -439,32 +432,19 @@ class HwpSysAndBandpass:
             if not self.bandpass:
 
                 self.cmb2bb = _dBodTth(self.freqs)
-                self.cmb2bb_solver = self.cmb2bb
                 
-            elif self.bandpass and not self.bandpass_solver:
+            elif self.bandpass:
                     
                 self.freqs, self.bandpass_profile = bandpass_profile(self.freqs, 
                                                                          self.bandpass,
                                                                          self.include_beam_throughput)
                                                                          
                 self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
-                self.cmb2bb_solver = self.cmb2bb
                     
             
-            elif self.bandpass and self.bandpass_solver:
-                    
-                self.freqs, self.bandpass_profile = bandpass_profile(self.freqs, 
-                                                                         self.bandpass,
-                                                                         self.include_beam_throughput)
-                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
-                self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(self.freqs, 
-                                                                         self.bandpass_solver,
-                                                                         self.include_beam_throughput)
-                self.cmb2bb_solver = _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
-
             # Normalize the band
             self.cmb2bb /= self.cmb2bb.sum()
-            self.cmb2bb_solver /= self.cmb2bb_solver.sum()
+
 
             myinstr = {}
             for ifreq in range(self.nfreqs):
@@ -477,31 +457,11 @@ class HwpSysAndBandpass:
 
             mbs = lbs.Mbs(simulation=self.sim, parameters=Mbsparams, instrument=myinstr)
 
+            maps = mbs.run_all()[0]
             self.maps = np.empty((self.nfreqs, 3, self.npix))
-
-            if read_input_maps:
-                if save_input_maps:
-                    mbs.run_all()
-                for ifreq in range(self.nfreqs):
-                    cmbpath = Path(str(self.sim.base_path)+f'/cmb/0000/ch{ifreq}_cmb_0000_{Mbsparams.output_string}.fits')
-                    #print(str(cmbpath))
-                    if not cmbpath.is_file():
-                        print(str(cmbpath)+' has to be saved first!')
-                    self.maps[ifreq] = hp.read_map(cmbpath, field = None)
-                    for fg in hwp_sys_Mbs_fg_models:                        
-                        fgpath = Path(str(self.sim.base_path)+f'/foregrounds/{fg}/ch{ifreq}_{fg}_{Mbsparams.output_string}.fits')
-                        #print(str(fgpath))
-                        if not fgpath.is_file():
-                            print(str(fgpath)+' has to be saved first!')
-                        self.maps[ifreq] += hp.read_map(fgpath, field = None) 
-            else:                
-                maps = mbs.run_all()[0]
-                if not save_input_maps:
-                    for ifreq in range(self.nfreqs):
-                        self.maps[ifreq] = maps["ch" + str(ifreq)]
-                else:
-                    print("maps need to be read, set read_input_maps = True")
-                del maps
+            for ifreq in range(self.nfreqs):
+                self.maps[ifreq] = maps["ch" + str(ifreq)]
+            del maps
 
         else:
 
@@ -530,9 +490,8 @@ class HwpSysAndBandpass:
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
                 try:
-                    self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
+                    self.freqs, self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
                     self.band_filename_solver,
-                    usecols=(1, 2, 3, 4, 5),
                     unpack=True,
                     skiprows = 1
                 )
@@ -550,6 +509,19 @@ class HwpSysAndBandpass:
                     self.z1s = 0.0
                 if not self.z2s:
                     self.z2s = 0.0
+            
+            if not self.bandpass_solver:
+
+                self.cmb2bb_solver = _dBodTth(self.freqs)
+
+            elif self.bandpass_solver:
+                    
+                self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(self.freqs, 
+                                                                         self.bandpass_solver,
+                                                                         self.include_beam_throughput)
+                self.cmb2bb_solver = _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
+
+            self.cmb2bb_solver /= self.cmb2bb_solver.sum()
 
         self.cbeta = np.cos(np.deg2rad(self.beta))
         self.cbetas = np.cos(np.deg2rad(self.betas))
