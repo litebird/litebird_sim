@@ -845,6 +845,9 @@ class Simulation:
         when you are using MPI, and it can be used for tasks where you have to carefully
         orchestrate they way different MPI processes run together.
 
+        If this method is called before :meth:`.Simulation.create_observations`, it will
+        return ``None``.
+
         This method should be called by *all* the MPI processes. It can be executed in a
         serial environment (i.e., without MPI) and will still return meaningful values.
 
