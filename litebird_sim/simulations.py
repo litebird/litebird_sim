@@ -883,7 +883,7 @@ class Simulation:
 
         num_of_observations = len(self.observations)
 
-        if self.mpi_comm:
+        if self.mpi_comm and litebird_sim.MPI_ENABLED:
             observation_descr_all = litebird_sim.MPI_COMM_WORLD.allgather(
                 observation_descr
             )
