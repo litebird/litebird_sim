@@ -155,7 +155,7 @@ class MpiDistributionDescr:
       MPI processes
     - `detectors` (list of :class:`.DetectorInfo` objects): list of *all* the
       detectors used in the observations
-    - `mpi_processes`: list of :class:`.MpiProcessDesc` instances, describing
+    - `mpi_processes`: list of :class:`.MpiProcessDescr` instances, describing
       the kind of data that each MPI process is currently holding
 
     Use :meth:`.Simulation.describe_mpi_distribution` to get an instance of this
@@ -175,6 +175,7 @@ class MpiDistributionDescr:
 - Duration: {duration_s} s
 - {num_of_detectors} detector(s) ({det_names})
 - TOD shape: {tod_shape}
+- TOD dtype: {tod_dtype}
 
 """.format(
                     obs_idx=cur_obs_idx,
@@ -183,6 +184,7 @@ class MpiDistributionDescr:
                     num_of_detectors=len(cur_obs.det_names),
                     det_names=",".join(cur_obs.det_names),
                     tod_shape="×".join([str(x) for x in cur_obs.tod_shape]),
+                    tod_dtype=cur_obs.tod_dtype,
                 )
 
         return result
