@@ -293,7 +293,7 @@ def save_simulation_for_madam(
             if first_det_name in x.det_names
         ]
     )
-    if sim.mpi_comm:
+    if sim.mpi_comm and litebird_sim.MPI_ENABLED:
         number_of_files = litebird_sim.MPI_COMM_WORLD.allreduce(number_of_files)
         pointing_files = _combine_file_dictionaries(
             litebird_sim.MPI_COMM_WORLD.allgather(pointing_files),
