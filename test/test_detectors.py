@@ -292,6 +292,12 @@ def test_det_list_from_imo():
             continue
 
         val = getattr(det_list[5], cur_field.name)
-        assert val == getattr(det_list[0], cur_field.name)
+        try:
+            assert val == getattr(det_list[0], cur_field.name)
+        except ValueError:
+            # A ValueError exception usually means that `val` is
+            # a numpy array. In this case, we perform the comparison
+            # element by element.
+            assert np.all(val == getattr(det_list[0], cur_field.name))
 
     assert det_list[5].sampling_rate_hz == 1.0
