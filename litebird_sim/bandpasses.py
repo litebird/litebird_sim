@@ -16,36 +16,54 @@ def _apod(x, a, b):
 
 
 @dataclass
-class BandPassInfo(object):
-
+class BandPassInfo:
     """A class wrapping the basic information about a detector bandpass.
-    This  class   encodes the basic properties of a frequency band.
+
+    This class encodes the basic properties of a frequency band.
+
     It can be initialized in three ways:
-    - Through the default constructor, will assume top-hat bandpasses
-    provided the band centroid and the width are issued.
+
+    - The default constructor will generate top-hat bandpasses,
+      assuming that band centroid and width are provided.
+
     - Through the class method :meth:`.from_imo`, which reads the
       detector bandpass from the LiteBIRD Instrument Model (see
       the :class:`.Imo` class).
 
     Args:
+
         - bandcenter_ghz (float):  center frequency in GHz
+
         - bandwidth_ghz (float):  width of the band (default=0.2)
+
         - nsamples_inband (int): number of elements to sample the band (default=128)
+
         - name (str) : ID of the band
+
         - normalize(bool) : If set to true bandpass weights will be normalized to 1
-        - bandtype (str): choose between:
-            - "top-hat" (default)
-            - "top-hat-exp" : the edges of the band are apodized with an
-                exponential profile
-            - "top-hat-cosine" : the edges of the band are apodized with
-                a cosine profile
-            - "cheby" : the bandpass encodes a _Chebyshev_  profile
+
+        - bandtype (str): a string describing the band profile. It can be
+          one of the following:
+
+            - ``top-hat`` (default)
+
+            - ``top-hat-exp``: the edges of the band are apodized with an
+              exponential profile
+
+            - ``top-hat-cosine``: the edges of the band are apodized with
+              a cosine profile
+
+            - ``cheby``: the bandpass encodes a Chebyshev profile
+
         - alpha_exp (float): out-of-band exponential decay index for low freq edge.
+
         - beta_exp (float) : out-of-band exponential decay index for high freq edge
+
         - cosine_apo_length (int): the numerical factor related to the cosine
             apodization length
 
         - cheby_poly_order (int): chebyshev filter order.
+
         - cheby_ripple_dB (int): maximum ripple amplitude in decibels.
     """
 
@@ -244,47 +262,52 @@ class BandPassInfo(object):
     def bandpass_resampling(self, bstrap_size=1000, nresample=54, model=None):
         """
         Resample a  bandpass with bootstrap resampling.
-        Notice that the user can provide any sampler built with the `interpolate_band`
-        method, if not   an error will be raised! The use case for this function is
-        the case when the user wants to generate many realizations of  bandpasses, e.g.
-        per detector bands. There is no need to initialize many instances of the class
-        `BandPassInfo` but just rerun this functions multiple times issuing the same
-        bpass model instance.
+
+        Note that the user can provide any sampler built with the `interpolate_band`
+        method; otherwise, an error will be raised!
+
+        This function should be used when the user wants to generate many realizations
+        of bandpasses, e.g. per detector bands. There is no need to initialize many
+        instances of the class :class:`.BandPassInfo`, just rerun this functions
+        multiple times issuing the same bandpass model instance.
 
         Args :
-        - bstrap_size (int) : encodes the size of the random dataset
+
+        - `bstrap_size` (int): encodes the size of the random dataset
             to be generated from the Sampler
-        - nresample (int) : define how fine is the grid for the resampled bandpass
-        - model (BandPassInfo.model ) : We can resample from a model previously
-            constructed with this function. The default value is set to `None`,
-            than it initializes the bandpass sampler with the model  set in the
-            class instance (recommended use).
+
+        - `nresample` (int): define how fine is the grid for the resampled bandpass
+
+        - `model` (BandPassInfo.model): We can resample from a model previously
+            constructed with this function. The default value is set to ``None``:
+            in this case, it initializes the bandpass sampler with the model set
+            in the class instance (recommended use).
         """
 
         if model is not None:
-            logging.warning(f"Sampler  from {model.name }")
-            Sampler = model.Sampler
+            logging.info(f"Bandpass sampler from {model.name }")
+            sampler = model.Sampler
         else:
             try:
-                Sampler = self.Sampler
+                sampler = self.Sampler
             except AttributeError:
                 print(
                     "Can't resample if no sampler is built and/or provided, "
                     "interpolating the band"
                 )
                 self._interpolate_band()
-                Sampler = self.Sampler
+                sampler = self.Sampler
             except AttributeError:
                 logging.warning(
                     "Can't resample if no sampler is built and/or provided, "
                     "interpolating the band"
                 )
                 self._interpolate_band()
-                Sampler = self.Sampler
+                sampler = self.Sampler
 
         X = np.random.uniform(size=bstrap_size)
         bins_nu = np.linspace(self.freqs_ghz.min(), self.freqs_ghz.max(), nresample)
-        h, xb = np.histogram(Sampler(X), density=True, bins=bins_nu)
+        h, xb = np.histogram(sampler(X), density=True, bins=bins_nu)
 
         nu_b = xb[:-1] + np.diff(xb)
         resampled_bpass = abs(
