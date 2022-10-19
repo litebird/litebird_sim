@@ -111,6 +111,8 @@ __all__ = [
     # compress.py
     "rle_compress",
     "rle_decompress",
+    # bandpasses.py
+    "BandPassInfo",
     # healpix.py
     "nside_to_npix",
     "npix_to_nside",
