@@ -11,6 +11,7 @@ from .detectors import (
     InstrumentInfo,
     detector_list_from_parameters,
 )
+from .bandpasses import BandPassInfo
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -110,6 +111,8 @@ __all__ = [
     # compress.py
     "rle_compress",
     "rle_decompress",
+    # bandpasses.py
+    "BandPassInfo",
     # healpix.py
     "nside_to_npix",
     "npix_to_nside",
