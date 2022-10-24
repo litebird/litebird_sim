@@ -1,0 +1,34 @@
+# Simulation file for Madam
+# Created by litebird_sim on {{ current_date }}
+
+fsample = {{ sampling_rate_hz }}
+nofiles = {{ number_of_files }}
+label_start = 0
+label_end = {{ number_of_files - 1 }}
+
+tod_info = 1 1.0 tod
+
+#
+# Detectors
+
+{% for det in detectors %}
+detector_info = {{ "%5d" | format(loop.index) }} 0.0 T {{ det.net_ukrts }} {{ det.slope }} {{ det.fknee_hz }} {{ det.fmin_hz }} {{ loop.index }} {{ det.name }}
+{% endfor %}
+
+#
+# Pointings
+
+path_point = {{ pointings_path }}
+
+{% for pnt in pointing_files %}
+file_point = {{ pnt.det_id }} {{ pnt.file_name }}
+{% endfor %}
+
+#
+# TOD
+
+path_tod = 1 {{ tod_path }}
+
+{% for tod in tod_files %}
+file_tod = 1 {{ tod.det_id }} {{ tod.file_name }}
+{% endfor %}

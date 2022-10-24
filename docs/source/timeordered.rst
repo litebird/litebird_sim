@@ -18,7 +18,7 @@ Filling TOD with signal
 
 The framework provides a basic routine which scans an input map accordingly to
 the scanning strategy and fills the detector timestreams. This is supported
-through the :file: `.scan_map.py`. You can fill with signal an existing TOD
+through :func:`.scan_map`. You can fill with signal an existing TOD
 by using the function :func:`.scan_map_in_observations`, as the following example
 shows:
 
@@ -64,11 +64,12 @@ shows:
    (obs,) = sim.create_observations(detectors=[det])
    
    # Compute the pointing
-   pointings = lbs.scanning.get_pointings(
+   pointings = lbs.get_pointings(
        obs,
        spin2ecliptic_quats=spin2ecliptic_quats,
-       detector_quats=[det.quat],
        bore2spin_quat=instr.bore2spin_quat,
+       detector_quats=[det.quat],
+       hwp=lbs.hwp.IdealHWP(hwp_radpsec),
    )
    
    # Create a map to scan
@@ -77,7 +78,12 @@ shows:
    in_map = {"Detector": maps}
 
    # Here scan the map and fill tod
-   lbs.scan_map_in_observations(obs, pointings, hwp_radpsec, in_map)
+   lbs.scan_map_in_observations(
+       obs, 
+       in_map,
+       pointings = pointings, 
+       input_map_in_galactic = False,
+       )
    
    for i in range(obs.n_samples):
        # + 0. removes leading minus from negative zero
@@ -98,13 +104,17 @@ shows:
    -0.13846
 
 
-The input maps to scan must be included in a dictionary with either the name of
-the channel or the name of the dectector as keyword. The routines described in 
-:ref:`Mbs` already provied the inputs in the correct format. 
-When set `True` the option `fill_psi_and_pixind_in_obs` fills the polarization
-angle `obs.psi` and the pixel index `obs.pixind` for each sample, allowing to 
-quickly bin the Observations through the function :func:`.make_bin_map`.
-
+The input maps to scan can be either included in a dictionary with the name of
+the channel or the name of the dectector as keyword (the routines described in 
+:ref:`Mbs` already provied the inputs in the correct format), or a numpy array
+with shape (3, n_pixels).
+The pointing information can be included in the observation or passed through 
+`pointings`. If both `obs` and `pointings` are provided, they must be coherent,
+so either a single Observation and a single numpy array, or same lenght list of
+Observations and numpy arrays.
+If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`.
+The effect of a possible HWP is included in the pointing information, see 
+:ref:`scanning-strategy`.
 
 Adding Noise
 ------------
@@ -126,7 +136,6 @@ Here is a short example that shows how to add noise:
 
    # Create a detector object
    det = lbs.DetectorInfo(
-     fknee_mhz=1.0,
      net_ukrts=100,
      sampling_rate_hz=10
    )
@@ -212,7 +221,8 @@ Again, to generate noise with custom parameters, we can either use the low level
      net_ukrts=100,
      sampling_rate_hz=10,
      alpha=1,
-     fknee_mhz=10
+     fknee_mhz=10,
+     fmin_hz=0.001,
    )
 
    obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
@@ -220,11 +230,13 @@ Again, to generate noise with custom parameters, we can either use the low level
    custom_sigma_uk = 1234
    custom_fknee_mhz = 12.34
    custom_alpha = 1.234
+   custom_fmin_hz = 0.0123
 
    # Option 1, where we call the low lever function directly
    lbs.noise.add_one_over_f_noise(
        obs[0].tod[0],
        custom_fknee_mhz,
+       custom_fmin_hz,
        custom_alpha,
        custom_sigma_uk,
        obs[0].sampling_rate_hz,
@@ -232,6 +244,7 @@ Again, to generate noise with custom parameters, we can either use the low level
 
    # Option 2, where we change the values in the observation object
    obs[0].fknee_mhz[0] = custom_fknee_mhz
+   obs[0].fmin_hz[0] = custom_fmin_hz
    obs[0].alpha[0] = custom_alpha
    obs[0].net_ukrts[0] = custom_sigma_uk / np.sqrt(obs[0].sampling_rate_hz)
 

@@ -59,7 +59,7 @@ def write_one_observation(
     The output file is specified by `output_file` and should be opened for writing; the
     observation to be written is passed through the `obs` parameter. The data type to
     use for writing TODs and pointings is specified in the `tod_dtype` and
-    `pointings_dtype` (it can either be a NumPy type like ``numpy.float64` or a
+    `pointings_dtype` (it can either be a NumPy type like ``numpy.float64`` or a
     string). The `global_index` and `local_index` parameters are two integers that are
     used by high-level functions like :func:`.write_observations` to understand how to
     read several HDF5 files at once; if you do not need them, you can pass 0 to both.

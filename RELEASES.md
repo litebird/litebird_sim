@@ -39,3 +39,13 @@
     ```
     
 -   Open the page https://github.com/litebird/litebird_sim/releases and create a new release from the tag you have just created.
+
+-   Use the script `prepare_release_email.py` to automatically produce the text of an email containing the release notes:
+
+    ```
+    $ python3 prepare_release_email.py | xclip -selection clipboard
+    ```
+    
+    and send this text to the LiteBIRD JSGs.
+
+    

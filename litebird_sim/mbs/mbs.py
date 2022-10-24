@@ -565,8 +565,6 @@ class Mbs:
         else:
             cmb_map_matrix = None
 
-        os.environ["PYSM_LOCAL_DATA"] = str(output_directory)
-
         for nmc in range(rank * perrank, (rank + 1) * perrank):
             if seed_cmb:
                 np.random.seed(seed_cmb + nmc)
@@ -574,7 +572,7 @@ class Mbs:
             nmc_output_directory = output_directory / nmc_str
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
-            cmb_temp = hp.synfast(cl_cmb, nside, new=True, verbose=False)
+            cmb_temp = hp.synfast(cl_cmb, nside, new=True)
             file_name = f"cmb_{nmc_str}_{file_str}.fits"
             cur_map_path = nmc_output_directory / file_name
             lbs.write_healpix_map_to_file(
@@ -586,7 +584,7 @@ class Mbs:
             sky = pysm3.Sky(
                 nside=nside,
                 component_objects=[
-                    pysm3.CMBMap(nside, map_IQU=Path(nmc_str) / file_name)
+                    pysm3.CMBMap(nside, map_IQU=(Path(cur_map_path)).absolute())
                 ],
             )
 
@@ -596,7 +594,7 @@ class Mbs:
                     band = instr[chnl].bandwidth_ghz
                     fmin = freq - band / 2.0
                     fmax = freq + band / 2.0
-                    fsteps = np.int(np.ceil(fmax - fmin) + 1)
+                    fsteps = int(np.ceil(fmax - fmin) + 1)
                     bandpass_frequencies = np.linspace(fmin, fmax, fsteps) * u.GHz
                     weights = np.ones(len(bandpass_frequencies))
                     cmb_map = sky.get_emission(bandpass_frequencies, weights)
@@ -611,7 +609,8 @@ class Mbs:
                 fwhm_arcmin = instr[chnl].fwhm_arcmin
                 if smooth:
                     cmb_map_smt = hp.smoothing(
-                        cmb_map, fwhm=np.radians(fwhm_arcmin / 60.0), verbose=False
+                        cmb_map,
+                        fwhm=np.radians(fwhm_arcmin / 60.0),
                     )
                 else:
                     cmb_map_smt = cmb_map
@@ -687,7 +686,7 @@ class Mbs:
                     band = instr[chnl].bandwidth_ghz
                     fmin = freq - band / 2.0
                     fmax = freq + band / 2.0
-                    fsteps = np.int(np.ceil(fmax - fmin) + 1)
+                    fsteps = int(np.ceil(fmax - fmin) + 1)
                     bandpass_frequencies = np.linspace(fmin, fmax, fsteps) * u.GHz
                     weights = np.ones(len(bandpass_frequencies))
                     sky_extrap = sky.get_emission(bandpass_frequencies, weights)
@@ -701,7 +700,8 @@ class Mbs:
                     )
                 if smooth:
                     sky_extrap_smt = hp.smoothing(
-                        sky_extrap, fwhm=np.radians(fwhm_arcmin / 60.0), verbose=False
+                        sky_extrap,
+                        fwhm=np.radians(fwhm_arcmin / 60.0),
                     )
                 else:
                     sky_extrap_smt = sky_extrap
@@ -745,10 +745,11 @@ class Mbs:
                 fg_file_name = f"{chnl}_{cmp}_{file_str}.fits"
                 try:
                     fg_cmp = hp.read_map(
-                        fg_dir_cmp / fg_file_name, (0, 1, 2), verbose=False
+                        fg_dir_cmp / fg_file_name,
+                        (0, 1, 2),
                     )
                 except IndexError:
-                    fg_cmp = hp.read_map(fg_dir_cmp / fg_file_name, verbose=False)
+                    fg_cmp = hp.read_map(fg_dir_cmp / fg_file_name)
                     fg_cmp = np.array(
                         [fg_cmp, np.zeros_like(fg_cmp), np.zeros_like(fg_cmp)]
                     )
@@ -764,7 +765,7 @@ class Mbs:
                     ]
 
                     assert len(cmb_map_path) == 1
-                    cmb = hp.read_map(cmb_map_path[0], (0, 1, 2), verbose=False)
+                    cmb = hp.read_map(cmb_map_path[0], (0, 1, 2))
                     map_tot = fg_tot + cmb
 
                     nmc_str = f"{nmc:04d}"

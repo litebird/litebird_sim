@@ -76,7 +76,7 @@ shell. Examples:
         # reason why we run tests here is because AstroPy needs to
         # download a few files, and if we postpone this to %test the
         # filesystem will be read-only).
-        git clone https://github.com/litebird/litebird_sim.git /opt/litebird_sim
+        git clone -b BRANCH https://github.com/litebird/litebird_sim.git /opt/litebird_sim
 
         cd /opt/litebird_sim
 

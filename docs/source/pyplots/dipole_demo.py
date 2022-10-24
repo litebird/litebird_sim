@@ -40,7 +40,7 @@ det = lbs.DetectorInfo(
 )
 
 (obs,) = sim.create_observations(detectors=[det])
-pointings = lbs.scanning.get_pointings(
+pointings = lbs.get_pointings(
     obs,
     spin2ecliptic_quats=spin2ecliptic_quats,
     detector_quats=[det.quat],
@@ -62,7 +62,7 @@ _, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 12))
 # Make a plot of the TOD using all the dipole types
 for type_idx, dipole_type in enumerate(lbs.DipoleType):
     obs.tod[0][:] = 0  # Reset the TOD
-    lbs.add_dipole_to_observations(obs, pointings, pos_vel, dipole_type=dipole_type)
+    lbs.add_dipole_to_observations(obs, pos_vel, dipole_type=dipole_type)
 
     axes[0].plot(t, obs.tod[0], label=str(dipole_type))
     axes[1].plot(t[0:20], obs.tod[0][0:20], label=str(dipole_type))

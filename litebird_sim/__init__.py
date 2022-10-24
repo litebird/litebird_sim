@@ -11,6 +11,7 @@ from .detectors import (
     InstrumentInfo,
     detector_list_from_parameters,
 )
+from .bandpasses import BandPassInfo
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -19,6 +20,10 @@ from .healpix import (
     get_pixel_format,
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
+)
+from .hwp import (
+    HWP,
+    IdealHWP,
 )
 from .imo import (
     Imo,
@@ -31,10 +36,16 @@ from .imo import (
 )
 from .hwp_sys.hwp_sys import HwpSys
 from .out_of_band_analysis.out_of_band_analysis import HwpSysAndBandpass
-from .out_of_band_analysis.bandpass_template_module import bandpass_profile
+from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation
+from .pointings import (
+    apply_hwp_to_obs,
+    get_pointing_buffer_shape,
+    get_pointings,
+    get_pointings_for_observations,
+)
 from .quaternions import (
     quat_rotation_x,
     quat_rotation_y,
@@ -61,10 +72,9 @@ from .scanning import (
     SpinningScanningStrategy,
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
-    get_pointings,
 )
-from .mapping import make_bin_map
-from .destriper import DestriperParameters, DestriperResult, destripe
+from .mapping import DestriperParameters, DestriperResult, make_bin_map
+from .destriper import destripe
 from .simulations import Simulation
 from .noise import (
     add_white_noise,
@@ -73,7 +83,13 @@ from .noise import (
     add_noise_to_observations,
 )
 from .scan_map import scan_map, scan_map_in_observations
-from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
+from .coordinates import (
+    DEFAULT_COORDINATE_SYSTEM,
+    DEFAULT_TIME_SCALE,
+    ECL_TO_GAL_ROT_MATRIX,
+    CoordinateSystem,
+)
+
 from .spacecraft import (
     compute_l2_pos_and_vel,
     compute_lissajous_pos_and_vel,
@@ -96,6 +112,8 @@ __all__ = [
     # compress.py
     "rle_compress",
     "rle_decompress",
+    # bandpasses.py
+    "BandPassInfo",
     # healpix.py
     "nside_to_npix",
     "npix_to_nside",
@@ -122,6 +140,11 @@ __all__ = [
     "FreqChannelInfo",
     "InstrumentInfo",
     "detector_list_from_parameters",
+    # hwp.py
+    "HWP",
+    "IdealHWP",
+    # madam.py
+    "save_simulation_for_madam",
     # mbs.py
     "Mbs",
     "MbsParameters",
@@ -157,6 +180,9 @@ __all__ = [
     "SpinningScanningStrategy",
     "get_det2ecl_quaternions",
     "get_ecl2det_quaternions",
+    # pointings.py
+    "apply_hwp_to_obs",
+    "get_pointing_buffer_shape",
     "get_pointings",
     # mapping.py
     "make_bin_map",
@@ -181,6 +207,8 @@ __all__ = [
     # coordinates.py
     "DEFAULT_COORDINATE_SYSTEM",
     "DEFAULT_TIME_SCALE",
+    "ECL_TO_GAL_ROT_MATRIX",
+    "CoordinateSystem",
     # spacecraft.py
     "compute_l2_pos_and_vel",
     "compute_lissajous_pos_and_vel",
