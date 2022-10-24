@@ -4,15 +4,14 @@ import healpy as hp
 from astropy.time import Time
 import os
 
+
 def test_out_of_band():
 
     start_time = 0
-    time_span_s = 10 
+    time_span_s = 10
     nside = 64
     sampling_hz = 1
     hwp_radpsec = 4.084_070_449_666_731
-
-    npix = hp.nside2npix(nside)
 
     sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
 
@@ -47,67 +46,69 @@ def test_out_of_band():
         quat=[0.0, 0.0, 1.0 / np.sqrt(2.0), 1.0 / np.sqrt(2.0)],
     )
 
-    obs_o, = sim.create_observations(detectors=[detT,detB])
+    (obs_o,) = sim.create_observations(detectors=[detT, detB])
 
-    pointings = lbs.scanning.get_pointings(obs_o,
-                        spin2ecliptic_quats=spin2ecliptic_quats,
-                        detector_quats=[detT.quat,detB.quat],
-                        bore2spin_quat=instr.bore2spin_quat,
-                                      )
-    filepath = os.path.dirname(__file__).strip('test')+'litebird_sim/out_of_band_analysis/examples/MFT_100_h_beta_z.txt'
+    pointings = lbs.scanning.get_pointings(
+        obs_o,
+        spin2ecliptic_quats=spin2ecliptic_quats,
+        detector_quats=[detT.quat, detB.quat],
+        bore2spin_quat=instr.bore2spin_quat,
+    )
+    filepath = (
+        os.path.dirname(__file__).strip("test")
+        + "litebird_sim/out_of_band_analysis/examples/MFT_100_h_beta_z.txt"
+    )
     mft = np.loadtxt(filepath)
 
-    nu = mft[:,0]
-    h1 = mft[:,1]
-    h2 = mft[:,2]
-    beta  = mft[:,3] 
-    z1 = mft[:,4]
-    z2 = mft[:,5]
+    nu = mft[:, 0]
+    h1 = mft[:, 1]
+    h2 = mft[:, 2]
+    beta = mft[:, 3]
+    z1 = mft[:, 4]
+    z2 = mft[:, 5]
 
-
-
-    par = { 'hwp_sys':
-       {'band_filename': filepath,
-        'band_filename_solver': filepath,  #same as tod parameters
-        'bandpass':{
-            'band_type': 'top_hat',
-            'band_low_edge': nu[0],
-            'band_high_edge': nu[-1],
+    par = {
+        "hwp_sys": {
+            "band_filename": filepath,
+            "band_filename_solver": filepath,  # same as tod parameters
+            "bandpass": {
+                "band_type": "top_hat",
+                "band_low_edge": nu[0],
+                "band_high_edge": nu[-1],
             },
-        'bandpass_solver':{
-            'band_type': 'top_hat',
-            'band_low_edge': nu[0],
-            'band_high_edge': nu[-1],
+            "bandpass_solver": {
+                "band_type": "top_hat",
+                "band_low_edge": nu[0],
+                "band_high_edge": nu[-1],
             },
-        'include_beam_throughput': False,
-       }
-      }
+            "include_beam_throughput": False,
+        }
+    }
 
-
-    sim.parameter_file = par   #setting the parameter file
+    sim.parameter_file = par  # setting the parameter file
     hwp_sys_band = lbs.HwpSysAndBandpass(sim)
 
     Mbsparams = lbs.MbsParameters(
-                make_cmb=True,
-                make_fg=True,
-                fg_models = ["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"],
-                bandpass_int=True,
-                maps_in_ecliptic=True,
-                seed_cmb = 1234,
-                nside = nside
-            )
+        make_cmb=True,
+        make_fg=True,
+        fg_models=["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"],
+        bandpass_int=True,
+        maps_in_ecliptic=True,
+        seed_cmb=1234,
+        nside=nside,
+    )
 
     hwp_sys_band.set_parameters(
-                       integrate_in_band=True,
-                       integrate_in_band_solver=True,
-                       correct_in_solver=True,
-                       built_map_on_the_fly=False,
-                       nside=nside,
-                       Mbsparams = Mbsparams,
-                      # Channel = channelinfo
-                      )
+        integrate_in_band=True,
+        integrate_in_band_solver=True,
+        correct_in_solver=True,
+        built_map_on_the_fly=False,
+        nside=nside,
+        Mbsparams=Mbsparams,
+        # Channel = channelinfo
+    )
 
-    hwp_sys_band.fill_tod(obs_o,pointings,hwp_radpsec)
+    hwp_sys_band.fill_tod(obs_o, pointings, hwp_radpsec)
 
     np.testing.assert_equal(hwp_sys_band.h1, h1)
     np.testing.assert_equal(hwp_sys_band.h1s, h1)
@@ -120,14 +121,34 @@ def test_out_of_band():
     np.testing.assert_equal(hwp_sys_band.z2, z2)
     np.testing.assert_equal(hwp_sys_band.z2s, z2)
 
-    reference = np.array([[ 3.8648595e-05, -3.9369585e-05, -3.7868820e-05, -3.8603906e-05,
-        -3.8943563e-05, -3.8293791e-05, -3.8582919e-05, -3.8396141e-05,
-        -3.9056486e-05, -3.8146281e-05],
-       [ 3.9318311e-05, -3.8004528e-05, -3.8656683e-05, -3.8627029e-05,
-        -3.8694950e-05, -3.8384474e-05, -3.8288104e-05, -3.9314618e-05,
-        -3.7936523e-05, -3.8455721e-05]], dtype=np.float32)
-
+    reference = np.array(
+        [
+            [
+                3.8648595e-05,
+                -3.9369585e-05,
+                -3.7868820e-05,
+                -3.8603906e-05,
+                -3.8943563e-05,
+                -3.8293791e-05,
+                -3.8582919e-05,
+                -3.8396141e-05,
+                -3.9056486e-05,
+                -3.8146281e-05,
+            ],
+            [
+                3.9318311e-05,
+                -3.8004528e-05,
+                -3.8656683e-05,
+                -3.8627029e-05,
+                -3.8694950e-05,
+                -3.8384474e-05,
+                -3.8288104e-05,
+                -3.9314618e-05,
+                -3.7936523e-05,
+                -3.8455721e-05,
+            ],
+        ],
+        dtype=np.float32,
+    )
 
     np.testing.assert_equal(obs_o.tod, reference)
-
-
