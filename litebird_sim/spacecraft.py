@@ -181,7 +181,7 @@ def sum_lissajous_pos_and_vel(
         #     ω = v·e⟂ / r
         #       = (v_x, v_y) · (−y / √(x² + y²), x / √(x² + y²)) / √(x² + y²) =
         #       = (−v_x · y + v_y · x) / (x² + y²)
-        radius_squared = l2_pos_x**2 + l2_pos_y**2
+        radius_squared = l2_pos_x ** 2 + l2_pos_y ** 2
         earth_ang_speed_rad_s = (
             -l2_vel_x * l2_pos_y + l2_vel_y * l2_pos_x
         ) / radius_squared

@@ -329,9 +329,9 @@ class HwpSys:
 
             if self.integrate_in_band:
                 J11 = (
-                    (1 + self.h1[:, np.newaxis]) * ca**2
+                    (1 + self.h1[:, np.newaxis]) * ca ** 2
                     - (1 + self.h2[:, np.newaxis])
-                    * sa**2
+                    * sa ** 2
                     * np.exp(1j * self.beta[:, np.newaxis])
                     - (self.z1[:, np.newaxis] + self.z2[:, np.newaxis]) * ca * sa
                 )
@@ -343,8 +343,8 @@ class HwpSys:
                     )
                     * ca
                     * sa
-                    + self.z1[:, np.newaxis] * ca**2
-                    - self.z2[:, np.newaxis] * sa**2
+                    + self.z1[:, np.newaxis] * ca ** 2
+                    - self.z2[:, np.newaxis] * sa ** 2
                 )
 
                 if self.built_map_on_the_fly:
@@ -376,14 +376,14 @@ class HwpSys:
 
             else:
                 J11 = (
-                    (1 + self.h1) * ca**2
-                    - (1 + self.h2) * sa**2 * np.exp(1j * self.beta)
+                    (1 + self.h1) * ca ** 2
+                    - (1 + self.h2) * sa ** 2 * np.exp(1j * self.beta)
                     - (self.z1 + self.z2) * ca * sa
                 )
                 J12 = (
                     ((1 + self.h1) + (1 + self.h2) * np.exp(1j * self.beta)) * ca * sa
-                    + self.z1 * ca**2
-                    - self.z2 * sa**2
+                    + self.z1 * ca ** 2
+                    - self.z2 * sa ** 2
                 )
 
                 if self.built_map_on_the_fly:
@@ -409,9 +409,9 @@ class HwpSys:
 
                     if self.integrate_in_band_solver:
                         J11 = (
-                            (1 + self.h1s[:, np.newaxis]) * ca**2
+                            (1 + self.h1s[:, np.newaxis]) * ca ** 2
                             - (1 + self.h2s[:, np.newaxis])
-                            * sa**2
+                            * sa ** 2
                             * np.exp(1j * self.betas[:, np.newaxis])
                             - (self.z1s[:, np.newaxis] + self.z2s[:, np.newaxis])
                             * ca
@@ -425,21 +425,21 @@ class HwpSys:
                             )
                             * ca
                             * sa
-                            + self.z1s[:, np.newaxis] * ca**2
-                            - self.z2s[:, np.newaxis] * sa**2
+                            + self.z1s[:, np.newaxis] * ca ** 2
+                            - self.z2s[:, np.newaxis] * sa ** 2
                         )
                     else:
                         J11 = (
-                            (1 + self.h1s) * ca**2
-                            - (1 + self.h2s) * sa**2 * np.exp(1j * self.betas)
+                            (1 + self.h1s) * ca ** 2
+                            - (1 + self.h2s) * sa ** 2 * np.exp(1j * self.betas)
                             - (self.z1s + self.z2s) * ca * sa
                         )
                         J12 = (
                             ((1 + self.h1s) + (1 + self.h2s) * np.exp(1j * self.betas))
                             * ca
                             * sa
-                            + self.z1s * ca**2
-                            - self.z2s * sa**2
+                            + self.z1s * ca ** 2
+                            - self.z2s * sa ** 2
                         )
 
                     del (ca, sa)

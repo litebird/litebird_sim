@@ -219,7 +219,7 @@ class _Toast2FakeData:
                 comm_world=None, comm_group=None, comm_rank=0, comm_size=1
             )
 
-        npix = 12 * (self.nside**2)
+        npix = 12 * (self.nside ** 2)
         self._metadata = {
             "pixels_npix": npix,
             "pixels_npix_submap": npix,
