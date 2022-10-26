@@ -103,8 +103,9 @@ class BandPassInfo:
         self.f0, self.f1 = self.get_edges()
         # we extend the wings out-of-band of the top-hat bandpass
         # before  and after the edges
-        if self.bandlow_ghz == 0.0 and self.bandhigh_ghz == 0.0:
+        if self.bandlow_ghz == 0.0:
             self.bandlow_ghz = self.bandcenter_ghz - self.bandwidth_ghz
+        if self.bandhigh_ghz == 0.0:
             self.bandhigh_ghz = self.bandcenter_ghz + self.bandwidth_ghz
         self.freqs_ghz = np.linspace(
             self.bandlow_ghz, self.bandhigh_ghz, self.nsamples_inband
