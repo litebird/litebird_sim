@@ -48,11 +48,12 @@ def test_hwp_sys():
 
     (obs_h,) = sim.create_observations(detectors=[detT, detB])
 
-    pointings = lbs.scanning.get_pointings(
-        obs_h,
+    (pointings,) = lbs.get_pointings_for_observations(
+        sim.observations,
         spin2ecliptic_quats=spin2ecliptic_quats,
-        detector_quats=[detT.quat, detB.quat],
         bore2spin_quat=instr.bore2spin_quat,
+        hwp=None,
+        store_pointings_in_obs=True,
     )
 
     filepath = (
@@ -80,9 +81,9 @@ def test_hwp_sys():
     Mbsparams = lbs.MbsParameters(
         make_cmb=True,
         make_fg=True,
-        fg_models=["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"],
+        fg_models=["pysm_synch_1", "pysm_freefree_1", "pysm_dust_1", "pysm_ame_1"],
         bandpass_int=True,
-        maps_in_ecliptic=True,
+        maps_in_ecliptic=False,
         seed_cmb=1234,
         nside=nside,
     )
@@ -109,33 +110,33 @@ def test_hwp_sys():
     np.testing.assert_equal(hwp_sys.z2, z2)
     np.testing.assert_equal(hwp_sys.z2s, z2)
 
-    hwp_sys.fill_tod(obs_h, pointings, hwp_radpsec)
+    hwp_sys.fill_tod(obs=obs_h, hwp_radpsec=hwp_radpsec)  # pointings = pointings,
 
     reference = np.array(
         [
             [
-                3.8648595e-05,
-                -3.9369585e-05,
-                -3.7868820e-05,
-                -3.8603906e-05,
-                -3.8943563e-05,
-                -3.8293791e-05,
-                -3.8582919e-05,
-                -3.8396141e-05,
-                -3.9056486e-05,
-                -3.8146281e-05,
+                3.0200721e-05,
+                2.8892764e-05,
+                2.9656992e-05,
+                3.0214789e-05,
+                -1.9307578e-05,
+                -1.9066008e-05,
+                -2.0042662e-05,
+                -1.8905712e-05,
+                -1.9432409e-05,
+                -1.9722731e-05,
             ],
             [
-                3.9318311e-05,
-                -3.8004528e-05,
-                -3.8656683e-05,
-                -3.8627029e-05,
-                -3.8694950e-05,
-                -3.8384474e-05,
-                -3.8288104e-05,
-                -3.9314618e-05,
-                -3.7936523e-05,
-                -3.8455721e-05,
+                2.8573380e-05,
+                3.0009107e-05,
+                2.9877723e-05,
+                2.8801276e-05,
+                -1.9224044e-05,
+                -1.9958510e-05,
+                -1.8895664e-05,
+                -1.9592955e-05,
+                -1.9424007e-05,
+                -1.9352377e-05,
             ],
         ],
         dtype=np.float32,

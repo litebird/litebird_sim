@@ -48,12 +48,14 @@ def test_out_of_band():
 
     (obs_o,) = sim.create_observations(detectors=[detT, detB])
 
-    pointings = lbs.scanning.get_pointings(
-        obs_o,
+    (pointings,) = lbs.get_pointings_for_observations(
+        sim.observations,
         spin2ecliptic_quats=spin2ecliptic_quats,
-        detector_quats=[detT.quat, detB.quat],
         bore2spin_quat=instr.bore2spin_quat,
+        hwp=None,
+        store_pointings_in_obs=True,
     )
+
     filepath = (
         os.path.dirname(__file__).strip("test")
         + "litebird_sim/out_of_band_analysis/examples/MFT_100_h_beta_z.txt"
@@ -72,14 +74,16 @@ def test_out_of_band():
             "band_filename": filepath,
             "band_filename_solver": filepath,  # same as tod parameters
             "bandpass": {
-                "band_type": "top_hat",
+                "band_type": "top-hat",
                 "band_low_edge": nu[0],
                 "band_high_edge": nu[-1],
+                "bandcenter_ghz": 100,
             },
             "bandpass_solver": {
-                "band_type": "top_hat",
+                "band_type": "top-hat",
                 "band_low_edge": nu[0],
                 "band_high_edge": nu[-1],
+                "bandcenter_ghz": 100,
             },
             "include_beam_throughput": False,
         }
@@ -91,9 +95,9 @@ def test_out_of_band():
     Mbsparams = lbs.MbsParameters(
         make_cmb=True,
         make_fg=True,
-        fg_models=["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"],
+        fg_models=["pysm_synch_1", "pysm_freefree_1", "pysm_dust_1", "pysm_ame_1"],
         bandpass_int=True,
-        maps_in_ecliptic=True,
+        maps_in_ecliptic=False,
         seed_cmb=1234,
         nside=nside,
     )
@@ -105,10 +109,9 @@ def test_out_of_band():
         built_map_on_the_fly=False,
         nside=nside,
         Mbsparams=Mbsparams,
-        # Channel = channelinfo
     )
 
-    hwp_sys_band.fill_tod(obs_o, pointings, hwp_radpsec)
+    hwp_sys_band.fill_tod(obs=obs_o, hwp_radpsec=hwp_radpsec)  # pointings = pointings,
 
     np.testing.assert_equal(hwp_sys_band.h1, h1)
     np.testing.assert_equal(hwp_sys_band.h1s, h1)
@@ -124,28 +127,28 @@ def test_out_of_band():
     reference = np.array(
         [
             [
-                3.8648595e-05,
-                -3.9369585e-05,
-                -3.7868820e-05,
-                -3.8603906e-05,
-                -3.8943563e-05,
-                -3.8293791e-05,
-                -3.8582919e-05,
-                -3.8396141e-05,
-                -3.9056486e-05,
-                -3.8146281e-05,
+                3.0241375e-05,
+                2.8951687e-05,
+                2.9689732e-05,
+                3.0246079e-05,
+                -1.9325222e-05,
+                -1.9075904e-05,
+                -2.0039754e-05,
+                -1.8920069e-05,
+                -1.9449841e-05,
+                -1.9717878e-05,
             ],
             [
-                3.9318311e-05,
-                -3.8004528e-05,
-                -3.8656683e-05,
-                -3.8627029e-05,
-                -3.8694950e-05,
-                -3.8384474e-05,
-                -3.8288104e-05,
-                -3.9314618e-05,
-                -3.7936523e-05,
-                -3.8455721e-05,
+                2.8633915e-05,
+                3.0045336e-05,
+                2.9906372e-05,
+                2.8858269e-05,
+                -1.9238283e-05,
+                -1.9953779e-05,
+                -1.8908040e-05,
+                -1.9612125e-05,
+                -1.9420941e-05,
+                -1.9359371e-05,
             ],
         ],
         dtype=np.float32,
