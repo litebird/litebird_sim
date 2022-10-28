@@ -689,7 +689,9 @@ class HwpSysAndBandpass:
 
                 else:
                     # this fills variables needed by bin_map
-                    cur_obs.psi[idet, :] = cur_psi + 2 * times * hwp_radpsec
+                    cur_obs.psi[idet, :] = np.array(
+                        cur_psi + 2 * times * hwp_radpsec, dtype=np.float32
+                    )
                     cur_obs.pixind[idet, :] = pix
 
             return
