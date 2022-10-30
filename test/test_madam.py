@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
+from typing import Union
 
+import astropy
 import numpy as np
 import astropy.units as u
 
@@ -17,10 +19,15 @@ def _num_of_obs_per_detector(descr: lbs.MpiDistributionDescr, det_name: str) -> 
     )
 
 
-def run_test_on_madam(tmp_path, n_blocks_det: int, n_blocks_time: int):
+def run_test_on_madam(
+    tmp_path,
+    n_blocks_det: int,
+    n_blocks_time: int,
+    start_time: Union[float, astropy.time.Time],
+):
     sim = lbs.Simulation(
         base_path=tmp_path / "destriper_output",
-        start_time=0,
+        start_time=start_time,
         duration_s=86400.0,
         mpi_comm=lbs.MPI_COMM_WORLD,
     )
@@ -104,6 +111,24 @@ def run_test_on_madam(tmp_path, n_blocks_det: int, n_blocks_time: int):
         assert len(pointing_files) == obs_per_detector
 
 
+def run_mpi_test_on_madam(tmp_path, start_time):
+    run_test_on_madam(
+        tmp_path,
+        n_blocks_det=lbs.MPI_COMM_WORLD.size,
+        n_blocks_time=1,
+        start_time=start_time,
+    )
+    run_test_on_madam(
+        tmp_path,
+        n_blocks_det=1,
+        n_blocks_time=lbs.MPI_COMM_WORLD.size,
+        start_time=start_time,
+    )
+
+
 def test_madam(tmp_path):
-    run_test_on_madam(tmp_path, n_blocks_det=lbs.MPI_COMM_WORLD.size, n_blocks_time=1)
-    run_test_on_madam(tmp_path, n_blocks_det=1, n_blocks_time=lbs.MPI_COMM_WORLD.size)
+    run_mpi_test_on_madam(tmp_path, start_time=0.0)
+
+
+def test_madam_astropy_time(tmp_path):
+    run_mpi_test_on_madam(tmp_path, start_time=astropy.time.Time("2030-01-01 00:00:00"))

@@ -68,6 +68,10 @@ def _save_tod_to_fits(
     table = fits.BinTableHDU.from_columns([col])
 
     table.header["DET_NAME"] = obs.name[det_idx]
+    table.header["DET_IDX"] = det_idx
+    table.header["TIME0"] = str(obs.start_time)
+    table.header["MPIRANK"] = litebird_sim.MPI_COMM_WORLD.rank
+    table.header["MPISIZE"] = litebird_sim.MPI_COMM_WORLD.size
 
     table.writeto(
         str(file_name),
