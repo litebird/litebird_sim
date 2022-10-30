@@ -69,7 +69,9 @@ def _save_tod_to_fits(
 
     table.header["DET_NAME"] = obs.name[det_idx]
     table.header["DET_IDX"] = det_idx
-    table.header["TIME0"] = str(obs.start_time)
+    table.header["TIME0"] = (
+        obs.start_time if isinstance(obs.start_time, float) else str(obs.start_time)
+    )
     table.header["MPIRANK"] = litebird_sim.MPI_COMM_WORLD.rank
     table.header["MPISIZE"] = litebird_sim.MPI_COMM_WORLD.size
 
