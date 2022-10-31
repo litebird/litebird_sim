@@ -119,7 +119,7 @@ class MpiObservationDescr:
     """
 
     det_names: List[str]
-    tod_shape: Optional[Tuple[int]]
+    tod_shape: Optional[Tuple[int, int]]
     tod_dtype: Optional[str]
     start_time: Union[float, astropy.time.Time]
     duration_s: float
