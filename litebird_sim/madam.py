@@ -1,10 +1,11 @@
 # -*- encoding: utf-8 -*-
-
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Optional, List, Dict, Any
+from typing import Union, Optional, List, Dict, Any, Tuple
 
 from astropy.io import fits
+from astropy.time import Time as AstroTime
 import jinja2
 
 import litebird_sim
@@ -12,7 +13,7 @@ from . import DetectorInfo
 from .mapping import DestriperParameters
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
-from .simulations import Simulation
+from .simulations import Simulation, MpiDistributionDescr
 
 
 def _read_templates():
@@ -32,6 +33,10 @@ def ensure_parent_dir_exists(file_name: Union[str, Path]):
     parent.mkdir(parents=True, exist_ok=True)
 
 
+def _format_time_for_fits(time: Union[float, AstroTime]) -> Union[float, str]:
+    return time if isinstance(time, float) else str(time)
+
+
 def _save_pointings_to_fits(
     obs: Observation,
     det_idx: int,
@@ -48,7 +53,11 @@ def _save_pointings_to_fits(
     table = fits.BinTableHDU.from_columns([theta_col, phi_col, psi_col])
 
     table.header["DET_NAME"] = obs.name[det_idx]
+    table.header["DET_IDX"] = det_idx
     table.header["COORD"] = str(obs.pointing_coords)
+    table.header["TIME0"] = _format_time_for_fits(obs.start_time)
+    table.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
+    table.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
 
     table.writeto(
         str(file_name),
@@ -69,16 +78,50 @@ def _save_tod_to_fits(
 
     table.header["DET_NAME"] = obs.name[det_idx]
     table.header["DET_IDX"] = det_idx
-    table.header["TIME0"] = (
-        obs.start_time if isinstance(obs.start_time, float) else str(obs.start_time)
-    )
-    table.header["MPIRANK"] = litebird_sim.MPI_COMM_WORLD.rank
-    table.header["MPISIZE"] = litebird_sim.MPI_COMM_WORLD.size
+    table.header["TIME0"] = _format_time_for_fits(obs.start_time)
+    table.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
+    table.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
 
     table.writeto(
         str(file_name),
         overwrite=True,
     )
+
+
+@dataclass
+class _ObsInMpiProcess:
+    start_time: Union[float, AstroTime]
+    mpi_rank: int
+    obs_local_idx: int  # Index of the observation within the MPI process
+    obs_global_idx: int = 0  # Index of the FITS file containing this observation
+
+
+def _sort_obs_per_det(
+    distribution: MpiDistributionDescr,
+    detector: str,
+    mpi_rank: int,
+) -> List[_ObsInMpiProcess]:
+    sorted_list = sorted(
+        [
+            _ObsInMpiProcess(
+                start_time=cur_obs.start_time,
+                mpi_rank=cur_mpi_proc.mpi_rank,
+                obs_local_idx=obs_local_idx,
+                obs_global_idx=0,  # We'll set this later, once the list is sorted
+            )
+            for cur_mpi_proc in distribution.mpi_processes
+            for (obs_local_idx, cur_obs) in enumerate(cur_mpi_proc.observations)
+            if detector in cur_obs.det_names
+        ],
+        key=lambda x: x.start_time,
+    )
+
+    # Now fill obs_global_idx
+    for global_idx in range(len(sorted_list)):
+        sorted_list[global_idx].obs_global_idx = global_idx
+
+    # Finally, filter out all the observations that don't belong to this MPI process
+    return [x for x in sorted_list if x.mpi_rank == mpi_rank]
 
 
 def _combine_file_dictionaries(file_dictionaries):
@@ -149,7 +192,17 @@ def save_simulation_for_madam(
     # MPI processes for the same detectors. Thus, it must know that obs2
     # in MPI#2 (index #0) and obs2 in MPI#3 (index #1) refer to detector
     # D, and thus the FITS files that MPI#4 will save for D will have
-    # their index starting from 2.
+    # their index starting from 2. All of this is complicated by the
+    # fact that we must respect chronological order, i.e., we must ensure
+    # that time increases as observations are saved. Suppose that we are
+    # simulating just *one* detector, using 4 observations split between
+    # two MPI processes:
+    #
+    # MPI#0: obs0 obs2
+    # MPI#1: obs1 obs3
+    #
+    # where obs0, obs1, obs2, obs3 are in chronological order. Thus, each
+    # MPI process cannot use a monotonically-increasing index!
 
     distribution = sim.describe_mpi_distribution()
     assert distribution is not None
@@ -169,9 +222,12 @@ def save_simulation_for_madam(
 
     rank = litebird_sim.MPI_COMM_WORLD.rank
 
-    madam_detectors = []
-    for idx, det in enumerate(detectors):
-        det_id = idx + 1
+    # Build a dictionary containing the characteristics of each detector
+    # to be written in the simulation file for Madam
+    madam_detectors = []  # type:List[Dict[str, Any]]
+    sorted_obs_per_det = []  # type: List[List[_ObsInMpiProcess]]
+    for det_idx, det in enumerate(detectors):
+        det_id = det_idx + 1
         madam_detectors.append(
             {
                 "net_ukrts": det.net_ukrts,
@@ -181,6 +237,13 @@ def save_simulation_for_madam(
                 "name": det.name,
                 "det_id": det_id,
             }
+        )
+        sorted_obs_per_det.append(
+            _sort_obs_per_det(
+                distribution=distribution,
+                detector=det.name,
+                mpi_rank=litebird_sim.MPI_COMM_WORLD.rank,
+            )
         )
 
     if not output_path:
@@ -195,6 +258,9 @@ def save_simulation_for_madam(
         madam_base_path = madam_base_path.absolute()
 
     if rank == 0:
+        # Rank #0 is special, because it must save the .sim and .par
+        # files. Other ranks must just dump pointings and TOD into
+        # FITS files.
         sim_template, par_template = _read_templates()
 
         simulation_file_path = madam_base_path / "madam.sim"
@@ -213,7 +279,7 @@ def save_simulation_for_madam(
     # We might assume that our MPI process is described by
     # distribution.mpi_processes[rank], but here we relax the
     # requirement that the list be ordered by MPI rank and
-    # look for the match with a linear search
+    # look for the exact match with a linear search
     this_process_idx = [
         idx
         for idx, val in enumerate(distribution.mpi_processes)
@@ -227,19 +293,7 @@ def save_simulation_for_madam(
     pointing_files = []
     tod_files = []
 
-    det_start_idx = {}  # type: Dict[str, idx]
-    # Count how many observations in the MPI processes with rank smaller than ours
-    # refer to the current detector: this is used to determine the index of each
-    # FITS file
-    for cur_mpi_proc in distribution.mpi_processes[0:this_process_idx]:
-        for cur_obs in cur_mpi_proc.observations:
-            for cur_det_name in cur_obs.det_names:
-                det_start_idx[cur_det_name] = det_start_idx.get(cur_det_name, 0) + 1
-
-    # Files per detector that have been written *by this MPI process*
-    num_of_files_per_detector = {}  # type: Dict[str, int]
-
-    for cur_obs in sim.observations:
+    for cur_obs_idx, cur_obs in enumerate(sim.observations):
         # Note that "detectors" is the *global* list of detectors shared among all the
         # MPI processes
         for cur_global_det_idx, cur_detector in enumerate(detectors):
@@ -251,8 +305,20 @@ def save_simulation_for_madam(
             # It's used to pick the right column in the pointing/tod matrices
             cur_local_det_idx = list(cur_obs.name).index(cur_det_name)
 
-            local_det_file_index = num_of_files_per_detector.get(cur_det_name, 0)
-            file_idx = det_start_idx.get(cur_det_name, 0) + local_det_file_index
+            # Retrieve the progressive number of the observation in the global
+            # list of observations (i.e., among the MPI processes)
+            matching_obs = [
+                x
+                for x in sorted_obs_per_det[cur_global_det_idx]
+                if x.obs_local_idx == cur_obs_idx
+            ]
+            assert (
+                len(matching_obs) == 1
+            ), "There is a bug in _sort_obs_per_det(), {} ≠ 1 observations".format(
+                len(matching_obs)
+            )
+            file_idx = matching_obs[0].obs_global_idx
+
             pointing_file_name = f"pnt_{cur_det_name}_{file_idx:05d}.fits"
             if use_gzip:
                 pointing_file_name = pointing_file_name + ".gz"
@@ -286,8 +352,6 @@ def save_simulation_for_madam(
                     "det_id": cur_global_det_idx,
                 }
             )
-
-            num_of_files_per_detector[cur_det_name] = local_det_file_index + 1
 
     # To check how many files per detector have been created by any MPI process, just
     # count the ones that refer to the *first* detector

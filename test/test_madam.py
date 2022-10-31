@@ -1,11 +1,124 @@
 # -*- encoding: utf-8 -*-
-from typing import Union
+from typing import Any, List, Union
 
 import astropy
 import numpy as np
 import astropy.units as u
 
+import litebird_sim
 import litebird_sim as lbs
+from litebird_sim.madam import _sort_obs_per_det, _ObsInMpiProcess
+from litebird_sim.simulations import (
+    MpiDistributionDescr,
+    MpiProcessDescr,
+    MpiObservationDescr,
+)
+
+
+def test_sort_obs_per_det():
+    # These are the values of "start_time" for each observation in "distribution":
+    #
+    #            Obs #0   Obs #1
+    #  MPI #0     2.0      0.0
+    #  MPI #1     1.0      3.0
+    #
+    # Obviously, the order must be:
+    # 1. MPI #0, Obs #1 (start_time = 0.0)
+    # 2. MPI #1, Obs #0 (start_time = 1.0)
+    # 3. MPI #0, Obs #0 (start_time = 2.0)
+    # 4. MPI #1, Obs #1 (start_time = 3.0)
+
+    distribution = MpiDistributionDescr(
+        num_of_observations=4,
+        detectors=[lbs.DetectorInfo("A")],
+        mpi_processes=[
+            MpiProcessDescr(
+                mpi_rank=0,
+                observations=[
+                    MpiObservationDescr(
+                        det_names=["A"],
+                        tod_shape=(0, 0),
+                        tod_dtype="float32",
+                        start_time=2.0,
+                        duration_s=1.0,
+                        num_of_samples=1,
+                        num_of_detectors=1,
+                    ),
+                    MpiObservationDescr(
+                        det_names=["A"],
+                        tod_shape=(0, 0),
+                        tod_dtype="float32",
+                        start_time=0.0,
+                        duration_s=1.0,
+                        num_of_samples=1,
+                        num_of_detectors=1,
+                    ),
+                ],
+            ),
+            MpiProcessDescr(
+                mpi_rank=1,
+                observations=[
+                    MpiObservationDescr(
+                        det_names=["A"],
+                        tod_shape=(0, 0),
+                        tod_dtype="float32",
+                        start_time=1.0,
+                        duration_s=1.0,
+                        num_of_samples=1,
+                        num_of_detectors=1,
+                    ),
+                    MpiObservationDescr(
+                        det_names=["A"],
+                        tod_shape=(0, 0),
+                        tod_dtype="float32",
+                        start_time=3.0,
+                        duration_s=1.0,
+                        num_of_samples=1,
+                        num_of_detectors=1,
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    rank0_list = _sort_obs_per_det(distribution=distribution, detector="A", mpi_rank=0)
+    rank1_list = _sort_obs_per_det(distribution=distribution, detector="A", mpi_rank=1)
+
+    assert len(rank0_list) == 2
+    assert len(rank1_list) == 2
+
+    # 1. MPI #0, Obs #1 (start_time = 0.0)
+    assert rank0_list[0].obs_local_idx == 1
+    assert rank0_list[0].mpi_rank == 0
+    assert rank0_list[0].obs_global_idx == 0
+
+    # 2. MPI #1, Obs #0 (start_time = 1.0)
+    assert rank1_list[0].obs_local_idx == 0
+    assert rank1_list[0].mpi_rank == 1
+    assert rank1_list[0].obs_global_idx == 1
+
+    # 3. MPI #0, Obs #0 (start_time = 2.0)
+    assert rank0_list[1].obs_local_idx == 0
+    assert rank0_list[1].mpi_rank == 0
+    assert rank0_list[1].obs_global_idx == 2
+
+    # 4. MPI #1, Obs #1 (start_time = 3.0)
+    assert rank1_list[1].obs_local_idx == 1
+    assert rank1_list[1].mpi_rank == 1
+    assert rank1_list[1].obs_global_idx == 3
+
+
+def is_sorted(x: List[Any], key=lambda x: x) -> bool:
+    return all([key(x[i]) <= key(x[i + 1]) for i in range(len(x) - 1)])
+
+
+def get_key_from_fits(filename: str, key: str) -> Any:
+    from astropy.io import fits
+
+    with fits.open(filename) as hdul:
+        # We limit ourselves to HDU#1, which is the first tabular HDU in
+        # Madam FITS files
+        return hdul[1].header[key]
 
 
 def _num_of_obs_per_detector(descr: lbs.MpiDistributionDescr, det_name: str) -> int:
@@ -60,8 +173,6 @@ def run_test_on_madam(
 
     distribution = sim.describe_mpi_distribution()
     assert distribution is not None
-    if lbs.MPI_COMM_WORLD.rank == 0:
-        print(distribution)
 
     lbs.get_pointings_for_observations(
         sim.observations,
@@ -102,12 +213,26 @@ def run_test_on_madam(
             descr=distribution, det_name=det_name
         )
 
-        tod_files = [x for x in result["tod_files"] if x["det_name"] == det_name]
+        tod_files = sorted(
+            [x["file_name"] for x in result["tod_files"] if x["det_name"] == det_name],
+            key=lambda x: x.name,
+        )
+        assert is_sorted(
+            [get_key_from_fits(filename=x, key="TIME0") for x in tod_files]
+        )
         assert len(tod_files) == obs_per_detector
 
-        pointing_files = [
-            x for x in result["pointing_files"] if x["det_name"] == det_name
-        ]
+        pointing_files = sorted(
+            [
+                x["file_name"]
+                for x in result["pointing_files"]
+                if x["det_name"] == det_name
+            ],
+            key=lambda x: x.name,
+        )
+        assert is_sorted(
+            [get_key_from_fits(filename=x, key="TIME0") for x in pointing_files]
+        )
         assert len(pointing_files) == obs_per_detector
 
 
