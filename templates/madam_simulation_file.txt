@@ -3,10 +3,10 @@
 
 fsample = {{ sampling_rate_hz }}
 nofiles = {{ number_of_files }}
-label_start = 0
-label_end = {{ number_of_files - 1 }}
 
-tod_info = 1 1.0 tod
+{% for cur_component in components %}
+tod_info = {{ loop.index }} 1.0 {{ cur_component }}
+{% endfor %}
 
 #
 # Detectors
@@ -27,8 +27,12 @@ file_point = {{ pnt.det_id }} {{ pnt.file_name }}
 #
 # TOD
 
-path_tod = 1 {{ tod_path }}
+{% for cur_component in components %}
+path_tod = {{ loop.index }} {{ tod_path }}
 
+{% set outer_index = loop.index %}
 {% for tod in tod_files %}
-file_tod = 1 {{ tod.det_id }} {{ tod.file_name }}
+file_tod = {{ outer_index }} {{ tod.det_id }} {{ tod.file_name }}[{{ outer_index }}]
+{% endfor %}
+
 {% endfor %}

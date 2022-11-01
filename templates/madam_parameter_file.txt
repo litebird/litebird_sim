@@ -1,5 +1,8 @@
 simulation    = {{ simulation_file_name }}
-tod_1         = tod
+
+{% for cur_component in components %}
+tod_{{ loop.index }} = {{ cur_component }}
+{% endfor %}
 
 # Detectors
 {% for det in detectors %}
