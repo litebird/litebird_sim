@@ -2,15 +2,16 @@
 
 import codecs
 from collections import namedtuple
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 import logging as log
 import os
 import subprocess
-from typing import List, Tuple, Union, Dict, Any
+from typing import List, Tuple, Union, Dict, Any, Optional
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 
+import litebird_sim
 from .detectors import DetectorInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
@@ -95,6 +96,98 @@ def get_template_file_path(filename: Union[str, Path]) -> Path:
     folder of the ``litebird_sim`` source code.
     """
     return Path(__file__).parent / ".." / "templates" / filename
+
+
+@dataclass
+class MpiObservationDescr:
+    """
+    This class is used within :class:`.MpiProcessDescr`. It describes the
+    kind and size of the data held by a :class:`.Observation` object.
+
+    Its fields are:
+
+    - `det_names` (list of ``str``): names of the detectors handled by
+      this observation
+    - `tod_shape` (tuple of ``int``): shape of the TOD held by the observation
+    - `tod_dtype` (``str``): string representing the NumPy data type of the TOD
+    - `start_time` (either a ``float`` or a ``astropy.time.Time``): start date
+      of the observation
+    - `duration_s` (``float``): duration of the TOD in seconds
+    - `num_of_samples` (``int``): number of samples held by this TOD
+    - `num_of_detectors` (``int``): number of detectors held by this TOD. It's
+      the length of the field `det_names` (see above)
+    """
+
+    det_names: List[str]
+    tod_shape: Optional[Tuple[int, int]]
+    tod_dtype: Optional[str]
+    start_time: Union[float, astropy.time.Time]
+    duration_s: float
+    num_of_samples: int
+    num_of_detectors: int
+
+
+@dataclass
+class MpiProcessDescr:
+    """
+    Description of the kind of data held by a MPI process
+
+    This class is used within :class:`MpiDistributionDescr`. Its fields are:
+
+    - `mpi_rank`: rank of the MPI process described by this instance
+    - `observations`: list of :class:`.MpiObservationDescr` objects, each
+      describing one observation managed by the MPI process with rank
+      `mpi_rank`.
+
+    """
+
+    mpi_rank: int
+    observations: List[MpiObservationDescr]
+
+
+@dataclass
+class MpiDistributionDescr:
+    """A class that describes how observations are distributed among MPI processes
+
+    The fields defined in this dataclass are the following:
+
+    - `num_of_observations` (int): overall number of observations in *all* the
+      MPI processes
+    - `detectors` (list of :class:`.DetectorInfo` objects): list of *all* the
+      detectors used in the observations
+    - `mpi_processes`: list of :class:`.MpiProcessDescr` instances, describing
+      the kind of data that each MPI process is currently holding
+
+    Use :meth:`.Simulation.describe_mpi_distribution` to get an instance of this
+    object."""
+
+    num_of_observations: int
+    detectors: List[DetectorInfo]
+    mpi_processes: List[MpiProcessDescr]
+
+    def __repr__(self):
+        result = ""
+        for cur_mpi_proc in self.mpi_processes:
+            result += f"# MPI rank #{cur_mpi_proc.mpi_rank + 1}\n\n"
+            for cur_obs_idx, cur_obs in enumerate(cur_mpi_proc.observations):
+                result += """## Observation #{obs_idx}
+- Start time: {start_time}
+- Duration: {duration_s} s
+- {num_of_detectors} detector(s) ({det_names})
+- TOD shape: {tod_shape}
+- TOD dtype: {tod_dtype}
+
+""".format(
+                    obs_idx=cur_obs_idx,
+                    start_time=cur_obs.start_time,
+                    duration_s=cur_obs.duration_s,
+                    num_of_detectors=len(cur_obs.det_names),
+                    det_names=",".join(cur_obs.det_names),
+                    tod_shape="×".join([str(x) for x in cur_obs.tod_shape]),
+                    tod_dtype=cur_obs.tod_dtype,
+                )
+
+        return result
 
 
 class Simulation:
@@ -191,6 +284,7 @@ class Simulation:
         self.start_time = start_time
         self.duration_s = duration_s
 
+        self.detectors = []  # type: List[DetectorInfo]
         self.spin2ecliptic_quats = None
 
         self.description = description
@@ -695,7 +789,7 @@ class Simulation:
 
         duration_s = self.duration_s  # Cache the value to a local variable
         sampfreq_hz = detectors[0].sampling_rate_hz
-        detectors = [asdict(d) for d in detectors]
+        self.detectors = detectors
         num_of_samples = int(sampfreq_hz * duration_s)
         samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
@@ -704,7 +798,7 @@ class Simulation:
         for cur_obs_idx in range(num_of_obs_per_detector):
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(
-                detectors=detectors,
+                detectors=[asdict(d) for d in detectors],
                 start_time_global=cur_time,
                 sampling_rate_hz=sampfreq_hz,
                 n_samples_global=nsamples,
@@ -744,6 +838,78 @@ class Simulation:
         self.observations = observations[
             span.start_idx : (span.start_idx + span.num_of_elements)
         ]
+
+    def describe_mpi_distribution(self) -> Optional[MpiDistributionDescr]:
+        """Return a :class:`.MpiDistributionDescr` object describing observations
+
+        This method returns a :class:`.MpiDistributionDescr` that describes the data
+        stored in each MPI process running concurrently. It is a great debugging tool
+        when you are using MPI, and it can be used for tasks where you have to carefully
+        orchestrate they way different MPI processes run together.
+
+        If this method is called before :meth:`.Simulation.create_observations`, it will
+        return ``None``.
+
+        This method should be called by *all* the MPI processes. It can be executed in a
+        serial environment (i.e., without MPI) and will still return meaningful values.
+
+        The typical usage for this method is to call it once you have called
+        :meth:`.Simulation.create_observations` to check that the TODs have been
+        laid in memory in the way you expect::
+
+            sim.create_observations(…)
+            distr = sim.describe_mpi_distribution()
+            if litebird_sim.MPI_COMM_WORLD.rank == 0:
+                print(distr)
+
+        """
+
+        if not self.observations:
+            return None
+
+        observation_descr = []  # type: List[MpiObservationDescr]
+        for obs in self.observations:
+            cur_det_names = list(obs.name)
+
+            observation_descr.append(
+                MpiObservationDescr(
+                    det_names=cur_det_names,
+                    tod_shape=tuple(obs.tod.shape) if "tod" in dir(obs) else None,
+                    tod_dtype=obs.tod.dtype.name if "tod" in dir(obs) else None,
+                    start_time=obs.start_time,
+                    duration_s=obs.n_samples / obs.sampling_rate_hz,
+                    num_of_samples=obs.n_samples,
+                    num_of_detectors=obs.n_detectors,
+                )
+            )
+
+        num_of_observations = len(self.observations)
+
+        if self.mpi_comm and litebird_sim.MPI_ENABLED:
+            observation_descr_all = litebird_sim.MPI_COMM_WORLD.allgather(
+                observation_descr
+            )
+            num_of_observations_all = litebird_sim.MPI_COMM_WORLD.allgather(
+                num_of_observations
+            )
+        else:
+            observation_descr_all = [observation_descr]
+            num_of_observations_all = [num_of_observations]
+
+        mpi_processes = []  # type: List[MpiProcessDescr]
+        for i in range(litebird_sim.MPI_COMM_WORLD.size):
+            mpi_processes.append(
+                MpiProcessDescr(
+                    mpi_rank=i,
+                    observations=observation_descr_all[i],
+                )
+            )
+
+        return MpiDistributionDescr(
+            num_of_observations=sum(num_of_observations_all),
+            detectors=self.detectors,
+            mpi_processes=mpi_processes,
+        )
 
     def generate_spin2ecl_quaternions(
         self,
