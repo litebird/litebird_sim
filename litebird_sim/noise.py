@@ -193,6 +193,7 @@ def add_noise_to_observations(
     noise_type: str,
     scale: float = 1.0,
     random: Union[np.random.Generator, None] = None,
+    component: str = "tod",
 ):
     """Add noise of the defined type to the observations in obs
 
@@ -202,6 +203,17 @@ def add_noise_to_observations(
     :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to
     pass the noise parameters here, as they are taken from the characteristics of
     the detectors saved in `obs`.
+
+    By default, the noise is added to ``Observation.tod``. If you want to add it to some
+    other field of the :class:`.Observation` class, use `component`::
+
+        for cur_obs in sim.observations:
+            # Allocate a new TOD for the noise alone
+            cur_obs.noise_tod = np.zeros_like(cur_obs.tod)
+
+        # Ask `add_noise_to_observations` to store the noise
+        # in `obs.dipole_tod`
+        add_noise_to_observations(sim.observations, …, component="noise_tod")
 
     See :func:`.add_noise` for more information.
     """
@@ -214,15 +226,15 @@ def add_noise_to_observations(
         obs_list = obs
 
     # iterate through each observation
-    for i, ob in enumerate(obs_list):
+    for i, cur_obs in enumerate(obs_list):
         add_noise(
-            tod=ob.tod,
+            tod=getattr(cur_obs, component),
             noise_type=noise_type,
-            sampling_rate_hz=ob.sampling_rate_hz,
-            net_ukrts=ob.net_ukrts,
-            fknee_mhz=ob.fknee_mhz,
-            fmin_hz=ob.fmin_hz,
-            alpha=ob.alpha,
+            sampling_rate_hz=cur_obs.sampling_rate_hz,
+            net_ukrts=cur_obs.net_ukrts,
+            fknee_mhz=cur_obs.fknee_mhz,
+            fmin_hz=cur_obs.fmin_hz,
+            alpha=cur_obs.alpha,
             scale=scale,
             random=random,
         )
