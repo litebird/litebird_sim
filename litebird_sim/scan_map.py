@@ -91,6 +91,7 @@ def scan_map_in_observations(
     maps: Dict[str, np.ndarray],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     input_map_in_galactic: bool = True,
+    component: str = "tod",
 ):
     """Scan a map filling time-ordered data
 
@@ -99,6 +100,18 @@ def scan_map_in_observations(
     bed a :class:`.Observation` instance and a NumPy matrix, or a list
     of observations and a list of NumPy matrices; in the latter case, they must have
     the same number of elements.
+
+    By default, the signal is added to ``Observation.tod``. If you want to add it to
+    some other field of the :class:`.Observation` class, use `component`::
+
+        for cur_obs in sim.observations:
+            # Allocate a new TOD for the sky signal alone
+            cur_obs.sky_tod = np.zeros_like(cur_obs.tod)
+
+        # Ask `add_noise_to_observations` to store the noise
+        # in `obs.sky_tod`
+        scan_map_in_observations(sim.observations, …, component="sky_tod")
+
     """
 
     if pointings is None:
@@ -152,7 +165,7 @@ def scan_map_in_observations(
             input_names = None
 
         scan_map(
-            tod=cur_obs.tod,
+            tod=getattr(cur_obs, component),
             pointings=cur_ptg,
             pol_angle=cur_psi,
             maps=maps,
