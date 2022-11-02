@@ -324,6 +324,112 @@ However, running the script with the environment variable
   [2020-07-18 06:31:03,224 DEBUG] wrong value of pi!
   $
 
+
+Monitoring MPI processes
+------------------------
+
+When using MPI, the method :meth:`.Simulation.create_observations`
+distributes detectors and time spans over all the available
+MPI processes. The :class:`.Simulation` class provides a method
+that enables the user to inspect how the TOD has been split
+among the many MPI processes: :meth:`.Simulation.describe_mpi_distribution`.
+
+The method must be called at the same time on *all* the MPI
+processess, once you have successfully called
+:meth:`.Simulation.create_observations`::
+
+  import litebird_sim as lbs
+
+  # Be sure to create a `Simulation` object and create
+  # the observations:
+  #
+  #     sim = lbs.Simulation(…)
+  #     sim.create_observations(…)
+
+  # Now ask the framework to report how it's using each MPI process
+  descr = sim.describe_mpi_distribution()
+
+The return type for :meth:`.Simulation.describe_mpi_distribution`
+is :class:`.MpiDistributionDescr`, which can be printed on the
+spot using ``print(descr)``. The result looks like the following
+example:
+
+.. code-block:: text
+
+    # MPI rank #1
+
+    ## Observation #0
+    - Start time: 0.0
+    - Duration: 21600.0 s
+    - 1 detector(s) (0A)
+    - TOD shape: 1×216000
+    - TOD dtype: float64
+
+    ## Observation #1
+    - Start time: 43200.0
+    - Duration: 21600.0 s
+    - 1 detector(s) (0A)
+    - TOD shape: 1×216000
+    - TOD dtype: float64
+
+    # MPI rank #2
+
+    ## Observation #0
+    - Start time: 21600.0
+    - Duration: 21600.0 s
+    - 1 detector(s) (0A)
+    - TOD shape: 1×216000
+    - TOD dtype: float64
+
+    ## Observation #1
+    - Start time: 64800.0
+    - Duration: 21600.0 s
+    - 1 detector(s) (0A)
+    - TOD shape: 1×216000
+    - TOD dtype: float64
+
+    # MPI rank #3
+
+    ## Observation #0
+    - Start time: 0.0
+    - Duration: 21600.0 s
+    - 1 detector(s) (0B)
+    - TOD shape: 1×216000
+    - TOD dtype: float64
+
+    ## Observation #1
+    - Start time: 43200.0
+    - Duration: 21600.0 s
+    - 1 detector(s) (0B)
+    - TOD shape: 1×216000
+    - TOD dtype: float64
+
+    # MPI rank #4
+
+    ## Observation #0
+    - Start time: 21600.0
+    - Duration: 21600.0 s
+    - 1 detector(s) (0B)
+    - TOD shape: 1×216000
+    - TOD dtype: float64
+
+    ## Observation #1
+    - Start time: 64800.0
+    - Duration: 21600.0 s
+    - 1 detector(s) (0B)
+    - TOD shape: 1×216000
+    - TOD dtype: float64
+
+The class :class:`.MpiDistributionDescr` contains a list
+of :class:`.MpiProcessDescr`, which describe the «contents»
+of each MPI process. The most important field in each
+:class:`.MpiProcessDescr` instance is `observations`, which
+is a list of :class:`.MpiObservationDescr` objects: it
+contains the size of the TOD array, the names of the detectors,
+and other useful information. Refer to the documentation of
+each class to know what is inside.
+
+
 API reference
 -------------
 

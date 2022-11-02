@@ -75,7 +75,12 @@ from .scanning import (
 )
 from .mapping import DestriperParameters, DestriperResult, make_bin_map
 from .destriper import destripe
-from .simulations import Simulation
+from .simulations import (
+    Simulation,
+    MpiObservationDescr,
+    MpiProcessDescr,
+    MpiDistributionDescr,
+)
 from .noise import (
     add_white_noise,
     add_one_over_f_noise,
@@ -192,6 +197,9 @@ __all__ = [
     "destripe",
     # simulations.py
     "Simulation",
+    "MpiObservationDescr",
+    "MpiProcessDescr",
+    "MpiDistributionDescr",
     # noise.py
     "add_white_noise",
     "add_one_over_f_noise",

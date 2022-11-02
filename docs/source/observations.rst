@@ -118,6 +118,15 @@ quantities refer to the same detector. If you need the global detector index,
 you can get it with ``obs.det_idx[0]``, which is created
 at construction time.
 
+To get a better understanding of how observations are being used in a
+MPI simulation, use the method :meth:`.Simulation.describe_mpi_distribution`.
+This method must be called *after* the observations have been allocated using
+:meth:`.Simulation.create_observations`; it will return an instance of the
+class :class:`.MpiDistributionDescr`, which can be inspected to determine
+which detectors and time spans are covered by each observation in all the
+MPI processes that are being used. For more information, refer to the Section
+:ref:`simulations`.
+
 Other notable functionalities
 -----------------------------
 
