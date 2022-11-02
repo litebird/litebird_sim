@@ -212,7 +212,7 @@ def add_noise_to_observations(
             cur_obs.noise_tod = np.zeros_like(cur_obs.tod)
 
         # Ask `add_noise_to_observations` to store the noise
-        # in `obs.dipole_tod`
+        # in `obs.noise_tod`
         add_noise_to_observations(sim.observations, …, component="noise_tod")
 
     See :func:`.add_noise` for more information.
