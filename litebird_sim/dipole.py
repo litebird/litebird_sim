@@ -288,22 +288,24 @@ def add_dipole_to_observations(
             ptg_list = [point[:, :, 0:2] for point in pointings]
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+        tod = getattr(cur_obs, component)
+
         # Alas, this allocates memory for the velocity vector! At the moment it is the
         # simplest implementation, but in the future we might want to inline the
         # interpolation code within "add_dipole" to save memory
         velocity = pos_and_vel.compute_velocities(
             time0=cur_obs.start_time,
             delta_time_s=cur_obs.get_delta_time().value,
-            num_of_samples=cur_obs.tod.shape[1],
+            num_of_samples=tod.shape[1],
         )
 
         if frequency_ghz is None:
             frequency_ghz = cur_obs.bandcenter_ghz
         else:
-            frequency_ghz = np.repeat(frequency_ghz, cur_obs.tod.shape[0])
+            frequency_ghz = np.repeat(frequency_ghz, tod.shape[0])
 
         add_dipole(
-            tod=getattr(cur_obs, component),
+            tod=tod,
             pointings=cur_ptg,
             velocity=velocity,
             t_cmb_k=t_cmb_k,
