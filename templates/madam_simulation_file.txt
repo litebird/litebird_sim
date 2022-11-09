@@ -4,7 +4,7 @@
 fsample = {{ sampling_rate_hz }}
 nofiles = {{ number_of_files }}
 
-{% for cur_component in components %}
+{% for cur_component in components_to_save %}
 tod_info = {{ loop.index }} 1.0 {{ cur_component }}
 {% endfor %}
 
@@ -27,7 +27,7 @@ file_point = {{ pnt.det_id }} {{ pnt.file_name }}
 #
 # TOD
 
-{% for cur_component in components %}
+{% for cur_component in components_to_save %}
 path_tod = {{ loop.index }} {{ tod_path }}
 
 {% set outer_index = loop.index %}

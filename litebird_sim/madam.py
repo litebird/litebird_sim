@@ -152,6 +152,9 @@ def save_simulation_for_madam(
     absolute_paths: bool = True,
     madam_subfolder_name: str = "madam",
     components: List[str] = ["tod"],
+    components_to_bin: Optional[List[str]] = None,
+    save_pointings: bool = True,
+    save_tods: bool = True,
 ) -> Optional[Dict[str, Any]]:
     """
     Save the TODs and pointings of a simulation to files suitable to be read by Madam
@@ -179,8 +182,20 @@ def save_simulation_for_madam(
     must be saved in the FITS files and included in the parameter and simulation
     files. All these components will be summed in the map-making process.
 
+    If you want to create a map using just a subset of the components listed in the
+    `components` parameter, list them in `components_to_bin`. (This is usually
+    employed when you pass ``save_pointings=False`` and ``save_tods=False``.)
+
     If you are using MPI, call this function on *all* the MPI processes, not just on
     the one with rank #0.
+
+    The flags `save_pointings` and `save_tods` are used to tell if you want pointings
+    and TODs to be saved in FITS files or not. If either flag is set to ``false``, the
+    corresponding FITS files will not be produced, but the ``.sim`` file for Madam
+    will nevertheless list them as if they were created. This is useful if you plan to
+    reuse files from some other call to ``save_simulation_for_madam``; in this case,
+    a common trick is to create soft links to them in the output directory where the
+    ``.par`` and ``.sim`` files are saved.
 
     The return value is either a dictionary containing all the parameters used to
     fill Madam files (the parameter file and the simulation file) or ``None``;
@@ -222,6 +237,9 @@ def save_simulation_for_madam(
     #
     # where obs0, obs1, obs2, obs3 are in chronological order. Thus, each
     # MPI process cannot use a monotonically-increasing index!
+
+    if not components_to_bin:
+        components_to_bin = components
 
     distribution = sim.describe_mpi_distribution()
     assert distribution is not None
@@ -343,9 +361,10 @@ def save_simulation_for_madam(
                 pointing_file_name = pointing_file_name + ".gz"
             pointing_file_name = madam_base_path / pointing_file_name
 
-            _save_pointings_to_fits(
-                obs=cur_obs, det_idx=cur_local_det_idx, file_name=pointing_file_name
-            )
+            if save_pointings:
+                _save_pointings_to_fits(
+                    obs=cur_obs, det_idx=cur_local_det_idx, file_name=pointing_file_name
+                )
 
             pointing_files.append(
                 {
@@ -360,12 +379,13 @@ def save_simulation_for_madam(
                 tod_file_name = tod_file_name + ".gz"
             tod_file_name = madam_base_path / tod_file_name
 
-            _save_tod_to_fits(
-                obs=cur_obs,
-                det_idx=cur_local_det_idx,
-                file_name=tod_file_name,
-                components=components,
-            )
+            if save_tods:
+                _save_tod_to_fits(
+                    obs=cur_obs,
+                    det_idx=cur_local_det_idx,
+                    file_name=tod_file_name,
+                    components=components,
+                )
 
             tod_files.append(
                 {
@@ -403,7 +423,8 @@ def save_simulation_for_madam(
             "detectors": madam_detectors,
             "pointing_files": pointing_files,
             "tod_files": tod_files,
-            "components": components,
+            "components_to_save": components,
+            "components_to_bin": components_to_bin,
             "sampling_rate_hz": sampling_rate_hz,
             "number_of_files": number_of_files,
             "pointings_path": "",

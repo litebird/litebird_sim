@@ -1,6 +1,6 @@
 simulation    = {{ simulation_file_name }}
 
-{% for cur_component in components %}
+{% for cur_component in components_to_bin %}
 tod_{{ loop.index }} = {{ cur_component }}
 {% endfor %}
 
