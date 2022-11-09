@@ -184,7 +184,9 @@ def save_simulation_for_madam(
 
     If you want to create a map using just a subset of the components listed in the
     `components` parameter, list them in `components_to_bin`. (This is usually
-    employed when you pass ``save_pointings=False`` and ``save_tods=False``.)
+    employed when you pass ``save_pointings=False`` and ``save_tods=False``.) If
+    `components_to_bin` is ``None`` (the default), all the elements in `components`
+    will be used.
 
     If you are using MPI, call this function on *all* the MPI processes, not just on
     the one with rank #0.
