@@ -271,6 +271,58 @@ create the map, so it will not be confused if the TOD FITS files
 will contain more components than needed. (This is a neat feature
 of Madam.)
 
+.. note::
+
+   To understand how this kind of stuff works, it is useful to
+   recap how Madam works, as the possibility to reuse TODs for
+   different maps is linked to the fact that Madam requires
+   *two* files to be run: the *parameter file* and the *simulation
+   file*.
+
+   The *simulation file* represents a «map» of the content of a
+   set of FITS files. No information about the map-making process
+   is included in a simulation file: it just tells how many FITS
+   files should be read and what is inside each of them.
+
+   The *parameter file* is used to tell Madam how you want maps
+   to be created. It's in the parameter file that you can ask
+   Madam to skip parts of the TODs, for example because you do
+   not want to include the dipole in the output map.
+
+   When you call :func:`.save_simulation_for_madam`, the
+   `components` parameter is used to build the *simulation file*:
+   thus, if you plan to build more than one map out of the same
+   set of components, you want to have the very same simulation
+   files, because they «describe» what's in the FITS files. This
+   is the reason why we passed the same value to ``components``
+   every time we called ``save_simulation_for_madam``.
+
+   But when we create the three *parameter files*, each of them
+   differs in the list of components that need to be included.
+   If you inspect the three files ``cmb+wn/madam.par``,
+   ``cmb+wn+1f/madam.par``, and ``cmb+wn+1f+dip/madam.par``, you
+   will see that they only differ for the following lines::
+
+      # cmb+wn/madam.par
+      tod_1 = wn_tod
+      tod_2 = cmb_tod
+
+      # cmb+wn+1f/madam.par
+      tod_1 = wn_tod
+      tod_2 = oof_tod
+      tod_3 = cmb_tod
+
+      # cmb+wn+1f+dip/madam.par
+      tod_1 = wn_tod
+      tod_2 = oof_tod
+      tod_3 = cmb_tod
+      tod_4 = dip_tod
+
+
+   That's it. The lines with ``tod_*`` are enough to
+   do all the magic to build the three maps.
+
+
 Of course, once the three directories ``cmb+wn``, ``cmb+wn+1f``, and
 ``cmb+wn+1f+dip`` are created, Madam will run successfully only in
 the first one, ``cmb+wn``. The reason is that only that directory
