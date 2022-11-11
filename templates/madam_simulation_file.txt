@@ -21,7 +21,7 @@ detector_info = {{ "%5d" | format(loop.index) }} 0.0 T {{ det.net_ukrts }} {{ de
 path_point = {{ pointings_path }}
 
 {% for pnt in pointing_files %}
-file_point = {{ pnt.det_id }} {{ pnt.file_name }}
+file_point = {{ pnt.det_id }} {{ pnt.file_name }}[1]
 {% endfor %}
 
 #
