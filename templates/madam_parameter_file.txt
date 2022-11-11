@@ -1,3 +1,6 @@
+# Parameter file for Madam
+# Created by litebird_sim on {{ current_date }}
+
 simulation    = {{ simulation_file_name }}
 
 {% for cur_component in components_to_bin %}
