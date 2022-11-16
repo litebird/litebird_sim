@@ -154,6 +154,7 @@ def make_bin_map(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     do_covariance: bool = False,
     output_map_in_galactic: bool = True,
+    components: List[str] = ["tod"],
 ):
     """Bin Map-maker
 
@@ -163,10 +164,11 @@ def make_bin_map(
         obss (list of :class:`Observations`): observations to be mapped. They
             are required to have the following attributes as arrays
 
-            * `tod`: the time-ordered data to be mapped
             * `pointings`: the pointing information (in radians) for each tod
                sample
             * `psi`: the polarization angle (in radians) for each tod sample
+            * any attribute listed in `components` (by default, `tod`) and
+              containing the TOD(s) to be binned together
 
             If the observations are distributed over some communicator(s), they
             must share the same group processes.
@@ -233,9 +235,10 @@ def make_bin_map(
         except AttributeError:
             weights = np.ones(cur_obs.n_detectors)
 
-        ndets = cur_obs.tod.shape[0]
-        pixidx_all = np.empty_like(cur_obs.tod, dtype=int)
-        polang_all = np.empty_like(cur_obs.tod)
+        first_component = getattr(cur_obs, components[0])
+        ndets = first_component.shape[0]
+        pixidx_all = np.empty_like(first_component, dtype=int)
+        polang_all = np.empty_like(first_component)
 
         for idet in range(ndets):
             if output_map_in_galactic:
@@ -249,7 +252,16 @@ def make_bin_map(
             pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
             polang_all[idet] = curr_pol_angle_det
 
-        _accumulate_map_and_info(cur_obs.tod, pixidx_all, polang_all, weights, info)
+        for cur_component_name in components:
+            cur_component = getattr(cur_obs, cur_component_name)
+            assert (
+                cur_component.shape == first_component.shape
+            ), 'The two TODs "{}" and "{}" do not have a matching shape'.format(
+                components[0], cur_component_name
+            )
+            _accumulate_map_and_info(
+                cur_component, pixidx_all, polang_all, weights, info
+            )
 
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
