@@ -10,6 +10,7 @@ import jinja2
 
 import litebird_sim
 from . import DetectorInfo
+from .coordinates import CoordinateSystem
 from .mapping import DestriperParameters
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
@@ -444,6 +445,7 @@ def save_simulation_for_madam(
             "madam_cov_file_name": "cov.fits" if params.return_npp else "",
             "madam_hit_file_name": "hits.fits" if params.return_hit_map else "",
             "iter_max": params.iter_max,
+            "out_map_in_galactic": "T" if params.coordinate_system == CoordinateSystem.Galactic else "F",
         }
 
         with simulation_file_path.open("wt") as outf:
