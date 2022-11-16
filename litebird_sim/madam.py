@@ -50,16 +50,17 @@ def _save_pointings_to_fits(
     phi_col = fits.Column(name="PHI", array=obs.pointings[det_idx, :, 1], format="E")
     psi_col = fits.Column(name="PSI", array=obs.psi[det_idx, :], format="E")
 
+    primary_hdu = fits.PrimaryHDU()
+    primary_hdu.header["DET_NAME"] = obs.name[det_idx]
+    primary_hdu.header["DET_IDX"] = det_idx
+    primary_hdu.header["COORD"] = str(obs.pointing_coords)
+    primary_hdu.header["TIME0"] = _format_time_for_fits(obs.start_time)
+    primary_hdu.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
+    primary_hdu.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
+
     table = fits.BinTableHDU.from_columns([theta_col, phi_col, psi_col])
 
-    table.header["DET_NAME"] = obs.name[det_idx]
-    table.header["DET_IDX"] = det_idx
-    table.header["COORD"] = str(obs.pointing_coords)
-    table.header["TIME0"] = _format_time_for_fits(obs.start_time)
-    table.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
-    table.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
-
-    table.writeto(
+    fits.HDUList([primary_hdu, table]).writeto(
         str(file_name),
         overwrite=True,
     )
@@ -69,20 +70,31 @@ def _save_tod_to_fits(
     obs: Observation,
     det_idx: int,
     file_name: Union[str, Path],
+    components: List[str],
 ):
     ensure_parent_dir_exists(file_name)
 
-    col = fits.Column(name="TOD", array=obs.tod[det_idx, :], format="E")
+    primary_hdu = fits.PrimaryHDU()
+    primary_hdu.header["DET_NAME"] = obs.name[det_idx]
+    primary_hdu.header["DET_IDX"] = det_idx
+    primary_hdu.header["TIME0"] = _format_time_for_fits(obs.start_time)
+    primary_hdu.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
+    primary_hdu.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
 
-    table = fits.BinTableHDU.from_columns([col])
+    hdu_list = [primary_hdu]
 
-    table.header["DET_NAME"] = obs.name[det_idx]
-    table.header["DET_IDX"] = det_idx
-    table.header["TIME0"] = _format_time_for_fits(obs.start_time)
-    table.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
-    table.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
+    for cur_component in components:
+        col = fits.Column(
+            name="TOD", array=getattr(obs, cur_component)[det_idx, :], format="E"
+        )
+        cur_hdu = fits.BinTableHDU.from_columns([col])
 
-    table.writeto(
+        # We write "cur_component" twice
+        cur_hdu.name = cur_component  # This is saved in EXTNAME, all in uppercase
+        cur_hdu.header["COMP"] = cur_component  # Here the case is preserved
+        hdu_list.append(cur_hdu)
+
+    fits.HDUList(hdu_list).writeto(
         str(file_name),
         overwrite=True,
     )
@@ -139,6 +151,10 @@ def save_simulation_for_madam(
     output_path: Optional[Union[str, Path]] = None,
     absolute_paths: bool = True,
     madam_subfolder_name: str = "madam",
+    components: List[str] = ["tod"],
+    components_to_bin: Optional[List[str]] = None,
+    save_pointings: bool = True,
+    save_tods: bool = True,
 ) -> Optional[Dict[str, Any]]:
     """
     Save the TODs and pointings of a simulation to files suitable to be read by Madam
@@ -160,8 +176,28 @@ def save_simulation_for_madam(
     The parameter `madam_subfolder_name` is the name of the directory within the
     output folder of the simulation that will contain the Madam parameter files.
 
+    You can use multiple TODs in the map-making process. By default, the code will
+    only dump ``Observation.tod`` in the FITS files, but you can specify additional
+    components via the `components` parameter, which is a list of the fields that
+    must be saved in the FITS files and included in the parameter and simulation
+    files. All these components will be summed in the map-making process.
+
+    If you want to create a map using just a subset of the components listed in the
+    `components` parameter, list them in `components_to_bin`. (This is usually
+    employed when you pass ``save_pointings=False`` and ``save_tods=False``.) If
+    `components_to_bin` is ``None`` (the default), all the elements in `components`
+    will be used.
+
     If you are using MPI, call this function on *all* the MPI processes, not just on
     the one with rank #0.
+
+    The flags `save_pointings` and `save_tods` are used to tell if you want pointings
+    and TODs to be saved in FITS files or not. If either flag is set to ``false``, the
+    corresponding FITS files will not be produced, but the ``.sim`` file for Madam
+    will nevertheless list them as if they were created. This is useful if you plan to
+    reuse files from some other call to ``save_simulation_for_madam``; in this case,
+    a common trick is to create soft links to them in the output directory where the
+    ``.par`` and ``.sim`` files are saved.
 
     The return value is either a dictionary containing all the parameters used to
     fill Madam files (the parameter file and the simulation file) or ``None``;
@@ -204,6 +240,9 @@ def save_simulation_for_madam(
     # where obs0, obs1, obs2, obs3 are in chronological order. Thus, each
     # MPI process cannot use a monotonically-increasing index!
 
+    if not components_to_bin:
+        components_to_bin = components
+
     distribution = sim.describe_mpi_distribution()
     assert distribution is not None
 
@@ -235,7 +274,7 @@ def save_simulation_for_madam(
                 "fknee_hz": det.fknee_mhz / 1e3,
                 "fmin_hz": det.fmin_hz,
                 "name": det.name,
-                "det_id": det_id,
+                "det_id": det_id + 1,
             }
         )
         sorted_obs_per_det.append(
@@ -324,15 +363,16 @@ def save_simulation_for_madam(
                 pointing_file_name = pointing_file_name + ".gz"
             pointing_file_name = madam_base_path / pointing_file_name
 
-            _save_pointings_to_fits(
-                obs=cur_obs, det_idx=cur_local_det_idx, file_name=pointing_file_name
-            )
+            if save_pointings:
+                _save_pointings_to_fits(
+                    obs=cur_obs, det_idx=cur_local_det_idx, file_name=pointing_file_name
+                )
 
             pointing_files.append(
                 {
                     "file_name": pointing_file_name,
                     "det_name": cur_det_name,
-                    "det_id": cur_global_det_idx,
+                    "det_id": cur_global_det_idx + 1,
                 }
             )
 
@@ -341,15 +381,20 @@ def save_simulation_for_madam(
                 tod_file_name = tod_file_name + ".gz"
             tod_file_name = madam_base_path / tod_file_name
 
-            _save_tod_to_fits(
-                obs=cur_obs, det_idx=cur_local_det_idx, file_name=tod_file_name
-            )
+            if save_tods:
+                _save_tod_to_fits(
+                    obs=cur_obs,
+                    det_idx=cur_local_det_idx,
+                    file_name=tod_file_name,
+                    components=components,
+                )
 
             tod_files.append(
                 {
                     "file_name": tod_file_name,
                     "det_name": cur_det_name,
-                    "det_id": cur_global_det_idx,
+                    "det_id": cur_global_det_idx + 1,
+                    "components": components,
                 }
             )
 
@@ -380,6 +425,8 @@ def save_simulation_for_madam(
             "detectors": madam_detectors,
             "pointing_files": pointing_files,
             "tod_files": tod_files,
+            "components_to_save": components,
+            "components_to_bin": components_to_bin,
             "sampling_rate_hz": sampling_rate_hz,
             "number_of_files": number_of_files,
             "pointings_path": "",

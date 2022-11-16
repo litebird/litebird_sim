@@ -2,6 +2,7 @@
 from typing import Any, List, Union
 
 import astropy
+from astropy.io import fits
 import numpy as np
 import astropy.units as u
 
@@ -113,12 +114,9 @@ def is_sorted(x: List[Any], key=lambda x: x) -> bool:
 
 
 def get_key_from_fits(filename: str, key: str) -> Any:
-    from astropy.io import fits
-
     with fits.open(filename) as hdul:
-        # We limit ourselves to HDU#1, which is the first tabular HDU in
-        # Madam FITS files
-        return hdul[1].header[key]
+        # We limit ourselves to the primary HDU (#0)
+        return hdul[0].header[key]
 
 
 def _num_of_obs_per_detector(descr: lbs.MpiDistributionDescr, det_name: str) -> int:
@@ -182,6 +180,7 @@ def run_test_on_madam(
 
     for cur_obs in sim.observations:
         cur_obs.tod[:] = float(lbs.MPI_COMM_WORLD.rank)
+        cur_obs.fg_tod = np.zeros_like(cur_obs.tod) + 1000 + lbs.MPI_COMM_WORLD.rank
 
     params = lbs.DestriperParameters(
         nside=16,
@@ -199,7 +198,9 @@ def run_test_on_madam(
     # Just check that all the files are saved without errors/exceptions:
     # to verify that the input files are ok, we should download and install
     # Madam…
-    result = lbs.save_simulation_for_madam(sim, detectors=detectors, params=params)
+    result = lbs.save_simulation_for_madam(
+        sim, detectors=detectors, params=params, components=["tod", "fg_tod"]
+    )
 
     if lbs.MPI_COMM_WORLD.rank != 0:
         # The value of "result" is meaningful only for MPI process #0, so there
@@ -222,6 +223,18 @@ def run_test_on_madam(
         )
         assert len(tod_files) == obs_per_detector
 
+        for cur_tod_file in tod_files:
+            with fits.open(cur_tod_file) as inpf:
+                # We expect one primary HDU and two tabular HDUs ("tod" and "fg_tod")
+                assert len(inpf) == 3
+                assert inpf[0].header["DET_NAME"] == det_name
+
+                assert inpf[1].name == "tod".upper()
+                assert inpf[1].header["COMP"] == "tod"
+
+                assert inpf[2].name == "fg_tod".upper()
+                assert inpf[2].header["COMP"] == "fg_tod"
+
         pointing_files = sorted(
             [
                 x["file_name"]
@@ -234,6 +247,11 @@ def run_test_on_madam(
             [get_key_from_fits(filename=x, key="TIME0") for x in pointing_files]
         )
         assert len(pointing_files) == obs_per_detector
+
+        for cur_tod_file in pointing_files:
+            with fits.open(cur_tod_file) as inpf:
+                assert len(inpf) == 2
+                assert inpf[0].header["DET_NAME"] == det_name
 
 
 def run_mpi_test_on_madam(tmp_path, start_time):

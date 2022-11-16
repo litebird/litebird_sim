@@ -240,12 +240,24 @@ def add_dipole_to_observations(
     frequency_ghz: Union[
         np.ndarray, None
     ] = None,  # e.g. central frequency of channel from
+    component: str = "tod",
 ):
     """Add the CMB dipole to some time-ordered data
 
     This is a wrapper around the :func:`.add_dipole` function that applies to the TOD
     stored in `obs`, which can either be one :class:`.Observation` instance or a list
     of observations.
+
+    By default, the TOD is added to ``Observation.tod``. If you want to add it to some
+    other field of the :class:`.Observation` class, use `component`::
+
+        for cur_obs in sim.observations:
+            # Allocate a new TOD for the dipole alone
+            cur_obs.dipole_tod = np.zeros_like(cur_obs.tod)
+
+        # Ask `add_dipole_to_observations` to store the dipole
+        # in `obs.dipole_tod`
+        add_dipole_to_observations(sim.observations, component="dipole_tod")
     """
 
     if pointings is None:
@@ -276,22 +288,24 @@ def add_dipole_to_observations(
             ptg_list = [point[:, :, 0:2] for point in pointings]
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+        tod = getattr(cur_obs, component)
+
         # Alas, this allocates memory for the velocity vector! At the moment it is the
         # simplest implementation, but in the future we might want to inline the
         # interpolation code within "add_dipole" to save memory
         velocity = pos_and_vel.compute_velocities(
             time0=cur_obs.start_time,
             delta_time_s=cur_obs.get_delta_time().value,
-            num_of_samples=cur_obs.tod.shape[1],
+            num_of_samples=tod.shape[1],
         )
 
         if frequency_ghz is None:
             frequency_ghz = cur_obs.bandcenter_ghz
         else:
-            frequency_ghz = np.repeat(frequency_ghz, cur_obs.tod.shape[0])
+            frequency_ghz = np.repeat(frequency_ghz, tod.shape[0])
 
         add_dipole(
-            tod=cur_obs.tod,
+            tod=tod,
             pointings=cur_ptg,
             velocity=velocity,
             t_cmb_k=t_cmb_k,
