@@ -17,6 +17,7 @@ kfirst        =   T
 ksecond       =   F
 kfilter       =   F
 iter_max      =   {{ iter_max }}
+to_galactic   =   {{ out_map_in_galactic }}
 
 # Baseline length
 base_first    =  {{ samples_per_baseline }}   # These are *samples*, not seconds!
