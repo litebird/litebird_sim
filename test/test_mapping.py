@@ -14,7 +14,7 @@ def test_accumulate_map_and_info():
     psi = np.linspace(0, np.pi, n_samples)
     pix = np.array([0, 0, 1, 0, 1, 1, 1, 0, 1, 1])
 
-    # Explicitely compute the dense pointing matrix
+    # Explicitly compute the dense pointing matrix
     pointing_matrix = np.zeros((n_samples, 2, 3), dtype=np.float32)
     for i in range(2):
         mask = pix == i
@@ -31,10 +31,21 @@ def test_accumulate_map_and_info():
 
     info = np.zeros((2, 3, 3))
     weights = np.ones(1)
-    tod = np.expand_dims(tod, axis=0)
+
+    # Simulate the presence of *two* components in the TOD
+    # (e.g., the CMB and the Galaxy)
+    first_tod = np.expand_dims(tod, axis=0) * 0.25
+    second_tod = np.expand_dims(tod, axis=0) * 0.75
     psi = np.expand_dims(psi, axis=0)
     pix = np.expand_dims(pix, axis=0)
-    mapping._accumulate_map_and_info(tod, pix, psi, weights, info)
+
+    # Now add both components to the TOD
+    mapping._accumulate_map_and_info(
+        first_tod, pix, psi, weights, info, additional_component=False
+    )
+    mapping._accumulate_map_and_info(
+        second_tod, pix, psi, weights, info, additional_component=True
+    )
 
     assert np.allclose(res_info, info)
 
