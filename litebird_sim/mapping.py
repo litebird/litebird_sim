@@ -114,7 +114,7 @@ class DestriperResult:
 
 
 @njit
-def _accumulate_map_and_info(tod, pix, psi, weights, info):
+def _accumulate_map_and_info(tod, pix, psi, weights, info, additional_component: bool):
     # Fill the upper triangle of the information matrix and use the lower
     # triangle for the RHS of the map-making equation
     assert tod.shape == pix.shape == psi.shape
@@ -127,12 +127,15 @@ def _accumulate_map_and_info(tod, pix, psi, weights, info):
             cos = np.cos(2 * a) / np.sqrt(weights[idet])
             sin = np.sin(2 * a) / np.sqrt(weights[idet])
             info_pix = info[p]
-            info_pix[0, 0] += one * one
-            info_pix[0, 1] += one * cos
-            info_pix[0, 2] += one * sin
-            info_pix[1, 1] += cos * cos
-            info_pix[1, 2] += sin * cos
-            info_pix[2, 2] += sin * sin
+
+            if not additional_component:
+                info_pix[0, 0] += one * one
+                info_pix[0, 1] += one * cos
+                info_pix[0, 2] += one * sin
+                info_pix[1, 1] += cos * cos
+                info_pix[1, 2] += sin * cos
+                info_pix[2, 2] += sin * sin
+
             info_pix[1, 0] += d * one * one
             info_pix[2, 0] += d * cos * one
             info_pix[2, 1] += d * sin * one
@@ -252,7 +255,7 @@ def make_bin_map(
             pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
             polang_all[idet] = curr_pol_angle_det
 
-        for cur_component_name in components:
+        for idx, cur_component_name in enumerate(components):
             cur_component = getattr(cur_obs, cur_component_name)
             assert (
                 cur_component.shape == first_component.shape
@@ -260,7 +263,12 @@ def make_bin_map(
                 components[0], cur_component_name
             )
             _accumulate_map_and_info(
-                cur_component, pixidx_all, polang_all, weights, info
+                cur_component,
+                pixidx_all,
+                polang_all,
+                weights,
+                info,
+                additional_component=idx > 0,
             )
 
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
