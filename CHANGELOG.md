@@ -1,5 +1,9 @@
 # HEAD
 
+-   Fix issue #209 [#210](https://github.com/litebird/litebird_sim/pull/210)
+
+-   Add flag for coordinate system choice of madam output maps [#208](https://github.com/litebird/litebird_sim/pull/208)
+
 -   Improve support for multiple TODs [#205](https://github.com/litebird/litebird_sim/pull/205)
 
 -   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
