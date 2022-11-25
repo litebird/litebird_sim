@@ -7,7 +7,7 @@
 Name                 | UUID
 -------------------- | --------------------------------------------------
 {% for obj in entities -%}
-{{"%-20s"|format(obj.name)}} | {{ obj.uuid }}
+{{"%-20s"|format(obj.name)}} | [{{ obj.uuid }}]({{ base_imo_url }}/browse/entities/{{ obj.uuid }}/)
 {% endfor -%}
 {% endif -%}
 
@@ -18,7 +18,7 @@ Name                 | UUID
 Name                 | UUID
 -------------------- | --------------------------------------------------
 {% for obj in quantities -%}
-{{"%-20s"|format(obj.name)}} | {{ obj.uuid }}
+{{"%-20s"|format(obj.name)}} | [{{ obj.uuid }}]({{ base_imo_url }}/browse/quantities/{{ obj.uuid }}/)
 {% endfor -%}
 {% endif -%}
 
@@ -29,7 +29,7 @@ Name                 | UUID
 Name                 | UUID                                 | Upload date
 -------------------- | ------------------------------------ | ------------
 {% for obj in data_files -%}
-{{"%-20s"|format(obj.name)}} | {{ obj.uuid }} | {{ obj.upload_date }}
+{{"%-20s"|format(obj.name)}} | [{{ obj.uuid }}]({{ base_imo_url }}/browse/data_files/{{ obj.uuid }}/) | {{ obj.upload_date }}
 {% endfor -%}
 {% endif -%}
 
