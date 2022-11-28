@@ -195,3 +195,68 @@ def test_scanning_list_of_obs(tmp_path):
         pointings=pointings,
         input_map_in_galactic=True,
     )
+
+
+def test_scanning_list_of_obs_in_other_component(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=astropy.time.Time("2020-01-01T00:00:00"),
+        duration_s=120.0,
+    )
+    dets = [
+        lbs.DetectorInfo(name="A", sampling_rate_hz=1),
+        lbs.DetectorInfo(name="B", sampling_rate_hz=1),
+    ]
+
+    sim.create_observations(
+        detectors=dets,
+        num_of_obs_per_detector=2,
+    )
+
+    scanning = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=0.785_398_163_397_448_3,
+        precession_rate_hz=8.664_850_513_998_931e-05,
+        spin_rate_hz=0.000_833_333_333_333_333_4,
+        start_time=sim.start_time,
+    )
+
+    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+        sim.start_time,
+        sim.duration_s,
+        delta_time_s=60,
+    )
+
+    instr = lbs.InstrumentInfo(
+        boresight_rotangle_rad=0.0,
+        spin_boresight_angle_rad=0.872_664_625_997_164_8,
+        spin_rotangle_rad=3.141_592_653_589_793,
+    )
+
+    pointings = lbs.get_pointings_for_observations(
+        sim.observations,
+        spin2ecliptic_quats=spin2ecliptic_quats,
+        bore2spin_quat=instr.bore2spin_quat,
+    )
+
+    # Create fake maps containing only nonzero pixels
+    base_map = np.ones((3, lbs.nside_to_npix(128)))
+
+    maps = {"A": base_map, "B": base_map}
+
+    for cur_obs in sim.observations:
+        cur_obs.fg_tod = np.zeros_like(cur_obs.tod)
+
+    lbs.scan_map_in_observations(
+        obs=sim.observations,
+        maps=maps,
+        pointings=pointings,
+        input_map_in_galactic=True,
+        component="fg_tod",
+    )
+
+    # Check that the "tod" field has been left unchanged
+    assert np.allclose(sim.observations[0].tod, 0.0)
+
+    # Check that "noise_tod" has some non-zero data in it, as
+    # all the pixels in the foreground map have nonzero pixels
+    assert np.sum(np.abs(sim.observations[0].fg_tod)) > 0.0
