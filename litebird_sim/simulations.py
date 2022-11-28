@@ -35,6 +35,8 @@ from markdown_katex import KatexExtension
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 
 
+DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
+
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
 
@@ -578,7 +580,9 @@ class Simulation:
                 OutputFileRecord(path=curpath, description="Figure")
             )
 
-    def _fill_dictionary_with_imo_information(self, dictionary: Dict[str, Any]):
+    def _fill_dictionary_with_imo_information(
+        self, dictionary: Dict[str, Any], base_imo_url: str
+    ):
         # Fill the variable "dictionary" with information about the
         # objects retrieved from the IMO. This is used when producing
         # the final report for a simulation
@@ -617,6 +621,7 @@ class Simulation:
         dictionary["quantities"] = quantities
         dictionary["data_files"] = data_files
         dictionary["warnings"] = warnings
+        dictionary["base_imo_url"] = base_imo_url
 
     def _fill_dictionary_with_code_status(self, dictionary, include_git_diff):
         # Fill the variable "dictionary" with information about the
@@ -668,7 +673,7 @@ class Simulation:
                 f"unable to save information about latest git commit in the report: {e}"
             )
 
-    def flush(self, include_git_diff=True):
+    def flush(self, include_git_diff=True, base_imo_url: str = DEFAULT_BASE_IMO_URL):
         """Terminate a simulation.
 
         This function must be called when a simulation is complete. It
@@ -680,7 +685,9 @@ class Simulation:
         """
 
         dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-        self._fill_dictionary_with_imo_information(dictionary)
+        self._fill_dictionary_with_imo_information(
+            dictionary, base_imo_url=base_imo_url
+        )
         self._fill_dictionary_with_code_status(dictionary, include_git_diff)
 
         template_file_path = get_template_file_path("report_appendix.md")
