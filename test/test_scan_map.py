@@ -257,6 +257,6 @@ def test_scanning_list_of_obs_in_other_component(tmp_path):
     # Check that the "tod" field has been left unchanged
     assert np.allclose(sim.observations[0].tod, 0.0)
 
-    # Check that "noise_tod" has some non-zero data in it, as
+    # Check that "fg_tod" has some non-zero data in it, as
     # all the pixels in the foreground map have nonzero pixels
     assert np.sum(np.abs(sim.observations[0].fg_tod)) > 0.0
