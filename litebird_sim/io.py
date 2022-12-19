@@ -193,6 +193,8 @@ def write_list_of_observations(
     start_index: int = 0,
     collective_mpi_call: bool = True,
     tod_fields: List[str] = ["tod"],
+    gzip_compression: bool = False,
+    pointing_compression: bool = False,
 ) -> List[Path]:
     """
     Save a list of observations in a set of HDF5 files
@@ -264,6 +266,10 @@ def write_list_of_observations(
     (e.g., foregrounds, dipole, noise…), you can specify the names of the
     fields using the parameter ``tod_fields`` (list of strings), which by
     default will only save `Observation.tod`.
+
+    To save disk space, you can choose to apply GZip compression to the
+    data frames in each HDF5 file (the file will still be a valid .h5
+    file) or to save quaternions instead of full pointings.
 
     """
     try:
