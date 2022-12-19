@@ -4,6 +4,7 @@ import codecs
 from collections import namedtuple
 from dataclasses import asdict, dataclass
 from datetime import datetime
+from deprecation import deprecated
 import logging as log
 import os
 import subprocess
@@ -918,7 +919,7 @@ class Simulation:
             mpi_processes=mpi_processes,
         )
 
-    def generate_spin2ecl_quaternions(
+    def set_scanning_strategy(
         self,
         scanning_strategy: Union[None, ScanningStrategy] = None,
         imo_url: Union[None, str] = None,
@@ -984,4 +985,23 @@ class Simulation:
             num_of_obs=len(self.observations),
             delta_time_s=delta_time_s,
             quat_memory_size_bytes=quat_memory_size_bytes,
+        )
+
+    @deprecated(
+        deprecated_in="0.9",
+        current_version=litebird_sim_version,
+        details="Use set_scanning_strategy",
+    )
+    def generate_spin2ecl_quaternions(
+        self,
+        scanning_strategy: Union[None, ScanningStrategy] = None,
+        imo_url: Union[None, str] = None,
+        delta_time_s: float = 60.0,
+        append_to_report=True,
+    ):
+        self.set_scanning_strategy(
+            scanning_strategy=scanning_strategy,
+            limo_url=imo_url,
+            delta_time_s=delta_time_s,
+            append_to_report=append_to_report,
         )
