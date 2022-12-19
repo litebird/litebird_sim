@@ -49,6 +49,7 @@ def write_one_observation(
     global_index: int,
     local_index: int,
     tod_fields: List[str] = ["tod"],
+    gzip_compression: bool = False,
 ):
     """Write one :class:`Observation` object in a HDF5 file.
 
@@ -64,6 +65,8 @@ def write_one_observation(
     used by high-level functions like :func:`.write_observations` to understand how to
     read several HDF5 files at once; if you do not need them, you can pass 0 to both.
     """
+
+    compression = "gzip" if gzip_compression else None
 
     # This code assumes that the parameter `detectors` passed to Observation
     # was either an integer or a list of `DetectorInfo` objects, i.e., we
@@ -110,7 +113,10 @@ def write_one_observation(
     # Write all the TOD timelines in the HDF5 file, in separate datasets
     for field_name in tod_fields:
         cur_dataset = output_file.create_dataset(
-            field_name, data=obs.__getattribute__(field_name), dtype=tod_dtype
+            field_name,
+            data=obs.__getattribute__(field_name),
+            dtype=tod_dtype,
+            compression=compression,
         )
         if isinstance(obs.start_time, astropy.time.Time):
             cur_dataset.attrs["start_time"] = obs.start_time.to_value(
@@ -127,19 +133,27 @@ def write_one_observation(
     # Save pointing information only if it is available
     try:
         output_file.create_dataset(
-            "pointings", data=obs.__getattribute__("pointings"), dtype=pointings_dtype
+            "pointings",
+            data=obs.__getattribute__("pointings"),
+            dtype=pointings_dtype,
+            compression=compression,
         )
     except (AttributeError, TypeError):
         pass
 
     try:
-        output_file.create_dataset("pixel_index", data=obs.__getattribute__("pixel"))
+        output_file.create_dataset(
+            "pixel_index", data=obs.__getattribute__("pixel"), compression=compression
+        )
     except (AttributeError, TypeError):
         pass
 
     try:
         output_file.create_dataset(
-            "psi", data=obs.__getattribute__("psi"), dtype=pointings_dtype
+            "psi",
+            data=obs.__getattribute__("psi"),
+            dtype=pointings_dtype,
+            compression=compression,
         )
     except (AttributeError, TypeError):
         pass
@@ -148,6 +162,7 @@ def write_one_observation(
         output_file.create_dataset(
             "global_flags",
             data=rle_compress(obs.__getattribute__("global_flags")),
+            compression=compression,
         )
     except (AttributeError, TypeError):
         pass
@@ -159,7 +174,10 @@ def write_one_observation(
             flags = obs.__getattribute__("local_flags")
             compressed_flags = rle_compress(flags[det_idx, :])
             output_file.create_dataset(
-                f"flags_{det_idx:04d}", data=compressed_flags, dtype=flags.dtype
+                f"flags_{det_idx:04d}",
+                data=compressed_flags,
+                dtype=flags.dtype,
+                compression=compression,
             )
     except (AttributeError, TypeError):
         pass
@@ -194,7 +212,6 @@ def write_list_of_observations(
     collective_mpi_call: bool = True,
     tod_fields: List[str] = ["tod"],
     gzip_compression: bool = False,
-    pointing_compression: bool = False,
 ) -> List[Path]:
     """
     Save a list of observations in a set of HDF5 files
@@ -322,6 +339,7 @@ def write_list_of_observations(
                 global_index=params["global_index"],
                 local_index=params["local_index"],
                 tod_fields=tod_fields,
+                gzip_compression=gzip_compression,
             )
 
         file_list.append(file_name)

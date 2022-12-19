@@ -49,7 +49,9 @@ def test_write_simple_observation(tmp_path):
 
 
 def __write_complex_observation(
-    tmp_path, use_mjd, gzip_compression, pointing_compression: bool
+    tmp_path,
+    use_mjd: bool,
+    gzip_compression: bool,
 ):
     start_time = AstroTime("2021-01-01") if use_mjd else 0
     time_span_s = 60
@@ -108,7 +110,6 @@ def __write_complex_observation(
             sim=sim,
             subdir_name="",
             gzip_compression=gzip_compression,
-            pointing_compression=pointing_compression,
         ),
     )
 
@@ -118,7 +119,6 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         tmp_path=tmp_path,
         use_mjd=use_mjd,
         gzip_compression=False,
-        pointing_compression=False,
     )
 
     assert len(file_list) == 1
@@ -192,11 +192,9 @@ def test_write_complex_observation_no_mjd(tmp_path):
     __test_write_complex_observation(tmp_path, use_mjd=False)
 
 
-def __test_read_complex_observation(
-    tmp_path, use_mjd, gzip_compression, pointing_compression: bool
-):
+def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: bool):
     original_obs, det, file_list = __write_complex_observation(
-        tmp_path, use_mjd, gzip_compression, pointing_compression
+        tmp_path, use_mjd, gzip_compression
     )
 
     observations = lbs.read_list_of_observations(file_name_list=tmp_path.glob("*.h5"))
@@ -221,23 +219,23 @@ def __test_read_complex_observation(
 
 def test_read_complex_observation_mjd(tmp_path):
     __test_read_complex_observation(
-        tmp_path, use_mjd=True, gzip_compression=False, pointing_compression=False
+        tmp_path,
+        use_mjd=True,
+        gzip_compression=False,
     )
 
 
 def test_read_complex_observation_no_mjd(tmp_path):
     __test_read_complex_observation(
-        tmp_path, use_mjd=False, gzip_compression=False, pointing_compression=False
+        tmp_path,
+        use_mjd=False,
+        gzip_compression=False,
     )
 
 
 def test_gzip_compression_in_obs(tmp_path):
     __test_read_complex_observation(
-        tmp_path, use_mjd=False, gzip_compression=True, pointing_compression=False
-    )
-
-
-def test_pointing_compression_in_obs(tmp_path):
-    __test_read_complex_observation(
-        tmp_path, use_mjd=False, gzip_compression=True, pointing_compression=True
+        tmp_path,
+        use_mjd=False,
+        gzip_compression=True,
     )
