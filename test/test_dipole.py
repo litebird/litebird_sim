@@ -98,7 +98,7 @@ def test_solar_dipole_fit(tmpdir):
         start_time=start_time,
     )
 
-    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+    spin2ecliptic_quats = scanning.set_scanning_strategy(
         start_time, time_span_s, delta_time_s=7200
     )
 
@@ -213,7 +213,7 @@ def test_dipole_list_of_obs(tmp_path):
         start_time=sim.start_time,
     )
 
-    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+    spin2ecliptic_quats = scanning.set_scanning_strategy(
         sim.start_time,
         sim.duration_s,
         delta_time_s=60,

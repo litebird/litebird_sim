@@ -50,7 +50,7 @@ shows:
        start_time=start_time_s,
    )
    
-   spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+   spin2ecliptic_quats = scanning.set_scanning_strategy(
        start_time_s, time_span_s, delta_time_s=7200
    )
    

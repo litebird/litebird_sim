@@ -20,7 +20,7 @@ scanning = lbs.SpinningScanningStrategy(
 
 # The spacecraft spins pretty fast (once per minute!), so we
 # need to pick delta_time_s ≪ 1/spin_rate_hz
-spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+spin2ecliptic_quats = scanning.set_scanning_strategy(
     start_time, time_span_s, delta_time_s=5.0
 )
 

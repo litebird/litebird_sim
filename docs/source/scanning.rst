@@ -123,7 +123,7 @@ similar to what is going to be used for LiteBIRD:
 
   # We now simulate the motion of the spacecraft over a time span
   # of one minute (specified in the `duration_s` parameter above).
-  sim.generate_spin2ecl_quaternions(
+  sim.set_scanning_strategy(
       scanning_strategy=lbs.SpinningScanningStrategy(
           spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
           spin_rate_hz=0.5 / 60.0,     # Ditto
@@ -172,7 +172,7 @@ for now just keep in mind the overall shape of the code:
 
 1. Once the duration of the simulation (one hour in the example
    above), we call the method
-   :meth:`.Simulation.generate_spin2ecl_quaternions`, which forces the
+   :meth:`.Simulation.set_scanning_strategy`, which forces the
    framework to compute how the orientation of the spacecraft with
    respect to the sky sphere evolves with time. This method produces a
    set of `quaternions <https://en.wikipedia.org/wiki/Quaternion>`_,
@@ -258,7 +258,7 @@ From quaternions to detector pointings
 
 To compute the pointing information for a detector, the quaternions
 computed through the call to
-:meth:`.Simulation.generate_spin2ecl_quaternions` are not enough, as
+:meth:`.Simulation.set_scanning_strategy` are not enough, as
 they only tell how to convert a vector from the *spin axis* reference
 frame to the Ecliptic reference frame. We need two more quaternions
 that tell how to convert from the reference frame of the detector to
@@ -387,7 +387,7 @@ obtained by calling :func:`.get_pointings_for_observations`::
         start_time=sim.start_time,
     )
 
-    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+    spin2ecliptic_quats = scanning.set_scanning_strategy(
         sim.start_time,
         sim.duration_s,
         delta_time_s=60,
@@ -626,7 +626,7 @@ To define a new scanning strategy, we define a descendeant of the
 :class:`ScanningStrategy` class, an `Abstract Base Class (ABC)
 <https://docs.python.org/3/library/abc.html>`_; the only method that
 must be defined is
-:meth:`.ScanningStrategy.generate_spin2ecl_quaternions`, which takes
+:meth:`.ScanningStrategy.set_scanning_strategy`, which takes
 as inputs the start time, the length of the simulation, and the time
 interval to be used between consecutive quaternions. The method must
 return an instance of the :class:`.Spin2EclipticQuaternions`,
@@ -651,7 +651,7 @@ few lines of code:
 The following code implements our mock scanning strategy::
 
    class SimpleScanningStrategy(lbs.ScanningStrategy):
-       def generate_spin2ecl_quaternions(
+       def set_scanning_strategy(
            self, start_time, time_span_s, delta_time_s,
        ):
            # Compute how many quaternions are needed to cover
@@ -728,7 +728,7 @@ computing one quaternion every minute, we compute one quaternion every
        description="Simple simulation",
    )
 
-   sim.generate_spin2ecl_quaternions(
+   sim.set_scanning_strategy(
        scanning_strategy=SimpleScanningStrategy(),
        delta_time_s=(30 * u.day).to("s").value
    )
@@ -777,7 +777,7 @@ in the returned pointing information by passing to the function
         start_time=sim.start_time,
     )
 
-    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+    spin2ecliptic_quats = scanning.set_scanning_strategy(
         sim.start_time,
         sim.duration_s,
         delta_time_s=60,
@@ -859,7 +859,7 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
       duration_s=60.0,
       description="Simple simulation",
   )
-  sim.generate_spin2ecl_quaternions(
+  sim.set_scanning_strategy(
       scanning_strategy=lbs.SpinningScanningStrategy(
           spin_sun_angle_rad=np.deg2rad(30),
           spin_rate_hz=0.5 / 60.0,

@@ -13,7 +13,7 @@ from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 
 import litebird_sim
-from .detectors import DetectorInfo
+from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
 from .imo.imo import Imo
@@ -225,7 +225,7 @@ class Simulation:
             print(f"{curpath}: {curdescr}")
 
     When pointing information is needed, you can call the method
-    :meth:`.Simulation.generate_spin2ecl_quaternions`, which
+    :meth:`.Simulation.set_scanning_strategy`, which
     initializes the members `pointing_freq_hz` and
     `spin2ecliptic_quats`; these members are used by functions like
     :func:`.get_pointings`.
@@ -948,7 +948,7 @@ class Simulation:
 
         The parameter `delta_time_s` specifies how often should
         quaternions be computed; see
-        :meth:`.ScanningStrategy.generate_spin2ecl_quaternions` for
+        :meth:`.ScanningStrategy.set_scanning_strategy` for
         more information.
 
         If the parameter `append_to_report` is set to ``True`` (the
@@ -958,7 +958,7 @@ class Simulation:
         """
         assert not (scanning_strategy and imo_url), (
             "you must either specify scanning_strategy or imo_url (but not"
-            "the two together) when calling Simulation.generate_spin2ecl_quaternions"
+            "the two together) when calling Simulation.set_scanning_strategy"
         )
 
         if not scanning_strategy:
@@ -970,7 +970,7 @@ class Simulation:
             )
 
         # TODO: if MPI is enabled, we should probably parallelize this call
-        self.spin2ecliptic_quats = scanning_strategy.generate_spin2ecl_quaternions(
+        self.spin2ecliptic_quats = scanning_strategy.set_scanning_strategy(
             start_time=self.start_time,
             time_span_s=self.duration_s,
             delta_time_s=delta_time_s,

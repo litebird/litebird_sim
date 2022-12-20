@@ -201,7 +201,7 @@ report::
       duration_s=86400.,
   )
 
-  sim.generate_spin2ecl_quaternions(
+  sim.set_scanning_strategy(
       scanning_strategy=lbs.SpinningScanningStrategy(
           spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
           spin_rate_hz=0.5 / 60,     # Ditto
