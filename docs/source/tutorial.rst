@@ -197,6 +197,7 @@ report::
 
   sim = lbs.Simulation(
       base_path="./tut04",
+      name="Simulation tutorial",
       start_time=0,
       duration_s=86400.,
   )
@@ -210,24 +211,26 @@ report::
           precession_rate_hz=1.0 / (4 * u.day).to("s").value,
       )
   )
-  instr = lbs.InstrumentInfo(
-      name="core",
-      spin_boresight_angle_rad=np.deg2rad(65),
-  )
-  det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
-  obs, = sim.create_observations(detectors=[det])
-  pointings = lbs.get_pointings(
-      obs,
-      sim.spin2ecliptic_quats,
-      detector_quats=[det.quat],
-      bore2spin_quat=instr.bore2spin_quat,
-  )[0]
 
-  nside = 64
-  pixidx = healpy.ang2pix(nside, pointings[:, 0], pointings[:, 1])
-  m = np.zeros(healpy.nside2npix(nside))
-  m[pixidx] = 1
-  healpy.mollview(m)
+  sim.set_instrument(
+      InstrumentInfo(
+          name="core",
+          spin_boresight_angle_rad=np.deg2rad(65),
+      ),
+  )
+
+  sim.create_observations(
+      detectors=lbs.DetectorInfo(name="foo", sampling_rate_hz=10),
+  )
+
+  sim.compute_pointings()
+
+  for cur_obs in sim.observations:
+      nside = 64
+      pixidx = healpy.ang2pix(nside, pointings[:, 0], pointings[:, 1])
+      m = np.zeros(healpy.nside2npix(nside))
+      m[pixidx] = 1
+      healpy.mollview(m)
 
   sim.append_to_report("""
 
@@ -253,15 +256,24 @@ with the report-generation facilities provided by our framework. As
 explained in :ref:`scanning-strategy`, the code above does the
 following things:
 
-1. It generates a set of quaternions that encode the orientation of
+1. It sets the scanning strategy, triggering the computation of set
+   of quaternions that encode the orientation of
    the spacecraft for the whole duration of the simulation (86,400
    seconds, that is one day);
-2. It creates an instance of the :class:`.InstrumentInfo` and
-   :class:`.DetectorInfo` classes that represent a boresightdetector;
-3. It generates a pointing information matrix;
-4. It produces a coverage map by setting to 1 all those pixels that
+2. It creates an instance of the class :class:`.InstrumentInfo` and
+   it registers them using the method
+   :meth:`.Simulation.set_instrument`;
+3. It sets the detectors to be simulated and allocates the TODs through
+   the call to :meth:`.Simulation.create_observations`;
+4. It generates a pointing information matrix through the call to
+   :meth:`.Simulation.compute_pointings`;
+5. It produces a coverage map by setting to 1 all those pixels that
    are visited by the directions encoded in the pointing information
-   matrix.
+   matrix. To do this, it iterates over all the instances of the
+   class :class:`.Observation` in the
+   :class:`.Simulation` object. (In this simple example, there is only
+   one :class:`.Observation`, but in more complex examples there can
+   be many of them.)
   
 Here is the part of the report containing the result:
   

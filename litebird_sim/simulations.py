@@ -19,6 +19,7 @@ from .healpix import write_healpix_map_to_file
 from .imo.imo import Imo
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
+from .pointings import get_pointings
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -288,6 +289,8 @@ class Simulation:
         self.duration_s = duration_s
 
         self.detectors = []  # type: List[DetectorInfo]
+        self.instrument = None  # type: Optional[InstrumentInfo]
+
         self.spin2ecliptic_quats = None
 
         self.description = description
@@ -793,6 +796,9 @@ class Simulation:
             self.duration_s, (float, int)
         ), "you must set duration_s when creating the Simulation object"
 
+        if not detectors:
+            detectors = self.detectors
+
         observations = []
 
         duration_s = self.duration_s  # Cache the value to a local variable
@@ -894,18 +900,14 @@ class Simulation:
         num_of_observations = len(self.observations)
 
         if self.mpi_comm and litebird_sim.MPI_ENABLED:
-            observation_descr_all = litebird_sim.MPI_COMM_WORLD.allgather(
-                observation_descr
-            )
-            num_of_observations_all = litebird_sim.MPI_COMM_WORLD.allgather(
-                num_of_observations
-            )
+            observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
+            num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
         else:
             observation_descr_all = [observation_descr]
             num_of_observations_all = [num_of_observations]
 
         mpi_processes = []  # type: List[MpiProcessDescr]
-        for i in range(litebird_sim.MPI_COMM_WORLD.size):
+        for i in range(MPI_COMM_WORLD.size):
             mpi_processes.append(
                 MpiProcessDescr(
                     mpi_rank=i,
@@ -924,7 +926,7 @@ class Simulation:
         scanning_strategy: Union[None, ScanningStrategy] = None,
         imo_url: Union[None, str] = None,
         delta_time_s: float = 60.0,
-        append_to_report=True,
+        append_to_report: bool = True,
     ):
         """Simulate the motion of the spacecraft in free space
 
@@ -953,7 +955,8 @@ class Simulation:
 
         If the parameter `append_to_report` is set to ``True`` (the
         default), some information about the pointings will be included
-        in the report saved by the :class:`.Simulation` object.
+        in the report saved by the :class:`.Simulation` object. This will
+        be done only if the process has rank #0.
 
         """
         assert not (scanning_strategy and imo_url), (
@@ -977,15 +980,21 @@ class Simulation:
         )
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
-        template_file_path = get_template_file_path("report_generate_pointings.md")
-        with template_file_path.open("rt") as inpf:
-            markdown_template = "".join(inpf.readlines())
-        self.append_to_report(
-            markdown_template,
-            num_of_obs=len(self.observations),
-            delta_time_s=delta_time_s,
-            quat_memory_size_bytes=quat_memory_size_bytes,
-        )
+        num_of_obs = len(self.observations)
+        if append_to_report and litebird_sim.MPI_ENABLED:
+            num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_quaternions.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                num_of_obs=num_of_obs,
+                num_of_mpi_processes=MPI_COMM_WORLD.size,
+                delta_time_s=delta_time_s,
+                quat_memory_size_bytes=quat_memory_size_bytes,
+            )
 
     @deprecated(
         deprecated_in="0.9",
@@ -1005,3 +1014,63 @@ class Simulation:
             delta_time_s=delta_time_s,
             append_to_report=append_to_report,
         )
+
+    def set_instrument(self, instrument: InstrumentInfo):
+        """Set the instrument to be used in the simulation.
+
+        This function sets the ``self.instrument`` field to the instance
+        of the class :class:`.InstrumentInfo` that has been passed as
+        argument. The purpose of the instrument is to provide the reference
+        frame for the direction of each detector.
+
+        Note that you should not simulate more than one instrument in the same
+        simulation. This is enforced by the fact that if you call `set_instrument`
+        twice, the second call will overwrite the instrument that was formerly
+        set.
+        """
+        self.instrument = instrument
+
+    def compute_pointings(self, append_to_report: bool = True):
+        """Trigger the computation of pointings.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, and the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`. It combines the
+        quaternions of the spacecraft, of the instrument, and of the detectors
+        and sets the fields ``pointings``, ``psi``, and ``pointing_coords`` in
+        each observation owned by the simulation.
+        """
+        assert self.detectors, (
+            "You must call Simulation.create_observations() "
+            "before calling Simulation.compute_pointings"
+        )
+        assert self.instrument
+        assert self.spin2ecliptic_quats
+
+        memory_occupation = 0
+        num_of_obs = 0
+        for cur_obs in self.observations:
+            get_pointings(
+                cur_obs,
+                self.spin2ecliptic_quats,
+                detector_quats=cur_obs.quat,
+                bore2spin_quat=self.instrument.bore2spin_quat,
+                store_pointings_in_obs=True,
+            )
+            memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
+            num_of_obs += 1
+
+        if append_to_report and litebird_sim.MPI_ENABLED:
+            memory_occupation = MPI_COMM_WORLD.allreduce(memory_occupation)
+            num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_pointings.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                num_of_obs=num_of_obs,
+                num_of_mpi_processes=MPI_COMM_WORLD.size,
+                memory_occupation=memory_occupation,
+            )
