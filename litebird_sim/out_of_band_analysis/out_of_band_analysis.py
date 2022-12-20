@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 from numba import njit
 import numpy as np
+import math as mt
 
 import healpy as hp
 from astropy import constants as const
@@ -21,83 +22,126 @@ COND_THRESHOLD = 1e10
 
 
 @njit
-def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
+def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
+
     Tterm = 0.25 * (
         2
         + h1 * (2 + h1)
         + h2 * (2 + h2)
         + z1 * z1
         + z2 * z2
-        + 4 * (-((1 + h1) * z2) + (1 + h2) * z1 * cb) * co * si
-        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2) * (z1 + z2)) * (co**2 - si**2)
+        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2) * (z1 + z2)) * mt.cos(th_xi)
+        - 2 * ((1 + h1) * z2 - (1 + h2) * z1 * cb) * mt.sin(th_xi)
     )
+
     return Tterm
 
 
 @njit
-def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
-    Qterm = 0.125 * (
-        2
-        + h1 * (2 + h1)
-        + h2 * (2 + h2)
-        - (z1 - z2) * (z1 - z2)
-        + 2
+def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
+
+    Qterm = (
+        0.25 * (h1 * (2 + h1) - h2 * (2 + h2) - z1 * z1 + z2 * z2) * mt.cos(th_psi)
+        + 0.125
         * (
-            h1 * (2 + h1)
-            - h2 * (2 + h2)
+            2
+            + 2 * h1
+            + h1 * h1
+            + 2 * h2
+            + h2 * h2
             - z1 * z1
-            + z2 * z2
-            - 4 * (z1 + z2) * (1 + h1 + cb + h2 * cb) * co * si
+            + 2 * z1 * z2
+            - z2 * z2
+            - 2 * (1 + h2) * cb
+            - 2 * h1 * (1 + h2) * cb
         )
-        * (co**2 - si**2)
-        + (2 + h1 * (2 + h1) + h2 * (2 + h2) - (z1 + z2) * (z1 + z2))
-        * (co**4 - 6 * co**2 * si**2 + si**4)
-        + 8
-        * co
-        * si
-        * (-((1 + h1) * z1) - (1 + h2) * cb * (-z2 + 2 * (1 + h1) * co * si))
+        * mt.cos(psi_xi)
+        + 0.125
+        * (
+            2
+            + h1 * (2 + h1)
+            + h2 * (2 + h2)
+            - (z1 + z2) * (z1 + z2)
+            + 2 * (1 + h1) * (1 + h2) * cb
+        )
+        * mt.cos(th_psi + th_xi)
+        + 0.125 * (-4 * (1 + h1) * z1 + 4 * (1 + h2) * z2 * cb) * mt.sin(th_psi)
+        + 0.25 * (z1 - z2) * (-1 - h1 + (1 + h2) * cb) * mt.sin(psi_xi)
+        - 0.25 * (z1 + z2) * (1 + h1 + (1 + h2) * cb) * mt.sin(th_psi + th_xi)
     )
+
     return Qterm
 
 
 @njit
-def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si):
+def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
+
     Uterm = (
-        (1 + h1) * z1 * co**4
-        + ((1 + h1 - z1) * (1 + h1 + z1) - z1 * z2 + (1 + h1) * (1 + h2) * cb)
-        * co**3
-        * si
-        - (
-            (1 + h1) * z1
-            + 2 * (1 + h1) * z2
-            + 2 * (1 + h2) * z1 * cb
-            + (1 + h2) * z2 * cb
+        0.125 * (4 * z1 + 4 * h1 * z1 - 4 * (1 + h2) * z2 * cb) * mt.cos(th_psi)
+        + 0.125
+        * (
+            2 * z1
+            + 2 * h1 * z1
+            - 2 * z2
+            - 2 * h1 * z2
+            - 2 * (1 + h2) * z1 * cb
+            + 2 * (1 + h2) * z2 * cb
         )
-        * co**2
-        * si**2
-        - (-z1 * z2 + (1 + h2 - z2) * (1 + h2 + z2) + (1 + h1) * (1 + h2) * cb)
-        * co
-        * si**3
-        + (1 + h2) * z2 * cb * si**4
+        * mt.cos(psi_xi)
+        + (
+            0.125 * (1 + h2) * (z1 + z2) * cb
+            + 0.125
+            * (
+                2 * z1
+                + 2 * h1 * z1
+                + 2 * z2
+                + 2 * h1 * z2
+                + (1 + h2) * z1 * cb
+                + (1 + h2) * z2 * cb
+            )
+        )
+        * mt.cos(th_psi + th_xi)
+        + 0.25 * (h1 * (2 + h1) - h2 * (2 + h2) - z1 * z1 + z2 * z2) * mt.sin(th_psi)
+        + 0.125
+        * (
+            2
+            + h1 * (2 + h1)
+            + h2 * (2 + h2)
+            - (z1 - z2) * (z1 - z2)
+            - 2 * (1 + h1) * (1 + h2) * cb
+        )
+        * mt.sin(psi_xi)
+        + 0.125
+        * (
+            2
+            + h1 * (2 + h1)
+            + h2 * (2 + h2)
+            - (z1 + z2) * (z1 + z2)
+            + 2 * (1 + h1) * (1 + h2) * cb
+        )
+        * mt.sin(th_psi + th_xi)
     )
+
     return Uterm
 
 
 @njit
-def compute_signal_for_one_sample(T, Q, U, h1, h2, cb, z1, z2, co, si):
+def compute_signal_for_one_sample(T, Q, U, h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
     """Bolometric equation"""
-    d = T * compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
-    d += Q * compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
-    d += U * compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+    d = T * compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
+    d += Q * compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
+    d += U * compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
     return d
 
 
 @njit
-def integrate_in_band_signal_for_one_sample(T, Q, U, band, h1, h2, cb, z1, z2, co, si):
+def integrate_in_band_signal_for_one_sample(
+    T, Q, U, band, h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi
+):
     tod = 0
     for i in range(len(band)):
         tod += band[i] * compute_signal_for_one_sample(
-            T[i], Q[i], U[i], h1[i], h2[i], cb[i], z1[i], z2[i], co, si
+            T[i], Q[i], U[i], h1[i], h2[i], cb[i], z1[i], z2[i], th_psi, th_xi, psi_xi
         )
 
     return tod
@@ -105,7 +149,7 @@ def integrate_in_band_signal_for_one_sample(T, Q, U, band, h1, h2, cb, z1, z2, c
 
 @njit
 def compute_signal_for_one_detector(
-    tod_det, h1, h2, cb, z1, z2, pixel_ind, polangle, maps
+    tod_det, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi, maps
 ):
 
     for i in range(len(tod_det)):
@@ -118,14 +162,15 @@ def compute_signal_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            co=np.cos(polangle[i]),
-            si=np.sin(polangle[i]),
+            th_psi=2 * theta[i] + 2 * psi[i],
+            th_xi=2 * theta[i] - 2 * xi[i],
+            psi_xi=2 * psi[i] + 2 * xi[i],
         )
 
 
 @njit
 def integrate_in_band_signal_for_one_detector(
-    tod_det, band, h1, h2, cb, z1, z2, pixel_ind, polangle, maps
+    tod_det, band, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi, maps
 ):
 
     for i in range(len(tod_det)):
@@ -139,27 +184,30 @@ def integrate_in_band_signal_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            co=np.cos(polangle[i]),
-            si=np.sin(polangle[i]),
+            th_psi=2 * theta[i] + 2 * psi[i],
+            th_xi=2 * theta[i] - 2 * xi[i],
+            psi_xi=2 * psi[i] + 2 * xi[i],
         )
 
 
 @njit
-def compute_mueller_for_one_sample(h1, h2, cb, z1, z2, co, si):
-    Tterm = compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
-    Qterm = compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
-    Uterm = compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, co, si)
+def compute_mueller_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
+    Tterm = compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
+    Qterm = compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
+    Uterm = compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
     return Tterm, Qterm, Uterm
 
 
 @njit
-def integrate_in_band_mueller_for_one_sample(band, h1, h2, cb, z1, z2, co, si):
+def integrate_in_band_mueller_for_one_sample(
+    band, h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi
+):
     intTterm = 0
     intQterm = 0
     intUterm = 0
     for i in range(len(band)):
         Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
-            h1[i], h2[i], cb[i], z1[i], z2[i], co, si
+            h1[i], h2[i], cb[i], z1[i], z2[i], th_psi, th_xi, psi_xi
         )
         intTterm += band[i] * Tterm
         intQterm += band[i] * Qterm
@@ -170,16 +218,7 @@ def integrate_in_band_mueller_for_one_sample(band, h1, h2, cb, z1, z2, co, si):
 
 @njit
 def compute_atd_ata_for_one_detector(
-    atd,
-    ata,
-    tod,
-    h1,
-    h2,
-    cb,
-    z1,
-    z2,
-    pixel_ind,
-    polangle,
+    atd, ata, tod, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi
 ):
 
     for i in range(len(tod)):
@@ -189,8 +228,9 @@ def compute_atd_ata_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            co=np.cos(polangle[i]),
-            si=np.sin(polangle[i]),
+            th_psi=2 * theta[i] + 2 * psi[i],
+            th_xi=2 * theta[i] - 2 * xi[i],
+            psi_xi=2 * psi[i] + 2 * xi[i],
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
@@ -206,17 +246,7 @@ def compute_atd_ata_for_one_detector(
 
 @njit
 def integrate_in_band_atd_ata_for_one_detector(
-    atd,
-    ata,
-    tod,
-    band,
-    h1,
-    h2,
-    cb,
-    z1,
-    z2,
-    pixel_ind,
-    polangle,
+    atd, ata, tod, band, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi
 ):
 
     for i in range(len(tod)):
@@ -227,8 +257,9 @@ def integrate_in_band_atd_ata_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            co=np.cos(polangle[i]),
-            si=np.sin(polangle[i]),
+            th_psi=2 * theta[i] + 2 * psi[i],
+            th_xi=2 * theta[i] - 2 * xi[i],
+            psi_xi=2 * psi[i] + 2 * xi[i],
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
@@ -610,6 +641,8 @@ class HwpSysAndBandpass:
 
                 pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
 
+                # computing angles here
+
                 tod = cur_obs.tod[idet, :]
 
                 if self.integrate_in_band:
@@ -622,7 +655,10 @@ class HwpSysAndBandpass:
                         z1=self.z1,
                         z2=self.z2,
                         pixel_ind=pix,
-                        polangle=0.5 * cur_psi + times * hwp_radpsec,
+                        theta=...,
+                        psi=...,
+                        xi=...,
+                        # polangle=0.5 * cur_psi + times * hwp_radpsec,
                         maps=self.maps,
                     )
                 else:
@@ -634,7 +670,10 @@ class HwpSysAndBandpass:
                         z1=self.z1,
                         z2=self.z2,
                         pixel_ind=pix,
-                        polangle=0.5 * cur_psi + times * hwp_radpsec,
+                        theta=...,
+                        psi=...,
+                        xi=...,
+                        # polangle=0.5 * cur_psi + times * hwp_radpsec,
                         maps=self.maps,
                     )
 
@@ -652,7 +691,10 @@ class HwpSysAndBandpass:
                                 z1=self.z1s,
                                 z2=self.z2s,
                                 pixel_ind=pix,
-                                polangle=0.5 * cur_psi + times * hwp_radpsec,
+                                theta=...,
+                                psi=...,
+                                xi=...,
+                                # polangle=0.5 * cur_psi + times * hwp_radpsec,
                             )
                         else:
                             compute_atd_ata_for_one_detector(
@@ -665,7 +707,10 @@ class HwpSysAndBandpass:
                                 z1=self.z1s,
                                 z2=self.z2s,
                                 pixel_ind=pix,
-                                polangle=0.5 * cur_psi + times * hwp_radpsec,
+                                theta=...,
+                                psi=...,
+                                xi=...
+                                # polangle=0.5 * cur_psi + times * hwp_radpsec,
                             )
 
                     else:
