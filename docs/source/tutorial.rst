@@ -219,6 +219,8 @@ report::
       ),
   )
 
+  sim.set_hwp(IdealHWP(ang_speed_radpsec=0.1))
+
   sim.create_observations(
       detectors=lbs.DetectorInfo(name="foo", sampling_rate_hz=10),
   )
@@ -263,11 +265,13 @@ following things:
 2. It creates an instance of the class :class:`.InstrumentInfo` and
    it registers them using the method
    :meth:`.Simulation.set_instrument`;
-3. It sets the detectors to be simulated and allocates the TODs through
+3. It instantiates a new class that represents an ideal Half-wave Plate
+   (HWP);
+4. It sets the detectors to be simulated and allocates the TODs through
    the call to :meth:`.Simulation.create_observations`;
-4. It generates a pointing information matrix through the call to
+5. It generates a pointing information matrix through the call to
    :meth:`.Simulation.compute_pointings`;
-5. It produces a coverage map by setting to 1 all those pixels that
+6. It produces a coverage map by setting to 1 all those pixels that
    are visited by the directions encoded in the pointing information
    matrix. To do this, it iterates over all the instances of the
    class :class:`.Observation` in the
