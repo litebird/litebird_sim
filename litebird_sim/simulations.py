@@ -13,6 +13,7 @@ from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 
 import litebird_sim
+from . import HWP
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
@@ -290,6 +291,7 @@ class Simulation:
 
         self.detectors = []  # type: List[DetectorInfo]
         self.instrument = None  # type: Optional[InstrumentInfo]
+        self.hwp = None  # type: Optional[HWP]
 
         self.spin2ecliptic_quats = None
 
@@ -1030,7 +1032,20 @@ class Simulation:
         """
         self.instrument = instrument
 
-    def compute_pointings(self, append_to_report: bool = True):
+    def set_hwp(self, hwp: HWP):
+        """Set the HWP to be used in the simulation
+
+        The argument must be a class derived from :class:`.HWP`, for instance
+        :class:`.IdealHWP`.
+        """
+        self.hwp = hwp
+
+    def compute_pointings(
+        self,
+        append_to_report: bool = True,
+        dtype_quaternion=np.float64,
+        dtype_pointing=np.float32,
+    ):
         """Trigger the computation of pointings.
 
         This method must be called after having set the scanning strategy, the
@@ -1055,6 +1070,9 @@ class Simulation:
                 self.spin2ecliptic_quats,
                 detector_quats=cur_obs.quat,
                 bore2spin_quat=self.instrument.bore2spin_quat,
+                hwp=self.hwp,
+                dtype_quaternion=dtype_quaternion,
+                dtype_pointing=dtype_pointing,
                 store_pointings_in_obs=True,
             )
             memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
@@ -1071,6 +1089,7 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 num_of_obs=num_of_obs,
+                hwp_description=str(self.hwp) if self.hwp else "No HWP",
                 num_of_mpi_processes=MPI_COMM_WORLD.size,
                 memory_occupation=memory_occupation,
             )
