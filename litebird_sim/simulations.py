@@ -1010,7 +1010,7 @@ class Simulation:
     ):
         self.set_scanning_strategy(
             scanning_strategy=scanning_strategy,
-            limo_url=imo_url,
+            imo_url=imo_url,
             delta_time_s=delta_time_s,
             append_to_report=append_to_report,
         )
