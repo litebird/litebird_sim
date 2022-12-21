@@ -35,6 +35,11 @@ class HWP:
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
 
+    def __repr__(self):
+        raise NotImplementedError(
+            "You should not use the HWP class in your code, use IdealHWP instead"
+        )
+
 
 @njit
 def _add_ideal_hwp_angle(
@@ -78,4 +83,10 @@ class IdealHWP(HWP):
             delta_time_s=delta_time_s,
             start_angle_rad=self.start_angle_rad,
             ang_speed_radpsec=self.ang_speed_radpsec,
+        )
+
+    def __repr__(self):
+        return (
+            f"Ideal HWP, with rotating speed {self.ang_speed_radpsec} rad/sec "
+            "and θ₀ = {self.start_angle_rad}"
         )
