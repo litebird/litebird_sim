@@ -35,7 +35,7 @@ class HWP:
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
 
-    def __repr__(self):
+    def __str__(self):
         raise NotImplementedError(
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
@@ -85,7 +85,7 @@ class IdealHWP(HWP):
             ang_speed_radpsec=self.ang_speed_radpsec,
         )
 
-    def __repr__(self):
+    def __str__(self):
         return (
             f"Ideal HWP, with rotating speed {self.ang_speed_radpsec} rad/sec "
             "and θ₀ = {self.start_angle_rad}"
