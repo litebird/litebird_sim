@@ -506,7 +506,7 @@ class ScanningStrategy(ABC):
     """
 
     @abstractmethod
-    def set_scanning_strategy(
+    def generate_spin2ecl_quaternions(
         self,
         start_time: Union[float, astropy.time.Time],
         time_span_s: float,
@@ -731,7 +731,7 @@ class SpinningScanningStrategy(ScanningStrategy):
             spin_rate_hz=obj.metadata["spin_rate_rpm"] / 60.0,
         )
 
-    def set_scanning_strategy(
+    def generate_spin2ecl_quaternions(
         self,
         start_time: Union[float, astropy.time.Time],
         time_span_s: float,

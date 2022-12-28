@@ -41,7 +41,7 @@ def test_scan_map():
         start_time=start_time,
     )
 
-    spin2ecliptic_quats = scanning.set_scanning_strategy(
+    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
         start_time, time_span_s, delta_time_s=60
     )
 
@@ -162,7 +162,7 @@ def test_scanning_list_of_obs(tmp_path):
         start_time=sim.start_time,
     )
 
-    spin2ecliptic_quats = scanning.set_scanning_strategy(
+    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
         sim.start_time,
         sim.duration_s,
         delta_time_s=60,

@@ -975,7 +975,7 @@ class Simulation:
             )
 
         # TODO: if MPI is enabled, we should probably parallelize this call
-        self.spin2ecliptic_quats = scanning_strategy.set_scanning_strategy(
+        self.spin2ecliptic_quats = scanning_strategy.generate_spin2ecl_quaternions(
             start_time=self.start_time,
             time_span_s=self.duration_s,
             delta_time_s=delta_time_s,
