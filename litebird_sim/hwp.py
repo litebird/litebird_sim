@@ -88,5 +88,5 @@ class IdealHWP(HWP):
     def __str__(self):
         return (
             f"Ideal HWP, with rotating speed {self.ang_speed_radpsec} rad/sec "
-            "and θ₀ = {self.start_angle_rad}"
+            f"and θ₀ = {self.start_angle_rad}"
         )
