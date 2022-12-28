@@ -60,10 +60,10 @@ it is customary to express their pointing directions relative to an
 main optical axis of the instrument. Since in LiteBIRD there are
 *three* instruments (LFT, MFT, HFT), there should be boresight
 directions; however, MFT and HFT share the same telescope, and thus
-it's customary to show only one boresight. This is the true meaning of
-the red and green axes in the video above: the red axis represents the
-«average» direction where LFT detectors are looking at, and the green
-axis is the same for MFT/HFT.
+it's customary to show only one boresight for both. This is the true
+meaning of the red and green axes in the video above: the red axis
+represents the «average» direction where LFT detectors are looking at,
+and the green axis is the same for MFT/HFT.
 
 The animation does not show a *third* rotation happening, which is the
 revolution of the spacecraft around the Sun, taking one year to
@@ -132,9 +132,14 @@ similar to what is going to be used for LiteBIRD:
           precession_rate_hz=1.0 / (4 * u.day).to("s").value,
       )
   )
-  instr = lbs.InstrumentInfo(
-      name="core",
-      spin_boresight_angle_rad=np.deg2rad(65),
+
+  # Here we specify the β angle of the focal plane of
+  # the instrument
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          name="core",
+          spin_boresight_angle_rad=np.deg2rad(65),
+      ),
   )
 
   # The motion of the spacecraft is now encoded in a set of quaternions,
@@ -143,13 +148,15 @@ similar to what is going to be used for LiteBIRD:
   # to the instrument `core` (unlike LiteBIRD, CORE had only one focal
   # plane and one instrument)
   det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
+
+  # By default, `create_observations` creates just *one* observation
   obs, = sim.create_observations(detectors=[det])
-  pointings = lbs.get_pointings(
-      obs,
-      sim.spin2ecliptic_quats,
-      bore2spin_quat=instr.bore2spin_quat,
-      detector_quats=[det.quat],
-  )
+
+  # Compute the pointings at the same sampling frequency as the
+  # TOD (10 Hz, see the variable `det` above)
+  sim.compute_pointings()
+  
+  pointings = obs.pointings
 
   print("Shape:", pointings.shape)
   print("Pointings:")
@@ -157,15 +164,15 @@ similar to what is going to be used for LiteBIRD:
 
 .. testoutput::
 
-  Shape: (1, 600, 3)
+  Shape: (1, 600, 2)
   Pointings:
-  [[[ 2.182  0.    -1.571]
-    [ 2.182 -0.006 -1.576]
-    [ 2.182 -0.012 -1.582]
+  [[[ 2.182  0.   ]
+    [ 2.182 -0.006]
+    [ 2.182 -0.012]
     ...
-    [ 0.089 -2.967 -1.738]
-    [ 0.088 -3.021 -1.687]
-    [ 0.087 -3.075 -1.635]]]
+    [ 0.089 -2.967]
+    [ 0.088 -3.021]
+    [ 0.087 -3.075]]]
 
 All the details in this code are explained in the next sections, so
 for now just keep in mind the overall shape of the code:
@@ -279,7 +286,9 @@ that of the spin axis:
    of the focal plane (with the `z` axis aligned with the boresight)
    to the reference frame of the spacecraft (where the `z` axis is
    aligned with its spin axis). This quaternion is stored in the field
-   ``bore2spin_quat`` of the class :class:`.InstrumentInfo`.
+   ``bore2spin_quat`` of the class :class:`.InstrumentInfo`, and it is
+   initialized when you call the method
+   :meth:`.Simulation.set_scanning_strategy`.
 
 The LiteBIRD Simulation Framework recomputes the orientation of the
 spacecraft with a regular spacing in time (the default is one minute).
@@ -327,9 +336,9 @@ split in several blocks inside the :class:`.Observation` class.
 
 .. note::
 
-   Slerp assumes a rotation with constant angular speed between
-   consecutive quaternions, and thus it only approximates the true
-   composition of all the rotations (spin, precession, revolution
+   Slerp assumes a rotation with constant angular speed and axis
+   between consecutive quaternions, and thus it only approximates the
+   true composition of all the rotations (spin, precession, revolution
    around the Sun) that we have discussed above. However, don't forget
    that the *real* spacecraft will follow a scanning strategy that
    will be more complex than the one described by our geometrical
@@ -354,59 +363,12 @@ angle are computed as follows:
 
 .. image:: images/polarization-direction.svg
 
-The purpose of the function :func:`.get_pointings`, used in
-the example at the beginning of this chapter, is to call
-:func:`.get_det2ecl_quaternions` to compute the
-quaternions at the same sampling frequency as the scientific
-datastream, and then to apply the two definitions above to compute the
-direction and the polarization angle.
-
-The pointing information for a list of :class:`.Observation` can be 
-obtained by calling :func:`.get_pointings_for_observations`::
-
-    import litebird_sim as lbs
-
-    sim = lbs.Simulation(
-        start_time=0,
-        duration_s=100.0,
-    )
-    dets = [
-        lbs.DetectorInfo(name="A", sampling_rate_hz=1),
-        lbs.DetectorInfo(name="B", sampling_rate_hz=1),
-    ]
-
-    sim.create_observations(
-        detectors=dets,
-        num_of_obs_per_detector=2,
-    )
-
-    scanning = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=0.785_398_163_397_448_3,
-        precession_rate_hz=8.664_850_513_998_931e-05,
-        spin_rate_hz=0.000_833_333_333_333_333_4,
-        start_time=sim.start_time,
-    )
-
-    spin2ecliptic_quats = scanning.set_scanning_strategy(
-        sim.start_time,
-        sim.duration_s,
-        delta_time_s=60,
-    )
-
-    instr = lbs.InstrumentInfo(
-        boresight_rotangle_rad=0.0,
-        spin_boresight_angle_rad=0.872_664_625_997_164_8,
-        spin_rotangle_rad=3.141_592_653_589_793,
-    )
-
-    pointings = lbs.get_pointings_for_observations(
-        sim.observations,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-    )
-
-
-This returns a list of pointing arrays, one for each observation.
+The purpose of the method :meth:`.Simulation.compute_pointings`, used
+in the example at the beginning of this chapter, is to call
+:func:`.get_det2ecl_quaternions` to compute the quaternions at the
+same sampling frequency as the scientific datastream, and then to
+apply the two definitions above to compute the direction and the
+polarization angle.
 
 
 How the boresight is specified
@@ -448,10 +410,7 @@ three angles:
 Interpretation of pointings
 ---------------------------
 
-We saw in the example above that the pointings for detector ``det``
-were saved in a matrix of shape ``N × 3``, but the meaning of those
-numbers are probably unclear. With «pointing», we refer to two
-different concept:
+With «pointing», we refer to two different concept:
 
 1. The direction where the detector is looking at;
 
@@ -469,11 +428,13 @@ calculated with respect to the meridian/parallel going through the
 point the detector is looking at. Again, to reduce memory usage, our
 framework only encodes the angle.
 
-Thus, the function :func:`.get_pointings` returns a N×3
-matrix whose columns contain the colatitude (in radians), longitude
-(ditto), and polarization angle with respect to the North and South
-poles of the sky. Let's visualize the position of these pointings on a
-Healpix map::
+The method :meth:`.Simulation.compute_pointings` stores the pointings
+of the :math:`n_d` detectors kept in the field ``pointings`` of the
+:class:`.Observation`; they are laid out in memory as a :math:`(n_d,
+N, 2)` matrix, where :math:`N` is the number of samples in the
+timeline, and the last dimension holds the colatitude and longitude
+(in radians). The polarization angle is kept in ``Observation.psi``.
+Let's visualize the position of these pointings on a Healpix map::
 
    import healpy, numpy as np
    import matplotlib.pylab as plt
@@ -626,7 +587,7 @@ To define a new scanning strategy, we define a descendeant of the
 :class:`ScanningStrategy` class, an `Abstract Base Class (ABC)
 <https://docs.python.org/3/library/abc.html>`_; the only method that
 must be defined is
-:meth:`.ScanningStrategy.set_scanning_strategy`, which takes
+:meth:`.ScanningStrategy.generate_spin2ecl_quaternions`, which takes
 as inputs the start time, the length of the simulation, and the time
 interval to be used between consecutive quaternions. The method must
 return an instance of the :class:`.Spin2EclipticQuaternions`,
@@ -651,7 +612,7 @@ few lines of code:
 The following code implements our mock scanning strategy::
 
    class SimpleScanningStrategy(lbs.ScanningStrategy):
-       def set_scanning_strategy(
+       def generate_spin2ecl_quaternions(
            self, start_time, time_span_s, delta_time_s,
        ):
            # Compute how many quaternions are needed to cover
@@ -753,9 +714,10 @@ Here is the result: we're indeed scanning the Ecliptic plane!
 Half Wave Plate
 ---------------
 
-The rotation of the polarization angle, induced by a HWP, can be included 
-in the returned pointing information by passing to the function 
-:func:`.get_pointings` a :class:`.HWP` object. For example this::
+The rotation of the polarization angle, induced by a HWP, can be
+included in the returned pointing information by passing an instance
+of a descendant of the class :class:`.HWP` to the method
+:meth:`.Simulation.set_hwp`. Here is an example::
 
     import litebird_sim as lbs
 
@@ -763,46 +725,41 @@ in the returned pointing information by passing to the function
         start_time=0,
         duration_s=100.0,
     )
-        
+
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785_398_163_397_448_3,
+            precession_rate_hz=8.664_850_513_998_931e-05,
+            spin_rate_hz=0.000_833_333_333_333_333_4,
+            start_time=sim.start_time,
+        ),
+        delta_time_s=60,
+    )
+
+    sim.set_instrument(
+        instr = lbs.InstrumentInfo(
+            boresight_rotangle_rad=0.0,
+            spin_boresight_angle_rad=0.872_664_625_997_164_8,
+            spin_rotangle_rad=3.141_592_653_589_793,
+        )
+    )
+
+    sim.set_hwp(
+        lbs.IdealHWP(ang_speed_radpsec=4.084_070_449_666_731),
+    )
+
     det = lbs.DetectorInfo(
         name="Boresight_detector",
         sampling_rate_hz=1.0,
         quat=[0.0, 0.0, 0.0, 1.0],
     )
+    obs, = sim.create_observations(detectors=[det])
 
-    scanning = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=0.785_398_163_397_448_3,
-        precession_rate_hz=8.664_850_513_998_931e-05,
-        spin_rate_hz=0.000_833_333_333_333_333_4,
-        start_time=sim.start_time,
-    )
-
-    spin2ecliptic_quats = scanning.set_scanning_strategy(
-        sim.start_time,
-        sim.duration_s,
-        delta_time_s=60,
-    )
-
-    instr = lbs.InstrumentInfo(
-        boresight_rotangle_rad=0.0,
-        spin_boresight_angle_rad=0.872_664_625_997_164_8,
-        spin_rotangle_rad=3.141_592_653_589_793,
-    )
-
-    (obs,)sim.create_observations(detectors=[det])
-
-    hwp_radpsec = 4.084_070_449_666_731
-    hwp = lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec)
-
-    pointing = lbs.get_pointings(
-        obs,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        hwp = hwp,
-    )
+    sim.compute_pointings()
 
 
-returns a polarization angle rotated by an ideal spinning HWP.
+This example uses the :class:`.IdealHWP`, which represents an ideal
+spinning HWP.
 
 
 Observing point sources in the sky
@@ -859,6 +816,7 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
       duration_s=60.0,
       description="Simple simulation",
   )
+  
   sim.set_scanning_strategy(
       scanning_strategy=lbs.SpinningScanningStrategy(
           spin_sun_angle_rad=np.deg2rad(30),
@@ -866,10 +824,14 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
           precession_rate_hz=1.0 / (4 * u.day).to("s").value,
       )
   )
-  instr = lbs.InstrumentInfo(
-      name="core",
-      spin_boresight_angle_rad=np.deg2rad(65),
+
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          name="core",
+          spin_boresight_angle_rad=np.deg2rad(65),
+      ),
   )
+  
   det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
 
@@ -908,7 +870,7 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
   quats = lbs.get_ecl2det_quaternions(
       obs,
       sim.spin2ecliptic_quats,
-      bore2spin_quat=instr.bore2spin_quat,
+      bore2spin_quat=sim.instrument.bore2spin_quat,
       detector_quats=[det.quat],
   )
 

@@ -1,3 +1,5 @@
+.. _tutorial:
+
 Tutorial
 ========
 
@@ -13,11 +15,54 @@ In this section we assume that you are running these command
 interactively, either using the REPL (``python`` or IPython are both
 fine) or a Jupyter notebook.
 
-Our first program is the equivalent of the well-known «Hello world!»
-example::
-   
+The first thing to do is to create a folder where you will write your
+script. The LiteBIRD Simulation Framework is a *library*, and thus it
+should be listed as one of the dependencies of your project. It's
+better to use virtual environments, so that dependencies are properly
+tracked:
+
+.. code-block:: sh
+
+  python -m virtualenv ./lbs_tutorial_venv
+  source lbs_tutorial_venv/bin/activate
+
+The last line of code might vary, depending on the Operating System
+and the shell you are using; refer to the `Python documentation
+<https://docs.python.org/3/tutorial/venv.html>`_ for more information.
+
+Once you have activated the virtual environment, you should install
+the LiteBIRD Simulation Framework. As it is `registered on PyPI
+<https://pypi.org/project/litebird-sim/>`_, it's just a matter of
+calling ``pip``:
+
+.. code-block:: sh
+
+  pip install litebird_sim
+
+To ensure reproducibility of your results, it is good to keep track of
+the version numbers used by your program. We will immediately create a
+file ``requirements.txt``, which can be used by other people to ensure
+that they are using the very same version of the LiteBIRD Simulation
+Framework (as well as any other package you might want to install with
+``pip``) as ours:
+
+.. code-block:: sh
+
+  pip freeze > requirements.txt
+
+(If you use a Version Control System like ``git``, it is a good idea
+to add ``requirements.txt`` to the repository.) Anybody will then be
+able to install the same versions of each package as you by using the
+command ``pip install -r requirements.txt``.
+
+If you got no errors, you are ready to write your first program! To
+follow an ancient tradition, we will write a «Hello world!» program.
+Create a new file called ``my_script.py`` in the folder you just
+created, and write the following::
+
+  # File my_script.py
   import litebird_sim as lbs
-  
+
   print("Starting the program...")
   sim = lbs.Simulation(base_path="./tut01")
   sim.append_to_report("Hello, world!")
@@ -26,8 +71,16 @@ example::
 
 Surprisingly, the program did not output ``Hello world`` as you might
 have expected! Instead, it created a folder, named ``tut01``, and
-wrote a file named ``report.html``. Open it using your browser (e.g.,
-``firefox tut01/report.html``), and the following page will appear:
+wrote a few files in it:
+
+.. code-block:: sh
+
+  $ ls ./tut01
+  report.html    report.md    sakura.css
+  $
+
+Open the file ``report.html`` using your browser (e.g., ``firefox
+tut01/report.html``), and the following page will appear:
 
 .. image:: images/tutorial-bare-report.png
    :width: 512
@@ -36,7 +89,7 @@ wrote a file named ``report.html``. Open it using your browser (e.g.,
 
 Among the many lines of text produced by the report, you can spot the
 presence of our «Hello, world!» message. Hurrah!
-           
+
 Let's have a look at what happened. The first line imports the
 ``litebird_sim`` framework; since the name is quite long, it's
 customary to shorten it to ``lbs``::
@@ -69,7 +122,7 @@ The report is actually written to disk only when
 
 This is the most basic usage of the :class:`.Simulation` class; for
 more information, refer to :ref:`simulations`.
-  
+
 In the next section, we will make something more interesting using the
 framework.
 
@@ -125,7 +178,7 @@ Our next example will use the IMO to run something more interesting::
       num=lft_file.metadata['number_of_channels'],
   )
   sim.flush()
-  
+
 If you run this program, it will produce a report containing the
 following message:
 
@@ -278,9 +331,20 @@ following things:
    :class:`.Simulation` object. (In this simple example, there is only
    one :class:`.Observation`, but in more complex examples there can
    be many of them.)
-  
-Here is the part of the report containing the result:
-  
+
+If you run the example, you will see that the folder ``tut04`` will be
+populated with the following files:
+
+.. code-block:: sh
+
+  $ ls tut04
+  coverage_map.png  report.html  report.md  sakura.css
+  $
+
+A new file has appeared: ``coverage_map.png``. If you open the file
+``report.html``, you will get the map in the report (here the image
+has been cropped a bit, because the report is longer):
+
 .. image:: images/tutorial-coverage-map.png
    :width: 512
    :align: center

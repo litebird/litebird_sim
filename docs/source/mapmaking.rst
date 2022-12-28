@@ -12,7 +12,7 @@ timestreams. These maps are created using the `Healpix
 <https://en.wikipedia.org/wiki/HEALPix>`_ pixelization scheme and
 saved in FITS files.
 
-There are two available map-makers:
+The framework provides the following solutions:
 
 1. A *binner*, i.e., a simple map-maker that assumes that only
    uncorrelated noise is present in the timelines.
@@ -235,6 +235,10 @@ only once, including *all* the TOD components, and then call
 
 .. code-block:: python
 
+  # This code will generate *three* sets of Madam files:
+  # - One including the CMB and white noise
+  # - One including 1/f as well
+  # - The last one will include the dipole too
   save_files = True
 
   # Iterate over all the maps we want to produce. For each of
