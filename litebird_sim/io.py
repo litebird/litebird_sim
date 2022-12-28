@@ -133,7 +133,7 @@ def write_one_observation(
         pass
 
     try:
-        output_file.create_dataset("pixel_index", data=obs.__getattribute__("pixel"))
+        output_file.create_dataset("pixel_index", data=obs.__getattribute__("pixidx"))
     except (AttributeError, TypeError):
         pass
 
