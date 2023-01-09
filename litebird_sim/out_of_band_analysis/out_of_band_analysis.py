@@ -163,8 +163,8 @@ def compute_signal_for_one_detector(
             z1=z1,
             z2=z2,
             th_psi=2 * theta[i] + 2 * psi[i],
-            th_xi=2 * theta[i] - 2 * xi[i],
-            psi_xi=2 * psi[i] + 2 * xi[i],
+            th_xi=2 * theta[i] - 2 * xi,
+            psi_xi=2 * psi[i] + 2 * xi,
         )
 
 
@@ -185,8 +185,8 @@ def integrate_in_band_signal_for_one_detector(
             z1=z1,
             z2=z2,
             th_psi=2 * theta[i] + 2 * psi[i],
-            th_xi=2 * theta[i] - 2 * xi[i],
-            psi_xi=2 * psi[i] + 2 * xi[i],
+            th_xi=2 * theta[i] - 2 * xi,
+            psi_xi=2 * psi[i] + 2 * xi,
         )
 
 
@@ -229,8 +229,8 @@ def compute_atd_ata_for_one_detector(
             z1=z1,
             z2=z2,
             th_psi=2 * theta[i] + 2 * psi[i],
-            th_xi=2 * theta[i] - 2 * xi[i],
-            psi_xi=2 * psi[i] + 2 * xi[i],
+            th_xi=2 * theta[i] - 2 * xi,
+            psi_xi=2 * psi[i] + 2 * xi,
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
@@ -258,8 +258,8 @@ def integrate_in_band_atd_ata_for_one_detector(
             z1=z1,
             z2=z2,
             th_psi=2 * theta[i] + 2 * psi[i],
-            th_xi=2 * theta[i] - 2 * xi[i],
-            psi_xi=2 * psi[i] + 2 * xi[i],
+            th_xi=2 * theta[i] - 2 * xi,
+            psi_xi=2 * psi[i] + 2 * xi,
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
@@ -304,6 +304,50 @@ def _dBodTth(nu):
         * x
         / cosmo.Tcmb0.value
     )
+
+
+def compute_polang_from_detname(detector_name):
+    detname = detector_name.split("_")
+    polname = detname[3]
+    if detname[0] == "000":
+        if polname == "QA":
+            if detname[-1] == "T":
+                polang = 0
+            if detname[-1] == "B":
+                polang = np.pi / 2
+        if polname == "QB":
+            if detname[-1] == "T":
+                polang = 0
+            if detname[-1] == "B":
+                polang = -np.pi / 2
+        if polname == "UA":
+            if detname[-1] == "T":
+                polang = np.pi / 4
+            if detname[-1] == "B":
+                polang = 3 * np.pi / 4
+        if polname == "UB":
+            if detname[-1] == "T":
+                polang = -np.pi / 4
+            if detname[-1] == "B":
+                polang = -3 * np.pi / 4
+    if detname[0] == "001":
+        polang = np.deg2rad(np.float(polname[:-1]))
+        if detname[-1] == "B":
+            polang += np.pi / 2
+        if polname[-1] == "B":
+            polang = -polang
+    if detname[0] == "002":
+        if polname == "Q":
+            if detname[-1] == "T":
+                polang = 0
+            if detname[-1] == "B":
+                polang = np.pi / 2
+        if polname == "U":
+            if detname[-1] == "T":
+                polang = np.pi / 4
+            if detname[-1] == "B":
+                polang = 3 * np.pi / 4
+    return polang
 
 
 class HwpSysAndBandpass:
@@ -641,7 +685,10 @@ class HwpSysAndBandpass:
 
                 pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
 
-                # computing angles here
+                # separating polarization angle xi from obs.psi = psi + xi
+                xi = compute_polang_from_detname(cur_obs.name[idet])
+                print(np.rad2deg(xi))
+                psi = cur_psi - xi
 
                 tod = cur_obs.tod[idet, :]
 
@@ -655,9 +702,9 @@ class HwpSysAndBandpass:
                         z1=self.z1,
                         z2=self.z2,
                         pixel_ind=pix,
-                        theta=...,
-                        psi=...,
-                        xi=...,
+                        theta=times * hwp_radpsec,
+                        psi=psi,
+                        xi=xi,
                         # polangle=0.5 * cur_psi + times * hwp_radpsec,
                         maps=self.maps,
                     )
@@ -670,9 +717,9 @@ class HwpSysAndBandpass:
                         z1=self.z1,
                         z2=self.z2,
                         pixel_ind=pix,
-                        theta=...,
-                        psi=...,
-                        xi=...,
+                        theta=times * hwp_radpsec,
+                        psi=psi,
+                        xi=xi,
                         # polangle=0.5 * cur_psi + times * hwp_radpsec,
                         maps=self.maps,
                     )
@@ -691,9 +738,9 @@ class HwpSysAndBandpass:
                                 z1=self.z1s,
                                 z2=self.z2s,
                                 pixel_ind=pix,
-                                theta=...,
-                                psi=...,
-                                xi=...,
+                                theta=times * hwp_radpsec,
+                                psi=psi,
+                                xi=xi,
                                 # polangle=0.5 * cur_psi + times * hwp_radpsec,
                             )
                         else:
@@ -707,9 +754,9 @@ class HwpSysAndBandpass:
                                 z1=self.z1s,
                                 z2=self.z2s,
                                 pixel_ind=pix,
-                                theta=...,
-                                psi=...,
-                                xi=...
+                                theta=times * hwp_radpsec,
+                                psi=psi,
+                                xi=xi,
                                 # polangle=0.5 * cur_psi + times * hwp_radpsec,
                             )
 
