@@ -49,8 +49,8 @@ The usage of the facility is easy::
 The method :meth:`.Simulation.append_to_report` accepts arbitrary
 keywords, which are substituted in the string whenever the form ``{{ …
 }}`` is found. Thus, the string ``The value of the variable `foo` is
-{{ foo }}.`` is converted into ``The value of the variable `foo` is
-123.``. The keyword ``figures`` is however interpreted directly by
+{{ foo }}`` is converted into ``The value of the variable `foo` is
+123``. The keyword ``figures`` is however interpreted directly by
 :meth:`.Simulation.append_to_report`: it must be a list of 2-tuples of
 the form ``(figure, filename)``, and it triggers the save of the
 Matplotlib figure into a file with the specified name; you can refer
@@ -86,7 +86,7 @@ Converting the report to other formats
 It might be the case that the report produced by your script contain
 some complex table/paragraphs that you would like to include to an
 article written in LaTeX or Microsoft Word. You can easily convert the
-report into one of these formats using `Pandoc <https://pandoc.org/>`.
+report into one of these formats using `Pandoc <https://pandoc.org/>`_.
 
 The Simulation Framework saves the Markdown source text of the report
 in the same directory as ``report.html``, and you can ask Markdown to
@@ -166,6 +166,40 @@ to write manually in LaTeX.
 A few stylistical tips
 ----------------------
 
+Template files
+~~~~~~~~~~~~~~
+
+If the report is getting larger and larger, it is advisable to move
+the string passed to :meth:`.Simulation.append_to_report` in a
+separate file and load it at runtime. (This is what we do in the
+source code of the framework, see the folder
+``litebird_sim/templates``.) For instance,
+you could put the following text in a file ``my_template_report.md``:
+
+.. code-block:: text
+
+  Here is some number: {{ "0.2f" | format(val) }}
+  Blah blah blah
+
+  Here follows a few very long paragraphs...
+
+  And here some more text...
+
+and then you would load it in your script in the following way::
+
+  with open("my_template_report.md", "rt") as inpf:
+      template = "".join(inpf.readlines())
+
+  sim.append_to_report(template, val=value)
+
+In this way, you can remove much clutter from the Python file, and it
+is easier for people who want to improve the report to contribute, as
+they do not need to understand Python to do it.
+
+  
+Where to put the formatting logic
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  
 You should always try to put the formatting logic of the report within
 the string passed to :meth:`.Simulation.append_to_report`, possibly
 using `Jinja2's filters
@@ -187,38 +221,37 @@ you should do this::
       val=value,
   )
 
-Here are a few interesting filters:
+The reason is that if you keep the template in a separate Markdown
+file, as explained above,, it is better to put whatever concerns the
+*representation* of the values in the template instead of the code.
+For instance, at some point you might revise the layout of your report
+by adding space, and this might enable you to write some date field as
+``February, 8th 2022`` instead of ``22-02-08``; this kind of change
+should affect only the Markdown template and not the Python code,
+because it's the template that was modified to enable more space.
 
-- ``{{ var | upper }}` converts ``var`` (a string) to uppercase
+Try to follow this tip even for short snippets: in the authors'
+experience, it is often the case that short reports grow more and more
+as time passes, until at some point they are moved to separate
+Markdown files!
+  
+You can refer to `Jinja2's documentation
+<https://jinja.palletsprojects.com/en/2.11.x/templates/#filters>`_ for
+a complete list of filters, but here is a selection of the most useful
+ones:
 
-- ``{{ var | lower }}` converts ``var`` (a string) to lowercase
+- ``{{ str | format(value) }}`` formats ``value`` like the C function
+  ``printf(str, value)``
 
-- ``{{ var | capitalize }}` capitalizes ``var`` (a string), so that
+- ``{{ var | round(n) }}`` rounds ``val`` to ``n`` digits
+
+- ``{{ var | filesizeformat }}`` interprets ``var`` as a size in bytes
+  and formats it in a human-readable format. Examples: ``13 kB``, ``4.1
+  MB``, etc.
+  
+- ``{{ var | upper }}`` converts ``var`` (a string) to uppercase
+
+- ``{{ var | lower }}`` converts ``var`` (a string) to lowercase
+
+- ``{{ var | capitalize }}`` capitalizes ``var`` (a string), so that
   ``jupiter`` is turned into ``Jupiter``.
-
-Finally, if the report is getting larger and larger, it is advisable
-to move the string passed to :meth:`.Simulation.append_to_report` in a
-separate file and load it at runtime. So, regarding the short example
-above, you would put the following text in a file
-``my_template_report.md``:
-
-.. code-block:: text
-
-  Here is some number: {{ "0.2f" | format(val) }}
-  Blah blah blah
-
-  Here follows a few very long paragraphs...
-
-  And here some more text...
-
-and then you would load it in your script in the following way::
-
-  with open("my_template_report.md", "rt") as inpf:
-      template = "".join(inpf.readlines())
-
-  sim.append_to_report(template, val=value)
-
-Again, this should be done only when the report is going to include
-several lines of text: in this way, the Python script is not cluttered
-and is easier to read.
-

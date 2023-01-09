@@ -1,5 +1,7 @@
 # HEAD
 
+    -   Implement new methods in the `Simulation` class: `set_scanning_strategy`, `set_instrument`, `set_hwp`, and deprecate `generate_spin2ecl_quaternions` [#217](https://github.com/litebird/litebird_sim/pull/217)
+
 -   Add a link to the IMO webpage @SSDC for each entity/quantity/data file included in simulation reports [#211](https://github.com/litebird/litebird_sim/pull/211)
 
 -   Fix issue #209 [#210](https://github.com/litebird/litebird_sim/pull/210)

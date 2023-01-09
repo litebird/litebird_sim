@@ -11,25 +11,24 @@ sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
 
 # We pick a simple scanning strategy where the spin axis is aligned
 # with the Sun-Earth axis, and the spacecraft spins once every minute
-scanning = lbs.SpinningScanningStrategy(
-    spin_sun_angle_rad=np.deg2rad(0),
-    precession_rate_hz=0,
-    spin_rate_hz=1 / 60,
-    start_time=start_time,
-)
-
-# The spacecraft spins pretty fast (once per minute!), so we
-# need to pick delta_time_s ≪ 1/spin_rate_hz
-spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-    start_time, time_span_s, delta_time_s=5.0
+sim.set_scanning_strategy(
+    lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=np.deg2rad(0),
+        precession_rate_hz=0,
+        spin_rate_hz=1 / 60,
+        start_time=start_time,
+    ),
+    delta_time_s=5.0,
 )
 
 # We simulate an instrument whose boresight is perpendicular to
 # the spin axis.
-instr = lbs.InstrumentInfo(
-    boresight_rotangle_rad=0.0,
-    spin_boresight_angle_rad=np.deg2rad(90),
-    spin_rotangle_rad=np.deg2rad(75),
+sim.set_instrument(
+    lbs.InstrumentInfo(
+        boresight_rotangle_rad=0.0,
+        spin_boresight_angle_rad=np.deg2rad(90),
+        spin_rotangle_rad=np.deg2rad(75),
+    )
 )
 
 # A simple detector looking along the boresight direction
@@ -40,12 +39,8 @@ det = lbs.DetectorInfo(
 )
 
 (obs,) = sim.create_observations(detectors=[det])
-pointings = lbs.get_pointings(
-    obs,
-    spin2ecliptic_quats=spin2ecliptic_quats,
-    detector_quats=[det.quat],
-    bore2spin_quat=instr.bore2spin_quat,
-)
+
+sim.compute_pointings()
 
 # Simulate the orbit of the spacecraft and compute positions and
 # velocities

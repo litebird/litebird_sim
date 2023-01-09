@@ -12,7 +12,7 @@ timestreams. These maps are created using the `Healpix
 <https://en.wikipedia.org/wiki/HEALPix>`_ pixelization scheme and
 saved in FITS files.
 
-There are two available map-makers:
+The framework provides the following solutions:
 
 1. A *binner*, i.e., a simple map-maker that assumes that only
    uncorrelated noise is present in the timelines.
@@ -49,7 +49,7 @@ detectors::
         duration_s=86400.0,
     )
 
-    sim.generate_spin2ecl_quaternions(
+    sim.set_scanning_strategy(
         scanning_strategy=lbs.SpinningScanningStrategy(
             spin_sun_angle_rad=np.deg2rad(30),  # CORE-specific parameter
             spin_rate_hz=0.5 / 60,  # Ditto
@@ -235,6 +235,10 @@ only once, including *all* the TOD components, and then call
 
 .. code-block:: python
 
+  # This code will generate *three* sets of Madam files:
+  # - One including the CMB and white noise
+  # - One including 1/f as well
+  # - The last one will include the dipole too
   save_files = True
 
   # Iterate over all the maps we want to produce. For each of
