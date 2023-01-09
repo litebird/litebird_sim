@@ -60,7 +60,7 @@ def test_make_bin_map_api_simulation(tmp_path):
         base_path=tmp_path / "tut04", start_time=0.0, duration_s=86400.0
     )
 
-    sim.generate_spin2ecl_quaternions(
+    sim.set_scanning_strategy(
         scanning_strategy=lbs.SpinningScanningStrategy(
             spin_sun_angle_rad=np.radians(30),  # CORE-specific parameter
             spin_rate_hz=0.5 / 60,  # Ditto

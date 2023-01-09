@@ -227,12 +227,18 @@ codes in the LiteBIRD Simulation Framework:
    library <https://docs.python.org/3/library/logging.html>`_ in the
    Python standard library.
 
-5. If you are unsure about your python coding practices, the `Google
+5. You **must** format your code using `black
+   <https://black.readthedocs.io/en/stable/>`_. If you fail to do so,
+   your code cannot be merged in the framework, as we automatically
+   check its conformance every time a new pull request is opened.
+
+6. Similarly, your code must pass all the tests run by `Flake8
+   <https://pypi.org/project/flake8>`_.
+
+7. Always implement some tests!
+
+8. If you are unsure about your python coding practices, the `Google
    style guide
    <https://github.com/google/styleguide/blob/gh-pages/pyguide.md>`_
-   is a good resource. TLDR run a static analyzer on your code, like
-   `Flake8 <https://pypi.org/project/flake8>`_ (``poetry run flake8
-   path/to/my/file``). See also our `CONTRIBUTING file
+   is a good resource. See also our `CONTRIBUTING file
    <https://github.com/litebird/litebird_sim/blob/master/CONTRIBUTING.md>`_
-
-6. Always implement some tests!

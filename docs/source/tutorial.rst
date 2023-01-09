@@ -1,3 +1,5 @@
+.. _tutorial:
+
 Tutorial
 ========
 
@@ -13,11 +15,54 @@ In this section we assume that you are running these command
 interactively, either using the REPL (``python`` or IPython are both
 fine) or a Jupyter notebook.
 
-Our first program is the equivalent of the well-known «Hello world!»
-example::
-   
+The first thing to do is to create a folder where you will write your
+script. The LiteBIRD Simulation Framework is a *library*, and thus it
+should be listed as one of the dependencies of your project. It's
+better to use virtual environments, so that dependencies are properly
+tracked:
+
+.. code-block:: sh
+
+  python -m virtualenv ./lbs_tutorial_venv
+  source lbs_tutorial_venv/bin/activate
+
+The last line of code might vary, depending on the Operating System
+and the shell you are using; refer to the `Python documentation
+<https://docs.python.org/3/tutorial/venv.html>`_ for more information.
+
+Once you have activated the virtual environment, you should install
+the LiteBIRD Simulation Framework. As it is `registered on PyPI
+<https://pypi.org/project/litebird-sim/>`_, it's just a matter of
+calling ``pip``:
+
+.. code-block:: sh
+
+  pip install litebird_sim
+
+To ensure reproducibility of your results, it is good to keep track of
+the version numbers used by your program. We will immediately create a
+file ``requirements.txt``, which can be used by other people to ensure
+that they are using the very same version of the LiteBIRD Simulation
+Framework (as well as any other package you might want to install with
+``pip``) as ours:
+
+.. code-block:: sh
+
+  pip freeze > requirements.txt
+
+(If you use a Version Control System like ``git``, it is a good idea
+to add ``requirements.txt`` to the repository.) Anybody will then be
+able to install the same versions of each package as you by using the
+command ``pip install -r requirements.txt``.
+
+If you got no errors, you are ready to write your first program! To
+follow an ancient tradition, we will write a «Hello world!» program.
+Create a new file called ``my_script.py`` in the folder you just
+created, and write the following::
+
+  # File my_script.py
   import litebird_sim as lbs
-  
+
   print("Starting the program...")
   sim = lbs.Simulation(base_path="./tut01")
   sim.append_to_report("Hello, world!")
@@ -26,8 +71,16 @@ example::
 
 Surprisingly, the program did not output ``Hello world`` as you might
 have expected! Instead, it created a folder, named ``tut01``, and
-wrote a file named ``report.html``. Open it using your browser (e.g.,
-``firefox tut01/report.html``), and the following page will appear:
+wrote a few files in it:
+
+.. code-block:: sh
+
+  $ ls ./tut01
+  report.html    report.md    sakura.css
+  $
+
+Open the file ``report.html`` using your browser (e.g., ``firefox
+tut01/report.html``), and the following page will appear:
 
 .. image:: images/tutorial-bare-report.png
    :width: 512
@@ -36,7 +89,7 @@ wrote a file named ``report.html``. Open it using your browser (e.g.,
 
 Among the many lines of text produced by the report, you can spot the
 presence of our «Hello, world!» message. Hurrah!
-           
+
 Let's have a look at what happened. The first line imports the
 ``litebird_sim`` framework; since the name is quite long, it's
 customary to shorten it to ``lbs``::
@@ -69,7 +122,7 @@ The report is actually written to disk only when
 
 This is the most basic usage of the :class:`.Simulation` class; for
 more information, refer to :ref:`simulations`.
-  
+
 In the next section, we will make something more interesting using the
 framework.
 
@@ -125,7 +178,7 @@ Our next example will use the IMO to run something more interesting::
       num=lft_file.metadata['number_of_channels'],
   )
   sim.flush()
-  
+
 If you run this program, it will produce a report containing the
 following message:
 
@@ -197,11 +250,12 @@ report::
 
   sim = lbs.Simulation(
       base_path="./tut04",
+      name="Simulation tutorial",
       start_time=0,
       duration_s=86400.,
   )
 
-  sim.generate_spin2ecl_quaternions(
+  sim.set_scanning_strategy(
       scanning_strategy=lbs.SpinningScanningStrategy(
           spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
           spin_rate_hz=0.5 / 60,     # Ditto
@@ -210,24 +264,28 @@ report::
           precession_rate_hz=1.0 / (4 * u.day).to("s").value,
       )
   )
-  instr = lbs.InstrumentInfo(
-      name="core",
-      spin_boresight_angle_rad=np.deg2rad(65),
-  )
-  det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
-  obs, = sim.create_observations(detectors=[det])
-  pointings = lbs.get_pointings(
-      obs,
-      sim.spin2ecliptic_quats,
-      detector_quats=[det.quat],
-      bore2spin_quat=instr.bore2spin_quat,
-  )[0]
 
-  nside = 64
-  pixidx = healpy.ang2pix(nside, pointings[:, 0], pointings[:, 1])
-  m = np.zeros(healpy.nside2npix(nside))
-  m[pixidx] = 1
-  healpy.mollview(m)
+  sim.set_instrument(
+      InstrumentInfo(
+          name="core",
+          spin_boresight_angle_rad=np.deg2rad(65),
+      ),
+  )
+
+  sim.set_hwp(IdealHWP(ang_speed_radpsec=0.1))
+
+  sim.create_observations(
+      detectors=lbs.DetectorInfo(name="foo", sampling_rate_hz=10),
+  )
+
+  sim.compute_pointings()
+
+  for cur_obs in sim.observations:
+      nside = 64
+      pixidx = healpy.ang2pix(nside, pointings[:, 0], pointings[:, 1])
+      m = np.zeros(healpy.nside2npix(nside))
+      m[pixidx] = 1
+      healpy.mollview(m)
 
   sim.append_to_report("""
 
@@ -253,18 +311,40 @@ with the report-generation facilities provided by our framework. As
 explained in :ref:`scanning-strategy`, the code above does the
 following things:
 
-1. It generates a set of quaternions that encode the orientation of
+1. It sets the scanning strategy, triggering the computation of set
+   of quaternions that encode the orientation of
    the spacecraft for the whole duration of the simulation (86,400
    seconds, that is one day);
-2. It creates an instance of the :class:`.InstrumentInfo` and
-   :class:`.DetectorInfo` classes that represent a boresightdetector;
-3. It generates a pointing information matrix;
-4. It produces a coverage map by setting to 1 all those pixels that
+2. It creates an instance of the class :class:`.InstrumentInfo` and
+   it registers them using the method
+   :meth:`.Simulation.set_instrument`;
+3. It instantiates a new class that represents an ideal Half-wave Plate
+   (HWP);
+4. It sets the detectors to be simulated and allocates the TODs through
+   the call to :meth:`.Simulation.create_observations`;
+5. It generates a pointing information matrix through the call to
+   :meth:`.Simulation.compute_pointings`;
+6. It produces a coverage map by setting to 1 all those pixels that
    are visited by the directions encoded in the pointing information
-   matrix.
-  
-Here is the part of the report containing the result:
-  
+   matrix. To do this, it iterates over all the instances of the
+   class :class:`.Observation` in the
+   :class:`.Simulation` object. (In this simple example, there is only
+   one :class:`.Observation`, but in more complex examples there can
+   be many of them.)
+
+If you run the example, you will see that the folder ``tut04`` will be
+populated with the following files:
+
+.. code-block:: sh
+
+  $ ls tut04
+  coverage_map.png  report.html  report.md  sakura.css
+  $
+
+A new file has appeared: ``coverage_map.png``. If you open the file
+``report.html``, you will get the map in the report (here the image
+has been cropped a bit, because the report is longer):
+
 .. image:: images/tutorial-coverage-map.png
    :width: 512
    :align: center

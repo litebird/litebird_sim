@@ -75,7 +75,7 @@ def get_pointings(
     The parameter `spin2ecliptic_quats` can be easily retrieved by
     the field `spin2ecliptic_quats` in a object of
     :class:`.Simulation` object, once the method
-    :meth:`.Simulation.generate_spin2ecl_quaternions` is called.
+    :meth:`.Simulation.set_scanning_strategy` is called.
 
     The parameter `bore2spin_quat` is calculated through the class
     :class:`.Instrument`, which has the field ``bore2spin_quat``.
