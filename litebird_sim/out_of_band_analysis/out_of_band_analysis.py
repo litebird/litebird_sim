@@ -306,47 +306,16 @@ def _dBodTth(nu):
     )
 
 
-def compute_polang_from_detname(detector_name):
-    detname = detector_name.split("_")
-    polname = detname[3]
-    if detname[0] == "000":
-        if polname == "QA":
-            if detname[-1] == "T":
-                polang = 0
-            if detname[-1] == "B":
-                polang = np.pi / 2
-        if polname == "QB":
-            if detname[-1] == "T":
-                polang = 0
-            if detname[-1] == "B":
-                polang = -np.pi / 2
-        if polname == "UA":
-            if detname[-1] == "T":
-                polang = np.pi / 4
-            if detname[-1] == "B":
-                polang = 3 * np.pi / 4
-        if polname == "UB":
-            if detname[-1] == "T":
-                polang = -np.pi / 4
-            if detname[-1] == "B":
-                polang = -3 * np.pi / 4
-    if detname[0] == "001":
-        polang = np.deg2rad(np.float(polname[:-1]))
-        if detname[-1] == "B":
-            polang += np.pi / 2
-        if polname[-1] == "B":
+def compute_polang_from_detquat(quat):
+    if quat[2] == 0:
+        polang = 0
+    else:
+        polang = 2 * np.arctan2(
+            np.sqrt(quat[0] ** 2 + quat[1] ** 2 + quat[2] ** 2), quat[3]
+        )
+        if quat[2] < 0:
             polang = -polang
-    if detname[0] == "002":
-        if polname == "Q":
-            if detname[-1] == "T":
-                polang = 0
-            if detname[-1] == "B":
-                polang = np.pi / 2
-        if polname == "U":
-            if detname[-1] == "T":
-                polang = np.pi / 4
-            if detname[-1] == "B":
-                polang = 3 * np.pi / 4
+
     return polang
 
 
@@ -686,7 +655,7 @@ class HwpSysAndBandpass:
                 pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
 
                 # separating polarization angle xi from obs.psi = psi + xi
-                xi = compute_polang_from_detname(cur_obs.name[idet])
+                xi = compute_polang_from_detquat(cur_obs.quat[idet])
                 print(np.rad2deg(xi))
                 psi = cur_psi - xi
 
