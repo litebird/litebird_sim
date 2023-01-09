@@ -79,7 +79,7 @@ def test_simulation_pointings_still():
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=0.0
     )
-    sim.generate_spin2ecl_quaternions(sstr, delta_time_s=60.0)
+    sim.set_scanning_strategy(sstr, delta_time_s=60.0)
     assert sim.spin2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
@@ -136,7 +136,7 @@ def test_simulation_two_detectors():
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=0.0
     )
-    sim.generate_spin2ecl_quaternions(sstr, delta_time_s=60.0)
+    sim.set_scanning_strategy(sstr, delta_time_s=60.0)
     assert sim.spin2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
@@ -175,7 +175,7 @@ def test_simulation_pointings_polangle(tmp_path):
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0 / 60
     )
-    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
@@ -211,7 +211,7 @@ def test_simulation_pointings_spinning(tmp_path):
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0
     )
-    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
 
@@ -254,7 +254,7 @@ def test_simulation_pointings_mjd(tmp_path):
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=10.0, precession_rate_hz=10.0, spin_rate_hz=0.1
     )
-    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=60.0)
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=60.0)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
 
@@ -286,7 +286,7 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=10.0, precession_rate_hz=10.0, spin_rate_hz=0.1
     )
-    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=60.0)
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=60.0)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
 
@@ -319,7 +319,7 @@ def test_scanning_quaternions(tmp_path):
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0
     )
-    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
     detector_quat = np.array([[0.0, 0.0, 0.0, 1.0]])

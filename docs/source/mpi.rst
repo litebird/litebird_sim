@@ -18,7 +18,8 @@ The framework can be forced to use MPI or not using the variable
 
 The framework provides a global variable, :data:`.MPI_COMM_WORLD`,
 which is the same as ``mpi4py.MPI.COMM_WORLD`` if MPI is being used.
-Otherwise, it contains only the following members:
+Otherwise, if MPI is **not** being used, it still contains the
+following members:
 
 - `rank` (set to ``0``);
 - `size` (set to ``1``).

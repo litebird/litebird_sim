@@ -40,14 +40,14 @@ scanning_strategy = lbs.SpinningScanningStrategy(
 
 # Generate the quaternions (one per each second)
 start = time.perf_counter_ns()
-sim.generate_spin2ecl_quaternions(
+sim.set_scanning_strategy(
     scanning_strategy=scanning_strategy, delta_time_s=1.0, append_to_report=False
 )
 stop = time.perf_counter_ns()
 elapsed_time = (stop - start) * 1.0e-9
 
 print(
-    "Elapsed time for generate_spin2ecl_quaternions: {} s".format(elapsed_time),
+    "Elapsed time for set_scanning_strategy: {} s".format(elapsed_time),
 )
 print("Shape of the quaternions: ", sim.spin2ecliptic_quats.quats.shape)
 print(

@@ -26,6 +26,9 @@ ECL_TO_GAL_ROT_MATRIX = (
     .value
 )
 
+"""
+The coordinate system used to express pointing angles.
+"""
 CoordinateSystem = Enum("CoordinateSystem", ["Ecliptic", "Galactic"])
 
 

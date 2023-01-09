@@ -119,7 +119,7 @@
 [26.069251, "o", "\r\u001b[K \u001b[KESC\b\b\bESC\u001b[KO\bO\u001b[KB\bB\r\u001b[K\u001b[m\r\n:\u001b[K"]
 [26.120067, "o", "\r\u001b[K \u001b[KESC\b\b\bESC\u001b[KO\bO\u001b[KB\bB\r\u001b[KWhen pointing information is needed, you can call the method\u001b[m\r\n:\u001b[K"]
 [26.170652, "o", "\r\u001b[K \u001b[KESC\b\b\bESC\u001b[KO\bO\u001b[KB\bB\r\u001b[K"]
-[26.170808, "o", ":meth:`.Simulation.generate_spin2ecl_quaternions`, which\u001b[m\r\n:\u001b[K"]
+[26.170808, "o", ":meth:`.Simulation.set_scanning_strategy`, which\u001b[m\r\n:\u001b[K"]
 [26.220977, "o", "\r\u001b[K \u001b[KESC\b\b\bESC\u001b[KO\bO\u001b[KB\bB\r\u001b[Kinitializes the members `pointing_freq_hz` and\u001b[m\r\n:\u001b[K"]
 [26.272197, "o", "\r\u001b[K \u001b[KESC\b\b\bESC\u001b[KO\bO\u001b[KB\bB\r\u001b[K`spin2ecliptic_quats`; these members are used by functions like\u001b[m\r\n:\u001b[K"]
 [26.322558, "o", "\r\u001b[K \u001b[KESC\b\b\bESC\u001b[KO\bO\u001b[KB\bB\r\u001b[K:func:`.get_pointings`.\u001b[m\r\n:\u001b[K"]
