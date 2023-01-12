@@ -1,6 +1,8 @@
 # HEAD
 
-    -   Implement new methods in the `Simulation` class: `set_scanning_strategy`, `set_instrument`, `set_hwp`, and deprecate `generate_spin2ecl_quaternions` [#217](https://github.com/litebird/litebird_sim/pull/217)
+-   Add links to the manual in the example notebook [#219](https://github.com/litebird/litebird_sim/pull/219)
+
+-   Implement new methods in the `Simulation` class: `set_scanning_strategy`, `set_instrument`, `set_hwp`, and deprecate `generate_spin2ecl_quaternions` [#217](https://github.com/litebird/litebird_sim/pull/217)
 
 -   Add `gzip_compression` keyword to `write_observations` [#214](https://github.com/litebird/litebird_sim/pull/214)
 
