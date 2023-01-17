@@ -22,7 +22,7 @@ COND_THRESHOLD = 1e10
 
 
 @njit
-def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
+def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, cthxi, sthxi):
 
     Tterm = 0.25 * (
         2
@@ -30,18 +30,20 @@ def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
         + h2 * (2 + h2)
         + z1 * z1
         + z2 * z2
-        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2) * (z1 + z2)) * mt.cos(th_xi)
-        - 2 * ((1 + h1) * z2 - (1 + h2) * z1 * cb) * mt.sin(th_xi)
+        + (h1 * (2 + h1) - h2 * (2 + h2) + (z1 - z2) * (z1 + z2)) * cthxi
+        - 2 * ((1 + h1) * z2 - (1 + h2) * z1 * cb) * sthxi
     )
 
     return Tterm
 
 
 @njit
-def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
+def compute_Qterm_for_one_sample(
+    h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, c4th, s4th
+):
 
     Qterm = (
-        0.25 * (h1 * (2 + h1) - h2 * (2 + h2) - z1 * z1 + z2 * z2) * mt.cos(th_psi)
+        0.25 * (h1 * (2 + h1) - h2 * (2 + h2) - z1 * z1 + z2 * z2) * cthp
         + 0.125
         * (
             2
@@ -55,7 +57,7 @@ def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
             - 2 * (1 + h2) * cb
             - 2 * h1 * (1 + h2) * cb
         )
-        * mt.cos(psi_xi)
+        * cpxi
         + 0.125
         * (
             2
@@ -64,20 +66,22 @@ def compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
             - (z1 + z2) * (z1 + z2)
             + 2 * (1 + h1) * (1 + h2) * cb
         )
-        * mt.cos(th_psi + th_xi)
-        + 0.125 * (-4 * (1 + h1) * z1 + 4 * (1 + h2) * z2 * cb) * mt.sin(th_psi)
-        + 0.25 * (z1 - z2) * (-1 - h1 + (1 + h2) * cb) * mt.sin(psi_xi)
-        - 0.25 * (z1 + z2) * (1 + h1 + (1 + h2) * cb) * mt.sin(th_psi + th_xi)
+        * c4th
+        + 0.125 * (-4 * (1 + h1) * z1 + 4 * (1 + h2) * z2 * cb) * sthp
+        + 0.25 * (z1 - z2) * (-1 - h1 + (1 + h2) * cb) * spxi
+        - 0.25 * (z1 + z2) * (1 + h1 + (1 + h2) * cb) * s4th
     )
 
     return Qterm
 
 
 @njit
-def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
+def compute_Uterm_for_one_sample(
+    h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, c4th, s4th
+):
 
     Uterm = (
-        0.125 * (4 * z1 + 4 * h1 * z1 - 4 * (1 + h2) * z2 * cb) * mt.cos(th_psi)
+        0.125 * (4 * z1 + 4 * h1 * z1 - 4 * (1 + h2) * z2 * cb) * cthp
         + 0.125
         * (
             2 * z1
@@ -87,7 +91,7 @@ def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
             - 2 * (1 + h2) * z1 * cb
             + 2 * (1 + h2) * z2 * cb
         )
-        * mt.cos(psi_xi)
+        * cpxi
         + (
             0.125 * (1 + h2) * (z1 + z2) * cb
             + 0.125
@@ -100,8 +104,8 @@ def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
                 + (1 + h2) * z2 * cb
             )
         )
-        * mt.cos(th_psi + th_xi)
-        + 0.25 * (h1 * (2 + h1) - h2 * (2 + h2) - z1 * z1 + z2 * z2) * mt.sin(th_psi)
+        * c4th
+        + 0.25 * (h1 * (2 + h1) - h2 * (2 + h2) - z1 * z1 + z2 * z2) * sthp
         + 0.125
         * (
             2
@@ -110,7 +114,7 @@ def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
             - (z1 - z2) * (z1 - z2)
             - 2 * (1 + h1) * (1 + h2) * cb
         )
-        * mt.sin(psi_xi)
+        * spxi
         + 0.125
         * (
             2
@@ -119,29 +123,71 @@ def compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
             - (z1 + z2) * (z1 + z2)
             + 2 * (1 + h1) * (1 + h2) * cb
         )
-        * mt.sin(th_psi + th_xi)
+        * s4th
     )
 
     return Uterm
 
 
 @njit
-def compute_signal_for_one_sample(T, Q, U, h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
+def compute_signal_for_one_sample(
+    T, Q, U, h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, cthxi, sthxi, c4th, s4th
+):
     """Bolometric equation"""
-    d = T * compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
-    d += Q * compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
-    d += U * compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
+    d = T * compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, cthxi, sthxi)
+
+    d += Q * compute_Qterm_for_one_sample(
+        h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, c4th, s4th
+    )
+
+    d += U * compute_Uterm_for_one_sample(
+        h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, c4th, s4th
+    )
+
     return d
 
 
 @njit
 def integrate_in_band_signal_for_one_sample(
-    T, Q, U, band, h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi
+    T,
+    Q,
+    U,
+    band,
+    h1,
+    h2,
+    cb,
+    z1,
+    z2,
+    cthp,
+    sthp,
+    cpxi,
+    spxi,
+    cthxi,
+    sthxi,
+    c4th,
+    s4th
+    # th_psi, th_xi, psi_xi
 ):
     tod = 0
     for i in range(len(band)):
         tod += band[i] * compute_signal_for_one_sample(
-            T[i], Q[i], U[i], h1[i], h2[i], cb[i], z1[i], z2[i], th_psi, th_xi, psi_xi
+            T[i],
+            Q[i],
+            U[i],
+            h1[i],
+            h2[i],
+            cb[i],
+            z1[i],
+            z2[i],
+            cthp,
+            sthp,
+            cpxi,
+            spxi,
+            cthxi,
+            sthxi,
+            c4th,
+            s4th
+            # th_psi, th_xi, psi_xi
         )
 
     return tod
@@ -162,9 +208,17 @@ def compute_signal_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            th_psi=2 * theta[i] + 2 * psi[i],
-            th_xi=2 * theta[i] - 2 * xi,
-            psi_xi=2 * psi[i] + 2 * xi,
+            cthp=np.cos(2 * theta[i] + 2 * psi[i]),
+            sthp=np.sin(2 * theta[i] + 2 * psi[i]),
+            cpxi=np.cos(2 * psi[i] + 2 * xi),
+            spxi=np.sin(2 * psi[i] + 2 * xi),
+            cthxi=np.cos(2 * theta[i] - 2 * xi),
+            sthxi=np.sin(2 * theta[i] - 2 * xi),
+            c4th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            s4th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            # th_psi=2 * theta[i] + 2 * psi[i],
+            # th_xi=2 * theta[i] - 2 * xi,
+            # psi_xi=2 * psi[i] + 2 * xi,
         )
 
 
@@ -184,30 +238,84 @@ def integrate_in_band_signal_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            th_psi=2 * theta[i] + 2 * psi[i],
-            th_xi=2 * theta[i] - 2 * xi,
-            psi_xi=2 * psi[i] + 2 * xi,
+            cthp=np.cos(2 * theta[i] + 2 * psi[i]),
+            sthp=np.sin(2 * theta[i] + 2 * psi[i]),
+            cpxi=np.cos(2 * psi[i] + 2 * xi),
+            spxi=np.sin(2 * psi[i] + 2 * xi),
+            cthxi=np.cos(2 * theta[i] - 2 * xi),
+            sthxi=np.sin(2 * theta[i] - 2 * xi),
+            c4th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            s4th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            # th_psi=2 * theta[i] + 2 * psi[i],
+            # th_xi=2 * theta[i] - 2 * xi,
+            # psi_xi=2 * psi[i] + 2 * xi,
         )
 
 
 @njit
-def compute_mueller_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi):
-    Tterm = compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
-    Qterm = compute_Qterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
-    Uterm = compute_Uterm_for_one_sample(h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi)
+def compute_mueller_for_one_sample(
+    h1,
+    h2,
+    cb,
+    z1,
+    z2,
+    cthp,
+    sthp,
+    cpxi,
+    spxi,
+    cthxi,
+    sthxi,
+    c4th,
+    s4th
+    # th_psi, th_xi, psi_xi
+):
+    Tterm = compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, cthxi, sthxi)
+    Qterm = compute_Qterm_for_one_sample(
+        h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, c4th, s4th
+    )
+    Uterm = compute_Uterm_for_one_sample(
+        h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, c4th, s4th
+    )
     return Tterm, Qterm, Uterm
 
 
 @njit
 def integrate_in_band_mueller_for_one_sample(
-    band, h1, h2, cb, z1, z2, th_psi, th_xi, psi_xi
+    band,
+    h1,
+    h2,
+    cb,
+    z1,
+    z2,
+    cthp,
+    sthp,
+    cpxi,
+    spxi,
+    cthxi,
+    sthxi,
+    c4th,
+    s4th
+    # th_psi, th_xi, psi_xi
 ):
     intTterm = 0
     intQterm = 0
     intUterm = 0
     for i in range(len(band)):
         Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
-            h1[i], h2[i], cb[i], z1[i], z2[i], th_psi, th_xi, psi_xi
+            h1[i],
+            h2[i],
+            cb[i],
+            z1[i],
+            z2[i],
+            cthp,
+            sthp,
+            cpxi,
+            spxi,
+            cthxi,
+            sthxi,
+            c4th,
+            s4th
+            # th_psi, th_xi, psi_xi
         )
         intTterm += band[i] * Tterm
         intQterm += band[i] * Qterm
@@ -228,9 +336,17 @@ def compute_atd_ata_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            th_psi=2 * theta[i] + 2 * psi[i],
-            th_xi=2 * theta[i] - 2 * xi,
-            psi_xi=2 * psi[i] + 2 * xi,
+            cthp=np.cos(2 * theta[i] + 2 * psi[i]),
+            sthp=np.sin(2 * theta[i] + 2 * psi[i]),
+            cpxi=np.cos(2 * psi[i] + 2 * xi),
+            spxi=np.sin(2 * psi[i] + 2 * xi),
+            cthxi=np.cos(2 * theta[i] - 2 * xi),
+            sthxi=np.sin(2 * theta[i] - 2 * xi),
+            c4th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            s4th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            # th_psi=2 * theta[i] + 2 * psi[i],
+            # th_xi=2 * theta[i] - 2 * xi,
+            # psi_xi=2 * psi[i] + 2 * xi,
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
@@ -257,9 +373,17 @@ def integrate_in_band_atd_ata_for_one_detector(
             cb=cb,
             z1=z1,
             z2=z2,
-            th_psi=2 * theta[i] + 2 * psi[i],
-            th_xi=2 * theta[i] - 2 * xi,
-            psi_xi=2 * psi[i] + 2 * xi,
+            cthp=np.cos(2 * theta[i] + 2 * psi[i]),
+            sthp=np.sin(2 * theta[i] + 2 * psi[i]),
+            cpxi=np.cos(2 * psi[i] + 2 * xi),
+            spxi=np.sin(2 * psi[i] + 2 * xi),
+            cthxi=np.cos(2 * theta[i] - 2 * xi),
+            sthxi=np.sin(2 * theta[i] - 2 * xi),
+            c4th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            s4th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            #  th_psi=2 * theta[i] + 2 * psi[i],
+            #  th_xi=2 * theta[i] - 2 * xi,
+            #  psi_xi=2 * psi[i] + 2 * xi,
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
