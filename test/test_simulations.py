@@ -253,3 +253,29 @@ def test_distribute_observation_astropy(tmp_path):
     assert len(obs_list) == 5
     assert int(obs_list[-1].get_times()[-1] - obs_list[0].get_times()[0]) == 10
     assert sum([o.n_samples for o in obs_list]) == sim.duration_s * det.sampling_rate_hz
+
+
+def test_describe_distribution(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=0.0,
+        duration_s=40.0,
+    )
+    det = lbs.DetectorInfo("dummy", sampling_rate_hz=10.0)
+
+    sim.create_observations(detectors=[det], num_of_obs_per_detector=4)
+    for obs in sim.observations:
+        obs.fg_tod = np.zeros_like(obs.tod, dtype="float64")
+        obs.dipole_tod = np.zeros_like(obs.tod, dtype="float32")
+
+    descr = sim.describe_mpi_distribution(tod_names=["tod", "fg_tod", "dipole_tod"])
+
+    assert len(descr.detectors) == 1
+    assert len(descr.mpi_processes) == lbs.MPI_COMM_WORLD.size
+
+    for mpi_proc in descr.mpi_processes:
+        for obs in mpi_proc.observations:
+            assert obs.det_names == ["dummy"]
+            assert obs.tod_names == ["tod", "fg_tod", "dipole_tod"]
+            assert obs.tod_shape == (1, 100)
+            assert obs.tod_dtype == ["float32", "float64", "float32"]
