@@ -113,8 +113,12 @@ class MpiObservationDescr:
 
     - `det_names` (list of ``str``): names of the detectors handled by
       this observation
-    - `tod_shape` (tuple of ``int``): shape of the TOD held by the observation
-    - `tod_dtype` (``str``): string representing the NumPy data type of the TOD
+    - `tod_names` (list of ``str``): names of the fields containing the TODs
+      (e.g., ``tod``, ``cmb_tod``, ``dipole_tod``, …)
+    - `tod_shape` (tuples of ``int``): shape of each TOD held by the observation.
+      This is *not* a list, because all the TODs are assumed to have the same shape
+    - `tod_dtype` (list of ``str``): string representing the NumPy data type of each
+      TODs, in the same order as in the field `tod_name`
     - `start_time` (either a ``float`` or a ``astropy.time.Time``): start date
       of the observation
     - `duration_s` (``float``): duration of the TOD in seconds
@@ -124,8 +128,9 @@ class MpiObservationDescr:
     """
 
     det_names: List[str]
+    tod_names: List[str]
     tod_shape: Optional[Tuple[int, int]]
-    tod_dtype: Optional[str]
+    tod_dtype: List[str]
     start_time: Union[float, astropy.time.Time]
     duration_s: float
     num_of_samples: int
@@ -179,8 +184,9 @@ class MpiDistributionDescr:
 - Start time: {start_time}
 - Duration: {duration_s} s
 - {num_of_detectors} detector(s) ({det_names})
+- TOD(s): {tod_names}
 - TOD shape: {tod_shape}
-- TOD dtype: {tod_dtype}
+- Type of the TODs: {tod_dtype}
 
 """.format(
                     obs_idx=cur_obs_idx,
@@ -188,8 +194,9 @@ class MpiDistributionDescr:
                     duration_s=cur_obs.duration_s,
                     num_of_detectors=len(cur_obs.det_names),
                     det_names=",".join(cur_obs.det_names),
+                    tod_names=", ".join(cur_obs.tod_names),
                     tod_shape="×".join([str(x) for x in cur_obs.tod_shape]),
-                    tod_dtype=cur_obs.tod_dtype,
+                    tod_dtype=", ".join(cur_obs.tod_dtype),
                 )
 
         return result
@@ -855,13 +862,19 @@ class Simulation:
             span.start_idx : (span.start_idx + span.num_of_elements)
         ]
 
-    def describe_mpi_distribution(self) -> Optional[MpiDistributionDescr]:
+    def describe_mpi_distribution(
+        self, tod_names: List[str] = ["tod"]
+    ) -> Optional[MpiDistributionDescr]:
         """Return a :class:`.MpiDistributionDescr` object describing observations
 
         This method returns a :class:`.MpiDistributionDescr` that describes the data
         stored in each MPI process running concurrently. It is a great debugging tool
         when you are using MPI, and it can be used for tasks where you have to carefully
         orchestrate they way different MPI processes run together.
+
+        The method registers the amount of memory required by each TOD; by default, only
+        the ``tod`` field of each observation is considered, but you can pass more than
+        one of them through the parameter ``tod_names`` (a list of strings).
 
         If this method is called before :meth:`.Simulation.create_observations`, it will
         return ``None``.
@@ -887,11 +900,21 @@ class Simulation:
         for obs in self.observations:
             cur_det_names = list(obs.name)
 
+            shapes = [tuple(getattr(obs, name).shape) for name in tod_names]
+            # Check that all the TODs have the same shape
+            if shapes:
+                for i in range(1, len(shapes)):
+                    assert shapes[0] == shapes[i], (
+                        f"TOD {tod_names[0]} and {tod_names[i]} have different shapes: "
+                        + f"{shapes[0]} vs {shapes[i]}"
+                    )
+
             observation_descr.append(
                 MpiObservationDescr(
                     det_names=cur_det_names,
-                    tod_shape=tuple(obs.tod.shape) if "tod" in dir(obs) else None,
-                    tod_dtype=obs.tod.dtype.name if "tod" in dir(obs) else None,
+                    tod_names=tod_names,
+                    tod_shape=shapes[0] if shapes else None,
+                    tod_dtype=[getattr(obs, name).dtype.name for name in tod_names],
                     start_time=obs.start_time,
                     duration_s=obs.n_samples / obs.sampling_rate_hz,
                     num_of_samples=obs.n_samples,

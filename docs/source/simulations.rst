@@ -385,15 +385,17 @@ example:
     - Start time: 0.0
     - Duration: 21600.0 s
     - 1 detector(s) (0A)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     ## Observation #1
     - Start time: 43200.0
     - Duration: 21600.0 s
     - 1 detector(s) (0A)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     # MPI rank #2
 
@@ -401,15 +403,17 @@ example:
     - Start time: 21600.0
     - Duration: 21600.0 s
     - 1 detector(s) (0A)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     ## Observation #1
     - Start time: 64800.0
     - Duration: 21600.0 s
     - 1 detector(s) (0A)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     # MPI rank #3
 
@@ -417,15 +421,17 @@ example:
     - Start time: 0.0
     - Duration: 21600.0 s
     - 1 detector(s) (0B)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     ## Observation #1
     - Start time: 43200.0
     - Duration: 21600.0 s
     - 1 detector(s) (0B)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     # MPI rank #4
 
@@ -433,15 +439,17 @@ example:
     - Start time: 21600.0
     - Duration: 21600.0 s
     - 1 detector(s) (0B)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     ## Observation #1
     - Start time: 64800.0
     - Duration: 21600.0 s
     - 1 detector(s) (0B)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
 The class :class:`.MpiDistributionDescr` contains a list
 of :class:`.MpiProcessDescr`, which describe the «contents»
