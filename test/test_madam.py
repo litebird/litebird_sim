@@ -38,8 +38,9 @@ def test_sort_obs_per_det():
                 observations=[
                     MpiObservationDescr(
                         det_names=["A"],
+                        tod_names=["tod"],
                         tod_shape=(0, 0),
-                        tod_dtype="float32",
+                        tod_dtype=["float32"],
                         start_time=2.0,
                         duration_s=1.0,
                         num_of_samples=1,
@@ -47,8 +48,9 @@ def test_sort_obs_per_det():
                     ),
                     MpiObservationDescr(
                         det_names=["A"],
+                        tod_names=["tod"],
                         tod_shape=(0, 0),
-                        tod_dtype="float32",
+                        tod_dtype=["float32"],
                         start_time=0.0,
                         duration_s=1.0,
                         num_of_samples=1,
@@ -61,8 +63,9 @@ def test_sort_obs_per_det():
                 observations=[
                     MpiObservationDescr(
                         det_names=["A"],
+                        tod_names=["tod"],
                         tod_shape=(0, 0),
-                        tod_dtype="float32",
+                        tod_dtype=["float32"],
                         start_time=1.0,
                         duration_s=1.0,
                         num_of_samples=1,
@@ -70,8 +73,9 @@ def test_sort_obs_per_det():
                     ),
                     MpiObservationDescr(
                         det_names=["A"],
+                        tod_names=["tod"],
                         tod_shape=(0, 0),
-                        tod_dtype="float32",
+                        tod_dtype=["float32"],
                         start_time=3.0,
                         duration_s=1.0,
                         num_of_samples=1,

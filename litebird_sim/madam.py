@@ -209,7 +209,7 @@ def save_simulation_for_madam(
     # Simulation.describe_mpi_distribution(), which returns a
     # description of the way observations are spread among the
     # MPI processes. This is *vital* to build correct FITS files
-    # for Madam, as the TODs of each detectors must be saved in
+    # for Madam, as the TODs of each detector must be saved in
     # files whose names contain an increasing integer index. We
     # use `distribution` to properly compute these indexes.
     #
@@ -244,7 +244,7 @@ def save_simulation_for_madam(
     if not components_to_bin:
         components_to_bin = components
 
-    distribution = sim.describe_mpi_distribution()
+    distribution = sim.describe_mpi_distribution(tod_names=components)
     assert distribution is not None
 
     if detectors is not None:
