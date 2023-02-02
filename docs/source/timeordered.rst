@@ -76,7 +76,7 @@ shows:
    # Create a map to scan (in realistic simulations,
    # use the MBS module provided by litebird_sim)
    maps = np.ones((3, npix))
-   in_map = {"Detector": maps}
+   in_map = {"Detector": maps, "Coordinates": lbs.CoordinateSystem.Ecliptic}
 
    # Here scan the map and fill tod
    lbs.scan_map_in_observations(
