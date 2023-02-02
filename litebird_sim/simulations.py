@@ -26,6 +26,10 @@ from .version import (
     __author__ as litebird_sim_author,
 )
 
+from .dipole import DipoleType, add_dipole_to_observations
+from .scan_map import scan_map_in_observations
+from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
+
 import astropy.time
 import astropy.units
 import markdown
@@ -1115,4 +1119,61 @@ class Simulation:
                 hwp_description=str(self.hwp) if self.hwp else "No HWP",
                 num_of_mpi_processes=MPI_COMM_WORLD.size,
                 memory_occupation=memory_occupation,
+            )
+
+    def compute_velocity(
+        self,
+        delta_time_s=86400.0,
+    ):
+
+        orbit = SpacecraftOrbit(self.start_time)
+
+        self.pos_and_vel = spacecraft_pos_and_vel(
+            orbit=orbit, obs=self.observations, delta_time_s=delta_time_s
+        )
+
+    def fill_tods(
+        self,
+        maps: Dict[str, np.ndarray],
+    ):
+        """Fills the tods scanning a map.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the methond
+        compute_pointings. maps is assumed to be produced by :class:`.Mbs`
+        """
+
+        scan_map_in_observations(
+            self.observations,
+            maps=maps,
+        )
+
+    def dipole(
+        self,
+        t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
+        dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
+        append_to_report: bool = True,
+    ):
+        """Fills the tod with dipole.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, the methond
+        :meth:`.compute_pointings` and :meth:`.compute_velocity`.
+        """
+
+        add_dipole_to_observations(
+            obs=self.observations,
+            pos_and_vel=self.pos_and_vel,
+            t_cmb_k=t_cmb_k,
+            dipole_type=dipole_type,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            # need to do this properly
+            self.append_to_report(
+                "## Dipole characteristics",
+                t_cmb_k=t_cmb_k,
+                dipole_type=dipole_type,
             )

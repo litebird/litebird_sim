@@ -862,6 +862,10 @@ class Mbs:
                             tot[nch], lmax=4 * self.params.nside
                         )
                     tot_dict[chnl] = tot[nch]
+                if self.params.maps_in_ecliptic:
+                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
+                else:
+                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Galactic
                 return (tot_dict, saved_maps)
 
         return (None, saved_maps)

@@ -90,7 +90,7 @@ def scan_map_in_observations(
     obs: Union[Observation, List[Observation]],
     maps: Dict[str, np.ndarray],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-    input_map_in_galactic: bool = True,
+    input_map_in_galactic: Union[bool, None] = True,
     component: str = "tod",
 ):
     """Scan a map filling time-ordered data
@@ -157,6 +157,7 @@ def scan_map_in_observations(
                     "The dictionary maps does not contain all the relevant"
                     + "keys, please check the list of detectors and channels"
                 )
+            input_map_in_galactic = maps["Coordinates"] is CoordinateSystem.Galactic
         else:
             assert isinstance(maps, np.ndarray), (
                 "maps must either a dictionary contaning keys for all the"
