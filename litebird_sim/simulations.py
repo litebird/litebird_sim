@@ -29,6 +29,7 @@ from .version import (
 from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
+from .noise import add_noise_to_observations
 
 import astropy.time
 import astropy.units
@@ -1176,4 +1177,29 @@ class Simulation:
                 "## Dipole characteristics",
                 t_cmb_k=t_cmb_k,
                 dipole_type=dipole_type,
+            )
+
+    def noise(
+        self,
+        noise_type: str = "one_over_f",
+        append_to_report: bool = True,
+    ):
+
+        """Adds noise to tods.
+
+        This method must be called after having set the instrument,
+        the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`.
+        """
+
+        add_noise_to_observations(
+            obs=self.observations,
+            noise_type=noise_type,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            # need to do this properly
+            self.append_to_report(
+                "## Noise characteristics",
+                noise_type=noise_type,
             )
