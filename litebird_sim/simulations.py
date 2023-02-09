@@ -1160,9 +1160,17 @@ class Simulation:
 
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, the methond
+        :meth:`.set_instrument` and :meth:`.add_detector`, the method
         :meth:`.compute_pointings` and :meth:`.compute_velocity`.
         """
+
+        try:
+            self.pos_and_vel
+        except NameError:
+            self.pos_and_vel = spacecraft_pos_and_vel(
+                orbit=SpacecraftOrbit(self.start_time),
+                obs=self.observations,
+            )
 
         add_dipole_to_observations(
             obs=self.observations,
