@@ -813,6 +813,10 @@ class Simulation:
         if not detectors:
             detectors = self.detectors
 
+        # if a single detector is passed, make it a list
+        if isinstance(detectors, DetectorInfo):
+            detectors = [detectors]
+
         observations = []
 
         duration_s = self.duration_s  # Cache the value to a local variable
@@ -1122,7 +1126,7 @@ class Simulation:
                 memory_occupation=memory_occupation,
             )
 
-    def compute_velocity(
+    def compute_pos_and_vel(
         self,
         delta_time_s=86400.0,
     ):
@@ -1150,7 +1154,7 @@ class Simulation:
             maps=maps,
         )
 
-    def dipole(
+    def add_dipole(
         self,
         t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
@@ -1160,13 +1164,11 @@ class Simulation:
 
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, the method
-        :meth:`.compute_pointings` and :meth:`.compute_velocity`.
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the pointing
+        through :meth:`.compute_pointings`.
         """
 
-        try:
-            self.pos_and_vel
-        except NameError:
+        if not hasattr(self, "pos_and_vel"):
             self.pos_and_vel = spacecraft_pos_and_vel(
                 orbit=SpacecraftOrbit(self.start_time),
                 obs=self.observations,
@@ -1180,14 +1182,16 @@ class Simulation:
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-            # need to do this properly
+            template_file_path = get_template_file_path("report_dipole.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
             self.append_to_report(
-                "## Dipole characteristics",
+                markdown_template,
                 t_cmb_k=t_cmb_k,
                 dipole_type=dipole_type,
             )
 
-    def noise(
+    def add_noise(
         self,
         noise_type: str = "one_over_f",
         append_to_report: bool = True,
@@ -1206,8 +1210,10 @@ class Simulation:
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-            # need to do this properly
+            template_file_path = get_template_file_path("report_noise.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
             self.append_to_report(
-                "## Noise characteristics",
+                markdown_template,
                 noise_type=noise_type,
             )
