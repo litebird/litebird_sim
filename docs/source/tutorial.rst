@@ -444,6 +444,10 @@ galactic dust, and correlated noise.::
 
   sim.flush()
 
+.. image:: images/tutorial-timeline.png
+   :width: 512
+   :align: center
+   :alt: Screenshot of part of the tutorial produced by our script
 
 The elements shown in these tutorials should allow you to generate more
 complex scripts. The next section detail the features of the framework
