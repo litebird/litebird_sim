@@ -1129,9 +1129,25 @@ class Simulation:
     def compute_pos_and_vel(
         self,
         delta_time_s=86400.0,
+        solar_velocity_km_s: float = 369.8160,
+        solar_velocity_gal_lat_rad: float = 0.842_173_724,
+        solar_velocity_gal_lon_rad: float = 4.608_035_744_4,
     ):
+        """Computes the position and the velocity of the spacescraft for computing
+        the dipole.
+        It wraps the :class:`.SpacecraftOrbit` and calls :meth:`.SpacecraftOrbit`.
+        The parameters that can be modified are the sampling of position and velocity
+        and the direction and amplitude of the solar dipole.
+        Default values for solar dipole from Planck 2018 Solar dipole (see arxiv:
+        1807.06207)
+        """
 
-        orbit = SpacecraftOrbit(self.start_time)
+        orbit = SpacecraftOrbit(
+            self.start_time,
+            solar_velocity_km_s=solar_velocity_km_s,
+            solar_velocity_gal_lat_rad=solar_velocity_gal_lat_rad,
+            solar_velocity_gal_lon_rad=solar_velocity_gal_lon_rad,
+        )
 
         self.pos_and_vel = spacecraft_pos_and_vel(
             orbit=orbit, obs=self.observations, delta_time_s=delta_time_s
@@ -1141,7 +1157,7 @@ class Simulation:
         self,
         maps: Dict[str, np.ndarray],
     ):
-        """Fills the tods scanning a map.
+        """Fills the TODs, scanning a map.
 
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
@@ -1169,10 +1185,7 @@ class Simulation:
         """
 
         if not hasattr(self, "pos_and_vel"):
-            self.pos_and_vel = spacecraft_pos_and_vel(
-                orbit=SpacecraftOrbit(self.start_time),
-                obs=self.observations,
-            )
+            self.compute_pos_and_vel()
 
         add_dipole_to_observations(
             obs=self.observations,
@@ -1183,12 +1196,20 @@ class Simulation:
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_dipole.md")
+
+            dip_lat_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lat_rad)
+            dip_lon_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lon_rad)
+            dip_velocity = self.pos_and_vel.orbit.solar_velocity_km_s
+
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
             self.append_to_report(
                 markdown_template,
                 t_cmb_k=t_cmb_k,
                 dipole_type=dipole_type,
+                dip_lat_deg=dip_lat_deg,
+                dip_lon_deg=dip_lon_deg,
+                dip_velocity=dip_velocity,
             )
 
     def add_noise(
@@ -1215,5 +1236,5 @@ class Simulation:
                 markdown_template = "".join(inpf.readlines())
             self.append_to_report(
                 markdown_template,
-                noise_type=noise_type,
+                noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
