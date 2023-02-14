@@ -16,7 +16,7 @@ import litebird_sim
 from . import HWP
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
-from .healpix import write_healpix_map_to_file
+from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
@@ -1156,6 +1156,7 @@ class Simulation:
     def fill_tods(
         self,
         maps: Dict[str, np.ndarray],
+        append_to_report: bool = True,
     ):
         """Fills the TODs, scanning a map.
 
@@ -1169,6 +1170,35 @@ class Simulation:
             self.observations,
             maps=maps,
         )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_scan_map.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            if type(maps) is dict:
+                if "Mbs_parameters" in maps.keys():
+
+                    if maps["Mbs_parameters"].make_fg:
+                        fg_model = maps["Mbs_parameters"].fg_models
+                    else:
+                        fg_model = "N/A"
+
+                    self.append_to_report(
+                        markdown_template,
+                        nside=maps["Mbs_parameters"].nside,
+                        has_cmb=maps["Mbs_parameters"].make_cmb,
+                        has_fg=maps["Mbs_parameters"].make_fg,
+                        fg_model=fg_model,
+                    )
+            else:
+                nside = npix_to_nside(len(maps[0]))
+                self.append_to_report(
+                    markdown_template,
+                    nside=nside,
+                    has_cmb="N/A",
+                    has_fg="N/A",
+                    fg_model="N/A",
+                )
 
     def add_dipole(
         self,

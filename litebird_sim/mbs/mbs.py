@@ -866,6 +866,9 @@ class Mbs:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
                 else:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Galactic
+
+                tot_dict["Mbs_parameters"] = self.params
+
                 return (tot_dict, saved_maps)
 
         return (None, saved_maps)

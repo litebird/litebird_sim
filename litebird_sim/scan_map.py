@@ -163,10 +163,10 @@ def scan_map_in_observations(
                 dict_input_map_in_galactic = (
                     maps["Coordinates"] is CoordinateSystem.Galactic
                 )
-                if dict_input_map_in_galactic == input_map_in_galactic:
+                if dict_input_map_in_galactic != input_map_in_galactic:
                     logging.warning(
                         "input_map_in_galactic variable in scan_map_in_observations"
-                        + "overwritten!"
+                        + " overwritten!"
                     )
                 input_map_in_galactic = dict_input_map_in_galactic
         else:
