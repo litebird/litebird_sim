@@ -7,7 +7,7 @@ import numpy as np
 import scipy as sp
 from numba import njit
 
-from litebird_sim import Observation
+from .observations import Observation
 
 
 def nearest_pow2(data):

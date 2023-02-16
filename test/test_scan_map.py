@@ -71,7 +71,11 @@ def test_scan_map():
     maps = np.random.normal(0, 1, (3, npix))
 
     # This part tests the ecliptic coordinates
-    in_map = {"Boresight_detector_T": maps, "Boresight_detector_B": maps}
+    in_map = {
+        "Boresight_detector_T": maps,
+        "Boresight_detector_B": maps,
+        "Coordinates": lbs.CoordinateSystem.Ecliptic,
+    }
 
     (obs1,) = sim.create_observations(detectors=[detT, detB])
     (obs2,) = sim.create_observations(detectors=[detT, detB])
@@ -115,7 +119,11 @@ def test_scan_map():
     r = hp.Rotator(coord=["E", "G"])
     maps = r.rotate_map_alms(maps, use_pixel_weights=False)
 
-    in_map_G = {"Boresight_detector_T": maps, "Boresight_detector_B": maps}
+    in_map_G = {
+        "Boresight_detector_T": maps,
+        "Boresight_detector_B": maps,
+        "Coordinates": lbs.CoordinateSystem.Galactic,
+    }
 
     (obs1,) = sim.create_observations(detectors=[detT, detB])
 
@@ -184,7 +192,7 @@ def test_scanning_list_of_obs(tmp_path):
     base_map = np.zeros((3, lbs.nside_to_npix(128)))
 
     # This part tests the ecliptic coordinates
-    maps = {"A": base_map, "B": base_map}
+    maps = {"A": base_map, "B": base_map, "Coordinates": lbs.CoordinateSystem.Ecliptic}
 
     # Just call the function and check that it does not raise any of the
     # "assert" that are placed at the beginning to check the consistency
@@ -241,7 +249,7 @@ def test_scanning_list_of_obs_in_other_component(tmp_path):
     # Create fake maps containing only nonzero pixels
     base_map = np.ones((3, lbs.nside_to_npix(128)))
 
-    maps = {"A": base_map, "B": base_map}
+    maps = {"A": base_map, "B": base_map, "Coordinates": lbs.CoordinateSystem.Galactic}
 
     for cur_obs in sim.observations:
         cur_obs.fg_tod = np.zeros_like(cur_obs.tod)

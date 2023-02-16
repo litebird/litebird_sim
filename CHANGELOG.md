@@ -1,5 +1,7 @@
 # HEAD
 
+-   Implement new methods in the `Simulation` class: `fill_tods`, `compute_pos_and_vel`, `add_dipole` and `add_noise` [#221](https://github.com/litebird/litebird_sim/pull/221)
+
 -   **Breaking change**: add multiple TOD support to `describe_mpi_distribution` and make the field `MpiObservationDescr.tod_dtype` a list of strings [#220](https://github.com/litebird/litebird_sim/pull/220)
 
 -   Add links to the manual in the example notebook [#219](https://github.com/litebird/litebird_sim/pull/219)

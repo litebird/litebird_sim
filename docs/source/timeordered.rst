@@ -76,7 +76,7 @@ shows:
    # Create a map to scan (in realistic simulations,
    # use the MBS module provided by litebird_sim)
    maps = np.ones((3, npix))
-   in_map = {"Detector": maps}
+   in_map = {"Detector": maps, "Coordinates": lbs.CoordinateSystem.Ecliptic}
 
    # Here scan the map and fill tod
    lbs.scan_map_in_observations(
@@ -271,6 +271,82 @@ Again, to generate noise with custom parameters, we can either use the low-level
    )
 
    lbs.noise.add_noise_to_observations(obs, 'one_over_f')
+
+
+Methods of class simulation
+---------------------------
+
+The class :class:`.simulation` provides two simple functions that fill
+with sky signal and nosie all the observations of a given simulation.
+The function :func:`.simulation.fill_tods` takes a map and scans it, while
+the function :func:`.simulation.add_noise` adds noise to the timelines.
+Thanks to these functions the generation of a simulation becomes quite
+transparent:
+
+.. testcode::
+
+  import litebird_sim as lbs
+  from astropy.time import Time
+  import numpy as np
+
+  start_time = 0
+  time_span_s = 1000.0
+  sampling_hz = 10.0
+  nside = 128
+
+  sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+
+  # We pick a simple scanning strategy where the spin axis is aligned
+  # with the Sun-Earth axis, and the spacecraft spins once every minute
+  sim.set_scanning_strategy(
+      lbs.SpinningScanningStrategy(
+          spin_sun_angle_rad=np.deg2rad(0),
+          precession_rate_hz=0,
+          spin_rate_hz=1 / 60,
+          start_time=start_time,
+      ),
+      delta_time_s=5.0,
+   )
+
+  # We simulate an instrument whose boresight is perpendicular to
+  # the spin axis.
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          boresight_rotangle_rad=0.0,
+          spin_boresight_angle_rad=np.deg2rad(90),
+          spin_rotangle_rad=np.deg2rad(75),
+      )
+  )
+
+  # A simple detector looking along the boresight direction
+  det = lbs.DetectorInfo(
+      name="Boresight_detector",
+      sampling_rate_hz=sampling_hz,
+      bandcenter_ghz=100.0,
+      net_ukrts=50.0,
+  )
+
+  sim.create_observations(detectors=det)
+
+  sim.compute_pointings()
+
+  sky_signal = np.ones((3,12*nside*nside))*1e-4
+
+  sim.fill_tods(sky_signal)
+
+  sim.add_noise(noise_type='white')
+
+  for i in range(5):
+      print(f"{sim.observations[0].tod[0][i]:.5e}")
+
+.. testoutput::
+
+    4.14241e-04
+    5.46700e-05
+    3.03378e-04
+    6.13974e-05
+    4.72613e-05
+    
 
 API reference
 -------------
