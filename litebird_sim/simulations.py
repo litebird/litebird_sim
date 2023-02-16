@@ -1245,6 +1245,7 @@ class Simulation:
     def add_noise(
         self,
         noise_type: str = "one_over_f",
+        random: Union[np.random.Generator, None] = None,
         append_to_report: bool = True,
     ):
 
@@ -1255,9 +1256,13 @@ class Simulation:
         :meth:`.set_instrument` and :meth:`.add_detector`.
         """
 
+        if random is None:
+            random = self.random
+
         add_noise_to_observations(
             obs=self.observations,
             noise_type=noise_type,
+            random=random,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

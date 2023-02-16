@@ -175,7 +175,71 @@ simple instrument, and it zooms over the very first points to show
 that there is indeed some difference in the estimate provided by each
 method.
 
+The class :class:`.simulation` provides two simple functions that compute
+poisition and velocity of the spacescraft :func:`.simulation.compute_pos_and_vel`, 
+and add the solar and orbital dipole to all the observations of a given 
+simulation :func:`.simulation.add_dipole`.
+
+.. testcode::
+
+  import litebird_sim as lbs
+  from astropy.time import Time
+  import numpy as np
+
+  start_time = Time("2025-01-01")
+  time_span_s = 1000.0
+  sampling_hz = 10.0
+
+  sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+
+  # We pick a simple scanning strategy where the spin axis is aligned
+  # with the Sun-Earth axis, and the spacecraft spins once every minute
+  sim.set_scanning_strategy(
+      lbs.SpinningScanningStrategy(
+          spin_sun_angle_rad=np.deg2rad(0),
+          precession_rate_hz=0,
+          spin_rate_hz=1 / 60,
+          start_time=start_time,
+      ),
+      delta_time_s=5.0,
+   )
+
+  # We simulate an instrument whose boresight is perpendicular to
+  # the spin axis.
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          boresight_rotangle_rad=0.0,
+          spin_boresight_angle_rad=np.deg2rad(90),
+          spin_rotangle_rad=np.deg2rad(75),
+      )
+  )
+
+  # A simple detector looking along the boresight direction
+  det = lbs.DetectorInfo(
+      name="Boresight_detector",
+      sampling_rate_hz=sampling_hz,
+      bandcenter_ghz=100.0,
+  )
+
+  sim.create_observations(detectors=det)
+
+  sim.compute_pointings()
+
+  sim.compute_pos_and_vel()
+
+  sim.add_dipole()
+
+  print(sim.observations[0].tod[0,0:5])
+
+.. testoutput::
+
+    0.00344963
+    0.00345207
+    0.00345413
+    0.00345582
+    0.00345712
            
+
 API reference
 -------------
 
