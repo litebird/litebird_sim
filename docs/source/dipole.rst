@@ -229,15 +229,16 @@ simulation :func:`.simulation.add_dipole`.
 
   sim.add_dipole()
 
-  print(sim.observations[0].tod[0,0:5])
+  for i in range(5):
+      print(f"{sim.observations[0].tod[0][i]:.5e}")
 
 .. testoutput::
 
-    0.00344963
-    0.00345207
-    0.00345413
-    0.00345582
-    0.00345712
+   3.44963e-03
+   3.45207e-03
+   3.45413e-03
+   3.45582e-03
+   3.45712e-03
            
 
 API reference

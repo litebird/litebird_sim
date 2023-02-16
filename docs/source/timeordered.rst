@@ -336,15 +336,16 @@ transparent:
 
   sim.add_noise(noise_type='white')
 
-  print(sim.observations[0].tod[0,0:5])
+  for i in range(5):
+      print(f"{sim.observations[0].tod[0][i]:.5e}")
 
 .. testoutput::
 
-    4.2823073e-04
-    6.7715075e-05
-    3.1547085e-04
-    7.2531089e-05
-    5.7426725e-05
+    4.28231e-04
+    6.77151e-05
+    3.15471e-04
+    7.25311e-05
+    5.74267e-05
 
 
 API reference
