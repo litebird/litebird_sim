@@ -175,6 +175,10 @@ simple instrument, and it zooms over the very first points to show
 that there is indeed some difference in the estimate provided by each
 method.
 
+
+Methods of class simulation
+---------------------------
+
 The class :class:`.simulation` provides two simple functions that compute
 poisition and velocity of the spacescraft :func:`.simulation.compute_pos_and_vel`, 
 and add the solar and orbital dipole to all the observations of a given 
@@ -239,7 +243,7 @@ simulation :func:`.simulation.add_dipole`.
    3.45413e-03
    3.45582e-03
    3.45712e-03
-           
+
 
 API reference
 -------------
