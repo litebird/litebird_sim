@@ -440,7 +440,7 @@ def save_simulation_for_madam(
             "madam_destriped_file_name": "destriped.fits"
             if params.return_destriped_map
             else "",
-            "madam_baseline_file_name": "baselines.fits",
+            "madam_baseline_file_name": "baselines.fits" if params.return_baselines_map else "",
             "madam_binned_file_name": "binned.fits" if params.return_binned_map else "",
             "madam_cov_file_name": "cov.fits" if params.return_npp else "",
             "madam_hit_file_name": "hits.fits" if params.return_hit_map else "",
