@@ -89,16 +89,16 @@ def add_one_over_f_noise(
     # makes a white noise timestream with unit variance
     noise = random.normal(0, 1, noiselen)
 
-    ft = sp.fft.fft(noise, n=noiselen)
+    noise = sp.fft.fft(noise, n=noiselen)
     freqs = sp.fft.fftfreq(noiselen, d=1 / (2 * sampling_rate_hz))
 
     # filters the white noise in the frequency domain with the 1/f filter
-    build_one_over_f_model(ft, freqs, fknee_mhz, fmin_hz, alpha, sigma)
+    build_one_over_f_model(noise, freqs, fknee_mhz, fmin_hz, alpha, sigma)
 
     # transforms the data back to the time domain
-    ifft = sp.fft.ifft(ft)
+    noise = sp.fft.ifft(noise)
 
-    data += np.real(ifft[: len(data)])
+    data += np.real(noise[: len(data)])
 
 
 def rescale_noise(net_ukrts: float, sampling_rate_hz: float, scale: float):
