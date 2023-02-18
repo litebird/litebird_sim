@@ -225,7 +225,7 @@ def _rotate_coordinates_e2g_for_all(pointings_ecl, pointings_gal):
       coordinates
     """
 
-    for i in range(len(pointings_ecl[0])):
+    for i in range(len(pointings_ecl[:, 0])):
         pointings_gal[i, :] = _rotate_coordinates_e2g_for_one_sample(
             pointings_ecl[i, :]
         )
@@ -253,7 +253,7 @@ def _rotate_coordinates_and_pol_e2g_for_all(
       ``(N)`` polarization angle (in radians) in gal actic coordinates
     """
 
-    for i in range(len(pointings_ecl[0])):
+    for i in range(len(pointings_ecl[:, 0])):
         (
             pointings_gal[i, :],
             pol_angle_gal[i],
