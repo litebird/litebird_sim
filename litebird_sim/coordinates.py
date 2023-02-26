@@ -91,31 +91,36 @@ def vec2ang(vx, vy, vz):
 
 
 @njit
-def _ang2vec_for_one_sample(theta, phi):
-    """Transform a direction theta,phi to a unit vector.
+def _ang2galvec_one_sample(theta, phi):
+    """Transform a direction (theta, phi) in Ecliptic coordinates to
+    a unit vector in Galactic coordinates.
 
     Parameters
     ----------
     theta : float, scalar
-      The angle theta
+      The angle θ (colatitude) in Ecliptic coordinates
     phi : float, scalar
-      The angle phi.
+      The angle φ (longitude) in Ecliptic coordinates
 
     Returns
     -------
-    vec : array
-      The vector(s) corresponding to given angles, shape is (3,).
+    vx, vy, vz : float
+      A tuple of three floats
 
     See Also
     --------
     https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L657
     """
+
+    rotmatr = ECL_TO_GAL_ROT_MATRIX
     st = np.sin(theta)
-    vec = np.empty((3), np.float64)
-    vec[0] = st * np.cos(phi)
-    vec[1] = st * np.sin(phi)
-    vec[2] = np.cos(theta)
-    return vec
+    vx, vy, vz = st * np.cos(phi), st * np.sin(phi), np.cos(theta)
+
+    return (
+        rotmatr[0, 0] * vx + rotmatr[0, 1] * vy + rotmatr[0, 2] * vz,
+        rotmatr[1, 0] * vx + rotmatr[1, 1] * vy + rotmatr[1, 2] * vz,
+        rotmatr[2, 0] * vx + rotmatr[2, 1] * vy + rotmatr[2, 2] * vz,
+    )
 
 
 @njit
@@ -133,18 +138,15 @@ def _vec2ang_for_one_sample(vx, vy, vz):
 
     Returns
     -------
-    angles : float, array
-      The angles in radiants in an array of shape (2, N)
+    theta, phi : float
+      A tuple containing the value of the colatitude and of the longitude
 
     See Also
     --------
     https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L610
     """
 
-    ang = np.empty((2))
-    ang[0] = np.arctan2(np.sqrt(vx**2 + vy**2), vz)
-    ang[1] = np.arctan2(vy, vx)
-    return ang
+    return (np.arctan2(np.sqrt(vx**2 + vy**2), vz), np.arctan2(vy, vx))
 
 
 @njit
@@ -158,20 +160,13 @@ def _rotate_coordinates_e2g_for_one_sample(pointings_ecl):
 
     Returns
     -------
-    pointings_gal : array
-      ``(2)`` array containing the colatitude and the longitude in galactic
-      coordinates
+    pointings_gal : 2-tuple of floats
+      The value of θ and φ (colatitude and longitude) in Galactic coordinates
 
     """
 
-    vec = np.dot(
-        ECL_TO_GAL_ROT_MATRIX,
-        _ang2vec_for_one_sample(pointings_ecl[0], pointings_ecl[1]),
-    )
-
-    pointings_gal = _vec2ang_for_one_sample(vec[0], vec[1], vec[2])
-
-    return pointings_gal
+    vec = (_ang2galvec_one_sample(pointings_ecl[0], pointings_ecl[1]),)
+    return _vec2ang_for_one_sample(vec[0], vec[1], vec[2])
 
 
 @njit
@@ -189,23 +184,22 @@ def _rotate_coordinates_and_pol_e2g_for_one_sample(pointings_ecl, pol_angle_ecl)
 
     Returns
     -------
-    pointings_gal : array
-      ``(2)`` array containing the colatitude and the longitude in galactic
-      coordinates
+    pointings_gal : 2-tuple of floats
+      The value of θ and φ (colatitude and longitude) in Galactic coordinates
 
-    pol_angle_gal: array
+    pol_angle_gal: float
       polarization angle (in radians) in galactic coordinates
     """
 
-    vec = np.dot(
-        ECL_TO_GAL_ROT_MATRIX,
-        _ang2vec_for_one_sample(pointings_ecl[0], pointings_ecl[1]),
-    )
-
+    vec = _ang2galvec_one_sample(pointings_ecl[0], pointings_ecl[1])
     pointings_gal = _vec2ang_for_one_sample(vec[0], vec[1], vec[2])
 
     sinalpha = NORTH_POLE_VEC[0] * vec[1] - NORTH_POLE_VEC[1] * vec[0]
-    cosalpha = NORTH_POLE_VEC[2] - vec[2] * np.dot(NORTH_POLE_VEC, vec)
+    cosalpha = NORTH_POLE_VEC[2] - vec[2] * (
+        NORTH_POLE_VEC[0] * vec[0]
+        + NORTH_POLE_VEC[1] * vec[1]
+        + NORTH_POLE_VEC[2] * vec[2]
+    )
     pol_angle_gal = pol_angle_ecl + np.arctan2(sinalpha, cosalpha)
 
     return pointings_gal, pol_angle_gal
@@ -226,9 +220,9 @@ def _rotate_coordinates_e2g_for_all(pointings_ecl, pointings_gal):
     """
 
     for i in range(len(pointings_ecl[:, 0])):
-        pointings_gal[i, :] = _rotate_coordinates_e2g_for_one_sample(
-            pointings_ecl[i, :]
-        )
+        cur_theta, cur_phi = _rotate_coordinates_e2g_for_one_sample(pointings_ecl[i, :])
+        pointings_gal[i, 0] = cur_theta
+        pointings_gal[i, 1] = cur_phi
 
 
 @njit
@@ -255,11 +249,15 @@ def _rotate_coordinates_and_pol_e2g_for_all(
 
     for i in range(len(pointings_ecl[:, 0])):
         (
-            pointings_gal[i, :],
-            pol_angle_gal[i],
+            cur_direction,
+            cur_pol_angle,
         ) = _rotate_coordinates_and_pol_e2g_for_one_sample(
             pointings_ecl[i, :], pol_angle_ecl[i]
         )
+
+        pointings_gal[i, 0] = cur_direction[0]
+        pointings_gal[i, 1] = cur_direction[1]
+        pol_angle_gal[i] = cur_pol_angle
 
 
 def rotate_coordinates_e2g(pointings_ecl, pol_angle_ecl=None):
