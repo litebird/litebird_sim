@@ -1,5 +1,7 @@
 # HEAD
 
+# Version 0.9.0
+
 -   Some memory optimization in pointing production [#222](https://github.com/litebird/litebird_sim/pull/222), coordinate rotation and noise [#223](https://github.com/litebird/litebird_sim/pull/223)
 
 -   Implement new methods in the `Simulation` class: `fill_tods`, `compute_pos_and_vel`, `add_dipole` and `add_noise` [#221](https://github.com/litebird/litebird_sim/pull/221)
