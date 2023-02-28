@@ -208,6 +208,12 @@ The following code will read the TOML file above and produce a list of
 
 .. testoutput::
 
+    Band is not apodized
+    Band is not apodized
+    Band is not apodized
+    Band is not apodized
+    Band is not apodized
+    Band is not apodized
     1. foo1: band center at 65.0 GHz
     2. foo1: band center at 65.0 GHz
     3. foo2: band center at 66.0 GHz
@@ -263,6 +269,8 @@ each stage of the simulation:
 
 .. testoutput::
 
+   Band is not apodized
+   Band is not apodized
    Detectors to be used in the first simulation:
    - foo1
    Detectors to be used in the second simulation:

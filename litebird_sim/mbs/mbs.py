@@ -680,15 +680,22 @@ class Mbs:
                 fg_map_matrix = np.zeros((n_channels, 3, npix))
 
             for Nchnl, chnl in enumerate(channels):
-                freq = instr[chnl].bandcenter_ghz
+                if hasattr(instr[chnl], "band"):
+                    freq = instr[chnl].band.bandcenter_ghz
+                else:
+                    freq = instr[chnl].bandcenter_ghz
                 fwhm_arcmin = instr[chnl].fwhm_arcmin
                 if self.params.bandpass_int:
-                    band = instr[chnl].bandwidth_ghz
-                    fmin = freq - band / 2.0
-                    fmax = freq + band / 2.0
-                    fsteps = int(np.ceil(fmax - fmin) + 1)
-                    bandpass_frequencies = np.linspace(fmin, fmax, fsteps) * u.GHz
-                    weights = np.ones(len(bandpass_frequencies))
+                    if hasattr(instr[chnl], "band"):
+                        bandpass_frequencies = instr[chnl].band.freqs_ghz
+                        weights = instr[chnl].band.weights
+                    else:
+                        band = instr[chnl].bandwidth_ghz
+                        fmin = freq - band / 2.0
+                        fmax = freq + band / 2.0
+                        fsteps = int(np.ceil(fmax - fmin) + 1)
+                        bandpass_frequencies = np.linspace(fmin, fmax, fsteps) * u.GHz
+                        weights = np.ones(len(bandpass_frequencies))
                     sky_extrap = sky.get_emission(bandpass_frequencies, weights)
                     sky_extrap = sky_extrap * pysm3.bandpass_unit_conversion(
                         bandpass_frequencies, weights, self.pysm_units
@@ -698,6 +705,7 @@ class Mbs:
                     sky_extrap = sky_extrap.to(
                         self.pysm_units, equivalencies=u.cmb_equivalencies(freq * u.GHz)
                     )
+
                 if smooth:
                     sky_extrap_smt = hp.smoothing(
                         sky_extrap,
