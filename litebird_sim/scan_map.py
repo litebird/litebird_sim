@@ -15,6 +15,8 @@ from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 
 from .healpix import npix_to_nside
 
+import logging
+
 
 @njit
 def compute_signal_for_one_sample(T, Q, U, co, si):
@@ -157,6 +159,16 @@ def scan_map_in_observations(
                     "The dictionary maps does not contain all the relevant"
                     + "keys, please check the list of detectors and channels"
                 )
+            if "Coordinates" in maps.keys():
+                dict_input_map_in_galactic = (
+                    maps["Coordinates"] is CoordinateSystem.Galactic
+                )
+                if dict_input_map_in_galactic != input_map_in_galactic:
+                    logging.warning(
+                        "input_map_in_galactic variable in scan_map_in_observations"
+                        + " overwritten!"
+                    )
+                input_map_in_galactic = dict_input_map_in_galactic
         else:
             assert isinstance(maps, np.ndarray), (
                 "maps must either a dictionary contaning keys for all the"

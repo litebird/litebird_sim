@@ -16,7 +16,7 @@ import litebird_sim
 from . import HWP
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
-from .healpix import write_healpix_map_to_file
+from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation, TodDescription
@@ -25,6 +25,11 @@ from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
+
+from .dipole import DipoleType, add_dipole_to_observations
+from .scan_map import scan_map_in_observations
+from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
+from .noise import add_noise_to_observations
 
 import astropy.time
 import astropy.units
@@ -852,6 +857,10 @@ class Simulation:
         if not detectors:
             detectors = self.detectors
 
+        # if a single detector is passed, make it a list
+        if isinstance(detectors, DetectorInfo):
+            detectors = [detectors]
+
         observations = []
 
         duration_s = self.duration_s  # Cache the value to a local variable
@@ -1176,4 +1185,152 @@ class Simulation:
                 hwp_description=str(self.hwp) if self.hwp else "No HWP",
                 num_of_mpi_processes=MPI_COMM_WORLD.size,
                 memory_occupation=memory_occupation,
+            )
+
+    def compute_pos_and_vel(
+        self,
+        delta_time_s=86400.0,
+        solar_velocity_km_s: float = 369.8160,
+        solar_velocity_gal_lat_rad: float = 0.842_173_724,
+        solar_velocity_gal_lon_rad: float = 4.608_035_744_4,
+    ):
+        """Computes the position and the velocity of the spacescraft for computing
+        the dipole.
+        It wraps the :class:`.SpacecraftOrbit` and calls :meth:`.SpacecraftOrbit`.
+        The parameters that can be modified are the sampling of position and velocity
+        and the direction and amplitude of the solar dipole.
+        Default values for solar dipole from Planck 2018 Solar dipole (see arxiv:
+        1807.06207)
+        """
+
+        orbit = SpacecraftOrbit(
+            self.start_time,
+            solar_velocity_km_s=solar_velocity_km_s,
+            solar_velocity_gal_lat_rad=solar_velocity_gal_lat_rad,
+            solar_velocity_gal_lon_rad=solar_velocity_gal_lon_rad,
+        )
+
+        self.pos_and_vel = spacecraft_pos_and_vel(
+            orbit=orbit, obs=self.observations, delta_time_s=delta_time_s
+        )
+
+    def fill_tods(
+        self,
+        maps: Dict[str, np.ndarray],
+        append_to_report: bool = True,
+    ):
+        """Fills the TODs, scanning a map.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the methond
+        compute_pointings. maps is assumed to be produced by :class:`.Mbs`
+        """
+
+        scan_map_in_observations(
+            self.observations,
+            maps=maps,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_scan_map.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            if type(maps) is dict:
+                if "Mbs_parameters" in maps.keys():
+
+                    if maps["Mbs_parameters"].make_fg:
+                        fg_model = maps["Mbs_parameters"].fg_models
+                    else:
+                        fg_model = "N/A"
+
+                    self.append_to_report(
+                        markdown_template,
+                        nside=maps["Mbs_parameters"].nside,
+                        has_cmb=maps["Mbs_parameters"].make_cmb,
+                        has_fg=maps["Mbs_parameters"].make_fg,
+                        fg_model=fg_model,
+                    )
+            else:
+                nside = npix_to_nside(len(maps[0]))
+                self.append_to_report(
+                    markdown_template,
+                    nside=nside,
+                    has_cmb="N/A",
+                    has_fg="N/A",
+                    fg_model="N/A",
+                )
+
+    def add_dipole(
+        self,
+        t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
+        dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
+        append_to_report: bool = True,
+    ):
+        """Fills the tod with dipole.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the pointing
+        through :meth:`.compute_pointings`.
+        """
+
+        if not hasattr(self, "pos_and_vel"):
+            self.compute_pos_and_vel()
+
+        add_dipole_to_observations(
+            obs=self.observations,
+            pos_and_vel=self.pos_and_vel,
+            t_cmb_k=t_cmb_k,
+            dipole_type=dipole_type,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_dipole.md")
+
+            dip_lat_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lat_rad)
+            dip_lon_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lon_rad)
+            dip_velocity = self.pos_and_vel.orbit.solar_velocity_km_s
+
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                t_cmb_k=t_cmb_k,
+                dipole_type=dipole_type,
+                dip_lat_deg=dip_lat_deg,
+                dip_lon_deg=dip_lon_deg,
+                dip_velocity=dip_velocity,
+            )
+
+    def add_noise(
+        self,
+        noise_type: str = "one_over_f",
+        random: Union[np.random.Generator, None] = None,
+        append_to_report: bool = True,
+    ):
+
+        """Adds noise to tods.
+
+        This method must be called after having set the instrument,
+        the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`.
+        """
+
+        if random is None:
+            random = self.random
+
+        add_noise_to_observations(
+            obs=self.observations,
+            noise_type=noise_type,
+            random=random,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_noise.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )

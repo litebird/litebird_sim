@@ -95,6 +95,8 @@ computer or on a HPC cluster.
 <!-- USAGE EXAMPLES -->
 ## Usage
 
+An example notebook is avalable [here](https://github.com/litebird/litebird_sim/blob/master/notebooks/litebird_sim_example.ipynb). 
+
 The documentation is available online at
 [litebird-sim.readthedocs.io/en/master/](https://litebird-sim.readthedocs.io/en/master/).
 

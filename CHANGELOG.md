@@ -1,6 +1,14 @@
 # HEAD
 
+# Version 0.9.0
+
+-   Some memory optimization in pointing production [#222](https://github.com/litebird/litebird_sim/pull/222), coordinate rotation and noise [#223](https://github.com/litebird/litebird_sim/pull/223)
+
+-   Implement new methods in the `Simulation` class: `fill_tods`, `compute_pos_and_vel`, `add_dipole` and `add_noise` [#221](https://github.com/litebird/litebird_sim/pull/221)
+
 -   **Breaking change**: add multiple TOD support to `describe_mpi_distribution` and make the field `MpiObservationDescr.tod_dtype` a list of strings [#220](https://github.com/litebird/litebird_sim/pull/220)
+
+-   Add links to the manual in the example notebook [#219](https://github.com/litebird/litebird_sim/pull/219)
 
 -   Implement new methods in the `Simulation` class: `set_scanning_strategy`, `set_instrument`, `set_hwp`, and deprecate `generate_spin2ecl_quaternions` [#217](https://github.com/litebird/litebird_sim/pull/217)
 

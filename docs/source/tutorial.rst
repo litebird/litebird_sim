@@ -6,7 +6,9 @@ Tutorial
 This section contains a short tutorial that describes how to get ready
 to use the framework. It assumes that you have already installed the
 ``litebird_sim`` framework; refer to :ref:`installation_procedure`.
-
+For a nice and exhaustive example on how to use the framework in the 
+LiteBIRD case see the `example notebook <https://github.com/litebird
+/litebird_sim/blob/master/notebooks/litebird_sim_example.ipynb>`_.
 
 A «Hello world» example
 -----------------------
@@ -266,13 +268,13 @@ report::
   )
 
   sim.set_instrument(
-      InstrumentInfo(
+      lbs.InstrumentInfo(
           name="core",
           spin_boresight_angle_rad=np.deg2rad(65),
       ),
   )
 
-  sim.set_hwp(IdealHWP(ang_speed_radpsec=0.1))
+  sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=0.1))
 
   sim.create_observations(
       detectors=lbs.DetectorInfo(name="foo", sampling_rate_hz=10),
@@ -282,7 +284,7 @@ report::
 
   for cur_obs in sim.observations:
       nside = 64
-      pixidx = healpy.ang2pix(nside, pointings[:, 0], pointings[:, 1])
+      pixidx = healpy.ang2pix(nside, cur_obs.pointings[0, :, 0], cur_obs.pointings[0, :, 1])
       m = np.zeros(healpy.nside2npix(nside))
       m[pixidx] = 1
       healpy.mollview(m)
@@ -350,6 +352,103 @@ has been cropped a bit, because the report is longer):
    :align: center
    :alt: Screenshot of part of the tutorial produced by our script
 
-The elements shown in this tutorial should allow you to generate more
+
+Creating a signal plus noise timeline 
+-------------------------------------
+
+Here we generate a 10 minutes timeline which contains dipole, cmb signal,
+galactic dust, and correlated noise.::
+
+  import litebird_sim as lbs
+  import healpy, numpy as np
+  import matplotlib.pylab as plt
+  from astropy import units, time
+
+  sim = lbs.Simulation(
+      base_path="./tut05",
+      name="Simulation tutorial",
+      start_time=time.Time("2025-01-01T00:00:00"),
+      duration_s=10 * units.minute.to("s"),
+      )
+
+  sim.set_scanning_strategy(
+      scanning_strategy=lbs.SpinningScanningStrategy(
+          spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
+          spin_rate_hz=0.5 / 60,     # Ditto
+          precession_rate_hz=1.0 / (4 * units.day).to("s").value,
+      )
+  )
+
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          name="core",
+          spin_boresight_angle_rad=np.deg2rad(65),
+      ),
+  )
+
+  sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=0.1))
+
+  detector = lbs.DetectorInfo(
+      name="foo", 
+      sampling_rate_hz=10.0, 
+      bandcenter_ghz = 200.0,
+      net_ukrts = 50.0,
+      fknee_mhz = 20.0,
+      fmin_hz = 1e-05,
+      alpha=1.0,
+  )
+
+  Mbsparams = lbs.MbsParameters(
+      nside=128,
+      make_cmb=True,
+      make_fg=True,
+      fg_models=["pysm_dust_0"],
+  )
+
+  mbs = lbs.Mbs(
+      simulation=sim,
+      parameters=Mbsparams,
+      detector_list=detector
+  )
+  maps = mbs.run_all()[0]
+
+  sim.create_observations(
+      detectors=detector,
+  )
+
+  sim.compute_pointings()
+
+  sim.add_dipole()
+
+  sim.add_noise()
+
+  sim.fill_tods(maps=maps)
+
+  times = sim.observations[0].get_times()-sim.observations[0].start_time.cxcsec
+
+  plt.plot(times,sim.observations[0].tod[0,:])
+  plt.xlabel("Time [s]")
+  plt.ylabel("Signal [K]")
+
+  sim.append_to_report("""
+
+  ## Timeline
+
+  Here 10 minutes timeline:
+
+  ![](timeline.png)
+
+  """,
+  figures=[(plt.gcf(), "timeline.png")],
+  )
+
+  sim.flush()
+
+.. image:: images/tutorial-timeline.png
+   :width: 512
+   :align: center
+   :alt: Screenshot of part of the tutorial produced by our script
+
+The elements shown in these tutorials should allow you to generate more
 complex scripts. The next section detail the features of the framework
 in greater detail.
