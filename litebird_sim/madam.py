@@ -244,7 +244,7 @@ def save_simulation_for_madam(
     if not components_to_bin:
         components_to_bin = components
 
-    distribution = sim.describe_mpi_distribution(tod_names=components)
+    distribution = sim.describe_mpi_distribution()
     assert distribution is not None
 
     if detectors is not None:
