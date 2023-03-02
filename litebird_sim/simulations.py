@@ -19,7 +19,7 @@ from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file
 from .imo.imo import Imo
 from .mpi import MPI_COMM_WORLD
-from .observations import Observation
+from .observations import Observation, TodDescription
 from .pointings import get_pointings
 from .version import (
     __version__ as litebird_sim_version,
@@ -119,6 +119,8 @@ class MpiObservationDescr:
       This is *not* a list, because all the TODs are assumed to have the same shape
     - `tod_dtype` (list of ``str``): string representing the NumPy data type of each
       TODs, in the same order as in the field `tod_name`
+    - `tod_description` (list of ``str``): list of human-readable descriptions
+      for each TOD, in the same order as in the field `tod_name`
     - `start_time` (either a ``float`` or a ``astropy.time.Time``): start date
       of the observation
     - `duration_s` (``float``): duration of the TOD in seconds
@@ -131,6 +133,7 @@ class MpiObservationDescr:
     tod_names: List[str]
     tod_shape: Optional[Tuple[int, int]]
     tod_dtype: List[str]
+    tod_description: List[str]
     start_time: Union[float, astropy.time.Time]
     duration_s: float
     num_of_samples: int
@@ -305,6 +308,8 @@ class Simulation:
         self.description = description
 
         self.random = None
+
+        self.tod_list = []  # type: List[TodDescription]
 
         if imo:
             self.imo = imo
@@ -755,7 +760,10 @@ class Simulation:
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
-        dtype_tod=np.float32,
+        dtype_tod: Optional[Any] = None,
+        tods: List[TodDescription] = [
+            TodDescription(name="tod", dtype=np.float32, description="Signal")
+        ],
     ):
         """Create a set of Observation objects.
 
@@ -789,12 +797,48 @@ class Simulation:
         observation, `n_blocks_time=3` means that each observation
         will cover one month.
 
-        The parameter `dtype_tod` specifies the data type to be used
-        for the samples in the timestream. The default is
-        ``numpy.float32``, which should be adequate for LiteBIRD's
-        purposes; if you want greater accuracy at the expense of
-        doubling memory occupation, choose ``numpy.float64``.
+        The parameter `tods` specifies how many TOD arrays should be
+        created. Each element should be an instance of
+        :class:`.TodType` and contain the fields ``name`` (the name
+        of the member variable that will be created), ``dtype`` (the
+        NumPy type to use, like ``numpy.float32``), and ``description``
+        (a free-form description). The default is ``numpy.float32``,
+        which should be adequate for LiteBIRD's purposes; if you
+        want greater accuracy at the expense of doubling memory
+        occupation, choose ``numpy.float64``.
 
+        If you specify `dtype_tod`, this will be used as the parameter
+        for each TOD specified in `tods`, overriding the value of `dtype`.
+        This keyword is kept for legacy reasons but should be avoided
+        in newer code.
+
+        Here is an example that creates three TODs::
+
+            sim.create_observations(
+                [det1, det2],
+                tods=[
+                    TodType(
+                        name="fg_tod",
+                        dtype=np.float32,
+                        description="Foregrounds (computed by PySM)",
+                    ),
+                    TodType(
+                        name="cmb_tod",
+                        dtype=np.float32,
+                        description="CMB realization following Planck (2018)",
+                    ),
+                    TodType(
+                        name="noise_tod",
+                        dtype=np.float32,
+                        description="Noise TOD (only white noise, no 1/f)",
+                    ),
+                ],
+            )
+
+            # Now you can access these fields:
+            # - sim.fg_tod
+            # - sim.cmb_tod
+            # - sim.noise_tod
         """
 
         assert (
@@ -818,6 +862,14 @@ class Simulation:
 
         cur_time = self.start_time
 
+        if not dtype_tod:
+            self.tod_list = tods
+        else:
+            self.tod_list = [
+                TodDescription(name=x.name, dtype=dtype_tod, description=x.description)
+                for x in tods
+            ]
+
         for cur_obs_idx in range(num_of_obs_per_detector):
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(
@@ -829,7 +881,7 @@ class Simulation:
                 n_blocks_time=n_blocks_time,
                 comm=(None if split_list_over_processes else self.mpi_comm),
                 root=0,
-                dtype_tod=dtype_tod,
+                tods=self.tod_list,
             )
             observations.append(cur_obs)
 
@@ -845,6 +897,18 @@ class Simulation:
             self.observations = observations
 
         return observations
+
+    def get_tod_names(self) -> List[str]:
+        return [x.name for x in self.tod_list]
+
+    def get_tod_dtypes(self) -> List[Any]:
+        return [x.dtype for x in self.tod_list]
+
+    def get_tod_descriptions(self) -> List[str]:
+        return [x.description for x in self.tod_list]
+
+    def get_list_of_tods(self) -> List[TodDescription]:
+        return self.tod_list
 
     def distribute_workload(self, observations: List[Observation]):
         if self.mpi_comm.size == 1:
@@ -862,19 +926,13 @@ class Simulation:
             span.start_idx : (span.start_idx + span.num_of_elements)
         ]
 
-    def describe_mpi_distribution(
-        self, tod_names: List[str] = ["tod"]
-    ) -> Optional[MpiDistributionDescr]:
+    def describe_mpi_distribution(self) -> Optional[MpiDistributionDescr]:
         """Return a :class:`.MpiDistributionDescr` object describing observations
 
         This method returns a :class:`.MpiDistributionDescr` that describes the data
         stored in each MPI process running concurrently. It is a great debugging tool
         when you are using MPI, and it can be used for tasks where you have to carefully
         orchestrate they way different MPI processes run together.
-
-        The method registers the amount of memory required by each TOD; by default, only
-        the ``tod`` field of each observation is considered, but you can pass more than
-        one of them through the parameter ``tod_names`` (a list of strings).
 
         If this method is called before :meth:`.Simulation.create_observations`, it will
         return ``None``.
@@ -900,21 +958,24 @@ class Simulation:
         for obs in self.observations:
             cur_det_names = list(obs.name)
 
-            shapes = [tuple(getattr(obs, name).shape) for name in tod_names]
+            shapes = [
+                tuple(getattr(obs, cur_tod.name).shape) for cur_tod in self.tod_list
+            ]
             # Check that all the TODs have the same shape
             if shapes:
                 for i in range(1, len(shapes)):
                     assert shapes[0] == shapes[i], (
-                        f"TOD {tod_names[0]} and {tod_names[i]} have different shapes: "
-                        + f"{shapes[0]} vs {shapes[i]}"
+                        f"TOD {self.tod_list[0].name} and {self.tod_list[i].name} "
+                        + f"have different shapes: {shapes[0]} vs {shapes[i]}"
                     )
 
             observation_descr.append(
                 MpiObservationDescr(
                     det_names=cur_det_names,
-                    tod_names=tod_names,
+                    tod_names=self.get_tod_names(),
                     tod_shape=shapes[0] if shapes else None,
-                    tod_dtype=[getattr(obs, name).dtype.name for name in tod_names],
+                    tod_dtype=self.get_tod_dtypes(),
+                    tod_description=self.get_tod_descriptions(),
                     start_time=obs.start_time,
                     duration_s=obs.n_samples / obs.sampling_rate_hz,
                     num_of_samples=obs.n_samples,
