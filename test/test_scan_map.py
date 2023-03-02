@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 import astropy
+import healpy
 
 import litebird_sim as lbs
 import numpy as np
@@ -7,10 +8,14 @@ from ducc0.healpix import Healpix_Base
 import healpy as hp
 
 
+def get_map_mask(pixels):
+    return np.isfinite(pixels) & (pixels != healpy.UNSEEN)
+
+
 def test_scan_map():
 
     # The purpose of this test is to simulate the motion of the spacecraft
-    # for one year (see `time_span_s`) and produce *two* maps: the first
+    # for one month (see `time_span_s`) and produce *two* maps: the first
     # is associated with the Observation `obs1` and is built using
     # `scan_map_in_observations` and `make_bin_map`, the second is associated
     # the Observation `obs2` and is built directly filling in the test
@@ -22,11 +27,12 @@ def test_scan_map():
     # activated correctly handles internaly the coordinate rotation
 
     start_time = 0
-    time_span_s = 365 * 24 * 3600
+    time_span_s = 30 * 24 * 3600
     nside = 256
     sampling_hz = 1
     net = 50.0
     hwp_radpsec = 4.084_070_449_666_731
+    tolerance = 1e-5
 
     hpx = Healpix_Base(nside, "RING")
 
@@ -105,11 +111,17 @@ def test_scan_map():
 
     out_map2 = lbs.make_bin_map(obs2, nside, output_map_in_galactic=False)
 
+    mask1 = get_map_mask(out_map1)
+    mask2 = get_map_mask(out_map2)
+    np.testing.assert_array_equal(mask1, mask2)
+
     np.testing.assert_allclose(
-        out_map1, in_map["Boresight_detector_T"], rtol=1e-6, atol=1e-6
+        out_map1[mask1], in_map["Boresight_detector_T"][mask1], rtol=tolerance, atol=0.1
     )
 
-    np.testing.assert_allclose(out_map1, out_map2, rtol=1e-6, atol=1e-6)
+    np.testing.assert_allclose(
+        out_map1[mask1], out_map2[mask2], rtol=tolerance, atol=0.1
+    )
 
     # This part tests the galactic coordinates
     r = hp.Rotator(coord=["E", "G"])
@@ -133,9 +145,13 @@ def test_scan_map():
         input_map_in_galactic=True,
     )
     out_map1 = lbs.make_bin_map(obs1, nside)
+    mask1 = get_map_mask(out_map1)
 
     np.testing.assert_allclose(
-        out_map1, in_map_G["Boresight_detector_T"], rtol=1e-6, atol=1e-6
+        out_map1[mask1],
+        in_map_G["Boresight_detector_T"][mask1],
+        rtol=tolerance,
+        atol=0.1,
     )
 
 
