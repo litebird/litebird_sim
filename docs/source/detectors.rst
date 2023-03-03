@@ -168,7 +168,6 @@ with four detectors. Here is a summary of its contents:
       foo3: band center at 67.0 GHz
       foo4: band center at 68.0 GHz
 
-
 Now, let's turn back to the problem of specifying a set of detectors
 in a parameter file. The following TOML file shows some of the
 possibilities granted by the framework:
@@ -220,7 +219,6 @@ The following code will read the TOML file above and produce a list of
     4. foo_boresight: band center at 65.0 GHz
     5. planck30GHz: band center at 28.4 GHz
     6. foo1: band center at 65.0 GHz
-
 
 You are not forced to use ``detectors`` as the name of the parameter
 in the TOML file, as :func:`.detector_list_from_parameters` accepts a

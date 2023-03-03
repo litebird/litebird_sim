@@ -208,7 +208,7 @@ def add_dipole(
 
         nu_hz = frequency_ghz[detector_idx] * 1e9  # freq in GHz
         # Note that x is a dimensionless parameter
-        x = h.value * nu_hz / (k_B.value * t_cmb_k)
+        x = c.H_OVER_K_B * nu_hz / t_cmb_k
 
         f_x = x * np.exp(x) / (np.exp(x) - 1)
 

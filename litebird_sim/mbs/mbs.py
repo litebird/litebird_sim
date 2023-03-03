@@ -167,8 +167,10 @@ class MbsParameters:
 
     - ``sun_velocity`` (default: ``None``): this list specifies the
       direction, latitude (rad) and longitude (rad) in galactic coordinates,
-      and the amplitude in Km/s of the dipole.
-      If ``None`` these values are taken from the :class:`.spacecraft.SpacecraftOrbit`.
+      and the amplitude in Km/s of the dipole.If ``None`` these values
+      are taken `.constants`. The dipole implemented is the "Linear
+      approximation in β using thermodynamic units" as in
+      :class:``.dipole.DipoleType``.
 
     - ``output_string`` (default: ``""``): a string used to build the
       file names of the Healpix FITS files saved by the :class:`.Mbs`
@@ -337,13 +339,13 @@ class Mbs:
             len(self.ch_list)
         except TypeError:
             self.ch_list = [self.ch_list]
-        for c in self.ch_list:
-            name = c.channel.replace(" ", "_")
+        for ch in self.ch_list:
+            name = ch.channel.replace(" ", "_")
             self.instrument[name] = _InstrumentFreq(
-                bandcenter_ghz=c.bandcenter_ghz,
-                bandwidth_ghz=c.bandwidth_ghz,
-                fwhm_arcmin=c.fwhm_arcmin,
-                p_sens_ukarcmin=c.pol_sensitivity_channel_ukarcmin,
+                bandcenter_ghz=ch.bandcenter_ghz,
+                bandwidth_ghz=ch.bandwidth_ghz,
+                fwhm_arcmin=ch.fwhm_arcmin,
+                p_sens_ukarcmin=ch.pol_sensitivity_channel_ukarcmin,
             )
 
     def _parse_instrument(self):
@@ -779,12 +781,6 @@ class Mbs:
         if rank == 0 and self.params.save:
             output_directory.mkdir(parents=True, exist_ok=True)
 
-        if rank != 0:
-            if not self.params.save:
-                return (dict_dipole, saved_maps)
-            else:
-                return (None, saved_maps)
-
         if sun_velocity is None:
             sun_velocity = (
                 c.SOLAR_VELOCITY_GAL_LAT_RAD,
@@ -816,7 +812,7 @@ class Mbs:
 
             if self.params.save:
                 file_name = f"{chnl}_dipole_{file_str}.fits"
-                cur_map_path = cmp_dir / file_name
+                cur_map_path = output_directory / file_name
                 lbs.write_healpix_map_to_file(
                     cur_map_path, sky_dipole, column_units=col_units
                 )
