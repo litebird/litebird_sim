@@ -15,6 +15,7 @@ import pysm3
 import pysm3.units as u
 
 import litebird_sim as lbs
+from litebird_sim import constants as c
 
 
 @dataclass
@@ -93,6 +94,8 @@ class MbsParameters:
 
     - Foreground signal (use ``make_fg=True``);
 
+    - Solar dipole signal (use ``make_dipole=True``)
+
     - Noise (use ``make_noise=True``); this should be used only when
       running map-based simulations, because if you are creating
       time-ordered data, chances are that you want to inject noise
@@ -159,6 +162,14 @@ class MbsParameters:
       which associates a name to a component, e.g., ``{"ame":
       "pysm_ame_1"}``.
 
+    - ``make_dipole` (default: ``False``): when ``True``, a solar dipole
+      map is added to the maps
+
+    - ``sun_velocity`` (default: ``None``): this list specifies the
+      direction, latitude (rad) and longitude (rad) in galactic coordinates,
+      and the amplitude in Km/s of the dipole.
+      If ``None`` these values are taken from the :class:`.spacecraft.SpacecraftOrbit`.
+
     - ``output_string`` (default: ``""``): a string used to build the
       file names of the Healpix FITS files saved by the :class:`.Mbs`
       class.
@@ -191,6 +202,8 @@ class MbsParameters:
     seed_cmb: Union[int, None] = None
     make_fg: bool = False
     fg_models: Union[Dict[str, Any], None] = None
+    make_dipole: bool = False
+    sun_velocity: Union[list, None] = None
     output_string: Union[str, None] = None
     units: str = "K_CMB"
     maps_in_ecliptic: bool = False
@@ -589,14 +602,23 @@ class Mbs:
             )
 
             for Nchnl, chnl in enumerate(channels):
-                freq = instr[chnl].bandcenter_ghz
+                if hasattr(instr[chnl], "band"):
+                    freq = instr[chnl].band.bandcenter_ghz
+                else:
+                    freq = instr[chnl].bandcenter_ghz
+
                 if self.params.bandpass_int:
-                    band = instr[chnl].bandwidth_ghz
-                    fmin = freq - band / 2.0
-                    fmax = freq + band / 2.0
-                    fsteps = int(np.ceil(fmax - fmin) + 1)
-                    bandpass_frequencies = np.linspace(fmin, fmax, fsteps) * u.GHz
-                    weights = np.ones(len(bandpass_frequencies))
+                    if hasattr(instr[chnl], "band"):
+                        bandpass_frequencies = instr[chnl].band.freqs_ghz
+                        weights = instr[chnl].band.weights
+                    else:
+                        band = instr[chnl].bandwidth_ghz
+                        fmin = freq - band / 2.0
+                        fmax = freq + band / 2.0
+                        fsteps = int(np.ceil(fmax - fmin) + 1)
+                        bandpass_frequencies = np.linspace(fmin, fmax, fsteps) * u.GHz
+                        weights = np.ones(len(bandpass_frequencies))
+
                     cmb_map = sky.get_emission(bandpass_frequencies, weights)
                     cmb_map = cmb_map * pysm3.bandpass_unit_conversion(
                         bandpass_frequencies, weights, self.pysm_units
@@ -696,6 +718,7 @@ class Mbs:
                         fsteps = int(np.ceil(fmax - fmin) + 1)
                         bandpass_frequencies = np.linspace(fmin, fmax, fsteps) * u.GHz
                         weights = np.ones(len(bandpass_frequencies))
+
                     sky_extrap = sky.get_emission(bandpass_frequencies, weights)
                     sky_extrap = sky_extrap * pysm3.bandpass_unit_conversion(
                         bandpass_frequencies, weights, self.pysm_units
@@ -729,6 +752,82 @@ class Mbs:
 
         if not self.params.save:
             return (dict_fg, saved_maps)
+        else:
+            return (None, saved_maps)
+
+    def generate_dipole(self):
+        parallel = self.params.parallel_mc
+        instr = self.instrument
+        nside = self.params.nside
+        npix = hp.nside2npix(nside)
+        root_dir = self.sim.base_path
+        output_directory = root_dir / "dipole"
+        sun_velocity = self.params.sun_velocity
+        file_str = self.params.output_string
+        channels = instr.keys()
+        n_channels = len(channels)
+        col_units = [self.params.units]
+        saved_maps = []
+
+        if parallel:
+            comm = lbs.MPI_COMM_WORLD
+            rank = comm.Get_rank()
+        else:
+            comm = None
+            rank = 0
+
+        if rank == 0 and self.params.save:
+            output_directory.mkdir(parents=True, exist_ok=True)
+
+        if rank != 0:
+            if not self.params.save:
+                return (dict_dipole, saved_maps)
+            else:
+                return (None, saved_maps)
+
+        if sun_velocity is None:
+            sun_velocity = (
+                c.SOLAR_VELOCITY_GAL_LAT_RAD,
+                c.SOLAR_VELOCITY_GAL_LON_RAD,
+                c.SOLAR_VELOCITY_KM_S,
+            )
+
+        dipvec = (
+            hp.ang2vec(sun_velocity[0], sun_velocity[1])
+            * sun_velocity[2]
+            / c.C_LIGHT_KM_S
+            * c.T_CMB_K
+        )
+
+        dipole = np.dot(dipvec, hp.pix2vec(nside, np.arange(npix))) * u.K_CMB
+
+        if not self.params.save:
+            dipole_map_matrix = np.zeros((n_channels, npix))
+
+        for Nchnl, chnl in enumerate(channels):
+            if hasattr(instr[chnl], "band"):
+                freq = instr[chnl].band.bandcenter_ghz
+            else:
+                freq = instr[chnl].bandcenter_ghz
+
+            sky_dipole = dipole.to(
+                self.pysm_units, equivalencies=u.cmb_equivalencies(freq * u.GHz)
+            )
+
+            if self.params.save:
+                file_name = f"{chnl}_dipole_{file_str}.fits"
+                cur_map_path = cmp_dir / file_name
+                lbs.write_healpix_map_to_file(
+                    cur_map_path, sky_dipole, column_units=col_units
+                )
+                saved_maps.append(
+                    MbsSavedMapInfo(path=cur_map_path, component="dipole", channel=chnl)
+                )
+            else:
+                dipole_map_matrix[Nchnl] = sky_dipole
+
+        if not self.params.save:
+            return (dipole_map_matrix, saved_maps)
         else:
             return (None, saved_maps)
 
@@ -854,6 +953,14 @@ class Mbs:
             if not self.params.save:
                 for cmp in fg.keys():
                     tot += fg[cmp]
+
+        if self.params.make_dipole:
+            log.info("generating and saving dipole")
+            dipole, dipole_map = self.generate_dipole()
+            saved_maps += dipole_map
+
+            if not self.params.save:
+                tot[:, 0, :] += dipole
 
         if self.params.maps_in_ecliptic:
             r = hp.Rotator(coord=["G", "E"])

@@ -13,6 +13,7 @@ from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 
 import litebird_sim
+from litebird_sim import constants as c
 from . import HWP
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
@@ -1129,9 +1130,9 @@ class Simulation:
     def compute_pos_and_vel(
         self,
         delta_time_s=86400.0,
-        solar_velocity_km_s: float = 369.8160,
-        solar_velocity_gal_lat_rad: float = 0.842_173_724,
-        solar_velocity_gal_lon_rad: float = 4.608_035_744_4,
+        solar_velocity_km_s: float = c.SOLAR_VELOCITY_KM_S,
+        solar_velocity_gal_lat_rad: float = c.SOLAR_VELOCITY_GAL_LAT_RAD,
+        solar_velocity_gal_lon_rad: float = c.SOLAR_VELOCITY_GAL_LON_RAD,
     ):
         """Computes the position and the velocity of the spacescraft for computing
         the dipole.
@@ -1202,7 +1203,7 @@ class Simulation:
 
     def add_dipole(
         self,
-        t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
+        t_cmb_k: float = c.T_CMB_K,
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
         append_to_report: bool = True,
     ):
