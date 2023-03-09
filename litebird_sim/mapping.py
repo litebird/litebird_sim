@@ -76,6 +76,7 @@ class DestriperParameters:
     output_file_prefix: str = "lbs_"
     return_hit_map: bool = False
     return_binned_map: bool = False
+    return_baselines_map: bool = False
     return_destriped_map: bool = True
     return_npp: bool = False
     return_invnpp: bool = False
