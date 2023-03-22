@@ -35,6 +35,28 @@ meant to collect $N$ samples for $n_d$ detectors:
    the time stream of the first detector, and ``obs.tod[:, 0]`` are the
    first time samples of all the detectors.
 
+   You can create other TOD-like arrays through the parameter ``tods``;
+   it accepts a list of :class:`.TodDescription` objects that specify
+   the name of the field used to store the 2D array, a textual
+   description, and the value for ``dtype``. (By default, the ``tod``
+   field uses 32-bit floating-point numbers.) Here is an example::
+
+    sim.create_observations(
+        detectors=[det1, det2, det3],
+        tods=[
+            lbs.TodDescription(
+                name="tod", description="TOD", dtype=np.float64,
+            ),
+            lbs.TodDescription(
+                name="noise", description="1/f+white noise", dtype=np.float32
+            ),
+        ],
+    )
+
+    for cur_obs in sim.observations:
+        print("Shape of 'tod': ", cur_obs.tod.shape)
+        print("Shape of 'noise': ", cur_obs.noise.shape)
+
 2. ``Observation.pointings`` is initialized when you call
    :meth:`.Simulation.compute_pointings`. It is a 3-rank
    tensor of shape :math:`(n_d, N, 2)`, where the last rank collects the
