@@ -38,7 +38,7 @@ from .hwp_sys.hwp_sys import HwpSys
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
-from .observations import Observation
+from .observations import Observation, TodDescription
 from .pointings import (
     apply_hwp_to_obs,
     get_pointing_buffer_shape,
@@ -159,6 +159,7 @@ __all__ = [
     "MPI_CONFIGURATION",
     # observations.py
     "Observation",
+    "TodDescription",
     # quaternions.py
     "quat_rotation_x",
     "quat_rotation_y",

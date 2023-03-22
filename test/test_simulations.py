@@ -241,6 +241,43 @@ def test_distribute_observation(tmp_path):
         )
 
 
+def test_distribute_observation_many_tods(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir", start_time=1.0, duration_s=11.0
+    )
+    det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
+    sim.create_observations(
+        detectors=[det],
+        num_of_obs_per_detector=5,
+        tods=[
+            lbs.TodDescription(name="tod1", dtype=np.float32, description="TOD 1"),
+            lbs.TodDescription(name="tod2", dtype=np.float64, description="TOD 2"),
+        ],
+    )
+
+    assert sim.get_tod_names() == ["tod1", "tod2"]
+    assert sim.get_tod_descriptions() == ["TOD 1", "TOD 2"]
+    assert sim.get_tod_dtypes() == [np.float32, np.float64]
+
+    for cur_obs in sim.observations:
+        assert "tod1" in dir(cur_obs)
+        assert "tod2" in dir(cur_obs)
+
+        assert cur_obs.tod1.shape == cur_obs.tod2.shape
+        assert cur_obs.tod1.dtype == np.float32
+        assert cur_obs.tod2.dtype == np.float64
+
+    assert len(sim.observations) == 5
+    assert (
+        int(sim.observations[-1].get_times()[-1] - sim.observations[0].get_times()[0])
+        == 10
+    )
+    assert (
+        sum([o.n_samples for o in sim.observations])
+        == sim.duration_s * det.sampling_rate_hz
+    )
+
+
 def test_distribute_observation_astropy(tmp_path):
     sim = lbs.Simulation(
         base_path=tmp_path / "simulation_dir",
@@ -263,12 +300,26 @@ def test_describe_distribution(tmp_path):
     )
     det = lbs.DetectorInfo("dummy", sampling_rate_hz=10.0)
 
-    sim.create_observations(detectors=[det], num_of_obs_per_detector=4)
-    for obs in sim.observations:
-        obs.fg_tod = np.zeros_like(obs.tod, dtype="float64")
-        obs.dipole_tod = np.zeros_like(obs.tod, dtype="float32")
+    sim.create_observations(
+        detectors=[det],
+        num_of_obs_per_detector=4,
+        tods=[
+            lbs.TodDescription(name="tod", dtype="float32", description="Signal"),
+            lbs.TodDescription(
+                name="fg_tod", dtype="float64", description="Foregrounds"
+            ),
+            lbs.TodDescription(
+                name="dipole_tod", dtype="float32", description="Dipole"
+            ),
+        ],
+    )
 
-    descr = sim.describe_mpi_distribution(tod_names=["tod", "fg_tod", "dipole_tod"])
+    for cur_obs in sim.observations:
+        assert "tod" in dir(cur_obs)
+        assert "fg_tod" in dir(cur_obs)
+        assert "dipole_tod" in dir(cur_obs)
+
+    descr = sim.describe_mpi_distribution()
 
     assert len(descr.detectors) == 1
     assert len(descr.mpi_processes) == lbs.MPI_COMM_WORLD.size

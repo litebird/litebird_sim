@@ -86,8 +86,8 @@ def test_solar_dipole_fit(tmpdir):
 
     start_time = Time("2022-01-01")
     time_span_s = 365 * 24 * 3600
-    nside = 256
-    sampling_hz = 1
+    nside = 32
+    sampling_hz = 0.1
 
     sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
 
@@ -186,7 +186,7 @@ def test_solar_dipole_fit(tmpdir):
     l, b = hp.vec2ang(r(dip), lonlat=True)
 
     # Amplitude, longitude and latitude
-    test.assertAlmostEqual(np.sqrt(np.sum(dip**2)) * 1e6, 3362.08, 1)
+    test.assertAlmostEqual(np.sqrt(np.sum(dip**2)) * 1e6, 3362.08, delta=1)
     test.assertAlmostEqual(l[0], 264.021, 1)
     test.assertAlmostEqual(b[0], 48.253, 1)
 

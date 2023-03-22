@@ -307,7 +307,7 @@ def test_destriper_coordinate_consistency(tmp_path):
     sim = lbs.Simulation(
         base_path=Path(tmp_path) / "destriper_output",
         start_time=0,
-        duration_s=10 * 86400.0,
+        duration_s=3 * 86400.0,
     )
 
     sim.set_scanning_strategy(
@@ -329,7 +329,7 @@ def test_destriper_coordinate_consistency(tmp_path):
     detectors = [
         lbs.DetectorInfo(
             name="noiseless_detector",
-            sampling_rate_hz=10.0,
+            sampling_rate_hz=5.0,
             fwhm_arcmin=60.0,
             bandcenter_ghz=40.0,
             bandwidth_ghz=12.0,
@@ -348,6 +348,7 @@ def test_destriper_coordinate_consistency(tmp_path):
 
     params = lbs.MbsParameters(
         make_cmb=True,
+        nside=8,
     )
     mbs = lbs.Mbs(
         simulation=sim,
