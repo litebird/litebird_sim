@@ -1,5 +1,7 @@
 # HEAD
 
+-   Mbs supports generic bandpasses and can generate solar dipole [#227](https://github.com/litebird/litebird_sim/pull/227)
+
 -   Improve the support for multiple TODs in the same `Observation` [#225](https://github.com/litebird/litebird_sim/pull/225)
 
 # Version 0.9.0
