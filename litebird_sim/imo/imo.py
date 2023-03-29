@@ -22,8 +22,15 @@ class Imo:
             try:
                 with CONFIG_FILE_PATH.open("rt") as inpf:
                     config = tomlkit.loads("".join(inpf.readlines()))
-                location = config["repositories"][0]["location"]
-                self.imoobject = ImoFlatFile(location)
+
+                self.imoobject = ImoFlatFile(
+                    Path(__file__).parent.parent.parent / "default_imo"
+                )
+
+                for cur_imo_definition in config["repositories"]:
+                    cur_location = cur_imo_definition["location"]
+                    self.imoobject.merge(ImoFlatFile(cur_location))
+
             except FileNotFoundError:
                 log.warning('IMO config file "%s" not found.', str(CONFIG_FILE_PATH))
                 log.warning(

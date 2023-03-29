@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-
+import gzip
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Set, Union, Tuple
@@ -10,7 +10,12 @@ import yaml
 
 from .objects import FormatSpecification, Entity, Quantity, DataFile, Release
 
-IMO_FLATFILE_SCHEMA_FILE_NAMES = ["schema.json", "schema.yaml"]
+IMO_FLATFILE_SCHEMA_FILE_NAMES = [
+    "schema.json",
+    "schema.yaml",
+    "schema.json.gz",
+    "schema.yaml.gz",
+]
 IMO_FLATFILE_DATA_FILES_DIR_NAME = "data_files"
 IMO_FLATFILE_FORMAT_SPEC_DIR_NAME = "format_spec"
 IMO_FLATFILE_PLOT_FILES_DIR_NAME = "plot_files"
@@ -149,7 +154,7 @@ class ImoFlatFile:
         self.entities = {}  # type: Dict[UUID, Entity]
         self.quantities = {}  # type: Dict[UUID, Quantity]
         self.data_files = {}  # type: Dict[UUID, DataFile]
-
+        self.releases = {}  # type: Dict[UUID, Release]
         self.path_to_entity = {}  # type: Dict[str, UUID]
         self.path_to_quantity = {}  # type: Dict[str, UUID]
 
@@ -186,13 +191,17 @@ class ImoFlatFile:
             if not schema_file.is_file():
                 continue
 
-            with schema_file.open("rt") as inpf:
-                if schema_file.suffix == ".yaml":
-                    schema = yaml.safe_load(inpf)
-                    break
-                else:
-                    schema = json.load(inpf)
-                    break
+            parser_fn = (
+                yaml.safe_load
+                if schema_file.suffix in [".yaml", ".yaml.gz"]
+                else json.load
+            )
+            if schema_file.suffix.endswith(".gz"):
+                with gzip.open(schema_file) as inpf:
+                    schema = parser_fn(inpf)
+            else:
+                with schema_file.open("rt") as inpf:
+                    schema = parser_fn(inpf)
 
         if not schema:
             raise RuntimeError(
@@ -241,6 +250,18 @@ class ImoFlatFile:
         for cur_uuid, cur_data_file in self.data_files.items():
             quantity = self.quantities[cur_data_file.quantity]
             quantity.data_files.add(cur_uuid)
+
+    def merge(self, other: "ImoFlatFile"):
+        """Merge another :class:`.ImoFlatFile` into this one"""
+
+        self.format_specs = {**self.format_specs, **other.format_specs}
+        self.entities = {**self.entities, **other.entities}
+        self.quantities = {**self.quantities, **other.quantities}
+        self.data_files = {**self.data_files, **other.data_files}
+        self.releases = {**self.releases, **other.releases}
+        self.path_to_entity = {**self.path_to_entity, **other.path_to_entity}
+        self.path_to_quantity = {**self.path_to_quantity, **other.path_to_quantity}
+        self.check_consistency()
 
     def quantity_path(self, uuid: UUID):
         quantity = self.quantities[uuid]
