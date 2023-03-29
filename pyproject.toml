@@ -37,7 +37,7 @@ include = [
     "images/logo.png",
     "static/report_template.html",
     "static/sakura.css",
-    "static/schema.json.gz",
+    "default_imo/schema.json.gz",
     "templates/*.md",
     "templates/*.txt",
 ]
