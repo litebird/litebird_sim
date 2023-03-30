@@ -31,6 +31,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
+from .non_lin import apply_non_linearities
 
 import astropy.time
 import astropy.units
@@ -1335,3 +1336,20 @@ class Simulation:
                 markdown_template,
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
+            
+            
+            
+    def apply_non_linearities(
+    	self,
+    ):        
+    	"applies detector non linearity to the input tod"
+    	
+    	apply_non_linearities(
+    		self.observations,
+    	)         
+            
+            
+            
+            
+            
+            
