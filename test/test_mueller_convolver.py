@@ -98,7 +98,7 @@ def test_polarized(lmax):
 
     # Linear polarizer (see last page of https://www.brown.edu/research/labs/mittleman/sites/brown.edu.research.labs.mittleman/files/uploads/lecture17_0.pdf)
     mueller = np.zeros((4, 4))
-    mueller[:2, :2] = 1
+    mueller[:2, :2] = 0.5
 
     fullconv = MuellerConvolver(
         lmax,
