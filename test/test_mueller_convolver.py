@@ -115,4 +115,4 @@ def test_polarized(lmax):
 
     # I'm testing for near-constness for now, to detect that I'm not getting the
     # result I expect. This has to improve once we have found the bug.
-    np.testing.assert_array_less(1e-4, np.max(sig) - np.min(sig))
+    np.testing.assert_array_less(np.max(sig) - np.min(sig),1e-4)
