@@ -19,7 +19,7 @@ The framework provides the following solutions:
 
 2. A *destriper*, i.e., a more advanced map-maker that can remove the
    effect of correlated instrumental noise from the timelines before
-   producing a map. The uncorrelated noise is usually referred as 1/f
+   producing a map. The correlated noise is usually referred as 1/f
    noise, and the purpose of the destriper is to estimate its
    contribution and remove it from the timelines; then, a classical
    *binner* is ran over the cleaned timelines.
@@ -89,7 +89,7 @@ Binner
 Once you have generated a set of observations, either on a single
 process or distributed over several mpi processes, you can create a 
 simple binned map with the function :func:`.make_bin_map`. This function
-takes: a single (or a list) of :class:`.Observations`, the Healpix
+takes: a single (or a list of) :class:`.Observation`, the Healpix
 resolution of the output map (``nside``) and produces a coadded map.
 It assumes white noise and each detector gets weighted by 
 :math:`1 / NET^2`. If the pointing information is not provided in the 
@@ -129,9 +129,9 @@ To run the destriper, you simply call :func:`.destripe`::
 
   result = lbs.destripe(sim, params)
 
-(The pointing information is included in the :class:`.Observations`,
+(The pointing information is included in the :class:`.Observation`,
 alternatively pointings can be provided as a list of numpy arrays)
-The result is an instance of the class :class:`.DestriperResults` and 
+The result is an instance of the class :class:`.DestriperResult` and 
 contains the three maps we have asked above (hit map, binned map, 
 destriped map).
 
@@ -298,8 +298,8 @@ of Madam.)
    thus, if you plan to build more than one map out of the same
    set of components, you want to have the very same simulation
    files, because they «describe» what's in the FITS files. This
-   is the reason why we passed the same value to ``components``
-   every time we called ``save_simulation_for_madam``.
+   is the reason why we passed the same value to `components`
+   every time we called :func:`.save_simulation_for_madam`.
 
    But when we create the three *parameter files*, each of them
    differs in the list of components that need to be included.

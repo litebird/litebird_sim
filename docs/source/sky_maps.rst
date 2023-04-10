@@ -34,14 +34,14 @@ framework to generate a CMB map::
         channel_list=[
             lbs.FreqChannelInfo.from_imo(
                 sim.imo,
-                "/releases/v1.0/satellite/LFT/L1-040/channel_info",
+                "/releases/v1.3/satellite/LFT/L1-040/channel_info",
             ),
         ],
     )
     (healpix_maps, file_paths) = mbs.run_all()
 
     import healpy
-    healpy.mollview(healpix_maps["L1-040"])
+    healpy.mollview(healpix_maps["L1-040"][0])
 
 .. image:: images/mbs_i.png
 

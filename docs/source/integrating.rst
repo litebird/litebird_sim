@@ -144,7 +144,7 @@ the class ``NoiseGenerator``:
     seed = 6343
   
     [scanning_strategy]
-    parameters = "/releases/v1.0/Satellite/scanning_parameters/"
+    parameters = "/releases/v1.3/Satellite/scanning_parameters/"
   
     [map_maker]
     nside = 512
@@ -212,13 +212,13 @@ codes in the LiteBIRD Simulation Framework:
          return f(t_ant, whatever...)
 
    The prototype does not help the user to understand what kind of
-   measurement units should be used for `tant`, nor what is the
+   measurement units should be used for ``t_ant``, nor what is the
    measurement unit of the value returned by the function. The
    following is much better::
 
      def calc_sensitivity_k_sqr_s(t_ant_k):
          # The same calculations as above
-         return f(t_ant, whatever...)
+         return f(t_ant_k, whatever...)
 
    The second definition clarifies that the antenna temperature must
    be specified in Kelvin, and that the result is in K⋅√s.

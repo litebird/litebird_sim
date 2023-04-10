@@ -95,13 +95,13 @@ easily from the IMO using the static methods
 
   det = lbs.DetectorInfo.from_imo(
       imo=imo,
-      url="/releases/v1.0/satellite/LFT/L1-040/"
-          "L00_008_QA_040T/detector_info",
+      url="/releases/v1.3/satellite/LFT/L1-040/"
+          "000_000_003_QA_040_T/detector_info",
   )
 
   freqch = lbs.FreqChannelInfo.from_imo(
       imo=imo,
-      url="/releases/v1.0/satellite/LFT/L1-040/channel_info",
+      url="/releases/v1.3/satellite/LFT/L1-040/channel_info",
   )
 
 

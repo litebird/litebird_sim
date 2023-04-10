@@ -42,7 +42,7 @@ that need to be passed to the code: the resolution of an output map,
 the names of the detectors to simulate, whether to include synchrotron
 emission in the sky model, etc.
 
-The :class:`Simulation` class eases this task by accepting the path to
+The :class:`.Simulation` class eases this task by accepting the path to
 a TOML file as a parameter (``parameter_file``). Specifying this
 parameter triggers two actions:
 
@@ -123,7 +123,7 @@ These parameters can be used instead of the keywords in the
 constructor of the :class:`.Simulation` class. Consider the following
 code::
 
-  sim = Simulation(
+  sim = lbs.Simulation(
       base_path="/storage/output",
       start_time=astropy.time.Time("2020-02-01T10:30:00"),
       duration_s=3600.0,
@@ -146,7 +146,7 @@ that contains the following lines:
 and then you initialize the `sim` variable in your Python code as
 follows::
 
-  sim = Simulation(parameter_file="foo.toml")
+  sim = lbs.Simulation(parameter_file="foo.toml")
 
 A nice feature of the framework is that the duration of the mission
 must not be specified in seconds. You would achieve identical results
@@ -282,7 +282,7 @@ often, etc. In this case, the best option is to write messages to the
 terminal. Python provides the `logging
 <https://docs.python.org/3/library/logging.html>`_ module for this
 purpose, and when you initialize a :class:`.Simulation` object, the
-module is initialize with a set of sensible defaults. In your code you
+module is initialized with a set of sensible defaults. In your code you
 can use the functions ``debug``, ``info``, ``warning``, ``error``, and
 ``critical`` to monitor what's happening during execution::
 

@@ -163,7 +163,7 @@ run the following command:
 and run the program interactively to configure the IMO. You typically
 want to use a «local copy»; specify the folder where the file
 ``schema.json`` you downloaded before resides (under
-``/storage/litebird_imo`` in our case). Save the changes by pressing
+``/storage/litebird_imo/IMO`` in our case). Save the changes by pressing
 ``s``, and you will have your IMO configured.
 
 Our next example will use the IMO to run something more interesting::
@@ -172,7 +172,7 @@ Our next example will use the IMO to run something more interesting::
 
   sim = lbs.Simulation(base_path="./tut02")
   lft_file = sim.imo.query(
-      "/releases/v1.0/satellite/LFT/instrument_info"
+      "/releases/v1.3/satellite/LFT/instrument_info"
   )
   sim.append_to_report(
       "The instrument {{ name }} has {{ num }} channels.",
@@ -203,7 +203,7 @@ managed to read the database contents and initialize a set of member
 variables. This is why we have been able to write the next line::
 
   lft_file = sim.imo.query(
-      "/releases/v1.0/satellite/LFT/instrument_info"
+      "/releases/v1.3/satellite/LFT/instrument_info"
   )
 
 Although the parameter looks like a path to some file, it is a
@@ -357,7 +357,7 @@ Creating a signal plus noise timeline
 -------------------------------------
 
 Here we generate a 10 minutes timeline which contains dipole, cmb signal,
-galactic dust, and correlated noise.::
+galactic dust, and correlated noise::
 
   import litebird_sim as lbs
   import healpy, numpy as np
