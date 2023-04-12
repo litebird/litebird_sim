@@ -42,7 +42,6 @@ class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
     https://arxiv.org/abs/2106.08031
-
     Args:
          simulation (:class:`.Simulation`): an instance of the class \
          :class:`.Simulation`
@@ -63,7 +62,6 @@ class HwpSys:
         maps: Union[np.ndarray, None] = None,
     ):
         """It sets the input paramters
-
         Args:
              nside (integer): nside used in the analysis
              Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
@@ -84,21 +82,21 @@ class HwpSys:
         hwp_sys_Mbs_gaussian_smooth = True
 
         # This part sets from parameter file
-        if (self.sim.parameter_file is not None) and (
-            "hwp_sys" in self.sim.parameter_file.keys()
+        if (self.sim.parameters is not None) and (
+            "hwp_sys" in self.sim.parameters.keys()
         ):
-            paramdict = self.sim.parameter_file["hwp_sys"]
+            paramdict = self.sim.parameters["hwp_sys"]
 
             if "nside" in paramdict.keys():
                 self.nside = paramdict["nside"]
-                if "general" in self.sim.parameter_file.keys():
-                    if "nside" in self.sim.parameter_file["general"].keys():
-                        if self.sim.parameter_file["general"]["nside"] != self.nside:
+                if "general" in self.sim.parameters.keys():
+                    if "nside" in self.sim.parameters["general"].keys():
+                        if self.sim.parameters["general"]["nside"] != self.nside:
                             print(
                                 "Warning!! nside from general "
                                 "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
                                 % (
-                                    self.sim.parameter_file["general"]["nside"],
+                                    self.sim.parameters["general"]["nside"],
                                     self.nside,
                                 )
                             )
@@ -296,7 +294,6 @@ class HwpSys:
     def fill_tod(self, obs: Observation, pointings: np.ndarray, hwp_radpsec: float):
 
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
-
         Args:
              obs class:`Observations`: container for tod.
                  If the tod is not required, obs.tod can be not allocated
@@ -481,7 +478,6 @@ class HwpSys:
 
         """It generates "on the fly" map. This option is only availabe if `built_map_on_the_fly`
         is set to True.
-
         Args:
              obss list of class:`Observations`: only necessary for the communicator
              pointings (float): pointing for each sample and detector
