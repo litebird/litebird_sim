@@ -350,18 +350,20 @@ Once all the quaternions have been computed at the proper sampling
 rate, the direction of the detector on the sky and its polarization
 angle are computed as follows:
 
-- The direction is simply the vector :math:`\vec d = R \hat e_z`,
-  where :math:`R` is the overall rotation from the detector's
-  reference frame to the Ecliptic reference frame, and :math:`\hat e_z
-  = (0, 0, 1)` is the one-length vector aligned with the `z` axis.
+- The direction is the vector :math:`\vec d = R \hat e_z`, where
+  :math:`R` is the overall rotation from the detector's reference
+  frame to the Ecliptic reference frame, and :math:`\hat e_z = (0, 0,
+  1)` is the one-length vector aligned with the `z` axis.
 
 - The polarization angle is given by the angle between the North
   direction passing through the vector :math:`\vec d` (i.e., along the
   parallel of :math:`\vec d`) and the vector :math:`\vec p = R \hat
   e_x`, where :math:`R` is the same as above and :math:`\hat e_x = (1,
-  0, 0)`, as shown in the following figure:
+  0, 0)`, as shown in the following figure (note that :math:`\hat e_x`
+  has been drawn twice because the one in the upper side represents
+  the polarization direction in the detector's reference frame):
 
-.. image:: images/polarization-direction.svg
+  .. image:: images/polarization-direction.svg
 
 The purpose of the method :meth:`.Simulation.compute_pointings`, used
 in the example at the beginning of this chapter, is to call
