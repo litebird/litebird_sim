@@ -357,7 +357,7 @@ angle are computed as follows:
 
 - The polarization angle is given by the angle between the North
   direction passing through the vector :math:`\vec d` (i.e., along the
-  parallel of :math:`\vec d`) and the vector :math:`\vec p = R \hat
+  meridian of :math:`\vec d`) and the vector :math:`\vec p = R \hat
   e_x`, where :math:`R` is the same as above and :math:`\hat e_x = (1,
   0, 0)`, as shown in the following figure (note that :math:`\hat e_x`
   has been drawn twice because the one in the upper side represents
