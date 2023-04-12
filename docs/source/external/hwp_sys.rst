@@ -31,12 +31,12 @@ In the most general case these parameters can vary inside a bandpass.
 The class :class:`.hwp_sys.HwpSys` is a contanier for the parameters of the HWP systematics.
 It defines three methods:
 
-*  :func:`.HwpSys.set_parameters` which sets the defaults and handles the interface with 
+*  :meth:`.hwp_sys.HwpSys.set_parameters` which sets the defaults and handles the interface with 
    the parameter file of the simulation. The relevant section is tagged by ``[hwp_sys]``.
 
-*  :func:`.HwpSys.fill_tod` which fills the tod in a given Observation.
+*  :meth:`.hwp_sys.HwpSys.fill_tod` which fills the tod in a given Observation.
 
-*  :func:`.HwpSys.make_map` which can bin the observations in a map. This is available only
+*  :meth:`.hwp_sys.HwpSys.make_map` which can bin the observations in a map. This is available only
    if `built_map_on_the_fly` variable is set to ``True``.
 
 API reference
