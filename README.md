@@ -58,7 +58,6 @@ Template taken from https://github.com/othneildrew/Best-README-Template
 * [License](#license)
 * [Contact](#contact)
 * [How to cite this code](#how-to-cite-this-code)
-* [Acknowledgements](#acknowledgements)
 
 
 
