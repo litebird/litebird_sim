@@ -2,7 +2,7 @@ Observations
 ============
 
 The :class:`.Observation` class, is the container for the data acquired by the
-telescope during a scaning period (and the relevant information about it).
+telescope during a scanning period (and the relevant information about it).
 
 Serial applications 
 -------------------
@@ -27,7 +27,7 @@ Across the framework, the coherence in the names and content of the
 attributes is guaranteed **by convention** (no check is done by the
 :class:`.Observation` class). At the moment, the most common field
 that you can find in the class are the following, assuming that it is
-meant to collect $N$ samples for $n_d$ detectors:
+meant to collect :math:`N` samples for :math:`n_d` detectors:
 
 1. ``Observation.tod`` is initialized when you call
    :meth:`.Simulation.create_observations`. It's a 2D array

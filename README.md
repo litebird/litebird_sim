@@ -52,14 +52,12 @@ Template taken from https://github.com/othneildrew/Best-README-Template
 * [About the Project](#about-the-project)
   * [Built With](#built-with)
 * [Getting Started](#getting-started)
-  * [Prerequisites](#prerequisites)
-  * [Installation](#installation)
 * [Usage](#usage)
 * [Roadmap](#roadmap)
 * [Contributing](#contributing)
 * [License](#license)
 * [Contact](#contact)
-* [Acknowledgements](#acknowledgements)
+* [How to cite this code](#how-to-cite-this-code)
 
 
 
@@ -83,7 +81,6 @@ The LiteBIRD Simulation Framework is being developed for the
 -   [ducc](https://github.com/litebird/ducc)
 
 
-<!-- GETTING STARTED -->
 ## Getting Started
 
 Refer to the
@@ -92,7 +89,6 @@ to learn how to install the LiteBIRD simulation framework on your
 computer or on a HPC cluster.
 
 
-<!-- USAGE EXAMPLES -->
 ## Usage
 
 An example notebook is avalable [here](https://github.com/litebird/litebird_sim/blob/master/notebooks/litebird_sim_example.ipynb). 
@@ -117,14 +113,12 @@ command:
     ```
 
 
-<!-- ROADMAP -->
 ## Roadmap
 
 See the [open issues](https://github.com/litebird/litebird_sim/issues)
 for a list of proposed features (and known issues).
 
 
-<!-- CONTRIBUTING -->
 ## Contributing
 
 If you are part of the LiteBIRD collaboration and have something that
@@ -139,13 +133,11 @@ contributions you make are **greatly appreciated**.
 6.  Open a Pull Request
 
 
-<!-- LICENSE -->
 ## License
 
 Distributed under the [GPL3 License][license-url].
 
 
-<!-- CONTACT -->
 ## Contact
 
 LiteBIRD Simulation Team - litebird_pipe@db.ipmu.jp
@@ -154,7 +146,6 @@ Project Link: [https://github.com/litebird/litebird_sim](https://github.com/lite
 
 
 
-<!-- ACKNOWLEDGEMENTS -->
 ## How to cite this code
 
 TODO!

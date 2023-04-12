@@ -10,7 +10,7 @@ of a :class:`.Simulation` object.
 The framework uses the `Jinja2
 <https://jinja.palletsprojects.com/en/2.11.x/>`_ templating library to
 render the text, and the `Python-Markdown
-<https://python-markdown.github.io/>` library to convert the text to
+<https://python-markdown.github.io/>`_ library to convert the text to
 HTML.
 
 The usage of the facility is easy::
@@ -83,8 +83,8 @@ endfor %}``, in order not to leave empty lines between consecutive rows.
 Converting the report to other formats
 --------------------------------------
 
-It might be the case that the report produced by your script contain
-some complex table/paragraphs that you would like to include to an
+It might be the case that the report produced by your script contains
+some complex table/paragraphs that you would like to include in an
 article written in LaTeX or Microsoft Word. You can easily convert the
 report into one of these formats using `Pandoc <https://pandoc.org/>`_.
 
@@ -222,7 +222,7 @@ you should do this::
   )
 
 The reason is that if you keep the template in a separate Markdown
-file, as explained above,, it is better to put whatever concerns the
+file, as explained above, it is better to put whatever concerns the
 *representation* of the values in the template instead of the code.
 For instance, at some point you might revise the layout of your report
 by adding space, and this might enable you to write some date field as
