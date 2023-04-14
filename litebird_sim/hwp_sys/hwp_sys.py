@@ -438,9 +438,19 @@ class HwpSys:
 
                     del (ca, sa)
 
-                    Tterm = 0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                    Qterm = 0.5 * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                    Uterm = (J11 * J12.conjugate()).real
+                    Tterm = (
+                        0.5
+                        * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
+                        * self.cmb2bb[:, np.newaxis]
+                    ).sum(axis=0) / self.norm
+                    Qterm = (
+                        0.5
+                        * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
+                        * self.cmb2bb[:, np.newaxis]
+                    ).sum(axis=0) / self.norm
+                    Uterm = (
+                        (J11 * J12.conjugate()).real * self.cmb2bb[:, np.newaxis]
+                    ).sum(axis=0) / self.norm
 
                     self.atd[pix, 0] += tod * Tterm
                     self.atd[pix, 1] += tod * Qterm
