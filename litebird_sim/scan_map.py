@@ -17,6 +17,8 @@ from .healpix import npix_to_nside
 
 import logging
 
+import healpy as hp
+
 
 @njit
 def compute_signal_for_one_sample(T, Q, U, co, si):
@@ -38,6 +40,22 @@ def scan_map_for_one_detector(tod_det, pixel_ind_det, pol_angle_det, maps):
         )
 
 
+@njit
+def scan_map_for_one_detector_linear(
+    tod_det, tod_T_interp, tod_Q_interp, tod_U_interp, pol_angle_det
+):
+
+    for i in range(len(tod_det)):
+
+        tod_det[i] += compute_signal_for_one_sample(
+            T=tod_T_interp[i],
+            Q=tod_Q_interp[i],
+            U=tod_U_interp[i],
+            co=np.cos(2 * pol_angle_det[i]),
+            si=np.sin(2 * pol_angle_det[i]),
+        )
+
+
 def scan_map(
     tod,
     pointings,
@@ -45,17 +63,20 @@ def scan_map(
     maps: Dict[str, np.ndarray],
     input_names,
     input_map_in_galactic,
+    interpolation,
 ):
     """Scan a map filling time-ordered data
 
     This function modifies the values in `tod` by adding the contribution of the
     bolometric equation given a list of TQU maps `maps`. The `pointings` argument
-    must be a DxN×2 matrix containing the pointing information, where D is the number
+    must be a DxNx2 matrix containing the pointing information, where D is the number
     of detector for the current observation and N is the size of the `tod` array.
     `pol_angle` is the array of size DxN containing the polarization angle in radiants.
     `input_names` is an array containing the keywords that allow to select the proper
     input in `maps` for each detector in the TOD. If `input_map_in_galactic` is set to
-    False the input map is assumed in ecliptic coordinates, default galactic.
+    False the input map is assumed in ecliptic coordinates, default galactic. The
+    `interpolation` argument specifies the type of TOD interpolation ("" for no
+    interpolation, "linear" for linear interpolation)
     """
 
     assert tod.shape == pointings.shape[0:2]
@@ -77,15 +98,40 @@ def scan_map(
 
         nside = npix_to_nside(maps_det.shape[1])
 
-        hpx = Healpix_Base(nside, "RING")
-        pixel_ind_det = hpx.ang2pix(curr_pointings_det)
+        if interpolation == "":
+            hpx = Healpix_Base(nside, "RING")
+            pixel_ind_det = hpx.ang2pix(curr_pointings_det)
 
-        scan_map_for_one_detector(
-            tod_det=tod[detector_idx],
-            pixel_ind_det=pixel_ind_det,
-            pol_angle_det=curr_pol_angle_det,
-            maps=maps_det,
-        )
+            scan_map_for_one_detector(
+                tod_det=tod[detector_idx],
+                pixel_ind_det=pixel_ind_det,
+                pol_angle_det=curr_pol_angle_det,
+                maps=maps_det,
+            )
+
+        elif interpolation == "linear":
+
+            # healpy 1.15 does not support multiple maps for interpolation
+            scan_map_for_one_detector_linear(
+                tod_det=tod[detector_idx],
+                tod_T_interp=hp.get_interp_val(
+                    maps_det[0, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
+                ),
+                tod_Q_interp=hp.get_interp_val(
+                    maps_det[1, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
+                ),
+                tod_U_interp=hp.get_interp_val(
+                    maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
+                ),
+                pol_angle_det=curr_pol_angle_det,
+            )
+
+        else:
+            raise ValueError(
+                "Wrong value for interpolation. It should be one of the following:\n"
+                + '- "" for no interpolation\n'
+                + '- "linear" for linear interpolation\n'
+            )
 
 
 def scan_map_in_observations(
@@ -94,6 +140,7 @@ def scan_map_in_observations(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     input_map_in_galactic: bool = True,
     component: str = "tod",
+    interpolation: str = "",
 ):
     """Scan a map filling time-ordered data
 
@@ -183,4 +230,5 @@ def scan_map_in_observations(
             maps=maps,
             input_names=input_names,
             input_map_in_galactic=input_map_in_galactic,
+            interpolation=interpolation,
         )
