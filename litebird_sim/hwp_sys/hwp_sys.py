@@ -228,7 +228,7 @@ class HwpSys:
             self.nfreqs = len(self.freqs)
 
             self.cmb2bb = _dBodTth(self.freqs)
-            self.norm = self.cmb2bb.sum()
+            self.norm = np.trapz(y=self.cmb2bb, x=self.freqs)
 
             myinstr = {}
             for ifreq in range(self.nfreqs):
@@ -343,30 +343,38 @@ class HwpSys:
 
                 if self.built_map_on_the_fly:
                     tod = (
-                        (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[:, 0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[:, 1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
+                        np.trapz(
+                            y=(
+                                0.5
+                                * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
+                                * self.maps[:, 0, pix]
+                                + 0.5
+                                * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
+                                * self.maps[:, 1, pix]
+                                + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
+                            )
+                            * self.cmb2bb[:, np.newaxis],
+                            x=self.freqs,
                         )
-                        * self.cmb2bb[:, np.newaxis]
-                    ).sum(axis=0) / self.norm
+                        / self.norm
+                    )
                 else:
                     obs.tod[idet, :] += (
-                        (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[:, 0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[:, 1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
+                        np.trapz(
+                            y=(
+                                0.5
+                                * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
+                                * self.maps[:, 0, pix]
+                                + 0.5
+                                * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
+                                * self.maps[:, 1, pix]
+                                + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
+                            )
+                            * self.cmb2bb[:, np.newaxis],
+                            x=self.freqs,
                         )
-                        * self.cmb2bb[:, np.newaxis]
-                    ).sum(axis=0) / self.norm
+                        / self.norm
+                    )
 
             else:
                 J11 = (
@@ -439,18 +447,30 @@ class HwpSys:
                     del (ca, sa)
 
                     Tterm = (
-                        0.5
-                        * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                        * self.cmb2bb[:, np.newaxis]
-                    ).sum(axis=0) / self.norm
+                        np.trapz(
+                            y=0.5
+                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
+                            * self.cmb2bb[:, np.newaxis],
+                            x=self.freqs,
+                        )
+                        / self.norm
+                    )
                     Qterm = (
-                        0.5
-                        * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                        * self.cmb2bb[:, np.newaxis]
-                    ).sum(axis=0) / self.norm
+                        np.trapz(
+                            y=0.5
+                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
+                            * self.cmb2bb[:, np.newaxis],
+                            x=self.freqs,
+                        )
+                        / self.norm
+                    )
                     Uterm = (
-                        (J11 * J12.conjugate()).real * self.cmb2bb[:, np.newaxis]
-                    ).sum(axis=0) / self.norm
+                        np.trapz(
+                            y=(J11 * J12.conjugate()).real * self.cmb2bb[:, np.newaxis],
+                            x=self.freqs,
+                        )
+                        / self.norm
+                    )
 
                     self.atd[pix, 0] += tod * Tterm
                     self.atd[pix, 1] += tod * Qterm
@@ -464,7 +484,7 @@ class HwpSys:
                     self.ata[pix, 2, 2] += Uterm * Uterm
 
                 else:
-                    # re-use ca and sa, factor 4 included here
+                    # re-use ca and sa, factor 4 included here, ideal HWP
                     ca = np.cos(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
                     sa = np.sin(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
 
