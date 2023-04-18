@@ -27,30 +27,14 @@ def compute_signal_for_one_sample(T, Q, U, co, si):
 
 
 @njit
-def scan_map_for_one_detector(tod_det, pixel_ind_det, pol_angle_det, maps):
+def scan_map_for_one_detector(tod_det, input_T, input_Q, input_U, pol_angle_det):
 
     for i in range(len(tod_det)):
 
         tod_det[i] += compute_signal_for_one_sample(
-            T=maps[0, pixel_ind_det[i]],
-            Q=maps[1, pixel_ind_det[i]],
-            U=maps[2, pixel_ind_det[i]],
-            co=np.cos(2 * pol_angle_det[i]),
-            si=np.sin(2 * pol_angle_det[i]),
-        )
-
-
-@njit
-def scan_map_for_one_detector_linear(
-    tod_det, tod_T_interp, tod_Q_interp, tod_U_interp, pol_angle_det
-):
-
-    for i in range(len(tod_det)):
-
-        tod_det[i] += compute_signal_for_one_sample(
-            T=tod_T_interp[i],
-            Q=tod_Q_interp[i],
-            U=tod_U_interp[i],
+            T=input_T[i],
+            Q=input_Q[i],
+            U=input_U[i],
             co=np.cos(2 * pol_angle_det[i]),
             si=np.sin(2 * pol_angle_det[i]),
         )
@@ -104,23 +88,23 @@ def scan_map(
 
             scan_map_for_one_detector(
                 tod_det=tod[detector_idx],
-                pixel_ind_det=pixel_ind_det,
+                input_T=maps_det[0, pixel_ind_det],
+                input_Q=maps_det[1, pixel_ind_det],
+                input_U=maps_det[2, pixel_ind_det],
                 pol_angle_det=curr_pol_angle_det,
-                maps=maps_det,
             )
 
         elif interpolation == "linear":
 
-            # healpy 1.15 does not support multiple maps for interpolation
-            scan_map_for_one_detector_linear(
+            scan_map_for_one_detector(
                 tod_det=tod[detector_idx],
-                tod_T_interp=hp.get_interp_val(
+                input_T=hp.get_interp_val(
                     maps_det[0, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
                 ),
-                tod_Q_interp=hp.get_interp_val(
+                input_Q=hp.get_interp_val(
                     maps_det[1, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
                 ),
-                tod_U_interp=hp.get_interp_val(
+                input_U=hp.get_interp_val(
                     maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
                 ),
                 pol_angle_det=curr_pol_angle_det,
