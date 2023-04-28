@@ -96,7 +96,10 @@ def test_polarized(lmax):
     ptg[:, 2] = 0.0
     alpha = rng.random(nptg) * 2 * np.pi
 
-    # Linear polarizer (see last page of https://www.brown.edu/research/labs/mittleman/sites/brown.edu.research.labs.mittleman/files/uploads/lecture17_0.pdf)
+    # Linear polarizer (see last page of
+    # https://www.brown.edu/research/labs/mittleman/sites/brown.edu.research.labs.mittleman/files/uploads/lecture17_0.pdf)
+    # noqa
+
     mueller = np.zeros((4, 4))
     mueller[:2, :2] = 0.5
 
@@ -115,4 +118,4 @@ def test_polarized(lmax):
 
     # I'm testing for near-constness for now, to detect that I'm not getting the
     # result I expect. This has to improve once we have found the bug.
-    np.testing.assert_array_less(np.max(sig) - np.min(sig),1e-4)
+    np.testing.assert_array_less(np.max(sig) - np.min(sig), 1e-4)
