@@ -12,7 +12,7 @@ def get_map_mask(pixels):
     return np.isfinite(pixels) & (pixels != healpy.UNSEEN)
 
 
-def test_scan_map():
+def test_scan_map_no_interpolation():
 
     # The purpose of this test is to simulate the motion of the spacecraft
     # for one month (see `time_span_s`) and produce *two* maps: the first
@@ -99,6 +99,7 @@ def test_scan_map():
         pointings=pointings,
         maps=in_map,
         input_map_in_galactic=False,
+        interpolation="none",
     )
     out_map1 = lbs.make_bin_map(obs1, nside, output_map_in_galactic=False)
 
@@ -160,6 +161,85 @@ def test_scan_map():
         in_map_G["Boresight_detector_T"][mask1],
         rtol=tolerance,
         atol=0.1,
+    )
+
+
+def test_scan_map_linear_interpolation():
+
+    # This test is the same as test_scan_map_no_interpolation, but here we just check
+    # that the call to `scan_map` does not fail
+
+    start_time = 0
+    time_span_s = 24 * 3600  # The time is much shorter here!
+    nside = 256
+    sampling_hz = 1
+    net = 50.0
+    hwp_radpsec = 4.084_070_449_666_731
+
+    npix = lbs.nside_to_npix(nside)
+
+    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+
+    scanning = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=0.785_398_163_397_448_3,
+        precession_rate_hz=8.664_850_513_998_931e-05,
+        spin_rate_hz=0.000_833_333_333_333_333_4,
+        start_time=start_time,
+    )
+
+    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+        start_time, time_span_s, delta_time_s=60
+    )
+
+    instr = lbs.InstrumentInfo(
+        boresight_rotangle_rad=0.0,
+        spin_boresight_angle_rad=0.872_664_625_997_164_8,
+        spin_rotangle_rad=3.141_592_653_589_793,
+    )
+
+    detT = lbs.DetectorInfo(
+        name="Boresight_detector_T",
+        sampling_rate_hz=sampling_hz,
+        net_ukrts=net,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    detB = lbs.DetectorInfo(
+        name="Boresight_detector_B",
+        sampling_rate_hz=sampling_hz,
+        net_ukrts=net,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 1.0 / np.sqrt(2.0), 1.0 / np.sqrt(2.0)],
+    )
+
+    np.random.seed(seed=123_456_789)
+    maps = np.random.normal(0, 1, (3, npix))
+
+    in_map = {
+        "Boresight_detector_T": maps,
+        "Boresight_detector_B": maps,
+        "Coordinates": lbs.CoordinateSystem.Ecliptic,
+    }
+
+    (obs1,) = sim.create_observations(detectors=[detT, detB])
+    (obs2,) = sim.create_observations(detectors=[detT, detB])
+
+    pointings = lbs.get_pointings(
+        obs1,
+        spin2ecliptic_quats=spin2ecliptic_quats,
+        bore2spin_quat=instr.bore2spin_quat,
+        detector_quats=[detT.quat, detB.quat],
+        hwp=lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec),
+    )
+
+    # Just check that the code does not crash
+    lbs.scan_map_in_observations(
+        obs=obs1,
+        pointings=pointings,
+        maps=in_map,
+        input_map_in_galactic=False,
+        interpolation="linear",
     )
 
 

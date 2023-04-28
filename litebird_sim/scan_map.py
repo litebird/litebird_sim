@@ -47,7 +47,7 @@ def scan_map(
     maps: Dict[str, np.ndarray],
     input_names,
     input_map_in_galactic,
-    interpolation,
+    interpolation: str = "none",
 ):
     """Scan a map filling time-ordered data
 
@@ -82,7 +82,7 @@ def scan_map(
 
         nside = npix_to_nside(maps_det.shape[1])
 
-        if interpolation == "":
+        if interpolation in ["", "none"]:
             hpx = Healpix_Base(nside, "RING")
             pixel_ind_det = hpx.ang2pix(curr_pointings_det)
 
