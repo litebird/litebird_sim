@@ -34,11 +34,14 @@ class HWP:
         raise NotImplementedError(
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
-
+        
+	
+        
     def __str__(self):
         raise NotImplementedError(
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
+        
 
 
 @njit
@@ -54,7 +57,22 @@ def _add_ideal_hwp_angle(
             ) % (2 * np.pi)
 
             pointing_buffer[det_idx, sample_idx, 2] += angle
+            
 
+@njit
+def _get_ideal_hwp_angle(
+    pointing_buffer, start_time_s, delta_time_s, start_angle_rad, ang_speed_radpsec
+):
+    detectors, samples, _ = pointing_buffer.shape
+    hwp_angle = np.empty(samples)
+    for sample_idx in range(samples):
+        angle = (
+            start_angle_rad
+            + (start_time_s + delta_time_s * sample_idx) * 2 * ang_speed_radpsec
+        ) % (2 * np.pi)
+        hwp_angle[sample_idx] = angle
+    return hwp_angle
+            
 
 class IdealHWP(HWP):
     r"""
@@ -84,9 +102,19 @@ class IdealHWP(HWP):
             start_angle_rad=self.start_angle_rad,
             ang_speed_radpsec=self.ang_speed_radpsec,
         )
+        
+    def get_hwp_angle(self, pointing_buffer, start_time_s: float, delta_time_s: float):
+        hwp_angle = _get_ideal_hwp_angle(
+           pointing_buffer=pointing_buffer,
+           start_time_s=start_time_s,
+           delta_time_s=delta_time_s,
+           start_angle_rad=self.start_angle_rad,
+           ang_speed_radpsec=self.ang_speed_radpsec,
+        )
+        return hwp_angle
 
     def __str__(self):
         return (
             f"Ideal HWP, with rotating speed {self.ang_speed_radpsec} rad/sec "
             f"and θ₀ = {self.start_angle_rad}"
-        )
+        )        
