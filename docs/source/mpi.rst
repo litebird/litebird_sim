@@ -18,7 +18,8 @@ The framework can be forced to use MPI or not using the variable
 
 The framework provides a global variable, :data:`.MPI_COMM_WORLD`,
 which is the same as ``mpi4py.MPI.COMM_WORLD`` if MPI is being used.
-Otherwise, it contains only the following members:
+Otherwise, if MPI is **not** being used, it still contains the
+following members:
 
 - `rank` (set to ``0``);
 - `size` (set to ``1``).
@@ -64,6 +65,22 @@ is accepted as well):
 - If the variable is not set, then ``mpi4py`` will be imported, but
   any failure will be accepted and the framework will silently switch
   to serial mode.
+
+
+Grasping how MPI is being used
+------------------------------
+
+You will typically use MPI to spread TODs among many MPI processes, so
+that the simulation can span several detectors and a longer time scale.
+Unfortunately, this means that it's often complicated to understand how
+data is being kept in memory.
+
+If you use the :class:`.Simulation` object (and you should, you *really*
+should!), you can call :meth:`.Simulation.describe_mpi_distribution` after
+you have allocated the TODs via :meth:`.Simulation.create_observations`; it
+will return an instance of the class :class:`.MpiDistributionDescr`, which
+can be inspected and printed to the terminal. See Section :ref:`simulations`
+for more information about this.
 
 
 API reference

@@ -1,5 +1,65 @@
 # HEAD
 
+-   Mbs supports generic bandpasses and can generate solar dipole [#227](https://github.com/litebird/litebird_sim/pull/227)
+
+-   Improve the support for multiple TODs in the same `Observation` [#225](https://github.com/litebird/litebird_sim/pull/225)
+
+-   Improve the documentation [#231](https://github.com/litebird/litebird_sim/pull/231)
+
+# Version 0.9.0
+
+-   Some memory optimization in pointing production [#222](https://github.com/litebird/litebird_sim/pull/222), coordinate rotation and noise [#223](https://github.com/litebird/litebird_sim/pull/223)
+
+-   Implement new methods in the `Simulation` class: `fill_tods`, `compute_pos_and_vel`, `add_dipole` and `add_noise` [#221](https://github.com/litebird/litebird_sim/pull/221)
+
+-   **Breaking change**: add multiple TOD support to `describe_mpi_distribution` and make the field `MpiObservationDescr.tod_dtype` a list of strings [#220](https://github.com/litebird/litebird_sim/pull/220)
+
+-   Add links to the manual in the example notebook [#219](https://github.com/litebird/litebird_sim/pull/219)
+
+-   Implement new methods in the `Simulation` class: `set_scanning_strategy`, `set_instrument`, `set_hwp`, and deprecate `generate_spin2ecl_quaternions` [#217](https://github.com/litebird/litebird_sim/pull/217)
+
+-   Add `gzip_compression` keyword to `write_observations` [#214](https://github.com/litebird/litebird_sim/pull/214)
+
+-   Run more comprehensive tests on different TOD components [#212](https://github.com/litebird/litebird_sim/pull/212)
+
+-   Add a link to the IMO webpage @SSDC for each entity/quantity/data file included in simulation reports [#211](https://github.com/litebird/litebird_sim/pull/211)
+
+-   Fix issue #209 [#210](https://github.com/litebird/litebird_sim/pull/210)
+
+-   Add flag for coordinate system choice of madam output maps [#208](https://github.com/litebird/litebird_sim/pull/208)
+
+-   Improve support for multiple TODs [#205](https://github.com/litebird/litebird_sim/pull/205)
+
+-   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
+
+# Version 0.8.0
+
+-   **Breaking change** Interface of `get_pointings` modified, new function `get_pointings_for_observation` simplifies the pointing generation for a list of observations [#198](https://github.com/litebird/litebird_sim/pull/198)
+
+-   Ensure chronological order for Madam FITS files and make sure that exporting them to Madam works with MPI [#204](https://github.com/litebird/litebird_sim/pull/204) 
+
+-   Properly install Madam template files [#202](https://github.com/litebird/litebird_sim/pull/202)
+
+-   Mark installation errors for rich traceback in CI builds as non fatal [#199](https://github.com/litebird/litebird_sim/pull/199)
+
+-   Fix bug in `make_bin_map` [#196](https://github.com/litebird/litebird_sim/pull/196)
+
+# Version 0.7.0
+
+-   Update and fix dependencies [#192](https://github.com/litebird/litebird_sim/pull/192)
+
+-   Allow nnz=1 in the destriper [#191](https://github.com/litebird/litebird_sim/pull/191)
+
+-   Improve the performance of the pointing generator [#190](https://github.com/litebird/litebird_sim/pull/190)
+
+-   Add support for Madam (through an external call) [#186](https://github.com/litebird/litebird_sim/pull/186)
+
+# Version 0.6.0
+
+-   **Breaking change** The wrapper to the TOAST2 mapmaker has been fixed, and the parameter `baseline_length` was renamed to `baseline_length_s` to make clear what the measurement unit is [#182](https://github.com/litebird/litebird_sim/pull/182)
+
+# Version 0.5.0
+
 -   **Breaking change** New API for noise module [#151](https://github.com/litebird/litebird_sim/pull/151):
 
     -   Function `add_noise` has been renamed to `add_noise_to_observations`, and its parameter `noisetype` has been renamed into `noise_type` for consistency with other parameters (**breaking**)
@@ -7,6 +67,20 @@
     -   New functions `add_white_noise` and `add_one_over_f_noise` are exported (they were already implemented but were not visible)
 
     -   Each `Simulation` object creates random number generators (field `Simulation.random`), in a way that is safe even for MPI applications
+
+-   **Breaking change** New API for `scan_map_in_observations` and `add_dipole_to_observations`, which now accept list of pointing matrices and simplify the parameters describing the HWP [#171](https://github.com/litebird/litebird_sim/pull/171)
+
+-   Add a notebook to show an example of how to use the framework ([#178](https://github.com/litebird/litebird_sim/pull/178))
+
+-   Support the production of maps in Galactic coordinates through the TOAST2 wrapper to the Madam map-maker ([#177](https://github.com/litebird/litebird_sim/pull/177))
+
+-   Make `make_bin_map` compute pixel indices instead of requiring them as input, add support for Galactic coordinates [#176](https://github.com/litebird/litebird_sim/pull/176)
+
+-   Use a more robust algorithm to compute pointings [#175](https://github.com/litebird/litebird_sim/pull/175)
+
+-   Improve the documentation for the destriper [#172](https://github.com/litebird/litebird_sim/pull/172)
+
+-   Add a high-pass filter for the noise [#169](https://github.com/litebird/litebird_sim/pull/169)
 
 -   Upgrade NumPy from 1.20 to 1.21, Numba from 0.54 to 0.55, Rich from 6.2 to 11.0 [#152](https://github.com/litebird/litebird_sim/pull/152)
 
@@ -16,13 +90,13 @@
 
 -   Remove NumPy's and Healpy's deprecation warnings [#158](https://github.com/litebird/litebird_sim/pull/158)
 
--   Fix issue [#148](https://github.com/litebird/litebird_sim/issues/148)
-
 -   Use a cache to speed up CI builds [PR#147](https://github.com/litebird/litebird_sim/pull/147)
 
 -   Create a script that fetches information about the latest release and produce a release announcement [PR#156](https://github.com/litebird/litebird_sim/pull/156)
 
 -   Option for rotating the pointing from ecliptic to galactic coordinates in scan_map [#164](https://github.com/litebird/litebird_sim/pull/164)
+
+-   Fix issue [#148](https://github.com/litebird/litebird_sim/issues/148)
 
 # Version 0.4.0
 

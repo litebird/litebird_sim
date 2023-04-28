@@ -1,23 +1,44 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Union, List
+from collections import namedtuple
+from dataclasses import dataclass
+from typing import Union, List, Any
 import astropy.time
 import numpy as np
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly
 
-# NOTE: When the deprecated pointing methods will be removed, the following
-# imports should be removed as well
 import logging
 from .scanning import (
     Spin2EclipticQuaternions,
     get_quaternion_buffer_shape,
     get_det2ecl_quaternions,
-    get_pointing_buffer_shape,
     get_ecl2det_quaternions,
-    get_pointings,
 )
+
+
+@dataclass
+class TodDescription:
+    """A brief description of a TOD held in a :class:`.Observation` object
+
+    This field is used to pass information about one TOD in a :class:`.Observation`
+    object. It is mainly used by the method :meth:`.Simulation.create_observation`
+    to figure out how much memory allocate and how to organize it.
+
+    The class contains three fields:
+
+    - `name` (a ``str``): the name of the field to be created within each
+      :class:`.Observation` object.
+
+    - `dtype` (the NumPy type to use, e.g., ``numpy.float32``)
+
+    - `description` (a ``str``): human-readable description
+    """
+
+    name: str
+    dtype: Any
+    description: str
 
 
 class Observation:
@@ -89,12 +110,15 @@ class Observation:
         start_time_global: Union[float, astropy.time.Time],
         sampling_rate_hz: float,
         allocate_tod=True,
-        dtype_tod=np.float32,
+        tods=None,
         n_blocks_det=1,
         n_blocks_time=1,
         comm=None,
         root=0,
     ):
+        if tods is None:
+            tods = [TodDescription(name="tod", dtype=np.float32, description="Signal")]
+
         self.comm = comm
         self.start_time_global = start_time_global
         self._n_samples_global = n_samples_global
@@ -119,12 +143,19 @@ class Observation:
             self._n_blocks_det = 1
             self._n_blocks_time = 1
 
-        if allocate_tod:
-            self.tod = np.zeros(
-                self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=dtype_tod
-            )
-        else:
-            self.tod = None
+        self.tod_list = tods
+        for cur_tod in self.tod_list:
+            if allocate_tod:
+                setattr(
+                    self,
+                    cur_tod.name,
+                    np.zeros(
+                        self._get_tod_shape(n_blocks_det, n_blocks_time),
+                        dtype=cur_tod.dtype,
+                    ),
+                )
+            else:
+                setattr(self, cur_tod.name, None)
 
         self.setattr_det_global("det_idx", np.arange(self._n_detectors_global), root)
         if not isinstance(detectors, int):
@@ -301,119 +332,130 @@ class Observation:
         self._check_blocks(n_blocks_det, n_blocks_time)
         if self.comm is None or self.comm.size == 1:
             return
-        if self.tod.dtype == np.float32:
-            from mpi4py.MPI import REAL as mpi_dtype
-        elif self.tod.dtype == np.float64:
-            from mpi4py.MPI import DOUBLE as mpi_dtype
-        else:
-            raise ValueError("Unsupported MPI dtype")
 
-        new_tod = np.zeros(
-            self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=self.tod.dtype
-        )
-
-        # Global start indices and number of elements of both the old and new
-        # blocking scheme
-        det_start_sends, _, time_start_sends, time_num_sends = self._get_start_and_num(
-            self.n_blocks_det, self.n_blocks_time
-        )
-        det_start_recvs, _, time_start_recvs, time_num_recvs = self._get_start_and_num(
-            n_blocks_det, n_blocks_time
-        )
-
-        # Prepare a matrix with the message sizes to be sent/received
-        # For a given row, ith old block sends counts[i, j] elements to
-        # the jth new block
-        counts = (
-            np.append(time_start_recvs, self._n_samples_global)[1:]
-            - time_start_sends[:, None]
-        )
-        counts = np.where(counts < 0, 0, counts)
-        counts = np.where(
-            counts > time_num_sends[:, np.newaxis],
-            time_num_sends[:, np.newaxis],
-            counts,
-        )
-        counts = np.where(counts > time_num_recvs, time_num_recvs, counts)
-        cum_counts = np.cumsum(counts, 1)
-        excess = cum_counts - time_num_sends[:, np.newaxis]
-        for i in range(self.n_blocks_time):
-            for j in range(n_blocks_time):
-                if excess[i, j] > 0:
-                    counts[i, j] -= excess[i, j]
-                    counts[i, j + 1 :] = 0
-                    break
-
-        assert np.all(counts.sum(0) == time_num_recvs)
-        assert np.all(counts.sum(1) == time_num_sends)
-
-        # Move the tod to the new blocks (new_tod) row by row.
-        for d in range(self.n_detectors_global):
-            # Get the ranks of the processes involved in the send and in the
-            # receive. and create a communicator for them
-            first_sender = np.where(d >= det_start_sends)[0][-1] * self.n_blocks_time
-            first_recver = np.where(d >= det_start_recvs)[0][-1] * n_blocks_time
-            is_rank_in_row = (
-                first_sender <= self.comm.rank < first_sender + self.n_blocks_time
-                or first_recver <= self.comm.rank < first_recver + n_blocks_time
-            )
-
-            comm_row = self.comm.Split(int(is_rank_in_row))
-            if not is_rank_in_row:
-                continue  # Process not involved, move to the next row
-
-            # first_sender and first_recver to the row ranks
-            rank_gap = max(
-                first_recver - first_sender - self.n_blocks_time - 1,
-                first_sender - first_recver - n_blocks_time - 1,
-                0,
-            )
-            if first_sender < first_recver:
-                first_recver -= first_sender + rank_gap
-                first_sender = 0
+        for cur_tod_def in self.tod_list:
+            cur_tod = getattr(self, cur_tod_def.name)
+            if cur_tod.dtype == np.float32:
+                from mpi4py.MPI import REAL as mpi_dtype
+            elif cur_tod.dtype == np.float64:
+                from mpi4py.MPI import DOUBLE as mpi_dtype
             else:
-                first_sender -= first_recver + rank_gap
-                first_recver = 0
+                raise ValueError("Unsupported MPI dtype")
 
-            # Prepare send data
-            send_counts = np.zeros(comm_row.size, dtype=np.int32)
-            i_block = comm_row.rank - first_sender
-            if 0 <= i_block < self.n_blocks_time:
-                send_counts[first_recver : first_recver + n_blocks_time] = counts[
-                    comm_row.rank - first_sender
-                ]
-            send_disp = np.zeros_like(send_counts)
-            np.cumsum(send_counts[:-1], out=send_disp[1:])
-            try:
-                send_buff = self.tod[
-                    d - det_start_sends[self.comm.rank // self.n_blocks_time]
-                ]
-            except IndexError:
-                send_buff = None
-            send_data = [send_buff, send_counts, send_disp, mpi_dtype]
+            new_tod = np.zeros(
+                self._get_tod_shape(n_blocks_det, n_blocks_time), dtype=cur_tod.dtype
+            )
 
-            # recv
-            recv_counts = np.zeros(comm_row.size, dtype=np.int32)
-            i_block = comm_row.rank - first_recver
-            if 0 <= i_block < n_blocks_time:
-                recv_counts[first_sender : first_sender + self.n_blocks_time] = counts[
-                    :, i_block
-                ]
+            # Global start indices and number of elements of both the old and new
+            # blocking scheme
+            (
+                det_start_sends,
+                _,
+                time_start_sends,
+                time_num_sends,
+            ) = self._get_start_and_num(self.n_blocks_det, self.n_blocks_time)
+            (
+                det_start_recvs,
+                _,
+                time_start_recvs,
+                time_num_recvs,
+            ) = self._get_start_and_num(n_blocks_det, n_blocks_time)
 
-            recv_disp = np.zeros_like(recv_counts)
-            np.cumsum(recv_counts[:-1], out=recv_disp[1:])
+            # Prepare a matrix with the message sizes to be sent/received
+            # For a given row, ith old block sends counts[i, j] elements to
+            # the jth new block
+            counts = (
+                np.append(time_start_recvs, self._n_samples_global)[1:]
+                - time_start_sends[:, None]
+            )
+            counts = np.where(counts < 0, 0, counts)
+            counts = np.where(
+                counts > time_num_sends[:, np.newaxis],
+                time_num_sends[:, np.newaxis],
+                counts,
+            )
+            counts = np.where(counts > time_num_recvs, time_num_recvs, counts)
+            cum_counts = np.cumsum(counts, 1)
+            excess = cum_counts - time_num_sends[:, np.newaxis]
+            for i in range(self.n_blocks_time):
+                for j in range(n_blocks_time):
+                    if excess[i, j] > 0:
+                        counts[i, j] -= excess[i, j]
+                        counts[i, j + 1 :] = 0
+                        break
 
-            try:
-                recv_buff = new_tod[
-                    d - det_start_recvs[self.comm.rank // n_blocks_time]
-                ]
-            except IndexError:
-                recv_buff = None
-            recv_data = [recv_buff, recv_counts, recv_disp, mpi_dtype]
+            assert np.all(counts.sum(0) == time_num_recvs)
+            assert np.all(counts.sum(1) == time_num_sends)
 
-            comm_row.Alltoallv(send_data, recv_data)
+            # Move the tod to the new blocks (new_tod) row by row.
+            for d in range(self.n_detectors_global):
+                # Get the ranks of the processes involved in the send and in the
+                # receive. and create a communicator for them
+                first_sender = (
+                    np.where(d >= det_start_sends)[0][-1] * self.n_blocks_time
+                )
+                first_recver = np.where(d >= det_start_recvs)[0][-1] * n_blocks_time
+                is_rank_in_row = (
+                    first_sender <= self.comm.rank < first_sender + self.n_blocks_time
+                    or first_recver <= self.comm.rank < first_recver + n_blocks_time
+                )
 
-        self.tod = new_tod
+                comm_row = self.comm.Split(int(is_rank_in_row))
+                if not is_rank_in_row:
+                    continue  # Process not involved, move to the next row
+
+                # first_sender and first_recver to the row ranks
+                rank_gap = max(
+                    first_recver - first_sender - self.n_blocks_time - 1,
+                    first_sender - first_recver - n_blocks_time - 1,
+                    0,
+                )
+                if first_sender < first_recver:
+                    first_recver -= first_sender + rank_gap
+                    first_sender = 0
+                else:
+                    first_sender -= first_recver + rank_gap
+                    first_recver = 0
+
+                # Prepare send data
+                send_counts = np.zeros(comm_row.size, dtype=np.int32)
+                i_block = comm_row.rank - first_sender
+                if 0 <= i_block < self.n_blocks_time:
+                    send_counts[first_recver : first_recver + n_blocks_time] = counts[
+                        comm_row.rank - first_sender
+                    ]
+                send_disp = np.zeros_like(send_counts)
+                np.cumsum(send_counts[:-1], out=send_disp[1:])
+                try:
+                    send_buff = cur_tod[
+                        d - det_start_sends[self.comm.rank // self.n_blocks_time]
+                    ]
+                except IndexError:
+                    send_buff = None
+                send_data = [send_buff, send_counts, send_disp, mpi_dtype]
+
+                # recv
+                recv_counts = np.zeros(comm_row.size, dtype=np.int32)
+                i_block = comm_row.rank - first_recver
+                if 0 <= i_block < n_blocks_time:
+                    recv_counts[
+                        first_sender : first_sender + self.n_blocks_time
+                    ] = counts[:, i_block]
+
+                recv_disp = np.zeros_like(recv_counts)
+                np.cumsum(recv_counts[:-1], out=recv_disp[1:])
+
+                try:
+                    recv_buff = new_tod[
+                        d - det_start_recvs[self.comm.rank // n_blocks_time]
+                    ]
+                except IndexError:
+                    recv_buff = None
+                recv_data = [recv_buff, recv_counts, recv_disp, mpi_dtype]
+
+                comm_row.Alltoallv(send_data, recv_data)
+
+            setattr(self, cur_tod_def.name, new_tod)
 
         is_in_old_fist_col = self.comm.rank % self._n_blocks_time == 0
         is_in_old_fist_col &= self.comm.rank // self._n_blocks_time < self._n_blocks_det
@@ -514,7 +556,9 @@ class Observation:
 
         comm_row = comm_grid.Split(comm_grid.rank // self._n_blocks_time)
         info = comm_row.bcast(info, root_col)
-        assert self.tod is None or len(info) == len(self.tod)
+        assert (not self.tod_list) or len(info) == len(
+            getattr(self, self.tod_list[0].name)
+        )
         setattr(self, name, info)
 
     def get_delta_time(self) -> Union[float, astropy.time.TimeDelta]:
@@ -652,41 +696,3 @@ class Observation:
             quaternion_buffer,
             dtype,
         )
-
-    def get_pointing_buffer_shape(self):
-        """Deprecated: see scanning.get_pointing_buffer_shape"""
-        logging.warn(
-            "Observation.get_pointing_buffer_shape is deprecated and will be "
-            "removed soon, use scanning.get_pointing_buffer_shape instead"
-        )
-
-        return get_pointing_buffer_shape(self)
-
-    def get_pointings(
-        self,
-        spin2ecliptic_quats: Spin2EclipticQuaternions,
-        detector_quats,
-        bore2spin_quat,
-        quaternion_buffer=None,
-        dtype_quaternion=np.float64,
-        pointing_buffer=None,
-        dtype_pointing=np.float32,
-    ):
-        """Deprecated: see scanning.get_pointings"""
-        logging.warn(
-            "Observation.get_pointings is deprecated and will be "
-            "removed soon, use scanning.get_pointings instead"
-        )
-
-        return get_pointings(
-            self,
-            spin2ecliptic_quats,
-            detector_quats,
-            bore2spin_quat,
-            quaternion_buffer,
-            dtype_quaternion,
-            pointing_buffer,
-            dtype_pointing,
-        )
-
-    # <<< Remove ASAP

@@ -8,7 +8,7 @@ sim = lbs.Simulation(
     base_path="/tmp/destriper_output", start_time=0, duration_s=86400.0
 )
 
-sim.generate_spin2ecl_quaternions(
+sim.set_scanning_strategy(
     scanning_strategy=lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=np.deg2rad(30),  # CORE-specific parameter
         spin_rate_hz=0.5 / 60,  # Ditto
@@ -32,6 +32,14 @@ sim.create_observations(
     split_list_over_processes=False,
 )
 
+for obs in sim.observations:
+    lbs.get_pointings(
+        obs,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        detector_quats=None,
+        bore2spin_quat=instr.bore2spin_quat,
+    )
+
 # Generate some white noise
 rs = RandomState(MT19937(SeedSequence(123456789)))
 for curobs in sim.observations:
@@ -42,7 +50,7 @@ params = lbs.DestriperParameters(
     nside=16, return_hit_map=True, return_binned_map=True, return_destriped_map=True
 )
 
-result = lbs.destripe(sim, instr, params)
+result = lbs.destripe(sim, params=params)
 
 import healpy
 

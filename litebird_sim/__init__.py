@@ -11,6 +11,7 @@ from .detectors import (
     InstrumentInfo,
     detector_list_from_parameters,
 )
+from .bandpasses import BandPassInfo
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -19,6 +20,10 @@ from .healpix import (
     get_pixel_format,
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
+)
+from .hwp import (
+    HWP,
+    IdealHWP,
 )
 from .imo import (
     Imo,
@@ -30,10 +35,17 @@ from .imo import (
     ImoFlatFile,
 )
 from .hwp_sys.hwp_sys import HwpSys
+from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .mueller_convolver import MuellerConvolver
-from .observations import Observation
+from .observations import Observation, TodDescription
+from .pointings import (
+    apply_hwp_to_obs,
+    get_pointing_buffer_shape,
+    get_pointings,
+    get_pointings_for_observations,
+)
 from .quaternions import (
     quat_rotation_x,
     quat_rotation_y,
@@ -60,11 +72,15 @@ from .scanning import (
     SpinningScanningStrategy,
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
-    get_pointings,
 )
-from .mapping import make_bin_map
-from .destriper import DestriperParameters, DestriperResult, destripe
-from .simulations import Simulation
+from .mapping import DestriperParameters, DestriperResult, make_bin_map
+from .destriper import destripe
+from .simulations import (
+    Simulation,
+    MpiObservationDescr,
+    MpiProcessDescr,
+    MpiDistributionDescr,
+)
 from .noise import (
     add_white_noise,
     add_one_over_f_noise,
@@ -101,6 +117,8 @@ __all__ = [
     # compress.py
     "rle_compress",
     "rle_decompress",
+    # bandpasses.py
+    "BandPassInfo",
     # healpix.py
     "nside_to_npix",
     "npix_to_nside",
@@ -127,6 +145,11 @@ __all__ = [
     "FreqChannelInfo",
     "InstrumentInfo",
     "detector_list_from_parameters",
+    # hwp.py
+    "HWP",
+    "IdealHWP",
+    # madam.py
+    "save_simulation_for_madam",
     # mbs.py
     "Mbs",
     "MbsParameters",
@@ -139,6 +162,7 @@ __all__ = [
     "MuellerConvolver",
     # observations.py
     "Observation",
+    "TodDescription",
     # quaternions.py
     "quat_rotation_x",
     "quat_rotation_y",
@@ -164,6 +188,9 @@ __all__ = [
     "SpinningScanningStrategy",
     "get_det2ecl_quaternions",
     "get_ecl2det_quaternions",
+    # pointings.py
+    "apply_hwp_to_obs",
+    "get_pointing_buffer_shape",
     "get_pointings",
     # mapping.py
     "make_bin_map",
@@ -173,6 +200,9 @@ __all__ = [
     "destripe",
     # simulations.py
     "Simulation",
+    "MpiObservationDescr",
+    "MpiProcessDescr",
+    "MpiDistributionDescr",
     # noise.py
     "add_white_noise",
     "add_one_over_f_noise",

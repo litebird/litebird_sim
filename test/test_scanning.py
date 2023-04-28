@@ -5,6 +5,7 @@ from pathlib import Path
 from astropy.time import Time
 import numpy as np
 import litebird_sim as lbs
+from litebird_sim import IdealHWP
 
 
 def test_compute_pointing_and_polangle():
@@ -78,7 +79,7 @@ def test_simulation_pointings_still():
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=0.0
     )
-    sim.generate_spin2ecl_quaternions(sstr, delta_time_s=60.0)
+    sim.set_scanning_strategy(sstr, delta_time_s=60.0)
     assert sim.spin2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
@@ -93,8 +94,8 @@ def test_simulation_pointings_still():
     pointings_and_polangle = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
+        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
     )
 
     colatitude = pointings_and_polangle[..., 0]
@@ -135,7 +136,7 @@ def test_simulation_two_detectors():
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=0.0
     )
-    sim.generate_spin2ecl_quaternions(sstr, delta_time_s=60.0)
+    sim.set_scanning_strategy(sstr, delta_time_s=60.0)
     assert sim.spin2ecliptic_quats.quats.shape == (24 * 60 + 1, 4)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
@@ -143,8 +144,8 @@ def test_simulation_two_detectors():
     pointings_and_polangle = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=quaternions,
         bore2spin_quat=instr.bore2spin_quat,
+        detector_quats=quaternions,
     )
 
     assert pointings_and_polangle.shape == (2, 24, 3)
@@ -174,15 +175,15 @@ def test_simulation_pointings_polangle(tmp_path):
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0 / 60
     )
-    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
     pointings_and_polangle = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
         bore2spin_quat=instr.bore2spin_quat,
+        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
     )
     polangle = pointings_and_polangle[..., 2]
 
@@ -210,7 +211,7 @@ def test_simulation_pointings_spinning(tmp_path):
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0
     )
-    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
 
@@ -253,7 +254,7 @@ def test_simulation_pointings_mjd(tmp_path):
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=10.0, precession_rate_hz=10.0, spin_rate_hz=0.1
     )
-    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=60.0)
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=60.0)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
 
@@ -266,6 +267,39 @@ def test_simulation_pointings_mjd(tmp_path):
         )
 
         filename = Path(__file__).parent / f"reference_obs_pointings{idx:03d}.npy"
+        reference = np.load(filename, allow_pickle=False)
+        assert np.allclose(pointings_and_polangle, reference)
+
+
+def test_simulation_pointings_hwp_mjd(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=Time("2020-01-01T00:00:00"),
+        duration_s=130.0,
+    )
+    fakedet = create_fake_detector()
+
+    sim.create_observations(
+        detectors=[fakedet], num_of_obs_per_detector=2, split_list_over_processes=False
+    )
+
+    sstr = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=10.0, precession_rate_hz=10.0, spin_rate_hz=0.1
+    )
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=60.0)
+
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
+
+    for idx, obs in enumerate(sim.observations):
+        pointings_and_polangle = lbs.get_pointings(
+            obs,
+            spin2ecliptic_quats=sim.spin2ecliptic_quats,
+            detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
+            bore2spin_quat=instr.bore2spin_quat,
+            hwp=IdealHWP(ang_speed_radpsec=1.0, start_angle_rad=0.0),
+        )
+
+        filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"
         reference = np.load(filename, allow_pickle=False)
         assert np.allclose(pointings_and_polangle, reference)
 
@@ -285,7 +319,7 @@ def test_scanning_quaternions(tmp_path):
     sstr = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.0, precession_rate_hz=0.0, spin_rate_hz=1.0
     )
-    sim.generate_spin2ecl_quaternions(scanning_strategy=sstr, delta_time_s=0.5)
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
     detector_quat = np.array([[0.0, 0.0, 0.0, 1.0]])

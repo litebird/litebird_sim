@@ -144,7 +144,7 @@ the class ``NoiseGenerator``:
     seed = 6343
   
     [scanning_strategy]
-    parameters = "/releases/v1.0/Satellite/scanning_parameters/"
+    parameters = "/releases/v1.3/Satellite/scanning_parameters/"
   
     [map_maker]
     nside = 512
@@ -212,13 +212,13 @@ codes in the LiteBIRD Simulation Framework:
          return f(t_ant, whatever...)
 
    The prototype does not help the user to understand what kind of
-   measurement units should be used for `tant`, nor what is the
+   measurement units should be used for ``t_ant``, nor what is the
    measurement unit of the value returned by the function. The
    following is much better::
 
      def calc_sensitivity_k_sqr_s(t_ant_k):
          # The same calculations as above
-         return f(t_ant, whatever...)
+         return f(t_ant_k, whatever...)
 
    The second definition clarifies that the antenna temperature must
    be specified in Kelvin, and that the result is in K⋅√s.
@@ -227,12 +227,18 @@ codes in the LiteBIRD Simulation Framework:
    library <https://docs.python.org/3/library/logging.html>`_ in the
    Python standard library.
 
-5. If you are unsure about your python coding practices, the `Google
+5. You **must** format your code using `black
+   <https://black.readthedocs.io/en/stable/>`_. If you fail to do so,
+   your code cannot be merged in the framework, as we automatically
+   check its conformance every time a new pull request is opened.
+
+6. Similarly, your code must pass all the tests run by `Flake8
+   <https://pypi.org/project/flake8>`_.
+
+7. Always implement some tests!
+
+8. If you are unsure about your python coding practices, the `Google
    style guide
    <https://github.com/google/styleguide/blob/gh-pages/pyguide.md>`_
-   is a good resource. TLDR run a static analyzer on your code, like
-   `Flake8 <https://pypi.org/project/flake8>`_ (``poetry run flake8
-   path/to/my/file``). See also our `CONTRIBUTING file
+   is a good resource. See also our `CONTRIBUTING file
    <https://github.com/litebird/litebird_sim/blob/master/CONTRIBUTING.md>`_
-
-6. Always implement some tests!

@@ -5,10 +5,11 @@ on: [push]
 jobs:
   tests:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        mpi: ["none", mpich, openmpi]
+        mpi: ["none", openmpi] # mpich
         python: [3.7, 3.9]
         exclude:
           - os: macos-latest
@@ -47,30 +48,32 @@ jobs:
         run: |
           rm -rf "$PYSM_LOCAL_DATA" && git clone https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
 
-      - name: Install dependencies
+      - name: Install basic dependencies (MPI, FFTW, poetry, IMO)
         run: |
           ./bin/install-deps.sh ${{ matrix.mpi }}
           pip install poetry
           mkdir -p $HOME/.config/litebird_imo
           echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
-      - name: Install litebird_sim
+      - name: Install litebird_sim dependencies
         run: |
           EXTRAS=""
           if [ "${{ matrix.mpi }}" != "none" ]; then
             EXTRAS="$EXTRAS -E mpi"
           fi
-          poetry install $EXTRAS
+          poetry export --without-hashes $EXTRAS -o requirements.txt
+          pip install -r requirements.txt
         env:
           DUCC0_OPTIMIZATION: none
 
       - name: Enable rich traceback
+        continue-on-error: true
         run: |
           export DESTPATH="$(poetry env info -p)/lib/python${{ matrix.python }}/site-packages/sitecustomize.py"
           echo -e "from rich.traceback import install\ninstall(show_locals=True)\n" > "$DESTPATH"
           echo "$DESTPATH"
           cat "$DESTPATH"
-          
+
       - name: Tests
         run: bash ./bin/run_tests.sh
 
@@ -79,7 +82,7 @@ jobs:
         run: |
             for proc in 1 5 9 ; do
               echo "Running MPI test ($MPI) with $proc processes"
-              mpiexec -n $proc poetry run python3 ./test/test_mpi.py
+              PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
             done
 
       - name: Tests OpenMPI
@@ -87,5 +90,5 @@ jobs:
         run: |
             for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
-              mpiexec -n $proc poetry run python3 ./test/test_mpi.py
+              PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
             done

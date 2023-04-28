@@ -3,23 +3,23 @@
 Time Ordered Simulations
 ========================
 
-The LiteBIRD simulation framework offers or intends to offer the capability to 
-simulate many effects in detector timestreams. This page will detail these 
-simulated effects as they become available. The timestreams are stored in
-`.Observation` objects in the `.Observation.tod` arrays. These arrays are of 
-the shape (n_detectors, n_samples), where detectors are indexed in the same 
-order as the `.Observation.detector_global_info` array. The timestreams inside 
-the framework all use Kelvin as the default unit.
-
+The LiteBIRD simulation framework intends to offer the capability to
+simulate many effects in detector timestreams. This page will detail
+these simulated effects as they become available. The timestreams are
+stored in the ``tod`` field of :class:`.Observation` objects. These
+arrays have shape ``(n_detectors, n_samples)``, where detectors are
+indexed in the same order as the ``Observation.detector_global_info``
+array. All the time streams inside the framework use Kelvin as the
+default unit.
 
 
 Filling TOD with signal
 -----------------------
 
-The framework provides a basic routine which scans an input map accordingly to
-the scanning strategy and fills the detector timestreams. This is supported
-through the :file: `.scan_map.py`. You can fill with signal an existing TOD
-by using the function :func:`.scan_map_in_observations`, as the following example
+The framework provides :func:`.scan_map`, a routine which scans an
+input map accordingly to the scanning strategy and fills the detector
+timestreams. You can fill with signal an existing TOD by using the
+function :func:`.scan_map_in_observations`, as the following example
 shows:
 
 .. testcode::
@@ -36,54 +36,54 @@ shows:
    
    # Create a simulation
    sim = lbs.Simulation(
-       base_path="./output", start_time=start_time_s, duration_s=time_span_s
+       base_path="./output",
+       start_time=start_time_s,
+       duration_s=time_span_s,
    )
-   
-   # Create a detector object
-   det = lbs.DetectorInfo(name="Detector", sampling_rate_hz=10, quat=[0.0, 0.0, 0.0, 1.0])
    
    # Define the scanning strategy
-   scanning = lbs.SpinningScanningStrategy(
-       spin_sun_angle_rad=0.785_398_163_397_448_3,
-       precession_rate_hz=8.664_850_513_998_931e-05,
-       spin_rate_hz=0.000_833_333_333_333_333_4,
-       start_time=start_time_s,
+   sim.set_scanning_strategy(
+       lbs.SpinningScanningStrategy(
+           spin_sun_angle_rad=0.785_398_163_397_448_3,
+           precession_rate_hz=8.664_850_513_998_931e-05,
+           spin_rate_hz=0.000_833_333_333_333_333_4,
+           start_time=start_time_s,
+       ),
+       delta_time_s=7200,
    )
    
-   spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-       start_time_s, time_span_s, delta_time_s=7200
+   sim.set_instrument(
+       lbs.InstrumentInfo(
+           boresight_rotangle_rad=0.0,
+           spin_boresight_angle_rad=0.872_664_625_997_164_8,
+           spin_rotangle_rad=3.141_592_653_589_793,
+       ),
    )
-   
-   instr = lbs.InstrumentInfo(
-       boresight_rotangle_rad=0.0,
-       spin_boresight_angle_rad=0.872_664_625_997_164_8,
-       spin_rotangle_rad=3.141_592_653_589_793,
+    
+   # Create a detector object
+   det = lbs.DetectorInfo(
+       name="Detector",
+       sampling_rate_hz=10,
+       quat=[0.0, 0.0, 0.0, 1.0],
    )
    
    # Initialize the observation
    (obs,) = sim.create_observations(detectors=[det])
    
-   # Compute the pointing
-   pointings = lbs.scanning.get_pointings(
-       obs,
-       spin2ecliptic_quats=spin2ecliptic_quats,
-       detector_quats=[det.quat],
-       bore2spin_quat=instr.bore2spin_quat,
-   )
+   # Compute the pointing information
+   sim.compute_pointings()
    
-   # Create a map to scan
-   # In a realistic simulation use Mbs
+   # Create a map to scan (in realistic simulations,
+   # use the MBS module provided by litebird_sim)
    maps = np.ones((3, npix))
-   in_map = {"Detector": maps}
+   in_map = {"Detector": maps, "Coordinates": lbs.CoordinateSystem.Ecliptic}
 
    # Here scan the map and fill tod
    lbs.scan_map_in_observations(
        obs, 
-       pointings, 
-       hwp_radpsec, 
        in_map,
        input_map_in_galactic = False,
-       )
+   )
    
    for i in range(obs.n_samples):
        # + 0. removes leading minus from negative zero
@@ -92,26 +92,29 @@ shows:
 
 .. testoutput::
 
-   0.00000
-   -0.14475
-   -0.26104
-   -0.34598
-   -0.39746
-   -0.41420
-   -0.39579
-   -0.34267
-   -0.25618
-   -0.13846
+    0.00000
+    -0.00075
+    -0.00151
+    -0.00226
+    -0.00301
+    -0.00376
+    -0.00451
+    -0.00526
+    -0.00601
+    -0.00676   
 
 
-The input maps to scan must be included in a dictionary with either the name of
-the channel or the name of the dectector as keyword. The routines described in 
-:ref:`Mbs` already provied the inputs in the correct format. 
-When set `True` the option `fill_psi_and_pixind_in_obs` fills the polarization
-angle `obs.psi` and the pixel index `obs.pixind` for each sample, allowing to 
-quickly bin the Observations through the function :func:`.make_bin_map`.
-If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`
-
+The input maps to scan can be either included in a dictionary with the name of
+the channel or the name of the dectector as keyword (the routines described in 
+:ref:`Mbs` already provied the inputs in the correct format), or a numpy array
+with shape (3, n_pixels).
+The pointing information can be included in the observation or passed through 
+`pointings`. If both `obs` and `pointings` are provided, they must be coherent,
+so either a single Observation and a single numpy array, or same lenght list of
+Observations and numpy arrays.
+If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`.
+The effect of a possible HWP is included in the pointing information, see 
+:ref:`scanning-strategy`.
 
 Adding Noise
 ------------
@@ -129,18 +132,25 @@ Here is a short example that shows how to add noise:
    import numpy as np
 
    # Create a simulation lasting 100 seconds
-   sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
+   sim = lbs.Simulation(
+       base_path='./output',
+       start_time=0,
+       duration_s=100,
+   )
 
    # Create a detector object
    det = lbs.DetectorInfo(
-     fknee_mhz=1.0,
      net_ukrts=100,
      sampling_rate_hz=10
    )
      
-   obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
+   obs = sim.create_observations(detectors=[det])
 
-   # Here we add white noise using the detector noise parameters from the Imo
+   # Here we add white noise using the detector
+   # noise parameters from the `det` object.
+   # We use the random number generator provided
+   # by `sim`, which is always initialized with the
+   # same seed to ensure repeatability.
    lbs.noise.add_noise_to_observations(obs, 'white', random=sim.random)
 
    for i in range(10):
@@ -173,14 +183,18 @@ call the low level function directly:
 
    import litebird_sim as lbs
 
-   sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
+   sim = lbs.Simulation(
+       base_path='./output',
+       start_time=0,
+       duration_s=100,
+   )
 
    det = lbs.DetectorInfo(
      net_ukrts=100,
      sampling_rate_hz=10,
    )
 
-   obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
+   obs = sim.create_observations(detectors=[det])
 
    custom_sigma_uk = 1234
    lbs.noise.add_white_noise(obs[0].tod[0], custom_sigma_uk)
@@ -191,7 +205,11 @@ We can also add 1/f noise using a very similar call to the above:
    
    import litebird_sim as lbs
 
-   sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
+   sim = lbs.Simulation(
+       base_path='./output',
+       start_time=0,
+       duration_s=100,
+   )
 
    det = lbs.DetectorInfo(
      net_ukrts=100,
@@ -200,49 +218,135 @@ We can also add 1/f noise using a very similar call to the above:
      fknee_mhz=10
    )
 
-   obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
+   obs = sim.create_observations(detectors=[det])
 
-   # Here we add 1/f noise using the detector noise parameters from the
-   # detector object
+   # Here we add 1/f noise using the detector noise
+   # parameters from the detector object
    lbs.noise.add_noise_to_observations(obs, 'one_over_f')
 
-Again, to generate noise with custom parameters, we can either use the low level function directly, or edit the observation object to contain the desired noise parameters. 
+Again, to generate noise with custom parameters, we can either use the low-level function or edit the :class:`.Observation` object to contain the desired noise parameters. 
 
 .. testcode::
 
    import litebird_sim as lbs
    import numpy as np
 
-   sim = lbs.Simulation(base_path='./output', start_time=0, duration_s=100)
+   sim = lbs.Simulation(
+       base_path='./output',
+       start_time=0,
+       duration_s=100,
+   )
 
    det = lbs.DetectorInfo(
      net_ukrts=100,
      sampling_rate_hz=10,
      alpha=1,
-     fknee_mhz=10
+     fknee_mhz=10,
+     fmin_hz=0.001,
    )
 
-   obs = sim.create_observations(detectors=[det], num_of_obs_per_detector=1)
+   obs = sim.create_observations(detectors=[det])
 
    custom_sigma_uk = 1234
    custom_fknee_mhz = 12.34
    custom_alpha = 1.234
+   custom_fmin_hz = 0.0123
 
-   # Option 1, where we call the low lever function directly
+   # Option 1: we call the low-level function directly
    lbs.noise.add_one_over_f_noise(
        obs[0].tod[0],
        custom_fknee_mhz,
+       custom_fmin_hz,
        custom_alpha,
        custom_sigma_uk,
        obs[0].sampling_rate_hz,
    )
 
-   # Option 2, where we change the values in the observation object
+   # Option 2: we change the values in `obs`
    obs[0].fknee_mhz[0] = custom_fknee_mhz
+   obs[0].fmin_hz[0] = custom_fmin_hz
    obs[0].alpha[0] = custom_alpha
-   obs[0].net_ukrts[0] = custom_sigma_uk / np.sqrt(obs[0].sampling_rate_hz)
+   obs[0].net_ukrts[0] = (
+       custom_sigma_uk / np.sqrt(obs[0].sampling_rate_hz)
+   )
 
    lbs.noise.add_noise_to_observations(obs, 'one_over_f')
+
+
+Methods of class simulation
+---------------------------
+
+The class :class:`.Simulation` provides two simple functions that fill
+with sky signal and nosie all the observations of a given simulation.
+The function :func:`.Simulation.fill_tods` takes a map and scans it, while
+the function :func:`.Simulation.add_noise` adds noise to the timelines.
+Thanks to these functions the generation of a simulation becomes quite
+transparent:
+
+.. testcode::
+
+  import litebird_sim as lbs
+  from astropy.time import Time
+  import numpy as np
+
+  start_time = 0
+  time_span_s = 1000.0
+  sampling_hz = 10.0
+  nside = 128
+
+  sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+
+  # We pick a simple scanning strategy where the spin axis is aligned
+  # with the Sun-Earth axis, and the spacecraft spins once every minute
+  sim.set_scanning_strategy(
+      lbs.SpinningScanningStrategy(
+          spin_sun_angle_rad=np.deg2rad(0),
+          precession_rate_hz=0,
+          spin_rate_hz=1 / 60,
+          start_time=start_time,
+      ),
+      delta_time_s=5.0,
+   )
+
+  # We simulate an instrument whose boresight is perpendicular to
+  # the spin axis.
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          boresight_rotangle_rad=0.0,
+          spin_boresight_angle_rad=np.deg2rad(90),
+          spin_rotangle_rad=np.deg2rad(75),
+      )
+  )
+
+  # A simple detector looking along the boresight direction
+  det = lbs.DetectorInfo(
+      name="Boresight_detector",
+      sampling_rate_hz=sampling_hz,
+      bandcenter_ghz=100.0,
+      net_ukrts=50.0,
+  )
+
+  sim.create_observations(detectors=det)
+
+  sim.compute_pointings()
+
+  sky_signal = np.ones((3,12*nside*nside))*1e-4
+
+  sim.fill_tods(sky_signal)
+
+  sim.add_noise(noise_type='white')
+
+  for i in range(5):
+      print(f"{sim.observations[0].tod[0][i]:.5e}")
+
+.. testoutput::
+
+    4.14241e-04
+    5.46700e-05
+    3.03378e-04
+    6.13975e-05
+    4.72613e-05
+    
 
 API reference
 -------------

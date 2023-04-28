@@ -86,26 +86,27 @@ def test_solar_dipole_fit(tmpdir):
 
     start_time = Time("2022-01-01")
     time_span_s = 365 * 24 * 3600
-    nside = 256
-    sampling_hz = 1
+    nside = 32
+    sampling_hz = 0.1
 
     sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
 
-    scanning = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=0.785_398_163_397_448_3,
-        precession_rate_hz=8.664_850_513_998_931e-05,
-        spin_rate_hz=0.000_833_333_333_333_333_4,
-        start_time=start_time,
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785_398_163_397_448_3,
+            precession_rate_hz=8.664_850_513_998_931e-05,
+            spin_rate_hz=0.000_833_333_333_333_333_4,
+            start_time=start_time,
+        ),
+        delta_time_s=7200,
     )
 
-    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-        start_time, time_span_s, delta_time_s=7200
-    )
-
-    instr = lbs.InstrumentInfo(
-        boresight_rotangle_rad=0.0,
-        spin_boresight_angle_rad=0.872_664_625_997_164_8,
-        spin_rotangle_rad=3.141_592_653_589_793,
+    sim.set_instrument(
+        lbs.InstrumentInfo(
+            boresight_rotangle_rad=0.0,
+            spin_boresight_angle_rad=0.872_664_625_997_164_8,
+            spin_rotangle_rad=3.141_592_653_589_793,
+        )
     )
 
     det = lbs.DetectorInfo(
@@ -118,11 +119,10 @@ def test_solar_dipole_fit(tmpdir):
     (obs_s_o,) = sim.create_observations(detectors=[det])
     (obs_o,) = sim.create_observations(detectors=[det])
 
-    pointings = lbs.scanning.get_pointings(
+    pointings = lbs.get_pointings(
         obs_s_o,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        detector_quats=[det.quat],
-        bore2spin_quat=instr.bore2spin_quat,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        bore2spin_quat=sim.instrument.bore2spin_quat,
     )
 
     orbit_s_o = lbs.SpacecraftOrbit(obs_s_o.start_time)
@@ -134,14 +134,14 @@ def test_solar_dipole_fit(tmpdir):
     pos_vel_s_o = lbs.spacecraft_pos_and_vel(orbit_s_o, obs_s_o, delta_time_s=86400.0)
     pos_vel_o = lbs.spacecraft_pos_and_vel(orbit_o, obs_o, delta_time_s=86400.0)
 
-    assert pos_vel_s_o.velocities_km_s.shape == (366, 3)
-    assert pos_vel_o.velocities_km_s.shape == (366, 3)
+    assert pos_vel_s_o.velocities_km_s.shape == (367, 3)
+    assert pos_vel_o.velocities_km_s.shape == (367, 3)
 
     lbs.add_dipole_to_observations(
-        obs_s_o, pointings, pos_vel_s_o, dipole_type=lbs.DipoleType.LINEAR
+        obs_s_o, pos_vel_s_o, dipole_type=lbs.DipoleType.LINEAR
     )
     lbs.add_dipole_to_observations(
-        obs_o, pointings, pos_vel_o, dipole_type=lbs.DipoleType.LINEAR
+        obs_o, pos_vel_o, pointings=pointings, dipole_type=lbs.DipoleType.LINEAR
     )
 
     npix = hp.nside2npix(nside)
@@ -186,6 +186,58 @@ def test_solar_dipole_fit(tmpdir):
     l, b = hp.vec2ang(r(dip), lonlat=True)
 
     # Amplitude, longitude and latitude
-    test.assertAlmostEqual(np.sqrt(np.sum(dip ** 2)) * 1e6, 3362.08, 1)
+    test.assertAlmostEqual(np.sqrt(np.sum(dip**2)) * 1e6, 3362.08, delta=1)
     test.assertAlmostEqual(l[0], 264.021, 1)
     test.assertAlmostEqual(b[0], 48.253, 1)
+
+
+def test_dipole_list_of_obs(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=Time("2020-01-01T00:00:00"),
+        duration_s=100.0,
+    )
+    dets = [
+        lbs.DetectorInfo(name="A", sampling_rate_hz=1),
+        lbs.DetectorInfo(name="B", sampling_rate_hz=1),
+    ]
+
+    sim.create_observations(
+        detectors=dets,
+        num_of_obs_per_detector=2,
+    )
+
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785_398_163_397_448_3,
+            precession_rate_hz=8.664_850_513_998_931e-05,
+            spin_rate_hz=0.000_833_333_333_333_333_4,
+            start_time=sim.start_time,
+        ),
+        delta_time_s=60,
+    )
+
+    sim.set_instrument(
+        lbs.InstrumentInfo(
+            boresight_rotangle_rad=0.0,
+            spin_boresight_angle_rad=0.872_664_625_997_164_8,
+            spin_rotangle_rad=3.141_592_653_589_793,
+        )
+    )
+
+    pointings = lbs.get_pointings_for_observations(
+        sim.observations,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        bore2spin_quat=sim.instrument.bore2spin_quat,
+    )
+
+    orbit = lbs.SpacecraftOrbit(sim.start_time)
+    pos_vel = lbs.spacecraft_pos_and_vel(orbit, obs=sim.observations, delta_time_s=10.0)
+
+    # Just check that the call works
+    lbs.add_dipole_to_observations(
+        obs=sim.observations,
+        pos_and_vel=pos_vel,
+        pointings=pointings,
+        frequency_ghz=[100.0],
+    )

@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from dataclasses import dataclass
-from typing import Union
+from typing import Union, List, Tuple
 
 import astropy
 from astropy.coordinates import ICRS, get_body_barycentric_posvel, SkyCoord
@@ -10,10 +10,9 @@ import astropy.time
 from numba import njit
 import numpy as np
 
+from litebird_sim import constants as c
 from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
 from .observations import Observation
-
-EARTH_L2_DISTANCE_KM = 1_496_509.30522
 
 
 def cycles_per_year_to_rad_per_s(x: float) -> float:
@@ -27,7 +26,7 @@ def get_ecliptic_vec(vec):
 
 
 def compute_l2_pos_and_vel(
-    time0: astropy.time.Time, earth_l2_distance_km: float = EARTH_L2_DISTANCE_KM
+    time0: astropy.time.Time, earth_l2_distance_km: float = c.EARTH_L2_DISTANCE_KM
 ):
     """
     Compute the position and velocity of the L2 Sun-Earth point at a given time.
@@ -181,7 +180,7 @@ def sum_lissajous_pos_and_vel(
         #     ω = v·e⟂ / r
         #       = (v_x, v_y) · (−y / √(x² + y²), x / √(x² + y²)) / √(x² + y²) =
         #       = (−v_x · y + v_y · x) / (x² + y²)
-        radius_squared = l2_pos_x ** 2 + l2_pos_y ** 2
+        radius_squared = l2_pos_x**2 + l2_pos_y**2
         earth_ang_speed_rad_s = (
             -l2_vel_x * l2_pos_y + l2_vel_y * l2_pos_x
         ) / radius_squared
@@ -236,15 +235,15 @@ class SpacecraftOrbit:
     """
 
     start_time: astropy.time.Time
-    earth_l2_distance_km: float = EARTH_L2_DISTANCE_KM
+    earth_l2_distance_km: float = c.EARTH_L2_DISTANCE_KM
     radius1_km: float = 244_450.0
     radius2_km: float = 137_388.0
     ang_speed1_rad_s: float = cycles_per_year_to_rad_per_s(2.02104)
     ang_speed2_rad_s: float = cycles_per_year_to_rad_per_s(1.98507)
     phase_rad: float = np.deg2rad(-47.944)
-    solar_velocity_km_s: float = 369.8160
-    solar_velocity_gal_lat_rad: float = 0.842_173_724
-    solar_velocity_gal_lon_rad: float = 4.608_035_744_4
+    solar_velocity_km_s: float = c.SOLAR_VELOCITY_KM_S
+    solar_velocity_gal_lat_rad: float = c.SOLAR_VELOCITY_GAL_LAT_RAD
+    solar_velocity_gal_lon_rad: float = c.SOLAR_VELOCITY_GAL_LON_RAD
 
     solar_velocity_ecl_xyz_km_s = (
         SkyCoord(
@@ -339,9 +338,43 @@ class SpacecraftPositionAndVelocity:
         return velocities
 
 
+def compute_start_and_span_for_obs(
+    obs: Union[Observation, List[Observation]]
+) -> Tuple[astropy.time.Time, float]:
+    """
+    Compute the start time and the overall duration in seconds of a set of observations.
+
+    The code returns the earliest start time of the observations in `obs` as well
+    as their overall time span. Gaps between observations are neglected.
+    """
+
+    if isinstance(obs, Observation):
+        obs_list = [obs]
+    else:
+        obs_list = obs
+
+    start_time, end_time = None, None
+    for cur_obs in obs_list:
+        assert isinstance(
+            cur_obs.start_time, astropy.time.Time
+        ), "You must use astropy.time.Time in Observation objects"
+
+        cur_start_time = cur_obs.start_time
+        if (start_time is None) or (cur_start_time < start_time):
+            start_time = cur_start_time
+
+        cur_end_time = cur_obs.start_time + cur_obs.get_time_span()
+        if (end_time is None) or (end_time > cur_end_time):
+            end_time = cur_end_time
+
+    time_span_s = (end_time - start_time).to("s").value
+
+    return start_time, time_span_s
+
+
 def spacecraft_pos_and_vel(
     orbit: SpacecraftOrbit,
-    obs: Union[Observation, None] = None,
+    obs: Union[Observation, List[Observation], None] = None,
     start_time: Union[astropy.time.Time, None] = None,
     time_span_s: Union[float, None] = None,
     delta_time_s: float = 86400.0,
@@ -350,9 +383,10 @@ def spacecraft_pos_and_vel(
 
     This function computes the XYZ position and velocity of the second Sun-Earth
     Lagrangean point (L2) over a time span specified either by a
-    :class:`.Observation` object or by an explicit pair of values `start_time`
-    (an ``astropy.time.Time`` object) and `time_span_s` (length in seconds). The
-    position is specified in the standard Barycentric Ecliptic reference frame.
+    :class:`.Observation` object/list of objects, or by an explicit pair of values
+    `start_time` (an ``astropy.time.Time`` object) and `time_span_s` (length in
+    seconds). The position is specified in the standard Barycentric Ecliptic
+    reference frame.
 
     The position of the L2 point is computed starting from the position of the
     Earth and moving away along the anti-Sun direction by a number of kilometers
@@ -365,11 +399,9 @@ def spacecraft_pos_and_vel(
     ), "You must either provide a Observation or start_time/time_span_s"
 
     if obs:
-        assert isinstance(
-            obs.start_time, astropy.time.Time
-        ), "You must use astropy.time.Time in Observation objects"
-        start_time = obs.start_time
-        time_span_s = obs.get_time_span().to("s").value
+        # The caller either provided an observation or a list of observations.
+        # Let's compute the overall time span
+        start_time, time_span_s = compute_start_and_span_for_obs(obs)
 
     # We are going to compute the position of the L2 point at N times. The value N
     # is chosen such that the spacing between two consecutive times is never longer
