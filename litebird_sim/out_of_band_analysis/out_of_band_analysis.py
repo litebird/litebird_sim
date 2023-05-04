@@ -597,7 +597,7 @@ class HwpSysAndBandpass:
         if self.integrate_in_band:
             try:
                 self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
-                    self.band_filename, unpack=True, skiprows=1
+                    self.band_filename, unpack=True, comments = '#', #skiprows=1
                 )
             except Exception:
                 print("you have not provided a band_filename in the parameter file!")
@@ -670,7 +670,9 @@ class HwpSysAndBandpass:
                         self.betas,
                         self.z1s,
                         self.z2s,
-                    ) = np.loadtxt(self.band_filename_solver, unpack=True, skiprows=1)
+                    ) = np.loadtxt(self.band_filename_solver, unpack=True, comments = '#', 
+                           # skiprows=1
+                           )
                 except Exception:
                     print(
                         "you have not provided a band_filename_solver"
