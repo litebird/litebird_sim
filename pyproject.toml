@@ -65,8 +65,7 @@ pytest = "^5.3"
 jinja2 = "^3.0"
 markdown = "^3.2"
 matplotlib = "^3.1"
-markdown-katex = {version = "^202006.1021"}
-katex = "^0.0.4"
+markdown-katex = {version = "^202112.1034"}
 healpy = "^1.15.0"
 pyyaml = "^5.3.1"
 pybind11 = "^2.5.0"
