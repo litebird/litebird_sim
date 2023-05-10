@@ -57,7 +57,7 @@ sphinx = "^5.1"
 sphinx_rtd_theme = "^1.0.0"
 sphinxcontrib-bibtex = "^2.5.0"
 sphinxcontrib-contentui = "^0.2.5"
-"sphinxcontrib.asciinema" = "^0.3.7"
+"sphinxcontrib.asciinema" = "^0.3.4"
 
 jupyter = {version = "^1.0", optional = true}
 jupyterlab = {version = "^1.2", optional = true}
