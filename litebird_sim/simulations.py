@@ -31,6 +31,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
+from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
 import astropy.units
@@ -1334,4 +1335,56 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
+            )
+
+    def apply_gaindrift(
+        self,
+        drift_params: GainDriftParams,
+        user_seed: int = 12345,
+        component: str = "tod",
+        append_to_report: bool = True,
+    ):
+        apply_gaindrift_to_observations(
+            obs=self.observations,
+            drift_params=drift_params,
+            user_seed=user_seed,
+            component=component,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+
+            dictionary = {
+                "sampling_dist": "Gaussian" if drift_params.sampling_dist else "Uniform"
+            }
+
+            if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
+                dictionary["drift_type":"Linear"]
+                dictionary["linear_drift":True]
+                dictionary["calibration_period" : drift_params.calibration_period]
+
+            elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
+                dictionary["drift_type":"Thermal"]
+                dictionary["thermal_drift":True]
+
+                keys_to_get = [
+                    "sigma_drift_K",
+                    "focalplane_group",
+                    "oversample",
+                    "fknee_drift_mHz",
+                    "alpha_drift",
+                    "sampling_freq_Hz",
+                    "detector_mismatch",
+                    "thermal_fluctuation_amplitude_K",
+                    "focalplane_Tbath_mK",
+                ]
+
+                for key in keys_to_get:
+                    dictionary[key] = getattr(drift_params, key)
+
+            template_file_path = get_template_file_path("report_gaindrift.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_text=markdown_template,
+                **dictionary,
             )
