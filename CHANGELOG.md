@@ -6,6 +6,8 @@
 
 -   Improve the documentation [#231](https://github.com/litebird/litebird_sim/pull/231)
 
+-   Use Poetry instead of Pip to specify the dependencies for the documentation [#237](https://github.com/litebird/litebird_sim/pull/237)
+
 # Version 0.9.0
 
 -   Some memory optimization in pointing production [#222](https://github.com/litebird/litebird_sim/pull/222), coordinate rotation and noise [#223](https://github.com/litebird/litebird_sim/pull/223)
