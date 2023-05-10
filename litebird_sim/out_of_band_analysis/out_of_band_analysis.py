@@ -446,7 +446,7 @@ def compute_polang_from_detquat(quat):
 class HwpSysAndBandpass:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
-    https://arxiv.org/abs/2106.08031
+    https://arxiv.org/abs/2106.08031 and erratum https://doi.org/10.1051/0004-6361/202141619e
 
     Args:
          simulation (:class:`.Simulation`): an instance of the class \
@@ -617,7 +617,7 @@ class HwpSysAndBandpass:
                 self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
 
             # Normalize the band
-            self.cmb2bb /= self.cmb2bb.sum()
+            self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
 
             myinstr = {}
             for ifreq in range(self.nfreqs):
@@ -664,7 +664,7 @@ class HwpSysAndBandpass:
             if self.integrate_in_band_solver:
                 try:
                     (
-                        self.freqs,
+                        self.freqs_solver,
                         self.h1s,
                         self.h2s,
                         self.betas,
@@ -692,18 +692,18 @@ class HwpSysAndBandpass:
 
             if not self.bandpass_solver:
 
-                self.cmb2bb_solver = _dBodTth(self.freqs)
+                self.cmb2bb_solver = _dBodTth(self.freqs_solver)
 
             elif self.bandpass_solver:
 
                 self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
-                    self.freqs, self.bandpass_solver, self.include_beam_throughput
+                    self.freqs_solver, self.bandpass_solver, self.include_beam_throughput
                 )
                 self.cmb2bb_solver = (
                     _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
                 )
 
-            self.cmb2bb_solver /= self.cmb2bb_solver.sum()
+            self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
 
             self.cbetas = np.cos(np.deg2rad(self.betas))
 
