@@ -13,8 +13,10 @@ build:
        - asdf install poetry latest
        - asdf global poetry latest
        - poetry config virtualenvs.create false
+       - poetry export --without-hashes > requirements.txt
      post_install:
        - poetry install
+       - pip install -r requirements.txt
 
 sphinx:
   configuration: docs/source/conf.py
