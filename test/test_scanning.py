@@ -12,14 +12,14 @@ def test_compute_pointing_and_polangle():
     quat = np.array(lbs.quat_rotation_y(np.pi / 2))
     result = np.empty(3)
     lbs.compute_pointing_and_polangle(result, quat)
-    assert np.allclose(result, [np.pi / 2, 0.0, -np.pi / 2])
+    assert np.allclose(result, [np.pi / 2, 0.0, np.pi])
 
     # We stay along the same pointing, but we're rotating the detector
     # by 90°, so the polarization angle is the only number that
     # changes
     lbs.quat_left_multiply(quat, *lbs.quat_rotation_x(np.pi / 4))
     lbs.compute_pointing_and_polangle(result, quat)
-    assert np.allclose(result, [np.pi / 2, 0.0, -np.pi / 4])
+    assert np.allclose(result, [np.pi / 2, 0.0, -3 * np.pi / 4])
 
 
 def test_spin_to_ecliptic():
@@ -103,7 +103,7 @@ def test_simulation_pointings_still():
     polangle = pointings_and_polangle[..., 2]
 
     assert np.allclose(colatitude, np.pi / 2), colatitude
-    assert np.allclose(np.abs(polangle), np.pi / 2), polangle
+    assert np.allclose(np.abs(polangle), np.pi), polangle
 
     # The longitude should have changed by a fraction 23 hours /
     # 365.25 days of a complete circle (we have 24 samples, from t = 0
@@ -155,7 +155,8 @@ def test_simulation_two_detectors():
 
     # The ψ angle should differ by 45°
     assert np.allclose(
-        np.abs(pointings_and_polangle[0, :, 2] - pointings_and_polangle[1, :, 2]),
+        np.abs(pointings_and_polangle[0, :, 2] - pointings_and_polangle[1, :, 2])
+        % np.pi,
         np.pi / 2,
     )
 
@@ -224,10 +225,12 @@ def test_simulation_pointings_spinning(tmp_path):
     colatitude = pointings_and_polangle[..., 0]
 
     reference_spin2ecliptic_file = Path(__file__).parent / "reference_spin2ecl.txt.gz"
+    # np.savetxt(reference_spin2ecliptic_file, sim.spin2ecliptic_quats.quats)
     reference = np.loadtxt(reference_spin2ecliptic_file)
     assert np.allclose(sim.spin2ecliptic_quats.quats, reference)
 
     reference_pointings_file = Path(__file__).parent / "reference_pointings.txt.gz"
+    # np.savetxt(reference_pointings_file, pointings_and_polangle[0, :, :])
     reference = np.loadtxt(reference_pointings_file)
     assert np.allclose(pointings_and_polangle[0, :, :], reference)
 
@@ -267,6 +270,7 @@ def test_simulation_pointings_mjd(tmp_path):
         )
 
         filename = Path(__file__).parent / f"reference_obs_pointings{idx:03d}.npy"
+        # np.save(filename, pointings_and_polangle)
         reference = np.load(filename, allow_pickle=False)
         assert np.allclose(pointings_and_polangle, reference)
 
@@ -300,6 +304,7 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
         )
 
         filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"
+        # np.save(filename, pointings_and_polangle)
         reference = np.load(filename, allow_pickle=False)
         assert np.allclose(pointings_and_polangle, reference)
 

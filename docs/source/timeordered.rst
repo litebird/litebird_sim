@@ -92,17 +92,16 @@ shows:
 
 .. testoutput::
 
-    0.00000
-    -0.00075
-    -0.00151
-    -0.00226
-    -0.00301
-    -0.00376
-    -0.00451
-    -0.00526
-    -0.00601
-    -0.00676   
-
+    2.00000
+    2.00075
+    2.00151
+    2.00226
+    2.00301
+    2.00376
+    2.00451
+    2.00526
+    2.00601
+    2.00676
 
 The input maps to scan can be either included in a dictionary with the name of
 the channel or the name of the dectector as keyword (the routines described in 
@@ -341,12 +340,11 @@ transparent:
 
 .. testoutput::
 
-    4.14241e-04
-    5.46700e-05
-    3.03378e-04
-    6.13975e-05
-    4.72613e-05
-    
+    3.51023e-04
+    -9.19179e-06
+    2.38899e-04
+    -3.67181e-06
+    -1.83718e-05
 
 API reference
 -------------

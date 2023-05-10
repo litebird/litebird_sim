@@ -106,18 +106,23 @@ def polarization_angle(theta_rad, phi_rad, poldir):
     #   East  = [-sin(ϕ), cos(ϕ), 0]
     #
     # To compute the polarization angle, we're just looking at the dot
-    # product between "poldir" and these two directions. We use
-    # `clip_sincos` to prevent problems from values that are slightly
-    # outside the allowed range [-1,1] because of numerical roundoff
-    # errors.
+    # product between "poldir" and these two directions.
 
-    cos_psi = _clip_sincos(-np.sin(phi_rad) * poldir[0] + np.cos(phi_rad) * poldir[1])
-    sin_psi = _clip_sincos(
-        (-np.cos(theta_rad) * np.cos(phi_rad) * poldir[0])
-        + (-np.cos(theta_rad) * np.sin(phi_rad) * poldir[1])
-        + (np.sin(theta_rad) * poldir[2])
+    sin_theta = np.sin(theta_rad)
+    rx = sin_theta * np.cos(phi_rad)
+    ry = sin_theta * np.sin(phi_rad)
+    rz = np.cos(theta_rad)
+
+    # This formula assumes that ψ=0 is aligned along the
+    # "East" vector indicated above
+    by = poldir[0] * ry - poldir[1] * rx
+    bx = (
+        poldir[0] * (-rz * rx)
+        + poldir[1] * (-rz * ry)
+        + poldir[2] * (rx**2 + ry**2)
     )
-    return np.arctan2(sin_psi, cos_psi)
+
+    return np.arctan2(by, bx)
 
 
 @njit
