@@ -5,14 +5,15 @@
 version: 2
 
 python:
-   version: 3.7
-   install:
-      - method: pip
-        path: .
-        extra_requirements:
-            - docs
-   system_packages: true
-
+   version: 3.9
+   jobs:
+     pre_create_environment:
+       - asdf plugin add poetry
+       - asdf install poetry latest
+       - asdf global poetry latest
+       - poetry config virtualenvs.create false
+     post_install:
+       - poetry install
 
 sphinx:
   configuration: docs/source/conf.py
