@@ -4,7 +4,11 @@
 
 -   Improve the support for multiple TODs in the same `Observation` [#225](https://github.com/litebird/litebird_sim/pull/225)
 
+-   Remove bandpass-related warnings [#236](https://github.com/litebird/litebird_sim/pull/236)
+
 -   Improve the documentation [#231](https://github.com/litebird/litebird_sim/pull/231)
+
+-   Use Poetry instead of Pip to specify the dependencies for the documentation [#237](https://github.com/litebird/litebird_sim/pull/237)
 
 # Version 0.9.0
 
