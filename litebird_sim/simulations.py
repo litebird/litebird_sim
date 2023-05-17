@@ -1339,11 +1339,32 @@ class Simulation:
 
     def apply_gaindrift(
         self,
-        drift_params: GainDriftParams,
+        drift_params: GainDriftParams = None,
         user_seed: int = 12345,
         component: str = "tod",
         append_to_report: bool = True,
     ):
+        """A method to apply the gain drift to the observation.
+
+        This is a wrapper around :func:`.apply_gaindrift_to_observations()` that
+        injects gain drift to a list of :class:`.Observation` instance.
+
+        Args:
+
+            drift_params (:class:`.GainDriftParams`, optional): The gain drift
+            injection parameters object. Defaults to None.
+
+            user_seed (int, optional): A seed provided by the user. Defaults to 12345.
+
+            component (str, optional): The name of the TOD on which the gain drift
+            has to be injected. Defaults to "tod".
+
+            append_to_report (bool, optional): Defaults to True.
+        """
+
+        if drift_params is None:
+            drift_params = GainDriftParams()
+
         apply_gaindrift_to_observations(
             obs=self.observations,
             drift_params=drift_params,

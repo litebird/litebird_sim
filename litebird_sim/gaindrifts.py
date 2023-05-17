@@ -9,28 +9,113 @@ from .observations import Observation
 
 
 class GainDriftType(IntEnum):
+    """An enumeration class to specify the type of gain drift injection.
+
+    The gain drift type can be:
+
+    - `LINEAR_GAIN`: injects linear gain drift in time with the possibility to
+    calibrate the detectors at periodic interval
+
+    - `THERMAL_GAIN`: injects a gain drift with `1/f` psd mimicking the fluctuations
+    in the focalplane temperature
+
+    """
+
     LINEAR_GAIN = 0
     THERMAL_GAIN = 1
     SLOW_GAIN = 2
 
 
 class SamplingDist(IntEnum):
+    """An enumeration class to specify the distribution for the random scaling
+    factor applied on the gain drift"""
+
     UNIFORM = 0
     GAUSSIAN = 1
 
 
 @dataclass
 class GainDriftParams:
+    """
+    A class to store the gain drift injection parameters.
+
+    The gain drift type can be one of the following:
+
+    - Linear: It simulates gain drift that increases linearly in time. The
+      gain factor resets to one periodically with time interval specified by the
+      parameter `calibration_period_sec`.
+
+    - Thermal: It simulates the gain drift as the fluctuation in the
+      focalplane temperature. It offers the possibility to inject common mode drift
+      to the TODs of detectors belonging to the same group of detectors identified
+      by the parameter `focalplane_group`. This is enabled by setting the parameter
+      `detector_mismatch` to 0.
+
+
+    The complete list of parameters is provided here:
+
+    - Parameters common for the simulation of all types of gain drifts:
+
+        - ``drift_type`` (default: `GainDriftType.LINEAR_GAIN`):
+          Enumeration to determine the type of gain drift to be simulated. See
+          :class:`.GainDriftType`.
+
+        - ``sigma_drift`` (default: 1.0e-2): A dimensionless parameter that
+          determines the slope of gain drift in case of linear gain drift, and
+          amplitude of thermal fluctuation in case of thermal gain drift.
+
+        - ``sampling_dist`` (default: `SamplingDist.UNIFORM`): Enumeration
+          to specify the distribution of the random scaling factor applied on the gain
+          drift. See :class:`.SamplingDist`.
+
+    - Parameters that are specific to the simulation of linear gain drift:
+
+        - ``calibration_period_sec`` (default: 86400): This is the time
+          period in seconds after which the linear gain drift resets periodically.
+
+    - Parameters that are specific to the simulation of thermal gain drift:
+
+        - ``focalplane_group`` (default: "wafer"): Detector attribute to
+          group the detectors. It is used to simulate same thermal fluctuations
+          for all the detectors belonging to a given group. It can be any of the
+          detector attribute like `"wafer"`, `"pixtype"` or `"channel"`.
+
+        - ``oversample`` (default: 2): The factor by which to oversample
+          thermal noise FFT beyond the TOD size.
+
+        - ``fknee_drift_mHz`` (default: 20.0): f_knee of the thermal drift
+          power spectral density given in mHz.
+
+        - ``alpha_drift`` (default: 1.0): The spectral index of thermal
+          drift power spectral density.
+
+        - ``sampling_freq_Hz`` (default: 19.0): The sampling frequency of
+          the detector in Hz.
+
+        - ``detector_mismatch`` (default: 1.0): The factor that determines
+          the degree of mismatch in thermal fluctuation of detectors belonging
+          to same focalplane group. The value 1 implies no common gain. Whereas a
+          value 0 sets the thermal gain to be same for all detectors in a focalplane
+          group.
+
+        - ``thermal_fluctuation_amplitude_K`` (default: 1.0): Amplitude of
+          thermal gain fluctuation in Kelvin.
+
+        - ``focalplane_Tbath_mK`` (default: 100.0): Temperature of the
+          focalplane in mK.
+
+    """
+
     # Common parameters
-    sigma_drift: float = 1.0e-2
     drift_type: GainDriftType = GainDriftType.LINEAR_GAIN
+    sigma_drift: float = 1.0e-2
     sampling_dist: SamplingDist = SamplingDist.UNIFORM
 
     # Linear gain parameters
-    calibration_period_sec: int = 86400  # in seconds
+    calibration_period_sec: int = 86400
 
     # Thermal gain parameters
-    focalplane_group: str = "wafer"  # or "pixtype"
+    focalplane_group: str = "wafer"
     oversample: int = 2
     fknee_drift_mHz: float = 20.0
     alpha_drift: float = 1.0
@@ -44,6 +129,9 @@ class GainDriftParams:
 
 
 def _responsivity_function(dT):
+    """A function to specify the response of the detector electronics to the
+    temperature"""
+
     # Appropriate function to be implemented later
     return dT
 
@@ -52,6 +140,22 @@ def _hash_function(
     input_str: str,
     user_seed: int = 12345,
 ):
+    """This functions generates a unique and reproducible hash for a given pair of
+    `input_str` and `user_seed`. This hash is used to generate the common noise time
+    stream for a group of detectors, and to introduce randomness in the noise time
+    streams.
+
+    Args:
+
+        input_str (str): A string, for example, the detector name.
+
+        user_seed (int, optional): A seed provided by the user. Defaults to 12345.
+
+    Returns:
+
+        int: An `md5` hash from generated from `input_str` and `user_seed`
+    """
+
     bytesobj = (str(input_str) + str(user_seed)).encode("utf-8")
 
     hashobj = hashlib.md5()
@@ -62,20 +166,66 @@ def _hash_function(
 
 
 def _get_psd(
-    freq,
-    sigma_drift=GainDriftParams.sigma_drift,
-    fknee_drift_mHz=GainDriftParams.fknee_drift_mHz,
-    alpha_drift=GainDriftParams.alpha_drift,
-):
+    freq: np.ndarray,
+    sigma_drift: float = GainDriftParams.sigma_drift,
+    fknee_drift_mHz: float = GainDriftParams.fknee_drift_mHz,
+    alpha_drift: float = GainDriftParams.alpha_drift,
+) -> np.ndarray:
+    """The function to generate the 1/f noise power spectral density for the thermal
+    fluctuation.
+
+    Args:
+
+        freq (np.ndarray): The frequency array
+
+        sigma_drift (float, optional): A dimensionless parameter that determines the
+        amplitude of thermal fluctuation. Defaults to GainDriftParams.sigma_drift.
+
+        fknee_drift_mHz (float, optional): f_knee of the thermal drift power spectral
+        density given in mHz. Defaults to GainDriftParams.fknee_drift_mHz.
+
+        alpha_drift (float, optional): The spectral index of thermal drift power
+        spectral density. Defaults to GainDriftParams.alpha_drift.
+
+    Returns:
+
+        np.ndarray: 1/f noise power spectral density
+    """
+
     return (sigma_drift**2) * (fknee_drift_mHz * 1.0e-3 / freq) ** alpha_drift
 
 
 def _noise_timestream(
-    tod_size,
-    focalplane_attr,
-    drift_params: GainDriftParams = GainDriftParams(),
+    tod_size: int,
+    focalplane_attr: str,
+    drift_params: GainDriftParams = None,
     user_seed: int = 12345,
-):
+) -> np.ndarray:
+    """The function to generate the thermal noise time stream with 1/f power spectral
+    density.
+
+    Args:
+
+        tod_size (int): The length of time ordered data array.
+
+        focalplane_attr (str): The name of the focalplane attribute corresponding
+        the the focalplane group attribute.
+        See :class:`.GainDriftParams.focalplane_group`.
+
+        drift_params (GainDriftParams, optional): The class object for gain drift
+        simulation parameters. Defaults to None.
+
+        user_seed (int, optional): The user provided seed for random number
+        generation. Defaults to 12345.
+
+    Returns:
+
+        np.ndarray: Thermal noise time stream with 1/f PSD.
+    """
+
+    if drift_params is None:
+        drift_params = GainDriftParams()
+
     fftlen = 2
     while fftlen <= (drift_params.oversample * tod_size):
         fftlen *= 2
@@ -118,13 +268,57 @@ def _noise_timestream(
 
 
 def apply_gaindrift_for_one_detector(
-    det_tod,
+    det_tod: np.ndarray,
     det_name: str,
-    drift_params: GainDriftParams = GainDriftParams(),
+    drift_params: GainDriftParams = None,
     focalplane_attr: str = None,
-    noise_timestream=None,
+    noise_timestream: np.ndarray = None,
     user_seed: int = 12345,
 ):
+    """This function applies the gain drift on the TOD corresponding to only one
+    detector.
+
+    The linear drift is applied on the TODs in a periodic way with the period size
+    specified in seconds by `drift_params.callibration_period_sec`. This is by
+    assuming that the detectors are calibrated for linear gain drift periodically.
+    The slope of the linear gain is determined randomly based on the detector name
+    and the user-provided seed.
+
+    The thermal gain drift, on the other hand, is based on the fluctuation of the
+    focalplane temperature modeled after 1/f power spectral density (PSD). This 1/f
+    PSD is common to all the detectors belonging to the focalplane group identified
+    by `drift_params.focalplane_group`. The function provides an option to introduce a
+    mismatch between the individual detectors within a focalplane group with the
+    parameter `drift_params.detector_mismatch`. This mismatch parameter along with a
+    randomly seeded parameter determines the extent of the thermal fluctuation
+    within the focalplane group. Finally the thermal fluctuation is added to the TODs
+    according to the responsivity function of the detectors.
+
+    Args:
+
+        det_tod (np.ndarray): The TOD array corresponding to only one detector.
+
+        det_name (str): The name of the detector to which the TOD belongs. This name
+        is used with `user_seed` to generate hash. This hash is used to set random
+        slope in case of linear drift, and randomized detector mismatch in case of
+        thermal gain drift.
+
+        drift_params (:class:`.GainDriftParams`, optional): The gain drift injection
+        parameters object. Defaults to None.
+
+        focalplane_attr (str, optional): This is the parameter corresponding
+        to the `drift_params.focalplane_group` attribute. For example, if
+        `drift_params.focalplane_group = 'wafer'`, the `focalplane_attr` will be the
+        name of the detector wafer. Defaults to None.
+
+        noise_timestream (np.ndarray, optional): The thermal noise time stream.
+        Defaults to None.
+
+        user_seed (int, optional): A seed provided by the user. Defaults to 12345.
+    """
+
+    if drift_params is None:
+        drift_params = GainDriftParams()
 
     tod_size = len(det_tod)
 
@@ -164,7 +358,6 @@ def apply_gaindrift_for_one_detector(
             )
 
         if noise_timestream is None:
-
             assert isinstance(
                 focalplane_attr, str
             ), "The parameter `focalplane_attr` must be a string"
@@ -200,11 +393,42 @@ def apply_gaindrift_for_one_detector(
 
 def apply_gaindrift_to_tod(
     tod: np.ndarray,
-    det_name: Union[List, np.ndarray],  # Array of str type
-    drift_params: GainDriftParams = GainDriftParams(),
-    focalplane_attr: Union[List, np.ndarray] = None,  # Array of str type
+    det_name: Union[List, np.ndarray],
+    drift_params: GainDriftParams = None,
+    focalplane_attr: Union[List, np.ndarray] = None,
     user_seed: int = 12345,
 ):
+    """The function to apply the gain drift to all the detectors of a given TOD object.
+
+    This function is a wrapper around :func:`.apply_gaindrift_for_one_detector()`
+    that applies the gain drift on each detector TODs of the TOD object. In case of
+    thermal gain drift injection, this function computes the thermal noise
+    fluctuations at once for all the detectors belonging to the focalplane group
+    specified by `drift_params.focalplane_group` and passes them to
+    :func:`.apply_gaindrift_for_one_detector()` with individual TOD arrays to inject
+    thermal gain drift.
+
+    Args:
+
+        tod (np.ndarray): The TOD object consisting TOD arrays for multiple detectors.
+
+        det_name (Union[List, np.ndarray]): The list of the name of the detectors to
+        which the TOD arrays correspond. The detector names are used to generate
+        unique and reproducible random numbers for each detector.
+
+        drift_params (:class:`.GainDriftParams`, optional): The gain drift injection
+        parameters object. Defaults to None.
+
+        focalplane_attr (Union[List, np.ndarray], optional): This is the parameter
+        corresponding to the `drift_params.focalplane_group` attribute. For example,
+        if `drift_params.focalplane_group = 'wafer'`, the `focalplane_attr` will be
+        the list of the names of detector wafer. Defaults to None.
+
+        user_seed (int, optional): A seed provided by the user. Defaults to 12345.
+    """
+
+    if drift_params is None:
+        drift_params = GainDriftParams()
 
     if tod.shape[0] != len(det_name):
         raise AssertionError(
@@ -215,7 +439,6 @@ def apply_gaindrift_to_tod(
     tod_size = len(tod[0])
 
     if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
-
         for detidx in np.arange(tod.shape[0]):
             apply_gaindrift_for_one_detector(
                 det_tod=tod[detidx],
@@ -226,7 +449,6 @@ def apply_gaindrift_to_tod(
             )
 
     elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
-
         if focalplane_attr is None:
             raise ValueError(
                 "The argument `focalplane_attr` is required to simulate thermal"
@@ -267,10 +489,32 @@ def apply_gaindrift_to_tod(
 
 def apply_gaindrift_to_observations(
     obs: Union[Observation, List[Observation]],
-    drift_params: GainDriftParams = GainDriftParams(),
+    drift_params: GainDriftParams = None,
     user_seed: int = 12345,
     component: str = "tod",
 ):
+    """The function to apply gain drift to the TOD of a :class:`.Observation` instance
+    or a list of observations.
+
+    This function is a wrapper around :func:`.apply_gaindrift_to_tod()` that injects
+    gain drift to the TOD object.
+
+    Args:
+
+        obs (Union[Observation, List[Observation]]): An instance or a list of
+        instances of :class:`.Observation`.
+
+        drift_params (:class:`.GainDriftParams`, optional): The gain drift injection
+        parameters object. Defaults to None.
+
+        user_seed (int, optional): A seed provided by the user. Defaults to 12345.
+
+        component (str, optional): The name of the TOD on which the gain drift has
+        to be injected. Defaults to "tod".
+    """
+
+    if drift_params is None:
+        drift_params = GainDriftParams()
 
     if isinstance(obs, Observation):
         obs_list = [obs]
