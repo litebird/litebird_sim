@@ -1358,16 +1358,18 @@ class Simulation:
             }
 
             if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
-                dictionary["drift_type":"Linear"]
-                dictionary["linear_drift":True]
-                dictionary["calibration_period" : drift_params.calibration_period]
+                dictionary["drift_type"] = "Linear"
+                dictionary["linear_drift"] = True
+                dictionary[
+                    "calibration_period_sec"
+                ] = drift_params.calibration_period_sec
 
             elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
-                dictionary["drift_type":"Thermal"]
-                dictionary["thermal_drift":True]
+                dictionary["drift_type"] = "Thermal"
+                dictionary["thermal_drift"] = True
 
                 keys_to_get = [
-                    "sigma_drift_K",
+                    "sigma_drift",
                     "focalplane_group",
                     "oversample",
                     "fknee_drift_mHz",
@@ -1386,5 +1388,7 @@ class Simulation:
                 markdown_template = "".join(inpf.readlines())
             self.append_to_report(
                 markdown_text=markdown_template,
+                component=component,
+                user_seed=user_seed,
                 **dictionary,
             )

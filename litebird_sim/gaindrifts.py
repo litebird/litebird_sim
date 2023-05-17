@@ -3,9 +3,7 @@ import numpy as np
 import hashlib
 from enum import IntEnum
 from typing import Union, List
-from dataclasses import dataclass, fields
-
-from astropy import units as u
+from dataclasses import dataclass
 
 from .observations import Observation
 
@@ -24,12 +22,12 @@ class SamplingDist(IntEnum):
 @dataclass
 class GainDriftParams:
     # Common parameters
-    sigma_drift_K = 1.0
+    sigma_drift: float = 1.0e-2
     drift_type: GainDriftType = GainDriftType.LINEAR_GAIN
     sampling_dist: SamplingDist = SamplingDist.UNIFORM
 
     # Linear gain parameters
-    calibration_period = 86400  # in seconds
+    calibration_period_sec: int = 86400  # in seconds
 
     # Thermal gain parameters
     focalplane_group: str = "wafer"  # or "pixtype"
@@ -45,7 +43,7 @@ class GainDriftParams:
     # To be added
 
 
-def responsivity_function(dT):
+def _responsivity_function(dT):
     # Appropriate function to be implemented later
     return dT
 
@@ -54,7 +52,7 @@ def _hash_function(
     input_str: str,
     user_seed: int = 12345,
 ):
-    bytesobj = (input_str + str(user_seed)).encode("utf-8")
+    bytesobj = (str(input_str) + str(user_seed)).encode("utf-8")
 
     hashobj = hashlib.md5()
     hashobj.update(bytesobj)
@@ -65,11 +63,11 @@ def _hash_function(
 
 def _get_psd(
     freq,
-    sigma_drift_K=GainDriftParams.sigma_drift_K,
+    sigma_drift=GainDriftParams.sigma_drift,
     fknee_drift_mHz=GainDriftParams.fknee_drift_mHz,
     alpha_drift=GainDriftParams.alpha_drift,
 ):
-    return (sigma_drift_K**2) * (fknee_drift_mHz * 1.0e-3 / freq) ** alpha_drift
+    return (sigma_drift**2) * (fknee_drift_mHz * 1.0e-3 / freq) ** alpha_drift
 
 
 def _noise_timestream(
@@ -96,14 +94,14 @@ def _noise_timestream(
     # Starting from 1st element to keep the dc term zero
     psd[1:] = _get_psd(
         freq[1:],
-        drift_params.sigma_drift_K,
+        drift_params.sigma_drift,
         drift_params.fknee_drift_mHz,
         drift_params.alpha_drift,
     )
 
     rng = np.random.default_rng(seed=_hash_function(focalplane_attr, user_seed))
 
-    randarr = rng.normal(loc=0.7, scale=0.5, size=fftlen)
+    randarr = rng.standard_normal(size=fftlen)
 
     fnoise_stream = np.zeros(npsd, dtype=np.complex128)
     fnoise_stream[1:-1] = randarr[1 : npsd - 1] + 1j * randarr[-1 : npsd - 1 : -1]
@@ -130,32 +128,32 @@ def apply_gaindrift_for_one_detector(
 
     tod_size = len(det_tod)
 
-    rng = np.random.Generator(
-        np.random.default_rng(seed=_hash_function(det_name, user_seed))
-    )
+    assert isinstance(det_name, str), "The parameter `det_name` must be a string"
+    rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
+
     if drift_params.sampling_dist == SamplingDist.UNIFORM:
         rand = rng.uniform()
     elif drift_params.sampling_dist == SamplingDist.GAUSSIAN:
         rand = rng.normal(loc=0.7, scale=0.5)
 
     if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
-        gain_arr = 1.0 + rand * drift_params.sigma_drift_K * np.linspace(
-            0, 1, drift_params.calibration_period
+        gain_arr = 1.0 + rand * drift_params.sigma_drift * np.linspace(
+            0, 1, drift_params.calibration_period_sec
         )
 
         div, mod = (
-            tod_size // drift_params.calibration_period,
-            tod_size % drift_params.calibration_period,
+            tod_size // drift_params.calibration_period_sec,
+            tod_size % drift_params.calibration_period_sec,
         )
 
         for i in np.arange(div):
             det_tod[
                 i
-                * drift_params.calibration_period : (i + 1)
-                * drift_params.calibration_period
+                * drift_params.calibration_period_sec : (i + 1)
+                * drift_params.calibration_period_sec
             ] *= gain_arr
 
-        det_tod[div * drift_params.calibration_period :] *= gain_arr[:mod]
+        det_tod[div * drift_params.calibration_period_sec :] *= gain_arr[:mod]
 
     elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
         if focalplane_attr is not None and noise_timestream is not None:
@@ -166,6 +164,11 @@ def apply_gaindrift_for_one_detector(
             )
 
         if noise_timestream is None:
+
+            assert isinstance(
+                focalplane_attr, str
+            ), "The parameter `focalplane_attr` must be a string"
+
             noise_timestream = _noise_timestream(
                 tod_size=tod_size,
                 focalplane_attr=focalplane_attr,
@@ -178,12 +181,12 @@ def apply_gaindrift_for_one_detector(
             thermal_factor *= 1.0 + rand * drift_params.detector_mismatch
 
         Tdrift = (
-            thermal_factor * noise_timestream * 1.0e-3
-        )  # Given that `thermal_factor` is in K unit, multiplying 1.e-3 to get
+            thermal_factor * noise_timestream * 1.0e3
+        )  # Given that `thermal_factor` is in K unit, multiplying 1.e3 to get
         # `Tdrift` in mK unit
         dT = 1.0 + Tdrift / drift_params.focalplane_Tbath_mK  # dT is scaler (no units)
 
-        det_tod *= responsivity_function(dT)
+        det_tod *= _responsivity_function(dT)
 
     elif drift_params.drift_type == GainDriftType.SLOW_GAIN:
         # !!! Remains to be implemented
@@ -197,11 +200,17 @@ def apply_gaindrift_for_one_detector(
 
 def apply_gaindrift_to_tod(
     tod: np.ndarray,
-    det_name: str,
+    det_name: Union[List, np.ndarray],  # Array of str type
     drift_params: GainDriftParams = GainDriftParams(),
-    focalplane_attr: str = None,
+    focalplane_attr: Union[List, np.ndarray] = None,  # Array of str type
     user_seed: int = 12345,
 ):
+
+    if tod.shape[0] != len(det_name):
+        raise AssertionError(
+            "The number of elements in `det_name` must be same as the number of"
+            " detectors included in tod object"
+        )
 
     tod_size = len(tod[0])
 
@@ -210,7 +219,7 @@ def apply_gaindrift_to_tod(
         for detidx in np.arange(tod.shape[0]):
             apply_gaindrift_for_one_detector(
                 det_tod=tod[detidx],
-                det_name=det_name,
+                det_name=det_name[detidx],
                 drift_params=drift_params,
                 noise_timestream=None,
                 user_seed=user_seed,
@@ -222,6 +231,12 @@ def apply_gaindrift_to_tod(
             raise ValueError(
                 "The argument `focalplane_attr` is required to simulate thermal"
                 " gaindrift."
+            )
+
+        if tod.shape[0] != len(focalplane_attr):
+            raise AssertionError(
+                "The number of elements in `focalplane_attr` must be same as the"
+                " number of detectors included in tod object"
             )
 
         det_group = np.unique(focalplane_attr)
@@ -240,9 +255,12 @@ def apply_gaindrift_to_tod(
             det_mask = focalplane_attr[detidx] == det_group
             apply_gaindrift_for_one_detector(
                 det_tod=tod[detidx],
-                det_name=det_name,
+                det_name=det_name[detidx],
                 drift_params=drift_params,
-                noise_timestream=noise_timestream[det_mask],
+                noise_timestream=noise_timestream[det_mask][
+                    0
+                ],  # array[mask] returns an array of shape (1, len(array)).
+                # Therefore [0] indexing is necessary
                 user_seed=user_seed,
             )
 
