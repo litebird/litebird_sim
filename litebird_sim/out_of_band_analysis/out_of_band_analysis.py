@@ -166,11 +166,10 @@ def integrate_in_band_signal_for_one_sample(
     sthxi,
     c4th,
     s4th
-    # th_psi, th_xi, psi_xi
 ):
-    tod = 0
+    tod = np.zeros_like(band)
     for i in range(len(band)):
-        tod += band[i] * compute_signal_for_one_sample(
+        tod[i] += band[i] * compute_signal_for_one_sample(
             T[i],
             Q[i],
             U[i],
@@ -187,7 +186,6 @@ def integrate_in_band_signal_for_one_sample(
             sthxi,
             c4th,
             s4th
-            # th_psi, th_xi, psi_xi
         )
 
     return tod
@@ -216,19 +214,16 @@ def compute_signal_for_one_detector(
             sthxi=np.sin(2 * theta[i] - 2 * xi),
             c4th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
             s4th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            # th_psi=2 * theta[i] + 2 * psi[i],
-            # th_xi=2 * theta[i] - 2 * xi,
-            # psi_xi=2 * psi[i] + 2 * xi,
         )
 
 
 @njit
 def integrate_in_band_signal_for_one_detector(
-    tod_det, band, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi, maps
+    tod_det, band, freqs, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi, maps
 ):
 
     for i in range(len(tod_det)):
-        tod_det[i] += integrate_in_band_signal_for_one_sample(
+        tod_det[i] += np.trapz(integrate_in_band_signal_for_one_sample(
             T=maps[:, 0, pixel_ind[i]],
             Q=maps[:, 1, pixel_ind[i]],
             U=maps[:, 2, pixel_ind[i]],
@@ -246,10 +241,7 @@ def integrate_in_band_signal_for_one_detector(
             sthxi=np.sin(2 * theta[i] - 2 * xi),
             c4th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
             s4th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            # th_psi=2 * theta[i] + 2 * psi[i],
-            # th_xi=2 * theta[i] - 2 * xi,
-            # psi_xi=2 * psi[i] + 2 * xi,
-        )
+        ), freqs)
 
 
 @njit
@@ -267,7 +259,6 @@ def compute_mueller_for_one_sample(
     sthxi,
     c4th,
     s4th
-    # th_psi, th_xi, psi_xi
 ):
     Tterm = compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, cthxi, sthxi)
     Qterm = compute_Qterm_for_one_sample(
@@ -282,6 +273,7 @@ def compute_mueller_for_one_sample(
 @njit
 def integrate_in_band_mueller_for_one_sample(
     band,
+    freqs,
     h1,
     h2,
     cb,
@@ -295,13 +287,15 @@ def integrate_in_band_mueller_for_one_sample(
     sthxi,
     c4th,
     s4th
-    # th_psi, th_xi, psi_xi
 ):
     intTterm = 0
     intQterm = 0
     intUterm = 0
+    Tterm = np.empty_like(band)
+    Qterm = np.empty_like(band)
+    Uterm = np.empty_like(band)
     for i in range(len(band)):
-        Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
+        Tterm[i], Qterm[i], Uterm[i] = compute_mueller_for_one_sample(
             h1[i],
             h2[i],
             cb[i],
@@ -315,11 +309,11 @@ def integrate_in_band_mueller_for_one_sample(
             sthxi,
             c4th,
             s4th
-            # th_psi, th_xi, psi_xi
         )
-        intTterm += band[i] * Tterm
-        intQterm += band[i] * Qterm
-        intUterm += band[i] * Uterm
+        
+    intTterm = np.trapz(band * Tterm, freqs)
+    intQterm = np.trapz(band * Qterm, freqs)
+    intUterm = np.trapz(band * Uterm, freqs)
 
     return intTterm, intQterm, intUterm
 
@@ -344,9 +338,6 @@ def compute_atd_ata_for_one_detector(
             sthxi=np.sin(2 * theta[i] - 2 * xi),
             c4th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
             s4th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            # th_psi=2 * theta[i] + 2 * psi[i],
-            # th_xi=2 * theta[i] - 2 * xi,
-            # psi_xi=2 * psi[i] + 2 * xi,
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
@@ -362,12 +353,13 @@ def compute_atd_ata_for_one_detector(
 
 @njit
 def integrate_in_band_atd_ata_for_one_detector(
-    atd, ata, tod, band, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi
+    atd, ata, tod, band, freqs, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi
 ):
 
     for i in range(len(tod)):
         Tterm, Qterm, Uterm = integrate_in_band_mueller_for_one_sample(
             band=band,
+            freqs=freqs,
             h1=h1,
             h2=h2,
             cb=cb,
@@ -381,9 +373,6 @@ def integrate_in_band_atd_ata_for_one_detector(
             sthxi=np.sin(2 * theta[i] - 2 * xi),
             c4th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
             s4th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            #  th_psi=2 * theta[i] + 2 * psi[i],
-            #  th_xi=2 * theta[i] - 2 * xi,
-            #  psi_xi=2 * psi[i] + 2 * xi,
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
@@ -597,7 +586,7 @@ class HwpSysAndBandpass:
         if self.integrate_in_band:
             try:
                 self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
-                    self.band_filename, unpack=True, comments = '#', #skiprows=1
+                    self.band_filename, unpack=True, comments = '#', 
                 )
             except Exception:
                 print("you have not provided a band_filename in the parameter file!")
@@ -670,14 +659,8 @@ class HwpSysAndBandpass:
                         self.betas,
                         self.z1s,
                         self.z2s,
-<<<<<<< HEAD
                     ) = np.loadtxt(self.band_filename_solver, unpack=True, comments = '#', 
-                           # skiprows=1
                            )
-=======
-                    ) = np.loadtxt(self.band_filename_solver, unpack=True, comments = '#')
-                          # skiprows=1)
->>>>>>> 83d802e9a9fc26704f0e99fb4a45c615a68021a1
                 except Exception:
                     print(
                         "you have not provided a band_filename_solver"
@@ -796,6 +779,7 @@ class HwpSysAndBandpass:
                     integrate_in_band_signal_for_one_detector(
                         tod_det=tod,
                         band=self.cmb2bb,
+                        freqs=self.freqs,
                         h1=self.h1,
                         h2=self.h2,
                         cb=self.cbeta,
@@ -805,7 +789,6 @@ class HwpSysAndBandpass:
                         theta=times * hwp_radpsec,
                         psi=psi,
                         xi=xi,
-                        # polangle=0.5 * cur_psi + times * hwp_radpsec,
                         maps=self.maps,
                     )
                 else:
@@ -820,7 +803,6 @@ class HwpSysAndBandpass:
                         theta=times * hwp_radpsec,
                         psi=psi,
                         xi=xi,
-                        # polangle=0.5 * cur_psi + times * hwp_radpsec,
                         maps=self.maps,
                     )
 
@@ -832,6 +814,7 @@ class HwpSysAndBandpass:
                                 ata=self.ata,
                                 tod=tod,
                                 band=self.cmb2bb_solver,
+                                freqs=self.freqs_solver,
                                 h1=self.h1s,
                                 h2=self.h2s,
                                 cb=self.cbetas,
@@ -841,7 +824,6 @@ class HwpSysAndBandpass:
                                 theta=times * hwp_radpsec,
                                 psi=psi,
                                 xi=xi,
-                                # polangle=0.5 * cur_psi + times * hwp_radpsec,
                             )
                         else:
                             compute_atd_ata_for_one_detector(
@@ -857,7 +839,6 @@ class HwpSysAndBandpass:
                                 theta=times * hwp_radpsec,
                                 psi=psi,
                                 xi=xi,
-                                # polangle=0.5 * cur_psi + times * hwp_radpsec,
                             )
 
                     else:
