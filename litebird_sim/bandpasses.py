@@ -132,15 +132,11 @@ class BandPassInfo:
             self._cosine_apodize_bandpass()
 
         if apodization == "cosine":
-            logging.warning(f"Apodizing w/ {apodization} profile")
             self._cosine_apodize_bandpass()
 
         elif apodization == "exp":
-            logging.warning(f"Apodizing w/ {apodization} profile")
             self._exp_apodize_bandpass()
 
-        elif apodization is None:
-            logging.warning("Band is not apodized")
         if normalize:
             self.normalize_band()
 

@@ -467,21 +467,6 @@ files = [
 ]
 
 [[package]]
-name = "colour"
-version = "0.1.5"
-description = "converts and manipulates various color representation (HSL, RVB, web, X11, ...)"
-category = "main"
-optional = false
-python-versions = "*"
-files = [
-    {file = "colour-0.1.5-py2.py3-none-any.whl", hash = "sha256:33f6db9d564fadc16e59921a56999b79571160ce09916303d35346dddc17978c"},
-    {file = "colour-0.1.5.tar.gz", hash = "sha256:af20120fefd2afede8b001fbef2ea9da70ad7d49fafdb6489025dae8745c3aee"},
-]
-
-[package.extras]
-test = ["nose"]
-
-[[package]]
 name = "commonmark"
 version = "0.9.1"
 description = "Python parser for the CommonMark Markdown spec"
@@ -1292,23 +1277,6 @@ files = [
 ]
 
 [[package]]
-name = "katex"
-version = "0.0.4"
-description = "Convert an image into KaTeX to use in Facebook Messenger"
-category = "main"
-optional = false
-python-versions = ">=3.4, <4.0"
-files = [
-    {file = "katex-0.0.4.tar.gz", hash = "sha256:cb5a21808163d6c80c95607cc20df217a4f4fa8d14e99cb6cfde020348b15d98"},
-]
-
-[package.dependencies]
-attrs = "*"
-Click = "*"
-colour = "*"
-Pillow = ">=5.2.0"
-
-[[package]]
 name = "kiwisolver"
 version = "1.4.4"
 description = "A fast implementation of the Cassowary constraint solver"
@@ -1548,18 +1516,18 @@ testing = ["coverage", "pyyaml"]
 
 [[package]]
 name = "markdown-katex"
-version = "202006.1021"
+version = "202112.1034"
 description = "katex extension for Python Markdown"
 category = "main"
 optional = false
 python-versions = ">=2.7"
 files = [
-    {file = "markdown-katex-202006.1021.tar.gz", hash = "sha256:71d5525c8cf0510717ca79a5b80b82d2f7a1fc419333f74cfc3074429a177331"},
-    {file = "markdown_katex-202006.1021-py2.py3-none-any.whl", hash = "sha256:82b5fedb866f8fc2d66907d9046c936a2e7799e669b31ece99469b6e1e287de2"},
+    {file = "markdown-katex-202112.1034.tar.gz", hash = "sha256:27892f4cdd6763816f00e4187d0475500697c090aba16630ec4803a6564bf810"},
+    {file = "markdown_katex-202112.1034-py2.py3-none-any.whl", hash = "sha256:9ccc5b4b37db7592cc3ea113d763fafe9ffd1b1587e2c217d6145e44a10b4f6d"},
 ]
 
 [package.dependencies]
-Markdown = ">=3.0"
+Markdown = {version = ">=3.0", markers = "python_version >= \"3.6\""}
 pathlib2 = "*"
 setuptools = "*"
 
@@ -3120,14 +3088,14 @@ lint = ["docutils-stubs", "flake8", "mypy"]
 test = ["pytest"]
 
 [[package]]
-name = "sphinxcontrib.asciinema"
-version = "0.3.5"
+name = "sphinxcontrib-asciinema"
+version = "0.3.7"
 description = "Embed asciinema casts in your Sphinx docs"
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "sphinxcontrib.asciinema-0.3.5.tar.gz", hash = "sha256:39d6aed5f69652db53e939ecf618fa0157306781d1b3409e3beac3426fd133a7"},
+    {file = "sphinxcontrib.asciinema-0.3.7.tar.gz", hash = "sha256:ce639369c83ede452a0ff3421496c5b83a48ca09b33e50c5c281724ceb267da0"},
 ]
 
 [package.dependencies]
@@ -3618,4 +3586,4 @@ mpi = ["mpi4py"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.7.1,<3.10"
-content-hash = "5fd3dd679500215d5ffdbe7e8c8a78b9adbd3a9232c84e513bcd1440a3ef9ff7"
+content-hash = "b31f2e82cd6ec6f8cb9f18224a1de063b051d9d5eedf3b0925d7c05b52167199"
