@@ -46,8 +46,8 @@ def scan_map(
     pol_angle,
     maps: Dict[str, np.ndarray],
     input_names,
-    input_map_in_galactic,
-    interpolation: str = "none",
+    input_map_in_galactic: bool = True,
+    interpolation: Union[str, None] = "",
 ):
     """Scan a map filling time-ordered data
 
@@ -82,7 +82,7 @@ def scan_map(
 
         nside = npix_to_nside(maps_det.shape[1])
 
-        if interpolation in ["", "none"]:
+        if interpolation in ["", None]:
             hpx = Healpix_Base(nside, "RING")
             pixel_ind_det = hpx.ang2pix(curr_pointings_det)
 
@@ -124,7 +124,7 @@ def scan_map_in_observations(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     input_map_in_galactic: bool = True,
     component: str = "tod",
-    interpolation: str = "",
+    interpolation: Union[str, None] = "",
 ):
     """Scan a map filling time-ordered data
 

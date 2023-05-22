@@ -1218,6 +1218,8 @@ class Simulation:
     def fill_tods(
         self,
         maps: Dict[str, np.ndarray],
+        input_map_in_galactic: bool = True,
+        interpolation: Union[str, None] = "",
         append_to_report: bool = True,
     ):
         """Fills the TODs, scanning a map.
@@ -1231,6 +1233,8 @@ class Simulation:
         scan_map_in_observations(
             self.observations,
             maps=maps,
+            input_map_in_galactic=input_map_in_galactic,
+            interpolation=interpolation,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

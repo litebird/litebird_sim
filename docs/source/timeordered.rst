@@ -108,6 +108,7 @@ The input maps to scan can be either included in a dictionary with the name of
 the channel or the name of the dectector as keyword (the routines described in 
 :ref:`Mbs` already provied the inputs in the correct format), or a numpy array
 with shape (3, n_pixels).
+
 The pointing information can be included in the observation or passed through 
 `pointings`. If both `obs` and `pointings` are provided, they must be coherent,
 so either a single Observation and a single numpy array, or same lenght list of
@@ -115,6 +116,12 @@ Observations and numpy arrays.
 If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`.
 The effect of a possible HWP is included in the pointing information, see 
 :ref:`scanning-strategy`.
+
+The routine provides an on-the-fly interpolation of the input maps. This option 
+is available through the argument `interpolation` which specifies the type of TOD 
+interpolation ("" for no interpolation, "linear" for linear interpolation). 
+Default: no interpolation. 
+
 
 Adding Noise
 ------------
