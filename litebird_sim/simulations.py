@@ -31,6 +31,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
+from .mapping import make_bin_map
 
 import astropy.time
 import astropy.units
@@ -1339,3 +1340,21 @@ class Simulation:
                 markdown_template,
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
+
+    def binned_map(
+        self,
+        nside: int,
+        do_covariance: bool = False,
+        output_map_in_galactic: bool = True,
+    ):
+
+        """Bins the observations into maps
+        The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
+        """
+
+        return make_bin_map(
+            obs=self.observations,
+            nside=nside,
+            do_covariance=do_covariance,
+            output_map_in_galactic=output_map_in_galactic,
+        )
