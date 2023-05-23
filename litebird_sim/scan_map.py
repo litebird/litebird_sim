@@ -114,7 +114,7 @@ def scan_map(
             raise ValueError(
                 "Wrong value for interpolation. It should be one of the following:\n"
                 + '- "" for no interpolation\n'
-                + '- linear for linear interpolation\n'
+                + '- "linear" for linear interpolation\n'
             )
 
 
