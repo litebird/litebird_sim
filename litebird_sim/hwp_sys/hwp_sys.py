@@ -9,6 +9,7 @@ from typing import Union, List
 from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation
+import sys
 
 COND_THRESHOLD = 1e10
 
@@ -36,6 +37,19 @@ def _dBodTth(nu):
         * x
         / cosmo.Tcmb0.value
     )
+
+
+def compute_polang_from_detquat(quat):
+    if quat[2] == 0:
+        polang = 0
+    else:
+        polang = 2 * np.arctan2(
+            np.sqrt(quat[0] ** 2 + quat[1] ** 2 + quat[2] ** 2), quat[3]
+        )
+        if quat[2] < 0:
+            polang = -polang
+
+    return polang
 
 
 class HwpSys:
@@ -241,10 +255,19 @@ class HwpSys:
 
             mbs = lbs.Mbs(simulation=self.sim, parameters=Mbsparams, instrument=myinstr)
 
-            maps = mbs.run_all()[0]
-            self.maps = np.empty((self.nfreqs, 3, self.npix))
-            for ifreq in range(self.nfreqs):
-                self.maps[ifreq] = maps["ch" + str(ifreq)]
+            if np.any(maps) is None:
+                maps = mbs.run_all()[0]
+                self.maps = np.empty((self.nfreqs, 3, self.npix))
+                for ifreq in range(self.nfreqs):
+                    self.maps[ifreq] = maps["ch" + str(ifreq)]
+            else:
+                assert (
+                    hp.npix2nside(len(maps[0, 0, :])) == self.nside
+                ), "wrong nside in the input map!"
+                assert (
+                    len(maps[:, 0, 0]) == self.nfreqs
+                ), "wrong number of frequencies: expected a different number of maps!"
+                self.maps = maps
             del maps
 
         else:
@@ -270,6 +293,7 @@ class HwpSys:
                     hp.npix2nside(len(maps[0, :])) == self.nside
                 ), "wrong nside in the input map!"
                 self.maps = maps
+                del maps
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
@@ -317,140 +341,389 @@ class HwpSys:
         for idet in range(obs.n_detectors):
             pix = hp.ang2pix(self.nside, pointings[idet, :, 0], pointings[idet, :, 1])
 
-            # add hwp rotation
-            ca = np.cos(0.5 * pointings[idet, :, 2] + times * hwp_radpsec)
-            sa = np.sin(0.5 * pointings[idet, :, 2] + times * hwp_radpsec)
+            # Theta = hwp_radpsec * times hwp rotation angle
+            # Xi polarization angle
+            # Psi instrument angle
+            Theta = hwp_radpsec * times
+            Xi = compute_polang_from_detquat(obs.quat[idet])
+            Psi = pointings[idet, :, 2] - Xi
+            c2ThXi = np.cos(2 * (Theta - Xi))
+            s2ThXi = np.sin(2 * (Theta - Xi))
+            c2XiPs = np.cos(2 * (Xi + Psi))
+            s2XiPs = np.sin(2 * (Xi + Psi))
+            c2ThPs = np.cos(2 * (Theta + Psi))
+            s2ThPs = np.sin(2 * (Theta + Psi))
+            c4ThXiPs = np.cos(4 * Theta + 2 * (-Xi + Psi))
+            s4ThXiPs = np.sin(4 * Theta + 2 * (-Xi + Psi))
+            del (Theta, Xi, Psi)
 
             if self.integrate_in_band:
-                J11 = (
-                    (1 + self.h1[:, np.newaxis]) * ca**2
-                    - (1 + self.h2[:, np.newaxis])
-                    * sa**2
-                    * np.exp(1j * self.beta[:, np.newaxis])
-                    - (self.z1[:, np.newaxis] + self.z2[:, np.newaxis]) * ca * sa
-                )
-                J12 = (
-                    (
-                        (1 + self.h1[:, np.newaxis])
-                        + (1 + self.h2[:, np.newaxis])
-                        * np.exp(1j * self.beta[:, np.newaxis])
+                # Mueller terms of the HWP only (freq dependent case)
+                mII = (
+                    1
+                    + self.h1[:, np.newaxis]
+                    + self.h2[:, np.newaxis]
+                    + 0.5
+                    * (
+                        self.h1[:, np.newaxis] ** 2
+                        + self.h2[:, np.newaxis] ** 2
+                        + self.z1[:, np.newaxis] ** 2
+                        + self.z2[:, np.newaxis] ** 2
                     )
-                    * ca
-                    * sa
-                    + self.z1[:, np.newaxis] * ca**2
-                    - self.z2[:, np.newaxis] * sa**2
                 )
+                mQI = (
+                    self.h1[:, np.newaxis]
+                    - self.h2[:, np.newaxis]
+                    + 0.5
+                    * (
+                        self.h1[:, np.newaxis] ** 2
+                        - self.h2[:, np.newaxis] ** 2
+                        + self.z1[:, np.newaxis] ** 2
+                        - self.z2[:, np.newaxis] ** 2
+                    )
+                )
+                mUI = (1 + self.h1[:, np.newaxis]) * self.z2[:, np.newaxis] - (
+                    1 + self.h2[:, np.newaxis]
+                ) * self.z1[:, np.newaxis] * np.cos(self.beta[:, np.newaxis])
+                mIQ = (
+                    self.h1[:, np.newaxis]
+                    - self.h2[:, np.newaxis]
+                    + 0.5
+                    * (
+                        self.h1[:, np.newaxis] ** 2
+                        - self.h2[:, np.newaxis] ** 2
+                        - self.z1[:, np.newaxis] ** 2
+                        + self.z2[:, np.newaxis] ** 2
+                    )
+                )
+                mIU = (1 + self.h1[:, np.newaxis]) * self.z1[:, np.newaxis] - (
+                    1 + self.h2[:, np.newaxis]
+                ) * self.z2[:, np.newaxis] * np.cos(self.beta[:, np.newaxis])
+                mQQ = (
+                    1
+                    + self.h1[:, np.newaxis]
+                    + self.h2[:, np.newaxis]
+                    + 0.5
+                    * (
+                        self.h1[:, np.newaxis] ** 2
+                        + self.h2[:, np.newaxis] ** 2
+                        - self.z1[:, np.newaxis] ** 2
+                        - self.z2[:, np.newaxis] ** 2
+                    )
+                )
+                mUU = self.z1[:, np.newaxis] * self.z2[:, np.newaxis] - (
+                    1 + self.h1[:, np.newaxis]
+                ) * (1 + self.h2[:, np.newaxis]) * np.cos(self.beta[:, np.newaxis])
+                mUQ = (1 + self.h1[:, np.newaxis]) * self.z2[:, np.newaxis] + (
+                    1 + self.h2[:, np.newaxis]
+                ) * self.z1[:, np.newaxis] * np.cos(self.beta[:, np.newaxis])
+                mQU = (1 + self.h1[:, np.newaxis]) * self.z1[:, np.newaxis] + (
+                    1 + self.h2[:, np.newaxis]
+                ) * self.z2[:, np.newaxis] * np.cos(self.beta[:, np.newaxis])
+
+                # Mueller terms of the full Mueller matrix
+                Tterm = 0.5 * (mII + mQI * c2ThXi - mUI * s2ThXi)
+                Qterm = 0.25 * (
+                    2 * mIQ * c2ThPs
+                    + (mQQ + mUU) * c2XiPs
+                    + (mQQ - mUU) * c4ThXiPs
+                    - 2 * mIU * s2ThPs
+                    + (mUQ - mQU) * s2XiPs
+                    - (mQU + mUQ) * s4ThXiPs
+                )
+                Uterm = 0.25 * (
+                    2 * mIU * c2ThPs
+                    + (mQU - mUQ) * c2XiPs
+                    + (mQU + mUQ) * c4ThXiPs
+                    + 2 * mIQ * s2ThPs
+                    + (mQQ + mUU) * s2XiPs
+                    + (mQQ - mUU) * s4ThXiPs
+                )
+                del (mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU)
 
                 if self.built_map_on_the_fly:
                     tod = (
                         (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[:, 0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[:, 1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
+                            Tterm * self.maps[:, 0, pix]
+                            + Qterm * self.maps[:, 1, pix]
+                            + Uterm * self.maps[:, 2, pix]
                         )
                         * self.cmb2bb[:, np.newaxis]
                     ).sum(axis=0) / self.norm
                 else:
                     obs.tod[idet, :] += (
                         (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[:, 0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[:, 1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
+                            Tterm * self.maps[:, 0, pix]
+                            + Qterm * self.maps[:, 1, pix]
+                            + Uterm * self.maps[:, 2, pix]
                         )
                         * self.cmb2bb[:, np.newaxis]
                     ).sum(axis=0) / self.norm
+                del (Tterm, Qterm, Uterm)
 
             else:
-                J11 = (
-                    (1 + self.h1) * ca**2
-                    - (1 + self.h2) * sa**2 * np.exp(1j * self.beta)
-                    - (self.z1 + self.z2) * ca * sa
+                # Mueller terms of the HWP only (freq independent case)
+                mII = (
+                    1
+                    + self.h1
+                    + self.h2
+                    + 0.5 * (self.h1**2 + self.h2**2 + self.z1**2 + self.z2**2)
                 )
-                J12 = (
-                    ((1 + self.h1) + (1 + self.h2) * np.exp(1j * self.beta)) * ca * sa
-                    + self.z1 * ca**2
-                    - self.z2 * sa**2
+                mQI = (
+                    self.h1
+                    - self.h2
+                    + 0.5 * (self.h1**2 - self.h2**2 + self.z1**2 - self.z2**2)
                 )
+                mUI = (1 + self.h1) * self.z2 - (1 + self.h2) * self.z1 * np.cos(
+                    self.beta
+                )
+                mIQ = (
+                    self.h1
+                    - self.h2
+                    + 0.5 * (self.h1**2 - self.h2**2 - self.z1**2 + self.z2**2)
+                )
+                mIU = (1 + self.h1) * self.z1 - (1 + self.h2) * self.z2 * np.cos(
+                    self.beta
+                )
+                mQQ = (
+                    1
+                    + self.h1
+                    + self.h2
+                    + 0.5 * (self.h1**2 + self.h2**2 - self.z1**2 - self.z2**2)
+                )
+                mUU = self.z1 * self.z2 - (1 + self.h1) * (1 + self.h2) * np.cos(
+                    self.beta
+                )
+                mUQ = (1 + self.h1) * self.z2 + (1 + self.h2) * self.z1 * np.cos(
+                    self.beta
+                )
+                mQU = (1 + self.h1) * self.z1 + (1 + self.h2) * self.z2 * np.cos(
+                    self.beta
+                )
+
+                # Mueller terms of the full Mueller matrix
+                Tterm = 0.5 * (mII + mQI * c2ThXi - mUI * s2ThXi)
+                Qterm = 0.25 * (
+                    2 * mIQ * c2ThPs
+                    + (mQQ + mUU) * c2XiPs
+                    + (mQQ - mUU) * c4ThXiPs
+                    - 2 * mIU * s2ThPs
+                    + (mUQ - mQU) * s2XiPs
+                    - (mQU + mUQ) * s4ThXiPs
+                )
+                Uterm = 0.25 * (
+                    2 * mIU * c2ThPs
+                    + (mQU - mUQ) * c2XiPs
+                    + (mQU + mUQ) * c4ThXiPs
+                    + 2 * mIQ * s2ThPs
+                    + (mQQ + mUU) * s2XiPs
+                    + (mQQ - mUU) * s4ThXiPs
+                )
+                del (mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU)
 
                 if self.built_map_on_the_fly:
                     tod = (
-                        0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2) * self.maps[0, pix]
-                        + 0.5
-                        * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                        * self.maps[1, pix]
-                        + (J11 * J12.conjugate()).real * self.maps[2, pix]
+                        Tterm * self.maps[0, pix]
+                        + Qterm * self.maps[1, pix]
+                        + Uterm * self.maps[2, pix]
                     )
                 else:
                     obs.tod[idet, :] += (
-                        0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2) * self.maps[0, pix]
-                        + 0.5
-                        * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                        * self.maps[1, pix]
-                        + (J11 * J12.conjugate()).real * self.maps[2, pix]
+                        Tterm * self.maps[0, pix]
+                        + Qterm * self.maps[1, pix]
+                        + Uterm * self.maps[2, pix]
                     )
+                del (Tterm, Qterm, Uterm)
 
             if self.built_map_on_the_fly:
 
                 if self.correct_in_solver:
 
                     if self.integrate_in_band_solver:
-                        J11 = (
-                            (1 + self.h1s[:, np.newaxis]) * ca**2
-                            - (1 + self.h2s[:, np.newaxis])
-                            * sa**2
-                            * np.exp(1j * self.betas[:, np.newaxis])
-                            - (self.z1s[:, np.newaxis] + self.z2s[:, np.newaxis])
-                            * ca
-                            * sa
-                        )
-                        J12 = (
-                            (
-                                (1 + self.h1s[:, np.newaxis])
-                                + (1 + self.h2s[:, np.newaxis])
-                                * np.exp(1j * self.betas[:, np.newaxis])
+                        # Mueller terms of the HWP only (freq dependent case)
+                        mII = (
+                            1
+                            + self.h1s[:, np.newaxis]
+                            + self.h2s[:, np.newaxis]
+                            + 0.5
+                            * (
+                                self.h1s[:, np.newaxis] ** 2
+                                + self.h2s[:, np.newaxis] ** 2
+                                + self.z1s[:, np.newaxis] ** 2
+                                + self.z2s[:, np.newaxis] ** 2
                             )
-                            * ca
-                            * sa
-                            + self.z1s[:, np.newaxis] * ca**2
-                            - self.z2s[:, np.newaxis] * sa**2
+                        )
+                        mQI = (
+                            self.h1s[:, np.newaxis]
+                            - self.h2s[:, np.newaxis]
+                            + 0.5
+                            * (
+                                self.h1s[:, np.newaxis] ** 2
+                                - self.h2s[:, np.newaxis] ** 2
+                                + self.z1s[:, np.newaxis] ** 2
+                                - self.z2s[:, np.newaxis] ** 2
+                            )
+                        )
+                        mUI = (1 + self.h1s[:, np.newaxis]) * self.z2s[
+                            :, np.newaxis
+                        ] - (1 + self.h2s[:, np.newaxis]) * self.z1s[
+                            :, np.newaxis
+                        ] * np.cos(
+                            self.betas[:, np.newaxis]
+                        )
+                        mIQ = (
+                            self.h1s[:, np.newaxis]
+                            - self.h2s[:, np.newaxis]
+                            + 0.5
+                            * (
+                                self.h1s[:, np.newaxis] ** 2
+                                - self.h2s[:, np.newaxis] ** 2
+                                - self.z1s[:, np.newaxis] ** 2
+                                + self.z2s[:, np.newaxis] ** 2
+                            )
+                        )
+                        mIU = (1 + self.h1s[:, np.newaxis]) * self.z1s[
+                            :, np.newaxis
+                        ] - (1 + self.h2s[:, np.newaxis]) * self.z2s[
+                            :, np.newaxis
+                        ] * np.cos(
+                            self.betas[:, np.newaxis]
+                        )
+                        mQQ = (
+                            1
+                            + self.h1s[:, np.newaxis]
+                            + self.h2s[:, np.newaxis]
+                            + 0.5
+                            * (
+                                self.h1s[:, np.newaxis] ** 2
+                                + self.h2s[:, np.newaxis] ** 2
+                                - self.z1s[:, np.newaxis] ** 2
+                                - self.z2s[:, np.newaxis] ** 2
+                            )
+                        )
+                        mUU = self.z1s[:, np.newaxis] * self.z2s[:, np.newaxis] - (
+                            1 + self.h1s[:, np.newaxis]
+                        ) * (1 + self.h2s[:, np.newaxis]) * np.cos(
+                            self.betas[:, np.newaxis]
+                        )
+                        mUQ = (1 + self.h1s[:, np.newaxis]) * self.z2s[
+                            :, np.newaxis
+                        ] + (1 + self.h2s[:, np.newaxis]) * self.z1s[
+                            :, np.newaxis
+                        ] * np.cos(
+                            self.betas[:, np.newaxis]
+                        )
+                        mQU = (1 + self.h1s[:, np.newaxis]) * self.z1s[
+                            :, np.newaxis
+                        ] + (1 + self.h2s[:, np.newaxis]) * self.z2s[
+                            :, np.newaxis
+                        ] * np.cos(
+                            self.betas[:, np.newaxis]
                         )
                     else:
-                        J11 = (
-                            (1 + self.h1s) * ca**2
-                            - (1 + self.h2s) * sa**2 * np.exp(1j * self.betas)
-                            - (self.z1s + self.z2s) * ca * sa
+                        # Mueller terms of the HWP only (freq independent case)
+                        mII = (
+                            1
+                            + self.h1s
+                            + self.h2s
+                            + 0.5
+                            * (
+                                self.h1s**2
+                                + self.h2s**2
+                                + self.z1s**2
+                                + self.z2s**2
+                            )
                         )
-                        J12 = (
-                            ((1 + self.h1s) + (1 + self.h2s) * np.exp(1j * self.betas))
-                            * ca
-                            * sa
-                            + self.z1s * ca**2
-                            - self.z2s * sa**2
+                        mQI = (
+                            self.h1s
+                            - self.h2s
+                            + 0.5
+                            * (
+                                self.h1s**2
+                                - self.h2s**2
+                                + self.z1s**2
+                                - self.z2s**2
+                            )
                         )
-
-                    del (ca, sa)
+                        mUI = (1 + self.h1s) * self.z2s - (
+                            1 + self.h2s
+                        ) * self.z1s * np.cos(self.betas)
+                        mIQ = (
+                            self.h1s
+                            - self.h2s
+                            + 0.5
+                            * (
+                                self.h1s**2
+                                - self.h2s**2
+                                - self.z1s**2
+                                + self.z2s**2
+                            )
+                        )
+                        mIU = (1 + self.h1s) * self.z1s - (
+                            1 + self.h2s
+                        ) * self.z2s * np.cos(self.betas)
+                        mQQ = (
+                            1
+                            + self.h1s
+                            + self.h2s
+                            + 0.5
+                            * (
+                                self.h1s**2
+                                + self.h2s**2
+                                - self.z1s**2
+                                - self.z2s**2
+                            )
+                        )
+                        mUU = self.z1s * self.z2s - (1 + self.h1s) * (
+                            1 + self.h2s
+                        ) * np.cos(self.betas)
+                        mUQ = (1 + self.h1s) * self.z2s + (
+                            1 + self.h2s
+                        ) * self.z1s * np.cos(self.betas)
+                        mQU = (1 + self.h1s) * self.z1s + (
+                            1 + self.h2s
+                        ) * self.z2s * np.cos(self.betas)
 
                     Tterm = (
                         0.5
-                        * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
+                        * (mII + mQI * c2ThXi - mUI * s2ThXi)
                         * self.cmb2bb[:, np.newaxis]
                     ).sum(axis=0) / self.norm
                     Qterm = (
-                        0.5
-                        * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
+                        0.25
+                        * (
+                            2 * mIQ * c2ThPs
+                            + (mQQ + mUU) * c2XiPs
+                            + (mQQ - mUU) * c4ThXiPs
+                            - 2 * mIU * s2ThPs
+                            + (mUQ - mQU) * s2XiPs
+                            - (mQU + mUQ) * s4ThXiPs
+                        )
                         * self.cmb2bb[:, np.newaxis]
                     ).sum(axis=0) / self.norm
                     Uterm = (
-                        (J11 * J12.conjugate()).real * self.cmb2bb[:, np.newaxis]
+                        0.25
+                        * (
+                            2 * mIU * c2ThPs
+                            + (mQU - mUQ) * c2XiPs
+                            + (mQU + mUQ) * c4ThXiPs
+                            + 2 * mIQ * s2ThPs
+                            + (mQQ + mUU) * s2XiPs
+                            + (mQQ - mUU) * s4ThXiPs
+                        )
+                        * self.cmb2bb[:, np.newaxis]
                     ).sum(axis=0) / self.norm
+                    del (
+                        c2ThXi,
+                        s2ThXi,
+                        c2XiPs,
+                        s2XiPs,
+                        c2ThPs,
+                        s2ThPs,
+                        c4ThXiPs,
+                        s4ThXiPs,
+                    )
+                    del (mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU)
 
                     self.atd[pix, 0] += tod * Tterm
                     self.atd[pix, 1] += tod * Qterm
@@ -462,6 +735,7 @@ class HwpSys:
                     self.ata[pix, 1, 1] += Qterm * Qterm
                     self.ata[pix, 2, 1] += Qterm * Uterm
                     self.ata[pix, 2, 2] += Uterm * Uterm
+                    del (Tterm, Qterm, Uterm)
 
                 else:
                     # re-use ca and sa, factor 4 included here
@@ -478,6 +752,7 @@ class HwpSys:
                     self.ata[pix, 1, 1] += 0.25 * ca * ca
                     self.ata[pix, 2, 1] += 0.25 * ca * sa
                     self.ata[pix, 2, 2] += 0.25 * sa * sa
+                    del (ca, sa)
             else:
                 obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
                 obs.pixind[idet, :] = pix
