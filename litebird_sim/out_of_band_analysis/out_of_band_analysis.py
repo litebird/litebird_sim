@@ -153,6 +153,7 @@ def integrate_in_band_signal_for_one_sample(
     Q,
     U,
     band,
+    freqs,
     h1,
     h2,
     cb,
@@ -167,9 +168,12 @@ def integrate_in_band_signal_for_one_sample(
     c4th,
     s4th
 ):
-    tod = np.zeros_like(band)
-    for i in range(len(band)):
-        tod[i] += band[i] * compute_signal_for_one_sample(
+    tod = 0
+    #integrating with trapezoidal rule \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    for i in range(len(band)-1):
+        dnu = freqs[i+1] - freqs[i]
+
+        tod += (band[i] * compute_signal_for_one_sample(
             T[i],
             Q[i],
             U[i],
@@ -186,7 +190,24 @@ def integrate_in_band_signal_for_one_sample(
             sthxi,
             c4th,
             s4th
-        )
+        ) + band[i+1] * compute_signal_for_one_sample(
+            T[i+1],
+            Q[i+1],
+            U[i+1],
+            h1[i+1],
+            h2[i+1],
+            cb[i+1],
+            z1[i+1],
+            z2[i+1],
+            cthp,
+            sthp,
+            cpxi,
+            spxi,
+            cthxi,
+            sthxi,
+            c4th,
+            s4th
+        )) * dnu/2.
 
     return tod
 
@@ -223,11 +244,12 @@ def integrate_in_band_signal_for_one_detector(
 ):
 
     for i in range(len(tod_det)):
-        tod_det[i] += np.trapz(integrate_in_band_signal_for_one_sample(
+        tod_det[i] += integrate_in_band_signal_for_one_sample(
             T=maps[:, 0, pixel_ind[i]],
             Q=maps[:, 1, pixel_ind[i]],
             U=maps[:, 2, pixel_ind[i]],
             band=band,
+            freqs = freqs,
             h1=h1,
             h2=h2,
             cb=cb,
@@ -241,7 +263,7 @@ def integrate_in_band_signal_for_one_detector(
             sthxi=np.sin(2 * theta[i] - 2 * xi),
             c4th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
             s4th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
-        ), freqs)
+        )
 
 
 @njit
@@ -291,11 +313,11 @@ def integrate_in_band_mueller_for_one_sample(
     intTterm = 0
     intQterm = 0
     intUterm = 0
-    Tterm = np.empty_like(band)
-    Qterm = np.empty_like(band)
-    Uterm = np.empty_like(band)
-    for i in range(len(band)):
-        Tterm[i], Qterm[i], Uterm[i] = compute_mueller_for_one_sample(
+    #integrating with trapezoidal rule \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    for i in range(len(band)-1):
+        dnu = freqs[i+1] - freqs[i]
+
+        Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
             h1[i],
             h2[i],
             cb[i],
@@ -310,10 +332,26 @@ def integrate_in_band_mueller_for_one_sample(
             c4th,
             s4th
         )
+
+        Ttermp1, Qtermp1, Utermp1 = compute_mueller_for_one_sample(
+            h1[i+1],
+            h2[i+1],
+            cb[i+1],
+            z1[i+1],
+            z2[i+1],
+            cthp,
+            sthp,
+            cpxi,
+            spxi,
+            cthxi,
+            sthxi,
+            c4th,
+            s4th
+        )
         
-    intTterm = np.trapz(band * Tterm, freqs)
-    intQterm = np.trapz(band * Qterm, freqs)
-    intUterm = np.trapz(band * Uterm, freqs)
+        intTterm += (band[i] * Tterm + band[i+1] * Ttermp1) * dnu/2.
+        intQterm += (band[i] * Qterm + band[i+1] * Qtermp1) * dnu/2.
+        intUterm += (band[i] * Uterm + band[i+1] * Utermp1) * dnu/2.
 
     return intTterm, intQterm, intUterm
 
