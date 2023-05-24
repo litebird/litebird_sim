@@ -166,48 +166,57 @@ def integrate_in_band_signal_for_one_sample(
     cthxi,
     sthxi,
     c4th,
-    s4th
+    s4th,
 ):
     tod = 0
-    #integrating with trapezoidal rule \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
-    for i in range(len(band)-1):
-        dnu = freqs[i+1] - freqs[i]
+    # integrating with trapezoidal rule \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    for i in range(len(band) - 1):
+        dnu = freqs[i + 1] - freqs[i]
 
-        tod += (band[i] * compute_signal_for_one_sample(
-            T[i],
-            Q[i],
-            U[i],
-            h1[i],
-            h2[i],
-            cb[i],
-            z1[i],
-            z2[i],
-            cthp,
-            sthp,
-            cpxi,
-            spxi,
-            cthxi,
-            sthxi,
-            c4th,
-            s4th
-        ) + band[i+1] * compute_signal_for_one_sample(
-            T[i+1],
-            Q[i+1],
-            U[i+1],
-            h1[i+1],
-            h2[i+1],
-            cb[i+1],
-            z1[i+1],
-            z2[i+1],
-            cthp,
-            sthp,
-            cpxi,
-            spxi,
-            cthxi,
-            sthxi,
-            c4th,
-            s4th
-        )) * dnu/2.
+        tod += (
+            (
+                band[i]
+                * compute_signal_for_one_sample(
+                    T[i],
+                    Q[i],
+                    U[i],
+                    h1[i],
+                    h2[i],
+                    cb[i],
+                    z1[i],
+                    z2[i],
+                    cthp,
+                    sthp,
+                    cpxi,
+                    spxi,
+                    cthxi,
+                    sthxi,
+                    c4th,
+                    s4th,
+                )
+                + band[i + 1]
+                * compute_signal_for_one_sample(
+                    T[i + 1],
+                    Q[i + 1],
+                    U[i + 1],
+                    h1[i + 1],
+                    h2[i + 1],
+                    cb[i + 1],
+                    z1[i + 1],
+                    z2[i + 1],
+                    cthp,
+                    sthp,
+                    cpxi,
+                    spxi,
+                    cthxi,
+                    sthxi,
+                    c4th,
+                    s4th,
+                )
+            )
+            * dnu
+            / 2.0
+        )
 
     return tod
 
@@ -249,7 +258,7 @@ def integrate_in_band_signal_for_one_detector(
             Q=maps[:, 1, pixel_ind[i]],
             U=maps[:, 2, pixel_ind[i]],
             band=band,
-            freqs = freqs,
+            freqs=freqs,
             h1=h1,
             h2=h2,
             cb=cb,
@@ -268,19 +277,7 @@ def integrate_in_band_signal_for_one_detector(
 
 @njit
 def compute_mueller_for_one_sample(
-    h1,
-    h2,
-    cb,
-    z1,
-    z2,
-    cthp,
-    sthp,
-    cpxi,
-    spxi,
-    cthxi,
-    sthxi,
-    c4th,
-    s4th
+    h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, cthxi, sthxi, c4th, s4th
 ):
     Tterm = compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, cthxi, sthxi)
     Qterm = compute_Qterm_for_one_sample(
@@ -294,28 +291,14 @@ def compute_mueller_for_one_sample(
 
 @njit
 def integrate_in_band_mueller_for_one_sample(
-    band,
-    freqs,
-    h1,
-    h2,
-    cb,
-    z1,
-    z2,
-    cthp,
-    sthp,
-    cpxi,
-    spxi,
-    cthxi,
-    sthxi,
-    c4th,
-    s4th
+    band, freqs, h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, cthxi, sthxi, c4th, s4th
 ):
     intTterm = 0
     intQterm = 0
     intUterm = 0
-    #integrating with trapezoidal rule \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
-    for i in range(len(band)-1):
-        dnu = freqs[i+1] - freqs[i]
+    # integrating with trapezoidal rule \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    for i in range(len(band) - 1):
+        dnu = freqs[i + 1] - freqs[i]
 
         Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
             h1[i],
@@ -330,15 +313,15 @@ def integrate_in_band_mueller_for_one_sample(
             cthxi,
             sthxi,
             c4th,
-            s4th
+            s4th,
         )
 
         Ttermp1, Qtermp1, Utermp1 = compute_mueller_for_one_sample(
-            h1[i+1],
-            h2[i+1],
-            cb[i+1],
-            z1[i+1],
-            z2[i+1],
+            h1[i + 1],
+            h2[i + 1],
+            cb[i + 1],
+            z1[i + 1],
+            z2[i + 1],
             cthp,
             sthp,
             cpxi,
@@ -346,12 +329,12 @@ def integrate_in_band_mueller_for_one_sample(
             cthxi,
             sthxi,
             c4th,
-            s4th
+            s4th,
         )
-        
-        intTterm += (band[i] * Tterm + band[i+1] * Ttermp1) * dnu/2.
-        intQterm += (band[i] * Qterm + band[i+1] * Qtermp1) * dnu/2.
-        intUterm += (band[i] * Uterm + band[i+1] * Utermp1) * dnu/2.
+
+        intTterm += (band[i] * Tterm + band[i + 1] * Ttermp1) * dnu / 2.0
+        intQterm += (band[i] * Qterm + band[i + 1] * Qtermp1) * dnu / 2.0
+        intUterm += (band[i] * Uterm + band[i + 1] * Utermp1) * dnu / 2.0
 
     return intTterm, intQterm, intUterm
 
@@ -624,7 +607,9 @@ class HwpSysAndBandpass:
         if self.integrate_in_band:
             try:
                 self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
-                    self.band_filename, unpack=True, comments = '#', 
+                    self.band_filename,
+                    unpack=True,
+                    comments="#",
                 )
             except Exception:
                 print("you have not provided a band_filename in the parameter file!")
@@ -697,8 +682,11 @@ class HwpSysAndBandpass:
                         self.betas,
                         self.z1s,
                         self.z2s,
-                    ) = np.loadtxt(self.band_filename_solver, unpack=True, comments = '#', 
-                           )
+                    ) = np.loadtxt(
+                        self.band_filename_solver,
+                        unpack=True,
+                        comments="#",
+                    )
                 except Exception:
                     print(
                         "you have not provided a band_filename_solver"
@@ -724,7 +712,9 @@ class HwpSysAndBandpass:
             elif self.bandpass_solver:
 
                 self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
-                    self.freqs_solver, self.bandpass_solver, self.include_beam_throughput
+                    self.freqs_solver,
+                    self.bandpass_solver,
+                    self.include_beam_throughput,
                 )
                 self.cmb2bb_solver = (
                     _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
