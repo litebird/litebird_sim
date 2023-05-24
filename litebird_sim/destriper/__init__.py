@@ -238,6 +238,7 @@ def destripe_observations(
     observations,
     base_path: Path,
     params: DestriperParameters(),
+    components: List[str],
     pointings: Union[List[np.ndarray], None] = None,
 ) -> DestriperResult:
     """Run the destriper on the observations in a TOD
@@ -344,6 +345,7 @@ def destripe_observations(
 def destripe(
     sim,
     params=DestriperParameters(),
+    components: List[str] = ["tod"],
     pointings: Union[List[np.ndarray], None] = None,
 ) -> DestriperResult:
     """Run the destriper on a set of TODs.
@@ -376,5 +378,6 @@ def destripe(
         observations=sim.observations,
         base_path=sim.base_path,
         params=params,
+        components=components,
         pointings=pointings,
     )
