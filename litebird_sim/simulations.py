@@ -806,7 +806,7 @@ class Simulation:
 
         The parameter `tods` specifies how many TOD arrays should be
         created. Each element should be an instance of
-        :class:`.TodType` and contain the fields ``name`` (the name
+        :class:`.TodDescription` and contain the fields ``name`` (the name
         of the member variable that will be created), ``dtype`` (the
         NumPy type to use, like ``numpy.float32``), and ``description``
         (a free-form description). The default is ``numpy.float32``,
@@ -824,17 +824,17 @@ class Simulation:
             sim.create_observations(
                 [det1, det2],
                 tods=[
-                    TodType(
+                    TodDescription(
                         name="fg_tod",
                         dtype=np.float32,
                         description="Foregrounds (computed by PySM)",
                     ),
-                    TodType(
+                    TodDescription(
                         name="cmb_tod",
                         dtype=np.float32,
                         description="CMB realization following Planck (2018)",
                     ),
-                    TodType(
+                    TodDescription(
                         name="noise_tod",
                         dtype=np.float32,
                         description="Noise TOD (only white noise, no 1/f)",
@@ -1398,7 +1398,11 @@ class Simulation:
                     "sampling_freq_Hz",
                     "detector_mismatch",
                     "thermal_fluctuation_amplitude_K",
-                    "focalplane_Tbath_mK",
+                    "focalplane_Tbath_K",
+                    "sampling_uniform_low",
+                    "sampling_uniform_high",
+                    "sampling_gaussian_loc",
+                    "sampling_gaussian_scale",
                 ]
 
                 for key in keys_to_get:
