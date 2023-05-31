@@ -1351,13 +1351,14 @@ class Simulation:
 
         Args:
 
-            drift_params (:class:`.GainDriftParams`, optional): The gain drift
-            injection parameters object. Defaults to None.
+            drift_params (:class:`.GainDriftParams`, optional): The gain
+                drift injection parameters object. Defaults to None.
 
-            user_seed (int, optional): A seed provided by the user. Defaults to 12345.
+            user_seed (int, optional): A seed provided by the user.
+                Defaults to 12345.
 
-            component (str, optional): The name of the TOD on which the gain drift
-            has to be injected. Defaults to "tod".
+            component (str, optional): The name of the TOD on which the
+                gain drift has to be injected. Defaults to "tod".
 
             append_to_report (bool, optional): Defaults to True.
         """
