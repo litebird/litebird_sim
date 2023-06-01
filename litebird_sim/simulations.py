@@ -1346,11 +1346,22 @@ class Simulation:
         nside: int,
         do_covariance: bool = False,
         output_map_in_galactic: bool = True,
+        append_to_report: bool = True,
     ):
 
         """Bins the observations into maps
         The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
         """
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_binned_map.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                nside=nside,
+                coord="Galactic" if output_map_in_galactic else "Ecliptic",
+            )
 
         return make_bin_map(
             obs=self.observations,
