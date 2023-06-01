@@ -102,6 +102,12 @@ of shape `(12 * nside * nside, 3, 3)`. This is how it should be called::
 
     map, cov = lbs.make_bin_map(obs, 128, do_covariance=True)
 
+The :func:`.make_bin_map` has a high level interface in the class
+:class:`.Simulation` that bins the content of the observations into maps
+The syntax is idetical to :func:`.make_bin_map`::
+
+    map, cov = sim.binned_map(nside=nside, do_covariance=True)
+
 
 Destriper
 ---------

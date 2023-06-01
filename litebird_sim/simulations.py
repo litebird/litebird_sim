@@ -1349,7 +1349,8 @@ class Simulation:
         append_to_report: bool = True,
     ):
 
-        """Bins the observations into maps
+        """
+        Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
         """
 
