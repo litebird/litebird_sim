@@ -247,9 +247,7 @@ def test_linear_gain_drift(tmp_path):
             scale=drift_params.sampling_gaussian_scale,
         )
 
-        gain_arr_size = int(
-            sampling_freq_Hz * drift_params.calibration_period_sec
-        )
+        gain_arr_size = int(sampling_freq_Hz * drift_params.calibration_period_sec)
 
         gain_arr = 1.0 + rand * drift_params.sigma_drift * np.linspace(
             0, 1, gain_arr_size

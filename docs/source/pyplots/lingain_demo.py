@@ -20,7 +20,6 @@ dets = [
 # Defining the gain drift simulation parameters
 drift_params = lbs.GainDriftParams(
     drift_type=lbs.GainDriftType.LINEAR_GAIN,
-    sampling_freq_Hz=sampling_freq_Hz,
     calibration_period_sec=24 * 3600,
 )
 
@@ -47,7 +46,7 @@ plt.figure(figsize=(8, 5))
 
 time_domain = (
     np.arange(sim1.observations[0].tod.shape[1])
-    / drift_params.sampling_freq_Hz
+    / sampling_freq_Hz
     / 24
     / 3600
 )
