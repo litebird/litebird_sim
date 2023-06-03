@@ -24,7 +24,6 @@ dets = [
 # Defining the gain drift simulation parameters with no detector mismatch
 drift_params_no_mismatch = lbs.GainDriftParams(
     drift_type=lbs.GainDriftType.THERMAL_GAIN,
-    sampling_freq_Hz=sampling_freq_Hz,
     focalplane_group="wafer",
     detector_mismatch=0.0,
 )
@@ -32,7 +31,6 @@ drift_params_no_mismatch = lbs.GainDriftParams(
 # Defining the gain drift simulation parameters with detector mismatch
 drift_params_with_mismatch = lbs.GainDriftParams(
     drift_type=lbs.GainDriftType.THERMAL_GAIN,
-    sampling_freq_Hz=sampling_freq_Hz,
     focalplane_group="wafer",
     detector_mismatch=1.0,
 )

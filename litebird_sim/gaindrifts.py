@@ -106,9 +106,6 @@ class GainDriftParams:
         - ``alpha_drift`` (`float`): The spectral index of thermal
           drift power spectral density.
 
-        - ``sampling_freq_Hz`` (`float`): The sampling frequency of
-          the detector in Hz.
-
         - ``detector_mismatch`` (`float`): The factor that determines
           the degree of mismatch in thermal fluctuation of detectors belonging
           to same focalplane group. A value other than 0 implies no common
@@ -155,7 +152,6 @@ class GainDriftParams:
     oversample: int = 2
     fknee_drift_mHz: float = 20.0
     alpha_drift: float = 1.0
-    sampling_freq_Hz: float = 19.0
     detector_mismatch: float = 1.0
     thermal_fluctuation_amplitude_K: float = 1.0
     focalplane_Tbath_K: float = 0.1
@@ -235,6 +231,7 @@ def _get_psd(
 
 def _noise_timestream(
     tod_size: int,
+    sampling_freq_hz: float,
     focalplane_attr: str,
     drift_params: GainDriftParams = None,
     user_seed: int = 12345,
@@ -246,8 +243,10 @@ def _noise_timestream(
 
         tod_size (int): The length of time ordered data array.
 
+        sampling_freq_hz (float): The sampling frequency of the detector in Hz.
+
         focalplane_attr (str): The name of the focalplane attribute
-          corresponding the the focalplane group attribute.
+          corresponding the focalplane group attribute.
           See :attr:`.GainDriftParams.focalplane_group`.
 
         drift_params (GainDriftParams, optional): The class object for
@@ -269,9 +268,9 @@ def _noise_timestream(
         fftlen *= 2
 
     npsd = fftlen // 2 + 1
-    norm = drift_params.sampling_freq_Hz * fftlen / 2.0
+    norm = sampling_freq_hz * fftlen / 2.0
 
-    freq = np.fft.rfftfreq(fftlen, 1.0 / drift_params.sampling_freq_Hz)
+    freq = np.fft.rfftfreq(fftlen, 1.0 / sampling_freq_hz)
     assert (
         freq.size == npsd
     ), f"The size of frequency array is {freq.size} that is not same as the expected"
@@ -307,6 +306,7 @@ def _noise_timestream(
 
 def apply_gaindrift_for_one_detector(
     det_tod: np.ndarray,
+    sampling_freq_hz: float,
     det_name: str,
     drift_params: GainDriftParams = None,
     focalplane_attr: str = None,
@@ -338,6 +338,8 @@ def apply_gaindrift_for_one_detector(
         det_tod (np.ndarray): The TOD array corresponding to only one
           detector.
 
+        sampling_freq_hz (float): The sampling frequency of the detector in Hz.
+
         det_name (str): The name of the detector to which the TOD belongs.
           This name is used with ``user_seed`` to generate hash. This hash is used to
           set random slope in case of linear drift, and randomized detector mismatch
@@ -363,7 +365,7 @@ def apply_gaindrift_for_one_detector(
 
     tod_size = len(
         det_tod
-    )  # must be equal to sampling_freq_Hz * mission_duration_seconds
+    )  # must be equal to sampling_freq_hz * mission_duration_seconds
 
     assert isinstance(det_name, str), "The parameter `det_name` must be a string"
     rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
@@ -379,7 +381,7 @@ def apply_gaindrift_for_one_detector(
             scale=drift_params.sampling_gaussian_scale,
         )
 
-    gain_arr_size = drift_params.sampling_freq_Hz * drift_params.calibration_period_sec
+    gain_arr_size = int(sampling_freq_hz * drift_params.calibration_period_sec)
     if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
         gain_arr = 1.0 + rand * drift_params.sigma_drift * np.linspace(
             0, 1, gain_arr_size
@@ -410,6 +412,7 @@ def apply_gaindrift_for_one_detector(
 
             noise_timestream = _noise_timestream(
                 tod_size=tod_size,
+                sampling_freq_hz=sampling_freq_hz,
                 focalplane_attr=focalplane_attr,
                 drift_params=drift_params,
                 user_seed=user_seed,
@@ -437,6 +440,7 @@ def apply_gaindrift_for_one_detector(
 
 def apply_gaindrift_to_tod(
     tod: np.ndarray,
+    sampling_freq_hz: float,
     det_name: Union[List, np.ndarray],
     drift_params: GainDriftParams = None,
     focalplane_attr: Union[List, np.ndarray] = None,
@@ -456,6 +460,8 @@ def apply_gaindrift_to_tod(
 
         tod (np.ndarray): The TOD object consisting TOD arrays for
           multiple detectors.
+
+        sampling_freq_hz (float): The sampling frequency of the detector in Hz.
 
         det_name (Union[List, np.ndarray]): The list of the name of the
           detectors to which the TOD arrays correspond. The detector names
@@ -491,6 +497,7 @@ def apply_gaindrift_to_tod(
         for detidx in np.arange(tod.shape[0]):
             apply_gaindrift_for_one_detector(
                 det_tod=tod[detidx],
+                sampling_freq_hz=sampling_freq_hz,
                 det_name=det_name[detidx],
                 drift_params=drift_params,
                 noise_timestream=None,
@@ -517,6 +524,7 @@ def apply_gaindrift_to_tod(
         for detidx, det_elem in enumerate(det_group):
             noise_timestream[detidx][:] = _noise_timestream(
                 tod_size=tod_size,
+                sampling_freq_hz=sampling_freq_hz,
                 focalplane_attr=det_elem,
                 drift_params=drift_params,
                 user_seed=user_seed,
@@ -526,6 +534,7 @@ def apply_gaindrift_to_tod(
             det_mask = focalplane_attr[detidx] == det_group
             apply_gaindrift_for_one_detector(
                 det_tod=tod[detidx],
+                sampling_freq_hz=sampling_freq_hz,
                 det_name=det_name[detidx],
                 drift_params=drift_params,
                 noise_timestream=noise_timestream[det_mask][
@@ -578,10 +587,12 @@ def apply_gaindrift_to_observations(
     for cur_obs in obs_list:
         tod = getattr(cur_obs, component)
         det_name = cur_obs.name
+        sampling_freq_hz = cur_obs.sampling_rate_hz
         focalplane_attr = getattr(cur_obs, drift_params.focalplane_group)
 
         apply_gaindrift_to_tod(
             tod=tod,
+            sampling_freq_hz=sampling_freq_hz,
             det_name=det_name,
             drift_params=drift_params,
             focalplane_attr=focalplane_attr,

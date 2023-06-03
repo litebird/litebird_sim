@@ -1396,7 +1396,6 @@ class Simulation:
                     "oversample",
                     "fknee_drift_mHz",
                     "alpha_drift",
-                    "sampling_freq_Hz",
                     "detector_mismatch",
                     "thermal_fluctuation_amplitude_K",
                     "focalplane_Tbath_K",

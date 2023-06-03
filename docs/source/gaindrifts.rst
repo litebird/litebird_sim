@@ -36,7 +36,6 @@ For any kind of gain drift, one can use either the method of :class:`.Simulation
     # Defining the gain drift simulation parameters
     drift_params = lbs.GainDriftParams(
         drift_type=lbs.GainDriftType.LINEAR_GAIN,
-        sampling_freq_Hz=sampling_freq_Hz,
         sampling_uniform_low=0.2,
         sampling_uniform_high=0.7,
     )
@@ -77,6 +76,7 @@ For any kind of gain drift, one can use either the method of :class:`.Simulation
     # the reproducible randomness
     lbs.apply_gaindrift_to_tod(
         tod=sim1.observations[0].gain_2_tod,
+        sampling_freq_hz=sampling_freq_Hz,
         det_name=sim1.observations[0].name,
         drift_params=drift_params,
     )
@@ -87,6 +87,7 @@ For any kind of gain drift, one can use either the method of :class:`.Simulation
     for idx, tod in enumerate(sim1.observations[0].gain_2_det):
         lbs.apply_gaindrift_for_one_detector(
             det_tod=tod,
+            sampling_freq_hz=sampling_freq_Hz,
             det_name=sim1.observations[0].name[idx],
             drift_params=drift_params,
         )

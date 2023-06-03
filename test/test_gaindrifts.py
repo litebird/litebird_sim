@@ -45,7 +45,6 @@ class Test_wrappers_gain_drift:
 
     drift_params = lbs.GainDriftParams(
         drift_type=lbs.GainDriftType.LINEAR_GAIN,
-        sampling_freq_Hz=sampling_freq_Hz,
         sampling_uniform_low=0.2,
         sampling_uniform_high=0.7,
     )
@@ -86,6 +85,7 @@ class Test_wrappers_gain_drift:
 
         lbs.apply_gaindrift_to_tod(
             tod=sim1.observations[0].gain_2_tod,
+            sampling_freq_hz=self.sampling_freq_Hz,
             det_name=sim1.observations[0].name,
             drift_params=self.drift_params,
         )
@@ -93,6 +93,7 @@ class Test_wrappers_gain_drift:
         for idx, tod in enumerate(sim1.observations[0].gain_2_det):
             lbs.apply_gaindrift_for_one_detector(
                 det_tod=tod,
+                sampling_freq_hz=self.sampling_freq_Hz,
                 det_name=sim1.observations[0].name[idx],
                 drift_params=self.drift_params,
             )
@@ -148,6 +149,7 @@ class Test_wrappers_gain_drift:
 
         lbs.apply_gaindrift_to_tod(
             tod=sim1.observations[0].gain_2_tod,
+            sampling_freq_hz=self.sampling_freq_Hz,
             det_name=sim1.observations[0].name,
             drift_params=self.drift_params,
             focalplane_attr=getattr(
@@ -158,6 +160,7 @@ class Test_wrappers_gain_drift:
         for idx, tod in enumerate(sim1.observations[0].gain_2_det):
             lbs.apply_gaindrift_for_one_detector(
                 det_tod=tod,
+                sampling_freq_hz=self.sampling_freq_Hz,
                 det_name=sim1.observations[0].name[idx],
                 drift_params=self.drift_params,
                 focalplane_attr=getattr(
@@ -200,7 +203,6 @@ def test_linear_gain_drift(tmp_path):
 
     drift_params = lbs.GainDriftParams(
         drift_type=lbs.GainDriftType.LINEAR_GAIN,
-        sampling_freq_Hz=sampling_freq_Hz,
         sampling_dist=lbs.SamplingDist.GAUSSIAN,
         sampling_gaussian_loc=0.5,
         sampling_gaussian_scale=0.2,
@@ -245,8 +247,8 @@ def test_linear_gain_drift(tmp_path):
             scale=drift_params.sampling_gaussian_scale,
         )
 
-        gain_arr_size = (
-            drift_params.sampling_freq_Hz * drift_params.calibration_period_sec
+        gain_arr_size = int(
+            sampling_freq_Hz * drift_params.calibration_period_sec
         )
 
         gain_arr = 1.0 + rand * drift_params.sigma_drift * np.linspace(
@@ -310,7 +312,6 @@ class Test_thermal_gain:
 
         drift_params = lbs.GainDriftParams(
             drift_type=lbs.GainDriftType.THERMAL_GAIN,
-            sampling_freq_Hz=self.sampling_freq_Hz,
             sampling_dist=lbs.SamplingDist.GAUSSIAN,
             sampling_gaussian_loc=0.5,
             sampling_gaussian_scale=0.2,
@@ -373,7 +374,6 @@ class Test_thermal_gain:
 
         drift_params = lbs.GainDriftParams(
             drift_type=lbs.GainDriftType.THERMAL_GAIN,
-            sampling_freq_Hz=self.sampling_freq_Hz,
             sampling_dist=lbs.SamplingDist.GAUSSIAN,
             sampling_gaussian_loc=0.5,
             sampling_gaussian_scale=0.2,
