@@ -19,7 +19,6 @@
 - `oversample` = {{ oversample }}
 - `fknee_drift_mHz` = {{ fknee_drift_mHz }}
 - `alpha_drift` = {{ alpha_drift }}
-- `sampling_freq_Hz` = {{ sampling_freq_Hz }}
 - `detector_mismatch` = {{ detector_mismatch }}
 - `thermal_fluctuation_amplitude_K` = {{ thermal_fluctuation_amplitude_K }}
 - `focalplane_Tbath_K` = {{ focalplane_Tbath_K }}
