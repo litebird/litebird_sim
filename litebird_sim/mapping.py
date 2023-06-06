@@ -124,8 +124,8 @@ def _accumulate_map_and_info(tod, pix, psi, weights, info, additional_component:
     for idet in range(ndets):
         for d, p, a in zip(tod[idet], pix[idet], psi[idet]):
             one = 1.0 / np.sqrt(weights[idet])
-            cos = np.cos(2 * a) / np.sqrt(weights[idet])
-            sin = np.sin(2 * a) / np.sqrt(weights[idet])
+            cos = np.cos(2 * a) * one
+            sin = np.sin(2 * a) * one
             info_pix = info[p]
 
             if not additional_component:
@@ -243,17 +243,24 @@ def make_bin_map(
         pixidx_all = np.empty_like(first_component, dtype=int)
         polang_all = np.empty_like(first_component)
 
+        if output_map_in_galactic:
+            curr_pointings_det = np.empty_like(cur_ptg[0, :, :])
+#            curr_pol_angle_det = np.empty_like(cur_psi[0, :])
+
         for idet in range(ndets):
             if output_map_in_galactic:
-                curr_pointings_det, curr_pol_angle_det = rotate_coordinates_e2g(
+                curr_pointings_det, polang_all[idet] = rotate_coordinates_e2g(
                     cur_ptg[idet, :, :], cur_psi[idet, :]
                 )
             else:
                 curr_pointings_det = cur_ptg[idet, :, :]
-                curr_pol_angle_det = cur_psi[idet, :]
+                polang_all[idet] = cur_psi[idet, :]
 
             pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
-            polang_all[idet] = curr_pol_angle_det
+#            polang_all[idet] = curr_pol_angle_det
+
+        if output_map_in_galactic:
+            del curr_pointings_det
 
         for idx, cur_component_name in enumerate(components):
             cur_component = getattr(cur_obs, cur_component_name)
@@ -270,6 +277,7 @@ def make_bin_map(
                 info,
                 additional_component=idx > 0,
             )
+        del pixidx_all, polang_all
 
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
@@ -287,12 +295,12 @@ def make_bin_map(
         )
 
     rhs = _extract_map_and_fill_info(info)
+
     try:
         res = np.linalg.solve(info, rhs)
     except np.linalg.LinAlgError:
-        cond = np.linalg.cond(info)
+        mask = np.linalg.cond(info) < COND_THRESHOLD
         res = np.full_like(rhs, hp.UNSEEN)
-        mask = cond < COND_THRESHOLD
         res[mask] = np.linalg.solve(info[mask], rhs[mask])
 
     if do_covariance:
