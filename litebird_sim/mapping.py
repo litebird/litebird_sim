@@ -114,21 +114,17 @@ class DestriperResult:
 
 
 @njit
-def _solve_one_pixel(atd, ata):
-    # Solve the map-making equation for one pixel
-    if np.linalg.cond(ata) < COND_THRESHOLD:
-        ata = np.linalg.inv(ata)
-        atd = ata.dot(atd)
-    else:
-        ata.fill(hp.UNSEEN)
-        atd.fill(hp.UNSEEN)
+def _solve_mapmaking(ata, atd):
+    # Sove the map-making equation
+    npix = atd.shape[0]
 
-
-@njit
-def _solve_all_pixels(all_atd, all_ata):
-    npix = all_atd.shape[0]
     for ipix in range(npix):
-        _solve_one_pixel(all_atd[ipix], all_ata[ipix])
+        if np.linalg.cond(ata[ipix]) < COND_THRESHOLD:
+            ata[ipix] = np.linalg.inv(ata[ipix])
+            atd[ipix] = ata[ipix].dot(atd[ipix])
+        else:
+            ata[ipix].fill(hp.UNSEEN)
+            atd[ipix].fill(hp.UNSEEN)
 
 
 @njit
@@ -295,6 +291,7 @@ def make_bin_map(
                 info,
                 additional_component=idx > 0,
             )
+
         del pixidx_all, polang_all
 
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
@@ -314,7 +311,7 @@ def make_bin_map(
 
     rhs = _extract_map_and_fill_info(info)
 
-    _solve_all_pixels(rhs, info)
+    _solve_mapmaking(info, rhs)
 
     if do_covariance:
         return rhs.T, info
