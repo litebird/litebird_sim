@@ -114,6 +114,24 @@ class DestriperResult:
 
 
 @njit
+def _solve_one_pixel(atd, ata):
+    # Solve the map-making equation for one pixel
+    if np.linalg.cond(ata) < COND_THRESHOLD:
+        ata = np.linalg.inv(ata)
+        atd = ata.dot(atd)
+    else:
+        ata.fill(hp.UNSEEN)
+        atd.fill(hp.UNSEEN)
+
+
+@njit
+def _solve_all_pixels(all_atd, all_ata):
+    npix = all_atd.shape[0]
+    for ipix in range(npix):
+        _solve_one_pixel(all_atd[ipix], all_ata[ipix])
+
+
+@njit
 def _accumulate_map_and_info(tod, pix, psi, weights, info, additional_component: bool):
     # Fill the upper triangle of the information matrix and use the lower
     # triangle for the RHS of the map-making equation
@@ -244,8 +262,8 @@ def make_bin_map(
         polang_all = np.empty_like(first_component)
 
         if output_map_in_galactic:
+            # pre-allocate curr_pointings_det in case of output_map_in_galactic
             curr_pointings_det = np.empty_like(cur_ptg[0, :, :])
-#            curr_pol_angle_det = np.empty_like(cur_psi[0, :])
 
         for idet in range(ndets):
             if output_map_in_galactic:
@@ -257,9 +275,9 @@ def make_bin_map(
                 polang_all[idet] = cur_psi[idet, :]
 
             pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
-#            polang_all[idet] = curr_pol_angle_det
 
         if output_map_in_galactic:
+            # free curr_pointings_det in case of output_map_in_galactic
             del curr_pointings_det
 
         for idx, cur_component_name in enumerate(components):
@@ -296,19 +314,9 @@ def make_bin_map(
 
     rhs = _extract_map_and_fill_info(info)
 
-    try:
-        res = np.linalg.solve(info, rhs)
-    except np.linalg.LinAlgError:
-        mask = np.linalg.cond(info) < COND_THRESHOLD
-        res = np.full_like(rhs, hp.UNSEEN)
-        res[mask] = np.linalg.solve(info[mask], rhs[mask])
+    _solve_all_pixels(rhs, info)
 
     if do_covariance:
-        try:
-            return res.T, np.linalg.inv(info)
-        except np.linalg.LinAlgError:
-            covmat = np.full_like(info, hp.UNSEEN)
-            covmat[mask] = np.linalg.inv(info[mask])
-            return res.T, covmat
+        return rhs.T, info
     else:
-        return res.T
+        return rhs.T
