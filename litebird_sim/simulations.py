@@ -31,6 +31,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
+from .mapping import make_bin_map
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
@@ -1219,6 +1220,8 @@ class Simulation:
     def fill_tods(
         self,
         maps: Dict[str, np.ndarray],
+        input_map_in_galactic: bool = True,
+        interpolation: Union[str, None] = "",
         append_to_report: bool = True,
     ):
         """Fills the TODs, scanning a map.
@@ -1232,6 +1235,8 @@ class Simulation:
         scan_map_in_observations(
             self.observations,
             maps=maps,
+            input_map_in_galactic=input_map_in_galactic,
+            interpolation=interpolation,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1337,7 +1342,37 @@ class Simulation:
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
-    def apply_gaindrift(
+    def binned_map(
+        self,
+        nside: int,
+        do_covariance: bool = False,
+        output_map_in_galactic: bool = True,
+        append_to_report: bool = True,
+    ):
+
+        """
+        Bins the tods of `sim.observations` into maps.
+        The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
+        """
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_binned_map.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                nside=nside,
+                coord="Galactic" if output_map_in_galactic else "Ecliptic",
+            )
+
+        return make_bin_map(
+            obs=self.observations,
+            nside=nside,
+            do_covariance=do_covariance,
+            output_map_in_galactic=output_map_in_galactic,
+        )
+
+      def apply_gaindrift(
         self,
         drift_params: GainDriftParams = None,
         user_seed: int = 12345,
