@@ -104,7 +104,7 @@ of shape `(12 * nside * nside, 3, 3)`. This is how it should be called::
 
 The :func:`.make_bin_map` has a high level interface in the class
 :class:`.Simulation` that bins the content of the observations into maps
-The syntax is idetical to :func:`.make_bin_map`::
+The syntax is identical to :func:`.make_bin_map`::
 
     map, cov = sim.binned_map(nside=nside, do_covariance=True)
 
