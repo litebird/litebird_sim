@@ -98,7 +98,7 @@ def test_scan_map_no_interpolation():
         pointings=pointings,
         maps=in_map,
         input_map_in_galactic=False,
-        interpolation="none",
+        interpolation=None,
     )
     out_map1 = lbs.make_bin_map(obs1, nside, output_map_in_galactic=False)
 
