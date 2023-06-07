@@ -1172,7 +1172,7 @@ class Simulation:
                 store_pointings_in_obs=True,
             )
             del quaternion_buffer
-            
+
             memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
             num_of_obs += 1
 
@@ -1243,7 +1243,6 @@ class Simulation:
                 markdown_template = "".join(inpf.readlines())
             if type(maps) is dict:
                 if "Mbs_parameters" in maps.keys():
-
                     if maps["Mbs_parameters"].make_fg:
                         fg_model = maps["Mbs_parameters"].fg_models
                     else:
@@ -1314,7 +1313,6 @@ class Simulation:
         random: Union[np.random.Generator, None] = None,
         append_to_report: bool = True,
     ):
-
         """Adds noise to tods.
 
         This method must be called after having set the instrument,

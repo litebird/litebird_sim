@@ -157,7 +157,7 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         assert global_flags.shape == (2, 3)
         assert local_flags.shape == (2, 3)
 
-        for (cur_dataset, description) in [
+        for cur_dataset, description in [
             (tod_dataset, "TOD"),
             (other_tod_dataset, "Another TOD"),
         ]:

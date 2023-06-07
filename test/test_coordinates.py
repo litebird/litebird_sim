@@ -6,7 +6,6 @@ import healpy as hp
 
 
 def test_coordinates():
-
     # The purpose of this test is to validate the rotation from
     # ecliptic to galactic coordinates performed by the function
     # in coordinates.py with the same rotation provided by healpy

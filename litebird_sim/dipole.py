@@ -140,7 +140,6 @@ def add_dipole_for_one_detector(
     q_x,
     dipole_type: DipoleType,
 ):
-
     if dipole_type == DipoleType.LINEAR:
         for i in range(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_linear(
@@ -205,7 +204,6 @@ def add_dipole(
     assert tod.shape[1] == velocity.shape[0]
 
     for detector_idx in range(tod.shape[0]):
-
         nu_hz = frequency_ghz[detector_idx] * 1e9  # freq in GHz
         # Note that x is a dimensionless parameter
         x = c.H_OVER_K_B * nu_hz / t_cmb_k

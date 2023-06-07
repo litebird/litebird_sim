@@ -175,7 +175,6 @@ def get_pointings_for_observations(
     hwp: Optional[HWP] = None,
     store_pointings_in_obs=True,
 ):
-
     """Obtain pointings for a list of observations
 
     This is a wrapper around the :func:`.get_pointings` function that computes

@@ -13,7 +13,6 @@ def get_map_mask(pixels):
 
 
 def test_scan_map_no_interpolation():
-
     # The purpose of this test is to simulate the motion of the spacecraft
     # for one month (see `time_span_s`) and produce *two* maps: the first
     # is associated with the Observation `obs1` and is built using
@@ -165,7 +164,6 @@ def test_scan_map_no_interpolation():
 
 
 def test_scan_map_linear_interpolation():
-
     # This test is the same as test_scan_map_no_interpolation, but here we just check
     # that the call to `scan_map` does not fail
 

@@ -37,7 +37,7 @@ def test_dipole_models():
         lbs.DipoleType.TOTAL_FROM_LIN_T: [[-0.004_976, 0.121_683, -0.004_976]],
     }
 
-    for (cur_type, cur_ref) in reference.items():
+    for cur_type, cur_ref in reference.items():
         tod[:] = 0.0
         lbs.add_dipole(
             tod,
