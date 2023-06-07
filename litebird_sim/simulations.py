@@ -1372,7 +1372,7 @@ class Simulation:
             output_map_in_galactic=output_map_in_galactic,
         )
 
-      def apply_gaindrift(
+    def apply_gaindrift(
         self,
         drift_params: GainDriftParams = None,
         user_seed: int = 12345,
