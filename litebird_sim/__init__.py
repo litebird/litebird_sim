@@ -108,6 +108,16 @@ from .io import (
     read_list_of_observations,
     read_observations,
 )
+
+from .gaindrifts import (
+    GainDriftType,
+    SamplingDist,
+    GainDriftParams,
+    apply_gaindrift_for_one_detector,
+    apply_gaindrift_to_tod,
+    apply_gaindrift_to_observations,
+)
+
 from .version import __author__, __version__
 
 __all__ = [
@@ -228,4 +238,11 @@ __all__ = [
     "write_observations",
     "read_list_of_observations",
     "read_observations",
+    # gaindrifts.py
+    "GainDriftType",
+    "SamplingDist",
+    "GainDriftParams",
+    "apply_gaindrift_for_one_detector",
+    "apply_gaindrift_to_tod",
+    "apply_gaindrift_to_observations",
 ]
