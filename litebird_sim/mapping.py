@@ -76,7 +76,6 @@ class DestriperParameters:
     output_file_prefix: str = "lbs_"
     return_hit_map: bool = False
     return_binned_map: bool = False
-    return_baselines_map: bool = False
     return_destriped_map: bool = True
     return_npp: bool = False
     return_invnpp: bool = False
@@ -115,6 +114,20 @@ class DestriperResult:
 
 
 @njit
+def _solve_mapmaking(ata, atd):
+    # Sove the map-making equation
+    npix = atd.shape[0]
+
+    for ipix in range(npix):
+        if np.linalg.cond(ata[ipix]) < COND_THRESHOLD:
+            ata[ipix] = np.linalg.inv(ata[ipix])
+            atd[ipix] = ata[ipix].dot(atd[ipix])
+        else:
+            ata[ipix].fill(hp.UNSEEN)
+            atd[ipix].fill(hp.UNSEEN)
+
+
+@njit
 def _accumulate_map_and_info(tod, pix, psi, weights, info, additional_component: bool):
     # Fill the upper triangle of the information matrix and use the lower
     # triangle for the RHS of the map-making equation
@@ -125,8 +138,8 @@ def _accumulate_map_and_info(tod, pix, psi, weights, info, additional_component:
     for idet in range(ndets):
         for d, p, a in zip(tod[idet], pix[idet], psi[idet]):
             one = 1.0 / np.sqrt(weights[idet])
-            cos = np.cos(2 * a) / np.sqrt(weights[idet])
-            sin = np.sin(2 * a) / np.sqrt(weights[idet])
+            cos = np.cos(2 * a) * one
+            sin = np.sin(2 * a) * one
             info_pix = info[p]
 
             if not additional_component:
@@ -244,17 +257,24 @@ def make_bin_map(
         pixidx_all = np.empty_like(first_component, dtype=int)
         polang_all = np.empty_like(first_component)
 
+        if output_map_in_galactic:
+            # pre-allocate curr_pointings_det in case of output_map_in_galactic
+            curr_pointings_det = np.empty_like(cur_ptg[0, :, :])
+
         for idet in range(ndets):
             if output_map_in_galactic:
-                curr_pointings_det, curr_pol_angle_det = rotate_coordinates_e2g(
+                curr_pointings_det, polang_all[idet] = rotate_coordinates_e2g(
                     cur_ptg[idet, :, :], cur_psi[idet, :]
                 )
             else:
                 curr_pointings_det = cur_ptg[idet, :, :]
-                curr_pol_angle_det = cur_psi[idet, :]
+                polang_all[idet] = cur_psi[idet, :]
 
             pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
-            polang_all[idet] = curr_pol_angle_det
+
+        if output_map_in_galactic:
+            # free curr_pointings_det in case of output_map_in_galactic
+            del curr_pointings_det
 
         for idx, cur_component_name in enumerate(components):
             cur_component = getattr(cur_obs, cur_component_name)
@@ -272,6 +292,8 @@ def make_bin_map(
                 additional_component=idx > 0,
             )
 
+        del pixidx_all, polang_all
+
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
         pass
@@ -288,20 +310,10 @@ def make_bin_map(
         )
 
     rhs = _extract_map_and_fill_info(info)
-    try:
-        res = np.linalg.solve(info, rhs)
-    except np.linalg.LinAlgError:
-        cond = np.linalg.cond(info)
-        res = np.full_like(rhs, hp.UNSEEN)
-        mask = cond < COND_THRESHOLD
-        res[mask] = np.linalg.solve(info[mask], rhs[mask])
+
+    _solve_mapmaking(info, rhs)
 
     if do_covariance:
-        try:
-            return res.T, np.linalg.inv(info)
-        except np.linalg.LinAlgError:
-            covmat = np.full_like(info, hp.UNSEEN)
-            covmat[mask] = np.linalg.inv(info[mask])
-            return res.T, covmat
+        return rhs.T, info
     else:
-        return res.T
+        return rhs.T
