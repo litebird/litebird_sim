@@ -39,7 +39,7 @@ from .out_of_band_analysis.out_of_band_analysis import HwpSysAndBandpass
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
-from .observations import Observation
+from .observations import Observation, TodDescription
 from .pointings import (
     apply_hwp_to_obs,
     get_pointing_buffer_shape,
@@ -109,6 +109,16 @@ from .io import (
     read_list_of_observations,
     read_observations,
 )
+
+from .gaindrifts import (
+    GainDriftType,
+    SamplingDist,
+    GainDriftParams,
+    apply_gaindrift_for_one_detector,
+    apply_gaindrift_to_tod,
+    apply_gaindrift_to_observations,
+)
+
 from .version import __author__, __version__
 
 __all__ = [
@@ -160,6 +170,7 @@ __all__ = [
     "MPI_CONFIGURATION",
     # observations.py
     "Observation",
+    "TodDescription",
     # quaternions.py
     "quat_rotation_x",
     "quat_rotation_y",
@@ -228,4 +239,11 @@ __all__ = [
     "write_observations",
     "read_list_of_observations",
     "read_observations",
+    # gaindrifts.py
+    "GainDriftType",
+    "SamplingDist",
+    "GainDriftParams",
+    "apply_gaindrift_for_one_detector",
+    "apply_gaindrift_to_tod",
+    "apply_gaindrift_to_observations",
 ]

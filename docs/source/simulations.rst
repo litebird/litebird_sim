@@ -28,8 +28,9 @@ information:
    dataset?
 
 The LiteBIRD Simulation Framework tracks these information using
-parameter files (in TOML format) and generating reports at the end of
-a simulation.
+parameter files (in TOML format), accessing the LiteBIRD Instrument
+Model (IMO) through the unique identifiers provided by the Data Access
+Layer (DAL), and generating reports after the simulation completes.
 
 .. _parameter_files:
 
@@ -41,20 +42,22 @@ that need to be passed to the code: the resolution of an output map,
 the names of the detectors to simulate, whether to include synchrotron
 emission in the sky model, etc.
 
-The :class:`Simulation` class eases this task by accepting the path to
+The :class:`.Simulation` class eases this task by accepting the path to
 a TOML file as a parameter (``parameter_file``). Specifying this
 parameter triggers two actions:
 
 1. The file is copied to the output directory where the simulation
-   output files are going to be written;
-2. The file is read and made available in the field ``parameters`` (a
-   Python dictionary).
+   output files are going to be written (i.e., the same that contains
+   ``report.html``);
+2. The file is read and made available in the field
+   ``Simulation.parameters`` (a Python dictionary).
 
-The parameter is optional; if you do not specify ``parameter_file``
-when creating a :class:`.Simulation` object, the `parameters` field
-will be set to an empty dictionary. (You can even directly pass a
-dictionary to a :class:`.Simulation` object: this can be handy if you
-already constructed a parameter object somewhere else.)
+Using a parameter file is optional; if you do not specify
+``parameter_file`` while creating a :class:`.Simulation` object, the
+`parameters` field will be set to an empty dictionary. (You can even
+directly pass a dictionary to a :class:`.Simulation` object: this can
+be handy if you already constructed a parameter object somewhere
+else.)
 
 Take this example of a simple TOML file:
 
@@ -63,7 +66,7 @@ Take this example of a simple TOML file:
    # This is file "my_conf.toml"
    [general]
    nside = 512
-   imo_version = "v0.10"
+   imo_version = "v1.3"
 
    [sky_model]
    components = ["synchrotron", "dust", "cmb"]
@@ -88,7 +91,7 @@ The output of the script is the following:
 .. code-block:: text
 
     NSIDE = 512
-    The IMO I'm going to use is v0.10
+    The IMO I'm going to use is v1.3
     Here are the sky components I'm going to simulate:
     - synchrotron
     - dust
@@ -120,7 +123,7 @@ These parameters can be used instead of the keywords in the
 constructor of the :class:`.Simulation` class. Consider the following
 code::
 
-  sim = Simulation(
+  sim = lbs.Simulation(
       base_path="/storage/output",
       start_time=astropy.time.Time("2020-02-01T10:30:00"),
       duration_s=3600.0,
@@ -129,7 +132,7 @@ code::
   )
 
 You can achieve the same if you create a TOML file named ``foo.toml``
-and containing the following lines:
+that contains the following lines:
 
 .. code-block:: toml
 
@@ -143,10 +146,11 @@ and containing the following lines:
 and then you initialize the `sim` variable in your Python code as
 follows::
 
-  sim = Simulation(parameter_file="foo.toml")
+  sim = lbs.Simulation(parameter_file="foo.toml")
 
-You would achieve identical results if you specify the duration in one
-of the following ways:
+A nice feature of the framework is that the duration of the mission
+must not be specified in seconds. You would achieve identical results
+if you specify the duration in one of the following ways:
 
 .. code-block:: toml
 
@@ -177,18 +181,36 @@ might be enough. The LiteBIRD Simulation Framework uses MPI to
 parallelize its codes, which is however an optional dependency: the
 code can be ran serially.
 
-When creating a :class:`.Simulation` object, the user can tell the
-framework to use or not MPI by either passing ``None`` or a valid MPI communicator::
+If you want to use MPI in your scripts, assuming that you have created
+a virtual environment as explained in the :ref:`tutorial`, you have
+just to install `mpi4py <https://mpi4py.readthedocs.io/en/stable/>`_:
+
+.. code-block:: sh
+
+  $ pip install mpi4py
+
+  # Always do this after "pip install", it will record the
+  # version number of mpi4py and all the other libraries
+  # you have installed in your virtual environment
+  $ pip freeze > requirements.txt
+
+  # Run the program using 4 processes
+  $ mpiexec -n 4 python3 my_script.py
+
+The framework will detect the presence of ``mpi4py``, and it will
+automatically use distributed algorithms where applicable; otherwise,
+serial algorithms will be used. You can configure this while creating
+a :class:`.Simulation` object::
 
   import litebird_sim as lbs
   import mpi4py
 
-  # This simulation must be ran using MPI
-  sim = lbs.Simulation(mpi_comm = mpi4py.MPI.COMM_WORLD)
+  # This simulation *must* be ran using MPI
+  sim = lbs.Simulation(mpi_comm=mpi4py.MPI.COMM_WORLD)
 
 The framework sets a number of variables related to MPI; these
 variables are *always* defined, even if MPI is not available, and they
-can be used to make the code work in different situations. If your
+can be used to make the code work in serial environments too. If your
 code must be able to run both with and without MPI, you should
 initialize a :class:`.Simulation` object using the variable
 :data:`.MPI_COMM_WORLD`, which is either ``mpi4py.MPI.COMM_WORLD``
@@ -196,8 +218,9 @@ initialize a :class:`.Simulation` object using the variable
 
   import litebird_sim as lbs
 
-  # This simulation can take advantage of MPI, if present
-  sim = lbs.Simulation(mpi_comm = lbs.MPI_COMM_WORLD)
+  # This simulation can take advantage of MPI if present,
+  # otherwise it will stick to serial execution
+  sim = lbs.Simulation(mpi_comm=lbs.MPI_COMM_WORLD)
 
 See the page :ref:`using_mpi` for more information.
 
@@ -259,7 +282,7 @@ often, etc. In this case, the best option is to write messages to the
 terminal. Python provides the `logging
 <https://docs.python.org/3/library/logging.html>`_ module for this
 purpose, and when you initialize a :class:`.Simulation` object, the
-module is initialize with a set of sensible defaults. In your code you
+module is initialized with a set of sensible defaults. In your code you
 can use the functions ``debug``, ``info``, ``warning``, ``error``, and
 ``critical`` to monitor what's happening during execution::
 
@@ -311,7 +334,7 @@ default is to skip ``log.debug`` calls:
 
 .. code-block:: text
 
-  $ poetry run python my_script.py
+  $ python my_script.py
   $
 
 However, running the script with the environment variable
@@ -319,7 +342,7 @@ However, running the script with the environment variable
 
 .. code-block:: text
 
-  $ LOG_DEBUG=1 poetry run python my_script.py
+  $ LOG_DEBUG=1 python my_script.py
   [2020-07-18 06:31:03,223 DEBUG] the simulation starts here!
   [2020-07-18 06:31:03,224 DEBUG] wrong value of pi!
   $
@@ -362,15 +385,17 @@ example:
     - Start time: 0.0
     - Duration: 21600.0 s
     - 1 detector(s) (0A)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     ## Observation #1
     - Start time: 43200.0
     - Duration: 21600.0 s
     - 1 detector(s) (0A)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     # MPI rank #2
 
@@ -378,15 +403,17 @@ example:
     - Start time: 21600.0
     - Duration: 21600.0 s
     - 1 detector(s) (0A)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     ## Observation #1
     - Start time: 64800.0
     - Duration: 21600.0 s
     - 1 detector(s) (0A)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     # MPI rank #3
 
@@ -394,15 +421,17 @@ example:
     - Start time: 0.0
     - Duration: 21600.0 s
     - 1 detector(s) (0B)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     ## Observation #1
     - Start time: 43200.0
     - Duration: 21600.0 s
     - 1 detector(s) (0B)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     # MPI rank #4
 
@@ -410,15 +439,17 @@ example:
     - Start time: 21600.0
     - Duration: 21600.0 s
     - 1 detector(s) (0B)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
     ## Observation #1
     - Start time: 64800.0
     - Duration: 21600.0 s
     - 1 detector(s) (0B)
+    - TOD(s): tod
     - TOD shape: 1×216000
-    - TOD dtype: float64
+    - Types of the TODs: float64
 
 The class :class:`.MpiDistributionDescr` contains a list
 of :class:`.MpiProcessDescr`, which describe the «contents»

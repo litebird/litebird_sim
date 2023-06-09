@@ -153,7 +153,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
         base_path=tmp_path / "destriper_output", start_time=0, duration_s=86400.0
     )
 
-    sim.generate_spin2ecl_quaternions(
+    sim.set_scanning_strategy(
         scanning_strategy=lbs.SpinningScanningStrategy(
             spin_sun_angle_rad=np.deg2rad(30),  # CORE-specific parameter
             spin_rate_hz=0.5 / 60,  # Ditto
@@ -162,7 +162,10 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
             precession_rate_hz=1.0 / (4 * u.day).to("s").value,
         )
     )
-    instr = lbs.InstrumentInfo(name="core", spin_boresight_angle_rad=np.deg2rad(65))
+
+    sim.set_instrument(
+        lbs.InstrumentInfo(name="core", spin_boresight_angle_rad=np.deg2rad(65)),
+    )
     sim.create_observations(
         detectors=[
             lbs.DetectorInfo(name="0A", sampling_rate_hz=10),
@@ -176,17 +179,13 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
         split_list_over_processes=False,
     )
 
-    lbs.get_pointings_for_observations(
-        sim.observations,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-    )
+    sim.compute_pointings()
 
     # Generate some white noise
     rs = RandomState(MT19937(SeedSequence(123456789)))
-    for curobs in sim.observations:
-        curobs.tod *= 0.0
-        curobs.tod += rs.randn(*curobs.tod.shape)
+    for cur_obs in sim.observations:
+        cur_obs.tod *= 0.0
+        cur_obs.tod += rs.randn(*cur_obs.tod.shape)
 
     params = lbs.DestriperParameters(
         nside=16,
@@ -306,12 +305,12 @@ def test_destriper_coordinate_consistency(tmp_path):
     # percentiles are smaller than some (small) threshold.
 
     sim = lbs.Simulation(
-        base_path="destriper_output",
+        base_path=Path(tmp_path) / "destriper_output",
         start_time=0,
-        duration_s=10 * 86400.0,
+        duration_s=3 * 86400.0,
     )
 
-    sim.generate_spin2ecl_quaternions(
+    sim.set_scanning_strategy(
         scanning_strategy=lbs.SpinningScanningStrategy(
             spin_sun_angle_rad=np.deg2rad(30),  # CORE-specific parameter
             spin_rate_hz=0.5 / 60,  # Ditto
@@ -320,15 +319,17 @@ def test_destriper_coordinate_consistency(tmp_path):
             precession_rate_hz=1.0 / (4 * u.day).to("s").value,
         )
     )
-    instr = lbs.InstrumentInfo(
-        name="mock_instrument",
-        spin_boresight_angle_rad=np.deg2rad(65),
+    sim.set_instrument(
+        lbs.InstrumentInfo(
+            name="mock_instrument",
+            spin_boresight_angle_rad=np.deg2rad(65),
+        ),
     )
 
     detectors = [
         lbs.DetectorInfo(
             name="noiseless_detector",
-            sampling_rate_hz=10.0,
+            sampling_rate_hz=5.0,
             fwhm_arcmin=60.0,
             bandcenter_ghz=40.0,
             bandwidth_ghz=12.0,
@@ -343,14 +344,11 @@ def test_destriper_coordinate_consistency(tmp_path):
         split_list_over_processes=False,
     )
 
-    lbs.get_pointings_for_observations(
-        sim.observations,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-    )
+    sim.compute_pointings()
 
     params = lbs.MbsParameters(
         make_cmb=True,
+        nside=8,
     )
     mbs = lbs.Mbs(
         simulation=sim,

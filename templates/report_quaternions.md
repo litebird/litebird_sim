@@ -1,4 +1,4 @@
-## Pointing generation
+## Generation of spacecraft quaternions
 
 Quaternions have been created for the simulation:
 

@@ -30,7 +30,7 @@ following paragraphs::
 
   imo = Imo(flatfile_location="/storage/litebird/my_imo")
   scan_params = imo.query(
-      "/releases/v0.10/satellite/scanning_parameters"
+      "/releases/v1.3/satellite/scanning_parameters"
   )
   metadata = scan_params.metadata
   print(metadata["spin_sun_angle_deg"])
@@ -44,9 +44,9 @@ saved in the folder ``/storage/litebird/my_imo``.
 
 The call to ``imo.query`` retrieves a specific bit of information;
 note that the access to the parameters is done using a file-like path,
-``/releases/v0.10/satellite/scanning_parameters``. This is not a real
+``/releases/v1.3/satellite/scanning_parameters``. This is not a real
 file, but a way to tell the IMO which kind of information is
-requested: the ``/releases/v0.10`` specifies the IMO version to use,
+requested: the ``/releases/v1.3`` specifies the IMO version to use,
 and the remaining path ``/satellite/scanning_parameters`` points to
 the information you're looking for.
 
@@ -80,7 +80,7 @@ and disadvantages:
          password="12345",
      )
      scan_params = imo.query(
-         "/releases/v0.10/satellite/scanning_parameters"
+         "/releases/v1.3/satellite/scanning_parameters"
      )
 
 Once the :class:`.Imo` object has been created, accessing information
@@ -145,7 +145,7 @@ quantities like ``BAND_RESPONSE``.
 
 In the code example at the top of this page, we accessed the scanning
 strategy parameters using the string
-``/releases/v0.10/satellite/scanning_parameters``. The meaning of the
+``/releases/v1.3/satellite/scanning_parameters``. The meaning of the
 string in terms of entities, quantities, and data files is the
 following:
 
@@ -154,10 +154,10 @@ following:
    of the path;
 3. Of all the possible versions of the data file that have been saved
    in the quantity ``scanning_parameters``, we're asking for the one
-   that is part of IMO 0.10 (the string ``v0.10`` in the path).
+   that is part of IMO 1.3 (the string ``v1.3`` in the path).
 
 Apart from paths like
-``/releases/v0.10/satellite/scanning_parameters``, there is a more
+``/releases/v1.3/satellite/scanning_parameters``, there is a more
 low-level method to access data files, using UUIDs. Each quantity and
 each datafile is identified by a unique UUID, an hexadecimal string
 that it's granted to be unique. This string is assigned automatically
@@ -213,7 +213,7 @@ IMO and reports
 ---------------
 
 When constructing a :class:`.Simulation` object, you should pass an
-instance of a :class:`Imo` class. In this way, simulation modules can
+instance of an :class:`.Imo` class. In this way, simulation modules can
 take advantage of an existing connection to the IMO.
 
 This has the additional advantage that the report produced at the end

@@ -25,6 +25,7 @@ Welcome to litebird_sim's documentation!
    timeordered
    reports
    mpi
+   gaindrifts
    external_modules
    integrating
    bibliography

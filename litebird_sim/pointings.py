@@ -75,7 +75,7 @@ def get_pointings(
     The parameter `spin2ecliptic_quats` can be easily retrieved by
     the field `spin2ecliptic_quats` in a object of
     :class:`.Simulation` object, once the method
-    :meth:`.Simulation.generate_spin2ecl_quaternions` is called.
+    :meth:`.Simulation.set_scanning_strategy` is called.
 
     The parameter `bore2spin_quat` is calculated through the class
     :class:`.Instrument`, which has the field ``bore2spin_quat``.
@@ -131,15 +131,6 @@ def get_pointings(
         )
         detector_quats = obs.quat
 
-    det2ecliptic_quats = get_det2ecl_quaternions(
-        obs,
-        spin2ecliptic_quats,
-        detector_quats,
-        bore2spin_quat,
-        quaternion_buffer=quaternion_buffer,
-        dtype=dtype_quaternion,
-    )
-
     bufshape = get_pointing_buffer_shape(obs)
     if pointing_buffer is None:
         pointing_buffer = np.empty(bufshape, dtype=dtype_pointing)
@@ -148,11 +139,23 @@ def get_pointings(
             pointing_buffer.shape == bufshape
         ), f"error, wrong pointing buffer size: {pointing_buffer.size} != {bufshape}"
 
-    # Compute the pointing direction for each sample
-    all_compute_pointing_and_polangle(
-        result_matrix=pointing_buffer,
-        quat_matrix=det2ecliptic_quats,
-    )
+    for idx, cur_quat in enumerate(detector_quats):
+        det2ecliptic_quats = get_det2ecl_quaternions(
+            obs,
+            spin2ecliptic_quats,
+            cur_quat.reshape((1, 4)),
+            bore2spin_quat,
+            quaternion_buffer=quaternion_buffer,
+            dtype=dtype_quaternion,
+        )
+
+        # Compute the pointing direction for each sample
+        all_compute_pointing_and_polangle(
+            result_matrix=pointing_buffer[idx, :, :].reshape(
+                (1, pointing_buffer.shape[1], 3)
+            ),
+            quat_matrix=det2ecliptic_quats,
+        )
 
     if hwp:
         apply_hwp_to_obs(obs=obs, hwp=hwp, pointing_matrix=pointing_buffer)
