@@ -38,8 +38,10 @@ def test_sort_obs_per_det():
                 observations=[
                     MpiObservationDescr(
                         det_names=["A"],
+                        tod_names=["tod"],
+                        tod_description=["tod"],
                         tod_shape=(0, 0),
-                        tod_dtype="float32",
+                        tod_dtype=["float32"],
                         start_time=2.0,
                         duration_s=1.0,
                         num_of_samples=1,
@@ -47,8 +49,10 @@ def test_sort_obs_per_det():
                     ),
                     MpiObservationDescr(
                         det_names=["A"],
+                        tod_names=["tod"],
+                        tod_description=["tod"],
                         tod_shape=(0, 0),
-                        tod_dtype="float32",
+                        tod_dtype=["float32"],
                         start_time=0.0,
                         duration_s=1.0,
                         num_of_samples=1,
@@ -61,8 +65,10 @@ def test_sort_obs_per_det():
                 observations=[
                     MpiObservationDescr(
                         det_names=["A"],
+                        tod_names=["tod"],
+                        tod_description=["tod"],
                         tod_shape=(0, 0),
-                        tod_dtype="float32",
+                        tod_dtype=["float32"],
                         start_time=1.0,
                         duration_s=1.0,
                         num_of_samples=1,
@@ -70,8 +76,10 @@ def test_sort_obs_per_det():
                     ),
                     MpiObservationDescr(
                         det_names=["A"],
+                        tod_names=["tod"],
+                        tod_description=["tod"],
                         tod_shape=(0, 0),
-                        tod_dtype="float32",
+                        tod_dtype=["float32"],
                         start_time=3.0,
                         duration_s=1.0,
                         num_of_samples=1,
@@ -143,7 +151,7 @@ def run_test_on_madam(
         mpi_comm=lbs.MPI_COMM_WORLD,
     )
 
-    sim.generate_spin2ecl_quaternions(
+    sim.set_scanning_strategy(
         scanning_strategy=lbs.SpinningScanningStrategy(
             spin_sun_angle_rad=np.deg2rad(30),  # CORE-specific parameter
             spin_rate_hz=0.5 / 60,  # Ditto

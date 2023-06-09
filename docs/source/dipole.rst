@@ -20,7 +20,7 @@ have been measured by the COBE experiment.
 The motion of the spacecraft around L2 is modelled using a Lissajous
 orbit similar to what was used for the WMAP experiment
 :cite:`2008:wmap:cavaluzzi`, and it is encoded using the
-:class:`SpacecraftOrbit` class.
+:class:`.SpacecraftOrbit` class.
 
 Position and velocity of the spacecraft
 ---------------------------------------
@@ -38,9 +38,9 @@ from the literature. As the LiteBIRD orbit around L2 is not fixed yet,
 the code assumes a WMAP-like Lissajous orbit.
 
 To compute the position/velocity of the spacecraft, you call
-:func:`.spacecraft_pos_and_vel`; it requires either a time span or a
+:func:`.spacecraft_pos_and_vel`; it requires either a time span or an
 :class:`.Observation` object, and it returns an instance of the class
-:class:`SpacecraftPositionAndVelocity`:
+:class:`.SpacecraftPositionAndVelocity`:
 
 .. testcode::
 
@@ -120,7 +120,7 @@ models use some simplifications, to make the math easier to work on
 the blackboard. The LiteBIRD Simulation Framework implements several
 simplifications of the formula, which are based on a series expansion
 of :eq:`dipole`; the caller must pass an object of type
-:class:`DipoleType` (an `enum class
+:class:`.DipoleType` (an `enum class
 <https://docs.python.org/3/library/enum.html>`_), whose value signals
 which kind of approximation to use:
 
@@ -175,7 +175,76 @@ simple instrument, and it zooms over the very first points to show
 that there is indeed some difference in the estimate provided by each
 method.
 
-           
+
+Methods of class simulation
+---------------------------
+
+The class :class:`.Simulation` provides two simple functions that compute
+poisition and velocity of the spacescraft :func:`.Simulation.compute_pos_and_vel`, 
+and add the solar and orbital dipole to all the observations of a given 
+simulation :func:`.Simulation.add_dipole`.
+
+.. testcode::
+
+  import litebird_sim as lbs
+  from astropy.time import Time
+  import numpy as np
+
+  start_time = Time("2025-01-01")
+  time_span_s = 1000.0
+  sampling_hz = 10.0
+
+  sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+
+  # We pick a simple scanning strategy where the spin axis is aligned
+  # with the Sun-Earth axis, and the spacecraft spins once every minute
+  sim.set_scanning_strategy(
+      lbs.SpinningScanningStrategy(
+          spin_sun_angle_rad=np.deg2rad(0),
+          precession_rate_hz=0,
+          spin_rate_hz=1 / 60,
+          start_time=start_time,
+      ),
+      delta_time_s=5.0,
+   )
+
+  # We simulate an instrument whose boresight is perpendicular to
+  # the spin axis.
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          boresight_rotangle_rad=0.0,
+          spin_boresight_angle_rad=np.deg2rad(90),
+          spin_rotangle_rad=np.deg2rad(75),
+      )
+  )
+
+  # A simple detector looking along the boresight direction
+  det = lbs.DetectorInfo(
+      name="Boresight_detector",
+      sampling_rate_hz=sampling_hz,
+      bandcenter_ghz=100.0,
+  )
+
+  sim.create_observations(detectors=det)
+
+  sim.compute_pointings()
+
+  sim.compute_pos_and_vel()
+
+  sim.add_dipole()
+
+  for i in range(5):
+      print(f"{sim.observations[0].tod[0][i]:.5e}")
+
+.. testoutput::
+
+   3.44963e-03
+   3.45207e-03
+   3.45413e-03
+   3.45582e-03
+   3.45712e-03
+
+
 API reference
 -------------
 

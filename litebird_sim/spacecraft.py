@@ -10,10 +10,9 @@ import astropy.time
 from numba import njit
 import numpy as np
 
+from litebird_sim import constants as c
 from .coordinates import DEFAULT_COORDINATE_SYSTEM, DEFAULT_TIME_SCALE
 from .observations import Observation
-
-EARTH_L2_DISTANCE_KM = 1_496_509.30522
 
 
 def cycles_per_year_to_rad_per_s(x: float) -> float:
@@ -27,7 +26,7 @@ def get_ecliptic_vec(vec):
 
 
 def compute_l2_pos_and_vel(
-    time0: astropy.time.Time, earth_l2_distance_km: float = EARTH_L2_DISTANCE_KM
+    time0: astropy.time.Time, earth_l2_distance_km: float = c.EARTH_L2_DISTANCE_KM
 ):
     """
     Compute the position and velocity of the L2 Sun-Earth point at a given time.
@@ -236,15 +235,15 @@ class SpacecraftOrbit:
     """
 
     start_time: astropy.time.Time
-    earth_l2_distance_km: float = EARTH_L2_DISTANCE_KM
+    earth_l2_distance_km: float = c.EARTH_L2_DISTANCE_KM
     radius1_km: float = 244_450.0
     radius2_km: float = 137_388.0
     ang_speed1_rad_s: float = cycles_per_year_to_rad_per_s(2.02104)
     ang_speed2_rad_s: float = cycles_per_year_to_rad_per_s(1.98507)
     phase_rad: float = np.deg2rad(-47.944)
-    solar_velocity_km_s: float = 369.8160
-    solar_velocity_gal_lat_rad: float = 0.842_173_724
-    solar_velocity_gal_lon_rad: float = 4.608_035_744_4
+    solar_velocity_km_s: float = c.SOLAR_VELOCITY_KM_S
+    solar_velocity_gal_lat_rad: float = c.SOLAR_VELOCITY_GAL_LAT_RAD
+    solar_velocity_gal_lon_rad: float = c.SOLAR_VELOCITY_GAL_LON_RAD
 
     solar_velocity_ecl_xyz_km_s = (
         SkyCoord(

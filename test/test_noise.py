@@ -35,7 +35,6 @@ def test_add_noise_to_observations():
     tod = sim.observations[0].tod
     assert tod.shape == (2, 10)
 
-    print(repr(tod))
     # fmt: off
     reference = np.array([
         [+1.7875197e-06, -4.8864092e-07, +1.0823729e-06, -4.4991100e-07,
@@ -48,3 +47,43 @@ def test_add_noise_to_observations():
     # fmt: on
 
     assert np.allclose(tod, reference)
+
+
+def test_add_noise_to_observations_in_other_field():
+    start_time = 0
+    time_span_s = 10
+    sampling_hz = 1
+
+    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+
+    det1 = lbs.DetectorInfo(
+        name="Boresight_detector_A",
+        sampling_rate_hz=sampling_hz,
+        net_ukrts=1.0,
+        fknee_mhz=1e3,
+    )
+
+    det2 = lbs.DetectorInfo(
+        name="Boresight_detector_B",
+        sampling_rate_hz=sampling_hz,
+        net_ukrts=10.0,
+        fknee_mhz=2e3,
+    )
+
+    sim.create_observations(detectors=[det1, det2])
+
+    for cur_obs in sim.observations:
+        cur_obs.noise_tod = np.zeros_like(cur_obs.tod)
+
+    sim.init_random(seed=12_345)
+    lbs.noise.add_noise_to_observations(
+        sim.observations, "one_over_f", random=sim.random, component="noise_tod"
+    )
+
+    assert len(sim.observations) == 1
+
+    # Check that the "tod" field has been left unchanged
+    assert np.allclose(sim.observations[0].tod, 0.0)
+
+    # Check that "noise_tod" has some non-zero data in it
+    assert np.sum(np.abs(sim.observations[0].noise_tod)) > 0.0
