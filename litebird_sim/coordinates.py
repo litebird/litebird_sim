@@ -85,7 +85,7 @@ def vec2ang(vx, vy, vz):
     """
 
     ang = np.empty((2, vx.size))
-    ang[0, :] = np.arctan2(np.sqrt(vx ** 2 + vy ** 2), vz)
+    ang[0, :] = np.arctan2(np.sqrt(vx**2 + vy**2), vz)
     ang[1, :] = np.arctan2(vy, vx)
     return ang.squeeze()
 

@@ -94,13 +94,13 @@ def compute_dipole_for_one_sample_quadratic_exact(theta, phi, v_km_s, t_cmb_k):
     # Up to second order in beta, including second order in the expansion of
     # thermodynamic temperature. This is in true temperature, and
     # no boosting induced monopoles are added.
-    return t_cmb_k * (beta_dot_n + beta_dot_n ** 2)
+    return t_cmb_k * (beta_dot_n + beta_dot_n**2)
 
 
 @njit
 def compute_dipole_for_one_sample_total_exact(theta, phi, v_km_s, t_cmb_k):
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
-    gamma = 1 / np.sqrt(1 - beta ** 2)
+    gamma = 1 / np.sqrt(1 - beta**2)
 
     return t_cmb_k / gamma / (1 - beta_dot_n) - t_cmb_k
 
@@ -113,7 +113,7 @@ def compute_dipole_for_one_sample_quadratic_from_lin_t(
     # thermodynamic temperature. This is in linearized thermodynamic temperature.
     # No boosting induced monopoles are added
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
-    return t_cmb_k * (beta_dot_n + q_x * beta_dot_n ** 2)
+    return t_cmb_k * (beta_dot_n + q_x * beta_dot_n**2)
 
 
 @njit
@@ -121,7 +121,7 @@ def compute_dipole_for_one_sample_total_from_lin_t(
     theta, phi, v_km_s, t_cmb_k, nu_hz, f_x, planck_t0
 ):
     beta_dot_n, beta = calculate_beta(theta, phi, v_km_s)
-    gamma = 1 / np.sqrt(1 - beta ** 2)
+    gamma = 1 / np.sqrt(1 - beta**2)
 
     planck_t = planck(nu_hz, t_cmb_k / gamma / (1 - beta_dot_n))
 
