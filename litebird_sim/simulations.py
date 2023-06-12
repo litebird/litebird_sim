@@ -31,6 +31,8 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
+from .mapping import make_bin_map
+from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
 import astropy.units
@@ -805,7 +807,7 @@ class Simulation:
 
         The parameter `tods` specifies how many TOD arrays should be
         created. Each element should be an instance of
-        :class:`.TodType` and contain the fields ``name`` (the name
+        :class:`.TodDescription` and contain the fields ``name`` (the name
         of the member variable that will be created), ``dtype`` (the
         NumPy type to use, like ``numpy.float32``), and ``description``
         (a free-form description). The default is ``numpy.float32``,
@@ -823,17 +825,17 @@ class Simulation:
             sim.create_observations(
                 [det1, det2],
                 tods=[
-                    TodType(
+                    TodDescription(
                         name="fg_tod",
                         dtype=np.float32,
                         description="Foregrounds (computed by PySM)",
                     ),
-                    TodType(
+                    TodDescription(
                         name="cmb_tod",
                         dtype=np.float32,
                         description="CMB realization following Planck (2018)",
                     ),
-                    TodType(
+                    TodDescription(
                         name="noise_tod",
                         dtype=np.float32,
                         description="Noise TOD (only white noise, no 1/f)",
@@ -1218,6 +1220,8 @@ class Simulation:
     def fill_tods(
         self,
         maps: Dict[str, np.ndarray],
+        input_map_in_galactic: bool = True,
+        interpolation: Union[str, None] = "",
         append_to_report: bool = True,
     ):
         """Fills the TODs, scanning a map.
@@ -1231,6 +1235,8 @@ class Simulation:
         scan_map_in_observations(
             self.observations,
             maps=maps,
+            input_map_in_galactic=input_map_in_galactic,
+            interpolation=interpolation,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1334,4 +1340,115 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
+            )
+
+    def binned_map(
+        self,
+        nside: int,
+        do_covariance: bool = False,
+        output_map_in_galactic: bool = True,
+        append_to_report: bool = True,
+    ):
+
+        """
+        Bins the tods of `sim.observations` into maps.
+        The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
+        """
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_binned_map.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                nside=nside,
+                coord="Galactic" if output_map_in_galactic else "Ecliptic",
+            )
+
+        return make_bin_map(
+            obs=self.observations,
+            nside=nside,
+            do_covariance=do_covariance,
+            output_map_in_galactic=output_map_in_galactic,
+        )
+
+    def apply_gaindrift(
+        self,
+        drift_params: GainDriftParams = None,
+        user_seed: int = 12345,
+        component: str = "tod",
+        append_to_report: bool = True,
+    ):
+        """A method to apply the gain drift to the observation.
+
+        This is a wrapper around :func:`.apply_gaindrift_to_observations()` that
+        injects gain drift to a list of :class:`.Observation` instance.
+
+        Args:
+
+            drift_params (:class:`.GainDriftParams`, optional): The gain
+                drift injection parameters object. Defaults to None.
+
+            user_seed (int, optional): A seed provided by the user.
+                Defaults to 12345.
+
+            component (str, optional): The name of the TOD on which the
+                gain drift has to be injected. Defaults to "tod".
+
+            append_to_report (bool, optional): Defaults to True.
+        """
+
+        if drift_params is None:
+            drift_params = GainDriftParams()
+
+        apply_gaindrift_to_observations(
+            obs=self.observations,
+            drift_params=drift_params,
+            user_seed=user_seed,
+            component=component,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+
+            dictionary = {
+                "sampling_dist": "Gaussian" if drift_params.sampling_dist else "Uniform"
+            }
+
+            if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
+                dictionary["drift_type"] = "Linear"
+                dictionary["linear_drift"] = True
+                dictionary[
+                    "calibration_period_sec"
+                ] = drift_params.calibration_period_sec
+
+            elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
+                dictionary["drift_type"] = "Thermal"
+                dictionary["thermal_drift"] = True
+
+                keys_to_get = [
+                    "sigma_drift",
+                    "focalplane_group",
+                    "oversample",
+                    "fknee_drift_mHz",
+                    "alpha_drift",
+                    "detector_mismatch",
+                    "thermal_fluctuation_amplitude_K",
+                    "focalplane_Tbath_K",
+                    "sampling_uniform_low",
+                    "sampling_uniform_high",
+                    "sampling_gaussian_loc",
+                    "sampling_gaussian_scale",
+                ]
+
+                for key in keys_to_get:
+                    dictionary[key] = getattr(drift_params, key)
+
+            template_file_path = get_template_file_path("report_gaindrift.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_text=markdown_template,
+                component=component,
+                user_seed=user_seed,
+                **dictionary,
             )

@@ -1,5 +1,9 @@
 # HEAD
 
+-   New interface for `make_bin_map` in `Simulation` [#244](https://github.com/litebird/litebird_sim/pull/244)
+
+-   Added gain drift simulation module [#243](https://github.com/litebird/litebird_sim/pull/243)
+
 -   Enable the use of other names than `tod` when calling the TOAST2 destriper [#242](https://github.com/litebird/litebird_sim/pull/242)
 
 -   Use Poetry instead of Pip to specify the dependencies for the documentation [#237](https://github.com/litebird/litebird_sim/pull/237)
