@@ -454,9 +454,11 @@ def compute_polang_from_detquat(quat):
 
 
 class HwpSysAndBandpass:
-    """A container object for handling tod filling in presence of hwp non-idealities
+    """A container object for handling tod filling in presence of 
+    hwp non-idealities
     following the approach of Giardiello et al. 2021
-    https://arxiv.org/abs/2106.08031 and erratum https://doi.org/10.1051/0004-6361/202141619e
+    https://arxiv.org/abs/2106.08031 and erratum 
+    https://doi.org/10.1051/0004-6361/202141619e
 
     Args:
          simulation (:class:`.Simulation`): an instance of the class \
