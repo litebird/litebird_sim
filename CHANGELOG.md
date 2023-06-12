@@ -1,5 +1,7 @@
 # HEAD
 
+-   Enable the use of other names than `tod` when calling the TOAST2 destriper [#242](https://github.com/litebird/litebird_sim/pull/242)
+
 -   Use Poetry instead of Pip to specify the dependencies for the documentation [#237](https://github.com/litebird/litebird_sim/pull/237)
 
 -   Remove bandpass-related warnings [#236](https://github.com/litebird/litebird_sim/pull/236)
