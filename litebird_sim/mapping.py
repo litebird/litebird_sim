@@ -116,12 +116,15 @@ class DestriperResult:
 @njit
 def _solve_mapmaking(ata, atd):
     # Sove the map-making equation
+
+    # Expected shape:
+    # - `ata`: (N, 3, 3) is an array of N 3×3 matrices, where N is the number of pixels
+    # - `atd`: (N, 3)
     npix = atd.shape[0]
 
     for ipix in range(npix):
         if np.linalg.cond(ata[ipix]) < COND_THRESHOLD:
-            ata[ipix] = np.linalg.inv(ata[ipix])
-            atd[ipix] = ata[ipix].dot(atd[ipix])
+            atd[ipix] = np.linalg.solve(ata[ipix], atd[ipix])
         else:
             ata[ipix].fill(hp.UNSEEN)
             atd[ipix].fill(hp.UNSEEN)
@@ -256,10 +259,6 @@ def make_bin_map(
         ndets = first_component.shape[0]
         pixidx_all = np.empty_like(first_component, dtype=int)
         polang_all = np.empty_like(first_component)
-
-        if output_map_in_galactic:
-            # pre-allocate curr_pointings_det in case of output_map_in_galactic
-            curr_pointings_det = np.empty_like(cur_ptg[0, :, :])
 
         for idet in range(ndets):
             if output_map_in_galactic:
