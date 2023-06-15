@@ -125,6 +125,7 @@ def _solve_mapmaking(ata, atd):
     for ipix in range(npix):
         if np.linalg.cond(ata[ipix]) < COND_THRESHOLD:
             atd[ipix] = np.linalg.solve(ata[ipix], atd[ipix])
+            ata[ipix] = np.linalg.inv(ata[ipix])
         else:
             ata[ipix].fill(hp.UNSEEN)
             atd[ipix].fill(hp.UNSEEN)

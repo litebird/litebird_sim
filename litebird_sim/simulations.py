@@ -1161,7 +1161,9 @@ class Simulation:
         memory_occupation = 0
         num_of_obs = 0
         for cur_obs in self.observations:
-            quaternion_buffer = np.zeros((cur_obs.n_samples, 1, 4))
+            quaternion_buffer = np.zeros(
+                (cur_obs.n_samples, 1, 4), dtype=dtype_quaternion
+            )
             get_pointings(
                 cur_obs,
                 self.spin2ecliptic_quats,

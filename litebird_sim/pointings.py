@@ -174,6 +174,8 @@ def get_pointings_for_observations(
     bore2spin_quat,
     hwp: Optional[HWP] = None,
     store_pointings_in_obs=True,
+    dtype_quaternion=np.float64,
+    dtype_pointing=np.float32,
 ):
     """Obtain pointings for a list of observations
 
@@ -184,21 +186,29 @@ def get_pointings_for_observations(
     """
 
     if isinstance(obs, Observation):
+        quaternion_buffer = np.zeros((obs.n_samples, 1, 4), dtype=dtype_quaternion)
         pointings = get_pointings(
             obs,
             spin2ecliptic_quats,
             bore2spin_quat,
+            dtype_quaternion=dtype_quaternion,
+            quaternion_buffer=quaternion_buffer,
+            dtype_pointing=dtype_pointing,
             hwp=hwp,
             store_pointings_in_obs=store_pointings_in_obs,
         )
     else:
         pointings = []
         for ob in obs:
+            quaternion_buffer = np.zeros((ob.n_samples, 1, 4), dtype=dtype_quaternion)
             pointings.append(
                 get_pointings(
                     ob,
                     spin2ecliptic_quats,
                     bore2spin_quat,
+                    dtype_quaternion=dtype_quaternion,
+                    quaternion_buffer=quaternion_buffer,
+                    dtype_pointing=dtype_pointing,
                     hwp=hwp,
                     store_pointings_in_obs=store_pointings_in_obs,
                 )
