@@ -1139,7 +1139,6 @@ class Simulation:
     def compute_pointings(
         self,
         append_to_report: bool = True,
-        dtype_quaternion=np.float64,
         dtype_pointing=np.float32,
     ):
         """Trigger the computation of pointings.
@@ -1162,7 +1161,8 @@ class Simulation:
         num_of_obs = 0
         for cur_obs in self.observations:
             quaternion_buffer = np.zeros(
-                (cur_obs.n_samples, 1, 4), dtype=dtype_quaternion
+                (cur_obs.n_samples, 1, 4),
+                dtype=np.float64,
             )
             get_pointings(
                 cur_obs,
@@ -1171,7 +1171,6 @@ class Simulation:
                 bore2spin_quat=self.instrument.bore2spin_quat,
                 hwp=self.hwp,
                 quaternion_buffer=quaternion_buffer,
-                dtype_quaternion=dtype_quaternion,
                 dtype_pointing=dtype_pointing,
                 store_pointings_in_obs=True,
             )
