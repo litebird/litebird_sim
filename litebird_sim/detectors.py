@@ -371,7 +371,6 @@ class InstrumentInfo:
 def detector_list_from_parameters(
     imo: Imo, definition_list: List[Any]
 ) -> List[DetectorInfo]:
-
     result = []
 
     for det_def in definition_list:

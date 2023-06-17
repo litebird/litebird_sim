@@ -28,9 +28,7 @@ def compute_signal_for_one_sample(T, Q, U, co, si):
 
 @njit
 def scan_map_for_one_detector(tod_det, input_T, input_Q, input_U, pol_angle_det):
-
     for i in range(len(tod_det)):
-
         tod_det[i] += compute_signal_for_one_sample(
             T=input_T[i],
             Q=input_Q[i],
@@ -66,7 +64,6 @@ def scan_map(
     assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(tod.shape[0]):
-
         if input_map_in_galactic:
             curr_pointings_det, curr_pol_angle_det = rotate_coordinates_e2g(
                 pointings[detector_idx, :, :], pol_angle[detector_idx, :]
@@ -95,7 +92,6 @@ def scan_map(
             )
 
         elif interpolation == "linear":
-
             scan_map_for_one_detector(
                 tod_det=tod[detector_idx],
                 input_T=hp.get_interp_val(
@@ -191,7 +187,6 @@ def scan_map_in_observations(
             psi_list = [point[:, :, 2] for point in pointings]
 
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
-
         if type(maps) is dict:
             if all(item in maps.keys() for item in cur_obs.name):
                 input_names = cur_obs.name
