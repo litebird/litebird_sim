@@ -1,5 +1,7 @@
 # HEAD
 
+-   Make the interface to the TOAST map-maker work with components different than `tod` [#242](https://github.com/litebird/litebird_sim/pull/242)
+
 -   Some memory optimization [#245](https://github.com/litebird/litebird_sim/pull/245)
 
 -   Improve the docstring for `scan_map_in_observations` [#248](https://github.com/litebird/litebird_sim/pull/248)
@@ -7,6 +9,8 @@
 -   New interface for `make_bin_map` in `Simulation` [#244](https://github.com/litebird/litebird_sim/pull/244)
 
 -   Added gain drift simulation module [#243](https://github.com/litebird/litebird_sim/pull/243)
+
+-   Enable the use of other names than `tod` when calling the TOAST2 destriper [#242](https://github.com/litebird/litebird_sim/pull/242)
 
 -   Use Poetry instead of Pip to specify the dependencies for the documentation [#237](https://github.com/litebird/litebird_sim/pull/237)
 

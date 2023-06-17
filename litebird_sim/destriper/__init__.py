@@ -34,9 +34,10 @@ class _Toast2FakeCache:
         nside,
         coordinates: CoordinateSystem,
         polarization: bool = True,
+        component: str = "tod",
     ):
         self.obs = obs
-
+        self.component = component
         self.keydict = {"timestamps": obs.get_times()}
         nsamples = len(self.keydict["timestamps"])
 
@@ -59,15 +60,16 @@ class _Toast2FakeCache:
                 )
                 curpnt = np.array(point[i], dtype=np.float64)
 
-            if obs.tod[i].dtype == np.float64:
-                self.keydict[f"signal_{det}"] = obs.tod[i]
+            obs_tod = getattr(obs, self.component)
+            if obs_tod[i].dtype == np.float64:
+                self.keydict[f"signal_{det}"] = obs_tod[i]
             else:
                 logging.warning(
                     "converting TODs for %s from %s to float64",
                     obs.name[i],
-                    str(obs.tod[i].dtype),
+                    str(obs_tod[i].dtype),
                 )
-                self.keydict[f"signal_{det}"] = np.array(obs.tod[i], dtype=np.float64)
+                self.keydict[f"signal_{det}"] = np.array(obs_tod[i], dtype=np.float64)
 
             theta_phi = curpnt[:, 0:2]
             polangle = curpnt[:, 2]
@@ -133,11 +135,17 @@ class _Toast2FakeTod:
         nside,
         coordinates: CoordinateSystem,
         polarization: bool = True,
+        component: str = "tod",
     ):
         self.obs = obs
-        self.local_samples = (0, obs.tod[0].size)
+        self.local_samples = (0, getattr(obs, component)[0].size)
         self.cache = _Toast2FakeCache(
-            obs, pointings, nside, coordinates, polarization=polarization
+            obs,
+            pointings,
+            nside,
+            coordinates,
+            polarization=polarization,
+            component=component,
         )
 
     def local_intervals(self, _):
@@ -189,12 +197,18 @@ class _Toast2FakeData:
         nside,
         coordinates: CoordinateSystem,
         polarization: bool = True,
+        component: str = "tod",
     ):
         if pointings is None:
             self.obs = [
                 {
                     "tod": _Toast2FakeTod(
-                        ob, None, nside, coordinates, polarization=polarization
+                        ob,
+                        None,
+                        nside,
+                        coordinates,
+                        polarization=polarization,
+                        component=component,
                     )
                 }
                 for ob in obs
@@ -203,7 +217,12 @@ class _Toast2FakeData:
             self.obs = [
                 {
                     "tod": _Toast2FakeTod(
-                        ob, po, nside, coordinates, polarization=polarization
+                        ob,
+                        po,
+                        nside,
+                        coordinates,
+                        polarization=polarization,
+                        component=component,
                     )
                 }
                 for ob, po in zip(obs, pointings)
@@ -239,6 +258,7 @@ def destripe_observations(
     base_path: Path,
     params: DestriperParameters(),
     pointings: Union[List[np.ndarray], None] = None,
+    component: str = "tod",
 ) -> DestriperResult:
     """Run the destriper on the observations in a TOD
 
@@ -250,7 +270,9 @@ def destripe_observations(
     This function runs the TOAST destriper on a set of `observations`
     (instances of the :class:`.Observation` class). The pointing
     information can be stored in the `observations` or passed through
-    the variable `pointings`.
+    the variable `pointings`. The TOD is read from the field of the
+    :class:`.Observation` objects whose name matches `component`;
+    the default is ``tod``.
 
     The `params` parameter is an instance of the class
     :class:`.DestriperParameters`, and it specifies the way the
@@ -275,6 +297,7 @@ def destripe_observations(
         nside=params.nside,
         coordinates=params.coordinate_system,
         polarization=polarization,
+        component=component,
     )
     mapmaker = OpMapMaker(
         nside=params.nside,
@@ -345,6 +368,7 @@ def destripe(
     sim,
     params=DestriperParameters(),
     pointings: Union[List[np.ndarray], None] = None,
+    component: str = "tod",
 ) -> DestriperResult:
     """Run the destriper on a set of TODs.
 
@@ -376,5 +400,6 @@ def destripe(
         observations=sim.observations,
         base_path=sim.base_path,
         params=params,
+        component=component,
         pointings=pointings,
     )
