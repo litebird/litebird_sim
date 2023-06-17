@@ -10,6 +10,8 @@
 
     -   `CHANGELOG.md` (be sure to leave an empty `HEAD` title at the
         top);
+
+    Commit all the changes to `master`.
     
 -   Build the release:
 
