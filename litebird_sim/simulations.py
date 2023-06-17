@@ -1139,7 +1139,6 @@ class Simulation:
     def compute_pointings(
         self,
         append_to_report: bool = True,
-        dtype_quaternion=np.float64,
         dtype_pointing=np.float32,
     ):
         """Trigger the computation of pointings.
@@ -1161,16 +1160,22 @@ class Simulation:
         memory_occupation = 0
         num_of_obs = 0
         for cur_obs in self.observations:
+            quaternion_buffer = np.zeros(
+                (cur_obs.n_samples, 1, 4),
+                dtype=np.float64,
+            )
             get_pointings(
                 cur_obs,
                 self.spin2ecliptic_quats,
                 detector_quats=cur_obs.quat,
                 bore2spin_quat=self.instrument.bore2spin_quat,
                 hwp=self.hwp,
-                dtype_quaternion=dtype_quaternion,
+                quaternion_buffer=quaternion_buffer,
                 dtype_pointing=dtype_pointing,
                 store_pointings_in_obs=True,
             )
+            del quaternion_buffer
+
             memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
             num_of_obs += 1
 
@@ -1245,7 +1250,6 @@ class Simulation:
                 markdown_template = "".join(inpf.readlines())
             if type(maps) is dict:
                 if "Mbs_parameters" in maps.keys():
-
                     if maps["Mbs_parameters"].make_fg:
                         fg_model = maps["Mbs_parameters"].fg_models
                     else:
@@ -1316,7 +1320,6 @@ class Simulation:
         random: Union[np.random.Generator, None] = None,
         append_to_report: bool = True,
     ):
-
         """Adds noise to tods.
 
         This method must be called after having set the instrument,

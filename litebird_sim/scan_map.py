@@ -28,9 +28,7 @@ def compute_signal_for_one_sample(T, Q, U, co, si):
 
 @njit
 def scan_map_for_one_detector(tod_det, input_T, input_Q, input_U, pol_angle_det):
-
     for i in range(len(tod_det)):
-
         tod_det[i] += compute_signal_for_one_sample(
             T=input_T[i],
             Q=input_Q[i],
@@ -66,7 +64,6 @@ def scan_map(
     assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(tod.shape[0]):
-
         if input_map_in_galactic:
             curr_pointings_det, curr_pol_angle_det = rotate_coordinates_e2g(
                 pointings[detector_idx, :, :], pol_angle[detector_idx, :]
@@ -95,7 +92,6 @@ def scan_map(
             )
 
         elif interpolation == "linear":
-
             scan_map_for_one_detector(
                 tod_det=tod[detector_idx],
                 input_T=hp.get_interp_val(
@@ -133,6 +129,18 @@ def scan_map_in_observations(
     bed a :class:`.Observation` instance and a NumPy matrix, or a list
     of observations and a list of NumPy matrices; in the latter case, they must have
     the same number of elements.
+
+    The field `maps` must either be a dictionary associating the name of each detector
+    with a ``(3, NPIX)`` array containing the three I/Q/U maps or a plain ``(3, NPIX)``
+    array. In the latter case, the I/Q/U maps will be used for all the detectors.
+
+    The coordinate system is usually specified using the key `Coordinates` in the
+    dictionary passed to the `maps` argument, and it must be an instance of
+    the class :class:`.CoordinateSystem`. If you are using a plain NumPy array instead
+    of a dictionary for `maps`, you should specify whether to use Ecliptic or Galactic
+    coordinates through the parameter `input_map_in_galactic`. If
+    ``maps["Coordinates"]`` is present, it must be consistent with the value for
+    `input_map_in_galactic`; if not, the code prints a warning and uses the former.
 
     By default, the signal is added to ``Observation.tod``. If you want to add it to
     some other field of the :class:`.Observation` class, use `component`::
@@ -179,7 +187,6 @@ def scan_map_in_observations(
             psi_list = [point[:, :, 2] for point in pointings]
 
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
-
         if type(maps) is dict:
             if all(item in maps.keys() for item in cur_obs.name):
                 input_names = cur_obs.name

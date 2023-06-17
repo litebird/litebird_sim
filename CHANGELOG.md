@@ -1,5 +1,9 @@
 # HEAD
 
+-   Some memory optimization [#245](https://github.com/litebird/litebird_sim/pull/245)
+
+-   Improve the docstring for `scan_map_in_observations` [#248](https://github.com/litebird/litebird_sim/pull/248)
+
 -   New interface for `make_bin_map` in `Simulation` [#244](https://github.com/litebird/litebird_sim/pull/244)
 
 -   Added gain drift simulation module [#243](https://github.com/litebird/litebird_sim/pull/243)

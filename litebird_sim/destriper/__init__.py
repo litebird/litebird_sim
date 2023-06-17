@@ -49,7 +49,7 @@ class _Toast2FakeCache:
             point = pointings
 
         healpix_base = healpix.Healpix_Base(nside=nside, scheme="NEST")
-        for (i, det) in enumerate(obs.name):
+        for i, det in enumerate(obs.name):
             if point[i].dtype == np.float64:
                 curpnt = point[i]
             else:
