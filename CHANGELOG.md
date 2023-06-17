@@ -1,5 +1,7 @@
 # HEAD
 
+-   Make the interface to the TOAST map-maker work with components different than `tod` [#242](https://github.com/litebird/litebird_sim/pull/242)
+
 -   Some memory optimization [#245](https://github.com/litebird/litebird_sim/pull/245)
 
 -   Improve the docstring for `scan_map_in_observations` [#248](https://github.com/litebird/litebird_sim/pull/248)
