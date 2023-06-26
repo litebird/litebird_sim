@@ -284,7 +284,7 @@ Methods of class simulation
 ---------------------------
 
 The class :class:`.Simulation` provides two simple functions that fill
-with sky signal and nosie all the observations of a given simulation.
+with sky signal and noise all the observations of a given simulation.
 The function :func:`.Simulation.fill_tods` takes a map and scans it, while
 the function :func:`.Simulation.add_noise` adds noise to the timelines.
 Thanks to these functions the generation of a simulation becomes quite
