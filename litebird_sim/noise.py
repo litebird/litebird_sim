@@ -7,7 +7,7 @@ import numpy as np
 import scipy as sp
 from numba import njit
 
-from litebird_sim import Observation
+from .observations import Observation
 
 
 def nearest_pow2(data):
@@ -89,16 +89,16 @@ def add_one_over_f_noise(
     # makes a white noise timestream with unit variance
     noise = random.normal(0, 1, noiselen)
 
-    ft = sp.fft.fft(noise, n=noiselen)
-    freqs = sp.fft.fftfreq(noiselen, d=1 / (2 * sampling_rate_hz))
+    noise = sp.fft.rfft(noise, overwrite_x=True)
+    freqs = sp.fft.rfftfreq(noiselen, d=1 / (2 * sampling_rate_hz))
 
     # filters the white noise in the frequency domain with the 1/f filter
-    build_one_over_f_model(ft, freqs, fknee_mhz, fmin_hz, alpha, sigma)
+    build_one_over_f_model(noise, freqs, fknee_mhz, fmin_hz, alpha, sigma)
 
     # transforms the data back to the time domain
-    ifft = sp.fft.ifft(ft)
+    noise = sp.fft.irfft(noise, overwrite_x=True)
 
-    data += np.real(ifft[: len(data)])
+    data += noise[: len(data)]
 
 
 def rescale_noise(net_ukrts: float, sampling_rate_hz: float, scale: float):
@@ -193,6 +193,7 @@ def add_noise_to_observations(
     noise_type: str,
     scale: float = 1.0,
     random: Union[np.random.Generator, None] = None,
+    component: str = "tod",
 ):
     """Add noise of the defined type to the observations in obs
 
@@ -202,6 +203,17 @@ def add_noise_to_observations(
     :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to
     pass the noise parameters here, as they are taken from the characteristics of
     the detectors saved in `obs`.
+
+    By default, the noise is added to ``Observation.tod``. If you want to add it to some
+    other field of the :class:`.Observation` class, use `component`::
+
+        for cur_obs in sim.observations:
+            # Allocate a new TOD for the noise alone
+            cur_obs.noise_tod = np.zeros_like(cur_obs.tod)
+
+        # Ask `add_noise_to_observations` to store the noise
+        # in `obs.noise_tod`
+        add_noise_to_observations(sim.observations, …, component="noise_tod")
 
     See :func:`.add_noise` for more information.
     """
@@ -214,15 +226,15 @@ def add_noise_to_observations(
         obs_list = obs
 
     # iterate through each observation
-    for i, ob in enumerate(obs_list):
+    for i, cur_obs in enumerate(obs_list):
         add_noise(
-            tod=ob.tod,
+            tod=getattr(cur_obs, component),
             noise_type=noise_type,
-            sampling_rate_hz=ob.sampling_rate_hz,
-            net_ukrts=ob.net_ukrts,
-            fknee_mhz=ob.fknee_mhz,
-            fmin_hz=ob.fmin_hz,
-            alpha=ob.alpha,
+            sampling_rate_hz=cur_obs.sampling_rate_hz,
+            net_ukrts=cur_obs.net_ukrts,
+            fknee_mhz=cur_obs.fknee_mhz,
+            fmin_hz=cur_obs.fmin_hz,
+            alpha=cur_obs.alpha,
             scale=scale,
             random=random,
         )

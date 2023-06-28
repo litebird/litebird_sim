@@ -114,7 +114,25 @@ class DestriperResult:
 
 
 @njit
-def _accumulate_map_and_info(tod, pix, psi, weights, info):
+def _solve_mapmaking(ata, atd):
+    # Sove the map-making equation
+
+    # Expected shape:
+    # - `ata`: (N, 3, 3) is an array of N 3×3 matrices, where N is the number of pixels
+    # - `atd`: (N, 3)
+    npix = atd.shape[0]
+
+    for ipix in range(npix):
+        if np.linalg.cond(ata[ipix]) < COND_THRESHOLD:
+            atd[ipix] = np.linalg.solve(ata[ipix], atd[ipix])
+            ata[ipix] = np.linalg.inv(ata[ipix])
+        else:
+            ata[ipix].fill(hp.UNSEEN)
+            atd[ipix].fill(hp.UNSEEN)
+
+
+@njit
+def _accumulate_map_and_info(tod, pix, psi, weights, info, additional_component: bool):
     # Fill the upper triangle of the information matrix and use the lower
     # triangle for the RHS of the map-making equation
     assert tod.shape == pix.shape == psi.shape
@@ -124,15 +142,18 @@ def _accumulate_map_and_info(tod, pix, psi, weights, info):
     for idet in range(ndets):
         for d, p, a in zip(tod[idet], pix[idet], psi[idet]):
             one = 1.0 / np.sqrt(weights[idet])
-            cos = np.cos(2 * a) / np.sqrt(weights[idet])
-            sin = np.sin(2 * a) / np.sqrt(weights[idet])
+            cos = np.cos(2 * a) * one
+            sin = np.sin(2 * a) * one
             info_pix = info[p]
-            info_pix[0, 0] += one * one
-            info_pix[0, 1] += one * cos
-            info_pix[0, 2] += one * sin
-            info_pix[1, 1] += cos * cos
-            info_pix[1, 2] += sin * cos
-            info_pix[2, 2] += sin * sin
+
+            if not additional_component:
+                info_pix[0, 0] += one * one
+                info_pix[0, 1] += one * cos
+                info_pix[0, 2] += one * sin
+                info_pix[1, 1] += cos * cos
+                info_pix[1, 2] += sin * cos
+                info_pix[2, 2] += sin * sin
+
             info_pix[1, 0] += d * one * one
             info_pix[2, 0] += d * cos * one
             info_pix[2, 1] += d * sin * one
@@ -154,6 +175,7 @@ def make_bin_map(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     do_covariance: bool = False,
     output_map_in_galactic: bool = True,
+    components: List[str] = ["tod"],
 ):
     """Bin Map-maker
 
@@ -163,10 +185,11 @@ def make_bin_map(
         obss (list of :class:`Observations`): observations to be mapped. They
             are required to have the following attributes as arrays
 
-            * `tod`: the time-ordered data to be mapped
             * `pointings`: the pointing information (in radians) for each tod
                sample
             * `psi`: the polarization angle (in radians) for each tod sample
+            * any attribute listed in `components` (by default, `tod`) and
+              containing the TOD(s) to be binned together
 
             If the observations are distributed over some communicator(s), they
             must share the same group processes.
@@ -233,23 +256,43 @@ def make_bin_map(
         except AttributeError:
             weights = np.ones(cur_obs.n_detectors)
 
-        ndets = cur_obs.tod.shape[0]
-        pixidx_all = np.empty_like(cur_obs.tod, dtype=int)
-        polang_all = np.empty_like(cur_obs.tod)
+        first_component = getattr(cur_obs, components[0])
+        ndets = first_component.shape[0]
+        pixidx_all = np.empty_like(first_component, dtype=int)
+        polang_all = np.empty_like(first_component)
 
         for idet in range(ndets):
             if output_map_in_galactic:
-                curr_pointings_det, curr_pol_angle_det = rotate_coordinates_e2g(
+                curr_pointings_det, polang_all[idet] = rotate_coordinates_e2g(
                     cur_ptg[idet, :, :], cur_psi[idet, :]
                 )
             else:
                 curr_pointings_det = cur_ptg[idet, :, :]
-                curr_pol_angle_det = cur_psi[idet, :]
+                polang_all[idet] = cur_psi[idet, :]
 
             pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
-            polang_all[idet] = curr_pol_angle_det
 
-        _accumulate_map_and_info(cur_obs.tod, pixidx_all, polang_all, weights, info)
+        if output_map_in_galactic:
+            # free curr_pointings_det in case of output_map_in_galactic
+            del curr_pointings_det
+
+        for idx, cur_component_name in enumerate(components):
+            cur_component = getattr(cur_obs, cur_component_name)
+            assert (
+                cur_component.shape == first_component.shape
+            ), 'The two TODs "{}" and "{}" do not have a matching shape'.format(
+                components[0], cur_component_name
+            )
+            _accumulate_map_and_info(
+                cur_component,
+                pixidx_all,
+                polang_all,
+                weights,
+                info,
+                additional_component=idx > 0,
+            )
+
+        del pixidx_all, polang_all
 
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
@@ -267,20 +310,10 @@ def make_bin_map(
         )
 
     rhs = _extract_map_and_fill_info(info)
-    try:
-        res = np.linalg.solve(info, rhs)
-    except np.linalg.LinAlgError:
-        cond = np.linalg.cond(info)
-        res = np.full_like(rhs, hp.UNSEEN)
-        mask = cond < COND_THRESHOLD
-        res[mask] = np.linalg.solve(info[mask], rhs[mask])
+
+    _solve_mapmaking(info, rhs)
 
     if do_covariance:
-        try:
-            return res.T, np.linalg.inv(info)
-        except np.linalg.LinAlgError:
-            covmat = np.full_like(info, hp.UNSEEN)
-            covmat[mask] = np.linalg.inv(info[mask])
-            return res.T, covmat
+        return rhs.T, info
     else:
-        return res.T
+        return rhs.T

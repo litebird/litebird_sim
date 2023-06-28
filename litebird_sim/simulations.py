@@ -2,25 +2,37 @@
 
 import codecs
 from collections import namedtuple
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from deprecation import deprecated
 import logging as log
 import os
 import subprocess
-from typing import List, Tuple, Union, Dict, Any
+from typing import List, Tuple, Union, Dict, Any, Optional
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 
-from .detectors import DetectorInfo
+import litebird_sim
+from litebird_sim import constants as c
+from . import HWP
+from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
-from .healpix import write_healpix_map_to_file
+from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
 from .mpi import MPI_COMM_WORLD
-from .observations import Observation
+from .observations import Observation, TodDescription
+from .pointings import get_pointings
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
+
+from .dipole import DipoleType, add_dipole_to_observations
+from .scan_map import scan_map_in_observations
+from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
+from .noise import add_noise_to_observations
+from .mapping import make_bin_map
+from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
 import astropy.units
@@ -33,6 +45,8 @@ from markdown_katex import KatexExtension
 
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 
+
+DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
@@ -97,6 +111,108 @@ def get_template_file_path(filename: Union[str, Path]) -> Path:
     return Path(__file__).parent / ".." / "templates" / filename
 
 
+@dataclass
+class MpiObservationDescr:
+    """
+    This class is used within :class:`.MpiProcessDescr`. It describes the
+    kind and size of the data held by a :class:`.Observation` object.
+
+    Its fields are:
+
+    - `det_names` (list of ``str``): names of the detectors handled by
+      this observation
+    - `tod_names` (list of ``str``): names of the fields containing the TODs
+      (e.g., ``tod``, ``cmb_tod``, ``dipole_tod``, …)
+    - `tod_shape` (tuples of ``int``): shape of each TOD held by the observation.
+      This is *not* a list, because all the TODs are assumed to have the same shape
+    - `tod_dtype` (list of ``str``): string representing the NumPy data type of each
+      TODs, in the same order as in the field `tod_name`
+    - `tod_description` (list of ``str``): list of human-readable descriptions
+      for each TOD, in the same order as in the field `tod_name`
+    - `start_time` (either a ``float`` or a ``astropy.time.Time``): start date
+      of the observation
+    - `duration_s` (``float``): duration of the TOD in seconds
+    - `num_of_samples` (``int``): number of samples held by this TOD
+    - `num_of_detectors` (``int``): number of detectors held by this TOD. It's
+      the length of the field `det_names` (see above)
+    """
+
+    det_names: List[str]
+    tod_names: List[str]
+    tod_shape: Optional[Tuple[int, int]]
+    tod_dtype: List[str]
+    tod_description: List[str]
+    start_time: Union[float, astropy.time.Time]
+    duration_s: float
+    num_of_samples: int
+    num_of_detectors: int
+
+
+@dataclass
+class MpiProcessDescr:
+    """
+    Description of the kind of data held by a MPI process
+
+    This class is used within :class:`MpiDistributionDescr`. Its fields are:
+
+    - `mpi_rank`: rank of the MPI process described by this instance
+    - `observations`: list of :class:`.MpiObservationDescr` objects, each
+      describing one observation managed by the MPI process with rank
+      `mpi_rank`.
+
+    """
+
+    mpi_rank: int
+    observations: List[MpiObservationDescr]
+
+
+@dataclass
+class MpiDistributionDescr:
+    """A class that describes how observations are distributed among MPI processes
+
+    The fields defined in this dataclass are the following:
+
+    - `num_of_observations` (int): overall number of observations in *all* the
+      MPI processes
+    - `detectors` (list of :class:`.DetectorInfo` objects): list of *all* the
+      detectors used in the observations
+    - `mpi_processes`: list of :class:`.MpiProcessDescr` instances, describing
+      the kind of data that each MPI process is currently holding
+
+    Use :meth:`.Simulation.describe_mpi_distribution` to get an instance of this
+    object."""
+
+    num_of_observations: int
+    detectors: List[DetectorInfo]
+    mpi_processes: List[MpiProcessDescr]
+
+    def __repr__(self):
+        result = ""
+        for cur_mpi_proc in self.mpi_processes:
+            result += f"# MPI rank #{cur_mpi_proc.mpi_rank + 1}\n\n"
+            for cur_obs_idx, cur_obs in enumerate(cur_mpi_proc.observations):
+                result += """## Observation #{obs_idx}
+- Start time: {start_time}
+- Duration: {duration_s} s
+- {num_of_detectors} detector(s) ({det_names})
+- TOD(s): {tod_names}
+- TOD shape: {tod_shape}
+- Type of the TODs: {tod_dtype}
+
+""".format(
+                    obs_idx=cur_obs_idx,
+                    start_time=cur_obs.start_time,
+                    duration_s=cur_obs.duration_s,
+                    num_of_detectors=len(cur_obs.det_names),
+                    det_names=",".join(cur_obs.det_names),
+                    tod_names=", ".join(cur_obs.tod_names),
+                    tod_shape="×".join([str(x) for x in cur_obs.tod_shape]),
+                    tod_dtype=", ".join(cur_obs.tod_dtype),
+                )
+
+        return result
+
+
 class Simulation:
     """A container object for running simulations
 
@@ -129,7 +245,7 @@ class Simulation:
             print(f"{curpath}: {curdescr}")
 
     When pointing information is needed, you can call the method
-    :meth:`.Simulation.generate_spin2ecl_quaternions`, which
+    :meth:`.Simulation.set_scanning_strategy`, which
     initializes the members `pointing_freq_hz` and
     `spin2ecliptic_quats`; these members are used by functions like
     :func:`.get_pointings`.
@@ -191,11 +307,17 @@ class Simulation:
         self.start_time = start_time
         self.duration_s = duration_s
 
+        self.detectors = []  # type: List[DetectorInfo]
+        self.instrument = None  # type: Optional[InstrumentInfo]
+        self.hwp = None  # type: Optional[HWP]
+
         self.spin2ecliptic_quats = None
 
         self.description = description
 
         self.random = None
+
+        self.tod_list = []  # type: List[TodDescription]
 
         if imo:
             self.imo = imo
@@ -484,7 +606,9 @@ class Simulation:
                 OutputFileRecord(path=curpath, description="Figure")
             )
 
-    def _fill_dictionary_with_imo_information(self, dictionary: Dict[str, Any]):
+    def _fill_dictionary_with_imo_information(
+        self, dictionary: Dict[str, Any], base_imo_url: str
+    ):
         # Fill the variable "dictionary" with information about the
         # objects retrieved from the IMO. This is used when producing
         # the final report for a simulation
@@ -523,6 +647,7 @@ class Simulation:
         dictionary["quantities"] = quantities
         dictionary["data_files"] = data_files
         dictionary["warnings"] = warnings
+        dictionary["base_imo_url"] = base_imo_url
 
     def _fill_dictionary_with_code_status(self, dictionary, include_git_diff):
         # Fill the variable "dictionary" with information about the
@@ -574,7 +699,7 @@ class Simulation:
                 f"unable to save information about latest git commit in the report: {e}"
             )
 
-    def flush(self, include_git_diff=True):
+    def flush(self, include_git_diff=True, base_imo_url: str = DEFAULT_BASE_IMO_URL):
         """Terminate a simulation.
 
         This function must be called when a simulation is complete. It
@@ -586,7 +711,9 @@ class Simulation:
         """
 
         dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-        self._fill_dictionary_with_imo_information(dictionary)
+        self._fill_dictionary_with_imo_information(
+            dictionary, base_imo_url=base_imo_url
+        )
         self._fill_dictionary_with_code_status(dictionary, include_git_diff)
 
         template_file_path = get_template_file_path("report_appendix.md")
@@ -641,7 +768,10 @@ class Simulation:
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
-        dtype_tod=np.float32,
+        dtype_tod: Optional[Any] = None,
+        tods: List[TodDescription] = [
+            TodDescription(name="tod", dtype=np.float32, description="Signal")
+        ],
     ):
         """Create a set of Observation objects.
 
@@ -675,12 +805,48 @@ class Simulation:
         observation, `n_blocks_time=3` means that each observation
         will cover one month.
 
-        The parameter `dtype_tod` specifies the data type to be used
-        for the samples in the timestream. The default is
-        ``numpy.float32``, which should be adequate for LiteBIRD's
-        purposes; if you want greater accuracy at the expense of
-        doubling memory occupation, choose ``numpy.float64``.
+        The parameter `tods` specifies how many TOD arrays should be
+        created. Each element should be an instance of
+        :class:`.TodDescription` and contain the fields ``name`` (the name
+        of the member variable that will be created), ``dtype`` (the
+        NumPy type to use, like ``numpy.float32``), and ``description``
+        (a free-form description). The default is ``numpy.float32``,
+        which should be adequate for LiteBIRD's purposes; if you
+        want greater accuracy at the expense of doubling memory
+        occupation, choose ``numpy.float64``.
 
+        If you specify `dtype_tod`, this will be used as the parameter
+        for each TOD specified in `tods`, overriding the value of `dtype`.
+        This keyword is kept for legacy reasons but should be avoided
+        in newer code.
+
+        Here is an example that creates three TODs::
+
+            sim.create_observations(
+                [det1, det2],
+                tods=[
+                    TodDescription(
+                        name="fg_tod",
+                        dtype=np.float32,
+                        description="Foregrounds (computed by PySM)",
+                    ),
+                    TodDescription(
+                        name="cmb_tod",
+                        dtype=np.float32,
+                        description="CMB realization following Planck (2018)",
+                    ),
+                    TodDescription(
+                        name="noise_tod",
+                        dtype=np.float32,
+                        description="Noise TOD (only white noise, no 1/f)",
+                    ),
+                ],
+            )
+
+            # Now you can access these fields:
+            # - sim.fg_tod
+            # - sim.cmb_tod
+            # - sim.noise_tod
         """
 
         assert (
@@ -691,20 +857,35 @@ class Simulation:
             self.duration_s, (float, int)
         ), "you must set duration_s when creating the Simulation object"
 
+        if not detectors:
+            detectors = self.detectors
+
+        # if a single detector is passed, make it a list
+        if isinstance(detectors, DetectorInfo):
+            detectors = [detectors]
+
         observations = []
 
         duration_s = self.duration_s  # Cache the value to a local variable
         sampfreq_hz = detectors[0].sampling_rate_hz
-        detectors = [asdict(d) for d in detectors]
+        self.detectors = detectors
         num_of_samples = int(sampfreq_hz * duration_s)
         samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
         cur_time = self.start_time
 
+        if not dtype_tod:
+            self.tod_list = tods
+        else:
+            self.tod_list = [
+                TodDescription(name=x.name, dtype=dtype_tod, description=x.description)
+                for x in tods
+            ]
+
         for cur_obs_idx in range(num_of_obs_per_detector):
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(
-                detectors=detectors,
+                detectors=[asdict(d) for d in detectors],
                 start_time_global=cur_time,
                 sampling_rate_hz=sampfreq_hz,
                 n_samples_global=nsamples,
@@ -712,7 +893,7 @@ class Simulation:
                 n_blocks_time=n_blocks_time,
                 comm=(None if split_list_over_processes else self.mpi_comm),
                 root=0,
-                dtype_tod=dtype_tod,
+                tods=self.tod_list,
             )
             observations.append(cur_obs)
 
@@ -728,6 +909,18 @@ class Simulation:
             self.observations = observations
 
         return observations
+
+    def get_tod_names(self) -> List[str]:
+        return [x.name for x in self.tod_list]
+
+    def get_tod_dtypes(self) -> List[Any]:
+        return [x.dtype for x in self.tod_list]
+
+    def get_tod_descriptions(self) -> List[str]:
+        return [x.description for x in self.tod_list]
+
+    def get_list_of_tods(self) -> List[TodDescription]:
+        return self.tod_list
 
     def distribute_workload(self, observations: List[Observation]):
         if self.mpi_comm.size == 1:
@@ -745,12 +938,93 @@ class Simulation:
             span.start_idx : (span.start_idx + span.num_of_elements)
         ]
 
-    def generate_spin2ecl_quaternions(
+    def describe_mpi_distribution(self) -> Optional[MpiDistributionDescr]:
+        """Return a :class:`.MpiDistributionDescr` object describing observations
+
+        This method returns a :class:`.MpiDistributionDescr` that describes the data
+        stored in each MPI process running concurrently. It is a great debugging tool
+        when you are using MPI, and it can be used for tasks where you have to carefully
+        orchestrate they way different MPI processes run together.
+
+        If this method is called before :meth:`.Simulation.create_observations`, it will
+        return ``None``.
+
+        This method should be called by *all* the MPI processes. It can be executed in a
+        serial environment (i.e., without MPI) and will still return meaningful values.
+
+        The typical usage for this method is to call it once you have called
+        :meth:`.Simulation.create_observations` to check that the TODs have been
+        laid in memory in the way you expect::
+
+            sim.create_observations(…)
+            distr = sim.describe_mpi_distribution()
+            if litebird_sim.MPI_COMM_WORLD.rank == 0:
+                print(distr)
+
+        """
+
+        if not self.observations:
+            return None
+
+        observation_descr = []  # type: List[MpiObservationDescr]
+        for obs in self.observations:
+            cur_det_names = list(obs.name)
+
+            shapes = [
+                tuple(getattr(obs, cur_tod.name).shape) for cur_tod in self.tod_list
+            ]
+            # Check that all the TODs have the same shape
+            if shapes:
+                for i in range(1, len(shapes)):
+                    assert shapes[0] == shapes[i], (
+                        f"TOD {self.tod_list[0].name} and {self.tod_list[i].name} "
+                        + f"have different shapes: {shapes[0]} vs {shapes[i]}"
+                    )
+
+            observation_descr.append(
+                MpiObservationDescr(
+                    det_names=cur_det_names,
+                    tod_names=self.get_tod_names(),
+                    tod_shape=shapes[0] if shapes else None,
+                    tod_dtype=self.get_tod_dtypes(),
+                    tod_description=self.get_tod_descriptions(),
+                    start_time=obs.start_time,
+                    duration_s=obs.n_samples / obs.sampling_rate_hz,
+                    num_of_samples=obs.n_samples,
+                    num_of_detectors=obs.n_detectors,
+                )
+            )
+
+        num_of_observations = len(self.observations)
+
+        if self.mpi_comm and litebird_sim.MPI_ENABLED:
+            observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
+            num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
+        else:
+            observation_descr_all = [observation_descr]
+            num_of_observations_all = [num_of_observations]
+
+        mpi_processes = []  # type: List[MpiProcessDescr]
+        for i in range(MPI_COMM_WORLD.size):
+            mpi_processes.append(
+                MpiProcessDescr(
+                    mpi_rank=i,
+                    observations=observation_descr_all[i],
+                )
+            )
+
+        return MpiDistributionDescr(
+            num_of_observations=sum(num_of_observations_all),
+            detectors=self.detectors,
+            mpi_processes=mpi_processes,
+        )
+
+    def set_scanning_strategy(
         self,
         scanning_strategy: Union[None, ScanningStrategy] = None,
         imo_url: Union[None, str] = None,
         delta_time_s: float = 60.0,
-        append_to_report=True,
+        append_to_report: bool = True,
     ):
         """Simulate the motion of the spacecraft in free space
 
@@ -774,17 +1048,18 @@ class Simulation:
 
         The parameter `delta_time_s` specifies how often should
         quaternions be computed; see
-        :meth:`.ScanningStrategy.generate_spin2ecl_quaternions` for
+        :meth:`.ScanningStrategy.set_scanning_strategy` for
         more information.
 
         If the parameter `append_to_report` is set to ``True`` (the
         default), some information about the pointings will be included
-        in the report saved by the :class:`.Simulation` object.
+        in the report saved by the :class:`.Simulation` object. This will
+        be done only if the process has rank #0.
 
         """
         assert not (scanning_strategy and imo_url), (
             "you must either specify scanning_strategy or imo_url (but not"
-            "the two together) when calling Simulation.generate_spin2ecl_quaternions"
+            "the two together) when calling Simulation.set_scanning_strategy"
         )
 
         if not scanning_strategy:
@@ -803,12 +1078,380 @@ class Simulation:
         )
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
-        template_file_path = get_template_file_path("report_generate_pointings.md")
-        with template_file_path.open("rt") as inpf:
-            markdown_template = "".join(inpf.readlines())
-        self.append_to_report(
-            markdown_template,
-            num_of_obs=len(self.observations),
+        num_of_obs = len(self.observations)
+        if append_to_report and litebird_sim.MPI_ENABLED:
+            num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_quaternions.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                num_of_obs=num_of_obs,
+                num_of_mpi_processes=MPI_COMM_WORLD.size,
+                delta_time_s=delta_time_s,
+                quat_memory_size_bytes=quat_memory_size_bytes,
+            )
+
+    @deprecated(
+        deprecated_in="0.9",
+        current_version=litebird_sim_version,
+        details="Use set_scanning_strategy",
+    )
+    def generate_spin2ecl_quaternions(
+        self,
+        scanning_strategy: Union[None, ScanningStrategy] = None,
+        imo_url: Union[None, str] = None,
+        delta_time_s: float = 60.0,
+        append_to_report=True,
+    ):
+        self.set_scanning_strategy(
+            scanning_strategy=scanning_strategy,
+            imo_url=imo_url,
             delta_time_s=delta_time_s,
-            quat_memory_size_bytes=quat_memory_size_bytes,
+            append_to_report=append_to_report,
         )
+
+    def set_instrument(self, instrument: InstrumentInfo):
+        """Set the instrument to be used in the simulation.
+
+        This function sets the ``self.instrument`` field to the instance
+        of the class :class:`.InstrumentInfo` that has been passed as
+        argument. The purpose of the instrument is to provide the reference
+        frame for the direction of each detector.
+
+        Note that you should not simulate more than one instrument in the same
+        simulation. This is enforced by the fact that if you call `set_instrument`
+        twice, the second call will overwrite the instrument that was formerly
+        set.
+        """
+        self.instrument = instrument
+
+    def set_hwp(self, hwp: HWP):
+        """Set the HWP to be used in the simulation
+
+        The argument must be a class derived from :class:`.HWP`, for instance
+        :class:`.IdealHWP`.
+        """
+        self.hwp = hwp
+
+    def compute_pointings(
+        self,
+        append_to_report: bool = True,
+        dtype_pointing=np.float32,
+    ):
+        """Trigger the computation of pointings.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, and the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`. It combines the
+        quaternions of the spacecraft, of the instrument, and of the detectors
+        and sets the fields ``pointings``, ``psi``, and ``pointing_coords`` in
+        each observation owned by the simulation.
+        """
+        assert self.detectors, (
+            "You must call Simulation.create_observations() "
+            "before calling Simulation.compute_pointings"
+        )
+        assert self.instrument
+        assert self.spin2ecliptic_quats
+
+        memory_occupation = 0
+        num_of_obs = 0
+        for cur_obs in self.observations:
+            quaternion_buffer = np.zeros(
+                (cur_obs.n_samples, 1, 4),
+                dtype=np.float64,
+            )
+            get_pointings(
+                cur_obs,
+                self.spin2ecliptic_quats,
+                detector_quats=cur_obs.quat,
+                bore2spin_quat=self.instrument.bore2spin_quat,
+                hwp=self.hwp,
+                quaternion_buffer=quaternion_buffer,
+                dtype_pointing=dtype_pointing,
+                store_pointings_in_obs=True,
+            )
+            del quaternion_buffer
+
+            memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
+            num_of_obs += 1
+
+        if append_to_report and litebird_sim.MPI_ENABLED:
+            memory_occupation = MPI_COMM_WORLD.allreduce(memory_occupation)
+            num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_pointings.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                num_of_obs=num_of_obs,
+                hwp_description=str(self.hwp) if self.hwp else "No HWP",
+                num_of_mpi_processes=MPI_COMM_WORLD.size,
+                memory_occupation=memory_occupation,
+            )
+
+    def compute_pos_and_vel(
+        self,
+        delta_time_s=86400.0,
+        solar_velocity_km_s: float = c.SOLAR_VELOCITY_KM_S,
+        solar_velocity_gal_lat_rad: float = c.SOLAR_VELOCITY_GAL_LAT_RAD,
+        solar_velocity_gal_lon_rad: float = c.SOLAR_VELOCITY_GAL_LON_RAD,
+    ):
+        """Computes the position and the velocity of the spacescraft for computing
+        the dipole.
+        It wraps the :class:`.SpacecraftOrbit` and calls :meth:`.SpacecraftOrbit`.
+        The parameters that can be modified are the sampling of position and velocity
+        and the direction and amplitude of the solar dipole.
+        Default values for solar dipole from Planck 2018 Solar dipole (see arxiv:
+        1807.06207)
+        """
+
+        orbit = SpacecraftOrbit(
+            self.start_time,
+            solar_velocity_km_s=solar_velocity_km_s,
+            solar_velocity_gal_lat_rad=solar_velocity_gal_lat_rad,
+            solar_velocity_gal_lon_rad=solar_velocity_gal_lon_rad,
+        )
+
+        self.pos_and_vel = spacecraft_pos_and_vel(
+            orbit=orbit, obs=self.observations, delta_time_s=delta_time_s
+        )
+
+    def fill_tods(
+        self,
+        maps: Dict[str, np.ndarray],
+        input_map_in_galactic: bool = True,
+        interpolation: Union[str, None] = "",
+        append_to_report: bool = True,
+    ):
+        """Fills the TODs, scanning a map.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the methond
+        compute_pointings. maps is assumed to be produced by :class:`.Mbs`
+        """
+
+        scan_map_in_observations(
+            self.observations,
+            maps=maps,
+            input_map_in_galactic=input_map_in_galactic,
+            interpolation=interpolation,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_scan_map.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            if type(maps) is dict:
+                if "Mbs_parameters" in maps.keys():
+                    if maps["Mbs_parameters"].make_fg:
+                        fg_model = maps["Mbs_parameters"].fg_models
+                    else:
+                        fg_model = "N/A"
+
+                    self.append_to_report(
+                        markdown_template,
+                        nside=maps["Mbs_parameters"].nside,
+                        has_cmb=maps["Mbs_parameters"].make_cmb,
+                        has_fg=maps["Mbs_parameters"].make_fg,
+                        fg_model=fg_model,
+                    )
+            else:
+                nside = npix_to_nside(len(maps[0]))
+                self.append_to_report(
+                    markdown_template,
+                    nside=nside,
+                    has_cmb="N/A",
+                    has_fg="N/A",
+                    fg_model="N/A",
+                )
+
+    def add_dipole(
+        self,
+        t_cmb_k: float = c.T_CMB_K,
+        dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
+        append_to_report: bool = True,
+    ):
+        """Fills the tod with dipole.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the pointing
+        through :meth:`.compute_pointings`.
+        """
+
+        if not hasattr(self, "pos_and_vel"):
+            self.compute_pos_and_vel()
+
+        add_dipole_to_observations(
+            obs=self.observations,
+            pos_and_vel=self.pos_and_vel,
+            t_cmb_k=t_cmb_k,
+            dipole_type=dipole_type,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_dipole.md")
+
+            dip_lat_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lat_rad)
+            dip_lon_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lon_rad)
+            dip_velocity = self.pos_and_vel.orbit.solar_velocity_km_s
+
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                t_cmb_k=t_cmb_k,
+                dipole_type=dipole_type,
+                dip_lat_deg=dip_lat_deg,
+                dip_lon_deg=dip_lon_deg,
+                dip_velocity=dip_velocity,
+            )
+
+    def add_noise(
+        self,
+        noise_type: str = "one_over_f",
+        random: Union[np.random.Generator, None] = None,
+        append_to_report: bool = True,
+    ):
+        """Adds noise to tods.
+
+        This method must be called after having set the instrument,
+        the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`.
+        """
+
+        if random is None:
+            random = self.random
+
+        add_noise_to_observations(
+            obs=self.observations,
+            noise_type=noise_type,
+            random=random,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_noise.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
+            )
+
+    def binned_map(
+        self,
+        nside: int,
+        do_covariance: bool = False,
+        output_map_in_galactic: bool = True,
+        append_to_report: bool = True,
+    ):
+
+        """
+        Bins the tods of `sim.observations` into maps.
+        The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
+        """
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_binned_map.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                nside=nside,
+                coord="Galactic" if output_map_in_galactic else "Ecliptic",
+            )
+
+        return make_bin_map(
+            obs=self.observations,
+            nside=nside,
+            do_covariance=do_covariance,
+            output_map_in_galactic=output_map_in_galactic,
+        )
+
+    def apply_gaindrift(
+        self,
+        drift_params: GainDriftParams = None,
+        user_seed: int = 12345,
+        component: str = "tod",
+        append_to_report: bool = True,
+    ):
+        """A method to apply the gain drift to the observation.
+
+        This is a wrapper around :func:`.apply_gaindrift_to_observations()` that
+        injects gain drift to a list of :class:`.Observation` instance.
+
+        Args:
+
+            drift_params (:class:`.GainDriftParams`, optional): The gain
+                drift injection parameters object. Defaults to None.
+
+            user_seed (int, optional): A seed provided by the user.
+                Defaults to 12345.
+
+            component (str, optional): The name of the TOD on which the
+                gain drift has to be injected. Defaults to "tod".
+
+            append_to_report (bool, optional): Defaults to True.
+        """
+
+        if drift_params is None:
+            drift_params = GainDriftParams()
+
+        apply_gaindrift_to_observations(
+            obs=self.observations,
+            drift_params=drift_params,
+            user_seed=user_seed,
+            component=component,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+
+            dictionary = {
+                "sampling_dist": "Gaussian" if drift_params.sampling_dist else "Uniform"
+            }
+
+            if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
+                dictionary["drift_type"] = "Linear"
+                dictionary["linear_drift"] = True
+                dictionary[
+                    "calibration_period_sec"
+                ] = drift_params.calibration_period_sec
+
+            elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
+                dictionary["drift_type"] = "Thermal"
+                dictionary["thermal_drift"] = True
+
+                keys_to_get = [
+                    "sigma_drift",
+                    "focalplane_group",
+                    "oversample",
+                    "fknee_drift_mHz",
+                    "alpha_drift",
+                    "detector_mismatch",
+                    "thermal_fluctuation_amplitude_K",
+                    "focalplane_Tbath_K",
+                    "sampling_uniform_low",
+                    "sampling_uniform_high",
+                    "sampling_gaussian_loc",
+                    "sampling_gaussian_scale",
+                ]
+
+                for key in keys_to_get:
+                    dictionary[key] = getattr(drift_params, key)
+
+            template_file_path = get_template_file_path("report_gaindrift.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_text=markdown_template,
+                component=component,
+                user_seed=user_seed,
+                **dictionary,
+            )

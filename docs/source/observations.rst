@@ -2,7 +2,7 @@ Observations
 ============
 
 The :class:`.Observation` class, is the container for the data acquired by the
-telescope during a scaning period (and the relevant information about it).
+telescope during a scanning period (and the relevant information about it).
 
 Serial applications 
 -------------------
@@ -23,18 +23,70 @@ can put anything::
   obs.my_new_attr = 'value'
   setattr(obs, 'another_new_attr', 'another value')
 
-Across the framework, the coherence in the names and content of the attributes
-is guaranteed **by convention** (no check is done by the :class:`.Observation`
-class).
+Across the framework, the coherence in the names and content of the
+attributes is guaranteed **by convention** (no check is done by the
+:class:`.Observation` class). At the moment, the most common field
+that you can find in the class are the following, assuming that it is
+meant to collect :math:`N` samples for :math:`n_d` detectors:
 
-There are two more conventions. First, ``obs.tod`` is a 2-D array.
-``obs.tod[0]`` is the time stream of the first detector.
-``obs.tod[:, 0]`` are the first time sample of all the detectors.
-Second, detector-specific attributes are collected in arrays:
-``obs.calibration_factors`` is a 1-D array with one entry per
-detector.
+1. ``Observation.tod`` is initialized when you call
+   :meth:`.Simulation.create_observations`. It's a 2D array
+   of shape :math:`(n_d, N)`. This means that ``Observation.tod[0]`` is
+   the time stream of the first detector, and ``obs.tod[:, 0]`` are the
+   first time samples of all the detectors.
 
-Thus, typical operations look like this::
+   You can create other TOD-like arrays through the parameter ``tods``;
+   it accepts a list of :class:`.TodDescription` objects that specify
+   the name of the field used to store the 2D array, a textual
+   description, and the value for ``dtype``. (By default, the ``tod``
+   field uses 32-bit floating-point numbers.) Here is an example::
+
+    sim.create_observations(
+        detectors=[det1, det2, det3],
+        tods=[
+            lbs.TodDescription(
+                name="tod", description="TOD", dtype=np.float64,
+            ),
+            lbs.TodDescription(
+                name="noise", description="1/f+white noise", dtype=np.float32
+            ),
+        ],
+    )
+
+    for cur_obs in sim.observations:
+        print("Shape of 'tod': ", cur_obs.tod.shape)
+        print("Shape of 'noise': ", cur_obs.noise.shape)
+
+2. ``Observation.pointings`` is initialized when you call
+   :meth:`.Simulation.compute_pointings`. It is a 3-rank
+   tensor of shape :math:`(n_d, N, 2)`, where the last rank collects the
+   two pointing angles colatitude (θ) and longitude (φ), expressed in
+   radians.
+
+3. ``Observation.pointing_coords`` is initialized together with
+   ``Observation.pointings``; it is a value of type
+   :class:`.CoordinateSystem`, and it identifies the coordinate system
+   used to express the pointing angles.
+
+4. ``Observation.psi`` is a :math:`(n_d, N)` matrix containing the
+   polarization angles (in radians), expressed with respect to the
+   celestial North (ψ). It's initialized together with
+   ``Observation.pointings``.
+
+5. ``Observation.local_flags`` is a :math:`(n_d, N)` matrix containing
+   flags for the :math:`n_d` detectors. These flags are typically
+   associated to peculiarities in the single detectors, like
+   saturations or mis-calibrations.
+
+6. ``Observation.global_flags`` is a vector of :math:`N` elements
+   containing flags that must be associated with *all* the detectors
+   in the observation.
+
+Keep in mind that the general rule is that detector-specific
+attributes are collected in arrays. Thus, ``obs.calibration_factors``
+should be a 1-D array of :math:`n_d` elements (one per each detector).
+
+With this memory layout, typical operations look like this::
 
   # Collect detector properties in arrays
   obs.calibration_factors = np.array([1.1, 1.2])
@@ -47,6 +99,7 @@ Thus, typical operations look like this::
   obs.tod += (np.random.normal(size=obs.tod.shape)
               * obs.wn_levels[:, None])
 
+                
 Parallel applications
 ---------------------
 
@@ -117,6 +170,15 @@ This should not be a problem as the only thing that matters is that the two
 quantities refer to the same detector. If you need the global detector index,
 you can get it with ``obs.det_idx[0]``, which is created
 at construction time.
+
+To get a better understanding of how observations are being used in a
+MPI simulation, use the method :meth:`.Simulation.describe_mpi_distribution`.
+This method must be called *after* the observations have been allocated using
+:meth:`.Simulation.create_observations`; it will return an instance of the
+class :class:`.MpiDistributionDescr`, which can be inspected to determine
+which detectors and time spans are covered by each observation in all the
+MPI processes that are being used. For more information, refer to the Section
+:ref:`simulations`.
 
 Other notable functionalities
 -----------------------------

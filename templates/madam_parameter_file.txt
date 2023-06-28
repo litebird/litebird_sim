@@ -1,5 +1,11 @@
+# Parameter file for Madam
+# Created by litebird_sim on {{ current_date }}
+
 simulation    = {{ simulation_file_name }}
-tod_1         = tod
+
+{% for cur_component in components_to_bin %}
+tod_{{ loop.index }} = {{ cur_component }}
+{% endfor %}
 
 # Detectors
 {% for det in detectors %}
@@ -11,6 +17,7 @@ kfirst        =   T
 ksecond       =   F
 kfilter       =   F
 iter_max      =   {{ iter_max }}
+to_galactic   =   {{ out_map_in_galactic }}
 
 # Baseline length
 base_first    =  {{ samples_per_baseline }}   # These are *samples*, not seconds!

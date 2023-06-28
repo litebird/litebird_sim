@@ -10,6 +10,8 @@
 
     -   `CHANGELOG.md` (be sure to leave an empty `HEAD` title at the
         top);
+
+    Commit all the changes to `master`.
     
 -   Build the release:
 
@@ -20,7 +22,7 @@
 -   Upload the `.tar.gz` and `.whl` files to the PyPI Test server:
 
     ```
-    twine upload --repository-url https://test.pypi.org/legacy/ dist/litebird_sim_*
+    twine upload --repository testpypi dist/litebird_sim_*
     ```
 
 -   Check that everything looks right by opening the URL shown by Twine

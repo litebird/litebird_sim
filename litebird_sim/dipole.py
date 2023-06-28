@@ -7,14 +7,10 @@ import numpy as np
 
 from typing import Union, List
 
-from astropy.constants import c as c_light
-from astropy.constants import h, k_B
-
 from .observations import Observation
 from .spacecraft import SpacecraftPositionAndVelocity
 
-C_LIGHT_KM_S = c_light.value / 1e3
-H_OVER_K_B = h.value / k_B.value
+from litebird_sim import constants as c
 
 
 # We use a IntEnum class so that comparisons are much faster than with strings
@@ -65,7 +61,7 @@ class DipoleType(IntEnum):
 @njit
 def planck(nu_hz, t_k):
     """Return occupation number at frequency nu_hz and temperature t_k"""
-    return 1 / (np.exp(H_OVER_K_B * nu_hz / t_k) - 1)
+    return 1 / (np.exp(c.H_OVER_K_B * nu_hz / t_k) - 1)
 
 
 @njit
@@ -79,15 +75,15 @@ def compute_scalar_product(theta, phi, v):
 @njit
 def calculate_beta(theta, phi, v_km_s):
     """Return a 2-tuple containing β·n and β"""
-    beta_dot_n = compute_scalar_product(theta, phi, v_km_s) / C_LIGHT_KM_S
-    beta = np.sqrt(v_km_s[0] ** 2 + v_km_s[1] ** 2 + v_km_s[2] ** 2) / C_LIGHT_KM_S
+    beta_dot_n = compute_scalar_product(theta, phi, v_km_s) / c.C_LIGHT_KM_S
+    beta = np.sqrt(v_km_s[0] ** 2 + v_km_s[1] ** 2 + v_km_s[2] ** 2) / c.C_LIGHT_KM_S
 
     return beta_dot_n, beta
 
 
 @njit
 def compute_dipole_for_one_sample_linear(theta, phi, v_km_s, t_cmb_k):
-    beta_dot_n = compute_scalar_product(theta, phi, v_km_s) / C_LIGHT_KM_S
+    beta_dot_n = compute_scalar_product(theta, phi, v_km_s) / c.C_LIGHT_KM_S
     return t_cmb_k * beta_dot_n
 
 
@@ -144,7 +140,6 @@ def add_dipole_for_one_detector(
     q_x,
     dipole_type: DipoleType,
 ):
-
     if dipole_type == DipoleType.LINEAR:
         for i in range(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_linear(
@@ -209,10 +204,9 @@ def add_dipole(
     assert tod.shape[1] == velocity.shape[0]
 
     for detector_idx in range(tod.shape[0]):
-
         nu_hz = frequency_ghz[detector_idx] * 1e9  # freq in GHz
         # Note that x is a dimensionless parameter
-        x = h.value * nu_hz / (k_B.value * t_cmb_k)
+        x = c.H_OVER_K_B * nu_hz / t_cmb_k
 
         f_x = x * np.exp(x) / (np.exp(x) - 1)
 
@@ -235,17 +229,29 @@ def add_dipole_to_observations(
     obs: Union[Observation, List[Observation]],
     pos_and_vel: SpacecraftPositionAndVelocity,
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-    t_cmb_k: float = 2.72548,  # Fixsen 2009 http://arxiv.org/abs/0911.1955
+    t_cmb_k: float = c.T_CMB_K,
     dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
     frequency_ghz: Union[
         np.ndarray, None
     ] = None,  # e.g. central frequency of channel from
+    component: str = "tod",
 ):
     """Add the CMB dipole to some time-ordered data
 
     This is a wrapper around the :func:`.add_dipole` function that applies to the TOD
     stored in `obs`, which can either be one :class:`.Observation` instance or a list
     of observations.
+
+    By default, the TOD is added to ``Observation.tod``. If you want to add it to some
+    other field of the :class:`.Observation` class, use `component`::
+
+        for cur_obs in sim.observations:
+            # Allocate a new TOD for the dipole alone
+            cur_obs.dipole_tod = np.zeros_like(cur_obs.tod)
+
+        # Ask `add_dipole_to_observations` to store the dipole
+        # in `obs.dipole_tod`
+        add_dipole_to_observations(sim.observations, component="dipole_tod")
     """
 
     if pointings is None:
@@ -276,22 +282,24 @@ def add_dipole_to_observations(
             ptg_list = [point[:, :, 0:2] for point in pointings]
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+        tod = getattr(cur_obs, component)
+
         # Alas, this allocates memory for the velocity vector! At the moment it is the
         # simplest implementation, but in the future we might want to inline the
         # interpolation code within "add_dipole" to save memory
         velocity = pos_and_vel.compute_velocities(
             time0=cur_obs.start_time,
             delta_time_s=cur_obs.get_delta_time().value,
-            num_of_samples=cur_obs.tod.shape[1],
+            num_of_samples=tod.shape[1],
         )
 
         if frequency_ghz is None:
             frequency_ghz = cur_obs.bandcenter_ghz
         else:
-            frequency_ghz = np.repeat(frequency_ghz, cur_obs.tod.shape[0])
+            frequency_ghz = np.repeat(frequency_ghz, tod.shape[0])
 
         add_dipole(
-            tod=cur_obs.tod,
+            tod=tod,
             pointings=cur_ptg,
             velocity=velocity,
             t_cmb_k=t_cmb_k,

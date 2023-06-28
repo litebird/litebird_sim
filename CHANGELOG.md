@@ -2,9 +2,60 @@
 
 -   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
 
+# Version 0.10.0
+
+-   Some memory optimization [#245](https://github.com/litebird/litebird_sim/pull/245)
+
+-   Improve the docstring for `scan_map_in_observations` [#248](https://github.com/litebird/litebird_sim/pull/248)
+
+-   New interface for `make_bin_map` in `Simulation` [#244](https://github.com/litebird/litebird_sim/pull/244)
+
+-   Added gain drift simulation module [#243](https://github.com/litebird/litebird_sim/pull/243)
+
+-   Enable the use of other names than `tod` when calling the TOAST2 destriper [#242](https://github.com/litebird/litebird_sim/pull/242)
+
+-   Use Poetry instead of Pip to specify the dependencies for the documentation [#237](https://github.com/litebird/litebird_sim/pull/237)
+
+-   Remove bandpass-related warnings [#236](https://github.com/litebird/litebird_sim/pull/236)
+
+-   Add TOD interpolation [#233](https://github.com/litebird/litebird_sim/pull/233)
+
+-   Improve the documentation [#231](https://github.com/litebird/litebird_sim/pull/231)
+
+-   Mbs supports generic bandpasses and can generate solar dipole [#227](https://github.com/litebird/litebird_sim/pull/227)
+
+-   Improve the support for multiple TODs in the same `Observation` [#225](https://github.com/litebird/litebird_sim/pull/225)
+
+
+# Version 0.9.0
+
+-   Some memory optimization in pointing production [#222](https://github.com/litebird/litebird_sim/pull/222), coordinate rotation and noise [#223](https://github.com/litebird/litebird_sim/pull/223)
+
+-   Implement new methods in the `Simulation` class: `fill_tods`, `compute_pos_and_vel`, `add_dipole` and `add_noise` [#221](https://github.com/litebird/litebird_sim/pull/221)
+
+-   **Breaking change**: add multiple TOD support to `describe_mpi_distribution` and make the field `MpiObservationDescr.tod_dtype` a list of strings [#220](https://github.com/litebird/litebird_sim/pull/220)
+
+-   Add links to the manual in the example notebook [#219](https://github.com/litebird/litebird_sim/pull/219)
+
+-   Implement new methods in the `Simulation` class: `set_scanning_strategy`, `set_instrument`, `set_hwp`, and deprecate `generate_spin2ecl_quaternions` [#217](https://github.com/litebird/litebird_sim/pull/217)
+
+-   Add `gzip_compression` keyword to `write_observations` [#214](https://github.com/litebird/litebird_sim/pull/214)
+
+-   Run more comprehensive tests on different TOD components [#212](https://github.com/litebird/litebird_sim/pull/212)
+
+-   Add a link to the IMO webpage @SSDC for each entity/quantity/data file included in simulation reports [#211](https://github.com/litebird/litebird_sim/pull/211)
+
+-   Fix issue #209 [#210](https://github.com/litebird/litebird_sim/pull/210)
+
+-   Add flag for coordinate system choice of madam output maps [#208](https://github.com/litebird/litebird_sim/pull/208)
+
+-   Improve support for multiple TODs [#205](https://github.com/litebird/litebird_sim/pull/205)
+
 # Version 0.8.0
 
 -   **Breaking change** Interface of `get_pointings` modified, new function `get_pointings_for_observation` simplifies the pointing generation for a list of observations [#198](https://github.com/litebird/litebird_sim/pull/198)
+
+-   Ensure chronological order for Madam FITS files and make sure that exporting them to Madam works with MPI [#204](https://github.com/litebird/litebird_sim/pull/204) 
 
 -   Properly install Madam template files [#202](https://github.com/litebird/litebird_sim/pull/202)
 
