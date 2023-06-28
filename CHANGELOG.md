@@ -1,5 +1,7 @@
 # HEAD
 
+-   Bug in mbs for band integration solved [#251](https://github.com/litebird/litebird_sim/pull/251)
+
 # Version 0.10.0
 
 -   Some memory optimization [#245](https://github.com/litebird/litebird_sim/pull/245)
