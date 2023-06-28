@@ -270,14 +270,14 @@ class BandPassInfo(object):
             except AttributeError:
                 print(
                     "Can't resample if no sampler is built and/or provided, "
-                    "interpolating the band"
+                    "initializing the sampler and interpolating the band"
                 )
                 self._interpolate_band()
                 Sampler = self.Sampler
             except AttributeError:
                 logging.warning(
                     "Can't resample if no sampler is built and/or provided, "
-                    "interpolating the band"
+                    "initializing the sampler and interpolating the band"
                 )
                 self._interpolate_band()
                 Sampler = self.Sampler
@@ -289,7 +289,7 @@ class BandPassInfo(object):
         nu_b = xb[:-1] + np.diff(xb)
         resampled_bpass = abs(
             sp.interpolate.interp1d(
-                nu_b, h, kind="cubic", bounds_error=False, fill_value="extrapolate"
+                nu_b, h, kind="cubic", bounds_error=False, fill_value=0.0
             )(self.freqs_ghz)
         )
         if self.isnormalized:
