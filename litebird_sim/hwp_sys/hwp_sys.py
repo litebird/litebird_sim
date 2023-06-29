@@ -3,7 +3,7 @@ import litebird_sim as lbs
 import numpy as np
 import healpy as hp
 from astropy import constants as const
-from astropy.cosmology import Planck18_arXiv_v2 as cosmo
+from astropy.cosmology import Planck18 as cosmo
 from litebird_sim import mpi
 from typing import Union, List
 from ..mbs.mbs import MbsParameters
