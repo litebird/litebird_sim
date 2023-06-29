@@ -128,12 +128,7 @@ class BandPassInfo:
         self.weights[mask] = 1.0
 
         if apodization == "cosine":
-            # print(f"Apodizing w/ {apodization} profile")
             self._cosine_apodize_bandpass()
-
-        if apodization == "cosine":
-            self._cosine_apodize_bandpass()
-
         elif apodization == "exp":
             self._exp_apodize_bandpass()
 
@@ -289,14 +284,14 @@ class BandPassInfo:
             except AttributeError:
                 print(
                     "Can't resample if no sampler is built and/or provided, "
-                    "interpolating the band"
+                    "initializing the sampler and interpolating the band"
                 )
                 self._interpolate_band()
                 sampler = self.Sampler
             except AttributeError:
                 logging.warning(
                     "Can't resample if no sampler is built and/or provided, "
-                    "interpolating the band"
+                    "initializing the sampler and interpolating the band"
                 )
                 self._interpolate_band()
                 sampler = self.Sampler
@@ -308,7 +303,7 @@ class BandPassInfo:
         nu_b = xb[:-1] + np.diff(xb)
         resampled_bpass = abs(
             sp.interpolate.interp1d(
-                nu_b, h, kind="cubic", bounds_error=False, fill_value="extrapolate"
+                nu_b, h, kind="cubic", bounds_error=False, fill_value=0.0
             )(self.freqs_ghz)
         )
         if self.isnormalized:
