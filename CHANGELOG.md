@@ -1,5 +1,7 @@
 # HEAD
 
+-   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
+
 # Version 0.10.0
 
 -   Some memory optimization [#245](https://github.com/litebird/litebird_sim/pull/245)
@@ -48,8 +50,6 @@
 -   Add flag for coordinate system choice of madam output maps [#208](https://github.com/litebird/litebird_sim/pull/208)
 
 -   Improve support for multiple TODs [#205](https://github.com/litebird/litebird_sim/pull/205)
-
--   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
 
 # Version 0.8.0
 
