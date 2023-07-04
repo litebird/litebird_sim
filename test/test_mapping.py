@@ -5,6 +5,7 @@ import healpy as hp
 import astropy.units as u
 import litebird_sim as lbs
 import litebird_sim.mapping as mapping
+from litebird_sim import CoordinateSystem
 
 
 def test_accumulate_map_and_info():
@@ -69,7 +70,7 @@ def test_make_bin_map_api_simulation(tmp_path):
             precession_rate_hz=1 / (4 * u.day).to("s").value,
         )
     )
-    instr = lbs.InstrumentInfo(name="core", spin_boresight_angle_rad=np.radians(65))
+    instr = lbs.InstrumentInfo(name="core", spin_boresight_angle_rad=np.deg2rad(65))
     det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10, net_ukrts=1.0)
     obss = sim.create_observations(detectors=[det])
     pointings = lbs.get_pointings(
@@ -116,9 +117,13 @@ def test_make_bin_map_basic_mpi():
         obs.psi = psi.reshape(2, 18)
 
     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
-    res = mapping.make_bin_map([obs], 1, output_map_in_galactic=False)
-    assert np.allclose(res, res_map)
+    res = mapping.make_bin_map(
+        [obs], 1, output_coordinate_system=CoordinateSystem.Ecliptic
+    )
+    assert np.allclose(res.binned_map, res_map)
 
     obs.set_n_blocks(n_blocks_time=1, n_blocks_det=obs.comm.size)
-    res = mapping.make_bin_map([obs], 1, output_map_in_galactic=False)
-    assert np.allclose(res, res_map)
+    res = mapping.make_bin_map(
+        [obs], 1, output_coordinate_system=CoordinateSystem.Ecliptic
+    )
+    assert np.allclose(res.binned_map, res_map)

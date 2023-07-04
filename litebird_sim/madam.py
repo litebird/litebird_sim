@@ -11,7 +11,7 @@ import jinja2
 import litebird_sim
 from . import DetectorInfo
 from .coordinates import CoordinateSystem
-from .mapping import DestriperParameters
+from .destriper import DestriperParameters
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 from .simulations import Simulation, MpiDistributionDescr

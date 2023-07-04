@@ -72,8 +72,11 @@ from .scanning import (
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
 )
-from .mapping import DestriperParameters, DestriperResult, make_bin_map
-from .destriper import destripe
+from .mapping import MapMakerResult, make_bin_map
+from .destriper import (
+    destripe,
+    DestriperParameters,
+)
 from .simulations import (
     Simulation,
     MpiObservationDescr,
@@ -201,9 +204,9 @@ __all__ = [
     "get_pointings",
     # mapping.py
     "make_bin_map",
+    "MapMakerResult",
     # destripe.py
     "DestriperParameters",
-    "DestriperResult",
     "destripe",
     # simulations.py
     "Simulation",
