@@ -12,21 +12,20 @@ from typing import List, Tuple, Union, Dict, Any, Optional
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 
-import litebird_sim
-from litebird_sim import constants as c
+from litebird_sim import constants
+from .coordinates import CoordinateSystem
 from . import HWP
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
-from .mpi import MPI_COMM_WORLD
+from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
 from .pointings import get_pointings
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
-
 from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
@@ -207,7 +206,7 @@ class MpiDistributionDescr:
                     det_names=",".join(cur_obs.det_names),
                     tod_names=", ".join(cur_obs.tod_names),
                     tod_shape="×".join([str(x) for x in cur_obs.tod_shape]),
-                    tod_dtype=", ".join(cur_obs.tod_dtype),
+                    tod_dtype=", ".join([str(x) for x in cur_obs.tod_dtype]),
                 )
 
         return result
@@ -302,7 +301,7 @@ class Simulation:
         self.base_path = base_path
         self.name = name
 
-        self.observations = []
+        self.observations = []  # type: List[Observation]
 
         self.start_time = start_time
         self.duration_s = duration_s
@@ -997,7 +996,7 @@ class Simulation:
 
         num_of_observations = len(self.observations)
 
-        if self.mpi_comm and litebird_sim.MPI_ENABLED:
+        if self.mpi_comm and MPI_ENABLED:
             observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
             num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
         else:
@@ -1079,7 +1078,7 @@ class Simulation:
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
         num_of_obs = len(self.observations)
-        if append_to_report and litebird_sim.MPI_ENABLED:
+        if append_to_report and MPI_ENABLED:
             num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1179,7 +1178,7 @@ class Simulation:
             memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
             num_of_obs += 1
 
-        if append_to_report and litebird_sim.MPI_ENABLED:
+        if append_to_report and MPI_ENABLED:
             memory_occupation = MPI_COMM_WORLD.allreduce(memory_occupation)
             num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
 
@@ -1198,9 +1197,9 @@ class Simulation:
     def compute_pos_and_vel(
         self,
         delta_time_s=86400.0,
-        solar_velocity_km_s: float = c.SOLAR_VELOCITY_KM_S,
-        solar_velocity_gal_lat_rad: float = c.SOLAR_VELOCITY_GAL_LAT_RAD,
-        solar_velocity_gal_lon_rad: float = c.SOLAR_VELOCITY_GAL_LON_RAD,
+        solar_velocity_km_s: float = constants.SOLAR_VELOCITY_KM_S,
+        solar_velocity_gal_lat_rad: float = constants.SOLAR_VELOCITY_GAL_LAT_RAD,
+        solar_velocity_gal_lon_rad: float = constants.SOLAR_VELOCITY_GAL_LON_RAD,
     ):
         """Computes the position and the velocity of the spacescraft for computing
         the dipole.
@@ -1274,7 +1273,7 @@ class Simulation:
 
     def add_dipole(
         self,
-        t_cmb_k: float = c.T_CMB_K,
+        t_cmb_k: float = constants.T_CMB_K,
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
         append_to_report: bool = True,
     ):
@@ -1348,8 +1347,7 @@ class Simulation:
     def binned_map(
         self,
         nside: int,
-        do_covariance: bool = False,
-        output_map_in_galactic: bool = True,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         append_to_report: bool = True,
     ):
 
@@ -1365,14 +1363,13 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 nside=nside,
-                coord="Galactic" if output_map_in_galactic else "Ecliptic",
+                coord=str(output_coordinate_system),
             )
 
         return make_bin_map(
             obs=self.observations,
             nside=nside,
-            do_covariance=do_covariance,
-            output_map_in_galactic=output_map_in_galactic,
+            output_coordinate_system=output_coordinate_system,
         )
 
     def apply_gaindrift(
