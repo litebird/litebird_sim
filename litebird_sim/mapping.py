@@ -295,3 +295,59 @@ def make_bin_map(
         invnpp=info,
         coordinate_system=output_coordinate_system,
     )
+
+
+def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
+    """Divide a quantity `length` into chunks, each roughly of the same length
+
+    This low-level function is used to determine how many samples in a TOD should be
+    collected by the destriper within the same baseline.
+
+    .. testsetup::
+
+        from litebird_sim.mapping import _split_into_n
+
+    .. testcode::
+
+        # Divide 10 items into 4 groups, so that each of them will
+        # have roughly the same number of items
+        print(split_into_n(10, 4))
+
+    .. testoutput::
+
+        [2 3 2 3]
+    """
+    assert num_of_segments > 0, f"num_of_segments={num_of_segments} is not positive"
+    assert (
+        n >= num_of_segments
+    ), f"n={n} is smaller than num_of_segments={num_of_segments}"
+
+    start_positions = np.array(
+        [int(i * n / num_of_segments) for i in range(num_of_segments + 1)],
+        dtype="int",
+    )
+    return start_positions[1:] - start_positions[0:-1]
+
+
+def split_items_evenly(n: int, sub_n: int) -> List[int]:
+    """Evenly split `n` of items into groups, each with roughly `sublength` elements
+
+    .. testsetup::
+
+        from litebird_sim.mapping import split
+
+    .. testcode::
+
+        # Divide 10 items into groups, so that each of them will contain
+        # roughly 4 items
+        print(split(10, 4))
+
+    .. testoutput::
+
+        [3 3 4]
+
+    """
+    assert sub_n > 0, "sub_n={0} is not positive".format(sub_n)
+    assert sub_n < n, "sub_n={0} is not smaller than n={1}".format(sub_n, n)
+
+    return _split_items_into_n_segments(n=n, num_of_segments=int(np.ceil(n / sub_n)))
