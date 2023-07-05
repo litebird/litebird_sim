@@ -1,4 +1,13 @@
 # -*- encoding: utf-8 -*-
+
+# The implementation of the destriping algorithm provided here is based on the paper
+# «Destriping CMB temperature and polarization maps» by Kurki-Suonio et al. 2009,
+# A&A 506, 1511–1539 (2009), https://dx.doi.org/10.1051/0004-6361/200912361
+#
+# It is important to have that paper at hand while reading this code, as many
+# functions and variable defined here use the same letters and symbols of that
+# paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -6,15 +15,10 @@ from numba import njit
 import healpy as hp
 
 from typing import Union, List, Any
-
 from .observations import Observation
-
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
-
 from . import mpi
-
 from ducc0.healpix import Healpix_Base
-
 from .healpix import nside_to_npix
 
 COND_THRESHOLD = 1e10
