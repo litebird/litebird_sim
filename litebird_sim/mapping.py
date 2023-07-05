@@ -11,10 +11,12 @@
 from dataclasses import dataclass
 
 import numpy as np
+import numpy.typing as npt
 from numba import njit
 import healpy as hp
 
-from typing import Union, List, Any
+from .mpi import MPI_ENABLED, MPI_COMM_WORLD
+from typing import Union, List, Any, Optional
 from .observations import Observation
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 from . import mpi
@@ -35,14 +37,15 @@ class MapMakerResult:
 
     - ``binned_map``: Healpix map containing the binned value for each pixel
 
-    - ``destriped_map``: destriped Healpix map (if a destriper has been used)
+    - ``destriped_map``: destriped Healpix map (if a toast_destriper has been used)
 
-    - ``npp``: covariance matrix elements for each pixel in the map
+    - ``npp``: covariance matrix elements for each pixel in the map. It is an
+               array of shape `(12 * nside * nside, 3, 3)`
 
     - ``invnpp``: inverse of the covariance matrix element for each
       pixel in the map
 
-    - ``rcond``: pixel condition number, stored as an Healpix map
+    - ``rcond``: pixel condition number, stored as a Healpix map
 
     - ``coordinate_system``: the coordinate system of the output maps
       (a :class:`.CoordinateSistem` object)
@@ -76,7 +79,9 @@ def _solve_mapmaking(ata, atd):
 
 
 @njit
-def _accumulate_map_and_info(tod, pix, psi, weights, info, additional_component: bool):
+def _accumulate_samples_and_build_nobs_matrix(
+    tod, pix, psi, weights, info, additional_component: bool
+):
     # Fill the upper triangle of the information matrix and use the lower
     # triangle for the RHS of the map-making equation:
     #
@@ -145,56 +150,19 @@ def _extract_map_and_fill_info(info):
     return rhs
 
 
-def make_bin_map(
+def _normalize_observations_and_pointings(
     obs: Union[Observation, List[Observation]],
-    nside: int,
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-    do_covariance: bool = False,
-    output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    components: List[str] = ["tod"],
-) -> MapMakerResult:
-    """Bin Map-maker
-
-    Map a list of observations
-
-    Args:
-        obs (list of :class:`Observations`): observations to be mapped. They
-            are required to have the following attributes as arrays
-
-            * `pointings`: the pointing information (in radians) for each tod
-               sample
-            * `psi`: the polarization angle (in radians) for each tod sample
-            * any attribute listed in `components` (by default, `tod`) and
-              containing the TOD(s) to be binned together
-
-            If the observations are distributed over some communicator(s), they
-            must share the same group processes.
-            If pointings and psi are not included in the observations, they can
-            be provided through an array (or a list of arrays) of dimension
-            (Ndetectors x Nsamples x 3), containing theta, phi and psi
-        nside (int): HEALPix nside of the output map
-        pointings (array or list of arrays): optional, external pointing
-            information, if not included in the observations
-        do_covariance (bool): optional, if true it returns also covariance
-        output_coordinate_system (:class:`.CoordinateSystem`): the coordinates
-            to use for the output map
-        components (list[str]): list of components to include in the map-making.
-            The default is just to use the field ``tod`` of each
-            :class:`.Observation` object.
-
-    Returns:
-        array: T, Q, U maps (stacked). The shape is `(3, 12 * nside * nside)`.
-            All the detectors of all the observations contribute to the map.
-            If the observations are distributed over some communicator(s), all
-            the processes (contribute and) hold a copy of the map.
-            The covariance matrix is an array of shape
-            `(12 * nside * nside, 3, 3)`
-    """
-
-    hpx = Healpix_Base(nside, "RING")
-
-    n_pix = nside_to_npix(nside)
-    info = np.zeros((n_pix, 3, 3))
+    pointings: Union[np.ndarray, List[np.ndarray], None],
+):
+    # In map-making routines, we always rely on three local variables:
+    #
+    # - obs_list contains a list of the observations to be used in the
+    #   map-making process. Unlike the `obs` parameters, this is
+    #   *always* a list, even if there is just one observation
+    #
+    # - ptg_list: a list of pointing matrices, one per each observation
+    #
+    # - psi_list: a list of pointing angle vectors, one per each observation
 
     if pointings is None:
         if isinstance(obs, Observation):
@@ -227,32 +195,76 @@ def make_bin_map(
             ptg_list = [point[:, :, 0:2] for point in pointings]
             psi_list = [point[:, :, 2] for point in pointings]
 
+    return obs_list, ptg_list, psi_list
+
+
+def _compute_pixel_indices(
+    hpx: Healpix_Base,
+    pointings: npt.ArrayLike,
+    psi: npt.ArrayLike,
+    output_coordinate_system: CoordinateSystem,
+):
+    """Compute the index of each pixel and its attack angle
+
+    The routine returns a pair of arrays whose size is `num_of_sample`: the first
+    one contains the index of the pixels in the Healpix map represented by `hpx`,
+    and the second the value of the ψ angle (in radians). The coordinates used are
+    the ones specified by `output_coordinate_system`.
+
+    The code assumes that `pointings` is a tensor of rank ``(N_d, N_t, 2)``, with
+    ``N_d`` the number of detectors and ``N_t`` the number of samples in the TOD,
+    and the last rank represents the θ and φ angles (in radians) expressed in the
+    Ecliptic reference frame.
+    """
+    num_of_detectors, num_of_samples, _ = pointings.shape
+    pixidx_all = np.empty((num_of_detectors, num_of_samples), dtype=int)
+    polang_all = np.empty((num_of_detectors, num_of_samples), dtype=np.float64)
+
+    for idet in range(num_of_detectors):
+        if output_coordinate_system == CoordinateSystem.Galactic:
+            curr_pointings_det, polang_all[idet] = rotate_coordinates_e2g(
+                pointings[idet, :, :], psi[idet, :]
+            )
+        else:
+            curr_pointings_det = pointings[idet, :, :]
+            polang_all[idet] = psi[idet, :]
+
+        pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
+
+    if output_coordinate_system == CoordinateSystem.Galactic:
+        # free curr_pointings_det if the output map is already in Galactic coordinates
+        del curr_pointings_det
+
+    return pixidx_all, polang_all
+
+
+def _build_nobs_matrix(
+    nside: int,
+    obs_list: List[Observation],
+    ptg_list: List[npt.ArrayLike],
+    psi_list: List[npt.ArrayLike],
+    output_coordinate_system: CoordinateSystem,
+    components: List[str],
+) -> npt.ArrayLike:
+    hpx = Healpix_Base(nside, "RING")
+    n_pix = nside_to_npix(nside)
+
+    nobs_matrix = np.zeros((n_pix, 3, 3))
+
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
         try:
             weights = cur_obs.sampling_rate_hz * cur_obs.net_ukrts**2
         except AttributeError:
             weights = np.ones(cur_obs.n_detectors)
 
+        pixidx_all, polang_all = _compute_pixel_indices(
+            hpx=hpx,
+            pointings=cur_ptg,
+            psi=cur_psi,
+            output_coordinate_system=output_coordinate_system,
+        )
+
         first_component = getattr(cur_obs, components[0])
-        ndets = first_component.shape[0]
-        pixidx_all = np.empty_like(first_component, dtype=int)
-        polang_all = np.empty_like(first_component)
-
-        for idet in range(ndets):
-            if output_coordinate_system == CoordinateSystem.Galactic:
-                curr_pointings_det, polang_all[idet] = rotate_coordinates_e2g(
-                    cur_ptg[idet, :, :], cur_psi[idet, :]
-                )
-            else:
-                curr_pointings_det = cur_ptg[idet, :, :]
-                polang_all[idet] = cur_psi[idet, :]
-
-            pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
-
-        if output_coordinate_system == CoordinateSystem.Galactic:
-            # free curr_pointings_det in case of output_map_in_galactic
-            del curr_pointings_det
-
         for idx, cur_component_name in enumerate(components):
             cur_component = getattr(cur_obs, cur_component_name)
             assert (
@@ -260,12 +272,12 @@ def make_bin_map(
             ), 'The two TODs "{}" and "{}" do not have a matching shape'.format(
                 components[0], cur_component_name
             )
-            _accumulate_map_and_info(
+            _accumulate_samples_and_build_nobs_matrix(
                 cur_component,
                 pixidx_all,
                 polang_all,
                 weights,
-                info,
+                nobs_matrix,
                 additional_component=idx > 0,
             )
 
@@ -280,19 +292,77 @@ def make_bin_map(
             for i in range(len(obs_list) - 1)
         ]
     ):
-        info = obs_list[0].comm.allreduce(info, mpi.MPI.SUM)
+        nobs_matrix = obs_list[0].comm.allreduce(nobs_matrix, mpi.MPI.SUM)
     else:
         raise NotImplementedError(
             "All observations must be distributed over the same MPI groups"
         )
 
-    rhs = _extract_map_and_fill_info(info)
+    return nobs_matrix
 
-    _solve_mapmaking(info, rhs)
+
+def make_bin_map(
+    obs: Union[Observation, List[Observation]],
+    nside: int,
+    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+    components: List[str] = ["tod"],
+) -> MapMakerResult:
+    """Bin Map-maker
+
+    Map a list of observations
+
+    Args:
+        obs (list of :class:`Observations`): observations to be mapped. They
+            are required to have the following attributes as arrays
+
+            * `pointings`: the pointing information (in radians) for each tod
+               sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
+               with ``N_d`` number of detectors and ``N_t`` number of
+               samples in the TOD.
+            * any attribute listed in `components` (by default, `tod`) and
+              containing the TOD(s) to be binned together
+
+            If the observations are distributed over some communicator(s), they
+            must share the same group processes.
+            If pointings and psi are not included in the observations, they can
+            be provided through an array (or a list of arrays) of dimension
+            (Ndetectors x Nsamples x 3), containing theta, phi and psi
+        nside (int): HEALPix nside of the output map
+        pointings (array or list of arrays): optional, external pointing
+            information, if not included in the observations
+        do_covariance (bool): optional, if true it returns also covariance
+        output_coordinate_system (:class:`.CoordinateSystem`): the coordinates
+            to use for the output map
+        components (list[str]): list of components to include in the map-making.
+            The default is just to use the field ``tod`` of each
+            :class:`.Observation` object.
+
+    Returns:
+        An instance of the class :class:`.MapMakerResult`. If the observations are
+            distributed over MPI Processes, all of them get a copy of the same object.
+    """
+
+    obs_list, ptg_list, psi_list = _normalize_observations_and_pointings(
+        obs=obs, pointings=pointings
+    )
+
+    nobs_matrix = _build_nobs_matrix(
+        nside=nside,
+        obs_list=obs_list,
+        ptg_list=ptg_list,
+        psi_list=psi_list,
+        output_coordinate_system=output_coordinate_system,
+        components=components,
+    )
+
+    rhs = _extract_map_and_fill_info(nobs_matrix)
+
+    _solve_mapmaking(nobs_matrix, rhs)
 
     return MapMakerResult(
         binned_map=rhs.T,
-        invnpp=info,
+        invnpp=nobs_matrix,
         coordinate_system=output_coordinate_system,
     )
 
@@ -301,7 +371,7 @@ def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
     """Divide a quantity `length` into chunks, each roughly of the same length
 
     This low-level function is used to determine how many samples in a TOD should be
-    collected by the destriper within the same baseline.
+    collected by the toast_destriper within the same baseline.
 
     .. testsetup::
 
@@ -334,13 +404,13 @@ def split_items_evenly(n: int, sub_n: int) -> List[int]:
 
     .. testsetup::
 
-        from litebird_sim.mapping import split
+        from litebird_sim.mapping import split_items_evenly
 
     .. testcode::
 
         # Divide 10 items into groups, so that each of them will contain
         # roughly 4 items
-        print(split(10, 4))
+        print(split_items_evenly(10, 4))
 
     .. testoutput::
 
@@ -351,3 +421,36 @@ def split_items_evenly(n: int, sub_n: int) -> List[int]:
     assert sub_n < n, "sub_n={0} is not smaller than n={1}".format(sub_n, n)
 
     return _split_items_into_n_segments(n=n, num_of_segments=int(np.ceil(n / sub_n)))
+
+
+@dataclass
+class DestriperParameters:
+    nside: int = 256
+    output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic
+
+
+def destripe(
+    obs: Union[Observation, List[Observation]],
+    pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]],
+    params=DestriperParameters(),
+    components: Optional[List[str]] = None,
+) -> MapMakerResult:
+    if not components:
+        components = ["tod"]
+
+    obs_list, ptg_list, psi_list = _normalize_observations_and_pointings(
+        obs=obs, pointings=pointings
+    )
+
+    nobs_matrix = _build_nobs_matrix(
+        nside=params.nside,
+        obs_list=obs_list,
+        ptg_list=ptg_list,
+        psi_list=psi_list,
+        output_coordinate_system=params.output_coordinate_system,
+        components=components,
+    )
+
+    print(nobs_matrix)
+
+    return MapMakerResult()

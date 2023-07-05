@@ -41,10 +41,10 @@ def test_accumulate_map_and_info():
     pix = np.expand_dims(pix, axis=0)
 
     # Now add both components to the TOD
-    mapping._accumulate_map_and_info(
+    mapping._accumulate_samples_and_build_nobs_matrix(
         first_tod, pix, psi, weights, info, additional_component=False
     )
-    mapping._accumulate_map_and_info(
+    mapping._accumulate_samples_and_build_nobs_matrix(
         second_tod, pix, psi, weights, info, additional_component=True
     )
 
