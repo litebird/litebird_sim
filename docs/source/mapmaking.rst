@@ -95,28 +95,30 @@ It assumes white noise and each detector gets weighted by
 :math:`1 / NET^2`. If the pointing information is not provided in the 
 observation, it can be passed through the optional argument `pointings`, 
 with a syntax similar to :func:`.scan_map_in_observations`.
-The output map is in Galactic coordinates, unless the optional prameter
-`output_map_in_galactic` is set to False. If the parameter `do_covariance` 
-is True, it return also the white noise covariance per pixel in an array 
-of shape `(12 * nside * nside, 3, 3)`. This is how it should be called::
+The output map is in Galactic coordinates, but you can specify the
+coordinate system you want via the parameter `output_coordinates`.
+This is how it should be called::
 
-    map, cov = lbs.make_bin_map(obs, 128, do_covariance=True)
+    result = lbs.make_bin_map(obs, 128, do_covariance=True)
+
+The return object is an instance of the class :class:`.DestriperResult`
+and contains both the I/Q/U maps and the covariance matrix.
 
 The :func:`.make_bin_map` has a high level interface in the class
 :class:`.Simulation` that bins the content of the observations into maps
 The syntax is identical to :func:`.make_bin_map`::
 
-    map, cov = sim.binned_map(nside=nside, do_covariance=True)
+    result = sim.binned_map(nside=nside)
 
 
 Destriper
 ---------
 
 To use the TOAST destriper, you must create a
-:class:`.DestriperParameters` object that specifies which input
-parameters (apart from the timelines) should be used::
+:class:`.Toast2DestriperParameters` object that specifies which
+input parameters (apart from the timelines) should be used::
   
-    params = lbs.DestriperParameters(
+    params = lbs.Toast2DestriperParameters(
         nside=16,
         return_hit_map=True,
         return_binned_map=True,
@@ -131,9 +133,10 @@ looking at a specific pixel), the *binned map* (the same map that
 would be produced by the *binner*, see above), and the *destriped map*
 (the most important result of the computation, of course).
 
-To run the destriper, you simply call :func:`.destripe`::
+To run the TOAST2 destriper, you simply call
+:func:`.destripe_with_toast2`::
 
-  result = lbs.destripe(sim, params)
+  result = lbs.destripe_with_toast2(sim, params)
 
 (The pointing information is included in the :class:`.Observation`,
 alternatively pointings can be provided as a list of numpy arrays)
@@ -396,7 +399,7 @@ API reference
     :undoc-members:
     :show-inheritance:
 
-.. automodule:: litebird_sim.destriper
+.. automodule:: litebird_sim.toast_destriper
     :members:
     :undoc-members:
     :show-inheritance:

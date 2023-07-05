@@ -25,8 +25,8 @@ toast.mpi.use_mpi = MPI_ENABLED
 
 
 @dataclass
-class DestriperParameters:
-    """Parameters used by the TOAST destriper to produce a map.
+class Toast2DestriperParameters:
+    """Parameters used by the TOAST toast_destriper to produce a map.
 
     The list of fields in this dataclass is the following:
 
@@ -318,18 +318,18 @@ class _Toast2FakeData:
 def destripe_observations(
     observations,
     base_path: Path,
-    params: DestriperParameters(),
+    params: Toast2DestriperParameters(),
     pointings: Union[List[np.ndarray], None] = None,
     component: str = "tod",
 ) -> MapMakerResult:
-    """Run the destriper on the observations in a TOD
+    """Run the toast_destriper on the observations in a TOD
 
-    This function is a low-level wrapper around the TOAST destriper.
+    This function is a low-level wrapper around the TOAST toast_destriper.
     For daily use, you should prefer the :func:`.destripe` function,
     which takes its parameters from :class:`.Simulation` object and
     is easier to call.
 
-    This function runs the TOAST destriper on a set of `observations`
+    This function runs the TOAST toast_destriper on a set of `observations`
     (instances of the :class:`.Observation` class). The pointing
     information can be stored in the `observations` or passed through
     the variable `pointings`. The TOD is read from the field of the
@@ -338,7 +338,7 @@ def destripe_observations(
 
     The `params` parameter is an instance of the class
     :class:`.DestriperParameters`, and it specifies the way the
-    destriper will be run and which kind of output is desired. The
+    toast_destriper will be run and which kind of output is desired. The
     `base_path` parameter specifies where the Healpix FITS map will be
     saved. (TOAST's mapmaker cannot produce the maps in memory and
     must save them in FITS files.)
@@ -426,22 +426,22 @@ def destripe_observations(
     return result
 
 
-def destripe(
+def destripe_with_toast2(
     sim,
-    params=DestriperParameters(),
+    params=Toast2DestriperParameters(),
     pointings: Union[List[np.ndarray], None] = None,
     component: str = "tod",
 ) -> MapMakerResult:
-    """Run the destriper on a set of TODs.
+    """Run the toast_destriper on a set of TODs.
 
-    Run the TOAST destriper on time-ordered data, producing one or
+    Run the TOAST toast_destriper on time-ordered data, producing one or
     more Healpix maps. The `instrument` parameter must be an instance
     of the :class:`.Instrument` class and is used to convert pointings
     in Ecliptic coordinates, as it specifies the reference frame of
     the instrument hosting the detectors that produced the TODs. The
     `params` parameter is an instance of the
     :class:`.DestriperParameters` class, and it can be used to tune
-    the way the TOAST destriper works.
+    the way the TOAST toast_destriper works.
 
     The function returns an instance of the class
     :class:`.DestriperResult`, which will contain only the maps
@@ -449,7 +449,7 @@ def destripe(
     default is only to return the destriped map in ``destriped_map``
     and set to ``None`` all the other fields.)
 
-    The destriper will use *all* the observations in the `sim`
+    The toast_destriper will use *all* the observations in the `sim`
     parameter (an instance of the :class:`.Simulation` class); if you
     to run them only on a subset of observations (e.g., only the
     channels belonging to one frequency), you should use the function

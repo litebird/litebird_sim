@@ -73,9 +73,9 @@ from .scanning import (
     get_ecl2det_quaternions,
 )
 from .mapping import MapMakerResult, make_bin_map
-from .destriper import (
-    destripe,
-    DestriperParameters,
+from .toast_destriper import (
+    destripe_with_toast2,
+    Toast2DestriperParameters,
 )
 from .simulations import (
     Simulation,
@@ -206,8 +206,8 @@ __all__ = [
     "make_bin_map",
     "MapMakerResult",
     # destripe.py
-    "DestriperParameters",
-    "destripe",
+    "Toast2DestriperParameters",
+    "destripe_with_toast2",
     # simulations.py
     "Simulation",
     "MpiObservationDescr",

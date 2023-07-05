@@ -11,7 +11,7 @@ import jinja2
 import litebird_sim
 from . import DetectorInfo
 from .coordinates import CoordinateSystem
-from .destriper import DestriperParameters
+from .toast_destriper import Toast2DestriperParameters
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 from .simulations import Simulation, MpiDistributionDescr
@@ -146,7 +146,7 @@ def _combine_file_dictionaries(file_dictionaries):
 
 def save_simulation_for_madam(
     sim: Simulation,
-    params: DestriperParameters,
+    params: Toast2DestriperParameters,
     detectors: Optional[List[DetectorInfo]] = None,
     use_gzip: bool = False,
     output_path: Optional[Union[str, Path]] = None,

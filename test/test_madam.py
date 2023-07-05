@@ -190,7 +190,7 @@ def run_test_on_madam(
         cur_obs.tod[:] = float(lbs.MPI_COMM_WORLD.rank)
         cur_obs.fg_tod = np.zeros_like(cur_obs.tod) + 1000 + lbs.MPI_COMM_WORLD.rank
 
-    params = lbs.DestriperParameters(
+    params = lbs.Toast2DestriperParameters(
         nside=16,
         nnz=3,
         baseline_length_s=100,

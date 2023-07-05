@@ -46,11 +46,11 @@ for curobs in sim.observations:
     curobs.tod *= 0.0
     curobs.tod += rs.randn(*curobs.tod.shape)
 
-params = lbs.DestriperParameters(
+params = lbs.Toast2DestriperParameters(
     nside=16, return_hit_map=True, return_binned_map=True, return_destriped_map=True
 )
 
-result = lbs.destripe(sim, params=params)
+result = lbs.destripe_with_toast2(sim, params=params)
 
 import healpy
 

@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-"Test the interface to the TOAST destriper"
+"Test the interface to the TOAST toast_destriper"
 
 from pathlib import Path
 import numpy as np
@@ -19,7 +19,7 @@ COORDINATE_SYSTEM_STR = {
 
 
 def test_basic_functionality(tmp_path):
-    # This tests checks that the destriper «does the right thing» with a
+    # This tests checks that the toast_destriper «does the right thing» with a
     # very simple TOD that is created by hand, i.e., where pointings and
     # TOD samples are created manually one by one instead of resorting
     # to objects like "SpinningScanningStrategy" and noise generators.
@@ -71,7 +71,7 @@ def test_basic_functionality(tmp_path):
     # Now create a simple TOD
 
     # Let's start from the pixels we're going to observe. Note that we
-    # want many repetitions for the destriper to work correctly!
+    # want many repetitions for the toast_destriper to work correctly!
     pixidx = np.array([0, 0, 1, 0, 1, 2, 2, 0, 2], dtype=np.int8)
     assert len(pixidx) == num_of_samples
 
@@ -98,7 +98,7 @@ def test_basic_functionality(tmp_path):
         num=num_of_samples,
     )
 
-    param_noise_madam = lbs.DestriperParameters(
+    param_noise_madam = lbs.Toast2DestriperParameters(
         nside=nside,
         nnz=1,  # Compute just I
         baseline_length_s=samples_per_baseline / sampling_frequency_hz,
@@ -110,12 +110,12 @@ def test_basic_functionality(tmp_path):
     )
 
     # The call to round(10) means that we clip to zero those samples whose
-    # value is negligible (e.g., 4e-16). As the destriper is going to
+    # value is negligible (e.g., 4e-16). As the toast_destriper is going to
     # overwrite the TOD, we keep a copy in "input_tod"
     input_tod = np.copy(sim.observations[0].full_tod).round(10)
 
-    # Run the destriper and modify the TOD in place
-    result = lbs.destripe(
+    # Run the toast_destriper and modify the TOD in place
+    result = lbs.destripe_with_toast2(
         sim=sim,
         params=param_noise_madam,
         component="full_tod",
@@ -124,7 +124,7 @@ def test_basic_functionality(tmp_path):
     # Let's retrieve the TOD and clip small values as above
     output_tod = np.copy(sim.observations[0].full_tod).round(10)
 
-    # These are the baselines computed by the destriper (we must compute
+    # These are the baselines computed by the toast_destriper (we must compute
     # them manually, because unfortunately TOAST2 does not save them)
     computed_baselines = input_tod - output_tod
 
@@ -135,7 +135,7 @@ def test_basic_functionality(tmp_path):
     mismatch = computed_baselines - expected_baselines
     assert np.allclose(mismatch, mismatch[0])
 
-    # Compute the expected hit map and check that the destriper got it
+    # Compute the expected hit map and check that the toast_destriper got it
     # right
     expected_hit_map = np.bincount(pixidx, minlength=len(result.hit_map))
     assert np.allclose(expected_hit_map, result.hit_map)
@@ -189,7 +189,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
         cur_obs.tod *= 0.0
         cur_obs.tod += rs.randn(*cur_obs.tod.shape)
 
-    params = lbs.DestriperParameters(
+    params = lbs.Toast2DestriperParameters(
         nside=16,
         nnz=3,
         baseline_length_s=100,
@@ -203,7 +203,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
         return_rcond=True,
     )
 
-    results = lbs.destripe(sim, params=params)
+    results = lbs.destripe_with_toast2(sim, params=params)
     assert results.coordinate_system == coordinates
 
     ref_map_path = Path(__file__).parent / "destriper_reference"
@@ -293,9 +293,9 @@ def test_destriper_galactic(tmp_path):
 
 
 def test_destriper_coordinate_consistency(tmp_path):
-    # Here we check that MBS uses the same coordinate system as the destriper
+    # Here we check that MBS uses the same coordinate system as the toast_destriper
     # in «Galactic» mode: specifically, we create a noiseless TOD from a CMB
-    # map in Galactic coordinates and run the destriper asking to use Galactic
+    # map in Galactic coordinates and run the toast_destriper asking to use Galactic
     # coordinates again. Since the TOD was noiseless, the binned map should be
     # the same as the input map, except for two features:
     #
@@ -341,7 +341,7 @@ def test_destriper_coordinate_consistency(tmp_path):
     # We create two detectors, whose polarization angles are separated by π/2
     sim.create_observations(
         detectors=detectors,
-        dtype_tod=np.float64,  # Needed if you use the TOAST destriper
+        dtype_tod=np.float64,  # Needed if you use the TOAST toast_destriper
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         split_list_over_processes=False,
     )
@@ -361,7 +361,7 @@ def test_destriper_coordinate_consistency(tmp_path):
 
     lbs.scan_map_in_observations(obs=sim.observations, maps=healpix_maps)
 
-    params = lbs.DestriperParameters(
+    params = lbs.Toast2DestriperParameters(
         nside=healpy.npix2nside(len(healpix_maps[detectors[0].name][0])),
         coordinate_system=lbs.CoordinateSystem.Galactic,
         return_hit_map=True,
@@ -369,11 +369,11 @@ def test_destriper_coordinate_consistency(tmp_path):
         return_destriped_map=True,
     )
 
-    result = lbs.destripe(sim, params)
+    result = lbs.destripe_with_toast2(sim, params)
 
     inp = healpix_maps[detectors[0].name]  # Input CMB map in Galactic coordinates
-    out = result.binned_map  # The binned map produced by the destriper
-    hit = result.hit_map  # The hit map produced by the destriper
+    out = result.binned_map  # The binned map produced by the toast_destriper
+    hit = result.hit_map  # The hit map produced by the toast_destriper
 
     # We do not consider unseen pixels nor pixels that have not been properly
     # constrained by our mock detector
