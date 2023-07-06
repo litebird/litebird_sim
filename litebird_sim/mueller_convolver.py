@@ -62,7 +62,7 @@ class MuellerConvolver:
         ncomp can be 1, 3, or 4, for T, TEB, TEBV components, respectively.
         The components have the a_lm format used by healpy
     mueller : np.ndarray((4,4), dtype=np.float64)
-        Mueller matrix of the optical elemen in front of the detector
+        Mueller matrix of the optical element in front of the detector
     single_precision : bool
         if True, store internal data in single precision, else double precision
     epsilon : float
