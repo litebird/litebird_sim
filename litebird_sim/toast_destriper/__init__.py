@@ -3,12 +3,11 @@ from collections import namedtuple
 from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import Any
 import numpy as np
 from ducc0 import healpix
 from astropy.time import Time
 
-from typing import Union, List
+from typing import Union, List, Any
 
 import healpy  # We need healpy.read_map
 
@@ -19,7 +18,6 @@ from toast.tod.interval import Interval
 import toast.mpi
 
 from litebird_sim.coordinates import CoordinateSystem, rotate_coordinates_e2g
-from litebird_sim.mapping import MapMakerResult
 
 toast.mpi.use_mpi = MPI_ENABLED
 
@@ -315,14 +313,38 @@ class _Toast2FakeData:
         self._metadata[key] = value
 
 
-def destripe_observations(
+@dataclass
+class Toast2DestriperResult:
+    """Result of a call to the :func:`.make_bin_map` function
+
+    This dataclass has the following fields:
+
+    - ``binned_map``: Healpix map containing the binned value for each pixel
+
+    - ``invnpp``: inverse of the covariance matrix element for each
+      pixel in the map. It is an array of shape `(12 * nside * nside, 3, 3)`
+
+    - ``coordinate_system``: the coordinate system of the output maps
+      (a :class:`.CoordinateSistem` object)
+    """
+
+    hit_map: Any = None
+    binned_map: Any = None
+    destriped_map: Any = None
+    npp: Any = None
+    invnpp: Any = None
+    rcond: Any = None
+    coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
+
+
+def destripe_observations_with_toast2(
     observations,
     base_path: Path,
     params: Toast2DestriperParameters(),
     pointings: Union[List[np.ndarray], None] = None,
     component: str = "tod",
-) -> MapMakerResult:
-    """Run the toast_destriper on the observations in a TOD
+) -> Toast2DestriperResult:
+    """Run the TOAST2 destriper on the observations in a TOD
 
     This function is a low-level wrapper around the TOAST toast_destriper.
     For daily use, you should prefer the :func:`.destripe` function,
@@ -379,7 +401,7 @@ def destripe_observations(
     if MPI_ENABLED:
         MPI_COMM_WORLD.barrier()
 
-    result = MapMakerResult()
+    result = Toast2DestriperResult()
 
     result.coordinate_system = params.coordinate_system
 
@@ -431,7 +453,7 @@ def destripe_with_toast2(
     params=Toast2DestriperParameters(),
     pointings: Union[List[np.ndarray], None] = None,
     component: str = "tod",
-) -> MapMakerResult:
+) -> Toast2DestriperResult:
     """Run the toast_destriper on a set of TODs.
 
     Run the TOAST toast_destriper on time-ordered data, producing one or
@@ -458,7 +480,7 @@ def destripe_with_toast2(
 
     """
 
-    return destripe_observations(
+    return destripe_observations_with_toast2(
         observations=sim.observations,
         base_path=sim.base_path,
         params=params,

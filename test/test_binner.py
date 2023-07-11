@@ -4,7 +4,7 @@ import numpy as np
 import healpy as hp
 import astropy.units as u
 import litebird_sim as lbs
-import litebird_sim.mapping as mapping
+import litebird_sim.mapmaking.binner as mapping
 from litebird_sim import CoordinateSystem
 
 

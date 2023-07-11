@@ -30,7 +30,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
-from .mapping import make_bin_map
+from litebird_sim.mapmaking.binner import make_bin_map
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
@@ -1350,7 +1350,6 @@ class Simulation:
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         append_to_report: bool = True,
     ):
-
         """
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
@@ -1409,7 +1408,6 @@ class Simulation:
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-
             dictionary = {
                 "sampling_dist": "Gaussian" if drift_params.sampling_dist else "Uniform"
             }

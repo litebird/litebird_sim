@@ -13,6 +13,7 @@ import numpy as np
 from ducc0.healpix import Healpix_Base
 
 import litebird_sim as lbs
+from litebird_sim import CoordinateSystem, MPI_COMM_WORLD
 
 # We define the simplest quantities directly, as global variables
 
@@ -33,20 +34,24 @@ INPUT_MAPS = np.array(
     ]
 )
 
+# These seven samples should represent the white-noise component. We pick them
+# small enough not to alter the result of the destriping problem too much
 NOISE_SAMPLES = np.array(
     [
-        0.00407789,
-        0.01652727,
-        -0.00816626,
-        -0.00212623,
-        0.00370481,
-        -0.01087152,
-        -0.00897898,
+        -2.23302888e-08,
+        1.78939315e-07,
+        1.27574038e-07,
+        -3.98914056e-09,
+        -8.57761576e-08,
+        -8.53485713e-08,
+        -1.29047524e-07,
     ]
 )
 assert len(NOISE_SAMPLES) == NUM_OF_SAMPLES
 
 # These are the pixel observed by each of the seven samples in the TOD
+# NOTE: if you change this, be sure there are no gaps. For instance,
+# an array like [0, 3, 3, 0, 1] would be invalid, as pixel #2 is missing.
 PIXEL_INDEXES = np.array(
     [
         0,
@@ -63,6 +68,18 @@ assert len(PIXEL_INDEXES) == NUM_OF_SAMPLES
 
 
 # These are the attack angles for the seven samples in the TOD
+# If you change these, be sure to properly sample each pixel
+# listed in PIXEL_INDEXES (at least three non-degenerate angles
+# per pixel must be provided).
+#
+# Since we want to test the code with 2 MPI processes and we
+# rely on the ability of the Observation class to split TODs
+# among processes, we cannot tell how many samples should go
+# in the first baseline and how many in the second one: either
+# it will be 4 in rank #0 and 3 in rank #1, or vice versa.
+# Therefore, we choose the angles so that the N_obs matrix
+# is non-singular for the two possible baseline lengths
+# [4, 3] and [3, 4].
 PSI_ANGLES = np.array(
     [
         np.deg2rad(90.0),  # Pixel #1  --*-------
@@ -75,24 +92,6 @@ PSI_ANGLES = np.array(
     ]
 )
 assert len(PSI_ANGLES) == NUM_OF_SAMPLES
-
-
-# This array associates each sample in the TOD with the baseline index.
-# Thus, the first baseline a₀ covers the first four samples in the TOD,
-# and the next baseline a₁ covers the last three samples
-BASELINE_INDEXES = np.array(
-    [
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
-    ],
-    dtype="int",
-)
-assert len(BASELINE_INDEXES) == NUM_OF_SAMPLES
 
 
 # Note that the average of these values is *not* zero. Thus, the
@@ -108,6 +107,9 @@ class AnalyticSolution:
     num_of_samples: int = NUM_OF_SAMPLES
     num_of_baselines: int = NUM_OF_BASELINES
     num_of_pixels: int = NUM_OF_PIXELS
+    # Baseline indexes: array of NUM_OF_SAMPLES elements, where each
+    # element is the index in the BASELINE_VALUES array
+    baseline_indexes: Any = None
     # Pointing matrix (Eq. 2)
     P: Any = None
     # Noise covariance matrix (Eq. 5)
@@ -140,14 +142,27 @@ class AnalyticSolution:
     estimated_maps: Any = None
 
 
-def create_analytical_solution(sigma: float = 0.1) -> AnalyticSolution:
+def lower_triangular_to_matrix(coefficients):
+    return np.array(
+        [
+            [coefficients[0], 0.0, 0.0],
+            [coefficients[1], coefficients[2], 0.0],
+            [coefficients[3], coefficients[4], coefficients[5]],
+        ],
+        dtype=np.float64,
+    )
+
+
+def create_analytical_solution(
+    baseline_indexes, sigma: float = 0.1
+) -> AnalyticSolution:
     # Build the pointing matrix P (Eq. 2 of KurkiSuonio2009)
     P = np.zeros((NUM_OF_SAMPLES, 3 * NUM_OF_PIXELS))
 
     for i, pix_idx, psi in zip(range(NUM_OF_SAMPLES), PIXEL_INDEXES, PSI_ANGLES):
         P[i, 3 * pix_idx] = 1
-        P[i, 3 * pix_idx + 1] = np.cos(psi)
-        P[i, 3 * pix_idx + 2] = np.sin(psi)
+        P[i, 3 * pix_idx + 1] = np.cos(2 * psi)
+        P[i, 3 * pix_idx + 2] = np.sin(2 * psi)
 
     # Build the noise matrix
     Cw = np.eye(NUM_OF_SAMPLES) * (sigma**2)
@@ -155,7 +170,7 @@ def create_analytical_solution(sigma: float = 0.1) -> AnalyticSolution:
 
     # Build the baseline-projection matrix F (Eq. 3 of KurkiSuonio2009)
     F = np.zeros((NUM_OF_SAMPLES, NUM_OF_BASELINES))
-    for idx, baseline_idx in enumerate(BASELINE_INDEXES):
+    for idx, baseline_idx in enumerate(baseline_indexes):
         F[idx, baseline_idx] = 1
 
     # Build the TOD (Eq. 2+3 of KurkiSuonio2009)
@@ -175,6 +190,10 @@ def create_analytical_solution(sigma: float = 0.1) -> AnalyticSolution:
 
     # Here are the solutions to the destriping problem:
     # Eq. 16 and 17 of KurkiSuonio2009
+    # Since here we're looking for an analytical solution, we just
+    # compute D⁻¹ and get the solution, but in our destriper we use
+    # the conjugate gradient to retrieve an estimate for `a` (the
+    # baselines)
     estimated_a = np.linalg.inv(D) @ np.transpose(F) @ invCw @ Z @ y
     estimated_maps = invM @ np.transpose(P) @ invCw @ (y - F @ BASELINE_VALUES)
 
@@ -182,6 +201,7 @@ def create_analytical_solution(sigma: float = 0.1) -> AnalyticSolution:
         num_of_samples=NUM_OF_SAMPLES,
         num_of_baselines=NUM_OF_BASELINES,
         num_of_pixels=NUM_OF_PIXELS,
+        baseline_indexes=baseline_indexes,
         P=P,
         Cw=Cw,
         invCw=invCw,
@@ -201,11 +221,25 @@ def create_analytical_solution(sigma: float = 0.1) -> AnalyticSolution:
 
 
 def setup_simulation(sigma: float = 0.1) -> Tuple[lbs.Simulation, AnalyticSolution]:
-    sim = lbs.Simulation(start_time=0.0, duration_s=NUM_OF_SAMPLES)
+    """Create a Simulation object and a AnalyticSolution object that match
+
+    The Simulation object contains the same data as in AnalyticSolution. It
+    is meant to be used with the destriper to check that the result matches
+    the analytic solution."""
+
+    # The TOD is too short (7 samples) to be meaningful with more than 2 processes
+    assert lbs.MPI_COMM_WORLD.size <= 2
+
+    sim = lbs.Simulation(
+        start_time=0.0,
+        duration_s=NUM_OF_SAMPLES,
+    )
 
     sim.create_observations(
         detectors=[
-            lbs.DetectorInfo(sampling_rate_hz=1.0, name="Mock detector"),
+            lbs.DetectorInfo(
+                sampling_rate_hz=1.0, name="Mock detector", net_ukrts=sigma
+            ),
         ],
         tods=[
             lbs.TodDescription(
@@ -224,9 +258,10 @@ def setup_simulation(sigma: float = 0.1) -> Tuple[lbs.Simulation, AnalyticSoluti
                 description="The white-noise term `w` (Eq. 3 in KurkiSuonio2009)",
             ),
         ],
-        # Make sure that different MPI processes have different chunks of the TODs
-        n_blocks_time=lbs.MPI_COMM_WORLD.size,
+        num_of_obs_per_detector=sim.mpi_comm.size,
     )
+
+    assert len(sim.observations) > 0, f"no observations for process {sim.mpi_comm.size}"
 
     descr = sim.describe_mpi_distribution()
     num_of_samples = 0
@@ -236,14 +271,31 @@ def setup_simulation(sigma: float = 0.1) -> Tuple[lbs.Simulation, AnalyticSoluti
 
     assert num_of_samples == NUM_OF_SAMPLES
 
-    solution = create_analytical_solution(sigma=sigma)
+    if lbs.MPI_COMM_WORLD.size == 2:
+        baseline_runs = np.array(
+            [
+                cur_proc.observations[0].num_of_samples
+                for cur_proc in descr.mpi_processes
+            ]
+        )
+    else:
+        baseline_runs = np.array([4, 3])
+    assert len(baseline_runs) == 2
+
+    # Beware, the `*` and `+` operators used here work on Python arrays, not
+    # on NumPy objects! Their semantics differ!
+    baseline_indexes = np.array([0] * baseline_runs[0] + [1] * baseline_runs[1])
+
+    solution = create_analytical_solution(
+        baseline_indexes=baseline_indexes, sigma=sigma
+    )
 
     # Since we have a sampling frequency of 1 Hz and start counting time from 0,
     # the time of each sample is an integer that is identical to the sample index
     indexes = [int(x) for x in sim.observations[0].get_times()]
-    sim.observations[0].sky_signal = solution.sky_signal[indexes]
-    sim.observations[0].baseline = solution.baseline_signal[indexes]
-    sim.observations[0].white_noise = solution.noise_signal[indexes]
+    sim.observations[0].sky_signal = solution.sky_signal[indexes].reshape((1, -1))
+    sim.observations[0].baseline = solution.baseline_signal[indexes].reshape((1, -1))
+    sim.observations[0].white_noise = solution.noise_signal[indexes].reshape((1, -1))
 
     hpx = Healpix_Base(1, "RING")
     sim.observations[0].pointings = hpx.pix2ang(PIXEL_INDEXES).reshape((1, -1, 2))
@@ -252,9 +304,74 @@ def setup_simulation(sigma: float = 0.1) -> Tuple[lbs.Simulation, AnalyticSoluti
     return (sim, solution)
 
 
-def test_destriper():
+def test_nobs_matrix_construction():
+    from litebird_sim.mapmaking.common import _normalize_observations_and_pointings
+    from litebird_sim.mapmaking.destriper import _build_nobs_matrix
+
+    if lbs.MPI_COMM_WORLD.size > 2:
+        # This test can work only with 1 or 2 MPI processes, no more
+        return
+
+    nside = 1
     sim, expected_solution = setup_simulation(sigma=0.1)
 
-    descr = sim.describe_mpi_distribution()
-    print(descr)
-    assert 0 == 0
+    obs_list, ptg_list, psi_list = _normalize_observations_and_pointings(
+        obs=sim.observations,
+        pointings=None,
+    )
+
+    nobs_matrix_cholesky = _build_nobs_matrix(
+        nside=nside,
+        obs_list=obs_list,
+        ptg_list=ptg_list,
+        psi_list=psi_list,
+        output_coordinate_system=CoordinateSystem.Ecliptic,
+    )
+
+    assert (
+        expected_solution.M.shape[0] % 3 == 0
+    ), "Matrix M must have size (3n_pix, 3n_pix)"
+
+    for i in range(expected_solution.M.shape[0] // 3):
+        cur_M_expected = expected_solution.M[3 * i : 3 * i + 3, 3 * i : 3 * i + 3]
+        cur_cholesky_expected = np.linalg.cholesky(cur_M_expected)
+        # Here it is important that there are no gaps in the array
+        # `PIXEL_INDEXES` (see its definition above)
+        cur_cholesky_calculated = lower_triangular_to_matrix(
+            nobs_matrix_cholesky.nobs_matrix[i]
+        )
+
+        np.testing.assert_allclose(
+            actual=cur_cholesky_calculated, desired=cur_cholesky_expected
+        )
+
+
+def _test_destriper():
+    if lbs.MPI_COMM_WORLD.size > 2:
+        # This test can work only with 1 or 2 MPI processes, no more
+        return
+
+    sim, expected_solution = setup_simulation(sigma=0.1)
+
+    result = lbs.make_destriped_map(
+        obs=sim.observations,
+        pointings=None,
+        params=lbs.DestriperParameters(
+            nside=1,
+            output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+            samples_per_baseline=np.unique(
+                expected_solution.baseline_indexes, return_counts=True
+            )[1],
+        ),
+        components=["sky_signal", "baseline", "white_noise"],
+    )
+
+    # Remember that the destriping solution is unique but for the baseline
+    assert np.allclose(
+        result.baselines - np.mean(result.baselines),
+        expected_solution.estimated_a - np.mean(expected_solution.estimated_a),
+    )
+    assert np.allclose(
+        result.destriped_map - np.mean(result.destriped_map),
+        expected_solution.input_maps - np.mean(result.destriped_map),
+    )

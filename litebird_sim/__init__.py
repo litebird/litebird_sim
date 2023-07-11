@@ -72,7 +72,13 @@ from .scanning import (
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
 )
-from .mapping import MapMakerResult, make_bin_map
+from litebird_sim.mapmaking import (
+    make_bin_map,
+    BinnerResult,
+    DestriperParameters,
+    DestriperResult,
+    make_destriped_map,
+)
 from .toast_destriper import (
     destripe_with_toast2,
     Toast2DestriperParameters,
@@ -202,10 +208,12 @@ __all__ = [
     "apply_hwp_to_obs",
     "get_pointing_buffer_shape",
     "get_pointings",
-    # mapping.py
+    # mapmaking
     "make_bin_map",
-    "MapMakerResult",
-    # destripe.py
+    "BinnerResult",
+    "make_destriped_map",
+    "DestriperParameters",
+    # toast_destriper.py
     "Toast2DestriperParameters",
     "destripe_with_toast2",
     # simulations.py

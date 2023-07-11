@@ -394,7 +394,7 @@ be 100% automated.
 API reference
 -------------
 
-.. automodule:: litebird_sim.mapping
+.. automodule:: litebird_sim.mapmaking
     :members:
     :undoc-members:
     :show-inheritance:
