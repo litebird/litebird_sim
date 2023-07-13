@@ -191,8 +191,8 @@ def add_noise(
 def add_noise_to_observations(
     obs: Union[Observation, List[Observation]],
     noise_type: str,
+    random: np.random.Generator,
     scale: float = 1.0,
-    random: Union[np.random.Generator, None] = None,
     component: str = "tod",
 ):
     """Add noise of the defined type to the observations in obs
@@ -202,10 +202,11 @@ def add_noise_to_observations(
     of observations, which are typically taken from the field `observations` of a
     :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to
     pass the noise parameters here, as they are taken from the characteristics of
-    the detectors saved in `obs`.
+    the detectors saved in `obs`. A random number generator must be specified. A
+    typical choice is `sim.random`.
 
     By default, the noise is added to ``Observation.tod``. If you want to add it to some
-    other field of the :class:`.Observation` class, use `component`::
+    other field of the :class:`.Observation` class, use `component`:
 
         for cur_obs in sim.observations:
             # Allocate a new TOD for the noise alone
