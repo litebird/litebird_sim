@@ -1330,8 +1330,8 @@ class Simulation:
 
     def add_noise(
         self,
+        random: np.random.Generator,
         noise_type: str = "one_over_f",
-        random: Union[np.random.Generator, None] = None,
         append_to_report: bool = True,
     ):
         """Adds noise to tods.
@@ -1339,10 +1339,9 @@ class Simulation:
         This method must be called after having set the instrument,
         the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`.
+        The random number generator must be specified. A typical
+        choice is `sim.random`.
         """
-
-        if random is None:
-            random = self.random
 
         add_noise_to_observations(
             obs=self.observations,
