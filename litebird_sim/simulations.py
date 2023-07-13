@@ -252,6 +252,10 @@ class Simulation:
 
     Args:
 
+        random_seed (int or `None`): the seed used for the random number
+            generator. The user is required to set this parameter. By setting it to
+            `None`, the generation of random numbers will not be reproducible.
+
         base_path (str or `pathlib.Path`): the folder that will
             contain the output. If this folder does not exist and the
             user has sufficient rights, it will be created.
@@ -285,6 +289,7 @@ class Simulation:
 
     def __init__(
         self,
+        random_seed,
         base_path=None,
         name=None,
         mpi_comm=MPI_COMM_WORLD,
@@ -315,7 +320,7 @@ class Simulation:
 
         self.description = description
 
-        self.random = None
+        self.random_seed = random_seed
 
         self.tod_list = []  # type: List[TodDescription]
 
@@ -380,18 +385,18 @@ class Simulation:
             duration_s=self.duration_s,
         )
 
-        # Make sure that self.random is initialized to something meaningful.
-        # The user is free to call self.init_random() again later
-        self.init_random()
+        # Initialize self.random. The user is free to
+        # call self.init_random() again later
+        self.init_random(random_seed)
 
-    def init_random(self, seed=12345):
+    def init_random(self, random_seed):
         """
         Initialize a random number generator in the `random` field
 
         This function creates a random number generator and saves it in the
         field `random`. It should be used whenever a random number generator
         is needed in the simulation. It ensures that different MPI processes
-        have their own different seed, which stems from the parameter `seed`.
+        have their own different seed, which stems from the parameter `random_seed`.
         The generator is PCG64, and it is ensured that the sequences in
         each MPI process are independent.
 
@@ -406,7 +411,7 @@ class Simulation:
         # works even if MPI is not used
 
         # Create a list of N seeds, one per each MPI process
-        seed_seq = SeedSequence(seed).spawn(self.mpi_comm.size)
+        seed_seq = SeedSequence(random_seed).spawn(self.mpi_comm.size)
 
         # Pick the seed for this process
         self.random = Generator(PCG64(seed_seq[self.mpi_comm.rank]))
@@ -427,6 +432,9 @@ class Simulation:
             sim_params = self.parameters["simulation"]
         except KeyError:
             return
+
+        if not self.random_seed:
+            self.random_seed = sim_params.get("random_seed", None)
 
         if not self.base_path:
             self.base_path = Path(sim_params.get("base_path", Path()))
