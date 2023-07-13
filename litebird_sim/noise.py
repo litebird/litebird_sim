@@ -113,8 +113,8 @@ def add_noise(
     fknee_mhz,
     fmin_hz,
     alpha,
+    random,
     scale=1.0,
-    random=None,
 ):
     """
     Add noise (white or 1/f) to a 2D array of floating-point values
@@ -129,7 +129,7 @@ def add_noise(
     The parameter `scale` can be used to introduce measurement unit conversions when
     appropriate. Default units: [K].
 
-    The parameter `random`, if specified, must be a random number generator that
+    The parameter `random` must be specified and must be a random number generator that
     implements the ``normal`` method. You should typically use the `random` field
     of a :class:`.Simulation` object for this.
 
@@ -202,8 +202,9 @@ def add_noise_to_observations(
     of observations, which are typically taken from the field `observations` of a
     :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to
     pass the noise parameters here, as they are taken from the characteristics of
-    the detectors saved in `obs`. A random number generator must be specified. A
-    typical choice is `sim.random`.
+    the detectors saved in `obs`. The parameter `random` must be specified and must
+    be a random number generator that implements the ``normal`` method. You should
+    typically use the `random` field of a :class:`.Simulation` object for this.
 
     By default, the noise is added to ``Observation.tod``. If you want to add it to some
     other field of the :class:`.Observation` class, use `component`:

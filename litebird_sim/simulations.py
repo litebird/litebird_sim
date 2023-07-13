@@ -1339,8 +1339,9 @@ class Simulation:
         This method must be called after having set the instrument,
         the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`.
-        A random number generator must be specified. A typical
-        choice is `sim.random`.
+        The parameter `random` must be specified and must be a random number
+        generator thatimplements the ``normal`` method. You should typically
+        use the `random` field of a :class:`.Simulation` object for this.
         """
 
         add_noise_to_observations(
