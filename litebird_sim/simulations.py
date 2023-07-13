@@ -1339,7 +1339,7 @@ class Simulation:
         This method must be called after having set the instrument,
         the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`.
-        The random number generator must be specified. A typical
+        A random number generator must be specified. A typical
         choice is `sim.random`.
         """
 
