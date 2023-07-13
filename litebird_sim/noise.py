@@ -59,7 +59,7 @@ def add_one_over_f_noise(
     alpha: float,
     sigma: float,
     sampling_rate_hz: float,
-    random=None,
+    random,
 ):
     """Adds a 1/f noise timestream with the given f knee and alpha to data
     To be called from add_noise_to_observations
@@ -78,11 +78,10 @@ def add_one_over_f_noise(
 
         `sampling_rate_hz` : the sampling frequency of the data
 
-        `random` : a random number generator if you want reproducible randomness
+        `random` : a random number generator that implements the ``normal`` method.
+                   You should typically use the `random` field of a :class:`.Simulation`
+                   object for this. It must be specified
     """
-
-    if random is None:
-        random = np.random.default_rng()
 
     noiselen = nearest_pow2(data)
 
