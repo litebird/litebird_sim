@@ -18,7 +18,7 @@ def nearest_pow2(data):
     return int(2 ** np.ceil(np.log2(len(data))))
 
 
-def add_white_noise(data, sigma: float, random=None):
+def add_white_noise(data, sigma: float, random):
     """Adds white noise with the given sigma to the array data.
 
     To be called from add_noise_to_observations.
@@ -29,11 +29,10 @@ def add_white_noise(data, sigma: float, random=None):
 
         `sigma` : white noise level
 
-        `random` : a random number generator if you want reproducible randomness
+        `random` : a random number generator that implements the ``normal`` method.
+                   You should typically use the `random` field of a :class:`.Simulation`
+                   object for this. It must be specified
     """
-    if random is None:
-        random = np.random.default_rng()
-
     data += random.normal(0, sigma, data.shape)
 
 
