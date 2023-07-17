@@ -11,7 +11,6 @@
 from dataclasses import dataclass
 import gc
 
-import mpi4py.MPI
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
@@ -29,8 +28,12 @@ from .common import (
     COND_THRESHOLD,
     get_map_making_weights,
     cholesky,
+    solve_cholesky,
     estimate_cond_number,
 )
+
+if MPI_ENABLED:
+    import mpi4py.MPI
 
 
 def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
@@ -283,8 +286,8 @@ def _build_nobs_matrix(
     )
 
 
-# @njit
-def _update_binned_map_local(
+@njit
+def _update_sum_map(
     sky_map: npt.ArrayLike,
     hit_map: npt.ArrayLike,
     tod: npt.ArrayLike,
@@ -292,41 +295,102 @@ def _update_binned_map_local(
     pixel_idx: npt.ArrayLike,
     weights: npt.ArrayLike,
 ) -> None:
+    """
+    Compute the sum map within the current MPI process
+
+    This function implements the calculation of the operator P^t C_w⁻¹
+    (Eqq. 18–20), the so-called “sum map”. Note that the summation
+    is done on the samples of the current MPI process; the overall
+    summation is done by `_compute_binned_map`, which solves the
+    three I/Q/U Stokes parameters.
+
+    """
+
     for det_idx in range(tod.shape[0]):
         cur_weight = weights[det_idx]
 
-        for i in range(tod.shape[1]):
-            sin_term = np.sin(2 * pol_angle_rad[det_idx, i])
-            cos_term = np.cos(2 * pol_angle_rad[det_idx, i])
+        for sample_idx in range(tod.shape[1]):
+            sin_term = np.sin(2 * pol_angle_rad[det_idx, sample_idx])
+            cos_term = np.cos(2 * pol_angle_rad[det_idx, sample_idx])
 
-            cur_pix = pixel_idx[det_idx, i]
-            cur_sample = tod[det_idx, i]
+            cur_pix = pixel_idx[det_idx, sample_idx]
+            cur_sample = tod[det_idx, sample_idx]
             sky_map[0, cur_pix] += cur_sample / cur_weight
             sky_map[1, cur_pix] += cur_sample * cos_term / cur_weight
             sky_map[2, cur_pix] += cur_sample * sin_term / cur_weight
             hit_map[cur_pix] += 1.0 / cur_weight
 
 
-def _update_binned_map(
-    sky_map: npt.ArrayLike,
-    hit_map: npt.ArrayLike,
-    tod: npt.ArrayLike,
-    pol_angle_rad: npt.ArrayLike,
-    pixel_idx: npt.ArrayLike,
-    weights: npt.ArrayLike,
+@njit
+def _sum_map_to_binned_map(
+    sky_map: npt.ArrayLike, nobs_matrix_cholesky: npt.ArrayLike
 ) -> None:
-    _update_binned_map_local(
-        sky_map=sky_map,
-        hit_map=hit_map,
-        tod=tod,
-        pol_angle_rad=pol_angle_rad,
-        pixel_idx=pixel_idx,
-        weights=weights,
+    """Convert a “sum map” into a “binned map” using the N_obs matrix"""
+
+    for cur_pix in range(sky_map.shape[1]):
+        cur_i, cur_q, cur_u = solve_cholesky(
+            L=nobs_matrix_cholesky[cur_pix, :],
+            v0=sky_map[0, cur_pix],
+            v1=sky_map[1, cur_pix],
+            v2=sky_map[2, cur_pix],
+        )
+
+        sky_map[0, cur_pix] = cur_i
+        sky_map[1, cur_pix] = cur_q
+        sky_map[2, cur_pix] = cur_u
+
+
+def _compute_binned_map(
+    obs_list: List[Observation],
+    hit_map: npt.ArrayLike,
+    sky_map: npt.ArrayLike,
+    nobs_matrix_cholesky: NobsMatrix,
+    components: Optional[List[str]] = None,
+) -> None:
+    """
+    Compute the global binned map
+
+    This function computes the B≡M⁻¹·P^t·C_w⁻¹ operator (Eq. 21),
+    which “bins” the TODs contained in `obs_list` in a sum map
+    (using `_update_sum_map_local`), reduces the sums from all the
+    MPI processes, and then solves for the I/Q/U parameters.
+
+    The result is saved in `sky_map` (a 3,N_p tensor) and `hit_map`
+    (a N_p vector), which should both be reset to zero before
+    calling this function.
+    """
+
+    assert nobs_matrix_cholesky.is_cholesky, (
+        "The parameter nobs_matrix_cholesky should already "
+        "contain the Cholesky decompositions of the 3×3 M_i matrices"
     )
+
+    if not components:
+        components = ["tod"]
+
+    # Step 1: compute the “sum map” (Eqq. 18–20)
+    sky_map[:] = 0
+    hit_map[:] = 0
+
+    for cur_obs in obs_list:
+        for cur_component in components:
+            _update_sum_map(
+                sky_map=sky_map,
+                hit_map=hit_map,
+                tod=getattr(cur_obs, cur_component),
+                pol_angle_rad=cur_obs.destriper_pol_angle_rad,
+                pixel_idx=cur_obs.destriper_pixel_idx,
+                weights=cur_obs.destriper_weights,
+            )
 
     if MPI_ENABLED:
         MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, sky_map, op=mpi4py.MPI.SUM)
         MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, hit_map, op=mpi4py.MPI.SUM)
+
+    # Step 2: compute the “binned map” (Eq. 21)
+    _sum_map_to_binned_map(
+        sky_map=sky_map, nobs_matrix_cholesky=nobs_matrix_cholesky.nobs_matrix
+    )
 
 
 def _reset_maps_for_destriper(params: DestriperResult) -> None:
