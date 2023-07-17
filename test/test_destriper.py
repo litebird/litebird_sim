@@ -13,7 +13,11 @@ import numpy as np
 from ducc0.healpix import Healpix_Base
 
 import litebird_sim as lbs
-from litebird_sim import CoordinateSystem, MPI_COMM_WORLD
+from litebird_sim import CoordinateSystem, MPI_COMM_WORLD, MPI_ENABLED
+
+if MPI_ENABLED:
+    import mpi4py.MPI
+
 
 # We define the simplest quantities directly, as global variables
 
@@ -155,7 +159,9 @@ def lower_triangular_to_matrix(coefficients):
 
 
 def create_analytical_solution(
-    baseline_indexes, sigma: float = 0.1
+    baseline_indexes,
+    sigma: float = 0.1,
+    add_baselines: bool = True,
 ) -> AnalyticSolution:
     # Build the pointing matrix P (Eq. 2 of KurkiSuonio2009)
     P = np.zeros((NUM_OF_SAMPLES, 3 * NUM_OF_PIXELS))
@@ -177,6 +183,9 @@ def create_analytical_solution(
     # Build the TOD (Eq. 2+3 of KurkiSuonio2009)
     sky_signal = (P @ INPUT_MAPS).reshape(-1)
     baseline_signal = (F @ BASELINE_VALUES).reshape(-1)
+    if not add_baselines:
+        baseline_signal *= 0.0  # Turn off baselines (no 1/f noise)
+
     y = sky_signal + baseline_signal + NOISE_SAMPLES
 
     # Eq. 9 of KurkiSuonio2009
@@ -222,7 +231,9 @@ def create_analytical_solution(
     )
 
 
-def setup_simulation(sigma: float = 0.1) -> Tuple[lbs.Simulation, AnalyticSolution]:
+def setup_simulation(
+    sigma: float = 0.1, add_baselines: bool = True
+) -> Tuple[lbs.Simulation, AnalyticSolution]:
     """Create a Simulation object and a AnalyticSolution object that match
 
     The Simulation object contains the same data as in AnalyticSolution. It
@@ -289,7 +300,9 @@ def setup_simulation(sigma: float = 0.1) -> Tuple[lbs.Simulation, AnalyticSoluti
     baseline_indexes = np.array([0] * baseline_runs[0] + [1] * baseline_runs[1])
 
     solution = create_analytical_solution(
-        baseline_indexes=baseline_indexes, sigma=sigma
+        baseline_indexes=baseline_indexes,
+        sigma=sigma,
+        add_baselines=add_baselines,
     )
 
     # Since we have a sampling frequency of 1 Hz and start counting time from 0,
@@ -313,7 +326,7 @@ def test_nobs_matrix_construction_and_apply_z():
     from litebird_sim.mapmaking.destriper import (
         _store_pixel_idx_and_pol_angle_in_obs,
         _build_nobs_matrix,
-        _update_binned_map,
+        _compute_binned_map,
     )
 
     if lbs.MPI_COMM_WORLD.size > 2:
@@ -336,6 +349,9 @@ def test_nobs_matrix_construction_and_apply_z():
         psi_list=psi_list,
         output_coordinate_system=CoordinateSystem.Ecliptic,
     )
+
+    #################################################
+    # Step 1: check that the N_obs matrix is correct
 
     nobs_matrix_cholesky = _build_nobs_matrix(
         hpx=hpx,
@@ -364,23 +380,25 @@ def test_nobs_matrix_construction_and_apply_z():
             actual=cur_cholesky_calculated, desired=cur_cholesky_expected
         )
 
-    sky_map = np.zeros((3, number_of_pixels))
-    hit_map = np.zeros(number_of_pixels)
+    #################################################
+    # Step 2: check that binning is correct (the result of P^t C_w⁻¹ y,
+    # see Equations (18), (19), and (20)
 
-    for cur_obs, cur_psi in zip(obs_list, psi_list):
-        for cur_component in ["sky_signal", "baseline", "white_noise"]:
-            _update_binned_map(
-                sky_map=sky_map,
-                hit_map=hit_map,
-                tod=getattr(cur_obs, cur_component),
-                pol_angle_rad=cur_obs.destriper_pol_angle_rad,
-                pixel_idx=cur_obs.destriper_pixel_idx,
-                weights=cur_obs.destriper_weights,
-            )
+    sky_map = np.empty((3, number_of_pixels))
+    hit_map = np.empty(number_of_pixels)
+
+    _compute_binned_map(
+        obs_list=obs_list,
+        sky_map=sky_map,
+        hit_map=hit_map,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        components=["sky_signal", "baseline", "white_noise"],
+    )
 
     # This is going to be a 3N_p vector
     expected_map = (
-        np.transpose(expected_solution.P)
+        np.linalg.inv(expected_solution.M)
+        @ np.transpose(expected_solution.P)
         @ expected_solution.invCw
         @ expected_solution.y
     )
@@ -392,7 +410,39 @@ def test_nobs_matrix_construction_and_apply_z():
     )
 
 
-def _test_destriper():
+def test_map_maker_without_destriping():
+    if lbs.MPI_COMM_WORLD.size > 2:
+        # This test can work only with 1 or 2 MPI processes, no more
+        return
+
+    # Create some test data *without* 1/f noise
+    sim, expected_solution = setup_simulation(sigma=0.1, add_baselines=False)
+
+    result = lbs.make_destriped_map(
+        obs=sim.observations,
+        pointings=None,
+        params=lbs.DestriperParameters(
+            nside=1,
+            output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
+            samples_per_baseline=None,
+        ),
+        components=["sky_signal", "baseline", "white_noise"],
+    )
+
+    for cur_pix in range(len(result.hit_map)):
+        if result.nobs_matrix_cholesky.valid_pixel[cur_pix]:
+            np.testing.assert_allclose(
+                actual=result.binned_map[:, cur_pix],
+                desired=expected_solution.input_maps[(3 * cur_pix) : (3 * cur_pix + 3)],
+                rtol=1e-5,
+            )
+        else:
+            assert np.isnan(result.binned_map[0, cur_pix])
+            assert np.isnan(result.binned_map[1, cur_pix])
+            assert np.isnan(result.binned_map[2, cur_pix])
+
+
+def _test_map_maker_with_destriping():
     if lbs.MPI_COMM_WORLD.size > 2:
         # This test can work only with 1 or 2 MPI processes, no more
         return

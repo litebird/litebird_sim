@@ -77,7 +77,7 @@ def test_cholesky_and_solve_random():
 
         v = np.array([1.0, 2.0, 3.0])
         x = np.empty(3)
-        solve_cholesky(L, v, x)
+        x[:] = solve_cholesky(L=L, v0=v[0], v1=v[1], v2=v[2])
         np.testing.assert_allclose(actual=x, desired=np.linalg.solve(A, v))
 
 

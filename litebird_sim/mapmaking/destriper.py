@@ -117,7 +117,7 @@ class DestriperResult:
     params: DestriperParameters
     hit_map: npt.ArrayLike
     binned_map: npt.ArrayLike
-    nobs_matrix_cholesky: npt.ArrayLike
+    nobs_matrix_cholesky: NobsMatrix
     coordinate_system: CoordinateSystem
     # The following fields are filled only if the CG algorithm was used
     baselines: Optional[npt.ArrayLike]
@@ -323,21 +323,28 @@ def _update_sum_map(
 
 @njit
 def _sum_map_to_binned_map(
-    sky_map: npt.ArrayLike, nobs_matrix_cholesky: npt.ArrayLike
+    sky_map: npt.ArrayLike,
+    nobs_matrix_cholesky: npt.ArrayLike,
+    valid_pixels: npt.ArrayLike,
 ) -> None:
     """Convert a “sum map” into a “binned map” using the N_obs matrix"""
 
     for cur_pix in range(sky_map.shape[1]):
-        cur_i, cur_q, cur_u = solve_cholesky(
-            L=nobs_matrix_cholesky[cur_pix, :],
-            v0=sky_map[0, cur_pix],
-            v1=sky_map[1, cur_pix],
-            v2=sky_map[2, cur_pix],
-        )
+        if valid_pixels[cur_pix]:
+            cur_i, cur_q, cur_u = solve_cholesky(
+                L=nobs_matrix_cholesky[cur_pix, :],
+                v0=sky_map[0, cur_pix],
+                v1=sky_map[1, cur_pix],
+                v2=sky_map[2, cur_pix],
+            )
 
-        sky_map[0, cur_pix] = cur_i
-        sky_map[1, cur_pix] = cur_q
-        sky_map[2, cur_pix] = cur_u
+            sky_map[0, cur_pix] = cur_i
+            sky_map[1, cur_pix] = cur_q
+            sky_map[2, cur_pix] = cur_u
+        else:
+            sky_map[0, cur_pix] = np.nan
+            sky_map[1, cur_pix] = np.nan
+            sky_map[2, cur_pix] = np.nan
 
 
 def _compute_binned_map(
@@ -389,7 +396,9 @@ def _compute_binned_map(
 
     # Step 2: compute the “binned map” (Eq. 21)
     _sum_map_to_binned_map(
-        sky_map=sky_map, nobs_matrix_cholesky=nobs_matrix_cholesky.nobs_matrix
+        sky_map=sky_map,
+        nobs_matrix_cholesky=nobs_matrix_cholesky.nobs_matrix,
+        valid_pixels=nobs_matrix_cholesky.valid_pixel,
     )
 
 
@@ -417,12 +426,37 @@ def make_destriped_map(
         obs=obs, pointings=pointings
     )
 
-    nobs_matrix_cholesky = _build_nobs_matrix(
-        nside=params.nside,
+    hpx = Healpix_Base(nside=params.nside, scheme="RING")
+
+    # Convert pointings and ψ angles according to the coordinate system,
+    # convert them into Healpix indices and save the result into
+    # each Observation object (don't worry, we will delete them
+    # later)
+    _store_pixel_idx_and_pol_angle_in_obs(
+        hpx=hpx,
         obs_list=obs_list,
         ptg_list=ptg_list,
         psi_list=psi_list,
-        output_coordinate_system=params.output_coordinate_system,
+        output_coordinate_system=CoordinateSystem.Ecliptic,
+    )
+
+    nobs_matrix_cholesky = _build_nobs_matrix(
+        hpx=hpx,
+        obs_list=obs_list,
+        ptg_list=ptg_list,
+        psi_list=psi_list,
+    )
+
+    number_of_pixels = hpx.npix()
+    sky_map = np.empty((3, number_of_pixels))
+    hit_map = np.empty(number_of_pixels)
+
+    _compute_binned_map(
+        obs_list=obs_list,
+        sky_map=sky_map,
+        hit_map=hit_map,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        components=["sky_signal", "baseline", "white_noise"],
     )
 
     if not keep_weights:
@@ -442,12 +476,12 @@ def make_destriped_map(
     return DestriperResult(
         params=params,
         hit_map=np.zeros(1),
-        binned_map=np.zeros((3, 1)),
+        binned_map=sky_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         coordinate_system=params.output_coordinate_system,
         # The following fields are filled only if the CG algorithm was used
-        baselines=np.zeros(1),
+        baselines=None,
         baseline_lengths=None,
         stopping_factors=None,
-        destriped_map=np.zeros((3, 1)),
+        destriped_map=None,
     )

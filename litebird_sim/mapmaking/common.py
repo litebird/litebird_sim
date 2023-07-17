@@ -234,7 +234,9 @@ def cholesky(
 
 
 @njit
-def solve_cholesky(L: npt.ArrayLike, v: npt.ArrayLike, dest_x: npt.ArrayLike):
+def solve_cholesky(
+    L: npt.ArrayLike, v0: float, v1: float, v2: float
+) -> Tuple[float, float, float]:
     """Solve Ax = b if A is a 3×3 symmetric positive definite matrix.
 
     Instead of providing the matrix A, the caller is expected to provide its
@@ -251,14 +253,16 @@ def solve_cholesky(L: npt.ArrayLike, v: npt.ArrayLike, dest_x: npt.ArrayLike):
     # plain algebra!
 
     # First get y…
-    y0 = v[0] / L[0]
-    y1 = (v[1] - L[1] * y0) / L[2]
-    y2 = (v[2] - L[3] * y0 - L[4] * y1) / L[5]
+    y0 = v0 / L[0]
+    y1 = (v1 - L[1] * y0) / L[2]
+    y2 = (v2 - L[3] * y0 - L[4] * y1) / L[5]
 
     # …then get x
-    dest_x[2] = y2 / L[5]
-    dest_x[1] = (y1 - L[4] * dest_x[2]) / L[2]
-    dest_x[0] = (y0 - L[1] * dest_x[1] - L[3] * dest_x[2]) / L[0]
+    dest_u = y2 / L[5]
+    dest_q = (y1 - L[4] * dest_u) / L[2]
+    dest_i = (y0 - L[1] * dest_q - L[3] * dest_u) / L[0]
+
+    return (dest_i, dest_q, dest_u)
 
 
 @njit
