@@ -107,6 +107,7 @@ class AnalyticSolution:
     num_of_samples: int = NUM_OF_SAMPLES
     num_of_baselines: int = NUM_OF_BASELINES
     num_of_pixels: int = NUM_OF_PIXELS
+    sigma: float = 1.0
     # Baseline indexes: array of NUM_OF_SAMPLES elements, where each
     # element is the index in the BASELINE_VALUES array
     baseline_indexes: Any = None
@@ -201,6 +202,7 @@ def create_analytical_solution(
         num_of_samples=NUM_OF_SAMPLES,
         num_of_baselines=NUM_OF_BASELINES,
         num_of_pixels=NUM_OF_PIXELS,
+        sigma=sigma,
         baseline_indexes=baseline_indexes,
         P=P,
         Cw=Cw,
@@ -292,21 +294,27 @@ def setup_simulation(sigma: float = 0.1) -> Tuple[lbs.Simulation, AnalyticSoluti
 
     # Since we have a sampling frequency of 1 Hz and start counting time from 0,
     # the time of each sample is an integer that is identical to the sample index
-    indexes = [int(x) for x in sim.observations[0].get_times()]
+    indexes = np.array([int(x) for x in sim.observations[0].get_times()])
     sim.observations[0].sky_signal = solution.sky_signal[indexes].reshape((1, -1))
     sim.observations[0].baseline = solution.baseline_signal[indexes].reshape((1, -1))
     sim.observations[0].white_noise = solution.noise_signal[indexes].reshape((1, -1))
 
     hpx = Healpix_Base(1, "RING")
-    sim.observations[0].pointings = hpx.pix2ang(PIXEL_INDEXES).reshape((1, -1, 2))
-    sim.observations[0].psi = PSI_ANGLES.reshape((1, solution.num_of_samples))
+    sim.observations[0].pointings = hpx.pix2ang(PIXEL_INDEXES[indexes]).reshape(
+        (1, -1, 2)
+    )
+    sim.observations[0].psi = PSI_ANGLES[indexes].reshape((1, -1))
 
     return (sim, solution)
 
 
-def test_nobs_matrix_construction():
+def test_nobs_matrix_construction_and_apply_z():
     from litebird_sim.mapmaking.common import _normalize_observations_and_pointings
-    from litebird_sim.mapmaking.destriper import _build_nobs_matrix
+    from litebird_sim.mapmaking.destriper import (
+        _store_pixel_idx_and_pol_angle_in_obs,
+        _build_nobs_matrix,
+        _update_binned_map,
+    )
 
     if lbs.MPI_COMM_WORLD.size > 2:
         # This test can work only with 1 or 2 MPI processes, no more
@@ -320,19 +328,30 @@ def test_nobs_matrix_construction():
         pointings=None,
     )
 
-    nobs_matrix_cholesky = _build_nobs_matrix(
-        nside=nside,
+    hpx = Healpix_Base(nside=nside, scheme="RING")
+    _store_pixel_idx_and_pol_angle_in_obs(
+        hpx=hpx,
         obs_list=obs_list,
         ptg_list=ptg_list,
         psi_list=psi_list,
         output_coordinate_system=CoordinateSystem.Ecliptic,
     )
 
+    nobs_matrix_cholesky = _build_nobs_matrix(
+        hpx=hpx,
+        obs_list=obs_list,
+        ptg_list=ptg_list,
+        psi_list=psi_list,
+    )
+
     assert (
         expected_solution.M.shape[0] % 3 == 0
     ), "Matrix M must have size (3n_pix, 3n_pix)"
 
-    for i in range(expected_solution.M.shape[0] // 3):
+    number_of_pixels = expected_solution.M.shape[0] // 3
+
+    for i in range(number_of_pixels):
+        # Cut out the 3×3 submatrix corresponding to the i-th pixel
         cur_M_expected = expected_solution.M[3 * i : 3 * i + 3, 3 * i : 3 * i + 3]
         cur_cholesky_expected = np.linalg.cholesky(cur_M_expected)
         # Here it is important that there are no gaps in the array
@@ -344,6 +363,33 @@ def test_nobs_matrix_construction():
         np.testing.assert_allclose(
             actual=cur_cholesky_calculated, desired=cur_cholesky_expected
         )
+
+    sky_map = np.zeros((3, number_of_pixels))
+    hit_map = np.zeros(number_of_pixels)
+
+    for cur_obs, cur_psi in zip(obs_list, psi_list):
+        for cur_component in ["sky_signal", "baseline", "white_noise"]:
+            _update_binned_map(
+                sky_map=sky_map,
+                hit_map=hit_map,
+                tod=getattr(cur_obs, cur_component),
+                pol_angle_rad=cur_obs.destriper_pol_angle_rad,
+                pixel_idx=cur_obs.destriper_pixel_idx,
+                weights=cur_obs.destriper_weights,
+            )
+
+    # This is going to be a 3N_p vector
+    expected_map = (
+        np.transpose(expected_solution.P)
+        @ expected_solution.invCw
+        @ expected_solution.y
+    )
+    # As sky_map is a (3, 12NSIDE²) vector, we cannot blindly compare it with
+    # `expected_map`. Rather, we must transpose it (so that the 3×2 matrix
+    # becomes a 2×3 matrix) and flatten it into a linear array
+    np.testing.assert_allclose(
+        actual=sky_map.transpose().flatten(), desired=expected_map
+    )
 
 
 def _test_destriper():

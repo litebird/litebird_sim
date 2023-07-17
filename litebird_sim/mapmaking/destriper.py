@@ -7,8 +7,11 @@
 # It is important to have that paper at hand while reading this code, as many
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
-from dataclasses import dataclass
 
+from dataclasses import dataclass
+import gc
+
+import mpi4py.MPI
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
@@ -103,15 +106,21 @@ class DestriperParameters:
     nnz: int = 3
     samples_per_baseline: Union[int, List[int]] = 100
     iter_max: int = 100
+    threshold: float = 1e-7
 
 
 @dataclass
 class DestriperResult:
     params: DestriperParameters
-    baselines: npt.ArrayLike
+    hit_map: npt.ArrayLike
     binned_map: npt.ArrayLike
-    destriped_map: npt.ArrayLike
+    nobs_matrix_cholesky: npt.ArrayLike
     coordinate_system: CoordinateSystem
+    # The following fields are filled only if the CG algorithm was used
+    baselines: Optional[npt.ArrayLike]
+    baseline_lengths: Optional[npt.ArrayLike]
+    stopping_factors: Optional[npt.ArrayLike]
+    destriped_map: Optional[npt.ArrayLike]
 
 
 # @njit
@@ -208,47 +217,49 @@ def _nobs_matrix_to_cholesky(
         # to zero everywhere
 
 
-def _build_nobs_matrix(
-    nside: int,
+def _store_pixel_idx_and_pol_angle_in_obs(
+    hpx: Healpix_Base,
     obs_list: List[Observation],
     ptg_list: List[npt.ArrayLike],
     psi_list: List[npt.ArrayLike],
     output_coordinate_system: CoordinateSystem,
-) -> NobsMatrix:
-    hpx = Healpix_Base(nside=nside, scheme="RING")
-    # Instead of a shape like (Npix, 3, 3), i.e., one 3×3 matrix per each
-    # pixel, we only store the lower triangular part in a 6-element array.
-    # In this way we reduce the memory usage by ~30% and the code is faster too.
-    nobs_matrix = np.zeros((hpx.npix(), 6))  # Do not use np.empty() here!
-
+):
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
-        cur_weights = get_map_making_weights(cur_obs, check=True)
+        cur_obs.destriper_weights = get_map_making_weights(cur_obs, check=True)
 
-        pixidx_all, polang_all = _compute_pixel_indices(
+        (
+            cur_obs.destriper_pixel_idx,
+            cur_obs.destriper_pol_angle_rad,
+        ) = _compute_pixel_indices(
             hpx=hpx,
             pointings=cur_ptg,
             psi=cur_psi,
             output_coordinate_system=output_coordinate_system,
         )
 
-        _accumulate_nobs_matrix(
-            pixidx_all,
-            polang_all,
-            cur_weights,
-            nobs_matrix,
-        )
 
-        del pixidx_all, polang_all
+def _build_nobs_matrix(
+    hpx: Healpix_Base,
+    obs_list: List[Observation],
+    ptg_list: List[npt.ArrayLike],
+    psi_list: List[npt.ArrayLike],
+) -> NobsMatrix:
+    # Instead of a shape like (Npix, 3, 3), i.e., one 3×3 matrix per each
+    # pixel, we only store the lower triangular part in a 6-element array.
+    # In this way we reduce the memory usage by ~30% and the code is faster too.
+    nobs_matrix = np.zeros((hpx.npix(), 6))  # Do not use np.empty() here!
+
+    for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
+        _accumulate_nobs_matrix(
+            pix_idx=cur_obs.destriper_pixel_idx,
+            psi_angle_rad=cur_obs.destriper_pol_angle_rad,
+            weights=cur_obs.destriper_weights,
+            nobs_matrix=nobs_matrix,
+        )
 
     # Now we must accumulate the result of every MPI process
     if MPI_ENABLED:
-        if MPI_COMM_WORLD.rank == 0:
-            with open("/home/tomasi/test.txt", "wt") as f:
-                print("Going to call allreduce…", file=f)
-        nobs_matrix = MPI_COMM_WORLD.allreduce(nobs_matrix)
-    else:
-        with open("/home/tomasi/test.txt", "wt") as f:
-            print("MPI is not enabled", file=f)
+        MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, nobs_matrix, op=mpi4py.MPI.SUM)
 
     # `nobs_matrix_cholesky` will *not* contain the M_i maps shown in
     # Eq. 9 of KurkiSuonio2009, but its Cholesky Decomposition, i.e.,
@@ -272,11 +283,68 @@ def _build_nobs_matrix(
     )
 
 
+# @njit
+def _update_binned_map_local(
+    sky_map: npt.ArrayLike,
+    hit_map: npt.ArrayLike,
+    tod: npt.ArrayLike,
+    pol_angle_rad: npt.ArrayLike,
+    pixel_idx: npt.ArrayLike,
+    weights: npt.ArrayLike,
+) -> None:
+    for det_idx in range(tod.shape[0]):
+        cur_weight = weights[det_idx]
+
+        for i in range(tod.shape[1]):
+            sin_term = np.sin(2 * pol_angle_rad[det_idx, i])
+            cos_term = np.cos(2 * pol_angle_rad[det_idx, i])
+
+            cur_pix = pixel_idx[det_idx, i]
+            cur_sample = tod[det_idx, i]
+            sky_map[0, cur_pix] += cur_sample / cur_weight
+            sky_map[1, cur_pix] += cur_sample * cos_term / cur_weight
+            sky_map[2, cur_pix] += cur_sample * sin_term / cur_weight
+            hit_map[cur_pix] += 1.0 / cur_weight
+
+
+def _update_binned_map(
+    sky_map: npt.ArrayLike,
+    hit_map: npt.ArrayLike,
+    tod: npt.ArrayLike,
+    pol_angle_rad: npt.ArrayLike,
+    pixel_idx: npt.ArrayLike,
+    weights: npt.ArrayLike,
+) -> None:
+    _update_binned_map_local(
+        sky_map=sky_map,
+        hit_map=hit_map,
+        tod=tod,
+        pol_angle_rad=pol_angle_rad,
+        pixel_idx=pixel_idx,
+        weights=weights,
+    )
+
+    if MPI_ENABLED:
+        MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, sky_map, op=mpi4py.MPI.SUM)
+        MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, hit_map, op=mpi4py.MPI.SUM)
+
+
+def _reset_maps_for_destriper(params: DestriperResult) -> None:
+    params.hit_map[:] = 0
+    params.binned_map[:] = 0.0
+
+    if params.destriped_map is not None:
+        params.destriped_map[:] = 0.0
+
+
 def make_destriped_map(
     obs: Union[Observation, List[Observation]],
     pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]],
     params=DestriperParameters(),
     components: Optional[List[str]] = None,
+    keep_weights: bool = False,
+    keep_pixel_idx: bool = False,
+    keep_pol_angle_rad: bool = False,
 ) -> DestriperResult:
     if not components:
         components = ["tod"]
@@ -293,12 +361,29 @@ def make_destriped_map(
         output_coordinate_system=params.output_coordinate_system,
     )
 
-    print(nobs_matrix_cholesky)
+    if not keep_weights:
+        for cur_obs in obs_list:
+            del cur_obs.destriper_weights
+
+    if not keep_pixel_idx:
+        for cur_obs in obs_list:
+            del cur_obs.destriper_pixel_idx
+
+    if not keep_pol_angle_rad:
+        for cur_obs in obs_list:
+            del cur_obs.destriper_pol_angle_rad
+
+    gc.collect()
 
     return DestriperResult(
         params=params,
-        baselines=np.zeros(1),
+        hit_map=np.zeros(1),
         binned_map=np.zeros((3, 1)),
-        destriped_map=np.zeros((3, 1)),
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
         coordinate_system=params.output_coordinate_system,
+        # The following fields are filled only if the CG algorithm was used
+        baselines=np.zeros(1),
+        baseline_lengths=None,
+        stopping_factors=None,
+        destriped_map=np.zeros((3, 1)),
     )
