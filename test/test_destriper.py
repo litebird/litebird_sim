@@ -410,13 +410,20 @@ def test_nobs_matrix_construction_and_apply_z():
     )
 
 
-def test_map_maker_without_destriping():
+def _test_map_maker(use_destriper: bool):
     if lbs.MPI_COMM_WORLD.size > 2:
         # This test can work only with 1 or 2 MPI processes, no more
         return
 
     # Create some test data *without* 1/f noise
-    sim, expected_solution = setup_simulation(sigma=0.1, add_baselines=False)
+    sim, expected_solution = setup_simulation(sigma=0.1, add_baselines=use_destriper)
+
+    if use_destriper:
+        samples_per_baseline = np.unique(
+            expected_solution.baseline_indexes, return_counts=True
+        )[1]
+    else:
+        samples_per_baseline = None
 
     result = lbs.make_destriped_map(
         obs=sim.observations,
@@ -424,50 +431,33 @@ def test_map_maker_without_destriping():
         params=lbs.DestriperParameters(
             nside=1,
             output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
-            samples_per_baseline=None,
+            samples_per_baseline=samples_per_baseline,
         ),
         components=["sky_signal", "baseline", "white_noise"],
     )
 
-    for cur_pix in range(len(result.hit_map)):
-        if result.nobs_matrix_cholesky.valid_pixel[cur_pix]:
-            np.testing.assert_allclose(
-                actual=result.binned_map[:, cur_pix],
-                desired=expected_solution.input_maps[(3 * cur_pix) : (3 * cur_pix + 3)],
-                rtol=1e-5,
-            )
-        else:
-            assert np.isnan(result.binned_map[0, cur_pix])
-            assert np.isnan(result.binned_map[1, cur_pix])
-            assert np.isnan(result.binned_map[2, cur_pix])
+    if use_destriper:
+        pass
+    else:
+        # Just check the binned map
+        for cur_pix in range(len(result.hit_map)):
+            if result.nobs_matrix_cholesky.valid_pixel[cur_pix]:
+                np.testing.assert_allclose(
+                    actual=result.binned_map[:, cur_pix],
+                    desired=expected_solution.input_maps[
+                        (3 * cur_pix) : (3 * cur_pix + 3)
+                    ],
+                    rtol=1e-5,
+                )
+            else:
+                assert np.isnan(result.binned_map[0, cur_pix])
+                assert np.isnan(result.binned_map[1, cur_pix])
+                assert np.isnan(result.binned_map[2, cur_pix])
+
+
+def test_map_maker_without_destriping():
+    _test_map_maker(use_destriper=False)
 
 
 def _test_map_maker_with_destriping():
-    if lbs.MPI_COMM_WORLD.size > 2:
-        # This test can work only with 1 or 2 MPI processes, no more
-        return
-
-    sim, expected_solution = setup_simulation(sigma=0.1)
-
-    result = lbs.make_destriped_map(
-        obs=sim.observations,
-        pointings=None,
-        params=lbs.DestriperParameters(
-            nside=1,
-            output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
-            samples_per_baseline=np.unique(
-                expected_solution.baseline_indexes, return_counts=True
-            )[1],
-        ),
-        components=["sky_signal", "baseline", "white_noise"],
-    )
-
-    # Remember that the destriping solution is unique but for the baseline
-    assert np.allclose(
-        result.baselines - np.mean(result.baselines),
-        expected_solution.estimated_a - np.mean(expected_solution.estimated_a),
-    )
-    assert np.allclose(
-        result.destriped_map - np.mean(result.destriped_map),
-        expected_solution.input_maps - np.mean(result.destriped_map),
-    )
+    _test_map_maker(use_destriper=True)
