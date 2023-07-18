@@ -401,6 +401,7 @@ def test_write_hdf5_mpi(tmp_path):
         base_path=tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
+        random_seed=12345,
     )
 
     det = lbs.DetectorInfo(
@@ -435,7 +436,7 @@ def test_write_hdf5_mpi(tmp_path):
 
 
 def test_simulation_random():
-    sim = lbs.Simulation()
+    sim = lbs.Simulation(random_seed=12345)
     assert sim.random is not None
 
     state = sim.random.bit_generator.state

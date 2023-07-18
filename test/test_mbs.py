@@ -52,7 +52,9 @@ def test_mbs():
             simfile.write(PARAMETER_FILE.format(output_directory=outdir))
             simfile.flush()
 
-            sim = lbs.Simulation(base_path=outdir, parameter_file=simfile.name)
+            sim = lbs.Simulation(
+                base_path=outdir, parameter_file=simfile.name, random_seed=12345
+            )
 
             myinst = {}
             myinst["mock"] = {

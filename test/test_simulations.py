@@ -18,7 +18,7 @@ class MockPlot:
 
 
 def test_healpix_map_write(tmp_path):
-    sim = lbs.Simulation(base_path=tmp_path / "simulation_dir")
+    sim = lbs.Simulation(base_path=tmp_path / "simulation_dir", random_seed=12345)
     output_file = sim.write_healpix_map(filename="test.fits.gz", pixels=np.zeros(12))
 
     assert isinstance(output_file, pathlib.Path)
@@ -42,6 +42,7 @@ def test_markdown_report(tmp_path):
         description="Lorem ipsum",
         start_time=1.0,
         duration_s=3600.0,
+        random_seed=12345,
     )
     output_file = sim.write_healpix_map(filename="test.fits.gz", pixels=np.zeros(12))
 
@@ -98,6 +99,7 @@ def test_imo_in_report(tmp_path):
         name="My simulation",
         description="Lorem ipsum",
         imo=imo,
+        random_seed=12345,
     )
 
     entity_uuid = UUID("dd32cb51-f7d5-4c03-bf47-766ce87dc3ba")
@@ -123,17 +125,23 @@ def test_parameter_dict(tmp_path):
 
     sim = lbs.Simulation(
         parameters={
+            "simulation": {
+                "random_seed": 12345,
+            },
             "general": {
                 "a": 10,
                 "b": 20.0,
                 "c": False,
                 "subtable": {"d": date(2020, 7, 1), "e": "Hello, world!"},
-            }
+            },
         }
     )
 
     assert not sim.parameter_file
     assert isinstance(sim.parameters, dict)
+
+    assert "simulation" in sim.parameters
+    assert sim.parameters["simulation"]["random_seed"] == 12345
 
     assert "general" in sim.parameters
     assert sim.parameters["general"]["a"] == 10
@@ -145,7 +153,7 @@ def test_parameter_dict(tmp_path):
     assert sim.parameters["general"]["subtable"]["e"] == "Hello, world!"
 
     try:
-        sim = lbs.Simulation(parameter_file="dummy", parameters={"a": 10})
+        sim = lbs.Simulation(parameter_file="dummy", parameters={"a": 12345})
         assert False, "Simulation object should have asserted"
     except AssertionError:
         pass
@@ -162,6 +170,7 @@ def test_parameter_file():
 start_time = "2020-01-01T00:00:00"
 duration_s = 11.0
 description = "Dummy description"
+random_seed = 12345
 
 [general]
 a = 10
@@ -184,6 +193,7 @@ e = "Hello, world!"
         assert isinstance(sim.start_time, astropy.time.Time)
         assert sim.duration_s == 11.0
         assert sim.description == "Dummy description"
+        assert sim.random_seed == 12345
 
         assert "general" in sim.parameters
         assert sim.parameters["general"]["a"] == 10
@@ -212,6 +222,7 @@ def test_duration_units_in_parameter_file():
 [simulation]
 start_time = "2020-01-01T00:00:00"
 duration_s = "1 day"
+random_seed = 12345
 """
         )
 
@@ -221,12 +232,16 @@ duration_s = "1 day"
         assert "simulation" in sim.parameters
         assert isinstance(sim.start_time, astropy.time.Time)
         assert sim.duration_s == 86400.0
+        assert sim.random_seed == 12345
 
 
 def test_distribute_observation(tmp_path):
     for dtype in (np.float16, np.float32, np.float64, np.float128):
         sim = lbs.Simulation(
-            base_path=tmp_path / "simulation_dir", start_time=1.0, duration_s=11.0
+            base_path=tmp_path / "simulation_dir",
+            start_time=1.0,
+            duration_s=11.0,
+            random_seed=12345,
         )
         det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
         obs_list = sim.create_observations(
@@ -243,7 +258,10 @@ def test_distribute_observation(tmp_path):
 
 def test_distribute_observation_many_tods(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir", start_time=1.0, duration_s=11.0
+        base_path=tmp_path / "simulation_dir",
+        start_time=1.0,
+        duration_s=11.0,
+        random_seed=12345,
     )
     det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
     sim.create_observations(
@@ -283,6 +301,7 @@ def test_distribute_observation_astropy(tmp_path):
         base_path=tmp_path / "simulation_dir",
         start_time=astropy.time.Time("2020-01-01T00:00:00"),
         duration_s=11.0,
+        random_seed=12345,
     )
     det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
     obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
@@ -297,6 +316,7 @@ def test_describe_distribution(tmp_path):
         base_path=tmp_path / "simulation_dir",
         start_time=0.0,
         duration_s=40.0,
+        random_seed=12345,
     )
     det = lbs.DetectorInfo("dummy", sampling_rate_hz=10.0)
 

@@ -149,6 +149,7 @@ def run_test_on_madam(
         start_time=start_time,
         duration_s=86400.0,
         mpi_comm=lbs.MPI_COMM_WORLD,
+        random_seed=12345,
     )
 
     sim.set_scanning_strategy(
