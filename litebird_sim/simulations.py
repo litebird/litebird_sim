@@ -383,6 +383,7 @@ class Simulation:
             if isinstance(self.start_time, astropy.time.Time)
             else self.start_time,
             duration_s=self.duration_s,
+            random_seed=random_seed,
         )
 
         # Initialize self.random. The user is free to
