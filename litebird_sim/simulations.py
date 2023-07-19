@@ -399,8 +399,11 @@ class Simulation:
         is needed in the simulation.
         In the case `random_seed` has not been set to `None`, it ensures that
         different MPI processes have their own different seed, which stems
-        from the parameter `random_seed`. The generator is PCG64, and it is
-        ensured that the sequences in each MPI process are independent.
+        from the parameter `random_seed`, and the results will be reproducible.
+        The generator is PCG64, and it is ensured that the sequences in each MPI
+        process are independent. If `init_random` is called with the same seed
+        but a different number of MPI ranks, the sequence of random numbers
+        will be different.
         In the case `random_seed` has been set to `None`, no seed will be
         used and the results obtained with the random number generator will
         not be reproducible.
