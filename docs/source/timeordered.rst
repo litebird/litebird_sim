@@ -181,7 +181,9 @@ Note that we pass ``sim.random`` as the number generator to use.
 This is a member variable that is initialized by the constructor
 of the class :class:`.Simulation`, and it is safe to be used with
 multiple MPI processes as it ensures that each process has its
-own random number generator with a different seed.
+own random number generator with a different seed. More information
+on the generation of random numbers can be found in
+:ref:`random-numbers`.
 
 To add white noise using a custom white noise sigma, in µK, we can
 call the low level function directly:
