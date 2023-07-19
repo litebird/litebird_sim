@@ -128,7 +128,7 @@ code::
       start_time=astropy.time.Time("2020-02-01T10:30:00"),
       duration_s=3600.0,
       name="My simulation",
-      description="A long description should be put here")
+      description="A long description should be put here",
   )
 
 You can achieve the same if you create a TOML file named ``foo.toml``
