@@ -401,27 +401,25 @@ class Simulation:
         different MPI processes have their own different seed, which stems
         from the parameter `random_seed`. The generator is PCG64, and it is
         ensured that the sequences in each MPI process are independent.
-        In the case `random_seed` has been set to `None`, the generator used
-        is `numpy`'s `default_rng`.
+        In the case `random_seed` has been set to `None`, no seed will be
+        used and the results obtained with the random number generator will
+        not be reproducible.
 
         This method is automatically called in the constructor, but it can be
         called again as many times as required. The typical case is when
         one wants to use a seed that has been read from a parameter file.
         """
-        if random_seed is None:
-            self.random = np.random.default_rng()
-        else:
-            from numpy.random import Generator, PCG64, SeedSequence
+        from numpy.random import Generator, PCG64, SeedSequence
 
-            # We need to assign a different random number generator to each MPI
-            # process, otherwise noise will be correlated. The following code
-            # works even if MPI is not used
+        # We need to assign a different random number generator to each MPI
+        # process, otherwise noise will be correlated. The following code
+        # works even if MPI is not used or if `random_seed` has been set to `None`
 
-            # Create a list of N seeds, one per each MPI process
-            seed_seq = SeedSequence(random_seed).spawn(self.mpi_comm.size)
+        # Create a list of N seeds, one per each MPI process
+        seed_seq = SeedSequence(random_seed).spawn(self.mpi_comm.size)
 
-            # Pick the seed for this process
-            self.random = Generator(PCG64(seed_seq[self.mpi_comm.rank]))
+        # Pick the seed for this process
+        self.random = Generator(PCG64(seed_seq[self.mpi_comm.rank]))
 
     def _init_missing_params(self):
         """Initialize empty parameters using self.parameters
