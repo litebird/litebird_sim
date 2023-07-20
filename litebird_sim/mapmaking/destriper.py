@@ -493,7 +493,23 @@ def _compute_baseline_sums(
     output_sums_list: List[npt.ArrayLike],
 ):
     """
-    Compute the F^t C_w⁻¹ Z operator on the TOD
+    Compute the F^t C_w⁻¹ Z operator on the TOD (Fa - y)
+
+    The matrix F “spreads” the baseline values “a” over the TOD space,
+    while “y” is the TOD owned by each :class:`Observation` object
+     contained in `obs_list`.
+
+    The field `baselines_list` and `baseline_lengths_list` are lists
+    of NumPy arrays; they are lists with the same length as `obs_list` and
+    must contain the input value of the baselines and their lengths in
+    terms of number of TOD samples, respectively. When using MPI, the
+    baselines must refer to the TOD samples handled by the TOD owned
+    by the current MPI process.
+
+    The result is saved in `output_sums_list`, which must have already
+    been allocated. Note that you *cannot* make this field point to
+    the same memory location as `baselines_list`, although the two
+    objects share the same shape.
     """
 
     assert len(baseline_lengths_list) == len(obs_list)

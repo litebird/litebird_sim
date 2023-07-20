@@ -167,6 +167,11 @@ def create_analytical_solution(
     sigma: float = 0.1,
     add_baselines: bool = True,
 ) -> AnalyticSolution:
+    # We assume that we have *two* baselines!
+    assert (
+        len(baseline_runs) == 2
+    ), "The test code requires that *two* baselines be provided"
+
     # Beware, the `*` and `+` operators used here work on Python arrays, not
     # on NumPy objects! Their semantics differ! Here we just want
     # to create an array with shape [0, 0, 0, … , 0, 1, 1, 1, … , 1, 1]
@@ -452,10 +457,21 @@ def test_map_maker_parts():
     # correctly (F^t C_w⁻¹ Z (Fa - y) = 0, which is
     # a different way to write Eq. 14)
 
-    baselines_list = [
-        np.arange(len(cur_baseline_length), dtype=np.float64) + 10 * MPI_COMM_WORLD.rank
-        for cur_baseline_length in baseline_lengths_list
-    ]
+    # Here we pick some random values for the 1/f baselines
+    # The item `full_baselines` contains *all* the baselines
+    # from the MPI processes, and it is used to compute the
+    # analytical solution, as the analytical matrices are not
+    # aware of MPI (their elements are not spread among the
+    # MPI processes)
+    if MPI_COMM_WORLD.size == 1:
+        baselines_list = [np.array([0.0, 1.0])]
+        full_baselines = baselines_list[0]
+    else:
+        # With 2 MPI processes:
+        #     1. baselines_list=[array([0.])]
+        #     2. baselines_list=[array([10.])]
+        baselines_list = [np.array([0.0 + MPI_COMM_WORLD.rank * 10])]
+        full_baselines = np.array([0.0, 10.0])
 
     # Recompute the binned map using (Fa - y) as the TOD
     # (in step 2, the TOD was just y because `baselines_list`
@@ -484,12 +500,19 @@ def test_map_maker_parts():
         np.transpose(expected_solution.F)
         @ expected_solution.invCw
         @ expected_solution.Z
-        @ (expected_solution.F @ baselines_list[0] - expected_solution.y)
+        @ (expected_solution.F @ full_baselines - expected_solution.y)
     )
-    np.testing.assert_allclose(
-        actual=output_baselines_list[0],
-        desired=expected,
-    )
+
+    if MPI_COMM_WORLD.size == 2:
+        # Just check the baseline that belongs to this MPI process
+        np.testing.assert_almost_equal(
+            actual=output_baselines_list[0][0], desired=expected[MPI_COMM_WORLD.rank]
+        )
+    else:
+        np.testing.assert_allclose(
+            actual=output_baselines_list[0],
+            desired=expected,
+        )
 
 
 def _test_map_maker(use_destriper: bool):
