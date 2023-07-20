@@ -458,20 +458,20 @@ def test_map_maker_parts():
     # a different way to write Eq. 14)
 
     # Here we pick some random values for the 1/f baselines
-    # The item `full_baselines` contains *all* the baselines
-    # from the MPI processes, and it is used to compute the
+    # The item `full_baselines` contains the baselines from
+    # *all* the MPI processes, and it is used to compute the
     # analytical solution, as the analytical matrices are not
     # aware of MPI (their elements are not spread among the
     # MPI processes)
     if MPI_COMM_WORLD.size == 1:
-        baselines_list = [np.array([0.0, 1.0])]
-        full_baselines = baselines_list[0]
+        full_baselines = np.array([0.0, 1.0])
+        baselines_list = [full_baselines]
     else:
+        full_baselines = np.array([0.0, 10.0])
         # With 2 MPI processes:
         #     1. baselines_list=[array([0.])]
         #     2. baselines_list=[array([10.])]
-        baselines_list = [np.array([0.0 + MPI_COMM_WORLD.rank * 10])]
-        full_baselines = np.array([0.0, 10.0])
+        baselines_list = [np.array([full_baselines[MPI_COMM_WORLD.rank]])]
 
     # Recompute the binned map using (Fa - y) as the TOD
     # (in step 2, the TOD was just y because `baselines_list`
