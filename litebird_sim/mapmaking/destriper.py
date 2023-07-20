@@ -307,18 +307,41 @@ def _build_nobs_matrix(
 
 
 @njit
-def _update_sum_map(
+def _step_over_baseline(baseline_idx, samples_in_this_baseline, baseline_length):
+    samples_in_this_baseline += 1
+    if samples_in_this_baseline >= baseline_length[baseline_idx]:
+        baseline_idx += 1
+        samples_in_this_baseline = 0
+
+    return (baseline_idx, samples_in_this_baseline)
+
+
+@njit
+def _sum_map_contribution_from_one_sample(
+    pol_angle_rad: float, sample: float, weight: float, dest_array: npt.ArrayLike
+) -> None:
+    "This code implements Eqq. (18)–(20)"
+
+    sin_term = np.sin(2 * pol_angle_rad)
+    cos_term = np.cos(2 * pol_angle_rad)
+
+    dest_array[0] += sample / weight
+    dest_array[1] += sample * cos_term / weight
+    dest_array[2] += sample * sin_term / weight
+
+
+@njit
+def _update_sum_map_with_tod(
     sky_map: npt.ArrayLike,
     hit_map: npt.ArrayLike,
     tod: npt.ArrayLike,
     pol_angle_rad: npt.ArrayLike,
     pixel_idx: npt.ArrayLike,
     weights: npt.ArrayLike,
-    baselines: npt.ArrayLike,  # Value of each baseline
     baseline_lengths: npt.ArrayLike,  # Number of samples per baseline
 ) -> None:
     """
-    Compute the sum map within the current MPI process
+    Compute the sum map within the current MPI process for TOD y
 
     This function implements the calculation of the operator P^t C_w⁻¹
     (Eqq. 18–20), the so-called “sum map”. Note that the summation
@@ -328,27 +351,66 @@ def _update_sum_map(
 
     """
 
-    for det_idx in range(tod.shape[0]):
+    for det_idx in range(pixel_idx.shape[0]):
         cur_weight = weights[det_idx]
 
         baseline_idx = 0
         samples_in_this_baseline = 0
 
         for sample_idx in range(tod.shape[1]):
-            sin_term = np.sin(2 * pol_angle_rad[det_idx, sample_idx])
-            cos_term = np.cos(2 * pol_angle_rad[det_idx, sample_idx])
-
             cur_pix = pixel_idx[det_idx, sample_idx]
-            cur_sample = tod[det_idx, sample_idx] - baselines[baseline_idx]
-            sky_map[0, cur_pix] += cur_sample / cur_weight
-            sky_map[1, cur_pix] += cur_sample * cos_term / cur_weight
-            sky_map[2, cur_pix] += cur_sample * sin_term / cur_weight
+            _sum_map_contribution_from_one_sample(
+                pol_angle_rad=pol_angle_rad[det_idx, sample_idx],
+                sample=tod[det_idx, sample_idx],
+                dest_array=sky_map[:, cur_pix],
+                weight=cur_weight,
+            )
             hit_map[cur_pix] += 1.0 / cur_weight
 
-            samples_in_this_baseline += 1
-            if samples_in_this_baseline >= baseline_lengths[baseline_idx]:
-                baseline_idx += 1
-                samples_in_this_baseline = 0
+            (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
+                baseline_idx, samples_in_this_baseline, baseline_lengths
+            )
+
+
+@njit
+def _update_sum_map_with_baseline(
+    sky_map: npt.ArrayLike,
+    hit_map: npt.ArrayLike,
+    pol_angle_rad: npt.ArrayLike,
+    pixel_idx: npt.ArrayLike,
+    weights: npt.ArrayLike,
+    baselines: npt.ArrayLike,  # Value of each baseline
+    baseline_lengths: npt.ArrayLike,  # Number of samples per baseline
+) -> None:
+    """
+    Compute the sum map within the current MPI process for baselines Fa
+
+    This function is the same as `_update_sum_map_with_tod`, but it
+    sums the baselines unrolled over the TOD instead of the TOD itself.
+
+    (Note that we could have avoided code duplication between these
+    two functions, had we used some more advanced language like Julia! ☹)
+    """
+
+    for det_idx in range(pixel_idx.shape[0]):
+        cur_weight = weights[det_idx]
+
+        baseline_idx = 0
+        samples_in_this_baseline = 0
+
+        for sample_idx in range(pixel_idx.shape[1]):
+            cur_pix = pixel_idx[det_idx, sample_idx]
+            _sum_map_contribution_from_one_sample(
+                pol_angle_rad=pol_angle_rad[det_idx, sample_idx],
+                sample=baselines[baseline_idx],
+                dest_array=sky_map[:, cur_pix],
+                weight=cur_weight,
+            )
+            hit_map[cur_pix] += 1.0 / cur_weight
+
+            (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
+                baseline_idx, samples_in_this_baseline, baseline_lengths
+            )
 
 
 @njit
@@ -382,7 +444,7 @@ def _compute_binned_map(
     hit_map: npt.ArrayLike,
     sky_map: npt.ArrayLike,
     nobs_matrix_cholesky: NobsMatrix,
-    baselines_list: List[npt.ArrayLike],
+    baselines_list: Optional[List[npt.ArrayLike]],
     baseline_lengths_list: List[npt.ArrayLike],
     component: str,
 ) -> None:
@@ -394,9 +456,8 @@ def _compute_binned_map(
     (using `_update_sum_map_local`), reduces the sums from all the
     MPI processes, and then solves for the I/Q/U parameters.
 
-    This is however applied to Fa-y, not to just y like in Eq. 21!
-    For this reason we must provide the parameters `baselines_list`
-    and `baseline_lengths_list`.
+    This is applied either to `y` or to `Fa`, depending on whether
+    the parameter `baselines_list` is ``None`` or not, respectively.
 
     The result is saved in `sky_map` (a 3,N_p tensor) and `hit_map`
     (a N_p vector), which should both be reset to zero before
@@ -412,19 +473,30 @@ def _compute_binned_map(
     sky_map[:] = 0
     hit_map[:] = 0
 
-    for cur_obs, cur_baselines, cur_baseline_lengths in zip(
-        obs_list, baselines_list, baseline_lengths_list
+    for obs_idx, (cur_obs, cur_baseline_lengths) in enumerate(
+        zip(obs_list, baseline_lengths_list)
     ):
-        _update_sum_map(
-            sky_map=sky_map,
-            hit_map=hit_map,
-            tod=getattr(cur_obs, component),
-            pol_angle_rad=cur_obs.destriper_pol_angle_rad,
-            pixel_idx=cur_obs.destriper_pixel_idx,
-            weights=cur_obs.destriper_weights,
-            baselines=cur_baselines,
-            baseline_lengths=cur_baseline_lengths,
-        )
+        if baselines_list is None:
+            _update_sum_map_with_tod(
+                sky_map=sky_map,
+                hit_map=hit_map,
+                tod=getattr(cur_obs, component),
+                pol_angle_rad=cur_obs.destriper_pol_angle_rad,
+                pixel_idx=cur_obs.destriper_pixel_idx,
+                weights=cur_obs.destriper_weights,
+                baseline_lengths=cur_baseline_lengths,
+            )
+        else:
+            cur_baselines = baselines_list[obs_idx]
+            _update_sum_map_with_baseline(
+                sky_map=sky_map,
+                hit_map=hit_map,
+                pol_angle_rad=cur_obs.destriper_pol_angle_rad,
+                pixel_idx=cur_obs.destriper_pixel_idx,
+                weights=cur_obs.destriper_weights,
+                baselines=cur_baselines,
+                baseline_lengths=cur_baseline_lengths,
+            )
 
     if MPI_ENABLED:
         MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, sky_map, op=mpi4py.MPI.SUM)
@@ -439,16 +511,36 @@ def _compute_binned_map(
 
 
 @njit
-def _compute_baseline_sums_for_one_component(
+def estimate_sample_from_map(cur_pixel, cur_psi, sky_map) -> float:
+    cur_i = sky_map[0, cur_pixel]
+    cur_q = sky_map[1, cur_pixel]
+    cur_u = sky_map[2, cur_pixel]
+
+    return cur_i + cur_q * np.cos(2 * cur_psi) + cur_u * np.sin(2 * cur_psi)
+
+
+@njit
+def _compute_tod_sums_for_one_component(
     weights: npt.ArrayLike,
     tod: npt.ArrayLike,
     pixel_idx: npt.ArrayLike,
     psi_angle_rad: npt.ArrayLike,
     sky_map: npt.ArrayLike,
-    baselines: npt.ArrayLike,
     baseline_length: npt.ArrayLike,
     output_sums: npt.ArrayLike,
 ) -> None:
+    """
+    Compute F^t C_w⁻¹ Z over TOD y
+
+    :param weights: The detector weights (array of N_det elements)
+    :param tod: The vector `y` (a NumPy array with N_samp elements)
+    :param pixel_idx: A NumPy array of N_samp Healpix indexes
+    :param psi_angle_rad: Values of the polarization angles (N_samp elements)
+    :param sky_map: The sky map used to compute operator Z
+    :param baseline_length: Array of N_base integers (the number
+        of samples per baseline)
+    :param output_sums: An array of N_base elements that will contain the result
+    """
     output_sums[:] = 0
 
     for (det_idx, cur_weight) in enumerate(weights):
@@ -459,52 +551,90 @@ def _compute_baseline_sums_for_one_component(
         samples_in_this_baseline = 0
 
         for sample_idx in range(len(det_pixel_idx)):
-            cur_pixel = det_pixel_idx[sample_idx]
-            cur_psi = det_psi_angle_rad[sample_idx]
-
-            cur_i = sky_map[0, cur_pixel]
-            cur_q = sky_map[1, cur_pixel]
-            cur_u = sky_map[2, cur_pixel]
-
-            map_value = (
-                cur_i + cur_q * np.cos(2 * cur_psi) + cur_u * np.sin(2 * cur_psi)
+            map_value = estimate_sample_from_map(
+                cur_pixel=det_pixel_idx[sample_idx],
+                cur_psi=det_psi_angle_rad[sample_idx],
+                sky_map=sky_map,
             )
-
-            # Note that we might just compute N * baselines[baseline_idx], where N
-            # is the length of this baseline. Instead, we keep summing
-            # baselines[baseline_idx] at each iteration because this is numerically
-            # more stable, expecially if N is large.
             output_sums[baseline_idx] += (
-                baselines[baseline_idx] - (tod[det_idx, sample_idx] - map_value)
+                tod[det_idx, sample_idx] - map_value
             ) / cur_weight
 
-            samples_in_this_baseline += 1
-            if samples_in_this_baseline >= baseline_length[baseline_idx]:
-                baseline_idx += 1
-                samples_in_this_baseline = 0
+            (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
+                baseline_idx, samples_in_this_baseline, baseline_length
+            )
+
+
+@njit
+def _compute_baseline_sums_for_one_component(
+    weights: npt.ArrayLike,
+    pixel_idx: npt.ArrayLike,
+    psi_angle_rad: npt.ArrayLike,
+    sky_map: npt.ArrayLike,
+    baselines: npt.ArrayLike,
+    baseline_length: npt.ArrayLike,
+    output_sums: npt.ArrayLike,
+) -> None:
+    """
+    Compute F^t C_w⁻¹ Z over TOD Fa (baselines projected in TOD space)
+
+    :param weights: The detector weights (array of N_det elements)
+    :param pixel_idx: A NumPy array of N_samp Healpix indexes
+    :param psi_angle_rad: Values of the polarization angles (N_samp elements)
+    :param sky_map: The sky map used to compute operator Z
+    :param baselines: Array of N_base numbers (the value of each baseline)
+    :param baseline_length: Array of N_base integers (the number
+        of samples per baseline)
+    :param output_sums: An array of N_base elements that will contain the result
+    """
+    output_sums[:] = 0
+
+    for (det_idx, cur_weight) in enumerate(weights):
+        det_pixel_idx = pixel_idx[det_idx, :]
+        det_psi_angle_rad = psi_angle_rad[det_idx, :]
+
+        baseline_idx = 0
+        samples_in_this_baseline = 0
+
+        for sample_idx in range(len(det_pixel_idx)):
+            map_value = estimate_sample_from_map(
+                cur_pixel=det_pixel_idx[sample_idx],
+                cur_psi=det_psi_angle_rad[sample_idx],
+                sky_map=sky_map,
+            )
+            output_sums[baseline_idx] += (
+                baselines[baseline_idx] - map_value
+            ) / cur_weight
+
+            (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
+                baseline_idx, samples_in_this_baseline, baseline_length
+            )
 
 
 def _compute_baseline_sums(
     obs_list: List[Observation],
     sky_map: npt.ArrayLike,
-    baselines_list: List[npt.ArrayLike],
+    baselines_list: Optional[List[npt.ArrayLike]],
     baseline_lengths_list: List[npt.ArrayLike],
-    component: str,
+    component: Optional[str],
     output_sums_list: List[npt.ArrayLike],
 ):
     """
-    Compute the F^t C_w⁻¹ Z operator on the TOD (Fa - y)
+    Compute F^t C_w⁻¹ Z either on the TOD Fa (baselines) or y (TOD)
 
     The matrix F “spreads” the baseline values “a” over the TOD space,
-    while “y” is the TOD owned by each :class:`Observation` object
-     contained in `obs_list`.
+    while “y” is the TOD owned by each :class:`.Observation` object
+    contained in `obs_list`. If `baselines_list` is not None,
+    the operator is applied on Fa, otherwise on y, where the name of
+    the field of the :class:`.Observation` class holding the TOD
+    is specified by `component`.
 
-    The field `baselines_list` and `baseline_lengths_list` are lists
-    of NumPy arrays; they are lists with the same length as `obs_list` and
-    must contain the input value of the baselines and their lengths in
-    terms of number of TOD samples, respectively. When using MPI, the
-    baselines must refer to the TOD samples handled by the TOD owned
-    by the current MPI process.
+    The field `baselines_list` (if specified) and `baseline_lengths_list`
+    are lists of NumPy arrays; they are lists with the same length as
+    `obs_list` and must contain the input value of the baselines and
+    their lengths in terms of number of TOD samples, respectively.
+    When using MPI, the baselines must refer to the TOD samples handled
+    by the TOD owned by the current MPI process.
 
     The result is saved in `output_sums_list`, which must have already
     been allocated. Note that you *cannot* make this field point to
@@ -516,8 +646,8 @@ def _compute_baseline_sums(
     assert len(output_sums_list) == len(obs_list)
 
     # Compute the value of the F^t C_w⁻¹ Z operator
-    for obs_idx, (cur_obs, cur_baseline, cur_baseline_lengths, cur_sums) in enumerate(
-        zip(obs_list, baselines_list, baseline_lengths_list, output_sums_list)
+    for obs_idx, (cur_obs, cur_baseline_lengths, cur_sums) in enumerate(
+        zip(obs_list, baseline_lengths_list, output_sums_list)
     ):
         assert len(cur_baseline_lengths) == len(cur_sums), (
             f"The output buffer for observation {obs_idx=} "
@@ -525,20 +655,32 @@ def _compute_baseline_sums(
             f"are {len(cur_baseline_lengths)=} baselines in this observation"
         )
 
-        assert (
-            cur_baseline is not cur_sums
-        ), "The input and output arrays used to hold the baselines must be different"
+        if baselines_list is not None:
+            cur_baseline = baselines_list[obs_idx]
+            assert cur_baseline is not cur_sums, (
+                "The input and output arrays used to hold the baselines "
+                "must be different"
+            )
 
-        _compute_baseline_sums_for_one_component(
-            weights=cur_obs.destriper_weights,
-            tod=getattr(cur_obs, component),
-            pixel_idx=cur_obs.destriper_pixel_idx,
-            psi_angle_rad=cur_obs.destriper_pol_angle_rad,
-            sky_map=sky_map,
-            baselines=cur_baseline,
-            baseline_length=cur_baseline_lengths,
-            output_sums=cur_sums,
-        )
+            _compute_baseline_sums_for_one_component(
+                weights=cur_obs.destriper_weights,
+                pixel_idx=cur_obs.destriper_pixel_idx,
+                psi_angle_rad=cur_obs.destriper_pol_angle_rad,
+                sky_map=sky_map,
+                baselines=cur_baseline,
+                baseline_length=cur_baseline_lengths,
+                output_sums=cur_sums,
+            )
+        else:
+            _compute_tod_sums_for_one_component(
+                weights=cur_obs.destriper_weights,
+                tod=getattr(cur_obs, component),
+                pixel_idx=cur_obs.destriper_pixel_idx,
+                psi_angle_rad=cur_obs.destriper_pol_angle_rad,
+                sky_map=sky_map,
+                baseline_length=cur_baseline_lengths,
+                output_sums=cur_sums,
+            )
 
 
 def _reset_maps_for_destriper(params: DestriperResult) -> None:
@@ -606,7 +748,9 @@ def make_destriped_map(
     sky_map = np.empty((3, number_of_pixels))
     hit_map = np.empty(number_of_pixels)
 
-    if not do_destriping:
+    if do_destriping:
+        pass  # TODO
+    else:
         # No need to run the destriping, just compute the binned map with
         # one single baseline set to zero
         _compute_binned_map(

@@ -421,19 +421,12 @@ def test_map_maker_parts():
     sky_map = np.empty((3, number_of_pixels))
     hit_map = np.empty(number_of_pixels)
 
-    # For the moment, we just set the baselines to zero. We'll check
-    # a more complex case in step 3
-    baselines_list = [
-        np.zeros(len(cur_baseline_length))
-        for cur_baseline_length in baseline_lengths_list
-    ]
-
     _compute_binned_map(
         obs_list=obs_list,
         sky_map=sky_map,
         hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
-        baselines_list=baselines_list,
+        baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
         component="sky_signal",
     )
@@ -453,9 +446,8 @@ def test_map_maker_parts():
     )
 
     #################################################
-    # Step 3: check that the F^t C_w⁻¹ Z operator works
-    # correctly (F^t C_w⁻¹ Z (Fa - y) = 0, which is
-    # a different way to write Eq. 14)
+    # Step 3: check that the F^t C_w⁻¹ Z operator (Eq. 14) works
+    # correctly both on baselines (Fa) and on TODs (y)
 
     # Here we pick some random values for the 1/f baselines
     # The item `full_baselines` contains the baselines from
@@ -473,7 +465,10 @@ def test_map_maker_parts():
         #     2. baselines_list=[array([10.])]
         baselines_list = [np.array([full_baselines[MPI_COMM_WORLD.rank]])]
 
-    # Recompute the binned map using (Fa - y) as the TOD
+    # This array will hold the result
+    output_baselines_list = [np.empty_like(x) for x in baselines_list]
+
+    # Recompute the binned map using Fa as the TOD
     # (in step 2, the TOD was just y because `baselines_list`
     # only contained zeroes)
     _compute_binned_map(
@@ -486,7 +481,6 @@ def test_map_maker_parts():
         component="sky_signal",
     )
 
-    output_baselines_list = [np.empty_like(x) for x in baselines_list]
     _compute_baseline_sums(
         obs_list=obs_list,
         sky_map=sky_map,
@@ -500,7 +494,46 @@ def test_map_maker_parts():
         np.transpose(expected_solution.F)
         @ expected_solution.invCw
         @ expected_solution.Z
-        @ (expected_solution.F @ full_baselines - expected_solution.y)
+        @ expected_solution.F
+        @ full_baselines
+    )
+
+    if MPI_COMM_WORLD.size == 2:
+        # Just check the baseline that belongs to this MPI process
+        np.testing.assert_almost_equal(
+            actual=output_baselines_list[0][0], desired=expected[MPI_COMM_WORLD.rank]
+        )
+    else:
+        np.testing.assert_allclose(
+            actual=output_baselines_list[0],
+            desired=expected,
+        )
+
+    # Now do the same using `y` instead of `Fa`
+    _compute_binned_map(
+        obs_list=obs_list,
+        sky_map=sky_map,
+        hit_map=hit_map,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        baselines_list=None,
+        baseline_lengths_list=baseline_lengths_list,
+        component="sky_signal",
+    )
+
+    _compute_baseline_sums(
+        obs_list=obs_list,
+        sky_map=sky_map,
+        baselines_list=None,
+        baseline_lengths_list=baseline_lengths_list,
+        component="sky_signal",
+        output_sums_list=output_baselines_list,
+    )
+
+    expected = (
+        np.transpose(expected_solution.F)
+        @ expected_solution.invCw
+        @ expected_solution.Z
+        @ expected_solution.y
     )
 
     if MPI_COMM_WORLD.size == 2:
@@ -564,5 +597,5 @@ def test_map_maker_without_destriping():
     _test_map_maker(use_destriper=False)
 
 
-def _test_map_maker_with_destriping():
+def test_map_maker_with_destriping():
     _test_map_maker(use_destriper=True)
