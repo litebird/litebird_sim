@@ -126,7 +126,27 @@ class DestriperResult:
     destriped_map: Optional[npt.ArrayLike]
 
 
-# @njit
+def _sum_components_into_obs(
+    obs_list: List[Observation],
+    target: str,
+    other_components: List[str],
+    factor: float,
+) -> None:
+    """Sum all the TOD components into the first one
+
+    If `target` is “tod” and `other_components` is the list ``["sky", "noise"]``,
+    this function will do the operation ``tod += factor * (sky + noise)``.
+    The value of `factor` is usually ±1, which means that you can either sum
+    or subtract the sky and the noise in the above example.
+    """
+    for cur_obs in obs_list:
+        target_tod = getattr(cur_obs, target)
+
+        for other_component in other_components:
+            target_tod += factor * getattr(cur_obs, other_component)
+
+
+@njit
 def _solve_map_making(nobs_matrix, atd):
     # Apply M⁻¹ to `atd`
     #
@@ -150,7 +170,7 @@ def _solve_map_making(nobs_matrix, atd):
             atd[ipix].fill(hp.UNSEEN)
 
 
-# @njit
+@njit
 def _accumulate_nobs_matrix(
     pix_idx: npt.ArrayLike,  # Shape: (Ndet, 1)
     psi_angle_rad: npt.ArrayLike,  # Shape: (Ndet, 1)
@@ -186,7 +206,7 @@ def _accumulate_nobs_matrix(
             cur_matrix[5] += sin_over_sigma * sin_over_sigma
 
 
-# @njit
+@njit
 def _nobs_matrix_to_cholesky(
     nobs_matrix: npt.ArrayLike,  # Shape: (N_pix, 6)
     dest_valid_pixel: npt.ArrayLike,  # Shape: (N_pix,)
@@ -294,6 +314,8 @@ def _update_sum_map(
     pol_angle_rad: npt.ArrayLike,
     pixel_idx: npt.ArrayLike,
     weights: npt.ArrayLike,
+    baselines: npt.ArrayLike,  # Value of each baseline
+    baseline_lengths: npt.ArrayLike,  # Number of samples per baseline
 ) -> None:
     """
     Compute the sum map within the current MPI process
@@ -309,16 +331,24 @@ def _update_sum_map(
     for det_idx in range(tod.shape[0]):
         cur_weight = weights[det_idx]
 
+        baseline_idx = 0
+        samples_in_this_baseline = 0
+
         for sample_idx in range(tod.shape[1]):
             sin_term = np.sin(2 * pol_angle_rad[det_idx, sample_idx])
             cos_term = np.cos(2 * pol_angle_rad[det_idx, sample_idx])
 
             cur_pix = pixel_idx[det_idx, sample_idx]
-            cur_sample = tod[det_idx, sample_idx]
+            cur_sample = tod[det_idx, sample_idx] - baselines[baseline_idx]
             sky_map[0, cur_pix] += cur_sample / cur_weight
             sky_map[1, cur_pix] += cur_sample * cos_term / cur_weight
             sky_map[2, cur_pix] += cur_sample * sin_term / cur_weight
             hit_map[cur_pix] += 1.0 / cur_weight
+
+            samples_in_this_baseline += 1
+            if samples_in_this_baseline >= baseline_lengths[baseline_idx]:
+                baseline_idx += 1
+                samples_in_this_baseline = 0
 
 
 @njit
@@ -352,7 +382,9 @@ def _compute_binned_map(
     hit_map: npt.ArrayLike,
     sky_map: npt.ArrayLike,
     nobs_matrix_cholesky: NobsMatrix,
-    components: Optional[List[str]] = None,
+    baselines_list: List[npt.ArrayLike],
+    baseline_lengths_list: List[npt.ArrayLike],
+    component: str,
 ) -> None:
     """
     Compute the global binned map
@@ -361,6 +393,10 @@ def _compute_binned_map(
     which “bins” the TODs contained in `obs_list` in a sum map
     (using `_update_sum_map_local`), reduces the sums from all the
     MPI processes, and then solves for the I/Q/U parameters.
+
+    This is however applied to Fa-y, not to just y like in Eq. 21!
+    For this reason we must provide the parameters `baselines_list`
+    and `baseline_lengths_list`.
 
     The result is saved in `sky_map` (a 3,N_p tensor) and `hit_map`
     (a N_p vector), which should both be reset to zero before
@@ -372,23 +408,23 @@ def _compute_binned_map(
         "contain the Cholesky decompositions of the 3×3 M_i matrices"
     )
 
-    if not components:
-        components = ["tod"]
-
     # Step 1: compute the “sum map” (Eqq. 18–20)
     sky_map[:] = 0
     hit_map[:] = 0
 
-    for cur_obs in obs_list:
-        for cur_component in components:
-            _update_sum_map(
-                sky_map=sky_map,
-                hit_map=hit_map,
-                tod=getattr(cur_obs, cur_component),
-                pol_angle_rad=cur_obs.destriper_pol_angle_rad,
-                pixel_idx=cur_obs.destriper_pixel_idx,
-                weights=cur_obs.destriper_weights,
-            )
+    for cur_obs, cur_baselines, cur_baseline_lengths in zip(
+        obs_list, baselines_list, baseline_lengths_list
+    ):
+        _update_sum_map(
+            sky_map=sky_map,
+            hit_map=hit_map,
+            tod=getattr(cur_obs, component),
+            pol_angle_rad=cur_obs.destriper_pol_angle_rad,
+            pixel_idx=cur_obs.destriper_pixel_idx,
+            weights=cur_obs.destriper_weights,
+            baselines=cur_baselines,
+            baseline_lengths=cur_baseline_lengths,
+        )
 
     if MPI_ENABLED:
         MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, sky_map, op=mpi4py.MPI.SUM)
@@ -400,6 +436,93 @@ def _compute_binned_map(
         nobs_matrix_cholesky=nobs_matrix_cholesky.nobs_matrix,
         valid_pixels=nobs_matrix_cholesky.valid_pixel,
     )
+
+
+@njit
+def _compute_baseline_sums_for_one_component(
+    weights: npt.ArrayLike,
+    tod: npt.ArrayLike,
+    pixel_idx: npt.ArrayLike,
+    psi_angle_rad: npt.ArrayLike,
+    sky_map: npt.ArrayLike,
+    baselines: npt.ArrayLike,
+    baseline_length: npt.ArrayLike,
+    output_sums: npt.ArrayLike,
+) -> None:
+    output_sums[:] = 0
+
+    for (det_idx, cur_weight) in enumerate(weights):
+        det_pixel_idx = pixel_idx[det_idx, :]
+        det_psi_angle_rad = psi_angle_rad[det_idx, :]
+
+        baseline_idx = 0
+        samples_in_this_baseline = 0
+
+        for sample_idx in range(len(det_pixel_idx)):
+            cur_pixel = det_pixel_idx[sample_idx]
+            cur_psi = det_psi_angle_rad[sample_idx]
+
+            cur_i = sky_map[0, cur_pixel]
+            cur_q = sky_map[1, cur_pixel]
+            cur_u = sky_map[2, cur_pixel]
+
+            map_value = (
+                cur_i + cur_q * np.cos(2 * cur_psi) + cur_u * np.sin(2 * cur_psi)
+            )
+
+            # Note that we might just compute N * baselines[baseline_idx], where N
+            # is the length of this baseline. Instead, we keep summing
+            # baselines[baseline_idx] at each iteration because this is numerically
+            # more stable, expecially if N is large.
+            output_sums[baseline_idx] += (
+                baselines[baseline_idx] - (tod[det_idx, sample_idx] - map_value)
+            ) / cur_weight
+
+            samples_in_this_baseline += 1
+            if samples_in_this_baseline >= baseline_length[baseline_idx]:
+                baseline_idx += 1
+                samples_in_this_baseline = 0
+
+
+def _compute_baseline_sums(
+    obs_list: List[Observation],
+    sky_map: npt.ArrayLike,
+    baselines_list: List[npt.ArrayLike],
+    baseline_lengths_list: List[npt.ArrayLike],
+    component: str,
+    output_sums_list: List[npt.ArrayLike],
+):
+    """
+    Compute the F^t C_w⁻¹ Z operator on the TOD
+    """
+
+    assert len(baseline_lengths_list) == len(obs_list)
+    assert len(output_sums_list) == len(obs_list)
+
+    # Compute the value of the F^t C_w⁻¹ Z operator
+    for obs_idx, (cur_obs, cur_baseline, cur_baseline_lengths, cur_sums) in enumerate(
+        zip(obs_list, baselines_list, baseline_lengths_list, output_sums_list)
+    ):
+        assert len(cur_baseline_lengths) == len(cur_sums), (
+            f"The output buffer for observation {obs_idx=} "
+            f"has room for {len(cur_sums)=} elements, but there"
+            f"are {len(cur_baseline_lengths)=} baselines in this observation"
+        )
+
+        assert (
+            cur_baseline is not cur_sums
+        ), "The input and output arrays used to hold the baselines must be different"
+
+        _compute_baseline_sums_for_one_component(
+            weights=cur_obs.destriper_weights,
+            tod=getattr(cur_obs, component),
+            pixel_idx=cur_obs.destriper_pixel_idx,
+            psi_angle_rad=cur_obs.destriper_pol_angle_rad,
+            sky_map=sky_map,
+            baselines=cur_baseline,
+            baseline_length=cur_baseline_lengths,
+            output_sums=cur_sums,
+        )
 
 
 def _reset_maps_for_destriper(params: DestriperResult) -> None:
@@ -422,6 +545,8 @@ def make_destriped_map(
     if not components:
         components = ["tod"]
 
+    do_destriping = params.samples_per_baseline is not None
+
     obs_list, ptg_list, psi_list = _normalize_observations_and_pointings(
         obs=obs, pointings=pointings
     )
@@ -440,6 +565,20 @@ def make_destriped_map(
         output_coordinate_system=CoordinateSystem.Ecliptic,
     )
 
+    if len(components) > 1:
+        # It is often the case that one asks to create a map out of a
+        # sum of TODs (e.g., “CMB”, “synchrotron”, “1/f noise”, “white
+        # noise”, etc.). It is a burden for the destriping code to take
+        # into account the sum of all the components in each function,
+        # so we sum all the TODs into the first one and only use that
+        # in the map-making. We'll revert the change later
+        _sum_components_into_obs(
+            obs_list=obs_list,
+            target=components[0],
+            other_components=components[1:],
+            factor=+1.0,
+        )
+
     nobs_matrix_cholesky = _build_nobs_matrix(
         hpx=hpx,
         obs_list=obs_list,
@@ -451,13 +590,21 @@ def make_destriped_map(
     sky_map = np.empty((3, number_of_pixels))
     hit_map = np.empty(number_of_pixels)
 
-    _compute_binned_map(
-        obs_list=obs_list,
-        sky_map=sky_map,
-        hit_map=hit_map,
-        nobs_matrix_cholesky=nobs_matrix_cholesky,
-        components=["sky_signal", "baseline", "white_noise"],
-    )
+    if not do_destriping:
+        # No need to run the destriping, just compute the binned map with
+        # one single baseline set to zero
+        _compute_binned_map(
+            obs_list=obs_list,
+            sky_map=sky_map,
+            hit_map=hit_map,
+            nobs_matrix_cholesky=nobs_matrix_cholesky,
+            component=components[0],
+            baselines_list=[np.array([0.0]) for _ in obs_list],
+            baseline_lengths_list=[
+                np.array([getattr(cur_obs, components[0]).shape[1]], dtype=int)
+                for cur_obs in obs_list
+            ],
+        )
 
     if not keep_weights:
         for cur_obs in obs_list:
@@ -472,6 +619,15 @@ def make_destriped_map(
             del cur_obs.destriper_pol_angle_rad
 
     gc.collect()
+
+    # Revert the value of the first TOD component
+    if len(components) > 1:
+        _sum_components_into_obs(
+            obs_list=obs_list,
+            target=components[0],
+            other_components=components[1:],
+            factor=-1.0,
+        )
 
     return DestriperResult(
         params=params,

@@ -112,6 +112,10 @@ class AnalyticSolution:
     num_of_baselines: int = NUM_OF_BASELINES
     num_of_pixels: int = NUM_OF_PIXELS
     sigma: float = 1.0
+    # Array of N integers, where N is the number of baselines. Each
+    # value in the array is the number of TOD samples falling in
+    # that baseline. Of course, sum(baseline_runs) == NUM_OF_SAMPLES
+    baseline_runs: Any = None
     # Baseline indexes: array of NUM_OF_SAMPLES elements, where each
     # element is the index in the BASELINE_VALUES array
     baseline_indexes: Any = None
@@ -159,10 +163,15 @@ def lower_triangular_to_matrix(coefficients):
 
 
 def create_analytical_solution(
-    baseline_indexes,
+    baseline_runs,
     sigma: float = 0.1,
     add_baselines: bool = True,
 ) -> AnalyticSolution:
+    # Beware, the `*` and `+` operators used here work on Python arrays, not
+    # on NumPy objects! Their semantics differ! Here we just want
+    # to create an array with shape [0, 0, 0, … , 0, 1, 1, 1, … , 1, 1]
+    baseline_indexes = np.array([0] * baseline_runs[0] + [1] * baseline_runs[1])
+
     # Build the pointing matrix P (Eq. 2 of KurkiSuonio2009)
     P = np.zeros((NUM_OF_SAMPLES, 3 * NUM_OF_PIXELS))
 
@@ -212,6 +221,7 @@ def create_analytical_solution(
         num_of_baselines=NUM_OF_BASELINES,
         num_of_pixels=NUM_OF_PIXELS,
         sigma=sigma,
+        baseline_runs=baseline_runs,
         baseline_indexes=baseline_indexes,
         P=P,
         Cw=Cw,
@@ -285,6 +295,8 @@ def setup_simulation(
     assert num_of_samples == NUM_OF_SAMPLES
 
     if lbs.MPI_COMM_WORLD.size == 2:
+        # If there are 2 MPI processes, we assign the first baseline
+        # to #0 and the second baseline to #1
         baseline_runs = np.array(
             [
                 cur_proc.observations[0].num_of_samples
@@ -292,15 +304,13 @@ def setup_simulation(
             ]
         )
     else:
+        # We're running serially, so the current process will handle
+        # *both* baselines, and we're free to set their length
         baseline_runs = np.array([4, 3])
     assert len(baseline_runs) == 2
 
-    # Beware, the `*` and `+` operators used here work on Python arrays, not
-    # on NumPy objects! Their semantics differ!
-    baseline_indexes = np.array([0] * baseline_runs[0] + [1] * baseline_runs[1])
-
     solution = create_analytical_solution(
-        baseline_indexes=baseline_indexes,
+        baseline_runs=baseline_runs,
         sigma=sigma,
         add_baselines=add_baselines,
     )
@@ -321,12 +331,14 @@ def setup_simulation(
     return (sim, solution)
 
 
-def test_nobs_matrix_construction_and_apply_z():
+def test_map_maker_parts():
     from litebird_sim.mapmaking.common import _normalize_observations_and_pointings
     from litebird_sim.mapmaking.destriper import (
         _store_pixel_idx_and_pol_angle_in_obs,
         _build_nobs_matrix,
+        _sum_components_into_obs,
         _compute_binned_map,
+        _compute_baseline_sums,
     )
 
     if lbs.MPI_COMM_WORLD.size > 2:
@@ -335,6 +347,15 @@ def test_nobs_matrix_construction_and_apply_z():
 
     nside = 1
     sim, expected_solution = setup_simulation(sigma=0.1)
+
+    if MPI_COMM_WORLD.size == 2:
+        baseline_lengths_list = [
+            np.array([expected_solution.baseline_runs[MPI_COMM_WORLD.rank]], dtype=int)
+        ]
+    elif MPI_COMM_WORLD.size == 1:
+        baseline_lengths_list = [np.array(expected_solution.baseline_runs)]
+    else:
+        assert False, "This should not happen! Only up to 2 MPI ranks are allowed here"
 
     obs_list, ptg_list, psi_list = _normalize_observations_and_pointings(
         obs=sim.observations,
@@ -384,15 +405,32 @@ def test_nobs_matrix_construction_and_apply_z():
     # Step 2: check that binning is correct (the result of P^t C_w⁻¹ y,
     # see Equations (18), (19), and (20)
 
+    # Make sure that sky_signal += +1.0 * (baseline + white_noise)
+    _sum_components_into_obs(
+        obs_list=obs_list,
+        target="sky_signal",
+        other_components=["baseline", "white_noise"],
+        factor=+1.0,
+    )
+
     sky_map = np.empty((3, number_of_pixels))
     hit_map = np.empty(number_of_pixels)
+
+    # For the moment, we just set the baselines to zero. We'll check
+    # a more complex case in step 3
+    baselines_list = [
+        np.zeros(len(cur_baseline_length))
+        for cur_baseline_length in baseline_lengths_list
+    ]
 
     _compute_binned_map(
         obs_list=obs_list,
         sky_map=sky_map,
         hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
-        components=["sky_signal", "baseline", "white_noise"],
+        baselines_list=baselines_list,
+        baseline_lengths_list=baseline_lengths_list,
+        component="sky_signal",
     )
 
     # This is going to be a 3N_p vector
@@ -407,6 +445,50 @@ def test_nobs_matrix_construction_and_apply_z():
     # becomes a 2×3 matrix) and flatten it into a linear array
     np.testing.assert_allclose(
         actual=sky_map.transpose().flatten(), desired=expected_map
+    )
+
+    #################################################
+    # Step 3: check that the F^t C_w⁻¹ Z operator works
+    # correctly (F^t C_w⁻¹ Z (Fa - y) = 0, which is
+    # a different way to write Eq. 14)
+
+    baselines_list = [
+        np.arange(len(cur_baseline_length), dtype=np.float64) + 10 * MPI_COMM_WORLD.rank
+        for cur_baseline_length in baseline_lengths_list
+    ]
+
+    # Recompute the binned map using (Fa - y) as the TOD
+    # (in step 2, the TOD was just y because `baselines_list`
+    # only contained zeroes)
+    _compute_binned_map(
+        obs_list=obs_list,
+        sky_map=sky_map,
+        hit_map=hit_map,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        baselines_list=baselines_list,
+        baseline_lengths_list=baseline_lengths_list,
+        component="sky_signal",
+    )
+
+    output_baselines_list = [np.empty_like(x) for x in baselines_list]
+    _compute_baseline_sums(
+        obs_list=obs_list,
+        sky_map=sky_map,
+        baselines_list=baselines_list,
+        baseline_lengths_list=baseline_lengths_list,
+        component="sky_signal",
+        output_sums_list=output_baselines_list,
+    )
+
+    expected = (
+        np.transpose(expected_solution.F)
+        @ expected_solution.invCw
+        @ expected_solution.Z
+        @ (expected_solution.F @ baselines_list[0] - expected_solution.y)
+    )
+    np.testing.assert_allclose(
+        actual=output_baselines_list[0],
+        desired=expected,
     )
 
 
