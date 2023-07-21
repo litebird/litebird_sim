@@ -289,7 +289,7 @@ class Simulation:
 
     def __init__(
         self,
-        random_seed,
+        random_seed="",
         base_path=None,
         name=None,
         mpi_comm=MPI_COMM_WORLD,
@@ -383,12 +383,18 @@ class Simulation:
             if isinstance(self.start_time, astropy.time.Time)
             else self.start_time,
             duration_s=self.duration_s,
-            random_seed=random_seed,
+            random_seed=self.random_seed,
+        )
+
+        # Check that random_seed has been set
+        assert self.random_seed != "", (
+            "you must set random_seed (int for reproducible results, "
+            + "None for non reproducible results)"
         )
 
         # Initialize self.random. The user is free to
         # call self.init_random() again later
-        self.init_random(random_seed)
+        self.init_random(self.random_seed)
 
     def init_random(self, random_seed):
         """
@@ -441,8 +447,8 @@ class Simulation:
         except KeyError:
             return
 
-        if not self.random_seed:
-            self.random_seed = sim_params.get("random_seed", None)
+        if self.random_seed == "":
+            self.random_seed = sim_params.get("random_seed", "")
 
         if not self.base_path:
             self.base_path = Path(sim_params.get("base_path", Path()))
