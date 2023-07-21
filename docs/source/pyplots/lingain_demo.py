@@ -26,6 +26,7 @@ drift_params = lbs.GainDriftParams(
 sim1 = lbs.Simulation(
     start_time=start_time,
     duration_s=duration_s,
+    random_seed=12345,
 )
 
 sim1.create_observations(
@@ -45,10 +46,7 @@ sim1.apply_gaindrift(
 plt.figure(figsize=(8, 5))
 
 time_domain = (
-    np.arange(sim1.observations[0].tod.shape[1])
-    / sampling_freq_Hz
-    / 24
-    / 3600
+    np.arange(sim1.observations[0].tod.shape[1]) / sampling_freq_Hz / 24 / 3600
 )
 
 for idx in range(sim1.observations[0].tod.shape[0]):

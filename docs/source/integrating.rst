@@ -173,7 +173,7 @@ is indeed the case::
   import litebird_sim as lbs
 
   def test_noise_generator():
-      sim = lbs.Simulation()
+      sim = lbs.Simulation(random_seed=12345)
       noisegen = MyWrapper(sim)
       noisegen.run()
 
