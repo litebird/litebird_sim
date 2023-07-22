@@ -24,6 +24,7 @@ else:
 sim = lbs.Simulation(
     start_time=0.0,
     duration_s=duration_s,
+    random_seed=12345,
 )
 
 sim.create_observations(
