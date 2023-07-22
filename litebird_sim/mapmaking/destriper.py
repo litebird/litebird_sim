@@ -18,9 +18,9 @@ from numba import njit
 import healpy as hp
 
 from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
-from typing import Union, List, Any, Optional
+from typing import Union, List, Optional, Tuple
 from litebird_sim.observations import Observation
-from litebird_sim.coordinates import rotate_coordinates_e2g, CoordinateSystem
+from litebird_sim.coordinates import CoordinateSystem
 
 from .common import (
     _compute_pixel_indices,
@@ -107,13 +107,26 @@ class DestriperParameters:
     nside: int = 256
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic
     nnz: int = 3
-    samples_per_baseline: Optional[Union[int, List[int]]] = 100
+    samples_per_baseline: Optional[Union[int, List[npt.ArrayLike]]] = 100
     iter_max: int = 100
     threshold: float = 1e-7
 
 
 @dataclass
 class DestriperResult:
+    """
+    Result of a call to :func:`.make_destriped_map`
+
+    The fields `baselines`, `baseline_lengths`, `stopping_factors`,
+    `destriped_map`, and `converged` are only relevant if you actually
+    used the destriper; otherwise, they will be set to ``None``.
+
+    If you are running several MPI processes, keep in mind that the fields
+    `hit_map`, `binned_map`, `destriped_map`, and `nobs_matrix_cholesky`
+    contain the *global* map, but `baselines` and `baseline_lengths` only
+    refer to the TODs within the *current* MPI process.
+    """
+
     params: DestriperParameters
     hit_map: npt.ArrayLike
     binned_map: npt.ArrayLike
@@ -122,8 +135,10 @@ class DestriperResult:
     # The following fields are filled only if the CG algorithm was used
     baselines: Optional[npt.ArrayLike]
     baseline_lengths: Optional[npt.ArrayLike]
-    stopping_factors: Optional[npt.ArrayLike]
+    stopping_factor: Optional[float]
+    history_of_stopping_factors: Optional[List[float]]
     destriped_map: Optional[npt.ArrayLike]
+    converged: bool
 
 
 def _sum_components_into_obs(
@@ -446,7 +461,7 @@ def _compute_binned_map(
     nobs_matrix_cholesky: NobsMatrix,
     baselines_list: Optional[List[npt.ArrayLike]],
     baseline_lengths_list: List[npt.ArrayLike],
-    component: str,
+    component: Optional[str],
 ) -> None:
     """
     Compute the global binned map
@@ -467,6 +482,11 @@ def _compute_binned_map(
     assert nobs_matrix_cholesky.is_cholesky, (
         "The parameter nobs_matrix_cholesky should already "
         "contain the Cholesky decompositions of the 3×3 M_i matrices"
+    )
+
+    assert (baselines_list is not None) or (component is not None), (
+        "To call _compute_binned_map you must either provide "
+        "the baselines or the TOD component"
     )
 
     # Step 1: compute the “sum map” (Eqq. 18–20)
@@ -691,6 +711,226 @@ def _reset_maps_for_destriper(params: DestriperResult) -> None:
         params.destriped_map[:] = 0.0
 
 
+def _mpi_dot(a: List[npt.ArrayLike], b: List[npt.ArrayLike]):
+    local_result = sum([np.dot(x1, x2) for (x1, x2) in zip(a, b)])
+    if MPI_ENABLED:
+        return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.SUM)
+    else:
+        return local_result
+
+
+def _get_stopping_factor(residual: List[npt.ArrayLike]) -> float:
+    local_result = max([np.max(np.abs(cur_baseline)) for cur_baseline in residual])
+    if MPI_ENABLED:
+        return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.MAX)
+    else:
+        return local_result
+
+
+def _compute_v_or_Ay(
+    obs_list: List[Observation],
+    nobs_matrix_cholesky: NobsMatrix,
+    sky_map: npt.ArrayLike,
+    hit_map: npt.ArrayLike,
+    baselines_list: Optional[List[npt.ArrayLike]],
+    baseline_lengths_list: List[npt.ArrayLike],
+    component: Optional[str],
+) -> List[npt.ArrayLike]:
+    _compute_binned_map(
+        obs_list=obs_list,
+        sky_map=sky_map,
+        hit_map=hit_map,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        baselines_list=baselines_list,
+        baseline_lengths_list=baseline_lengths_list,
+        component=component,
+    )
+
+    result = [
+        np.empty(len(cur_baseline_lengths))
+        for cur_baseline_lengths in baseline_lengths_list
+    ]
+    _compute_baseline_sums(
+        obs_list=obs_list,
+        sky_map=sky_map,
+        baselines_list=baselines_list,
+        baseline_lengths_list=baseline_lengths_list,
+        component=component,
+        output_sums_list=result,
+    )
+
+    return result
+
+
+def compute_v(
+    obs_list: List[Observation],
+    nobs_matrix_cholesky: NobsMatrix,
+    sky_map: npt.ArrayLike,
+    hit_map: npt.ArrayLike,
+    baseline_lengths_list: List[npt.ArrayLike],
+    component: str,
+) -> List[npt.ArrayLike]:
+    return _compute_v_or_Ay(
+        obs_list=obs_list,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        sky_map=sky_map,
+        hit_map=hit_map,
+        baselines_list=None,
+        baseline_lengths_list=baseline_lengths_list,
+        component=component,
+    )
+
+
+def apply_A(
+    obs_list: List[Observation],
+    nobs_matrix_cholesky: NobsMatrix,
+    sky_map: npt.ArrayLike,
+    hit_map: npt.ArrayLike,
+    baselines_list: List[npt.ArrayLike],
+    baseline_lengths_list: List[npt.ArrayLike],
+) -> List[npt.ArrayLike]:
+    return _compute_v_or_Ay(
+        obs_list=obs_list,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        sky_map=sky_map,
+        hit_map=hit_map,
+        baselines_list=baselines_list,
+        baseline_lengths_list=baseline_lengths_list,
+        component=None,
+    )
+
+
+def _run_destriper(
+    obs_list: List[Observation],
+    nobs_matrix_cholesky: NobsMatrix,
+    binned_map: npt.ArrayLike,
+    destriped_map: npt.ArrayLike,
+    hit_map: npt.ArrayLike,
+    baseline_lengths_list: List[npt.ArrayLike],
+    baselines_list_start: List[npt.ArrayLike],
+    component: str,
+    threshold: float,
+    max_steps: int,
+) -> Tuple[List[npt.ArrayLike], List[float], float, bool]:
+    assert nobs_matrix_cholesky.is_cholesky, (
+        "_run_destriper requires that `nobs_matrix_cholesky` "
+        "already contains the Cholesky transforms"
+    )
+
+    assert len(obs_list) == len(baselines_list_start)
+
+    # Preallocate memory for the baselines a_k and a_k+1…
+    a = [np.copy(cur_baseline) for cur_baseline in baselines_list_start]
+    best_a = [np.copy(cur_baseline) for cur_baseline in baselines_list_start]
+    best_stopping_factor = None
+
+    # …and for the residuals r_k and r_k+1
+    residual = [
+        cur_v - cur_A
+        for (cur_v, cur_A) in zip(
+            compute_v(
+                obs_list=obs_list,
+                nobs_matrix_cholesky=nobs_matrix_cholesky,
+                sky_map=destriped_map,
+                hit_map=hit_map,
+                baseline_lengths_list=baseline_lengths_list,
+                component=component,
+            ),
+            apply_A(
+                obs_list=obs_list,
+                nobs_matrix_cholesky=nobs_matrix_cholesky,
+                sky_map=destriped_map,
+                hit_map=hit_map,
+                baselines_list=a,
+                baseline_lengths_list=baseline_lengths_list,
+            ),
+        )
+    ]
+
+    new_residual = [np.copy(r_k) for r_k in residual]
+
+    p = [np.copy(cur_baseline) for cur_baseline in residual]
+    k = 0
+
+    old_r_dot = _mpi_dot(residual, residual)
+
+    history_of_stopping_factors = [_get_stopping_factor(residual)]  # type: List[float]
+    while True:
+        k += 1
+        if k >= max_steps:
+            converged = False
+            break
+
+        Ap = apply_A(
+            obs_list=obs_list,
+            nobs_matrix_cholesky=nobs_matrix_cholesky,
+            sky_map=destriped_map,
+            hit_map=hit_map,
+            baselines_list=p,
+            baseline_lengths_list=baseline_lengths_list,
+        )
+        γ = old_r_dot / _mpi_dot(p, Ap)
+
+        for a_k, p_k in zip(a, p):
+            a_k += γ * p_k
+
+        for (r_kplus1, r_k, Ap_k) in zip(new_residual, residual, Ap):
+            r_kplus1[:] = r_k - γ * Ap_k
+
+        cur_stopping_factor = _get_stopping_factor(new_residual)
+        if (not best_stopping_factor) or cur_stopping_factor < best_stopping_factor:
+            best_stopping_factor = cur_stopping_factor
+            for cur_best_a_k, a_k in zip(best_a, a):
+                cur_best_a_k[:] = a_k
+
+        history_of_stopping_factors.append(cur_stopping_factor)
+        if cur_stopping_factor < threshold:
+            converged = True
+            break
+
+        new_r_dot = _mpi_dot(new_residual, new_residual)
+        for p_k, r_k, new_r_k in zip(p, residual, new_residual):
+            p_k[:] = new_r_k + (new_r_dot / old_r_dot) * p_k
+
+        old_r_dot = new_r_dot
+        residual = new_residual
+
+    # Redo the binned and destriped map with the best solution found so far
+
+    # First, compute the binned map by passing `baselines_list=None`…
+    binned_map = np.empty_like(destriped_map)
+    _compute_binned_map(
+        obs_list=obs_list,
+        sky_map=binned_map,
+        hit_map=hit_map,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        component=component,
+        baselines_list=None,
+        baseline_lengths_list=baseline_lengths_list,
+    )
+
+    # …then compute the map from the “unrolled” baselines F·a…
+    _compute_binned_map(
+        obs_list=obs_list,
+        sky_map=destriped_map,
+        hit_map=hit_map,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        component=component,
+        baselines_list=best_a,
+        baseline_lengths_list=baseline_lengths_list,
+    )
+
+    # …and finally get the destriped map from their difference
+    # (y - F·a, as in Eq. (17))
+    destriped_map[:] = binned_map - destriped_map
+
+    # Remove the mean value from I, as it is meaningless
+    mask = np.isfinite(destriped_map[0, :])
+    destriped_map[0, mask] -= np.mean(destriped_map[0, mask])
+
+    return best_a, history_of_stopping_factors, best_stopping_factor, converged
+
+
 def make_destriped_map(
     obs: Union[Observation, List[Observation]],
     pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]],
@@ -745,17 +985,49 @@ def make_destriped_map(
     )
 
     number_of_pixels = hpx.npix()
-    sky_map = np.empty((3, number_of_pixels))
+    binned_map = np.empty((3, number_of_pixels))
     hit_map = np.empty(number_of_pixels)
 
     if do_destriping:
-        pass  # TODO
+        if type(params.samples_per_baseline) is int:
+            baseline_lengths_list = [
+                split_items_evenly(
+                    n=getattr(cur_obs, components[0]).shape[1],
+                    sub_n=params.samples_per_baseline,
+                )
+                for cur_obs in obs_list
+            ]
+        else:
+            baseline_lengths_list = params.samples_per_baseline
+
+        baselines_list = [
+            np.zeros(len(cur_baseline)) for cur_baseline in baseline_lengths_list
+        ]
+
+        destriped_map = np.empty((3, number_of_pixels))
+        (
+            baselines_list,
+            history_of_stopping_factors,
+            best_stopping_factor,
+            converged,
+        ) = _run_destriper(
+            obs_list=obs_list,
+            nobs_matrix_cholesky=nobs_matrix_cholesky,
+            binned_map=binned_map,
+            destriped_map=destriped_map,
+            hit_map=hit_map,
+            baseline_lengths_list=baseline_lengths_list,
+            baselines_list_start=baselines_list,
+            component=components[0],
+            threshold=params.threshold,
+            max_steps=params.iter_max,
+        )
     else:
         # No need to run the destriping, just compute the binned map with
         # one single baseline set to zero
         _compute_binned_map(
             obs_list=obs_list,
-            sky_map=sky_map,
+            sky_map=binned_map,
             hit_map=hit_map,
             nobs_matrix_cholesky=nobs_matrix_cholesky,
             component=components[0],
@@ -765,6 +1037,13 @@ def make_destriped_map(
                 for cur_obs in obs_list
             ],
         )
+
+        destriped_map = None
+        baseline_lengths_list = None
+        baselines_list = None
+        history_of_stopping_factors = None
+        best_stopping_factor = None
+        converged = True
 
     if not keep_weights:
         for cur_obs in obs_list:
@@ -792,12 +1071,14 @@ def make_destriped_map(
     return DestriperResult(
         params=params,
         hit_map=np.zeros(1),
-        binned_map=sky_map,
+        binned_map=binned_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         coordinate_system=params.output_coordinate_system,
         # The following fields are filled only if the CG algorithm was used
-        baselines=None,
-        baseline_lengths=None,
-        stopping_factors=None,
-        destriped_map=None,
+        baselines=baselines_list,
+        baseline_lengths=baseline_lengths_list,
+        history_of_stopping_factors=history_of_stopping_factors,
+        stopping_factor=best_stopping_factor,
+        destriped_map=destriped_map,
+        converged=converged,
     )

@@ -8,8 +8,9 @@
 # of the toast_destriper.
 
 from dataclasses import dataclass
-from typing import Any, Tuple
+from typing import Any, Tuple, List
 import numpy as np
+import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
 import litebird_sim as lbs
@@ -246,6 +247,19 @@ def create_analytical_solution(
     )
 
 
+def get_baseline_lengths_list(
+    expected_solution: AnalyticSolution,
+) -> List[npt.ArrayLike]:
+    if MPI_COMM_WORLD.size == 2:
+        return [
+            np.array([expected_solution.baseline_runs[MPI_COMM_WORLD.rank]], dtype=int)
+        ]
+    elif MPI_COMM_WORLD.size == 1:
+        return [np.array(expected_solution.baseline_runs)]
+    else:
+        assert False, "This should not happen! Only up to 2 MPI ranks are allowed here"
+
+
 def setup_simulation(
     sigma: float = 0.1, add_baselines: bool = True
 ) -> Tuple[lbs.Simulation, AnalyticSolution]:
@@ -353,14 +367,7 @@ def test_map_maker_parts():
     nside = 1
     sim, expected_solution = setup_simulation(sigma=0.1)
 
-    if MPI_COMM_WORLD.size == 2:
-        baseline_lengths_list = [
-            np.array([expected_solution.baseline_runs[MPI_COMM_WORLD.rank]], dtype=int)
-        ]
-    elif MPI_COMM_WORLD.size == 1:
-        baseline_lengths_list = [np.array(expected_solution.baseline_runs)]
-    else:
-        assert False, "This should not happen! Only up to 2 MPI ranks are allowed here"
+    baseline_lengths_list = get_baseline_lengths_list(expected_solution)
 
     obs_list, ptg_list, psi_list = _normalize_observations_and_pointings(
         obs=sim.observations,
@@ -557,11 +564,9 @@ def _test_map_maker(use_destriper: bool):
     sim, expected_solution = setup_simulation(sigma=0.1, add_baselines=use_destriper)
 
     if use_destriper:
-        samples_per_baseline = np.unique(
-            expected_solution.baseline_indexes, return_counts=True
-        )[1]
+        baseline_lengths_list = get_baseline_lengths_list(expected_solution)
     else:
-        samples_per_baseline = None
+        baseline_lengths_list = None
 
     result = lbs.make_destriped_map(
         obs=sim.observations,
@@ -569,15 +574,41 @@ def _test_map_maker(use_destriper: bool):
         params=lbs.DestriperParameters(
             nside=1,
             output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
-            samples_per_baseline=samples_per_baseline,
+            samples_per_baseline=baseline_lengths_list,
         ),
         components=["sky_signal", "baseline", "white_noise"],
     )
 
     if use_destriper:
-        pass
+        # Check that the baselines are ok
+        expected_baselines = BASELINE_VALUES - np.mean(BASELINE_VALUES)
+        if MPI_COMM_WORLD.size > 1:
+            np.testing.assert_almost_equal(
+                actual=result.baselines[0][MPI_COMM_WORLD.rank],
+                desired=expected_baselines[MPI_COMM_WORLD.rank],
+            )
+        else:
+            np.testing.assert_allclose(
+                actual=result.baselines[0], desired=expected_baselines
+            )
+
+        expected_map = np.copy(expected_solution.input_maps)
+        expected_map[0::3] -= np.mean(expected_map[0::3])
+
+        # Check that the destriped map is ok
+        for cur_pix in range(len(result.hit_map)):
+            if result.nobs_matrix_cholesky.valid_pixel[cur_pix]:
+                np.testing.assert_allclose(
+                    actual=result.destriped_map[:, cur_pix],
+                    desired=expected_map[(3 * cur_pix) : (3 * cur_pix + 3)],
+                    rtol=1e-5,
+                )
+            else:
+                assert np.isnan(result.binned_map[0, cur_pix])
+                assert np.isnan(result.binned_map[1, cur_pix])
+                assert np.isnan(result.binned_map[2, cur_pix])
     else:
-        # Just check the binned map
+        # Check the binned map
         for cur_pix in range(len(result.hit_map)):
             if result.nobs_matrix_cholesky.valid_pixel[cur_pix]:
                 np.testing.assert_allclose(
