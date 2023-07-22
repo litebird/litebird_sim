@@ -1031,7 +1031,7 @@ def make_destriped_map(
             hit_map=hit_map,
             nobs_matrix_cholesky=nobs_matrix_cholesky,
             component=components[0],
-            baselines_list=[np.array([0.0]) for _ in obs_list],
+            baselines_list=None,
             baseline_lengths_list=[
                 np.array([getattr(cur_obs, components[0]).shape[1]], dtype=int)
                 for cur_obs in obs_list

@@ -583,8 +583,10 @@ def _test_map_maker(use_destriper: bool):
         # Check that the baselines are ok
         expected_baselines = BASELINE_VALUES - np.mean(BASELINE_VALUES)
         if MPI_COMM_WORLD.size > 1:
+            # We use `result.baselines[0][0]` because each MPI process has just *one*
+            # Observation and *one* baseline
             np.testing.assert_almost_equal(
-                actual=result.baselines[0][MPI_COMM_WORLD.rank],
+                actual=result.baselines[0][0],
                 desired=expected_baselines[MPI_COMM_WORLD.rank],
             )
         else:
