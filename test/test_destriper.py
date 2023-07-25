@@ -5,7 +5,11 @@
 # write the matrices used to express the destriping problem in full form.
 # After having created the matrices in memory and having inverted them,
 # we check that the analytical solution is close enough to the output
-# of the toast_destriper.
+# of `make_destriped_map`.
+#
+# The map is made by just 2 pixels, and the TOD contains 7 samples;
+# there are two baselines that either contain 3 and 4 samples or
+# vice versa
 
 from dataclasses import dataclass
 from typing import Any, Tuple, List
@@ -100,18 +104,19 @@ assert len(PSI_ANGLES) == NUM_OF_SAMPLES
 
 
 # Note that the average of these values is *not* zero. Thus, the
-# destriping equation is going to retrieve different numbers
-# (with zero mean)
+# destriping equation is going to retrieve different numbers, because
+# the output of a destriper always produces zero-mean baselines.
 BASELINE_VALUES = np.array([10.0, 12.0])
 
 
-# This class is used to hold information about those matrices that are
-# too complex to write down explicitly and need to be calculated.
+# This class is used to hold information about those matrices used in
+# the analytical solution that are too complex to write down explicitly
+# and thus need to be calculated.
 @dataclass
-class AnalyticSolution:
-    num_of_samples: int = NUM_OF_SAMPLES
+class AnalyticalSolution:
+    num_of_samples_in_tod: int = NUM_OF_SAMPLES
     num_of_baselines: int = NUM_OF_BASELINES
-    num_of_pixels: int = NUM_OF_PIXELS
+    num_of_observed_pixels: int = NUM_OF_PIXELS
     sigma: float = 1.0
     # Array of N integers, where N is the number of baselines. Each
     # value in the array is the number of TOD samples falling in
@@ -167,7 +172,7 @@ def create_analytical_solution(
     baseline_runs,
     sigma: float = 0.1,
     add_baselines: bool = True,
-) -> AnalyticSolution:
+) -> AnalyticalSolution:
     # We assume that we have *two* baselines!
     assert (
         len(baseline_runs) == 2
@@ -222,10 +227,10 @@ def create_analytical_solution(
     estimated_a = np.linalg.inv(D) @ np.transpose(F) @ invCw @ Z @ y
     estimated_maps = invM @ np.transpose(P) @ invCw @ (y - F @ BASELINE_VALUES)
 
-    return AnalyticSolution(
-        num_of_samples=NUM_OF_SAMPLES,
+    return AnalyticalSolution(
+        num_of_samples_in_tod=NUM_OF_SAMPLES,
         num_of_baselines=NUM_OF_BASELINES,
-        num_of_pixels=NUM_OF_PIXELS,
+        num_of_observed_pixels=NUM_OF_PIXELS,
         sigma=sigma,
         baseline_runs=baseline_runs,
         baseline_indexes=baseline_indexes,
@@ -248,7 +253,7 @@ def create_analytical_solution(
 
 
 def get_baseline_lengths_list(
-    expected_solution: AnalyticSolution,
+    expected_solution: AnalyticalSolution,
 ) -> List[npt.ArrayLike]:
     if MPI_COMM_WORLD.size == 2:
         return [
@@ -262,7 +267,7 @@ def get_baseline_lengths_list(
 
 def setup_simulation(
     sigma: float = 0.1, add_baselines: bool = True
-) -> Tuple[lbs.Simulation, AnalyticSolution]:
+) -> Tuple[lbs.Simulation, AnalyticalSolution]:
     """Create a Simulation object and a AnalyticSolution object that match
 
     The Simulation object contains the same data as in AnalyticSolution. It
@@ -430,8 +435,8 @@ def test_map_maker_parts():
 
     _compute_binned_map(
         obs_list=obs_list,
-        sky_map=sky_map,
-        hit_map=hit_map,
+        output_sky_map=sky_map,
+        output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
@@ -480,8 +485,8 @@ def test_map_maker_parts():
     # only contained zeroes)
     _compute_binned_map(
         obs_list=obs_list,
-        sky_map=sky_map,
-        hit_map=hit_map,
+        output_sky_map=sky_map,
+        output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
@@ -519,8 +524,8 @@ def test_map_maker_parts():
     # Now do the same using `y` instead of `Fa`
     _compute_binned_map(
         obs_list=obs_list,
-        sky_map=sky_map,
-        hit_map=hit_map,
+        output_sky_map=sky_map,
+        output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
@@ -555,7 +560,13 @@ def test_map_maker_parts():
         )
 
 
-def _test_map_maker(use_destriper: bool):
+def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
+
+    if not use_destriper:
+        assert (
+            not use_preconditioner
+        ), "Impossible to use a preconditioner with the binner!"
+
     if lbs.MPI_COMM_WORLD.size > 2:
         # This test can work only with 1 or 2 MPI processes, no more
         return
@@ -568,6 +579,7 @@ def _test_map_maker(use_destriper: bool):
     else:
         baseline_lengths_list = None
 
+    original_tod = np.copy(sim.observations[0].sky_signal)
     result = lbs.make_destriped_map(
         obs=sim.observations,
         pointings=None,
@@ -575,8 +587,15 @@ def _test_map_maker(use_destriper: bool):
             nside=1,
             output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
             samples_per_baseline=baseline_lengths_list,
+            use_preconditioner=use_preconditioner,
         ),
         components=["sky_signal", "baseline", "white_noise"],
+    )
+
+    # As the destriper messes up with TODs when there are multiple components,
+    # let's check that everything was put in place again
+    np.testing.assert_allclose(
+        actual=sim.observations[0].sky_signal, desired=original_tod
     )
 
     if use_destriper:
@@ -627,8 +646,12 @@ def _test_map_maker(use_destriper: bool):
 
 
 def test_map_maker_without_destriping():
-    _test_map_maker(use_destriper=False)
+    _test_map_maker(use_destriper=False, use_preconditioner=False)
 
 
 def test_map_maker_with_destriping():
-    _test_map_maker(use_destriper=True)
+    _test_map_maker(use_destriper=True, use_preconditioner=False)
+
+
+def test_map_maker_with_destriping_and_preconditioner():
+    _test_map_maker(use_destriper=True, use_preconditioner=True)
