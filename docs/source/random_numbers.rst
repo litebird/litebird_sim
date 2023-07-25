@@ -11,7 +11,7 @@ Seed
 ----
 
 The ``random_seed`` is used to control the behaviour of the RNG. The seed
-can be ```None``` or an integer number.
+can be ``None`` or an integer number.
 If you are **not** interested in the reproducibility of your results, you can
 set ``random_seed`` to ``None``. However, this is not recommended.
 In fact, this means that if you run multiple times a function or method where
@@ -61,7 +61,7 @@ The setting of the ``random_seed`` is as simple as this::
       duration_s=3600.0,
       name="My noise simulation",
       description="I want to generate some noise and be able to reproduce my results",
-      random_seed=12345, # here the seed for the random number generator is set
+      random_seed=12345, # Here the seed for the random number generator is set
   )
 
 During the execution of the :class:`.Simulation` constructor, the
@@ -94,7 +94,7 @@ You can also use your own RNG with the functions and methods of
 
   sim = lbs.Simulation(random_seed=12345)
   [...]
-  my_rng = ... # new RNG definition
+  my_rng = ... # New RNG definition
   sim.add_noise(noise_type='white', random=my_rng)
 
 You should just make sure that your custom RNG implements the
