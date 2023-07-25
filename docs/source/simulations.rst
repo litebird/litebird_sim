@@ -285,6 +285,7 @@ formulae, plots, and value substitution::
 And here is the output, which is saved in ``output/report.html``:
 
 .. image:: images/report_example.png
+  :align: center
 
 
 Logging
