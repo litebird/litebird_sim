@@ -98,6 +98,29 @@ def split_items_evenly(n: int, sub_n: int) -> List[int]:
 
 @dataclass
 class NobsMatrix:
+    """
+    A class containing the N_obs matrix described in Kurki-Suonio et al. (2009)
+
+    The matrix is used to “solve” for the value of the Stokes parameters I/Q/U
+    per each pixel given a set of intensity measurements for that pixel.
+
+    The N_obs matrix is a block-diagonal matrix where each 3×3 block corresponds
+    to one pixel. (See Eq. 10 in Kurki-Suonio et al.) However, since the matrix
+    is symmetric, this class only stores its lower-triangular part, and the
+    ``nobs_matrix`` field is thus a 2D array of shape ``(6, N_pix)``, with
+    ``N_pix`` the number of pixels in the map.
+
+    The array `valid_pixel` is an array of ``N_pix`` booleans, telling whether
+    the corresponding pixel was observed enough times to make the problem of
+    reconstructing the Stokes I/Q/U components solvable or not.
+
+    If `is_cholesky` is true, the `nobs_matrix` contains the coefficients of
+    the lower triangular L such that L·L^t = M, where M is the 3×3 submatrix
+    in Eq. (10). This is extremely efficient, as in this way it is trivial
+    to invert matrix M to solve for the three Stokes parameter. And since L
+    is lower-triangular, 6 elements are still enough to keep it.
+    """
+
     # Shape: (Npix, 6)
     nobs_matrix: npt.NDArray
     # Shape: (Npix,) (array of Boolean flags)
@@ -106,12 +129,36 @@ class NobsMatrix:
     is_cholesky: bool
 
     @property
-    def nbytes(self):
+    def nbytes(self) -> int:
+        """Return the number of bytes used by this object"""
         return self.nobs_matrix.nbytes + self.valid_pixel.nbytes
 
 
 @dataclass
 class DestriperParameters:
+    """
+    Parameters used by the function :func:`.make_destriped_map`
+
+    The class is used to tell the destriper how to solve the map-making
+    equation. The fields are:
+
+    - ``nside`` (integer, power of two): resolution of the output map
+    - ``output_coordinate_system`` (:class:`.CoordinateSystem`): the
+      coordinate system of the output map
+    - ``samples_per_baseline`` (integer): how many consecutive samples
+      in the TOD must be assigned to the same baseline
+    - ``iter_max`` (integer): maximum number of iterations for the
+      Conjugate Gradient
+    - ``threshold`` (float): minimum value of the discrepancy between
+      the estimated baselines and the baselines deduced by the
+      destriped map. The lower this value, the better the map
+      produced by the destriper
+    - ``use_preconditioner`` (Boolean): if ``True``, use the preconditioned
+      conjugate gradient algorithm. If ``False`` do not use the
+      preconditioner. (The latter is probably useful only to debug the
+      code.)
+    """
+
     nside: int = 256
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic
     samples_per_baseline: Optional[Union[int, List[npt.ArrayLike]]] = 100
@@ -130,9 +177,48 @@ class DestriperResult:
     used the destriper; otherwise, they will be set to ``None``.
 
     If you are running several MPI processes, keep in mind that the fields
-    `hit_map`, `binned_map`, `destriped_map`, and `nobs_matrix_cholesky`
-    contain the *global* map, but `baselines` and `baseline_lengths` only
-    refer to the TODs within the *current* MPI process.
+    `hit_map`, `binned_map`, `destriped_map`, `nobs_matrix_cholesky`,
+    and `bytes_in_temporary_buffers` contain the *global* map, but
+    `baselines` and `baseline_lengths` only refer to the TODs within
+    the *current* MPI process.
+
+    List of fields:
+
+    - ``params``: an instance of the class :class:`.DestriperParameters`
+    - ``hit_map``: a map of scalar values, each representing the sum
+      of weights per pixel (normalized over the σ of each detector)
+    - ``binned_map``: the binned map (i.e., *without* subtracting the
+      1/f baselines estimated by the destriper)
+    - ``nobs_matrix_cholesky``: an instance of the class
+      :class:`.NobsMatrix`
+    - ``coordinate_system``: the coordinate system of the maps
+      ``hit_map``, ``binned_map``, and ``destriped_map``
+    - ``baselines``: a Python list of NumPy arrays (one per each
+      observation passed to the destriper) containing the value
+      of the baselines
+    - ``baseline_errors``: a Python list of NumPy arrays (one per
+      each  observation passed to the destriper) containing an
+      optimistic estimate of the error per each baseline. This error
+      is estimated assuming that there is no correlation between
+      baselines, which is only a rough approximation.
+    - ``baseline_lengths``: a Python list of NumPy arrays (one per
+      each  observation passed to the destriper) containing the
+      number of TOD samples per each baseline.
+    - ``stopping_factor``: the maximum residual for the destriping
+      solution stored in the field `baselines`. It is an assessment
+      of the quality of the solution found by the destriper: the
+      lower, the better
+    - ``history_of_stopping_factors``: list of stopping factors
+      computed by the iterative algorithm. This list should ideally
+      be monothonically decreasing, as this means that the destriping
+      algorithm was able to converge to the correct solution.
+    - ``converged``: a Boolean flag telling whether the destriper
+      was able to achieve the desired accuracy (the value of
+      ``params.threshold``)
+    - ``elapsed_time_s``: the elapsed time spent by the function
+      :func:`.make_destriped_map`
+    - ``bytes_in_temporary_buffers``: the number of bytes allocated
+      internally by the destriper for temporary buffers
     """
 
     params: DestriperParameters
@@ -174,17 +260,19 @@ def _sum_components_into_obs(
 
 @njit
 def _solve_map_making(nobs_matrix, atd):
-    # Apply M⁻¹ to `atd`
-    #
-    # The parameter `nobs_matrix` is the M matrix (eq. 9 in KurkiSuonio2009).
-    #
-    # This is the same as _solve_binning (see above), but as it needs to be
-    # called iteratively it does not alter `nobs_matrix`.
-    #
-    # Expected shape:
-    # - `nobs_matrix`: (N_p, 3, 3) is an array of N_p 3×3 matrices, where
-    #   N_p is the number of pixels in the map
-    # - `atd`: (N_p, 3)
+    """
+    Apply M⁻¹ to `atd`
+
+    The parameter `nobs_matrix` is the M matrix (eq. 9 in KurkiSuonio2009).
+
+    This is the same as _solve_binning (see above), but as it needs to be
+    called iteratively it does not alter `nobs_matrix`.
+
+    Expected shape:
+    - `nobs_matrix`: (N_p, 3, 3) is an array of N_p 3×3 matrices, where
+      N_p is the number of pixels in the map
+    - `atd`: (N_p, 3)
+    """
     npix = atd.shape[0]
 
     for ipix in range(npix):
@@ -203,12 +291,14 @@ def _accumulate_nobs_matrix(
     weights: npt.ArrayLike,  # Shape: (N_det,)
     nobs_matrix: npt.ArrayLike,  # Shape: (N_pix, 6)
 ) -> None:
-    # Fill the upper triangle of the N_obs matrix following Eq. (10)
-    # of KurkiSuonio2009. This must be set just once during destriping,
-    # as it only depends on the pointing information
-    #
-    # Note that nobs_matrix must have been set to 0 before starting
-    # calling this function!
+    """
+    Fill the upper triangle of the N_obs matrix following Eq. (10)
+    of KurkiSuonio2009. This must be set just once during destriping,
+    as it only depends on the pointing information
+
+    Note that `nobs_matrix` must have been set to 0 before starting
+    calling this function!
+    """
 
     assert pix_idx.shape == psi_angle_rad.shape
 
@@ -238,8 +328,9 @@ def _nobs_matrix_to_cholesky(
     dest_valid_pixel: npt.ArrayLike,  # Shape: (N_pix,)
     dest_nobs_matrix_cholesky: npt.ArrayLike,  # Shape: (N_pix, 6)
 ) -> None:
-    # Apply `cholesky` iteratively on all the input maps in `nobs_matrix`
-    # and save each result in `nobs_matrix_cholesky`
+    """Apply `cholesky` iteratively on all the input maps in `nobs_matrix`
+    and save each result in `nobs_matrix_cholesky`"""
+
     for i in range(nobs_matrix.shape[0]):
         cur_nobs_matrix = nobs_matrix[i]
         (cond_number, flag) = estimate_cond_number(
@@ -541,7 +632,9 @@ def _compute_binned_map(
 
 
 @njit
-def estimate_sample_from_map(cur_pixel, cur_psi, sky_map) -> float:
+def estimate_sample_from_map(
+    cur_pixel: int, cur_psi: float, sky_map: npt.ArrayLike
+) -> float:
     cur_i = sky_map[0, cur_pixel]
     cur_q = sky_map[1, cur_pixel]
     cur_u = sky_map[2, cur_pixel]
@@ -719,7 +812,17 @@ def _compute_baseline_sums(
             )
 
 
-def _mpi_dot(a: List[npt.ArrayLike], b: List[npt.ArrayLike]):
+def _mpi_dot(a: List[npt.ArrayLike], b: List[npt.ArrayLike]) -> float:
+    """Compute a dot product between lists of vectors using MPI
+
+    This function is a glorified version of ``numpy.dot``. It assumes
+    that `a` and `b` are lists of vectors spread among several
+    observations, and it computes their inner product Σ aᵢ·bᵢ.
+    If the code uses MPI, it makes the additional assumptions that
+    the vectors aᵢ and bᵢ have been split among the MPI processes,
+    so it computes the local dot product and then sums the contribution
+    from every MPI process.
+    """
     local_result = sum([np.dot(x1, x2) for (x1, x2) in zip(a, b)])
     if MPI_ENABLED:
         return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.SUM)
@@ -728,6 +831,15 @@ def _mpi_dot(a: List[npt.ArrayLike], b: List[npt.ArrayLike]):
 
 
 def _get_stopping_factor(residual: List[npt.ArrayLike]) -> float:
+    """Given a list of baseline residuals, estimate the stopping factor
+
+    Our assumption here is that the stopping factor is the maximum absolute
+    value of all the residuals. This is unlike other implementations of the
+    CG algorithm, which just consider the value of ‖v‖ or ‖v‖²; we choose
+    to use max(vᵢ) because this is stricter: it prevents to get low
+    stopping factors for solutions where nearly all the baselines are ok
+    but a few of them are significantly off.
+    """
     local_result = max([np.max(np.abs(cur_baseline)) for cur_baseline in residual])
     if MPI_ENABLED:
         return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.MAX)
@@ -781,6 +893,13 @@ def compute_b(
     component: str,
     result: List[npt.ArrayLike],
 ) -> None:
+    """
+    Compute `F^t·C_w⁻¹·Z·y
+
+    The value of `y` is the TOD component taken from the list
+    of observations `obs_list` with name `component`.
+    """
+
     _compute_b_or_Ax(
         obs_list=obs_list,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
@@ -802,6 +921,14 @@ def compute_Ax(
     baseline_lengths_list: List[npt.ArrayLike],
     result: List[npt.ArrayLike],
 ) -> None:
+    """
+    Compute `F^t·C_w⁻¹·Z·F·a
+
+    The value of `a` is the list of baselines in the
+    parameter `baselines_list`, each with length
+    `baseline_lengths_list`.
+    """
+
     _compute_b_or_Ax(
         obs_list=obs_list,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
@@ -818,7 +945,12 @@ def compute_Ax(
 def compute_weighted_baseline_length(
     lengths: npt.ArrayLike, weights: npt.ArrayLike, result: npt.ArrayLike
 ) -> float:
-    # Compute Σ Nᵢ/σᵢ, where the summation is done over the detectors
+    """Compute Σ Nᵢ/σᵢ, where the summation is done over the detectors
+
+    This quantity is used both to estimate the error bar for each baseline
+    and to implement a simple preconditioner for the Conjugate Gradient
+    algorithm.
+    """
 
     for i in range(len(result)):
         result[i] = 0.0
@@ -829,21 +961,23 @@ def compute_weighted_baseline_length(
         result[i] = 1.0 / result[i]
 
 
-def _compute_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLike]:
-    # We just compute (F^T·C_w⁻¹·F)⁻¹, which is a diagonal matrix containing
-    # the number of elements in each baseline divided by σ². (Remember
-    # that the field `destriper_weights` already contain σ².)
-    #
-    # This is the most common choice, but it's not necessarily the best one.
-    # See for instance these papers:
-    #
-    # 1. A fast map-making preconditioner for regular scanning patterns
-    #    (Naess & al., 2014)
-    #
-    # 2. Accelerating the cosmic microwave background map-making procedure
-    #    through preconditioning (Szydlarski, 2014)
-    #
-    # Our choice corresponds to Eq. (10) in Szydlarski's paper.
+def _create_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLike]:
+    """
+    We just compute (F^T·C_w⁻¹·F)⁻¹, which is a diagonal matrix containing
+    the number of elements in each baseline divided by σ². (Remember
+    that the field `destriper_weights` already contain σ².)
+
+    This is the most common choice, but it's not necessarily the best one.
+    See for instance these papers:
+
+    1. A fast map-making preconditioner for regular scanning patterns
+       (Naess & al., 2014)
+
+    2. Accelerating the cosmic microwave background map-making procedure
+       through preconditioning (Szydlarski, 2014)
+
+    Our choice corresponds to Eq. (10) in Szydlarski's paper.
+    """
 
     assert len(obs_list) == len(baseline_lengths_list), (
         f"The number of observations is {len(obs_list)}, but the baseline "
@@ -859,7 +993,7 @@ def _compute_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLi
     return result
 
 
-def _apply_preconditioner(precond: List[npt.ArrayLike], z: List[npt.ArrayLike]):
+def _apply_preconditioner(precond: List[npt.ArrayLike], z: List[npt.ArrayLike]) -> None:
     for precond_k, z_k in zip(precond, z):
         z_k *= precond_k
 
@@ -986,7 +1120,7 @@ def _run_destriper(
     z = [np.copy(r_k) for r_k in r]
     bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(z)
 
-    precond = _compute_preconditioner(
+    precond = _create_preconditioner(
         obs_list=obs_list, baseline_lengths_list=baseline_lengths_list
     )
     bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(precond)
@@ -1110,6 +1244,11 @@ def _run_destriper(
 def destriper_log_callback(
     stopping_factor: float, step_number: int, max_steps: int
 ) -> None:
+    """A function called by :func:`.make_destriped_map` for every CG iteration
+
+    This function has the purpose to produce a visual feedback while the destriper
+    is running the (potentially long) Conjugated Gradient iteration.
+    """
     if MPI_COMM_WORLD.rank == 0:
         logging.info(
             f"Destriper CG iteration {step_number + 1}/{max_steps}, "
@@ -1128,6 +1267,100 @@ def make_destriped_map(
     callback: Any = destriper_log_callback,
     callback_kwargs: Optional[Dict[Any, Any]] = None,
 ) -> DestriperResult:
+    """
+    Applies the destriping algorithm to produce a map out from a TOD
+
+    This function takes the samples stored in the list of
+    :class:`.Observation` objects `obs` and produces a destriped map.
+    Pointings can either be embedded in the `obs` objects or provided
+    through the parameter `pointings`.
+
+    The `params` argument is an instance of the class
+    :class:`.DestriperParameters`, and it is used to tune the
+    way the destriper should solve the map-making equation.
+    Have a look at the documentation for this class to get
+    more information.
+
+    The samples in the TOD can be saved in several fields within each
+    :class:`.Observation` object. For instance, you could have
+    generated a noise component in `obs.noise_tod`, the dipole in
+    `obs.dipole_tod`, etc., and you want to produce a map containing
+    the *sum* of all these components. In this case, you can pass
+    a list of strings containing the name of the fields as the
+    parameter `components`, and the destriper will add them together
+    before creating the map.
+
+    To show a few clues about the progress of the destriping algorithm,
+    the function accepts the `callback` argument. This must be a function
+    with the following prototype::
+
+        def callback(
+            stopping_factor: float, step_number: int, max_steps: int
+        ):
+            ...
+
+    The parameter `stopping_factor` is the current stopping factor, i.e.,
+    the maximum residual between the current estimate of the baselines
+    and the result of applying the binning to the destriped TOD. The
+    parameter `step_number` is an integer between 0 and ``max_steps - 1``
+    and it is increased by 1 each time the callback is called. The
+    callback function can accepts more parameters; in this case, their
+    value must be passed using the `callback_kwargs` parameter. For
+    instance, you might be running the destriper within a graphical
+    program and you would show a progress bar dialog; in this case, one
+    of the additional arguments might be an handle to the progress
+    window::
+
+        def my_gui_callback(
+            stopping_factor: float, step_number: int, max_steps: int,
+            window_handle: GuiWindow,
+        ):
+            window_handle.set_progress(step_number / (max_steps - 1))
+            window_handle.text_label.set(
+                f"Stopping factor is {stopping_factor:.2e}"
+            )
+
+    To use it, you must call ``make_destriped_map`` as follows::
+
+        my_window_handle = CreateProgressWindow(...)
+        make_destriped_map(
+            obs=obs_list,
+            params=params,
+            callback=my_gui_callback,
+            callback_kwargs={"window_handle": my_window_handle},
+        )
+
+    :param obs: an instance of the class :class:`.Observation`,
+       or a list of objects of this kind
+    :param pointings: a 3×N array containing the values of the
+       θ,φ,ψ angles (in radians), or a list if `obs` was a
+       list. If no pointings are specified, they will be
+       taken from `obs` (the most common situation)
+    :param params: an instance of the :class:`.DestriperParameters` class
+    :param components: a list of components to extract from
+       the TOD and sum together. The default is to use `obs.tod`.
+    :param keep_weights: the destriper adds a `destriper_weights`
+       field to each :class:`.Observation` object in `obs`, and
+       it deletes it once the map has been produced. Setting
+       this parameter to ``False`` prevents the field from being
+       deleted. (Useful for debugging.)
+    :param keep_pixel_idx: same as `keep_weight`, but the
+       field to be deleted from the :class:`.Observation`
+       classes is `destriper_pixel_idx`
+    :param keep_pol_angle_rad: same as `keep_weight`, but the
+       field to be deleted from the :class:`.Observation`
+       classes is `destriper_pol_angle_rad`
+    :param callback: a function that is called during each
+       iteration of the CG routine. It is meant as a way to
+       provide some visual feedback to the user. The default
+       implementation uses the ``logging`` library to print
+       a line. You can provide a custom callback, if you
+       want (see above for an example).
+    :param callback_kwargs: additional keyword arguments to be
+       passed to the `callback` function
+    :return: an instance of the :class:`.DestriperResult`
+       containing the destriped map and other useful information
+    """
     elapsed_time_s = time.monotonic()
 
     if not components:
@@ -1227,6 +1460,11 @@ def make_destriped_map(
             callback=callback,
             callback_kwargs=callback_kwargs if callback_kwargs else {},
         )
+
+        if MPI_ENABLED:
+            bytes_in_temporary_buffers = MPI_COMM_WORLD.allreduce(
+                bytes_in_temporary_buffers
+            )
     else:
         # No need to run the destriping, just compute the binned map with
         # one single baseline set to zero
@@ -1242,6 +1480,7 @@ def make_destriped_map(
                 for cur_obs in obs_list
             ],
         )
+        bytes_in_temporary_buffers = 0
 
         destriped_map = None
         baseline_lengths_list = None
@@ -1251,21 +1490,32 @@ def make_destriped_map(
         best_stopping_factor = None
         converged = True
 
+    # Add the temporary memory that was allocated *before* calling the destriper
+    bytes_in_temporary_buffers += sum(
+        [
+            cur_obs.destriper_weights.nbytes
+            + cur_obs.destriper_pixel_idx.nbytes
+            + cur_obs.destriper_pol_angle_rad.nbytes
+            for cur_obs in obs_list
+        ]
+    )
+
+    # We're nearly done! Let's clean up some stuff…
     if not keep_weights:
         for cur_obs in obs_list:
             del cur_obs.destriper_weights
-
     if not keep_pixel_idx:
         for cur_obs in obs_list:
             del cur_obs.destriper_pixel_idx
-
     if not keep_pol_angle_rad:
         for cur_obs in obs_list:
             del cur_obs.destriper_pol_angle_rad
 
+    # Make sure that the `del` statements above are applied immediately
     gc.collect()
 
-    # Revert the value of the first TOD component
+    # Revert the value of the first TOD component, if other
+    # components were added to it
     if len(components) > 1:
         _sum_components_into_obs(
             obs_list=obs_list,
@@ -1313,8 +1563,32 @@ def remove_baselines_from_tod(
     obs_list: List[Observation],
     baselines: List[npt.ArrayLike],
     baseline_lengths: List[npt.ArrayLike],
-    component: str,
-):
+    component: str = "tod",
+) -> None:
+    """
+    Subtract 1/f baselines from the TODs in `obs_list`
+
+    This functions subtracts the baselines in `baselines` from the
+    `component` in the :class:`.Observation` objects listed within
+    the argument `obs_list`. The two lists `baselines` and
+    `baseline_lengths` must have the same number of elements as
+    `obs_list`.
+
+    :param obs_list: A list of :class:`.Observation` objects
+        containing the TOD to be cleaned from baselines
+    :param baselines: A list of NumPy arrays of floats (one per
+        each item in `obs_list`): each value is a baseline to
+        subtract
+    :param baseline_lengths: A list of NumPy arrays of integers
+        (one per each item in `obs_list`). Each array contains
+        the number of samples within each baseline in the
+        argument `baselines`; the sum of all the values within
+        each array must be equal to the number of samples in
+        the TOD within the corresponding element in `obs_list`.
+    :param component: The name of the TOD component to clean
+        from the baselines. The default is ``"tod"``.
+    """
+
     for (cur_obs, cur_baseline, cur_baseline_lengths) in zip(
         obs_list, baselines, baseline_lengths
     ):
@@ -1333,8 +1607,25 @@ def remove_baselines_from_tod(
 
 
 def remove_destriper_baselines_from_tod(
-    obs_list: List[Observation], destriper_result: DestriperResult, component: str
+    obs_list: List[Observation],
+    destriper_result: DestriperResult,
+    component: str = "tod",
 ):
+    """
+    A wrapper around :func:`.remove_baselines_from_tod`
+
+    This method removes the baselines computed by :func:`.make_destriped_map` from
+    the TOD in the observations `obs_list`. The TOD component is specified
+    by the string `component`, which is ``tod`` by default.
+
+    :param obs_list: A list of :class:`.Observation` objects
+        containing the TOD to be cleaned from baselines
+    :param destriper_result: The result of a call to
+        :func:`.make_destriped_map`
+    :param component: The name of the TOD component to clean.
+        The default is ``"tod"``.
+    """
+
     remove_baselines_from_tod(
         obs_list=obs_list,
         baselines=destriper_result.baselines,
