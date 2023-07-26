@@ -744,12 +744,12 @@ def _compute_b_or_Ax(
 
     _compute_binned_map(
         obs_list=obs_list,
-        output_sky_map=sky_map,
-        output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
         component=component,
+        output_sky_map=sky_map,
+        output_hit_map=hit_map,
     )
 
     _compute_baseline_sums(
