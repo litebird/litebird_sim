@@ -21,7 +21,12 @@ from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
-from .mapmaking import make_destriped_map, DestriperParameters, DestriperResult
+from .mapmaking import (
+    make_destriped_map,
+    DestriperParameters,
+    DestriperResult,
+    destriper_log_callback,
+)
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
 from .pointings import get_pointings
@@ -1461,6 +1466,8 @@ class Simulation:
         keep_weights: bool = False,
         keep_pixel_idx: bool = False,
         keep_pol_angle_rad: bool = False,
+        callback: Any = destriper_log_callback,
+        callback_kwargs: Optional[Dict[Any, Any]] = None,
         append_to_report: bool = True,
     ) -> DestriperResult:
         results = make_destriped_map(
@@ -1471,6 +1478,8 @@ class Simulation:
             keep_weights=keep_weights,
             keep_pixel_idx=keep_pixel_idx,
             keep_pol_angle_rad=keep_pol_angle_rad,
+            callback=callback,
+            callback_kwargs=callback_kwargs,
         )
 
         if append_to_report:
@@ -1478,7 +1487,7 @@ class Simulation:
             ax.set_xlabel("Iteration number")
             ax.set_ylabel("Residual [K]")
             ax.set_title("CG convergence of the destriper")
-            ax.plot(
+            ax.semilogy(
                 np.arange(len(results.history_of_stopping_factors)),
                 results.history_of_stopping_factors,
                 "ko-",

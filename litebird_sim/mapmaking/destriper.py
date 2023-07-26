@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 import datetime
+import logging
 import time
 
 # The implementation of the destriping algorithm provided here is based on the paper
@@ -21,7 +22,7 @@ from numba import njit
 import healpy as hp
 
 from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
-from typing import Union, List, Optional, Tuple
+from typing import Union, List, Optional, Tuple, Any, Dict
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
 
@@ -879,6 +880,8 @@ def _run_destriper(
     threshold: float,
     max_steps: int,
     use_preconditioner: bool,
+    callback: Any,
+    callback_kwargs: Dict[Any, Any],
 ) -> Tuple[
     List[npt.ArrayLike],  # The solution, i.e., the list of baselines
     List[npt.ArrayLike],  # The error bars of the baselines
@@ -995,6 +998,14 @@ def _run_destriper(
     old_r_dot = _mpi_dot(z, r)
 
     history_of_stopping_factors = [_get_stopping_factor(r)]  # type: List[float]
+    if callback:
+        callback(
+            stopping_factor=history_of_stopping_factors[-1],
+            step_number=k,
+            max_steps=max_steps,
+            **callback_kwargs,
+        )
+
     while True:
         k += 1
         if k >= max_steps:
@@ -1025,6 +1036,14 @@ def _run_destriper(
                 cur_best_x_k[:] = x_k
 
         history_of_stopping_factors.append(cur_stopping_factor)
+        if callback:
+            callback(
+                stopping_factor=history_of_stopping_factors[-1],
+                step_number=k,
+                max_steps=max_steps,
+                **callback_kwargs,
+            )
+
         if cur_stopping_factor < threshold:
             converged = True
             break
@@ -1088,6 +1107,16 @@ def _run_destriper(
     )
 
 
+def destriper_log_callback(
+    stopping_factor: float, step_number: int, max_steps: int
+) -> None:
+    if MPI_COMM_WORLD.rank == 0:
+        logging.info(
+            f"Destriper CG iteration {step_number + 1}/{max_steps}, "
+            f"stopping factor: {stopping_factor:.3e}"
+        )
+
+
 def make_destriped_map(
     obs: Union[Observation, List[Observation]],
     pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]] = None,
@@ -1096,6 +1125,8 @@ def make_destriped_map(
     keep_weights: bool = False,
     keep_pixel_idx: bool = False,
     keep_pol_angle_rad: bool = False,
+    callback: Any = destriper_log_callback,
+    callback_kwargs: Optional[Dict[Any, Any]] = None,
 ) -> DestriperResult:
     elapsed_time_s = time.monotonic()
 
@@ -1193,6 +1224,8 @@ def make_destriped_map(
             threshold=params.threshold,
             max_steps=params.iter_max,
             use_preconditioner=params.use_preconditioner,
+            callback=callback,
+            callback_kwargs=callback_kwargs if callback_kwargs else {},
         )
     else:
         # No need to run the destriping, just compute the binned map with

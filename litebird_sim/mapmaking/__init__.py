@@ -7,6 +7,7 @@ from .destriper import (
     DestriperResult,
     remove_baselines_from_tod,
     remove_destriper_baselines_from_tod,
+    destriper_log_callback,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "make_destriped_map",
     "remove_baselines_from_tod",
     "remove_destriper_baselines_from_tod",
+    "destriper_log_callback",
 ]
