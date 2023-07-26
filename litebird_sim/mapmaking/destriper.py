@@ -851,7 +851,7 @@ def _compute_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLi
 
 def _apply_preconditioner(precond: List[npt.ArrayLike], z: List[npt.ArrayLike]):
     for precond_k, z_k in zip(precond, z):
-        precond_k *= z_k
+        z_k *= precond_k
 
 
 def _run_destriper(
