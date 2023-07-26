@@ -576,9 +576,9 @@ def _compute_tod_sums_for_one_component(
                 cur_psi=det_psi_angle_rad[sample_idx],
                 sky_map=sky_map,
             )
-            output_sums[baseline_idx] += (
-                tod[det_idx, sample_idx] - map_value
-            ) / cur_weight
+            value_to_add = (tod[det_idx, sample_idx] - map_value) / cur_weight
+            if np.isfinite(value_to_add):
+                output_sums[baseline_idx] += value_to_add
 
             (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                 baseline_idx, samples_in_this_baseline, baseline_length
@@ -622,9 +622,9 @@ def _compute_baseline_sums_for_one_component(
                 cur_psi=det_psi_angle_rad[sample_idx],
                 sky_map=sky_map,
             )
-            output_sums[baseline_idx] += (
-                baselines[baseline_idx] - map_value
-            ) / cur_weight
+            cur_value = (baselines[baseline_idx] - map_value) / cur_weight
+            if np.isfinite(cur_value):
+                output_sums[baseline_idx] += cur_value
 
             (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                 baseline_idx, samples_in_this_baseline, baseline_length
