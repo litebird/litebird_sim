@@ -624,6 +624,9 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
     )
 
     if use_destriper:
+        for cur_baseline_errors in result.baseline_errors:
+            assert np.alltrue(cur_baseline_errors > 0)
+
         # Check that remove_destriper_baselines_from_tod works. We use a trick here:
         # we create a new null TOD and ask to remove the baselines from it, so that
         # at the end it will contain the baselines unrolled on a TOD with flipped sign.
@@ -814,6 +817,9 @@ def test_full_destriper(tmp_path):
         obs=sim.observations, pointings=None, params=destriper_params_noise
     )
 
-    print(f"{destriper_result.history_of_stopping_factors=}")
-    # Just check that the destriper converged to some solution
+    # Check that the destriper converged to some solution
     assert destriper_result.converged
+
+    # Check that all the errors on the baseline values are non-negative
+    for cur_baseline_errors in destriper_result.baseline_errors:
+        assert np.alltrue(cur_baseline_errors >= 0.0)
