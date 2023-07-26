@@ -1207,3 +1207,52 @@ def make_destriped_map(
         destriped_map=destriped_map,
         converged=converged,
     )
+
+
+@njit
+def _remove_baselines(
+    tod: npt.ArrayLike, baselines: npt.ArrayLike, baseline_lengths: npt.ArrayLike
+):
+    num_of_detectors, num_of_samples = tod.shape
+    for det_idx in range(num_of_detectors):
+        baseline_idx = 0
+        samples_in_this_baseline = 0
+        for sample_idx in range(num_of_samples):
+            tod[det_idx, sample_idx] -= baselines[baseline_idx]
+            (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
+                baseline_idx, samples_in_this_baseline, baseline_lengths
+            )
+
+
+def remove_baselines_from_tod(
+    obs_list: List[Observation],
+    baselines: List[npt.ArrayLike],
+    baseline_lengths: List[npt.ArrayLike],
+    component: str,
+):
+    for (cur_obs, cur_baseline, cur_baseline_lengths) in zip(
+        obs_list, baselines, baseline_lengths
+    ):
+        cur_tod = getattr(cur_obs, component)
+        samples_in_baselines = np.sum(cur_baseline_lengths)
+        samples_in_tod = cur_tod.shape[1]
+        assert samples_in_baselines == samples_in_tod, (
+            f"There are {samples_in_tod} samples in the observation, but "
+            f"baselines cover {samples_in_baselines} samples"
+        )
+        _remove_baselines(
+            tod=cur_tod,
+            baselines=cur_baseline,
+            baseline_lengths=cur_baseline_lengths,
+        )
+
+
+def remove_destriper_baselines_from_tod(
+    obs_list: List[Observation], destriper_result: DestriperResult, component: str
+):
+    remove_baselines_from_tod(
+        obs_list=obs_list,
+        baselines=destriper_result.baselines,
+        baseline_lengths=destriper_result.baseline_lengths,
+        component=component,
+    )

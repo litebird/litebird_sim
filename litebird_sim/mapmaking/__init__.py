@@ -1,7 +1,13 @@
 # -*- encoding: utf-8 -*-
 
 from .binner import make_bin_map, BinnerResult
-from .destriper import make_destriped_map, DestriperParameters, DestriperResult
+from .destriper import (
+    make_destriped_map,
+    DestriperParameters,
+    DestriperResult,
+    remove_baselines_from_tod,
+    remove_destriper_baselines_from_tod,
+)
 
 __all__ = [
     # binner.py
@@ -11,4 +17,6 @@ __all__ = [
     "DestriperParameters",
     "DestriperResult",
     "make_destriped_map",
+    "remove_baselines_from_tod",
+    "remove_destriper_baselines_from_tod",
 ]

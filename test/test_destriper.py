@@ -21,7 +21,10 @@ from ducc0.healpix import Healpix_Base
 
 import litebird_sim as lbs
 from litebird_sim import CoordinateSystem, MPI_COMM_WORLD, MPI_ENABLED
-from litebird_sim.mapmaking.destriper import NobsMatrix
+from litebird_sim.mapmaking.destriper import (
+    NobsMatrix,
+    remove_destriper_baselines_from_tod,
+)
 
 if MPI_ENABLED:
     import mpi4py.MPI
@@ -621,6 +624,18 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
     )
 
     if use_destriper:
+        # Check that remove_destriper_baselines_from_tod works. We use a trick here:
+        # we create a new null TOD and ask to remove the baselines from it, so that
+        # at the end it will contain the baselines unrolled on a TOD with flipped sign.
+        for cur_obs in sim.observations:
+            cur_obs.unrolled_baselines = np.zeros_like(cur_obs.sky_signal)
+        remove_destriper_baselines_from_tod(
+            obs_list=sim.observations,
+            destriper_result=result,
+            component="unrolled_baselines",
+        )
+        cur_obs.unrolled_baselines *= -1.0
+
         # Check that the baselines are ok
         expected_baselines = BASELINE_VALUES - np.mean(BASELINE_VALUES)
         if MPI_COMM_WORLD.size > 1:
@@ -630,9 +645,17 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
                 actual=result.baselines[0][0],
                 desired=expected_baselines[MPI_COMM_WORLD.rank],
             )
+            np.testing.assert_allclose(
+                actual=sim.observations[0].unrolled_baselines[0],
+                desired=expected_baselines[MPI_COMM_WORLD.rank],
+            )
         else:
             np.testing.assert_allclose(
                 actual=result.baselines[0], desired=expected_baselines
+            )
+            np.testing.assert_allclose(
+                actual=sim.observations[0].unrolled_baselines[0],
+                desired=expected_solution.F @ expected_baselines,
             )
 
         expected_destriped_map = np.copy(expected_solution.input_maps)
@@ -644,12 +667,12 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
             desired=expected_solution.expected_binned_map,
             nobs_matrix_cholesky=result.nobs_matrix_cholesky,
         )
+        # Remember that the F matrix unrolls the baselines into the TOD space
         _compare_analytical_vs_estimated_map(
             actual=result.destriped_map,
             desired=expected_destriped_map,
             nobs_matrix_cholesky=result.nobs_matrix_cholesky,
         )
-
     else:
         # Check the binned map
         for cur_pix in range(len(result.hit_map)):
@@ -731,8 +754,7 @@ def test_full_destriper(tmp_path):
 
     sim.create_observations(
         detectors=dets,
-        n_blocks_det=1,
-        n_blocks_time=1,  # blocks different from one if parallelizing
+        num_of_obs_per_detector=sim.mpi_comm.size,
         dtype_tod=np.float64,  # This is needed if we want to use the TOAST mapmaker ☹
     )
 
