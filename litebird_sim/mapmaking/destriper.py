@@ -106,7 +106,6 @@ class NobsMatrix:
 class DestriperParameters:
     nside: int = 256
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic
-    nnz: int = 3
     samples_per_baseline: Optional[Union[int, List[npt.ArrayLike]]] = 100
     iter_max: int = 100
     threshold: float = 1e-7
