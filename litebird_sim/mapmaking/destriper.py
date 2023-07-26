@@ -1,4 +1,6 @@
 # -*- encoding: utf-8 -*-
+import datetime
+import time
 
 # The implementation of the destriping algorithm provided here is based on the paper
 # «Destriping CMB temperature and polarization maps» by Kurki-Suonio et al. 2009,
@@ -11,6 +13,7 @@
 from dataclasses import dataclass
 import gc
 
+import astropy.time
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
@@ -101,6 +104,10 @@ class NobsMatrix:
     # True if `nobs_matrix` contains the Cholesky decomposition of M_i
     is_cholesky: bool
 
+    @property
+    def nbytes(self):
+        return self.nobs_matrix.nbytes + self.valid_pixel.nbytes
+
 
 @dataclass
 class DestriperParameters:
@@ -140,6 +147,8 @@ class DestriperResult:
     history_of_stopping_factors: Optional[List[float]]
     destriped_map: Optional[npt.ArrayLike]
     converged: bool
+    elapsed_time_s: float
+    bytes_in_temporary_buffers: int
 
 
 def _sum_components_into_obs(
@@ -854,6 +863,10 @@ def _apply_preconditioner(precond: List[npt.ArrayLike], z: List[npt.ArrayLike]):
         z_k *= precond_k
 
 
+def _compute_num_of_bytes_in_list(x: List[npt.ArrayLike]) -> int:
+    return sum([elem.nbytes for elem in x])
+
+
 def _run_destriper(
     obs_list: List[Observation],
     nobs_matrix_cholesky: NobsMatrix,
@@ -866,7 +879,14 @@ def _run_destriper(
     threshold: float,
     max_steps: int,
     use_preconditioner: bool,
-) -> Tuple[List[npt.ArrayLike], List[npt.ArrayLike], List[float], float, bool]:
+) -> Tuple[
+    List[npt.ArrayLike],  # The solution, i.e., the list of baselines
+    List[npt.ArrayLike],  # The error bars of the baselines
+    List[float],  # The list of stopping factors
+    float,  # The best stopping factor found during the iterations
+    bool,  # Has the destriper converged to a solution?
+    int,  # Number of bytes used by temporary buffers
+]:
     """Apply the Conjugate Gradient (CG) algorithm to find the solution for Ax=b"""
 
     # To understand how the PCG algorithm works, you should read the paper
@@ -889,6 +909,8 @@ def _run_destriper(
     #
     # [1] https://en.wikipedia.org/wiki/Conjugate_gradient_method
 
+    bytes_in_temporary_buffers = 0
+
     assert nobs_matrix_cholesky.is_cholesky, (
         "_run_destriper requires that `nobs_matrix_cholesky` "
         "already contains the Cholesky transforms"
@@ -901,11 +923,13 @@ def _run_destriper(
 
     # Preallocate memory for the baselines at the k-th step
     x = [np.copy(cur_baseline) for cur_baseline in baselines_list_start]
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(x)
 
     # This is the “best” baseline found during the iterations. Normally,
     # the best one is the last one, unless the loop was cut short because
     # the maximum number of iterations was reached.
     best_x = [np.copy(cur_baseline) for cur_baseline in baselines_list_start]
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(best_x)
     best_stopping_factor = None
 
     # The `b` value used by the Wikipedia article corresponds to
@@ -914,17 +938,22 @@ def _run_destriper(
         np.empty(len(cur_baseline_lengths))
         for cur_baseline_lengths in baseline_lengths_list
     ]
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(b)
+
     # A·x corresponds to F^t·C_w⁻¹·Z·y
     Ax = [
         np.empty(len(cur_baseline_lengths))
         for cur_baseline_lengths in baseline_lengths_list
     ]
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(Ax)
+
     # This is the residual b−A·x; ideally, if we already had the correct solution,
     # it should be zero.
     r = [
         np.empty(len(cur_baseline_lengths))
         for cur_baseline_lengths in baseline_lengths_list
     ]
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(r)
 
     # Initialize r_k
     compute_b(
@@ -949,11 +978,16 @@ def _run_destriper(
         r_k[:] = b_k - A_k
 
     new_r = [np.copy(r_k) for r_k in r]
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(new_r)
 
     z = [np.copy(r_k) for r_k in r]
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(z)
+
     precond = _compute_preconditioner(
         obs_list=obs_list, baseline_lengths_list=baseline_lengths_list
     )
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(precond)
+
     if use_preconditioner:
         _apply_preconditioner(precond, z)
     k = 0
@@ -1039,7 +1073,19 @@ def _run_destriper(
     mask = np.isfinite(destriped_map[0, :])
     destriped_map[0, mask] -= np.mean(destriped_map[0, mask])
 
-    return best_x, precond, history_of_stopping_factors, best_stopping_factor, converged
+    if MPI_ENABLED:
+        bytes_in_temporary_buffers = MPI_COMM_WORLD.allreduce(
+            bytes_in_temporary_buffers
+        )
+
+    return (
+        best_x,
+        precond,
+        history_of_stopping_factors,
+        best_stopping_factor,
+        converged,
+        bytes_in_temporary_buffers,
+    )
 
 
 def make_destriped_map(
@@ -1051,6 +1097,8 @@ def make_destriped_map(
     keep_pixel_idx: bool = False,
     keep_pol_angle_rad: bool = False,
 ) -> DestriperResult:
+    elapsed_time_s = time.monotonic()
+
     if not components:
         components = ["tod"]
 
@@ -1132,6 +1180,7 @@ def make_destriped_map(
             history_of_stopping_factors,
             best_stopping_factor,
             converged,
+            bytes_in_temporary_buffers,
         ) = _run_destriper(
             obs_list=obs_list,
             nobs_matrix_cholesky=nobs_matrix_cholesky,
@@ -1192,6 +1241,7 @@ def make_destriped_map(
             factor=-1.0,
         )
 
+    elapsed_time_s = time.monotonic() - elapsed_time_s
     return DestriperResult(
         params=params,
         hit_map=hit_map,
@@ -1206,6 +1256,8 @@ def make_destriped_map(
         stopping_factor=best_stopping_factor,
         destriped_map=destriped_map,
         converged=converged,
+        elapsed_time_s=elapsed_time_s,
+        bytes_in_temporary_buffers=bytes_in_temporary_buffers,
     )
 
 

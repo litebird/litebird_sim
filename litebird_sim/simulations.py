@@ -9,8 +9,10 @@ import logging as log
 import os
 import subprocess
 from typing import List, Tuple, Union, Dict, Any, Optional
+from uuid import uuid4
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
+import matplotlib.pylab as plt
 
 from litebird_sim import constants
 from .coordinates import CoordinateSystem
@@ -19,6 +21,7 @@ from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
+from .mapmaking import make_destriped_map, DestriperParameters, DestriperResult
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
 from .pointings import get_pointings
@@ -1450,3 +1453,56 @@ class Simulation:
                 user_seed=user_seed,
                 **dictionary,
             )
+
+    def make_destriped_map(
+        self,
+        params: DestriperParameters,
+        components: Optional[List[str]] = None,
+        keep_weights: bool = False,
+        keep_pixel_idx: bool = False,
+        keep_pol_angle_rad: bool = False,
+        append_to_report: bool = True,
+    ) -> DestriperResult:
+        results = make_destriped_map(
+            obs=self.observations,
+            pointings=None,
+            params=params,
+            components=components,
+            keep_weights=keep_weights,
+            keep_pixel_idx=keep_pixel_idx,
+            keep_pol_angle_rad=keep_pol_angle_rad,
+        )
+
+        if append_to_report:
+            fig, ax = plt.subplots()
+            ax.set_xlabel("Iteration number")
+            ax.set_ylabel("Residual [K]")
+            ax.set_title("CG convergence of the destriper")
+            ax.plot(
+                np.arange(len(results.history_of_stopping_factors)),
+                results.history_of_stopping_factors,
+                "ko-",
+            )
+
+            template_file_path = get_template_file_path("report_destriper.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            cg_plot_filename = f"destriper-cg-convergence-{uuid4()}.png"
+
+            self.append_to_report(
+                markdown_text=markdown_template,
+                results=results,
+                history_of_stopping_factors=[
+                    float(x) for x in results.history_of_stopping_factors
+                ],
+                bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
+                cg_plot_filename=cg_plot_filename,
+                figures=[
+                    # Using uuid4() we can have more than one section
+                    # about “destriping” in the report
+                    (fig, cg_plot_filename),
+                ],
+            )
+
+        return results
