@@ -13,12 +13,15 @@
 
 from dataclasses import dataclass
 from typing import Any, Tuple, List
+
+import astropy.time
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
 import litebird_sim as lbs
 from litebird_sim import CoordinateSystem, MPI_COMM_WORLD, MPI_ENABLED
+from litebird_sim.mapmaking.destriper import NobsMatrix
 
 if MPI_ENABLED:
     import mpi4py.MPI
@@ -151,6 +154,8 @@ class AnalyticalSolution:
     input_a: Any = None
     # The input I/Q/U maps (exact)
     input_maps: Any = None
+    # The expected binned map
+    expected_binned_map: Any = None
     # The estimated baselines
     estimated_a: Any = None
     # The estimated I/Q/U maps
@@ -247,6 +252,7 @@ def create_analytical_solution(
         y=y,
         input_a=BASELINE_VALUES,
         input_maps=INPUT_MAPS,
+        expected_binned_map=invM @ np.transpose(P) @ invCw @ y,
         estimated_a=estimated_a,
         estimated_maps=estimated_maps,
     )
@@ -560,6 +566,22 @@ def test_map_maker_parts():
         )
 
 
+def _compare_analytical_vs_estimated_map(
+    actual: npt.ArrayLike, desired: npt.ArrayLike, nobs_matrix_cholesky: NobsMatrix
+):
+    for cur_pix in range(len(actual[0])):
+        if nobs_matrix_cholesky.valid_pixel[cur_pix]:
+            np.testing.assert_allclose(
+                actual=actual[:, cur_pix],
+                desired=desired[(3 * cur_pix) : (3 * cur_pix + 3)],
+                rtol=1e-5,
+            )
+        else:
+            assert np.isnan(actual[0, cur_pix])
+            assert np.isnan(actual[1, cur_pix])
+            assert np.isnan(actual[2, cur_pix])
+
+
 def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
 
     if not use_destriper:
@@ -613,21 +635,21 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
                 actual=result.baselines[0], desired=expected_baselines
             )
 
-        expected_map = np.copy(expected_solution.input_maps)
-        expected_map[0::3] -= np.mean(expected_map[0::3])
+        expected_destriped_map = np.copy(expected_solution.input_maps)
+        expected_destriped_map[0::3] -= np.mean(expected_destriped_map[0::3])
 
-        # Check that the destriped map is ok
-        for cur_pix in range(len(result.hit_map)):
-            if result.nobs_matrix_cholesky.valid_pixel[cur_pix]:
-                np.testing.assert_allclose(
-                    actual=result.destriped_map[:, cur_pix],
-                    desired=expected_map[(3 * cur_pix) : (3 * cur_pix + 3)],
-                    rtol=1e-5,
-                )
-            else:
-                assert np.isnan(result.binned_map[0, cur_pix])
-                assert np.isnan(result.binned_map[1, cur_pix])
-                assert np.isnan(result.binned_map[2, cur_pix])
+        # Check that the binned and destriped maps are ok
+        _compare_analytical_vs_estimated_map(
+            actual=result.binned_map,
+            desired=expected_solution.expected_binned_map,
+            nobs_matrix_cholesky=result.nobs_matrix_cholesky,
+        )
+        _compare_analytical_vs_estimated_map(
+            actual=result.destriped_map,
+            desired=expected_destriped_map,
+            nobs_matrix_cholesky=result.nobs_matrix_cholesky,
+        )
+
     else:
         # Check the binned map
         for cur_pix in range(len(result.hit_map)):
@@ -655,3 +677,121 @@ def test_map_maker_with_destriping():
 
 def test_map_maker_with_destriping_and_preconditioner():
     _test_map_maker(use_destriper=True, use_preconditioner=True)
+
+
+def test_full_destriper(tmp_path):
+    # The previous tests were taylored for the case of a TOD
+    # with just 7 samples and one detector. Now we turn to a more
+    # comprehensive test with *two* detectors
+
+    nside = 32
+
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=0,
+        duration_s=astropy.time.TimeDelta(10, format="jd").to("s").value,
+    )
+
+    sim.set_instrument(
+        lbs.InstrumentInfo(
+            name="Dummy", boresight_rotangle_rad=np.deg2rad(50), hwp_rpm=46.0
+        )
+    )
+
+    dets = [
+        lbs.DetectorInfo(
+            sampling_rate_hz=1.0,
+            name="A",
+            fwhm_arcmin=20.0,
+            bandcenter_ghz=140.0,
+            bandwidth_ghz=40.0,
+            net_ukrts=50.0,
+            fknee_mhz=50.0,
+            quat=np.array([0.02568196, 0.00506653, 0.0, 0.99965732]),
+        ),
+        lbs.DetectorInfo(
+            sampling_rate_hz=1.0,
+            name="B",
+            fwhm_arcmin=20.0,
+            bandcenter_ghz=140.0,
+            bandwidth_ghz=40.0,
+            net_ukrts=50.0,
+            fknee_mhz=50.0,
+            quat=np.array([0.0145773, 0.02174247, -0.70686447, 0.70686447]),
+        ),
+    ]
+
+    sim.set_scanning_strategy(
+        scanning_strategy=lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45.0),
+            precession_rate_hz=1 / 10_020.0,
+            spin_rate_hz=1 / 60.0,
+        ),
+    )
+
+    sim.create_observations(
+        detectors=dets,
+        n_blocks_det=1,
+        n_blocks_time=1,  # blocks different from one if parallelizing
+        dtype_tod=np.float64,  # This is needed if we want to use the TOAST mapmaker ☹
+    )
+
+    assert len(sim.observations) == 1
+
+    sim.set_hwp(
+        lbs.IdealHWP(
+            sim.instrument.hwp_rpm * 2 * np.pi / 60,
+        ),  # applies hwp rotation angle to the polarization angle
+    )
+    sim.compute_pointings()
+
+    mbs_params = lbs.MbsParameters(
+        make_cmb=True,
+        make_fg=True,
+        seed_cmb=1,
+        fg_models=[
+            "pysm_synch_0",
+            "pysm_freefree_1",
+            "pysm_dust_0",
+        ],  # set the FG models you want
+        gaussian_smooth=True,
+        bandpass_int=False,
+        nside=nside,
+        units="K_CMB",
+        maps_in_ecliptic=False,
+    )
+
+    mbs = lbs.Mbs(
+        simulation=sim,
+        parameters=mbs_params,
+        detector_list=dets,
+    )
+    maps = mbs.run_all()[0]  # generates the map as a dictionary
+
+    lbs.scan_map_in_observations(
+        sim.observations,
+        maps=maps,
+        input_map_in_galactic=True,
+    )
+
+    lbs.add_noise_to_observations(
+        obs=sim.observations,
+        noise_type="one_over_f",
+        scale=1,
+    )
+
+    destriper_params_noise = lbs.DestriperParameters(
+        nside=nside,
+        output_coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
+        samples_per_baseline=100,  # ν_samp = 1 Hz ⇒ the baseline is 100 s
+        iter_max=10,
+        threshold=1e-6,
+    )
+
+    destriper_result = lbs.make_destriped_map(
+        obs=sim.observations, pointings=None, params=destriper_params_noise
+    )
+
+    print(f"{destriper_result.history_of_stopping_factors=}")
+    # Just check that the destriper converged to some solution
+    assert destriper_result.converged

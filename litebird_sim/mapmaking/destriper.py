@@ -804,6 +804,21 @@ def compute_Ax(
     )
 
 
+@njit
+def compute_weighted_baseline_length(
+    lengths: npt.ArrayLike, weights: npt.ArrayLike, result: npt.ArrayLike
+) -> float:
+    # Compute Σ Nᵢ/σᵢ, where the summation is done over the detectors
+
+    for i in range(len(result)):
+        result[i] = 0.0
+        for cur_weight in weights:
+            result[i] += lengths[i] / cur_weight
+
+        # We store the *inverse*, i.e., the diagonal of matrix M⁻¹
+        result[i] = 1.0 / result[i]
+
+
 def _compute_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLike]:
     # We just compute (F^T·C_w⁻¹·F)⁻¹, which is a diagonal matrix containing
     # the number of elements in each baseline divided by σ². (Remember
@@ -820,10 +835,18 @@ def _compute_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLi
     #
     # Our choice corresponds to Eq. (10) in Szydlarski's paper.
 
-    return [
-        cur_obs.destriper_weights / cur_baseline_lengths
-        for cur_obs, cur_baseline_lengths in zip(obs_list, baseline_lengths_list)
-    ]
+    assert len(obs_list) == len(baseline_lengths_list), (
+        f"The number of observations is {len(obs_list)}, but the baseline "
+        f"lengths are enough for {len(baseline_lengths_list)} elements"
+    )
+
+    result = [np.empty(len(len_k)) for len_k in baseline_lengths_list]
+    for obs_k, lengths_k, result_k in zip(obs_list, baseline_lengths_list, result):
+        compute_weighted_baseline_length(
+            weights=obs_k.destriper_weights, lengths=lengths_k, result=result_k
+        )
+
+    return result
 
 
 def _apply_preconditioner(precond: List[npt.ArrayLike], z: List[npt.ArrayLike]):
@@ -975,7 +998,7 @@ def _run_destriper(
         for (z_k, r_k) in zip(z, r):
             z_k[:] = r_k[:]
         if use_preconditioner:
-            _apply_preconditioner(z)
+            _apply_preconditioner(precond, z)
 
         new_r_dot = _mpi_dot(new_r, z)
         for z_k, r_k, new_r_k in zip(z, r, new_r):
@@ -987,7 +1010,6 @@ def _run_destriper(
     # Redo the binned and destriped map with the best solution found so far
 
     # First, compute the binned map by passing `baselines_list=None`…
-    binned_map = np.empty_like(destriped_map)
     _compute_binned_map(
         obs_list=obs_list,
         output_sky_map=binned_map,
@@ -1022,7 +1044,7 @@ def _run_destriper(
 
 def make_destriped_map(
     obs: Union[Observation, List[Observation]],
-    pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]],
+    pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]] = None,
     params=DestriperParameters(),
     components: Optional[List[str]] = None,
     keep_weights: bool = False,
@@ -1049,7 +1071,7 @@ def make_destriped_map(
         obs_list=obs_list,
         ptg_list=ptg_list,
         psi_list=psi_list,
-        output_coordinate_system=CoordinateSystem.Ecliptic,
+        output_coordinate_system=params.output_coordinate_system,
     )
 
     if len(components) > 1:
@@ -1078,16 +1100,26 @@ def make_destriped_map(
     hit_map = np.empty(number_of_pixels)
 
     if do_destriping:
-        if type(params.samples_per_baseline) is int:
+        try:
+            # This will fail if the parameter is a scalar
+            len(params.samples_per_baseline)
+
+            baseline_lengths_list = params.samples_per_baseline
+            assert len(baseline_lengths_list) == len(obs_list), (
+                f"The list baseline_lengths_list has {len(baseline_lengths_list)} "
+                f"elements, but there are {len(obs_list)} observations"
+            )
+        except TypeError:
+            # Ok, params.samples_per_baseline is a scalar, so we must
+            # figure out the number of samples in each baseline within
+            # each observation
             baseline_lengths_list = [
                 split_items_evenly(
                     n=getattr(cur_obs, components[0]).shape[1],
-                    sub_n=params.samples_per_baseline,
+                    sub_n=int(params.samples_per_baseline),
                 )
                 for cur_obs in obs_list
             ]
-        else:
-            baseline_lengths_list = params.samples_per_baseline
 
         baselines_list = [
             np.zeros(len(cur_baseline)) for cur_baseline in baseline_lengths_list
@@ -1162,7 +1194,7 @@ def make_destriped_map(
 
     return DestriperResult(
         params=params,
-        hit_map=np.zeros(1),
+        hit_map=hit_map,
         binned_map=binned_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         coordinate_system=params.output_coordinate_system,
