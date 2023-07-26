@@ -585,6 +585,10 @@ def _compare_analytical_vs_estimated_map(
             assert np.isnan(actual[2, cur_pix])
 
 
+def _make_zero_mean(x: npt.ArrayLike) -> npt.NDArray:
+    return x - np.mean(x)
+
+
 def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
 
     if not use_destriper:
@@ -640,25 +644,29 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
         cur_obs.unrolled_baselines *= -1.0
 
         # Check that the baselines are ok
-        expected_baselines = BASELINE_VALUES - np.mean(BASELINE_VALUES)
+        expected_baselines = _make_zero_mean(BASELINE_VALUES)
         if MPI_COMM_WORLD.size > 1:
+            # We derive the offset to apply to the baselines from F·a,
+            # which is *not* divided among the MPI processes
+            baseline_offset = np.mean(expected_solution.F @ expected_baselines)
             # We use `result.baselines[0][0]` because each MPI process has just *one*
             # Observation and *one* baseline
             np.testing.assert_almost_equal(
                 actual=result.baselines[0][0],
-                desired=expected_baselines[MPI_COMM_WORLD.rank],
+                desired=expected_baselines[MPI_COMM_WORLD.rank] - baseline_offset,
             )
             np.testing.assert_allclose(
                 actual=sim.observations[0].unrolled_baselines[0],
-                desired=expected_baselines[MPI_COMM_WORLD.rank],
+                desired=(expected_baselines[MPI_COMM_WORLD.rank] - baseline_offset),
             )
         else:
             np.testing.assert_allclose(
-                actual=result.baselines[0], desired=expected_baselines
+                actual=_make_zero_mean(result.baselines[0]),
+                desired=_make_zero_mean(expected_baselines),
             )
             np.testing.assert_allclose(
-                actual=sim.observations[0].unrolled_baselines[0],
-                desired=expected_solution.F @ expected_baselines,
+                actual=_make_zero_mean(sim.observations[0].unrolled_baselines[0]),
+                desired=_make_zero_mean(expected_solution.F @ expected_baselines),
             )
 
         expected_destriped_map = np.copy(expected_solution.input_maps)
