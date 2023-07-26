@@ -590,7 +590,6 @@ def _make_zero_mean(x: npt.ArrayLike) -> npt.NDArray:
 
 
 def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
-
     if not use_destriper:
         assert (
             not use_preconditioner

@@ -666,7 +666,7 @@ def _compute_tod_sums_for_one_component(
     """
     output_sums[:] = 0
 
-    for (det_idx, cur_weight) in enumerate(weights):
+    for det_idx, cur_weight in enumerate(weights):
         det_pixel_idx = pixel_idx[det_idx, :]
         det_psi_angle_rad = psi_angle_rad[det_idx, :]
 
@@ -712,7 +712,7 @@ def _compute_baseline_sums_for_one_component(
     """
     output_sums[:] = 0
 
-    for (det_idx, cur_weight) in enumerate(weights):
+    for det_idx, cur_weight in enumerate(weights):
         det_pixel_idx = pixel_idx[det_idx, :]
         det_psi_angle_rad = psi_angle_rad[det_idx, :]
 
@@ -1111,7 +1111,7 @@ def _run_destriper(
         baseline_lengths_list=baseline_lengths_list,
         result=Ax,
     )
-    for (r_k, b_k, A_k) in zip(r, b, Ax):
+    for r_k, b_k, A_k in zip(r, b, Ax):
         r_k[:] = b_k - A_k
 
     new_r = [np.copy(r_k) for r_k in r]
@@ -1160,7 +1160,7 @@ def _run_destriper(
         for x_k, z_k in zip(x, z):
             x_k += α * z_k
 
-        for (new_r_k, r_k, Ax_k) in zip(new_r, r, Ax):
+        for new_r_k, r_k, Ax_k in zip(new_r, r, Ax):
             new_r_k[:] = r_k - α * Ax_k
 
         cur_stopping_factor = _get_stopping_factor(new_r)
@@ -1182,7 +1182,7 @@ def _run_destriper(
             converged = True
             break
 
-        for (z_k, r_k) in zip(z, r):
+        for z_k, r_k in zip(z, r):
             z_k[:] = r_k[:]
         if use_preconditioner:
             _apply_preconditioner(precond, z)
@@ -1589,7 +1589,7 @@ def remove_baselines_from_tod(
         from the baselines. The default is ``"tod"``.
     """
 
-    for (cur_obs, cur_baseline, cur_baseline_lengths) in zip(
+    for cur_obs, cur_baseline, cur_baseline_lengths in zip(
         obs_list, baselines, baseline_lengths
     ):
         cur_tod = getattr(cur_obs, component)
