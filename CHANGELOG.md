@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fix noise seed inconsistency [#256](https://github.com/litebird/litebird_sim/pull/256)
+
 -   Bug in mbs for band integration solved [#251](https://github.com/litebird/litebird_sim/pull/251)
 
 -   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)

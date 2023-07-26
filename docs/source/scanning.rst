@@ -119,6 +119,7 @@ similar to what is going to be used for LiteBIRD:
       start_time=0,
       duration_s=60.0,
       description="Simple simulation",
+      random_seed=12345,
   )
 
   # We now simulate the motion of the spacecraft over a time span
@@ -253,6 +254,7 @@ provides two ways to compute the transformation:
          start_time=astropy.time.Time("2020-01-01"),
          duration_s=60.0,
          description="Simple simulation",
+         random_seed=12345,
      )
 
 You should compute the proper motion of the Earth around the Sun only
@@ -689,6 +691,7 @@ computing one quaternion every minute, we compute one quaternion every
        start_time=0,
        duration_s=(365 * u.day).to("s").value,
        description="Simple simulation",
+       random_seed=12345,
    )
 
    sim.set_scanning_strategy(
@@ -726,6 +729,7 @@ of a descendant of the class :class:`.HWP` to the method
     sim = lbs.Simulation(
         start_time=0,
         duration_s=100.0,
+        random_seed=12345,
     )
 
     sim.set_scanning_strategy(
@@ -817,6 +821,7 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
       start_time=astropy.time.Time("2020-01-01T00:00:00"),
       duration_s=60.0,
       description="Simple simulation",
+      random_seed=12345,
   )
   
   sim.set_scanning_strategy(

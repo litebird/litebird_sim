@@ -6,7 +6,7 @@ set -o errexit
 black --check --diff .
 
 # Check for common errors
-flake8
+python3 -m flake8
 
 # Run the test suite
 python3 -m pytest -vv

@@ -44,6 +44,7 @@ For any kind of gain drift, one can use either the method of :class:`.Simulation
         base_path="linear_gd_example",
         start_time=start_time,
         duration_s=duration_s,
+        random_seed=12345,
     )
 
     sim1.create_observations(

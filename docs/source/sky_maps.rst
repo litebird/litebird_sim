@@ -23,7 +23,7 @@ framework to generate a CMB map::
 
     import litebird_sim as lbs
 
-    sim = lbs.Simulation(base_path="../output")
+    sim = lbs.Simulation(base_path="../output", random_seed=12345)
     params = lbs.MbsParameters(
         make_cmb=True,
         fg_models=["pysm_synch_0", "pysm_freefree_1"],

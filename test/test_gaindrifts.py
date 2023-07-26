@@ -58,6 +58,7 @@ class Test_wrappers_gain_drift:
             base_path=tmp_path / "gd_wrapper_test",
             start_time=self.start_time,
             duration_s=self.duration_s,
+            random_seed=12345,
         )
 
         sim1.create_observations(
@@ -120,6 +121,7 @@ class Test_wrappers_gain_drift:
             base_path=tmp_path / "gd_wrapper_test",
             start_time=self.start_time,
             duration_s=self.duration_s,
+            random_seed=12345,
         )
 
         sim1.create_observations(
@@ -212,6 +214,7 @@ def test_linear_gain_drift(tmp_path):
         base_path=tmp_path / "gd_lineargain_test",
         start_time=start_time,
         duration_s=duration_s,
+        random_seed=12345,
     )
 
     sim1.create_observations(
@@ -320,6 +323,7 @@ class Test_thermal_gain:
             base_path=tmp_path / "gd_thermalgain_test",
             start_time=self.start_time,
             duration_s=self.duration_s,
+            random_seed=12345,
         )
 
         sim1.create_observations(
@@ -382,6 +386,7 @@ class Test_thermal_gain:
             base_path=tmp_path / "gd_thermalgain_test",
             start_time=self.start_time,
             duration_s=self.duration_s,
+            random_seed=12345,
         )
 
         sim1.create_observations(

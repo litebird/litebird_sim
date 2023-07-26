@@ -139,7 +139,6 @@ def get_pointings(
         ), f"error, wrong pointing buffer size: {pointing_buffer.size} != {bufshape}"
 
     for idx, cur_quat in enumerate(detector_quats):
-
         assert (
             cur_quat.dtype == float
         ), f"error, quaternion must be float, type: {cur_quat.dtype}"

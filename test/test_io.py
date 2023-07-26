@@ -61,6 +61,7 @@ def __write_complex_observation(
         base_path=tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
+        random_seed=12345,
     )
     scanning = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.785_398_163_397_448_3,
