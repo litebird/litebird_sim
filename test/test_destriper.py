@@ -55,6 +55,7 @@ def test_basic_functionality(tmp_path):
         base_path=tmp_path,
         start_time=0.0,
         duration_s=duration_s,
+        random_seed=12345,
     )
 
     detectors = [
@@ -152,7 +153,10 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
     coordinates_str = COORDINATE_SYSTEM_STR[coordinates]
 
     sim = lbs.Simulation(
-        base_path=tmp_path / "destriper_output", start_time=0, duration_s=86400.0
+        base_path=tmp_path / "destriper_output",
+        start_time=0,
+        duration_s=86400.0,
+        random_seed=12345,
     )
 
     sim.set_scanning_strategy(
@@ -310,6 +314,7 @@ def test_destriper_coordinate_consistency(tmp_path):
         base_path=Path(tmp_path) / "destriper_output",
         start_time=0,
         duration_s=3 * 86400.0,
+        random_seed=12345,
     )
 
     sim.set_scanning_strategy(

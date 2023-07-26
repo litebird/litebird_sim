@@ -170,7 +170,8 @@ with four detectors. Here is a summary of its contents:
 
 Now, let's turn back to the problem of specifying a set of detectors
 in a parameter file. The following TOML file shows some of the
-possibilities granted by the framework:
+possibilities granted by the framework. The parameter `random_seed`
+is mandatory for the :class:`.Simulation` constructor.
 
 .. literalinclude:: ../det_list1.toml
    :language: toml
@@ -182,7 +183,7 @@ and uses an :class:`.Imo` object to build a list of
 :class:`.DetectorInfo` objects.
 
 The following code will read the TOML file above and produce a list of
-5 detectors:
+6 detectors:
 
 .. testcode::
 
@@ -216,7 +217,8 @@ The following code will read the TOML file above and produce a list of
 
 You are not forced to use ``detectors`` as the name of the parameter
 in the TOML file, as :func:`.detector_list_from_parameters` accepts a
-generic list. As an example, consider the following TOML file:
+generic list. As an example, consider the following TOML file. Note
+again the mandatory parameter `random_seed`.
 
 .. literalinclude:: ../det_list2.toml
    :language: toml

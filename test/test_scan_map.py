@@ -37,7 +37,9 @@ def test_scan_map_no_interpolation():
 
     npix = lbs.nside_to_npix(nside)
 
-    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=12345
+    )
 
     scanning = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.785_398_163_397_448_3,
@@ -176,7 +178,9 @@ def test_scan_map_linear_interpolation():
 
     npix = lbs.nside_to_npix(nside)
 
-    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=12345
+    )
 
     scanning = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.785_398_163_397_448_3,
@@ -246,6 +250,7 @@ def test_scanning_list_of_obs(tmp_path):
         base_path=tmp_path / "simulation_dir",
         start_time=astropy.time.Time("2020-01-01T00:00:00"),
         duration_s=100.0,
+        random_seed=12345,
     )
     dets = [
         lbs.DetectorInfo(name="A", sampling_rate_hz=1),
@@ -304,6 +309,7 @@ def test_scanning_list_of_obs_in_other_component(tmp_path):
         base_path=tmp_path / "simulation_dir",
         start_time=astropy.time.Time("2020-01-01T00:00:00"),
         duration_s=120.0,
+        random_seed=12345,
     )
     dets = [
         lbs.DetectorInfo(name="A", sampling_rate_hz=1),
