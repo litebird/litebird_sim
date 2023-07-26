@@ -5,7 +5,10 @@ from numpy.random import MT19937, RandomState, SeedSequence
 import litebird_sim as lbs
 
 sim = lbs.Simulation(
-    base_path="/tmp/destriper_output", start_time=0, duration_s=86400.0
+    base_path="/tmp/destriper_output",
+    start_time=0,
+    duration_s=86400.0,
+    random_seed=12345,
 )
 
 sim.set_scanning_strategy(

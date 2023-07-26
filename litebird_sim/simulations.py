@@ -252,6 +252,10 @@ class Simulation:
 
     Args:
 
+        random_seed (int or `None`): the seed used for the random number
+            generator. The user is required to set this parameter. By setting it to
+            `None`, the generation of random numbers will not be reproducible.
+
         base_path (str or `pathlib.Path`): the folder that will
             contain the output. If this folder does not exist and the
             user has sufficient rights, it will be created.
@@ -285,6 +289,7 @@ class Simulation:
 
     def __init__(
         self,
+        random_seed="",
         base_path=None,
         name=None,
         mpi_comm=MPI_COMM_WORLD,
@@ -315,7 +320,7 @@ class Simulation:
 
         self.description = description
 
-        self.random = None
+        self.random_seed = random_seed
 
         self.tod_list = []  # type: List[TodDescription]
 
@@ -378,22 +383,36 @@ class Simulation:
             if isinstance(self.start_time, astropy.time.Time)
             else self.start_time,
             duration_s=self.duration_s,
+            random_seed=self.random_seed,
         )
 
-        # Make sure that self.random is initialized to something meaningful.
-        # The user is free to call self.init_random() again later
-        self.init_random()
+        # Check that random_seed has been set
+        assert self.random_seed != "", (
+            "you must set random_seed (int for reproducible results, "
+            + "None for non reproducible results)"
+        )
 
-    def init_random(self, seed=12345):
+        # Initialize self.random. The user is free to
+        # call self.init_random() again later
+        self.init_random(self.random_seed)
+
+    def init_random(self, random_seed):
         """
         Initialize a random number generator in the `random` field
 
         This function creates a random number generator and saves it in the
         field `random`. It should be used whenever a random number generator
-        is needed in the simulation. It ensures that different MPI processes
-        have their own different seed, which stems from the parameter `seed`.
-        The generator is PCG64, and it is ensured that the sequences in
-        each MPI process are independent.
+        is needed in the simulation.
+        In the case `random_seed` has not been set to `None`, it ensures that
+        different MPI processes have their own different seed, which stems
+        from the parameter `random_seed`, and the results will be reproducible.
+        The generator is PCG64, and it is ensured that the sequences in each MPI
+        process are independent. If `init_random` is called with the same seed
+        but a different number of MPI ranks, the sequence of random numbers
+        will be different.
+        In the case `random_seed` has been set to `None`, no seed will be
+        used and the results obtained with the random number generator will
+        not be reproducible.
 
         This method is automatically called in the constructor, but it can be
         called again as many times as required. The typical case is when
@@ -403,10 +422,10 @@ class Simulation:
 
         # We need to assign a different random number generator to each MPI
         # process, otherwise noise will be correlated. The following code
-        # works even if MPI is not used
+        # works even if MPI is not used or if `random_seed` has been set to `None`
 
         # Create a list of N seeds, one per each MPI process
-        seed_seq = SeedSequence(seed).spawn(self.mpi_comm.size)
+        seed_seq = SeedSequence(random_seed).spawn(self.mpi_comm.size)
 
         # Pick the seed for this process
         self.random = Generator(PCG64(seed_seq[self.mpi_comm.rank]))
@@ -427,6 +446,9 @@ class Simulation:
             sim_params = self.parameters["simulation"]
         except KeyError:
             return
+
+        if self.random_seed == "":
+            self.random_seed = sim_params.get("random_seed", "")
 
         if not self.base_path:
             self.base_path = Path(sim_params.get("base_path", Path()))
@@ -1316,8 +1338,8 @@ class Simulation:
 
     def add_noise(
         self,
+        random: np.random.Generator,
         noise_type: str = "one_over_f",
-        random: Union[np.random.Generator, None] = None,
         append_to_report: bool = True,
     ):
         """Adds noise to tods.
@@ -1325,10 +1347,10 @@ class Simulation:
         This method must be called after having set the instrument,
         the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`.
+        The parameter `random` must be specified and must be a random number
+        generator thatimplements the ``normal`` method. You should typically
+        use the `random` field of a :class:`.Simulation` object for this.
         """
-
-        if random is None:
-            random = self.random
 
         add_noise_to_observations(
             obs=self.observations,

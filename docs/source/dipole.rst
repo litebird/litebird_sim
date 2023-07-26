@@ -194,7 +194,11 @@ simulation :func:`.Simulation.add_dipole`.
   time_span_s = 1000.0
   sampling_hz = 10.0
 
-  sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+  sim = lbs.Simulation(
+      start_time=start_time,
+      duration_s=time_span_s,
+      random_seed=12345,
+  )
 
   # We pick a simple scanning strategy where the spin axis is aligned
   # with the Sun-Earth axis, and the spacecraft spins once every minute

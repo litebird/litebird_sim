@@ -9,7 +9,11 @@ def test_add_noise_to_observations():
     time_span_s = 10
     sampling_hz = 1
 
-    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+    # by setting random_seed=None here and calling sim.init_random below, we
+    # are testing the change of random number generator and seed setting, too
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=None
+    )
 
     det1 = lbs.DetectorInfo(
         name="Boresight_detector_A",
@@ -27,7 +31,8 @@ def test_add_noise_to_observations():
 
     sim.create_observations(detectors=[det1, det2])
 
-    sim.init_random(seed=12_345)
+    sim.init_random(random_seed=12_345)
+
     lbs.noise.add_noise_to_observations(sim.observations, "white", random=sim.random)
 
     assert len(sim.observations) == 1
@@ -54,7 +59,11 @@ def test_add_noise_to_observations_in_other_field():
     time_span_s = 10
     sampling_hz = 1
 
-    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+    # by setting random_seed=None here and calling sim.init_random below, we
+    # are testing the change of random number generator and seed setting, too
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=None
+    )
 
     det1 = lbs.DetectorInfo(
         name="Boresight_detector_A",
@@ -75,7 +84,8 @@ def test_add_noise_to_observations_in_other_field():
     for cur_obs in sim.observations:
         cur_obs.noise_tod = np.zeros_like(cur_obs.tod)
 
-    sim.init_random(seed=12_345)
+    sim.init_random(random_seed=12_345)
+
     lbs.noise.add_noise_to_observations(
         sim.observations, "one_over_f", random=sim.random, component="noise_tod"
     )

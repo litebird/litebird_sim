@@ -38,6 +38,7 @@ drift_params_with_mismatch = lbs.GainDriftParams(
 sim1 = lbs.Simulation(
     start_time=start_time,
     duration_s=duration_s,
+    random_seed=12345,
 )
 
 sim1.create_observations(

@@ -1,5 +1,9 @@
 # This is file "det_list2.toml"
 
+# Mandatory parameter
+[simulation]
+random_seed = 12345
+
 [simulation1]
 
 # Detectors to be used for the first simulation

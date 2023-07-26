@@ -47,6 +47,7 @@ detectors::
         base_path="destriper_output",
         start_time=0,
         duration_s=86400.0,
+        random_seed=12345,
     )
 
     sim.set_scanning_strategy(
