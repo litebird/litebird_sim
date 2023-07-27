@@ -289,6 +289,7 @@ def setup_simulation(
     sim = lbs.Simulation(
         start_time=0.0,
         duration_s=NUM_OF_SAMPLES,
+        random_seed=12345,
     )
 
     sim.create_observations(
@@ -723,6 +724,7 @@ def test_full_destriper(tmp_path):
         base_path=tmp_path,
         start_time=0,
         duration_s=astropy.time.TimeDelta(10, format="jd").to("s").value,
+        random_seed=12345,
     )
 
     sim.set_instrument(
@@ -810,6 +812,7 @@ def test_full_destriper(tmp_path):
         obs=sim.observations,
         noise_type="one_over_f",
         scale=1,
+        random=sim.random,
     )
 
     destriper_params_noise = lbs.DestriperParameters(
