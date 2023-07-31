@@ -484,6 +484,44 @@ using MPI, you should call both functions on *all* the MPI processes,
 and the number of processes should be the same between the two calls.
 
 
+How the N_obs matrix is stored
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The destriper uses a different method to store the matrix :math:`M` in
+memory. As the 3×3 sub-blocks of this matrix need to be inverted often
+during the CG process, the function :func:`.make_destriped_map` decomposes
+each block using `Cholesky decomposition
+<https://en.wikipedia.org/wiki/Cholesky_decomposition>`_: each 3×3
+matrix :math:`M_i` associated with the pixels in the map is decomposed
+into
+
+.. math::
+
+   M_i = L_i L_i^T,
+
+where :math:`L` is a lower-triangular matrix, and only the nonzero
+coefficients of the matrix are saved. The advantages are twofold:
+
+1. Less memory is required;
+2. Calculating the inverse :math:`M^{-1}` is faster and more accurate.
+
+The fields are saved in an instance of the class :class:`.NobsMatrix`,
+which contains the following fields:
+
+- ``nobs_matrix`` is a 2D array of shape :math:`(N_p, 6)`, containing
+  the nonzero components of the :math:`N_p` matrices;
+- ``valid_pixel`` is a 1D Boolean array containing :math:`N_p` elements:
+  each of them is ``True`` is the corresponding matrix :math:`M_i`
+  was invertible (i.e., it was observed with at least three non-degenerate
+  attack angles), ``False`` otherwise
+- ``is_cholesky`` is a flag that tells whether ``nobs_matrix`` contains
+  the nonzero coefficients of the many :math:`L_i` matrices or the
+  lower triangular part of :math:`M_i`. After a successful call to
+  :func:`.make_destriped_map`, this should always be ``True``: it is
+  set to ``False`` during the execution of the destriper but updated
+  to ``True`` before the CG iteration starts.
+
+
 TOAST2 Destriper
 ----------------
 
