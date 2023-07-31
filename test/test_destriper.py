@@ -481,10 +481,10 @@ def test_map_maker_parts():
     # aware of MPI (their elements are not spread among the
     # MPI processes)
     if MPI_COMM_WORLD.size == 1:
-        full_baselines = np.array([0.0, 1.0])
+        full_baselines = np.array([[0.0, 1.0]])
         baselines_list = [full_baselines]
     else:
-        full_baselines = np.array([0.0, 10.0])
+        full_baselines = np.array([[0.0, 10.0]])
         # With 2 MPI processes:
         #     1. baselines_list=[array([0.])]
         #     2. baselines_list=[array([10.])]
@@ -520,7 +520,7 @@ def test_map_maker_parts():
         @ expected_solution.invCw
         @ expected_solution.Z
         @ expected_solution.F
-        @ full_baselines
+        @ full_baselines[0]
     )
 
     if MPI_COMM_WORLD.size == 2:
@@ -530,7 +530,7 @@ def test_map_maker_parts():
         )
     else:
         np.testing.assert_allclose(
-            actual=output_baselines_list[0],
+            actual=output_baselines_list[0][0],
             desired=expected,
         )
 
@@ -568,7 +568,7 @@ def test_map_maker_parts():
         )
     else:
         np.testing.assert_allclose(
-            actual=output_baselines_list[0],
+            actual=output_baselines_list[0][0],
             desired=expected,
         )
 
@@ -969,10 +969,6 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
     )
 
     np.testing.assert_allclose(
-        actual=actual_results.history_of_stopping_factors,
-        desired=desired_results.history_of_stopping_factors,
-    )
-    np.testing.assert_allclose(
         actual=actual_results.hit_map, desired=desired_results.hit_map
     )
     np.testing.assert_allclose(
@@ -980,6 +976,11 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
     )
 
     if use_destriper:
+        np.testing.assert_allclose(
+            actual=actual_results.history_of_stopping_factors,
+            desired=desired_results.history_of_stopping_factors,
+        )
+
         assert actual_results.baselines is not None
         for cur_actual, cur_desired in zip(
             actual_results.baselines, desired_results.baselines

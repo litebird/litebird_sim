@@ -1659,6 +1659,7 @@ def _save_rank0_destriper_results(results: DestriperResult, output_file: Path) -
         results.bytes_in_temporary_buffers,
         "Size of temporary buffers [bytes]",
     )
+    primary_hdu.header["ELAPSEDT"] = (results.elapsed_time_s, "Wall clock time [s]")
 
     hdu_list = [primary_hdu]
 
@@ -1766,7 +1767,6 @@ def _save_rank0_destriper_results(results: DestriperResult, output_file: Path) -
             "Was the preconditioner used?",
         )
 
-        history_hdu.header["ELAPSEDT"] = (results.elapsed_time_s, "Wall clock time [s]")
         hdu_list.append(history_hdu)
 
     with output_file.open("wb") as outf:
@@ -1879,7 +1879,8 @@ def save_destriper_results(results: DestriperResult, output_folder: Path) -> Non
         )
 
     # Now let's save the baselines: one per each observation
-    _save_baselines(results, output_file=output_folder / __BASELINES_FILE_NAME)
+    if results.destriped_map is not None:
+        _save_baselines(results, output_file=output_folder / __BASELINES_FILE_NAME)
 
 
 def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
@@ -1891,6 +1892,7 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
             valid_pixel=np.array(inpf["MASK"].data.field("VALID"), dtype=bool),
             is_cholesky=bool(inpf["NOBSMATR"].header["ISCHOL"]),
         )
+        nside = hp.npix2nside(len(nobs_matrix.valid_pixel))
 
         if "GAL" in str(inpf["HITMAP"].header["COORDSYS"]).upper():
             coord_sys = CoordinateSystem.Galactic
@@ -1899,7 +1901,7 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
 
         result = DestriperResult(
             params=DestriperParameters(
-                nside=0,
+                nside=nside,
                 output_coordinate_system=CoordinateSystem.Galactic,
                 samples_per_baseline=0,
                 iter_max=0,
@@ -1914,7 +1916,7 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
             ),
             coordinate_system=coord_sys,
             history_of_stopping_factors=[],
-            elapsed_time_s=0.0,
+            elapsed_time_s=inpf[0].header["ELAPSEDT"],
             destriped_map=None,
             converged=False,
             stopping_factor=None,
@@ -1930,9 +1932,7 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
             )
             result.converged = inpf["HISTORY"].header["CONVERG"]
             result.stopping_factor = inpf["HISTORY"].header["STOPFACT"]
-            result.elapsed_time_s = inpf["HISTORY"].header["ELAPSEDT"]
 
-            result.params.nside = hp.npix2nside(len(result.hit_map))
             result.params.iter_max = int(inpf["HISTORY"].header["ITERMAX"])
             result.params.threshold = float(inpf["HISTORY"].header["THRESHLD"])
             result.params.use_preconditioner = bool(inpf["HISTORY"].header["PRECOND"])
