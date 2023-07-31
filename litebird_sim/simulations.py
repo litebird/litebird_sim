@@ -1374,7 +1374,7 @@ class Simulation:
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
-    def binned_map(
+    def make_bin_map(
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
