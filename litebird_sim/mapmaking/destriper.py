@@ -222,6 +222,7 @@ class DestriperResult:
     """
 
     params: DestriperParameters
+    components: List[str]
     hit_map: npt.ArrayLike
     binned_map: npt.ArrayLike
     nobs_matrix_cholesky: NobsMatrix
@@ -1528,6 +1529,7 @@ def make_destriped_map(
     elapsed_time_s = time.monotonic() - elapsed_time_s
     return DestriperResult(
         params=params,
+        components=components,
         hit_map=hit_map,
         binned_map=binned_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
