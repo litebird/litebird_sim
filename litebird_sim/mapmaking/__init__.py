@@ -8,6 +8,8 @@ from .destriper import (
     remove_baselines_from_tod,
     remove_destriper_baselines_from_tod,
     destriper_log_callback,
+    save_destriper_results,
+    load_destriper_results,
 )
 
 __all__ = [
@@ -21,4 +23,6 @@ __all__ = [
     "remove_baselines_from_tod",
     "remove_destriper_baselines_from_tod",
     "destriper_log_callback",
+    "save_destriper_results",
+    "load_destriper_results",
 ]

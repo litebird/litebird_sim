@@ -12,6 +12,7 @@
 # vice versa
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Tuple, List
 
 import astropy.time
@@ -24,6 +25,8 @@ from litebird_sim import CoordinateSystem, MPI_COMM_WORLD, MPI_ENABLED
 from litebird_sim.mapmaking.destriper import (
     NobsMatrix,
     remove_destriper_baselines_from_tod,
+    save_destriper_results,
+    load_destriper_results,
 )
 
 if MPI_ENABLED:
@@ -834,3 +837,142 @@ def test_full_destriper(tmp_path):
     # Check that all the errors on the baseline values are non-negative
     for cur_baseline_errors in destriper_result.baseline_errors:
         assert np.alltrue(cur_baseline_errors >= 0.0)
+
+
+def _assert_dataclasses_equal(actual, desired, params_to_check: List[str]) -> None:
+    for param in params_to_check:
+        actual_value = getattr(actual, param)
+        desired_value = getattr(desired, param)
+        assert (
+            actual_value == desired_value
+        ), f"Parameter {param} is different: {actual_value=} ≠ {desired_value=}"
+
+
+def _test_destriper_results_io(tmp_path, use_destriper: bool):
+    nside = 4
+    npix = 12 * (nside**2)
+
+    hit_map = np.arange(npix) + 10000.0
+    binned_map = np.random.random((3, npix)) + 20000.0
+
+    # Make the number of baselines and detectors different depending
+    # on the MPI rank
+    num_of_baselines = 5 + MPI_COMM_WORLD.rank
+    num_of_detectors = 1 + MPI_COMM_WORLD.rank
+
+    if use_destriper:
+        baselines = [np.random.random((num_of_detectors, num_of_baselines))]
+        baselines[0] -= np.mean(baselines[0])  # Make their mean zero
+        baseline_errors = [1.5 + np.random.random((num_of_detectors, num_of_baselines))]
+        baseline_lengths = [150 + np.arange(num_of_baselines, dtype=int) * 4]
+        iter_max = 123
+        threshold = 1.2345e-6
+        stopping_factor = 9.163e-8
+        history_of_stopping_factors = np.array([1.3e-5, 2.4e-6, 3.5e-7, 4.6e-8])
+        destriped_map = np.random.random((3, npix)) + 30000.0
+        samples_per_baseline = (
+            np.arange(num_of_baselines, dtype=int) + MPI_COMM_WORLD.rank * 100
+        )
+    else:
+        baselines = None
+        baseline_errors = None
+        baseline_lengths = None
+        iter_max = None
+        threshold = None
+        stopping_factor = None
+        history_of_stopping_factors = None
+        destriped_map = None
+        samples_per_baseline = None
+
+    params = lbs.DestriperParameters(
+        nside=nside,
+        output_coordinate_system=lbs.CoordinateSystem.Galactic,
+        samples_per_baseline=samples_per_baseline,
+        iter_max=iter_max,
+        threshold=threshold,
+        use_preconditioner=True,
+    )
+
+    nobs_matrix = np.random.random((npix, 6))
+    valid_pixel = np.random.random(npix) > 0.5
+    nobs_matrix_cholesky = NobsMatrix(
+        nobs_matrix=nobs_matrix,
+        valid_pixel=valid_pixel,
+        is_cholesky=True,
+    )
+    desired_results = lbs.DestriperResult(
+        params=params,
+        hit_map=hit_map,
+        binned_map=binned_map,
+        nobs_matrix_cholesky=nobs_matrix_cholesky,
+        coordinate_system=lbs.CoordinateSystem.Galactic,
+        baselines=baselines,
+        baseline_errors=baseline_errors,
+        baseline_lengths=baseline_lengths,
+        stopping_factor=stopping_factor,
+        history_of_stopping_factors=history_of_stopping_factors,
+        destriped_map=destriped_map,
+        converged=True,
+        components=["a", "bb", "ccc", "dddd", "eeeee"],
+        elapsed_time_s=12345.0,
+        bytes_in_temporary_buffers=54267,
+    )
+
+    output_folder = Path(tmp_path) / "destriper"
+    save_destriper_results(results=desired_results, output_folder=output_folder)
+
+    actual_results = load_destriper_results(output_folder)
+
+    np.testing.assert_allclose(
+        actual=actual_results.nobs_matrix_cholesky.nobs_matrix,
+        desired=desired_results.nobs_matrix_cholesky.nobs_matrix,
+    )
+    np.testing.assert_allclose(
+        actual=actual_results.nobs_matrix_cholesky.valid_pixel,
+        desired=desired_results.nobs_matrix_cholesky.valid_pixel,
+    )
+    assert (
+        actual_results.nobs_matrix_cholesky.is_cholesky
+        == desired_results.nobs_matrix_cholesky.is_cholesky
+    )
+
+    params_to_check = ["nside", "output_coordinate_system"]
+    if use_destriper:
+        # Skip samples_per_baseline, as this is problematic!
+        params_to_check += ["iter_max", "threshold", "use_preconditioner"]
+
+    _assert_dataclasses_equal(
+        actual=actual_results.params,
+        desired=desired_results.params,
+        params_to_check=params_to_check,
+    )
+    params_to_check = [
+        "components",
+        "coordinate_system",
+        "elapsed_time_s",
+        "bytes_in_temporary_buffers",
+    ]
+    if use_destriper:
+        params_to_check += ["stopping_factor", "converged"]
+    _assert_dataclasses_equal(
+        actual=actual_results, desired=desired_results, params_to_check=params_to_check
+    )
+
+    np.testing.assert_allclose(
+        actual=actual_results.history_of_stopping_factors,
+        desired=desired_results.history_of_stopping_factors,
+    )
+    np.testing.assert_allclose(
+        actual=actual_results.hit_map, desired=desired_results.hit_map
+    )
+    np.testing.assert_allclose(
+        actual=actual_results.binned_map, desired=desired_results.binned_map
+    )
+
+
+def test_destriper_io(tmp_path):
+    _test_destriper_results_io(tmp_path=tmp_path, use_destriper=True)
+
+
+def test_destriper_io_without_destriper(tmp_path):
+    _test_destriper_results_io(tmp_path=tmp_path, use_destriper=False)

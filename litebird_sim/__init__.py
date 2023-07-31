@@ -101,6 +101,7 @@ from .coordinates import (
     DEFAULT_TIME_SCALE,
     ECL_TO_GAL_ROT_MATRIX,
     CoordinateSystem,
+    coord_sys_to_healpix_string,
 )
 
 from .spacecraft import (
@@ -238,6 +239,7 @@ __all__ = [
     "DEFAULT_TIME_SCALE",
     "ECL_TO_GAL_ROT_MATRIX",
     "CoordinateSystem",
+    "coord_sys_to_healpix_string",
     # spacecraft.py
     "compute_l2_pos_and_vel",
     "compute_lissajous_pos_and_vel",

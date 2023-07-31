@@ -12,6 +12,7 @@ import time
 
 from dataclasses import dataclass
 import gc
+from pathlib import Path
 
 import numpy as np
 import numpy.typing as npt
@@ -22,7 +23,7 @@ import healpy as hp
 from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
 from typing import Union, List, Optional, Tuple, Any, Dict
 from litebird_sim.observations import Observation
-from litebird_sim.coordinates import CoordinateSystem
+from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
 
 from .common import (
     _compute_pixel_indices,
@@ -36,6 +37,10 @@ from .common import (
 
 if MPI_ENABLED:
     import mpi4py.MPI
+
+
+__DESTRIPER_RESULTS_FILE_NAME = "destriper_results.fits"
+__BASELINES_FILE_NAME = f"baselines_mpi{MPI_COMM_WORLD.rank:04d}.fits"
 
 
 def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
@@ -1633,3 +1638,294 @@ def remove_destriper_baselines_from_tod(
         baseline_lengths=destriper_result.baseline_lengths,
         component=component,
     )
+
+
+def _save_rank0_destriper_results(results: DestriperResult, output_file: Path) -> None:
+    from astropy.io import fits
+    from datetime import datetime
+    from litebird_sim import write_healpix_map_to_hdu
+
+    destriping_flag = results.destriped_map is not None
+
+    primary_hdu = fits.PrimaryHDU()
+    primary_hdu.header.add_comment(
+        f"Created by the LiteBIRD Simulation Framework on {datetime.utcnow()}"
+    )
+    primary_hdu.header["MPISIZE"] = (
+        MPI_COMM_WORLD.size,
+        "Number of MPI processes used in the computation",
+    )
+    primary_hdu.header["TMPBUFS"] = (
+        results.bytes_in_temporary_buffers,
+        "Size of temporary buffers [bytes]",
+    )
+
+    hdu_list = [primary_hdu]
+
+    if destriping_flag:
+        hdu_list.append(
+            write_healpix_map_to_hdu(
+                pixels=results.destriped_map,
+                coord=coord_sys_to_healpix_string(results.coordinate_system),
+                column_names=("I", "Q", "U"),
+                column_units=["K"] * 3,
+                name="DESTRMAP",
+            ),
+        )
+
+    hdu_list.append(
+        write_healpix_map_to_hdu(
+            pixels=results.binned_map,
+            coord=coord_sys_to_healpix_string(results.coordinate_system),
+            column_names=("I", "Q", "U"),
+            column_units=["K"] * 3,
+            name="BINMAP",
+        ),
+    )
+
+    hdu_list.append(
+        write_healpix_map_to_hdu(
+            pixels=results.hit_map,
+            coord=coord_sys_to_healpix_string(results.coordinate_system),
+            column_names=["HITS"],
+            column_units=["1/K^2"],
+            name="HITMAP",
+        ),
+    )
+
+    components_hdu = fits.BinTableHDU.from_columns(
+        [
+            fits.Column(
+                name="COMPNAME",
+                array=np.array(results.components),
+                format="{}A".format(max([len(x) for x in results.components])),
+            )
+        ]
+    )
+    components_hdu.name = "COMPS"
+    hdu_list.append(components_hdu)
+
+    nobs_matrix_hdu = fits.BinTableHDU.from_columns(
+        [
+            fits.Column(
+                name="COEFFS",
+                array=results.nobs_matrix_cholesky.nobs_matrix,
+                format="6D",
+            )
+        ]
+    )
+    nobs_matrix_hdu.name = "NOBSMATR"
+    nobs_matrix_hdu.header["ISCHOL"] = (
+        results.nobs_matrix_cholesky.is_cholesky,
+        "Does the matrix contain Cholesky transforms?",
+    )
+    hdu_list.append(nobs_matrix_hdu)
+
+    visibility_hdu = write_healpix_map_to_hdu(
+        pixels=results.nobs_matrix_cholesky.valid_pixel,
+        coord=coord_sys_to_healpix_string(results.coordinate_system),
+        dtype=bool,
+        column_names=["VALID"],
+        column_units=[""],
+        name="MASK",
+    )
+    hdu_list.append(visibility_hdu)
+
+    if destriping_flag:
+        history_hdu = fits.BinTableHDU.from_columns(
+            [
+                fits.Column(
+                    name="RZ", array=results.history_of_stopping_factors, format="1D"
+                )
+            ]
+        )
+        history_hdu.name = "HISTORY"
+
+        history_hdu.header["ITERMAX"] = (
+            results.params.iter_max,
+            "Upper limit on the number of iterations",
+        )
+        history_hdu.header["THRESHLD"] = (
+            results.params.threshold,
+            "Threshold to stop the iterations",
+        )
+        history_hdu.header["PRECOND"] = (
+            results.params.use_preconditioner,
+            "Was the preconditioner used?",
+        )
+        history_hdu.header["STOPFACT"] = (
+            results.stopping_factor,
+            "Actual value of the stopping factor",
+        )
+        history_hdu.header["CONVERG"] = (
+            results.converged,
+            "Has the destriper converged?",
+        )
+        history_hdu.header["PRECOND"] = (
+            results.params.use_preconditioner,
+            "Was the preconditioner used?",
+        )
+
+        history_hdu.header["ELAPSEDT"] = (results.elapsed_time_s, "Wall clock time [s]")
+        hdu_list.append(history_hdu)
+
+    with output_file.open("wb") as outf:
+        fits.HDUList(hdu_list).writeto(outf, overwrite=True)
+
+
+def _save_baselines(results: DestriperResult, output_file: Path) -> None:
+    from astropy.io import fits
+
+    primary_hdu = fits.PrimaryHDU()
+    primary_hdu.header["MPIRANK"] = (
+        MPI_COMM_WORLD.rank,
+        "The rank of the MPI process that wrote this file",
+    )
+    primary_hdu.header["MPISIZE"] = (
+        MPI_COMM_WORLD.size,
+        "The number of MPI process used in the computation",
+    )
+
+    hdu_list = [primary_hdu]
+
+    idx = 0
+    for cur_baseline, cur_error, cur_lengths in zip(
+        results.baselines, results.baseline_errors, results.baseline_lengths
+    ):
+        baseline_hdu = fits.BinTableHDU.from_columns(
+            [
+                fits.Column(
+                    name="BASELINE",
+                    array=cur_baseline[det_idx, :],
+                    format="1E",
+                    unit="K",
+                )
+                for det_idx in range(cur_baseline.shape[0])
+            ]
+        )
+
+        error_hdu = fits.BinTableHDU.from_columns(
+            [
+                fits.Column(
+                    name="ERROR", array=cur_error[det_idx, :], format="1E", unit="K"
+                )
+                for det_idx in range(cur_baseline.shape[0])
+            ]
+        )
+
+        length_hdu = fits.BinTableHDU.from_columns(
+            [fits.Column(name="LENGTH", array=cur_lengths, unit="", format="1J")]
+        )
+
+        for this_hdu in (baseline_hdu, error_hdu, length_hdu):
+            this_hdu.header["OBSIDX"] = (
+                idx,
+                "Index of the Observation object within this MPI process",
+            )
+            this_hdu.header["NUMSAMP"] = (
+                np.sum(cur_lengths),
+                "Number of samples covered by these baselines",
+            )
+
+        idx += 1
+
+    with output_file.open("wb") as outf:
+        fits.HDUList(hdu_list).writeto(outf, overwrite=True)
+
+
+def save_destriper_results(results: DestriperResult, output_folder: Path) -> None:
+    """
+    Save the results of a call to :func:`.make_destriped_map` to disk
+
+    The results are saved in a set of FITS files:
+
+    1. A FITS file containing the maps (destriped, binned, hits), the N_obs matrix,
+       and general information about the convergence
+    2. A set of FITS files containing the baselines. Each MPI process writes *one*
+       file containing its baselines.
+
+    :param results: The result of the call to :func:`.make_destriped_map`
+
+    :param output_folder: The folder where to save all the FITS files
+    """
+    output_folder.mkdir(parents=True, exist_ok=True)
+
+    # Ony MPI process #0 saves the file with the maps
+    if MPI_COMM_WORLD.rank == 0:
+        _save_rank0_destriper_results(
+            results=results, output_file=output_folder / __DESTRIPER_RESULTS_FILE_NAME
+        )
+
+    # Now let's save the baselines: one per each observation
+    _save_baselines(results, output_file=output_folder / __BASELINES_FILE_NAME)
+
+
+def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
+    from astropy.io import fits
+
+    with fits.open(file_path) as inpf:
+        nobs_matrix = NobsMatrix(
+            nobs_matrix=inpf["NOBSMATR"].data.field("COEFFS"),
+            valid_pixel=np.array(inpf["MASK"].data.field("VALID"), dtype=bool),
+            is_cholesky=bool(inpf["NOBSMATR"].header["ISCHOL"]),
+        )
+
+        if "GAL" in str(inpf["HITMAP"].header["COORDSYS"]).upper():
+            coord_sys = CoordinateSystem.Galactic
+        else:
+            coord_sys = CoordinateSystem.Ecliptic
+
+        result = DestriperResult(
+            params=DestriperParameters(
+                nside=0,
+                output_coordinate_system=CoordinateSystem.Galactic,
+                samples_per_baseline=0,
+                iter_max=0,
+                threshold=0,
+                use_preconditioner=False,
+            ),
+            components=[x.strip() for x in inpf["COMPS"].data.field("COMPNAME")],
+            nobs_matrix_cholesky=nobs_matrix,
+            hit_map=inpf["HITMAP"].data.field("HITS"),
+            binned_map=np.array(
+                [inpf["BINMAP"].data.field(comp) for comp in ("I", "Q", "U")]
+            ),
+            coordinate_system=coord_sys,
+            history_of_stopping_factors=[],
+            elapsed_time_s=0.0,
+            destriped_map=None,
+            converged=False,
+            stopping_factor=None,
+            baselines=None,
+            baseline_lengths=None,
+            baseline_errors=None,
+            bytes_in_temporary_buffers=inpf[0].header["TMPBUFS"],
+        )
+
+        if "DESTRMAP" in inpf:
+            result.destriped_map = np.array(
+                [inpf["DESTRMAP"].data.field(comp) for comp in ("I", "Q", "U")]
+            )
+            result.converged = inpf["HISTORY"].header["CONVERG"]
+            result.stopping_factor = inpf["HISTORY"].header["STOPFACT"]
+            result.elapsed_time_s = inpf["HISTORY"].header["ELAPSEDT"]
+
+            result.params.nside = hp.npix2nside(len(result.hit_map))
+            result.params.iter_max = int(inpf["HISTORY"].header["ITERMAX"])
+            result.params.threshold = float(inpf["HISTORY"].header["THRESHLD"])
+            result.params.use_preconditioner = bool(inpf["HISTORY"].header["PRECOND"])
+            result.params.output_coordinate_system = coord_sys
+
+            result.history_of_stopping_factors = [
+                float(x) for x in inpf["HISTORY"].data.field("RZ")
+            ]
+
+    return result
+
+
+def load_destriper_results(folder: Path) -> DestriperResult:
+    # We run this on *all* the MPI processes, as it might be that each of them
+    # needs this information!
+    result = _load_rank0_destriper_results(folder / __DESTRIPER_RESULTS_FILE_NAME)
+
+    return result
