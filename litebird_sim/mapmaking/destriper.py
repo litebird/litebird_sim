@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-import datetime
 import logging
 import time
 
@@ -14,7 +13,6 @@ import time
 from dataclasses import dataclass
 import gc
 
-import astropy.time
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
