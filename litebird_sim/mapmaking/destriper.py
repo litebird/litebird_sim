@@ -519,7 +519,7 @@ def _update_sum_map_with_baseline(
             cur_pix = pixel_idx[det_idx, sample_idx]
             _sum_map_contribution_from_one_sample(
                 pol_angle_rad=pol_angle_rad[det_idx, sample_idx],
-                sample=baselines[baseline_idx],
+                sample=baselines[det_idx, baseline_idx],
                 dest_array=sky_map[:, cur_pix],
                 weight=cur_weight,
             )
@@ -681,7 +681,7 @@ def _compute_tod_sums_for_one_component(
             )
             value_to_add = (tod[det_idx, sample_idx] - map_value) / cur_weight
             if np.isfinite(value_to_add):
-                output_sums[baseline_idx] += value_to_add
+                output_sums[det_idx, baseline_idx] += value_to_add
 
             (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                 baseline_idx, samples_in_this_baseline, baseline_length
@@ -725,9 +725,9 @@ def _compute_baseline_sums_for_one_component(
                 cur_psi=det_psi_angle_rad[sample_idx],
                 sky_map=sky_map,
             )
-            cur_value = (baselines[baseline_idx] - map_value) / cur_weight
+            cur_value = (baselines[det_idx, baseline_idx] - map_value) / cur_weight
             if np.isfinite(cur_value):
-                output_sums[baseline_idx] += cur_value
+                output_sums[det_idx, baseline_idx] += cur_value
 
             (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                 baseline_idx, samples_in_this_baseline, baseline_length
@@ -778,9 +778,9 @@ def _compute_baseline_sums(
     for obs_idx, (cur_obs, cur_baseline_lengths, cur_sums) in enumerate(
         zip(obs_list, baseline_lengths_list, output_sums_list)
     ):
-        assert len(cur_baseline_lengths) == len(cur_sums), (
+        assert len(cur_baseline_lengths) == cur_sums.shape[1], (
             f"The output buffer for observation {obs_idx=} "
-            f"has room for {len(cur_sums)=} elements, but there"
+            f"has room for {cur_sums.shape[1]} elements, but there"
             f"are {len(cur_baseline_lengths)=} baselines in this observation"
         )
 
@@ -823,7 +823,11 @@ def _mpi_dot(a: List[npt.ArrayLike], b: List[npt.ArrayLike]) -> float:
     so it computes the local dot product and then sums the contribution
     from every MPI process.
     """
-    local_result = sum([np.dot(x1, x2) for (x1, x2) in zip(a, b)])
+
+    # As both x1 and x2 are 2D arrays with shape (N_detectors, N_baselines),
+    # we call “flatten” to make them 1D and produce *one* scalar out of
+    # the dot product
+    local_result = sum([np.dot(x1.flatten(), x2.flatten()) for (x1, x2) in zip(a, b)])
     if MPI_ENABLED:
         return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.SUM)
     else:
@@ -1072,24 +1076,18 @@ def _run_destriper(
     # The `b` value used by the Wikipedia article corresponds to
     # Kurki-Suonio's F^t·C_w⁻¹·Z·F·a
     b = [
-        np.empty(len(cur_baseline_lengths))
-        for cur_baseline_lengths in baseline_lengths_list
+        np.empty((getattr(cur_obs, component).shape[0], len(cur_baseline_lengths)))
+        for (cur_obs, cur_baseline_lengths) in zip(obs_list, baseline_lengths_list)
     ]
     bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(b)
 
     # A·x corresponds to F^t·C_w⁻¹·Z·y
-    Ax = [
-        np.empty(len(cur_baseline_lengths))
-        for cur_baseline_lengths in baseline_lengths_list
-    ]
+    Ax = [np.empty_like(b_k) for b_k in b]
     bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(Ax)
 
     # This is the residual b−A·x; ideally, if we already had the correct solution,
     # it should be zero.
-    r = [
-        np.empty(len(cur_baseline_lengths))
-        for cur_baseline_lengths in baseline_lengths_list
-    ]
+    r = [np.empty_like(b_k) for b_k in b]
     bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(r)
 
     # Initialize r_k
@@ -1433,8 +1431,11 @@ def make_destriped_map(
                 for cur_obs in obs_list
             ]
 
+        # Each element of this list is a 2D array with shape (N_det, N_baselines),
+        # where N_det is the number of detectors in the i-th Observation object
         baselines_list = [
-            np.zeros(len(cur_baseline)) for cur_baseline in baseline_lengths_list
+            np.zeros((getattr(cur_obs, components[0]).shape[0], len(cur_baseline)))
+            for (cur_obs, cur_baseline) in zip(obs_list, baseline_lengths_list)
         ]
 
         destriped_map = np.empty((3, number_of_pixels))
@@ -1553,7 +1554,7 @@ def _remove_baselines(
         baseline_idx = 0
         samples_in_this_baseline = 0
         for sample_idx in range(num_of_samples):
-            tod[det_idx, sample_idx] -= baselines[baseline_idx]
+            tod[det_idx, sample_idx] -= baselines[det_idx, baseline_idx]
             (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                 baseline_idx, samples_in_this_baseline, baseline_lengths
             )

@@ -649,8 +649,9 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
             # We derive the offset to apply to the baselines from F·a,
             # which is *not* divided among the MPI processes
             baseline_offset = np.mean(expected_solution.F @ expected_baselines)
-            # We use `result.baselines[0][0]` because each MPI process has just *one*
-            # Observation and *one* baseline
+            # We use `result.baselines[0][0][0, :]` because each MPI process has
+            # just *one* Observation (first index), *one* baseline (second index),
+            # and *one* detector (third index)
             np.testing.assert_almost_equal(
                 actual=result.baselines[0][0],
                 desired=expected_baselines[MPI_COMM_WORLD.rank] - baseline_offset,
@@ -661,7 +662,7 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
             )
         else:
             np.testing.assert_allclose(
-                actual=_make_zero_mean(result.baselines[0]),
+                actual=_make_zero_mean(result.baselines[0][0, :]),
                 desired=_make_zero_mean(expected_baselines),
             )
             np.testing.assert_allclose(
