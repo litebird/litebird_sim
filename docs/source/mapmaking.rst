@@ -24,13 +24,14 @@ The framework provides the following solutions:
    contribution and remove it from the timelines; then, a classical
    *binner* is ran over the cleaned timelines.
 
-3. You can also use :func:`.save_simulation_for_madam` to save TODs
+3. A wrapper that enables you to use the
+   `TOAST2 <https://github.com/hpc4cmb/toast>`_ destriper. (To use
+   this, you must ensure that the package
+   `toast-cmb <https://pypi.org/project/toast-cmb/>`_ is installed.)
+
+4. You can also use :func:`.save_simulation_for_madam` to save TODs
    and pointing information to disk and then manually call the `Madam
    mapmaker <https://arxiv.org/abs/astro-ph/0412517>`_.
-
-The LiteBIRD Simulation Framework provides a binner on its own, and it
-internally uses `TOAST <https://github.com/hpc4cmb/toast>`_ to provide
-the destriper.
 
 In this chapter, we assume that you have already created the timelines
 that must be provided as input to the destriper. Here is a sample code
@@ -84,6 +85,14 @@ detectors::
         curobs.tod += rs.randn(*curobs.tod.shape)
   
 
+The theory of binners and destripers is explained
+in the paper `Destriping CMB temperature and polarization maps (Kurki-Suonio
+et al., 2009)
+<https://www.aanda.org/articles/aa/abs/2009/42/aa12361-09/aa12361-09.html>`_,
+and the implementation closely follows the terminology used in the paper. In
+this chapter, we will refer to the paper as KS2009.
+
+
 Binner
 ------
 
@@ -93,31 +102,396 @@ simple binned map with the function :func:`.make_bin_map`. This function
 takes: a single (or a list of) :class:`.Observation`, the Healpix
 resolution of the output map (``nside``) and produces a coadded map.
 It assumes white noise and each detector gets weighted by 
-:math:`1 / NET^2`. If the pointing information is not provided in the 
+:math:`1 / NET^2`. If the pointing information is not provided in the
 observation, it can be passed through the optional argument `pointings`, 
 with a syntax similar to :func:`.scan_map_in_observations`.
 The output map is in Galactic coordinates, but you can specify the
 coordinate system you want via the parameter `output_coordinates`.
 This is how it should be called::
 
-    result = lbs.make_bin_map(obs, 128, do_covariance=True)
+    result = lbs.make_bin_map(obs, 128)
+    healpy.mollview(result.binned_map)
 
-The return object is an instance of the class :class:`.DestriperResult`
+(The pointing information is included in the :class:`.Observation`,
+alternatively pointings can be provided as a list of numpy arrays.)
+The return object is an instance of the class :class:`.BinnerResult`
 and contains both the I/Q/U maps and the covariance matrix.
 
 The :func:`.make_bin_map` has a high level interface in the class
 :class:`.Simulation` that bins the content of the observations into maps
 The syntax is identical to :func:`.make_bin_map`::
 
-    result = sim.binned_map(nside=nside)
+    result = sim.make_bin_map(nside=nside)
+    healpy.mollview(result.binned_map)
+
+
+The :class:`.BinnerResult` contains the field ``binned_map``, which
+is a Healpix map containing the binned values of the samples.
+
+It is now worth explaining how the binned map is calculated, and we
+will do it using a simple example. Suppose that we have measured just
+two pixels in the map with only seven measurements. (These numbers are
+ridiculous, but in this way the matrices we are going to write will be
+more manageable!)
+
+Each sample is associated with a direction in the sky (the *pointing
+information*), but from the point of view of the binner the only quantity that
+matters is the index of the pixel in the map associated with the pointing
+direction. In our example, the seven pixels will observe just two pixels in the
+sky, with different attack (polarization) angles. The following figure and
+table show how the two pixels are observed by the seven TOD samples. The
+bars refer to the polarization angle of the detector.
+
+.. |pixel1| image:: images/destriper-pixel1.svg
+
+.. |pixel2| image:: images/destriper-pixel2.svg
+
+.. figure:: images/destriper-tod-angles.svg
+
+   How the seven samples observe each of the two pixels in the map. The
+   vertical bars represent the direction of the attack angle ψ, which
+   coincides with the polarization angle of the detector projected
+   on the center of the pixel.
+
+.. list-table:: Samples in the TOD, their polarization angle ψ, and the pixel they hit
+   :header-rows: 1
+
+   * - #
+     - ψ
+     - Pixel
+   * - 1
+     - 90°
+     - |pixel1| (1)
+   * - 2
+     - 30°
+     - |pixel1| (1)
+   * - 3
+     - 90°
+     - |pixel2| (2)
+   * - 4
+     - 15°
+     - |pixel2| (2)
+   * - 5
+     - 30°
+     - |pixel2| (2)
+   * - 6
+     - 45°
+     - |pixel2| (2)
+   * - 7
+     - 60°
+     - |pixel1| (1)
+
+A fundamental quantity in KS2009 is the *pointing matrix* matrix
+:math:`P`: it is a :math:`(N_t, 3N_p)` matrix where :math:`N_t`
+is the number of samples in the TOD (7 in our case) and
+:math:`N_p` is the number of pixels observed by the TOD (2 in
+our case). Thus, for our simple example the matrix P is the
+following:
+
+.. math::
+
+    P = \begin{pmatrix}
+    \textcolor{#002683}{1}& \textcolor{#002683}{\cos90^\circ}& \textcolor{#002683}{\sin90^\circ}& 0& 0& 0\\
+    \textcolor{#002683}{1}& \textcolor{#002683}{\cos30^\circ}& \textcolor{#002683}{\sin30^\circ}& 0& 0& 0\\
+    0& 0& 0& \textcolor{#268300}{1}& \textcolor{#268300}{\cos90^\circ}& \textcolor{#268300}{\sin90^\circ}\\
+    0& 0& 0& \textcolor{#268300}{1}& \textcolor{#268300}{\cos15^\circ}& \textcolor{#268300}{\sin15^\circ}\\
+    0& 0& 0& \textcolor{#268300}{1}& \textcolor{#268300}{\cos30^\circ}& \textcolor{#268300}{\sin30^\circ}\\
+    0& 0& 0& \textcolor{#268300}{1}& \textcolor{#268300}{\cos45^\circ}& \textcolor{#268300}{\sin45^\circ}\\
+    \textcolor{#002683}{1}& \textcolor{#002683}{\cos60^\circ}& \textcolor{#002683}{\sin60^\circ}& 0& 0& 0
+    \end{pmatrix}
+
+It is important that each pixel be covered by enough samples: to recover the
+three Stokes parameters associated with each pixel (I, Q, and U), there must
+be at least three non-degenerate polarization angles per each pixel. KS2009
+describes how to recover this information through the matrix
+:math:`M = P^T\cdot C_w^{-1}\cdot P`, where :math:`C_w` is a diagonal
+matrix with shape :math:`(N_t, N_t)`, where each element along the diagonal
+is :math:`\sigma^2`, the white-noise variance of the sample:
+
+.. math::
+
+   C_w = \begin{pmatrix}
+   \sigma^2& 0& 0& 0& 0& 0& 0\\
+   0& \sigma^2& 0& 0& 0& 0& 0\\
+   0& 0& \sigma^2& 0& 0& 0& 0\\
+   0& 0& 0& \sigma^2& 0& 0& 0\\
+   0& 0& 0& 0& \sigma^2& 0& 0\\
+   0& 0& 0& 0& 0& \sigma^2& 0\\
+   0& 0& 0& 0& 0& 0& \sigma^2
+   \end{pmatrix}
+
+The square matrix :math:`M` has shape :math:`(3 N_p, 3 N_p)`: each pixel in the
+map is associated to a 3×3 block along the diagonal:
+
+.. math::
+
+    M = \begin{pmatrix}
+    \textcolor{#002683}{\frac3{\sigma^2}}&
+        \textcolor{#002683}{-\frac1{\sigma^2}}&
+        \textcolor{#002683}{\frac{\sqrt3}{\sigma^2}}&
+        0& 0& 0\\
+    \textcolor{#002683}{-\frac1{\sigma^2}}&
+        \textcolor{#002683}{\frac3{2\sigma^2}}&
+        \textcolor{#002683}{0}&
+        0& 0& 0\\
+    \textcolor{#002683}{\frac{\sqrt3}{\sigma^2}}&
+        \textcolor{#002683}{0}&
+        \textcolor{#002683}{\frac{3}{2\sigma^2}}&
+        0& 0& 0\\
+    0& 0& 0&
+        \textcolor{#268300}{\frac4{\sigma^2}}&
+        \textcolor{#268300}{\frac{\sqrt3 - 1}{2\sigma^2}}&
+        \textcolor{#268300}{\frac{\sqrt3 + 3}{2\sigma^2}}\\
+    0& 0& 0&
+        \textcolor{#268300}{\frac{\sqrt3 - 1}{2\sigma^2}}&
+        \textcolor{#268300}{\frac2{\sigma^2}}&
+        \textcolor{#268300}{\frac{\sqrt3}{2\sigma^2}}\\
+    0& 0& 0&
+        \textcolor{#268300}{\frac{\sqrt3 + 3}{2\sigma^2}}&
+        \textcolor{#268300}{\frac{\sqrt 3}{2\sigma^2}}&
+        \textcolor{#268300}{\frac2{\sigma^2}}
+    \end{pmatrix}
+
+If we assigned different values for :math:`\sigma` to the
+seven elements along the diagonal of :math:`C_w`, then
+the 3×3 subblocks of the :math:`M` matrix would have changed
+to reflect the fact that those samples with smaller
+:math:`\sigma` have a greater weight in determining the
+value of the Stokes parameter.
+
+Once we have the matrices :math:`P`, :math:`C_w`, and :math:`M`,
+determining the value of the three Stokes parameters I, Q, U for
+each pixel is trivial. The signal :math:`s` measured by a detector
+is a function of :math:`I`, :math:`Q`, :math:`U`, and the
+polarization angle :math:`\psi`:
+
+.. math::
+
+   s = I + Q \cos2\psi + U\sin2\psi
+
+and thus we can exploit the redundancy of the measurements per
+each pixel (remember: at least three measurements per pixel with
+non-degenerate angles!) by running a simple :math:`\chi^2` minimization
+assuming Gaussian noise. The result is the following:
+
+.. math::
+
+   m = M^{-1}\cdot P^T\cdot C_w^{-1}\cdot y,
+
+where :math:`y` is a 7-element vector containing the TOD samples
+:math:`s_i` and :math:`m` is a 6-element vector containing the
+estimates of the Stokes parameters I, Q, and U for the two pixels
+in the map according to the following order:
+
+.. math::
+
+   m = \begin{pmatrix}I_1& Q_1& U_1& I_2& Q_2& U_2\end{pmatrix}
+
+The presence of the matrix :math:`C_w^{-1}` scales
+the value of each sample so that the ones affected by larger noise
+will be made smaller; the :math:`P^T` factor sums all the samples
+in the TOD that fall within the same pixel, and finally :math:`M^{-1}`
+“solves” the linear system for the three parameters I, Q, and U per
+each pixel.
 
 
 Destriper
 ---------
 
-To use the TOAST destriper, you must create a
-:class:`.Toast2DestriperParameters` object that specifies which
-input parameters (apart from the timelines) should be used::
+If you know that your simulation contains 1/f noise, you should avoid
+using the binner and use the destriper. As the algorithm it implements
+is more complex, you must specify exactly how it should work by
+passing an instance of the class :class:`.DestriperParameters`::
+
+    params = DestriperParameters(
+        ...
+    )
+
+    result = lbs.make_destriped_map(obs=obs, params=params)
+    healpy.mollview(result.destriped_map)
+
+The result is an instance of the class :class:`DestriperResult`, which
+is similar to :class:`BinnerResult` but it contains much more information.
+
+We will now explain how a destriper works and what is the meaning of each
+parameter in the classes :class:`.DestriperParameter` and
+:class:`.DestriperResult`. Apart from KS2009, another source of information
+is the file ``test/test_destriper.py``: it compares the results of the
+destriper with the analytical solution of the simple 7-sample model we are
+discussing here.
+
+The idea of a destriper is to group consecutive samples in the same TOD into
+different *baselines*. Each baseline must contain a number of samples such that
+the noise within it will be roughly white; thus, the baseline should not contain
+too much samples! A good rule of thumb is to make the time span covered by
+one baseline shorter than the inverse of the knee frequency for that detector.
+The destriper works by assuming that the effect of 1/f noise on all the samples
+within the baselines is a purely additive factor; this is an approximation,
+but for experiments like Planck has shown to work well.
+
+.. figure:: images/destriper-baselines.svg
+
+   A destriper seeing the 13 samples in the figure could decide to group them
+   into two baselines: 7 within the first baseline, and 6 within the second
+   baseline. The level :math:`a_i` of each baseline is represented by a dashed
+   horizontal line.
+
+To illustrate how the destriper works, we will resume the example shown in the
+previous chapter and will still consider a TOD made up of just 7 samples.
+We will group these samples in two baselines of 4 and 3 samples respectively.
+
+Apart from the standard matrices :math:`C_w`, :math:`P`, and :math:`M`, the
+destriper requires a new matrix :math:`F,` whose shape is :math:`(N_t, N_b)`:
+
+.. math::
+
+   F = \begin{pmatrix}
+   1& 0\\
+   1& 0\\
+   1& 0\\
+   1& 0\\
+   0& 1\\
+   0& 1\\
+   0& 1
+   \end{pmatrix}
+
+Don't be fooled by the fact that the number of columns is the same as the number
+of pixels in the map: in this case, the number of columns corresponds to the
+number of *baselines* in the TOD! The operator :math:`F` tells which baseline
+“owns” the samples in the TOD, and, as you can see, we are actually assigning
+the first four samples to the first baseline and the last three samples to
+the last baseline. The application of :math:`F` to a set of :math:`N_t` samples
+(the TOD) produces a vector containing :math:`N_b` samples (the baselines). As
+it is always the case that :math:`N_b \ll N_t,` this means that :math:`F` is
+a very tall and narrow matrix!
+
+At the basis of the destriper there is the operator :math:`Z,` which is defined as
+follows:
+
+.. math::
+
+   Z = I - P\cdot M^{-1}\cdot P^T\cdot C_w^{-1}
+
+(:math:`I` is the identity operator), and it is applied to a TOD: :math:`Z\cdot y`.
+The purpose of the operator is to “clean up” the TOD from all the components that
+are not white noise. It does so by creating a map (note the presence of the
+map-binning operator :math:`M^{-1}\cdot P^T\cdot C_w^{-1}` on the right) and
+then scanning the map back into a TOD (the last operator :math:`P` on the left
+of the map-binning operator). The result of this “map-and-scan” operation is
+subtracted from the TOD sample, because of the difference between the
+identity operator :math:`I` and this matrix.
+
+The destriper estimates the vector of baselines :math:`a` by solving iteratively
+the following equation:
+
+.. math::
+
+   \left(F^T\cdot C_w^{-1}\cdot Z\cdot F\right) a = F^T\cdot C_w^{-1}\cdot Z\cdot y
+
+This equation is of the form :math:`Ax = b,` where :math:`A` and :math:`b` are
+known and :math:`x` is the quantity to determine. (Wikipedia uses the symbol
+:math:`A`, but KS2009 uses :math:`D`; here we follow Wikipedia.) The solution
+would just be :math:`x = A^{-1}b`, but there are two problems with this formula:
+
+1. Matrix :math:`A` is too large to be inverted;
+2. Matrix :math:`A` is not invertible!
+
+The second point is quite alarming, and it might sound like it is an irrecoverable
+problem. The fact that :math:`\det A = 0` stems from the fact that the destriping
+problem does not let only one solution, as if :math:`a` is a solution, then
+:math:`a + K` is still a solution for any scalar constant :math:`K.` What we
+are looking for is a solution :math:`a` that is orthogonal to the null space
+of :math:`A`.
+
+We can solve both problems by employing the fact that :math:`A` is a symmetric
+semi-definite matrix and thus employing the so-called
+`Conjugate Gradient (CG) method <https://en.wikipedia.org/wiki/Conjugate_gradient_method>`_,
+which is able to produce a solution for the problem :math:`Ax = b` even
+if :math:`A` is singular.
+
+The way the algorithm works is to start from a guess for :math:`x` (the set of
+baselines) which must be orthogonal to the null-space of :math:`A`; in our
+case, it is enough to require that the mean value of the first guess of the baselines
+is zero, i.e., :math:`\sum_i x_i = 0`. Starting from guess :math:`x^{(0)},` the
+algorithm produces a new guess :math:`x^{(1)}` such that :math:`r^{(1)} = Ax^{(1)} - b` is
+closer to zero than :math:`r^{(0)} = Ax^{(0)} - b`. The procedure keeps going until the
+residual :math:`r^{(n)} = Ax^{(n)} - b` is small enough.
+
+One caveat is that the residual :math:`r^{(n)}` is a set of baselines and not
+a scalar; thus, how can we tell whether :math:`r^{(n)}` is small or not? The most
+common way to deal with this is to compute some kind of norm over :math:`r^{(n)}`
+and check whether this value is below some threshold. There are
+several possible definitions for the norm:
+
+1. :math:`L_2` norm: :math:`\left\|r^{(n)}\right\|^2`;
+2. :math:`L_\infty` norm: :math:`\max_i\left|r_i^{(n)}\right|`.
+
+The function :func:`.make_destriped_map` uses :math:`L_\infty` norm: it's
+stricter than :math:`L_\infty` norm, because it does not wash out the
+presence of a few large residuals even if all the others are negligible.
+
+The convergence of the Conjugated Gradient can be controlled by the
+following fields in the :class:`.DestriperParameters` class:
+
+- ``iter_max``: the maximum number of iterations, i.e., the upper limit for :math:`n`.
+- ``threshold``: the value to be reached by the :math:`L_\infty` norm when
+  applied to the residuals :math:`r^{(n)}`: if the norm is smaller than ``threshold``,
+  then the CG algorithm stops.
+- ``samples_per_baseline``: this can either be an integer, in which case it will
+  be used for *all* the baselines, or a list of 1D arrays, each containing the
+  length of each baseline for each observation passed through the parameter ``obs``.
+  Note that if you provide an integer, it might be that not all baselines will
+  have that length: it depends whether the number :math:`N_t` of samples in the
+  TOD is evenly divisibile by ``samples_per_baseline`` or not. The algorithm
+  tries to make the number of elements per baseline as evenly as possible,
+  through the function :func:`.split_items_evenly`.
+- ``use_preconditioner``: if this flag is ``True``, the preconditioning matrix
+  :math:`F^T\cdot C_w^{-1}\cdot F` will be used with the CG algorithm. This
+  might speed up the convergence.
+
+Once the destriper has completed the process, the following fields in the
+:class:`.DestriperResult` object can be inspected to check how the CG iterations
+went:
+
+- ``converged``: a Boolean flag telling whether the ``threshold`` was reached
+  (``True``) or not (``False``)
+- ``history_of_stopping_factors``: a list of values of the :math:`L_\infty` norm,
+  one per each iteration of the CG algorithm. Inspecting those values might
+  help in understanding if the destriper was not able to converge because
+  of a too small value of ``iter_max``.
+
+The baselines are saved in the field ``baselines`` of the :class`.DestriperResult`
+class; this is a list of 2D arrays, where each element in the list is
+associated with one of the observations passed in the parameter ``obs``. The
+shape of each 2D arrays is :math:`(N_d, N_b),` where
+:math:`N_d` is the number of detectors for the observation and :math:`N_b` is
+the number of baselines. The field ``baseline_errors`` has the same shape
+and contains a rough estimate of the error per each baseline, assuming that
+the noise in the baselines are not correlated. (Unrealistic!) Finally,
+the field ``baseline_lengths`` is a list of 1D integer arrays of :math:`N_b`
+elements containing the number of samples in each baseline; it should match
+the value provided in the field ``samples_per_baseline`` in the class
+:class:`.DestriperParameters`.
+
+Once a solution for the destriping equation has been computed, you can ask
+to remove the baselines from the TOD using one of the functions
+:func:`.remove_baselines_from_tod` or :func:`.remove_destriper_baselines_from_tod`.
+
+You can save the results of the destriper using the function
+:func:`.save_destriper_results` and load them back again with the
+:func:`.load_destriper_results`. Note that if you are running your code
+using MPI, you should call both functions on *all* the MPI processes,
+and the number of processes should be the same between the two calls.
+
+
+TOAST2 Destriper
+----------------
+
+If you install the `toast-cmb <https://pypi.org/project/toast-cmb/>`_ using ``pip``,
+you can use the `TOAST2 <https://github.com/hpc4cmb/toast>`_ destriper within
+the LiteBIRD Simulation Framework. The procedure to use it is similar to the
+internal destriper: you must create a :class:`.Toast2DestriperParameters` object
+that specifies which input parameters (apart from the timelines) should be used::
   
     params = lbs.Toast2DestriperParameters(
         nside=16,
@@ -131,19 +505,7 @@ The parameters we use here are the resolution of the output map
 specifically, we are looking here for the *hit map* (i.e., a map that
 specifies how many samples were observed while the detector was
 looking at a specific pixel), the *binned map* (the same map that
-would be produced by the *binner*, see above), and the *destriped map*
-(the most important result of the computation, of course).
-
-To run the TOAST2 destriper, you simply call
-:func:`.destripe_with_toast2`::
-
-  result = lbs.destripe_with_toast2(sim, params)
-
-(The pointing information is included in the :class:`.Observation`,
-alternatively pointings can be provided as a list of numpy arrays)
-The result is an instance of the class :class:`.DestriperResult` and 
-contains the three maps we have asked above (hit map, binned map, 
-destriped map).
+would be produced by the *binner*, see above), and the *destriped map*.
 
 .. note::
 
@@ -156,18 +518,22 @@ destriped map).
    the TOD converted in 64-bit floating-point numbers, which is
    usually a waste of space.
 
-Let's plot the binned map (the most reasonable output, as we have not
-included correlated noise in our example)::
+To run the TOAST2 destriper, you simply call
+:func:`.destripe_with_toast2`::
 
-  import healpy
+  result = lbs.destripe_with_toast2(sim, params)
 
-  # Plot the I map
-  healpy.mollview(result.binned_map[0])
+The result is an instance of the class :class:`.Toast2DestriperResult` and
+contains the three maps we have asked above (hit map, binned map, 
+destriped map).
 
-Here is the complete source code of the example and the result:
+.. note::
 
-.. plot:: pyplots/destriper_demo.py
-   :include-source:
+   Unlike the internal destriper, TOAST2 does not return information
+   about the convergence of the CG algorithm, and it is *not* granted
+   that the norm used to estimate the stopping factor is the same
+   as the one calculated by the internal destriper. Therefore, please
+   avoid comparing the stopping factors of the two destripers!
 
 
 Saving files for Madam
