@@ -1949,7 +1949,7 @@ def load_destriper_results(folder: Path) -> DestriperResult:
     """
     Load the results of a call to :func:`.make_destriped_map` from disk
 
-    This function is the complementary of :func:`.save_destriper_results`.
+    This function complements :func:`.save_destriper_results`.
     It re-creates an object of type :class:`.DestriperResult` from a
     set of FITS files. If you are calling this function from multiple
     MPI processes, you must ensure that it is called by *every* MPI
