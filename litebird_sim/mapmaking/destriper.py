@@ -1795,7 +1795,7 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
         baseline_hdu = fits.BinTableHDU.from_columns(
             [
                 fits.Column(
-                    name="BASELINE",
+                    name=f"BSL{det_idx:05d}",
                     array=cur_baseline[det_idx, :],
                     format="1E",
                     unit="K",
@@ -1803,21 +1803,30 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
                 for det_idx in range(cur_baseline.shape[0])
             ]
         )
+        baseline_hdu.header["NUMDETS"] = (cur_baseline.shape[0], "Number of detectors")
 
         error_hdu = fits.BinTableHDU.from_columns(
             [
                 fits.Column(
-                    name="ERROR", array=cur_error[det_idx, :], format="1E", unit="K"
+                    name=f"ERR{det_idx:05d}",
+                    array=cur_error[det_idx, :],
+                    format="1E",
+                    unit="K",
                 )
                 for det_idx in range(cur_baseline.shape[0])
             ]
         )
+        error_hdu.header["NUMDETS"] = (cur_error.shape[0], "Number of detectors")
 
         length_hdu = fits.BinTableHDU.from_columns(
             [fits.Column(name="LENGTH", array=cur_lengths, unit="", format="1J")]
         )
 
-        for this_hdu in (baseline_hdu, error_hdu, length_hdu):
+        for hdu_base_name, this_hdu in (
+            ("BSL", baseline_hdu),
+            ("ERR", error_hdu),
+            ("LEN", length_hdu),
+        ):
             this_hdu.header["OBSIDX"] = (
                 idx,
                 "Index of the Observation object within this MPI process",
@@ -1826,8 +1835,13 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
                 np.sum(cur_lengths),
                 "Number of samples covered by these baselines",
             )
+            this_hdu.name = f"{hdu_base_name}{idx:05d}"
+            print(f"{this_hdu.name=}")
 
+        hdu_list += [baseline_hdu, error_hdu, length_hdu]
         idx += 1
+
+    hdu_list[0].header["NUMOBS"] = (idx, "Number of observations")
 
     with output_file.open("wb") as outf:
         fits.HDUList(hdu_list).writeto(outf, overwrite=True)
@@ -1843,6 +1857,14 @@ def save_destriper_results(results: DestriperResult, output_folder: Path) -> Non
        and general information about the convergence
     2. A set of FITS files containing the baselines. Each MPI process writes *one*
        file containing its baselines.
+
+    The only parameter that is not saved is the field
+    ``results.params.samples_per_baseline``: its type is very versatile
+    and would not fit well in the FITS file format. Moreover, the necessary
+    information is already available in the baseline lengths that are
+    saved in the files (see point 2. above).
+
+    To load the results from the files, use :func:`.load_destriper_results`.
 
     :param results: The result of the call to :func:`.make_destriped_map`
 
@@ -1924,8 +1946,66 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
 
 
 def load_destriper_results(folder: Path) -> DestriperResult:
+    """
+    Load the results of a call to :func:`.make_destriped_map` from disk
+
+    This function is the complementary of :func:`.save_destriper_results`.
+    It re-creates an object of type :class:`.DestriperResult` from a
+    set of FITS files. If you are calling this function from multiple
+    MPI processes, you must ensure that it is called by *every* MPI
+    process at the same time, and that the number of MPI processes is
+    the same that was used when the data were saved. (The function checks
+    for this and halts its execution if the condition is not satisfied.)
+
+    :param folder: The folder containing the FITS files to load
+    :return: A new :class:`.DestriperResult` object
+    """
+
+    from astropy.io import fits
+
     # We run this on *all* the MPI processes, as it might be that each of them
     # needs this information!
     result = _load_rank0_destriper_results(folder / __DESTRIPER_RESULTS_FILE_NAME)
+
+    if result.destriped_map is not None:
+        result.baselines = []
+        result.baseline_errors = []
+        result.baseline_lengths = []
+
+        baselines_file_name = folder / __BASELINES_FILE_NAME
+
+        with fits.open(baselines_file_name) as inpf:
+            assert MPI_COMM_WORLD.rank == inpf[0].header["MPIRANK"], (
+                "You must call load_destriper_results using the "
+                "same MPI layout that was used for save_destriper_results "
+            )
+            assert MPI_COMM_WORLD.size == inpf[0].header["MPISIZE"], (
+                "You must call load_destriper_results using the "
+                "same MPI layout that was used for save_destriper_results"
+            )
+
+            num_of_obs = int(inpf[0].header["NUMOBS"])
+            for obs_idx in range(num_of_obs):
+                baselines_hdu = inpf[f"BSL{obs_idx:05d}"]
+                num_of_detectors = baselines_hdu.header["NUMDETS"]
+                result.baselines.append(
+                    np.array(
+                        [
+                            baselines_hdu.data.field(f"BSL{det_idx:05d}")
+                            for det_idx in range(num_of_detectors)
+                        ]
+                    ),
+                )
+                result.baseline_errors.append(
+                    np.array(
+                        [
+                            inpf[f"ERR{obs_idx:05d}"].data.field(f"ERR{det_idx:05d}")
+                            for det_idx in range(num_of_detectors)
+                        ]
+                    ),
+                )
+                result.baseline_lengths.append(
+                    inpf[f"LEN{obs_idx:05d}"].data.field("LENGTH")
+                )
 
     return result

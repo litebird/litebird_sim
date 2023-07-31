@@ -849,6 +849,9 @@ def _assert_dataclasses_equal(actual, desired, params_to_check: List[str]) -> No
 
 
 def _test_destriper_results_io(tmp_path, use_destriper: bool):
+    ############################################################
+    # Create a fake DestriperResults object
+
     nside = 4
     npix = 12 * (nside**2)
 
@@ -918,10 +921,17 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
         bytes_in_temporary_buffers=54267,
     )
 
+    ############################################################
+    # Save the results
     output_folder = Path(tmp_path) / "destriper"
     save_destriper_results(results=desired_results, output_folder=output_folder)
 
+    ############################################################
+    # Load the results
     actual_results = load_destriper_results(output_folder)
+
+    ############################################################
+    # Check that what has been loaded matches the input
 
     np.testing.assert_allclose(
         actual=actual_results.nobs_matrix_cholesky.nobs_matrix,
@@ -968,6 +978,31 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
     np.testing.assert_allclose(
         actual=actual_results.binned_map, desired=desired_results.binned_map
     )
+
+    if use_destriper:
+        assert actual_results.baselines is not None
+        for cur_actual, cur_desired in zip(
+            actual_results.baselines, desired_results.baselines
+        ):
+            np.testing.assert_allclose(
+                actual=cur_actual,
+                desired=cur_desired,
+            )
+
+        assert actual_results.baselines is not None
+        for cur_actual, cur_desired in zip(
+            actual_results.baseline_errors, desired_results.baseline_errors
+        ):
+            np.testing.assert_allclose(
+                actual=cur_actual,
+                desired=cur_desired,
+            )
+
+        assert actual_results.baseline_lengths is not None
+        for cur_actual, cur_desired in zip(
+            actual_results.baseline_lengths, desired_results.baseline_lengths
+        ):
+            assert np.alltrue(cur_actual == cur_desired)
 
 
 def test_destriper_io(tmp_path):
