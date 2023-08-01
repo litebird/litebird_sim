@@ -203,8 +203,8 @@ def _get_psd(
     fknee_drift_mHz: float = GainDriftParams.fknee_drift_mHz,
     alpha_drift: float = GainDriftParams.alpha_drift,
 ) -> np.ndarray:
-    """The function to generate the :math:`1/f` noise power spectral density for the thermal
-    fluctuation.
+    """The function to generate the :math:`1/f` noise power spectral density for the
+    thermal fluctuation.
 
     Args:
 

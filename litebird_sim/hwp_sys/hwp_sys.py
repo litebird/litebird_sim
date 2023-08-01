@@ -3,7 +3,7 @@ import litebird_sim as lbs
 import numpy as np
 import healpy as hp
 from astropy import constants as const
-from astropy.cosmology import Planck18_arXiv_v2 as cosmo
+from astropy.cosmology import Planck18 as cosmo
 from litebird_sim import mpi
 from typing import Union, List
 from ..mbs.mbs import MbsParameters
@@ -474,8 +474,8 @@ class HwpSys:
         return
 
     def make_map(self, obss):
-        """It generates "on the fly" map. This option is only availabe if `built_map_on_the_fly`
-        is set to True.
+        """Generate a "on the fly" map. This option is only availabe if
+        `built_map_on_the_fly` is True.
 
         Args:
              obss list of class:`Observations`: only necessary for the communicator
