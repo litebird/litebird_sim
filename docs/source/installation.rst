@@ -35,7 +35,7 @@ A similar procedure can be used with conda:
 .. code-block:: text
 
    # Create a conda environment
-   conda create -n lbs_env python=3.8 
+   conda create -n lbs_env python=3.9
 
    # Activate the environment
    conda activate lbs_env
