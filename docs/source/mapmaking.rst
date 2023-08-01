@@ -198,7 +198,10 @@ following:
     0& 0& 0& \textcolor{#268300}{1}& \textcolor{#268300}{\cos30^\circ}& \textcolor{#268300}{\sin30^\circ}\\
     0& 0& 0& \textcolor{#268300}{1}& \textcolor{#268300}{\cos45^\circ}& \textcolor{#268300}{\sin45^\circ}\\
     \textcolor{#002683}{1}& \textcolor{#002683}{\cos60^\circ}& \textcolor{#002683}{\sin60^\circ}& 0& 0& 0
-    \end{pmatrix}
+    \end{pmatrix},
+
+where the number of rows matches the number of samples in the TOD (7), and
+for each pixel there are three columns corresponding to I, Q, and U.
 
 It is important that each pixel be covered by enough samples: to recover the
 three Stokes parameters associated with each pixel (I, Q, and U), there must
@@ -220,8 +223,9 @@ is :math:`\sigma^2`, the white-noise variance of the sample:
    0& 0& 0& 0& 0& 0& \sigma^2
    \end{pmatrix}
 
-The square matrix :math:`M` has shape :math:`(3 N_p, 3 N_p)`: each pixel in the
-map is associated to a 3×3 block along the diagonal:
+The square matrix :math:`M = P^T\cdot C_w^{-1}\cdot P` has shape
+:math:`(3 N_p, 3 N_p)`: each pixel in the map is associated to a
+3×3 block along the diagonal:
 
 .. math::
 
@@ -294,14 +298,26 @@ in the TOD that fall within the same pixel, and finally :math:`M^{-1}`
 “solves” the linear system for the three parameters I, Q, and U per
 each pixel.
 
+Once the call to :func:`.make_bin_map` ends, the field ``invpp``
+of the :class:`.BinnerResult` object returned by the function
+contains an array with shape :math:`(N_p, 3, 3)`, where each
+3×3 block is the inverse of the sub-matrix :math:`M_i` for the
+*i*-th pixel.
+
 
 Destriper
 ---------
 
 If you know that your simulation contains 1/f noise, you should avoid
-using the binner and use the destriper. As the algorithm it implements
-is more complex, you must specify exactly how it should work by
-passing an instance of the class :class:`.DestriperParameters`::
+using the binner and use a better map-making algorithm, as the
+hypothesis that the noise be white drops and the binning equation is
+no longer valid.
+
+The destriping algorithm is implemented by the :func:`.make_destriped_map`,
+which is functionally equivalent to :func:`.make_bin_map`. However, as
+the algorithm it implements is more complex, you must provide more
+information when calling it. Specifically, you should instantiate an
+instance of the class :class:`.DestriperParameters`::
 
     params = DestriperParameters(
         ...
@@ -310,11 +326,11 @@ passing an instance of the class :class:`.DestriperParameters`::
     result = lbs.make_destriped_map(obs=obs, params=params)
     healpy.mollview(result.destriped_map)
 
-The result is an instance of the class :class:`DestriperResult`, which
-is similar to :class:`BinnerResult` but it contains much more information.
+The result is an instance of the class :class:`.DestriperResult`, which
+is similar to :class:`.BinnerResult` but it contains much more information.
 
 We will now explain how a destriper works and what is the meaning of each
-parameter in the classes :class:`.DestriperParameter` and
+parameter in the classes :class:`.DestriperParameters` and
 :class:`.DestriperResult`. Apart from KS2009, another source of information
 is the file ``test/test_destriper.py``: it compares the results of the
 destriper with the analytical solution of the simple 7-sample model we are
@@ -365,6 +381,26 @@ the last baseline. The application of :math:`F` to a set of :math:`N_t` samples
 it is always the case that :math:`N_b \ll N_t,` this means that :math:`F` is
 a very tall and narrow matrix!
 
+The purpose of :math:`F` is to “project” the values of the two baselines
+into a 7-element TOD:
+
+.. math::
+
+   F \cdot \begin{pmatrix}a_1\\a_2\end{pmatrix} =
+    \begin{pmatrix}
+    a_1\\ a_1\\ a_1\\ a_1\\ a_2\\ a_2\\ a_2
+    \end{pmatrix}.
+
+The transpose :math:`F^T` represents a linear operator that takes a 7-element
+TOD and sums up all the elements belonging to the same baseline:
+
+.. math::
+
+    F^T \cdot \begin{pmatrix}
+    y_1\\ y_2\\ y_3\\ y_4\\ y_5\\ y_6\\ y_7
+    \end{pmatrix} =
+    \begin{pmatrix}y_1 + y_2 + y_3 + y_4\\ y_5 + y_6 + y_7\end{pmatrix}.
+
 At the basis of the destriper there is the operator :math:`Z,` which is defined as
 follows:
 
@@ -374,12 +410,12 @@ follows:
 
 (:math:`I` is the identity operator), and it is applied to a TOD: :math:`Z\cdot y`.
 The purpose of the operator is to “clean up” the TOD from all the components that
-are not white noise. It does so by creating a map (note the presence of the
-map-binning operator :math:`M^{-1}\cdot P^T\cdot C_w^{-1}` on the right) and
-then scanning the map back into a TOD (the last operator :math:`P` on the left
-of the map-binning operator). The result of this “map-and-scan” operation is
-subtracted from the TOD sample, because of the difference between the
-identity operator :math:`I` and this matrix.
+are not white noise. It does so by creating a map (note the presence on the right
+of the map-binning operator :math:`M^{-1}\cdot P^T\cdot C_w^{-1}` we discussed
+before) and then scanning the map back into a TOD (the last operator :math:`P`
+on the left of the map-binning operator). Because of the difference between
+the identity operator :math:`I` and this matrix, the result of this
+“map-and-scan” operation is subtracted from the TOD sample.
 
 The destriper estimates the vector of baselines :math:`a` by solving iteratively
 the following equation:
@@ -389,16 +425,17 @@ the following equation:
    \left(F^T\cdot C_w^{-1}\cdot Z\cdot F\right) a = F^T\cdot C_w^{-1}\cdot Z\cdot y
 
 This equation is of the form :math:`Ax = b,` where :math:`A` and :math:`b` are
-known and :math:`x` is the quantity to determine. (Wikipedia uses the symbol
-:math:`A`, but KS2009 uses :math:`D`; here we follow Wikipedia.) The solution
-would just be :math:`x = A^{-1}b`, but there are two problems with this formula:
+known and :math:`x` is the quantity to determine. (The symbol :math:`A` is commonly
+found in linear algebra textbooks, so we will switch to this notation even if
+KS2009 uses :math:`D`.) The solution would just be :math:`x = A^{-1}b`, but
+there are two problems with this formula:
 
 1. Matrix :math:`A` is too large to be inverted;
 2. Matrix :math:`A` is not invertible!
 
 The second point is quite alarming, and it might sound like it is an irrecoverable
-problem. The fact that :math:`\det A = 0` stems from the fact that the destriping
-problem does not let only one solution, as if :math:`a` is a solution, then
+problem. The fact that :math:`\det A = 0` stems from the fact that the solution to
+the destriping equation is not unique, as if :math:`a` is a solution, then
 :math:`a + K` is still a solution for any scalar constant :math:`K.` What we
 are looking for is a solution :math:`a` that is orthogonal to the null space
 of :math:`A`.
@@ -415,18 +452,22 @@ case, it is enough to require that the mean value of the first guess of the base
 is zero, i.e., :math:`\sum_i x_i = 0`. Starting from guess :math:`x^{(0)},` the
 algorithm produces a new guess :math:`x^{(1)}` such that :math:`r^{(1)} = Ax^{(1)} - b` is
 closer to zero than :math:`r^{(0)} = Ax^{(0)} - b`. The procedure keeps going until the
-residual :math:`r^{(n)} = Ax^{(n)} - b` is small enough.
+residual :math:`r^{(n)} = Ax^{(n)} - b` is small enough, always satisfying the
+fact that :math:`\sum_i x_i^{(n)} = 0` for any :math:`n.` Thus, the final solution
+will be such that the average value of the baselines will be zero.
 
-One caveat is that the residual :math:`r^{(n)}` is a set of baselines and not
-a scalar; thus, how can we tell whether :math:`r^{(n)}` is small or not? The most
-common way to deal with this is to compute some kind of norm over :math:`r^{(n)}`
-and check whether this value is below some threshold. There are
-several possible definitions for the norm:
+The CG algorithm requires iterations to continue until the residuals :math:`r^{(n)}`
+are “small enough”. But how can we tell this? Vector :math:`r^{(n)}` contains
+:math:`N_b` elements, corresponding to the residual for each baseline, and it might
+be that some of the residuals are small and some are not. The most common way to
+deal with this is to compute some kind of norm over :math:`r^{(n)}` to produce a
+single scalar, and then to check whether this value is below some threshold.
+There are several possible definitions for the norm:
 
-1. :math:`L_2` norm: :math:`\left\|r^{(n)}\right\|^2`;
-2. :math:`L_\infty` norm: :math:`\max_i\left|r_i^{(n)}\right|`.
+1. The standard :math:`L_2` norm (Euclidean): :math:`\left\|r^{(n)}\right\|^2`;
+2. The :math:`L_\infty` norm: :math:`\max_i\left|r_i^{(n)}\right|`.
 
-The function :func:`.make_destriped_map` uses :math:`L_\infty` norm: it's
+Function :func:`.make_destriped_map` adopts :math:`L_\infty`: it is
 stricter than :math:`L_\infty` norm, because it does not wash out the
 presence of a few large residuals even if all the others are negligible.
 
@@ -441,10 +482,10 @@ following fields in the :class:`.DestriperParameters` class:
   be used for *all* the baselines, or a list of 1D arrays, each containing the
   length of each baseline for each observation passed through the parameter ``obs``.
   Note that if you provide an integer, it might be that not all baselines will
-  have that length: it depends whether the number :math:`N_t` of samples in the
-  TOD is evenly divisibile by ``samples_per_baseline`` or not. The algorithm
-  tries to make the number of elements per baseline as evenly as possible,
-  through the function :func:`.split_items_evenly`.
+  have exactly that length: it depends whether the number :math:`N_t` of samples
+  in the TOD is evenly divisibile by ``samples_per_baseline`` or not. The
+  algorithm tries to make the number of elements per baseline as evenly as
+  possible.
 - ``use_preconditioner``: if this flag is ``True``, the preconditioning matrix
   :math:`F^T\cdot C_w^{-1}\cdot F` will be used with the CG algorithm. This
   might speed up the convergence.
@@ -455,17 +496,35 @@ went:
 
 - ``converged``: a Boolean flag telling whether the ``threshold`` was reached
   (``True``) or not (``False``)
-- ``history_of_stopping_factors``: a list of values of the :math:`L_\infty` norm,
-  one per each iteration of the CG algorithm. Inspecting those values might
-  help in understanding if the destriper was not able to converge because
-  of a too small value of ``iter_max``.
+- ``history_of_stopping_factors``: a list of values of the :math:`L_\infty`
+  norm applied to the residuals :math:`r^{(n)},` one per each iteration of
+  the CG algorithm. Inspecting those values might help in understanding if
+  the destriper was not able to converge because of a too small value of
+  ``iter_max``.
 
 The baselines are saved in the field ``baselines`` of the :class`.DestriperResult`
 class; this is a list of 2D arrays, where each element in the list is
 associated with one of the observations passed in the parameter ``obs``. The
 shape of each 2D arrays is :math:`(N_d, N_b),` where
 :math:`N_d` is the number of detectors for the observation and :math:`N_b` is
-the number of baselines. The field ``baseline_errors`` has the same shape
+the number of baselines. A visual representation of the memory layout of
+the field ``baselines`` is shown in the following figure.
+
+.. figure:: images/destriper-baselines-memory-layout.svg
+
+    Example of the memory layout for the baselines of two :class:`.Observation`
+    objects, each containing data for two detectors A and B.
+    **Upper image**: the baselines are shown as horizontal lines that span the
+    time range covered by the two (consecutive) observations. The baselines for
+    detector A are shown using continuous lines, while the lines for B are dashed.
+    Note that the number of baselines in the first :class:`.Observation` object
+    (5) is different than the number in the second object (3).
+    **Lower image**: the layout of the ``baselines`` field in the class
+    :class:`.DestriperResult` is a Python list of two elements, each containing
+    2D arrays with shape :math:`(N_d, N_b)`: the *i*-th row of each 2D array
+    contains the baselines for the *i*-th detector.
+
+The field ``baseline_errors`` has the same memory layout as ``baselines``
 and contains a rough estimate of the error per each baseline, assuming that
 the noise in the baselines are not correlated. (Unrealistic!) Finally,
 the field ``baseline_lengths`` is a list of 1D integer arrays of :math:`N_b`
