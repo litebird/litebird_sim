@@ -1374,7 +1374,6 @@ class Simulation:
         output_map_in_galactic: bool = True,
         append_to_report: bool = True,
     ):
-
         """
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
@@ -1434,7 +1433,6 @@ class Simulation:
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-
             dictionary = {
                 "sampling_dist": "Gaussian" if drift_params.sampling_dist else "Uniform"
             }
