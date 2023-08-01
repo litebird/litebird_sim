@@ -131,7 +131,7 @@ class DetectorInfo:
         # Normalize the quaternion
         self.quat /= np.sqrt(self.quat.dot(self.quat))
 
-        if type(self.band_freqs_ghz) == np.ndarray:
+        if isinstance(self.band_freqs_ghz, np.ndarray):
             assert len(self.band_freqs_ghz) == len(self.band_weights)
 
     @staticmethod
@@ -168,7 +168,7 @@ class DetectorInfo:
             if param.name in dictionary:
                 setattr(result, param.name, dictionary[param.name])
 
-        if type(result.band_freqs_ghz) != np.ndarray:
+        if not isinstance(result.band_freqs_ghz, np.ndarray):
             result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
             result.band_freqs_ghz, result.band_weights = [
                 result.band.freqs_ghz,
@@ -272,7 +272,7 @@ class FreqChannelInfo:
             if param.name in dictionary:
                 setattr(result, param.name, dictionary[param.name])
 
-        if type(result.band_freqs_ghz) != np.ndarray:
+        if not isinstance(result.band_freqs_ghz, np.ndarray):
             result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
             result.band_freqs_ghz, result.band_weights = [
                 result.band.freqs_ghz,

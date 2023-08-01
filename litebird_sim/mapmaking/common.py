@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+from dataclasses import dataclass
 from typing import Union, List, Tuple
 import numpy as np
 import numpy.typing as npt
@@ -14,6 +15,68 @@ from litebird_sim.observations import Observation
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not
 COND_THRESHOLD = 1e10
+
+
+@dataclass
+class ExternalDestriperParameters:
+    """Parameters used by the TOAST/Madam mapmakers to produce a map.
+
+    The list of fields in this dataclass is the following:
+
+    - ``nside``: the NSIDE parameter used to create the maps
+
+    - ``coordinate_system``: an instance of the :class:`.CoordinateSystem` enum.
+      It specifies if the map must be created in ecliptic (default) or
+      galactic coordinates.
+
+    - ``nnz``: number of components per pixel. The default is 3 (I/Q/U).
+
+    - ``baseline_length_s``: length of the baseline for 1/f noise in seconds
+
+    - ``iter_max``: maximum number of iterations
+
+    - ``output_file_prefix``: prefix to be used for the filenames of the
+      Healpix FITS maps saved in the output directory
+
+    The following Boolean flags specify which maps should be returned
+    by the function :func:`.destripe`:
+
+    - ``return_hit_map``: return the hit map (number of hits per
+      pixel)
+
+    - ``return_binned_map``: return the binned map (i.e., the map with
+      no baselines removed).
+
+    - ``return_destriped_map``: return the destriped map. If pure
+      white noise is present in the timelines, this should be the same
+      as the binned map.
+
+    - ``return_npp``: return the map of the white noise covariance per
+      pixel. It contains the following fields: ``II``, ``IQ``, ``IU``,
+      ``QQ``, ``QU``, and ``UU`` (in this order).
+
+    - ``return_invnpp``: return the map of the inverse covariance per
+      pixel. It contains the following fields: ``II``, ``IQ``, ``IU``,
+      ``QQ``, ``QU``, and ``UU`` (in this order).
+
+    - ``return_rcond``: return the map of condition numbers.
+
+    The default is to only return the destriped map.
+
+    """
+
+    nside: int = 512
+    coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
+    nnz: int = 3
+    baseline_length_s: float = 60.0
+    iter_max: int = 100
+    output_file_prefix: str = "lbs_"
+    return_hit_map: bool = False
+    return_binned_map: bool = False
+    return_destriped_map: bool = True
+    return_npp: bool = False
+    return_invnpp: bool = False
+    return_rcond: bool = False
 
 
 def get_map_making_weights(obs: Observation, check: bool) -> npt.NDArray:

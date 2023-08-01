@@ -78,10 +78,7 @@ from litebird_sim.mapmaking import (
     DestriperParameters,
     DestriperResult,
     make_destriped_map,
-)
-from .toast_destriper import (
-    destripe_with_toast2,
-    Toast2DestriperParameters,
+    ExternalDestriperParameters,
 )
 from .simulations import (
     Simulation,
@@ -127,6 +124,23 @@ from .gaindrifts import (
     apply_gaindrift_to_tod,
     apply_gaindrift_to_observations,
 )
+
+try:
+    import toast
+    from .toast_destriper import (
+        destripe_with_toast2,
+    )
+
+    TOAST_ENABLED = True
+
+except ImportError:
+
+    def destripe_with_toast2(*args, **kwargs):
+        raise ImportError(
+            "Install the toast-cmb package using `pip` to use destripe_with_toast2"
+        )
+
+    TOAST_ENABLED = False
 
 from .version import __author__, __version__
 
@@ -214,8 +228,9 @@ __all__ = [
     "BinnerResult",
     "make_destriped_map",
     "DestriperParameters",
+    "ExternalDestriperParameters",
     # toast_destriper.py
-    "Toast2DestriperParameters",
+    "TOAST_ENABLED",
     "destripe_with_toast2",
     # simulations.py
     "Simulation",

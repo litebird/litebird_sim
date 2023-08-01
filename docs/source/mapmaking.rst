@@ -586,11 +586,24 @@ TOAST2 Destriper
 
 If you install the `toast-cmb <https://pypi.org/project/toast-cmb/>`_ using ``pip``,
 you can use the `TOAST2 <https://github.com/hpc4cmb/toast>`_ destriper within
-the LiteBIRD Simulation Framework. The procedure to use it is similar to the
-internal destriper: you must create a :class:`.Toast2DestriperParameters` object
-that specifies which input parameters (apart from the timelines) should be used::
+the LiteBIRD Simulation Framework. As TOAST is an optional dependency, you
+should check if the Framework was able to detect its presence::
+
+    import litebird_sim as lbs
+
+    if lbs.TOAST_ENABLED:
+        # It's ok to use TOAST
+        ...
+    else:
+        # TOAST is not present, do something else
+        ...
+
+The procedure to use the TOAST2 destriper is similar to the steps required to
+call the internal destriper: you must create a
+:class:`.ExternalDestriperParameters` object that specifies which input
+parameters (apart from the timelines) should be used::
   
-    params = lbs.Toast2DestriperParameters(
+    params = lbs.ExternalDestriperParameters(
         nside=16,
         return_hit_map=True,
         return_binned_map=True,
@@ -859,11 +872,6 @@ API reference
 -------------
 
 .. automodule:: litebird_sim.mapmaking
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-.. automodule:: litebird_sim.toast_destriper
     :members:
     :undoc-members:
     :show-inheritance:

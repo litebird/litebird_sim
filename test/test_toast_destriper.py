@@ -19,6 +19,9 @@ COORDINATE_SYSTEM_STR = {
 
 
 def test_basic_functionality(tmp_path):
+    if not lbs.TOAST_ENABLED:
+        return
+
     # This tests checks that the toast_destriper «does the right thing» with a
     # very simple TOD that is created by hand, i.e., where pointings and
     # TOD samples are created manually one by one instead of resorting
@@ -99,7 +102,7 @@ def test_basic_functionality(tmp_path):
         num=num_of_samples,
     )
 
-    param_noise_madam = lbs.Toast2DestriperParameters(
+    param_noise_madam = lbs.ExternalDestriperParameters(
         nside=nside,
         nnz=1,  # Compute just I
         baseline_length_s=samples_per_baseline / sampling_frequency_hz,
@@ -150,6 +153,9 @@ def test_basic_functionality(tmp_path):
 
 
 def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
+    if not lbs.TOAST_ENABLED:
+        return
+
     coordinates_str = COORDINATE_SYSTEM_STR[coordinates]
 
     sim = lbs.Simulation(
@@ -193,7 +199,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
         cur_obs.tod *= 0.0
         cur_obs.tod += rs.randn(*cur_obs.tod.shape)
 
-    params = lbs.Toast2DestriperParameters(
+    params = lbs.ExternalDestriperParameters(
         nside=16,
         nnz=3,
         baseline_length_s=100,
@@ -289,10 +295,16 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
 
 
 def test_destriper_ecliptic(tmp_path):
+    if not lbs.TOAST_ENABLED:
+        return
+
     run_destriper_tests(tmp_path=tmp_path, coordinates=CoordinateSystem.Ecliptic)
 
 
 def test_destriper_galactic(tmp_path):
+    if not lbs.TOAST_ENABLED:
+        return
+
     run_destriper_tests(tmp_path=tmp_path, coordinates=CoordinateSystem.Galactic)
 
 
@@ -309,6 +321,9 @@ def test_destriper_coordinate_consistency(tmp_path):
     #
     # This test checks that «most» of the two maps agree, i.e., the 5% and 95%
     # percentiles are smaller than some (small) threshold.
+
+    if not lbs.TOAST_ENABLED:
+        return
 
     sim = lbs.Simulation(
         base_path=Path(tmp_path) / "destriper_output",
@@ -366,7 +381,7 @@ def test_destriper_coordinate_consistency(tmp_path):
 
     lbs.scan_map_in_observations(obs=sim.observations, maps=healpix_maps)
 
-    params = lbs.Toast2DestriperParameters(
+    params = lbs.ExternalDestriperParameters(
         nside=healpy.npix2nside(len(healpix_maps[detectors[0].name][0])),
         coordinate_system=lbs.CoordinateSystem.Galactic,
         return_hit_map=True,

@@ -11,7 +11,7 @@ import jinja2
 import litebird_sim
 from . import DetectorInfo
 from .coordinates import CoordinateSystem
-from .toast_destriper import Toast2DestriperParameters
+from .mapmaking import ExternalDestriperParameters
 from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 from .simulations import Simulation, MpiDistributionDescr
@@ -146,7 +146,7 @@ def _combine_file_dictionaries(file_dictionaries):
 
 def save_simulation_for_madam(
     sim: Simulation,
-    params: Toast2DestriperParameters,
+    params: ExternalDestriperParameters,
     detectors: Optional[List[DetectorInfo]] = None,
     use_gzip: bool = False,
     output_path: Optional[Union[str, Path]] = None,
@@ -166,7 +166,8 @@ def save_simulation_for_madam(
     must be a list of :class:`.DetectorInfo` objects, and it specifies which detectors
     will be saved to disk; if it is ``None``, all the detectors in the simulation will
     be considered. The variable `params` specifies how Madam should produce the maps;
-    see the documentation for :class:`.DestriperParameters` for more information.
+    see the documentation for :class:`.ExternalDestriperParameters` for more
+    information.
 
     If `use_gzip` is true, the TOD and pointing files will be compressed using Gzip
     (the default is false, as this might slow down I/O). If `absolute_paths` is ``True``
