@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fixed typo in timeordered.rst [#250](https://github.com/litebird/litebird_sim/pull/250)
+
 -   Fix error in reading observation when it does not have tod field [#262](https://github.com/litebird/litebird_sim/pull/262) 
 
 -   **Breaking change**: Drop support for Python 3.7 and 3.8 [#254](https://github.com/litebird/litebird_sim/pull/254)
