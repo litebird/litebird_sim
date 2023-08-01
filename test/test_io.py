@@ -273,11 +273,3 @@ def test_gzip_compression_in_obs(tmp_path):
         use_mjd=False,
         gzip_compression=True,
     )
-
-
-def test_quaternions_in_hdf5(tmp_path):
-    __test_read_complex_observation(
-        tmp_path,
-        use_mjd=False,
-        gzip_compression=True,
-    )
