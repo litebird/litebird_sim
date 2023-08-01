@@ -120,7 +120,7 @@ class DetectorInfo:
     bandwidth_ghz: float = 0.0
     pol: Union[str, None] = None
     orient: Union[str, None] = None
-    quat: Any = np.array([0.0, 0.0, 0.0, 1.0])
+    quat: Any = (0.0, 0.0, 0.0, 1.0)
 
     def __post_init__(self):
         assert len(self.quat) == 4
