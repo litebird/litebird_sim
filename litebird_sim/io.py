@@ -540,7 +540,7 @@ def read_one_observation(
                 result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])
             else:
                 # All the fields must conform to the same shape as `Observation.tod`
-                assert result.tod.shape == hdf5_tod.shape
+                assert result.__getattribute__(tod_fields[0]).shape == hdf5_tod.shape
                 result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])
 
         # If we arrive here, we must have read at least one TOD
@@ -565,8 +565,8 @@ def read_one_observation(
         if read_local_flags_if_present:
             flags = __find_flags(
                 inpf,
-                expected_num_of_dets=result.tod.shape[0],
-                expected_num_of_samples=result.tod.shape[1],
+                expected_num_of_dets=result.__getattribute__(tod_fields[0]).shape[0],
+                expected_num_of_samples=result.__getattribute__(tod_fields[0]).shape[1],
             )
             if flags is not None:
                 result.__setattr__("local_flags", flags)
