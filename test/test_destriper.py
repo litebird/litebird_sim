@@ -724,7 +724,7 @@ def test_map_maker_with_destriping_and_preconditioner():
 
 
 def test_full_destriper(tmp_path):
-    # The previous tests were taylored for the case of a TOD
+    # The previous tests were tailored for the case of a TOD
     # with just 7 samples and one detector. Now we turn to a more
     # comprehensive test with *two* detectors
 
