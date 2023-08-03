@@ -86,12 +86,12 @@ detectors::
   
 
 The theory of binners and destripers is explained
-in the paper `Destriping CMB temperature and polarization maps (Kurki-Suonio
-et al., 2009)
-<https://www.aanda.org/articles/aa/abs/2009/42/aa12361-09/aa12361-09.html>`_,
-and the implementation closely follows the terminology used in the paper. In
-this chapter, we will refer to the paper as KS2009.
+in the paper :cite:`2009:kurkisuonio:destriping`,
+and the implementation closely follows the terminology
+used in the paper. In this chapter, we will refer to
+the paper as KS2009.
 
+.. _mapmaking-binner:
 
 Binner
 ------
@@ -146,13 +146,18 @@ bars refer to the polarization angle of the detector.
 
 .. |pixel2| image:: images/destriper-pixel2.svg
 
+.. _todsamples-in-mapmaking-figure:
 .. figure:: images/destriper-tod-angles.svg
 
-   How the seven samples observe each of the two pixels in the map. The
-   vertical bars represent the direction of the attack angle ψ, which
-   coincides with the polarization angle of the detector projected
+   Toy-example of a TOD containing 7 samples.
+
+   The figure shows how the seven samples observe each of the two pixels
+   in the map. The vertical bars represent the direction of the attack angle
+   ψ, which coincides with the polarization angle of the detector projected
    on the center of the pixel.
 
+
+.. _todsamples-in-mapmaking-table:
 .. list-table:: Samples in the TOD, their polarization angle ψ, and the pixel they hit
    :header-rows: 1
 
@@ -305,6 +310,8 @@ contains an array with shape :math:`(N_p, 3, 3)`, where each
 *i*-th pixel.
 
 
+.. _mapmaking-destriper:
+
 Destriper
 ---------
 
@@ -347,14 +354,40 @@ but for experiments like Planck has shown to work well.
 
 .. figure:: images/destriper-baselines.svg
 
+   Baselines in a destriper
+
    A destriper seeing the 13 samples in the figure could decide to group them
    into two baselines: 7 within the first baseline, and 6 within the second
    baseline. The level :math:`a_i` of each baseline is represented by a dashed
    horizontal line.
 
-To illustrate how the destriper works, we will resume the example shown in the
-previous chapter and will still consider a TOD made up of just 7 samples.
+The purpose of the destriper is to model 1/f noise using the baselines and produce
+a cleaned map. It does so by doing the following steps:
+
+1.   It estimates the value of the baselines by minimizing a :math:`\chi^2`
+     function (more on this later);
+2.   It removes the value of the baselines from each sample in the TOD;
+3.   It applies a binning operation on the cleaned TOD, using the same equations
+     explained in the section :ref:`mapmaking-binner`.
+
+To show a concrete example about how the destriper works, we will resume the
+toy TOD containing 7 samples that was discussed in section :ref:`mapmaking-binner`.
 We will group these samples in two baselines of 4 and 3 samples respectively.
+
+It's easier to understand what the algorithm does if we play following the rules
+of the destriper: instead of thinking of true 1/f noise, let's pretend that what
+we actually have in the TOD are the *baselines*: constant values that last for
+some time and are added to the samples in the TOD. How can the destriper understand
+the level of each baseline in the figure above? The trick is easy to understand
+if we recall Table :ref:`todsamples-in-mapmaking-table`. Let's consider the first
+pixel: it was visited by the first two samples, then the detector moved to another
+position in the sky (the second pixel), but it moved back to the first pixel just
+while measuring the last sample in the TOD (#7). The point is that the first two samples
+#1 and #2 belong to the first baseline, since it lasts 4 pixels, while sample #7 belongs
+to the second one. Yet, once 1/f noise is taken into account, the estimated I/Q/U
+parameter for this pixel must agree. This problem can be rewritten as a :math:`\chi^2`
+minimization problem: the destriper looks for the values of the two baselines that
+minimize the discrepancy in the values of the pixels as estimated by every sample in the TOD.
 
 Apart from the standard matrices :math:`C_w`, :math:`P`, and :math:`M`, the
 destriper requires a new matrix :math:`F,` whose shape is :math:`(N_t, N_b)`:
@@ -418,7 +451,8 @@ the identity operator :math:`I` and this matrix, the result of this
 “map-and-scan” operation is subtracted from the TOD sample.
 
 The destriper estimates the vector of baselines :math:`a` by solving iteratively
-the following equation:
+the following equation, which is the solution of a minimization problem on the
+:math:`\chi^2` we qualitatively discussed before:
 
 .. math::
 
@@ -436,15 +470,19 @@ there are two problems with this formula:
 The second point is quite alarming, and it might sound like it is an irrecoverable
 problem. The fact that :math:`\det A = 0` stems from the fact that the solution to
 the destriping equation is not unique, as if :math:`a` is a solution, then
-:math:`a + K` is still a solution for any scalar constant :math:`K.` What we
-are looking for is a solution :math:`a` that is orthogonal to the null space
-of :math:`A`.
+:math:`a + K` is still a solution for any scalar constant :math:`K.` (Remember, the
+purpose of the destriper is to make the many measurements for I/Q/U within each
+pixel *consistent* once the baselines are subtracted, and the consistency is the same
+if all the baselines are shifted by the same amount!) What we are looking for is
+a solution :math:`a` that is orthogonal to the null space of :math:`A`.
 
 We can solve both problems by employing the fact that :math:`A` is a symmetric
 semi-definite matrix and thus employing the so-called
 `Conjugate Gradient (CG) method <https://en.wikipedia.org/wiki/Conjugate_gradient_method>`_,
 which is able to produce a solution for the problem :math:`Ax = b` even
-if :math:`A` is singular.
+if :math:`A` is singular, because it simply minimizes the quantity :math:`Ax - b`
+without trying to invert :math:`A`. If you are curious about the details of
+the algorithm, a good pedagogical reference is :cite:`1994:shewchuk:conjugategradient`.
 
 The way the algorithm works is to start from a guess for :math:`x` (the set of
 baselines) which must be orthogonal to the null-space of :math:`A`; in our
@@ -512,17 +550,18 @@ the field ``baselines`` is shown in the following figure.
 
 .. figure:: images/destriper-baselines-memory-layout.svg
 
-    Example of the memory layout for the baselines of two :class:`.Observation`
-    objects, each containing data for two detectors A and B.
-    **Upper image**: the baselines are shown as horizontal lines that span the
-    time range covered by the two (consecutive) observations. The baselines for
-    detector A are shown using continuous lines, while the lines for B are dashed.
-    Note that the number of baselines in the first :class:`.Observation` object
-    (5) is different than the number in the second object (3).
-    **Lower image**: the layout of the ``baselines`` field in the class
-    :class:`.DestriperResult` is a Python list of two elements, each containing
-    2D arrays with shape :math:`(N_d, N_b)`: the *i*-th row of each 2D array
-    contains the baselines for the *i*-th detector.
+    Memory layout for baselines.
+
+The image assumes that the baselines contain data for two detectors A and B.
+In the **upper image**, the baselines are shown as horizontal lines that span the
+time range covered by the two (consecutive) observations. The baselines for
+detector A are shown using continuous lines, while the lines for B are dashed.
+Note that the number of baselines in the first :class:`.Observation` object
+(5) is different than the number in the second object (3).
+The **lower image** offers a visual representation of the layout of the
+``baselines`` field in the class :class:`.DestriperResult`: it is a Python
+list of two elements, each containing 2D arrays with shape :math:`(N_d, N_b)`.
+The *i*-th row of each 2D array contains the baselines for the *i*-th detector.
 
 The field ``baseline_errors`` has the same memory layout as ``baselines``
 and contains a rough estimate of the error per each baseline, assuming that
@@ -579,6 +618,12 @@ which contains the following fields:
   :func:`.make_destriped_map`, this should always be ``True``: it is
   set to ``False`` during the execution of the destriper but updated
   to ``True`` before the CG iteration starts.
+
+Given that it is often useful to have access to matrix :math:`M^{-1}`,
+the method :meth:`.NobsMatrix.get_invnpp` computes this inverse as
+a 3D array with shape :math:`(N_pix, 3, 3)`, where the first index
+runs over all the pixels and the last two dimensions are used to
+store the value of :math:`M_i^{-1}`.
 
 
 TOAST2 Destriper
@@ -750,10 +795,11 @@ only once, including *all* the TOD components, and then call
 
 
 It is important that the `components` parameter in the call to
-:func:`.save_simulation_for_madam` list *all* the components, even if they are not going to be used in the first and
-second map. The reason is that this parameter is used by the function to create a «map» of the components as they are
-supposed to be found in the FITS files; for example, the
-``cmb_tod`` field is the *third* in each TOD file, but this
+:func:`.save_simulation_for_madam` list *all* the components, even
+if they are not going to be used in the first and second map. The reason
+is that this parameter is used by the function to create a «map» of the
+components as they are supposed to be found in the FITS files; for
+example, the ``cmb_tod`` field is the *third* in each TOD file, but this
 would not be apparent while producing the first map, where it is the
 *second* in the list of components that must be used. The ``.par``
 file will list the components that need to be actually used to
