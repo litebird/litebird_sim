@@ -1991,8 +1991,8 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
             coord_sys = CoordinateSystem.Ecliptic
 
         result = DestriperResult(
+            nside=nside,
             params=DestriperParameters(
-                nside=nside,
                 output_coordinate_system=CoordinateSystem.Galactic,
                 samples_per_baseline=0,
                 iter_max=0,

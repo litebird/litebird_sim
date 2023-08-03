@@ -893,7 +893,6 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
         samples_per_baseline = None
 
     params = lbs.DestriperParameters(
-        nside=nside,
         output_coordinate_system=lbs.CoordinateSystem.Galactic,
         samples_per_baseline=samples_per_baseline,
         iter_max=iter_max,
@@ -909,6 +908,7 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
         is_cholesky=True,
     )
     desired_results = lbs.DestriperResult(
+        nside=nside,
         params=params,
         hit_map=hit_map,
         binned_map=binned_map,
@@ -951,7 +951,7 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
         == desired_results.nobs_matrix_cholesky.is_cholesky
     )
 
-    params_to_check = ["nside", "output_coordinate_system"]
+    params_to_check = ["output_coordinate_system"]
     if use_destriper:
         # Skip samples_per_baseline, as this is problematic!
         params_to_check += ["iter_max", "threshold", "use_preconditioner"]
@@ -962,6 +962,7 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
         params_to_check=params_to_check,
     )
     params_to_check = [
+        "nside",
         "components",
         "coordinate_system",
         "elapsed_time_s",
