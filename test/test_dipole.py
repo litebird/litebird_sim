@@ -54,7 +54,7 @@ def test_dipole_models():
 def bin_map(tod, pixel_indexes, binned_map, accum_map, hit_map):
     # This is a helper function that implements a quick-and-dirty mapmaker.
     # We implement here a simple binner that works only in temperature (unlike
-    # lbs.make_bin_maps, which solves for the I/Q/U Stokes components and is
+    # lbs.make_binned_maps, which solves for the I/Q/U Stokes components and is
     # an overkill here).
 
     for idx in range(len(accum_map)):

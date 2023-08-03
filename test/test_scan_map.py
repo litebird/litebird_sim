@@ -17,9 +17,9 @@ def test_scan_map_no_interpolation():
     # The purpose of this test is to simulate the motion of the spacecraft
     # for one month (see `time_span_s`) and produce *two* maps: the first
     # is associated with the Observation `obs1` and is built using
-    # `scan_map_in_observations` and `make_bin_map`, the second is associated
+    # `scan_map_in_observations` and `make_binned_map`, the second is associated
     # the Observation `obs2` and is built directly filling in the test
-    # `tod`, `psi` and `pixind` and then using `make_bin_map`
+    # `tod`, `psi` and `pixind` and then using `make_binned_map`
     # In the second test `out_map1` is compared with both `out_map2` and the
     # input map. Both simulations use two orthogonal detectors at the boresight
     # and input maps generated with `np.random.normal`.
@@ -103,8 +103,8 @@ def test_scan_map_no_interpolation():
         input_map_in_galactic=False,
         interpolation=None,
     )
-    out_map1 = lbs.make_bin_map(
-        obs1, nside, output_coordinate_system=lbs.CoordinateSystem.Ecliptic
+    out_map1 = lbs.make_binned_map(
+        nside=nside, obs=obs1, output_coordinate_system=lbs.CoordinateSystem.Ecliptic
     )
 
     obs2.pointings = pointings[:, :, 0:2]
@@ -118,8 +118,8 @@ def test_scan_map_no_interpolation():
             + np.sin(2 * obs2.psi[idet, :]) * maps[2, pixind]
         )
 
-    out_map2 = lbs.make_bin_map(
-        obs2, nside, output_coordinate_system=lbs.CoordinateSystem.Ecliptic
+    out_map2 = lbs.make_binned_map(
+        nside=nside, obs=obs2, output_coordinate_system=lbs.CoordinateSystem.Ecliptic
     )
 
     mask1 = get_map_mask(out_map1.binned_map)
@@ -162,7 +162,7 @@ def test_scan_map_no_interpolation():
         pointings=pointings,
         input_map_in_galactic=True,
     )
-    out_map1 = lbs.make_bin_map(obs1, nside)
+    out_map1 = lbs.make_binned_map(nside=nside, obs=obs1)
     mask1 = get_map_mask(out_map1.binned_map)
 
     np.testing.assert_allclose(

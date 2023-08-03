@@ -73,7 +73,7 @@ from .scanning import (
     get_ecl2det_quaternions,
 )
 from litebird_sim.mapmaking import (
-    make_bin_map,
+    make_binned_map,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
@@ -224,7 +224,7 @@ __all__ = [
     "get_pointing_buffer_shape",
     "get_pointings",
     # mapmaking
-    "make_bin_map",
+    "make_binned_map",
     "BinnerResult",
     "make_destriped_map",
     "DestriperParameters",

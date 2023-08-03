@@ -98,7 +98,7 @@ Binner
 
 Once you have generated a set of observations, either on a single
 process or distributed over several mpi processes, you can create a 
-simple binned map with the function :func:`.make_bin_map`. This function
+simple binned map with the function :func:`.make_binned_map`. This function
 takes: a single (or a list of) :class:`.Observation`, the Healpix
 resolution of the output map (``nside``) and produces a coadded map.
 It assumes white noise and each detector gets weighted by 
@@ -109,7 +109,7 @@ The output map is in Galactic coordinates, but you can specify the
 coordinate system you want via the parameter `output_coordinates`.
 This is how it should be called::
 
-    result = lbs.make_bin_map(obs, 128)
+    result = lbs.make_binned_map(nside=128, obs=obs)
     healpy.mollview(result.binned_map)
 
 (The pointing information is included in the :class:`.Observation`,
@@ -117,11 +117,11 @@ alternatively pointings can be provided as a list of numpy arrays.)
 The return object is an instance of the class :class:`.BinnerResult`
 and contains both the I/Q/U maps and the covariance matrix.
 
-The :func:`.make_bin_map` has a high level interface in the class
+The :func:`.make_binned_map` has a high level interface in the class
 :class:`.Simulation` that bins the content of the observations into maps
-The syntax is identical to :func:`.make_bin_map`::
+The syntax is identical to :func:`.make_binned_map`::
 
-    result = sim.make_bin_map(nside=nside)
+    result = sim.make_binned_map(nside=nside)
     healpy.mollview(result.binned_map)
 
 
@@ -298,7 +298,7 @@ in the TOD that fall within the same pixel, and finally :math:`M^{-1}`
 “solves” the linear system for the three parameters I, Q, and U per
 each pixel.
 
-Once the call to :func:`.make_bin_map` ends, the field ``invpp``
+Once the call to :func:`.make_binned_map` ends, the field ``invpp``
 of the :class:`.BinnerResult` object returned by the function
 contains an array with shape :math:`(N_p, 3, 3)`, where each
 3×3 block is the inverse of the sub-matrix :math:`M_i` for the
@@ -314,7 +314,7 @@ hypothesis that the noise be white drops and the binning equation is
 no longer valid.
 
 The destriping algorithm is implemented by the :func:`.make_destriped_map`,
-which is functionally equivalent to :func:`.make_bin_map`. However, as
+which is functionally equivalent to :func:`.make_binned_map`. However, as
 the algorithm it implements is more complex, you must provide more
 information when calling it. Specifically, you should instantiate an
 instance of the class :class:`.DestriperParameters`::
@@ -323,7 +323,7 @@ instance of the class :class:`.DestriperParameters`::
         ...
     )
 
-    result = lbs.make_destriped_map(obs=obs, params=params)
+    result = lbs.make_destriped_map(nside=nside, obs=obs, params=params)
     healpy.mollview(result.destriped_map)
 
 The result is an instance of the class :class:`.DestriperResult`, which

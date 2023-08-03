@@ -32,7 +32,7 @@ from .common import (
 
 @dataclass
 class BinnerResult:
-    """Result of a call to the :func:`.make_bin_map` function
+    """Result of a call to the :func:`.make_binned_map` function
 
     This dataclass has the following fields:
 
@@ -223,9 +223,9 @@ def _build_nobs_matrix(
     return nobs_matrix
 
 
-def make_bin_map(
-    obs: Union[Observation, List[Observation]],
+def make_binned_map(
     nside: int,
+    obs: Union[Observation, List[Observation]],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     components: List[str] = None,

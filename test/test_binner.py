@@ -54,7 +54,7 @@ def test_accumulate_map_and_info():
     assert np.allclose(np.linalg.solve(info, rhs), res_map)
 
 
-def test_make_bin_map_api_simulation(tmp_path):
+def test_make_binned_map_api_simulation(tmp_path):
     # We should add a more meaningful observation:
     # Currently this test just shows the interface
     sim = lbs.Simulation(
@@ -85,10 +85,10 @@ def test_make_bin_map_api_simulation(tmp_path):
     nside = 64
     #    obss[0].pixind = hp.ang2pix(nside, pointings[..., 0], pointings[..., 1])
     #    obss[0].psi = pointings[..., 2]
-    mapping.make_bin_map(obss, nside, pointings=[pointings])
+    mapping.make_binned_map(nside=nside, obs=obss, pointings=[pointings])
 
 
-def test_make_bin_map_basic_mpi():
+def test_make_binned_map_basic_mpi():
     if lbs.MPI_COMM_WORLD.size > 2:
         return
 
@@ -120,13 +120,13 @@ def test_make_bin_map_basic_mpi():
         obs.psi = psi.reshape(2, 18)
 
     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
-    res = mapping.make_bin_map(
-        [obs], 1, output_coordinate_system=CoordinateSystem.Ecliptic
+    res = mapping.make_binned_map(
+        nside=1, obs=[obs], output_coordinate_system=CoordinateSystem.Ecliptic
     )
     assert np.allclose(res.binned_map, res_map)
 
     obs.set_n_blocks(n_blocks_time=1, n_blocks_det=obs.comm.size)
-    res = mapping.make_bin_map(
-        [obs], 1, output_coordinate_system=CoordinateSystem.Ecliptic
+    res = mapping.make_binned_map(
+        nside=1, obs=[obs], output_coordinate_system=CoordinateSystem.Ecliptic
     )
     assert np.allclose(res.binned_map, res_map)
