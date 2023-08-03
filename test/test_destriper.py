@@ -417,6 +417,7 @@ def test_map_maker_parts():
 
     number_of_pixels = expected_solution.M.shape[0] // 3
 
+    invpp = nobs_matrix_cholesky.get_invnpp()
     for i in range(number_of_pixels):
         # Cut out the 3×3 submatrix corresponding to the i-th pixel
         cur_M_expected = expected_solution.M[3 * i : 3 * i + 3, 3 * i : 3 * i + 3]
@@ -429,6 +430,11 @@ def test_map_maker_parts():
 
         np.testing.assert_allclose(
             actual=cur_cholesky_calculated, desired=cur_cholesky_expected
+        )
+
+        np.testing.assert_allclose(
+            actual=invpp[i],
+            desired=np.linalg.inv(cur_M_expected),
         )
 
     #################################################
@@ -613,10 +619,10 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
 
     original_tod = np.copy(sim.observations[0].sky_signal)
     result = lbs.make_destriped_map(
+        nside=1,
         obs=sim.observations,
         pointings=None,
         params=lbs.DestriperParameters(
-            nside=1,
             output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
             samples_per_baseline=baseline_lengths_list,
             use_preconditioner=use_preconditioner,
@@ -820,7 +826,6 @@ def test_full_destriper(tmp_path):
     )
 
     destriper_params_noise = lbs.DestriperParameters(
-        nside=nside,
         output_coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
         samples_per_baseline=100,  # ν_samp = 1 Hz ⇒ the baseline is 100 s
         iter_max=10,
@@ -828,7 +833,7 @@ def test_full_destriper(tmp_path):
     )
 
     destriper_result = lbs.make_destriped_map(
-        obs=sim.observations, pointings=None, params=destriper_params_noise
+        nside=nside, obs=sim.observations, pointings=None, params=destriper_params_noise
     )
 
     # Check that the destriper converged to some solution

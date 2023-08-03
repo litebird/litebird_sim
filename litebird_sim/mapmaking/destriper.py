@@ -99,6 +99,66 @@ def split_items_evenly(n: int, sub_n: int) -> List[int]:
     return _split_items_into_n_segments(n=n, num_of_segments=int(np.ceil(n / sub_n)))
 
 
+@njit
+def _get_invnpp(
+    nobs_matrix_cholesky: npt.NDArray,
+    valid_pixel: npt.ArrayLike,
+    result: npt.NDArray,
+):
+    npix = nobs_matrix_cholesky.shape[0]
+
+    for ipix in range(npix):
+        if not valid_pixel[ipix]:
+            result[ipix, :, :] = 0.0
+            continue
+
+        # We associate each coefficient of the i-th matrix in
+        # `nobs_matrix_cholesky` to the following variables:
+        #
+        #     | a 0 0 |
+        # L = | b c 0 |
+        #     | d e f |
+        a, b, c, d, e, f = nobs_matrix_cholesky[ipix, :]
+
+        # Computing the inverse of L is trivial, the result is
+        #
+        #       |  1/a             0      0  |
+        # L⁻¹ = | −b/ac           1/c     0  |
+        #       | (be − cd)/acf  −e/cf   1/f |
+        #
+        # We assign its coefficients to the following letters:
+        #
+        #       | g 0 0 |
+        # L⁻¹ = | h i 0 |
+        #       | j k m |
+        g = 1 / a
+        h = -b / (a * c)
+        i = 1 / c
+        j = (b * e - c * d) / (a * c * f)
+        k = -e / (c * f)
+        m = 1 / f
+
+        # Now it's time for us to compute M⁻¹. We can do this quickly:
+        #
+        # M⁻¹ = (L L^T)⁻¹ = (L^T)⁻¹ L⁻¹ = (L⁻¹)^T L⁻¹
+        #
+        # where we used the fact that (AB)⁻¹ = B⁻¹ A⁻¹, and that
+        # (L^T)⁻¹ = (L⁻¹)^T. The product of (L⁻¹)^T and L⁻¹ is
+        #
+        # | g h i |   | g 0 0 |   | g²+h²+j²  hi+jk  jm |
+        # | 0 i k | · | h i 0 | = |  hi+jk   i²+k²   km |
+        # | j k m |   | j k m |   |   jm      km     m² |
+        result[ipix, 0, 0] = g**2 + h**2 + j**2
+        result[ipix, 1, 0] = h * i + j * k
+        result[ipix, 0, 1] = result[ipix, 1, 0]
+        result[ipix, 1, 1] = i**2 + k**2
+        result[ipix, 2, 0] = j * m
+        result[ipix, 0, 2] = result[ipix, 2, 0]
+        result[ipix, 2, 1] = k * m
+        result[ipix, 1, 2] = result[ipix, 2, 1]
+        result[ipix, 2, 2] = m**2
+
+
 @dataclass
 class NobsMatrix:
     """
@@ -136,6 +196,32 @@ class NobsMatrix:
         """Return the number of bytes used by this object"""
         return self.nobs_matrix.nbytes + self.valid_pixel.nbytes
 
+    def get_invnpp(self) -> npt.NDArray:
+        """Return the noise covariance matrix per pixel
+
+        This method returns a (N_pix, 3, 3) array containing the
+        3×3 matrices associated with each pixel that contain the
+        estimate noise per pixel. Each of the N_pix matrices
+        corresponds to Mᵢ⁻¹, the inverse of Mᵢ in Eq. (10) of
+        Kurki-Suonio et al. (2009).
+
+        A null matrix is associated with each invalid pixel.
+        """
+
+        assert self.is_cholesky, (
+            "You can use NobsMatrix.get_invnpp only after "
+            "having called the binner/destriper"
+        )
+
+        npix = self.nobs_matrix.shape[0]
+        result = np.empty((npix, 3, 3), dtype=np.float64)
+        _get_invnpp(
+            nobs_matrix_cholesky=self.nobs_matrix,
+            valid_pixel=self.valid_pixel,
+            result=result,
+        )
+        return result
+
 
 @dataclass
 class DestriperParameters:
@@ -149,7 +235,9 @@ class DestriperParameters:
     - ``output_coordinate_system`` (:class:`.CoordinateSystem`): the
       coordinate system of the output map
     - ``samples_per_baseline`` (integer): how many consecutive samples
-      in the TOD must be assigned to the same baseline
+      in the TOD must be assigned to the same baseline. If ``None``,
+      the destriper algorithm is skipped and a simple binning will
+      be done.
     - ``iter_max`` (integer): maximum number of iterations for the
       Conjugate Gradient
     - ``threshold`` (float): minimum value of the discrepancy between
@@ -162,7 +250,6 @@ class DestriperParameters:
       code.)
     """
 
-    nside: int = 256
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic
     samples_per_baseline: Optional[Union[int, List[npt.ArrayLike]]] = 100
     iter_max: int = 100
@@ -188,6 +275,7 @@ class DestriperResult:
     List of fields:
 
     - ``params``: an instance of the class :class:`.DestriperParameters`
+    - ``nside``: the resolution of the Healpix maps
     - ``hit_map``: a map of scalar values, each representing the sum
       of weights per pixel (normalized over the σ of each detector)
     - ``binned_map``: the binned map (i.e., *without* subtracting the
@@ -225,6 +313,7 @@ class DestriperResult:
     """
 
     params: DestriperParameters
+    nside: int
     components: List[str]
     hit_map: npt.ArrayLike
     binned_map: npt.ArrayLike
@@ -1259,9 +1348,10 @@ def destriper_log_callback(
 
 
 def make_destriped_map(
+    nside: int,
     obs: Union[Observation, List[Observation]],
     pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]] = None,
-    params=DestriperParameters(),
+    params: DestriperParameters = DestriperParameters(),
     components: Optional[List[str]] = None,
     keep_weights: bool = False,
     keep_pixel_idx: bool = False,
@@ -1374,7 +1464,7 @@ def make_destriped_map(
         obs=obs, pointings=pointings
     )
 
-    hpx = Healpix_Base(nside=params.nside, scheme="RING")
+    hpx = Healpix_Base(nside=nside, scheme="RING")
 
     # Convert pointings and ψ angles according to the coordinate system,
     # convert them into Healpix indices and save the result into
@@ -1532,6 +1622,7 @@ def make_destriped_map(
     elapsed_time_s = time.monotonic() - elapsed_time_s
     return DestriperResult(
         params=params,
+        nside=nside,
         components=components,
         hit_map=hit_map,
         binned_map=binned_map,
