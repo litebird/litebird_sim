@@ -254,7 +254,7 @@ class _Toast2FakeData:
 
 @dataclass
 class Toast2DestriperResult:
-    """Result of a call to the :func:`.make_bin_map` function
+    """Result of a call to :func:`.destripe_observations_with_toast2`
 
     This dataclass has the following fields:
 
