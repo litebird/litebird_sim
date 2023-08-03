@@ -38,7 +38,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
-from litebird_sim.mapmaking.binner import make_bin_map
+from litebird_sim.mapmaking.binner import make_binned_map
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
@@ -1374,7 +1374,7 @@ class Simulation:
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
-    def make_bin_map(
+    def make_binned_map(
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
@@ -1382,7 +1382,7 @@ class Simulation:
     ):
         """
         Bins the tods of `sim.observations` into maps.
-        The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
+        The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1395,7 +1395,7 @@ class Simulation:
                 coord=str(output_coordinate_system),
             )
 
-        return make_bin_map(
+        return make_binned_map(
             obs=self.observations,
             nside=nside,
             output_coordinate_system=output_coordinate_system,
@@ -1483,7 +1483,8 @@ class Simulation:
 
     def make_destriped_map(
         self,
-        params: DestriperParameters,
+        nside: int,
+        params: DestriperParameters = DestriperParameters(),
         components: Optional[List[str]] = None,
         keep_weights: bool = False,
         keep_pixel_idx: bool = False,
@@ -1493,6 +1494,7 @@ class Simulation:
         append_to_report: bool = True,
     ) -> DestriperResult:
         results = make_destriped_map(
+            nside=nside,
             obs=self.observations,
             pointings=None,
             params=params,

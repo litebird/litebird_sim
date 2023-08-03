@@ -112,7 +112,7 @@ def _normalize_observations_and_pointings(
     #
     # - obs_list contains a list of the observations to be used in the
     #   map-making process by the current MPI process. Unlike the `obs`
-    #   parameters used in functions like `make_bin_map`, this is
+    #   parameters used in functions like `make_binned_map`, this is
     #   *always* a list, i.e., even if there is just one observation
     #
     # - ptg_list: a list of pointing matrices, one per each observation,
@@ -144,7 +144,7 @@ def _normalize_observations_and_pointings(
             psi_list = [pointings[:, :, 2]]
         else:
             assert isinstance(pointings, list), (
-                "When you pass a list of observations to make_bin_map, "
+                "When you pass a list of observations to make_binned_map, "
                 + "you must do the same for `pointings`"
             )
             assert len(obs) == len(pointings), (

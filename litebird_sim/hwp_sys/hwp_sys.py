@@ -310,7 +310,7 @@ class HwpSys:
             self.atd = np.zeros((self.npix, 3))
             self.ata = np.zeros((self.npix, 3, 3))
         else:
-            # allocate those for "make_bin_map"
+            # allocate those for "make_binned_map"
             # later filled
             obs.psi = np.empty_like(obs.tod)
             obs.pixind = np.empty_like(obs.tod, dtype=np.int)
