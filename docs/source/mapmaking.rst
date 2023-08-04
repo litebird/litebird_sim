@@ -114,7 +114,7 @@ This is how it should be called::
 
 (The pointing information is included in the :class:`.Observation`,
 alternatively pointings can be provided as a list of numpy arrays.)
-The return object is an instance of the class :class:`.BinnerResult`
+The result is an instance of the class :class:`.BinnerResult`
 and contains both the I/Q/U maps and the covariance matrix.
 
 The :func:`.make_binned_map` has a high level interface in the class
@@ -137,7 +137,7 @@ more manageable!)
 Each sample is associated with a direction in the sky (the *pointing
 information*), but from the point of view of the binner the only quantity that
 matters is the index of the pixel in the map associated with the pointing
-direction. In our example, the seven pixels will observe just two pixels in the
+direction. In our example, the seven samples will measure just two pixels in the
 sky, with different attack (polarization) angles. The following figure and
 table show how the two pixels are observed by the seven TOD samples. The
 bars refer to the polarization angle of the detector.
@@ -152,7 +152,7 @@ bars refer to the polarization angle of the detector.
    Toy-example of a TOD containing 7 samples.
 
    The figure shows how the seven samples observe each of the two pixels
-   in the map. The vertical bars represent the direction of the attack angle
+   in the map. The thick bars represent the direction of the attack angle
    ψ, which coincides with the polarization angle of the detector projected
    on the center of the pixel.
 
@@ -190,8 +190,7 @@ A fundamental quantity in KS2009 is the *pointing matrix* matrix
 :math:`P`: it is a :math:`(N_t, 3N_p)` matrix where :math:`N_t`
 is the number of samples in the TOD (7 in our case) and
 :math:`N_p` is the number of pixels observed by the TOD (2 in
-our case). Thus, for our simple example the matrix P is the
-following:
+our case). Thus, for our simple example :math:`P` is
 
 .. math::
 
@@ -209,8 +208,8 @@ where the number of rows matches the number of samples in the TOD (7), and
 for each pixel there are three columns corresponding to I, Q, and U.
 
 It is important that each pixel be covered by enough samples: to recover the
-three Stokes parameters associated with each pixel (I, Q, and U), there must
-be at least three non-degenerate polarization angles per each pixel. KS2009
+three Stokes parameters associated with it (I, Q, and U), there must
+be at least three non-degenerate polarization angles. KS2009
 describes how to recover this information through the matrix
 :math:`M = P^T\cdot C_w^{-1}\cdot P`, where :math:`C_w` is a diagonal
 matrix with shape :math:`(N_t, N_t)`, where each element along the diagonal
@@ -303,7 +302,7 @@ in the TOD that fall within the same pixel, and finally :math:`M^{-1}`
 “solves” the linear system for the three parameters I, Q, and U per
 each pixel.
 
-Once the call to :func:`.make_binned_map` ends, the field ``invpp``
+Once the call to :func:`.make_binned_map` ends, the field ``invnpp``
 of the :class:`.BinnerResult` object returned by the function
 contains an array with shape :math:`(N_p, 3, 3)`, where each
 3×3 block is the inverse of the sub-matrix :math:`M_i` for the
@@ -346,7 +345,7 @@ discussing here.
 The idea of a destriper is to group consecutive samples in the same TOD into
 different *baselines*. Each baseline must contain a number of samples such that
 the noise within it will be roughly white; thus, the baseline should not contain
-too much samples! A good rule of thumb is to make the time span covered by
+too many samples! A good rule of thumb is to make the time span covered by
 one baseline shorter than the inverse of the knee frequency for that detector.
 The destriper works by assuming that the effect of 1/f noise on all the samples
 within the baselines is a purely additive factor; this is an approximation,
@@ -506,7 +505,7 @@ There are several possible definitions for the norm:
 2. The :math:`L_\infty` norm: :math:`\max_i\left|r_i^{(n)}\right|`.
 
 Function :func:`.make_destriped_map` adopts :math:`L_\infty`: it is
-stricter than :math:`L_\infty` norm, because it does not wash out the
+stricter than :math:`L_2`, because it does not wash out the
 presence of a few large residuals even if all the others are negligible.
 
 The convergence of the Conjugated Gradient can be controlled by the
@@ -540,7 +539,7 @@ went:
   the destriper was not able to converge because of a too small value of
   ``iter_max``.
 
-The baselines are saved in the field ``baselines`` of the :class`.DestriperResult`
+The baselines are saved in the field ``baselines`` of the :class:`.DestriperResult`
 class; this is a list of 2D arrays, where each element in the list is
 associated with one of the observations passed in the parameter ``obs``. The
 shape of each 2D arrays is :math:`(N_d, N_b),` where
@@ -609,9 +608,9 @@ which contains the following fields:
 - ``nobs_matrix`` is a 2D array of shape :math:`(N_p, 6)`, containing
   the nonzero components of the :math:`N_p` matrices;
 - ``valid_pixel`` is a 1D Boolean array containing :math:`N_p` elements:
-  each of them is ``True`` is the corresponding matrix :math:`M_i`
+  each of them is ``True`` if the corresponding matrix :math:`M_i`
   was invertible (i.e., it was observed with at least three non-degenerate
-  attack angles), ``False`` otherwise
+  attack angles), ``False`` otherwise;
 - ``is_cholesky`` is a flag that tells whether ``nobs_matrix`` contains
   the nonzero coefficients of the many :math:`L_i` matrices or the
   lower triangular part of :math:`M_i`. After a successful call to

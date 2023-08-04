@@ -321,7 +321,7 @@ def setup_simulation(
         num_of_obs_per_detector=sim.mpi_comm.size,
     )
 
-    assert len(sim.observations) > 0, f"no observations for process {sim.mpi_comm.size}"
+    assert len(sim.observations) > 0, f"no observations for process {sim.mpi_comm.rank}"
 
     descr = sim.describe_mpi_distribution()
     num_of_samples = 0
@@ -438,8 +438,8 @@ def test_map_maker_parts():
         )
 
     #################################################
-    # Step 2: check that binning is correct (the result of P^t C_w⁻¹ y,
-    # see Equations (18), (19), and (20)
+    # Step 2: check that binning is correct, i.e., the result of
+    # P^t C_w⁻¹ y, see Equations (18), (19), and (20)
 
     # Make sure that sky_signal += +1.0 * (baseline + white_noise)
     _sum_components_into_obs(
@@ -492,8 +492,8 @@ def test_map_maker_parts():
     else:
         full_baselines = np.array([[0.0, 10.0]])
         # With 2 MPI processes:
-        #     1. baselines_list=[array([0.])]
-        #     2. baselines_list=[array([10.])]
+        #     MPI#1: baselines_list=[array([0.])]
+        #     MPI#2: baselines_list=[array([10.])]
         baselines_list = [np.array([full_baselines[MPI_COMM_WORLD.rank]])]
 
     # This array will hold the result
@@ -695,20 +695,11 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
             nobs_matrix_cholesky=result.nobs_matrix_cholesky,
         )
     else:
-        # Check the binned map
-        for cur_pix in range(len(result.hit_map)):
-            if result.nobs_matrix_cholesky.valid_pixel[cur_pix]:
-                np.testing.assert_allclose(
-                    actual=result.binned_map[:, cur_pix],
-                    desired=expected_solution.input_maps[
-                        (3 * cur_pix) : (3 * cur_pix + 3)
-                    ],
-                    rtol=1e-5,
-                )
-            else:
-                assert np.isnan(result.binned_map[0, cur_pix])
-                assert np.isnan(result.binned_map[1, cur_pix])
-                assert np.isnan(result.binned_map[2, cur_pix])
+        _compare_analytical_vs_estimated_map(
+            actual=result.binned_map,
+            desired=expected_solution.input_maps,
+            nobs_matrix_cholesky=result.nobs_matrix_cholesky,
+        )
 
 
 def test_map_maker_without_destriping():
@@ -777,7 +768,6 @@ def test_full_destriper(tmp_path):
     sim.create_observations(
         detectors=dets,
         num_of_obs_per_detector=sim.mpi_comm.size,
-        dtype_tod=np.float64,  # This is needed if we want to use the TOAST mapmaker ☹
     )
 
     assert len(sim.observations) == 1

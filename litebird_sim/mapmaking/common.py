@@ -33,7 +33,7 @@ class ExternalDestriperParameters:
 
     - ``baseline_length_s``: length of the baseline for 1/f noise in seconds
 
-    - ``iter_max``: maximum number of iterations
+    - ``iter_max``: maximum number of iterations. The default is 100
 
     - ``output_file_prefix``: prefix to be used for the filenames of the
       Healpix FITS maps saved in the output directory
@@ -83,8 +83,8 @@ def get_map_making_weights(obs: Observation, check: bool) -> npt.NDArray:
     """Return a NumPy array containing the weights of each detector in `obs`
 
     The number of elements in the result is equal to `obs.n_detectors`. If
-    `check` is true, verifies that the weights are ok for the map-maker to
-    proceed: if not, an `assert` is raised.
+    `check` is true, verify that the weights are ok for the map-maker to
+    proceed; if not, an `assert` is raised.
     """
 
     try:

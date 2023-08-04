@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-# The implementation of the destriping algorithm provided here is based on the paper
+# The implementation of the binning algorithm provided here is derived
+# from the more general destriping equation presented in the paper
 # «Destriping CMB temperature and polarization maps» by Kurki-Suonio et al. 2009,
 # A&A 506, 1511–1539 (2009), https://dx.doi.org/10.1051/0004-6361/200912361
 #
@@ -86,8 +87,8 @@ def _accumulate_samples_and_build_nobs_matrix(
     #
     # 1. The upper triangle and the diagonal contains the coefficients in
     #    Eq. (10) of KurkiSuonio2009. This must be set just once, as it only
-    #    depends on the pointing information The flag `additional_component`
-    #    tells if this part must be calculated (``false``) or not
+    #    depends on the pointing information. The flag `additional_component`
+    #    tells if this part must be calculated (``False``) or not
     # 2. The lower triangle contains the weighted sum of I/Q/U, i.e.,
     #
     #       (I + Q·cos(2ψ) + U·sin(2ψ)) / σ²
@@ -134,7 +135,7 @@ def _numba_extract_map_and_fill_nobs_matrix(
 ) -> None:
     # This is used internally by _extract_map_and_fill_info. The function
     # modifies both `info` and `rhs`; the first parameter would be a `inout` parameter
-    # (it is both used as input and output), while `rhs` is a `out` parameter
+    # (it is both used as input and output), while `rhs` is an `out` parameter
     for idx in range(nobs_matrix.shape[0]):
         # Extract the vector from the lower left triangle of the 3×3 matrix
         # nobs_matrix[idx, :, :]
@@ -243,7 +244,7 @@ def make_binned_map(
                with ``N_d`` number of detectors and ``N_t`` number of
                samples in the TOD.
             * any attribute listed in `components` (by default, `tod`) and
-              containing the TOD(s) to be binned together
+              containing the TOD(s) to be binned together.
 
             If the observations are distributed over some communicator(s), they
             must share the same group processes.
@@ -253,7 +254,6 @@ def make_binned_map(
         nside (int): HEALPix nside of the output map
         pointings (array or list of arrays): optional, external pointing
             information, if not included in the observations
-        do_covariance (bool): optional, if true it returns also covariance
         output_coordinate_system (:class:`.CoordinateSystem`): the coordinates
             to use for the output map
         components (list[str]): list of components to include in the map-making.
