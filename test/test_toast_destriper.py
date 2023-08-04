@@ -185,7 +185,6 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
                 name="0B", sampling_rate_hz=10, quat=lbs.quat_rotation_z(np.pi / 2)
             ),
         ],
-        # num_of_obs_per_detector=lbs.MPI_COMM_WORLD.size,
         dtype_tod=np.float64,
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         split_list_over_processes=False,
@@ -372,7 +371,7 @@ def test_destriper_coordinate_consistency(tmp_path):
     params = lbs.MbsParameters(
         make_cmb=True,
         nside=8,
-        maps_in_ecliptic=True,
+        maps_in_ecliptic=False,
     )
     mbs = lbs.Mbs(
         simulation=sim,
