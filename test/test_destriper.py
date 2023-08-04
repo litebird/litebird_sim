@@ -695,6 +695,7 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
             nobs_matrix_cholesky=result.nobs_matrix_cholesky,
         )
     else:
+        # Check the binned map
         _compare_analytical_vs_estimated_map(
             actual=result.binned_map,
             desired=expected_solution.input_maps,
