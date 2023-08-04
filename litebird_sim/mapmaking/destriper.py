@@ -1375,7 +1375,7 @@ def make_destriped_map(
     and the result of applying the binning to the destriped TOD. The
     parameter `step_number` is an integer between 0 and ``max_steps - 1``
     and it is increased by 1 each time the callback is called. The
-    callback function can accepts more parameters; in this case, their
+    callback function can accept more parameters; in this case, their
     value must be passed using the `callback_kwargs` parameter. For
     instance, you might be running the destriper within a graphical
     program and you would show a progress bar dialog; in this case, one
