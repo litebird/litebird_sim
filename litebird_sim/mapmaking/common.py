@@ -31,7 +31,8 @@ class ExternalDestriperParameters:
 
     - ``nnz``: number of components per pixel. The default is 3 (I/Q/U).
 
-    - ``baseline_length_s``: length of the baseline for 1/f noise in seconds
+    - ``baseline_length_s``: length of the baseline for 1/f noise in seconds.
+      The default is 60.0 s.
 
     - ``iter_max``: maximum number of iterations. The default is 100
 
