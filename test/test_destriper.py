@@ -509,7 +509,7 @@ def test_map_maker_parts():
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
-        component="sky_signal",
+        component=None,
     )
 
     _compute_baseline_sums(
