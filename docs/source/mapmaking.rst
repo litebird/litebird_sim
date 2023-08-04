@@ -27,7 +27,7 @@ The framework provides the following solutions:
 3. A wrapper that enables you to use the
    `TOAST2 <https://github.com/hpc4cmb/toast>`_ destriper. (To use
    this, you must ensure that the package
-   `toast-cmb <https://pypi.org/project/toast-cmb/>`_ is installed.)
+   `toast <https://pypi.org/project/toast/>`_ is installed.)
 
 4. You can also use :func:`.save_simulation_for_madam` to save TODs
    and pointing information to disk and then manually call the `Madam
@@ -629,7 +629,7 @@ store the value of :math:`M_i^{-1}`.
 TOAST2 Destriper
 ----------------
 
-If you install the `toast-cmb <https://pypi.org/project/toast-cmb/>`_ using ``pip``,
+If you install the `toast <https://pypi.org/project/toast/>`_ using ``pip``,
 you can use the `TOAST2 <https://github.com/hpc4cmb/toast>`_ destriper within
 the LiteBIRD Simulation Framework. As TOAST is an optional dependency, you
 should check if the Framework was able to detect its presence::
