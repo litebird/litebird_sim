@@ -137,7 +137,7 @@ except ImportError:
 
     def destripe_with_toast2(*args, **kwargs):
         raise ImportError(
-            "Install the toast-cmb package using `pip` to use destripe_with_toast2"
+            "Install the toast package using `pip` to use destripe_with_toast2"
         )
 
     TOAST_ENABLED = False

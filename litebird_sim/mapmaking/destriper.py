@@ -51,13 +51,13 @@ def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
 
     .. testsetup::
 
-        from litebird_sim.mapping import _split_into_n
+        from litebird_sim.mapping import _split_items_into_n_segments
 
     .. testcode::
 
         # Divide 10 items into 4 groups, so that each of them will
         # have roughly the same number of items
-        print(split_into_n(10, 4))
+        print(_split_items_into_n_segments(10, 4))
 
     .. testoutput::
 
@@ -76,7 +76,7 @@ def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
 
 
 def split_items_evenly(n: int, sub_n: int) -> List[int]:
-    """Evenly split `n` of items into groups, each with roughly `sublength` elements
+    """Evenly split `n` items into groups, each with roughly `sub_n` elements
 
     .. testsetup::
 
@@ -145,9 +145,9 @@ def _get_invnpp(
         # where we used the fact that (AB)⁻¹ = B⁻¹ A⁻¹, and that
         # (L^T)⁻¹ = (L⁻¹)^T. The product of (L⁻¹)^T and L⁻¹ is
         #
-        # | g h i |   | g 0 0 |   | g²+h²+j²  hi+jk  jm |
-        # | 0 i k | · | h i 0 | = |  hi+jk   i²+k²   km |
-        # | j k m |   | j k m |   |   jm      km     m² |
+        # | g h j |   | g 0 0 |   | g²+h²+j²  hi+jk  jm |
+        # | 0 i k | · | h i 0 | = |  hi+jk    i²+k²  km |
+        # | 0 0 m |   | j k m |   |   jm       km    m² |
         result[ipix, 0, 0] = g**2 + h**2 + j**2
         result[ipix, 1, 0] = h * i + j * k
         result[ipix, 0, 1] = result[ipix, 1, 0]
@@ -197,7 +197,7 @@ class NobsMatrix:
         return self.nobs_matrix.nbytes + self.valid_pixel.nbytes
 
     def get_invnpp(self) -> npt.NDArray:
-        """Return the noise covariance matrix per pixel
+        """Return the inverse noise covariance matrix per pixel
 
         This method returns a (N_pix, 3, 3) array containing the
         3×3 matrices associated with each pixel that contain the
@@ -275,41 +275,41 @@ class DestriperResult:
     List of fields:
 
     - ``params``: an instance of the class :class:`.DestriperParameters`
-    - ``nside``: the resolution of the Healpix maps
+    - ``nside``: the resolution of the Healpix maps.
     - ``hit_map``: a map of scalar values, each representing the sum
-      of weights per pixel (normalized over the σ of each detector)
+      of weights per pixel (normalized over the σ of each detector).
     - ``binned_map``: the binned map (i.e., *without* subtracting the
-      1/f baselines estimated by the destriper)
+      1/f baselines estimated by the destriper).
     - ``nobs_matrix_cholesky``: an instance of the class
-      :class:`.NobsMatrix`
+      :class:`.NobsMatrix`.
     - ``coordinate_system``: the coordinate system of the maps
-      ``hit_map``, ``binned_map``, and ``destriped_map``
+      ``hit_map``, ``binned_map``, and ``destriped_map``.
     - ``baselines``: a Python list of NumPy arrays (one per each
       observation passed to the destriper) containing the value
-      of the baselines
+      of the baselines.
     - ``baseline_errors``: a Python list of NumPy arrays (one per
-      each  observation passed to the destriper) containing an
+      each observation passed to the destriper) containing an
       optimistic estimate of the error per each baseline. This error
       is estimated assuming that there is no correlation between
       baselines, which is only a rough approximation.
     - ``baseline_lengths``: a Python list of NumPy arrays (one per
-      each  observation passed to the destriper) containing the
+      each observation passed to the destriper) containing the
       number of TOD samples per each baseline.
     - ``stopping_factor``: the maximum residual for the destriping
       solution stored in the field `baselines`. It is an assessment
       of the quality of the solution found by the destriper: the
-      lower, the better
+      lower, the better.
     - ``history_of_stopping_factors``: list of stopping factors
       computed by the iterative algorithm. This list should ideally
       be monothonically decreasing, as this means that the destriping
       algorithm was able to converge to the correct solution.
     - ``converged``: a Boolean flag telling whether the destriper
       was able to achieve the desired accuracy (the value of
-      ``params.threshold``)
+      ``params.threshold``).
     - ``elapsed_time_s``: the elapsed time spent by the function
-      :func:`.make_destriped_map`
+      :func:`.make_destriped_map`.
     - ``bytes_in_temporary_buffers``: the number of bytes allocated
-      internally by the destriper for temporary buffers
+      internally by the destriper for temporary buffers.
     """
 
     params: DestriperParameters
@@ -349,32 +349,6 @@ def _sum_components_into_obs(
 
         for other_component in other_components:
             target_tod += factor * getattr(cur_obs, other_component)
-
-
-@njit
-def _solve_map_making(nobs_matrix, atd):
-    """
-    Apply M⁻¹ to `atd`
-
-    The parameter `nobs_matrix` is the M matrix (eq. 9 in KurkiSuonio2009).
-
-    This is the same as _solve_binning (see above), but as it needs to be
-    called iteratively it does not alter `nobs_matrix`.
-
-    Expected shape:
-    - `nobs_matrix`: (N_p, 3, 3) is an array of N_p 3×3 matrices, where
-      N_p is the number of pixels in the map
-    - `atd`: (N_p, 3)
-    """
-    npix = atd.shape[0]
-
-    for ipix in range(npix):
-        # TODO: we should save the value of `cond` somewhere instead of calculating it
-        #       again every time
-        if np.linalg.cond(nobs_matrix[ipix]) < COND_THRESHOLD:
-            atd[ipix] = np.linalg.solve(nobs_matrix[ipix], atd[ipix])
-        else:
-            atd[ipix].fill(hp.UNSEEN)
 
 
 @njit
@@ -424,8 +398,8 @@ def _nobs_matrix_to_cholesky(
     """Apply `cholesky` iteratively on all the input maps in `nobs_matrix`
     and save each result in `nobs_matrix_cholesky`"""
 
-    for i in range(nobs_matrix.shape[0]):
-        cur_nobs_matrix = nobs_matrix[i]
+    for pixel_idx in range(nobs_matrix.shape[0]):
+        cur_nobs_matrix = nobs_matrix[pixel_idx]
         (cond_number, flag) = estimate_cond_number(
             a00=cur_nobs_matrix[0],
             a10=cur_nobs_matrix[1],
@@ -434,8 +408,8 @@ def _nobs_matrix_to_cholesky(
             a21=cur_nobs_matrix[4],
             a22=cur_nobs_matrix[5],
         )
-        dest_valid_pixel[i] = flag and (cond_number < COND_THRESHOLD)
-        if dest_valid_pixel[i]:
+        dest_valid_pixel[pixel_idx] = flag and (cond_number < COND_THRESHOLD)
+        if dest_valid_pixel[pixel_idx]:
             cholesky(
                 a00=cur_nobs_matrix[0],
                 a10=cur_nobs_matrix[1],
@@ -443,7 +417,7 @@ def _nobs_matrix_to_cholesky(
                 a20=cur_nobs_matrix[3],
                 a21=cur_nobs_matrix[4],
                 a22=cur_nobs_matrix[5],
-                dest_L=dest_nobs_matrix_cholesky[i],
+                dest_L=dest_nobs_matrix_cholesky[pixel_idx],
             )
         # There is no `else`: we assume that
         # `nobs_matrix_cholesky` was already initialized
@@ -495,7 +469,7 @@ def _build_nobs_matrix(
         MPI_COMM_WORLD.Allreduce(mpi4py.MPI.IN_PLACE, nobs_matrix, op=mpi4py.MPI.SUM)
 
     # `nobs_matrix_cholesky` will *not* contain the M_i maps shown in
-    # Eq. 9 of KurkiSuonio2009, but its Cholesky Decomposition, i.e.,
+    # Eq. 9 of KurkiSuonio2009, but its Cholesky decomposition, i.e.,
     # a lower-triangular matrix L such that M_i = L_i · L_i†.
     nobs_matrix_cholesky = np.zeros((hpx.npix(), 6))  # Do not use np.empty() here!
     valid_pixel = np.empty(hpx.npix(), dtype=np.bool_)
@@ -532,12 +506,9 @@ def _sum_map_contribution_from_one_sample(
 ) -> None:
     "This code implements Eqq. (18)–(20)"
 
-    sin_term = np.sin(2 * pol_angle_rad)
-    cos_term = np.cos(2 * pol_angle_rad)
-
     dest_array[0] += sample / weight
-    dest_array[1] += sample * cos_term / weight
-    dest_array[2] += sample * sin_term / weight
+    dest_array[1] += sample * np.cos(2 * pol_angle_rad) / weight
+    dest_array[2] += sample * np.sin(2 * pol_angle_rad) / weight
 
 
 @njit
@@ -668,6 +639,7 @@ def _compute_binned_map(
 
     This is applied either to `y` or to `Fa`, depending on whether
     the parameter `baselines_list` is ``None`` or not, respectively.
+    (You *must* pass one of them, but not both.)
 
     The result is saved in `sky_map` (a 3,N_p tensor) and `hit_map`
     (a N_p vector).
@@ -678,9 +650,11 @@ def _compute_binned_map(
         "contain the Cholesky decompositions of the 3×3 M_i matrices"
     )
 
-    assert (baselines_list is not None) or (component is not None), (
+    assert ((baselines_list is not None) and (component is None)) or (
+        (baselines_list is None) and (component is not None)
+    ), (
         "To call _compute_binned_map you must either provide "
-        "the baselines or the TOD component"
+        "the baselines or the TOD component, but not both"
     )
 
     # Step 1: compute the “sum map” (Eqq. 18–20)
@@ -937,7 +911,7 @@ def _get_stopping_factor(residual: List[npt.ArrayLike]) -> float:
     stopping factors for solutions where nearly all the baselines are ok
     but a few of them are significantly off.
     """
-    local_result = max([np.max(np.abs(cur_baseline)) for cur_baseline in residual])
+    local_result = np.max(np.abs(residual))
     if MPI_ENABLED:
         return MPI_COMM_WORLD.allreduce(local_result, op=mpi4py.MPI.MAX)
     else:
@@ -1049,20 +1023,20 @@ def compute_weighted_baseline_length(
     algorithm.
     """
 
-    for i in range(len(result)):
-        result[i] = 0.0
+    for det_idx in range(len(result)):
+        result[det_idx] = 0.0
         for cur_weight in weights:
-            result[i] += lengths[i] / cur_weight
+            result[det_idx] += lengths[det_idx] / cur_weight
 
         # We store the *inverse*, i.e., the diagonal of matrix M⁻¹
-        result[i] = 1.0 / result[i]
+        result[det_idx] = 1.0 / result[det_idx]
 
 
 def _create_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLike]:
     """
     We just compute (F^T·C_w⁻¹·F)⁻¹, which is a diagonal matrix containing
     the number of elements in each baseline divided by σ². (Remember
-    that the field `destriper_weights` already contain σ².)
+    that the field `destriper_weights` already contains σ².)
 
     This is the most common choice, but it's not necessarily the best one.
     See for instance these papers:
@@ -1150,7 +1124,10 @@ def _run_destriper(
         "already contains the Cholesky transforms"
     )
 
-    assert len(obs_list) == len(baselines_list_start)
+    assert len(obs_list) == len(baselines_list_start), (
+        f"There are {len(obs_list)} observations, but `baselines_list_start` "
+        f"only contains {len(baselines_list_start)} elements"
+    )
 
     # We allocate all the memory in advance: this ensures the code is fast
     # and prevents memory fragmentation
@@ -1304,7 +1281,7 @@ def _run_destriper(
         output_sky_map=destriped_map,
         output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
-        component=component,
+        component=None,
         baselines_list=best_x,
         baseline_lengths_list=baseline_lengths_list,
     )
@@ -1316,10 +1293,12 @@ def _run_destriper(
     # Remove the mean value from I, as it is meaningless
     mask = np.isfinite(destriped_map[0, :])
     destriped_map[0, mask] -= np.mean(destriped_map[0, mask])
+    bytes_in_temporary_buffers += mask.nbytes
 
     if MPI_ENABLED:
         bytes_in_temporary_buffers = MPI_COMM_WORLD.allreduce(
-            bytes_in_temporary_buffers
+            bytes_in_temporary_buffers,
+            op=mpi4py.MPI.SUM,
         )
 
     return (
@@ -1434,13 +1413,13 @@ def make_destriped_map(
     :param keep_weights: the destriper adds a `destriper_weights`
        field to each :class:`.Observation` object in `obs`, and
        it deletes it once the map has been produced. Setting
-       this parameter to ``False`` prevents the field from being
+       this parameter to ``True`` prevents the field from being
        deleted. (Useful for debugging.)
-    :param keep_pixel_idx: same as `keep_weight`, but the
-       field to be deleted from the :class:`.Observation`
+    :param keep_pixel_idx: same as `keep_weights`, but the
+       field to be kept from the :class:`.Observation`
        classes is `destriper_pixel_idx`
-    :param keep_pol_angle_rad: same as `keep_weight`, but the
-       field to be deleted from the :class:`.Observation`
+    :param keep_pol_angle_rad: same as `keep_weights`, but the
+       field to be kept from the :class:`.Observation`
        classes is `destriper_pol_angle_rad`
     :param callback: a function that is called during each
        iteration of the CG routine. It is meant as a way to
@@ -1558,7 +1537,8 @@ def make_destriped_map(
 
         if MPI_ENABLED:
             bytes_in_temporary_buffers = MPI_COMM_WORLD.allreduce(
-                bytes_in_temporary_buffers
+                bytes_in_temporary_buffers,
+                op=mpi4py.MPI.SUM,
             )
     else:
         # No need to run the destriping, just compute the binned map with
@@ -1841,10 +1821,6 @@ def _save_rank0_destriper_results(results: DestriperResult, output_file: Path) -
             results.params.threshold,
             "Threshold to stop the iterations",
         )
-        history_hdu.header["PRECOND"] = (
-            results.params.use_preconditioner,
-            "Was the preconditioner used?",
-        )
         history_hdu.header["STOPFACT"] = (
             results.stopping_factor,
             "Actual value of the stopping factor",
@@ -1874,7 +1850,7 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
     )
     primary_hdu.header["MPISIZE"] = (
         MPI_COMM_WORLD.size,
-        "The number of MPI process used in the computation",
+        "The number of MPI processes used in the computation",
     )
 
     hdu_list = [primary_hdu]
@@ -1963,7 +1939,7 @@ def save_destriper_results(results: DestriperResult, output_folder: Path) -> Non
     """
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    # Ony MPI process #0 saves the file with the maps
+    # Only MPI process #0 saves the file with the maps
     if MPI_COMM_WORLD.rank == 0:
         _save_rank0_destriper_results(
             results=results, output_file=output_folder / __DESTRIPER_RESULTS_FILE_NAME

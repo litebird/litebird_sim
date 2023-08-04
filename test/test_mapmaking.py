@@ -5,9 +5,6 @@ import numpy as np
 from litebird_sim.mapmaking.common import cholesky, solve_cholesky, estimate_cond_number
 
 
-# A = np.array([[300.0, -100.0, 173.205], [-100.0, 150.0, 0.0], [173.205, 0.0, 150.0]])
-
-
 def _generate_random_positive_definite_matrix(
     N: int, random: np.random.Generator
 ) -> np.ndarray:
@@ -82,12 +79,6 @@ def test_cholesky_and_solve_random():
 
 
 def test_estimate_cond_number():
-    # To check the correctness of the two methods `cholesky` and `solve_cholesky`,
-    # we generate a high number of random 3×3 matrices that satisfy the two
-    # properties of (1) symmetry, and (2) positive definiteness, and we check
-    # that the results of our functions match the ones returned by the (slower)
-    # numpy.linalg.cholesky and numpy.linalg.solve
-
     random = np.random.Generator(np.random.PCG64(12345))
 
     # Run the test on 1000 matrices

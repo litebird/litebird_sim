@@ -9,6 +9,6 @@ import sys
 
 # Path(__file__): "litebird_sim/notebooks/fixpythonpath.py"
 # Path(__file__).parent: "litebird_sim/notebooks/"
-# Path(__file__): "litebird_sim/"
+# Path(__file__).parent.parent: "litebird_sim/"
 curpath = Path(__file__).parent.parent.absolute()
 sys.path.insert(0, str(curpath))

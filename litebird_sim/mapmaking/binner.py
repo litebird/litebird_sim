@@ -134,8 +134,9 @@ def _numba_extract_map_and_fill_nobs_matrix(
     nobs_matrix: npt.ArrayLike, rhs: npt.ArrayLike
 ) -> None:
     # This is used internally by _extract_map_and_fill_info. The function
-    # modifies both `info` and `rhs`; the first parameter would be a `inout` parameter
-    # (it is both used as input and output), while `rhs` is an `out` parameter
+    # modifies both `info` and `rhs`; the first parameter would be an `inout`
+    # parameter in Fortran (it is both used as input and output), while `rhs`
+    # is an `out` parameter
     for idx in range(nobs_matrix.shape[0]):
         # Extract the vector from the lower left triangle of the 3×3 matrix
         # nobs_matrix[idx, :, :]

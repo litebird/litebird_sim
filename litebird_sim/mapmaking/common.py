@@ -37,7 +37,8 @@ class ExternalDestriperParameters:
     - ``iter_max``: maximum number of iterations. The default is 100
 
     - ``output_file_prefix``: prefix to be used for the filenames of the
-      Healpix FITS maps saved in the output directory
+      Healpix FITS maps saved in the output directory. The default
+      is ``lbs_``.
 
     The following Boolean flags specify which maps should be returned
     by the function :func:`.destripe`:
@@ -119,8 +120,8 @@ def _normalize_observations_and_pointings(
     # - ptg_list: a list of pointing matrices, one per each observation,
     #   each belonging to the current MPI process
     #
-    # - psi_list: a list of pointing angle vectors, one per each observation,
-    #   each belonging to the current MPI process
+    # - psi_list: a list of polarisation angle vectors, one per each
+    #   observation, each belonging to the current MPI process
     #
     # This function builds the tuple (obs_list, ptg_list, psi_list) and
     # returns it.
@@ -193,7 +194,7 @@ def _compute_pixel_indices(
         pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
 
     if output_coordinate_system == CoordinateSystem.Galactic:
-        # free curr_pointings_det if the output map is already in Galactic coordinates
+        # Free curr_pointings_det if the output map is already in Galactic coordinates
         del curr_pointings_det
 
     return pixidx_all, polang_all
@@ -204,10 +205,10 @@ def _cholesky_plain(A: npt.ArrayLike, dest_L: npt.ArrayLike) -> None:
 
     # The following function is a standard textbook implementation of
     # the Cholesky algorithm. It works for an arbitrary matrix N×N.
-    # I have inserted "print" statements so that when this is run, it
+    # "print" statements have been inserted, so that when this is run, it
     # produces the plain list of statements used to compute the matrix.
     # This is used to implement the function _cholesky_explicit that
-    # is provided below
+    # is provided below, which only works on 3×3 matrices.
 
     N = 3
     for i in range(N):
@@ -237,12 +238,12 @@ def _cholesky_explicit(A, dest_L):
 
     # The code below is the result of a manual optimization of the output
     # of the `print` statements in the function `_cholesky_plain` above.
-    # If you run `_cholesky_plain` passing a 3×3 matrix, the list of
-    # statements produced in the output involve useless operations, like
-    # adding terms that are always equal to zero. By manually removing
-    # them, one gets the current implementation of `_cholesky_explicit`,
-    # which was in turn used to implement the `cholesky` function
-    # provided below.
+    # If you pass a 3×3 matrix to `_cholesky_plain`, the list of
+    # statements produced in the output involves many useless operations,
+    # like adding terms that are always equal to zero. By manually
+    # removing them, one gets the current implementation of
+    # `_cholesky_explicit`, which was in turn used to implement the
+    # `cholesky` function provided below.
 
     dest_L[0][1] = 0.0
     dest_L[0][2] = 0.0
@@ -304,7 +305,7 @@ def solve_cholesky(
     """Solve Ax = b if A is a 3×3 symmetric positive definite matrix.
 
     Instead of providing the matrix A, the caller is expected to provide its
-    Cholesky decomposition:  the parameter `L` is the lower-triangular matrix
+    Cholesky decomposition: the parameter `L` is the lower-triangular matrix
     such that A = L·L†
     """
 
@@ -348,10 +349,14 @@ def estimate_cond_number(
     """
 
     # Precondition the matrix by dividing each member by the largest
-    max0 = max(np.abs(a00), np.abs(a10))
-    max1 = max(np.abs(a20), np.abs(a11))
-    max2 = max(np.abs(a21), np.abs(a22))
-    max_abs_element = max(max(max0, max1), max2)
+    max_abs_element = max(
+        np.abs(a00),
+        np.abs(a10),
+        np.abs(a20),
+        np.abs(a11),
+        np.abs(a21),
+        np.abs(a22),
+    )
 
     if max_abs_element == 0.0:
         # All the elements are 0.0, quit immediately
@@ -383,7 +388,7 @@ def estimate_cond_number(
         halfDet = min(max(halfDet, -1), 1)
 
         angle = np.arccos(halfDet) / 3
-        twoThirdsPi = 2.09439510239319549
+        twoThirdsPi = 2 * np.pi / 3
         beta2 = np.cos(angle) * 2
         beta0 = np.cos(angle + twoThirdsPi) * 2
         beta1 = -(beta0 + beta2)
@@ -403,7 +408,7 @@ def estimate_cond_number(
     eval1 = np.abs(eval1 * max_abs_element)
     eval2 = np.abs(eval2 * max_abs_element)
 
-    min_abs_eval = min(min(eval0, eval1), eval2)
+    min_abs_eval = min(eval0, eval1, eval2)
     if min_abs_eval < 1e-10:
         # The matrix is singular (detA = 0)
         return (0.0, False)

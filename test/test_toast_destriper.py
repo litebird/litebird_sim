@@ -65,7 +65,7 @@ def test_basic_functionality(tmp_path):
         lbs.DetectorInfo(name="mock_detector", sampling_rate_hz=sampling_frequency_hz)
     ]
 
-    # creating one observation
+    # Creating one observation
     sim.create_observations(
         detectors=detectors,
         n_blocks_det=1,
@@ -102,7 +102,7 @@ def test_basic_functionality(tmp_path):
         num=num_of_samples,
     )
 
-    param_noise_madam = lbs.ExternalDestriperParameters(
+    params_toast2 = lbs.ExternalDestriperParameters(
         nside=nside,
         nnz=1,  # Compute just I
         baseline_length_s=samples_per_baseline / sampling_frequency_hz,
@@ -121,7 +121,7 @@ def test_basic_functionality(tmp_path):
     # Run the toast_destriper and modify the TOD in place
     result = lbs.destripe_with_toast2(
         sim=sim,
-        params=param_noise_madam,
+        params=params_toast2,
         component="full_tod",
     )
 
@@ -137,19 +137,19 @@ def test_basic_functionality(tmp_path):
     # constrained by the destriping equations. We just check that this
     # mismatch is constant.
     mismatch = computed_baselines - expected_baselines
-    assert np.allclose(mismatch, mismatch[0])
+    np.testing.assert_allclose(actual=mismatch, desired=mismatch[0])
 
     # Compute the expected hit map and check that the toast_destriper got it
     # right
     expected_hit_map = np.bincount(pixidx, minlength=len(result.hit_map))
-    assert np.allclose(expected_hit_map, result.hit_map)
+    np.testing.assert_allclose(actual=expected_hit_map, desired=result.hit_map)
 
     # Compute the difference between the input map and the destriped map,
     # and check that their difference is a constant (see above the
     # discussion for "mismatch").
     hit_mask = result.hit_map > 0
     map_mismatch = sky_map[hit_mask] - result.destriped_map[hit_mask]
-    assert np.allclose(map_mismatch, map_mismatch[0])
+    np.testing.assert_allclose(actual=map_mismatch, desired=map_mismatch[0])
 
 
 def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
@@ -289,8 +289,9 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
     #     dtype=np.float32,
     #     overwrite=True,
     # )
-    assert np.allclose(
-        results.rcond, healpy.read_map(rcond_filename, field=None, dtype=np.float32)
+    np.testing.assert_allclose(
+        actual=results.rcond,
+        desired=healpy.read_map(rcond_filename, field=None, dtype=np.float32),
     )
 
 
@@ -371,6 +372,7 @@ def test_destriper_coordinate_consistency(tmp_path):
     params = lbs.MbsParameters(
         make_cmb=True,
         nside=8,
+        maps_in_ecliptic=True,
     )
     mbs = lbs.Mbs(
         simulation=sim,
