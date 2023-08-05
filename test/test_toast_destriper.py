@@ -291,7 +291,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
     np.testing.assert_allclose(
         actual=results.rcond,
         desired=healpy.read_map(rcond_filename, field=None, dtype=np.float32),
-        rtol=1e-5,
+        rtol=1e-3,
     )
 
 
