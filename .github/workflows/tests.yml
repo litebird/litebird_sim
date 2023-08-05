@@ -65,8 +65,7 @@ jobs:
           DUCC0_OPTIMIZATION: none
 
       - name: Install TOAST2
-        if: ${{ matrix.python }} == 3.9
-        run: pip install toast
+       run: test ${{ matrix.python }} == 3.9 && pip install toast
 
       - name: Enable rich traceback
         continue-on-error: true
