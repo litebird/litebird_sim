@@ -64,6 +64,10 @@ jobs:
         env:
           DUCC0_OPTIMIZATION: none
 
+      - name: Install TOAST2 (if possible)
+        # The “…|| true” trick avoids GitHub to detect any failure in the installation
+        run: pip install toast || true
+
       - name: Enable rich traceback
         continue-on-error: true
         run: |
