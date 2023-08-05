@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
+
 -   Fixed typo in timeordered.rst [#250](https://github.com/litebird/litebird_sim/pull/250)
 
 -   Fix error in reading observation when it does not have tod field [#262](https://github.com/litebird/litebird_sim/pull/262) 

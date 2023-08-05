@@ -3,25 +3,24 @@ from collections import namedtuple
 from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import Any
 import numpy as np
 from ducc0 import healpix
 from astropy.time import Time
 
-from typing import Union, List
+from typing import Union, List, Any
 
 import healpy  # We need healpy.read_map
 
-import litebird_sim as lbs
+from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
+from litebird_sim.mapmaking import ExternalDestriperParameters
 
 from toast.todmap import OpMapMaker  # noqa: F401
 from toast.tod.interval import Interval
 import toast.mpi
 
 from litebird_sim.coordinates import CoordinateSystem, rotate_coordinates_e2g
-from litebird_sim.mapping import DestriperParameters, DestriperResult
 
-toast.mpi.use_mpi = lbs.MPI_ENABLED
+toast.mpi.use_mpi = MPI_ENABLED
 
 
 class _Toast2FakeCache:
@@ -228,8 +227,8 @@ class _Toast2FakeData:
                 for ob, po in zip(obs, pointings)
             ]
         self.nside = nside
-        if lbs.MPI_ENABLED:
-            self.comm = toast.mpi.Comm(world=lbs.MPI_COMM_WORLD)
+        if MPI_ENABLED:
+            self.comm = toast.mpi.Comm(world=MPI_COMM_WORLD)
         else:
             CommWorld = namedtuple(
                 "CommWorld", ["comm_world", "comm_group", "comm_rank", "comm_size"]
@@ -253,19 +252,43 @@ class _Toast2FakeData:
         self._metadata[key] = value
 
 
-def destripe_observations(
+@dataclass
+class Toast2DestriperResult:
+    """Result of a call to :func:`.destripe_observations_with_toast2`
+
+    This dataclass has the following fields:
+
+    - ``binned_map``: Healpix map containing the binned value for each pixel
+
+    - ``invnpp``: inverse of the covariance matrix element for each
+      pixel in the map. It is an array of shape `(12 * nside * nside, 3, 3)`
+
+    - ``coordinate_system``: the coordinate system of the output maps
+      (a :class:`.CoordinateSistem` object)
+    """
+
+    hit_map: Any = None
+    binned_map: Any = None
+    destriped_map: Any = None
+    npp: Any = None
+    invnpp: Any = None
+    rcond: Any = None
+    coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
+
+
+def destripe_observations_with_toast2(
     observations,
     base_path: Path,
-    params: DestriperParameters(),
+    params: ExternalDestriperParameters,
     pointings: Union[List[np.ndarray], None] = None,
     component: str = "tod",
-) -> DestriperResult:
-    """Run the destriper on the observations in a TOD
+) -> Toast2DestriperResult:
+    """Run the TOAST2 destriper on the observations in a TOD
 
-    This function is a low-level wrapper around the TOAST destriper.
-    For daily use, you should prefer the :func:`.destripe` function,
-    which takes its parameters from :class:`.Simulation` object and
-    is easier to call.
+    This function is a low-level wrapper around the TOAST toast_destriper.
+    For daily use, you should prefer the :func:`.destripe_with_toast2`
+    function, which takes its parameters from :class:`.Simulation`
+    object and is easier to call.
 
     This function runs the TOAST destriper on a set of `observations`
     (instances of the :class:`.Observation` class). The pointing
@@ -276,7 +299,7 @@ def destripe_observations(
 
     The `params` parameter is an instance of the class
     :class:`.DestriperParameters`, and it specifies the way the
-    destriper will be run and which kind of output is desired. The
+    toast_destriper will be run and which kind of output is desired. The
     `base_path` parameter specifies where the Healpix FITS map will be
     saved. (TOAST's mapmaker cannot produce the maps in memory and
     must save them in FITS files.)
@@ -314,10 +337,10 @@ def destripe_observations(
 
     # Ensure that all the MPI processes are synchronized before
     # attempting to load the FITS files saved by OpMapMaker
-    if lbs.MPI_ENABLED:
-        lbs.MPI_COMM_WORLD.barrier()
+    if MPI_ENABLED:
+        MPI_COMM_WORLD.barrier()
 
-    result = DestriperResult()
+    result = Toast2DestriperResult()
 
     result.coordinate_system = params.coordinate_system
 
@@ -364,22 +387,22 @@ def destripe_observations(
     return result
 
 
-def destripe(
+def destripe_with_toast2(
     sim,
-    params=DestriperParameters(),
+    params: ExternalDestriperParameters = ExternalDestriperParameters(),
     pointings: Union[List[np.ndarray], None] = None,
     component: str = "tod",
-) -> DestriperResult:
-    """Run the destriper on a set of TODs.
+) -> Toast2DestriperResult:
+    """Run the toast_destriper on a set of TODs.
 
-    Run the TOAST destriper on time-ordered data, producing one or
+    Run the TOAST toast_destriper on time-ordered data, producing one or
     more Healpix maps. The `instrument` parameter must be an instance
     of the :class:`.Instrument` class and is used to convert pointings
     in Ecliptic coordinates, as it specifies the reference frame of
     the instrument hosting the detectors that produced the TODs. The
     `params` parameter is an instance of the
     :class:`.DestriperParameters` class, and it can be used to tune
-    the way the TOAST destriper works.
+    the way the TOAST toast_destriper works.
 
     The function returns an instance of the class
     :class:`.DestriperResult`, which will contain only the maps
@@ -387,7 +410,7 @@ def destripe(
     default is only to return the destriped map in ``destriped_map``
     and set to ``None`` all the other fields.)
 
-    The destriper will use *all* the observations in the `sim`
+    The toast_destriper will use *all* the observations in the `sim`
     parameter (an instance of the :class:`.Simulation` class); if you
     to run them only on a subset of observations (e.g., only the
     channels belonging to one frequency), you should use the function
@@ -396,7 +419,7 @@ def destripe(
 
     """
 
-    return destripe_observations(
+    return destripe_observations_with_toast2(
         observations=sim.observations,
         base_path=sim.base_path,
         params=params,

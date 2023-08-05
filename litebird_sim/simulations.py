@@ -9,29 +9,36 @@ import logging as log
 import os
 import subprocess
 from typing import List, Tuple, Union, Dict, Any, Optional
+from uuid import uuid4
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
+import matplotlib.pylab as plt
 
-import litebird_sim
-from litebird_sim import constants as c
+from litebird_sim import constants
+from .coordinates import CoordinateSystem
 from . import HWP
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
-from .mpi import MPI_COMM_WORLD
+from .mapmaking import (
+    make_destriped_map,
+    DestriperParameters,
+    DestriperResult,
+    destriper_log_callback,
+)
+from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
 from .pointings import get_pointings
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
-
 from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
-from .mapping import make_bin_map
+from litebird_sim.mapmaking.binner import make_binned_map
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
@@ -207,7 +214,7 @@ class MpiDistributionDescr:
                     det_names=",".join(cur_obs.det_names),
                     tod_names=", ".join(cur_obs.tod_names),
                     tod_shape="×".join([str(x) for x in cur_obs.tod_shape]),
-                    tod_dtype=", ".join(cur_obs.tod_dtype),
+                    tod_dtype=", ".join([str(x) for x in cur_obs.tod_dtype]),
                 )
 
         return result
@@ -307,7 +314,7 @@ class Simulation:
         self.base_path = base_path
         self.name = name
 
-        self.observations = []
+        self.observations = []  # type: List[Observation]
 
         self.start_time = start_time
         self.duration_s = duration_s
@@ -1019,7 +1026,7 @@ class Simulation:
 
         num_of_observations = len(self.observations)
 
-        if self.mpi_comm and litebird_sim.MPI_ENABLED:
+        if self.mpi_comm and MPI_ENABLED:
             observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
             num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
         else:
@@ -1101,7 +1108,7 @@ class Simulation:
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
         num_of_obs = len(self.observations)
-        if append_to_report and litebird_sim.MPI_ENABLED:
+        if append_to_report and MPI_ENABLED:
             num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1201,7 +1208,7 @@ class Simulation:
             memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
             num_of_obs += 1
 
-        if append_to_report and litebird_sim.MPI_ENABLED:
+        if append_to_report and MPI_ENABLED:
             memory_occupation = MPI_COMM_WORLD.allreduce(memory_occupation)
             num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
 
@@ -1220,9 +1227,9 @@ class Simulation:
     def compute_pos_and_vel(
         self,
         delta_time_s=86400.0,
-        solar_velocity_km_s: float = c.SOLAR_VELOCITY_KM_S,
-        solar_velocity_gal_lat_rad: float = c.SOLAR_VELOCITY_GAL_LAT_RAD,
-        solar_velocity_gal_lon_rad: float = c.SOLAR_VELOCITY_GAL_LON_RAD,
+        solar_velocity_km_s: float = constants.SOLAR_VELOCITY_KM_S,
+        solar_velocity_gal_lat_rad: float = constants.SOLAR_VELOCITY_GAL_LAT_RAD,
+        solar_velocity_gal_lon_rad: float = constants.SOLAR_VELOCITY_GAL_LON_RAD,
     ):
         """Computes the position and the velocity of the spacescraft for computing
         the dipole.
@@ -1296,7 +1303,7 @@ class Simulation:
 
     def add_dipole(
         self,
-        t_cmb_k: float = c.T_CMB_K,
+        t_cmb_k: float = constants.T_CMB_K,
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
         append_to_report: bool = True,
     ):
@@ -1367,16 +1374,15 @@ class Simulation:
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
-    def binned_map(
+    def make_binned_map(
         self,
         nside: int,
-        do_covariance: bool = False,
-        output_map_in_galactic: bool = True,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         append_to_report: bool = True,
     ):
         """
         Bins the tods of `sim.observations` into maps.
-        The syntax mimics the one of :meth:`litebird_sim.make_bin_map`
+        The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1386,14 +1392,13 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 nside=nside,
-                coord="Galactic" if output_map_in_galactic else "Ecliptic",
+                coord=str(output_coordinate_system),
             )
 
-        return make_bin_map(
+        return make_binned_map(
             obs=self.observations,
             nside=nside,
-            do_covariance=do_covariance,
-            output_map_in_galactic=output_map_in_galactic,
+            output_coordinate_system=output_coordinate_system,
         )
 
     def apply_gaindrift(
@@ -1475,3 +1480,62 @@ class Simulation:
                 user_seed=user_seed,
                 **dictionary,
             )
+
+    def make_destriped_map(
+        self,
+        nside: int,
+        params: DestriperParameters = DestriperParameters(),
+        components: Optional[List[str]] = None,
+        keep_weights: bool = False,
+        keep_pixel_idx: bool = False,
+        keep_pol_angle_rad: bool = False,
+        callback: Any = destriper_log_callback,
+        callback_kwargs: Optional[Dict[Any, Any]] = None,
+        append_to_report: bool = True,
+    ) -> DestriperResult:
+        results = make_destriped_map(
+            nside=nside,
+            obs=self.observations,
+            pointings=None,
+            params=params,
+            components=components,
+            keep_weights=keep_weights,
+            keep_pixel_idx=keep_pixel_idx,
+            keep_pol_angle_rad=keep_pol_angle_rad,
+            callback=callback,
+            callback_kwargs=callback_kwargs,
+        )
+
+        if append_to_report:
+            fig, ax = plt.subplots()
+            ax.set_xlabel("Iteration number")
+            ax.set_ylabel("Residual [K]")
+            ax.set_title("CG convergence of the destriper")
+            ax.semilogy(
+                np.arange(len(results.history_of_stopping_factors)),
+                results.history_of_stopping_factors,
+                "ko-",
+            )
+
+            template_file_path = get_template_file_path("report_destriper.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            cg_plot_filename = f"destriper-cg-convergence-{uuid4()}.png"
+
+            self.append_to_report(
+                markdown_text=markdown_template,
+                results=results,
+                history_of_stopping_factors=[
+                    float(x) for x in results.history_of_stopping_factors
+                ],
+                bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
+                cg_plot_filename=cg_plot_filename,
+                figures=[
+                    # Using uuid4() we can have more than one section
+                    # about “destriping” in the report
+                    (fig, cg_plot_filename),
+                ],
+            )
+
+        return results

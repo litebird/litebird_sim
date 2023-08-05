@@ -72,8 +72,14 @@ from .scanning import (
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
 )
-from .mapping import DestriperParameters, DestriperResult, make_bin_map
-from .destriper import destripe
+from litebird_sim.mapmaking import (
+    make_binned_map,
+    BinnerResult,
+    DestriperParameters,
+    DestriperResult,
+    make_destriped_map,
+    ExternalDestriperParameters,
+)
 from .simulations import (
     Simulation,
     MpiObservationDescr,
@@ -92,6 +98,7 @@ from .coordinates import (
     DEFAULT_TIME_SCALE,
     ECL_TO_GAL_ROT_MATRIX,
     CoordinateSystem,
+    coord_sys_to_healpix_string,
 )
 
 from .spacecraft import (
@@ -117,6 +124,23 @@ from .gaindrifts import (
     apply_gaindrift_to_tod,
     apply_gaindrift_to_observations,
 )
+
+try:
+    import toast
+    from .toast_destriper import (
+        destripe_with_toast2,
+    )
+
+    TOAST_ENABLED = True
+
+except ImportError:
+
+    def destripe_with_toast2(*args, **kwargs):
+        raise ImportError(
+            "Install the toast package using `pip` to use destripe_with_toast2"
+        )
+
+    TOAST_ENABLED = False
 
 from .version import __author__, __version__
 
@@ -199,12 +223,15 @@ __all__ = [
     "apply_hwp_to_obs",
     "get_pointing_buffer_shape",
     "get_pointings",
-    # mapping.py
-    "make_bin_map",
-    # destripe.py
+    # mapmaking
+    "make_binned_map",
+    "BinnerResult",
+    "make_destriped_map",
     "DestriperParameters",
-    "DestriperResult",
-    "destripe",
+    "ExternalDestriperParameters",
+    # toast_destriper.py
+    "TOAST_ENABLED",
+    "destripe_with_toast2",
     # simulations.py
     "Simulation",
     "MpiObservationDescr",
@@ -227,6 +254,7 @@ __all__ = [
     "DEFAULT_TIME_SCALE",
     "ECL_TO_GAL_ROT_MATRIX",
     "CoordinateSystem",
+    "coord_sys_to_healpix_string",
     # spacecraft.py
     "compute_l2_pos_and_vel",
     "compute_lissajous_pos_and_vel",
