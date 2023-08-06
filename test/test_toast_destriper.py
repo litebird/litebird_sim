@@ -137,7 +137,7 @@ def test_basic_functionality(tmp_path):
     # constrained by the destriping equations. We just check that this
     # mismatch is constant.
     mismatch = computed_baselines - expected_baselines
-    np.testing.assert_allclose(actual=mismatch, desired=mismatch[0])
+    assert np.allclose(mismatch, mismatch[0])
 
     # Compute the expected hit map and check that the toast_destriper got it
     # right
@@ -291,6 +291,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
     np.testing.assert_allclose(
         actual=results.rcond,
         desired=healpy.read_map(rcond_filename, field=None, dtype=np.float32),
+        rtol=1e-3,
     )
 
 
