@@ -5,7 +5,7 @@ import math as mt
 
 import healpy as hp
 from astropy import constants as const
-from astropy.cosmology import Planck18_arXiv_v2 as cosmo
+from astropy.cosmology import Planck18 as cosmo
 
 from typing import Union, List
 from pathlib import Path
