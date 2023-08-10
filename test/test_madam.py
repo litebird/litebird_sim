@@ -149,6 +149,7 @@ def run_test_on_madam(
         start_time=start_time,
         duration_s=86400.0,
         mpi_comm=lbs.MPI_COMM_WORLD,
+        random_seed=12345,
     )
 
     sim.set_scanning_strategy(
@@ -190,7 +191,7 @@ def run_test_on_madam(
         cur_obs.tod[:] = float(lbs.MPI_COMM_WORLD.rank)
         cur_obs.fg_tod = np.zeros_like(cur_obs.tod) + 1000 + lbs.MPI_COMM_WORLD.rank
 
-    params = lbs.DestriperParameters(
+    params = lbs.ExternalDestriperParameters(
         nside=16,
         nnz=3,
         baseline_length_s=100,

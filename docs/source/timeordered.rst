@@ -39,6 +39,7 @@ shows:
        base_path="./output",
        start_time=start_time_s,
        duration_s=time_span_s,
+       random_seed=12345,
    )
    
    # Define the scanning strategy
@@ -143,6 +144,7 @@ Here is a short example that shows how to add noise:
        base_path='./output',
        start_time=0,
        duration_s=100,
+       random_seed=12345,
    )
 
    # Create a detector object
@@ -156,8 +158,9 @@ Here is a short example that shows how to add noise:
    # Here we add white noise using the detector
    # noise parameters from the `det` object.
    # We use the random number generator provided
-   # by `sim`, which is always initialized with the
-   # same seed to ensure repeatability.
+   # by `sim`, which is initialized with the
+   # seed we passed to the Simulation constructor
+   # to ensure repeatability.
    lbs.noise.add_noise_to_observations(obs, 'white', random=sim.random)
 
    for i in range(10):
@@ -181,7 +184,10 @@ Note that we pass ``sim.random`` as the number generator to use.
 This is a member variable that is initialized by the constructor
 of the class :class:`.Simulation`, and it is safe to be used with
 multiple MPI processes as it ensures that each process has its
-own random number generator with a different seed.
+own random number generator with a different seed. You can also
+pass another random number generator, as long as it has the
+``normal`` method. More information on the generation of random
+numbers can be found in :ref:`random-numbers`.
 
 To add white noise using a custom white noise sigma, in µK, we can
 call the low level function directly:
@@ -194,6 +200,7 @@ call the low level function directly:
        base_path='./output',
        start_time=0,
        duration_s=100,
+       random_seed=12345,
    )
 
    det = lbs.DetectorInfo(
@@ -204,7 +211,7 @@ call the low level function directly:
    obs = sim.create_observations(detectors=[det])
 
    custom_sigma_uk = 1234
-   lbs.noise.add_white_noise(obs[0].tod[0], custom_sigma_uk)
+   lbs.noise.add_white_noise(obs[0].tod[0], custom_sigma_uk, random=sim.random)
 
 We can also add 1/f noise using a very similar call to the above:
 
@@ -216,6 +223,7 @@ We can also add 1/f noise using a very similar call to the above:
        base_path='./output',
        start_time=0,
        duration_s=100,
+       random_seed=12345,
    )
 
    det = lbs.DetectorInfo(
@@ -229,7 +237,7 @@ We can also add 1/f noise using a very similar call to the above:
 
    # Here we add 1/f noise using the detector noise
    # parameters from the detector object
-   lbs.noise.add_noise_to_observations(obs, 'one_over_f')
+   lbs.noise.add_noise_to_observations(obs, 'one_over_f', random=sim.random)
 
 Again, to generate noise with custom parameters, we can either use the low-level function or edit the :class:`.Observation` object to contain the desired noise parameters. 
 
@@ -242,6 +250,7 @@ Again, to generate noise with custom parameters, we can either use the low-level
        base_path='./output',
        start_time=0,
        duration_s=100,
+       random_seed=12345,
    )
 
    det = lbs.DetectorInfo(
@@ -267,6 +276,7 @@ Again, to generate noise with custom parameters, we can either use the low-level
        custom_alpha,
        custom_sigma_uk,
        obs[0].sampling_rate_hz,
+       sim.random,
    )
 
    # Option 2: we change the values in `obs`
@@ -277,14 +287,14 @@ Again, to generate noise with custom parameters, we can either use the low-level
        custom_sigma_uk / np.sqrt(obs[0].sampling_rate_hz)
    )
 
-   lbs.noise.add_noise_to_observations(obs, 'one_over_f')
+   lbs.noise.add_noise_to_observations(obs, 'one_over_f', random=sim.random)
 
 
 Methods of class simulation
 ---------------------------
 
 The class :class:`.Simulation` provides two simple functions that fill
-with sky signal and nosie all the observations of a given simulation.
+with sky signal and noise all the observations of a given simulation.
 The function :func:`.Simulation.fill_tods` takes a map and scans it, while
 the function :func:`.Simulation.add_noise` adds noise to the timelines.
 Thanks to these functions the generation of a simulation becomes quite
@@ -301,7 +311,11 @@ transparent:
   sampling_hz = 10.0
   nside = 128
 
-  sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+  sim = lbs.Simulation(
+      start_time=start_time,
+      duration_s=time_span_s,
+      random_seed=12345,
+  )
 
   # We pick a simple scanning strategy where the spin axis is aligned
   # with the Sun-Earth axis, and the spacecraft spins once every minute
@@ -341,7 +355,7 @@ transparent:
 
   sim.fill_tods(sky_signal)
 
-  sim.add_noise(noise_type='white')
+  sim.add_noise(noise_type='white', random=sim.random)
 
   for i in range(5):
       print(f"{sim.observations[0].tod[0][i]:.5e}")

@@ -66,7 +66,7 @@ def create_fake_detector(sampling_rate_hz=1, quat=np.array([0.0, 0.0, 0.0, 1.0])
 
 
 def test_simulation_pointings_still():
-    sim = lbs.Simulation(start_time=0.0, duration_s=86400.0)
+    sim = lbs.Simulation(start_time=0.0, duration_s=86400.0, random_seed=12345)
     fakedet = create_fake_detector(sampling_rate_hz=1 / 3600)
 
     sim.create_observations(
@@ -114,7 +114,7 @@ def test_simulation_pointings_still():
 
 
 def test_simulation_two_detectors():
-    sim = lbs.Simulation(start_time=0.0, duration_s=86400.0)
+    sim = lbs.Simulation(start_time=0.0, duration_s=86400.0, random_seed=12345)
 
     # Two detectors, the second rotated by 45°
     quaternions = [
@@ -162,7 +162,10 @@ def test_simulation_two_detectors():
 
 def test_simulation_pointings_polangle(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0
+        base_path=tmp_path / "simulation_dir",
+        start_time=0.0,
+        duration_s=61.0,
+        random_seed=12345,
     )
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
@@ -198,7 +201,10 @@ def test_simulation_pointings_polangle(tmp_path):
 
 def test_simulation_pointings_spinning(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0
+        base_path=tmp_path / "simulation_dir",
+        start_time=0.0,
+        duration_s=61.0,
+        random_seed=12345,
     )
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 
@@ -244,6 +250,7 @@ def test_simulation_pointings_mjd(tmp_path):
         base_path=tmp_path / "simulation_dir",
         start_time=Time("2020-01-01T00:00:00"),
         duration_s=130.0,
+        random_seed=12345,
     )
     fakedet = create_fake_detector()
 
@@ -276,6 +283,7 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
         base_path=tmp_path / "simulation_dir",
         start_time=Time("2020-01-01T00:00:00"),
         duration_s=130.0,
+        random_seed=12345,
     )
     fakedet = create_fake_detector()
 
@@ -306,7 +314,10 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
 
 def test_scanning_quaternions(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir", start_time=0.0, duration_s=61.0
+        base_path=tmp_path / "simulation_dir",
+        start_time=0.0,
+        duration_s=61.0,
+        random_seed=12345,
     )
     fakedet = create_fake_detector(sampling_rate_hz=50.0)
 

@@ -836,7 +836,7 @@ def get_det2ecl_quaternions(
             quaternion_buffer.shape == bufshape
         ), f"error, wrong buffer size: {quaternion_buffer.size} != {bufshape}"
 
-    for (idx, detector_quat) in enumerate(detector_quats):
+    for idx, detector_quat in enumerate(detector_quats):
         quaternion_buffer[:, idx, :] = spin2ecliptic_quats.get_detector_quats(
             detector_quat=detector_quat,
             bore2spin_quat=bore2spin_quat,

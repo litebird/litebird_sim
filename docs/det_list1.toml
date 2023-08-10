@@ -1,5 +1,9 @@
 # This is file "det_list1.toml"
 
+# Mandatory parameter
+[simulation]
+random_seed = 12345
+
 # In this example we list the detectors to use in the simulation
 # using one of TOML's features: lists of elements. They are
 # indicated using double square brackets, and each occurrence
@@ -11,7 +15,7 @@
 # here we specify the UUID of the object
 detector_info_obj = "/data_files/78fe75f1-a011-44b6-86dd-445dc9634416"
 
-# Append a few more elements
+# Append two more elements
 [[detectors]]
 # Take the parameters for the set of detectors from the channel
 # information in the IMO. As above, we use an UUID
@@ -33,7 +37,7 @@ channel_info_obj = "/data_files/ff087ba3-d973-4dc3-b72b-b68abb979a90"
 use_only_one_boresight_detector = true
 detector_name = "foo_boresight"
 
-# Add one last element
+# Append one more element
 [[detectors]]
 # Set up every parameter manually
 name = "planck30GHz"
@@ -44,6 +48,7 @@ bandwidth_ghz = 9.89
 bandcenter_ghz = 28.4
 sampling_rate_hz = 32.5
 
+# Add one last element
 [[detectors]]
 # Take the parameters from the IMO but fix one parameter by hand
 detector_info_obj = "/data_files/78fe75f1-a011-44b6-86dd-445dc9634416"
