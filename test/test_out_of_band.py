@@ -12,8 +12,7 @@ def test_out_of_band():
     sampling_hz = 1
     hwp_radpsec = 4.084_070_449_666_731
 
-    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s,
-                          random_seed = 0)
+    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s, random_seed=0)
 
     scanning = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.785_398_163_397_448_3,
