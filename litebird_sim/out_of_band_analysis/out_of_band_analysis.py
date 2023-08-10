@@ -887,8 +887,8 @@ class HwpSysAndBandpass:
             return
 
     def make_map(self, obss):
-        """It generates "on the fly" map. This option is only availabe if `built_map_on_the_fly`
-        is set to True.
+        """It generates "on the fly" map. This option is only availabe if 
+        `built_map_on_the_fly` is set to True.
 
         Args:
              obss list of class:`Observations`: only necessary for the communicator
