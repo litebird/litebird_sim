@@ -7,7 +7,6 @@ from litebird_sim import BandPassInfo
 
 # Chebyshev profile lowpass
 def lowpass_chebyshev(freqs, f0, order=1, ripple_dB=1):
-
     """Define a lowpass with chebyshev prototype
     freqs: frequency in GHz
     f0: low-frequency edge of the band in GHz
@@ -76,9 +75,7 @@ def add_high_frequency_transmission(freqs, bandpass, location=3, transmission=0.
     i_nf0 = np.where(np.round(freqs_new - (high_freq_fc - delta_fc)) == 0)[0][0]
 
     for i in range(len(freqs_new)):
-
         if i < len(freqs):
-
             bandpass_new[i] = bandpass[i]
 
         elif i >= int(i_nf0):
@@ -101,15 +98,12 @@ def bandpass_profile(
     bandpass: Union[dict, None] = None,
     include_beam_throughput: Union[bool, None] = None,
 ):
-
     profile = np.ones_like(freqs)
 
     if "bandpass_file" in bandpass.keys():
-
         profile = np.loadtxt(bandpass["bandpass_file"])[:, 1]
 
     elif "band_type" in bandpass.keys():
-
         if "band_alpha" not in bandpass.keys():
             bandpass["band_alpha"] = 1
         if "band_beta" not in bandpass.keys():
@@ -145,16 +139,13 @@ def bandpass_profile(
         "band_high_freq_leak" in bandpass.keys()
         and bandpass["band_high_freq_leak"] is True
     ):
-
         if (
             "band_high_freq_loc" not in bandpass.keys()
             and "band_high_freq_trans" not in bandpass.keys()
         ):
-
             freqs, profile = add_high_frequency_transmission(freqs, profile)
 
         else:
-
             freqs, profile = add_high_frequency_transmission(
                 freqs,
                 profile,
@@ -163,7 +154,6 @@ def bandpass_profile(
             )
 
     if include_beam_throughput is True:
-
         profile = profile * beam_throughtput(freqs)
 
     return freqs, profile

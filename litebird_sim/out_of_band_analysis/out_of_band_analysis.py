@@ -23,7 +23,6 @@ COND_THRESHOLD = 1e10
 
 @njit
 def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, cthxi, sthxi):
-
     Tterm = 0.25 * (
         2
         + h1 * (2 + h1)
@@ -41,7 +40,6 @@ def compute_Tterm_for_one_sample(h1, h2, cb, z1, z2, cthxi, sthxi):
 def compute_Qterm_for_one_sample(
     h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, c4th, s4th
 ):
-
     Qterm = (
         0.25 * (h1 * (2 + h1) - h2 * (2 + h2) - z1 * z1 + z2 * z2) * cthp
         + 0.125
@@ -79,7 +77,6 @@ def compute_Qterm_for_one_sample(
 def compute_Uterm_for_one_sample(
     h1, h2, cb, z1, z2, cthp, sthp, cpxi, spxi, c4th, s4th
 ):
-
     Uterm = (
         0.125 * (4 * z1 + 4 * h1 * z1 - 4 * (1 + h2) * z2 * cb) * cthp
         + 0.125
@@ -225,7 +222,6 @@ def integrate_in_band_signal_for_one_sample(
 def compute_signal_for_one_detector(
     tod_det, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi, maps
 ):
-
     for i in range(len(tod_det)):
         tod_det[i] += compute_signal_for_one_sample(
             T=maps[0, pixel_ind[i]],
@@ -251,7 +247,6 @@ def compute_signal_for_one_detector(
 def integrate_in_band_signal_for_one_detector(
     tod_det, band, freqs, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi, maps
 ):
-
     for i in range(len(tod_det)):
         tod_det[i] += integrate_in_band_signal_for_one_sample(
             T=maps[:, 0, pixel_ind[i]],
@@ -343,7 +338,6 @@ def integrate_in_band_mueller_for_one_sample(
 def compute_atd_ata_for_one_detector(
     atd, ata, tod, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi
 ):
-
     for i in range(len(tod)):
         Tterm, Qterm, Uterm = compute_mueller_for_one_sample(
             h1=h1,
@@ -376,7 +370,6 @@ def compute_atd_ata_for_one_detector(
 def integrate_in_band_atd_ata_for_one_detector(
     atd, ata, tod, band, freqs, h1, h2, cb, z1, z2, pixel_ind, theta, psi, xi
 ):
-
     for i in range(len(tod)):
         Tterm, Qterm, Uterm = integrate_in_band_mueller_for_one_sample(
             band=band,
@@ -619,11 +612,9 @@ class HwpSysAndBandpass:
             self.nfreqs = len(self.freqs)
 
             if not self.bandpass:
-
                 self.cmb2bb = _dBodTth(self.freqs)
 
             elif self.bandpass:
-
                 self.freqs, self.bandpass_profile = bandpass_profile(
                     self.freqs, self.bandpass, self.include_beam_throughput
                 )
@@ -651,7 +642,6 @@ class HwpSysAndBandpass:
             del maps
 
         else:
-
             if not self.h1:
                 self.h1 = 0.0
             if not self.h2:
@@ -708,11 +698,9 @@ class HwpSysAndBandpass:
                     self.z2s = 0.0
 
             if not self.bandpass_solver:
-
                 self.cmb2bb_solver = _dBodTth(self.freqs_solver)
 
             elif self.bandpass_solver:
-
                 self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
                     self.freqs_solver,
                     self.bandpass_solver,
@@ -778,7 +766,6 @@ class HwpSysAndBandpass:
                 psi_list = [point[:, :, 2] for point in pointings]
 
         for cur_obs, cur_point, cur_Psi in zip(obs_list, ptg_list, psi_list):
-
             times = cur_obs.get_times()
 
             if self.built_map_on_the_fly:

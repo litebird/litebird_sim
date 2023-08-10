@@ -304,7 +304,6 @@ class HwpSys:
         hwp_radpsec: float,
         pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     ):
-
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
 
         Args:
@@ -350,7 +349,6 @@ class HwpSys:
                 psi_list = [point[:, :, 2] for point in pointings]
 
         for cur_obs, cur_point, cur_Psi in zip(obs_list, ptg_list, psi_list):
-
             times = cur_obs.get_times()
 
             if self.built_map_on_the_fly:
@@ -457,9 +455,7 @@ class HwpSys:
                         )
 
                 if self.built_map_on_the_fly:
-
                     if self.correct_in_solver:
-
                         if self.integrate_in_band_solver:
                             J11 = (
                                 (1 + self.h1s[:, np.newaxis]) * ca**2

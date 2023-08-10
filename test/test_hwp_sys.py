@@ -6,7 +6,6 @@ import os
 
 
 def test_hwp_sys():
-
     start_time = 0
     time_span_s = 10
     nside = 64
