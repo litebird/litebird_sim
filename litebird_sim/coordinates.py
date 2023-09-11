@@ -34,6 +34,18 @@ The coordinate system used to express pointing angles.
 """
 CoordinateSystem = Enum("CoordinateSystem", ["Ecliptic", "Galactic"])
 
+_COORD_SYS_TO_HEALPIX = {
+    CoordinateSystem.Ecliptic: "ECLIPTIC",
+    CoordinateSystem.Galactic: "GALACTIC",
+}
+
+
+def coord_sys_to_healpix_string(coordsys: CoordinateSystem) -> str:
+    """Convert the value of a :class:`.CoordinateSystem` instance into a string
+
+    The string is suitable to be saved in a FITS file containing a Healpix map"""
+    return _COORD_SYS_TO_HEALPIX[coordsys]
+
 
 def ang2vec(theta, phi):
     """Transform a direction theta,phi to a unit vector.

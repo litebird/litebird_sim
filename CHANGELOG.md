@@ -1,8 +1,43 @@
 # HEAD
 
+-   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
+
+-   Fixed typo in timeordered.rst [#250](https://github.com/litebird/litebird_sim/pull/250)
+
+-   Fix error in reading observation when it does not have tod field [#262](https://github.com/litebird/litebird_sim/pull/262) 
+
+-   **Breaking change**: Drop support for Python 3.7 and 3.8 [#254](https://github.com/litebird/litebird_sim/pull/254)
+
+-   **Breaking change**: Fix noise seed inconsistency [#256](https://github.com/litebird/litebird_sim/pull/256)
+
+-   Bug in mbs for band integration solved [#251](https://github.com/litebird/litebird_sim/pull/251)
+
+-   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
+
+# Version 0.10.0
+
+-   Some memory optimization [#245](https://github.com/litebird/litebird_sim/pull/245)
+
+-   Improve the docstring for `scan_map_in_observations` [#248](https://github.com/litebird/litebird_sim/pull/248)
+
+-   New interface for `make_bin_map` in `Simulation` [#244](https://github.com/litebird/litebird_sim/pull/244)
+
+-   Added gain drift simulation module [#243](https://github.com/litebird/litebird_sim/pull/243)
+
+-   Enable the use of other names than `tod` when calling the TOAST2 destriper [#242](https://github.com/litebird/litebird_sim/pull/242)
+
+-   Use Poetry instead of Pip to specify the dependencies for the documentation [#237](https://github.com/litebird/litebird_sim/pull/237)
+
+-   Remove bandpass-related warnings [#236](https://github.com/litebird/litebird_sim/pull/236)
+
+-   Add TOD interpolation [#233](https://github.com/litebird/litebird_sim/pull/233)
+
+-   Improve the documentation [#231](https://github.com/litebird/litebird_sim/pull/231)
+
 -   Mbs supports generic bandpasses and can generate solar dipole [#227](https://github.com/litebird/litebird_sim/pull/227)
 
 -   Improve the support for multiple TODs in the same `Observation` [#225](https://github.com/litebird/litebird_sim/pull/225)
+
 
 # Version 0.9.0
 
@@ -27,8 +62,6 @@
 -   Add flag for coordinate system choice of madam output maps [#208](https://github.com/litebird/litebird_sim/pull/208)
 
 -   Improve support for multiple TODs [#205](https://github.com/litebird/litebird_sim/pull/205)
-
--   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
 
 # Version 0.8.0
 

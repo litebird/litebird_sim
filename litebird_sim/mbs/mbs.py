@@ -24,6 +24,7 @@ class _InstrumentFreq:
     bandwidth_ghz: float = 0.0  # d.bandwidth_ghz
     fwhm_arcmin: float = 0.0  # fwhm_arcmin
     p_sens_ukarcmin: float = 0.0  # pol_sensitivity_ukarcmin
+    band: Union[lbs.BandPassInfo, None] = None  # container for the band
 
     @staticmethod
     def from_dict(dictionary):
@@ -32,6 +33,7 @@ class _InstrumentFreq:
             bandwidth_ghz=dictionary["bandwidth_ghz"],
             fwhm_arcmin=dictionary["fwhm_arcmin"],
             p_sens_ukarcmin=dictionary["p_sens_ukarcmin"],
+            band=None,
         )
 
     @staticmethod
@@ -42,6 +44,7 @@ class _InstrumentFreq:
             bandwidth_ghz=data["freq_band"],
             fwhm_arcmin=data["beam"],
             p_sens_ukarcmin=data["p_sens"],
+            band=None,
         )
 
     @staticmethod
@@ -52,6 +55,7 @@ class _InstrumentFreq:
             bandwidth_ghz=data["freq_band"],
             fwhm_arcmin=data["beam"],
             p_sens_ukarcmin=data["p_sens"],
+            band=None,
         )
 
 
@@ -331,6 +335,7 @@ class Mbs:
                 bandwidth_ghz=d.bandwidth_ghz,
                 fwhm_arcmin=d.fwhm_arcmin,
                 p_sens_ukarcmin=d.pol_sensitivity_ukarcmin,
+                band=d.band if hasattr(d, "band") else None,
             )
 
     def _parse_instrument_from_ch_list(self):
@@ -346,6 +351,7 @@ class Mbs:
                 bandwidth_ghz=ch.bandwidth_ghz,
                 fwhm_arcmin=ch.fwhm_arcmin,
                 p_sens_ukarcmin=ch.pol_sensitivity_channel_ukarcmin,
+                band=ch.band if hasattr(ch, "band") else None,
             )
 
     def _parse_instrument(self):
@@ -604,14 +610,14 @@ class Mbs:
             )
 
             for Nchnl, chnl in enumerate(channels):
-                if hasattr(instr[chnl], "band"):
+                if instr[chnl].band:
                     freq = instr[chnl].band.bandcenter_ghz
                 else:
                     freq = instr[chnl].bandcenter_ghz
 
                 if self.params.bandpass_int:
-                    if hasattr(instr[chnl], "band"):
-                        bandpass_frequencies = instr[chnl].band.freqs_ghz
+                    if instr[chnl].band:
+                        bandpass_frequencies = instr[chnl].band.freqs_ghz * u.GHz
                         weights = instr[chnl].band.weights
                     else:
                         band = instr[chnl].bandwidth_ghz
@@ -704,14 +710,14 @@ class Mbs:
                 fg_map_matrix = np.zeros((n_channels, 3, npix))
 
             for Nchnl, chnl in enumerate(channels):
-                if hasattr(instr[chnl], "band"):
+                if instr[chnl].band:
                     freq = instr[chnl].band.bandcenter_ghz
                 else:
                     freq = instr[chnl].bandcenter_ghz
                 fwhm_arcmin = instr[chnl].fwhm_arcmin
                 if self.params.bandpass_int:
-                    if hasattr(instr[chnl], "band"):
-                        bandpass_frequencies = instr[chnl].band.freqs_ghz
+                    if instr[chnl].band:
+                        bandpass_frequencies = instr[chnl].band.freqs_ghz * u.GHz
                         weights = instr[chnl].band.weights
                     else:
                         band = instr[chnl].bandwidth_ghz
@@ -801,7 +807,7 @@ class Mbs:
             dipole_map_matrix = np.zeros((n_channels, npix))
 
         for Nchnl, chnl in enumerate(channels):
-            if hasattr(instr[chnl], "band"):
+            if instr[chnl].band:
                 freq = instr[chnl].band.bandcenter_ghz
             else:
                 freq = instr[chnl].bandcenter_ghz

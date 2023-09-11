@@ -58,7 +58,7 @@ to the same instrument (e.g., LFT) look not far away from each other;
 it is customary to express their pointing directions relative to an
 «average» direction, called the *boresight direction*, which is the
 main optical axis of the instrument. Since in LiteBIRD there are
-*three* instruments (LFT, MFT, HFT), there should be boresight
+*three* instruments (LFT, MFT, HFT), there should be *three* boresight
 directions; however, MFT and HFT share the same telescope, and thus
 it's customary to show only one boresight for both. This is the true
 meaning of the red and green axes in the video above: the red axis
@@ -119,6 +119,7 @@ similar to what is going to be used for LiteBIRD:
       start_time=0,
       duration_s=60.0,
       description="Simple simulation",
+      random_seed=12345,
   )
 
   # We now simulate the motion of the spacecraft over a time span
@@ -177,8 +178,8 @@ similar to what is going to be used for LiteBIRD:
 All the details in this code are explained in the next sections, so
 for now just keep in mind the overall shape of the code:
 
-1. Once the duration of the simulation (one hour in the example
-   above), we call the method
+1. Once the duration of the simulation (one minute in the example
+   above) is set, we call the method
    :meth:`.Simulation.set_scanning_strategy`, which forces the
    framework to compute how the orientation of the spacecraft with
    respect to the sky sphere evolves with time. This method produces a
@@ -208,7 +209,7 @@ Computing the spacecraft's orientation
 --------------------------------------
 
 To compute where a detector is looking at the sky sphere, there is a
-number of transformation that need to be carried out:
+number of transformations that need to be carried out:
 
 .. image:: images/coordinate-systems.svg
 
@@ -223,7 +224,7 @@ is encoded in a quaternion that is saved in the IMO.
 Next, we move from the reference frame of the boresight to that of the
 spacecraft. The information about the placement of the boresight with
 respect to the spin axis is encoded in the class
-:class:`InstrumentInfo`. After this transformation, the spin axis is
+:class:`.InstrumentInfo`. After this transformation, the spin axis is
 aligned with the `z` axis.
 
 The next transformation goes from the spacecraft's to the Ecliptic
@@ -253,6 +254,7 @@ provides two ways to compute the transformation:
          start_time=astropy.time.Time("2020-01-01"),
          duration_s=60.0,
          description="Simple simulation",
+         random_seed=12345,
      )
 
 You should compute the proper motion of the Earth around the Sun only
@@ -307,7 +309,7 @@ figure:
 
 To be sure to include an additional quaternion *after* the last
 sample, like in the figure above, the framework provides the static
-method :meth:`ScanningStrategy.optimal_num_of_quaternions`, which
+method :meth:`.ScanningStrategy.optimal_num_of_quaternions`, which
 computes how many quaternions need to be calculated to cover some time
 span with a given interval between quaternions. For instance, if our
 simulation lasts 100 s and we want one quaternion every minute, then
@@ -330,7 +332,7 @@ samples in the range :math:`60\,\mathrm{s} \leq t \leq
 
 When using MPI, the relatively small size in memory of the quaternions
 (the thick black lines in the figure) enables the framework to keep
-the a duplicate of the list in all the MPI processes. This is unlike
+a duplicate of the list in all the MPI processes. This is unlike
 what happens with the data in TODs (the thin gray lines), which are
 split in several blocks inside the :class:`.Observation` class.
 
@@ -350,18 +352,20 @@ Once all the quaternions have been computed at the proper sampling
 rate, the direction of the detector on the sky and its polarization
 angle are computed as follows:
 
-- The direction is simply the vector :math:`\vec d = R \hat e_z`,
-  where :math:`R` is the overall rotation from the detector's
-  reference frame to the Ecliptic reference frame, and :math:`\hat e_z
-  = (0, 0, 1)` is the one-length vector aligned with the `z` axis.
+- The direction is the vector :math:`\vec d = R \hat e_z`, where
+  :math:`R` is the overall rotation from the detector's reference
+  frame to the Ecliptic reference frame, and :math:`\hat e_z = (0, 0,
+  1)` is the one-length vector aligned with the `z` axis.
 
 - The polarization angle is given by the angle between the North
   direction passing through the vector :math:`\vec d` (i.e., along the
-  parallel of :math:`\vec d`) and the vector :math:`\vec p = R \hat
+  meridian of :math:`\vec d`) and the vector :math:`\vec p = R \hat
   e_x`, where :math:`R` is the same as above and :math:`\hat e_x = (1,
-  0, 0)`, as shown in the following figure:
+  0, 0)`, as shown in the following figure (note that :math:`\hat e_x`
+  has been drawn twice because the one in the upper side represents
+  the polarization direction in the detector's reference frame):
 
-.. image:: images/polarization-direction.svg
+  .. image:: images/polarization-direction.svg
 
 The purpose of the method :meth:`.Simulation.compute_pointings`, used
 in the example at the beginning of this chapter, is to call
@@ -500,7 +504,7 @@ Python functions for quaternions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The LiteBIRD Simulation Framework provides three functions,
-:func:`quat_rotation_x`, :func:`quat_rotation_y`, :func:`quat_rotation_z` to
+:func:`.quat_rotation_x`, :func:`.quat_rotation_y`, :func:`.quat_rotation_z` to
 compute simple rotation quaternions; they return the normalized
 quaternion representing a rotation by an angle :math:`\theta` around
 one of the three axis `x`, `y`, and `z`:
@@ -572,7 +576,7 @@ A simple scanning strategy
 
 We are now ready to discuss how to implement other types of scanning
 strategies. There are plenty of reasons why one would like to go
-beyond the class :class:`SpinningScanningStrategy`:
+beyond the class :class:`.SpinningScanningStrategy`:
 
 1. You want to study the effect of non-idealities, like second-order
    effects caused by contractions/dilations in the mechanical
@@ -584,7 +588,7 @@ beyond the class :class:`SpinningScanningStrategy`:
    calibrating the instruments.
 
 To define a new scanning strategy, we define a descendeant of the
-:class:`ScanningStrategy` class, an `Abstract Base Class (ABC)
+:class:`.ScanningStrategy` class, an `Abstract Base Class (ABC)
 <https://docs.python.org/3/library/abc.html>`_; the only method that
 must be defined is
 :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`, which takes
@@ -687,6 +691,7 @@ computing one quaternion every minute, we compute one quaternion every
        start_time=0,
        duration_s=(365 * u.day).to("s").value,
        description="Simple simulation",
+       random_seed=12345,
    )
 
    sim.set_scanning_strategy(
@@ -724,6 +729,7 @@ of a descendant of the class :class:`.HWP` to the method
     sim = lbs.Simulation(
         start_time=0,
         duration_s=100.0,
+        random_seed=12345,
     )
 
     sim.set_scanning_strategy(
@@ -815,6 +821,7 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
       start_time=astropy.time.Time("2020-01-01T00:00:00"),
       duration_s=60.0,
       description="Simple simulation",
+      random_seed=12345,
   )
   
   sim.set_scanning_strategy(

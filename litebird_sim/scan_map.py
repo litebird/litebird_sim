@@ -17,6 +17,8 @@ from .healpix import npix_to_nside
 
 import logging
 
+import healpy as hp
+
 
 @njit
 def compute_signal_for_one_sample(T, Q, U, co, si):
@@ -25,14 +27,12 @@ def compute_signal_for_one_sample(T, Q, U, co, si):
 
 
 @njit
-def scan_map_for_one_detector(tod_det, pixel_ind_det, pol_angle_det, maps):
-
+def scan_map_for_one_detector(tod_det, input_T, input_Q, input_U, pol_angle_det):
     for i in range(len(tod_det)):
-
         tod_det[i] += compute_signal_for_one_sample(
-            T=maps[0, pixel_ind_det[i]],
-            Q=maps[1, pixel_ind_det[i]],
-            U=maps[2, pixel_ind_det[i]],
+            T=input_T[i],
+            Q=input_Q[i],
+            U=input_U[i],
             co=np.cos(2 * pol_angle_det[i]),
             si=np.sin(2 * pol_angle_det[i]),
         )
@@ -44,24 +44,26 @@ def scan_map(
     pol_angle,
     maps: Dict[str, np.ndarray],
     input_names,
-    input_map_in_galactic,
+    input_map_in_galactic: bool = True,
+    interpolation: Union[str, None] = "",
 ):
     """Scan a map filling time-ordered data
 
     This function modifies the values in `tod` by adding the contribution of the
     bolometric equation given a list of TQU maps `maps`. The `pointings` argument
-    must be a DxN×2 matrix containing the pointing information, where D is the number
+    must be a DxNx2 matrix containing the pointing information, where D is the number
     of detector for the current observation and N is the size of the `tod` array.
     `pol_angle` is the array of size DxN containing the polarization angle in radiants.
     `input_names` is an array containing the keywords that allow to select the proper
     input in `maps` for each detector in the TOD. If `input_map_in_galactic` is set to
-    False the input map is assumed in ecliptic coordinates, default galactic.
+    False the input map is assumed in ecliptic coordinates, default galactic. The
+    `interpolation` argument specifies the type of TOD interpolation ("" for no
+    interpolation, "linear" for linear interpolation)
     """
 
     assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(tod.shape[0]):
-
         if input_map_in_galactic:
             curr_pointings_det, curr_pol_angle_det = rotate_coordinates_e2g(
                 pointings[detector_idx, :, :], pol_angle[detector_idx, :]
@@ -77,15 +79,39 @@ def scan_map(
 
         nside = npix_to_nside(maps_det.shape[1])
 
-        hpx = Healpix_Base(nside, "RING")
-        pixel_ind_det = hpx.ang2pix(curr_pointings_det)
+        if interpolation in ["", None]:
+            hpx = Healpix_Base(nside, "RING")
+            pixel_ind_det = hpx.ang2pix(curr_pointings_det)
 
-        scan_map_for_one_detector(
-            tod_det=tod[detector_idx],
-            pixel_ind_det=pixel_ind_det,
-            pol_angle_det=curr_pol_angle_det,
-            maps=maps_det,
-        )
+            scan_map_for_one_detector(
+                tod_det=tod[detector_idx],
+                input_T=maps_det[0, pixel_ind_det],
+                input_Q=maps_det[1, pixel_ind_det],
+                input_U=maps_det[2, pixel_ind_det],
+                pol_angle_det=curr_pol_angle_det,
+            )
+
+        elif interpolation == "linear":
+            scan_map_for_one_detector(
+                tod_det=tod[detector_idx],
+                input_T=hp.get_interp_val(
+                    maps_det[0, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
+                ),
+                input_Q=hp.get_interp_val(
+                    maps_det[1, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
+                ),
+                input_U=hp.get_interp_val(
+                    maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
+                ),
+                pol_angle_det=curr_pol_angle_det,
+            )
+
+        else:
+            raise ValueError(
+                "Wrong value for interpolation. It should be one of the following:\n"
+                + '- "" for no interpolation\n'
+                + '- "linear" for linear interpolation\n'
+            )
 
 
 def scan_map_in_observations(
@@ -94,6 +120,7 @@ def scan_map_in_observations(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     input_map_in_galactic: bool = True,
     component: str = "tod",
+    interpolation: Union[str, None] = "",
 ):
     """Scan a map filling time-ordered data
 
@@ -102,6 +129,18 @@ def scan_map_in_observations(
     bed a :class:`.Observation` instance and a NumPy matrix, or a list
     of observations and a list of NumPy matrices; in the latter case, they must have
     the same number of elements.
+
+    The field `maps` must either be a dictionary associating the name of each detector
+    with a ``(3, NPIX)`` array containing the three I/Q/U maps or a plain ``(3, NPIX)``
+    array. In the latter case, the I/Q/U maps will be used for all the detectors.
+
+    The coordinate system is usually specified using the key `Coordinates` in the
+    dictionary passed to the `maps` argument, and it must be an instance of
+    the class :class:`.CoordinateSystem`. If you are using a plain NumPy array instead
+    of a dictionary for `maps`, you should specify whether to use Ecliptic or Galactic
+    coordinates through the parameter `input_map_in_galactic`. If
+    ``maps["Coordinates"]`` is present, it must be consistent with the value for
+    `input_map_in_galactic`; if not, the code prints a warning and uses the former.
 
     By default, the signal is added to ``Observation.tod``. If you want to add it to
     some other field of the :class:`.Observation` class, use `component`::
@@ -148,7 +187,6 @@ def scan_map_in_observations(
             psi_list = [point[:, :, 2] for point in pointings]
 
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
-
         if type(maps) is dict:
             if all(item in maps.keys() for item in cur_obs.name):
                 input_names = cur_obs.name
@@ -183,4 +221,5 @@ def scan_map_in_observations(
             maps=maps,
             input_names=input_names,
             input_map_in_galactic=input_map_in_galactic,
+            interpolation=interpolation,
         )

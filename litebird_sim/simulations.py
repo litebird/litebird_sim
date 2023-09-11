@@ -9,28 +9,37 @@ import logging as log
 import os
 import subprocess
 from typing import List, Tuple, Union, Dict, Any, Optional
+from uuid import uuid4
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
+import matplotlib.pylab as plt
 
-import litebird_sim
-from litebird_sim import constants as c
+from litebird_sim import constants
+from .coordinates import CoordinateSystem
 from . import HWP
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
-from .mpi import MPI_COMM_WORLD
+from .mapmaking import (
+    make_destriped_map,
+    DestriperParameters,
+    DestriperResult,
+    destriper_log_callback,
+)
+from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
 from .pointings import get_pointings
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
-
 from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
+from litebird_sim.mapmaking.binner import make_binned_map
+from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
 import astropy.units
@@ -205,7 +214,7 @@ class MpiDistributionDescr:
                     det_names=",".join(cur_obs.det_names),
                     tod_names=", ".join(cur_obs.tod_names),
                     tod_shape="×".join([str(x) for x in cur_obs.tod_shape]),
-                    tod_dtype=", ".join(cur_obs.tod_dtype),
+                    tod_dtype=", ".join([str(x) for x in cur_obs.tod_dtype]),
                 )
 
         return result
@@ -250,6 +259,10 @@ class Simulation:
 
     Args:
 
+        random_seed (int or `None`): the seed used for the random number
+            generator. The user is required to set this parameter. By setting it to
+            `None`, the generation of random numbers will not be reproducible.
+
         base_path (str or `pathlib.Path`): the folder that will
             contain the output. If this folder does not exist and the
             user has sufficient rights, it will be created.
@@ -283,6 +296,7 @@ class Simulation:
 
     def __init__(
         self,
+        random_seed="",
         base_path=None,
         name=None,
         mpi_comm=MPI_COMM_WORLD,
@@ -300,7 +314,7 @@ class Simulation:
         self.base_path = base_path
         self.name = name
 
-        self.observations = []
+        self.observations = []  # type: List[Observation]
 
         self.start_time = start_time
         self.duration_s = duration_s
@@ -313,7 +327,7 @@ class Simulation:
 
         self.description = description
 
-        self.random = None
+        self.random_seed = random_seed
 
         self.tod_list = []  # type: List[TodDescription]
 
@@ -376,22 +390,36 @@ class Simulation:
             if isinstance(self.start_time, astropy.time.Time)
             else self.start_time,
             duration_s=self.duration_s,
+            random_seed=self.random_seed,
         )
 
-        # Make sure that self.random is initialized to something meaningful.
-        # The user is free to call self.init_random() again later
-        self.init_random()
+        # Check that random_seed has been set
+        assert self.random_seed != "", (
+            "you must set random_seed (int for reproducible results, "
+            + "None for non reproducible results)"
+        )
 
-    def init_random(self, seed=12345):
+        # Initialize self.random. The user is free to
+        # call self.init_random() again later
+        self.init_random(self.random_seed)
+
+    def init_random(self, random_seed):
         """
         Initialize a random number generator in the `random` field
 
         This function creates a random number generator and saves it in the
         field `random`. It should be used whenever a random number generator
-        is needed in the simulation. It ensures that different MPI processes
-        have their own different seed, which stems from the parameter `seed`.
-        The generator is PCG64, and it is ensured that the sequences in
-        each MPI process are independent.
+        is needed in the simulation.
+        In the case `random_seed` has not been set to `None`, it ensures that
+        different MPI processes have their own different seed, which stems
+        from the parameter `random_seed`, and the results will be reproducible.
+        The generator is PCG64, and it is ensured that the sequences in each MPI
+        process are independent. If `init_random` is called with the same seed
+        but a different number of MPI ranks, the sequence of random numbers
+        will be different.
+        In the case `random_seed` has been set to `None`, no seed will be
+        used and the results obtained with the random number generator will
+        not be reproducible.
 
         This method is automatically called in the constructor, but it can be
         called again as many times as required. The typical case is when
@@ -401,10 +429,10 @@ class Simulation:
 
         # We need to assign a different random number generator to each MPI
         # process, otherwise noise will be correlated. The following code
-        # works even if MPI is not used
+        # works even if MPI is not used or if `random_seed` has been set to `None`
 
         # Create a list of N seeds, one per each MPI process
-        seed_seq = SeedSequence(seed).spawn(self.mpi_comm.size)
+        seed_seq = SeedSequence(random_seed).spawn(self.mpi_comm.size)
 
         # Pick the seed for this process
         self.random = Generator(PCG64(seed_seq[self.mpi_comm.rank]))
@@ -425,6 +453,9 @@ class Simulation:
             sim_params = self.parameters["simulation"]
         except KeyError:
             return
+
+        if self.random_seed == "":
+            self.random_seed = sim_params.get("random_seed", "")
 
         if not self.base_path:
             self.base_path = Path(sim_params.get("base_path", Path()))
@@ -805,7 +836,7 @@ class Simulation:
 
         The parameter `tods` specifies how many TOD arrays should be
         created. Each element should be an instance of
-        :class:`.TodType` and contain the fields ``name`` (the name
+        :class:`.TodDescription` and contain the fields ``name`` (the name
         of the member variable that will be created), ``dtype`` (the
         NumPy type to use, like ``numpy.float32``), and ``description``
         (a free-form description). The default is ``numpy.float32``,
@@ -823,17 +854,17 @@ class Simulation:
             sim.create_observations(
                 [det1, det2],
                 tods=[
-                    TodType(
+                    TodDescription(
                         name="fg_tod",
                         dtype=np.float32,
                         description="Foregrounds (computed by PySM)",
                     ),
-                    TodType(
+                    TodDescription(
                         name="cmb_tod",
                         dtype=np.float32,
                         description="CMB realization following Planck (2018)",
                     ),
-                    TodType(
+                    TodDescription(
                         name="noise_tod",
                         dtype=np.float32,
                         description="Noise TOD (only white noise, no 1/f)",
@@ -995,7 +1026,7 @@ class Simulation:
 
         num_of_observations = len(self.observations)
 
-        if self.mpi_comm and litebird_sim.MPI_ENABLED:
+        if self.mpi_comm and MPI_ENABLED:
             observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
             num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
         else:
@@ -1077,7 +1108,7 @@ class Simulation:
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
         num_of_obs = len(self.observations)
-        if append_to_report and litebird_sim.MPI_ENABLED:
+        if append_to_report and MPI_ENABLED:
             num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1137,7 +1168,6 @@ class Simulation:
     def compute_pointings(
         self,
         append_to_report: bool = True,
-        dtype_quaternion=np.float64,
         dtype_pointing=np.float32,
     ):
         """Trigger the computation of pointings.
@@ -1159,20 +1189,26 @@ class Simulation:
         memory_occupation = 0
         num_of_obs = 0
         for cur_obs in self.observations:
+            quaternion_buffer = np.zeros(
+                (cur_obs.n_samples, 1, 4),
+                dtype=np.float64,
+            )
             get_pointings(
                 cur_obs,
                 self.spin2ecliptic_quats,
                 detector_quats=cur_obs.quat,
                 bore2spin_quat=self.instrument.bore2spin_quat,
                 hwp=self.hwp,
-                dtype_quaternion=dtype_quaternion,
+                quaternion_buffer=quaternion_buffer,
                 dtype_pointing=dtype_pointing,
                 store_pointings_in_obs=True,
             )
+            del quaternion_buffer
+
             memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
             num_of_obs += 1
 
-        if append_to_report and litebird_sim.MPI_ENABLED:
+        if append_to_report and MPI_ENABLED:
             memory_occupation = MPI_COMM_WORLD.allreduce(memory_occupation)
             num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
 
@@ -1191,9 +1227,9 @@ class Simulation:
     def compute_pos_and_vel(
         self,
         delta_time_s=86400.0,
-        solar_velocity_km_s: float = c.SOLAR_VELOCITY_KM_S,
-        solar_velocity_gal_lat_rad: float = c.SOLAR_VELOCITY_GAL_LAT_RAD,
-        solar_velocity_gal_lon_rad: float = c.SOLAR_VELOCITY_GAL_LON_RAD,
+        solar_velocity_km_s: float = constants.SOLAR_VELOCITY_KM_S,
+        solar_velocity_gal_lat_rad: float = constants.SOLAR_VELOCITY_GAL_LAT_RAD,
+        solar_velocity_gal_lon_rad: float = constants.SOLAR_VELOCITY_GAL_LON_RAD,
     ):
         """Computes the position and the velocity of the spacescraft for computing
         the dipole.
@@ -1218,6 +1254,8 @@ class Simulation:
     def fill_tods(
         self,
         maps: Dict[str, np.ndarray],
+        input_map_in_galactic: bool = True,
+        interpolation: Union[str, None] = "",
         append_to_report: bool = True,
     ):
         """Fills the TODs, scanning a map.
@@ -1231,6 +1269,8 @@ class Simulation:
         scan_map_in_observations(
             self.observations,
             maps=maps,
+            input_map_in_galactic=input_map_in_galactic,
+            interpolation=interpolation,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1239,7 +1279,6 @@ class Simulation:
                 markdown_template = "".join(inpf.readlines())
             if type(maps) is dict:
                 if "Mbs_parameters" in maps.keys():
-
                     if maps["Mbs_parameters"].make_fg:
                         fg_model = maps["Mbs_parameters"].fg_models
                     else:
@@ -1264,7 +1303,7 @@ class Simulation:
 
     def add_dipole(
         self,
-        t_cmb_k: float = c.T_CMB_K,
+        t_cmb_k: float = constants.T_CMB_K,
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
         append_to_report: bool = True,
     ):
@@ -1306,20 +1345,19 @@ class Simulation:
 
     def add_noise(
         self,
+        random: np.random.Generator,
         noise_type: str = "one_over_f",
-        random: Union[np.random.Generator, None] = None,
         append_to_report: bool = True,
     ):
-
         """Adds noise to tods.
 
         This method must be called after having set the instrument,
         the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`.
+        The parameter `random` must be specified and must be a random number
+        generator thatimplements the ``normal`` method. You should typically
+        use the `random` field of a :class:`.Simulation` object for this.
         """
-
-        if random is None:
-            random = self.random
 
         add_noise_to_observations(
             obs=self.observations,
@@ -1335,3 +1373,169 @@ class Simulation:
                 markdown_template,
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
+
+    def make_binned_map(
+        self,
+        nside: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        append_to_report: bool = True,
+    ):
+        """
+        Bins the tods of `sim.observations` into maps.
+        The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
+        """
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_binned_map.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                nside=nside,
+                coord=str(output_coordinate_system),
+            )
+
+        return make_binned_map(
+            obs=self.observations,
+            nside=nside,
+            output_coordinate_system=output_coordinate_system,
+        )
+
+    def apply_gaindrift(
+        self,
+        drift_params: GainDriftParams = None,
+        user_seed: int = 12345,
+        component: str = "tod",
+        append_to_report: bool = True,
+    ):
+        """A method to apply the gain drift to the observation.
+
+        This is a wrapper around :func:`.apply_gaindrift_to_observations()` that
+        injects gain drift to a list of :class:`.Observation` instance.
+
+        Args:
+
+            drift_params (:class:`.GainDriftParams`, optional): The gain
+                drift injection parameters object. Defaults to None.
+
+            user_seed (int, optional): A seed provided by the user.
+                Defaults to 12345.
+
+            component (str, optional): The name of the TOD on which the
+                gain drift has to be injected. Defaults to "tod".
+
+            append_to_report (bool, optional): Defaults to True.
+        """
+
+        if drift_params is None:
+            drift_params = GainDriftParams()
+
+        apply_gaindrift_to_observations(
+            obs=self.observations,
+            drift_params=drift_params,
+            user_seed=user_seed,
+            component=component,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            dictionary = {
+                "sampling_dist": "Gaussian" if drift_params.sampling_dist else "Uniform"
+            }
+
+            if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
+                dictionary["drift_type"] = "Linear"
+                dictionary["linear_drift"] = True
+                dictionary[
+                    "calibration_period_sec"
+                ] = drift_params.calibration_period_sec
+
+            elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
+                dictionary["drift_type"] = "Thermal"
+                dictionary["thermal_drift"] = True
+
+                keys_to_get = [
+                    "sigma_drift",
+                    "focalplane_group",
+                    "oversample",
+                    "fknee_drift_mHz",
+                    "alpha_drift",
+                    "detector_mismatch",
+                    "thermal_fluctuation_amplitude_K",
+                    "focalplane_Tbath_K",
+                    "sampling_uniform_low",
+                    "sampling_uniform_high",
+                    "sampling_gaussian_loc",
+                    "sampling_gaussian_scale",
+                ]
+
+                for key in keys_to_get:
+                    dictionary[key] = getattr(drift_params, key)
+
+            template_file_path = get_template_file_path("report_gaindrift.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_text=markdown_template,
+                component=component,
+                user_seed=user_seed,
+                **dictionary,
+            )
+
+    def make_destriped_map(
+        self,
+        nside: int,
+        params: DestriperParameters = DestriperParameters(),
+        components: Optional[List[str]] = None,
+        keep_weights: bool = False,
+        keep_pixel_idx: bool = False,
+        keep_pol_angle_rad: bool = False,
+        callback: Any = destriper_log_callback,
+        callback_kwargs: Optional[Dict[Any, Any]] = None,
+        append_to_report: bool = True,
+    ) -> DestriperResult:
+        results = make_destriped_map(
+            nside=nside,
+            obs=self.observations,
+            pointings=None,
+            params=params,
+            components=components,
+            keep_weights=keep_weights,
+            keep_pixel_idx=keep_pixel_idx,
+            keep_pol_angle_rad=keep_pol_angle_rad,
+            callback=callback,
+            callback_kwargs=callback_kwargs,
+        )
+
+        if append_to_report:
+            fig, ax = plt.subplots()
+            ax.set_xlabel("Iteration number")
+            ax.set_ylabel("Residual [K]")
+            ax.set_title("CG convergence of the destriper")
+            ax.semilogy(
+                np.arange(len(results.history_of_stopping_factors)),
+                results.history_of_stopping_factors,
+                "ko-",
+            )
+
+            template_file_path = get_template_file_path("report_destriper.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            cg_plot_filename = f"destriper-cg-convergence-{uuid4()}.png"
+
+            self.append_to_report(
+                markdown_text=markdown_template,
+                results=results,
+                history_of_stopping_factors=[
+                    float(x) for x in results.history_of_stopping_factors
+                ],
+                bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
+                cg_plot_filename=cg_plot_filename,
+                figures=[
+                    # Using uuid4() we can have more than one section
+                    # about “destriping” in the report
+                    (fig, cg_plot_filename),
+                ],
+            )
+
+        return results

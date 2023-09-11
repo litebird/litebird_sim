@@ -4,7 +4,7 @@ from numba import njit
 import numpy as np
 import healpy as hp
 from astropy import constants as const
-from astropy.cosmology import Planck18_arXiv_v2 as cosmo
+from astropy.cosmology import Planck18 as cosmo
 from litebird_sim import mpi
 from typing import Union, List
 from ..mbs.mbs import MbsParameters
@@ -995,7 +995,6 @@ class HwpSys:
         pointings: np.ndarray,
         hwp_radpsec: float,
     ):
-
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
         Args:
             - obs class:`Observations`: container for tod.
@@ -1012,7 +1011,7 @@ class HwpSys:
             self.atd = np.zeros((self.npix, 3))
             self.ata = np.zeros((self.npix, 3, 3))
         else:
-            # allocate those for "make_bin_map"
+            # allocate those for "make_binned_map"
             # later filled
             obs.psi = np.empty_like(obs.tod)
             obs.pixind = np.empty_like(obs.tod, dtype=np.int)
@@ -1157,8 +1156,9 @@ class HwpSys:
 
     def make_map(self, obss):
 
-        """It generates "on the fly" map. This option is only availabe if `built_map_on_the_fly`
-        is set to True.
+        """It generates "on the fly" map. This option is only availabe if
+	`built_map_on_the_fly` is set to True.
+
         Args:
              obss list of class:`Observations`: only necessary for the communicator
              pointings (float): pointing for each sample and detector
