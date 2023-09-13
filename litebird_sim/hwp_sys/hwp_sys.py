@@ -853,7 +853,6 @@ class HwpSys:
             del maps
 
         else:
-
             if mueller_or_jones == "jones":
                 if not hasattr(self, "h1"):
                     self.h1 = 0.0
@@ -1155,9 +1154,8 @@ class HwpSys:
         return
 
     def make_map(self, obss):
-
         """It generates "on the fly" map. This option is only availabe if
-	`built_map_on_the_fly` is set to True.
+        `built_map_on_the_fly` is set to True.
 
         Args:
              obss list of class:`Observations`: only necessary for the communicator
