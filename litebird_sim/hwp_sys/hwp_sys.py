@@ -3,7 +3,7 @@ import litebird_sim as lbs
 import numpy as np
 import healpy as hp
 from astropy import constants as const
-from astropy.cosmology import Planck18_arXiv_v2 as cosmo
+from astropy.cosmology import Planck18 as cosmo
 from litebird_sim import mpi
 from typing import Union, List
 from ..mbs.mbs import MbsParameters
@@ -250,7 +250,6 @@ class HwpSys:
             del maps
 
         else:
-
             if not hasattr(self, "h1"):
                 self.h1 = 0.0
             if not hasattr(self, "h2"):
@@ -294,7 +293,6 @@ class HwpSys:
                     self.z2s = 0.0
 
     def fill_tod(self, obs: Observation, pointings: np.ndarray, hwp_radpsec: float):
-
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
 
         Args:
@@ -312,7 +310,7 @@ class HwpSys:
             self.atd = np.zeros((self.npix, 3))
             self.ata = np.zeros((self.npix, 3, 3))
         else:
-            # allocate those for "make_bin_map"
+            # allocate those for "make_binned_map"
             # later filled
             obs.psi = np.empty_like(obs.tod)
             obs.pixind = np.empty_like(obs.tod, dtype=np.int)
@@ -401,9 +399,7 @@ class HwpSys:
                     )
 
             if self.built_map_on_the_fly:
-
                 if self.correct_in_solver:
-
                     if self.integrate_in_band_solver:
                         J11 = (
                             (1 + self.h1s[:, np.newaxis]) * ca**2
@@ -478,9 +474,8 @@ class HwpSys:
         return
 
     def make_map(self, obss):
-
-        """It generates "on the fly" map. This option is only availabe if `built_map_on_the_fly`
-        is set to True.
+        """Generate a "on the fly" map. This option is only availabe if
+        `built_map_on_the_fly` is True.
 
         Args:
              obss list of class:`Observations`: only necessary for the communicator

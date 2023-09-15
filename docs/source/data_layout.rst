@@ -33,9 +33,9 @@ can be organized in a matrix D-by-T, where D is the number of
 detectors and T is the number of time samples. Following
 ``numpy.ndarray`` notation, we denote it as ``tod[row_index,
 col_index]``. Accessing the :math:`i`-th row can be done using the
-notation ``tod[i]``: for instance, ``tod[3]`` gets the third row (the
-TOD of the third detector); accessing the third column, i.e., the
-third sample of each detector, can be done with ``tod[:, 3]``. So, the
+notation ``tod[i]``: for instance, ``tod[3]`` gets the fourth row (the
+TOD of the fourth detector); accessing the fourth column, i.e., the
+fourth sample of each detector, can be done with ``tod[:, 3]`` (remember that in Python we start counting from 0). So, the
 way the framework keeps TODs in memory makes easy to operate on the
 «detector dimension» as well as on the «time dimension».
 
@@ -83,7 +83,7 @@ principle leverage on all the processors available.
 
 However, when working on clusters, we have to split this matrix into
 pieces. We resort to supercomputers either when we want more CPU power
-than a laptop or because the we need more memory to store our data.
+than a laptop or because we need more memory to store our data.
 Both motivations apply to full-scale LiteBIRD simulations (4000
 detectors, sampled at 20 GHz for 3 years take approximately 10 TB).
 Therefore, we have to distribute the matrix and a compute node has

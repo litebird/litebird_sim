@@ -20,7 +20,7 @@ have been measured by the COBE experiment.
 The motion of the spacecraft around L2 is modelled using a Lissajous
 orbit similar to what was used for the WMAP experiment
 :cite:`2008:wmap:cavaluzzi`, and it is encoded using the
-:class:`SpacecraftOrbit` class.
+:class:`.SpacecraftOrbit` class.
 
 Position and velocity of the spacecraft
 ---------------------------------------
@@ -38,9 +38,9 @@ from the literature. As the LiteBIRD orbit around L2 is not fixed yet,
 the code assumes a WMAP-like Lissajous orbit.
 
 To compute the position/velocity of the spacecraft, you call
-:func:`.spacecraft_pos_and_vel`; it requires either a time span or a
+:func:`.spacecraft_pos_and_vel`; it requires either a time span or an
 :class:`.Observation` object, and it returns an instance of the class
-:class:`SpacecraftPositionAndVelocity`:
+:class:`.SpacecraftPositionAndVelocity`:
 
 .. testcode::
 
@@ -120,7 +120,7 @@ models use some simplifications, to make the math easier to work on
 the blackboard. The LiteBIRD Simulation Framework implements several
 simplifications of the formula, which are based on a series expansion
 of :eq:`dipole`; the caller must pass an object of type
-:class:`DipoleType` (an `enum class
+:class:`.DipoleType` (an `enum class
 <https://docs.python.org/3/library/enum.html>`_), whose value signals
 which kind of approximation to use:
 
@@ -179,10 +179,10 @@ method.
 Methods of class simulation
 ---------------------------
 
-The class :class:`.simulation` provides two simple functions that compute
-poisition and velocity of the spacescraft :func:`.simulation.compute_pos_and_vel`, 
+The class :class:`.Simulation` provides two simple functions that compute
+poisition and velocity of the spacescraft :func:`.Simulation.compute_pos_and_vel`, 
 and add the solar and orbital dipole to all the observations of a given 
-simulation :func:`.simulation.add_dipole`.
+simulation :func:`.Simulation.add_dipole`.
 
 .. testcode::
 
@@ -194,7 +194,11 @@ simulation :func:`.simulation.add_dipole`.
   time_span_s = 1000.0
   sampling_hz = 10.0
 
-  sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+  sim = lbs.Simulation(
+      start_time=start_time,
+      duration_s=time_span_s,
+      random_seed=12345,
+  )
 
   # We pick a simple scanning strategy where the spin axis is aligned
   # with the Sun-Earth axis, and the spacecraft spins once every minute

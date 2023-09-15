@@ -5,24 +5,27 @@ Simulation Team plans to implement in `litebird_sim`.
 
 ## List of modules
 
-| Module                           | Status   | Priority   | Notes                           | Links                                                                                           |
-| -------------------------------- | -------- | ---------- | ------------------------------- | ---------------------------------------------------------                                       |
-| Pointing generation              | Complete |            |                                 | [PR#48](https://github.com/litebird/litebird_sim/pull/48)                                       |
-| Interface with Ephemerides       | Complete |            | Through AstroPy                 | [PR#48](https://github.com/litebird/litebird_sim/pull/48)                                       |
-| Synthetic sky map generation     | Complete |            | Based on PySM3                  | [PR#76](https://github.com/litebird/litebird_sim/pull/76)                                       |
-| Binning map-maker                | Complete |            |                                 | [PR#73](https://github.com/litebird/litebird_sim/pull/76)                                       |
-| Destriping+calibration map-maker | Complete |            | Provided by TOAST               | [PR#86](https://github.com/litebird/litebird_sim/pull/86)                                       |
-| Spacecraft simulator             | Complete |            |                                 | [PR#122](https://github.com/litebird/litebird_sim/pull/122)                                     |
-| Dipole calculation               | Complete |            |                                 | [PR#122](https://github.com/litebird/litebird_sim/pull/122)                                     |
-| Map scanning                     | Complete |            |                                 | [PR#131](https://github.com/litebird/litebird_sim/pull/131)                                    |
-| White+1/f noise generation       | Complete |            |                                 | [PR#100](https://github.com/litebird/litebird_sim/pull/100)                                    |
-| Beam convolution                 | Partial  |            | Through ducc0                   | [ducc.totalconvolve](https://gitlab.mpcdf.mpg.de/mtr/ducc/-/tree/ducc0/)                        |
-| Calibration non-idealities       | Partial  |            | Code in toast-litebird          | [`OpGainDrifter`](https://github.com/hpc4cmb/toast-litebird/blob/master/toast_litebird/gain.py) |
-| Cosmic-ray glitch generation     | Partial  |            |                                 | No PRs yet                                                                                      |
-| HWP simulation                   | Partial  |            |                                 | [PR#117](https://github.com/litebird/litebird_sim/pull/117)                                    |
-| ADC simulation                   | Partial  |            | Through the CR glitch generator | No PRs yet                                                                                      |
-| Correlated noise generation      | Missing  |            |                                 |                                                                                                |
-| Dipole calibration               | Missing  |            |                                 |                                                                                                |
+| Module                           | Status   | Priority | Notes                           | Links                                                                                                                |
+|----------------------------------|----------|----------|---------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| Pointing generation              | Complete |          |                                 | [#48](https://github.com/litebird/litebird_sim/pull/48)                                                              |
+| Interface with Ephemerides       | Complete |          | Through AstroPy                 | [#48](https://github.com/litebird/litebird_sim/pull/48)                                                              |
+| Synthetic sky map generation     | Complete |          | Based on PySM3                  | [#76](https://github.com/litebird/litebird_sim/pull/76)                                                              |
+| Binning map-maker                | Complete |          |                                 | [#73](https://github.com/litebird/litebird_sim/pull/76)                                                              |
+| Destriping+calibration map-maker | Complete |          | Provided by TOAST+Madam         | [#86](https://github.com/litebird/litebird_sim/pull/86)                                                              |
+|                                  |          |          |                                 | [#186](https://github.com/litebird/litebird_sim/pull/186)                                                            |
+| Spacecraft simulator             | Complete |          |                                 | [#122](https://github.com/litebird/litebird_sim/pull/122)                                                            |
+| Dipole calculation               | Complete |          |                                 | [#122](https://github.com/litebird/litebird_sim/pull/122)                                                            |
+| Map scanning                     | Complete |          |                                 | [#131](https://github.com/litebird/litebird_sim/pull/131)                                                            |
+| White+1/f noise generation       | Complete |          |                                 | [#100](https://github.com/litebird/litebird_sim/pull/100)                                                            |
+| Gain drift simulation            | Complete |          |                                 | [#243](https://github.com/litebird/litebird_sim/pull/243)                                                            |
+| Synthetic bandpass generation    | Complete |          |                                 | [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200) |
+| Calibration non-idealities       | Complete |          |                                 | [#243](https://github.com/litebird/litebird_sim/pull/243)                                                            |
+| Beam convolution                 | Partial  |          | Through ducc0                   | [ducc.totalconvolve](https://gitlab.mpcdf.mpg.de/mtr/ducc/-/tree/ducc0/)                                             |
+| Cosmic-ray glitch generation     | Partial  |          |                                 | No PRs yet                                                                                                           |
+| HWP simulation                   | Partial  |          |                                 | [#117](https://github.com/litebird/litebird_sim/pull/117)                                                            |
+| ADC simulation                   | Partial  |          | Through the CR glitch generator | No PRs yet                                                                                                           |
+| Correlated noise generation      | Missing  |          |                                 |                                                                                                                      |
+| Dipole calibration               | Missing  |          |                                 |                                                                                                                      |
 
 ## Beam convolution
 

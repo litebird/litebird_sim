@@ -42,7 +42,7 @@ that need to be passed to the code: the resolution of an output map,
 the names of the detectors to simulate, whether to include synchrotron
 emission in the sky model, etc.
 
-The :class:`Simulation` class eases this task by accepting the path to
+The :class:`.Simulation` class eases this task by accepting the path to
 a TOML file as a parameter (``parameter_file``). Specifying this
 parameter triggers two actions:
 
@@ -64,6 +64,9 @@ Take this example of a simple TOML file:
 .. code-block:: toml
 
    # This is file "my_conf.toml"
+   [simulation]
+   random_seed = 12345
+
    [general]
    nside = 512
    imo_version = "v1.3"
@@ -78,6 +81,8 @@ the terminal::
 
   sim = lbs.Simulation(parameter_file="my_conf.toml")
 
+  print("Seed for the random number generator:",
+        sim.parameters["simulation"]["random_seed"])
   print("NSIDE =", sim.parameters["general"]["nside"])
   print("The IMO I'm going to use is",
         sim.parameters["general"]["imo_version"])
@@ -90,6 +95,7 @@ The output of the script is the following:
 
 .. code-block:: text
 
+    Seed for the random number generator: 12345
     NSIDE = 512
     The IMO I'm going to use is v1.3
     Here are the sky components I'm going to simulate:
@@ -118,17 +124,22 @@ parameters in the section named ``simulation`` are the following:
 - ``name``: a string containing the name of the simulation.
 - ``description``: a string containing a (possibly long) description
   of what the simulation does.
+- ``random_seed``: the seed for the random number generator. An integer
+  value ensures the reproducibility of the results obtained with random
+  numbers; by passing ``None`` there will not be the possibility to
+  re-obtain the same outputs. You can find more details in :ref:`random-numbers`.
 
 These parameters can be used instead of the keywords in the
 constructor of the :class:`.Simulation` class. Consider the following
 code::
 
-  sim = Simulation(
+  sim = lbs.Simulation(
       base_path="/storage/output",
       start_time=astropy.time.Time("2020-02-01T10:30:00"),
       duration_s=3600.0,
       name="My simulation",
-      description="A long description should be put here")
+      description="A long description should be put here",
+      random_seed=12345,
   )
 
 You can achieve the same if you create a TOML file named ``foo.toml``
@@ -142,11 +153,12 @@ that contains the following lines:
    duration_s = 3600.0
    name = "My simulation"
    description = "A long description should be put here"
+   random_seed = 12345
 
 and then you initialize the `sim` variable in your Python code as
 follows::
 
-  sim = Simulation(parameter_file="foo.toml")
+  sim = lbs.Simulation(parameter_file="foo.toml")
 
 A nice feature of the framework is that the duration of the mission
 must not be specified in seconds. You would achieve identical results
@@ -206,7 +218,7 @@ a :class:`.Simulation` object::
   import mpi4py
 
   # This simulation *must* be ran using MPI
-  sim = lbs.Simulation(mpi_comm=mpi4py.MPI.COMM_WORLD)
+  sim = lbs.Simulation(mpi_comm=mpi4py.MPI.COMM_WORLD, random_seed=12345)
 
 The framework sets a number of variables related to MPI; these
 variables are *always* defined, even if MPI is not available, and they
@@ -220,7 +232,7 @@ initialize a :class:`.Simulation` object using the variable
 
   # This simulation can take advantage of MPI if present,
   # otherwise it will stick to serial execution
-  sim = lbs.Simulation(mpi_comm=lbs.MPI_COMM_WORLD)
+  sim = lbs.Simulation(mpi_comm=lbs.MPI_COMM_WORLD, random_seed=12345)
 
 See the page :ref:`using_mpi` for more information.
 
@@ -240,7 +252,11 @@ formulae, plots, and value substitution::
     import litebird_sim as lbs
     import matplotlib.pylab as plt
 
-    sim = lbs.Simulation(name="My simulation", base_path="output")
+    sim = lbs.Simulation(
+        name="My simulation",
+        base_path="output",
+        random_seed=12345,
+    )
     data_points = [0, 1, 2, 3]
 
     plt.plot(data_points)
@@ -269,6 +285,7 @@ formulae, plots, and value substitution::
 And here is the output, which is saved in ``output/report.html``:
 
 .. image:: images/report_example.png
+  :align: center
 
 
 Logging
@@ -282,13 +299,13 @@ often, etc. In this case, the best option is to write messages to the
 terminal. Python provides the `logging
 <https://docs.python.org/3/library/logging.html>`_ module for this
 purpose, and when you initialize a :class:`.Simulation` object, the
-module is initialize with a set of sensible defaults. In your code you
+module is initialized with a set of sensible defaults. In your code you
 can use the functions ``debug``, ``info``, ``warning``, ``error``, and
 ``critical`` to monitor what's happening during execution::
 
   import litebird_sim as lbs
   import logging as log       # "log" is shorter to write
-  my_sim = lbs.Simulation()
+  my_sim = lbs.Simulation(random_seed=12345)
   log.info("the simulation starts here!")
   pi = 3.15
   if pi != 3.14:
@@ -323,7 +340,7 @@ an example. Suppose that we changed our example above, so that
   import litebird_sim as lbs
   import logging as log  # "log" is shorter to write
 
-  my_sim = lbs.Simulation()
+  my_sim = lbs.Simulation(random_seed=12345)
   log.debug("the simulation starts here!")
   pi = 3.15
   if pi != 3.14:

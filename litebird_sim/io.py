@@ -15,7 +15,7 @@ import numpy as np
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
-from .observations import Observation
+from .observations import Observation, TodDescription
 from .simulations import Simulation
 
 __NUMPY_INT_TYPES = [
@@ -48,7 +48,7 @@ def write_one_observation(
     pointings_dtype,
     global_index: int,
     local_index: int,
-    tod_fields: List[str] = ["tod"],
+    tod_fields: List[Union[str, TodDescription]] = None,
     gzip_compression: bool = False,
 ):
     """Write one :class:`Observation` object in a HDF5 file.
@@ -61,7 +61,8 @@ def write_one_observation(
     observation to be written is passed through the `obs` parameter. The data type to
     use for writing TODs and pointings is specified in the `tod_dtype` and
     `pointings_dtype` (it can either be a NumPy type like ``numpy.float64`` or a
-    string). The `global_index` and `local_index` parameters are two integers that are
+    string, pass ``None`` to use the same type as the one used in the observation).
+    The `global_index` and `local_index` parameters are two integers that are
     used by high-level functions like :func:`.write_observations` to understand how to
     read several HDF5 files at once; if you do not need them, you can pass 0 to both.
     """
@@ -110,12 +111,21 @@ def write_one_observation(
     # Now encode `det_info` in a JSON string that will be saved later as an attribute
     detectors_json = json.dumps(det_info)
 
+    if not tod_fields:
+        tod_fields = obs.tod_list
+
     # Write all the TOD timelines in the HDF5 file, in separate datasets
-    for field_name in tod_fields:
+    for cur_field in tod_fields:
+        if not isinstance(cur_field, TodDescription):
+            try:
+                cur_field = [x for x in obs.tod_list if x.name == cur_field][0]
+            except IndexError:
+                raise KeyError(f'TOD with name "{cur_field}" not found in observation')
+
         cur_dataset = output_file.create_dataset(
-            field_name,
-            data=obs.__getattribute__(field_name),
-            dtype=tod_dtype,
+            cur_field.name,
+            data=obs.__getattribute__(cur_field.name),
+            dtype=tod_dtype if tod_dtype else cur_field.dtype,
             compression=compression,
         )
         if isinstance(obs.start_time, astropy.time.Time):
@@ -129,6 +139,7 @@ def write_one_observation(
 
         cur_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
         cur_dataset.attrs["detectors"] = detectors_json
+        cur_dataset.attrs["description"] = cur_field.description
 
     # Save pointing information only if it is available
     try:
@@ -210,7 +221,7 @@ def write_list_of_observations(
     custom_placeholders: Optional[List[Dict[str, Any]]] = None,
     start_index: int = 0,
     collective_mpi_call: bool = True,
-    tod_fields: List[str] = ["tod"],
+    tod_fields: List[Union[str, TodDescription]] = [],
     gzip_compression: bool = False,
 ) -> List[Path]:
     """
@@ -281,8 +292,9 @@ def write_list_of_observations(
 
     If observations contain more than one timeline in separate fields
     (e.g., foregrounds, dipole, noise…), you can specify the names of the
-    fields using the parameter ``tod_fields`` (list of strings), which by
-    default will only save `Observation.tod`.
+    fields using the parameter ``tod_fields`` (list of strings or
+    :class:`.TodDescription` objects), which by default will only save
+    `Observation.tod`.
 
     To save disk space, you can choose to apply GZip compression to the
     data frames in each HDF5 file (the file will still be a valid .h5
@@ -463,6 +475,11 @@ def read_one_observation(
 
     assert len(tod_fields) > 0
 
+    # We'll fill the description later
+    tod_full_fields = [
+        TodDescription(name=x, dtype=tod_dtype, description="") for x in tod_fields
+    ]
+
     with h5py.File(str(path), "r") as inpf:
         if limit_mpi_rank:
             mpi_size = inpf.attrs["mpi_size"]
@@ -477,11 +494,19 @@ def read_one_observation(
                 return None
 
         # Load the TOD(s)
+        # We'll slowly build "result" while iterating over the TODs, one by one
         result = None  # Optional[Observation]
 
-        for cur_field in tod_fields:
-            assert cur_field in inpf
-            hdf5_tod = inpf[cur_field]
+        for cur_field_idx, cur_field in enumerate(tod_fields):
+            if isinstance(cur_field, TodDescription):
+                cur_field_name = cur_field.name
+            else:
+                cur_field_name = cur_field
+
+            assert (
+                cur_field_name in inpf
+            ), f"Field {cur_field_name} not found in HDF5 file {path}"
+            hdf5_tod = inpf[cur_field_name]
 
             if hdf5_tod.attrs["mjd_time"]:
                 start_time = astropy.time.Time(
@@ -489,6 +514,10 @@ def read_one_observation(
                 )
             else:
                 start_time = hdf5_tod.attrs["start_time"]
+
+            tod_full_fields[cur_field_idx].description = hdf5_tod.attrs.get(
+                "description", ""
+            )
 
             if result is None:
                 detectors = [
@@ -505,17 +534,21 @@ def read_one_observation(
                     allocate_tod=True,
                     sampling_rate_hz=hdf5_tod.attrs["sampling_rate_hz"],
                     comm=None if limit_mpi_rank else MPI_COMM_WORLD,
-                    dtype_tod=hdf5_tod.dtype,
+                    tods=tod_full_fields,
                 )
                 # Copy the TOD in the newly created observation
-                result.__setattr__(cur_field, hdf5_tod.astype(tod_dtype)[:])
+                result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])
             else:
                 # All the fields must conform to the same shape as `Observation.tod`
-                assert result.tod.shape == hdf5_tod.shape
-                result.__setattr__(cur_field, hdf5_tod.astype(tod_dtype)[:])
+                assert result.__getattribute__(tod_fields[0]).shape == hdf5_tod.shape
+                result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])
 
         # If we arrive here, we must have read at least one TOD
         assert result is not None
+
+        # Let's fix the description of the TODs, now that we have read them all
+        for i in range(len(tod_full_fields)):
+            result.tod_list[i].description = tod_full_fields[i].description
 
         # If it is required, read other optional datasets
         for attr, attr_type, should_read in [
@@ -532,8 +565,8 @@ def read_one_observation(
         if read_local_flags_if_present:
             flags = __find_flags(
                 inpf,
-                expected_num_of_dets=result.tod.shape[0],
-                expected_num_of_samples=result.tod.shape[1],
+                expected_num_of_dets=result.__getattribute__(tod_fields[0]).shape[0],
+                expected_num_of_samples=result.__getattribute__(tod_fields[0]).shape[1],
             )
             if flags is not None:
                 result.__setattr__("local_flags", flags)
@@ -571,14 +604,16 @@ def read_list_of_observations(
     tod_dtype=np.float32,
     pointings_dtype=np.float32,
     limit_mpi_rank: bool = True,
-    tod_fields: List[str] = ["tod"],
+    tod_fields: List[Union[str, TodDescription]] = ["tod"],
 ) -> List[Observation]:
     """Read a list of HDF5 files containing TODs and return a list of observations
 
     The function reads all the HDF5 files listed in `file_name_list` (either a list of
     strings or ``pathlib.Path`` objects) and assigns them to the various MPI processes
     that are currently running, provided that `limit_mpi_rank` is ``True``; otherwise,
-    all the files are read by the current process and returned in a list.
+    all the files are read by the current process and returned in a list. By default,
+    only the ``tod`` field is loaded; if the HDF5 file contains multiple TODs, you
+    must load each of them.
 
     When using MPI, the observations are distributed among the MPI processes using the
     same layout that was used to save them; this means that you are forced to use the
@@ -586,9 +621,10 @@ def read_list_of_observations(
     the attribute ``mpi_size`` in each of the HDF5 files.
 
     If the HDF5 file contains more than one TOD, e.g., foregrounds, dipole, noise…,
-    you can specify which datasets to load with ``tod_fields``, that by default is
-    equal to ``["tod"]``. Each dataset will be initialized as a member field of
-    the :class:`.Observation` class, like ``Observation.tod``.
+    you can specify which datasets to load with ``tod_fields`` (a list of strings
+    or :class:`.TodDescription` objects), which defaults to ``["tod"]``. Each
+    dataset will be initialized as a member field of the :class:`.Observation`
+    class, like ``Observation.tod``.
     """
 
     observations = []

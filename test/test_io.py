@@ -61,7 +61,9 @@ def __write_complex_observation(
         base_path=tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
+        random_seed=12345,
     )
+
     scanning = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.785_398_163_397_448_3,
         precession_rate_hz=8.664_850_513_998_931e-05,
@@ -86,10 +88,17 @@ def __write_complex_observation(
         quat=[0.0, 0.0, 0.0, 1.0],
     )
 
-    sim.create_observations(detectors=[det])
+    sim.create_observations(
+        detectors=[det],
+        tods=[
+            lbs.TodDescription(name="tod1", description="First TOD", dtype=np.float64),
+            lbs.TodDescription(name="tod2", description="Second TOD", dtype=np.float32),
+        ],
+    )
 
     obs = sim.observations[0]
-    obs.tod = np.random.random(obs.tod.shape)
+    obs.tod1[:] = np.random.random(obs.tod1.shape)
+    obs.tod2[:] = 1.0
 
     obs.pointings = lbs.get_pointings(
         obs,
@@ -97,10 +106,10 @@ def __write_complex_observation(
         bore2spin_quat=instr.bore2spin_quat,
     )
 
-    obs.local_flags = np.zeros(obs.tod.shape, dtype="uint16")
+    obs.local_flags = np.zeros(obs.tod1.shape, dtype="uint16")
     obs.local_flags[0, 12:15] = 1
 
-    obs.global_flags = np.zeros(obs.tod.shape[1], dtype="uint32")
+    obs.global_flags = np.zeros(obs.tod1.shape[1], dtype="uint32")
     obs.global_flags[12:15] = 15
 
     return (
@@ -110,6 +119,7 @@ def __write_complex_observation(
             sim=sim,
             subdir_name="",
             gzip_compression=gzip_compression,
+            tod_fields=["tod1", "tod2"],
         ),
     )
 
@@ -124,7 +134,8 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
     assert len(file_list) == 1
 
     with h5py.File(file_list[0], "r") as inpf:
-        assert "tod" in inpf
+        assert "tod1" in inpf
+        assert "tod2" in inpf
         assert "pointings" in inpf
         assert "global_flags" in inpf
         assert "flags_0000" in inpf
@@ -134,37 +145,47 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         assert "global_index" in inpf.attrs
         assert "local_index" in inpf.attrs
 
-        tod_dataset = inpf["tod"]
+        tod1_dataset = inpf["tod1"]
+        tod2_dataset = inpf["tod2"]
         pointings_dataset = inpf["pointings"]
         global_flags = inpf["global_flags"]
         local_flags = inpf["flags_0000"]
 
-        assert tod_dataset.shape == (1, 600)
+        assert tod1_dataset.shape == (1, 600)
+        assert tod2_dataset.shape == (1, 600)
         assert pointings_dataset.shape == (1, 600, 3)
         assert global_flags.shape == (2, 3)
         assert local_flags.shape == (2, 3)
 
-        if use_mjd:
+        for cur_dataset, description in [
+            (tod1_dataset, "First TOD"),
+            (tod2_dataset, "Second TOD"),
+        ]:
+            if use_mjd:
+                assert (
+                    AstroTime(cur_dataset.attrs["start_time"], format="mjd")
+                    == original_obs.start_time
+                )
+            else:
+                assert cur_dataset.attrs["start_time"] == original_obs.start_time
+
+            assert cur_dataset.attrs["description"] == description
+            assert cur_dataset.attrs["mjd_time"] == use_mjd
             assert (
-                AstroTime(tod_dataset.attrs["start_time"], format="mjd")
-                == original_obs.start_time
+                cur_dataset.attrs["sampling_rate_hz"] == original_obs.sampling_rate_hz
             )
-        else:
-            assert tod_dataset.attrs["start_time"] == original_obs.start_time
 
-        assert tod_dataset.attrs["mjd_time"] == use_mjd
-        assert tod_dataset.attrs["sampling_rate_hz"] == original_obs.sampling_rate_hz
+            detectors = cur_dataset.attrs["detectors"]
+            assert isinstance(detectors, str)
 
-        detectors = tod_dataset.attrs["detectors"]
-        assert isinstance(detectors, str)
+            det_dictionary = json.loads(detectors)
+            assert len(det_dictionary) == 1
+            assert det_dictionary[0]["name"] == det.name
+            assert det_dictionary[0]["bandcenter_ghz"] == det.bandcenter_ghz
+            assert det_dictionary[0]["quat"] == list(det.quat)
 
-        det_dictionary = json.loads(detectors)
-        assert len(det_dictionary) == 1
-        assert det_dictionary[0]["name"] == det.name
-        assert det_dictionary[0]["bandcenter_ghz"] == det.bandcenter_ghz
-        assert det_dictionary[0]["quat"] == list(det.quat)
-
-        assert np.allclose(tod_dataset, original_obs.tod)
+        assert np.allclose(tod1_dataset, original_obs.tod1)
+        assert np.allclose(tod2_dataset, original_obs.tod2)
         assert np.allclose(pointings_dataset, original_obs.pointings)
 
         assert np.all(
@@ -197,7 +218,9 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: b
         tmp_path, use_mjd, gzip_compression
     )
 
-    observations = lbs.read_list_of_observations(file_name_list=tmp_path.glob("*.h5"))
+    observations = lbs.read_list_of_observations(
+        file_name_list=tmp_path.glob("*.h5"), tod_fields=["tod1", "tod2"]
+    )
     assert len(observations) == 1
 
     obs = observations[0]
@@ -205,13 +228,24 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: b
     assert obs.start_time == original_obs.start_time
     assert obs.sampling_rate_hz == original_obs.sampling_rate_hz
 
-    assert obs.tod.shape == (1, 600)
-    assert np.allclose(obs.tod, original_obs.tod)
+    # Check that the TodDescription objects have been restored correctly
+    assert len(obs.tod_list) == 2
+    assert isinstance(obs.tod_list[0], lbs.TodDescription)
+    assert obs.tod_list[0].name == "tod1"
+    assert obs.tod_list[0].description == "First TOD"
+    assert obs.tod_list[0].dtype == np.float32
+    assert isinstance(obs.tod_list[1], lbs.TodDescription)
+    assert obs.tod_list[1].name == "tod2"
+    assert obs.tod_list[1].description == "Second TOD"
+    assert obs.tod_list[1].dtype == np.float32
+
+    assert obs.tod1.shape == (1, 600)
+    assert np.allclose(obs.tod1, original_obs.tod1)
 
     assert obs.pointings.shape == (1, 600, 3)
     assert np.allclose(obs.pointings, original_obs.pointings)
 
-    ref_flags = np.zeros(obs.tod.shape, dtype="uint16")
+    ref_flags = np.zeros(obs.tod1.shape, dtype="uint16")
     ref_flags[0, 12:15] = 1
 
     assert np.all(ref_flags == obs.local_flags)

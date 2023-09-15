@@ -66,7 +66,7 @@ created, and write the following::
   import litebird_sim as lbs
 
   print("Starting the program...")
-  sim = lbs.Simulation(base_path="./tut01")
+  sim = lbs.Simulation(base_path="./tut01", random_seed=12345)
   sim.append_to_report("Hello, world!")
   sim.flush()
   print("Done!")
@@ -101,11 +101,13 @@ customary to shorten it to ``lbs``::
 The next interesting stuff happens when we instantiate a
 :class:`.Simulation` object::
 
-  sim = lbs.Simulation(base_path="./tut01")
+  sim = lbs.Simulation(base_path="./tut01", random_seed=12345,)
 
 Creating a :class:`.Simulation` object makes a lot of complicated
-things happen beyond the scenes. In this short example, what happens
-is the following:
+things happen behind the scenes. For example, the mandatory parameter
+``random_seed`` is used to build a random number generator useful for
+generating noise. In this short example, the important things are
+the following:
 
 1. The code checks if a directory named ``tut01`` exists; if not, it
    is created.
@@ -163,16 +165,16 @@ run the following command:
 and run the program interactively to configure the IMO. You typically
 want to use a «local copy»; specify the folder where the file
 ``schema.json`` you downloaded before resides (under
-``/storage/litebird_imo`` in our case). Save the changes by pressing
+``/storage/litebird_imo/IMO`` in our case). Save the changes by pressing
 ``s``, and you will have your IMO configured.
 
 Our next example will use the IMO to run something more interesting::
 
   import litebird_sim as lbs
 
-  sim = lbs.Simulation(base_path="./tut02")
+  sim = lbs.Simulation(base_path="./tut02", random_seed=12345)
   lft_file = sim.imo.query(
-      "/releases/v1.0/satellite/LFT/instrument_info"
+      "/releases/v1.3/satellite/LFT/instrument_info"
   )
   sim.append_to_report(
       "The instrument {{ name }} has {{ num }} channels.",
@@ -192,10 +194,10 @@ Let's dig into the code of the example. The first line looks almost
 the same as in the previous example::
 
   # Previous example
-  sim = lbs.Simulation(base_path="./tut01")
+  sim = lbs.Simulation(base_path="./tut01", random_seed=12345)
 
   # This example
-  sim = lbs.Simulation(base_path="./tut02")
+  sim = lbs.Simulation(base_path="./tut02", random_seed=12345)
 
 Yet a big difference went unnoticed: since you configured the IMO
 using the ``install_imo`` module, the :class:`.Simulation` class
@@ -203,7 +205,7 @@ managed to read the database contents and initialize a set of member
 variables. This is why we have been able to write the next line::
 
   lft_file = sim.imo.query(
-      "/releases/v1.0/satellite/LFT/instrument_info"
+      "/releases/v1.3/satellite/LFT/instrument_info"
   )
 
 Although the parameter looks like a path to some file, it is a
@@ -255,6 +257,7 @@ report::
       name="Simulation tutorial",
       start_time=0,
       duration_s=86400.,
+      random_seed=12345,
   )
 
   sim.set_scanning_strategy(
@@ -357,7 +360,9 @@ Creating a signal plus noise timeline
 -------------------------------------
 
 Here we generate a 10 minutes timeline which contains dipole, cmb signal,
-galactic dust, and correlated noise.::
+galactic dust, and correlated noise. Foe the noise, we use the random
+number generator provided by the :class:`.Simulation` and seeded with
+``random_seed``::
 
   import litebird_sim as lbs
   import healpy, numpy as np
@@ -369,7 +374,8 @@ galactic dust, and correlated noise.::
       name="Simulation tutorial",
       start_time=time.Time("2025-01-01T00:00:00"),
       duration_s=10 * units.minute.to("s"),
-      )
+      random_seed=12345,
+  )
 
   sim.set_scanning_strategy(
       scanning_strategy=lbs.SpinningScanningStrategy(
@@ -420,7 +426,7 @@ galactic dust, and correlated noise.::
 
   sim.add_dipole()
 
-  sim.add_noise()
+  sim.add_noise(sim.random)
 
   sim.fill_tods(maps=maps)
 
@@ -450,5 +456,5 @@ galactic dust, and correlated noise.::
    :alt: Screenshot of part of the tutorial produced by our script
 
 The elements shown in these tutorials should allow you to generate more
-complex scripts. The next section detail the features of the framework
+complex scripts. The next sections detail the features of the framework
 in greater detail.

@@ -6,7 +6,6 @@ import healpy as hp
 
 
 def test_coordinates():
-
     # The purpose of this test is to validate the rotation from
     # ecliptic to galactic coordinates performed by the function
     # in coordinates.py with the same rotation provided by healpy
@@ -16,7 +15,9 @@ def test_coordinates():
     time_span_s = 10 * 24 * 3600
     sampling_hz = 1
 
-    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=12345
+    )
 
     scanning = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.785_398_163_397_448_3,
