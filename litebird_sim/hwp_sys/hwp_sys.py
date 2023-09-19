@@ -10,6 +10,7 @@ from typing import Union, List
 from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation
+from .bandpass_template_module import bandpass_profile
 from ..coordinates import rotate_coordinates_e2g, CoordinateSystem
 
 COND_THRESHOLD = 1e10
@@ -569,7 +570,6 @@ class HwpSys:
         mueller_or_jones: str = "mueller" or "jones",
         Mbsparams: Union[MbsParameters, None] = None,
         integrate_in_band: Union[bool, None] = None,
-        inband_profile: Union[np.ndarray, None] = None,
         built_map_on_the_fly: Union[bool, None] = None,
         correct_in_solver: Union[bool, None] = None,
         integrate_in_band_solver: Union[bool, None] = None,
@@ -624,167 +624,93 @@ class HwpSys:
                                 )
                             )
 
-            if "integrate_in_band" in paramdict.keys():
-                self.integrate_in_band = paramdict["integrate_in_band"]
-
-            if "built_map_on_the_fly" in paramdict.keys():
-                self.built_map_on_the_fly = paramdict["built_map_on_the_fly"]
-
-            if "correct_in_solver" in paramdict.keys():
-                self.correct_in_solver = paramdict["correct_in_solver"]
-
-            if "integrate_in_band_solver" in paramdict.keys():
-                self.integrate_in_band_solver = paramdict["integrate_in_band_solver"]
+            self.integrate_in_band = paramdict.get("integrate_in_band", False)
+            self.built_map_on_the_fly = paramdict.get("built_map_on_the_fly", False)
+            self.correct_in_solver = paramdict.get("correct_in_solver", False)
+            self.integrate_in_band_solver = paramdict.get("integrate_in_band_solver", False)
+            
+            self.bandpass = paramdict.get("bandpass", False)
+            self.bandpass_solver = paramdict.get("bandpass_solver", False)
+            self.include_beam_throughput = paramdict.get(
+                "include_beam_throughput", False
+            )
 
             mueller_or_jones = mueller_or_jones.lower()
             if mueller_or_jones == "jones":
-                if "h1" in paramdict.keys():
-                    self.h1 = paramdict["h1"]
+                self.h1 = paramdict.get("h1", False)
+                self.h2 = paramdict.get("h2", False)
+                self.beta = paramdict.get("beta", False)
+                self.z1 = paramdict.get("z1", False)
+                self.z2 = paramdict.get("z2", False)
+                    
+                self.h1s = paramdict.get("h1s", False)
+                self.h2s = paramdict.get("h2s", False)
+                self.betas = paramdict.get("betas", False)
+                self.z1s = paramdict.get("z1s", False)
+                self.z2s = paramdict.get("z2s", False)                    
 
-                if "h2" in paramdict.keys():
-                    self.h2 = paramdict["h2"]
-
-                if "beta" in paramdict.keys():
-                    self.beta = paramdict["beta"]
-
-                if "z1" in paramdict.keys():
-                    self.z1 = paramdict["z1"]
-
-                if "z2" in paramdict.keys():
-                    self.z2 = paramdict["z2"]
-
-                if "h1s" in paramdict.keys():
-                    self.h1s = paramdict["h1s"]
-
-                if "h2s" in paramdict.keys():
-                    self.h2s = paramdict["h2s"]
-
-                if "betas" in paramdict.keys():
-                    self.betas = paramdict["betas"]
-
-                if "z1s" in paramdict.keys():
-                    self.z1s = paramdict["z1s"]
-
-                if "z2s" in paramdict.keys():
-                    self.z2s = paramdict["z2s"]
             elif mueller_or_jones == "mueller":
-                if "mII" in paramdict.keys():
-                    self.mII = paramdict["mII"]
-
-                if "mQI" in paramdict.keys():
-                    self.mQI = paramdict["mQI"]
-
-                if "mUI" in paramdict.keys():
-                    self.mUI = paramdict["mUI"]
-
-                if "mIQ" in paramdict.keys():
-                    self.mIQ = paramdict["mIQ"]
-
-                if "mIU" in paramdict.keys():
-                    self.mIU = paramdict["mIU"]
-
-                if "mQQ" in paramdict.keys():
-                    self.mQQ = paramdict["mQQ"]
-
-                if "mUU" in paramdict.keys():
-                    self.mUU = paramdict["mUU"]
-
-                if "mUQ" in paramdict.keys():
-                    self.mUQ = paramdict["mUQ"]
-
-                if "mQU" in paramdict.keys():
-                    self.mQU = paramdict["mQU"]
-
-                if "mIIs" in paramdict.keys():
-                    self.mIIs = paramdict["mIIs"]
-
-                if "mQIs" in paramdict.keys():
-                    self.mQIs = paramdict["mQIs"]
-
-                if "mUIs" in paramdict.keys():
-                    self.mUIs = paramdict["mUIs"]
-
-                if "mIQs" in paramdict.keys():
-                    self.mIQs = paramdict["mIQs"]
-
-                if "mIUs" in paramdict.keys():
-                    self.mIUs = paramdict["mIUs"]
-
-                if "mQQs" in paramdict.keys():
-                    self.mQQs = paramdict["mQQs"]
-
-                if "mUUs" in paramdict.keys():
-                    self.mUUs = paramdict["mUUs"]
-
-                if "mUQs" in paramdict.keys():
-                    self.mUQs = paramdict["mUQs"]
-
-                if "mQUs" in paramdict.keys():
-                    self.mQUs = paramdict["mQUs"]
+                self.mII = paramdict.get("mII", False)
+                self.mQI = paramdict.get("mQI", False)
+                self.mUI = paramdict.get("mUI", False)
+                self.mIQ = paramdict.get("mIQ", False)
+                self.mIU = paramdict.get("mIU", False)
+                self.mQQ = paramdict.get("mQQ", False)
+                self.mUU = paramdict.get("mUU", False)
+                self.mUQ = paramdict.get("mUQ", False)
+                self.mQU = paramdict.get("mQU", False)
+            
+                self.mIIs = paramdict.get("mIIs", False)
+                self.mQIs = paramdict.get("mQIs", False)
+                self.mUIs = paramdict.get("mUIs", False)
+                self.mIQs = paramdict.get("mIQs", False)
+                self.mIUs = paramdict.get("mIUs", False)
+                self.mQQs = paramdict.get("mQQs", False)
+                self.mUUs = paramdict.get("mUUs", False)
+                self.mUQs = paramdict.get("mUQs", False)
+                self.mQUs = paramdict.get("mQUs", False)
+   
             else:
                 raise ValueError("mueller_or_jones not specified")
 
-            if "band_filename" in paramdict.keys():
-                self.band_filename = paramdict["band_filename"]
+            self.band_filename = paramdict.get("band_filename", False)
+            self.band_filename_solver = paramdict.get("band_filename_solver", False)
 
-            if "band_filename_solver" in paramdict.keys():
-                self.band_filename_solver = paramdict["band_filename_solver"]
-
-            # here we set the values for Mbs used in the code
-            if "hwp_sys_Mbs_make_cmb" in paramdict.keys():
-                hwp_sys_Mbs_make_cmb = paramdict["hwp_sys_Mbs_make_cmb"]
-
-            if "hwp_sys_Mbs_make_fg" in paramdict.keys():
-                hwp_sys_Mbs_make_fg = paramdict["hwp_sys_Mbs_make_fg"]
-
-            if "hwp_sys_Mbs_fg_models" in paramdict.keys():
-                hwp_sys_Mbs_fg_models = paramdict["hwp_sys_Mbs_fg_models"]
-
-            if "hwp_sys_Mbs_gaussian_smooth" in paramdict.keys():
-                hwp_sys_Mbs_gaussian_smooth = paramdict["hwp_sys_Mbs_gaussian_smooth"]
-
+            # here we set the values for Mbs used in the code if present
+            # in paramdict, otherwise defaults
+            hwp_sys_Mbs_make_cmb = paramdict.get("hwp_sys_Mbs_make_cmb", True)
+            hwp_sys_Mbs_make_fg = paramdict.get("hwp_sys_Mbs_make_fg", True)
+            hwp_sys_Mbs_fg_models = paramdict.get(
+                "hwp_sys_Mbs_fg_models",
+                ["pysm_synch_1", "pysm_freefree_1", "pysm_dust_1", "pysm_ame_1"],
+            )
+            hwp_sys_Mbs_gaussian_smooth = paramdict.get(
+                "hwp_sys_Mbs_gaussian_smooth", True
+            )
         # This part sets from input_parameters()
-        try:
-            self.nside
-        except Exception:
+        if not self.nside:
             if nside is None:
                 self.nside = 512
             else:
                 self.nside = nside
 
-        try:
-            self.integrate_in_band
-        except Exception:
-            if integrate_in_band is None:
-                self.integrate_in_band = False
-            else:
+        if not self.integrate_in_band:
+            if integrate_in_band is not None:
                 self.integrate_in_band = integrate_in_band
 
-        try:
-            self.built_map_on_the_fly
-        except Exception:
-            if built_map_on_the_fly is None:
-                self.built_map_on_the_fly = False
-            else:
+        if not self.built_map_on_the_fly:
+            if built_map_on_the_fly is not None:
                 self.built_map_on_the_fly = built_map_on_the_fly
 
-        try:
-            self.correct_in_solver
-        except Exception:
-            if correct_in_solver is None:
-                self.correct_in_solver = False
-            else:
+        if not self.correct_in_solver:
+            if correct_in_solver is not None:
                 self.correct_in_solver = correct_in_solver
 
-        try:
-            self.integrate_in_band_solver
-        except Exception:
-            if integrate_in_band_solver is None:
-                self.integrate_in_band_solver = False
-            else:
+        if not self.integrate_in_band_solver:
+            if integrate_in_band_solver is not None:
                 self.integrate_in_band_solver = integrate_in_band_solver
 
-        if Mbsparams is None:
+        if Mbsparams is None and np.any(maps) is None:
             Mbsparams = lbs.MbsParameters(
                 make_cmb=hwp_sys_Mbs_make_cmb,
                 make_fg=hwp_sys_Mbs_make_fg,
@@ -792,9 +718,11 @@ class HwpSys:
                 gaussian_smooth=hwp_sys_Mbs_gaussian_smooth,
                 bandpass_int=False,
                 maps_in_ecliptic=False,
+                nside=self.nside,
             )
 
-        Mbsparams.nside = self.nside
+        if np.any(maps) is None:
+            Mbsparams.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
 
@@ -803,90 +731,78 @@ class HwpSys:
 
         if self.integrate_in_band:
             if mueller_or_jones == "jones":
-                self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
-                    self.band_filename, unpack=True, skiprows=1
-                )
-                self.beta = np.deg2rad(self.beta)
-            else:  # mueller_or_jones == "mueller"
-                (
-                    self.freqs,
-                    self.mII,
-                    self.mQI,
-                    self.mUI,
-                    self.mIQ,
-                    self.mIU,
-                    self.mQQ,
-                    self.mUU,
-                    self.mUQ,
-                    self.mQU,
-                ) = np.loadtxt(self.band_filename, unpack=True, skiprows=1)
-
+                try:
+                    self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
+                        self.band_filename, unpack=True, skiprows=1
+                    )
+                except Exception:
+                    print("missing band_filename in the parameter file"+
+                          " or wrong number of columns for jones matrix")          
+            else: # mueller_or_jones == "mueller"
+                try:
+                    (
+                        self.freqs,
+                        self.mII,
+                        self.mQI,
+                        self.mUI,
+                        self.mIQ,
+                        self.mIU,
+                        self.mQQ,
+                        self.mUU,
+                        self.mUQ,
+                        self.mQU,
+                    ) = np.loadtxt(self.band_filename, unpack=True, skiprows=1)
+                except Exception:
+                    print("missing band_filename in the parameter file"+
+                          " or wrong number of columns for mueller matrix")
             self.nfreqs = len(self.freqs)
 
-            if inband_profile is not None:
-                self.cmb2bb = _dBodTth(self.freqs) * inband_profile
-            else:
+            if not self.bandpass:
                 self.cmb2bb = _dBodTth(self.freqs)
-            # Normalize the bandpass
+
+            elif self.bandpass:
+                self.freqs, self.bandpass_profile = bandpass_profile(
+                    self.freqs, self.bandpass, self.include_beam_throughput
+                )
+
+                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
+
+            # Normalize the band
             self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
 
-            myinstr = {}
-            for ifreq in range(self.nfreqs):
-                myinstr["ch" + str(ifreq)] = {
-                    "bandcenter_ghz": self.freqs[ifreq],
-                    "bandwidth_ghz": 0,
-                    "fwhm_arcmin": Channel.fwhm_arcmin,
-                    "p_sens_ukarcmin": 0.0,
-                }
-
-            mbs = lbs.Mbs(simulation=self.sim, parameters=Mbsparams, instrument=myinstr)
-
             if np.any(maps) is None:
+                myinstr = {}
+                for ifreq in range(self.nfreqs):
+                    myinstr["ch" + str(ifreq)] = {
+                        "bandcenter_ghz": self.freqs[ifreq],
+                        "bandwidth_ghz": 0,
+                        "fwhm_arcmin": Channel.fwhm_arcmin,
+                        "p_sens_ukarcmin": 0.0,
+                    }
+
+                mbs = lbs.Mbs(simulation=self.sim, parameters=Mbsparams, instrument=myinstr)
+
                 maps = mbs.run_all()[0]
                 self.maps = np.empty((self.nfreqs, 3, self.npix))
                 for ifreq in range(self.nfreqs):
                     self.maps[ifreq] = maps["ch" + str(ifreq)]
             else:
-                assert (
-                    hp.npix2nside(len(maps[0, 0, :])) == self.nside
-                ), "wrong nside in the input map!"
-                assert (
-                    len(maps[:, 0, 0]) == self.nfreqs
-                ), "wrong number of frequencies: expected a different number of maps!"
                 self.maps = maps
             del maps
 
         else:
             if mueller_or_jones == "jones":
-                if not hasattr(self, "h1"):
-                    self.h1 = 0.0
-                if not hasattr(self, "h2"):
-                    self.h2 = 0.0
-                if not hasattr(self, "beta"):
-                    self.beta = 0.0
-                if not hasattr(self, "z1"):
-                    self.z1 = 0.0
-                if not hasattr(self, "z2"):
-                    self.z2 = 0.0
+                default_attrs = {"h1": 0.0, "h2": 0.0, "beta": 0.0, "z1": 0.0, "z2": 0.0}
+
+                for attr, default_value in default_attrs.items():
+                    if not hasattr(self, attr):
+                        setattr(self, attr, default_value)
             else:  # mueller_or_jones == "mueller":
-                if not hasattr(self, "mII"):
-                    self.mII = 0.0
-                if not hasattr(self, "mQI"):
-                    self.mQI = 0.0
-                if not hasattr(self, "mUI"):
-                    self.mUI = 0.0
-                if not hasattr(self, "mIQ"):
-                    self.mIQ = 0.0
-                if not hasattr(self, "mIU"):
-                    self.mIU = 0.0
-                if not hasattr(self, "mQQ"):
-                    self.mQQ = 0.0
-                if not hasattr(self, "mUU"):
-                    self.mUU = 0.0
-                if not hasattr(self, "mUQ"):
-                    self.mUQ = 0.0
-                if not hasattr(self, "mQU"):
-                    self.mQU = 0.0
+                default_attrs = {"mII": 0.0,"mQI": 0.0,"mUI": 0.0,"mIQ": 0.0,"mIU": 0.0,"mQQ": 0.0,"mUU": 0.0,"mUQ": 0.0,"mQU": 0.0}
+
+                for attr, default_value in default_attrs.items():
+                    if not hasattr(self, attr):
+                        setattr(self, attr, default_value)
 
             if np.any(maps) is None:
                 mbs = lbs.Mbs(
@@ -894,11 +810,10 @@ class HwpSys:
                 )
                 self.maps = mbs.run_all()[0][Channel.channel]
             else:
-                assert (
-                    hp.npix2nside(len(maps[0, :])) == self.nside
-                ), "wrong nside in the input map!"
                 self.maps = maps
                 del maps
+
+        self.beta = np.deg2rad(self.beta)
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
@@ -909,7 +824,7 @@ class HwpSys:
                         unpack=True,
                         skiprows=1,
                     )
-                    self.betas = np.deg2rad(self.betas)
+                    
                 else:  # mueller_or_jones == "mueller":
                     (
                         self.mIIs,
@@ -930,35 +845,19 @@ class HwpSys:
 
             else:
                 if mueller_or_jones == "jones":
-                    if not hasattr(self, "h1s"):
-                        self.h1s = 0.0
-                    if not hasattr(self, "h2s"):
-                        self.h2s = 0.0
-                    if not hasattr(self, "betas"):
-                        self.betas = 0.0
-                    if not hasattr(self, "z1s"):
-                        self.z1s = 0.0
-                    if not hasattr(self, "z2s"):
-                        self.z2s = 0.0
+                    default_attrs = {"h1s": 0.0, "h2s": 0.0, "betas": 0.0, "z1s": 0.0, "z2s": 0.0}
+
+                for attr, default_value in default_attrs.items():
+                    if not hasattr(self, attr):
+                        setattr(self, attr, default_value)
                 else:  # mueller_or_jones == "mueller":
-                    if not hasattr(self, "mIIs"):
-                        self.mIIs = 0.0
-                    if not hasattr(self, "mQIs"):
-                        self.mQIs = 0.0
-                    if not hasattr(self, "mUIs"):
-                        self.mUIs = 0.0
-                    if not hasattr(self, "mIQs"):
-                        self.mIQs = 0.0
-                    if not hasattr(self, "mIUs"):
-                        self.mIUs = 0.0
-                    if not hasattr(self, "mQQs"):
-                        self.mQQs = 0.0
-                    if not hasattr(self, "mUUs"):
-                        self.mUUs = 0.0
-                    if not hasattr(self, "mUQs"):
-                        self.mUQs = 0.0
-                    if not hasattr(self, "mQUs"):
-                        self.mQUs = 0.0
+                    default_attrs = {"mIIs": 0.0,"mQIs": 0.0,"mUIs": 0.0,"mIQs": 0.0,"mIUs": 0.0,"mQQs": 0.0,"mUUs": 0.0,"mUQs": 0.0,"mQUs": 0.0}
+
+                for attr, default_value in default_attrs.items():
+                    if not hasattr(self, attr):
+                        setattr(self, attr, default_value)
+
+            self.betas = np.deg2rad(self.betas)
 
         # conversion from Jones to Mueller
         if mueller_or_jones == "jones":
@@ -978,20 +877,21 @@ class HwpSys:
             )
             del (self.h1, self.h2, self.z1, self.z2, self.beta)
             # Mueller terms of fixed HWP (single/multi freq), to fill A^TA and A^Td
-            (
-                self.mIIs,
-                self.mQIs,
-                self.mUIs,
-                self.mIQs,
-                self.mIUs,
-                self.mQQs,
-                self.mUUs,
-                self.mUQs,
-                self.mQUs,
-            ) = get_mueller_from_jones(
-                h1=self.h1s, h2=self.h2s, z1=self.z1s, z2=self.z2s, beta=self.betas
-            )
-            del (self.h1s, self.h2s, self.z1s, self.z2s, self.betas)
+            if self.correct_in_solver:
+                (
+                    self.mIIs,
+                    self.mQIs,
+                    self.mUIs,
+                    self.mIQs,
+                    self.mIUs,
+                    self.mQQs,
+                    self.mUUs,
+                    self.mUQs,
+                    self.mQUs,
+                ) = get_mueller_from_jones(
+                    h1=self.h1s, h2=self.h2s, z1=self.z1s, z2=self.z2s, beta=self.betas
+                )
+                del (self.h1s, self.h2s, self.z1s, self.z2s, self.betas)
 
 
     def fill_tod(
@@ -999,6 +899,7 @@ class HwpSys:
         obs: Observation,
         pointings: np.ndarray,
         hwp_radpsec: float,
+        save_tod: bool = False,
     ):
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
         Args:
@@ -1062,31 +963,18 @@ class HwpSys:
                 cur_ptg, cur_psi = rotate_coordinates_e2g(
                     cur_point[idet, :, :], cur_Psi[idet, :]
                 )
-
+                # all observed pixels over time (for each sample), i.e. len(pix)==len(times)
                 pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
-
-                # add hwp rotation
-                ca = np.cos(0.5 * cur_psi + times * hwp_radpsec)
-                sa = np.sin(0.5 * cur_psi + times * hwp_radpsec)
-<<<<<<< HEAD
-            # allocate those for "make_binned_map"
-            # later filled
-            obs.psi = np.empty_like(obs.tod)
-            obs.pixind = np.empty_like(obs.tod, dtype=np.int)
-
-        for idet in range(obs.n_detectors):
-            cur_ptg, cur_psi = rotate_coordinates_e2g(
-                pointings[idet, :, 0:2], pointings[idet, :, 2]
-            )
-            # all observed pixels over time (for each sample), i.e. len(pix)==len(times)
-            pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
-            # theta = hwp_radpsec * times hwp: rotation angle
-            # xi: polarization angle, i.e. detector dependent
-            # psi: instrument angle, i.e. boresight angle
-            xi = compute_polang_from_detquat(obs.quat[idet])
-            psi = cur_psi - xi
-            del (cur_ptg, cur_psi)
-            tod = np.zeros(len(times))
+                
+                # separating polarization angle xi from obs.psi = psi + xi
+                # theta = hwp_radpsec * times hwp: rotation angle
+                # xi: polarization angle, i.e. detector dependent
+                # psi: instrument angle, i.e. boresight angle
+                xi = compute_polang_from_detquat(cur_obs.quat[idet])
+                print(np.rad2deg(xi))
+                psi = cur_psi - xi
+                del (cur_ptg, cur_psi)
+                tod = cur_obs.tod[idet, :]
 
             if self.integrate_in_band:
                 integrate_inband_signal_for_one_detector(
@@ -1187,7 +1075,9 @@ class HwpSys:
                 obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
                 obs.pixind[idet, :] = pix
 
-        del (tod, pix, xi, psi, times, self.maps)
+        del (pix, xi, psi, times, self.maps) #tod
+        if not save_tod:
+            del tod
         del (
             self.mII,
             self.mQI,
@@ -1211,169 +1101,6 @@ class HwpSys:
             self.mQUs,
         )
         return
-=======
-
-
-                if self.integrate_in_band:
-                    J11 = (
-                        (1 + self.h1[:, np.newaxis]) * ca**2
-                        - (1 + self.h2[:, np.newaxis])
-                        * sa**2
-                        * np.exp(1j * self.beta[:, np.newaxis])
-                        - (self.z1[:, np.newaxis] + self.z2[:, np.newaxis]) * ca * sa
-                    )
-                    J12 = (
-                        (
-                            (1 + self.h1[:, np.newaxis])
-                            + (1 + self.h2[:, np.newaxis])
-                            * np.exp(1j * self.beta[:, np.newaxis])
-                        )
-                        * ca
-                        * sa
-                        + self.z1[:, np.newaxis] * ca**2
-                        - self.z2[:, np.newaxis] * sa**2
-                    )
-
-                    if self.built_map_on_the_fly:
-                        tod = (
-                            (
-                                0.5
-                                * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                                * self.maps[:, 0, pix]
-                                + 0.5
-                                * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                                * self.maps[:, 1, pix]
-                                + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
-                            )
-                            * self.cmb2bb[:, np.newaxis]
-                        ).sum(axis=0) / self.norm
-                    else:
-                        cur_obs.tod[idet, :] += (
-                            (
-                                0.5
-                                * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                                * self.maps[:, 0, pix]
-                                + 0.5
-                                * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                                * self.maps[:, 1, pix]
-                                + (J11 * J12.conjugate()).real * self.maps[:, 2, pix]
-                            )
-                            * self.cmb2bb[:, np.newaxis]
-                        ).sum(axis=0) / self.norm
-
-                else:
-                    J11 = (
-                        (1 + self.h1) * ca**2
-                        - (1 + self.h2) * sa**2 * np.exp(1j * self.beta)
-                        - (self.z1 + self.z2) * ca * sa
-                    )
-                    J12 = (
-                        ((1 + self.h1) + (1 + self.h2) * np.exp(1j * self.beta))
-                        * ca
-                        * sa
-                        + self.z1 * ca**2
-                        - self.z2 * sa**2
-                    )
-
-                    if self.built_map_on_the_fly:
-                        tod = (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[2, pix]
-                        )
-                    else:
-                        cur_obs.tod[idet, :] += (
-                            0.5
-                            * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                            * self.maps[0, pix]
-                            + 0.5
-                            * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                            * self.maps[1, pix]
-                            + (J11 * J12.conjugate()).real * self.maps[2, pix]
-                        )
-
-                if self.built_map_on_the_fly:
-                    if self.correct_in_solver:
-                        if self.integrate_in_band_solver:
-                            J11 = (
-                                (1 + self.h1s[:, np.newaxis]) * ca**2
-                                - (1 + self.h2s[:, np.newaxis])
-                                * sa**2
-                                * np.exp(1j * self.betas[:, np.newaxis])
-                                - (self.z1s[:, np.newaxis] + self.z2s[:, np.newaxis])
-                                * ca
-                                * sa
-                            )
-                            J12 = (
-                                (
-                                    (1 + self.h1s[:, np.newaxis])
-                                    + (1 + self.h2s[:, np.newaxis])
-                                    * np.exp(1j * self.betas[:, np.newaxis])
-                                )
-                                * ca
-                                * sa
-                                + self.z1s[:, np.newaxis] * ca**2
-                                - self.z2s[:, np.newaxis] * sa**2
-                            )
-                        else:
-                            J11 = (
-                                (1 + self.h1s) * ca**2
-                                - (1 + self.h2s) * sa**2 * np.exp(1j * self.betas)
-                                - (self.z1s + self.z2s) * ca * sa
-                            )
-                            J12 = (
-                                (
-                                    (1 + self.h1s)
-                                    + (1 + self.h2s) * np.exp(1j * self.betas)
-                                )
-                                * ca
-                                * sa
-                                + self.z1s * ca**2
-                                - self.z2s * sa**2
-                            )
-
-                        del (ca, sa)
-
-                        Tterm = 0.5 * (np.abs(J11) ** 2 + np.abs(J12) ** 2)
-                        Qterm = 0.5 * (np.abs(J11) ** 2 - np.abs(J12) ** 2)
-                        Uterm = (J11 * J12.conjugate()).real
-
-                        self.atd[pix, 0] += tod * Tterm
-                        self.atd[pix, 1] += tod * Qterm
-                        self.atd[pix, 2] += tod * Uterm
-
-                        self.ata[pix, 0, 0] += Tterm * Tterm
-                        self.ata[pix, 1, 0] += Tterm * Qterm
-                        self.ata[pix, 2, 0] += Tterm * Uterm
-                        self.ata[pix, 1, 1] += Qterm * Qterm
-                        self.ata[pix, 2, 1] += Qterm * Uterm
-                        self.ata[pix, 2, 2] += Uterm * Uterm
-
-                    else:
-                        # re-use ca and sa, factor 4 included here
-                        ca = np.cos(2 * cur_psi + 4 * times * hwp_radpsec)
-                        sa = np.sin(2 * cur_psi + 4 * times * hwp_radpsec)
-
-                        self.atd[pix, 0] += tod * 0.5
-                        self.atd[pix, 1] += tod * ca * 0.5
-                        self.atd[pix, 2] += tod * sa * 0.5
-
-                        self.ata[pix, 0, 0] += 0.25
-                        self.ata[pix, 1, 0] += 0.25 * ca
-                        self.ata[pix, 2, 0] += 0.25 * sa
-                        self.ata[pix, 1, 1] += 0.25 * ca * ca
-                        self.ata[pix, 2, 1] += 0.25 * ca * sa
-                        self.ata[pix, 2, 2] += 0.25 * sa * sa
-                else:
-                    cur_obs.psi[idet, :] = cur_psi + 2 * times * hwp_radpsec
-                    cur_obs.pixind[idet, :] = pix
-
-            return
->>>>>>> b044f8135372fac4746d1531fcf7b19b699094df
 
     def make_map(self, obss):
         """It generates "on the fly" map. This option is only availabe if
