@@ -1006,7 +1006,8 @@ class HwpSys:
                 cur_ptg, cur_psi = rotate_coordinates_e2g(
                     cur_point[idet, :, :], cur_Psi[idet, :]
                 )
-                # all observed pixels over time (for each sample), i.e. len(pix)==len(times)
+                # all observed pixels over time (for each sample),
+                # i.e. len(pix)==len(times)
                 pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
 
                 # separating polarization angle xi from obs.psi = psi + xi
