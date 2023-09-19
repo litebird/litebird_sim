@@ -101,12 +101,15 @@ def bandpass_profile(
     profile = np.ones_like(freqs)
 
     if "bandpass_file" in bandpass.keys():
-	try:
-            f, profile = np.loadtxt(bandpass["bandpass_file"], unpack=True, comments = '#')
-	except Exception:
-	    print("missing bandpass file or wrong number of columns")
-	if not np.all(freqs == f):
-	    raise ValueError("wrong frequencies in bandpass file")
+        try:
+            f, profile = np.loadtxt(
+                bandpass["bandpass_file"], unpack=True, comments="#"
+            )
+        except Exception:
+            print("missing bandpass file or wrong number of columns")
+
+        if not np.all(freqs == f):
+            raise ValueError("wrong frequencies in bandpass file")
 
     elif "band_type" in bandpass.keys():
         if "band_alpha" not in bandpass.keys():

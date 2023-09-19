@@ -10,7 +10,7 @@ from typing import Union, List
 from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation
-from .bandpass_template_module import bandpass_profile
+from ..out_of_band_analysis.bandpass_template_module import bandpass_profile
 from ..coordinates import rotate_coordinates_e2g, CoordinateSystem
 
 COND_THRESHOLD = 1e10
@@ -605,30 +605,31 @@ class HwpSys:
         hwp_sys_Mbs_gaussian_smooth = True
 
         # This part sets from parameter file
-        if (self.sim.parameters is not None) and (
-            "hwp_sys" in self.sim.parameters.keys()
+        if (self.sim.parameter_file is not None) and (
+            "hwp_sys" in self.sim.parameter_file.keys()
         ):
-            paramdict = self.sim.parameters["hwp_sys"]
+            paramdict = self.sim.parameter_file["hwp_sys"]
 
-            if "nside" in paramdict.keys():
-                self.nside = paramdict["nside"]
-                if "general" in self.sim.parameters.keys():
-                    if "nside" in self.sim.parameters["general"].keys():
-                        if self.sim.parameters["general"]["nside"] != self.nside:
-                            print(
-                                "Warning!! nside from general "
-                                "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
-                                % (
-                                    self.sim.parameters["general"]["nside"],
-                                    self.nside,
-                                )
+            self.nside = paramdict.get("nside", False)
+            if "general" in self.sim.parameter_file.keys():
+                if "nside" in self.sim.parameter_file["general"].keys():
+                    if self.sim.parameter_file["general"]["nside"] != self.nside:
+                        print(
+                            "Warning!! nside from general "
+                            "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
+                            % (
+                                self.sim.parameter_file["general"]["nside"],
+                                self.nside,
                             )
+                        )
 
             self.integrate_in_band = paramdict.get("integrate_in_band", False)
             self.built_map_on_the_fly = paramdict.get("built_map_on_the_fly", False)
             self.correct_in_solver = paramdict.get("correct_in_solver", False)
-            self.integrate_in_band_solver = paramdict.get("integrate_in_band_solver", False)
-            
+            self.integrate_in_band_solver = paramdict.get(
+                "integrate_in_band_solver", False
+            )
+
             self.bandpass = paramdict.get("bandpass", False)
             self.bandpass_solver = paramdict.get("bandpass_solver", False)
             self.include_beam_throughput = paramdict.get(
@@ -642,12 +643,12 @@ class HwpSys:
                 self.beta = paramdict.get("beta", False)
                 self.z1 = paramdict.get("z1", False)
                 self.z2 = paramdict.get("z2", False)
-                    
+
                 self.h1s = paramdict.get("h1s", False)
                 self.h2s = paramdict.get("h2s", False)
                 self.betas = paramdict.get("betas", False)
                 self.z1s = paramdict.get("z1s", False)
-                self.z2s = paramdict.get("z2s", False)                    
+                self.z2s = paramdict.get("z2s", False)
 
             elif mueller_or_jones == "mueller":
                 self.mII = paramdict.get("mII", False)
@@ -659,7 +660,7 @@ class HwpSys:
                 self.mUU = paramdict.get("mUU", False)
                 self.mUQ = paramdict.get("mUQ", False)
                 self.mQU = paramdict.get("mQU", False)
-            
+
                 self.mIIs = paramdict.get("mIIs", False)
                 self.mQIs = paramdict.get("mQIs", False)
                 self.mUIs = paramdict.get("mUIs", False)
@@ -669,7 +670,7 @@ class HwpSys:
                 self.mUUs = paramdict.get("mUUs", False)
                 self.mUQs = paramdict.get("mUQs", False)
                 self.mQUs = paramdict.get("mQUs", False)
-   
+
             else:
                 raise ValueError("mueller_or_jones not specified")
 
@@ -732,13 +733,20 @@ class HwpSys:
         if self.integrate_in_band:
             if mueller_or_jones == "jones":
                 try:
-                    self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
-                        self.band_filename, unpack=True, skiprows=1
-                    )
+                    (
+                        self.freqs,
+                        self.h1,
+                        self.h2,
+                        self.beta,
+                        self.z1,
+                        self.z2,
+                    ) = np.loadtxt(self.band_filename, unpack=True, skiprows=1)
                 except Exception:
-                    print("missing band_filename in the parameter file"+
-                          " or wrong number of columns for jones matrix")          
-            else: # mueller_or_jones == "mueller"
+                    print(
+                        "missing band_filename in the parameter file"
+                        + " or wrong number of columns for jones matrix"
+                    )
+            else:  # mueller_or_jones == "mueller"
                 try:
                     (
                         self.freqs,
@@ -753,8 +761,10 @@ class HwpSys:
                         self.mQU,
                     ) = np.loadtxt(self.band_filename, unpack=True, skiprows=1)
                 except Exception:
-                    print("missing band_filename in the parameter file"+
-                          " or wrong number of columns for mueller matrix")
+                    print(
+                        "missing band_filename in the parameter file"
+                        + " or wrong number of columns for mueller matrix"
+                    )
             self.nfreqs = len(self.freqs)
 
             if not self.bandpass:
@@ -780,7 +790,9 @@ class HwpSys:
                         "p_sens_ukarcmin": 0.0,
                     }
 
-                mbs = lbs.Mbs(simulation=self.sim, parameters=Mbsparams, instrument=myinstr)
+                mbs = lbs.Mbs(
+                    simulation=self.sim, parameters=Mbsparams, instrument=myinstr
+                )
 
                 maps = mbs.run_all()[0]
                 self.maps = np.empty((self.nfreqs, 3, self.npix))
@@ -792,13 +804,29 @@ class HwpSys:
 
         else:
             if mueller_or_jones == "jones":
-                default_attrs = {"h1": 0.0, "h2": 0.0, "beta": 0.0, "z1": 0.0, "z2": 0.0}
+                default_attrs = {
+                    "h1": 0.0,
+                    "h2": 0.0,
+                    "beta": 0.0,
+                    "z1": 0.0,
+                    "z2": 0.0,
+                }
 
                 for attr, default_value in default_attrs.items():
                     if not hasattr(self, attr):
                         setattr(self, attr, default_value)
             else:  # mueller_or_jones == "mueller":
-                default_attrs = {"mII": 0.0,"mQI": 0.0,"mUI": 0.0,"mIQ": 0.0,"mIU": 0.0,"mQQ": 0.0,"mUU": 0.0,"mUQ": 0.0,"mQU": 0.0}
+                default_attrs = {
+                    "mII": 0.0,
+                    "mQI": 0.0,
+                    "mUI": 0.0,
+                    "mIQ": 0.0,
+                    "mIU": 0.0,
+                    "mQQ": 0.0,
+                    "mUU": 0.0,
+                    "mUQ": 0.0,
+                    "mQU": 0.0,
+                }
 
                 for attr, default_value in default_attrs.items():
                     if not hasattr(self, attr):
@@ -824,7 +852,7 @@ class HwpSys:
                         unpack=True,
                         skiprows=1,
                     )
-                    
+
                 else:  # mueller_or_jones == "mueller":
                     (
                         self.mIIs,
@@ -845,13 +873,29 @@ class HwpSys:
 
             else:
                 if mueller_or_jones == "jones":
-                    default_attrs = {"h1s": 0.0, "h2s": 0.0, "betas": 0.0, "z1s": 0.0, "z2s": 0.0}
+                    default_attrs = {
+                        "h1s": 0.0,
+                        "h2s": 0.0,
+                        "betas": 0.0,
+                        "z1s": 0.0,
+                        "z2s": 0.0,
+                    }
 
                 for attr, default_value in default_attrs.items():
                     if not hasattr(self, attr):
                         setattr(self, attr, default_value)
                 else:  # mueller_or_jones == "mueller":
-                    default_attrs = {"mIIs": 0.0,"mQIs": 0.0,"mUIs": 0.0,"mIQs": 0.0,"mIUs": 0.0,"mQQs": 0.0,"mUUs": 0.0,"mUQs": 0.0,"mQUs": 0.0}
+                    default_attrs = {
+                        "mIIs": 0.0,
+                        "mQIs": 0.0,
+                        "mUIs": 0.0,
+                        "mIQs": 0.0,
+                        "mIUs": 0.0,
+                        "mQQs": 0.0,
+                        "mUUs": 0.0,
+                        "mUQs": 0.0,
+                        "mQUs": 0.0,
+                    }
 
                 for attr, default_value in default_attrs.items():
                     if not hasattr(self, attr):
@@ -893,7 +937,6 @@ class HwpSys:
                 )
                 del (self.h1s, self.h2s, self.z1s, self.z2s, self.betas)
 
-
     def fill_tod(
         self,
         obs: Observation,
@@ -909,8 +952,8 @@ class HwpSys:
             pointings (float): pointing for each sample and detector
                  generated by func:lbs.get_pointings
                  Optional if already allocated in obs.
-                 When generating pointing information, set the variable 
-                 `hwp` to None since the hwp rotation angle is added to 
+                 When generating pointing information, set the variable
+                 `hwp` to None since the hwp rotation angle is added to
                  the polarization angle within the `fill_tod` function.
             hwp_radpsec (float): hwp rotation speed in radiants per second
         """
@@ -965,7 +1008,7 @@ class HwpSys:
                 )
                 # all observed pixels over time (for each sample), i.e. len(pix)==len(times)
                 pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
-                
+
                 # separating polarization angle xi from obs.psi = psi + xi
                 # theta = hwp_radpsec * times hwp: rotation angle
                 # xi: polarization angle, i.e. detector dependent
@@ -976,131 +1019,132 @@ class HwpSys:
                 del (cur_ptg, cur_psi)
                 tod = cur_obs.tod[idet, :]
 
-            if self.integrate_in_band:
-                integrate_inband_signal_for_one_detector(
-                    tod_det=tod,
-                    band=self.cmb2bb,
-                    mII=self.mII,
-                    mQI=self.mQI,
-                    mUI=self.mUI,
-                    mIQ=self.mIQ,
-                    mIU=self.mIU,
-                    mQQ=self.mQQ,
-                    mUU=self.mUU,
-                    mUQ=self.mUQ,
-                    mQU=self.mQU,
-                    pixel_ind=pix,
-                    theta=times * hwp_radpsec,
-                    psi=psi,
-                    xi=xi,
-                    maps=self.maps,
-                )
-            else:
-                compute_signal_for_one_detector(
-                    tod_det=tod,
-                    mII=self.mII,
-                    mQI=self.mQI,
-                    mUI=self.mUI,
-                    mIQ=self.mIQ,
-                    mIU=self.mIU,
-                    mQQ=self.mQQ,
-                    mUU=self.mUU,
-                    mUQ=self.mUQ,
-                    mQU=self.mQU,
-                    pixel_ind=pix,
-                    theta=times * hwp_radpsec,
-                    psi=psi,
-                    xi=xi,
-                    maps=self.maps,
-                )
-
-            if self.built_map_on_the_fly:
-                if self.correct_in_solver:
-                    if self.integrate_in_band_solver:
-                        integrate_inband_atd_ata_for_one_detector(
-                            atd=self.atd,
-                            ata=self.ata,
-                            tod=tod,
-                            band=self.cmb2bb,
-                            mIIs=self.mIIs,
-                            mQIs=self.mQIs,
-                            mUIs=self.mUIs,
-                            mIQs=self.mIQs,
-                            mIUs=self.mIUs,
-                            mQQs=self.mQQs,
-                            mUUs=self.mUUs,
-                            mUQs=self.mUQs,
-                            mQUs=self.mQUs,
-                            pixel_ind=pix,
-                            theta=times * hwp_radpsec,
-                            psi=psi,
-                            xi=xi,
-                        )
-                    else:
-                        compute_atd_ata_for_one_detector(
-                            atd=self.atd,
-                            ata=self.ata,
-                            tod=tod,
-                            mIIs=self.mIIs,
-                            mQIs=self.mQIs,
-                            mUIs=self.mUIs,
-                            mIQs=self.mIQs,
-                            mIUs=self.mIUs,
-                            mQQs=self.mQQs,
-                            mUUs=self.mUUs,
-                            mUQs=self.mUQs,
-                            mQUs=self.mQUs,
-                            pixel_ind=pix,
-                            theta=times * hwp_radpsec,
-                            psi=psi,
-                            xi=xi,
-                        )
+                if self.integrate_in_band:
+                    integrate_inband_signal_for_one_detector(
+                        tod_det=tod,
+                        band=self.cmb2bb,
+                        mII=self.mII,
+                        mQI=self.mQI,
+                        mUI=self.mUI,
+                        mIQ=self.mIQ,
+                        mIU=self.mIU,
+                        mQQ=self.mQQ,
+                        mUU=self.mUU,
+                        mUQ=self.mUQ,
+                        mQU=self.mQU,
+                        pixel_ind=pix,
+                        theta=times * hwp_radpsec,
+                        psi=psi,
+                        xi=xi,
+                        maps=self.maps,
+                    )
                 else:
-                    # re-use ca and sa, factor 4 included here
-                    ca = np.cos(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
-                    sa = np.sin(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
+                    compute_signal_for_one_detector(
+                        tod_det=tod,
+                        mII=self.mII,
+                        mQI=self.mQI,
+                        mUI=self.mUI,
+                        mIQ=self.mIQ,
+                        mIU=self.mIU,
+                        mQQ=self.mQQ,
+                        mUU=self.mUU,
+                        mUQ=self.mUQ,
+                        mQU=self.mQU,
+                        pixel_ind=pix,
+                        theta=times * hwp_radpsec,
+                        psi=psi,
+                        xi=xi,
+                        maps=self.maps,
+                    )
 
-                    self.atd[pix, 0] += tod * 0.5
-                    self.atd[pix, 1] += tod * ca * 0.5
-                    self.atd[pix, 2] += tod * sa * 0.5
+                if self.built_map_on_the_fly:
+                    if self.correct_in_solver:
+                        if self.integrate_in_band_solver:
+                            integrate_inband_atd_ata_for_one_detector(
+                                atd=self.atd,
+                                ata=self.ata,
+                                tod=tod,
+                                band=self.cmb2bb,
+                                mIIs=self.mIIs,
+                                mQIs=self.mQIs,
+                                mUIs=self.mUIs,
+                                mIQs=self.mIQs,
+                                mIUs=self.mIUs,
+                                mQQs=self.mQQs,
+                                mUUs=self.mUUs,
+                                mUQs=self.mUQs,
+                                mQUs=self.mQUs,
+                                pixel_ind=pix,
+                                theta=times * hwp_radpsec,
+                                psi=psi,
+                                xi=xi,
+                            )
+                        else:
+                            compute_atd_ata_for_one_detector(
+                                atd=self.atd,
+                                ata=self.ata,
+                                tod=tod,
+                                mIIs=self.mIIs,
+                                mQIs=self.mQIs,
+                                mUIs=self.mUIs,
+                                mIQs=self.mIQs,
+                                mIUs=self.mIUs,
+                                mQQs=self.mQQs,
+                                mUUs=self.mUUs,
+                                mUQs=self.mUQs,
+                                mQUs=self.mQUs,
+                                pixel_ind=pix,
+                                theta=times * hwp_radpsec,
+                                psi=psi,
+                                xi=xi,
+                            )
+                    else:
+                        # re-use ca and sa, factor 4 included here
+                        ca = np.cos(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
+                        sa = np.sin(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
 
-                    self.ata[pix, 0, 0] += 0.25
-                    self.ata[pix, 1, 0] += 0.25 * ca
-                    self.ata[pix, 2, 0] += 0.25 * sa
-                    self.ata[pix, 1, 1] += 0.25 * ca * ca
-                    self.ata[pix, 2, 1] += 0.25 * ca * sa
-                    self.ata[pix, 2, 2] += 0.25 * sa * sa
-                    del (ca, sa)
-            else:
-                obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
-                obs.pixind[idet, :] = pix
+                        self.atd[pix, 0] += tod * 0.5
+                        self.atd[pix, 1] += tod * ca * 0.5
+                        self.atd[pix, 2] += tod * sa * 0.5
 
-        del (pix, xi, psi, times, self.maps) #tod
-        if not save_tod:
-            del tod
-        del (
-            self.mII,
-            self.mQI,
-            self.mUI,
-            self.mIQ,
-            self.mIU,
-            self.mQQ,
-            self.mUU,
-            self.mUQ,
-            self.mQU,
-        )
-        del (
-            self.mIIs,
-            self.mQIs,
-            self.mUIs,
-            self.mIQs,
-            self.mIUs,
-            self.mQQs,
-            self.mUUs,
-            self.mUQs,
-            self.mQUs,
-        )
-        return
+                        self.ata[pix, 0, 0] += 0.25
+                        self.ata[pix, 1, 0] += 0.25 * ca
+                        self.ata[pix, 2, 0] += 0.25 * sa
+                        self.ata[pix, 1, 1] += 0.25 * ca * ca
+                        self.ata[pix, 2, 1] += 0.25 * ca * sa
+                        self.ata[pix, 2, 2] += 0.25 * sa * sa
+                        del (ca, sa)
+                else:
+                    obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
+                    obs.pixind[idet, :] = pix
+
+            del (pix, xi, psi, times, self.maps)  # tod
+            if not save_tod:
+                del tod
+            del (
+                self.mII,
+                self.mQI,
+                self.mUI,
+                self.mIQ,
+                self.mIU,
+                self.mQQ,
+                self.mUU,
+                self.mUQ,
+                self.mQU,
+            )
+            del (
+                self.mIIs,
+                self.mQIs,
+                self.mUIs,
+                self.mIQs,
+                self.mIUs,
+                self.mQQs,
+                self.mUUs,
+                self.mUQs,
+                self.mQUs,
+            )
+
+            return
 
     def make_map(self, obss):
         """It generates "on the fly" map. This option is only availabe if
