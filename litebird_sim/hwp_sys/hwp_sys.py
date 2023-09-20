@@ -222,104 +222,6 @@ def compute_signal_for_one_sample(
 
 
 @njit
-def integrate_inband_signal_for_one_sample(
-    T,
-    Q,
-    U,
-    band,
-    mII,
-    mQI,
-    mUI,
-    mIQ,
-    mIU,
-    mQQ,
-    mUU,
-    mUQ,
-    mQU,
-    c2ThPs,
-    s2ThPs,
-    c2PsXi,
-    s2PsXi,
-    c2ThXi,
-    s2ThXi,
-    c4Th,
-    s4Th,
-):
-    # perform band integration, assumed delta nu = 1GHz
-    tod = 0
-    for i in range(len(band)):
-        tod += band[i] * compute_signal_for_one_sample(
-            T=T[i],
-            Q=Q[i],
-            U=U[i],
-            mII=mII[i],
-            mQI=mQI[i],
-            mUI=mUI[i],
-            mIQ=mIQ[i],
-            mIU=mIU[i],
-            mQQ=mQQ[i],
-            mUU=mUU[i],
-            mUQ=mUQ[i],
-            mQU=mQU[i],
-            c2ThPs=c2ThPs,
-            s2ThPs=s2ThPs,
-            c2PsXi=c2PsXi,
-            s2PsXi=s2PsXi,
-            c2ThXi=c2ThXi,
-            s2ThXi=s2ThXi,
-            c4Th=c4Th,
-            s4Th=s4Th,
-        )
-
-    return tod
-
-
-@njit
-def integrate_inband_signal_for_one_detector(
-    tod_det,
-    band,
-    mII,
-    mQI,
-    mUI,
-    mIQ,
-    mIU,
-    mQQ,
-    mUU,
-    mUQ,
-    mQU,
-    pixel_ind,
-    theta,
-    psi,
-    xi,
-    maps,
-):
-    for i in range(len(tod_det)):
-        tod_det[i] += integrate_inband_signal_for_one_sample(
-            T=maps[:, 0, pixel_ind[i]],
-            Q=maps[:, 1, pixel_ind[i]],
-            U=maps[:, 2, pixel_ind[i]],
-            band=band,
-            mII=mII,
-            mQI=mQI,
-            mUI=mUI,
-            mIQ=mIQ,
-            mIU=mIU,
-            mQQ=mQQ,
-            mUU=mUU,
-            mUQ=mUQ,
-            mQU=mQU,
-            c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
-            s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
-            c2PsXi=np.cos(2 * psi[i] + 2 * xi),
-            s2PsXi=np.sin(2 * psi[i] + 2 * xi),
-            c2ThXi=np.cos(2 * theta[i] - 2 * xi),
-            s2ThXi=np.sin(2 * theta[i] - 2 * xi),
-            c4Th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
-        )
-
-
-@njit
 def compute_signal_for_one_detector(
     tod_det,
     mII,
@@ -343,6 +245,138 @@ def compute_signal_for_one_detector(
             T=maps[0, pixel_ind[i]],
             Q=maps[1, pixel_ind[i]],
             U=maps[2, pixel_ind[i]],
+            mII=mII,
+            mQI=mQI,
+            mUI=mUI,
+            mIQ=mIQ,
+            mIU=mIU,
+            mQQ=mQQ,
+            mUU=mUU,
+            mUQ=mUQ,
+            mQU=mQU,
+            c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
+            s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
+            c2PsXi=np.cos(2 * psi[i] + 2 * xi),
+            s2PsXi=np.sin(2 * psi[i] + 2 * xi),
+            c2ThXi=np.cos(2 * theta[i] - 2 * xi),
+            s2ThXi=np.sin(2 * theta[i] - 2 * xi),
+            c4Th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
+        )
+
+
+@njit
+def integrate_inband_signal_for_one_sample(
+    T,
+    Q,
+    U,
+    freqs,
+    band,
+    mII,
+    mQI,
+    mUI,
+    mIQ,
+    mIU,
+    mQQ,
+    mUU,
+    mUQ,
+    mQU,
+    c2ThPs,
+    s2ThPs,
+    c2PsXi,
+    s2PsXi,
+    c2ThXi,
+    s2ThXi,
+    c4Th,
+    s4Th,
+):
+    # integrating with trapezoidal rule \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    tod = 0
+    for i in range(len(band) - 1):
+        dnu = freqs[i + 1] - freqs[i]
+        tod += (
+            (
+                band[i]
+                * compute_signal_for_one_sample(
+                    T=T[i],
+                    Q=Q[i],
+                    U=U[i],
+                    mII=mII[i],
+                    mQI=mQI[i],
+                    mUI=mUI[i],
+                    mIQ=mIQ[i],
+                    mIU=mIU[i],
+                    mQQ=mQQ[i],
+                    mUU=mUU[i],
+                    mUQ=mUQ[i],
+                    mQU=mQU[i],
+                    c2ThPs=c2ThPs,
+                    s2ThPs=s2ThPs,
+                    c2PsXi=c2PsXi,
+                    s2PsXi=s2PsXi,
+                    c2ThXi=c2ThXi,
+                    s2ThXi=s2ThXi,
+                    c4Th=c4Th,
+                    s4Th=s4Th,
+                )
+                + band[i + 1]
+                * compute_signal_for_one_sample(
+                    T=T[i + 1],
+                    Q=Q[i + 1],
+                    U=U[i + 1],
+                    mII=mII[i + 1],
+                    mQI=mQI[i + 1],
+                    mUI=mUI[i + 1],
+                    mIQ=mIQ[i + 1],
+                    mIU=mIU[i + 1],
+                    mQQ=mQQ[i + 1],
+                    mUU=mUU[i + 1],
+                    mUQ=mUQ[i + 1],
+                    mQU=mQU[i + 1],
+                    c2ThPs=c2ThPs,
+                    s2ThPs=s2ThPs,
+                    c2PsXi=c2PsXi,
+                    s2PsXi=s2PsXi,
+                    c2ThXi=c2ThXi,
+                    s2ThXi=s2ThXi,
+                    c4Th=c4Th,
+                    s4Th=s4Th,
+                )
+            )
+            * dnu
+            / 2
+        )
+
+    return tod
+
+
+@njit
+def integrate_inband_signal_for_one_detector(
+    tod_det,
+    freqs,
+    band,
+    mII,
+    mQI,
+    mUI,
+    mIQ,
+    mIU,
+    mQQ,
+    mUU,
+    mUQ,
+    mQU,
+    pixel_ind,
+    theta,
+    psi,
+    xi,
+    maps,
+):
+    for i in range(len(tod_det)):
+        tod_det[i] += integrate_inband_signal_for_one_sample(
+            T=maps[:, 0, pixel_ind[i]],
+            Q=maps[:, 1, pixel_ind[i]],
+            U=maps[:, 2, pixel_ind[i]],
+            freqs=freqs,
+            band=band,
             mII=mII,
             mQI=mQI,
             mUI=mUI,
@@ -394,112 +428,6 @@ def compute_TQUsolver_for_one_sample(
 
 
 @njit
-def integrate_inband_TQUsolver_for_one_sample(
-    band,
-    mIIs,
-    mQIs,
-    mUIs,
-    mIQs,
-    mIUs,
-    mQQs,
-    mUUs,
-    mUQs,
-    mQUs,
-    c2ThPs,
-    s2ThPs,
-    c2PsXi,
-    s2PsXi,
-    c2ThXi,
-    s2ThXi,
-    c4Th,
-    s4Th,
-):
-    # inband integration
-    intTterm = 0
-    intQterm = 0
-    intUterm = 0
-    for i in range(len(band)):
-        Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
-            mIIs=mIIs[i],
-            mQIs=mQIs[i],
-            mUIs=mUIs[i],
-            mIQs=mIQs[i],
-            mIUs=mIUs[i],
-            mQQs=mQQs[i],
-            mUUs=mUUs[i],
-            mUQs=mUQs[i],
-            mQUs=mQUs[i],
-            c2ThPs=c2ThPs,
-            s2ThPs=s2ThPs,
-            c2PsXi=c2PsXi,
-            s2PsXi=s2PsXi,
-            c2ThXi=c2ThXi,
-            s2ThXi=s2ThXi,
-            c4Th=c4Th,
-            s4Th=s4Th,
-        )
-
-        intTterm += band[i] * Tterm
-        intQterm += band[i] * Qterm
-        intUterm += band[i] * Uterm
-
-    return intTterm, intQterm, intUterm
-
-
-@njit
-def integrate_inband_atd_ata_for_one_detector(
-    atd,
-    ata,
-    tod,
-    band,
-    mIIs,
-    mQIs,
-    mUIs,
-    mIQs,
-    mIUs,
-    mQQs,
-    mUUs,
-    mUQs,
-    mQUs,
-    pixel_ind,
-    theta,
-    psi,
-    xi,
-):
-    for i in range(len(tod)):
-        Tterm, Qterm, Uterm = integrate_inband_TQUsolver_for_one_sample(
-            band=band,
-            mIIs=mIIs,
-            mQIs=mQIs,
-            mUIs=mUIs,
-            mIQs=mIQs,
-            mIUs=mIUs,
-            mQQs=mQQs,
-            mUUs=mUUs,
-            mUQs=mUQs,
-            mQUs=mQUs,
-            c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
-            s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
-            c2PsXi=np.cos(2 * psi[i] + 2 * xi),
-            s2PsXi=np.sin(2 * psi[i] + 2 * xi),
-            c2ThXi=np.cos(2 * theta[i] - 2 * xi),
-            s2ThXi=np.sin(2 * theta[i] - 2 * xi),
-            c4Th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
-        )
-        atd[pixel_ind[i], 0] += tod[i] * Tterm
-        atd[pixel_ind[i], 1] += tod[i] * Qterm
-        atd[pixel_ind[i], 2] += tod[i] * Uterm
-
-        ata[pixel_ind[i], 0, 0] += Tterm * Tterm
-        ata[pixel_ind[i], 1, 0] += Tterm * Qterm
-        ata[pixel_ind[i], 2, 0] += Tterm * Uterm
-        ata[pixel_ind[i], 1, 1] += Qterm * Qterm
-        ata[pixel_ind[i], 2, 1] += Qterm * Uterm
-        ata[pixel_ind[i], 2, 2] += Uterm * Uterm
-
-
-@njit
 def compute_atd_ata_for_one_detector(
     atd,
     ata,
@@ -540,6 +468,137 @@ def compute_atd_ata_for_one_detector(
             s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
         )
 
+        atd[pixel_ind[i], 0] += tod[i] * Tterm
+        atd[pixel_ind[i], 1] += tod[i] * Qterm
+        atd[pixel_ind[i], 2] += tod[i] * Uterm
+
+        ata[pixel_ind[i], 0, 0] += Tterm * Tterm
+        ata[pixel_ind[i], 1, 0] += Tterm * Qterm
+        ata[pixel_ind[i], 2, 0] += Tterm * Uterm
+        ata[pixel_ind[i], 1, 1] += Qterm * Qterm
+        ata[pixel_ind[i], 2, 1] += Qterm * Uterm
+        ata[pixel_ind[i], 2, 2] += Uterm * Uterm
+
+
+@njit
+def integrate_inband_TQUsolver_for_one_sample(
+    freqs,
+    band,
+    mIIs,
+    mQIs,
+    mUIs,
+    mIQs,
+    mIUs,
+    mQQs,
+    mUUs,
+    mUQs,
+    mQUs,
+    c2ThPs,
+    s2ThPs,
+    c2PsXi,
+    s2PsXi,
+    c2ThXi,
+    s2ThXi,
+    c4Th,
+    s4Th,
+):
+    # inband integration
+    intTterm = 0
+    intQterm = 0
+    intUterm = 0
+    for i in range(len(band) - 1):
+        dnu = freqs[i + 1] - freqs[i]
+
+        Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
+            mIIs=mIIs[i],
+            mQIs=mQIs[i],
+            mUIs=mUIs[i],
+            mIQs=mIQs[i],
+            mIUs=mIUs[i],
+            mQQs=mQQs[i],
+            mUUs=mUUs[i],
+            mUQs=mUQs[i],
+            mQUs=mQUs[i],
+            c2ThPs=c2ThPs,
+            s2ThPs=s2ThPs,
+            c2PsXi=c2PsXi,
+            s2PsXi=s2PsXi,
+            c2ThXi=c2ThXi,
+            s2ThXi=s2ThXi,
+            c4Th=c4Th,
+            s4Th=s4Th,
+        )
+
+        Ttermp1, Qtermp1, Utermp1 = compute_TQUsolver_for_one_sample(
+            mIIs=mIIs[i + 1],
+            mQIs=mQIs[i + 1],
+            mUIs=mUIs[i + 1],
+            mIQs=mIQs[i + 1],
+            mIUs=mIUs[i + 1],
+            mQQs=mQQs[i + 1],
+            mUUs=mUUs[i + 1],
+            mUQs=mUQs[i + 1],
+            mQUs=mQUs[i + 1],
+            c2ThPs=c2ThPs,
+            s2ThPs=s2ThPs,
+            c2PsXi=c2PsXi,
+            s2PsXi=s2PsXi,
+            c2ThXi=c2ThXi,
+            s2ThXi=s2ThXi,
+            c4Th=c4Th,
+            s4Th=s4Th,
+        )
+
+        intTterm += (band[i] * Tterm + band[i + 1] * Ttermp1) * dnu / 2.0
+        intQterm += (band[i] * Qterm + band[i + 1] * Qtermp1) * dnu / 2.0
+        intUterm += (band[i] * Uterm + band[i + 1] * Utermp1) * dnu / 2.0
+
+    return intTterm, intQterm, intUterm
+
+
+@njit
+def integrate_inband_atd_ata_for_one_detector(
+    atd,
+    ata,
+    tod,
+    freqs,
+    band,
+    mIIs,
+    mQIs,
+    mUIs,
+    mIQs,
+    mIUs,
+    mQQs,
+    mUUs,
+    mUQs,
+    mQUs,
+    pixel_ind,
+    theta,
+    psi,
+    xi,
+):
+    for i in range(len(tod)):
+        Tterm, Qterm, Uterm = integrate_inband_TQUsolver_for_one_sample(
+            freqs=freqs,
+            band=band,
+            mIIs=mIIs,
+            mQIs=mQIs,
+            mUIs=mUIs,
+            mIQs=mIQs,
+            mIUs=mIUs,
+            mQQs=mQQs,
+            mUUs=mUUs,
+            mUQs=mUQs,
+            mQUs=mQUs,
+            c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
+            s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
+            c2PsXi=np.cos(2 * psi[i] + 2 * xi),
+            s2PsXi=np.sin(2 * psi[i] + 2 * xi),
+            c2ThXi=np.cos(2 * theta[i] - 2 * xi),
+            s2ThXi=np.sin(2 * theta[i] - 2 * xi),
+            c4Th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
+        )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm
         atd[pixel_ind[i], 2] += tod[i] * Uterm
@@ -1023,6 +1082,7 @@ class HwpSys:
                 if self.integrate_in_band:
                     integrate_inband_signal_for_one_detector(
                         tod_det=tod,
+                        freqs=self.freqs,
                         band=self.cmb2bb,
                         mII=self.mII,
                         mQI=self.mQI,
@@ -1065,6 +1125,7 @@ class HwpSys:
                                 atd=self.atd,
                                 ata=self.ata,
                                 tod=tod,
+                                freqs=self.freqs,
                                 band=self.cmb2bb,
                                 mIIs=self.mIIs,
                                 mQIs=self.mQIs,
