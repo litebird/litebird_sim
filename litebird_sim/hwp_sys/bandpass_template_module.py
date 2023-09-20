@@ -108,7 +108,7 @@ def bandpass_profile(
         except Exception:
             print("missing bandpass file or wrong number of columns")
 
-        if not np.all(np.isclose(freqs, f, atol=1e-5)):
+        if not np.allclose(freqs, f, atol=1e-5):
             raise ValueError("wrong frequencies in bandpass file")
 
     elif "band_type" in bandpass.keys():

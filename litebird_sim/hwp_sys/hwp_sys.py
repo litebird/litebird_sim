@@ -799,7 +799,7 @@ class HwpSys:
                         self.beta,
                         self.z1,
                         self.z2,
-                    ) = np.loadtxt(self.band_filename, unpack=True, skiprows=1)
+                    ) = np.loadtxt(self.band_filename, unpack=True, comments="#")
                 except Exception:
                     print(
                         "missing band_filename in the parameter file"
@@ -818,7 +818,7 @@ class HwpSys:
                         self.mUU,
                         self.mUQ,
                         self.mQU,
-                    ) = np.loadtxt(self.band_filename, unpack=True, skiprows=1)
+                    ) = np.loadtxt(self.band_filename, unpack=True, comments="#")
                 except Exception:
                     print(
                         "missing band_filename in the parameter file"
@@ -905,30 +905,63 @@ class HwpSys:
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
                 if mueller_or_jones == "jones":
-                    self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
-                        self.band_filename_solver,
-                        usecols=(1, 2, 3, 4, 5),
-                        unpack=True,
-                        skiprows=1,
-                    )
+                    try:
+                        (
+                            self.freqs_solver,
+                            self.h1s,
+                            self.h2s,
+                            self.betas,
+                            self.z1s,
+                            self.z2s,
+                        ) = np.loadtxt(
+                            self.band_filename_solver,
+                            unpack=True,
+                            comments="#",
+                        )
+                    except Exception:
+                        print(
+                            "you have not provided a band_filename_solver"
+                            + "in the parameter file, or wrong number of columns!"
+                        )
 
                 else:  # mueller_or_jones == "mueller":
-                    (
-                        self.mIIs,
-                        self.mQIs,
-                        self.mUIs,
-                        self.mIQs,
-                        self.mIUs,
-                        self.mQQs,
-                        self.mUUs,
-                        self.mUQs,
-                        self.mQUs,
-                    ) = np.loadtxt(
-                        self.band_filename_solver,
-                        usecols=(1, 2, 3, 4, 5, 6, 7, 8, 9),
-                        unpack=True,
-                        skiprows=1,
+                    try:
+                        (
+                            self.freqs_solver,
+                            self.mIIs,
+                            self.mQIs,
+                            self.mUIs,
+                            self.mIQs,
+                            self.mIUs,
+                            self.mQQs,
+                            self.mUUs,
+                            self.mUQs,
+                            self.mQUs,
+                        ) = np.loadtxt(
+                            self.band_filename_solver,
+                            unpack=True,
+                            comments="#",
+                        )
+                    except Exception:
+                        print(
+                            "you have not provided a band_filename_solver"
+                            + "in the parameter file, or wrong number of columns!"
+                        )
+
+                if not self.bandpass_solver:
+                    self.cmb2bb_solver = _dBodTth(self.freqs_solver)
+
+                elif self.bandpass_solver:
+                    self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
+                        self.freqs_solver,
+                        self.bandpass_solver,
+                        self.include_beam_throughput,
                     )
+                    self.cmb2bb_solver = (
+                        _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
+                    )
+
+                self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
 
             else:
                 if mueller_or_jones == "jones":
@@ -1125,8 +1158,8 @@ class HwpSys:
                                 atd=self.atd,
                                 ata=self.ata,
                                 tod=tod,
-                                freqs=self.freqs,
-                                band=self.cmb2bb,
+                                freqs=self.freqs_solver,
+                                band=self.cmb2bb_solver,
                                 mIIs=self.mIIs,
                                 mQIs=self.mQIs,
                                 mUIs=self.mUIs,
