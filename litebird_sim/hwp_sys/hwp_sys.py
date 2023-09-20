@@ -10,7 +10,7 @@ from typing import Union, List
 from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation
-from ..out_of_band_analysis.bandpass_template_module import bandpass_profile
+from .bandpass_template_module import bandpass_profile
 from ..coordinates import rotate_coordinates_e2g, CoordinateSystem
 
 COND_THRESHOLD = 1e10
