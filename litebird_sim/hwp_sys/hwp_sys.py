@@ -1031,9 +1031,9 @@ class HwpSys:
 
     def fill_tod(
         self,
-        obs: Observation,
-        pointings: np.ndarray,
+        obs: Union[Observation, List[Observation]],
         hwp_radpsec: float,
+        pointings: Union[np.ndarray, List[np.ndarray], None] = None,
         save_tod: bool = False,
     ):
         """It fills tod and/or A^TA and A^Td for the "on the fly" map production
@@ -1048,6 +1048,8 @@ class HwpSys:
                  `hwp` to None since the hwp rotation angle is added to
                  the polarization angle within the `fill_tod` function.
             hwp_radpsec (float): hwp rotation speed in radiants per second
+            save_tod (bool): if True, the `tod` is saved in `obs.tod`, if False,
+                 `tod` gets deleted
         """
 
         if pointings is None:
@@ -1109,7 +1111,7 @@ class HwpSys:
                 xi = compute_polang_from_detquat(cur_obs.quat[idet])
                 print(np.rad2deg(xi))
                 psi = cur_psi - xi
-                del (cur_ptg, cur_psi)
+                del cur_ptg
                 tod = cur_obs.tod[idet, :]
 
                 if self.integrate_in_band:
@@ -1193,10 +1195,11 @@ class HwpSys:
                                 psi=psi,
                                 xi=xi,
                             )
+
                     else:
-                        # re-use ca and sa, factor 4 included here
-                        ca = np.cos(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
-                        sa = np.sin(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
+                        # in this case factor 4 included here
+                        ca = np.cos(2 * cur_psi + 4 * times * hwp_radpsec)
+                        sa = np.sin(2 * cur_psi + 4 * times * hwp_radpsec)
 
                         self.atd[pix, 0] += tod * 0.5
                         self.atd[pix, 1] += tod * ca * 0.5
@@ -1209,37 +1212,43 @@ class HwpSys:
                         self.ata[pix, 2, 1] += 0.25 * ca * sa
                         self.ata[pix, 2, 2] += 0.25 * sa * sa
                         del (ca, sa)
+
+                    # del tod
+
                 else:
-                    obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
-                    obs.pixind[idet, :] = pix
+                    # this fills variables needed by bin_map
+                    cur_obs.psi[idet, :] = np.array(
+                        cur_psi + 2 * times * hwp_radpsec, dtype=np.float32
+                    )
+                    cur_obs.pixind[idet, :] = pix
 
-            del (pix, xi, psi, times, self.maps)  # tod
-            if not save_tod:
-                del tod
-            del (
-                self.mII,
-                self.mQI,
-                self.mUI,
-                self.mIQ,
-                self.mIU,
-                self.mQQ,
-                self.mUU,
-                self.mUQ,
-                self.mQU,
-            )
-            del (
-                self.mIIs,
-                self.mQIs,
-                self.mUIs,
-                self.mIQs,
-                self.mIUs,
-                self.mQQs,
-                self.mUUs,
-                self.mUQs,
-                self.mQUs,
-            )
+        del (pix, xi, psi, times, self.maps)  # tod
+        if not save_tod:
+            del tod
+        del (
+            self.mII,
+            self.mQI,
+            self.mUI,
+            self.mIQ,
+            self.mIU,
+            self.mQQ,
+            self.mUU,
+            self.mUQ,
+            self.mQU,
+        )
+        del (
+            self.mIIs,
+            self.mQIs,
+            self.mUIs,
+            self.mIQs,
+            self.mIUs,
+            self.mQQs,
+            self.mUUs,
+            self.mUQs,
+            self.mQUs,
+        )
 
-            return
+        return
 
     def make_map(self, obss):
         """It generates "on the fly" map. This option is only availabe if

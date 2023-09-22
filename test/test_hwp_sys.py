@@ -31,23 +31,47 @@ def test_hwp_sys():
         spin_rotangle_rad=3.141_592_653_589_793,
     )
 
-    detT = lbs.DetectorInfo(
+    detBT = lbs.DetectorInfo(
         name="Boresight_detector_T",
         sampling_rate_hz=sampling_hz,
         bandcenter_ghz=100.0,
         quat=[0.0, 0.0, 0.0, 1.0],
     )
 
-    detB = lbs.DetectorInfo(
+    detBB = lbs.DetectorInfo(
         name="Boresight_detector_B",
         sampling_rate_hz=sampling_hz,
         bandcenter_ghz=100.0,
         quat=[0.0, 0.0, 1.0 / np.sqrt(2.0), 1.0 / np.sqrt(2.0)],
     )
 
-    (obs_h,) = sim.create_observations(detectors=[detT, detB])
+    det165 = lbs.DetectorInfo(
+        name="not_boresight_detector_165",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[-0.07962602, 0.07427495, 0.98554952, 0.12975006],
+    )
 
-    (pointings,) = lbs.get_pointings_for_observations(
+    det105 = lbs.DetectorInfo(
+        name="not_boresight_detector_105",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.00924192, -0.10162824, -0.78921165, 0.6055834],
+    )
+
+    (obs_boresight,) = sim.create_observations(detectors=[detBT, detBB])
+
+    (pointings_b,) = lbs.get_pointings_for_observations(
+        sim.observations,
+        spin2ecliptic_quats=spin2ecliptic_quats,
+        bore2spin_quat=instr.bore2spin_quat,
+        hwp=None,
+        store_pointings_in_obs=True,
+    )
+
+    (obs_no_boresight,) = sim.create_observations(detectors=[det165, det105])
+
+    (pointings_nob,) = lbs.get_pointings_for_observations(
         sim.observations,
         spin2ecliptic_quats=spin2ecliptic_quats,
         bore2spin_quat=instr.bore2spin_quat,
@@ -61,6 +85,7 @@ def test_hwp_sys():
     )
     mft = np.loadtxt(filepath)
 
+    nu = mft[:, 0]
     h1 = mft[:, 1]
     h2 = mft[:, 2]
     beta = mft[:, 3]
@@ -71,6 +96,19 @@ def test_hwp_sys():
         "hwp_sys": {
             "band_filename": filepath,
             "band_filename_solver": filepath,  # same as tod parameters
+            "bandpass": {
+                "band_type": "top-hat",
+                "band_low_edge": nu[0],
+                "band_high_edge": nu[-1],
+                "bandcenter_ghz": 100,
+            },
+            "bandpass_solver": {
+                "band_type": "top-hat",
+                "band_low_edge": nu[0],
+                "band_high_edge": nu[-1],
+                "bandcenter_ghz": 100,
+            },
+            "include_beam_throughput": False,
         }
     }
 
@@ -90,6 +128,7 @@ def test_hwp_sys():
     hwp_sys = lbs.HwpSys(sim)
 
     hwp_sys.set_parameters(
+        mueller_or_jones="jones",
         integrate_in_band=True,
         integrate_in_band_solver=True,
         correct_in_solver=True,
@@ -98,47 +137,73 @@ def test_hwp_sys():
         Mbsparams=Mbsparams,
     )
 
-    np.testing.assert_equal(hwp_sys.h1, h1)
-    np.testing.assert_equal(hwp_sys.h1s, h1)
-    np.testing.assert_equal(hwp_sys.h2, h2)
-    np.testing.assert_equal(hwp_sys.h2s, h2)
-    np.testing.assert_equal(np.cos(hwp_sys.beta), np.cos(np.deg2rad(beta)))
-    np.testing.assert_equal(np.cos(hwp_sys.betas), np.cos(np.deg2rad(beta)))
-    np.testing.assert_equal(hwp_sys.z1, z1)
-    np.testing.assert_equal(hwp_sys.z1s, z1)
-    np.testing.assert_equal(hwp_sys.z2, z2)
-    np.testing.assert_equal(hwp_sys.z2s, z2)
+    np.testing.assert_equal(hwp_sys.bandpass_profile, hwp_sys.bandpass_profile_solver)
+    np.testing.assert_equal(hwp_sys.freqs, hwp_sys.freqs_solver)
 
-    hwp_sys.fill_tod(obs=obs_h, hwp_radpsec=hwp_radpsec)  # pointings = pointings,
+    # testing if code works also with list of obs of the same channel
+    hwp_sys.fill_tod(
+        obs=[obs_boresight, obs_no_boresight], hwp_radpsec=hwp_radpsec
+    )  # pointings = pointings,
 
-    reference = np.array(
+    reference_b = np.array(
         [
             [
-                3.0200721e-05,
-                2.8892764e-05,
-                2.9656992e-05,
-                3.0214789e-05,
-                -1.9307578e-05,
-                -1.9066008e-05,
-                -2.0042662e-05,
-                -1.8905712e-05,
-                -1.9432409e-05,
-                -1.9722731e-05,
+                3.0560230e-05,
+                2.9122459e-05,
+                2.9265628e-05,
+                3.0336547e-05,
+                -1.9575957e-05,
+                -1.8873492e-05,
+                -1.9916168e-05,
+                -1.9199055e-05,
+                -1.9401938e-05,
+                -1.9470222e-05,
             ],
             [
-                2.8573380e-05,
-                3.0009107e-05,
-                2.9877723e-05,
-                2.8801276e-05,
-                -1.9224044e-05,
-                -1.9958510e-05,
-                -1.8895664e-05,
-                -1.9592955e-05,
-                -1.9424007e-05,
-                -1.9352377e-05,
+                2.8618011e-05,
+                3.0030897e-05,
+                2.9890767e-05,
+                2.8842858e-05,
+                -1.9244833e-05,
+                -1.9962308e-05,
+                -1.8914921e-05,
+                -1.9619934e-05,
+                -1.9429232e-05,
+                -1.9365529e-05,
             ],
         ],
         dtype=np.float32,
     )
 
-    np.testing.assert_equal(obs_h.tod, reference)
+    reference_nob = np.array(
+        [
+            [
+                1.6051326e-05,
+                1.6835435e-05,
+                1.5598331e-05,
+                1.6891758e-05,
+                1.6264255e-05,
+                1.5769723e-05,
+                1.7102797e-05,
+                1.5715126e-05,
+                1.6552618e-05,
+                1.6356096e-05,
+            ],
+            [
+                -4.7307349e-05,
+                -4.8946167e-05,
+                -4.7057129e-05,
+                -4.8257643e-05,
+                -4.7521422e-05,
+                -4.8152131e-05,
+                -4.8154547e-05,
+                -4.6702909e-05,
+                -4.9267896e-05,
+                -4.7250538e-05,
+            ],
+        ],
+        dtype=np.float32,
+    )
+
+    np.testing.assert_equal(obs_boresight.tod, reference_b)
+    np.testing.assert_equal(obs_no_boresight.tod, reference_nob)
