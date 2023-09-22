@@ -86,11 +86,6 @@ def test_hwp_sys():
     mft = np.loadtxt(filepath)
 
     nu = mft[:, 0]
-    h1 = mft[:, 1]
-    h2 = mft[:, 2]
-    beta = mft[:, 3]
-    z1 = mft[:, 4]
-    z2 = mft[:, 5]
 
     par = {
         "hwp_sys": {
