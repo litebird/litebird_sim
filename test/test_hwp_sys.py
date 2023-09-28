@@ -107,7 +107,7 @@ def test_hwp_sys():
         }
     }
 
-    sim.parameter_file = par  # setting the parameter file
+    sim.parameters = par  # setting the parameter file
     hwp_sys = lbs.HwpSys(sim)
 
     Mbsparams = lbs.MbsParameters(
