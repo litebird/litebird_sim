@@ -642,6 +642,10 @@ class HwpSys:
                 it is the kind of HWP matrix to be injected as a starting point
                 if 'jones' is chosen, the parameters h1, h2, beta, z1, z2
                 are used to build the Jones matrix and then converted to Mueller
+                z1, z2 are assumed to be complex
+                h1, h2, beta are assumed to be real
+                beta is assumed to be in degrees (later converted to radians)
+                [[1 + h1, z1], [z2, - (1 + h2) * exp(1j * beta)]]
             Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
                 Input maps needs to be in galactic (mbs default)
             integrate_in_band (bool): performs the band integration for tod generation
@@ -799,7 +803,15 @@ class HwpSys:
                         self.beta,
                         self.z1,
                         self.z2,
-                    ) = np.loadtxt(self.band_filename, unpack=True, comments="#")
+                    ) = np.loadtxt(
+                        self.band_filename, dtype=complex, unpack=True, comments="#"
+                    )
+
+                    self.freqs = np.array(self.freqs, dtype=float)
+                    self.h1 = np.array(self.h1, dtype=float)
+                    self.h2 = np.array(self.h2, dtype=float)
+                    self.beta = np.array(self.beta, dtype=float)
+
                 except Exception:
                     print(
                         "missing band_filename in the parameter file"
@@ -915,9 +927,16 @@ class HwpSys:
                             self.z2s,
                         ) = np.loadtxt(
                             self.band_filename_solver,
+                            dtype=complex,
                             unpack=True,
                             comments="#",
                         )
+
+                        self.freqs_solver = np.array(self.freqs_solver, dtype=float)
+                        self.h1s = np.array(self.h1s, dtype=float)
+                        self.h2s = np.array(self.h2s, dtype=float)
+                        self.betas = np.array(self.betas, dtype=float)
+
                     except Exception:
                         print(
                             "you have not provided a band_filename_solver"
@@ -1109,7 +1128,6 @@ class HwpSys:
                 # xi: polarization angle, i.e. detector dependent
                 # psi: instrument angle, i.e. boresight angle
                 xi = compute_polang_from_detquat(cur_obs.quat[idet])
-                print(np.rad2deg(xi))
                 psi = cur_psi - xi
                 del cur_ptg
                 tod = cur_obs.tod[idet, :]
