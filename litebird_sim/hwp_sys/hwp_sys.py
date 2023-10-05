@@ -635,7 +635,7 @@ class HwpSys:
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
     ):
-        """It sets the input paramters
+        r"""It sets the input paramters
         Args:
             nside (integer): nside used in the analysis
             mueller_or_jones (str): "mueller" or "jones" (case insensitive)
@@ -645,7 +645,10 @@ class HwpSys:
                 z1, z2 are assumed to be complex
                 h1, h2, beta are assumed to be real
                 beta is assumed to be in degrees (later converted to radians)
-                [[1 + h1, z1], [z2, - (1 + h2) * exp(1j * beta)]]
+                :math:`[[1 + h_1, z_1], [z_2, - (1 + h_2) * \exp{1j * \beta}]]`.
+                To reproduce the ideal HWP case, set all Jones parameters to 0.
+                If Mueller parameters are used, set :math:`M^{II/QQ} = 1`, :math:`M^{UU} = -1`
+                and all the others to 0.
             Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
                 Input maps needs to be in galactic (mbs default)
             integrate_in_band (bool): performs the band integration for tod generation
