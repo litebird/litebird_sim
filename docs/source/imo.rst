@@ -51,6 +51,29 @@ and the remaining path ``/satellite/scanning_parameters`` points to
 the information you're looking for.
 
 
+.. _imo-configuration:
+
+Configuring the IMO
+-------------------
+
+The best way to interact with the IMO is to have a local copy
+installed on your laptop. You should ask permission to the LiteBIRD
+Simulation Team for downloading the official LiteBIRD IMO from the
+protected site `litebird_imo <https://github.com/litebird/litebird_imo>`_.
+Save it in a folder on your computer, e.g., ``/storage/litebird_imo``,
+and then run the following command:
+
+.. code-block:: text
+
+  python -m litebird_sim.install_imo
+
+This is an interactive program that lets you to configure the IMO.
+You typically want to use a «local copy»; specify the folder where the file
+``schema.json`` you downloaded before resides (under
+``/storage/litebird_imo/IMO`` in our case). Save the changes by pressing
+``s``, and you will have your IMO configured.
+
+
 Local/remote access to the IMO
 ----------------------------------
   

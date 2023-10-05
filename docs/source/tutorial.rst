@@ -144,37 +144,33 @@ parameters that describe the instruments being simulated: how many
 detectors there are, what are their properties, etc. These information
 are usually kept in an Instrument MOdel database, IMO for short.
 
-The LiteBIRD IMO is managed using `instrumentdb
+The LiteBIRD IMO is managed using `InstrumentDB
 <https://github.com/ziotom78/instrumentdb>`_, a web-based database,
 but it can be retrieved also as a bundle of files. The LiteBIRD
 simulation framework seamlessy interacts with the IMO database and
 permits to retrieve all the parameters that describe the LiteBIRD
 instruments.
 
-The best way to interact with the IMO is to have a local copy
-installed on your laptop. You should ask permission to the LiteBIRD
-Simulation Team for downloading the IMO from the (protected) site
-`litebird_imo <https://github.com/litebird/litebird_imo>`_. Save it in
-a folder on your computer, e.g., ``/storage/litebird_imo``, and then
-run the following command:
+The simulation framework contains a IMO containing a small
+representation of the instruments as described in the paper
+`*Probing cosmic inflation with the LiteBIRD cosmic microwave background
+polarization survey* <https://academic.oup.com/ptep/article/2023/4/042F01/6835420>`_
+(PTEP, 2022). We will use this small IMO in the tutorial; if you
+want to do some serious work, you should install your own copy
+of the “full” official IMO. Refer to :ref:`imo-configuration` for
+more information.
 
-.. code-block:: text
+Our next example will use the IMO to run something more interesting:
 
-  python -m litebird_sim.install_imo
-
-and run the program interactively to configure the IMO. You typically
-want to use a «local copy»; specify the folder where the file
-``schema.json`` you downloaded before resides (under
-``/storage/litebird_imo/IMO`` in our case). Save the changes by pressing
-``s``, and you will have your IMO configured.
-
-Our next example will use the IMO to run something more interesting::
+.. testcode::
 
   import litebird_sim as lbs
 
+  imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
+
   sim = lbs.Simulation(base_path="./tut02", random_seed=12345)
   lft_file = sim.imo.query(
-      "/releases/v1.3/satellite/LFT/instrument_info"
+      "/releases/vPTEP/satellite/LFT/instrument_info"
   )
   sim.append_to_report(
       "The instrument {{ name }} has {{ num }} channels.",
@@ -183,10 +179,7 @@ Our next example will use the IMO to run something more interesting::
   )
   sim.flush()
 
-If you run this program, it will produce a report containing the
-following message:
-
-.. code-block:: text
+.. testoutput::
 
   The instrument LFT has 12 channels.
 
@@ -205,7 +198,7 @@ managed to read the database contents and initialize a set of member
 variables. This is why we have been able to write the next line::
 
   lft_file = sim.imo.query(
-      "/releases/v1.3/satellite/LFT/instrument_info"
+      "/releases/vPTEP/satellite/LFT/instrument_info"
   )
 
 Although the parameter looks like a path to some file, it is a
@@ -252,33 +245,36 @@ report::
   import matplotlib.pylab as plt
   import astropy.units as u
 
+  imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
+
   sim = lbs.Simulation(
       base_path="./tut04",
       name="Simulation tutorial",
       start_time=0,
       duration_s=86400.,
       random_seed=12345,
+      imo=imo,
   )
 
   sim.set_scanning_strategy(
-      scanning_strategy=lbs.SpinningScanningStrategy(
-          spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
-          spin_rate_hz=0.5 / 60,     # Ditto
-          # We use astropy to convert the period (4 days) in
-          # seconds
-          precession_rate_hz=1.0 / (4 * u.day).to("s").value,
-      )
+      scanning_strategy=lbs.SpinningScanningStrategy.from_imo(
+          imo=imo,
+          url="/releases/vPTEP/satellite/scanning_parameters",
+      ),
   )
 
   sim.set_instrument(
-      lbs.InstrumentInfo(
-          name="core",
-          spin_boresight_angle_rad=np.deg2rad(65),
+      lbs.InstrumentInfo.from_imo(
+          imo=imo,
+          url="/releases/vPTEP/satellite/LFT/instrument_info",
       ),
   )
 
   sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=0.1))
 
+  # It is entirely possible to mix up definitions taken from
+  # the IMO with hand-made objects. In this example, we create
+  # a mock detector instead of reading one from the PTEP IMO.
   sim.create_observations(
       detectors=lbs.DetectorInfo(name="foo", sampling_rate_hz=10),
   )
@@ -287,7 +283,11 @@ report::
 
   for cur_obs in sim.observations:
       nside = 64
-      pixidx = healpy.ang2pix(nside, cur_obs.pointings[0, :, 0], cur_obs.pointings[0, :, 1])
+      pixidx = healpy.ang2pix(
+          nside,
+          cur_obs.pointings[0, :, 0],
+          cur_obs.pointings[0, :, 1],
+      )
       m = np.zeros(healpy.nside2npix(nside))
       m[pixidx] = 1
       healpy.mollview(m)
@@ -336,6 +336,8 @@ following things:
    :class:`.Simulation` object. (In this simple example, there is only
    one :class:`.Observation`, but in more complex examples there can
    be many of them.)
+7. The objects that were read from IMO are properly listed in the
+   report.
 
 If you run the example, you will see that the folder ``tut04`` will be
 populated with the following files:
@@ -347,13 +349,13 @@ populated with the following files:
   $
 
 A new file has appeared: ``coverage_map.png``. If you open the file
-``report.html``, you will get the map in the report (here the image
-has been cropped a bit, because the report is longer):
+``report.html``, you will see that the map has been included in the
+report:
 
 .. image:: images/tutorial-coverage-map.png
    :width: 512
    :align: center
-   :alt: Screenshot of part of the tutorial produced by our script
+   :alt: Screenshot of the report produced by our script
 
 
 Creating a signal plus noise timeline 
