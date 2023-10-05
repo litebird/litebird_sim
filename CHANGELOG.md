@@ -2,13 +2,15 @@
 
 -   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
 
--   Fixed typo in timeordered.rst [#250](https://github.com/litebird/litebird_sim/pull/250)
-
--   Fix error in reading observation when it does not have tod field [#262](https://github.com/litebird/litebird_sim/pull/262) 
-
 -   **Breaking change**: Drop support for Python 3.7 and 3.8 [#254](https://github.com/litebird/litebird_sim/pull/254)
 
 -   **Breaking change**: Fix noise seed inconsistency [#256](https://github.com/litebird/litebird_sim/pull/256)
+
+-   Include default PTEP IMO for tests and demos [#230](https://github.com/litebird/litebird_sim/pull/230)
+
+-   Fixed typo in timeordered.rst [#250](https://github.com/litebird/litebird_sim/pull/250)
+
+-   Fix error in reading observation when it does not have tod field [#262](https://github.com/litebird/litebird_sim/pull/262) 
 
 -   Bug in mbs for band integration solved [#251](https://github.com/litebird/litebird_sim/pull/251)
 
