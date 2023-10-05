@@ -647,8 +647,8 @@ class HwpSys:
                 beta is assumed to be in degrees (later converted to radians)
                 :math:`[[1 + h_1, z_1], [z_2, - (1 + h_2) * \exp{1j * \beta}]]`.
                 To reproduce the ideal HWP case, set all Jones parameters to 0.
-                If Mueller parameters are used, set :math:`M^{II/QQ} = 1`, :math:`M^{UU} = -1`
-                and all the others to 0.
+                If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
+                :math:`M^{UU} = -1` and all the others to 0.
             Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
                 Input maps needs to be in galactic (mbs default)
             integrate_in_band (bool): performs the band integration for tod generation
