@@ -177,11 +177,14 @@ Our next example will use the IMO to run something more interesting:
       name=lft_file.metadata["name"],
       num=lft_file.metadata['number_of_channels'],
   )
-  sim.flush()
+
+  html_report_path = sim.flush()
+  print(f"Done, the report has been saved in file {html_report_path.name}")
+
 
 .. testoutput::
 
-  The instrument LFT has 12 channels.
+  Done, the report has been saved in file report.html
 
 Let's dig into the code of the example. The first line looks almost
 the same as in the previous example::
@@ -219,6 +222,13 @@ used in the text to put some actual values within the placeholders
 ``{{ … }}``. This is the syntax used by `Jinja2
 <https://jinja.palletsprojects.com/en/2.11.x/>`_, a powerful
 templating library.
+
+The last lines write the report to disk and return the path to the
+HTML file::
+
+  html_report_path = sim.flush()
+  print(f"Done, the report has been saved in file {html_report_path.name}")
+
 
 This example showed you how to retrieve information from the IMO and
 introduced some features of the method
