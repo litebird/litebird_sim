@@ -640,12 +640,12 @@ class HwpSys:
             nside (integer): nside used in the analysis
             mueller_or_jones (str): "mueller" or "jones" (case insensitive)
                 it is the kind of HWP matrix to be injected as a starting point
-                if 'jones' is chosen, the parameters h1, h2, beta, z1, z2
-                are used to build the Jones matrix and then converted to Mueller
-                z1, z2 are assumed to be complex
-                h1, h2, beta are assumed to be real
-                beta is assumed to be in degrees (later converted to radians)
-                :math:`[[1 + h_1, z_1], [z_2, - (1 + h_2) * \exp{1j * \beta}]]`.
+                if 'jones' is chosen, the parameters :math:`h_1`, :math:`h_2`,
+                :math:`\beta`, :math:`z_1`, :math:`z_2`
+                are used to build the Jones matrix :math:`\begin{pmatrix} 1 + h_1 & z_1 \\ z_2 & - (1 + h_2) e^{i \beta} \\ \end{pmatrix}` and then converted to Mueller.
+                :math:`z_1`, :math:`z_2` are assumed to be complex
+                :math:`h_1`, :math:`h_2`, :math:`\beta` are assumed to be real
+                :math:`\beta` is assumed to be in degrees (later converted to radians.
                 To reproduce the ideal HWP case, set all Jones parameters to 0.
                 If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
                 :math:`M^{UU} = -1` and all the others to 0.
