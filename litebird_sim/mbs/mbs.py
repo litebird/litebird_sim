@@ -435,8 +435,6 @@ class Mbs:
                 p_sens_ukarcmin=p_sens_ukarcmin,
             )
 
-
-
     def generate_noise(self):
         instr = self.instrument
         nmc_noise = self.params.nmc_noise

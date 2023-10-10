@@ -3,9 +3,9 @@
 HWP_sys
 =======
 
-This module implements HWP non-idealities in 2-dimensional Jones calculus as 
-described in `Giardiello et al. 2021 <https://arxiv.org/abs/2106.08031>`_. In
-this formalism a non-ideal HWP is described by
+This module implements HWP non-idealities both using Jones formalism (as 
+described in `Giardiello et al. 2021 <https://arxiv.org/abs/2106.08031>`_) and the Mueller one. In
+the Jones formalism, a non-ideal HWP is described by
 
 .. math::
    :label: non_ideal_hwp_jones
@@ -26,7 +26,21 @@ where:
    incoming wave is fully polarized along x(y), a spurious y(x) component would 
    show up in the outgoing wave. In the ideal case, :math:`\zeta_{1,2}=\chi_{1,2}=0`.
 
-In the most general case these parameters can vary inside a bandpass.
+In the Mueller one, we have a general matrix
+
+.. math::
+   :label: non_ideal_hwp_mueller
+
+   J_{HWP} = \begin{pmatrix} M^{TT} & M^{TQ} & M^{TU} \\ M^{QT} & M^{QQ} & M^{QU} \\ M^{UT} & M^{UQ} & M^{UU} \\ \end{pmatrix}
+
+which, in the ideal case, would be
+
+.. math::
+   :label: non_ideal_hwp_mueller
+
+   J_{HWP} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & -1 \\ \end{pmatrix}
+
+In the most general case, the Jones non-ideal parameters and the Mueller matrix elements can vary inside a bandpass.
 
 The class :class:`.hwp_sys.HwpSys` is a contanier for the parameters of the HWP systematics.
 It defines three methods:
