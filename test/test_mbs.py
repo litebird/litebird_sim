@@ -62,6 +62,7 @@ def test_mbs():
                 "bandwidth_ghz": 42.0,
                 "fwhm_arcmin": 30.8,
                 "p_sens_ukarcmin": 6.39,
+                "band": None,
             }
             mbs = lbs.Mbs(sim, sim.parameters["map_based_sims"], instrument=myinst)
             (maps, saved_maps) = mbs.run_all()
