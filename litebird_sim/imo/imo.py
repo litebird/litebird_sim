@@ -14,7 +14,14 @@ CONFIG_FILE_PATH = Path.home() / ".config" / "litebird_imo" / "imo.toml"
 
 
 class Imo:
-    def __init__(self, flatfile_location=None, url=None, user=None, password=None):
+    def __init__(
+        self,
+        flatfile_location=None,
+        url=None,
+        user=None,
+        password=None,
+        load_defaults: bool = False,
+    ):
         self.imoobject = None
         if (not flatfile_location) and (not url):
             # Try to load the configuration file
@@ -22,8 +29,16 @@ class Imo:
             try:
                 with CONFIG_FILE_PATH.open("rt") as inpf:
                     config = tomlkit.loads("".join(inpf.readlines()))
-                location = config["repositories"][0]["location"]
-                self.imoobject = ImoFlatFile(location)
+
+                self.imoobject = ImoFlatFile(
+                    Path(__file__).parent.parent.parent / "default_imo"
+                )
+
+                if load_defaults:
+                    for cur_imo_definition in config["repositories"]:
+                        cur_location = cur_imo_definition["location"]
+                        self.imoobject.merge(ImoFlatFile(cur_location))
+
             except FileNotFoundError:
                 log.warning('IMO config file "%s" not found.', str(CONFIG_FILE_PATH))
                 log.warning(

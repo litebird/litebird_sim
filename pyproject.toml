@@ -17,29 +17,29 @@ name = "litebird_sim"
 version = "0.10.0"
 description = "Simulation tools for the LiteBIRD experiment"
 authors = [
-	"The LiteBIRD Simulation Team",
-	"Ranajoy Banerji <ranajoy.cosmo@gmail.com>",
-	"Marco Bortolami <marco.bortolami@unife.it>",
-	"Mathew Galloway <mathew.galloway@astro.uio.no>",
-	"Martina Gerbino <gerbinom@fe.infn.it>",
-	"Serena Giardiello <serena.giardiello@unife.it>",
-	"Nicoletta Krachmalnicoff <nkrach@sissa.it>",
-	"Luca Pagano <luca.pagano@unife.it>",
-	"Davide Poletti <davide.poletti@sissa.it>",
-	"Giuseppe Puglisi <giuspugl@roma2.infn.it>",
-	"Nicolò Raffuzzi <rffnll@unife.it>",
-	"Martin Reinecke <martin@mpa-garching.mpg.de>",
-	"Maurizio Tomasi <maurizio.tomasi@unimi.it>",
+    "The LiteBIRD Simulation Team",
+    "Ranajoy Banerji <ranajoy.cosmo@gmail.com>",
+    "Marco Bortolami <marco.bortolami@unife.it>",
+    "Mathew Galloway <mathew.galloway@astro.uio.no>",
+    "Martina Gerbino <gerbinom@fe.infn.it>",
+    "Serena Giardiello <serena.giardiello@unife.it>",
+    "Nicoletta Krachmalnicoff <nkrach@sissa.it>",
+    "Luca Pagano <luca.pagano@unife.it>",
+    "Davide Poletti <davide.poletti@sissa.it>",
+    "Giuseppe Puglisi <giuspugl@roma2.infn.it>",
+    "Nicolò Raffuzzi <rffnll@unife.it>",
+    "Martin Reinecke <martin@mpa-garching.mpg.de>",
+    "Maurizio Tomasi <maurizio.tomasi@unimi.it>",
 ]
 readme = "README.md"
 license = "GPL3"
 include = [
-	"images/logo.png",
-        "static/report_template.html",
-        "static/sakura.css",
-        "templates/*.md",
-        "templates/*.txt",
-        "misc/pandoc-filter.lua",
+    "images/logo.png",
+    "static/report_template.html",
+    "static/sakura.css",
+    "default_imo/schema.json.gz",
+    "templates/*.md",
+    "templates/*.txt",
 ]
 
 [tool.poetry.dependencies]

@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 
+from pathlib import Path
+
 from .compress import (
     rle_compress,
     rle_decompress,
@@ -144,9 +146,12 @@ except ImportError:
 
 from .version import __author__, __version__
 
+PTEP_IMO_LOCATION = Path(__file__).parent.parent / "default_imo"
+
 __all__ = [
     "__author__",
     "__version__",
+    "PTEP_IMO_LOCATION",
     # compress.py
     "rle_compress",
     "rle_decompress",

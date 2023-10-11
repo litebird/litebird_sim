@@ -8,10 +8,10 @@ random_seed = 12345
 
 # Detectors to be used for the first simulation
 [[simulation1.detectors]]
-detector_info_obj = "/data_files/78fe75f1-a011-44b6-86dd-445dc9634416"
+detector_info_obj = "/data_files/899ba8cc-789c-47bf-9bb1-40f61b25b3a9"
 
 [simulation2]
 
 # Detectors to be used for the second simulation
 [[simulation2.detectors]]
-detector_info_obj = "/data_files/58db7186-3ee7-49e5-8605-4a5ed084f99e"
+detector_info_obj = "/data_files/e4401060-9233-4b14-a642-c00293c99c70"
