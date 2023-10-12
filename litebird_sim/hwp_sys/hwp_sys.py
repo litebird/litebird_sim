@@ -642,7 +642,8 @@ class HwpSys:
                 it is the kind of HWP matrix to be injected as a starting point
                 if 'jones' is chosen, the parameters :math:`h_1`, :math:`h_2`,
                 :math:`\beta`, :math:`z_1`, :math:`z_2`
-                are used to build the Jones matrix :math:`\begin{pmatrix} 1 + h_1 & z_1 \\
+                are used to build the Jones matrix 
+                :math:`\begin{pmatrix} 1 + h_1 & z_1 \\
                 z_2 & - (1 + h_2) e^{i \beta} \\ \end{pmatrix}`
                 and then converted to Mueller.
                 :math:`z_1`, :math:`z_2` are assumed to be complex
