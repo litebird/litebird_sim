@@ -37,6 +37,7 @@ following paragraphs::
 
   # Output: the angle between the sun and the spin axis, in degrees
 
+
 This example shows how to retrieve the parameters of the scanning
 strategy followed by the LiteBIRD spacecraft. Everything revolves
 around the class :class:`.Imo`, which reads the IMO from the files
@@ -56,22 +57,51 @@ the information you're looking for.
 Configuring the IMO
 -------------------
 
-The best way to interact with the IMO is to have a local copy
-installed on your laptop. You should ask permission to the LiteBIRD
-Simulation Team for downloading the official LiteBIRD IMO from the
-protected site `litebird_imo <https://github.com/litebird/litebird_imo>`_.
-Save it in a folder on your computer, e.g., ``/storage/litebird_imo``,
-and then run the following command:
+The LiteBIRD Simulation Framework comes with a bundled IMO, which contains
+only public information about the mission and the instruments. It was built
+using the numbers reported in the paper
+`Probing cosmic inflation with the LiteBIRD cosmic microwave background
+polarization survey <https://academic.oup.com/ptep/article/2023/4/042F01/6835420>`_
+(PTEP, 2022). You can use this database by passing the path
+``lbs.PTEP_IMO_LOCATION`` to the constructor of the :class:`.Imo` class::
+
+    imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
+
+However, to run serious simulations you should grab a copy of the
+official IMO database released by the IMO team and install it on your
+computer. If you just need basic information, it is enough to download
+the JSON file associated with any data release from the site
+https://litebirdimo.ssdc.asi.it (authentication is required). For
+extensive simulations that use data files like beams and bandpasses,
+you should ask the ASI SSDC for a tarball bundle containing the whole
+database and decompress it in a folder on your computer.
+
+Assuming that you put the JSON file or the decompressed tarball on a
+local folder like ``/storage/litebird_imo``, run the following
+command:
 
 .. code-block:: text
 
   python -m litebird_sim.install_imo
 
 This is an interactive program that lets you to configure the IMO.
-You typically want to use a «local copy»; specify the folder where the file
-``schema.json`` you downloaded before resides (under
-``/storage/litebird_imo/IMO`` in our case). Save the changes by pressing
-``s``, and you will have your IMO configured.
+Choose the item “local copy” and specify the folder. Save the changes
+by pressing ``s``, and you will have your IMO configured.
+
+To sum up, there are three possibilities to access an IMO:
+
+1. Use the bundled PTEP IMO by passing
+   ``flatfile_location=lbs.PTEP_IMO_LOCATION`` to the constructor of
+   the :class:`.Imo` class. In this case, the only IMO release tag
+   that you will see is ``vPTEP``.
+
+2. Download a JSON file from the ASI SSDC website, save it in a folder
+   and run ``python -m litebird_sim.install_imo`` to make it visible.
+   In this case, only basic information will be available.
+
+3. Ask the ASI SSDC for a bundled tarball containing one or more IMO
+   versions. Decompress the tarball in a folder and run ``python -m
+   litebird_sim.install_imo`` to make it visible.
 
 
 Local/remote access to the IMO
@@ -87,8 +117,8 @@ and disadvantages:
    that the framework does not require that a *full* database be
    available, as only the data that are actually needed in a
    simulation are retrieved: for this reason, you might opt to
-   download a reduced version of the IMO containing only the
-   high-level parameters used by the Simulation Framework.
+   download a reduced version of the IMO containing only those
+   high-level parameters that you want to use in your simulation.
 
 2. Using a remote IMO through an Internet connection ensures that you
    have access to the most updated version of the instrument; however,
@@ -245,7 +275,8 @@ that were accessed during the simulation.
 
 There are cases when you want to query some information from the IMO,
 but you do not want it to be tracked. (For instance, you are just
-navigating through the tree of entities.) In this case, you can pass
+navigating through the tree of entities but are not going to *use* the
+quantities you are querying.) In this case, you can pass
 ``track=False`` to the :meth:`.Imo.query` method: the object you have
 queried will not be included in the final report produced by the
 :class:`.Simulation` object.
