@@ -90,7 +90,7 @@ def get_map_making_weights(obs: Observation, check: bool) -> npt.NDArray:
     """
 
     if isinstance(obs.net_ukrts, (float, int)):
-	    obs.net_ukrts = obs.net_ukrts * np.ones(obs.n_detectors)
+	obs.net_ukrts = obs.net_ukrts * np.ones(obs.n_detectors)
     try:
         weights = obs.sampling_rate_hz * obs.net_ukrts**2
     except AttributeError:
