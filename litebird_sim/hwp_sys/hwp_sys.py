@@ -1247,6 +1247,7 @@ class HwpSys:
         del (pix, xi, psi, times, self.maps)  # tod
         if not save_tod:
             del tod
+
         del (
             self.mII,
             self.mQI,
@@ -1258,17 +1259,19 @@ class HwpSys:
             self.mUQ,
             self.mQU,
         )
-        del (
-            self.mIIs,
-            self.mQIs,
-            self.mUIs,
-            self.mIQs,
-            self.mIUs,
-            self.mQQs,
-            self.mUUs,
-            self.mUQs,
-            self.mQUs,
-        )
+
+        if self.correct_in_solver:
+            del (
+                self.mIIs,
+                self.mQIs,
+                self.mUIs,
+                self.mIQs,
+                self.mIUs,
+                self.mQQs,
+                self.mUUs,
+                self.mUQs,
+                self.mQUs,
+            )
 
         return
 
