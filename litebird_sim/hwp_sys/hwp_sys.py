@@ -666,6 +666,11 @@ class HwpSys:
                 if `maps` is not None, `Mbsparams` is ignored
                 (i.e. input maps are not generated)
         """
+        # for parallelization
+        comm = lbs.MPI_COMM_WORLD
+        rank = comm.Get_rank()
+        size = comm.Get_size()
+        print(rank, size)
 
         # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
@@ -858,24 +863,28 @@ class HwpSys:
             self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
 
             if np.any(maps) is None:
-                myinstr = {}
-                for ifreq in range(self.nfreqs):
-                    myinstr["ch" + str(ifreq)] = {
-                        "bandcenter_ghz": self.freqs[ifreq],
-                        "bandwidth_ghz": 0,
-                        "fwhm_arcmin": Channel.fwhm_arcmin,
-                        "p_sens_ukarcmin": 0.0,
-                        "band": None,
-                    }
+                if rank == 0:
+                    myinstr = {}
+                    for ifreq in range(self.nfreqs):
+                        myinstr["ch" + str(ifreq)] = {
+                            "bandcenter_ghz": self.freqs[ifreq],
+                            "bandwidth_ghz": 0,
+                            "fwhm_arcmin": Channel.fwhm_arcmin,
+                            "p_sens_ukarcmin": 0.0,
+                            "band": None,
+                        }
 
-                mbs = lbs.Mbs(
-                    simulation=self.sim, parameters=Mbsparams, instrument=myinstr
-                )
+                    mbs = lbs.Mbs(
+                        simulation=self.sim, parameters=Mbsparams, instrument=myinstr
+                    )
 
-                maps = mbs.run_all()[0]
-                self.maps = np.empty((self.nfreqs, 3, self.npix))
-                for ifreq in range(self.nfreqs):
-                    self.maps[ifreq] = maps["ch" + str(ifreq)]
+                    maps = mbs.run_all()[0]
+                    self.maps = np.empty((self.nfreqs, 3, self.npix))
+                    for ifreq in range(self.nfreqs):
+                        self.maps[ifreq] = maps["ch" + str(ifreq)]
+                else:
+                    self.maps = None
+                self.maps = comm.bcast(self.maps, root=0)
             else:
                 self.maps = maps
             del maps
