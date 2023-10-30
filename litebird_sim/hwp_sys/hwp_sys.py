@@ -752,27 +752,27 @@ class HwpSys:
                 "hwp_sys_Mbs_gaussian_smooth", True
             )
         # This part sets from input_parameters()
-        if not self.nside:
-            if nside is None:
-                self.nside = 512
-            else:
-                self.nside = nside
+        # if not self.nside:
+        if nside is None:
+            self.nside = 512
+        else:
+            self.nside = nside
 
-        if not self.integrate_in_band:
-            if integrate_in_band is not None:
-                self.integrate_in_band = integrate_in_band
+        # if not self.integrate_in_band:
+        if integrate_in_band is not None:
+            self.integrate_in_band = integrate_in_band
 
-        if not self.built_map_on_the_fly:
-            if built_map_on_the_fly is not None:
-                self.built_map_on_the_fly = built_map_on_the_fly
+        # if not self.built_map_on_the_fly:
+        if built_map_on_the_fly is not None:
+            self.built_map_on_the_fly = built_map_on_the_fly
 
-        if not self.correct_in_solver:
-            if correct_in_solver is not None:
-                self.correct_in_solver = correct_in_solver
+        # if not self.correct_in_solver:
+        if correct_in_solver is not None:
+            self.correct_in_solver = correct_in_solver
 
-        if not self.integrate_in_band_solver:
-            if integrate_in_band_solver is not None:
-                self.integrate_in_band_solver = integrate_in_band_solver
+        # if not self.integrate_in_band_solver:
+        if integrate_in_band_solver is not None:
+            self.integrate_in_band_solver = integrate_in_band_solver
 
         if Mbsparams is None and np.any(maps) is None:
             Mbsparams = lbs.MbsParameters(
@@ -811,6 +811,7 @@ class HwpSys:
                     self.h1 = np.array(self.h1, dtype=float)
                     self.h2 = np.array(self.h2, dtype=float)
                     self.beta = np.array(self.beta, dtype=float)
+                    self.beta = np.deg2rad(self.beta)
 
                 except Exception:
                     print(
@@ -886,6 +887,7 @@ class HwpSys:
                 for attr, default_value in default_attrs.items():
                     if not hasattr(self, attr):
                         setattr(self, attr, default_value)
+                self.beta = np.deg2rad(self.beta)
             else:  # mueller_or_jones == "mueller":
                 default_attrs = {
                     "mII": 0.0,
@@ -912,7 +914,6 @@ class HwpSys:
                 self.maps = maps
                 del maps
 
-        self.beta = np.deg2rad(self.beta)
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
@@ -936,6 +937,7 @@ class HwpSys:
                         self.h1s = np.array(self.h1s, dtype=float)
                         self.h2s = np.array(self.h2s, dtype=float)
                         self.betas = np.array(self.betas, dtype=float)
+                        self.betas = np.deg2rad(self.betas)
 
                     except Exception:
                         print(
@@ -995,6 +997,7 @@ class HwpSys:
                 for attr, default_value in default_attrs.items():
                     if not hasattr(self, attr):
                         setattr(self, attr, default_value)
+                    self.betas = np.deg2rad(self.betas)
                 else:  # mueller_or_jones == "mueller":
                     default_attrs = {
                         "mIIs": 0.0,
@@ -1012,7 +1015,7 @@ class HwpSys:
                     if not hasattr(self, attr):
                         setattr(self, attr, default_value)
 
-            self.betas = np.deg2rad(self.betas)
+            
 
         # conversion from Jones to Mueller
         if mueller_or_jones == "jones":
@@ -1254,17 +1257,18 @@ class HwpSys:
             self.mUQ,
             self.mQU,
         )
-        del (
-            self.mIIs,
-            self.mQIs,
-            self.mUIs,
-            self.mIQs,
-            self.mIUs,
-            self.mQQs,
-            self.mUUs,
-            self.mUQs,
-            self.mQUs,
-        )
+        if self.correct_in_solver:
+            del (
+                self.mIIs,
+                self.mQIs,
+                self.mUIs,
+                self.mIQs,
+                self.mIUs,
+                self.mQQs,
+                self.mUUs,
+                self.mUQs,
+                self.mQUs,
+            )
 
         return
 
