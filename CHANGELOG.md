@@ -1,5 +1,7 @@
 # HEAD
 
+-   Solve typing error in destriper [#272](https://github.com/litebird/litebird_sim/pull/272)
+
 -   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
 
 -   **Breaking change**: Drop support for Python 3.7 and 3.8 [#254](https://github.com/litebird/litebird_sim/pull/254)
