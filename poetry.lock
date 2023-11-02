@@ -2858,21 +2858,24 @@ files = [
 
 [[package]]
 name = "pygithub"
-version = "1.59.1"
+version = "2.1.1"
 description = "Use the full Github API v3"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "PyGithub-1.59.1-py3-none-any.whl", hash = "sha256:3d87a822e6c868142f0c2c4bf16cce4696b5a7a4d142a7bd160e1bdf75bc54a9"},
-    {file = "PyGithub-1.59.1.tar.gz", hash = "sha256:c44e3a121c15bf9d3a5cc98d94c9a047a5132a9b01d22264627f58ade9ddc217"},
+    {file = "PyGithub-2.1.1-py3-none-any.whl", hash = "sha256:4b528d5d6f35e991ea5fd3f942f58748f24938805cb7fcf24486546637917337"},
+    {file = "PyGithub-2.1.1.tar.gz", hash = "sha256:ecf12c2809c44147bce63b047b3d2e9dac8a41b63e90fcb263c703f64936b97c"},
 ]
 
 [package.dependencies]
-deprecated = "*"
+Deprecated = "*"
 pyjwt = {version = ">=2.4.0", extras = ["crypto"]}
 pynacl = ">=1.4.0"
+python-dateutil = "*"
 requests = ">=2.14.0"
+typing-extensions = ">=4.0.0"
+urllib3 = ">=1.26.0"
 
 [[package]]
 name = "pygments"
@@ -4217,4 +4220,4 @@ mpi = ["mpi4py"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9"
-content-hash = "abf58cfda4beed94dbb03d3a4e8f68aa056811c41d5623c8be0f3f8da8778859"
+content-hash = "84f400d07d0aa298cdb4570110b2c9c8504ae94e118983cd066c5d40ac852b69"
