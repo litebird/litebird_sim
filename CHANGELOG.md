@@ -1,5 +1,7 @@
 # HEAD
 
+-   Be more robust when parsing UUIDs and URLs coming from the IMo [#274](https://github.com/litebird/litebird_sim/pull/274)
+
 -   Solve typing error in destriper [#272](https://github.com/litebird/litebird_sim/pull/272)
 
 -   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
