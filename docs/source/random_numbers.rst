@@ -80,7 +80,7 @@ Random number generators
 
 The random number generator used by the :meth:`.Simulation.init_random`
 method of the :class:`.Simulation` class is
-`PCG64 <https://numpy.org/doc/stable/reference/random/bit_generators/pcg64.html/>`_.
+`PCG64 <https://numpy.org/doc/stable/reference/random/bit_generators/pcg64.html>`_.
 After creating this RNG by calling :meth:`.Simulation.init_random`
 (directly or from the :class:`.Simulation` constructor), you can use it
 via `sim.random`::
