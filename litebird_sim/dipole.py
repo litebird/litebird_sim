@@ -2,7 +2,7 @@
 
 from enum import IntEnum
 
-from numba import njit
+from numba import njit, prange
 import numpy as np
 
 from typing import Union, List
@@ -128,7 +128,7 @@ def compute_dipole_for_one_sample_total_from_lin_t(
     return t_cmb_k / f_x * (planck_t / planck_t0 - 1)
 
 
-@njit
+@njit(parallel=True)
 def add_dipole_for_one_detector(
     tod_det,
     theta_det,
@@ -141,22 +141,22 @@ def add_dipole_for_one_detector(
     dipole_type: DipoleType,
 ):
     if dipole_type == DipoleType.LINEAR:
-        for i in range(len(tod_det)):
+        for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_linear(
                 theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
             )
     elif dipole_type == DipoleType.QUADRATIC_EXACT:
-        for i in range(len(tod_det)):
+        for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_quadratic_exact(
                 theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
             )
     elif dipole_type == DipoleType.TOTAL_EXACT:
-        for i in range(len(tod_det)):
+        for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_total_exact(
                 theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
             )
     elif dipole_type == DipoleType.QUADRATIC_FROM_LIN_T:
-        for i in range(len(tod_det)):
+        for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_quadratic_from_lin_t(
                 theta=theta_det[i],
                 phi=phi_det[i],
@@ -166,7 +166,7 @@ def add_dipole_for_one_detector(
             )
     elif dipole_type == DipoleType.TOTAL_FROM_LIN_T:
         planck_t0 = planck(nu_hz, t_cmb_k)
-        for i in range(len(tod_det)):
+        for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_total_from_lin_t(
                 theta=theta_det[i],
                 phi=phi_det[i],
