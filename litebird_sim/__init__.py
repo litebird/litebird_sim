@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from pathlib import Path
+import numba
 
 from .compress import (
     rle_compress,
@@ -145,6 +146,10 @@ except ImportError:
     TOAST_ENABLED = False
 
 from .version import __author__, __version__
+
+# Privilege TBB over OpenPM and the internal Numba implementation of a
+# work queue
+numba.config.THREADING_LAYER_CONFIG = ["tbb", "omp", "workqueue"]
 
 PTEP_IMO_LOCATION = Path(__file__).parent.parent / "default_imo"
 
