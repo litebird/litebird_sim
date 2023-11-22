@@ -13,6 +13,7 @@ from uuid import uuid4
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 import matplotlib.pylab as plt
+import numba
 
 from litebird_sim import constants
 from .coordinates import CoordinateSystem
@@ -166,10 +167,12 @@ class MpiProcessDescr:
     - `observations`: list of :class:`.MpiObservationDescr` objects, each
       describing one observation managed by the MPI process with rank
       `mpi_rank`.
-
+    - `numba_num_of_threads` (``int``): number of threads used by Numba
+       in the MPI process with rank `mpi_rank`.
     """
 
     mpi_rank: int
+    numba_num_of_threads: int
     observations: List[MpiObservationDescr]
 
 
@@ -196,7 +199,11 @@ class MpiDistributionDescr:
     def __repr__(self):
         result = ""
         for cur_mpi_proc in self.mpi_processes:
-            result += f"# MPI rank #{cur_mpi_proc.mpi_rank + 1}\n\n"
+            result += f"""# MPI rank #{cur_mpi_proc.mpi_rank + 1}
+
+- Number of Numba threads: {cur_mpi_proc.numba_num_of_threads}
+
+"""
             for cur_obs_idx, cur_obs in enumerate(cur_mpi_proc.observations):
                 result += """## Observation #{obs_idx}
 - Start time: {start_time}
@@ -295,6 +302,13 @@ class Simulation:
             that contains the parameters for the simulation. This file
             will be copied into `base_path`, and its contents will be
             read into the field `parameters` (a Python dictionary).
+
+        numba_threads (int): number of threads to use when calling
+            Numba functions.
+
+        numba_threading_layer (str): name of the Numba threading layer
+            to use. See the Numba User's Manual:
+            <https://numba.readthedocs.io/en/stable/user/threading-layer.html>
     """
 
     def __init__(
@@ -309,6 +323,8 @@ class Simulation:
         imo=None,
         parameter_file=None,
         parameters=None,
+        numba_threads=None,
+        numba_threading_layer=None,
     ):
         self.mpi_comm = mpi_comm
 
@@ -339,6 +355,9 @@ class Simulation:
         else:
             self.imo = Imo()
 
+        self.numba_threads = numba_threads
+        self.numba_threading_layer = numba_threading_layer
+
         assert not (parameter_file and parameters), (
             "you cannot use parameter_file and parameters together "
             + "when constructing a litebird_sim.Simulation object"
@@ -356,6 +375,12 @@ class Simulation:
             self.parameters = parameters
 
         self._init_missing_params()
+
+        if self.numba_threads:
+            numba.set_num_threads(self.numba_threads)
+
+        if self.numba_threading_layer:
+            numba.config.THREADING_LAYER = self.numba_threading_layer
 
         if not self.base_path:
             self.base_path = Path()
@@ -509,6 +534,12 @@ class Simulation:
 
         if self.description == "":
             self.description = sim_params.get("description", "")
+
+        if not self.numba_threads:
+            self.numba_threads = sim_params.get("numba_threads", None)
+
+        if not self.numba_threading_layer:
+            self.numba_threading_layer = sim_params.get("numba_threading_layer", None)
 
     def _initialize_logging(self):
         if self.mpi_comm:
@@ -998,6 +1029,8 @@ class Simulation:
             return None
 
         observation_descr = []  # type: List[MpiObservationDescr]
+        numba_num_of_threads_all = []  # type: list[int]
+
         for obs in self.observations:
             cur_det_names = list(obs.name)
 
@@ -1027,13 +1060,16 @@ class Simulation:
             )
 
         num_of_observations = len(self.observations)
+        numba_num_of_threads = numba.get_num_threads()
 
         if self.mpi_comm and MPI_ENABLED:
             observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
             num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
+            numba_num_of_threads_all = MPI_COMM_WORLD.allgather(numba_num_of_threads)
         else:
             observation_descr_all = [observation_descr]
             num_of_observations_all = [num_of_observations]
+            numba_num_of_threads_all = [numba_num_of_threads]
 
         mpi_processes = []  # type: List[MpiProcessDescr]
         for i in range(MPI_COMM_WORLD.size):
@@ -1041,6 +1077,7 @@ class Simulation:
                 MpiProcessDescr(
                     mpi_rank=i,
                     observations=observation_descr_all[i],
+                    numba_num_of_threads=numba_num_of_threads_all[i],
                 )
             )
 
