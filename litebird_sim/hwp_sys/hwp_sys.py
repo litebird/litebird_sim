@@ -888,7 +888,8 @@ class HwpSys:
                         self.maps[ifreq] = maps["ch" + str(ifreq)]
                 else:
                     self.maps = None
-                self.maps = comm.bcast(self.maps, root=0)
+                if parallel:
+                    self.maps = comm.bcast(self.maps, root=0)
             else:
                 self.maps = maps
             del maps

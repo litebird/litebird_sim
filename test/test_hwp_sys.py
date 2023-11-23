@@ -134,7 +134,7 @@ def test_hwp_sys():
         built_map_on_the_fly=False,
         nside=nside,
         Mbsparams=Mbsparams,
-        parallel=True,
+        parallel=False,
     )
 
     np.testing.assert_equal(hwp_sys.bandpass_profile, hwp_sys.bandpass_profile_solver)
