@@ -286,7 +286,10 @@ class Simulation:
         duration_s (float): Number of seconds the simulation should
             last.
 
-        imo (:class:`.Imo`): an instance of the :class:`.Imo` class
+        imo (:class:`.Imo`): an instance of the :class:`.Imo` class.
+            If not provided, the default constructor will be called,
+            which means that the IMO to be used will be the default
+            one configured using the ``install_imo`` program.
 
         parameter_file (str or `pathlib.Path`): path to a TOML file
             that contains the parameters for the simulation. This file
@@ -334,7 +337,6 @@ class Simulation:
         if imo:
             self.imo = imo
         else:
-            # TODO: read where to read the IMO from some parameter file
             self.imo = Imo()
 
         assert not (parameter_file and parameters), (

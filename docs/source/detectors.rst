@@ -83,26 +83,43 @@ Reading from the IMO
 --------------------
 
 The way information about detectors and frequency channels is stored
-in the IMO closely match the :class:`.DetectorInfo` and
+in the IMO (see :ref:`imo`) closely match the :class:`.DetectorInfo` and
 :class:`.FreqChannelInfo` classes. In fact, they can be retrieved
 easily from the IMO using the static methods
-:meth:`.DetectorInfo.from_imo` and :meth:`.FreqChannelInfo.from_imo`::
+:meth:`.DetectorInfo.from_imo` and :meth:`.FreqChannelInfo.from_imo`.
+
+The following example uses the PTEP IMO to show how to use the API:
+
+.. testcode::
 
   import litebird_sim as lbs
 
-  # You must have configured the IMO before using this!
-  imo = lbs.Imo()
+  # The location of the PTEP IMO is stored in the constant
+  # PTEP_IMO_LOCATION
+  imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
 
   det = lbs.DetectorInfo.from_imo(
       imo=imo,
-      url="/releases/v1.3/satellite/LFT/L1-040/"
+      url="/releases/vPTEP/satellite/LFT/L1-040/"
           "000_000_003_QA_040_T/detector_info",
   )
 
+  print(f"The bandcenter for {det.name} is {det.bandcenter_ghz} GHz")
+
   freqch = lbs.FreqChannelInfo.from_imo(
       imo=imo,
-      url="/releases/v1.3/satellite/LFT/L1-040/channel_info",
+      url="/releases/vPTEP/satellite/LFT/L1-040/channel_info",
   )
+
+  print(
+      f"The average bandcenter for {freqch.channel} "
+      f"is {freqch.bandcenter_ghz} GHz"
+  )
+
+.. testoutput::
+
+    The bandcenter for 000_000_003_QA_040_T is 40.0 GHz
+    The average bandcenter for L1-040 is 40.0 GHz
 
 
 Detectors in parameter files
@@ -139,20 +156,20 @@ with four detectors. Here is a summary of its contents:
 
    # This ensures that the mock IMO can be found when generating this
    # HTML page
-   imo = lbs.Imo(
-       flatfile_location=Path(".").parent / ".." / "test" / "mock_imo",
-   )
+   imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
 
-   # This UUID refers to an object specifying the information for
-   # a mock frequency channel containing 4 detectors
-   ch = imo.query("/data_files/ff087ba3-d973-4dc3-b72b-b68abb979a90")
+   # This UUID refers to a 140 GHz "channel_info" object.
+   ch = imo.query("/data_files/463e9ea9-c1f0-484d-9bfd-05092851d8f4")
    metadata = ch.metadata
 
    print("Here are the contents of the mock IMO:")
    print(f'Channel: {metadata["channel"]}')
-   print("Detectors in this channel:")
-   for name, obj in zip(metadata["detector_names"],
-                        metadata["detector_objs"]):
+
+   detector_names = metadata["detector_names"]
+   print(f'There are {len(detector_names)} detectors')
+   print("Here are the first 5 of them:")
+   for name, obj in list(zip(metadata["detector_names"],
+                             metadata["detector_objs"]))[0:5]:
        det_obj = imo.query(obj)
        det_metadata = det_obj.metadata
        bandcenter_ghz = det_metadata["bandcenter_ghz"]
@@ -161,12 +178,15 @@ with four detectors. Here is a summary of its contents:
 .. testoutput::
 
     Here are the contents of the mock IMO:
-    Channel: 65 GHz
-    Detectors in this channel:
-      foo1: band center at 65.0 GHz
-      foo2: band center at 66.0 GHz
-      foo3: band center at 67.0 GHz
-      foo4: band center at 68.0 GHz
+    Channel: M1-140
+    There are 366 detectors
+    Here are the first 5 of them:
+      001_002_030_00A_140_T: band center at 140.0 GHz
+      001_002_030_00A_140_B: band center at 140.0 GHz
+      001_002_031_15B_140_T: band center at 140.0 GHz
+      001_002_031_00B_140_B: band center at 140.0 GHz
+      001_002_022_15A_140_T: band center at 140.0 GHz
+
 
 Now, let's turn back to the problem of specifying a set of detectors
 in a parameter file. The following TOML file shows some of the
@@ -190,12 +210,10 @@ The following code will read the TOML file above and produce a list of
    from pathlib import Path
    import litebird_sim as lbs
 
-   # Load a mock IMO that actually defines the UUID listed above
-   imo = lbs.Imo(
-       flatfile_location=Path(".").parent / ".." / "test" / "mock_imo",
-   )
+   imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
 
-   # Tell Simulation to load the TOML file shown above
+   # Tell Simulation to use the PTEP IMO and to
+   # load the TOML file shown above
    sim = lbs.Simulation(imo=imo, parameter_file="det_list1.toml")
 
    det_list = lbs.detector_list_from_parameters(
@@ -208,12 +226,12 @@ The following code will read the TOML file above and produce a list of
 
 .. testoutput::
 
-    1. foo1: band center at 65.0 GHz
-    2. foo1: band center at 65.0 GHz
-    3. foo2: band center at 66.0 GHz
-    4. foo_boresight: band center at 65.0 GHz
+    1. 000_000_003_QA_040_T: band center at 40.0 GHz
+    2. 001_002_030_00A_140_T: band center at 140.0 GHz
+    3. 001_002_030_00A_140_B: band center at 140.0 GHz
+    4. foo_boresight: band center at 140.0 GHz
     5. planck30GHz: band center at 28.4 GHz
-    6. foo1: band center at 65.0 GHz
+    6. 000_000_003_QA_040_T: band center at 40.0 GHz
 
 You are not forced to use ``detectors`` as the name of the parameter
 in the TOML file, as :func:`.detector_list_from_parameters` accepts a
@@ -236,10 +254,9 @@ each stage of the simulation:
    from pathlib import Path
    import litebird_sim as lbs
 
-   imo = lbs.Imo(
-       flatfile_location=Path(".").parent / ".." / "test" / "mock_imo",
-   )
+   imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
 
+   # Tell the Simulation object that we want to use the PTEP IMO
    sim = lbs.Simulation(imo=imo, parameter_file="det_list2.toml")
 
    det_list1 = lbs.detector_list_from_parameters(
@@ -263,10 +280,11 @@ each stage of the simulation:
 
 .. testoutput::
 
-   Detectors to be used in the first simulation:
-   - foo1
-   Detectors to be used in the second simulation:
-   - foo2
+    Detectors to be used in the first simulation:
+    - 000_000_004_QB_040_B
+    Detectors to be used in the second simulation:
+    - 000_000_004_QB_040_T
+
 
 API reference
 -------------
