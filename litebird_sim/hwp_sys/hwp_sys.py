@@ -672,10 +672,9 @@ class HwpSys:
         if parallel:
             comm = lbs.MPI_COMM_WORLD
             rank = comm.Get_rank()
-            size = comm.Get_size()
         else:
             comm = None
-            rank, size = 0, 1
+            rank = 0
 
         # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
