@@ -7,6 +7,7 @@ import os
 
 def test_hwp_sys():
     comm = lbs.MPI_COMM_WORLD
+    lbs.LITEBIRD_SIM_MPI = True
 
     start_time = 0
     time_span_s = 10
