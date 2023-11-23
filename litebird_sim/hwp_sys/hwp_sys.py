@@ -634,6 +634,7 @@ class HwpSys:
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
+        parallel: Union[bool, None] = None,
     ):
         r"""It sets the input paramters
         Args:
@@ -665,12 +666,16 @@ class HwpSys:
                 Input maps needs to be in galactic (mbs default)
                 if `maps` is not None, `Mbsparams` is ignored
                 (i.e. input maps are not generated)
+            parallel (bool): uses parallelization if set to True
         """
         # for parallelization
-        comm = lbs.MPI_COMM_WORLD
-        rank = comm.Get_rank()
-        size = comm.Get_size()
-        print(rank, size)
+        if parallel:
+            comm = lbs.MPI_COMM_WORLD
+            rank = comm.Get_rank()
+            size = comm.Get_size()
+        else:
+            comm = None
+            rank, size = 0, 1
 
         # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True

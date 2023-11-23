@@ -7,7 +7,6 @@ import os
 
 def test_hwp_sys():
     comm = lbs.MPI_COMM_WORLD
-    lbs.LITEBIRD_SIM_MPI = True
 
     start_time = 0
     time_span_s = 10
@@ -135,6 +134,7 @@ def test_hwp_sys():
         built_map_on_the_fly=False,
         nside=nside,
         Mbsparams=Mbsparams,
+        parallel = True
     )
 
     np.testing.assert_equal(hwp_sys.bandpass_profile, hwp_sys.bandpass_profile_solver)
