@@ -449,15 +449,15 @@ def compute_atd_ata_for_one_detector(
     # single frequency case
     for i in range(len(tod)):
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
-            mIIs=mIIs[i],
-            mQIs=mQIs[i],
-            mUIs=mUIs[i],
-            mIQs=mIQs[i],
-            mIUs=mIUs[i],
-            mQQs=mQQs[i],
-            mUUs=mUUs[i],
-            mUQs=mUQs[i],
-            mQUs=mQUs[i],
+            mIIs=mIIs,
+            mQIs=mQIs,
+            mUIs=mUIs,
+            mIQs=mIQs,
+            mIUs=mIUs,
+            mQQs=mQQs,
+            mUUs=mUUs,
+            mUQs=mUQs,
+            mQUs=mQUs,
             c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
             s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
             c2PsXi=np.cos(2 * psi[i] + 2 * xi),
@@ -914,7 +914,6 @@ class HwpSys:
                 self.maps = maps
                 del maps
 
-
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
                 if mueller_or_jones == "jones":
@@ -1015,8 +1014,6 @@ class HwpSys:
                     if not hasattr(self, attr):
                         setattr(self, attr, default_value)
 
-            
-
         # conversion from Jones to Mueller
         if mueller_or_jones == "jones":
             # Mueller terms of fixed HWP (single/multi freq), to fill tod
@@ -1033,7 +1030,7 @@ class HwpSys:
             ) = get_mueller_from_jones(
                 h1=self.h1, h2=self.h2, z1=self.z1, z2=self.z2, beta=self.beta
             )
-            del (self.h1, self.h2, self.z1, self.z2, self.beta)
+
             # Mueller terms of fixed HWP (single/multi freq), to fill A^TA and A^Td
             if self.correct_in_solver:
                 (
@@ -1049,7 +1046,7 @@ class HwpSys:
                 ) = get_mueller_from_jones(
                     h1=self.h1s, h2=self.h2s, z1=self.z1s, z2=self.z2s, beta=self.betas
                 )
-                del (self.h1s, self.h2s, self.z1s, self.z2s, self.betas)
+
 
     def fill_tod(
         self,
