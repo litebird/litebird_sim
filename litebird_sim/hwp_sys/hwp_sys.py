@@ -96,6 +96,16 @@ def JonesToMueller(jones):
 
 
 def get_mueller_from_jones(h1, h2, z1, z2, beta):
+    """
+    Converts the (frequency-dependent) input Jones matrix to a Mueller matrix.
+    Returns Mueller matrix (3x3xNfreq), V-mode related terms are discarded,
+    given the assumption of vanishing circular polarization.
+
+    Inputs: h1, h2, z1, z2, beta (i.e. systematics of the HWP, not the full Jones matrix)
+    Returns: mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU (single/multi-frequency
+    Mueller matrix terms)
+    """
+
     # Convert inputs to numpy arrays
     h1, h2, z1, z2, beta = np.atleast_1d(h1, h2, z1, z2, beta)
 
@@ -207,7 +217,7 @@ def compute_signal_for_one_sample(
     c4Th,
     s4Th,
 ):
-    """Bolometric equation"""
+    """Bolometric equation, tod filling for a single (time) sample"""
     d = T * compute_Tterm_for_one_sample(mII, mQI, mUI, c2ThXi, s2ThXi)
 
     d += Q * compute_Qterm_for_one_sample(
@@ -239,7 +249,10 @@ def compute_signal_for_one_detector(
     xi,
     maps,
 ):
-    # single frequency case
+    """
+    Single-frequency case: compute the signal for a single detector,
+    looping over (time) samples,
+    """
     for i in range(len(tod_det)):
         tod_det[i] += compute_signal_for_one_sample(
             T=maps[0, pixel_ind[i]],
@@ -290,7 +303,11 @@ def integrate_inband_signal_for_one_sample(
     c4Th,
     s4Th,
 ):
-    # integrating with trapezoidal rule \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    """
+    Multi-frequency case: band integration with trapezoidal rule,
+    \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    for a single (time) sample,
+    """
     tod = 0
     for i in range(len(band) - 1):
         dnu = freqs[i + 1] - freqs[i]
@@ -370,6 +387,10 @@ def integrate_inband_signal_for_one_detector(
     xi,
     maps,
 ):
+    """
+    Multi-frequency case: band integration of the signal for a single detector,
+    looping over (time) samples.
+    """
     for i in range(len(tod_det)):
         tod_det[i] += integrate_inband_signal_for_one_sample(
             T=maps[:, 0, pixel_ind[i]],
@@ -417,6 +438,10 @@ def compute_TQUsolver_for_one_sample(
     c4Th,
     s4Th,
 ):
+    """
+    Single-frequency case: compute A^TA and A^Td for a single detector,
+    for one (time) sample.
+    """
     Tterm = compute_Tterm_for_one_sample(mIIs, mQIs, mUIs, c2ThXi, s2ThXi)
     Qterm = compute_Qterm_for_one_sample(
         mIQs, mQQs, mUUs, mIUs, mUQs, mQUs, c2ThPs, c2PsXi, c4Th, s2ThPs, s2PsXi, s4Th
@@ -446,7 +471,10 @@ def compute_atd_ata_for_one_detector(
     psi,
     xi,
 ):
-    # single frequency case
+    """
+    Single-frequency case: compute A^TA and A^Td for a single detector,
+    looping over (time) samples.
+    """
     for i in range(len(tod)):
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=mIIs,
@@ -502,7 +530,11 @@ def integrate_inband_TQUsolver_for_one_sample(
     c4Th,
     s4Th,
 ):
-    # inband integration
+    """
+    Multi-frequency case: band integration with trapezoidal rule,
+    \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    for a single (time) sample.
+    """
     intTterm = 0
     intQterm = 0
     intUterm = 0
@@ -577,6 +609,10 @@ def integrate_inband_atd_ata_for_one_detector(
     psi,
     xi,
 ):
+    """
+    Multi-frequency case: band integration of A^TA and A^Td for a single detector,
+    looping over (time) samples.
+    """
     for i in range(len(tod)):
         Tterm, Qterm, Uterm = integrate_inband_TQUsolver_for_one_sample(
             freqs=freqs,
@@ -643,7 +679,7 @@ class HwpSys:
                 if 'jones' is chosen, the parameters h1, h2, beta, z1, z2
                 are used to build the Jones matrix and then converted to Mueller
                 z1, z2 are assumed to be complex
-                h1, h2, beta are assumed to be real
+                h1, h2 are assumed to be negative real
                 beta is assumed to be in degrees (later converted to radians)
                 [[1 + h1, z1], [z2, - (1 + h2) * exp(1j * beta)]]
             Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
@@ -1046,7 +1082,6 @@ class HwpSys:
                 ) = get_mueller_from_jones(
                     h1=self.h1s, h2=self.h2s, z1=self.z1s, z2=self.z2s, beta=self.betas
                 )
-
 
     def fill_tod(
         self,
