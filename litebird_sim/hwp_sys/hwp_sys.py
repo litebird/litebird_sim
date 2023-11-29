@@ -689,17 +689,6 @@ class HwpSys:
             paramdict = self.sim.parameters["hwp_sys"]
 
             self.nside = paramdict.get("nside", False)
-            if "general" in self.sim.parameters.keys():
-                if "nside" in self.sim.parameters["general"].keys():
-                    if self.sim.parameters["general"]["nside"] != self.nside:
-                        print(
-                            "Warning!! nside from general "
-                            "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
-                            % (
-                                self.sim.parameters["general"]["nside"],
-                                self.nside,
-                            )
-                        )
 
             self.integrate_in_band = paramdict.get("integrate_in_band", False)
             self.built_map_on_the_fly = paramdict.get("built_map_on_the_fly", False)
@@ -772,6 +761,21 @@ class HwpSys:
                 self.nside = 512
             else:
                 self.nside = nside
+
+        if (self.sim.parameters is not None) and (
+            "hwp_sys" in self.sim.parameters.keys()
+        ):
+            if "general" in self.sim.parameters.keys():
+                if "nside" in self.sim.parameters["general"].keys():
+                    if self.sim.parameters["general"]["nside"] != self.nside:
+                        print(
+                            "Warning!! nside from general "
+                            "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
+                            % (
+                                self.sim.parameters["general"]["nside"],
+                                self.nside,
+                            )
+                        )
 
         if not self.integrate_in_band:
             if integrate_in_band is not None:
