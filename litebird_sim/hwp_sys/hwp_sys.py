@@ -725,17 +725,6 @@ class HwpSys:
             paramdict = self.sim.parameters["hwp_sys"]
 
             self.nside = paramdict.get("nside", False)
-            if "general" in self.sim.parameters.keys():
-                if "nside" in self.sim.parameters["general"].keys():
-                    if self.sim.parameters["general"]["nside"] != self.nside:
-                        print(
-                            "Warning!! nside from general "
-                            "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
-                            % (
-                                self.sim.parameters["general"]["nside"],
-                                self.nside,
-                            )
-                        )
 
             self.integrate_in_band = paramdict.get("integrate_in_band", False)
             self.built_map_on_the_fly = paramdict.get("built_map_on_the_fly", False)
@@ -809,21 +798,36 @@ class HwpSys:
         else:
             self.nside = nside
 
-        # if not self.integrate_in_band:
-        if integrate_in_band is not None:
-            self.integrate_in_band = integrate_in_band
+        if (self.sim.parameters is not None) and (
+            "hwp_sys" in self.sim.parameters.keys()
+        ):
+            if "general" in self.sim.parameters.keys():
+                if "nside" in self.sim.parameters["general"].keys():
+                    if self.sim.parameters["general"]["nside"] != self.nside:
+                        print(
+                            "Warning!! nside from general "
+                            "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
+                            % (
+                                self.sim.parameters["general"]["nside"],
+                                self.nside,
+                            )
+                        )
 
-        # if not self.built_map_on_the_fly:
-        if built_map_on_the_fly is not None:
-            self.built_map_on_the_fly = built_map_on_the_fly
+        if not self.integrate_in_band:
+            if integrate_in_band is not None:
+                self.integrate_in_band = integrate_in_band
 
-        # if not self.correct_in_solver:
-        if correct_in_solver is not None:
-            self.correct_in_solver = correct_in_solver
+        if not self.built_map_on_the_fly:
+            if built_map_on_the_fly is not None:
+                self.built_map_on_the_fly = built_map_on_the_fly
 
-        # if not self.integrate_in_band_solver:
-        if integrate_in_band_solver is not None:
-            self.integrate_in_band_solver = integrate_in_band_solver
+        if not self.correct_in_solver:
+            if correct_in_solver is not None:
+                self.correct_in_solver = correct_in_solver
+
+        if not self.integrate_in_band_solver:
+            if integrate_in_band_solver is not None:
+                self.integrate_in_band_solver = integrate_in_band_solver
 
         if Mbsparams is None and np.any(maps) is None:
             Mbsparams = lbs.MbsParameters(
