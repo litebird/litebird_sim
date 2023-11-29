@@ -248,31 +248,36 @@ def test_det_list_from_imo():
 
     doc = tomlkit.parse(toml_contents)
 
-    imo = load_mock_imo()
+    imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
     det_list = lbs.detector_list_from_parameters(imo, doc["detectors"])
 
     assert len(det_list) == 6
 
-    # The first detector in the TOML file is the test data we used
-    # above, so we can employ "check_detector" again
-    check_detector(det_list[0])
+    assert isinstance(det_list[0], lbs.DetectorInfo)
+    assert det_list[0].name == "000_000_003_QA_040_T"
+
+    # Just check a few fields, don't worry checking them all
+    assert det_list[0].bandcenter_ghz == 40.0
+    assert det_list[0].bandwidth_ghz == 12.0
+    assert det_list[0].channel == "L1-040"
+    assert det_list[0].ellipticity == 0.0
+    assert det_list[0].fknee_mhz == 20.0
 
     # The second and third detectors should have been created from a
     # channel_info
     assert isinstance(det_list[1], lbs.DetectorInfo)
-    assert det_list[1].name == "foo1"
-    assert det_list[1].bandcenter_ghz == 65.0
-    assert det_list[1].net_ukrts == 78.0
+    assert det_list[1].name == "001_002_030_00A_140_T"
+    assert det_list[1].bandcenter_ghz == 140.0
+    assert det_list[1].bandwidth_ghz == 42.0
 
-    assert det_list[2].name == "foo2"
-    assert det_list[2].bandcenter_ghz == 66.0
-    assert det_list[2].net_ukrts == 79.0
+    assert det_list[2].name == "001_002_030_00A_140_B"
+    assert det_list[2].bandcenter_ghz == 140.0
+    assert det_list[2].bandwidth_ghz == 42.0
 
     # The fourth detector is a mock detector representative of a
     # frequency channel and aligned with the boresight
     assert det_list[3].name == "foo_boresight"
-    assert det_list[3].bandcenter_ghz == 65.0
-    assert det_list[3].net_ukrts == 300.0
+    assert det_list[3].bandcenter_ghz == 140.0
     assert np.allclose(det_list[3].quat, np.array([0, 0, 0, 1]))
 
     # The fifth detector must be a Planck-like radiometer

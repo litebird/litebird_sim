@@ -631,6 +631,7 @@ class HwpSysAndBandpass:
                     "bandwidth_ghz": 0,
                     "fwhm_arcmin": Channel.fwhm_arcmin,
                     "p_sens_ukarcmin": 0.0,
+                    "band": None,
                 }
 
             mbs = lbs.Mbs(simulation=self.sim, parameters=Mbsparams, instrument=myinstr)

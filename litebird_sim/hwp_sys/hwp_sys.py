@@ -251,7 +251,7 @@ def compute_signal_for_one_detector(
 ):
     """
     Single-frequency case: compute the signal for a single detector,
-    looping over (time) samples,
+    looping over (time) samples.
     """
     for i in range(len(tod_det)):
         tod_det[i] += compute_signal_for_one_sample(
@@ -306,7 +306,7 @@ def integrate_inband_signal_for_one_sample(
     """
     Multi-frequency case: band integration with trapezoidal rule,
     \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
-    for a single (time) sample,
+    for a single (time) sample.
     """
     tod = 0
     for i in range(len(band) - 1):
@@ -670,18 +670,25 @@ class HwpSys:
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
+        parallel: Union[bool, None] = None,
     ):
-        """It sets the input paramters
+        r"""It sets the input paramters
         Args:
             nside (integer): nside used in the analysis
             mueller_or_jones (str): "mueller" or "jones" (case insensitive)
                 it is the kind of HWP matrix to be injected as a starting point
-                if 'jones' is chosen, the parameters h1, h2, beta, z1, z2
-                are used to build the Jones matrix and then converted to Mueller
-                z1, z2 are assumed to be complex
-                h1, h2 are assumed to be negative real
-                beta is assumed to be in degrees (later converted to radians)
-                [[1 + h1, z1], [z2, - (1 + h2) * exp(1j * beta)]]
+                if 'jones' is chosen, the parameters :math:`h_1`, :math:`h_2`,
+                :math:`\beta`, :math:`z_1`, :math:`z_2`
+                are used to build the Jones matrix
+                :math:`\begin{pmatrix} 1 + h_1 & z_1 \\
+                z_2 & - (1 + h_2) e^{i \beta} \\ \end{pmatrix}`
+                and then converted to Mueller.
+                :math:`z_1`, :math:`z_2` are assumed to be complex
+                :math:`h_1`, :math:`h_2`, :math:`\beta` are assumed to be real
+                :math:`\beta` is assumed to be in degrees (later converted to radians.
+                To reproduce the ideal HWP case, set all Jones parameters to 0.
+                If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
+                :math:`M^{UU} = -1` and all the others to 0.
             Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
                 Input maps needs to be in galactic (mbs default)
             integrate_in_band (bool): performs the band integration for tod generation
@@ -695,7 +702,15 @@ class HwpSys:
                 Input maps needs to be in galactic (mbs default)
                 if `maps` is not None, `Mbsparams` is ignored
                 (i.e. input maps are not generated)
+            parallel (bool): uses parallelization if set to True
         """
+        # for parallelization
+        if parallel:
+            comm = lbs.MPI_COMM_WORLD
+            rank = comm.Get_rank()
+        else:
+            comm = None
+            rank = 0
 
         # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
@@ -889,23 +904,29 @@ class HwpSys:
             self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
 
             if np.any(maps) is None:
-                myinstr = {}
-                for ifreq in range(self.nfreqs):
-                    myinstr["ch" + str(ifreq)] = {
-                        "bandcenter_ghz": self.freqs[ifreq],
-                        "bandwidth_ghz": 0,
-                        "fwhm_arcmin": Channel.fwhm_arcmin,
-                        "p_sens_ukarcmin": 0.0,
-                    }
+                if rank == 0:
+                    myinstr = {}
+                    for ifreq in range(self.nfreqs):
+                        myinstr["ch" + str(ifreq)] = {
+                            "bandcenter_ghz": self.freqs[ifreq],
+                            "bandwidth_ghz": 0,
+                            "fwhm_arcmin": Channel.fwhm_arcmin,
+                            "p_sens_ukarcmin": 0.0,
+                            "band": None,
+                        }
 
-                mbs = lbs.Mbs(
-                    simulation=self.sim, parameters=Mbsparams, instrument=myinstr
-                )
+                    mbs = lbs.Mbs(
+                        simulation=self.sim, parameters=Mbsparams, instrument=myinstr
+                    )
 
-                maps = mbs.run_all()[0]
-                self.maps = np.empty((self.nfreqs, 3, self.npix))
-                for ifreq in range(self.nfreqs):
-                    self.maps[ifreq] = maps["ch" + str(ifreq)]
+                    maps = mbs.run_all()[0]
+                    self.maps = np.empty((self.nfreqs, 3, self.npix))
+                    for ifreq in range(self.nfreqs):
+                        self.maps[ifreq] = maps["ch" + str(ifreq)]
+                else:
+                    self.maps = None
+                if parallel:
+                    self.maps = comm.bcast(self.maps, root=0)
             else:
                 self.maps = maps
             del maps
@@ -1278,6 +1299,7 @@ class HwpSys:
         del (pix, xi, psi, times, self.maps)  # tod
         if not save_tod:
             del tod
+
         del (
             self.mII,
             self.mQI,
