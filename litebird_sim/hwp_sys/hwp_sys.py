@@ -676,7 +676,7 @@ class HwpSys:
     ):
         r"""It sets the input paramters reading a dictionary `sim.parameters`
             with key "hwp_sys" and the following input arguments
-         
+
             Args:
               nside (integer): nside used in the analysis
               mueller_or_jones (str): "mueller" or "jones" (case insensitive)
@@ -696,8 +696,8 @@ class HwpSys:
               Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
                   Input maps needs to be in galactic (mbs default)
               integrate_in_band (bool): performs the band integration for tod generation
-              built_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d` 
-              correct_in_solver (bool): if the map is computed on the fly, 
+              built_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
+              correct_in_solver (bool): if the map is computed on the fly,
                                         fills :math:`A^T A` using map-making (solver)
                                         HWP parameters
               integrate_in_band_solver (bool): performs the band integration for the
