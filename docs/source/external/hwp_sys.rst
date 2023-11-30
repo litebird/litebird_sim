@@ -14,9 +14,9 @@ the Jones formalism, a non-ideal HWP is described by
 
 where:
 
-*  h1 and h2 are the efficiencies, describing the deviation from the unitary
+*  :math:`h_1` and :math:`h_2` are the efficiencies, describing the deviation from the unitary
    transmission of light components :math:`E_x`, :math:`E_y`. In the ideal case, 
-   :math:`h1 = h2 = 0`;
+   :math:`h_1 = h_2 = 0`;
 *  :math:`\beta=\phi-\pi`, where :math:`\phi` is the phase shift between the two 
    directions. It accounts for variations of the phase difference between :math:`E_x`
    and :math:`E_y` with respect to the nominal value of :math:`\pi` for an ideal HWP.

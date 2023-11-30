@@ -96,14 +96,16 @@ def JonesToMueller(jones):
 
 
 def get_mueller_from_jones(h1, h2, z1, z2, beta):
-    """
+    r"""
     Converts the (frequency-dependent) input Jones matrix to a Mueller matrix.
     Returns Mueller matrix (3x3xNfreq), V-mode related terms are discarded,
     given the assumption of vanishing circular polarization.
 
-    Inputs: h1, h2, z1, z2, beta (i.e. systematics of the HWP, not the full Jones matrix)
-    Returns: mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU (single/multi-frequency
-    Mueller matrix terms)
+    Inputs: :math:`h_1`, :math:`h_2`, :math:`\zeta_1`, :math:`\zeta_2`,
+    :math:`\beta` (i.e. systematics of the HWP, not the full Jones matrix)
+    Returns: :math:`M^{II}`, :math:`M^{QI}`, :math:`M^{UI}`, :math:`M^{IQ}`,
+    :math:`M^{IU}`, :math:`M^{QQ}`, :math:`M^{UU}`, :math:`M^{UQ}`, :math:`M^{QU}`
+    (single/multi-frequency Mueller matrix terms)
     """
 
     # Convert inputs to numpy arrays
@@ -303,9 +305,9 @@ def integrate_inband_signal_for_one_sample(
     c4Th,
     s4Th,
 ):
-    """
+    r"""
     Multi-frequency case: band integration with trapezoidal rule,
-    \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    :math:`\sum (f(i) + f(i+1)) \cdot (\nu_(i+1) - \nu_i)/2`
     for a single (time) sample.
     """
     tod = 0
@@ -438,9 +440,9 @@ def compute_TQUsolver_for_one_sample(
     c4Th,
     s4Th,
 ):
-    """
-    Single-frequency case: compute A^TA and A^Td for a single detector,
-    for one (time) sample.
+    r"""
+    Single-frequency case: computes :math:`A^T A` and :math:`A^T d`
+    for a single detector, for one (time) sample.
     """
     Tterm = compute_Tterm_for_one_sample(mIIs, mQIs, mUIs, c2ThXi, s2ThXi)
     Qterm = compute_Qterm_for_one_sample(
@@ -471,9 +473,9 @@ def compute_atd_ata_for_one_detector(
     psi,
     xi,
 ):
-    """
-    Single-frequency case: compute A^TA and A^Td for a single detector,
-    looping over (time) samples.
+    r"""
+    Single-frequency case: compute :math:`A^T A` and :math:`A^T d`
+    for a single detector, looping over (time) samples.
     """
     for i in range(len(tod)):
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
@@ -530,9 +532,9 @@ def integrate_inband_TQUsolver_for_one_sample(
     c4Th,
     s4Th,
 ):
-    """
+    r"""
     Multi-frequency case: band integration with trapezoidal rule,
-    \sum (f(i) + f(i+1))*(\nu_(i+1) - \nu_i)/2
+    :math:`\sum (f(i) + f(i+1)) \cdot (\nu_(i+1) - \nu_i)/2`
     for a single (time) sample.
     """
     intTterm = 0
@@ -609,9 +611,9 @@ def integrate_inband_atd_ata_for_one_detector(
     psi,
     xi,
 ):
-    """
-    Multi-frequency case: band integration of A^TA and A^Td for a single detector,
-    looping over (time) samples.
+    r"""
+    Multi-frequency case: band integration of :math:`A^T A` and :math:`A^T d`
+    for a single detector, looping over (time) samples.
     """
     for i in range(len(tod)):
         Tterm, Qterm, Uterm = integrate_inband_TQUsolver_for_one_sample(
@@ -672,37 +674,41 @@ class HwpSys:
         maps: Union[np.ndarray, None] = None,
         parallel: Union[bool, None] = None,
     ):
-        r"""It sets the input paramters
-        Args:
-            nside (integer): nside used in the analysis
-            mueller_or_jones (str): "mueller" or "jones" (case insensitive)
-                it is the kind of HWP matrix to be injected as a starting point
-                if 'jones' is chosen, the parameters :math:`h_1`, :math:`h_2`,
-                :math:`\beta`, :math:`z_1`, :math:`z_2`
-                are used to build the Jones matrix
-                :math:`\begin{pmatrix} 1 + h_1 & z_1 \\
-                z_2 & - (1 + h_2) e^{i \beta} \\ \end{pmatrix}`
-                and then converted to Mueller.
-                :math:`z_1`, :math:`z_2` are assumed to be complex
-                :math:`h_1`, :math:`h_2`, :math:`\beta` are assumed to be real
-                :math:`\beta` is assumed to be in degrees (later converted to radians.
-                To reproduce the ideal HWP case, set all Jones parameters to 0.
-                If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
-                :math:`M^{UU} = -1` and all the others to 0.
-            Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
-                Input maps needs to be in galactic (mbs default)
-            integrate_in_band (bool): performs the band integration for tod generation
-            built_map_on_the_fly (bool): fills A^TA and A^Td for integrating
-            correct_in_solver (bool): if the map is computed on the fly, A^TA
-            integrate_in_band_solver (bool): performs the band integration for the
-                                              map-making solver
-            Channel (:class:`.FreqChannelInfo`): an instance of the
-                                                  :class:`.FreqChannelInfo` class
-            maps (float): input maps (3, npix) coherent with nside provided,
-                Input maps needs to be in galactic (mbs default)
-                if `maps` is not None, `Mbsparams` is ignored
-                (i.e. input maps are not generated)
-            parallel (bool): uses parallelization if set to True
+        r"""It sets the input paramters reading a dictionary `sim.parameters`
+            with key "hwp_sys" and the following input arguments
+
+            Args:
+              nside (integer): nside used in the analysis
+              mueller_or_jones (str): "mueller" or "jones" (case insensitive)
+                  it is the kind of HWP matrix to be injected as a starting point
+                  if 'jones' is chosen, the parameters :math:`h_1`, :math:`h_2`,
+                  :math:`\beta`, :math:`\zeta_1`, :math:`\zeta_2`
+                  are used to build the Jones matrix
+                  :math:`\begin{pmatrix} 1 + h_1 & \zeta_1 \\
+                  \zeta_2 & - (1 + h_2) e^{i \beta} \\ \end{pmatrix}`
+                  and then converted to Mueller.
+                  :math:`\zeta_1`, :math:`\zeta_2` are assumed to be complex
+                  :math:`h_1`, :math:`h_2`, :math:`\beta` are assumed to be real
+                  :math:`\beta` is assumed to be in degrees (later converted to radians.
+                  To reproduce the ideal HWP case, set all Jones parameters to 0.
+                  If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
+                  :math:`M^{UU} = -1` and all the others to 0.
+              Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
+                  Input maps needs to be in galactic (mbs default)
+              integrate_in_band (bool): performs the band integration for tod generation
+              built_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
+              correct_in_solver (bool): if the map is computed on the fly,
+                                        fills :math:`A^T A` using map-making (solver)
+                                        HWP parameters
+              integrate_in_band_solver (bool): performs the band integration for the
+                                               map-making solver
+              Channel (:class:`.FreqChannelInfo`): an instance of the
+                                                    :class:`.FreqChannelInfo` class
+              maps (float): input maps (3, npix) coherent with nside provided,
+                  Input maps needs to be in galactic (mbs default)
+                  if `maps` is not None, `Mbsparams` is ignored
+                  (i.e. input maps are not generated)
+              parallel (bool): uses parallelization if set to True
         """
         # for parallelization
         if parallel:
@@ -1115,7 +1121,8 @@ class HwpSys:
         pointings: Union[np.ndarray, List[np.ndarray], None] = None,
         save_tod: bool = False,
     ):
-        """It fills tod and/or A^TA and A^Td for the "on the fly" map production
+        r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
+        "on the fly" map production
         Args:
             obs class:`Observations`: container for tod.
                  If the tod is not required, obs.tod can be not allocated
