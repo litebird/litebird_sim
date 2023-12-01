@@ -84,6 +84,7 @@ from litebird_sim.mapmaking import (
     ExternalDestriperParameters,
 )
 from .simulations import (
+    NUMBA_NUM_THREADS_ENVVAR,
     Simulation,
     MpiObservationDescr,
     MpiProcessDescr,
@@ -243,6 +244,7 @@ __all__ = [
     "TOAST_ENABLED",
     "destripe_with_toast2",
     # simulations.py
+    "NUMBA_NUM_THREADS_ENVVAR",
     "Simulation",
     "MpiObservationDescr",
     "MpiProcessDescr",

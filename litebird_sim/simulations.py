@@ -56,6 +56,9 @@ from .scanning import ScanningStrategy, SpinningScanningStrategy
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
+# Name of the environment variable used to set up Numba threads
+NUMBA_NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
+
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
 
@@ -304,7 +307,10 @@ class Simulation:
             read into the field `parameters` (a Python dictionary).
 
         numba_threads (int): number of threads to use when calling
-            Numba functions.
+            Numba functions. If no value is passed but the environment
+            variable ``OMP_NUM_THREADS`` is set, its value will be used;
+            otherwise a number of threads equal to the number of CPU
+            cores will be used.
 
         numba_threading_layer (str): name of the Numba threading layer
             to use. See the Numba User's Manual:
@@ -354,6 +360,9 @@ class Simulation:
             self.imo = imo
         else:
             self.imo = Imo()
+
+        if not numba_threads and NUMBA_NUM_THREADS_ENVVAR in os.environ:
+            numba_threads = int(os.environ[NUMBA_NUM_THREADS_ENVVAR])
 
         self.numba_threads = numba_threads
         self.numba_threading_layer = numba_threading_layer

@@ -26,9 +26,9 @@ of these facilities and is split in two parts:
 Multithreading
 ~~~~~~~~~~~~~~
 
-The LiteBIRD Simulation Framework is able to exploit multiple cores
-because several of its modules  rely on the `Numba
-<https://numba.pydata.org/>`_ library.
+Some parts of the LiteBIRD Simulation Framework are able to
+exploit multiple cores because several of its modules rely on
+the `Numba <https://numba.pydata.org/>`_ library.
 
 If you are running your code on your multi-core laptop, you do not
 have to do anything fancy in order to use all the CPUs on your machine:
@@ -36,8 +36,9 @@ in its default configuration, the Framework should be able to take
 advantage all the available CPU cores.
 
 However, if you want to tune the way the Framework uses the CPUs,
-the constructor of the class :class:`.Simulation` accepts two
-parameters meant for this purpose:
+you can either set the environment variable ``OMP_NUM_THREADS``
+to the number of CPUs to use, or use two parameters in
+the constructor of the class :class:`.Simulation`:
 
 - `numba_num_of_threads`: this is the number of CPUs that Numba will
   use for parallel calculations. The parameter defaults to ``None``,
@@ -84,6 +85,7 @@ of running a command like the following:
    # is configured; the following commands are just examples.
    $ module load tbb     # Intel Threading Building Blocks
    $ module load openmp  # OpenMP
+
 
 MPI
 ~~~
