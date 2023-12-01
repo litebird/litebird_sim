@@ -10,7 +10,7 @@ from typing import Union, List
 from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation
-from ..noise import rescale_noise
+from .bandpass_template_module import bandpass_profile
 from ..coordinates import rotate_coordinates_e2g, CoordinateSystem
 
 COND_THRESHOLD = 1e10
@@ -96,6 +96,18 @@ def JonesToMueller(jones):
 
 
 def get_mueller_from_jones(h1, h2, z1, z2, beta):
+    r"""
+    Converts the (frequency-dependent) input Jones matrix to a Mueller matrix.
+    Returns Mueller matrix (3x3xNfreq), V-mode related terms are discarded,
+    given the assumption of vanishing circular polarization.
+
+    Inputs: :math:`h_1`, :math:`h_2`, :math:`\zeta_1`, :math:`\zeta_2`,
+    :math:`\beta` (i.e. systematics of the HWP, not the full Jones matrix)
+    Returns: :math:`M^{II}`, :math:`M^{QI}`, :math:`M^{UI}`, :math:`M^{IQ}`,
+    :math:`M^{IU}`, :math:`M^{QQ}`, :math:`M^{UU}`, :math:`M^{UQ}`, :math:`M^{QU}`
+    (single/multi-frequency Mueller matrix terms)
+    """
+
     # Convert inputs to numpy arrays
     h1, h2, z1, z2, beta = np.atleast_1d(h1, h2, z1, z2, beta)
 
@@ -207,7 +219,7 @@ def compute_signal_for_one_sample(
     c4Th,
     s4Th,
 ):
-    """Bolometric equation"""
+    """Bolometric equation, tod filling for a single (time) sample"""
     d = T * compute_Tterm_for_one_sample(mII, mQI, mUI, c2ThXi, s2ThXi)
 
     d += Q * compute_Qterm_for_one_sample(
@@ -222,62 +234,8 @@ def compute_signal_for_one_sample(
 
 
 @njit
-def integrate_inband_signal_for_one_sample(
-    T,
-    Q,
-    U,
-    band,
-    mII,
-    mQI,
-    mUI,
-    mIQ,
-    mIU,
-    mQQ,
-    mUU,
-    mUQ,
-    mQU,
-    c2ThPs,
-    s2ThPs,
-    c2PsXi,
-    s2PsXi,
-    c2ThXi,
-    s2ThXi,
-    c4Th,
-    s4Th,
-):
-    # perform band integration, assumed delta nu = 1GHz
-    tod = 0
-    for i in range(len(band)):
-        tod += band[i] * compute_signal_for_one_sample(
-            T=T[i],
-            Q=Q[i],
-            U=U[i],
-            mII=mII[i],
-            mQI=mQI[i],
-            mUI=mUI[i],
-            mIQ=mIQ[i],
-            mIU=mIU[i],
-            mQQ=mQQ[i],
-            mUU=mUU[i],
-            mUQ=mUQ[i],
-            mQU=mQU[i],
-            c2ThPs=c2ThPs,
-            s2ThPs=s2ThPs,
-            c2PsXi=c2PsXi,
-            s2PsXi=s2PsXi,
-            c2ThXi=c2ThXi,
-            s2ThXi=s2ThXi,
-            c4Th=c4Th,
-            s4Th=s4Th,
-        )
-
-    return tod
-
-
-@njit
-def integrate_inband_signal_for_one_detector(
+def compute_signal_for_one_detector(
     tod_det,
-    band,
     mII,
     mQI,
     mUI,
@@ -293,12 +251,15 @@ def integrate_inband_signal_for_one_detector(
     xi,
     maps,
 ):
+    """
+    Single-frequency case: compute the signal for a single detector,
+    looping over (time) samples.
+    """
     for i in range(len(tod_det)):
-        tod_det[i] += integrate_inband_signal_for_one_sample(
-            T=maps[:, 0, pixel_ind[i]],
-            Q=maps[:, 1, pixel_ind[i]],
-            U=maps[:, 2, pixel_ind[i]],
-            band=band,
+        tod_det[i] += compute_signal_for_one_sample(
+            T=maps[0, pixel_ind[i]],
+            Q=maps[1, pixel_ind[i]],
+            U=maps[2, pixel_ind[i]],
             mII=mII,
             mQI=mQI,
             mUI=mUI,
@@ -320,8 +281,99 @@ def integrate_inband_signal_for_one_detector(
 
 
 @njit
-def compute_signal_for_one_detector(
+def integrate_inband_signal_for_one_sample(
+    T,
+    Q,
+    U,
+    freqs,
+    band,
+    mII,
+    mQI,
+    mUI,
+    mIQ,
+    mIU,
+    mQQ,
+    mUU,
+    mUQ,
+    mQU,
+    c2ThPs,
+    s2ThPs,
+    c2PsXi,
+    s2PsXi,
+    c2ThXi,
+    s2ThXi,
+    c4Th,
+    s4Th,
+):
+    r"""
+    Multi-frequency case: band integration with trapezoidal rule,
+    :math:`\sum (f(i) + f(i+1)) \cdot (\nu_(i+1) - \nu_i)/2`
+    for a single (time) sample.
+    """
+    tod = 0
+    for i in range(len(band) - 1):
+        dnu = freqs[i + 1] - freqs[i]
+        tod += (
+            (
+                band[i]
+                * compute_signal_for_one_sample(
+                    T=T[i],
+                    Q=Q[i],
+                    U=U[i],
+                    mII=mII[i],
+                    mQI=mQI[i],
+                    mUI=mUI[i],
+                    mIQ=mIQ[i],
+                    mIU=mIU[i],
+                    mQQ=mQQ[i],
+                    mUU=mUU[i],
+                    mUQ=mUQ[i],
+                    mQU=mQU[i],
+                    c2ThPs=c2ThPs,
+                    s2ThPs=s2ThPs,
+                    c2PsXi=c2PsXi,
+                    s2PsXi=s2PsXi,
+                    c2ThXi=c2ThXi,
+                    s2ThXi=s2ThXi,
+                    c4Th=c4Th,
+                    s4Th=s4Th,
+                )
+                + band[i + 1]
+                * compute_signal_for_one_sample(
+                    T=T[i + 1],
+                    Q=Q[i + 1],
+                    U=U[i + 1],
+                    mII=mII[i + 1],
+                    mQI=mQI[i + 1],
+                    mUI=mUI[i + 1],
+                    mIQ=mIQ[i + 1],
+                    mIU=mIU[i + 1],
+                    mQQ=mQQ[i + 1],
+                    mUU=mUU[i + 1],
+                    mUQ=mUQ[i + 1],
+                    mQU=mQU[i + 1],
+                    c2ThPs=c2ThPs,
+                    s2ThPs=s2ThPs,
+                    c2PsXi=c2PsXi,
+                    s2PsXi=s2PsXi,
+                    c2ThXi=c2ThXi,
+                    s2ThXi=s2ThXi,
+                    c4Th=c4Th,
+                    s4Th=s4Th,
+                )
+            )
+            * dnu
+            / 2
+        )
+
+    return tod
+
+
+@njit
+def integrate_inband_signal_for_one_detector(
     tod_det,
+    freqs,
+    band,
     mII,
     mQI,
     mUI,
@@ -337,12 +389,17 @@ def compute_signal_for_one_detector(
     xi,
     maps,
 ):
-    # single frequency case
+    """
+    Multi-frequency case: band integration of the signal for a single detector,
+    looping over (time) samples.
+    """
     for i in range(len(tod_det)):
-        tod_det[i] += compute_signal_for_one_sample(
-            T=maps[0, pixel_ind[i]],
-            Q=maps[1, pixel_ind[i]],
-            U=maps[2, pixel_ind[i]],
+        tod_det[i] += integrate_inband_signal_for_one_sample(
+            T=maps[:, 0, pixel_ind[i]],
+            Q=maps[:, 1, pixel_ind[i]],
+            U=maps[:, 2, pixel_ind[i]],
+            freqs=freqs,
+            band=band,
             mII=mII,
             mQI=mQI,
             mUI=mUI,
@@ -383,6 +440,10 @@ def compute_TQUsolver_for_one_sample(
     c4Th,
     s4Th,
 ):
+    r"""
+    Single-frequency case: computes :math:`A^T A` and :math:`A^T d`
+    for a single detector, for one (time) sample.
+    """
     Tterm = compute_Tterm_for_one_sample(mIIs, mQIs, mUIs, c2ThXi, s2ThXi)
     Qterm = compute_Qterm_for_one_sample(
         mIQs, mQQs, mUUs, mIUs, mUQs, mQUs, c2ThPs, c2PsXi, c4Th, s2ThPs, s2PsXi, s4Th
@@ -394,7 +455,64 @@ def compute_TQUsolver_for_one_sample(
 
 
 @njit
+def compute_atd_ata_for_one_detector(
+    atd,
+    ata,
+    tod,
+    mIIs,
+    mQIs,
+    mUIs,
+    mIQs,
+    mIUs,
+    mQQs,
+    mUUs,
+    mUQs,
+    mQUs,
+    pixel_ind,
+    theta,
+    psi,
+    xi,
+):
+    r"""
+    Single-frequency case: compute :math:`A^T A` and :math:`A^T d`
+    for a single detector, looping over (time) samples.
+    """
+    for i in range(len(tod)):
+        Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
+            mIIs=mIIs,
+            mQIs=mQIs,
+            mUIs=mUIs,
+            mIQs=mIQs,
+            mIUs=mIUs,
+            mQQs=mQQs,
+            mUUs=mUUs,
+            mUQs=mUQs,
+            mQUs=mQUs,
+            c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
+            s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
+            c2PsXi=np.cos(2 * psi[i] + 2 * xi),
+            s2PsXi=np.sin(2 * psi[i] + 2 * xi),
+            c2ThXi=np.cos(2 * theta[i] - 2 * xi),
+            s2ThXi=np.sin(2 * theta[i] - 2 * xi),
+            c4Th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
+        )
+
+        atd[pixel_ind[i], 0] += tod[i] * Tterm
+        atd[pixel_ind[i], 1] += tod[i] * Qterm
+        atd[pixel_ind[i], 2] += tod[i] * Uterm
+
+        ata[pixel_ind[i], 0, 0] += Tterm * Tterm
+        ata[pixel_ind[i], 1, 0] += Tterm * Qterm
+        ata[pixel_ind[i], 2, 0] += Tterm * Uterm
+        ata[pixel_ind[i], 1, 1] += Qterm * Qterm
+        ata[pixel_ind[i], 2, 1] += Qterm * Uterm
+        ata[pixel_ind[i], 2, 2] += Uterm * Uterm
+
+
+@njit
 def integrate_inband_TQUsolver_for_one_sample(
+    freqs,
     band,
     mIIs,
     mQIs,
@@ -414,11 +532,17 @@ def integrate_inband_TQUsolver_for_one_sample(
     c4Th,
     s4Th,
 ):
-    # inband integration
+    r"""
+    Multi-frequency case: band integration with trapezoidal rule,
+    :math:`\sum (f(i) + f(i+1)) \cdot (\nu_(i+1) - \nu_i)/2`
+    for a single (time) sample.
+    """
     intTterm = 0
     intQterm = 0
     intUterm = 0
-    for i in range(len(band)):
+    for i in range(len(band) - 1):
+        dnu = freqs[i + 1] - freqs[i]
+
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=mIIs[i],
             mQIs=mQIs[i],
@@ -439,9 +563,29 @@ def integrate_inband_TQUsolver_for_one_sample(
             s4Th=s4Th,
         )
 
-        intTterm += band[i] * Tterm
-        intQterm += band[i] * Qterm
-        intUterm += band[i] * Uterm
+        Ttermp1, Qtermp1, Utermp1 = compute_TQUsolver_for_one_sample(
+            mIIs=mIIs[i + 1],
+            mQIs=mQIs[i + 1],
+            mUIs=mUIs[i + 1],
+            mIQs=mIQs[i + 1],
+            mIUs=mIUs[i + 1],
+            mQQs=mQQs[i + 1],
+            mUUs=mUUs[i + 1],
+            mUQs=mUQs[i + 1],
+            mQUs=mQUs[i + 1],
+            c2ThPs=c2ThPs,
+            s2ThPs=s2ThPs,
+            c2PsXi=c2PsXi,
+            s2PsXi=s2PsXi,
+            c2ThXi=c2ThXi,
+            s2ThXi=s2ThXi,
+            c4Th=c4Th,
+            s4Th=s4Th,
+        )
+
+        intTterm += (band[i] * Tterm + band[i + 1] * Ttermp1) * dnu / 2.0
+        intQterm += (band[i] * Qterm + band[i + 1] * Qtermp1) * dnu / 2.0
+        intUterm += (band[i] * Uterm + band[i + 1] * Utermp1) * dnu / 2.0
 
     return intTterm, intQterm, intUterm
 
@@ -451,6 +595,7 @@ def integrate_inband_atd_ata_for_one_detector(
     atd,
     ata,
     tod,
+    freqs,
     band,
     mIIs,
     mQIs,
@@ -466,8 +611,13 @@ def integrate_inband_atd_ata_for_one_detector(
     psi,
     xi,
 ):
+    r"""
+    Multi-frequency case: band integration of :math:`A^T A` and :math:`A^T d`
+    for a single detector, looping over (time) samples.
+    """
     for i in range(len(tod)):
         Tterm, Qterm, Uterm = integrate_inband_TQUsolver_for_one_sample(
+            freqs=freqs,
             band=band,
             mIIs=mIIs,
             mQIs=mQIs,
@@ -499,59 +649,6 @@ def integrate_inband_atd_ata_for_one_detector(
         ata[pixel_ind[i], 2, 2] += Uterm * Uterm
 
 
-@njit
-def compute_atd_ata_for_one_detector(
-    atd,
-    ata,
-    tod,
-    mIIs,
-    mQIs,
-    mUIs,
-    mIQs,
-    mIUs,
-    mQQs,
-    mUUs,
-    mUQs,
-    mQUs,
-    pixel_ind,
-    theta,
-    psi,
-    xi,
-):
-    # single frequency case
-    for i in range(len(tod)):
-        Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
-            mIIs=mIIs[i],
-            mQIs=mQIs[i],
-            mUIs=mUIs[i],
-            mIQs=mIQs[i],
-            mIUs=mIUs[i],
-            mQQs=mQQs[i],
-            mUUs=mUUs[i],
-            mUQs=mUQs[i],
-            mQUs=mQUs[i],
-            c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
-            s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
-            c2PsXi=np.cos(2 * psi[i] + 2 * xi),
-            s2PsXi=np.sin(2 * psi[i] + 2 * xi),
-            c2ThXi=np.cos(2 * theta[i] - 2 * xi),
-            s2ThXi=np.sin(2 * theta[i] - 2 * xi),
-            c4Th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
-        )
-
-        atd[pixel_ind[i], 0] += tod[i] * Tterm
-        atd[pixel_ind[i], 1] += tod[i] * Qterm
-        atd[pixel_ind[i], 2] += tod[i] * Uterm
-
-        ata[pixel_ind[i], 0, 0] += Tterm * Tterm
-        ata[pixel_ind[i], 1, 0] += Tterm * Qterm
-        ata[pixel_ind[i], 2, 0] += Tterm * Uterm
-        ata[pixel_ind[i], 1, 1] += Qterm * Qterm
-        ata[pixel_ind[i], 2, 1] += Qterm * Uterm
-        ata[pixel_ind[i], 2, 2] += Uterm * Uterm
-
-
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
@@ -570,30 +667,56 @@ class HwpSys:
         mueller_or_jones: str = "mueller" or "jones",
         Mbsparams: Union[MbsParameters, None] = None,
         integrate_in_band: Union[bool, None] = None,
-        inband_profile: Union[np.ndarray, None] = None,
         built_map_on_the_fly: Union[bool, None] = None,
         correct_in_solver: Union[bool, None] = None,
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
+        parallel: Union[bool, None] = None,
     ):
-        """It sets the input paramters
-        Args:
-             nside (integer): nside used in the analysis
-             mueller_or_jones (str): "mueller" or "jones" (case insensitive)
-                    it is the kind of HWP matrix to be injected as a starting point
-                    if 'jones' is chosen, the parameters h1, h2, beta, z1, z2
-                    are used to build the Jones matrix and then converted to Mueller
-             Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
-             integrate_in_band (bool): performs the band integration for tod generation
-             built_map_on_the_fly (bool): fills A^TA and A^Td for integrating
-             correct_in_solver (bool): if the map is computed on the fly, A^TA
-             integrate_in_band_solver (bool): performs the band integration for the
-                                              map-making solver
-             Channel (:class:`.FreqChannelInfo`): an instance of the
-                                                  :class:`.FreqChannelInfo` class
-             maps (float): input maps (3, npix) coherent with nside provided.
+        r"""It sets the input paramters reading a dictionary `sim.parameters`
+            with key "hwp_sys" and the following input arguments
+
+            Args:
+              nside (integer): nside used in the analysis
+              mueller_or_jones (str): "mueller" or "jones" (case insensitive)
+                  it is the kind of HWP matrix to be injected as a starting point
+                  if 'jones' is chosen, the parameters :math:`h_1`, :math:`h_2`,
+                  :math:`\beta`, :math:`\zeta_1`, :math:`\zeta_2`
+                  are used to build the Jones matrix
+                  :math:`\begin{pmatrix} 1 + h_1 & \zeta_1 \\
+                  \zeta_2 & - (1 + h_2) e^{i \beta} \\ \end{pmatrix}`
+                  and then converted to Mueller.
+                  :math:`\zeta_1`, :math:`\zeta_2` are assumed to be complex
+                  :math:`h_1`, :math:`h_2`, :math:`\beta` are assumed to be real
+                  :math:`\beta` is assumed to be in degrees (later converted to radians.
+                  To reproduce the ideal HWP case, set all Jones parameters to 0.
+                  If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
+                  :math:`M^{UU} = -1` and all the others to 0.
+              Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
+                  Input maps needs to be in galactic (mbs default)
+              integrate_in_band (bool): performs the band integration for tod generation
+              built_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
+              correct_in_solver (bool): if the map is computed on the fly,
+                                        fills :math:`A^T A` using map-making (solver)
+                                        HWP parameters
+              integrate_in_band_solver (bool): performs the band integration for the
+                                               map-making solver
+              Channel (:class:`.FreqChannelInfo`): an instance of the
+                                                    :class:`.FreqChannelInfo` class
+              maps (float): input maps (3, npix) coherent with nside provided,
+                  Input maps needs to be in galactic (mbs default)
+                  if `maps` is not None, `Mbsparams` is ignored
+                  (i.e. input maps are not generated)
+              parallel (bool): uses parallelization if set to True
         """
+        # for parallelization
+        if parallel:
+            comm = lbs.MPI_COMM_WORLD
+            rank = comm.Get_rank()
+        else:
+            comm = None
+            rank = 0
 
         # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
@@ -607,191 +730,128 @@ class HwpSys:
         ):
             paramdict = self.sim.parameters["hwp_sys"]
 
-            if "nside" in paramdict.keys():
-                self.nside = paramdict["nside"]
-                if "general" in self.sim.parameters.keys():
-                    if "nside" in self.sim.parameters["general"].keys():
-                        if self.sim.parameters["general"]["nside"] != self.nside:
-                            print(
-                                "Warning!! nside from general "
-                                "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
-                                % (
-                                    self.sim.parameters["general"]["nside"],
-                                    self.nside,
-                                )
-                            )
+            self.nside = paramdict.get("nside", False)
 
-            if "integrate_in_band" in paramdict.keys():
-                self.integrate_in_band = paramdict["integrate_in_band"]
+            self.integrate_in_band = paramdict.get("integrate_in_band", False)
+            self.built_map_on_the_fly = paramdict.get("built_map_on_the_fly", False)
+            self.correct_in_solver = paramdict.get("correct_in_solver", False)
+            self.integrate_in_band_solver = paramdict.get(
+                "integrate_in_band_solver", False
+            )
 
-            if "built_map_on_the_fly" in paramdict.keys():
-                self.built_map_on_the_fly = paramdict["built_map_on_the_fly"]
-
-            if "correct_in_solver" in paramdict.keys():
-                self.correct_in_solver = paramdict["correct_in_solver"]
-
-            if "integrate_in_band_solver" in paramdict.keys():
-                self.integrate_in_band_solver = paramdict["integrate_in_band_solver"]
+            self.bandpass = paramdict.get("bandpass", False)
+            self.bandpass_solver = paramdict.get("bandpass_solver", False)
+            self.include_beam_throughput = paramdict.get(
+                "include_beam_throughput", False
+            )
 
             mueller_or_jones = mueller_or_jones.lower()
             if mueller_or_jones == "jones":
-                if "h1" in paramdict.keys():
-                    self.h1 = paramdict["h1"]
+                self.h1 = paramdict.get("h1", False)
+                self.h2 = paramdict.get("h2", False)
+                self.beta = paramdict.get("beta", False)
+                if paramdict.get("z1", False):
+                    self.z1 = complex(paramdict.get("z1"))
+                if paramdict.get("z2", False):
+                    self.z2 = complex(paramdict.get("z2"))
 
-                if "h2" in paramdict.keys():
-                    self.h2 = paramdict["h2"]
+                self.h1s = paramdict.get("h1s", False)
+                self.h2s = paramdict.get("h2s", False)
+                self.betas = paramdict.get("betas", False)
+                if paramdict.get("z1s", False):
+                    self.z1s = complex(paramdict.get("z1s"))
+                if paramdict.get("z2s", False):
+                    self.z2s = complex(paramdict.get("z2s"))
 
-                if "beta" in paramdict.keys():
-                    self.beta = paramdict["beta"]
-
-                if "z1" in paramdict.keys():
-                    self.z1 = paramdict["z1"]
-
-                if "z2" in paramdict.keys():
-                    self.z2 = paramdict["z2"]
-
-                if "h1s" in paramdict.keys():
-                    self.h1s = paramdict["h1s"]
-
-                if "h2s" in paramdict.keys():
-                    self.h2s = paramdict["h2s"]
-
-                if "betas" in paramdict.keys():
-                    self.betas = paramdict["betas"]
-
-                if "z1s" in paramdict.keys():
-                    self.z1s = paramdict["z1s"]
-
-                if "z2s" in paramdict.keys():
-                    self.z2s = paramdict["z2s"]
             elif mueller_or_jones == "mueller":
-                if "mII" in paramdict.keys():
-                    self.mII = paramdict["mII"]
+                self.mII = paramdict.get("mII", False)
+                self.mQI = paramdict.get("mQI", False)
+                self.mUI = paramdict.get("mUI", False)
+                self.mIQ = paramdict.get("mIQ", False)
+                self.mIU = paramdict.get("mIU", False)
+                self.mQQ = paramdict.get("mQQ", False)
+                self.mUU = paramdict.get("mUU", False)
+                self.mUQ = paramdict.get("mUQ", False)
+                self.mQU = paramdict.get("mQU", False)
 
-                if "mQI" in paramdict.keys():
-                    self.mQI = paramdict["mQI"]
+                self.mIIs = paramdict.get("mIIs", False)
+                self.mQIs = paramdict.get("mQIs", False)
+                self.mUIs = paramdict.get("mUIs", False)
+                self.mIQs = paramdict.get("mIQs", False)
+                self.mIUs = paramdict.get("mIUs", False)
+                self.mQQs = paramdict.get("mQQs", False)
+                self.mUUs = paramdict.get("mUUs", False)
+                self.mUQs = paramdict.get("mUQs", False)
+                self.mQUs = paramdict.get("mQUs", False)
 
-                if "mUI" in paramdict.keys():
-                    self.mUI = paramdict["mUI"]
-
-                if "mIQ" in paramdict.keys():
-                    self.mIQ = paramdict["mIQ"]
-
-                if "mIU" in paramdict.keys():
-                    self.mIU = paramdict["mIU"]
-
-                if "mQQ" in paramdict.keys():
-                    self.mQQ = paramdict["mQQ"]
-
-                if "mUU" in paramdict.keys():
-                    self.mUU = paramdict["mUU"]
-
-                if "mUQ" in paramdict.keys():
-                    self.mUQ = paramdict["mUQ"]
-
-                if "mQU" in paramdict.keys():
-                    self.mQU = paramdict["mQU"]
-
-                if "mIIs" in paramdict.keys():
-                    self.mIIs = paramdict["mIIs"]
-
-                if "mQIs" in paramdict.keys():
-                    self.mQIs = paramdict["mQIs"]
-
-                if "mUIs" in paramdict.keys():
-                    self.mUIs = paramdict["mUIs"]
-
-                if "mIQs" in paramdict.keys():
-                    self.mIQs = paramdict["mIQs"]
-
-                if "mIUs" in paramdict.keys():
-                    self.mIUs = paramdict["mIUs"]
-
-                if "mQQs" in paramdict.keys():
-                    self.mQQs = paramdict["mQQs"]
-
-                if "mUUs" in paramdict.keys():
-                    self.mUUs = paramdict["mUUs"]
-
-                if "mUQs" in paramdict.keys():
-                    self.mUQs = paramdict["mUQs"]
-
-                if "mQUs" in paramdict.keys():
-                    self.mQUs = paramdict["mQUs"]
             else:
                 raise ValueError("mueller_or_jones not specified")
 
-            if "band_filename" in paramdict.keys():
-                self.band_filename = paramdict["band_filename"]
+            self.band_filename = paramdict.get("band_filename", False)
+            self.band_filename_solver = paramdict.get("band_filename_solver", False)
 
-            if "band_filename_solver" in paramdict.keys():
-                self.band_filename_solver = paramdict["band_filename_solver"]
-
-            # here we set the values for Mbs used in the code
-            if "hwp_sys_Mbs_make_cmb" in paramdict.keys():
-                hwp_sys_Mbs_make_cmb = paramdict["hwp_sys_Mbs_make_cmb"]
-
-            if "hwp_sys_Mbs_make_fg" in paramdict.keys():
-                hwp_sys_Mbs_make_fg = paramdict["hwp_sys_Mbs_make_fg"]
-
-            if "hwp_sys_Mbs_fg_models" in paramdict.keys():
-                hwp_sys_Mbs_fg_models = paramdict["hwp_sys_Mbs_fg_models"]
-
-            if "hwp_sys_Mbs_gaussian_smooth" in paramdict.keys():
-                hwp_sys_Mbs_gaussian_smooth = paramdict["hwp_sys_Mbs_gaussian_smooth"]
-
+            # here we set the values for Mbs used in the code if present
+            # in paramdict, otherwise defaults
+            hwp_sys_Mbs_make_cmb = paramdict.get("hwp_sys_Mbs_make_cmb", True)
+            hwp_sys_Mbs_make_fg = paramdict.get("hwp_sys_Mbs_make_fg", True)
+            hwp_sys_Mbs_fg_models = paramdict.get(
+                "hwp_sys_Mbs_fg_models",
+                ["pysm_synch_1", "pysm_freefree_1", "pysm_dust_1", "pysm_ame_1"],
+            )
+            hwp_sys_Mbs_gaussian_smooth = paramdict.get(
+                "hwp_sys_Mbs_gaussian_smooth", True
+            )
         # This part sets from input_parameters()
-        try:
-            self.nside
-        except Exception:
-            if nside is None:
-                self.nside = 512
-            else:
-                self.nside = nside
+        # if not self.nside:
+        if nside is None:
+            self.nside = 512
+        else:
+            self.nside = nside
 
-        try:
-            self.integrate_in_band
-        except Exception:
-            if integrate_in_band is None:
-                self.integrate_in_band = False
-            else:
+        if (self.sim.parameters is not None) and (
+            "hwp_sys" in self.sim.parameters.keys()
+        ):
+            if "general" in self.sim.parameters.keys():
+                if "nside" in self.sim.parameters["general"].keys():
+                    if self.sim.parameters["general"]["nside"] != self.nside:
+                        print(
+                            "Warning!! nside from general "
+                            "(=%i) and hwp_sys (=%i) do not match. Using hwp_sys"
+                            % (
+                                self.sim.parameters["general"]["nside"],
+                                self.nside,
+                            )
+                        )
+
+        if not self.integrate_in_band:
+            if integrate_in_band is not None:
                 self.integrate_in_band = integrate_in_band
 
-        try:
-            self.built_map_on_the_fly
-        except Exception:
-            if built_map_on_the_fly is None:
-                self.built_map_on_the_fly = False
-            else:
+        if not self.built_map_on_the_fly:
+            if built_map_on_the_fly is not None:
                 self.built_map_on_the_fly = built_map_on_the_fly
 
-        try:
-            self.correct_in_solver
-        except Exception:
-            if correct_in_solver is None:
-                self.correct_in_solver = False
-            else:
+        if not self.correct_in_solver:
+            if correct_in_solver is not None:
                 self.correct_in_solver = correct_in_solver
 
-        try:
-            self.integrate_in_band_solver
-        except Exception:
-            if integrate_in_band_solver is None:
-                self.integrate_in_band_solver = False
-            else:
+        if not self.integrate_in_band_solver:
+            if integrate_in_band_solver is not None:
                 self.integrate_in_band_solver = integrate_in_band_solver
 
-        if Mbsparams is None:
+        if Mbsparams is None and np.any(maps) is None:
             Mbsparams = lbs.MbsParameters(
                 make_cmb=hwp_sys_Mbs_make_cmb,
                 make_fg=hwp_sys_Mbs_make_fg,
                 fg_models=hwp_sys_Mbs_fg_models,
                 gaussian_smooth=hwp_sys_Mbs_gaussian_smooth,
                 bandpass_int=False,
-                maps_in_ecliptic=True,
+                maps_in_ecliptic=False,
+                nside=self.nside,
             )
 
-        Mbsparams.nside = self.nside
+        if np.any(maps) is None:
+            Mbsparams.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
 
@@ -800,89 +860,121 @@ class HwpSys:
 
         if self.integrate_in_band:
             if mueller_or_jones == "jones":
-                self.freqs, self.h1, self.h2, self.beta, self.z1, self.z2 = np.loadtxt(
-                    self.band_filename, unpack=True, skiprows=1
-                )
-            else:  # mueller_or_jones == "mueller"
-                (
-                    self.freqs,
-                    self.mII,
-                    self.mQI,
-                    self.mUI,
-                    self.mIQ,
-                    self.mIU,
-                    self.mQQ,
-                    self.mUU,
-                    self.mUQ,
-                    self.mQU,
-                ) = np.loadtxt(self.band_filename, unpack=True, skiprows=1)
+                try:
+                    (
+                        self.freqs,
+                        self.h1,
+                        self.h2,
+                        self.beta,
+                        self.z1,
+                        self.z2,
+                    ) = np.loadtxt(
+                        self.band_filename, dtype=complex, unpack=True, comments="#"
+                    )
 
+                    self.freqs = np.array(self.freqs, dtype=float)
+                    self.h1 = np.array(self.h1, dtype=float)
+                    self.h2 = np.array(self.h2, dtype=float)
+                    self.beta = np.array(self.beta, dtype=float)
+                    self.beta = np.deg2rad(self.beta)
+
+                except Exception:
+                    print(
+                        "missing band_filename in the parameter file"
+                        + " or wrong number of columns for jones matrix"
+                    )
+            else:  # mueller_or_jones == "mueller"
+                try:
+                    (
+                        self.freqs,
+                        self.mII,
+                        self.mQI,
+                        self.mUI,
+                        self.mIQ,
+                        self.mIU,
+                        self.mQQ,
+                        self.mUU,
+                        self.mUQ,
+                        self.mQU,
+                    ) = np.loadtxt(self.band_filename, unpack=True, comments="#")
+                except Exception:
+                    print(
+                        "missing band_filename in the parameter file"
+                        + " or wrong number of columns for mueller matrix"
+                    )
             self.nfreqs = len(self.freqs)
 
-            if inband_profile is not None:
-                self.cmb2bb = _dBodTth(self.freqs) * inband_profile
-            else:
+            if not self.bandpass:
                 self.cmb2bb = _dBodTth(self.freqs)
-            # Normalize the bandpass
+
+            elif self.bandpass:
+                self.freqs, self.bandpass_profile = bandpass_profile(
+                    self.freqs, self.bandpass, self.include_beam_throughput
+                )
+
+                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
+
+            # Normalize the band
             self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
 
-            myinstr = {}
-            for ifreq in range(self.nfreqs):
-                myinstr["ch" + str(ifreq)] = {
-                    "bandcenter_ghz": self.freqs[ifreq],
-                    "bandwidth_ghz": 0,
-                    "fwhm_arcmin": Channel.fwhm_arcmin,
-                    "p_sens_ukarcmin": 0.0,
-                }
-
-            mbs = lbs.Mbs(simulation=self.sim, parameters=Mbsparams, instrument=myinstr)
-
             if np.any(maps) is None:
-                maps = mbs.run_all()[0]
-                self.maps = np.empty((self.nfreqs, 3, self.npix))
-                for ifreq in range(self.nfreqs):
-                    self.maps[ifreq] = maps["ch" + str(ifreq)]
+                if rank == 0:
+                    myinstr = {}
+                    for ifreq in range(self.nfreqs):
+                        myinstr["ch" + str(ifreq)] = {
+                            "bandcenter_ghz": self.freqs[ifreq],
+                            "bandwidth_ghz": 0,
+                            "fwhm_arcmin": Channel.fwhm_arcmin,
+                            "p_sens_ukarcmin": 0.0,
+                            "band": None,
+                        }
+
+                    mbs = lbs.Mbs(
+                        simulation=self.sim, parameters=Mbsparams, instrument=myinstr
+                    )
+
+                    maps = mbs.run_all()[0]
+                    self.maps = np.empty((self.nfreqs, 3, self.npix))
+                    for ifreq in range(self.nfreqs):
+                        self.maps[ifreq] = maps["ch" + str(ifreq)]
+                else:
+                    self.maps = None
+                if parallel:
+                    self.maps = comm.bcast(self.maps, root=0)
             else:
-                assert (
-                    hp.npix2nside(len(maps[0, 0, :])) == self.nside
-                ), "wrong nside in the input map!"
-                assert (
-                    len(maps[:, 0, 0]) == self.nfreqs
-                ), "wrong number of frequencies: expected a different number of maps!"
                 self.maps = maps
             del maps
 
         else:
             if mueller_or_jones == "jones":
-                if not hasattr(self, "h1"):
-                    self.h1 = 0.0
-                if not hasattr(self, "h2"):
-                    self.h2 = 0.0
-                if not hasattr(self, "beta"):
-                    self.beta = 0.0
-                if not hasattr(self, "z1"):
-                    self.z1 = 0.0
-                if not hasattr(self, "z2"):
-                    self.z2 = 0.0
+                default_attrs = {
+                    "h1": 0.0,
+                    "h2": 0.0,
+                    "beta": 0.0,
+                    "z1": 0.0,
+                    "z2": 0.0,
+                }
+
+                for attr, default_value in default_attrs.items():
+                    if not hasattr(self, attr):
+                        setattr(self, attr, default_value)
+                self.beta = np.deg2rad(self.beta)
             else:  # mueller_or_jones == "mueller":
-                if not hasattr(self, "mII"):
-                    self.mII = 0.0
-                if not hasattr(self, "mQI"):
-                    self.mQI = 0.0
-                if not hasattr(self, "mUI"):
-                    self.mUI = 0.0
-                if not hasattr(self, "mIQ"):
-                    self.mIQ = 0.0
-                if not hasattr(self, "mIU"):
-                    self.mIU = 0.0
-                if not hasattr(self, "mQQ"):
-                    self.mQQ = 0.0
-                if not hasattr(self, "mUU"):
-                    self.mUU = 0.0
-                if not hasattr(self, "mUQ"):
-                    self.mUQ = 0.0
-                if not hasattr(self, "mQU"):
-                    self.mQU = 0.0
+                default_attrs = {
+                    "mII": 0.0,
+                    "mQI": 0.0,
+                    "mUI": 0.0,
+                    "mIQ": 0.0,
+                    "mIU": 0.0,
+                    "mQQ": 0.0,
+                    "mUU": 0.0,
+                    "mUQ": 0.0,
+                    "mQU": 0.0,
+                }
+
+                for attr, default_value in default_attrs.items():
+                    if not hasattr(self, attr):
+                        setattr(self, attr, default_value)
 
             if np.any(maps) is None:
                 mbs = lbs.Mbs(
@@ -890,70 +982,108 @@ class HwpSys:
                 )
                 self.maps = mbs.run_all()[0][Channel.channel]
             else:
-                assert (
-                    hp.npix2nside(len(maps[0, :])) == self.nside
-                ), "wrong nside in the input map!"
                 self.maps = maps
                 del maps
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
                 if mueller_or_jones == "jones":
-                    self.h1s, self.h2s, self.betas, self.z1s, self.z2s = np.loadtxt(
-                        self.band_filename_solver,
-                        usecols=(1, 2, 3, 4, 5),
-                        unpack=True,
-                        skiprows=1,
-                    )
+                    try:
+                        (
+                            self.freqs_solver,
+                            self.h1s,
+                            self.h2s,
+                            self.betas,
+                            self.z1s,
+                            self.z2s,
+                        ) = np.loadtxt(
+                            self.band_filename_solver,
+                            dtype=complex,
+                            unpack=True,
+                            comments="#",
+                        )
+
+                        self.freqs_solver = np.array(self.freqs_solver, dtype=float)
+                        self.h1s = np.array(self.h1s, dtype=float)
+                        self.h2s = np.array(self.h2s, dtype=float)
+                        self.betas = np.array(self.betas, dtype=float)
+                        self.betas = np.deg2rad(self.betas)
+
+                    except Exception:
+                        print(
+                            "you have not provided a band_filename_solver"
+                            + "in the parameter file, or wrong number of columns!"
+                        )
+
                 else:  # mueller_or_jones == "mueller":
-                    (
-                        self.mIIs,
-                        self.mQIs,
-                        self.mUIs,
-                        self.mIQs,
-                        self.mIUs,
-                        self.mQQs,
-                        self.mUUs,
-                        self.mUQs,
-                        self.mQUs,
-                    ) = np.loadtxt(
-                        self.band_filename_solver,
-                        usecols=(1, 2, 3, 4, 5, 6, 7, 8, 9),
-                        unpack=True,
-                        skiprows=1,
+                    try:
+                        (
+                            self.freqs_solver,
+                            self.mIIs,
+                            self.mQIs,
+                            self.mUIs,
+                            self.mIQs,
+                            self.mIUs,
+                            self.mQQs,
+                            self.mUUs,
+                            self.mUQs,
+                            self.mQUs,
+                        ) = np.loadtxt(
+                            self.band_filename_solver,
+                            unpack=True,
+                            comments="#",
+                        )
+                    except Exception:
+                        print(
+                            "you have not provided a band_filename_solver"
+                            + "in the parameter file, or wrong number of columns!"
+                        )
+
+                if not self.bandpass_solver:
+                    self.cmb2bb_solver = _dBodTth(self.freqs_solver)
+
+                elif self.bandpass_solver:
+                    self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
+                        self.freqs_solver,
+                        self.bandpass_solver,
+                        self.include_beam_throughput,
                     )
+                    self.cmb2bb_solver = (
+                        _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
+                    )
+
+                self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
 
             else:
                 if mueller_or_jones == "jones":
-                    if not hasattr(self, "h1s"):
-                        self.h1s = 0.0
-                    if not hasattr(self, "h2s"):
-                        self.h2s = 0.0
-                    if not hasattr(self, "betas"):
-                        self.betas = 0.0
-                    if not hasattr(self, "z1s"):
-                        self.z1s = 0.0
-                    if not hasattr(self, "z2s"):
-                        self.z2s = 0.0
+                    default_attrs = {
+                        "h1s": 0.0,
+                        "h2s": 0.0,
+                        "betas": 0.0,
+                        "z1s": 0.0,
+                        "z2s": 0.0,
+                    }
+
+                for attr, default_value in default_attrs.items():
+                    if not hasattr(self, attr):
+                        setattr(self, attr, default_value)
+                    self.betas = np.deg2rad(self.betas)
                 else:  # mueller_or_jones == "mueller":
-                    if not hasattr(self, "mIIs"):
-                        self.mIIs = 0.0
-                    if not hasattr(self, "mQIs"):
-                        self.mQIs = 0.0
-                    if not hasattr(self, "mUIs"):
-                        self.mUIs = 0.0
-                    if not hasattr(self, "mIQs"):
-                        self.mIQs = 0.0
-                    if not hasattr(self, "mIUs"):
-                        self.mIUs = 0.0
-                    if not hasattr(self, "mQQs"):
-                        self.mQQs = 0.0
-                    if not hasattr(self, "mUUs"):
-                        self.mUUs = 0.0
-                    if not hasattr(self, "mUQs"):
-                        self.mUQs = 0.0
-                    if not hasattr(self, "mQUs"):
-                        self.mQUs = 0.0
+                    default_attrs = {
+                        "mIIs": 0.0,
+                        "mQIs": 0.0,
+                        "mUIs": 0.0,
+                        "mIQs": 0.0,
+                        "mIUs": 0.0,
+                        "mQQs": 0.0,
+                        "mUUs": 0.0,
+                        "mUQs": 0.0,
+                        "mQUs": 0.0,
+                    }
+
+                for attr, default_value in default_attrs.items():
+                    if not hasattr(self, attr):
+                        setattr(self, attr, default_value)
 
         # conversion from Jones to Mueller
         if mueller_or_jones == "jones":
@@ -971,164 +1101,220 @@ class HwpSys:
             ) = get_mueller_from_jones(
                 h1=self.h1, h2=self.h2, z1=self.z1, z2=self.z2, beta=self.beta
             )
-            del (self.h1, self.h2, self.z1, self.z2, self.beta)
+
             # Mueller terms of fixed HWP (single/multi freq), to fill A^TA and A^Td
-            (
-                self.mIIs,
-                self.mQIs,
-                self.mUIs,
-                self.mIQs,
-                self.mIUs,
-                self.mQQs,
-                self.mUUs,
-                self.mUQs,
-                self.mQUs,
-            ) = get_mueller_from_jones(
-                h1=self.h1s, h2=self.h2s, z1=self.z1s, z2=self.z2s, beta=self.betas
-            )
-            del (self.h1s, self.h2s, self.z1s, self.z2s, self.betas)
+            if self.correct_in_solver:
+                (
+                    self.mIIs,
+                    self.mQIs,
+                    self.mUIs,
+                    self.mIQs,
+                    self.mIUs,
+                    self.mQQs,
+                    self.mUUs,
+                    self.mUQs,
+                    self.mQUs,
+                ) = get_mueller_from_jones(
+                    h1=self.h1s, h2=self.h2s, z1=self.z1s, z2=self.z2s, beta=self.betas
+                )
 
     def fill_tod(
         self,
-        obs: Observation,
-        pointings: np.ndarray,
+        obs: Union[Observation, List[Observation]],
         hwp_radpsec: float,
+        pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+        save_tod: bool = False,
     ):
-        """It fills tod and/or A^TA and A^Td for the "on the fly" map production
+        r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
+        "on the fly" map production
         Args:
-            - obs class:`Observations`: container for tod.
+            obs class:`Observations`: container for tod.
                  If the tod is not required, obs.tod can be not allocated
                  i.e. in lbs.Observation allocate_tod=False.
-            - pointings (float): pointing for each sample and detector
+            pointings (float): pointing for each sample and detector
                  generated by func:lbs.get_pointings
-            - hwp_radpsec (float): hwp rotation speed in radiants per second
+                 Optional if already allocated in obs.
+                 When generating pointing information, set the variable
+                 `hwp` to None since the hwp rotation angle is added to
+                 the polarization angle within the `fill_tod` function.
+            hwp_radpsec (float): hwp rotation speed in radiants per second
+            save_tod (bool): if True, the `tod` is saved in `obs.tod`, if False,
+                 `tod` gets deleted
         """
 
-        times = obs.get_times()
-
-        if self.built_map_on_the_fly:
-            self.atd = np.zeros((self.npix, 3))
-            self.ata = np.zeros((self.npix, 3, 3))
-        else:
-            # allocate those for "make_binned_map"
-            # later filled
-            obs.psi = np.empty_like(obs.tod)
-            obs.pixind = np.empty_like(obs.tod, dtype=np.int)
-
-        for idet in range(obs.n_detectors):
-            cur_ptg, cur_psi = rotate_coordinates_e2g(
-                pointings[idet, :, 0:2], pointings[idet, :, 2]
-            )
-            # all observed pixels over time (for each sample), i.e. len(pix)==len(times)
-            pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
-            # theta = hwp_radpsec * times hwp: rotation angle
-            # xi: polarization angle, i.e. detector dependent
-            # psi: instrument angle, i.e. boresight angle
-            xi = compute_polang_from_detquat(obs.quat[idet])
-            psi = cur_psi - xi
-            del (cur_ptg, cur_psi)
-            tod = np.zeros(len(times))
-
-            if self.integrate_in_band:
-                integrate_inband_signal_for_one_detector(
-                    tod_det=tod,
-                    band=self.cmb2bb,
-                    mII=self.mII,
-                    mQI=self.mQI,
-                    mUI=self.mUI,
-                    mIQ=self.mIQ,
-                    mIU=self.mIU,
-                    mQQ=self.mQQ,
-                    mUU=self.mUU,
-                    mUQ=self.mUQ,
-                    mQU=self.mQU,
-                    pixel_ind=pix,
-                    theta=times * hwp_radpsec,
-                    psi=psi,
-                    xi=xi,
-                    maps=self.maps,
-                )
+        if pointings is None:
+            if isinstance(obs, Observation):
+                obs_list = [obs]
+                ptg_list = [obs.pointings]
+                psi_list = [obs.psi]
             else:
-                compute_signal_for_one_detector(
-                    tod_det=tod,
-                    mII=self.mII,
-                    mQI=self.mQI,
-                    mUI=self.mUI,
-                    mIQ=self.mIQ,
-                    mIU=self.mIU,
-                    mQQ=self.mQQ,
-                    mUU=self.mUU,
-                    mUQ=self.mUQ,
-                    mQU=self.mQU,
-                    pixel_ind=pix,
-                    theta=times * hwp_radpsec,
-                    psi=psi,
-                    xi=xi,
-                    maps=self.maps,
+                obs_list = obs
+                ptg_list = [ob.pointings for ob in obs]
+                psi_list = [ob.psi for ob in obs]
+        else:
+            if isinstance(obs, Observation):
+                assert isinstance(pointings, np.ndarray), (
+                    "You must pass a list of observations *and* a list "
+                    + "of pointing matrices to scan_map_in_observations"
                 )
+                obs_list = [obs]
+                ptg_list = [pointings[:, :, 0:2]]
+                psi_list = [pointings[:, :, 2]]
+            else:
+                assert isinstance(pointings, list), (
+                    "When you pass a list of observations to scan_map_in_observations, "
+                    + "you must do the same for `pointings`"
+                )
+                assert len(obs) == len(pointings), (
+                    f"The list of observations has {len(obs)} elements, but "
+                    + f"the list of pointings has {len(pointings)} elements"
+                )
+                obs_list = obs
+                ptg_list = [point[:, :, 0:2] for point in pointings]
+                psi_list = [point[:, :, 2] for point in pointings]
+
+        for cur_obs, cur_point, cur_Psi in zip(obs_list, ptg_list, psi_list):
+            times = cur_obs.get_times()
 
             if self.built_map_on_the_fly:
-                if self.correct_in_solver:
-                    if self.integrate_in_band_solver:
-                        integrate_inband_atd_ata_for_one_detector(
-                            atd=self.atd,
-                            ata=self.ata,
-                            tod=tod,
-                            band=self.cmb2bb,
-                            mIIs=self.mIIs,
-                            mQIs=self.mQIs,
-                            mUIs=self.mUIs,
-                            mIQs=self.mIQs,
-                            mIUs=self.mIUs,
-                            mQQs=self.mQQs,
-                            mUUs=self.mUUs,
-                            mUQs=self.mUQs,
-                            mQUs=self.mQUs,
-                            pixel_ind=pix,
-                            theta=times * hwp_radpsec,
-                            psi=psi,
-                            xi=xi,
-                        )
-                    else:
-                        compute_atd_ata_for_one_detector(
-                            atd=self.atd,
-                            ata=self.ata,
-                            tod=tod,
-                            mIIs=self.mIIs,
-                            mQIs=self.mQIs,
-                            mUIs=self.mUIs,
-                            mIQs=self.mIQs,
-                            mIUs=self.mIUs,
-                            mQQs=self.mQQs,
-                            mUUs=self.mUUs,
-                            mUQs=self.mUQs,
-                            mQUs=self.mQUs,
-                            pixel_ind=pix,
-                            theta=times * hwp_radpsec,
-                            psi=psi,
-                            xi=xi,
-                        )
-                else:
-                    # re-use ca and sa, factor 4 included here
-                    ca = np.cos(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
-                    sa = np.sin(2 * pointings[idet, :, 2] + 4 * times * hwp_radpsec)
-
-                    self.atd[pix, 0] += tod * 0.5
-                    self.atd[pix, 1] += tod * ca * 0.5
-                    self.atd[pix, 2] += tod * sa * 0.5
-
-                    self.ata[pix, 0, 0] += 0.25
-                    self.ata[pix, 1, 0] += 0.25 * ca
-                    self.ata[pix, 2, 0] += 0.25 * sa
-                    self.ata[pix, 1, 1] += 0.25 * ca * ca
-                    self.ata[pix, 2, 1] += 0.25 * ca * sa
-                    self.ata[pix, 2, 2] += 0.25 * sa * sa
-                    del (ca, sa)
+                self.atd = np.zeros((self.npix, 3))
+                self.ata = np.zeros((self.npix, 3, 3))
             else:
-                obs.psi[idet, :] = pointings[idet, :, 2] + 2 * times * hwp_radpsec
-                obs.pixind[idet, :] = pix
+                # allocate those for "make_binned_map"
+                # later filled
+                cur_obs.psi = np.empty_like(cur_obs.tod)
+                cur_obs.pixind = np.empty_like(cur_obs.tod, dtype=int)
 
-        del (tod, pix, xi, psi, times, self.maps)
+            for idet in range(cur_obs.n_detectors):
+                # rotating pointing from ecliptic to galactic as the input map
+                cur_ptg, cur_psi = rotate_coordinates_e2g(
+                    cur_point[idet, :, :], cur_Psi[idet, :]
+                )
+                # all observed pixels over time (for each sample),
+                # i.e. len(pix)==len(times)
+                pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
+
+                # separating polarization angle xi from obs.psi = psi + xi
+                # theta = hwp_radpsec * times hwp: rotation angle
+                # xi: polarization angle, i.e. detector dependent
+                # psi: instrument angle, i.e. boresight angle
+                xi = compute_polang_from_detquat(cur_obs.quat[idet])
+                psi = cur_psi - xi
+                del cur_ptg
+                tod = cur_obs.tod[idet, :]
+
+                if self.integrate_in_band:
+                    integrate_inband_signal_for_one_detector(
+                        tod_det=tod,
+                        freqs=self.freqs,
+                        band=self.cmb2bb,
+                        mII=self.mII,
+                        mQI=self.mQI,
+                        mUI=self.mUI,
+                        mIQ=self.mIQ,
+                        mIU=self.mIU,
+                        mQQ=self.mQQ,
+                        mUU=self.mUU,
+                        mUQ=self.mUQ,
+                        mQU=self.mQU,
+                        pixel_ind=pix,
+                        theta=times * hwp_radpsec,
+                        psi=psi,
+                        xi=xi,
+                        maps=self.maps,
+                    )
+                else:
+                    compute_signal_for_one_detector(
+                        tod_det=tod,
+                        mII=self.mII,
+                        mQI=self.mQI,
+                        mUI=self.mUI,
+                        mIQ=self.mIQ,
+                        mIU=self.mIU,
+                        mQQ=self.mQQ,
+                        mUU=self.mUU,
+                        mUQ=self.mUQ,
+                        mQU=self.mQU,
+                        pixel_ind=pix,
+                        theta=times * hwp_radpsec,
+                        psi=psi,
+                        xi=xi,
+                        maps=self.maps,
+                    )
+
+                if self.built_map_on_the_fly:
+                    if self.correct_in_solver:
+                        if self.integrate_in_band_solver:
+                            integrate_inband_atd_ata_for_one_detector(
+                                atd=self.atd,
+                                ata=self.ata,
+                                tod=tod,
+                                freqs=self.freqs_solver,
+                                band=self.cmb2bb_solver,
+                                mIIs=self.mIIs,
+                                mQIs=self.mQIs,
+                                mUIs=self.mUIs,
+                                mIQs=self.mIQs,
+                                mIUs=self.mIUs,
+                                mQQs=self.mQQs,
+                                mUUs=self.mUUs,
+                                mUQs=self.mUQs,
+                                mQUs=self.mQUs,
+                                pixel_ind=pix,
+                                theta=times * hwp_radpsec,
+                                psi=psi,
+                                xi=xi,
+                            )
+                        else:
+                            compute_atd_ata_for_one_detector(
+                                atd=self.atd,
+                                ata=self.ata,
+                                tod=tod,
+                                mIIs=self.mIIs,
+                                mQIs=self.mQIs,
+                                mUIs=self.mUIs,
+                                mIQs=self.mIQs,
+                                mIUs=self.mIUs,
+                                mQQs=self.mQQs,
+                                mUUs=self.mUUs,
+                                mUQs=self.mUQs,
+                                mQUs=self.mQUs,
+                                pixel_ind=pix,
+                                theta=times * hwp_radpsec,
+                                psi=psi,
+                                xi=xi,
+                            )
+
+                    else:
+                        # in this case factor 4 included here
+                        ca = np.cos(2 * cur_psi + 4 * times * hwp_radpsec)
+                        sa = np.sin(2 * cur_psi + 4 * times * hwp_radpsec)
+
+                        self.atd[pix, 0] += tod * 0.5
+                        self.atd[pix, 1] += tod * ca * 0.5
+                        self.atd[pix, 2] += tod * sa * 0.5
+
+                        self.ata[pix, 0, 0] += 0.25
+                        self.ata[pix, 1, 0] += 0.25 * ca
+                        self.ata[pix, 2, 0] += 0.25 * sa
+                        self.ata[pix, 1, 1] += 0.25 * ca * ca
+                        self.ata[pix, 2, 1] += 0.25 * ca * sa
+                        self.ata[pix, 2, 2] += 0.25 * sa * sa
+                        del (ca, sa)
+
+                    # del tod
+
+                else:
+                    # this fills variables needed by bin_map
+                    cur_obs.psi[idet, :] = np.array(
+                        cur_psi + 2 * times * hwp_radpsec, dtype=np.float32
+                    )
+                    cur_obs.pixind[idet, :] = pix
+
+        del (pix, xi, psi, times, self.maps)  # tod
+        if not save_tod:
+            del tod
+
         del (
             self.mII,
             self.mQI,
@@ -1140,17 +1326,19 @@ class HwpSys:
             self.mUQ,
             self.mQU,
         )
-        del (
-            self.mIIs,
-            self.mQIs,
-            self.mUIs,
-            self.mIQs,
-            self.mIUs,
-            self.mQQs,
-            self.mUUs,
-            self.mUQs,
-            self.mQUs,
-        )
+        if self.correct_in_solver:
+            del (
+                self.mIIs,
+                self.mQIs,
+                self.mUIs,
+                self.mIQs,
+                self.mIUs,
+                self.mQQs,
+                self.mUUs,
+                self.mUQs,
+                self.mQUs,
+            )
+
         return
 
     def make_map(self, obss):
