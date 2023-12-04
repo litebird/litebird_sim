@@ -85,7 +85,7 @@ def test_hwp_sys():
 
     filepath = (
         os.path.dirname(__file__).strip("test")
-        + "litebird_sim/out_of_band_analysis/examples/MFT_100_h_beta_z.txt"
+        + "litebird_sim/hwp_sys/examples/MFT_100_h_beta_z.txt"
     )
     mft = np.loadtxt(filepath)
 
