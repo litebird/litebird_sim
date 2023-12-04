@@ -37,7 +37,6 @@ from .imo import (
     ImoFlatFile,
 )
 from .hwp_sys.hwp_sys import HwpSys
-from .out_of_band_analysis.out_of_band_analysis import HwpSysAndBandpass
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
