@@ -37,18 +37,18 @@ class BandPassInfo:
         - bandwidth_ghz (float):  width of the band (default=0.)
 
         - bandlow_ghz (float): lower frequency to sample the band
-        (default: bandcenter_ghz - bandwidth_ghz)
+          (default: bandcenter_ghz - bandwidth_ghz)
 
         - bandhigh_ghz (float): higher frequency to sample the band
-        (default: bandcenter_ghz + bandwidth_ghz)
+          (default: bandcenter_ghz + bandwidth_ghz)
 
         - nsamples_inband (int): number of elements to sample the band
-        (default=128)
+          (default=128)
 
         - name (str) : ID of the band
 
         - normalize(bool) : If set to true bandpass weights will be
-        normalized to 1
+          normalized to 1
 
         - bandtype (str): a string describing the band profile. It can be
           one of the following:
@@ -64,14 +64,13 @@ class BandPassInfo:
             - ``cheby``: the bandpass encodes a Chebyshev profile
 
         - alpha_exp (float): out-of-band exponential decay index for
-        low freq edge.
+          low freq edge.
 
         - beta_exp (float) : out-of-band exponential decay index for
-        high freq edge
+          high freq edge
 
         - cosine_apo_length (int): the numerical factor related to
-        the cosine
-            apodization length
+          the cosine apodization length
 
         - cheby_poly_order (int): chebyshev filter order.
 
@@ -289,15 +288,15 @@ class BandPassInfo:
         Args :
 
         - `bstrap_size` (int): encodes the size of the random dataset
-            to be generated from the Sampler
+           to be generated from the Sampler
 
         - `nresample` (int): define how fine is the grid for the
-        resampled bandpass
+           resampled bandpass
 
         - `model` (BandPassInfo.model): We can resample from a model previously
-            constructed with this function. The default value is set to ``None``:
-            in this case, it initializes the bandpass sampler with the model set
-            in the class instance (recommended use).
+           constructed with this function. The default value is set to ``None``:
+           in this case, it initializes the bandpass sampler with the model set
+           in the class instance (recommended use).
         """
 
         if model is not None:
