@@ -36,12 +36,12 @@ class BandPassInfo:
 
         - bandwidth_ghz (float):  width of the band (default=0.)
 
-        - bandlow_ghz (float): lowest frequency extrema to sample the band,
-          i.e. the first element of the array of the considered frequencies
+        - bandlow_ghz (float): lowest frequency to sample the band,
+          i.e. the first element of the frequency array considered
           (default: bandcenter_ghz - bandwidth_ghz)
 
-        - bandhigh_ghz (float): highest frequency extrema to sample the band,
-          i.e. the last element of the array of the considered frequencies
+        - bandhigh_ghz (float): highest frequency to sample the band,
+          i.e. the last element of frequency array considered
           (default: bandcenter_ghz + bandwidth_ghz)
 
         - nsamples_inband (int): number of elements to sample the band
@@ -115,7 +115,8 @@ class BandPassInfo:
         self.freqs_ghz = np.linspace(
             self.bandlow_ghz, self.bandhigh_ghz, self.nsamples_inband
         )
-        if self.bandlow_ghz > self.f0 or self.bandhigh_ghz < self.f1:
+        # checking that the bandpass edges lie within the freq range
+        if self.bandlow_ghz > self.f0 or self.bandhigh_ghz < self.f1 - 1:
             raise ValueError("The bandpass is out of the frequency range")
 
         self.isnormalized = False

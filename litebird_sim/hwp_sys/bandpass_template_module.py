@@ -98,6 +98,23 @@ def bandpass_profile(
     bandpass: Union[dict, None] = None,
     include_beam_throughput: Union[bool, None] = None,
 ):
+    r"""
+    Returns the bandpass profile either reading it from a file or
+    computing it through the class `BandPassInfo`
+
+    Args:
+      freqs (np.array): the array of frequencies considered
+      bandpass (dict): dictionary with either the key "bandpass_file"
+      pointing to a txt file with a column of freqs and a column of
+      bandpass profile (attention: the frequencies read from the file
+      have to coincide with the input array `freqs`) or with a key
+      "band_type" (same naming convention as `bandtype` in `BandPassInfo`).
+      In the second case, you should also define the edges of the bandpass,
+      `band_high_edge` and `band_low_edge`, that would otherwise be set to
+      the lowest and highest value of `freqs`.
+      include_beam_throughput (bool): if True, divides by :math:$\nu^2$
+    """
+
     profile = np.ones_like(freqs)
 
     if "bandpass_file" in bandpass.keys():
@@ -125,7 +142,7 @@ def bandpass_profile(
         if "normalize" not in bandpass.keys():
             bandpass["normalize"] = False
         if not bandpass["band_high_edge"] and bandpass["band_low_edge"]:
-            bandpass["band_high_edge"] = freqs[-1]
+            bandpass["band_high_edge"] = freqs[-1] + 1
             bandpass["band_low_edge"] = freqs[0]
             raise Warning(
                 "band edges not defined,\
