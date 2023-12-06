@@ -36,10 +36,12 @@ class BandPassInfo:
 
         - bandwidth_ghz (float):  width of the band (default=0.)
 
-        - bandlow_ghz (float): lower frequency to sample the band
+        - bandlow_ghz (float): lowest frequency extrema to sample the band,
+          i.e. the first element of the array of the considered frequencies
           (default: bandcenter_ghz - bandwidth_ghz)
 
-        - bandhigh_ghz (float): higher frequency to sample the band
+        - bandhigh_ghz (float): highest frequency extrema to sample the band,
+          i.e. the last element of the array of the considered frequencies
           (default: bandcenter_ghz + bandwidth_ghz)
 
         - nsamples_inband (int): number of elements to sample the band
@@ -79,8 +81,8 @@ class BandPassInfo:
 
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
-    bandlow_ghz: float = 0.0
-    bandhigh_ghz: float = 0.0
+    bandlow_ghz: Union[float, None] = None
+    bandhigh_ghz: Union[float, None] = None
     nsamples_inband: int = 128
     name: str = ""
     bandtype: str = "top-hat"
@@ -98,17 +100,24 @@ class BandPassInfo:
         Constructor of the class
 
         """
-
+        if self.bandcenter_ghz <= 0.0:
+            raise ValueError(
+                "The band center must be strictly positive, \
+                assign a value to bandcenter_ghz > 0.0"
+            )
         self.f0, self.f1 = self.get_edges()
         # we extend the wings out-of-band of the top-hat bandpass
-        # before  and after the edges
-        if self.bandlow_ghz == 0.0:
+        # before and after the edges
+        if not self.bandlow_ghz:
             self.bandlow_ghz = self.bandcenter_ghz - self.bandwidth_ghz
-        if self.bandhigh_ghz == 0.0:
+        if not self.bandhigh_ghz:
             self.bandhigh_ghz = self.bandcenter_ghz + self.bandwidth_ghz
         self.freqs_ghz = np.linspace(
             self.bandlow_ghz, self.bandhigh_ghz, self.nsamples_inband
         )
+        if self.bandlow_ghz > self.f0 or self.bandhigh_ghz < self.f1:
+            raise ValueError("The bandpass is out of the frequency range")
+
         self.isnormalized = False
         if self.bandtype == "top-hat":
             self._get_top_hat_bandpass(normalize=self.normalize)
@@ -119,9 +128,7 @@ class BandPassInfo:
         elif self.bandtype == "cheby":
             self._get_chebyshev_bandpass(normalize=self.normalize)
         else:
-            logging.warning(
-                f"{self.bandtype} profile not implemented." + "Assume top-hat"
-            )
+            logging.warning(f"{self.bandtype} profile not implemented. Assume top-hat")
             self._get_top_hat_bandpass(normalize=self.normalize)
 
     def get_edges(self):
