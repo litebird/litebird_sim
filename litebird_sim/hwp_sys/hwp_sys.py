@@ -3,6 +3,7 @@ import litebird_sim as lbs
 from numba import njit
 import numpy as np
 import healpy as hp
+import logging
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from litebird_sim import mpi
@@ -89,7 +90,7 @@ def JonesToMueller(jones):
             # does not yield any imaginary components.
             # Mueller-matrix elements should be real.
             if np.imag(Mij) > 1e-9:
-                print("Discarding the unnecessary imaginary part!")
+                logging.warning("Discarding the unnecessary imaginary part!")
 
             mueller[i, j] += np.real(Mij)
     return mueller
