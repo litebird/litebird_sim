@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from abc import ABC, abstractmethod
-from typing import Union, Optional, List
+from typing import Union
 from uuid import UUID
 
 from astropy.coordinates import ICRS, get_body_barycentric
@@ -13,7 +13,6 @@ import numpy as np
 from ducc0.pointingprovider import PointingProvider
 
 from .coordinates import DEFAULT_COORDINATE_SYSTEM
-from .hwp import HWP
 from .imo import Imo
 
 from .quaternions import (

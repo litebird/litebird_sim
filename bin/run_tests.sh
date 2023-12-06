@@ -3,10 +3,10 @@
 set -o errexit
 
 # Verify that the code is properly formatted
-black --check --diff .
+ruff format --diff .
 
 # Check for common errors
-python3 -m flake8
+ruff check .
 
 # Run the test suite
 python3 -m pytest -vv

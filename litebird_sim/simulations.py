@@ -1279,7 +1279,7 @@ class Simulation:
             template_file_path = get_template_file_path("report_scan_map.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
-            if type(maps) is dict:
+            if isinstance(maps, dict):
                 if "Mbs_parameters" in maps.keys():
                     if maps["Mbs_parameters"].make_fg:
                         fg_model = maps["Mbs_parameters"].fg_models

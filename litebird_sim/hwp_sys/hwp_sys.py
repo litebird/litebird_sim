@@ -5,7 +5,7 @@ import healpy as hp
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from litebird_sim import mpi
-from typing import Union, List
+from typing import Union
 from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation

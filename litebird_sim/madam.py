@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Optional, List, Dict, Any, Tuple
+from typing import Union, Optional, List, Dict, Any
 
 from astropy.io import fits
 from astropy.time import Time as AstroTime
@@ -12,7 +12,6 @@ import litebird_sim
 from . import DetectorInfo
 from .coordinates import CoordinateSystem
 from .mapmaking import ExternalDestriperParameters
-from .mpi import MPI_COMM_WORLD
 from .observations import Observation
 from .simulations import Simulation, MpiDistributionDescr
 
