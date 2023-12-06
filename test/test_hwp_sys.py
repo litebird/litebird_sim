@@ -2,6 +2,7 @@ import litebird_sim as lbs
 import numpy as np
 import healpy as hp
 from astropy.time import Time
+from pathlib import Path
 import os
 
 
@@ -83,9 +84,12 @@ def test_hwp_sys():
         store_pointings_in_obs=True,
     )
 
-    filepath = (
-        os.path.dirname(__file__).strip("test")
-        + "litebird_sim/hwp_sys/examples/MFT_100_h_beta_z.txt"
+    filepath = str(
+        Path(__file__).parent.parent
+        / "litebird_sim"
+        / "hwp_sys"
+        / "examples"
+        / "MFT_100_h_beta_z.txt"
     )
     mft = np.loadtxt(filepath)
 
