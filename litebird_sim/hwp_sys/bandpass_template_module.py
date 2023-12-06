@@ -124,6 +124,13 @@ def bandpass_profile(
             bandpass["band_ripple_dB"] = 3
         if "normalize" not in bandpass.keys():
             bandpass["normalize"] = False
+        if not bandpass["band_high_edge"] and bandpass["band_low_edge"]:
+            bandpass["band_high_edge"] = freqs[-1]
+            bandpass["band_low_edge"] = freqs[0]
+            raise Warning(
+                "band edges not defined,\
+                          assigned to lowest and highest frequency"
+            )
 
         bandclass = BandPassInfo(
             bandcenter_ghz=bandpass["bandcenter_ghz"],
@@ -142,6 +149,12 @@ def bandpass_profile(
 
         freqs = bandclass.freqs_ghz
         profile = bandclass.weights
+    else:
+        raise ValueError(
+            "bandpass not defined, \
+                         assign bandpass_file or \
+                         band_type in bandpass dict"
+        )
 
     if (
         "band_high_freq_leak" in bandpass.keys()
