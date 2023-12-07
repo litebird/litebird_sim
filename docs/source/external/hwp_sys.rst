@@ -86,7 +86,8 @@ It defines three methods:
 
 *  :meth:`.hwp_sys.HwpSys.make_map` which can bin the observations in a map. This is available only
    if ``built_map_on_the_fly`` variable is set to ``True``. With this method, it is possible to 
-   include non-ideal HWP knowledge in the map-making procedure.
+   include non-ideal HWP knowledge in the map-making procedure, so use that instead of the general
+   ``litebird_sim`` binner if you want to do so.
 
 Defining a bandpass profile in ``hwp_sys``
 ------------------------------------------
@@ -161,6 +162,7 @@ HWP_sys
     :members:
     :show-inheritance:
     :private-members:
+    :member-order: bysource
 
 Bandpass template
 ~~~~~~~~~~~~~~~~~
@@ -169,4 +171,4 @@ Bandpass template
     :members:
     :show-inheritance:
     :private-members:
-
+    :member-order: bysource
