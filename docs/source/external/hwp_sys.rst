@@ -3,6 +3,7 @@
 HWP_sys
 =======
 
+
 This module implements HWP non-idealities both using Jones formalism (as 
 described in `Giardiello et al. 2021 <https://arxiv.org/abs/2106.08031>`_) and the Mueller one. In
 the Jones formalism, a non-ideal HWP is described by
@@ -57,7 +58,7 @@ It defines three methods:
    computation; if ``built_map_on_the_fly = True``, the map-making can be performed internally
    (instead of using the litebird_sim binner); ``correct_in_solver`` sets whether non-ideal 
    parameters can be used in the map-making (map-making assuming a non-ideal HWP, generally using 
-   different HWP non-ideal parameters thatn the one used in the TOD, representing our estimate of
+   different HWP non-ideal parameters than the one used in the TOD, representing our estimate of
    their true value); ``integrate_in_band_solver`` regulates whether band integration is performed
    in the map-making (to compute the :math:`B^T B` and :math:`B^T d` terms, see below).  
 
@@ -87,10 +88,85 @@ It defines three methods:
    if ``built_map_on_the_fly`` variable is set to ``True``. With this method, it is possible to 
    include non-ideal HWP knowledge in the map-making procedure.
 
+Defining a bandpass profile in ``hwp_sys``
+------------------------------------------
+
+It is possible to define more complex bandpass profiles than a top-hat when using ``hwp_sys``.
+This can be done both for the TOD computation (:math:`\tau`) and the map-making procedure
+(:math:`\tau_s`). All you have to do is create a dictionary with key "hwp_sys" in the parameter
+file (a toml file) assigned to the simulation:
+
+.. code-block:: python
+
+  sim = lbs.Simulation(
+      parameter_file=toml_filename,
+      random_seed=0,
+   ) 
+ 
+The dictionary under the key "hwp_sys" will also contain the paths to the files from which the HWP 
+parameters are read in the multifrequency case (under the keys "band_filename/band_filename_solver"), or their values in the single frequency one. See the notebook ``hwp_sys/examples/simple_scan`` 
+for more details.
+To define the bandpasses to use, you need to have a dictionary with key "bandpass" 
+(for :math:`\tau`) or "bandpass_solver" (for :math:`\tau_s`) under "hwp_sys":
+
+.. code-block:: python
+
+  paramdict = {...
+                "hwp_sys": {...
+                   "band_filename": path_to_HWP_param_file,
+                   "band_filename_solver": path_to_HWP_solver_param_file,
+                   "bandpass": {"band_type": "cheby",
+                                "band_low_edge": band_low_edge,
+                                "band_high_edge": band_high_edge,
+                                "bandcenter_ghz": bandcenter_ghz,
+                                "band_ripple_dB": ripple_dB_tod,
+                                "band_order": args.order_tod},
+                   "bandpass_solver": {...},
+                 ...}}
+
+The above example is for a bandpass with Chebyshev filter, but there are other parameters to define
+different bandpass profile. It is important to define the "band_type", which can be "top-hat", 
+"top-hat-exp", "top-hat-cosine" and "cheby" (see the ``bandpass`` module for more details) 
+and the band edges, which define the frequency range over which the bandpass transmission 
+is close or equal to 1. If not assigned, the "band_type" is automatically set to "top-hat" 
+and the band edges will correspond to the limits of the frequency array used (which, in the
+``hwp_sys`` module, is read from the HWP parameter files). There are default values also for 
+the parameters defining the specific bandpass profiles (see the 
+``hwp_sys/hwp_sys/bandpass_template_module`` code).
+
+There is also the possibility to read the bandpass profile from an external file, which has to be
+a .txt file with two columns, the frequency and the bandpass transmission. It is important that the
+frequency array used for "bandpass/bandpass_solver" coincides with the ones passed in the 
+"band_filename/band_filename_solver" file. Here is how to pass the bandpass file:
+
+.. code-block:: python
+
+  paramdict = {...
+                "hwp_sys": {...
+                   "band_filename": path_to_HWP_param_file,
+                   "band_filename_solver": path_to_HWP_solver_param_file,
+                   "bandpass": {"bandpass_file": path_to_bandpass_file },
+                   "bandpass_solver": {"bandpass_file": path_to_bandpass_solver_file},
+                 ...}}
+
+You can find more examples for the bandpass construction in the ``hwp_sys/examples/simple_scan`` notebook.
+ 
 API reference
 -------------
+
+HWP_sys
+~~~~~~~
 
 .. automodule:: litebird_sim.hwp_sys.hwp_sys
     :members:
     :show-inheritance:
     :private-members:
+
+Bandpass template
+~~~~~~~~~~~~~~~~~
+
+.. automodule:: litebird_sim.hwp_sys.bandpass_template_module
+    :members:
+    :show-inheritance:
+    :private-members:
+

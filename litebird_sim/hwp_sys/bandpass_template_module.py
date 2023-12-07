@@ -3,18 +3,21 @@ import numpy as np
 from typing import Union, List
 from scipy import signal
 from litebird_sim import BandPassInfo
+import logging
 
 
 # Chebyshev profile lowpass
-def lowpass_chebyshev(freqs, f0, order=1, ripple_dB=1):
+def lowpass_chebyshev(freqs, f0, order=3, ripple_dB=0.2):
     """Define a lowpass with chebyshev prototype
-    freqs: frequency in GHz
-    f0: low-frequency edge of the band in GHz
-    order: chebyshev filter order
-    ripple_dB: maximum ripple amplitude in decibels
 
-    If order and ripple_dB are not specified a value of 3 is used for both.
+    Args:
+      freqs (np.array): frequency in GHz
+      f0 (float): low-frequency edge of the band in GHz
+      order (float): chebyshev filter order (default: 3)
+      ripple_dB (float): maximum ripple amplitude in decibels (default: 0.2)
 
+    Returns:
+      The bandpass transmission
     """
     b, a = signal.cheby1(
         order, ripple_dB, 2.0 * np.pi * f0 * 1e9, "lowpass", analog=True
@@ -29,9 +32,13 @@ def lowpass_chebyshev(freqs, f0, order=1, ripple_dB=1):
 # Find effective central frequency of a bandpass profile
 def find_central_frequency(freqs, bandpass):
     """Find the effective central frequency of
-    a bandpass profile as defined in https://arxiv.org/abs/1303.5070
-    freqs: frequency in GHz
-    bandpass: transmission profile
+     a bandpass profile as defined in https://arxiv.org/abs/1303.5070
+
+    Args:
+      freqs (np.array): frequency in GHz
+      bandpass (np.array): transmission profile
+    Returns:
+      central frequency
     """
     df = freqs[1] - freqs[0]
 
@@ -43,15 +50,17 @@ def find_central_frequency(freqs, bandpass):
 # Add high frequency leakage to a bandpass profile
 def add_high_frequency_transmission(freqs, bandpass, location=3, transmission=0.5):
     """Add high frequency leakage
-    freqs: frequency in GHz
-    bandpass: transmission profile
-    location: multiple of the central frequency of the bandpass profile
-    where add the leakage
-    transmission: relative amplitude of the high frequency leakage
-    with respect to the nominal band
 
-    If location and transmission are not specified a value of 3
-    and 0.5 are set by default.
+    Args:
+      freqs (np.array): frequency in GHz
+      bandpass (np.array): transmission profile
+      location (float): multiple of the central frequency of the bandpass profile
+        where add the leakage (default: 3)
+      transmission (float): relative amplitude of the high frequency leakage
+        with respect to the nominal band (default: 0.5)
+
+    Returns:
+      Frequency range and bandpass transmission
     """
 
     df = freqs[1] - freqs[0]
@@ -86,8 +95,13 @@ def add_high_frequency_transmission(freqs, bandpass, location=3, transmission=0.
 
 # Beam throughput
 def beam_throughtput(freqs):
-    """Beam throughtput factor
-    freqs: frequency in GHz
+    r"""Beam throughtput factor
+
+    Args:
+      freqs (np.array): frequency in GHz
+
+    Returns:
+      :math:`1/\nu^2`
     """
     return 1.0 / freqs / freqs / 1.0e9 / 1.0e9
 
@@ -105,14 +119,17 @@ def bandpass_profile(
     Args:
       freqs (np.array): the array of frequencies considered
       bandpass (dict): dictionary with either the key "bandpass_file"
-      pointing to a txt file with a column of freqs and a column of
-      bandpass profile (attention: the frequencies read from the file
-      have to coincide with the input array `freqs`) or with a key
-      "band_type" (same naming convention as `bandtype` in `BandPassInfo`).
-      In the second case, you should also define the edges of the bandpass,
-      `band_high_edge` and `band_low_edge`, that would otherwise be set to
-      the lowest and highest value of `freqs`.
-      include_beam_throughput (bool): if True, divides by :math:$\nu^2$
+       pointing to a txt file with a column of freqs and a column of
+       bandpass profile (attention: the frequencies read from the file
+       have to coincide with the input array `freqs`) or with a key
+       "band_type" (same naming convention as `bandtype` in `BandPassInfo`).
+       In the second case, you should also define the edges of the bandpass,
+       `band_high_edge` and `band_low_edge`, that would otherwise be set to
+       the lowest and highest value of `freqs`.
+      include_beam_throughput (bool): if True, divides by :math:`\nu^2`
+
+    Returns:
+      Array of frequency range (same as `freqs`) and bandpass profile
     """
 
     profile = np.ones_like(freqs)
@@ -138,15 +155,20 @@ def bandpass_profile(
         if "band_order" not in bandpass.keys():
             bandpass["band_order"] = 3
         if "band_ripple_dB" not in bandpass.keys():
-            bandpass["band_ripple_dB"] = 3
+            bandpass["band_ripple_dB"] = 0.2
         if "normalize" not in bandpass.keys():
             bandpass["normalize"] = False
-        if not bandpass["band_high_edge"] and bandpass["band_low_edge"]:
-            bandpass["band_high_edge"] = freqs[-1] + 1
+        if "band_high_edge" not in bandpass.keys():
+            bandpass["band_high_edge"] = freqs[-1]
+            logging.warning(
+                "high band edge not defined,\
+                          assigned to highest frequency"
+            )
+        if "band_low_edge" not in bandpass.keys():
             bandpass["band_low_edge"] = freqs[0]
-            raise Warning(
-                "band edges not defined,\
-                          assigned to lowest and highest frequency"
+            logging.warning(
+                "low band edge not defined,\
+                          assigned to lowest frequency"
             )
 
         bandclass = BandPassInfo(
