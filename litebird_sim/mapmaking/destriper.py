@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
-from numba import njit
+from numba import njit, prange
 import healpy as hp
 
 from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
@@ -99,7 +99,7 @@ def split_items_evenly(n: int, sub_n: int) -> List[int]:
     return _split_items_into_n_segments(n=n, num_of_segments=int(np.ceil(n / sub_n)))
 
 
-@njit
+@njit(parallel=True)
 def _get_invnpp(
     nobs_matrix_cholesky: npt.NDArray,
     valid_pixel: npt.ArrayLike,
@@ -389,7 +389,7 @@ def _accumulate_nobs_matrix(
             cur_matrix[5] += sin_over_sigma * sin_over_sigma
 
 
-@njit
+@njit(parallel=True)
 def _nobs_matrix_to_cholesky(
     nobs_matrix: npt.ArrayLike,  # Shape: (N_pix, 6)
     dest_valid_pixel: npt.ArrayLike,  # Shape: (N_pix,)
@@ -398,7 +398,7 @@ def _nobs_matrix_to_cholesky(
     """Apply `cholesky` iteratively on all the input maps in `nobs_matrix`
     and save each result in `nobs_matrix_cholesky`"""
 
-    for pixel_idx in range(nobs_matrix.shape[0]):
+    for pixel_idx in prange(nobs_matrix.shape[0]):
         cur_nobs_matrix = nobs_matrix[pixel_idx]
         (cond_number, flag) = estimate_cond_number(
             a00=cur_nobs_matrix[0],
