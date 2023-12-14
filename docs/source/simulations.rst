@@ -128,6 +128,12 @@ parameters in the section named ``simulation`` are the following:
   value ensures the reproducibility of the results obtained with random
   numbers; by passing ``None`` there will not be the possibility to
   re-obtain the same outputs. You can find more details in :ref:`random-numbers`.
+- ``numba_num_of_threads``: number of threads used by Numba when running
+  a parallel calculation.
+- ``numba_threading_layer``: the multi-threading library to be used by
+  Numba for parallel computations. See the `Numba user's manual
+  <https://numba.readthedocs.io/en/stable/user/threading-layer.html>`_ to
+  check which choices are available.
 
 These parameters can be used instead of the keywords in the
 constructor of the :class:`.Simulation` class. Consider the following
@@ -140,6 +146,8 @@ code::
       name="My simulation",
       description="A long description should be put here",
       random_seed=12345,
+      numba_num_of_threads=4,
+      numba_threading_layer="workqueue",
   )
 
 You can achieve the same if you create a TOML file named ``foo.toml``
@@ -154,6 +162,8 @@ that contains the following lines:
    name = "My simulation"
    description = "A long description should be put here"
    random_seed = 12345
+   numba_num_of_threads = 4
+   numba_threading_layer = "workqueue"
 
 and then you initialize the `sim` variable in your Python code as
 follows::

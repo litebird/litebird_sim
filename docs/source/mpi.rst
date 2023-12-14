@@ -1,7 +1,94 @@
 .. _using_mpi:
 
-Using MPI
-=========
+Multithreading and MPI
+======================
+
+As typical operations on time-ordered data can be quite consuming,
+the LiteBIRD Simulation Framework provides a number of tools to
+exploit the presence of multiple CPU cores and even multiple
+computing nodes. This section details how to take advantage
+of these facilities and is split in two parts:
+
+- We will first present the ability of the framework to use multiple
+  CPU threads; in this context, the data samples are kept in a chunk
+  of memory that is shared between several processes. The framework
+  uses Numba, which can take advantage either of the `Intel
+  Threading Building Blocks <https://www.intel.com/content/www/us/en/developer/tools/oneapi/onetbb.html>`_
+  library or of `OpenMP <https://www.openmp.org/>`_.
+
+- Then, we will discuss the possibility to run the code on
+  multiple *computing nodes*, where the memory of each node is
+  **not** shared with the others. The framework is able to
+  use any MPI library, through the Python package
+  `mpi4py <https://mpi4py.readthedocs.io/en/stable/>`_.
+
+
+Multithreading
+~~~~~~~~~~~~~~
+
+Some parts of the LiteBIRD Simulation Framework are able to
+exploit multiple cores because several of its modules rely on
+the `Numba <https://numba.pydata.org/>`_ library.
+
+If you are running your code on your multi-core laptop, you do not
+have to do anything fancy in order to use all the CPUs on your machine:
+in its default configuration, the Framework should be able to take
+advantage all the available CPU cores.
+
+However, if you want to tune the way the Framework uses the CPUs,
+you can either set the environment variable ``OMP_NUM_THREADS``
+to the number of CPUs to use, or use two parameters in
+the constructor of the class :class:`.Simulation`:
+
+- `numba_num_of_threads`: this is the number of CPUs that Numba will
+  use for parallel calculations. The parameter defaults to ``None``,
+  which means that Numba will check how many CPUs are available and will
+  use all of them.
+
+- `numba_threading_layer`: this parameter is a string that specifies
+  which threading library should be used by Numba. The value depends
+  both on the version of Numba you are running and on the availability
+  of these libraries, as they are not installed together with the
+  LiteBIRD Simulation Framework. Numba 0.53 provides the following choices:
+
+  - ``tbb``: `Intel Threading Building Blocks
+    <https://www.intel.com/content/www/us/en/developer/tools/oneapi/onetbb.html>`_.
+    You should pick this if you are running your code on Intel machines and the
+    Tbb library is available.
+
+  - ``omp``: `OpenMP <https://www.openmp.org/>`_. If you pick this one,
+    be sure that the OpenPM library is available.
+
+  - ``workqueue``: this is an internal threading library provided by Numba.
+    It's probably the least efficient of the three; its main advantage is
+    that it is always available.
+
+These parameters can be passed through a TOML parameter file (see
+:ref:`parameter_files`) as well:
+
+.. code-block:: toml
+
+   # This is file "my_conf.toml"
+   [simulation]
+   random_seed = 12345
+   numba_num_of_threads = 32
+   numba_threading_layer = "tbb"
+
+Both ``tbb`` and ``omp`` require that the relevant library be available on
+your system, as the command ``pip install litebird_sim`` does **not** install
+them. If you are running your code on a HPC cluster, it is probably a matter
+of running a command like the following:
+
+.. code-block:: sh
+
+   # This might change depending on how the environment on your cluster
+   # is configured; the following commands are just examples.
+   $ module load tbb     # Intel Threading Building Blocks
+   $ module load openmp  # OpenMP
+
+
+MPI
+~~~
 
 The LiteBIRD Simulation Framework lists mpi4py as an *optional*
 dependency. This means that simulation codes should be able to cope

@@ -2,6 +2,8 @@
 
 -   New module to simulate HWP systematics [#232](https://github.com/litebird/litebird_sim/pull/232)
 
+-   Add support for partial multithreading using Numba [#276](https://github.com/litebird/litebird_sim/pull/276)
+
 # Version 0.11.0
 
 -   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)

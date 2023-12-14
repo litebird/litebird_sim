@@ -35,6 +35,7 @@ def test_sort_obs_per_det():
         mpi_processes=[
             MpiProcessDescr(
                 mpi_rank=0,
+                numba_num_of_threads=1,
                 observations=[
                     MpiObservationDescr(
                         det_names=["A"],
@@ -62,6 +63,7 @@ def test_sort_obs_per_det():
             ),
             MpiProcessDescr(
                 mpi_rank=1,
+                numba_num_of_threads=1,
                 observations=[
                     MpiObservationDescr(
                         det_names=["A"],
