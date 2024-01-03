@@ -227,13 +227,12 @@ codes in the LiteBIRD Simulation Framework:
    library <https://docs.python.org/3/library/logging.html>`_ in the
    Python standard library.
 
-5. You **must** format your code using `black
-   <https://black.readthedocs.io/en/stable/>`_. If you fail to do so,
+5. You **must** format your code using `ruff
+   <https://github.com/astral-sh/ruff/>`_. If you fail to do so,
    your code cannot be merged in the framework, as we automatically
    check its conformance every time a new pull request is opened.
 
-6. Similarly, your code must pass all the tests run by `Flake8
-   <https://pypi.org/project/flake8>`_.
+6. Similarly, your code must pass all the tests run by `ruff check`.
 
 7. Always implement some tests!
 

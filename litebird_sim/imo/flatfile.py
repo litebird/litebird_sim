@@ -2,7 +2,7 @@
 import gzip
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Set, Union, Tuple
+from typing import Any, Dict, List, Union, Tuple
 from uuid import UUID
 
 import json

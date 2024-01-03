@@ -179,7 +179,7 @@ def scan_map_in_observations(
             psi_list = [point[:, :, 2] for point in pointings]
 
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
-        if type(maps) is dict:
+        if isinstance(maps, dict):
             if all(item in maps.keys() for item in cur_obs.name):
                 input_names = cur_obs.name
             elif all(item in maps.keys() for item in cur_obs.channel):

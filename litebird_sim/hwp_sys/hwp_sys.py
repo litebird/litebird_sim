@@ -12,7 +12,7 @@ from ..mbs.mbs import MbsParameters
 from ..detectors import FreqChannelInfo
 from ..observations import Observation
 from .bandpass_template_module import bandpass_profile
-from ..coordinates import rotate_coordinates_e2g, CoordinateSystem
+from ..coordinates import rotate_coordinates_e2g
 
 COND_THRESHOLD = 1e10
 

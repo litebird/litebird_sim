@@ -31,9 +31,7 @@ Here is a list of the changes:
 
 Best,
   The LiteBIRD Simulation Team.
-    """.format(
-            tag_name=clean_tag_name(release["tag_name"]), body=release["body"]
-        )
+    """.format(tag_name=clean_tag_name(release["tag_name"]), body=release["body"])
     )
 
 
