@@ -109,4 +109,4 @@ def test_imo_entry_hierarchy():
     # This is the "beams" object
     uuid = UUID("04c53542-e8a8-421f-aa3c-201abba1575d")
     child_entity = imo.query_entity(uuid)
-    assert child_entity.parent.uuid == UUID("2180affe-f9c3-4048-a407-6bd4d3ad71e5")
+    assert child_entity.parent == UUID("2180affe-f9c3-4048-a407-6bd4d3ad71e5")

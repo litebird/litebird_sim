@@ -4,11 +4,9 @@ import logging as log
 from pathlib import Path
 from uuid import UUID
 from typing import Union, List
-
+from libinsdb import LocalInsDb, RemoteInsDb, Entity, Quantity, DataFile
 import tomlkit
 
-from .objects import Entity, Quantity, DataFile
-from .flatfile import ImoFlatFile
 
 CONFIG_FILE_PATH = Path.home() / ".config" / "litebird_imo" / "imo.toml"
 
@@ -30,14 +28,14 @@ class Imo:
                 with CONFIG_FILE_PATH.open("rt") as inpf:
                     config = tomlkit.loads("".join(inpf.readlines()))
 
-                self.imoobject = ImoFlatFile(
+                self.imoobject = LocalInsDb(
                     Path(__file__).parent.parent.parent / "default_imo"
                 )
 
                 if load_defaults:
                     for cur_imo_definition in config["repositories"]:
                         cur_location = cur_imo_definition["location"]
-                        self.imoobject.merge(ImoFlatFile(cur_location))
+                        self.imoobject.merge(LocalInsDb(cur_location))
 
             except FileNotFoundError:
                 log.warning('IMO config file "%s" not found.', str(CONFIG_FILE_PATH))
@@ -48,11 +46,15 @@ class Imo:
             except tomlkit.exceptions.NonExistentKey:
                 log.warning('no repositories in file "%s"', str(CONFIG_FILE_PATH))
 
-        if flatfile_location:
-            self.imoobject = ImoFlatFile(flatfile_location)
-
-        if url:
-            raise NotImplementedError("access to remote IMOs is not supported yet")
+        if not self.imoobject:
+            if flatfile_location:
+                self.imoobject = LocalInsDb(storage_path=flatfile_location)
+            elif url:
+                self.imoobject = RemoteInsDb(
+                    server_address=url, username=user, password=password
+                )
+            else:
+                raise ValueError("You must either provide flatfile_location= or url=")
 
         self.queried_objects = set()  # type: Set[Tuple[type, UUID]]
 
@@ -158,7 +160,7 @@ class Imo:
         """
         quantity = self.query_quantity(quantity_uuid, track=track)
         data_files = [self.query_data_file(x, track=track) for x in quantity.data_files]
-        return sorted(data_files, key=lambda x: x.upload_date)
+        return [x.uuid for x in sorted(data_files, key=lambda x: x.upload_date)]
 
     def get_queried_entities(self):
         """Return a list of the UUIDs of entities queried so far."""
