@@ -1,9 +1,6 @@
 import litebird_sim as lbs
 import numpy as np
-import healpy as hp
-from astropy.time import Time
 from pathlib import Path
-import os
 
 
 def test_hwp_sys():

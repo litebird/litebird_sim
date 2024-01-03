@@ -28,6 +28,9 @@ from .hwp import (
     HWP,
     IdealHWP,
 )
+from .hwp_sys.hwp_sys import (
+    HwpSys,
+)
 from .imo import (
     Imo,
     FormatSpecification,
@@ -187,6 +190,8 @@ __all__ = [
     # hwp.py
     "HWP",
     "IdealHWP",
+    # hwp_sys/hwp_sys.py
+    "HwpSys",
     # madam.py
     "save_simulation_for_madam",
     # mbs.py
