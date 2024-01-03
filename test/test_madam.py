@@ -6,9 +6,8 @@ from astropy.io import fits
 import numpy as np
 import astropy.units as u
 
-import litebird_sim
 import litebird_sim as lbs
-from litebird_sim.madam import _sort_obs_per_det, _ObsInMpiProcess
+from litebird_sim.madam import _sort_obs_per_det
 from litebird_sim.simulations import (
     MpiDistributionDescr,
     MpiProcessDescr,

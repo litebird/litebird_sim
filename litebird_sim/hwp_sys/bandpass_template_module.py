@@ -1,6 +1,5 @@
-import litebird_sim as lbs
 import numpy as np
-from typing import Union, List
+from typing import Union
 from scipy import signal
 from litebird_sim import BandPassInfo
 import logging

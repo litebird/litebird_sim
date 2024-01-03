@@ -169,12 +169,12 @@ def get_pixel_format(t):
     except Exception:
         pass
     try:
-        if type(t) is str:
+        if isinstance(t, str):
             return "A%d" % (len(t))
     except Exception:
         pass
     try:
-        if type(t[0]) is str:
+        if isinstance(t[0], str):
             length = max(len(s) for s in t)
             return "A%d" % (length)
     except Exception:

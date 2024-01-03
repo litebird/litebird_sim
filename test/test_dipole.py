@@ -185,12 +185,12 @@ def test_solar_dipole_fit(tmpdir):
     mono, dip = hp.fit_dipole(dip_map)
 
     r = hp.Rotator(coord=["E", "G"])
-    l, b = hp.vec2ang(r(dip), lonlat=True)
+    longitude, latitude = hp.vec2ang(r(dip), lonlat=True)
 
     # Amplitude, longitude and latitude
     test.assertAlmostEqual(np.sqrt(np.sum(dip**2)) * 1e6, 3362.08, delta=1)
-    test.assertAlmostEqual(l[0], 264.021, 1)
-    test.assertAlmostEqual(b[0], 48.253, 1)
+    test.assertAlmostEqual(longitude[0], 264.021, 1)
+    test.assertAlmostEqual(latitude[0], 48.253, 1)
 
 
 def test_dipole_list_of_obs(tmp_path):

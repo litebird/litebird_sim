@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-from collections import namedtuple
 from dataclasses import dataclass
 from typing import Union, List, Any
 import astropy.time
@@ -550,7 +549,7 @@ class Observation:
                 starts, nums, _, _ = self._get_start_and_num(
                     self._n_blocks_det, self._n_blocks_time
                 )
-                info = [info[s : s + n] for s, n, in zip(starts, nums)]
+                info = [info[s : s + n] for s, n in zip(starts, nums)]
 
             info = comm_col.scatter(info, root)
 

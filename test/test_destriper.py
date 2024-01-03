@@ -30,7 +30,7 @@ from litebird_sim.mapmaking.destriper import (
 )
 
 if MPI_ENABLED:
-    import mpi4py.MPI
+    pass
 
 
 # We define the simplest quantities directly, as global variables

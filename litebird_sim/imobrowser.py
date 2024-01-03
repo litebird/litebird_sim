@@ -15,7 +15,6 @@ from asciimatics.widgets import (
 from asciimatics.scene import Scene
 from asciimatics.screen import Screen
 from asciimatics.exceptions import ResizeScreenError, NextScene, StopApplication
-import asciimatics.widgets
 from asciimatics.widgets.utilities import THEMES
 
 import pyperclip

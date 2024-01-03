@@ -1,4 +1,3 @@
-import litebird_sim as lbs
 from litebird_sim import BandPassInfo
 import unittest
 import numpy as np
