@@ -1,5 +1,7 @@
 # HEAD
 
+-   Move from `flake8`/`black` to `ruff` [#281](https://github.com/litebird/litebird_sim/pull/281/)
+
 -   New module to simulate HWP systematics [#232](https://github.com/litebird/litebird_sim/pull/232)
 
 -   Add support for partial multithreading using Numba [#276](https://github.com/litebird/litebird_sim/pull/276)
