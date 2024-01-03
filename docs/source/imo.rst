@@ -7,7 +7,10 @@ To run a realistic simulation of an instrument, one needs to known its
 details: the noise level of the detectors, the angular resolution of
 the beams, etc. This kind of information is stored in an «instrument
 model database», called IMO, and the LiteBIRD Simulation Framework
-provides a few facilities to access it.
+provides a few facilities to access it. The code makes use of the
+library `Libinsdb <https://github.com/ziotom78/libinsdb>`_; please
+refer to its `User's manual <https://libinsdb.readthedocs.io/en/latest/>`_
+for further information.
 
 .. note::
 
