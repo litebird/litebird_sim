@@ -1764,14 +1764,14 @@ six = ">=1.4.1"
 
 [[package]]
 name = "libinsdb"
-version = "0.5.0"
+version = "0.6.0"
 description = "Library to access InstrumentDB databases"
 category = "main"
 optional = false
 python-versions = ">=3.9,<4.0"
 files = [
-    {file = "libinsdb-0.5.0-py3-none-any.whl", hash = "sha256:252057397cda6e9fb6a8d05b3b03153e817b07244093f3a8033f9dfa7bab7866"},
-    {file = "libinsdb-0.5.0.tar.gz", hash = "sha256:ec6f308c3a26441dface7c18947e7bf8c5164f4f4e37deec7cd4d6f3d3e9b042"},
+    {file = "libinsdb-0.6.0-py3-none-any.whl", hash = "sha256:96444cfff4d63c559575526d5eceddb1157494c92871374c888f278efe535935"},
+    {file = "libinsdb-0.6.0.tar.gz", hash = "sha256:05e138223ce65f770e1277ca54b8bba64daf583aacaba26e1d64b254b77e91a1"},
 ]
 
 [package.dependencies]
@@ -4172,4 +4172,4 @@ mpi = ["mpi4py"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "911e6edd1f54350c2d64de7da5d42d2f1cf2bf9492388abf5be54d5666a3477f"
+content-hash = "4932ba63903c2fba093adcfd096ca959901d9bc70fb321bb7ad57951c5c7f3b2"
