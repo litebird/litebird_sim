@@ -1,17 +1,3 @@
-[tool.black]
-line-length = 88
-exclude = '''
-/(
-    \.git
-  | \.mypy_cache
-  | \.venv
-  | _build
-  | build
-  | dist
-  | docs
-)/
-'''
-
 [tool.poetry]
 name = "litebird_sim"
 version = "0.11.0"
@@ -72,7 +58,7 @@ PyGithub = "^2.1"
 requests = "^2.31.0"
 rich = "^13.4.2"
 ducc0 = "^0.31.0"
-pysm3 = "^3.3.2"
+pysm3 = "~3.3.2"
 asciimatics = "^1.14.0"
 pyperclip = "^1.8.2"
 pre-commit = "^2.15.0"
