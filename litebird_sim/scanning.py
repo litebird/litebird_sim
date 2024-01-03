@@ -7,7 +7,7 @@ from uuid import UUID
 from astropy.coordinates import ICRS, get_body_barycentric
 import astropy.time
 import astropy.units as u
-from numba import njit
+from numba import njit, prange
 import numpy as np
 
 from ducc0.pointingprovider import PointingProvider
@@ -186,7 +186,7 @@ def compute_pointing_and_polangle(result, quaternion):
     result[2] = pol_angle
 
 
-@njit
+@njit(parallel=True)
 def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
     """Repeatedly apply :func:`compute_pointing_and_polangle`
 
@@ -211,7 +211,7 @@ def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
     assert quat_matrix.shape[2] == 4
 
     for det_idx in range(n_dets):
-        for sample_idx in range(n_samples):
+        for sample_idx in prange(n_samples):
             compute_pointing_and_polangle(
                 result_matrix[det_idx, sample_idx, :],
                 quat_matrix[sample_idx, det_idx, :],
@@ -295,7 +295,7 @@ def spin_to_ecliptic(
     quat_left_multiply(result, *quat_rotation_z(sun_earth_angle_rad))
 
 
-@njit
+@njit(parallel=True)
 def all_spin_to_ecliptic(
     result_matrix,
     sun_earth_angles_rad,
@@ -324,7 +324,7 @@ def all_spin_to_ecliptic(
     4)``.
 
     """
-    for row in range(result_matrix.shape[0]):
+    for row in prange(result_matrix.shape[0]):
         spin_to_ecliptic(
             result=result_matrix[row, :],
             sun_earth_angle_rad=sun_earth_angles_rad[row],
