@@ -290,6 +290,19 @@ Again, to generate noise with custom parameters, we can either use the low-level
    lbs.noise.add_noise_to_observations(obs, 'one_over_f', random=sim.random)
 
 
+.. warning::
+
+    Be sure you understand the difference between the noise level in a
+    timestream and the noise level in a map. Although of course the
+    latter depends on the former, the conversion depends on several factors.
+
+    A common mistake is to scale the noise level in maps by the mission time
+    divided by the number of pixels in themap. Using this number in a call to
+    :func:`.add_white_noise` is **wrong**, as the noise level per pixel depends
+    on the overall integration time, which is always less than the mission time
+    because of cosmic ray loss, repointing maneuvers, etc.
+
+
 Methods of class simulation
 ---------------------------
 
