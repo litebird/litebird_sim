@@ -1,5 +1,7 @@
 # HEAD
 
+-   Improve the documentation about noise simulations [#283](https://github.com/litebird/litebird_sim/pull/283)
+
 -   Move from `flake8`/`black` to `ruff` [#281](https://github.com/litebird/litebird_sim/pull/281/)
 
 -   New module to simulate HWP systematics [#232](https://github.com/litebird/litebird_sim/pull/232)
