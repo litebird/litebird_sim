@@ -296,15 +296,16 @@ Again, to generate noise with custom parameters, we can either use the low-level
     timestream and the noise level in a map. Although of course the
     latter depends on the former, the conversion depends on several factors.
 
-    A common mistake is to scale the noise level in maps by the mission time
-    divided by the number of pixels in themap. Using this number in a call to
-    :func:`.add_white_noise` is **wrong**, as the noise level per pixel depends
-    on the overall integration time, which is always less than the mission time
-    because of cosmic ray loss, repointing maneuvers, etc.
+    A common mistake is use the mission time divided by the number of pixels in
+    the map in a call to :func:`.add_white_noise`. This is **wrong**, as the noise
+    level per pixel depends on the overall integration time, which is always
+    less than the mission time because of cosmic ray loss, repointing maneuvers, etc.
+    These effects reduce the number of samples in the timeline that can be used to
+    estimate the map, but they do not affect the noise of the timeline.
 
 
-Methods of class simulation
----------------------------
+Methods of the Simulation class
+-------------------------------
 
 The class :class:`.Simulation` provides two simple functions that fill
 with sky signal and noise all the observations of a given simulation.
