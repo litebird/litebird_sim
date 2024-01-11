@@ -54,6 +54,7 @@ class DetectorInfo:
 
         - sampling_rate_hz (float): The sampling rate of the ADC
              associated with this detector. The default is 0.0
+
         - fwhm_arcmin: (float): The Full Width Half Maximum of the
              radiation pattern associated with the detector, in
              arcminutes. The default is 0.0
@@ -63,10 +64,14 @@ class DetectorInfo:
 
         - net_ukrts (float): The noise equivalent temperature of the
              signal produced by the detector in nominal conditions,
-             expressed in μK/√s.. The default is 0.0
+             expressed in μK/√s. This is the noise per sample to be
+             used when adding noise to the timelines. The default is 0.0
 
         - pol_sensitivity_ukarcmin (float): The detector sensitivity
-            in microK_arcmin. The default is 0.0
+            in microK_arcmin. This value considers the effect of cosmic ray loss,
+            repointing maneuvers, etc., and other issues that cause loss of
+            integration time. Therefore, it should **not** be used with the
+            functions that add noise to the timelines. The default is 0.0
 
         - bandcenter_ghz (float): The center frequency of the
              detector, in GHz. The default is 0.0
