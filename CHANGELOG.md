@@ -1,5 +1,7 @@
 # HEAD
 
+-   Support for numpy.float128 made optional, this fixes importing issue on ARM architectures [#286](https://github.com/litebird/litebird_sim/pull/286)
+
 -   Improve the documentation about noise simulations [#283](https://github.com/litebird/litebird_sim/pull/283)
 
 -   Use libinsdb to access the IMO [#282](https://github.com/litebird/litebird_sim/pull/282)

@@ -29,8 +29,10 @@ __NUMPY_FLOAT_TYPES = [
     np.float16,
     np.float32,
     np.float64,
-    np.float128,
 ]
+
+if "float128" in dir(np):
+    __NUMPY_FLOAT_TYPES.append(np.float128)
 
 __NUMPY_SCALAR_TYPES = __NUMPY_INT_TYPES + __NUMPY_FLOAT_TYPES
 
