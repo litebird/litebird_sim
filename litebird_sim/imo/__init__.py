@@ -1,8 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from .imo import Imo
-from .objects import FormatSpecification, Entity, Quantity, Release
-from .flatfile import ImoFormatError, ImoFlatFile
+from libinsdb import FormatSpecification, Entity, Quantity, Release
 
 __all__ = [
     "Imo",
@@ -10,6 +9,4 @@ __all__ = [
     "Entity",
     "Quantity",
     "Release",
-    "ImoFormatError",
-    "ImoFlatFile",
 ]

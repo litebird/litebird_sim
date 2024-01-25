@@ -37,8 +37,6 @@ from .imo import (
     Entity,
     Quantity,
     Release,
-    ImoFormatError,
-    ImoFlatFile,
 )
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
@@ -174,9 +172,6 @@ __all__ = [
     "distribute_optimally",
     # imo.py
     "Imo",
-    # imofile.py
-    "ImoFormatError",
-    "ImoFlatFile",
     # imoobjects
     "FormatSpecification",
     "Entity",

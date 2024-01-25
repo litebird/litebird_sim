@@ -708,7 +708,7 @@ class Simulation:
             if not other_data_files:
                 continue
 
-            if other_data_files[-1].uuid != cur_data_file.uuid:
+            if other_data_files[-1] != cur_data_file.uuid:
                 warnings.append((cur_data_file, other_data_files[-1]))
 
         if (not entities) and (not quantities) and (not data_files):
