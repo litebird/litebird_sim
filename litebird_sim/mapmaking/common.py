@@ -418,3 +418,11 @@ def estimate_cond_number(
     max_abs_eval = max(max(eval0, eval1), eval2)
 
     return (max_abs_eval / min_abs_eval, True)
+
+
+def _build_flag_time_split()
+
+
+def _build_flag_detector_split()
+
+

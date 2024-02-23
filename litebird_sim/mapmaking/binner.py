@@ -28,6 +28,8 @@ from .common import (
     _normalize_observations_and_pointings,
     COND_THRESHOLD,
     get_map_making_weights,
+    _build_mask_time_split,
+    _build_mask_detector_split
 )
 
 
@@ -79,6 +81,8 @@ def _accumulate_samples_and_build_nobs_matrix(
     pix: npt.ArrayLike,
     psi: npt.ArrayLike,
     weights: npt.ArrayLike,
+    d_mask: npt.ArrayLike,
+    t_mask: npt.ArrayLike,
     nobs_matrix: npt.ArrayLike,
     additional_component: bool,
 ) -> None:
@@ -95,21 +99,21 @@ def _accumulate_samples_and_build_nobs_matrix(
 
     assert tod.shape == pix.shape == psi.shape
 
-    num_of_detectors = tod.shape[0]
+#    num_of_detectors = tod.shape[0]
 
-    for idet in range(num_of_detectors):
+    for idet in d_mask:
         inv_sigma = 1.0 / np.sqrt(weights[idet])
         inv_sigma2 = inv_sigma * inv_sigma
 
         if not additional_component:
             # Fill the upper triangle
-            for cur_pix_idx, cur_psi in zip(pix[idet], psi[idet]):
-                cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
-                sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+            for cur_pix_idx, cur_psi, cur_t_mask in zip(pix[idet], psi[idet], t_mask):
+                cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma * cur_t_mask
+                sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma * cur_t_mask
                 info_pix = nobs_matrix[cur_pix_idx]
 
                 # Upper triangle
-                info_pix[0, 0] += inv_sigma2
+                info_pix[0, 0] += inv_sigma2 * cur_t_mask
                 info_pix[0, 1] += inv_sigma * cos_over_sigma
                 info_pix[0, 2] += inv_sigma * sin_over_sigma
                 info_pix[1, 1] += cos_over_sigma * cos_over_sigma
@@ -117,14 +121,14 @@ def _accumulate_samples_and_build_nobs_matrix(
                 info_pix[2, 2] += sin_over_sigma * sin_over_sigma
 
         # Fill the lower triangle
-        for cur_sample, cur_pix_idx, cur_psi in zip(
-            tod[idet, :], pix[idet, :], psi[idet, :]
+        for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
+            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
         ):
-            cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
-            sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+            cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma * cur_t_mask
+            sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma * cur_t_mask
             info_pix = nobs_matrix[cur_pix_idx]
 
-            info_pix[1, 0] += cur_sample * inv_sigma2
+            info_pix[1, 0] += cur_sample * inv_sigma2 * cur_t_mask
             info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
             info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma
 
@@ -170,14 +174,16 @@ def _build_nobs_matrix(
     psi_list: List[npt.ArrayLike],
     output_coordinate_system: CoordinateSystem,
     components: List[str],
+    d_mask_list: List[npt.ArrayLike],
+    t_mask_list: List[npt.ArrayLike],
 ) -> npt.ArrayLike:
     hpx = Healpix_Base(nside, "RING")
     n_pix = nside_to_npix(nside)
 
     nobs_matrix = np.zeros((n_pix, 3, 3))
 
-    for obs_idx, (cur_obs, cur_ptg, cur_psi) in enumerate(
-        zip(obs_list, ptg_list, psi_list)
+    for obs_idx, (cur_obs, cur_ptg, cur_psi, cur_d_mask, cur_t_mask) in enumerate(
+        zip(obs_list, ptg_list, psi_list, d_mask_list, t_mask_list)
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
 
@@ -201,6 +207,8 @@ def _build_nobs_matrix(
                 pixidx_all,
                 polang_all,
                 cur_weights,
+                cur_d_mask,
+                cur_t_mask,
                 nobs_matrix,
                 additional_component=idx > 0,
             )
@@ -231,6 +239,8 @@ def make_binned_map(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     components: List[str] = None,
+    detector_split: str = 'full',
+    time_split: str = 'full'
 ) -> BinnerResult:
     """Bin Map-maker
 
@@ -273,6 +283,10 @@ def make_binned_map(
         obs=obs, pointings=pointings
     )
 
+    detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
+
+    time_mask_list = _build_mask_time_split(time_split, obs_list)
+
     nobs_matrix = _build_nobs_matrix(
         nside=nside,
         obs_list=obs_list,
@@ -280,6 +294,8 @@ def make_binned_map(
         psi_list=psi_list,
         output_coordinate_system=output_coordinate_system,
         components=components,
+        detector_mask=detector_mask_list,
+        time_mask=time_mask_list,
     )
 
     rhs = _extract_map_and_fill_info(nobs_matrix)
