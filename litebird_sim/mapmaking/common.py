@@ -16,6 +16,8 @@ from litebird_sim.observations import Observation
 # was really “seen” or not
 COND_THRESHOLD = 1e10
 
+# Definition of time splits
+
 
 @dataclass
 class ExternalDestriperParameters:
@@ -420,9 +422,27 @@ def estimate_cond_number(
     return (max_abs_eval / min_abs_eval, True)
 
 
-def _build_flag_time_split()
+def _build_mask_time_split(
+    time_split: str,
+    obs_list: List[Observation],
+):
+    time_mask = []
+
+    if time_split == "full":
+        for cur_obs in obs_list:
+            time_mask.append(np.ones(cur_obs.tod.shape[1], dtype=bool))
+
+    return time_mask
 
 
-def _build_flag_detector_split()
+def _build_mask_detector_split(
+    detector_split: str,
+    obs_list: List[Observation],
+):
+    detector_mask = []
 
+    if detector_split == "full":
+        for cur_obs in obs_list:
+            detector_mask.append(np.ones(cur_obs.tod.shape[0], dtype=bool))
 
+    return detector_mask

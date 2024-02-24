@@ -29,7 +29,7 @@ from .common import (
     COND_THRESHOLD,
     get_map_making_weights,
     _build_mask_time_split,
-    _build_mask_detector_split
+    _build_mask_detector_split,
 )
 
 
@@ -46,11 +46,17 @@ class BinnerResult:
 
     - ``coordinate_system``: the coordinate system of the output maps
       (a :class:`.CoordinateSistem` object)
+
+    - ``time_split``:
+
+    - ``detector_split``:
     """
 
     binned_map: Any = None
     invnpp: Any = None
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
+    time_split: str = None
+    detector_split: str = None
 
 
 @njit
@@ -99,38 +105,45 @@ def _accumulate_samples_and_build_nobs_matrix(
 
     assert tod.shape == pix.shape == psi.shape
 
-#    num_of_detectors = tod.shape[0]
+    assert tod.shape[0] == d_mask.shape[0]
 
-    for idet in d_mask:
-        inv_sigma = 1.0 / np.sqrt(weights[idet])
-        inv_sigma2 = inv_sigma * inv_sigma
+    num_of_detectors = tod.shape[0]
 
-        if not additional_component:
-            # Fill the upper triangle
-            for cur_pix_idx, cur_psi, cur_t_mask in zip(pix[idet], psi[idet], t_mask):
-                cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma * cur_t_mask
-                sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma * cur_t_mask
-                info_pix = nobs_matrix[cur_pix_idx]
+    for idet in range(num_of_detectors):
+        if d_mask[idet]:
+            inv_sigma = 1.0 / np.sqrt(weights[idet])
+            inv_sigma2 = inv_sigma * inv_sigma
 
-                # Upper triangle
-                info_pix[0, 0] += inv_sigma2 * cur_t_mask
-                info_pix[0, 1] += inv_sigma * cos_over_sigma
-                info_pix[0, 2] += inv_sigma * sin_over_sigma
-                info_pix[1, 1] += cos_over_sigma * cos_over_sigma
-                info_pix[1, 2] += sin_over_sigma * cos_over_sigma
-                info_pix[2, 2] += sin_over_sigma * sin_over_sigma
+            if not additional_component:
+                # Fill the upper triangle
+                for cur_pix_idx, cur_psi, cur_t_mask in zip(
+                    pix[idet], psi[idet], t_mask
+                ):
+                    if cur_t_mask:
+                        cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
+                        sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+                        info_pix = nobs_matrix[cur_pix_idx]
 
-        # Fill the lower triangle
-        for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
-            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
-        ):
-            cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma * cur_t_mask
-            sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma * cur_t_mask
-            info_pix = nobs_matrix[cur_pix_idx]
+                        # Upper triangle
+                        info_pix[0, 0] += inv_sigma2
+                        info_pix[0, 1] += inv_sigma * cos_over_sigma
+                        info_pix[0, 2] += inv_sigma * sin_over_sigma
+                        info_pix[1, 1] += cos_over_sigma * cos_over_sigma
+                        info_pix[1, 2] += sin_over_sigma * cos_over_sigma
+                        info_pix[2, 2] += sin_over_sigma * sin_over_sigma
 
-            info_pix[1, 0] += cur_sample * inv_sigma2 * cur_t_mask
-            info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
-            info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma
+            # Fill the lower triangle
+            for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
+                tod[idet, :], pix[idet, :], psi[idet, :], t_mask
+            ):
+                if cur_t_mask:
+                    cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
+                    sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+                    info_pix = nobs_matrix[cur_pix_idx]
+
+                    info_pix[1, 0] += cur_sample * inv_sigma2
+                    info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
+                    info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma
 
 
 @njit
@@ -172,10 +185,10 @@ def _build_nobs_matrix(
     obs_list: List[Observation],
     ptg_list: List[npt.ArrayLike],
     psi_list: List[npt.ArrayLike],
+    dm_list: List[npt.ArrayLike],
+    tm_list: List[npt.ArrayLike],
     output_coordinate_system: CoordinateSystem,
     components: List[str],
-    d_mask_list: List[npt.ArrayLike],
-    t_mask_list: List[npt.ArrayLike],
 ) -> npt.ArrayLike:
     hpx = Healpix_Base(nside, "RING")
     n_pix = nside_to_npix(nside)
@@ -183,7 +196,7 @@ def _build_nobs_matrix(
     nobs_matrix = np.zeros((n_pix, 3, 3))
 
     for obs_idx, (cur_obs, cur_ptg, cur_psi, cur_d_mask, cur_t_mask) in enumerate(
-        zip(obs_list, ptg_list, psi_list, d_mask_list, t_mask_list)
+        zip(obs_list, ptg_list, psi_list, dm_list, tm_list)
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
 
@@ -239,8 +252,8 @@ def make_binned_map(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     components: List[str] = None,
-    detector_split: str = 'full',
-    time_split: str = 'full'
+    detector_split: str = "full",
+    time_split: str = "full",
 ) -> BinnerResult:
     """Bin Map-maker
 
@@ -270,6 +283,8 @@ def make_binned_map(
         components (list[str]): list of components to include in the map-making.
             The default is just to use the field ``tod`` of each
             :class:`.Observation` object.
+        detector_split:
+        time_split:
 
     Returns:
         An instance of the class :class:`.MapMakerResult`. If the observations are
@@ -292,10 +307,10 @@ def make_binned_map(
         obs_list=obs_list,
         ptg_list=ptg_list,
         psi_list=psi_list,
+        dm_list=detector_mask_list,
+        tm_list=time_mask_list,
         output_coordinate_system=output_coordinate_system,
         components=components,
-        detector_mask=detector_mask_list,
-        time_mask=time_mask_list,
     )
 
     rhs = _extract_map_and_fill_info(nobs_matrix)

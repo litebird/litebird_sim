@@ -238,7 +238,7 @@ random_seed = 12345
 
 
 def test_distribute_observation(tmp_path):
-    for dtype in (np.float16, np.float32, np.float64, np.float128):
+    for dtype in (np.float16, np.float32, np.float64, np.longdouble):
         sim = lbs.Simulation(
             base_path=tmp_path / "simulation_dir",
             start_time=1.0,
