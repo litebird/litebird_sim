@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change**: Reworking of the IO, `write_observations` and `read_observations` are now part of the class simulation [#293](https://github.com/litebird/litebird_sim/pull/293)  
+
 -   Support for numpy.float128 made optional, this fixes importing issue on ARM architectures [#286](https://github.com/litebird/litebird_sim/pull/286)
 
 -   Improve the documentation about noise simulations [#283](https://github.com/litebird/litebird_sim/pull/283)

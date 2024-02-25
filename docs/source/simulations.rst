@@ -487,6 +487,38 @@ contains the size of the TOD array, the names of the detectors,
 and other useful information. Refer to the documentation of
 each class to know what is inside.
 
+High level interface
+--------------------
+
+The class :class:`.Simulation` has a powerfull high level 
+interface that allows to quickly generate a scanning strategy
+allocate the observations, generate simulated timelines
+cointaing signal, noise and dipole, build maps, and 
+save(read) the entire simulation object. The syntax is 
+straightforward::
+
+    sim = lbs.Simulation(...)
+
+    sim.set_scanning_strategy(...)
+    sim.set_instrument(...)
+    sim.create_observations(...)
+    sim.compute_pointings()
+
+    sim.compute_pos_and_vel()
+    sim.add_dipole()
+
+    sim.fill_tods(...)
+    sim.add_noise(...)
+    
+    result = sim.make_destriped_map(nside=nside)
+    healpy.mollview(result.destriped_map)
+
+    sim.write_observations(...)
+    sim.read_observations(...)
+
+See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
+:ref:`dipole-anisotropy`, :ref:`timeordered`, :ref:`mapmaking` for 
+details of the single functions. 
 
 API reference
 -------------
