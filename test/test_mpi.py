@@ -414,8 +414,8 @@ def test_write_hdf5_mpi(tmp_path):
     num_of_obs = 12
     sim.create_observations(detectors=[det], num_of_obs_per_detector=num_of_obs)
 
-    file_names = lbs.write_observations(
-        sim, subdir_name="tod", file_name_mask="litebird_tod{global_index:04d}.h5"
+    file_names = sim.write_observations(
+        subdir_name="tod", file_name_mask="litebird_tod{global_index:04d}.h5"
     )
 
     assert len(file_names) == len(sim.observations)

@@ -115,9 +115,7 @@ from .spacecraft import (
 from .dipole import add_dipole, add_dipole_to_observations, DipoleType
 from .io import (
     write_list_of_observations,
-    write_observations,
     read_list_of_observations,
-    read_observations,
 )
 
 from .gaindrifts import (
