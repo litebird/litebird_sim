@@ -12,6 +12,9 @@ import astropy.time
 import h5py
 import numpy as np
 
+from deprecation import deprecated
+
+from .version import __version__ as litebird_sim_version
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
@@ -360,6 +363,27 @@ def write_list_of_observations(
     return file_list
 
 
+@deprecated(
+    deprecated_in="0.11",
+    current_version=litebird_sim_version,
+    details="Use Simulation.write_observations",
+)
+def write_observations(
+    sim,
+    subdir_name: Union[None, str] = "tod",
+    include_in_report: bool = True,
+    *args,
+    **kwargs,
+) -> List[Path]:
+    # Here we call the method moved inside Simulation
+    return sim.write_observations(
+        subdir_name,
+        include_in_report,
+        *args,
+        **kwargs,
+    )
+
+
 def __find_flags(inpf, expected_num_of_dets: int, expected_num_of_samples: int):
     flags_matches = [__FLAGS_GROUP_NAME_REGEXP.fullmatch(x) for x in inpf]
     flags_matches = [x for x in flags_matches if x]
@@ -604,3 +628,19 @@ def read_list_of_observations(
         )
 
     return observations
+
+
+@deprecated(
+    deprecated_in="0.11",
+    current_version=litebird_sim_version,
+    details="Use Simulation.read_observations",
+)
+def read_observations(
+    sim,
+    path: Union[str, Path] = None,
+    subdir_name: Union[None, str] = "tod",
+    *args,
+    **kwargs,
+):
+    # Here we call the method moved inside Simulation
+    sim.read_observations(path, subdir_name, *args, **kwargs)
