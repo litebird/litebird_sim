@@ -5,6 +5,7 @@ from typing import Union, List, Tuple
 import numpy as np
 import numpy.typing as npt
 from numba import njit
+import astropy.time
 
 from ducc0.healpix import Healpix_Base
 
@@ -17,6 +18,14 @@ from litebird_sim.observations import Observation
 COND_THRESHOLD = 1e10
 
 # Definition of time splits
+t_y1_sec = 365 * 24 * 3600
+t_y2_sec = 2 * 365 * 24 * 3600
+t_y3_sec = 3 * 365 * 24 * 3600
+
+# Definition of detector splits
+# lft_wafers = ['L00','L01','L02','L03','L04','L05','L06','L07']
+# mft_wafers = ['M00','M01','M02','M03','M04','M05','M06']
+# hft_wafers = ['H00','H01','H02']
 
 
 @dataclass
@@ -431,6 +440,45 @@ def _build_mask_time_split(
     if time_split == "full":
         for cur_obs in obs_list:
             time_mask.append(np.ones(cur_obs.tod.shape[1], dtype=bool))
+    elif time_split == "odd":
+        for cur_obs in obs_list:
+            mask = np.zeros(cur_obs.tod.shape[1], dtype=bool)
+            mask[0::2] = True
+            time_mask.append(mask)
+    elif time_split == "even":
+        for cur_obs in obs_list:
+            mask = np.zeros(cur_obs.tod.shape[1], dtype=bool)
+            mask[1::2] = True
+            time_mask.append(mask)
+    elif time_split == "year1":
+        for cur_obs in obs_list:
+            if isinstance(cur_obs.start_time_global, astropy.time.Time):
+                t_i = cur_obs.start_time_global.cxcsec
+            else:
+                t_i = cur_obs.start_time_global
+            time_mask.append((cur_obs.get_times() - t_i) < t_y1_sec)
+    elif time_split == "year2":
+        for cur_obs in obs_list:
+            if isinstance(cur_obs.start_time_global, astropy.time.Time):
+                t_i = cur_obs.start_time_global.cxcsec
+            else:
+                t_i = cur_obs.start_time_global
+            time_mask.append(
+                ((cur_obs.get_times() - t_i) >= t_y1_sec)
+                * ((cur_obs.get_times() - t_i) < t_y2_sec)
+            )
+    elif time_split == "year3":
+        for cur_obs in obs_list:
+            if isinstance(cur_obs.start_time_global, astropy.time.Time):
+                t_i = cur_obs.start_time_global.cxcsec
+            else:
+                t_i = cur_obs.start_time_global
+            time_mask.append(
+                ((cur_obs.get_times() - t_i) >= t_y2_sec)
+                * ((cur_obs.get_times() - t_i) < t_y3_sec)
+            )
+    else:
+        print("Time split not recognized!!!")
 
     return time_mask
 
@@ -444,5 +492,10 @@ def _build_mask_detector_split(
     if detector_split == "full":
         for cur_obs in obs_list:
             detector_mask.append(np.ones(cur_obs.tod.shape[0], dtype=bool))
+    elif detector_split[0:6] == "wafer_":
+        for cur_obs in obs_list:
+            detector_mask.append(cur_obs.wafer == detector_split[6:9])
+    else:
+        print("Detector split not recognized!!!")
 
     return detector_mask
