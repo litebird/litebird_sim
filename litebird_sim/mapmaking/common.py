@@ -439,15 +439,15 @@ def _build_mask_time_split(
 
     if time_split == "full":
         for cur_obs in obs_list:
-            time_mask.append(np.ones(cur_obs.tod.shape[1], dtype=bool))
+            time_mask.append(np.ones(cur_obs.n_samples, dtype=bool))
     elif time_split == "odd":
         for cur_obs in obs_list:
-            mask = np.zeros(cur_obs.tod.shape[1], dtype=bool)
+            mask = np.zeros(cur_obs.n_samples, dtype=bool)
             mask[0::2] = True
             time_mask.append(mask)
     elif time_split == "even":
         for cur_obs in obs_list:
-            mask = np.zeros(cur_obs.tod.shape[1], dtype=bool)
+            mask = np.zeros(cur_obs.n_samples, dtype=bool)
             mask[1::2] = True
             time_mask.append(mask)
     elif time_split == "year1":
@@ -491,7 +491,7 @@ def _build_mask_detector_split(
 
     if detector_split == "full":
         for cur_obs in obs_list:
-            detector_mask.append(np.ones(cur_obs.tod.shape[0], dtype=bool))
+            detector_mask.append(np.ones(cur_obs.n_detectors, dtype=bool))
     elif detector_split[0:6] == "wafer_":
         for cur_obs in obs_list:
             detector_mask.append(cur_obs.wafer == detector_split[6:9])
