@@ -1,3 +1,5 @@
+.. _mapmaking:
+
 Map-making
 ==========
 
@@ -117,7 +119,7 @@ alternatively pointings can be provided as a list of numpy arrays.)
 The result is an instance of the class :class:`.BinnerResult`
 and contains both the I/Q/U maps and the covariance matrix.
 
-The :func:`.make_binned_map` has a high level interface in the class
+The function :func:`.make_binned_map` has a high level interface in the class
 :class:`.Simulation` that bins the content of the observations into maps
 The syntax is identical to :func:`.make_binned_map`::
 
@@ -334,6 +336,14 @@ instance of the class :class:`.DestriperParameters`::
 
 The result is an instance of the class :class:`.DestriperResult`, which
 is similar to :class:`.BinnerResult` but it contains much more information.
+
+The function :func:`.make_destriped_map` has a high level interface in the class
+:class:`.Simulation` that applies the destriper algorithm to all the 
+observations in the simulation.
+The syntax is identical to :func:`.make_destriped_map`::
+
+    result = sim.make_destriped_map(nside=nside)
+    healpy.mollview(result.destriped_map)
 
 We will now explain how a destriper works and what is the meaning of each
 parameter in the classes :class:`.DestriperParameters` and
@@ -579,7 +589,6 @@ You can save the results of the destriper using the function
 :func:`.load_destriper_results`. Note that if you are running your code
 using MPI, you should call both functions on *all* the MPI processes,
 and the number of processes should be the same between the two calls.
-
 
 How the N_obs matrix is stored
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
