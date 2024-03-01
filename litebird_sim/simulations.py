@@ -1429,6 +1429,8 @@ class Simulation:
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         components: Optional[List[str]] = None,
+        detector_split: str = "full",
+        time_split: str = "full",        
         append_to_report: bool = True,
     ) -> BinnerResult:
         """
@@ -1451,6 +1453,8 @@ class Simulation:
             nside=nside,
             output_coordinate_system=output_coordinate_system,
             components=components,
+            detector_split=detector_split,
+            time_split=time_split,
         )
 
     def make_destriped_map(

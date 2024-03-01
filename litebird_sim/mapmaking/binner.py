@@ -28,8 +28,8 @@ from .common import (
     _normalize_observations_and_pointings,
     COND_THRESHOLD,
     get_map_making_weights,
-    _build_mask_time_split,
     _build_mask_detector_split,
+    _build_mask_time_split,
 )
 
 
@@ -47,16 +47,20 @@ class BinnerResult:
     - ``coordinate_system``: the coordinate system of the output maps
       (a :class:`.CoordinateSistem` object)
 
-    - ``time_split``:
+    - ``components``: list of components included in the map, by default
+      only the field ``tod`` is used
 
-    - ``detector_split``:
+    - ``detector_split``: detector split of the binned map
+
+    - ``time_split``: time split of the binned map
     """
 
     binned_map: Any = None
     invnpp: Any = None
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
-    time_split: str = None
+    components: List = None
     detector_split: str = None
+    time_split: str = None
 
 
 @njit
@@ -282,9 +286,9 @@ def make_binned_map(
             to use for the output map
         components (list[str]): list of components to include in the map-making.
             The default is just to use the field ``tod`` of each
-            :class:`.Observation` object.
-        detector_split:
-        time_split:
+            :class:`.Observation` object
+        detector_split (str): select the detector split to use in the map-making
+        time_split (str): select the time split to use in the map-making.
 
     Returns:
         An instance of the class :class:`.MapMakerResult`. If the observations are
@@ -321,4 +325,7 @@ def make_binned_map(
         binned_map=rhs.T,
         invnpp=nobs_matrix,
         coordinate_system=output_coordinate_system,
+        components=components,
+        detector_split=detector_split,
+        time_split=time_split,
     )

@@ -78,9 +78,9 @@ from .scanning import (
 from litebird_sim.mapmaking import (
     make_binned_map,
     BinnerResult,
+    make_destriped_map,
     DestriperParameters,
     DestriperResult,
-    make_destriped_map,
     ExternalDestriperParameters,
 )
 from .simulations import (
