@@ -393,6 +393,9 @@ def spacecraft_pos_and_vel(
     equal to `earth_l2_distance_km`.
 
     The result is an object of type :class:`.SpacecraftPositionAndVelocity`.
+
+    If SpacecraftOrbit.solar_velocity_km_s > 0 also the Sun velocity in the rest
+    frame of the CMB is added to the total velocity of the spacecraft.
     """
     assert obs or (
         start_time and time_span_s
