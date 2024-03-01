@@ -23,6 +23,8 @@ from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
 from .mapmaking import (
+    make_binned_map,
+    BinnerResult,
     make_destriped_map,
     DestriperParameters,
     DestriperResult,
@@ -39,7 +41,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
-from litebird_sim.mapmaking.binner import make_binned_map
+from .io import write_list_of_observations, read_list_of_observations
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
@@ -1426,8 +1428,9 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        components: Optional[List[str]] = None,
         append_to_report: bool = True,
-    ):
+    ) -> BinnerResult:
         """
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
@@ -1447,7 +1450,151 @@ class Simulation:
             obs=self.observations,
             nside=nside,
             output_coordinate_system=output_coordinate_system,
+            components=components,
         )
+
+    def make_destriped_map(
+        self,
+        nside: int,
+        params: DestriperParameters = DestriperParameters(),
+        components: Optional[List[str]] = None,
+        keep_weights: bool = False,
+        keep_pixel_idx: bool = False,
+        keep_pol_angle_rad: bool = False,
+        callback: Any = destriper_log_callback,
+        callback_kwargs: Optional[Dict[Any, Any]] = None,
+        append_to_report: bool = True,
+    ) -> DestriperResult:
+        """
+        Bins the tods of `sim.observations` into maps.
+        The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
+        """
+
+        results = make_destriped_map(
+            nside=nside,
+            obs=self.observations,
+            pointings=None,
+            params=params,
+            components=components,
+            keep_weights=keep_weights,
+            keep_pixel_idx=keep_pixel_idx,
+            keep_pol_angle_rad=keep_pol_angle_rad,
+            callback=callback,
+            callback_kwargs=callback_kwargs,
+        )
+
+        if append_to_report:
+            fig, ax = plt.subplots()
+            ax.set_xlabel("Iteration number")
+            ax.set_ylabel("Residual [K]")
+            ax.set_title("CG convergence of the destriper")
+            ax.semilogy(
+                np.arange(len(results.history_of_stopping_factors)),
+                results.history_of_stopping_factors,
+                "ko-",
+            )
+
+            template_file_path = get_template_file_path("report_destriper.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            cg_plot_filename = f"destriper-cg-convergence-{uuid4()}.png"
+
+            self.append_to_report(
+                markdown_text=markdown_template,
+                results=results,
+                history_of_stopping_factors=[
+                    float(x) for x in results.history_of_stopping_factors
+                ],
+                bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
+                cg_plot_filename=cg_plot_filename,
+                figures=[
+                    # Using uuid4() we can have more than one section
+                    # about “destriping” in the report
+                    (fig, cg_plot_filename),
+                ],
+            )
+
+        return results
+
+    def write_observations(
+        self,
+        subdir_name: Union[None, str] = "tod",
+        append_to_report: bool = True,
+        *args,
+        **kwargs,
+    ) -> List[Path]:
+        """Write a set of observations as HDF5
+
+        This function is a wrapper to :func:`.write_list_of_observations` that saves
+        the observations associated with the simulation to a subdirectory within the
+        output path of the simulation. The subdirectory is named `subdir_name`; if
+        you want to avoid creating a subdirectory, just pass an empty string or None.
+
+        This function only writes HDF5 for the observations that belong to the current
+        MPI process. If you have distributed the observations over several processes,
+        you must call this function on each MPI process.
+
+        For a full explanation of the available parameters, see the documentation for
+        :func:`.write_list_of_observations`.
+        """
+
+        if subdir_name:
+            tod_path = self.base_path / subdir_name
+            # Ensure that the subdirectory exists
+            tod_path.mkdir(exist_ok=True)
+        else:
+            tod_path = self.base_path
+
+        file_list = write_list_of_observations(
+            obs=self.observations, path=tod_path, *args, **kwargs
+        )
+
+        if append_to_report:
+            self.append_to_report(
+                """
+    ## TOD files
+
+    {% if file_list %}
+    The following files containing Time-Ordered Data (TOD) have been written:
+
+    {% for file in file_list %}
+    - {{ file }}
+    {% endfor %}
+    {% else %}
+    No TOD files have been written to disk.
+    {% endif %}
+    """,
+                file_list=file_list,
+            )
+
+        return file_list
+
+    def read_observations(
+        self,
+        path: Union[str, Path] = None,
+        subdir_name: Union[None, str] = "tod",
+        *args,
+        **kwargs,
+    ):
+        """Read a list of observations from a set of files in a simulation
+
+        This function is a wrapper around the function :func:`.read_list_of_observations`.
+        It reads all the HDF5 files that are present in the directory whose name is
+        `subdir_name` and is a child of `path`, and it stores them in the
+        :class:`.Simulation` object `sim`.
+
+        If `path` is not specified, the default is to use the value of ``sim.base_path``;
+        this is meaningful if you are trying to read back HDF5 files that have been saved
+        earlier in the same session.
+        """
+        if path is None:
+            path = self.base_path
+
+        obs = read_list_of_observations(
+            file_name_list=list((path / subdir_name).glob("**/*.h5")), *args, **kwargs
+        )
+        self.observations = obs
 
     def apply_gaindrift(
         self,
@@ -1528,62 +1675,3 @@ class Simulation:
                 user_seed=user_seed,
                 **dictionary,
             )
-
-    def make_destriped_map(
-        self,
-        nside: int,
-        params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
-        keep_weights: bool = False,
-        keep_pixel_idx: bool = False,
-        keep_pol_angle_rad: bool = False,
-        callback: Any = destriper_log_callback,
-        callback_kwargs: Optional[Dict[Any, Any]] = None,
-        append_to_report: bool = True,
-    ) -> DestriperResult:
-        results = make_destriped_map(
-            nside=nside,
-            obs=self.observations,
-            pointings=None,
-            params=params,
-            components=components,
-            keep_weights=keep_weights,
-            keep_pixel_idx=keep_pixel_idx,
-            keep_pol_angle_rad=keep_pol_angle_rad,
-            callback=callback,
-            callback_kwargs=callback_kwargs,
-        )
-
-        if append_to_report:
-            fig, ax = plt.subplots()
-            ax.set_xlabel("Iteration number")
-            ax.set_ylabel("Residual [K]")
-            ax.set_title("CG convergence of the destriper")
-            ax.semilogy(
-                np.arange(len(results.history_of_stopping_factors)),
-                results.history_of_stopping_factors,
-                "ko-",
-            )
-
-            template_file_path = get_template_file_path("report_destriper.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-
-            cg_plot_filename = f"destriper-cg-convergence-{uuid4()}.png"
-
-            self.append_to_report(
-                markdown_text=markdown_template,
-                results=results,
-                history_of_stopping_factors=[
-                    float(x) for x in results.history_of_stopping_factors
-                ],
-                bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
-                cg_plot_filename=cg_plot_filename,
-                figures=[
-                    # Using uuid4() we can have more than one section
-                    # about “destriping” in the report
-                    (fig, cg_plot_filename),
-                ],
-            )
-
-        return results

@@ -115,8 +115,7 @@ def __write_complex_observation(
     return (
         obs,
         det,
-        lbs.write_observations(
-            sim=sim,
+        sim.write_observations(
             subdir_name="",
             gzip_compression=gzip_compression,
             tod_fields=["tod1", "tod2"],
