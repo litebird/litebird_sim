@@ -33,7 +33,7 @@ class _InstrumentFreq:
             bandwidth_ghz=dictionary["bandwidth_ghz"],
             fwhm_arcmin=dictionary["fwhm_arcmin"],
             p_sens_ukarcmin=dictionary["p_sens_ukarcmin"],
-            band=dictionary["band"],
+            band=dictionary.get("band", None),
         )
 
     @staticmethod
@@ -44,7 +44,7 @@ class _InstrumentFreq:
             bandwidth_ghz=data["freq_band"],
             fwhm_arcmin=data["beam"],
             p_sens_ukarcmin=data["p_sens"],
-            band=data["band"],
+            band=data.get("band", None),
         )
 
     @staticmethod
@@ -55,7 +55,7 @@ class _InstrumentFreq:
             bandwidth_ghz=data["freq_band"],
             fwhm_arcmin=data["beam"],
             p_sens_ukarcmin=data["p_sens"],
-            band=data["band"],
+            band=data.get("band", None),
         )
 
 
