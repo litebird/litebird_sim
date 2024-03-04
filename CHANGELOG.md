@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271) 
+
 -   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
 
 -   Fixed typo in timeordered.rst [#250](https://github.com/litebird/litebird_sim/pull/250)
