@@ -1,6 +1,9 @@
 # HEAD
 
--   **Breaking change**: Reworking of the IO, `write_observations` and `read_observations` are now part of the class simulation [#293](https://github.com/litebird/litebird_sim/pull/293)  
+
+-   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271) 
+
+-   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
 
 -   Support for numpy.float128 made optional, this fixes importing issue on ARM architectures [#286](https://github.com/litebird/litebird_sim/pull/286)
 
