@@ -13,6 +13,7 @@ from uuid import uuid4
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 import matplotlib.pylab as plt
+import numba
 
 from litebird_sim import constants
 from .coordinates import CoordinateSystem
@@ -22,6 +23,8 @@ from .distribute import distribute_evenly, distribute_optimally
 from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
 from .mapmaking import (
+    make_binned_map,
+    BinnerResult,
     make_destriped_map,
     DestriperParameters,
     DestriperResult,
@@ -38,7 +41,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .scan_map import scan_map_in_observations
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .noise import add_noise_to_observations
-from litebird_sim.mapmaking.binner import make_binned_map
+from .io import write_list_of_observations, read_list_of_observations
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 
 import astropy.time
@@ -54,6 +57,9 @@ from .scanning import ScanningStrategy, SpinningScanningStrategy
 
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
+
+# Name of the environment variable used to set up Numba threads
+NUMBA_NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
@@ -166,10 +172,12 @@ class MpiProcessDescr:
     - `observations`: list of :class:`.MpiObservationDescr` objects, each
       describing one observation managed by the MPI process with rank
       `mpi_rank`.
-
+    - `numba_num_of_threads` (``int``): number of threads used by Numba
+       in the MPI process with rank `mpi_rank`.
     """
 
     mpi_rank: int
+    numba_num_of_threads: int
     observations: List[MpiObservationDescr]
 
 
@@ -196,7 +204,11 @@ class MpiDistributionDescr:
     def __repr__(self):
         result = ""
         for cur_mpi_proc in self.mpi_processes:
-            result += f"# MPI rank #{cur_mpi_proc.mpi_rank + 1}\n\n"
+            result += f"""# MPI rank #{cur_mpi_proc.mpi_rank + 1}
+
+- Number of Numba threads: {cur_mpi_proc.numba_num_of_threads}
+
+"""
             for cur_obs_idx, cur_obs in enumerate(cur_mpi_proc.observations):
                 result += """## Observation #{obs_idx}
 - Start time: {start_time}
@@ -286,12 +298,25 @@ class Simulation:
         duration_s (float): Number of seconds the simulation should
             last.
 
-        imo (:class:`.Imo`): an instance of the :class:`.Imo` class
+        imo (:class:`.Imo`): an instance of the :class:`.Imo` class.
+            If not provided, the default constructor will be called,
+            which means that the IMO to be used will be the default
+            one configured using the ``install_imo`` program.
 
         parameter_file (str or `pathlib.Path`): path to a TOML file
             that contains the parameters for the simulation. This file
             will be copied into `base_path`, and its contents will be
             read into the field `parameters` (a Python dictionary).
+
+        numba_threads (int): number of threads to use when calling
+            Numba functions. If no value is passed but the environment
+            variable ``OMP_NUM_THREADS`` is set, its value will be used;
+            otherwise a number of threads equal to the number of CPU
+            cores will be used.
+
+        numba_threading_layer (str): name of the Numba threading layer
+            to use. See the Numba User's Manual:
+            <https://numba.readthedocs.io/en/stable/user/threading-layer.html>
     """
 
     def __init__(
@@ -306,6 +331,8 @@ class Simulation:
         imo=None,
         parameter_file=None,
         parameters=None,
+        numba_threads=None,
+        numba_threading_layer=None,
     ):
         self.mpi_comm = mpi_comm
 
@@ -334,8 +361,13 @@ class Simulation:
         if imo:
             self.imo = imo
         else:
-            # TODO: read where to read the IMO from some parameter file
             self.imo = Imo()
+
+        if not numba_threads and NUMBA_NUM_THREADS_ENVVAR in os.environ:
+            numba_threads = int(os.environ[NUMBA_NUM_THREADS_ENVVAR])
+
+        self.numba_threads = numba_threads
+        self.numba_threading_layer = numba_threading_layer
 
         assert not (parameter_file and parameters), (
             "you cannot use parameter_file and parameters together "
@@ -354,6 +386,12 @@ class Simulation:
             self.parameters = parameters
 
         self._init_missing_params()
+
+        if self.numba_threads:
+            numba.set_num_threads(self.numba_threads)
+
+        if self.numba_threading_layer:
+            numba.config.THREADING_LAYER = self.numba_threading_layer
 
         if not self.base_path:
             self.base_path = Path()
@@ -507,6 +545,12 @@ class Simulation:
 
         if self.description == "":
             self.description = sim_params.get("description", "")
+
+        if not self.numba_threads:
+            self.numba_threads = sim_params.get("numba_threads", None)
+
+        if not self.numba_threading_layer:
+            self.numba_threading_layer = sim_params.get("numba_threading_layer", None)
 
     def _initialize_logging(self):
         if self.mpi_comm:
@@ -666,7 +710,7 @@ class Simulation:
             if not other_data_files:
                 continue
 
-            if other_data_files[-1].uuid != cur_data_file.uuid:
+            if other_data_files[-1] != cur_data_file.uuid:
                 warnings.append((cur_data_file, other_data_files[-1]))
 
         if (not entities) and (not quantities) and (not data_files):
@@ -996,6 +1040,8 @@ class Simulation:
             return None
 
         observation_descr = []  # type: List[MpiObservationDescr]
+        numba_num_of_threads_all = []  # type: list[int]
+
         for obs in self.observations:
             cur_det_names = list(obs.name)
 
@@ -1025,13 +1071,16 @@ class Simulation:
             )
 
         num_of_observations = len(self.observations)
+        numba_num_of_threads = numba.get_num_threads()
 
         if self.mpi_comm and MPI_ENABLED:
             observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
             num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
+            numba_num_of_threads_all = MPI_COMM_WORLD.allgather(numba_num_of_threads)
         else:
             observation_descr_all = [observation_descr]
             num_of_observations_all = [num_of_observations]
+            numba_num_of_threads_all = [numba_num_of_threads]
 
         mpi_processes = []  # type: List[MpiProcessDescr]
         for i in range(MPI_COMM_WORLD.size):
@@ -1039,6 +1088,7 @@ class Simulation:
                 MpiProcessDescr(
                     mpi_rank=i,
                     observations=observation_descr_all[i],
+                    numba_num_of_threads=numba_num_of_threads_all[i],
                 )
             )
 
@@ -1277,7 +1327,7 @@ class Simulation:
             template_file_path = get_template_file_path("report_scan_map.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
-            if type(maps) is dict:
+            if isinstance(maps, dict):
                 if "Mbs_parameters" in maps.keys():
                     if maps["Mbs_parameters"].make_fg:
                         fg_model = maps["Mbs_parameters"].fg_models
@@ -1378,8 +1428,9 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        components: Optional[List[str]] = None,
         append_to_report: bool = True,
-    ):
+    ) -> BinnerResult:
         """
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
@@ -1399,7 +1450,151 @@ class Simulation:
             obs=self.observations,
             nside=nside,
             output_coordinate_system=output_coordinate_system,
+            components=components,
         )
+
+    def make_destriped_map(
+        self,
+        nside: int,
+        params: DestriperParameters = DestriperParameters(),
+        components: Optional[List[str]] = None,
+        keep_weights: bool = False,
+        keep_pixel_idx: bool = False,
+        keep_pol_angle_rad: bool = False,
+        callback: Any = destriper_log_callback,
+        callback_kwargs: Optional[Dict[Any, Any]] = None,
+        append_to_report: bool = True,
+    ) -> DestriperResult:
+        """
+        Bins the tods of `sim.observations` into maps.
+        The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
+        """
+
+        results = make_destriped_map(
+            nside=nside,
+            obs=self.observations,
+            pointings=None,
+            params=params,
+            components=components,
+            keep_weights=keep_weights,
+            keep_pixel_idx=keep_pixel_idx,
+            keep_pol_angle_rad=keep_pol_angle_rad,
+            callback=callback,
+            callback_kwargs=callback_kwargs,
+        )
+
+        if append_to_report:
+            fig, ax = plt.subplots()
+            ax.set_xlabel("Iteration number")
+            ax.set_ylabel("Residual [K]")
+            ax.set_title("CG convergence of the destriper")
+            ax.semilogy(
+                np.arange(len(results.history_of_stopping_factors)),
+                results.history_of_stopping_factors,
+                "ko-",
+            )
+
+            template_file_path = get_template_file_path("report_destriper.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            cg_plot_filename = f"destriper-cg-convergence-{uuid4()}.png"
+
+            self.append_to_report(
+                markdown_text=markdown_template,
+                results=results,
+                history_of_stopping_factors=[
+                    float(x) for x in results.history_of_stopping_factors
+                ],
+                bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
+                cg_plot_filename=cg_plot_filename,
+                figures=[
+                    # Using uuid4() we can have more than one section
+                    # about “destriping” in the report
+                    (fig, cg_plot_filename),
+                ],
+            )
+
+        return results
+
+    def write_observations(
+        self,
+        subdir_name: Union[None, str] = "tod",
+        append_to_report: bool = True,
+        *args,
+        **kwargs,
+    ) -> List[Path]:
+        """Write a set of observations as HDF5
+
+        This function is a wrapper to :func:`.write_list_of_observations` that saves
+        the observations associated with the simulation to a subdirectory within the
+        output path of the simulation. The subdirectory is named `subdir_name`; if
+        you want to avoid creating a subdirectory, just pass an empty string or None.
+
+        This function only writes HDF5 for the observations that belong to the current
+        MPI process. If you have distributed the observations over several processes,
+        you must call this function on each MPI process.
+
+        For a full explanation of the available parameters, see the documentation for
+        :func:`.write_list_of_observations`.
+        """
+
+        if subdir_name:
+            tod_path = self.base_path / subdir_name
+            # Ensure that the subdirectory exists
+            tod_path.mkdir(exist_ok=True)
+        else:
+            tod_path = self.base_path
+
+        file_list = write_list_of_observations(
+            obs=self.observations, path=tod_path, *args, **kwargs
+        )
+
+        if append_to_report:
+            self.append_to_report(
+                """
+    ## TOD files
+
+    {% if file_list %}
+    The following files containing Time-Ordered Data (TOD) have been written:
+
+    {% for file in file_list %}
+    - {{ file }}
+    {% endfor %}
+    {% else %}
+    No TOD files have been written to disk.
+    {% endif %}
+    """,
+                file_list=file_list,
+            )
+
+        return file_list
+
+    def read_observations(
+        self,
+        path: Union[str, Path] = None,
+        subdir_name: Union[None, str] = "tod",
+        *args,
+        **kwargs,
+    ):
+        """Read a list of observations from a set of files in a simulation
+
+        This function is a wrapper around the function :func:`.read_list_of_observations`.
+        It reads all the HDF5 files that are present in the directory whose name is
+        `subdir_name` and is a child of `path`, and it stores them in the
+        :class:`.Simulation` object `sim`.
+
+        If `path` is not specified, the default is to use the value of ``sim.base_path``;
+        this is meaningful if you are trying to read back HDF5 files that have been saved
+        earlier in the same session.
+        """
+        if path is None:
+            path = self.base_path
+
+        obs = read_list_of_observations(
+            file_name_list=list((path / subdir_name).glob("**/*.h5")), *args, **kwargs
+        )
+        self.observations = obs
 
     def apply_gaindrift(
         self,
@@ -1480,62 +1675,3 @@ class Simulation:
                 user_seed=user_seed,
                 **dictionary,
             )
-
-    def make_destriped_map(
-        self,
-        nside: int,
-        params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
-        keep_weights: bool = False,
-        keep_pixel_idx: bool = False,
-        keep_pol_angle_rad: bool = False,
-        callback: Any = destriper_log_callback,
-        callback_kwargs: Optional[Dict[Any, Any]] = None,
-        append_to_report: bool = True,
-    ) -> DestriperResult:
-        results = make_destriped_map(
-            nside=nside,
-            obs=self.observations,
-            pointings=None,
-            params=params,
-            components=components,
-            keep_weights=keep_weights,
-            keep_pixel_idx=keep_pixel_idx,
-            keep_pol_angle_rad=keep_pol_angle_rad,
-            callback=callback,
-            callback_kwargs=callback_kwargs,
-        )
-
-        if append_to_report:
-            fig, ax = plt.subplots()
-            ax.set_xlabel("Iteration number")
-            ax.set_ylabel("Residual [K]")
-            ax.set_title("CG convergence of the destriper")
-            ax.semilogy(
-                np.arange(len(results.history_of_stopping_factors)),
-                results.history_of_stopping_factors,
-                "ko-",
-            )
-
-            template_file_path = get_template_file_path("report_destriper.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-
-            cg_plot_filename = f"destriper-cg-convergence-{uuid4()}.png"
-
-            self.append_to_report(
-                markdown_text=markdown_template,
-                results=results,
-                history_of_stopping_factors=[
-                    float(x) for x in results.history_of_stopping_factors
-                ],
-                bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
-                cg_plot_filename=cg_plot_filename,
-                figures=[
-                    # Using uuid4() we can have more than one section
-                    # about “destriping” in the report
-                    (fig, cg_plot_filename),
-                ],
-            )
-
-        return results

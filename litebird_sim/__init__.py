@@ -1,4 +1,7 @@
 # -*- encoding: utf-8 -*-
+import importlib
+from pathlib import Path
+import numba
 
 from .compress import (
     rle_compress,
@@ -25,16 +28,16 @@ from .hwp import (
     HWP,
     IdealHWP,
 )
+from .hwp_sys.hwp_sys import (
+    HwpSys,
+)
 from .imo import (
     Imo,
     FormatSpecification,
     Entity,
     Quantity,
     Release,
-    ImoFormatError,
-    ImoFlatFile,
 )
-from .hwp_sys.hwp_sys import HwpSys
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
@@ -81,6 +84,7 @@ from litebird_sim.mapmaking import (
     ExternalDestriperParameters,
 )
 from .simulations import (
+    NUMBA_NUM_THREADS_ENVVAR,
     Simulation,
     MpiObservationDescr,
     MpiProcessDescr,
@@ -125,15 +129,12 @@ from .gaindrifts import (
     apply_gaindrift_to_observations,
 )
 
-try:
-    import toast
-    from .toast_destriper import (
-        destripe_with_toast2,
-    )
+from .version import __author__, __version__
 
-    TOAST_ENABLED = True
 
-except ImportError:
+# Check if the TOAST2 mapmaker is available
+TOAST_ENABLED = importlib.util.find_spec("OpMapMaker", "toast.todmap") is not None
+if not TOAST_ENABLED:
 
     def destripe_with_toast2(*args, **kwargs):
         raise ImportError(
@@ -142,11 +143,17 @@ except ImportError:
 
     TOAST_ENABLED = False
 
-from .version import __author__, __version__
+
+# Privilege TBB over OpenPM and the internal Numba implementation of a
+# work queue
+numba.config.THREADING_LAYER_CONFIG = ["tbb", "omp", "workqueue"]
+
+PTEP_IMO_LOCATION = Path(__file__).parent.parent / "default_imo"
 
 __all__ = [
     "__author__",
     "__version__",
+    "PTEP_IMO_LOCATION",
     # compress.py
     "rle_compress",
     "rle_decompress",
@@ -165,9 +172,6 @@ __all__ = [
     "distribute_optimally",
     # imo.py
     "Imo",
-    # imofile.py
-    "ImoFormatError",
-    "ImoFlatFile",
     # imoobjects
     "FormatSpecification",
     "Entity",
@@ -181,6 +185,8 @@ __all__ = [
     # hwp.py
     "HWP",
     "IdealHWP",
+    # hwp_sys/hwp_sys.py
+    "HwpSys",
     # madam.py
     "save_simulation_for_madam",
     # mbs.py
@@ -223,16 +229,19 @@ __all__ = [
     "apply_hwp_to_obs",
     "get_pointing_buffer_shape",
     "get_pointings",
+    "get_pointings_for_observations",
     # mapmaking
     "make_binned_map",
     "BinnerResult",
     "make_destriped_map",
     "DestriperParameters",
+    "DestriperResult",
     "ExternalDestriperParameters",
     # toast_destriper.py
     "TOAST_ENABLED",
     "destripe_with_toast2",
     # simulations.py
+    "NUMBA_NUM_THREADS_ENVVAR",
     "Simulation",
     "MpiObservationDescr",
     "MpiProcessDescr",

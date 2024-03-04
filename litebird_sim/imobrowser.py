@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
+from __future__ import annotations
+from pathlib import Path
+
 from asciimatics.widgets import (
     Frame,
     MultiColumnListBox,
@@ -12,7 +15,6 @@ from asciimatics.widgets import (
 from asciimatics.scene import Scene
 from asciimatics.screen import Screen
 from asciimatics.exceptions import ResizeScreenError, NextScene, StopApplication
-import asciimatics.widgets
 from asciimatics.widgets.utilities import THEMES
 
 import pyperclip
@@ -20,7 +22,6 @@ import pyperclip
 from litebird_sim import Imo
 
 from collections import defaultdict
-import sys
 
 # On Linux, pyperclip only works if you have installed either "xclip"
 # or "xsel"
@@ -57,8 +58,12 @@ THEMES["custom"] = defaultdict(
 
 
 class EntityBrowser(object):
-    def __init__(self):
-        self._imo = Imo()
+    def __init__(self, path: Path | None):
+        if path:
+            self._imo = Imo(flatfile_location=path)
+        else:
+            self._imo = Imo()
+
         self._base = None
         self._quantity = None
 
@@ -334,7 +339,18 @@ def browser(screen, scene):
 
 
 if __name__ == "__main__":
-    imo = EntityBrowser()
+    import sys
+
+    if len(sys.argv) == 2:
+        imo_path = Path(sys.argv[1])
+    elif len(sys.argv) == 1:
+        imo_path = None
+    else:
+        print("Usage: {0} [IMO_FILE_LOCATION]", file=sys.stderr)
+        sys.exit(1)
+
+    imo = EntityBrowser(path=imo_path)
+
     last_scene = None
     while True:
         try:

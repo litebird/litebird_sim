@@ -19,18 +19,10 @@
     poetry build
     ```
 
--   Upload the `.tar.gz` and `.whl` files to the PyPI Test server:
+-   Upload the package to PyPI:
 
     ```
-    twine upload --repository testpypi dist/litebird_sim_*
-    ```
-
--   Check that everything looks right by opening the URL shown by Twine
-
--   If everything looks ok, upload the package to PyPI:
-
-    ```
-    twine upload dist/litebird_sim_*
+    poetry upload
     ```
 
 -   Create a new tag and push it to GitHub:

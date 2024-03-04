@@ -16,9 +16,9 @@ import numpy.typing as npt
 from numba import njit
 import healpy as hp
 
-from typing import Union, List, Any, Optional
+from typing import Union, List, Any
 from litebird_sim.observations import Observation
-from litebird_sim.coordinates import rotate_coordinates_e2g, CoordinateSystem
+from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
 from litebird_sim.healpix import nside_to_npix

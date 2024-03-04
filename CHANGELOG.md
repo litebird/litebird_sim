@@ -1,16 +1,39 @@
 # HEAD
 
+
 -   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271) 
 
 -   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
 
--   Fixed typo in timeordered.rst [#250](https://github.com/litebird/litebird_sim/pull/250)
+-   Support for numpy.float128 made optional, this fixes importing issue on ARM architectures [#286](https://github.com/litebird/litebird_sim/pull/286)
 
--   Fix error in reading observation when it does not have tod field [#262](https://github.com/litebird/litebird_sim/pull/262) 
+-   Improve the documentation about noise simulations [#283](https://github.com/litebird/litebird_sim/pull/283)
+
+-   Use libinsdb to access the IMO [#282](https://github.com/litebird/litebird_sim/pull/282)
+
+-   Move from `flake8`/`black` to `ruff` [#281](https://github.com/litebird/litebird_sim/pull/281/)
+
+-   New module to simulate HWP systematics [#232](https://github.com/litebird/litebird_sim/pull/232)
+
+-   Add support for partial multithreading using Numba [#276](https://github.com/litebird/litebird_sim/pull/276)
+
+# Version 0.11.0
+
+-   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
 
 -   **Breaking change**: Drop support for Python 3.7 and 3.8 [#254](https://github.com/litebird/litebird_sim/pull/254)
 
 -   **Breaking change**: Fix noise seed inconsistency [#256](https://github.com/litebird/litebird_sim/pull/256)
+
+-   Be more robust when parsing UUIDs and URLs coming from the IMo [#274](https://github.com/litebird/litebird_sim/pull/274)
+
+-   Solve typing error in destriper [#272](https://github.com/litebird/litebird_sim/pull/272)
+
+-   Include default PTEP IMO for tests and demos [#230](https://github.com/litebird/litebird_sim/pull/230)
+
+-   Fixed typo in timeordered.rst [#250](https://github.com/litebird/litebird_sim/pull/250)
+
+-   Fix error in reading observation when it does not have tod field [#262](https://github.com/litebird/litebird_sim/pull/262) 
 
 -   Bug in mbs for band integration solved [#251](https://github.com/litebird/litebird_sim/pull/251)
 

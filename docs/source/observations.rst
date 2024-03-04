@@ -1,3 +1,5 @@
+.. _observations:
+
 Observations
 ============
 
@@ -225,12 +227,12 @@ following information are saved and restored:
 - Global and local flags saved in ``.global_flags`` and
   ``.local_flags`` (see below).
 
-The function used to save observations is :func:`.write_observations`,
-which works with a :class:`.Simulation` object; if you prefer to
+The function used to save observations is :func:`.Simulation.write_observations`,
+which acts on a :class:`.Simulation` object; if you prefer to
 operate without a :class:`.Simulation` object, you can call
 :func:`.write_list_of_observations`.
 
-To read observations, you can use :func:`.read_observations` and
+To read observations, you can use :func:`.Simulation.read_observations` and
 :func:`.read_list_of_observations`.
 
   

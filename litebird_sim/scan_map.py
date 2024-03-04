@@ -1,22 +1,14 @@
 # -*- encoding: utf-8 -*-
 
-from numba import njit
 import numpy as np
+from numba import njit, prange
 
 from ducc0.healpix import Healpix_Base
-
-from astropy.time import Time, TimeDelta
-
 from typing import Union, List, Dict
-
 from .observations import Observation
-
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
-
 from .healpix import npix_to_nside
-
 import logging
-
 import healpy as hp
 
 
@@ -26,9 +18,9 @@ def compute_signal_for_one_sample(T, Q, U, co, si):
     return T + co * Q + si * U
 
 
-@njit
+@njit(parallel=True)
 def scan_map_for_one_detector(tod_det, input_T, input_Q, input_U, pol_angle_det):
-    for i in range(len(tod_det)):
+    for i in prange(len(tod_det)):
         tod_det[i] += compute_signal_for_one_sample(
             T=input_T[i],
             Q=input_Q[i],
@@ -187,7 +179,7 @@ def scan_map_in_observations(
             psi_list = [point[:, :, 2] for point in pointings]
 
     for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
-        if type(maps) is dict:
+        if isinstance(maps, dict):
             if all(item in maps.keys() for item in cur_obs.name):
                 input_names = cur_obs.name
             elif all(item in maps.keys() for item in cur_obs.channel):

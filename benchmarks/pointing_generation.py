@@ -8,12 +8,12 @@ and pointings.
 import time
 import sys
 from pathlib import Path
+import numpy as np
 
 # Add the `..` directory to PYTHONPATH, so that we can import "litebird_sim"
 sys.path.append(str(Path(__file__).parent / ".."))
 
-import litebird_sim as lbs
-import numpy as np
+import litebird_sim as lbs  # noqa:E402
 
 
 if len(sys.argv) == 2:

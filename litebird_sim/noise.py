@@ -27,7 +27,9 @@ def add_white_noise(data, sigma: float, random):
 
         `data` : 1-D numpy array
 
-        `sigma` : white noise level
+        `sigma` : the white noise level per sample. Be sure *not* to include cosmic ray
+                  loss, repointing maneuvers, etc., as these affect the integration time
+                  but **not** the white noise per sample.
 
         `random` : a random number generator that implements the ``normal`` method.
                    You should typically use the `random` field of a :class:`.Simulation`
@@ -73,7 +75,9 @@ def add_one_over_f_noise(
 
         `alpha` : low frequency spectral tilt
 
-        `sigma` : white noise level
+        `sigma` : the white noise level per sample. Be sure *not* to include cosmic ray
+                  loss, repointing maneuvers, etc., as these affect the integration time
+                  but **not** the white noise per sample.
 
         `sampling_rate_hz` : the sampling frequency of the data
 
@@ -123,6 +127,10 @@ def add_noise(
 
     The parameter `noisetype` must either be ``white`` or ``one_over_f``; in the latter
     case, the noise will contain a 1/f part and a white noise part.
+
+    Be sure *not* to include cosmic ray loss, repointing maneuvers, etc., in the value
+    passed as `net_ukrts`, as these affect the integration time but **not** the white
+    noise per sample.
 
     The parameter `scale` can be used to introduce measurement unit conversions when
     appropriate. Default units: [K].

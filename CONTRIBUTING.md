@@ -62,24 +62,21 @@ The latter command will install a `pre-commit` Git hook that will be
 run whenever you execute `git commit`. The script will check the
 quality of your commit, using the following tools:
 
-- [Black](https://github.com/psf/black) checks for code formatting
-  issues;
-- [Flake8](https://pypi.org/project/flake8/) checks
-  for common errors and stylistic issues in Python codes (unused
-  imports, etc.).
+- [Ruff](https://github.com/astral-sh/ruff) checks for code formatting
+  issues, common Python errors, and stylistic issues (unused imports, etc.)
 - [Pytest](https://docs.pytest.org/en/latest/) run automatic tests on
   the code.
 
 In order to maintain the code readable to everybody in the
-collaboration, you must run `black` on your source code before
+collaboration, you must run `ruff format` on your source code before
 committing anything, otherwise the commit will be rejected. You can
-configure your editor to automatically use `black` to reformat the
+configure your editor to automatically use `ruff` to reformat the
 code, or you can run the following command before issuing a `git
 commit`:
 
 ```sh
 cd litebird_sim
-black .
+ruff format .
 ```
 
 It's a good practice to run tests on the code while you are developing

@@ -339,7 +339,7 @@ class SpacecraftPositionAndVelocity:
 
 
 def compute_start_and_span_for_obs(
-    obs: Union[Observation, List[Observation]]
+    obs: Union[Observation, List[Observation]],
 ) -> Tuple[astropy.time.Time, float]:
     """
     Compute the start time and the overall duration in seconds of a set of observations.

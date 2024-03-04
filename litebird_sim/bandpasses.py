@@ -34,13 +34,23 @@ class BandPassInfo:
 
         - bandcenter_ghz (float):  center frequency in GHz
 
-        - bandwidth_ghz (float):  width of the band (default=0.2)
+        - bandwidth_ghz (float):  width of the band (default=0.)
 
-        - nsamples_inband (int): number of elements to sample the band (default=128)
+        - bandlow_ghz (float): lowest frequency to sample the band,
+          i.e. the first element of the frequency array considered
+          (default: bandcenter_ghz - bandwidth_ghz)
+
+        - bandhigh_ghz (float): highest frequency to sample the band,
+          i.e. the last element of frequency array considered
+          (default: bandcenter_ghz + bandwidth_ghz)
+
+        - nsamples_inband (int): number of elements to sample the band
+          (default=128)
 
         - name (str) : ID of the band
 
-        - normalize(bool) : If set to true bandpass weights will be normalized to 1
+        - normalize(bool) : If set to true bandpass weights will be
+          normalized to 1
 
         - bandtype (str): a string describing the band profile. It can be
           one of the following:
@@ -55,12 +65,14 @@ class BandPassInfo:
 
             - ``cheby``: the bandpass encodes a Chebyshev profile
 
-        - alpha_exp (float): out-of-band exponential decay index for low freq edge.
+        - alpha_exp (float): out-of-band exponential decay index for
+          low freq edge.
 
-        - beta_exp (float) : out-of-band exponential decay index for high freq edge
+        - beta_exp (float) : out-of-band exponential decay index for
+          high freq edge
 
-        - cosine_apo_length (int): the numerical factor related to the cosine
-            apodization length
+        - cosine_apo_length (int): the numerical factor related to
+          the cosine apodization length
 
         - cheby_poly_order (int): chebyshev filter order.
 
@@ -69,6 +81,8 @@ class BandPassInfo:
 
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
+    bandlow_ghz: Union[float, None] = None
+    bandhigh_ghz: Union[float, None] = None
     nsamples_inband: int = 128
     name: str = ""
     bandtype: str = "top-hat"
@@ -86,12 +100,25 @@ class BandPassInfo:
         Constructor of the class
 
         """
-
+        if self.bandcenter_ghz <= 0.0:
+            raise ValueError(
+                "The band center must be strictly positive, \
+                assign a value to bandcenter_ghz > 0.0"
+            )
         self.f0, self.f1 = self.get_edges()
         # we extend the wings out-of-band of the top-hat bandpass
-        # before  and after the edges
-        bandrange = (self.f0 - self.bandwidth_ghz, self.f1 + self.bandwidth_ghz)
-        self.freqs_ghz = np.linspace(bandrange[0], bandrange[1], self.nsamples_inband)
+        # before and after the edges
+        if not self.bandlow_ghz:
+            self.bandlow_ghz = self.bandcenter_ghz - self.bandwidth_ghz
+        if not self.bandhigh_ghz:
+            self.bandhigh_ghz = self.bandcenter_ghz + self.bandwidth_ghz
+        self.freqs_ghz = np.linspace(
+            self.bandlow_ghz, self.bandhigh_ghz, self.nsamples_inband
+        )
+        # checking that the bandpass edges lie within the freq range
+        if self.bandlow_ghz > self.f0 or self.bandhigh_ghz < self.f1 - 1:
+            raise ValueError("The bandpass is out of the frequency range")
+
         self.isnormalized = False
         if self.bandtype == "top-hat":
             self._get_top_hat_bandpass(normalize=self.normalize)
@@ -116,11 +143,13 @@ class BandPassInfo:
 
     def _get_top_hat_bandpass(self, normalize=False, apodization: Optional[str] = None):
         """
-        Sample a top-hat bandpass, given the centroid and the bandwidth. If the
-        `normalize` flag is set to ``True``, the transmission coefficients are
-        normalized so that its integral is 1 over the frequency band. The parameter
-        `apodization` must be either ``"cosine"``, ``"exp"``, or ``None``: in the
-        latter case, no apodization of the beamshape is performed.
+        Sample a top-hat bandpass, given the centroid and the bandwidth.
+        If the `normalize` flag is set to ``True``, the transmission
+        coefficients are
+        normalized so that its integral is 1 over the frequency band.
+        The parameter `apodization` must be either ``"cosine"``, ``"exp"``,
+        or ``None``: in the latter case, no apodization of the beamshape
+        is performed.
         """
 
         self.weights = np.zeros_like(self.freqs_ghz)
@@ -145,8 +174,8 @@ class BandPassInfo:
         self.isnormalized = True
 
     def _exp_apodize_bandpass(self):
-        """Define a bandpass with exponential tails and unit transmission in band
-        freqs: frequency in GHz
+        """Define a bandpass with exponential tails and unit transmission
+        in band freqs: frequency in GHz
         """
         mask_beta = np.ma.masked_greater(self.freqs_ghz, self.f1).mask
         self.weights[mask_beta] = np.exp(
@@ -226,7 +255,8 @@ class BandPassInfo:
 
     def _interpolate_band(self):
         """
-        This function aims at building the sampler in order to generate random samples
+        This function aims at building the sampler in order to
+        generate random samples
         statistically equivalent to the model bandpass
         """
         # normalize band
@@ -254,25 +284,27 @@ class BandPassInfo:
         """
         Resample a  bandpass with bootstrap resampling.
 
-        Note that the user can provide any sampler built with the `interpolate_band`
-        method; otherwise, an error will be raised!
+        Note that the user can provide any sampler built with the
+        `interpolate_band` method; otherwise, an error will be raised!
 
-        This function should be used when the user wants to generate many realizations
-        of bandpasses, e.g. per detector bands. There is no need to initialize many
-        instances of the class :class:`.BandPassInfo`, just rerun this functions
-        multiple times issuing the same bandpass model instance.
+        This function should be used when the user wants to generate
+        many realizations of bandpasses, e.g. per detector bands.
+        There is no need to initialize many
+        instances of the class :class:`.BandPassInfo`, just rerun this
+        functions multiple times issuing the same bandpass model instance.
 
         Args :
 
         - `bstrap_size` (int): encodes the size of the random dataset
-            to be generated from the Sampler
+           to be generated from the Sampler
 
-        - `nresample` (int): define how fine is the grid for the resampled bandpass
+        - `nresample` (int): define how fine is the grid for the
+           resampled bandpass
 
         - `model` (BandPassInfo.model): We can resample from a model previously
-            constructed with this function. The default value is set to ``None``:
-            in this case, it initializes the bandpass sampler with the model set
-            in the class instance (recommended use).
+           constructed with this function. The default value is set to ``None``:
+           in this case, it initializes the bandpass sampler with the model set
+           in the class instance (recommended use).
         """
 
         if model is not None:

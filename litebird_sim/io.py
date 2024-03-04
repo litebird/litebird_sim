@@ -12,11 +12,13 @@ import astropy.time
 import h5py
 import numpy as np
 
+from deprecation import deprecated
+
+from .version import __version__ as litebird_sim_version
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
-from .simulations import Simulation
 
 __NUMPY_INT_TYPES = [
     np.int8,
@@ -29,8 +31,10 @@ __NUMPY_FLOAT_TYPES = [
     np.float16,
     np.float32,
     np.float64,
-    np.float128,
 ]
+
+if "float128" in dir(np):
+    __NUMPY_FLOAT_TYPES.append(np.float128)
 
 __NUMPY_SCALAR_TYPES = __NUMPY_INT_TYPES + __NUMPY_FLOAT_TYPES
 
@@ -359,58 +363,25 @@ def write_list_of_observations(
     return file_list
 
 
+@deprecated(
+    deprecated_in="0.11",
+    current_version=litebird_sim_version,
+    details="Use Simulation.write_observations",
+)
 def write_observations(
-    sim: Simulation,
+    sim,
     subdir_name: Union[None, str] = "tod",
     include_in_report: bool = True,
     *args,
     **kwargs,
 ) -> List[Path]:
-    """Write a set of observations as HDF5
-
-    This function is a wrapper to :func:`.write_list_of_observations` that saves
-    the observations associated with the simulation to a subdirectory within the
-    output path of the simulation. The subdirectory is named `subdir_name`; if
-    you want to avoid creating a subdirectory, just pass an empty string or None.
-
-    This function only writes HDF5 for the observations that belong to the current
-    MPI process. If you have distributed the observations over several processes,
-    you must call this function on each MPI process.
-
-    For a full explanation of the available parameters, see the documentation for
-    :func:`.write_list_of_observations`.
-    """
-
-    if subdir_name:
-        tod_path = sim.base_path / subdir_name
-        # Ensure that the subdirectory exists
-        tod_path.mkdir(exist_ok=True)
-    else:
-        tod_path = sim.base_path
-
-    file_list = write_list_of_observations(
-        obs=sim.observations, path=tod_path, *args, **kwargs
+    # Here we call the method moved inside Simulation
+    return sim.write_observations(
+        subdir_name,
+        include_in_report,
+        *args,
+        **kwargs,
     )
-
-    if include_in_report:
-        sim.append_to_report(
-            """
-## TOD files
-
-{% if file_list %}
-The following files containing Time-Ordered Data (TOD) have been written:
-
-{% for file in file_list %}
-- {{ file }}
-{% endfor %}
-{% else %}
-No TOD files have been written to disk.
-{% endif %}
-""",
-            file_list=file_list,
-        )
-
-    return file_list
 
 
 def __find_flags(inpf, expected_num_of_dets: int, expected_num_of_samples: int):
@@ -659,28 +630,17 @@ def read_list_of_observations(
     return observations
 
 
+@deprecated(
+    deprecated_in="0.11",
+    current_version=litebird_sim_version,
+    details="Use Simulation.read_observations",
+)
 def read_observations(
-    sim: Simulation,
+    sim,
     path: Union[str, Path] = None,
     subdir_name: Union[None, str] = "tod",
     *args,
     **kwargs,
 ):
-    """Read a list of observations from a set of files in a simulation
-
-    This function is a wrapper around the function :func:`.read_list_of_observations`.
-    It reads all the HDF5 files that are present in the directory whose name is
-    `subdir_name` and is a child of `path`, and it stores them in the
-    :class:`.Simulation` object `sim`.
-
-    If `path` is not specified, the default is to use the value of ``sim.base_path``;
-    this is meaningful if you are trying to read back HDF5 files that have been saved
-    earlier in the same session.
-    """
-    if path is None:
-        path = sim.base_path
-
-    obs = read_list_of_observations(
-        file_name_list=list((path / subdir_name).glob("**/*.h5")), *args, **kwargs
-    )
-    sim.observations = obs
+    # Here we call the method moved inside Simulation
+    sim.read_observations(path, subdir_name, *args, **kwargs)
