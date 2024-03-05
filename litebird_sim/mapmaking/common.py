@@ -450,6 +450,16 @@ def _build_mask_time_split(
             mask = np.zeros(cur_obs.n_samples, dtype=bool)
             mask[1::2] = True
             time_mask.append(mask)
+    elif time_split == "first_half":
+        for cur_obs in obs_list:
+            mask = np.zeros(cur_obs.n_samples, dtype=bool)
+            mask[0 : cur_obs.n_samples // 2] = True
+            time_mask.append(mask)
+    elif time_split == "second_half":
+        for cur_obs in obs_list:
+            mask = np.zeros(cur_obs.n_samples, dtype=bool)
+            mask[cur_obs.n_samples // 2 :] = True
+            time_mask.append(mask)
     elif time_split == "year1":
         for cur_obs in obs_list:
             if isinstance(cur_obs.start_time_global, astropy.time.Time):
