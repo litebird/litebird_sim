@@ -250,6 +250,32 @@ def _build_nobs_matrix(
     return nobs_matrix
 
 
+def loop_binned_map_over_splits(nside: int,
+    obs: Union[Observation, List[Observation]],
+    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+    components: List[str] = None,
+    detector_split: List[str] = ["full"],
+    time_split: List[str] = ["full"],
+) -> dict[str, BinnerResult]:
+    if isinstance(detector_split, str):
+        detector_split = [detector_split]
+    if isinstance(time_split, str):
+        time_split = [time_split]
+    binned_maps = {}
+    for ds in detector_split:
+        for ts in time_split:
+            binned_maps[f"{ds}_{ts}"] = make_binned_map(
+                nside=nside,
+                obs=obs,
+                pointings=pointings,
+                output_coordinate_system=output_coordinate_system,
+                components=components,
+                detector_split=ds,
+                time_split=ts,
+            )
+    return binned_maps
+
 def make_binned_map(
     nside: int,
     obs: Union[Observation, List[Observation]],
