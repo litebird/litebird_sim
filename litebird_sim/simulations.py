@@ -1430,7 +1430,7 @@ class Simulation:
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         components: Optional[List[str]] = None,
         detector_split: str = "full",
-        time_split: str = "full",        
+        time_split: str = "full",
         append_to_report: bool = True,
     ) -> BinnerResult:
         """
@@ -1449,8 +1449,8 @@ class Simulation:
             )
 
         return make_binned_map(
-            obs=self.observations,
             nside=nside,
+            obs=self.observations,
             output_coordinate_system=output_coordinate_system,
             components=components,
             detector_split=detector_split,

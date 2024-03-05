@@ -478,7 +478,7 @@ def _build_mask_time_split(
                 * ((cur_obs.get_times() - t_i) < t_y3_sec)
             )
     else:
-        print("Time split not recognized!!!")
+        raise ValueError(f'Time split "{time_split}" not recognized')
 
     return time_mask
 
@@ -496,6 +496,6 @@ def _build_mask_detector_split(
         for cur_obs in obs_list:
             detector_mask.append(cur_obs.wafer == detector_split[6:9])
     else:
-        print("Detector split not recognized!!!")
+        raise ValueError(f'Detector split "{detector_split}" not recognized')
 
     return detector_mask
