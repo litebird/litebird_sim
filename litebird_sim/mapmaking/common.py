@@ -462,35 +462,37 @@ def _build_mask_time_split(
             time_mask.append(mask)
     elif time_split == "year1":
         for cur_obs in obs_list:
-            if isinstance(cur_obs.start_time_global, astropy.time.Time):
-                t_i = cur_obs.start_time_global.cxcsec
-            else:
-                t_i = cur_obs.start_time_global
+            t_i = _get_initial_time(cur_obs)
             time_mask.append((cur_obs.get_times() - t_i) < t_y1_sec)
     elif time_split == "year2":
         for cur_obs in obs_list:
-            if isinstance(cur_obs.start_time_global, astropy.time.Time):
-                t_i = cur_obs.start_time_global.cxcsec
-            else:
-                t_i = cur_obs.start_time_global
+            t_i = _get_initial_time(cur_obs)
             time_mask.append(
                 ((cur_obs.get_times() - t_i) >= t_y1_sec)
                 * ((cur_obs.get_times() - t_i) < t_y2_sec)
             )
     elif time_split == "year3":
         for cur_obs in obs_list:
-            if isinstance(cur_obs.start_time_global, astropy.time.Time):
-                t_i = cur_obs.start_time_global.cxcsec
-            else:
-                t_i = cur_obs.start_time_global
+            t_i = _get_initial_time(cur_obs)
             time_mask.append(
                 ((cur_obs.get_times() - t_i) >= t_y2_sec)
                 * ((cur_obs.get_times() - t_i) < t_y3_sec)
             )
     else:
-        raise ValueError(f'Time split "{time_split}" not recognized')
+        msg = f"Time split '{time_split}' not recognized"
+        raise ValueError(msg)
 
     return time_mask
+
+
+def _get_initial_time(
+    obs: Observation,
+):
+    if isinstance(obs.start_time_global, astropy.time.Time):
+        t_i = obs.start_time_global.cxcsec
+    else:
+        t_i = obs.start_time_global
+    return t_i
 
 
 def _build_mask_detector_split(
@@ -506,6 +508,7 @@ def _build_mask_detector_split(
         for cur_obs in obs_list:
             detector_mask.append(cur_obs.wafer == detector_split[6:9])
     else:
-        raise ValueError(f'Detector split "{detector_split}" not recognized')
+        msg = f"Detector split '{detector_split}' not recognized"
+        raise ValueError(msg)
 
     return detector_mask

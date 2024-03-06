@@ -1481,9 +1481,8 @@ class Simulation:
         """
 
         if isinstance(detector_split, list) or isinstance(time_split, list):
-            raise ValueError(
-                "You must use 'loop_binned_map_over_splits' if you want lists of splits!"
-            )
+            msg = "You must use 'loop_binned_map_over_splits' if you want lists of splits!"
+            raise ValueError(msg)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_binned_map.md")
