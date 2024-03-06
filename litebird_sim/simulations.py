@@ -1425,7 +1425,8 @@ class Simulation:
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
-    def loop_binned_map_over_splits(self,
+    def loop_binned_map_over_splits(
+        self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         components: Optional[List[str]] = None,
@@ -1433,7 +1434,6 @@ class Simulation:
         time_split: Union[str, List[str]] = "full",
         append_to_report: bool = True,
     ) -> Union[BinnerResult, dict[str, BinnerResult]]:
-
         if isinstance(detector_split, str) and isinstance(time_split, str):
             return self.make_binned_map(
                 nside=nside,
@@ -1445,7 +1445,9 @@ class Simulation:
             )
         else:
             if append_to_report and MPI_COMM_WORLD.rank == 0:
-                template_file_path = get_template_file_path("report_loop_binned_map_over_splits.md")
+                template_file_path = get_template_file_path(
+                    "report_loop_binned_map_over_splits.md"
+                )
                 with template_file_path.open("rt") as inpf:
                     markdown_template = "".join(inpf.readlines())
                 self.append_to_report(
@@ -1455,12 +1457,13 @@ class Simulation:
                     nside=nside,
                     coord=str(output_coordinate_system),
                 )
-            return loop_binned_map_over_splits(nside=nside,
+            return loop_binned_map_over_splits(
+                nside=nside,
                 obs=self.observations,
                 output_coordinate_system=output_coordinate_system,
                 components=components,
                 detector_split=detector_split,
-                time_split=time_split
+                time_split=time_split,
             )
 
     def make_binned_map(

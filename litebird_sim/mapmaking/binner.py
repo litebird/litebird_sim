@@ -250,7 +250,8 @@ def _build_nobs_matrix(
     return nobs_matrix
 
 
-def loop_binned_map_over_splits(nside: int,
+def loop_binned_map_over_splits(
+    nside: int,
     obs: Union[Observation, List[Observation]],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
@@ -275,6 +276,7 @@ def loop_binned_map_over_splits(nside: int,
                 time_split=ts,
             )
     return binned_maps
+
 
 def make_binned_map(
     nside: int,
