@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 from dataclasses import dataclass
 from typing import Union, List, Tuple
 import numpy as np
@@ -21,11 +19,12 @@ COND_THRESHOLD = 1e10
 t_y1_sec = 365 * 24 * 3600
 t_y2_sec = 2 * 365 * 24 * 3600
 t_y3_sec = 3 * 365 * 24 * 3600
+t_survey_sec = 365 * 24 * 3600 / 2
 
 # Definition of detector splits
-# lft_wafers = ['L00','L01','L02','L03','L04','L05','L06','L07']
-# mft_wafers = ['M00','M01','M02','M03','M04','M05','M06']
-# hft_wafers = ['H00','H01','H02']
+lft_wafers = ["L00", "L01", "L02", "L03", "L04", "L05", "L06", "L07"]
+mft_wafers = ["M00", "M01", "M02", "M03", "M04", "M05", "M06"]
+hft_wafers = ["H00", "H01", "H02"]
 
 
 @dataclass
@@ -92,7 +91,7 @@ class ExternalDestriperParameters:
     return_rcond: bool = False
 
 
-def get_map_making_weights(obs: Observation, check: bool) -> npt.NDArray:
+def get_map_making_weights(obs: Observation, *, check: bool = True) -> npt.NDArray:
     """Return a NumPy array containing the weights of each detector in `obs`
 
     The number of elements in the result is equal to `obs.n_detectors`. If
@@ -109,10 +108,10 @@ def get_map_making_weights(obs: Observation, check: bool) -> npt.NDArray:
 
     if check:
         # Check that there are no weird weights
-        assert np.alltrue(
+        assert np.all(
             np.isfinite(weights)
         ), f"Not all the detectors' weights are finite numbers: {weights}"
-        assert np.alltrue(
+        assert np.all(
             weights > 0.0
         ), f"Not all the detectors' weights are positive: {weights}"
 
@@ -152,7 +151,7 @@ def _normalize_observations_and_pointings(
         if isinstance(obs, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "You must pass a list of observations *and* a list "
-                + "of pointing matrices to scan_map_in_observations"
+                "of pointing matrices to scan_map_in_observations"
             )
             obs_list = [obs]
             ptg_list = [pointings[:, :, 0:2]]
@@ -160,11 +159,11 @@ def _normalize_observations_and_pointings(
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to make_binned_map, "
-                + "you must do the same for `pointings`"
+                "you must do the same for `pointings`"
             )
             assert len(obs) == len(pointings), (
-                f"The list of observations has {len(obs)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
+                "The list of observations has {len(obs)} elements, but "
+                "the list of pointings has {len(pointings)} elements"
             )
             obs_list = obs
             ptg_list = [point[:, :, 0:2] for point in pointings]
@@ -217,11 +216,11 @@ def _cholesky_plain(A: npt.ArrayLike, dest_L: npt.ArrayLike) -> None:
     "Store a lower-triangular matrix in L such that A = L·L†"
 
     # The following function is a standard textbook implementation of
-    # the Cholesky algorithm. It works for an arbitrary matrix N×N.
+    # the Cholesky algorithm. It works for an arbitrary matrix NxN.
     # "print" statements have been inserted, so that when this is run, it
     # produces the plain list of statements used to compute the matrix.
     # This is used to implement the function _cholesky_explicit that
-    # is provided below, which only works on 3×3 matrices.
+    # is provided below, which only works on 3x3 matrices.
 
     N = 3
     for i in range(N):
@@ -251,7 +250,7 @@ def _cholesky_explicit(A, dest_L):
 
     # The code below is the result of a manual optimization of the output
     # of the `print` statements in the function `_cholesky_plain` above.
-    # If you pass a 3×3 matrix to `_cholesky_plain`, the list of
+    # If you pass a 3x3 matrix to `_cholesky_plain`, the list of
     # statements produced in the output involves many useless operations,
     # like adding terms that are always equal to zero. By manually
     # removing them, one gets the current implementation of
@@ -282,14 +281,14 @@ def cholesky(
     a22: float,
     dest_L: npt.ArrayLike,
 ) -> None:
-    """Store a 3×3 lower-triangular matrix in L such that A = L·L†
+    """Store a 3x3 lower-triangular matrix in L such that A = L·L†
 
-    Matrix A must be a 3×3 symmetric and positive definite matrix. Only the
+    Matrix A must be a 3x3 symmetric and positive definite matrix. Only the
     elements a₀₀, a₁₀, a₁₁, a₂₀, a₂₁, a₂₂ are needed,
     i.e., the ones on the lower-triangular part of the matrix.
 
     We ask the caller to pass the coefficients explicitly so that there
-    is no need to allocate a real 3×3 matrix.
+    is no need to allocate a real 3x3 matrix.
 
     The vector L must have room for 6 elements:
     L[0] = l₀₀
@@ -315,7 +314,7 @@ def cholesky(
 def solve_cholesky(
     L: npt.ArrayLike, v0: float, v1: float, v2: float
 ) -> Tuple[float, float, float]:
-    """Solve Ax = b if A is a 3×3 symmetric positive definite matrix.
+    """Solve Ax = b if A is a 3x3 symmetric positive definite matrix.
 
     Instead of providing the matrix A, the caller is expected to provide its
     Cholesky decomposition: the parameter `L` is the lower-triangular matrix
@@ -352,7 +351,7 @@ def estimate_cond_number(
     a21: float,
     a22: float,
 ) -> Tuple[float, bool]:
-    """Estimate the condition number for a symmetric 3×3 matrix A
+    """Estimate the condition number for a symmetric 3x3 matrix A
 
     The result is a tuple containing the condition number and a Boolean flag
     telling if the matrix is non-singular (``True``) or singular (``False``).
@@ -437,50 +436,38 @@ def _build_mask_time_split(
 ):
     time_mask = []
 
-    if time_split == "full":
-        for cur_obs in obs_list:
+    for cur_obs in obs_list:
+        mask = np.zeros(cur_obs.n_samples, dtype=bool)
+
+        if time_split == "full":
             time_mask.append(np.ones(cur_obs.n_samples, dtype=bool))
-    elif time_split == "odd":
-        for cur_obs in obs_list:
-            mask = np.zeros(cur_obs.n_samples, dtype=bool)
+        elif time_split == "odd":
             mask[0::2] = True
             time_mask.append(mask)
-    elif time_split == "even":
-        for cur_obs in obs_list:
-            mask = np.zeros(cur_obs.n_samples, dtype=bool)
+        elif time_split == "even":
             mask[1::2] = True
             time_mask.append(mask)
-    elif time_split == "first_half":
-        for cur_obs in obs_list:
-            mask = np.zeros(cur_obs.n_samples, dtype=bool)
+        elif time_split == "first_half":
             mask[0 : cur_obs.n_samples // 2] = True
             time_mask.append(mask)
-    elif time_split == "second_half":
-        for cur_obs in obs_list:
-            mask = np.zeros(cur_obs.n_samples, dtype=bool)
+        elif time_split == "second_half":
             mask[cur_obs.n_samples // 2 :] = True
             time_mask.append(mask)
-    elif time_split == "year1":
-        for cur_obs in obs_list:
+        elif time_split == "year1":
             t_i = _get_initial_time(cur_obs)
             time_mask.append((cur_obs.get_times() - t_i) < t_y1_sec)
-    elif time_split == "year2":
-        for cur_obs in obs_list:
+        elif time_split == "year2":
             t_i = _get_initial_time(cur_obs)
             time_mask.append(
                 ((cur_obs.get_times() - t_i) >= t_y1_sec)
                 * ((cur_obs.get_times() - t_i) < t_y2_sec)
             )
-    elif time_split == "year3":
-        for cur_obs in obs_list:
+        elif time_split == "year3":
             t_i = _get_initial_time(cur_obs)
             time_mask.append(
                 ((cur_obs.get_times() - t_i) >= t_y2_sec)
                 * ((cur_obs.get_times() - t_i) < t_y3_sec)
             )
-    else:
-        msg = f"Time split '{time_split}' not recognized"
-        raise ValueError(msg)
 
     return time_mask
 
@@ -493,6 +480,16 @@ def _get_initial_time(
     else:
         t_i = obs.start_time_global
     return t_i
+
+
+def _get_end_time(
+    obs: Observation,
+):
+    if isinstance(obs.end_time_global, astropy.time.Time):
+        t_f = obs.end_time_global.cxcsec
+    else:
+        t_f = obs.end_time_global
+    return t_f
 
 
 def _build_mask_detector_split(
@@ -512,3 +509,62 @@ def _build_mask_detector_split(
         raise ValueError(msg)
 
     return detector_mask
+
+
+def _check_splits(
+    obs: Union[Observation, List[Observation]],
+    detector_split: Union[str, List[str]] = "full",
+    time_split: Union[str, List[str]] = "full",
+):
+    valid_detector_splits = ["full"]
+    valid_detector_splits.extend(
+        [f"wafer_{wafer}" for wafer in lft_wafers + mft_wafers + hft_wafers]
+    )
+    valid_time_splits = [
+        "full",
+        "first_half",
+        "second_half",
+        "odd",
+        "even",
+        "year1",
+        "year2",
+        "year3",
+    ]
+
+    if isinstance(obs, Observation):
+        obs = [obs]
+    if isinstance(detector_split, str):
+        detector_split = [detector_split]
+    if isinstance(time_split, str):
+        time_split = [time_split]
+
+    _validate_detector_splits(obs, detector_split, valid_detector_splits)
+    _validate_time_splits(obs, time_split, valid_time_splits)
+
+
+def _validate_detector_splits(obs, detector_split, valid_detector_splits):
+    for ds in detector_split:
+        if ds not in valid_detector_splits:
+            msg = f"Detector split '{ds}' not recognized!\nValid detector splits are {valid_detector_splits}"
+            raise ValueError(msg)
+        for cur_obs in obs:
+            if "wafer" in ds:
+                requested_wafer = ds.replace("wafer_", "")
+                assert (
+                    requested_wafer in cur_obs.wafer
+                ), f"The requested wafer '{ds}' is not part of the requested observation with wafers {cur_obs.wafer}!"
+
+
+def _validate_time_splits(obs, time_split, valid_time_splits):
+    for ts in time_split:
+        if ts not in valid_time_splits:
+            msg = f"Time split '{ts}' not recognized!\nValid time splits are {valid_time_splits}"
+            raise ValueError(msg)
+        if "year" in ts:
+            for cur_obs in obs:
+                duration = round(_get_end_time(cur_obs) - _get_initial_time(cur_obs), 0)
+                max_years = duration // t_y1_sec
+                requested_years = int(ts.replace("year", ""))
+                assert (
+                    requested_years <= max_years
+                ), f"Time split '{ts}' not possible for observation with a duration of {round(duration / t_y1_sec, 1)} years!"
