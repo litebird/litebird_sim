@@ -363,14 +363,16 @@ def check_valid_splits(
             be provided through an array (or a list of arrays) of dimension
             (Ndetectors x Nsamples x 3), containing theta, phi and psi
         detector_split (Union[str, List[str]], optional): detector-domain splits
-            used to produce maps. This defaults to "full" indicating that every
-            detector specified in input will be used. In addition, the user can
-            specify a string, or a list of strings, to indicate the wafers to be used.
-            Thus, the mapmaking will be performed on the intersection of the detectors
-            specified in the input and the detectors specified in the detector_split.
-            The wafer must be specified in the format "wafer_XXX". The valid values
-            for "XXX" are all the 3-digits strings corresponding to the wafers in the
-            LITEBIRD focal plane (e.g. L00, M01, H02).
+            used to produce maps.
+
+            * "full": every detector in the observation will be used;
+            * "wafer_XXX": the mapmaking will be performed on the intersection
+                of the detectors specified in the input and the detectors specified
+                in the detector_split.
+                The wafer must be specified in the format "wafer_XXX". The valid values
+                for "XXX" are all the 3-digits strings corresponding to the wafers
+                in the LITEBIRD focal plane (e.g. L00, M01, H02).
+
         time_split (Union[str, List[str]], optional): time-domain splits
             used to produce maps. This defaults to "full" indicating that every
             sample in the observation will be used. In addition, the user can specify
@@ -382,8 +384,13 @@ def check_valid_splits(
                 observation will be used;
             * "odd" and/or "even": the odd and/or even samples in the observation
                 will be used;
-            * "year1", "year2" and/or "year3": the samples in the observation will be
+            * "yearX": the samples in the observation will be
                 used according to the year they belong to (relative to the
-                starting time).
+                starting time). The valid values for "X" are ["1", "2", "3"].
+            * "surveyX": the samples in the observation will be used according
+                to the requested survey. In this context, a survey is taken to
+                be complete in 6 months, thus the valid values for "X" are
+                ["1", "2", "3", "4", "5", "6"].
+
     """
     _check_valid_splits(obs, detector_split, time_split)
