@@ -28,7 +28,7 @@ from .common import (
     get_map_making_weights,
     _build_mask_detector_split,
     _build_mask_time_split,
-    _check_splits,
+    _check_valid_splits,
 )
 
 
@@ -250,35 +250,6 @@ def _build_nobs_matrix(
     return nobs_matrix
 
 
-def loop_binned_map_over_splits(
-    nside: int,
-    obs: Union[Observation, List[Observation]],
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-    output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    components: List[str] = None,
-    detector_split: List[str] = ["full"],
-    time_split: List[str] = ["full"],
-) -> dict[str, BinnerResult]:
-    if isinstance(detector_split, str):
-        detector_split = [detector_split]
-    if isinstance(time_split, str):
-        time_split = [time_split]
-    _check_splits(obs, detector_split, time_split)
-    binned_maps = {}
-    for ds in detector_split:
-        for ts in time_split:
-            binned_maps[f"{ds}_{ts}"] = make_binned_map(
-                nside=nside,
-                obs=obs,
-                pointings=pointings,
-                output_coordinate_system=output_coordinate_system,
-                components=components,
-                detector_split=ds,
-                time_split=ts,
-            )
-    return binned_maps
-
-
 def make_binned_map(
     nside: int,
     obs: Union[Observation, List[Observation]],
@@ -331,8 +302,6 @@ def make_binned_map(
         obs=obs, pointings=pointings
     )
 
-    _check_splits(obs, detector_split, time_split)
-
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 
     time_mask_list = _build_mask_time_split(time_split, obs_list)
@@ -360,3 +329,61 @@ def make_binned_map(
         detector_split=detector_split,
         time_split=time_split,
     )
+
+
+def check_valid_splits(
+    obs: Union[Observation, List[Observation]],
+    detector_split: Union[str, List[str]] = "full",
+    time_split: Union[str, List[str]] = "full",
+):
+    """Check if the splits are valid
+
+    For each observation in the list, check if the detector and time splits
+    are valid.
+    In particular, the compatibility between the detectors in each observation
+    and the desired split in detector domain is checked. On the other hand, this
+    assess whether the desired time split fits inside the duration of the
+    observation (when this applies).
+    If the splits are not compatible with the input data, an error is raised.
+
+    Args:
+        obs (list of :class:`Observations`): observations to be mapped. They
+            are required to have the following attributes as arrays
+
+            * `pointings`: the pointing information (in radians) for each tod
+               sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
+               with ``N_d`` number of detectors and ``N_t`` number of
+               samples in the TOD.
+            * any attribute listed in `components` (by default, `tod`) and
+              containing the TOD(s) to be binned together.
+
+            If the observations are distributed over some communicator(s), they
+            must share the same group processes.
+            If pointings and psi are not included in the observations, they can
+            be provided through an array (or a list of arrays) of dimension
+            (Ndetectors x Nsamples x 3), containing theta, phi and psi
+        detector_split (Union[str, List[str]], optional): detector-domain splits
+            used to produce maps. This defaults to "full" indicating that every
+            detector specified in input will be used. In addition, the user can
+            specify a string, or a list of strings, to indicate the wafers to be used.
+            Thus, the mapmaking will be performed on the intersection of the detectors
+            specified in the input and the detectors specified in the detector_split.
+            The wafer must be specified in the format "wafer_XXX". The valid values
+            for "XXX" are all the 3-digits strings corresponding to the wafers in the
+            LITEBIRD focal plane (e.g. L00, M01, H02).
+        time_split (Union[str, List[str]], optional): time-domain splits
+            used to produce maps. This defaults to "full" indicating that every
+            sample in the observation will be used. In addition, the user can specify
+            a string, or a list of strings, to indicate a subsample of the observation
+            to be used:
+
+            * "full": every sample in the observation will be used;
+            * "first_half" and/or "second_half": the first and/or second half of the
+                observation will be used;
+            * "odd" and/or "even": the odd and/or even samples in the observation
+                will be used;
+            * "year1", "year2" and/or "year3": the samples in the observation will be
+                used according to the year they belong to (relative to the
+                starting time).
+    """
+    _check_valid_splits(obs, detector_split, time_split)

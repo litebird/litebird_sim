@@ -511,7 +511,7 @@ def _build_mask_detector_split(
     return detector_mask
 
 
-def _check_splits(
+def _check_valid_splits(
     obs: Union[Observation, List[Observation]],
     detector_split: Union[str, List[str]] = "full",
     time_split: Union[str, List[str]] = "full",
