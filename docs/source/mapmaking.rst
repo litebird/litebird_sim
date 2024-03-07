@@ -311,6 +311,42 @@ contains an array with shape :math:`(N_p, 3, 3)`, where each
 *i*-th pixel.
 
 
+Data splits
+^^^^^^^^^^^
+
+
+The function :func:`.make_binned_map` is also able to provide data
+splits both in time and in detector space. The time split is passed
+through a string in the parameter `time_split`; the same applies for
+`detector_split`. Currently, the supported time splits are:
+
+- ``"full"`` (default): no split is performed.
+- ``"first_half"``: the first half of the TOD is used.
+- ``"second_half"``: the second half of the TOD is used.
+- ``"odd"``: the odd samples of the TOD are used.
+- ``"even"``: the even samples of the TOD are used.
+- ``"yearX"``: the TOD samples relative to the X-th year of observation
+  is used. The X-th part must be an integer between 1 and 3. 
+- ``"surveyX"``: assuming that a complete survey is performed in 6 months,
+  the X-th survey is used. The X-th part must be an integer between 1 and 6.
+
+As regards the detector split, the supported options are:
+
+- ``"full"`` (default): no split is performed.
+- ``"XXX"``: the detectors in the wafer XXX are used. The XXX part
+  must specify the desired wafer (e.g. "L00", "M01", or "H02").
+
+The final data split will correspond to the combination of the two splits. 
+
+Before performing the computation, the function :func:`check_valid_splits`
+will check whether the requested split is part of the list above. If the
+split is not valid, the function will raise a ValueError. In addition, it
+will check whether the requested split is compatible with the duration of
+the observation and with the detector list. Thus, for example, if the
+observation lasts 1 year, the split "year2" will raise an error. Similarly,
+if the observation is performed with some detector contained in the L00
+wafer, the split "waferL03" will also raise an error.
+
 .. _mapmaking-destriper:
 
 Destriper

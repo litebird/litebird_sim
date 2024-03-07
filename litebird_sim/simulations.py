@@ -1425,7 +1425,7 @@ class Simulation:
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
-    def make_looped_binned_map(
+    def make_binned_map_splits(
         self,
         nside: int,
         pointings: Union[np.ndarray, List[np.ndarray], None] = None,
@@ -1436,6 +1436,7 @@ class Simulation:
         append_to_report: bool = True,
         write_to_disk: bool = True,
     ) -> Union[List[str], dict[str, BinnerResult]]:
+        """Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk. Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
         if isinstance(detector_split, str):
             detector_split = [detector_split]
         if isinstance(time_split, str):

@@ -499,12 +499,9 @@ def _build_mask_detector_split(
     if detector_split == "full":
         for cur_obs in obs_list:
             detector_mask.append(np.ones(cur_obs.n_detectors, dtype=bool))
-    elif detector_split[0:6] == "wafer_":
+    elif "wafer" in detector_split:
         for cur_obs in obs_list:
-            detector_mask.append(cur_obs.wafer == detector_split[6:9])
-    else:
-        msg = f"Detector split '{detector_split}' not recognized"
-        raise ValueError(msg)
+            detector_mask.append(cur_obs.wafer == detector_split.replace("wafer", ""))
 
     return detector_mask
 
@@ -516,7 +513,7 @@ def _check_valid_splits(
 ):
     valid_detector_splits = ["full"]
     valid_detector_splits.extend(
-        [f"wafer_{wafer}" for wafer in lft_wafers + mft_wafers + hft_wafers]
+        [f"wafer{wafer}" for wafer in lft_wafers + mft_wafers + hft_wafers]
     )
     valid_time_splits = [
         "full",
@@ -548,7 +545,7 @@ def _validate_detector_splits(obs, detector_split, valid_detector_splits):
             raise ValueError(msg)
         for cur_obs in obs:
             if "wafer" in ds:
-                requested_wafer = ds.replace("wafer_", "")
+                requested_wafer = ds.replace("wafer", "")
                 assert (
                     requested_wafer in cur_obs.wafer
                 ), f"The requested wafer '{ds}' is not part of the requested observation with wafers {cur_obs.wafer}!"

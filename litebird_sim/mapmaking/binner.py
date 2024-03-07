@@ -366,10 +366,10 @@ def check_valid_splits(
             used to produce maps.
 
             * "full": every detector in the observation will be used;
-            * "wafer_XXX": the mapmaking will be performed on the intersection
+            * "waferXXX": the mapmaking will be performed on the intersection
                 of the detectors specified in the input and the detectors specified
                 in the detector_split.
-                The wafer must be specified in the format "wafer_XXX". The valid values
+                The wafer must be specified in the format "waferXXX". The valid values
                 for "XXX" are all the 3-digits strings corresponding to the wafers
                 in the LITEBIRD focal plane (e.g. L00, M01, H02).
 
