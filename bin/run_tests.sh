@@ -3,10 +3,10 @@
 set -o errexit
 
 # Verify that the code is properly formatted
-ruff format --diff . --config ./pyproject.toml
+ruff format --diff .
 
 # Check for common errors
-ruff check . --config ./pyproject.toml
+ruff check .
 
 # Run the test suite
 python3 -m pytest -vv
