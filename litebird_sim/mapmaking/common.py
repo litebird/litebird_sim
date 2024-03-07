@@ -16,9 +16,7 @@ from litebird_sim.observations import Observation
 COND_THRESHOLD = 1e10
 
 # Definition of time splits
-t_y1_sec = 365 * 24 * 3600
-t_y2_sec = 2 * 365 * 24 * 3600
-t_y3_sec = 3 * 365 * 24 * 3600
+t_year_sec = 365 * 24 * 3600
 t_survey_sec = 365 * 24 * 3600 / 2
 
 # Definition of detector splits
@@ -453,22 +451,22 @@ def _build_mask_time_split(
         elif time_split == "second_half":
             mask[cur_obs.n_samples // 2 :] = True
             time_mask.append(mask)
-        elif time_split == "year1":
-            t_i = _get_initial_time(cur_obs)
-            time_mask.append((cur_obs.get_times() - t_i) < t_y1_sec)
-        elif time_split == "year2":
-            t_i = _get_initial_time(cur_obs)
-            time_mask.append(
-                ((cur_obs.get_times() - t_i) >= t_y1_sec)
-                * ((cur_obs.get_times() - t_i) < t_y2_sec)
-            )
-        elif time_split == "year3":
-            t_i = _get_initial_time(cur_obs)
-            time_mask.append(
-                ((cur_obs.get_times() - t_i) >= t_y2_sec)
-                * ((cur_obs.get_times() - t_i) < t_y3_sec)
-            )
-
+        max_years = 3
+        for i in range(1, max_years + 1):
+            if time_split == f"year{i}":
+                t_i = _get_initial_time(cur_obs)
+                time_mask.append(
+                    ((cur_obs.get_times() - t_i) >= (i - 1) * t_year_sec)
+                    * ((cur_obs.get_times() - t_i) < i * t_year_sec)
+                )
+        max_surveys = 6
+        for i in range(1, max_surveys + 1):
+            if time_split == f"survey{i}":
+                t_i = _get_initial_time(cur_obs)
+                time_mask.append(
+                    ((cur_obs.get_times() - t_i) >= (i - 1) * t_survey_sec)
+                    * ((cur_obs.get_times() - t_i) < i * t_survey_sec)
+                )
     return time_mask
 
 
@@ -526,10 +524,11 @@ def _check_valid_splits(
         "second_half",
         "odd",
         "even",
-        "year1",
-        "year2",
-        "year3",
     ]
+    max_years = 3
+    max_surveys = 6
+    valid_time_splits.extend([f"year{i}" for i in range(1, max_years + 1)])
+    valid_time_splits.extend([f"survey{i}" for i in range(1, max_surveys + 1)])
 
     if isinstance(obs, Observation):
         obs = [obs]
@@ -563,8 +562,8 @@ def _validate_time_splits(obs, time_split, valid_time_splits):
         if "year" in ts:
             for cur_obs in obs:
                 duration = round(_get_end_time(cur_obs) - _get_initial_time(cur_obs), 0)
-                max_years = duration // t_y1_sec
+                max_years = duration // t_year_sec
                 requested_years = int(ts.replace("year", ""))
                 assert (
                     requested_years <= max_years
-                ), f"Time split '{ts}' not possible for observation with a duration of {round(duration / t_y1_sec, 1)} years!"
+                ), f"Time split '{ts}' not possible for observation with a duration of {round(duration / t_year_sec, 1)} years!"
