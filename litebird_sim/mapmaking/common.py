@@ -91,7 +91,7 @@ class ExternalDestriperParameters:
     return_rcond: bool = False
 
 
-def get_map_making_weights(obs: Observation, *, check: bool = True) -> npt.NDArray:
+def get_map_making_weights(obs: Observation, check: bool = True) -> npt.NDArray:
     """Return a NumPy array containing the weights of each detector in `obs`
 
     The number of elements in the result is equal to `obs.n_detectors`. If
@@ -151,7 +151,7 @@ def _normalize_observations_and_pointings(
         if isinstance(obs, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "You must pass a list of observations *and* a list "
-                "of pointing matrices to scan_map_in_observations"
+                + "of pointing matrices to scan_map_in_observations"
             )
             obs_list = [obs]
             ptg_list = [pointings[:, :, 0:2]]
@@ -159,11 +159,11 @@ def _normalize_observations_and_pointings(
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to make_binned_map, "
-                "you must do the same for `pointings`"
+                + "you must do the same for `pointings`"
             )
             assert len(obs) == len(pointings), (
-                "The list of observations has {len(obs)} elements, but "
-                "the list of pointings has {len(pointings)} elements"
+                f"The list of observations has {len(obs)} elements, but "
+                + f"the list of pointings has {len(pointings)} elements"
             )
             obs_list = obs
             ptg_list = [point[:, :, 0:2] for point in pointings]
@@ -216,11 +216,11 @@ def _cholesky_plain(A: npt.ArrayLike, dest_L: npt.ArrayLike) -> None:
     "Store a lower-triangular matrix in L such that A = L·L†"
 
     # The following function is a standard textbook implementation of
-    # the Cholesky algorithm. It works for an arbitrary matrix NxN.
+    # the Cholesky algorithm. It works for an arbitrary matrix N×N.
     # "print" statements have been inserted, so that when this is run, it
     # produces the plain list of statements used to compute the matrix.
     # This is used to implement the function _cholesky_explicit that
-    # is provided below, which only works on 3x3 matrices.
+    # is provided below, which only works on 3×3 matrices.
 
     N = 3
     for i in range(N):
@@ -250,7 +250,7 @@ def _cholesky_explicit(A, dest_L):
 
     # The code below is the result of a manual optimization of the output
     # of the `print` statements in the function `_cholesky_plain` above.
-    # If you pass a 3x3 matrix to `_cholesky_plain`, the list of
+    # If you pass a 3×3 matrix to `_cholesky_plain`, the list of
     # statements produced in the output involves many useless operations,
     # like adding terms that are always equal to zero. By manually
     # removing them, one gets the current implementation of
@@ -281,14 +281,14 @@ def cholesky(
     a22: float,
     dest_L: npt.ArrayLike,
 ) -> None:
-    """Store a 3x3 lower-triangular matrix in L such that A = L·L†
+    """Store a 3×3 lower-triangular matrix in L such that A = L·L†
 
-    Matrix A must be a 3x3 symmetric and positive definite matrix. Only the
+    Matrix A must be a 3×3 symmetric and positive definite matrix. Only the
     elements a₀₀, a₁₀, a₁₁, a₂₀, a₂₁, a₂₂ are needed,
     i.e., the ones on the lower-triangular part of the matrix.
 
     We ask the caller to pass the coefficients explicitly so that there
-    is no need to allocate a real 3x3 matrix.
+    is no need to allocate a real 3×3 matrix.
 
     The vector L must have room for 6 elements:
     L[0] = l₀₀
@@ -314,7 +314,7 @@ def cholesky(
 def solve_cholesky(
     L: npt.ArrayLike, v0: float, v1: float, v2: float
 ) -> Tuple[float, float, float]:
-    """Solve Ax = b if A is a 3x3 symmetric positive definite matrix.
+    """Solve Ax = b if A is a 3×3 symmetric positive definite matrix.
 
     Instead of providing the matrix A, the caller is expected to provide its
     Cholesky decomposition: the parameter `L` is the lower-triangular matrix
@@ -351,13 +351,13 @@ def estimate_cond_number(
     a21: float,
     a22: float,
 ) -> Tuple[float, bool]:
-    """Estimate the condition number for a symmetric 3x3 matrix A
+    """Estimate the condition number for a symmetric 3×3 matrix A
 
     The result is a tuple containing the condition number and a Boolean flag
     telling if the matrix is non-singular (``True``) or singular (``False``).
 
     The code is a conversion of a C++ template class by David Eberly, see
-    <https://www.geometrictools.com/Documentation/RobustEigenSymmetric3x3.pdf>
+    <https://www.geometrictools.com/Documentation/RobustEigenSymmetric3×3.pdf>
     """
 
     # Precondition the matrix by dividing each member by the largest

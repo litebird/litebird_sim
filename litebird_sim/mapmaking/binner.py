@@ -1,7 +1,7 @@
 # The implementation of the binning algorithm provided here is derived
 # from the more general destriping equation presented in the paper
 # «Destriping CMB temperature and polarization maps» by Kurki-Suonio et al. 2009,
-# A&A 506, 1511-1539 (2009), https://dx.doi.org/10.1051/0004-6361/200912361
+# A&A 506, 1511–1539 (2009), https://dx.doi.org/10.1051/0004-6361/200912361
 #
 # It is important to have that paper at hand while reading this code, as many
 # functions and variable defined here use the same letters and symbols of that
@@ -14,7 +14,7 @@ import numpy.typing as npt
 from numba import njit
 import healpy as hp
 
-from typing import Union, List, Any, Optional
+from typing import Union, List, Any
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim import mpi
@@ -67,10 +67,10 @@ def _solve_binning(nobs_matrix, atd):
     # Sove the map-making equation
     #
     # This method alters the parameter `nobs_matrix`, so that after its completion
-    # each 3x3 matrix in nobs_matrix[idx, :, :] will be the *inverse*.
+    # each 3×3 matrix in nobs_matrix[idx, :, :] will be the *inverse*.
 
     # Expected shape:
-    # - `nobs_matrix`: (N_p, 3, 3) is an array of N_p 3x3 matrices, where
+    # - `nobs_matrix`: (N_p, 3, 3) is an array of N_p 3×3 matrices, where
     #   N_p is the number of pixels in the map
     # - `atd`: (N_p, 3)
     npix = atd.shape[0]
@@ -159,13 +159,13 @@ def _numba_extract_map_and_fill_nobs_matrix(
     # parameter in Fortran (it is both used as input and output), while `rhs`
     # is an `out` parameter
     for idx in range(nobs_matrix.shape[0]):
-        # Extract the vector from the lower left triangle of the 3x3 matrix
+        # Extract the vector from the lower left triangle of the 3×3 matrix
         # nobs_matrix[idx, :, :]
         rhs[idx, 0] = nobs_matrix[idx, 1, 0]
         rhs[idx, 1] = nobs_matrix[idx, 2, 0]
         rhs[idx, 2] = nobs_matrix[idx, 2, 1]
 
-        # Make each 3x3 matrix in nobs_matrix[idx, :, :] symmetric
+        # Make each 3×3 matrix in nobs_matrix[idx, :, :] symmetric
         nobs_matrix[idx, 1, 0] = nobs_matrix[idx, 0, 1]
         nobs_matrix[idx, 2, 0] = nobs_matrix[idx, 0, 2]
         nobs_matrix[idx, 2, 1] = nobs_matrix[idx, 1, 2]
@@ -232,17 +232,20 @@ def _build_nobs_matrix(
 
         del pixidx_all, polang_all
 
-    if all(obs.comm is None for obs in obs_list) or not mpi.MPI_ENABLED:
+    if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
         pass
     elif all(
-        mpi.MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
-        for i in range(len(obs_list) - 1)
+        [
+            mpi.MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
+            for i in range(len(obs_list) - 1)
+        ]
     ):
         nobs_matrix = obs_list[0].comm.allreduce(nobs_matrix, mpi.MPI.SUM)
     else:
-        msg = "All observations must be distributed over the same MPI groups"
-        raise NotImplementedError(msg)
+        raise NotImplementedError(
+            "All observations must be distributed over the same MPI groups"
+        )
 
     return nobs_matrix
 
@@ -252,7 +255,7 @@ def loop_binned_map_over_splits(
     obs: Union[Observation, List[Observation]],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    components: Optional[List[str]] = None,
+    components: List[str] = None,
     detector_split: List[str] = ["full"],
     time_split: List[str] = ["full"],
 ) -> dict[str, BinnerResult]:
@@ -281,7 +284,7 @@ def make_binned_map(
     obs: Union[Observation, List[Observation]],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    components: Optional[List[str]] = None,
+    components: List[str] = None,
     detector_split: str = "full",
     time_split: str = "full",
 ) -> BinnerResult:
