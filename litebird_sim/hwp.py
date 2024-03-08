@@ -22,8 +22,8 @@ class HWP:
 
         This method must be redefined in derived classes. The parameter
         ``pointing_buffer`` must be a D×N×3 matrix representing the three angles
-        ``(colatitude, longitude, polangle)`` for D detectors and N measurements.
-        The function only alters ``polangle`` and returns nothing.
+        ``(colatitude, longitude, orientation)`` for D detectors and N measurements.
+        The function only alters ``orientation`` and returns nothing.
 
         The parameters `start_time_s` and `delta_time_s` specify the time of the
         first sample in `pointings` and must be floating-point values; this means

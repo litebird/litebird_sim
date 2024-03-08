@@ -14,7 +14,7 @@ from .hwp import HWP
 
 from .scanning import (
     get_det2ecl_quaternions,
-    all_compute_pointing_and_polangle,
+    all_compute_pointing_and_orientation,
 )
 
 from .coordinates import CoordinateSystem
@@ -25,7 +25,7 @@ def apply_hwp_to_obs(obs, hwp: HWP, pointing_matrix):
 
     This function modifies the variable `pointing_matrix` (a D×N×3 matrix,
     with D the number of detectors and N the number of samples) so that the
-    polarization angle considers the behavior of the half-wave plate in
+    orientation angle considers the behavior of the half-wave plate in
     `hwp`.
     """
 
@@ -152,7 +152,7 @@ def get_pointings(
         )
 
         # Compute the pointing direction for each sample
-        all_compute_pointing_and_polangle(
+        all_compute_pointing_and_orientation(
             result_matrix=pointing_buffer[idx, :, :].reshape(
                 (1, pointing_buffer.shape[1], 3)
             ),

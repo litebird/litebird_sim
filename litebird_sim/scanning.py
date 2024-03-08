@@ -37,30 +37,30 @@ def _clip_sincos(x):
 
 
 @njit
-def polarization_angle(theta_rad, phi_rad, poldir):
-    """Compute the polarization angle at a given point on the sky
+def orientation_angle(theta_rad, phi_rad, ordir):
+    """Compute the orientation of a detector at a given point on the sky
 
     Prototype::
 
-        polarization_angle(
+        orientation_angle(
             theta_rad: float,
             phi_rad: float,
-            poldir: numpy.array[3],
+            ordir: numpy.array[3],
         )
 
-    This function returns the polarization angle (in radians) with
-    respect to the North Pole of the celestial sphere for the point at
+    This function returns the orientation (in radians) with respect
+    to the North Pole of the celestial sphere for the point at
     coordinates `theta_rad` (colatitude, in radians) and `phi_rad`
-    (longitude, in radians), assuming that `poldir` is a 3-element
+    (longitude, in radians), assuming that `ordir` is a 3-element
     NumPy array representing a normalized vector which departs from
     the point on the celestial sphere and is aligned with the
-    polarization direction.
+    orientation direction.
 
     """
-    # We want here to associate a polarization angle with a specific
-    # direction in the sky P = (θ, ϕ) and a polarization direction,
+    # We want here to associate a orientation with a specific
+    # direction in the sky P = (θ, ϕ) and a orientation direction,
     # which is a vector of length one starting from P. To compute the
-    # polarization angle with respect to a fixed frame on the
+    # orientation angle with respect to a fixed frame on the
     # celestial sphere, we need first to derive the two vectors
     # pointing towards North and East.
     #
@@ -104,28 +104,28 @@ def polarization_angle(theta_rad, phi_rad, poldir):
     #   North = [-cos(θ) * cos(ϕ), -cos(θ) * sin(ϕ), sin(θ)]
     #   East  = [-sin(ϕ), cos(ϕ), 0]
     #
-    # To compute the polarization angle, we're just looking at the dot
-    # product between "poldir" and these two directions. We use
+    # To compute the orientation angle, we're just looking at the dot
+    # product between "ordir" and these two directions. We use
     # `clip_sincos` to prevent problems from values that are slightly
     # outside the allowed range [-1,1] because of numerical roundoff
     # errors.
 
-    cos_psi = _clip_sincos(-np.sin(phi_rad) * poldir[0] + np.cos(phi_rad) * poldir[1])
+    cos_psi = _clip_sincos(-np.sin(phi_rad) * ordir[0] + np.cos(phi_rad) * ordir[1])
     sin_psi = _clip_sincos(
-        (-np.cos(theta_rad) * np.cos(phi_rad) * poldir[0])
-        + (-np.cos(theta_rad) * np.sin(phi_rad) * poldir[1])
-        + (np.sin(theta_rad) * poldir[2])
+        (-np.cos(theta_rad) * np.cos(phi_rad) * ordir[0])
+        + (-np.cos(theta_rad) * np.sin(phi_rad) * ordir[1])
+        + (np.sin(theta_rad) * ordir[2])
     )
     return np.arctan2(sin_psi, cos_psi)
 
 
 @njit
-def compute_pointing_and_polangle(result, quaternion):
+def compute_pointing_and_orientation(result, quaternion):
     """Store in "result" the pointing direction and polarization angle.
 
     Prototype::
 
-        compute_pointing_and_polangle(
+        compute_pointing_and_orientation(
             result: numpy.array[3],
             quaternion: numpy.array[4],
         )
@@ -144,19 +144,19 @@ def compute_pointing_and_polangle(result, quaternion):
 
     - ``result[1]``: the longitude of the sky direction, in radians
 
-    - ``result[2]``: the polarization angle (assuming that in the beam
+    - ``result[2]``: the orientation angle (assuming that in the beam
       reference frame points towards x), measured with respect to the
       North and East directions in the celestial sphere
 
     This function does *not* support broadcasting; use
-    :func:`all_compute_pointing_and_polangle` if you need to
+    :func:`all_compute_pointing_and_orientation` if you need to
     transform several quaternions at once.
 
     Example::
 
         import numpy as np
         result = np.empty(3)
-        compute_pointing_and_polangle(result, np.array([
+        compute_pointing_and_orientation(result, np.array([
             0.0, np.sqrt(2) / 2, 0.0, np.sqrt(2) / 2,
         ])
 
@@ -176,30 +176,30 @@ def compute_pointing_and_polangle(result, quaternion):
     rotate_x_vector(result, vx, vy, vz, w)
 
     # Compute the polarization angle
-    pol_angle = polarization_angle(
-        theta_rad=theta_pointing, phi_rad=phi_pointing, poldir=result
+    orientation = orientation_angle(
+        theta_rad=theta_pointing, phi_rad=phi_pointing, ordir=result
     )
 
     # Finally, set "result" to the true result of the computation
     result[0] = theta_pointing
     result[1] = phi_pointing
-    result[2] = pol_angle
+    result[2] = orientation
 
 
 @njit(parallel=True)
-def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
-    """Repeatedly apply :func:`compute_pointing_and_polangle`
+def all_compute_pointing_and_orientation(result_matrix, quat_matrix):
+    """Repeatedly apply :func:`compute_pointing_and_orientation`
 
     Prototype::
 
-        all_compute_pointing_and_polangle(
+        all_compute_pointing_and_orientation(
             result_matrix: numpy.array[D, N, 3],
             quat_matrix: numpy.array[N, D, 4],
         )
 
     Assuming that `result_matrix` is a (D, N, 3) matrix and `quat_matrix` a (N, D, 4)
     matrix, iterate over all the N samples and D detectors and apply
-    :func:`compute_pointing_and_polangle` to every item.
+    :func:`compute_pointing_and_orientation` to every item.
 
     """
 
@@ -212,7 +212,7 @@ def all_compute_pointing_and_polangle(result_matrix, quat_matrix):
 
     for det_idx in range(n_dets):
         for sample_idx in prange(n_samples):
-            compute_pointing_and_polangle(
+            compute_pointing_and_orientation(
                 result_matrix[det_idx, sample_idx, :],
                 quat_matrix[sample_idx, det_idx, :],
             )
@@ -895,7 +895,7 @@ def _precompile():
     )
 
     result = np.empty((1, 10, 3))
-    all_compute_pointing_and_polangle(
+    all_compute_pointing_and_orientation(
         result_matrix=result,
         quat_matrix=np.random.rand(result.shape[1], result.shape[0], 4),
     )

@@ -61,7 +61,7 @@ instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
 
 # Compute the pointings by running a "slerp" operation
 start = time.perf_counter_ns()
-pointings_and_polangle = lbs.get_pointings(
+pointings_and_orientation = lbs.get_pointings(
     obs,
     spin2ecliptic_quats=sim.spin2ecliptic_quats,
     detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
@@ -71,7 +71,9 @@ stop = time.perf_counter_ns()
 elapsed_time = (stop - start) * 1.0e-9
 
 print("Elapsed time for get_pointings: {} s".format((stop - start) * 1e-9))
-print("Shape of the pointings: ", pointings_and_polangle.shape)
+print("Shape of the pointings: ", pointings_and_orientation.shape)
 print(
-    "Speed: {:.1e} pointings/s".format(pointings_and_polangle.shape[1] / elapsed_time),
+    "Speed: {:.1e} pointings/s".format(
+        pointings_and_orientation.shape[1] / elapsed_time
+    ),
 )

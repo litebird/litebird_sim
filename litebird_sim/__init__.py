@@ -64,8 +64,8 @@ from .quaternions import (
     all_rotate_z_vectors,
 )
 from .scanning import (
-    compute_pointing_and_polangle,
-    all_compute_pointing_and_polangle,
+    compute_pointing_and_orientation,
+    all_compute_pointing_and_orientation,
     spin_to_ecliptic,
     all_spin_to_ecliptic,
     calculate_sun_earth_angles_rad,
@@ -215,8 +215,8 @@ __all__ = [
     "all_rotate_y_vectors",
     "all_rotate_z_vectors",
     # scanning.py
-    "compute_pointing_and_polangle",
-    "all_compute_pointing_and_polangle",
+    "compute_pointing_and_orientation",
+    "all_compute_pointing_and_orientation",
     "spin_to_ecliptic",
     "all_spin_to_ecliptic",
     "calculate_sun_earth_angles_rad",
