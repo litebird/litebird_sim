@@ -99,6 +99,11 @@ def get_pointings(
     If `HWP` is not ``None``, this specifies the HWP to use for the
     computation of proper polarization angles.
 
+    **Warning**: if `hwp` is not ``None``, the code adds the α angle of the
+    HWP to the orientation angle ψ, which is generally not correct! This
+    is going to be fixed in the next release of the LiteBIRD Simulation
+    Framework.
+
     The return value is a ``(D x N × 3)`` tensor: the colatitude (in
     radians) is stored in column 0 (e.g., ``result[:, :, 0]``), the
     longitude (ditto) in column 1, and the polarization angle
