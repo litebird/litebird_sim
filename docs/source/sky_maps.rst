@@ -50,6 +50,10 @@ In the dictionary containing the maps Mbs returns also two useful variables:
 - The coordinates of the generated maps, in the key `Coordinates`
 - The parameters used for the syntetic map generation, in the key `Mbs_parameters` 
 
+If ``store_alms`` in :class:`.MbsParameters` is True, ``run_all`` returns alms
+instead of pixel space maps. The user can set the maximum multipole of these alms with
+``lmax_alms``, the default value is :math:`4\times N_{side}`.
+
 Available emission models
 -------------------------
 

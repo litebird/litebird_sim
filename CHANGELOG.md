@@ -1,5 +1,7 @@
 # HEAD
 
+-   Mbs optionally returns alms instead of maps [#306](https://github.com/litebird/litebird_sim/pull/306)
+
 -   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271) 
 
 -   **Breaking change**: Reworking of the IO, `write_observations` and `read_observations` are now part of the class simulation [#293](https://github.com/litebird/litebird_sim/pull/293)  
