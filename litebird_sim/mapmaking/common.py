@@ -536,6 +536,7 @@ def _check_valid_splits(
 
     _validate_detector_splits(obs, detector_split, valid_detector_splits)
     _validate_time_splits(obs, time_split, valid_time_splits)
+    print("Splits are valid!")
 
 
 def _validate_detector_splits(obs, detector_split, valid_detector_splits):
@@ -546,9 +547,9 @@ def _validate_detector_splits(obs, detector_split, valid_detector_splits):
         for cur_obs in obs:
             if "wafer" in ds:
                 requested_wafer = ds.replace("wafer", "")
-                assert (
-                    requested_wafer in cur_obs.wafer
-                ), f"The requested wafer '{ds}' is not part of the requested observation with wafers {cur_obs.wafer}!"
+                if requested_wafer not in cur_obs.wafer:
+                    msg = f"The requested wafer '{ds}' is not part of the requested observation with wafers {cur_obs.wafer}!"
+                    raise AssertionError(msg)
 
 
 def _validate_time_splits(obs, time_split, valid_time_splits):
@@ -561,6 +562,6 @@ def _validate_time_splits(obs, time_split, valid_time_splits):
                 duration = round(_get_end_time(cur_obs) - _get_initial_time(cur_obs), 0)
                 max_years = duration // t_year_sec
                 requested_years = int(ts.replace("year", ""))
-                assert (
-                    requested_years <= max_years
-                ), f"Time split '{ts}' not possible for observation with a duration of {round(duration / t_year_sec, 1)} years!"
+                if requested_years > max_years:
+                    msg = f"Time split '{ts}' not possible for observation with a duration of {round(duration / t_year_sec, 1)} years!"
+                    raise AssertionError(msg)

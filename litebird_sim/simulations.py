@@ -1425,6 +1425,17 @@ class Simulation:
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
+    def check_valid_splits(self, detector_split, time_split):
+        """Wrapper around :meth:`litebird_sim.check_valid_splits`. Checks that the splits are valid on the observations."""
+        try:
+            check_valid_splits(self.observations, detector_split, time_split)
+        except ValueError as e:
+            raise ValueError(f"Invalid splits:\n{e}")
+        except AssertionError as e:
+            raise AssertionError(
+                f"The splits are not compatible with the observations:\n{e}"
+            )
+
     def make_binned_map_splits(
         self,
         nside: int,
@@ -1441,7 +1452,7 @@ class Simulation:
             detector_split = [detector_split]
         if isinstance(time_split, str):
             time_split = [time_split]
-        check_valid_splits(self.observations, detector_split, time_split)
+        self.check_valid_splits(detector_split, time_split)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_binned_map_splits.md")
@@ -1515,6 +1526,7 @@ class Simulation:
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = "You must use 'loop_binned_map_over_splits' if you want lists of splits!"
             raise ValueError(msg)
+        self.check_valid_splits(detector_split, time_split)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_binned_map.md")
