@@ -1434,8 +1434,9 @@ class Simulation:
         time_split: Union[str, List[str]] = "full",
         append_to_report: bool = True,
         write_to_disk: bool = True,
+        include_inv_covariance: bool = False,
     ) -> Union[List[str], dict[str, BinnerResult]]:
-        """Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk. Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
+        """Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
         if isinstance(detector_split, str):
             detector_split = [detector_split]
         if isinstance(time_split, str):
@@ -1443,9 +1444,7 @@ class Simulation:
         check_valid_splits(self.observations, detector_split, time_split)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path(
-                "report_loop_binned_map_over_splits.md"
-            )
+            template_file_path = get_template_file_path("report_binned_map_splits.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
             self.append_to_report(
@@ -1468,7 +1467,21 @@ class Simulation:
                         time_split=ts,
                     )
                     file = f"binned_map_DET{ds}_TIME{ts}.fits"
-                    filenames.append(self.write_healpix_map(file, result.binned_map))
+                    names = ["I", "Q", "U"]
+                    mapp = result.binned_map
+                    if include_inv_covariance:
+                        names.extend(["II", "IQ", "IU", "QQ", "QU", "UU"])
+                        flat_inv_cov = result.invnpp.T[np.tril_indices(3)]
+                        flat_inv_cov[[2, 3]] = flat_inv_cov[[3, 2]]
+                        mapp = np.concatenate((mapp, flat_inv_cov), axis=0)
+                    filenames.append(
+                        self.write_healpix_map(
+                            file,
+                            mapp,
+                            column_names=names,
+                            coord=result.coordinate_system.name,
+                        )
+                    )
                     del result
             return filenames
         else:
