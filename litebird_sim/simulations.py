@@ -1425,10 +1425,10 @@ class Simulation:
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
-    def check_valid_splits(self, detector_split, time_split):
+    def check_valid_splits(self, detector_splits, time_splits):
         """Wrapper around :meth:`litebird_sim.check_valid_splits`. Checks that the splits are valid on the observations."""
         try:
-            check_valid_splits(self.observations, detector_split, time_split)
+            check_valid_splits(self.observations, detector_splits, time_splits)
         except ValueError as e:
             raise ValueError(f"Invalid splits:\n{e}")
         except AssertionError as e:
@@ -1441,18 +1441,18 @@ class Simulation:
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         components: Optional[List[str]] = None,
-        detector_split: Union[str, List[str]] = "full",
-        time_split: Union[str, List[str]] = "full",
+        detector_splits: Union[str, List[str]] = "full",
+        time_splits: Union[str, List[str]] = "full",
         append_to_report: bool = True,
         write_to_disk: bool = True,
         include_inv_covariance: bool = False,
     ) -> Union[List[str], dict[str, BinnerResult]]:
         """Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
-        if isinstance(detector_split, str):
-            detector_split = [detector_split]
-        if isinstance(time_split, str):
-            time_split = [time_split]
-        self.check_valid_splits(detector_split, time_split)
+        if isinstance(detector_splits, str):
+            detector_splits = [detector_splits]
+        if isinstance(time_splits, str):
+            time_splits = [time_splits]
+        self.check_valid_splits(detector_splits, time_splits)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_binned_map_splits.md")
@@ -1460,15 +1460,15 @@ class Simulation:
                 markdown_template = "".join(inpf.readlines())
             self.append_to_report(
                 markdown_template,
-                time_split=time_split,
-                detector_split=detector_split,
+                time_split=time_splits,
+                detector_split=detector_splits,
                 nside=nside,
                 coord=str(output_coordinate_system),
             )
         if write_to_disk:
             filenames = []
-            for ds in detector_split:
-                for ts in time_split:
+            for ds in detector_splits:
+                for ts in time_splits:
                     result = make_binned_map(
                         nside=nside,
                         obs=self.observations,
@@ -1479,26 +1479,29 @@ class Simulation:
                     )
                     file = f"binned_map_DET{ds}_TIME{ts}.fits"
                     names = ["I", "Q", "U"]
-                    mapp = result.binned_map
+                    result = list(result.__dict__.items())
+                    mapp = result.pop(0)[1]
+                    inv_cov = result.pop(0)[1]
+                    coords = result.pop(0)[1]
+                    del result
+                    inv_cov = inv_cov.T[np.tril_indices(3)]
+                    inv_cov[[2, 3]] = inv_cov[[3, 2]]
+                    inv_cov = list(inv_cov)
                     if include_inv_covariance:
                         names.extend(["II", "IQ", "IU", "QQ", "QU", "UU"])
-                        flat_inv_cov = result.invnpp.T[np.tril_indices(3)]
-                        flat_inv_cov[[2, 3]] = flat_inv_cov[[3, 2]]
-                        mapp = np.concatenate((mapp, flat_inv_cov), axis=0)
+                        for _ in range(6):
+                            mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
                     filenames.append(
                         self.write_healpix_map(
-                            file,
-                            mapp,
-                            column_names=names,
-                            coord=result.coordinate_system.name,
+                            file, mapp, column_names=names, coord=coords
                         )
                     )
                     del result
             return filenames
         else:
             binned_maps = {}
-            for ds in detector_split:
-                for ts in time_split:
+            for ds in detector_splits:
+                for ts in time_splits:
                     binned_maps[f"{ds}_{ts}"] = make_binned_map(
                         nside=nside,
                         obs=self.observations,
@@ -1524,7 +1527,7 @@ class Simulation:
         """
 
         if isinstance(detector_split, list) or isinstance(time_split, list):
-            msg = "You must use 'loop_binned_map_over_splits' if you want lists of splits!"
+            msg = "You must use 'make_binned_map_splits' if you want lists of splits!"
             raise ValueError(msg)
         self.check_valid_splits(detector_split, time_split)
 

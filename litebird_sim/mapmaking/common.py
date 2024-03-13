@@ -508,8 +508,8 @@ def _build_mask_detector_split(
 
 def _check_valid_splits(
     obs: Union[Observation, List[Observation]],
-    detector_split: Union[str, List[str]] = "full",
-    time_split: Union[str, List[str]] = "full",
+    detector_splits: Union[str, List[str]] = "full",
+    time_splits: Union[str, List[str]] = "full",
 ):
     valid_detector_splits = ["full"]
     valid_detector_splits.extend(
@@ -529,18 +529,18 @@ def _check_valid_splits(
 
     if isinstance(obs, Observation):
         obs = [obs]
-    if isinstance(detector_split, str):
-        detector_split = [detector_split]
-    if isinstance(time_split, str):
-        time_split = [time_split]
+    if isinstance(detector_splits, str):
+        detector_splits = [detector_splits]
+    if isinstance(time_splits, str):
+        time_splits = [time_splits]
 
-    _validate_detector_splits(obs, detector_split, valid_detector_splits)
-    _validate_time_splits(obs, time_split, valid_time_splits)
+    _validate_detector_splits(obs, detector_splits, valid_detector_splits)
+    _validate_time_splits(obs, time_splits, valid_time_splits)
     print("Splits are valid!")
 
 
-def _validate_detector_splits(obs, detector_split, valid_detector_splits):
-    for ds in detector_split:
+def _validate_detector_splits(obs, detector_splits, valid_detector_splits):
+    for ds in detector_splits:
         if ds not in valid_detector_splits:
             msg = f"Detector split '{ds}' not recognized!\nValid detector splits are {valid_detector_splits}"
             raise ValueError(msg)
@@ -552,8 +552,8 @@ def _validate_detector_splits(obs, detector_split, valid_detector_splits):
                     raise AssertionError(msg)
 
 
-def _validate_time_splits(obs, time_split, valid_time_splits):
-    for ts in time_split:
+def _validate_time_splits(obs, time_splits, valid_time_splits):
+    for ts in time_splits:
         if ts not in valid_time_splits:
             msg = f"Time split '{ts}' not recognized!\nValid time splits are {valid_time_splits}"
             raise ValueError(msg)

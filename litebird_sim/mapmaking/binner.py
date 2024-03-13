@@ -333,8 +333,8 @@ def make_binned_map(
 
 def check_valid_splits(
     obs: Union[Observation, List[Observation]],
-    detector_split: Union[str, List[str]] = "full",
-    time_split: Union[str, List[str]] = "full",
+    detector_splits: Union[str, List[str]] = "full",
+    time_splits: Union[str, List[str]] = "full",
 ):
     """Check if the splits are valid
 
@@ -362,7 +362,7 @@ def check_valid_splits(
             If pointings and psi are not included in the observations, they can
             be provided through an array (or a list of arrays) of dimension
             (Ndetectors x Nsamples x 3), containing theta, phi and psi
-        detector_split (Union[str, List[str]], optional): detector-domain splits
+        detector_splits (Union[str, List[str]], optional): detector-domain splits
             used to produce maps.
 
             * "full": every detector in the observation will be used;
@@ -373,7 +373,7 @@ def check_valid_splits(
                 for "XXX" are all the 3-digits strings corresponding to the wafers
                 in the LITEBIRD focal plane (e.g. L00, M01, H02).
 
-        time_split (Union[str, List[str]], optional): time-domain splits
+        time_splits (Union[str, List[str]], optional): time-domain splits
             used to produce maps. This defaults to "full" indicating that every
             sample in the observation will be used. In addition, the user can specify
             a string, or a list of strings, to indicate a subsample of the observation
@@ -393,4 +393,4 @@ def check_valid_splits(
                 ["1", "2", "3", "4", "5", "6"].
 
     """
-    _check_valid_splits(obs, detector_split, time_split)
+    _check_valid_splits(obs, detector_splits, time_splits)
