@@ -1496,7 +1496,6 @@ class Simulation:
                             file, mapp, column_names=names, coord=coords
                         )
                     )
-                    del result
             return filenames
         else:
             binned_maps = {}
