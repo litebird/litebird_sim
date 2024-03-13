@@ -1305,6 +1305,7 @@ class Simulation:
         self,
         maps: Dict[str, np.ndarray],
         input_map_in_galactic: bool = True,
+        component: str = "tod",
         interpolation: Union[str, None] = "",
         append_to_report: bool = True,
     ):
@@ -1320,6 +1321,7 @@ class Simulation:
             self.observations,
             maps=maps,
             input_map_in_galactic=input_map_in_galactic,
+            component=component,
             interpolation=interpolation,
         )
 
@@ -1356,6 +1358,7 @@ class Simulation:
         t_cmb_k: float = constants.T_CMB_K,
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
         append_to_report: bool = True,
+        component: str = "tod",
     ):
         """Fills the tod with dipole.
 
@@ -1373,6 +1376,7 @@ class Simulation:
             pos_and_vel=self.pos_and_vel,
             t_cmb_k=t_cmb_k,
             dipole_type=dipole_type,
+            component=component,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1398,6 +1402,7 @@ class Simulation:
         random: np.random.Generator,
         noise_type: str = "one_over_f",
         append_to_report: bool = True,
+        component: str = "tod",
     ):
         """Adds noise to tods.
 
@@ -1413,6 +1418,7 @@ class Simulation:
             obs=self.observations,
             noise_type=noise_type,
             random=random,
+            component=component,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
