@@ -77,6 +77,7 @@ from .scanning import (
 )
 from litebird_sim.mapmaking import (
     make_binned_map,
+    check_valid_splits,
     BinnerResult,
     make_destriped_map,
     DestriperParameters,
@@ -232,6 +233,7 @@ __all__ = [
     "get_pointings_for_observations",
     # mapmaking
     "make_binned_map",
+    "check_valid_splits",
     "BinnerResult",
     "make_destriped_map",
     "DestriperParameters",
