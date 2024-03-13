@@ -1428,7 +1428,6 @@ class Simulation:
     def make_binned_map_splits(
         self,
         nside: int,
-        pointings: Union[np.ndarray, List[np.ndarray], None] = None,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         components: Optional[List[str]] = None,
         detector_split: Union[str, List[str]] = "full",
@@ -1463,7 +1462,6 @@ class Simulation:
                     result = make_binned_map(
                         nside=nside,
                         obs=self.observations,
-                        pointings=pointings,
                         output_coordinate_system=output_coordinate_system,
                         components=components,
                         detector_split=ds,
@@ -1480,7 +1478,6 @@ class Simulation:
                     binned_maps[f"{ds}_{ts}"] = make_binned_map(
                         nside=nside,
                         obs=self.observations,
-                        pointings=pointings,
                         output_coordinate_system=output_coordinate_system,
                         components=components,
                         detector_split=ds,
