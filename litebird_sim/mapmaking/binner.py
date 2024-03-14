@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 # The implementation of the binning algorithm provided here is derived
 # from the more general destriping equation presented in the paper
 # «Destriping CMB temperature and polarization maps» by Kurki-Suonio et al. 2009,
@@ -28,6 +26,9 @@ from .common import (
     _normalize_observations_and_pointings,
     COND_THRESHOLD,
     get_map_making_weights,
+    _build_mask_detector_split,
+    _build_mask_time_split,
+    _check_valid_splits,
 )
 
 
@@ -44,11 +45,21 @@ class BinnerResult:
 
     - ``coordinate_system``: the coordinate system of the output maps
       (a :class:`.CoordinateSistem` object)
+
+    - ``components``: list of components included in the map, by default
+      only the field ``tod`` is used
+
+    - ``detector_split``: detector split of the binned map
+
+    - ``time_split``: time split of the binned map
     """
 
     binned_map: Any = None
     invnpp: Any = None
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
+    components: List = None
+    detector_split: str = None
+    time_split: str = None
 
 
 @njit
@@ -79,7 +90,10 @@ def _accumulate_samples_and_build_nobs_matrix(
     pix: npt.ArrayLike,
     psi: npt.ArrayLike,
     weights: npt.ArrayLike,
+    d_mask: npt.ArrayLike,
+    t_mask: npt.ArrayLike,
     nobs_matrix: npt.ArrayLike,
+    *,
     additional_component: bool,
 ) -> None:
     # Fill the upper triangle of the N_obs matrix and use the lower
@@ -95,38 +109,45 @@ def _accumulate_samples_and_build_nobs_matrix(
 
     assert tod.shape == pix.shape == psi.shape
 
+    assert tod.shape[0] == d_mask.shape[0]
+
     num_of_detectors = tod.shape[0]
 
     for idet in range(num_of_detectors):
+        if not d_mask[idet]:
+            continue
+
         inv_sigma = 1.0 / np.sqrt(weights[idet])
         inv_sigma2 = inv_sigma * inv_sigma
 
         if not additional_component:
             # Fill the upper triangle
-            for cur_pix_idx, cur_psi in zip(pix[idet], psi[idet]):
+            for cur_pix_idx, cur_psi, cur_t_mask in zip(pix[idet], psi[idet], t_mask):
+                if cur_t_mask:
+                    cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
+                    sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+                    info_pix = nobs_matrix[cur_pix_idx]
+
+                    # Upper triangle
+                    info_pix[0, 0] += inv_sigma2
+                    info_pix[0, 1] += inv_sigma * cos_over_sigma
+                    info_pix[0, 2] += inv_sigma * sin_over_sigma
+                    info_pix[1, 1] += cos_over_sigma * cos_over_sigma
+                    info_pix[1, 2] += sin_over_sigma * cos_over_sigma
+                    info_pix[2, 2] += sin_over_sigma * sin_over_sigma
+
+        # Fill the lower triangle
+        for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
+            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
+        ):
+            if cur_t_mask:
                 cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
                 sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
                 info_pix = nobs_matrix[cur_pix_idx]
 
-                # Upper triangle
-                info_pix[0, 0] += inv_sigma2
-                info_pix[0, 1] += inv_sigma * cos_over_sigma
-                info_pix[0, 2] += inv_sigma * sin_over_sigma
-                info_pix[1, 1] += cos_over_sigma * cos_over_sigma
-                info_pix[1, 2] += sin_over_sigma * cos_over_sigma
-                info_pix[2, 2] += sin_over_sigma * sin_over_sigma
-
-        # Fill the lower triangle
-        for cur_sample, cur_pix_idx, cur_psi in zip(
-            tod[idet, :], pix[idet, :], psi[idet, :]
-        ):
-            cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
-            sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
-            info_pix = nobs_matrix[cur_pix_idx]
-
-            info_pix[1, 0] += cur_sample * inv_sigma2
-            info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
-            info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma
+                info_pix[1, 0] += cur_sample * inv_sigma2
+                info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
+                info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma
 
 
 @njit
@@ -168,6 +189,8 @@ def _build_nobs_matrix(
     obs_list: List[Observation],
     ptg_list: List[npt.ArrayLike],
     psi_list: List[npt.ArrayLike],
+    dm_list: List[npt.ArrayLike],
+    tm_list: List[npt.ArrayLike],
     output_coordinate_system: CoordinateSystem,
     components: List[str],
 ) -> npt.ArrayLike:
@@ -176,8 +199,8 @@ def _build_nobs_matrix(
 
     nobs_matrix = np.zeros((n_pix, 3, 3))
 
-    for obs_idx, (cur_obs, cur_ptg, cur_psi) in enumerate(
-        zip(obs_list, ptg_list, psi_list)
+    for obs_idx, (cur_obs, cur_ptg, cur_psi, cur_d_mask, cur_t_mask) in enumerate(
+        zip(obs_list, ptg_list, psi_list, dm_list, tm_list)
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
 
@@ -201,6 +224,8 @@ def _build_nobs_matrix(
                 pixidx_all,
                 polang_all,
                 cur_weights,
+                cur_d_mask,
+                cur_t_mask,
                 nobs_matrix,
                 additional_component=idx > 0,
             )
@@ -231,6 +256,8 @@ def make_binned_map(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     components: List[str] = None,
+    detector_split: str = "full",
+    time_split: str = "full",
 ) -> BinnerResult:
     """Bin Map-maker
 
@@ -259,7 +286,9 @@ def make_binned_map(
             to use for the output map
         components (list[str]): list of components to include in the map-making.
             The default is just to use the field ``tod`` of each
-            :class:`.Observation` object.
+            :class:`.Observation` object
+        detector_split (str): select the detector split to use in the map-making
+        time_split (str): select the time split to use in the map-making.
 
     Returns:
         An instance of the class :class:`.MapMakerResult`. If the observations are
@@ -273,11 +302,17 @@ def make_binned_map(
         obs=obs, pointings=pointings
     )
 
+    detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
+
+    time_mask_list = _build_mask_time_split(time_split, obs_list)
+
     nobs_matrix = _build_nobs_matrix(
         nside=nside,
         obs_list=obs_list,
         ptg_list=ptg_list,
         psi_list=psi_list,
+        dm_list=detector_mask_list,
+        tm_list=time_mask_list,
         output_coordinate_system=output_coordinate_system,
         components=components,
     )
@@ -290,4 +325,72 @@ def make_binned_map(
         binned_map=rhs.T,
         invnpp=nobs_matrix,
         coordinate_system=output_coordinate_system,
+        components=components,
+        detector_split=detector_split,
+        time_split=time_split,
     )
+
+
+def check_valid_splits(
+    obs: Union[Observation, List[Observation]],
+    detector_splits: Union[str, List[str]] = "full",
+    time_splits: Union[str, List[str]] = "full",
+):
+    """Check if the splits are valid
+
+    For each observation in the list, check if the detector and time splits
+    are valid.
+    In particular, the compatibility between the detectors in each observation
+    and the desired split in detector domain is checked. On the other hand, this
+    assess whether the desired time split fits inside the duration of the
+    observation (when this applies).
+    If the splits are not compatible with the input data, an error is raised.
+
+    Args:
+        obs (list of :class:`Observations`): observations to be mapped. They
+            are required to have the following attributes as arrays
+
+            * `pointings`: the pointing information (in radians) for each tod
+               sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
+               with ``N_d`` number of detectors and ``N_t`` number of
+               samples in the TOD.
+            * any attribute listed in `components` (by default, `tod`) and
+              containing the TOD(s) to be binned together.
+
+            If the observations are distributed over some communicator(s), they
+            must share the same group processes.
+            If pointings and psi are not included in the observations, they can
+            be provided through an array (or a list of arrays) of dimension
+            (Ndetectors x Nsamples x 3), containing theta, phi and psi
+        detector_splits (Union[str, List[str]], optional): detector-domain splits
+            used to produce maps.
+
+            * "full": every detector in the observation will be used;
+            * "waferXXX": the mapmaking will be performed on the intersection
+                of the detectors specified in the input and the detectors specified
+                in the detector_split.
+                The wafer must be specified in the format "waferXXX". The valid values
+                for "XXX" are all the 3-digits strings corresponding to the wafers
+                in the LITEBIRD focal plane (e.g. L00, M01, H02).
+
+        time_splits (Union[str, List[str]], optional): time-domain splits
+            used to produce maps. This defaults to "full" indicating that every
+            sample in the observation will be used. In addition, the user can specify
+            a string, or a list of strings, to indicate a subsample of the observation
+            to be used:
+
+            * "full": every sample in the observation will be used;
+            * "first_half" and/or "second_half": the first and/or second half of the
+                observation will be used;
+            * "odd" and/or "even": the odd and/or even samples in the observation
+                will be used;
+            * "yearX": the samples in the observation will be
+                used according to the year they belong to (relative to the
+                starting time). The valid values for "X" are ["1", "2", "3"].
+            * "surveyX": the samples in the observation will be used according
+                to the requested survey. In this context, a survey is taken to
+                be complete in 6 months, thus the valid values for "X" are
+                ["1", "2", "3", "4", "5", "6"].
+
+    """
+    _check_valid_splits(obs, detector_splits, time_splits)

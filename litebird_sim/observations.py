@@ -61,6 +61,8 @@ class Observation:
 
     - :py:meth:`.start_time_global`
 
+    - :py:meth:`.end_time_global`
+
     - :py:meth:`.n_detectors_global` `~ n_detectors * n_blocks_det`
 
     - :py:meth:`.n_samples_global` `~ n_samples * n_blocks_time`
@@ -121,6 +123,15 @@ class Observation:
         self.comm = comm
         self.start_time_global = start_time_global
         self._n_samples_global = n_samples_global
+
+        if isinstance(start_time_global, astropy.time.Time):
+            delta = astropy.time.TimeDelta(
+                1.0 / sampling_rate_hz, format="sec", scale=DEFAULT_TIME_SCALE
+            )
+        else:
+            delta = 1.0 / sampling_rate_hz
+        self.end_time_global = start_time_global + n_samples_global * delta
+
         if isinstance(detectors, int):
             self._n_detectors_global = detectors
         else:

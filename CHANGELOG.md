@@ -1,5 +1,7 @@
 # HEAD
 
+-   Add data splits in time and detector space to binned maps [#291](https://github.com/litebird/litebird_sim/pull/291)
+
 -   Mbs optionally returns alms instead of maps [#306](https://github.com/litebird/litebird_sim/pull/306)
 
 -   Include the possibility to pass components to fill_tods,  add_dipole and add_noise [#302](https://github.com/litebird/litebird_sim/issues/302)
