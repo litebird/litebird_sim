@@ -1,5 +1,7 @@
 # HEAD
 
+-   Mbs optionally returns alms instead of maps [#306](https://github.com/litebird/litebird_sim/pull/306)
+
 -   Include the possibility to pass components to fill_tods,  add_dipole and add_noise [#302](https://github.com/litebird/litebird_sim/issues/302)
 
 -   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271) 

@@ -188,6 +188,14 @@ class MbsParameters:
       contained in the dictionary returned by `Mbs.run_all` are converted
       in ecliptic coordinates using the `healpy` routine `rotate_map_alms`
 
+    - ``store_alms`` (default: ``False``): when ``True`` the maps contained
+      in the dictionary returned by `Mbs.run_all` are stored as `alms`
+      computed by the `healpy` routine `map2alm` assuming `iter=0`
+      If you want unbeamed alms set gaussian_smooth = False
+
+    - ``lmax_alms`` (defuaul: ``4 x nside``): lmax assumed in the alm computation
+      and in the rotation to ecliptic coordinates performed by `rotate_map_alms`
+
     """
 
     nside: int = 512
@@ -212,6 +220,8 @@ class MbsParameters:
     output_string: Union[str, None] = None
     units: str = "K_CMB"
     maps_in_ecliptic: bool = False
+    store_alms: bool = False
+    lmax_alms: Union[int, None] = None
 
     def __post_init__(self):
         if self.n_split == 1:
@@ -234,6 +244,9 @@ class MbsParameters:
 
         if not self.output_string:
             self.output_string = "date_" + date.today().strftime("%y%m%d")
+
+        if self.lmax_alms is None:
+            self.lmax_alms = 4 * self.nside
 
     @staticmethod
     def from_dict(dictionary):
@@ -786,6 +799,15 @@ class Mbs:
         if rank == 0 and self.params.save:
             output_directory.mkdir(parents=True, exist_ok=True)
 
+        if not self.params.save:
+            dipole_map_matrix = np.zeros((n_channels, npix))
+
+        if rank != 0:
+            if not self.params.save:
+                return (dipole_map_matrix, saved_maps)
+            else:
+                return (None, saved_maps)
+
         if sun_velocity is None:
             sun_velocity = (
                 c.SOLAR_VELOCITY_GAL_LAT_RAD,
@@ -975,9 +997,13 @@ class Mbs:
                 for nch, chnl in enumerate(channels):
                     if self.params.maps_in_ecliptic:
                         tot[nch] = r.rotate_map_alms(
-                            tot[nch], lmax=4 * self.params.nside
+                            tot[nch], lmax=self.params.lmax_alms
                         )
-                    tot_dict[chnl] = tot[nch]
+                    if self.params.store_alms:
+                        alms = hp.map2alm(tot[nch], lmax=self.params.lmax_alms, iter=0)
+                        tot_dict[chnl] = alms
+                    else:
+                        tot_dict[chnl] = tot[nch]
                 if self.params.maps_in_ecliptic:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
                 else:
