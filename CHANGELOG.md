@@ -2,9 +2,11 @@
 
 -   Add data splits in time and detector space to binned maps [#291](https://github.com/litebird/litebird_sim/pull/291)
 
+-   Mbs optionally returns alms instead of maps [#306](https://github.com/litebird/litebird_sim/pull/306)
+
 -   Include the possibility to pass components to fill_tods,  add_dipole and add_noise [#302](https://github.com/litebird/litebird_sim/issues/302)
 
--   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271)
+-   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271) 
 
 -   **Breaking change**: Reworking of the IO, `write_observations` and `read_observations` are now part of the class simulation [#293](https://github.com/litebird/litebird_sim/pull/293)  
 
