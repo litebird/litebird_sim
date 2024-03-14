@@ -52,7 +52,8 @@ In the dictionary containing the maps Mbs returns also two useful variables:
 
 If ``store_alms`` in :class:`.MbsParameters` is True, ``run_all`` returns alms
 instead of pixel space maps. The user can set the maximum multipole of these alms with
-``lmax_alms``, the default value is :math:`4\times N_{side}`.
+``lmax_alms``, the default value is :math:`4\times N_{side}`. If ``gaussian_smooth`` is 
+False, umbeamed maps or alms are returned.
 
 Available emission models
 -------------------------

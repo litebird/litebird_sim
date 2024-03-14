@@ -191,6 +191,7 @@ class MbsParameters:
     - ``store_alms`` (default: ``False``): when ``True`` the maps contained
       in the dictionary returned by `Mbs.run_all` are stored as `alms`
       computed by the `healpy` routine `map2alm` assuming `iter=0`
+      If you want unbeamed alms set gaussian_smooth = False
 
     - ``lmax_alms`` (defuaul: ``4 x nside``): lmax assumed in the alm computation
       and in the rotation to ecliptic coordinates performed by `rotate_map_alms`
