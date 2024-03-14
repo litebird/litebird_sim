@@ -333,19 +333,19 @@ through a string in the parameter `time_split`; the same applies for
 As regards the detector split, the supported options are:
 
 - ``"full"`` (default): no split is performed.
-- ``"XXX"``: the detectors in the wafer XXX are used. The XXX part
+- ``"waferXXX"``: the detectors in the wafer XXX are used. The XXX part
   must specify the desired wafer (e.g. "L00", "M01", or "H02").
 
 The final data split will correspond to the combination of the two splits. 
 
-Before performing the computation, the function :func:`check_valid_splits`
-will check whether the requested split is part of the list above. If the
-split is not valid, the function will raise a ValueError. In addition, it
-will check whether the requested split is compatible with the duration of
-the observation and with the detector list. Thus, for example, if the
-observation lasts 1 year, the split "year2" will raise an error. Similarly,
-if the observation is performed with some detector contained in the L00
-wafer, the split "waferL03" will also raise an error.
+The function :func:`.check_valid_splits` will check whether the requested
+split is part of the list above. If the split is not valid, the function
+will raise a ValueError. In addition, it will check whether the requested
+split is compatible with the duration of the observation and with the detector
+list. Thus, for example, if the observation lasts 1 year, the split "year2"
+will raise an AsserionError. Similarly, if the observation is performed with some
+detector contained in the L00 wafer, the split "waferL03" will also raise
+an AsserionError.
 
 .. _mapmaking-destriper:
 

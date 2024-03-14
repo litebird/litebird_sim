@@ -1482,7 +1482,7 @@ class Simulation:
                     result = list(result.__dict__.items())
                     mapp = result.pop(0)[1]
                     inv_cov = result.pop(0)[1]
-                    coords = result.pop(0)[1]
+                    coords = result.pop(0)[1].name
                     del result
                     inv_cov = inv_cov.T[np.tril_indices(3)]
                     inv_cov[[2, 3]] = inv_cov[[3, 2]]
