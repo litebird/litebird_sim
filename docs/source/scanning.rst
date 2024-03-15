@@ -192,7 +192,7 @@ for now just keep in mind the overall shape of the code:
 2. When the simulation code needs to determine where a detector is
    pointing to (the detector ``det`` in our example), the quaternions
    are used to retrieve (1) the coordinates on the Sky sphere, and (2)
-   the polarization angle. Both quantities are computed in the
+   the orientation angle (ψ). Both quantities are computed in the
    Ecliptic reference frame using the sampling rate of the detector,
    which in our example is 10 Hz (i.e., ten samples per second). In
    the example above, this is done by the function
@@ -201,7 +201,7 @@ for now just keep in mind the overall shape of the code:
 3. The function :func:`.get_pointings` returns a ``(N, 3)``
    matrix, where the first column contains the colatitude
    :math:`\theta`, the second column the longitude :math:`\phi`, and
-   the third column the polarization angle :math:`\psi`, all expressed
+   the third column the orientation angle :math:`\psi`, all expressed
    in radians.
 
 
@@ -215,7 +215,9 @@ number of transformations that need to be carried out:
 
 We start from the detector's reference frame, which assumes that the
 main beam of the radiation pattern is aligned with the `z` axis, and
-that the detector is sensitive to the polarization along the `x` axis.
+that the beam of the detector is oriented using the `x` axis as the
+reference axis. (In other words, the `x` axis provides a reference frame
+for asymmetric beams.)
 
 The next reference frame is the *boresight*, and to convert from the
 detector's reference frame to the boresight there is a rotation, which
@@ -349,7 +351,7 @@ split in several blocks inside the :class:`.Observation` class.
    unlikely to be relevant.
 
 Once all the quaternions have been computed at the proper sampling
-rate, the direction of the detector on the sky and its polarization
+rate, the direction of the detector on the sky and its orientation
 angle are computed as follows:
 
 - The direction is the vector :math:`\vec d = R \hat e_z`, where
@@ -357,22 +359,22 @@ angle are computed as follows:
   frame to the Ecliptic reference frame, and :math:`\hat e_z = (0, 0,
   1)` is the one-length vector aligned with the `z` axis.
 
-- The polarization angle is given by the angle between the North
+- The orientation angle is given by the angle between the North
   direction passing through the vector :math:`\vec d` (i.e., along the
   meridian of :math:`\vec d`) and the vector :math:`\vec p = R \hat
   e_x`, where :math:`R` is the same as above and :math:`\hat e_x = (1,
   0, 0)`, as shown in the following figure (note that :math:`\hat e_x`
   has been drawn twice because the one in the upper side represents
-  the polarization direction in the detector's reference frame):
+  the orientation direction in the detector's reference frame):
 
-  .. image:: images/polarization-direction.svg
+  .. image:: images/orientation-direction.svg
 
 The purpose of the method :meth:`.Simulation.compute_pointings`, used
 in the example at the beginning of this chapter, is to call
 :func:`.get_det2ecl_quaternions` to compute the quaternions at the
 same sampling frequency as the scientific datastream, and then to
 apply the two definitions above to compute the direction and the
-polarization angle.
+orientation angle.
 
 
 How the boresight is specified
@@ -437,7 +439,7 @@ of the :math:`n_d` detectors kept in the field ``pointings`` of the
 :class:`.Observation`; they are laid out in memory as a :math:`(n_d,
 N, 2)` matrix, where :math:`N` is the number of samples in the
 timeline, and the last dimension holds the colatitude and longitude
-(in radians). The polarization angle is kept in ``Observation.psi``.
+(in radians). The orientation angle is kept in ``Observation.psi``.
 Let's visualize the position of these pointings on a Healpix map::
 
    import healpy, numpy as np
@@ -719,7 +721,7 @@ Here is the result: we're indeed scanning the Ecliptic plane!
 Half Wave Plate
 ---------------
 
-The rotation of the polarization angle, induced by a HWP, can be
+The rotation of the polarization angle induced by a HWP can be
 included in the returned pointing information by passing an instance
 of a descendant of the class :class:`.HWP` to the method
 :meth:`.Simulation.set_hwp`. Here is an example::
@@ -796,7 +798,7 @@ provides the functions
 containing the ``N`` quaternions that transform from the Ecliptic
 reference frame to the detector's. Thus, this method can be used to
 estimate how far from the main beam axis a celestial object is, and
-its orientation with the polarization axis.
+its orientation with respect to the orientation of the detector.
 
 Here we show a simple example; the first part is identical to the
 examples shown above (using the same scanning strategy as CORE's), but

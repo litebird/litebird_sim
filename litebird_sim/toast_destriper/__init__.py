@@ -71,14 +71,14 @@ class _Toast2FakeCache:
                 self.keydict[f"signal_{det}"] = np.array(obs_tod[i], dtype=np.float64)
 
             theta_phi = curpnt[:, 0:2]
-            polangle = curpnt[:, 2]
+            orientation = curpnt[:, 2]
 
             if coordinates == CoordinateSystem.Galactic:
-                theta_phi, polangle = rotate_coordinates_e2g(
-                    pointings_ecl=theta_phi, pol_angle_ecl=polangle
+                theta_phi, orientation = rotate_coordinates_e2g(
+                    pointings_ecl=theta_phi, pol_angle_ecl=orientation
                 )
             elif coordinates == CoordinateSystem.Ecliptic:
-                pass  # Do nothing, "theta_phi" and "polangle" are ok
+                pass  # Do nothing, "theta_phi" and "orientation" are ok
             else:
                 assert ValueError(
                     "unable to handle coordinate system {coordinates} in `destripe`"
@@ -88,7 +88,11 @@ class _Toast2FakeCache:
 
             if polarization:
                 weights = np.stack(
-                    (np.ones(nsamples), np.cos(2 * polangle), np.sin(2 * polangle))
+                    (
+                        np.ones(nsamples),
+                        np.cos(2 * orientation),
+                        np.sin(2 * orientation),
+                    )
                 ).transpose()
             else:
                 weights = np.ones(nsamples).reshape((-1, 1))

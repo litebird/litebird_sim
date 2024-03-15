@@ -14,7 +14,7 @@ from .hwp import HWP
 
 from .scanning import (
     get_det2ecl_quaternions,
-    all_compute_pointing_and_polangle,
+    all_compute_pointing_and_orientation,
 )
 
 from .coordinates import CoordinateSystem
@@ -25,7 +25,7 @@ def apply_hwp_to_obs(obs, hwp: HWP, pointing_matrix):
 
     This function modifies the variable `pointing_matrix` (a D×N×3 matrix,
     with D the number of detectors and N the number of samples) so that the
-    polarization angle considers the behavior of the half-wave plate in
+    orientation angle considers the behavior of the half-wave plate in
     `hwp`.
     """
 
@@ -99,6 +99,11 @@ def get_pointings(
     If `HWP` is not ``None``, this specifies the HWP to use for the
     computation of proper polarization angles.
 
+    **Warning**: if `hwp` is not ``None``, the code adds the α angle of the
+    HWP to the orientation angle ψ, which is generally not correct! This
+    is going to be fixed in the next release of the LiteBIRD Simulation
+    Framework.
+
     The return value is a ``(D x N × 3)`` tensor: the colatitude (in
     radians) is stored in column 0 (e.g., ``result[:, :, 0]``), the
     longitude (ditto) in column 1, and the polarization angle
@@ -152,7 +157,7 @@ def get_pointings(
         )
 
         # Compute the pointing direction for each sample
-        all_compute_pointing_and_polangle(
+        all_compute_pointing_and_orientation(
             result_matrix=pointing_buffer[idx, :, :].reshape(
                 (1, pointing_buffer.shape[1], 3)
             ),
