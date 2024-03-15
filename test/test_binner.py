@@ -40,12 +40,15 @@ def test_accumulate_map_and_info():
     psi = np.expand_dims(psi, axis=0)
     pix = np.expand_dims(pix, axis=0)
 
+    d_mask = np.ones(1)
+    t_mask = np.ones(n_samples)
+
     # Now add both components to the TOD
     mapping._accumulate_samples_and_build_nobs_matrix(
-        first_tod, pix, psi, weights, info, additional_component=False
+        first_tod, pix, psi, weights, d_mask, t_mask, info, additional_component=False
     )
     mapping._accumulate_samples_and_build_nobs_matrix(
-        second_tod, pix, psi, weights, info, additional_component=True
+        second_tod, pix, psi, weights, d_mask, t_mask, info, additional_component=True
     )
 
     assert np.allclose(res_info, info)

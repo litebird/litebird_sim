@@ -24,6 +24,7 @@ from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
 from .mapmaking import (
     make_binned_map,
+    check_valid_splits,
     BinnerResult,
     make_destriped_map,
     DestriperParameters,
@@ -1305,6 +1306,7 @@ class Simulation:
         self,
         maps: Dict[str, np.ndarray],
         input_map_in_galactic: bool = True,
+        component: str = "tod",
         interpolation: Union[str, None] = "",
         append_to_report: bool = True,
     ):
@@ -1320,6 +1322,7 @@ class Simulation:
             self.observations,
             maps=maps,
             input_map_in_galactic=input_map_in_galactic,
+            component=component,
             interpolation=interpolation,
         )
 
@@ -1356,6 +1359,7 @@ class Simulation:
         t_cmb_k: float = constants.T_CMB_K,
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
         append_to_report: bool = True,
+        component: str = "tod",
     ):
         """Fills the tod with dipole.
 
@@ -1373,6 +1377,7 @@ class Simulation:
             pos_and_vel=self.pos_and_vel,
             t_cmb_k=t_cmb_k,
             dipole_type=dipole_type,
+            component=component,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1398,6 +1403,7 @@ class Simulation:
         random: np.random.Generator,
         noise_type: str = "one_over_f",
         append_to_report: bool = True,
+        component: str = "tod",
     ):
         """Adds noise to tods.
 
@@ -1413,6 +1419,7 @@ class Simulation:
             obs=self.observations,
             noise_type=noise_type,
             random=random,
+            component=component,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1424,17 +1431,110 @@ class Simulation:
                 noise_type="white + 1/f " if noise_type == "one_over_f" else "white",
             )
 
+    def check_valid_splits(self, detector_splits, time_splits):
+        """Wrapper around :meth:`litebird_sim.check_valid_splits`. Checks that the splits are valid on the observations."""
+        try:
+            check_valid_splits(self.observations, detector_splits, time_splits)
+        except ValueError as e:
+            raise ValueError(f"Invalid splits:\n{e}")
+        except AssertionError as e:
+            raise AssertionError(
+                f"The splits are not compatible with the observations:\n{e}"
+            )
+
+    def make_binned_map_splits(
+        self,
+        nside: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        components: Optional[List[str]] = None,
+        detector_splits: Union[str, List[str]] = "full",
+        time_splits: Union[str, List[str]] = "full",
+        append_to_report: bool = True,
+        write_to_disk: bool = True,
+        include_inv_covariance: bool = False,
+    ) -> Union[List[str], dict[str, BinnerResult]]:
+        """Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
+        if isinstance(detector_splits, str):
+            detector_splits = [detector_splits]
+        if isinstance(time_splits, str):
+            time_splits = [time_splits]
+        self.check_valid_splits(detector_splits, time_splits)
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_binned_map_splits.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                time_split=time_splits,
+                detector_split=detector_splits,
+                nside=nside,
+                coord=str(output_coordinate_system),
+            )
+        if write_to_disk:
+            filenames = []
+            for ds in detector_splits:
+                for ts in time_splits:
+                    result = make_binned_map(
+                        nside=nside,
+                        obs=self.observations,
+                        output_coordinate_system=output_coordinate_system,
+                        components=components,
+                        detector_split=ds,
+                        time_split=ts,
+                    )
+                    file = f"binned_map_DET{ds}_TIME{ts}.fits"
+                    names = ["I", "Q", "U"]
+                    result = list(result.__dict__.items())
+                    mapp = result.pop(0)[1]
+                    inv_cov = result.pop(0)[1]
+                    coords = result.pop(0)[1].name
+                    del result
+                    inv_cov = inv_cov.T[np.tril_indices(3)]
+                    inv_cov[[2, 3]] = inv_cov[[3, 2]]
+                    inv_cov = list(inv_cov)
+                    if include_inv_covariance:
+                        names.extend(["II", "IQ", "IU", "QQ", "QU", "UU"])
+                        for _ in range(6):
+                            mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
+                    filenames.append(
+                        self.write_healpix_map(
+                            file, mapp, column_names=names, coord=coords
+                        )
+                    )
+            return filenames
+        else:
+            binned_maps = {}
+            for ds in detector_splits:
+                for ts in time_splits:
+                    binned_maps[f"{ds}_{ts}"] = make_binned_map(
+                        nside=nside,
+                        obs=self.observations,
+                        output_coordinate_system=output_coordinate_system,
+                        components=components,
+                        detector_split=ds,
+                        time_split=ts,
+                    )
+        return binned_maps
+
     def make_binned_map(
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         components: Optional[List[str]] = None,
+        detector_split: str = "full",
+        time_split: str = "full",
         append_to_report: bool = True,
     ) -> BinnerResult:
         """
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
+
+        if isinstance(detector_split, list) or isinstance(time_split, list):
+            msg = "You must use 'make_binned_map_splits' if you want lists of splits!"
+            raise ValueError(msg)
+        self.check_valid_splits(detector_split, time_split)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_binned_map.md")
@@ -1447,10 +1547,12 @@ class Simulation:
             )
 
         return make_binned_map(
-            obs=self.observations,
             nside=nside,
+            obs=self.observations,
             output_coordinate_system=output_coordinate_system,
             components=components,
+            detector_split=detector_split,
+            time_split=time_split,
         )
 
     def make_destriped_map(

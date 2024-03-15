@@ -1,10 +1,9 @@
-# -*- encoding: utf-8 -*-
-
 from dataclasses import dataclass
 from typing import Union, List, Tuple
 import numpy as np
 import numpy.typing as npt
 from numba import njit
+import astropy.time
 
 from ducc0.healpix import Healpix_Base
 
@@ -15,6 +14,15 @@ from litebird_sim.observations import Observation
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not
 COND_THRESHOLD = 1e10
+
+# Definition of time splits
+t_year_sec = 365 * 24 * 3600
+t_survey_sec = 365 * 24 * 3600 / 2
+
+# Definition of detector splits
+lft_wafers = ["L00", "L01", "L02", "L03", "L04", "L05", "L06", "L07"]
+mft_wafers = ["M00", "M01", "M02", "M03", "M04", "M05", "M06"]
+hft_wafers = ["H00", "H01", "H02"]
 
 
 @dataclass
@@ -81,7 +89,7 @@ class ExternalDestriperParameters:
     return_rcond: bool = False
 
 
-def get_map_making_weights(obs: Observation, check: bool) -> npt.NDArray:
+def get_map_making_weights(obs: Observation, check: bool = True) -> npt.NDArray:
     """Return a NumPy array containing the weights of each detector in `obs`
 
     The number of elements in the result is equal to `obs.n_detectors`. If
@@ -98,10 +106,10 @@ def get_map_making_weights(obs: Observation, check: bool) -> npt.NDArray:
 
     if check:
         # Check that there are no weird weights
-        assert np.alltrue(
+        assert np.all(
             np.isfinite(weights)
         ), f"Not all the detectors' weights are finite numbers: {weights}"
-        assert np.alltrue(
+        assert np.all(
             weights > 0.0
         ), f"Not all the detectors' weights are positive: {weights}"
 
@@ -347,7 +355,7 @@ def estimate_cond_number(
     telling if the matrix is non-singular (``True``) or singular (``False``).
 
     The code is a conversion of a C++ template class by David Eberly, see
-    <https://www.geometrictools.com/Documentation/RobustEigenSymmetric3x3.pdf>
+    <https://www.geometrictools.com/Documentation/RobustEigenSymmetric3×3.pdf>
     """
 
     # Precondition the matrix by dividing each member by the largest
@@ -418,3 +426,142 @@ def estimate_cond_number(
     max_abs_eval = max(max(eval0, eval1), eval2)
 
     return (max_abs_eval / min_abs_eval, True)
+
+
+def _build_mask_time_split(
+    time_split: str,
+    obs_list: List[Observation],
+):
+    time_mask = []
+
+    for cur_obs in obs_list:
+        mask = np.zeros(cur_obs.n_samples, dtype=bool)
+
+        if time_split == "full":
+            time_mask.append(np.ones(cur_obs.n_samples, dtype=bool))
+        elif time_split == "odd":
+            mask[0::2] = True
+            time_mask.append(mask)
+        elif time_split == "even":
+            mask[1::2] = True
+            time_mask.append(mask)
+        elif time_split == "first_half":
+            mask[0 : cur_obs.n_samples // 2] = True
+            time_mask.append(mask)
+        elif time_split == "second_half":
+            mask[cur_obs.n_samples // 2 :] = True
+            time_mask.append(mask)
+        max_years = 3
+        for i in range(1, max_years + 1):
+            if time_split == f"year{i}":
+                t_i = _get_initial_time(cur_obs)
+                time_mask.append(
+                    ((cur_obs.get_times() - t_i) >= (i - 1) * t_year_sec)
+                    * ((cur_obs.get_times() - t_i) < i * t_year_sec)
+                )
+        max_surveys = 6
+        for i in range(1, max_surveys + 1):
+            if time_split == f"survey{i}":
+                t_i = _get_initial_time(cur_obs)
+                time_mask.append(
+                    ((cur_obs.get_times() - t_i) >= (i - 1) * t_survey_sec)
+                    * ((cur_obs.get_times() - t_i) < i * t_survey_sec)
+                )
+    return time_mask
+
+
+def _get_initial_time(
+    obs: Observation,
+):
+    if isinstance(obs.start_time_global, astropy.time.Time):
+        t_i = obs.start_time_global.cxcsec
+    else:
+        t_i = obs.start_time_global
+    return t_i
+
+
+def _get_end_time(
+    obs: Observation,
+):
+    if isinstance(obs.end_time_global, astropy.time.Time):
+        t_f = obs.end_time_global.cxcsec
+    else:
+        t_f = obs.end_time_global
+    return t_f
+
+
+def _build_mask_detector_split(
+    detector_split: str,
+    obs_list: List[Observation],
+):
+    detector_mask = []
+
+    if detector_split == "full":
+        for cur_obs in obs_list:
+            detector_mask.append(np.ones(cur_obs.n_detectors, dtype=bool))
+    elif "wafer" in detector_split:
+        for cur_obs in obs_list:
+            detector_mask.append(cur_obs.wafer == detector_split.replace("wafer", ""))
+
+    return detector_mask
+
+
+def _check_valid_splits(
+    obs: Union[Observation, List[Observation]],
+    detector_splits: Union[str, List[str]] = "full",
+    time_splits: Union[str, List[str]] = "full",
+):
+    valid_detector_splits = ["full"]
+    valid_detector_splits.extend(
+        [f"wafer{wafer}" for wafer in lft_wafers + mft_wafers + hft_wafers]
+    )
+    valid_time_splits = [
+        "full",
+        "first_half",
+        "second_half",
+        "odd",
+        "even",
+    ]
+    max_years = 3
+    max_surveys = 6
+    valid_time_splits.extend([f"year{i}" for i in range(1, max_years + 1)])
+    valid_time_splits.extend([f"survey{i}" for i in range(1, max_surveys + 1)])
+
+    if isinstance(obs, Observation):
+        obs = [obs]
+    if isinstance(detector_splits, str):
+        detector_splits = [detector_splits]
+    if isinstance(time_splits, str):
+        time_splits = [time_splits]
+
+    _validate_detector_splits(obs, detector_splits, valid_detector_splits)
+    _validate_time_splits(obs, time_splits, valid_time_splits)
+    print("Splits are valid!")
+
+
+def _validate_detector_splits(obs, detector_splits, valid_detector_splits):
+    for ds in detector_splits:
+        if ds not in valid_detector_splits:
+            msg = f"Detector split '{ds}' not recognized!\nValid detector splits are {valid_detector_splits}"
+            raise ValueError(msg)
+        for cur_obs in obs:
+            if "wafer" in ds:
+                requested_wafer = ds.replace("wafer", "")
+                if requested_wafer not in cur_obs.wafer:
+                    msg = f"The requested wafer '{ds}' is not part of the requested observation with wafers {cur_obs.wafer}!"
+                    raise AssertionError(msg)
+
+
+def _validate_time_splits(obs, time_splits, valid_time_splits):
+    for ts in time_splits:
+        if ts not in valid_time_splits:
+            msg = f"Time split '{ts}' not recognized!\nValid time splits are {valid_time_splits}"
+            raise ValueError(msg)
+        if "year" in ts:
+            for cur_obs in obs:
+                duration = round(_get_end_time(cur_obs) - _get_initial_time(cur_obs), 0)
+                max_years = duration // t_year_sec
+                requested_years = int(ts.replace("year", ""))
+                if requested_years > max_years:
+                    msg = f"Time split '{ts}' not possible for observation with a duration of {round(duration / t_year_sec, 1)} years!"
+                    raise AssertionError(msg)

@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from .common import ExternalDestriperParameters
-from .binner import make_binned_map, BinnerResult
+from .binner import make_binned_map, check_valid_splits, BinnerResult
 from .destriper import (
     make_destriped_map,
     DestriperParameters,
@@ -19,6 +19,7 @@ __all__ = [
     # binner.py
     "BinnerResult",
     "make_binned_map",
+    "check_valid_splits",
     # destriper.py
     "DestriperParameters",
     "DestriperResult",

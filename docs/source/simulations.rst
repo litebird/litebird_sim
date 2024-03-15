@@ -520,6 +520,40 @@ See the documentation in :ref:`observations`, :ref:`scanning-strategy`
 :ref:`dipole-anisotropy`, :ref:`timeordered`, :ref:`mapmaking` for 
 details of the single functions. 
 
+Data splits
+^^^^^^^^^^^
+
+Since the class :class:`.Simulation` is interfaced to
+:func:`litebird_sim.make_binned_map`, it is able to provide data splits
+both in time and detector space (see :ref:`mapmaking`
+for more details on the splitting and the available options).
+In addition, the class contains :meth:`.Simulation.make_binned_map_splits`,
+which is a wrapper around :func:`litebird_sim.make_binned_map`
+that allows to perform the mapmaking on multiple choices
+of splits at once (passed as a list of strings).
+Indeed, the function will loop over the cartesian
+product of the time and detector splits. The default
+behavior is to perform the mapmaking in each combination
+and save the result to disk, to avoid memory issues. In particular,
+only the binned maps are saved to disk, unless you set
+`include_inv_covariance` to `True`. This saves the elements of
+the inverse covariance as extra fields in the output FITS file.
+This default behavior can be changed by setting the `write_to_disk` parameter
+to `False`. Then, the function returns a dictionary
+containing the full results of the mapmaking for each split.
+The keys are strings that describe the split in the
+format "{Dsplit}_{Tsplit}", such as "waferL00_year1".
+
+Before performing the computation, the function :meth:`.Simulation.check_valid_splits`
+will check whether the requested split is valid (see :ref:`mapmaking`).
+This is a wrapper around :func:`litebird_sim.check_valid_splits`. If the
+split is not valid, the function will raise a ValueError. In addition, it
+will check whether the requested split is compatible with the duration of
+the observation and with the detector list. Thus, for example, if the
+observation lasts 1 year, the split "year2" will raise an AsserionError. Similarly,
+if the observation is performed with some detector contained in the L00
+wafer, the split "waferL03" will also raise an AsserionError.
+
 API reference
 -------------
 
