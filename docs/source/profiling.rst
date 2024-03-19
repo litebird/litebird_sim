@@ -44,7 +44,7 @@ The constructor for :class:`.TimeProfiler` accepts keyword arguments; they are s
 
 .. testoutput::
 
-   my_param = Hello
+   my_param = hello
 
 
 Export to Speedscope
