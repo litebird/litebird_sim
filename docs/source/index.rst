@@ -28,6 +28,7 @@ Welcome to litebird_sim's documentation!
    gaindrifts
    random_numbers
    external_modules
+   profiling
    integrating
    bibliography
 

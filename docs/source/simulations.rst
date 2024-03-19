@@ -490,8 +490,8 @@ each class to know what is inside.
 High level interface
 --------------------
 
-The class :class:`.Simulation` has a powerfull high level 
-interface that allows to quickly generate a scanning strategy
+The class :class:`.Simulation` has a powerful high level
+interface that allows to quickly generate a scanning strategy,
 allocate the observations, generate simulated timelines
 cointaing signal, noise and dipole, build maps, and 
 save(read) the entire simulation object. The syntax is 
@@ -519,6 +519,7 @@ straightforward::
 See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
 :ref:`dipole-anisotropy`, :ref:`timeordered`, :ref:`mapmaking` for 
 details of the single functions. 
+
 
 Data splits
 ^^^^^^^^^^^
@@ -553,6 +554,22 @@ the observation and with the detector list. Thus, for example, if the
 observation lasts 1 year, the split "year2" will raise an AsserionError. Similarly,
 if the observation is performed with some detector contained in the L00
 wafer, the split "waferL03" will also raise an AsserionError.
+
+.. _simulation-profiling:
+
+Profiling a simulation
+----------------------
+
+The class :class:`.Simulation` provides an higher-level interface to the
+functions described in the chapter :ref:`profiling`. The decorator ``@profile``
+automatically wraps a method of the :class:`.Simulation` class so that it measures
+the time spent to run the method and adds it to an internal list of
+:class:`.TimeProfiler` objects. When the :meth:`.Simulation.flush` method is
+called, each MPI process creates its own JSON file containing the methods that
+have been measured during the execution of the simulation. These files are
+stored in the output directory and have names like ``profile_mpi00000.json``,
+``profile_mpi00001.json``, etc.
+
 
 API reference
 -------------

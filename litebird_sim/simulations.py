@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import codecs
+import json
 from collections import namedtuple
 from dataclasses import asdict, dataclass
 from datetime import datetime
@@ -34,6 +35,7 @@ from .mapmaking import (
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
 from .pointings import get_pointings
+from .profiler import TimeProfiler, profile_list_to_speedscope
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -318,6 +320,9 @@ class Simulation:
         numba_threading_layer (str): name of the Numba threading layer
             to use. See the Numba User's Manual:
             <https://numba.readthedocs.io/en/stable/user/threading-layer.html>
+
+        profile_time (bool): if ``True`` (the default), record information about
+            the time spent while doing some time-consuming tasks.
     """
 
     def __init__(
@@ -334,6 +339,7 @@ class Simulation:
         parameters=None,
         numba_threads=None,
         numba_threading_layer=None,
+        profile_time: bool = True,
     ):
         self.mpi_comm = mpi_comm
 
@@ -369,6 +375,9 @@ class Simulation:
 
         self.numba_threads = numba_threads
         self.numba_threading_layer = numba_threading_layer
+
+        self.profile_time = profile_time
+        self.profile_data = []  # type: list(TimeProfiler)
 
         assert not (parameter_file and parameters), (
             "you cannot use parameter_file and parameters together "
@@ -773,7 +782,38 @@ class Simulation:
                 f"unable to save information about latest git commit in the report: {e}"
             )
 
-    def flush(self, include_git_diff=True, base_imo_url: str = DEFAULT_BASE_IMO_URL):
+    def record_profile_info(self, profiler: TimeProfiler):
+        if self.profile_time:
+            self.profile_data.append(profiler)
+
+    def _generate_profile_file(self, file_name: str):
+        if not self.profile_time:
+            return
+
+        output_file_path = self.base_path / file_name
+        with output_file_path.open("wt") as out_file:
+            json.dump(profile_list_to_speedscope(self.profile_data), out_file)
+        log.info('Profile data saved to file "%s"', str(output_file_path.absolute()))
+
+    @staticmethod
+    def profile(function):
+        def profile_wrapper(*args, **kwargs):
+            self = args[0]
+
+            with TimeProfiler(name=function.__name__) as prof:
+                result = function(*args, **kwargs)
+
+            self.record_profile_info(prof)
+            return result
+
+        return profile_wrapper
+
+    def flush(
+        self,
+        include_git_diff=True,
+        base_imo_url: str = DEFAULT_BASE_IMO_URL,
+        profile_file_name: Optional[str] = None,
+    ):
         """Terminate a simulation.
 
         This function must be called when a simulation is complete. It
@@ -783,6 +823,10 @@ class Simulation:
         been saved in the directory pointed by ``self.base_path``.
 
         """
+
+        if not profile_file_name:
+            profile_file_name = f"profile_mpi{self.mpi_comm.rank:05d}.json"
+        self._generate_profile_file(file_name=profile_file_name)
 
         dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         self._fill_dictionary_with_imo_information(
@@ -834,6 +878,7 @@ class Simulation:
 
         return html_report_path
 
+    @profile
     def create_observations(
         self,
         detectors: List[DetectorInfo],
@@ -1216,6 +1261,7 @@ class Simulation:
         """
         self.hwp = hwp
 
+    @profile
     def compute_pointings(
         self,
         append_to_report: bool = True,
@@ -1275,6 +1321,7 @@ class Simulation:
                 memory_occupation=memory_occupation,
             )
 
+    @profile
     def compute_pos_and_vel(
         self,
         delta_time_s=86400.0,
@@ -1302,6 +1349,7 @@ class Simulation:
             orbit=orbit, obs=self.observations, delta_time_s=delta_time_s
         )
 
+    @profile
     def fill_tods(
         self,
         maps: Dict[str, np.ndarray],
@@ -1354,6 +1402,7 @@ class Simulation:
                     fg_model="N/A",
                 )
 
+    @profile
     def add_dipole(
         self,
         t_cmb_k: float = constants.T_CMB_K,
@@ -1398,6 +1447,7 @@ class Simulation:
                 dip_velocity=dip_velocity,
             )
 
+    @profile
     def add_noise(
         self,
         random: np.random.Generator,
@@ -1442,6 +1492,7 @@ class Simulation:
                 f"The splits are not compatible with the observations:\n{e}"
             )
 
+    @profile
     def make_binned_map_splits(
         self,
         nside: int,
@@ -1517,6 +1568,7 @@ class Simulation:
                     )
         return binned_maps
 
+    @profile
     def make_binned_map(
         self,
         nside: int,
@@ -1555,6 +1607,7 @@ class Simulation:
             time_split=time_split,
         )
 
+    @profile
     def make_destriped_map(
         self,
         nside: int,
@@ -1619,6 +1672,7 @@ class Simulation:
 
         return results
 
+    @profile
     def write_observations(
         self,
         subdir_name: Union[None, str] = "tod",
@@ -1672,6 +1726,7 @@ class Simulation:
 
         return file_list
 
+    @profile
     def read_observations(
         self,
         path: Union[str, Path] = None,
@@ -1698,6 +1753,7 @@ class Simulation:
         )
         self.observations = obs
 
+    @profile
     def apply_gaindrift(
         self,
         drift_params: GainDriftParams = None,

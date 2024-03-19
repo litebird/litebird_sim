@@ -3,7 +3,6 @@
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory, NamedTemporaryFile
-
 import numpy as np
 import litebird_sim as lbs
 import pathlib
@@ -88,8 +87,6 @@ And here are the data points:
 
     print(sim.report)
     assert reference.strip() in sim.report.strip()
-
-    sim.flush()
 
 
 def test_imo_in_report(tmp_path):
@@ -352,3 +349,37 @@ def test_describe_distribution(tmp_path):
             assert obs.tod_names == ["tod", "fg_tod", "dipole_tod"]
             assert obs.tod_shape == (1, 100)
             assert obs.tod_dtype == ["float32", "float64", "float32"]
+
+
+def test_profile_information(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=0.0,
+        duration_s=61.0,
+        random_seed=12345,
+        imo=lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION),
+    )
+    det = lbs.DetectorInfo.from_imo(
+        sim.imo,
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_T/detector_info",
+    )
+
+    sim.create_observations(
+        detectors=[det], num_of_obs_per_detector=1, split_list_over_processes=False
+    )
+
+    sstr = lbs.SpinningScanningStrategy.from_imo(
+        sim.imo, "/releases/vPTEP/satellite/scanning_parameters"
+    )
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
+
+    instr = lbs.InstrumentInfo.from_imo(
+        sim.imo, "/releases/vPTEP/satellite/LFT/instrument_info"
+    )
+    sim.set_instrument(instr)
+
+    sim.compute_pointings()
+
+    sim.flush(profile_file_name="profile.json")
+    profile_file_path = sim.base_path / "profile.json"
+    assert profile_file_path.exists()
