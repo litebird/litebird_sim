@@ -235,6 +235,26 @@ class MpiDistributionDescr:
         return result
 
 
+def _profile(function):
+    """
+    Decorator that monitors the time spent while running `function`
+
+    This decorator should be used only with the methods of the class
+    :class:`.Simulation`.
+    """
+
+    def profile_wrapper(*args, **kwargs):
+        self = args[0]
+
+        with TimeProfiler(name=function.__name__) as prof:
+            result = function(*args, **kwargs)
+
+        self.record_profile_info(prof)
+        return result
+
+    return profile_wrapper
+
+
 class Simulation:
     """A container object for running simulations
 
@@ -795,19 +815,6 @@ class Simulation:
             json.dump(profile_list_to_speedscope(self.profile_data), out_file)
         log.info('Profile data saved to file "%s"', str(output_file_path.absolute()))
 
-    @staticmethod
-    def profile(function):
-        def profile_wrapper(*args, **kwargs):
-            self = args[0]
-
-            with TimeProfiler(name=function.__name__) as prof:
-                result = function(*args, **kwargs)
-
-            self.record_profile_info(prof)
-            return result
-
-        return profile_wrapper
-
     def flush(
         self,
         include_git_diff=True,
@@ -878,7 +885,7 @@ class Simulation:
 
         return html_report_path
 
-    @profile
+    @_profile
     def create_observations(
         self,
         detectors: List[DetectorInfo],
@@ -1261,7 +1268,7 @@ class Simulation:
         """
         self.hwp = hwp
 
-    @profile
+    @_profile
     def compute_pointings(
         self,
         append_to_report: bool = True,
@@ -1321,7 +1328,7 @@ class Simulation:
                 memory_occupation=memory_occupation,
             )
 
-    @profile
+    @_profile
     def compute_pos_and_vel(
         self,
         delta_time_s=86400.0,
@@ -1349,7 +1356,7 @@ class Simulation:
             orbit=orbit, obs=self.observations, delta_time_s=delta_time_s
         )
 
-    @profile
+    @_profile
     def fill_tods(
         self,
         maps: Dict[str, np.ndarray],
@@ -1402,7 +1409,7 @@ class Simulation:
                     fg_model="N/A",
                 )
 
-    @profile
+    @_profile
     def add_dipole(
         self,
         t_cmb_k: float = constants.T_CMB_K,
@@ -1447,7 +1454,7 @@ class Simulation:
                 dip_velocity=dip_velocity,
             )
 
-    @profile
+    @_profile
     def add_noise(
         self,
         random: np.random.Generator,
@@ -1492,7 +1499,7 @@ class Simulation:
                 f"The splits are not compatible with the observations:\n{e}"
             )
 
-    @profile
+    @_profile
     def make_binned_map_splits(
         self,
         nside: int,
@@ -1568,7 +1575,7 @@ class Simulation:
                     )
         return binned_maps
 
-    @profile
+    @_profile
     def make_binned_map(
         self,
         nside: int,
@@ -1607,7 +1614,7 @@ class Simulation:
             time_split=time_split,
         )
 
-    @profile
+    @_profile
     def make_destriped_map(
         self,
         nside: int,
@@ -1672,7 +1679,7 @@ class Simulation:
 
         return results
 
-    @profile
+    @_profile
     def write_observations(
         self,
         subdir_name: Union[None, str] = "tod",
@@ -1726,7 +1733,7 @@ class Simulation:
 
         return file_list
 
-    @profile
+    @_profile
     def read_observations(
         self,
         path: Union[str, Path] = None,
@@ -1753,7 +1760,7 @@ class Simulation:
         )
         self.observations = obs
 
-    @profile
+    @_profile
     def apply_gaindrift(
         self,
         drift_params: GainDriftParams = None,
