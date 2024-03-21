@@ -33,6 +33,9 @@ from .common import (
     cholesky,
     solve_cholesky,
     estimate_cond_number,
+    _build_mask_detector_split,
+    _build_mask_time_split,
+    _check_valid_splits,
 )
 
 if MPI_ENABLED:
@@ -319,6 +322,8 @@ class DestriperResult:
     binned_map: npt.ArrayLike
     nobs_matrix_cholesky: NobsMatrix
     coordinate_system: CoordinateSystem
+    detector_split: Optional[str]
+    time_split: Optional[str]
     # The following fields are filled only if the CG algorithm was used
     baselines: Optional[npt.ArrayLike]
     baseline_errors: Optional[npt.ArrayLike]
@@ -356,6 +361,8 @@ def _accumulate_nobs_matrix(
     pix_idx: npt.ArrayLike,  # Shape: (Ndet, 1)
     psi_angle_rad: npt.ArrayLike,  # Shape: (Ndet, 1)
     weights: npt.ArrayLike,  # Shape: (N_det,)
+    d_mask: npt.ArrayLike,
+    t_mask: npt.ArrayLike,
     nobs_matrix: npt.ArrayLike,  # Shape: (N_pix, 6)
 ) -> None:
     """
@@ -368,25 +375,31 @@ def _accumulate_nobs_matrix(
     """
 
     assert pix_idx.shape == psi_angle_rad.shape
+    
+    assert pix_idx.shape[0] == d_mask.shape[0]
 
     num_of_detectors = pix_idx.shape[0]
 
     for det_idx in range(num_of_detectors):
+        if not d_mask[det_idx]:
+            continue
+
         inv_sigma = 1.0 / np.sqrt(weights[det_idx])
         inv_sigma2 = inv_sigma * inv_sigma
 
         # Fill the lower triangle of M_i only for i = 1…N_pix
-        for cur_pix_idx, cur_psi in zip(pix_idx[det_idx], psi_angle_rad[det_idx]):
-            cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
-            sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
-            cur_matrix = nobs_matrix[cur_pix_idx]
+        for cur_pix_idx, cur_psi, cur_t_mask in zip(pix_idx[det_idx], psi_angle_rad[det_idx], t_mask):
+            if cur_t_mask:
+                cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
+                sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+                cur_matrix = nobs_matrix[cur_pix_idx]
 
-            cur_matrix[0] += inv_sigma2
-            cur_matrix[1] += cos_over_sigma * inv_sigma
-            cur_matrix[2] += cos_over_sigma * cos_over_sigma
-            cur_matrix[3] += sin_over_sigma * inv_sigma
-            cur_matrix[4] += sin_over_sigma * cos_over_sigma
-            cur_matrix[5] += sin_over_sigma * sin_over_sigma
+                cur_matrix[0] += inv_sigma2
+                cur_matrix[1] += cos_over_sigma * inv_sigma
+                cur_matrix[2] += cos_over_sigma * cos_over_sigma
+                cur_matrix[3] += sin_over_sigma * inv_sigma
+                cur_matrix[4] += sin_over_sigma * cos_over_sigma
+                cur_matrix[5] += sin_over_sigma * sin_over_sigma
 
 
 @njit(parallel=True)
@@ -450,18 +463,22 @@ def _build_nobs_matrix(
     obs_list: List[Observation],
     ptg_list: List[npt.ArrayLike],
     psi_list: List[npt.ArrayLike],
+    dm_list: List[npt.ArrayLike],
+    tm_list: List[npt.ArrayLike],
 ) -> NobsMatrix:
     # Instead of a shape like (Npix, 3, 3), i.e., one 3×3 matrix per each
     # pixel, we only store the lower triangular part in a 6-element array.
     # In this way we reduce the memory usage by ~30% and the code is faster too.
     nobs_matrix = np.zeros((hpx.npix(), 6))  # Do not use np.empty() here!
 
-    for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
+    for cur_obs, cur_ptg, cur_psi, cur_d_mask, cur_t_mask in zip(obs_list, ptg_list, psi_list, dm_list, tm_list):
         _accumulate_nobs_matrix(
             pix_idx=cur_obs.destriper_pixel_idx,
             psi_angle_rad=cur_obs.destriper_pol_angle_rad,
             weights=cur_obs.destriper_weights,
             nobs_matrix=nobs_matrix,
+            d_mask=cur_d_mask,
+            t_mask=cur_t_mask,
         )
 
     # Now we must accumulate the result of every MPI process
@@ -1335,6 +1352,8 @@ def make_destriped_map(
     keep_weights: bool = False,
     keep_pixel_idx: bool = False,
     keep_pol_angle_rad: bool = False,
+    detector_split: str = "full",
+    time_split: str = "full",
     callback: Any = destriper_log_callback,
     callback_kwargs: Optional[Dict[Any, Any]] = None,
 ) -> DestriperResult:
@@ -1471,11 +1490,17 @@ def make_destriped_map(
             factor=+1.0,
         )
 
+    detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
+
+    time_mask_list = _build_mask_time_split(time_split, obs_list)
+
     nobs_matrix_cholesky = _build_nobs_matrix(
         hpx=hpx,
         obs_list=obs_list,
         ptg_list=ptg_list,
         psi_list=psi_list,
+        dm_list=detector_mask_list,
+        tm_list=time_mask_list,
     )
 
     number_of_pixels = hpx.npix()
@@ -1608,6 +1633,8 @@ def make_destriped_map(
         binned_map=binned_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         coordinate_system=params.output_coordinate_system,
+        detector_split=detector_split,
+        time_split=time_split,
         # The following fields are filled only if the CG algorithm was used
         baselines=baselines_list,
         baseline_errors=baseline_errors_list,
