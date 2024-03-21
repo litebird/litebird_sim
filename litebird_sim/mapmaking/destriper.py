@@ -35,7 +35,6 @@ from .common import (
     estimate_cond_number,
     _build_mask_detector_split,
     _build_mask_time_split,
-    _check_valid_splits,
 )
 
 if MPI_ENABLED:
@@ -375,7 +374,7 @@ def _accumulate_nobs_matrix(
     """
 
     assert pix_idx.shape == psi_angle_rad.shape
-    
+
     assert pix_idx.shape[0] == d_mask.shape[0]
 
     num_of_detectors = pix_idx.shape[0]
@@ -388,7 +387,9 @@ def _accumulate_nobs_matrix(
         inv_sigma2 = inv_sigma * inv_sigma
 
         # Fill the lower triangle of M_i only for i = 1…N_pix
-        for cur_pix_idx, cur_psi, cur_t_mask in zip(pix_idx[det_idx], psi_angle_rad[det_idx], t_mask):
+        for cur_pix_idx, cur_psi, cur_t_mask in zip(
+            pix_idx[det_idx], psi_angle_rad[det_idx], t_mask
+        ):
             if cur_t_mask:
                 cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
                 sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
@@ -471,7 +472,9 @@ def _build_nobs_matrix(
     # In this way we reduce the memory usage by ~30% and the code is faster too.
     nobs_matrix = np.zeros((hpx.npix(), 6))  # Do not use np.empty() here!
 
-    for cur_obs, cur_ptg, cur_psi, cur_d_mask, cur_t_mask in zip(obs_list, ptg_list, psi_list, dm_list, tm_list):
+    for cur_obs, cur_ptg, cur_psi, cur_d_mask, cur_t_mask in zip(
+        obs_list, ptg_list, psi_list, dm_list, tm_list
+    ):
         _accumulate_nobs_matrix(
             pix_idx=cur_obs.destriper_pixel_idx,
             psi_angle_rad=cur_obs.destriper_pol_angle_rad,
