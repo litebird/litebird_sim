@@ -1,10 +1,12 @@
 # HEAD
 
+-   Implement a time profiler [#308](https://github.com/litebird/litebird_sim/pull/308)
+
 # Version 0.12.0
 
 -   **Breaking change**: Disambiguate between “polarization angle” and “orientation” [#305](https://github.com/litebird/litebird_sim/pull/305). A few functions have been renamed as a consequence of this change; however, they are low-level functions that are used internally (`compute_pointing_and_polangle`, `all_compute_pointing_and_polangle`, `polarization_angle`), so external codes should be unaffected by this PR.
 
--   **Breaking change**: Reworking of the IO, `write_observations` and `read_observations` are now part of the class simulation [#293](https://github.com/litebird/litebird_sim/pull/293)  
+-   **Breaking change**: Reworking of the IO, `write_observations` and `read_observations` are now part of the class simulation [#293](https://github.com/litebird/litebird_sim/pull/293)
 
 -   Mbs optionally returns alms instead of maps [#306](https://github.com/litebird/litebird_sim/pull/306)
 
@@ -14,7 +16,7 @@
 
 -   Add support for partial multithreading using Numba [#276](https://github.com/litebird/litebird_sim/pull/276)
 
--   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271) 
+-   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271)
 
 -   Support for numpy.float128 made optional, this fixes importing issue on ARM architectures [#286](https://github.com/litebird/litebird_sim/pull/286)
 
