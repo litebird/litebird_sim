@@ -539,6 +539,8 @@ def _update_sum_map_with_tod(
     pol_angle_rad: npt.ArrayLike,
     pixel_idx: npt.ArrayLike,
     weights: npt.ArrayLike,
+    d_mask: npt.ArrayLike,
+    t_mask: npt.ArrayLike,
     baseline_lengths: npt.ArrayLike,  # Number of samples per baseline
 ) -> None:
     """
@@ -553,12 +555,20 @@ def _update_sum_map_with_tod(
     """
 
     for det_idx in range(pixel_idx.shape[0]):
+        if not d_mask[det_idx]:
+            continue
         cur_weight = weights[det_idx]
 
         baseline_idx = 0
         samples_in_this_baseline = 0
 
         for sample_idx in range(tod.shape[1]):
+            if not t_mask[sample_idx]:
+                (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
+                    baseline_idx, samples_in_this_baseline, baseline_lengths
+                )
+                continue
+
             cur_pix = pixel_idx[det_idx, sample_idx]
             _sum_map_contribution_from_one_sample(
                 pol_angle_rad=pol_angle_rad[det_idx, sample_idx],
@@ -580,6 +590,8 @@ def _update_sum_map_with_baseline(
     pol_angle_rad: npt.ArrayLike,
     pixel_idx: npt.ArrayLike,
     weights: npt.ArrayLike,
+    d_mask: npt.ArrayLike,
+    t_mask: npt.ArrayLike,
     baselines: npt.ArrayLike,  # Value of each baseline
     baseline_lengths: npt.ArrayLike,  # Number of samples per baseline
 ) -> None:
@@ -594,12 +606,20 @@ def _update_sum_map_with_baseline(
     """
 
     for det_idx in range(pixel_idx.shape[0]):
+        if not d_mask[det_idx]:
+            continue
         cur_weight = weights[det_idx]
 
         baseline_idx = 0
         samples_in_this_baseline = 0
 
         for sample_idx in range(pixel_idx.shape[1]):
+            if not t_mask[sample_idx]:
+                (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
+                    baseline_idx, samples_in_this_baseline, baseline_lengths
+                )
+                continue
+
             cur_pix = pixel_idx[det_idx, sample_idx]
             _sum_map_contribution_from_one_sample(
                 pol_angle_rad=pol_angle_rad[det_idx, sample_idx],
@@ -645,6 +665,8 @@ def _compute_binned_map(
     nobs_matrix_cholesky: NobsMatrix,
     baselines_list: Optional[List[npt.ArrayLike]],
     baseline_lengths_list: List[npt.ArrayLike],
+    dm_list: List[npt.ArrayLike],
+    tm_list: List[npt.ArrayLike],
     component: Optional[str],
     output_hit_map: npt.ArrayLike,
     output_sky_map: npt.ArrayLike,
@@ -681,8 +703,8 @@ def _compute_binned_map(
     output_sky_map[:] = 0
     output_hit_map[:] = 0
 
-    for obs_idx, (cur_obs, cur_baseline_lengths) in enumerate(
-        zip(obs_list, baseline_lengths_list)
+    for obs_idx, (cur_obs, cur_baseline_lengths, cur_d_mask, cur_t_mask) in enumerate(
+        zip(obs_list, baseline_lengths_list, dm_list, tm_list)
     ):
         if baselines_list is None:
             _update_sum_map_with_tod(
@@ -692,6 +714,8 @@ def _compute_binned_map(
                 pol_angle_rad=cur_obs.destriper_pol_angle_rad,
                 pixel_idx=cur_obs.destriper_pixel_idx,
                 weights=cur_obs.destriper_weights,
+                d_mask=cur_d_mask,
+                t_mask=cur_t_mask,
                 baseline_lengths=cur_baseline_lengths,
             )
         else:
@@ -702,6 +726,8 @@ def _compute_binned_map(
                 pol_angle_rad=cur_obs.destriper_pol_angle_rad,
                 pixel_idx=cur_obs.destriper_pixel_idx,
                 weights=cur_obs.destriper_weights,
+                d_mask=cur_d_mask,
+                t_mask=cur_t_mask,
                 baselines=cur_baselines,
                 baseline_lengths=cur_baseline_lengths,
             )
@@ -736,6 +762,8 @@ def _compute_tod_sums_for_one_component(
     pixel_idx: npt.ArrayLike,
     psi_angle_rad: npt.ArrayLike,
     sky_map: npt.ArrayLike,
+    d_mask: npt.ArrayLike,
+    t_mask: npt.ArrayLike,
     baseline_length: npt.ArrayLike,
     output_sums: npt.ArrayLike,
 ) -> None:
@@ -754,6 +782,8 @@ def _compute_tod_sums_for_one_component(
     output_sums[:] = 0
 
     for det_idx, cur_weight in enumerate(weights):
+        if not d_mask[det_idx]:
+            continue
         det_pixel_idx = pixel_idx[det_idx, :]
         det_psi_angle_rad = psi_angle_rad[det_idx, :]
 
@@ -761,6 +791,12 @@ def _compute_tod_sums_for_one_component(
         samples_in_this_baseline = 0
 
         for sample_idx in range(len(det_pixel_idx)):
+            if not t_mask[sample_idx]:
+                (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
+                    baseline_idx, samples_in_this_baseline, baseline_length
+                )
+                continue
+
             map_value = estimate_sample_from_map(
                 cur_pixel=det_pixel_idx[sample_idx],
                 cur_psi=det_psi_angle_rad[sample_idx],
@@ -781,6 +817,8 @@ def _compute_baseline_sums_for_one_component(
     pixel_idx: npt.ArrayLike,
     psi_angle_rad: npt.ArrayLike,
     sky_map: npt.ArrayLike,
+    d_mask: npt.ArrayLike,
+    t_mask: npt.ArrayLike,
     baselines: npt.ArrayLike,
     baseline_length: npt.ArrayLike,
     output_sums: npt.ArrayLike,
@@ -800,6 +838,8 @@ def _compute_baseline_sums_for_one_component(
     output_sums[:] = 0
 
     for det_idx, cur_weight in enumerate(weights):
+        if not d_mask[det_idx]:
+            continue
         det_pixel_idx = pixel_idx[det_idx, :]
         det_psi_angle_rad = psi_angle_rad[det_idx, :]
 
@@ -807,6 +847,12 @@ def _compute_baseline_sums_for_one_component(
         samples_in_this_baseline = 0
 
         for sample_idx in range(len(det_pixel_idx)):
+            if not t_mask[sample_idx]:
+                (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
+                    baseline_idx, samples_in_this_baseline, baseline_length
+                )
+                continue
+
             map_value = estimate_sample_from_map(
                 cur_pixel=det_pixel_idx[sample_idx],
                 cur_psi=det_psi_angle_rad[sample_idx],
@@ -827,6 +873,8 @@ def _compute_baseline_sums(
     baselines_list: Optional[List[npt.ArrayLike]],
     baseline_lengths_list: List[npt.ArrayLike],
     component: Optional[str],
+    dm_list: List[npt.ArrayLike],
+    tm_list: List[npt.ArrayLike],
     output_sums_list: List[npt.ArrayLike],
 ):
     """
@@ -862,8 +910,14 @@ def _compute_baseline_sums(
     )
 
     # Compute the value of the F^t C_w⁻¹ Z operator
-    for obs_idx, (cur_obs, cur_baseline_lengths, cur_sums) in enumerate(
-        zip(obs_list, baseline_lengths_list, output_sums_list)
+    for obs_idx, (
+        cur_obs,
+        cur_baseline_lengths,
+        cur_sums,
+        cur_d_mask,
+        cur_t_mask,
+    ) in enumerate(
+        zip(obs_list, baseline_lengths_list, output_sums_list, dm_list, tm_list)
     ):
         assert len(cur_baseline_lengths) == cur_sums.shape[1], (
             f"The output buffer for observation {obs_idx=} "
@@ -883,6 +937,8 @@ def _compute_baseline_sums(
                 pixel_idx=cur_obs.destriper_pixel_idx,
                 psi_angle_rad=cur_obs.destriper_pol_angle_rad,
                 sky_map=sky_map,
+                d_mask=cur_d_mask,
+                t_mask=cur_t_mask,
                 baselines=cur_baseline,
                 baseline_length=cur_baseline_lengths,
                 output_sums=cur_sums,
@@ -894,6 +950,8 @@ def _compute_baseline_sums(
                 pixel_idx=cur_obs.destriper_pixel_idx,
                 psi_angle_rad=cur_obs.destriper_pol_angle_rad,
                 sky_map=sky_map,
+                d_mask=cur_d_mask,
+                t_mask=cur_t_mask,
                 baseline_length=cur_baseline_lengths,
                 output_sums=cur_sums,
             )
@@ -943,6 +1001,8 @@ def _compute_b_or_Ax(
     nobs_matrix_cholesky: NobsMatrix,
     sky_map: npt.ArrayLike,
     hit_map: npt.ArrayLike,
+    dm_list: List[npt.ArrayLike],
+    tm_list: List[npt.ArrayLike],
     baselines_list: Optional[List[npt.ArrayLike]],
     baseline_lengths_list: List[npt.ArrayLike],
     component: Optional[str],
@@ -960,6 +1020,8 @@ def _compute_b_or_Ax(
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
+        dm_list=dm_list,
+        tm_list=tm_list,
         component=component,
         output_sky_map=sky_map,
         output_hit_map=hit_map,
@@ -971,6 +1033,8 @@ def _compute_b_or_Ax(
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
         component=component,
+        dm_list=dm_list,
+        tm_list=tm_list,
         output_sums_list=result,
     )
 
@@ -982,6 +1046,8 @@ def compute_b(
     hit_map: npt.ArrayLike,
     baseline_lengths_list: List[npt.ArrayLike],
     component: str,
+    dm_list: List[npt.ArrayLike],
+    tm_list: List[npt.ArrayLike],
     result: List[npt.ArrayLike],
 ) -> None:
     """
@@ -996,6 +1062,8 @@ def compute_b(
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         sky_map=sky_map,
         hit_map=hit_map,
+        dm_list=dm_list,
+        tm_list=tm_list,
         baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
         component=component,
@@ -1008,6 +1076,8 @@ def compute_Ax(
     nobs_matrix_cholesky: NobsMatrix,
     sky_map: npt.ArrayLike,
     hit_map: npt.ArrayLike,
+    dm_list: List[npt.ArrayLike],
+    tm_list: List[npt.ArrayLike],
     baselines_list: List[npt.ArrayLike],
     baseline_lengths_list: List[npt.ArrayLike],
     result: List[npt.ArrayLike],
@@ -1025,6 +1095,8 @@ def compute_Ax(
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         sky_map=sky_map,
         hit_map=hit_map,
+        dm_list=dm_list,
+        tm_list=tm_list,
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
         component=None,
@@ -1101,6 +1173,8 @@ def _run_destriper(
     hit_map: npt.ArrayLike,
     baseline_lengths_list: List[npt.ArrayLike],
     baselines_list_start: List[npt.ArrayLike],
+    dm_list: List[npt.ArrayLike],
+    tm_list: List[npt.ArrayLike],
     component: str,
     threshold: float,
     max_steps: int,
@@ -1186,6 +1260,8 @@ def _run_destriper(
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         sky_map=destriped_map,
         hit_map=hit_map,
+        dm_list=dm_list,
+        tm_list=tm_list,
         baseline_lengths_list=baseline_lengths_list,
         component=component,
         result=b,
@@ -1195,6 +1271,8 @@ def _run_destriper(
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         sky_map=destriped_map,
         hit_map=hit_map,
+        dm_list=dm_list,
+        tm_list=tm_list,
         baselines_list=x,
         baseline_lengths_list=baseline_lengths_list,
         result=Ax,
@@ -1239,6 +1317,8 @@ def _run_destriper(
             nobs_matrix_cholesky=nobs_matrix_cholesky,
             sky_map=destriped_map,
             hit_map=hit_map,
+            dm_list=dm_list,
+            tm_list=tm_list,
             baselines_list=z,
             baseline_lengths_list=baseline_lengths_list,
             result=Ax,
@@ -1291,6 +1371,8 @@ def _run_destriper(
         output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         component=component,
+        dm_list=dm_list,
+        tm_list=tm_list,
         baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
     )
@@ -1301,6 +1383,8 @@ def _run_destriper(
         output_sky_map=destriped_map,
         output_hit_map=hit_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
+        dm_list=dm_list,
+        tm_list=tm_list,
         component=None,
         baselines_list=best_x,
         baseline_lengths_list=baseline_lengths_list,
@@ -1555,6 +1639,8 @@ def make_destriped_map(
             hit_map=hit_map,
             baseline_lengths_list=baseline_lengths_list,
             baselines_list_start=baselines_list,
+            dm_list=detector_mask_list,
+            tm_list=time_mask_list,
             component=components[0],
             threshold=params.threshold,
             max_steps=params.iter_max,
@@ -1577,6 +1663,8 @@ def make_destriped_map(
             output_hit_map=hit_map,
             nobs_matrix_cholesky=nobs_matrix_cholesky,
             component=components[0],
+            dm_list=detector_mask_list,
+            tm_list=time_mask_list,
             baselines_list=None,
             baseline_lengths_list=[
                 np.array([getattr(cur_obs, components[0]).shape[1]], dtype=int)
