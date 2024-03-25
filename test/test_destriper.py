@@ -372,6 +372,8 @@ def test_map_maker_parts():
     from litebird_sim.mapmaking.common import _normalize_observations_and_pointings
     from litebird_sim.mapmaking.destriper import (
         _store_pixel_idx_and_pol_angle_in_obs,
+        _build_mask_detector_split,
+        _build_mask_time_split,
         _build_nobs_matrix,
         _sum_components_into_obs,
         _compute_binned_map,
@@ -401,6 +403,10 @@ def test_map_maker_parts():
         output_coordinate_system=CoordinateSystem.Ecliptic,
     )
 
+    detector_mask_list = _build_mask_detector_split("full", obs_list)
+
+    time_mask_list = _build_mask_time_split("full", obs_list)
+
     #################################################
     # Step 1: check that the N_obs matrix is correct
 
@@ -409,6 +415,8 @@ def test_map_maker_parts():
         obs_list=obs_list,
         ptg_list=ptg_list,
         psi_list=psi_list,
+        dm_list=detector_mask_list,
+        tm_list=time_mask_list,
     )
 
     assert (
