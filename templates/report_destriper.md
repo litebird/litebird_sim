@@ -4,7 +4,7 @@
 
 The destriper was executed with the following parameters:
 
-- `NSIDE = {{ results.params.nside }}`
+- `NSIDE = {{ results.nside }}`
 - Coordinate system for the output map: `{{ results.params.output_coordinate_system }}`
 - Samples per baseline: `{{ results.params.samples_per_baseline }}`
 - Maximum number of iterations: `{{ results.params.iter_max }}`
@@ -21,7 +21,7 @@ The destriper was executed with the following parameters:
 - Elapsed time: {{ "%.1f" | format(results.elapsed_time_s) }} s
 
 <div style="text-align: center">
-<img src="destriper-cg-convergence.png">
+<img src="{{ cg_plot_filename }}">
 </div>
 
 | **Step**                                           | **Residual** [K] |
