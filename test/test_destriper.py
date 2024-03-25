@@ -923,6 +923,8 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
         binned_map=binned_map,
         nobs_matrix_cholesky=nobs_matrix_cholesky,
         coordinate_system=lbs.CoordinateSystem.Galactic,
+        detector_split="full",
+        time_split="full",
         baselines=baselines,
         baseline_errors=baseline_errors,
         baseline_lengths=baseline_lengths,
