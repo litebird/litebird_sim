@@ -468,6 +468,8 @@ def test_map_maker_parts():
         baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
         component="sky_signal",
+        dm_list=detector_mask_list,
+        tm_list=time_mask_list,
     )
 
     # This is going to be a 3N_p vector
@@ -518,6 +520,8 @@ def test_map_maker_parts():
         baselines_list=baselines_list,
         baseline_lengths_list=baseline_lengths_list,
         component=None,
+        dm_list=detector_mask_list,
+        tm_list=time_mask_list,
     )
 
     _compute_baseline_sums(
@@ -527,6 +531,8 @@ def test_map_maker_parts():
         baseline_lengths_list=baseline_lengths_list,
         component="sky_signal",
         output_sums_list=output_baselines_list,
+        dm_list=detector_mask_list,
+        tm_list=time_mask_list,
     )
 
     expected = (
@@ -557,6 +563,8 @@ def test_map_maker_parts():
         baselines_list=None,
         baseline_lengths_list=baseline_lengths_list,
         component="sky_signal",
+        dm_list=detector_mask_list,
+        tm_list=time_mask_list,
     )
 
     _compute_baseline_sums(
@@ -566,6 +574,8 @@ def test_map_maker_parts():
         baseline_lengths_list=baseline_lengths_list,
         component="sky_signal",
         output_sums_list=output_baselines_list,
+        dm_list=detector_mask_list,
+        tm_list=time_mask_list,
     )
 
     expected = (
