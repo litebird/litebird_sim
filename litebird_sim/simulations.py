@@ -1555,6 +1555,134 @@ class Simulation:
             time_split=time_split,
         )
 
+    def make_destriped_map_splits(
+        self,
+        nside: int,
+        params: DestriperParameters = DestriperParameters(),
+        components: Optional[List[str]] = None,
+        detector_splits: Union[str, List[str]] = "full",
+        time_splits: Union[str, List[str]] = "full",
+        keep_weights: bool = False,
+        keep_pixel_idx: bool = False,
+        keep_pol_angle_rad: bool = False,
+        append_to_report: bool = True,
+        callback: Any = destriper_log_callback,
+        callback_kwargs: Optional[Dict[Any, Any]] = None,
+        write_to_disk: bool = True,
+    ) -> Union[List[str], dict[str, DestriperResult]]:
+        """Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
+        if isinstance(detector_splits, str):
+            detector_splits = [detector_splits]
+        if isinstance(time_splits, str):
+            time_splits = [time_splits]
+        self.check_valid_splits(detector_splits, time_splits)
+
+        if write_to_disk:
+            filenames = []
+            for ds in detector_splits:
+                for ts in time_splits:
+                    result = make_destriped_map(
+                        nside=nside,
+                        obs=self.observations,
+                        pointings=None,
+                        params=params,
+                        components=components,
+                        detector_split=ds,
+                        time_split=ts,
+                        keep_weights=keep_weights,
+                        keep_pixel_idx=keep_pixel_idx,
+                        keep_pol_angle_rad=keep_pol_angle_rad,
+                        callback=callback,
+                        callback_kwargs=callback_kwargs,
+                    )
+
+                    if append_to_report:
+                        self._build_and_append_destriped_split_report(ts, ds, result)
+
+                    names = ["I", "Q", "U"]
+                    result = list(result.__dict__.items())
+                    binned_map = result.pop(4)[1]
+                    coords = result.pop(5)[1].name
+                    destriped_map = result.pop(12)[1][0]
+                    del result
+                    file = f"binned_map_DET{ds}_TIME{ts}.fits"
+                    filenames.append(
+                        self.write_healpix_map(
+                            file, binned_map, column_names=names, coord=coords
+                        )
+                    )
+                    file = f"destriped_map_DET{ds}_TIME{ts}.fits"
+                    filenames.append(
+                        self.write_healpix_map(
+                            file, destriped_map, column_names=names, coord=coords
+                        )
+                    )
+            return filenames
+        else:
+            destriped_maps = {}
+            for ds in detector_splits:
+                for ts in time_splits:
+                    destriped_maps[f"{ds}_{ts}"] = make_destriped_map(
+                        nside=nside,
+                        obs=self.observations,
+                        pointings=None,
+                        params=params,
+                        components=components,
+                        detector_split=ds,
+                        time_split=ts,
+                        keep_weights=keep_weights,
+                        keep_pixel_idx=keep_pixel_idx,
+                        keep_pol_angle_rad=keep_pol_angle_rad,
+                        callback=callback,
+                        callback_kwargs=callback_kwargs,
+                    )
+
+                    if append_to_report:
+                        self._build_and_append_destriped_split_report(
+                            ts, ds, destriped_maps[f"{ds}_{ts}"]
+                        )
+
+        return destriped_maps
+
+    def _build_and_append_destriped_split_report(
+        self,
+        detector_split: str,
+        time_split: str,
+        results: DestriperResult,
+    ):
+        fig, ax = plt.subplots()
+        ax.set_xlabel("Iteration number")
+        ax.set_ylabel("Residual [K]")
+        ax.set_title("CG convergence of the destriper")
+        ax.semilogy(
+            np.arange(len(results.history_of_stopping_factors)),
+            results.history_of_stopping_factors,
+            "ko-",
+        )
+
+        template_file_path = get_template_file_path("report_destriper_splits.md")
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+
+        cg_plot_filename = f"destriper-DET{detector_split}-TIME{time_split}-cg-convergence-{uuid4()}.png"
+
+        self.append_to_report(
+            detector_split=detector_split,
+            time_split=time_split,
+            markdown_text=markdown_template,
+            results=results,
+            history_of_stopping_factors=[
+                float(x) for x in results.history_of_stopping_factors
+            ],
+            bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
+            cg_plot_filename=cg_plot_filename,
+            figures=[
+                # Using uuid4() we can have more than one section
+                # about “destriping” in the report
+                (fig, cg_plot_filename),
+            ],
+        )
+
     def make_destriped_map(
         self,
         nside: int,
@@ -1573,6 +1701,13 @@ class Simulation:
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
+
+        if isinstance(detector_split, list) or isinstance(time_split, list):
+            msg = (
+                "You must use 'make_destriped_map_splits' if you want lists of splits!"
+            )
+            raise ValueError(msg)
+        self.check_valid_splits(detector_split, time_split)
 
         results = make_destriped_map(
             nside=nside,
