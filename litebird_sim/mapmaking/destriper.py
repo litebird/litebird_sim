@@ -2032,7 +2032,9 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
         fits.HDUList(hdu_list).writeto(outf, overwrite=True)
 
 
-def save_destriper_results(results: DestriperResult, output_folder: Path) -> None:
+def save_destriper_results(
+    results: DestriperResult, output_folder: Path, custom_prefix: Optional[str] = ""
+    ) -> None:
     """
     Save the results of a call to :func:`.make_destriped_map` to disk
 
@@ -2060,12 +2062,16 @@ def save_destriper_results(results: DestriperResult, output_folder: Path) -> Non
     # Only MPI process #0 saves the file with the maps
     if MPI_COMM_WORLD.rank == 0:
         _save_rank0_destriper_results(
-            results=results, output_file=output_folder / __DESTRIPER_RESULTS_FILE_NAME
+            results=results,
+            output_file=output_folder / (custom_prefix + __DESTRIPER_RESULTS_FILE_NAME),
         )
 
     # Now let's save the baselines: one per each observation
     if results.destriped_map is not None:
-        _save_baselines(results, output_file=output_folder / __BASELINES_FILE_NAME)
+        _save_baselines(
+            results,
+            output_file=output_folder / (custom_prefix + __BASELINES_FILE_NAME),
+        )
 
 
 def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
@@ -2100,6 +2106,8 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
                 [inpf["BINMAP"].data.field(comp) for comp in ("I", "Q", "U")]
             ),
             coordinate_system=coord_sys,
+            detector_split="full",
+            time_split="full",
             history_of_stopping_factors=[],
             elapsed_time_s=inpf[0].header["ELAPSEDT"],
             destriped_map=None,
