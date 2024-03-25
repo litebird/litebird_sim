@@ -2034,7 +2034,7 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
 
 def save_destriper_results(
     results: DestriperResult, output_folder: Path, custom_prefix: Optional[str] = ""
-    ) -> None:
+) -> None:
     """
     Save the results of a call to :func:`.make_destriped_map` to disk
 
