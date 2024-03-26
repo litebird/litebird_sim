@@ -1850,6 +1850,10 @@ def _save_rank0_destriper_results(results: DestriperResult, output_file: Path) -
     )
     primary_hdu.header["ELAPSEDT"] = (results.elapsed_time_s, "Wall clock time [s]")
 
+    primary_hdu.header["DSPLIT"] = (results.detector_split, "Detector split")
+
+    primary_hdu.header["TSPLIT"] = (results.detector_split, "Time split")
+
     hdu_list = [primary_hdu]
 
     if destriping_flag:
@@ -2033,7 +2037,10 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
 
 
 def save_destriper_results(
-    results: DestriperResult, output_folder: Path, custom_prefix: Optional[str] = ""
+    results: DestriperResult,
+    output_folder: Path,
+    custom_dest_file: Optional[str] = None,
+    custom_base_file: Optional[str] = None,
 ) -> None:
     """
     Save the results of a call to :func:`.make_destriped_map` to disk
@@ -2061,17 +2068,22 @@ def save_destriper_results(
 
     # Only MPI process #0 saves the file with the maps
     if MPI_COMM_WORLD.rank == 0:
-        _save_rank0_destriper_results(
-            results=results,
-            output_file=output_folder / (custom_prefix + __DESTRIPER_RESULTS_FILE_NAME),
-        )
+        if custom_dest_file:
+            _save_rank0_destriper_results(
+                results=results, output_file=output_folder / custom_dest_file
+            )
+        else:
+            _save_rank0_destriper_results(
+                results=results,
+                output_file=output_folder / __DESTRIPER_RESULTS_FILE_NAME,
+            )
 
     # Now let's save the baselines: one per each observation
     if results.destriped_map is not None:
-        _save_baselines(
-            results,
-            output_file=output_folder / (custom_prefix + __BASELINES_FILE_NAME),
-        )
+        if custom_base_file:
+            _save_baselines(results, output_file=output_folder / custom_base_file)
+        else:
+            _save_baselines(results, output_file=output_folder / __BASELINES_FILE_NAME)
 
 
 def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
@@ -2106,8 +2118,8 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
                 [inpf["BINMAP"].data.field(comp) for comp in ("I", "Q", "U")]
             ),
             coordinate_system=coord_sys,
-            detector_split="full",
-            time_split="full",
+            detector_split=inpf[0].header["DSPLIT"],
+            time_split=inpf[0].header["TSPLIT"],
             history_of_stopping_factors=[],
             elapsed_time_s=inpf[0].header["ELAPSEDT"],
             destriped_map=None,
@@ -2138,7 +2150,11 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
     return result
 
 
-def load_destriper_results(folder: Path) -> DestriperResult:
+def load_destriper_results(
+    folder: Path,
+    custom_dest_file: Optional[str] = None,
+    custom_base_file: Optional[str] = None,
+) -> DestriperResult:
     """
     Load the results of a call to :func:`.make_destriped_map` from disk
 
@@ -2158,14 +2174,20 @@ def load_destriper_results(folder: Path) -> DestriperResult:
 
     # We run this on *all* the MPI processes, as it might be that each of them
     # needs this information!
-    result = _load_rank0_destriper_results(folder / __DESTRIPER_RESULTS_FILE_NAME)
+    if custom_dest_file:
+        result = _load_rank0_destriper_results(folder / custom_dest_file)
+    else:
+        result = _load_rank0_destriper_results(folder / __DESTRIPER_RESULTS_FILE_NAME)
 
     if result.destriped_map is not None:
         result.baselines = []
         result.baseline_errors = []
         result.baseline_lengths = []
 
-        baselines_file_name = folder / __BASELINES_FILE_NAME
+        if custom_base_file:
+            baselines_file_name = folder / custom_base_file
+        else:
+            baselines_file_name = folder / __BASELINES_FILE_NAME
 
         with fits.open(baselines_file_name) as inpf:
             assert MPI_COMM_WORLD.rank == inpf[0].header["MPIRANK"], (
