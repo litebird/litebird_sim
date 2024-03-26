@@ -321,8 +321,6 @@ class DestriperResult:
     binned_map: npt.ArrayLike
     nobs_matrix_cholesky: NobsMatrix
     coordinate_system: CoordinateSystem
-    detector_split: Optional[str]
-    time_split: Optional[str]
     # The following fields are filled only if the CG algorithm was used
     baselines: Optional[npt.ArrayLike]
     baseline_errors: Optional[npt.ArrayLike]
@@ -333,6 +331,8 @@ class DestriperResult:
     converged: bool
     elapsed_time_s: float
     bytes_in_temporary_buffers: int
+    detector_split: Optional[str] = "full"
+    time_split: Optional[str] = "full"
 
 
 def _sum_components_into_obs(
