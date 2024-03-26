@@ -27,6 +27,7 @@ from .mapmaking import (
     check_valid_splits,
     BinnerResult,
     make_destriped_map,
+    save_destriper_results,
     DestriperParameters,
     DestriperResult,
     destriper_log_callback,
@@ -1599,24 +1600,17 @@ class Simulation:
                     if append_to_report:
                         self._build_and_append_destriped_split_report(ts, ds, result)
 
-                    names = ["I", "Q", "U"]
-                    result = list(result.__dict__.items())
-                    binned_map = result.pop(4)[1]
-                    coords = result.pop(5)[1].name
-                    destriped_map = result.pop(12)[1][0]
-                    del result
-                    file = f"binned_map_DET{ds}_TIME{ts}.fits"
-                    filenames.append(
-                        self.write_healpix_map(
-                            file, binned_map, column_names=names, coord=coords
-                        )
+                    dest_file = f"DET{ds}_TIME{ts}_destriper_results.fits"
+                    base_file = (
+                        f"DET{ds}_TIME{ts}_baselines_mpi{MPI_COMM_WORLD.rank:04d}.fits"
                     )
-                    file = f"destriped_map_DET{ds}_TIME{ts}.fits"
-                    filenames.append(
-                        self.write_healpix_map(
-                            file, destriped_map, column_names=names, coord=coords
-                        )
+                    save_destriper_results(
+                        result,
+                        output_folder=self.base_path,
+                        custom_dest_file=dest_file,
+                        custom_base_file=base_file,
                     )
+                    filenames.append((dest_file, base_file))
             return filenames
         else:
             destriped_maps = {}
