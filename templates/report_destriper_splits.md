@@ -12,6 +12,7 @@ The destriper was executed with the following parameters:
 - CG preconditioner: {% if results.params.use_preconditioner %}**on**{% else %}off{% endif %}
 {% if not results.baselines %}- No destriping (only binning){% endif %}
 
+{% if results.baselines %}
 ### Convergence
 
 - The convergence was {% if results.converged %}achieved{% else %}**not** achieved{% endif %}
@@ -28,3 +29,4 @@ The destriper was executed with the following parameters:
 |----------------------------------------------------|------------------|
 {% for cur_value in history_of_stopping_factors %}| {{loop.index}}   | {{ "%.2e" | format(cur_value) }} |
 {% endfor %} 
+{% endif %}

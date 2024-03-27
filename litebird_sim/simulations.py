@@ -1598,7 +1598,9 @@ class Simulation:
                     )
 
                     if append_to_report:
-                        self._build_and_append_destriped_split_report(ts, ds, result)
+                        self._build_and_append_destriped_report(
+                            "report_destriper_splits.md", ts, ds, result
+                        )
 
                     dest_file = f"DET{ds}_TIME{ts}_destriper_results.fits"
                     base_file = (
@@ -1632,50 +1634,14 @@ class Simulation:
                     )
 
                     if append_to_report:
-                        self._build_and_append_destriped_split_report(
-                            ts, ds, destriped_maps[f"{ds}_{ts}"]
+                        self._build_and_append_destriped_report(
+                            "report_destriper_splits.md",
+                            ts,
+                            ds,
+                            destriped_maps[f"{ds}_{ts}"],
                         )
 
         return destriped_maps
-
-    def _build_and_append_destriped_split_report(
-        self,
-        detector_split: str,
-        time_split: str,
-        results: DestriperResult,
-    ):
-        fig, ax = plt.subplots()
-        ax.set_xlabel("Iteration number")
-        ax.set_ylabel("Residual [K]")
-        ax.set_title("CG convergence of the destriper")
-        ax.semilogy(
-            np.arange(len(results.history_of_stopping_factors)),
-            results.history_of_stopping_factors,
-            "ko-",
-        )
-
-        template_file_path = get_template_file_path("report_destriper_splits.md")
-        with template_file_path.open("rt") as inpf:
-            markdown_template = "".join(inpf.readlines())
-
-        cg_plot_filename = f"destriper-DET{detector_split}-TIME{time_split}-cg-convergence-{uuid4()}.png"
-
-        self.append_to_report(
-            detector_split=detector_split,
-            time_split=time_split,
-            markdown_text=markdown_template,
-            results=results,
-            history_of_stopping_factors=[
-                float(x) for x in results.history_of_stopping_factors
-            ],
-            bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
-            cg_plot_filename=cg_plot_filename,
-            figures=[
-                # Using uuid4() we can have more than one section
-                # about “destriping” in the report
-                (fig, cg_plot_filename),
-            ],
-        )
 
     def make_destriped_map(
         self,
@@ -1719,6 +1685,24 @@ class Simulation:
         )
 
         if append_to_report:
+            self._build_and_append_destriped_report(
+                "report_destriper.md", detector_split, time_split, results
+            )
+
+        return results
+
+    def _build_and_append_destriped_report(
+        self,
+        template_file: str,
+        detector_split: str,
+        time_split: str,
+        results: DestriperResult,
+    ):
+        template_file_path = get_template_file_path(template_file)
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+
+        if results.params.samples_per_baseline is not None:
             fig, ax = plt.subplots()
             ax.set_xlabel("Iteration number")
             ax.set_ylabel("Residual [K]")
@@ -1728,14 +1712,11 @@ class Simulation:
                 results.history_of_stopping_factors,
                 "ko-",
             )
-
-            template_file_path = get_template_file_path("report_destriper.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-
-            cg_plot_filename = f"destriper-cg-convergence-{uuid4()}.png"
+            cg_plot_filename = f"destriper-DET{detector_split}-TIME{time_split}-cg-convergence-{uuid4()}.png"
 
             self.append_to_report(
+                detector_split=detector_split,
+                time_split=time_split,
                 markdown_text=markdown_template,
                 results=results,
                 history_of_stopping_factors=[
@@ -1749,8 +1730,14 @@ class Simulation:
                     (fig, cg_plot_filename),
                 ],
             )
-
-        return results
+        else:
+            self.append_to_report(
+                detector_split=detector_split,
+                time_split=time_split,
+                markdown_text=markdown_template,
+                results=results,
+                bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
+            )
 
     def write_observations(
         self,
