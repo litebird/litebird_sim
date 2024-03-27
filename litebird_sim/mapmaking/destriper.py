@@ -1115,13 +1115,13 @@ def compute_weighted_baseline_length(
     algorithm.
     """
 
-    for det_idx in range(len(result)):
-        result[det_idx] = 0.0
+    for baseline_idx in range(len(result)):
+        result[baseline_idx] = 0.0
         for cur_weight in weights:
-            result[det_idx] += lengths[det_idx] / cur_weight
+            result[baseline_idx] += lengths[baseline_idx] / cur_weight
 
         # We store the *inverse*, i.e., the diagonal of matrix M⁻¹
-        result[det_idx] = 1.0 / result[det_idx]
+        result[baseline_idx] = 1.0 / result[baseline_idx]
 
 
 def _create_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLike]:
