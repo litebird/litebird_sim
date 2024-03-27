@@ -1997,15 +1997,13 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
         error_hdu = fits.BinTableHDU.from_columns(
             [
                 fits.Column(
-                    name=f"ERR{det_idx:05d}",
-                    array=cur_error[det_idx, :],
+                    name=f"ERR{idx:05d}",
+                    array=cur_error,
                     format="1E",
                     unit="K",
-                )
-                for det_idx in range(cur_baseline.shape[0])
+                ),
             ]
         )
-        error_hdu.header["NUMDETS"] = (cur_error.shape[0], "Number of detectors")
 
         length_hdu = fits.BinTableHDU.from_columns(
             [fits.Column(name="LENGTH", array=cur_lengths, unit="", format="1J")]
@@ -2212,12 +2210,7 @@ def load_destriper_results(
                     ),
                 )
                 result.baseline_errors.append(
-                    np.array(
-                        [
-                            inpf[f"ERR{obs_idx:05d}"].data.field(f"ERR{det_idx:05d}")
-                            for det_idx in range(num_of_detectors)
-                        ]
-                    ),
+                    np.array(inpf[f"ERR{obs_idx:05d}"].data.field(f"ERR{obs_idx:05d}")),
                 )
                 result.baseline_lengths.append(
                     inpf[f"LEN{obs_idx:05d}"].data.field("LENGTH")
