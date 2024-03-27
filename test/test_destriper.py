@@ -880,7 +880,7 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
     if use_destriper:
         baselines = [np.random.random((num_of_detectors, num_of_baselines))]
         baselines[0] -= np.mean(baselines[0])  # Make their mean zero
-        baseline_errors = [1.5 + np.random.random((num_of_detectors, num_of_baselines))]
+        baseline_errors = [1.5 + np.random.random((num_of_baselines))]
         baseline_lengths = [150 + np.arange(num_of_baselines, dtype=int) * 4]
         iter_max = 123
         threshold = 1.2345e-6
