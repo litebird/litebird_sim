@@ -524,17 +524,21 @@ Data splits
 ^^^^^^^^^^^
 
 Since the class :class:`.Simulation` is interfaced to
-:func:`litebird_sim.make_binned_map`, it is able to provide data splits
+:func:`litebird_sim.make_binned_map` and :func:`litebird_sim.make_destriped_map`,
+it is able to provide data splits
 both in time and detector space (see :ref:`mapmaking`
 for more details on the splitting and the available options).
 In addition, the class contains :meth:`.Simulation.make_binned_map_splits`,
-which is a wrapper around :func:`litebird_sim.make_binned_map`
-that allows to perform the mapmaking on multiple choices
+which is a wrapper around :func:`litebird_sim.make_binned_map`,
+and :meth:`.Simulation.make_destriped_map_splits`, which is a wrapper
+around :func:`litebird_sim.make_destriped_map`.
+These allows to perform the mapmaking on multiple choices
 of splits at once (passed as a list of strings).
-Indeed, the function will loop over the cartesian
+Indeed, the functions will loop over the cartesian
 product of the time and detector splits. The default
 behavior is to perform the mapmaking in each combination
-and save the result to disk, to avoid memory issues. In particular,
+and save the result to disk, to avoid memory issues. 
+In particular, in the case of :meth:`.Simulation.make_binned_map_splits`,
 only the binned maps are saved to disk, unless you set
 `include_inv_covariance` to `True`. This saves the elements of
 the inverse covariance as extra fields in the output FITS file.
@@ -542,7 +546,13 @@ This default behavior can be changed by setting the `write_to_disk` parameter
 to `False`. Then, the function returns a dictionary
 containing the full results of the mapmaking for each split.
 The keys are strings that describe the split in the
-format "{Dsplit}_{Tsplit}", such as "waferL00_year1".
+format "{Dsplit}_{Tsplit}", such as "waferL00_year1". 
+On the other hand, the default behavior of
+:meth:`.Simulation.make_destriped_map_splits` is to save to disk
+the complete :class:`.mapmaking.DestriperResult` class for each
+split as a FITS file. To avoid this and get a dictionary similar to the one returned
+by :meth:`.Simulation.make_binned_map_splits`, you can set the
+`write_to_disk` parameter to `False`.
 
 Before performing the computation, the function :meth:`.Simulation.check_valid_splits`
 will check whether the requested split is valid (see :ref:`mapmaking`).

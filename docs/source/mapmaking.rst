@@ -670,6 +670,14 @@ runs over all the pixels and the last two dimensions are used to
 store the value of :math:`M_i^{-1}`.
 
 
+Data splits
+^^^^^^^^^^^
+
+Similarly to the function :func:`.make_binned_map`, also :func:`.make_destriped_map` is able to provide data splits both in time and in detector space. Given that the splits are implemented identically, refer to the documentation of :func:`.make_binned_map` for more details. 
+
+The only difference we must mention here is that each split is applied to the TOD before the destriper is run. This means that the baselines will be computed using only the samples that fall within the split.
+
+
 TOAST2 Destriper
 ----------------
 
