@@ -1107,7 +1107,7 @@ def compute_Ax(
 @njit
 def compute_weighted_baseline_length(
     lengths: npt.ArrayLike, weights: npt.ArrayLike, result: npt.ArrayLike
-) -> float:
+) -> None:
     """Compute Σ Nᵢ/σᵢ, where the summation is done over the detectors
 
     This quantity is used both to estimate the error bar for each baseline
