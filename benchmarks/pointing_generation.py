@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
 """
@@ -28,7 +29,12 @@ sim = lbs.Simulation(
 )
 
 sim.create_observations(
-    detectors=[lbs.DetectorInfo(name="dummy", sampling_rate_hz=50.0)],
+    detectors=[
+        lbs.DetectorInfo(name="dummy1", sampling_rate_hz=30.0),
+        lbs.DetectorInfo(name="dummy2", sampling_rate_hz=30.0),
+        lbs.DetectorInfo(name="dummy3", sampling_rate_hz=30.0),
+        lbs.DetectorInfo(name="dummy4", sampling_rate_hz=30.0),
+    ],
     num_of_obs_per_detector=1,
     split_list_over_processes=False,
 )
@@ -64,7 +70,14 @@ start = time.perf_counter_ns()
 pointings_and_orientation = lbs.get_pointings(
     obs,
     spin2ecliptic_quats=sim.spin2ecliptic_quats,
-    detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
+    detector_quats=np.array(
+        [
+            [0.0, 0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    ),
     bore2spin_quat=instr.bore2spin_quat,
 )
 stop = time.perf_counter_ns()
@@ -77,3 +90,15 @@ print(
         pointings_and_orientation.shape[1] / elapsed_time
     ),
 )
+
+array_file = Path("pointings.npy")
+
+if array_file.exists():
+    with array_file.open("rb") as inp_f:
+        reference = np.load(inp_f)
+        np.testing.assert_array_equal(reference, pointings_and_orientation)
+        print(f'The array looks the same as the one in "{array_file}"')
+else:
+    with array_file.open("wb") as out_f:
+        np.save(out_f, pointings_and_orientation)
+    print(f'Array saved for reference in "{array_file}"')
