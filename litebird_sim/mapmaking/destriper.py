@@ -2023,7 +2023,6 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
                 "Number of samples covered by these baselines",
             )
             this_hdu.name = f"{hdu_base_name}{idx:05d}"
-            print(f"{this_hdu.name=}")
 
         hdu_list += [baseline_hdu, error_hdu, length_hdu]
         idx += 1
