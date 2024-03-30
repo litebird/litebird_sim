@@ -178,10 +178,11 @@ def _compute_pixel_indices(
 ) -> Tuple[npt.NDArray, npt.NDArray]:
     """Compute the index of each pixel and its attack angle
 
-    The routine returns a pair of arrays whose size is `num_of_sample`: the first
-    one contains the index of the pixels in the Healpix map represented by `hpx`,
-    and the second the value of the ψ angle (in radians). The coordinates used are
-    the ones specified by `output_coordinate_system`.
+    The routine returns a pair of arrays whose size is ``(N_d, N_t)`` each: rows in
+    the first array contain the index of the pixels in the Healpix map represented by `hpx`
+    for a given detector, while rows in the second array the value of the ψ angle (in
+    radians) for each detector. The coordinates used are the ones specified by
+    `output_coordinate_system`.
 
     The code assumes that `pointings` is a tensor of rank ``(N_d, N_t, 2)``, with
     ``N_d`` the number of detectors and ``N_t`` the number of samples in the TOD,
