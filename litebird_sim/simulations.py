@@ -1167,7 +1167,11 @@ class Simulation:
         likely, you want to use :class:`SpinningScanningStrategy`).
         The result is saved in the member variable
         ``spin2ecliptic_quats``, which is an instance of the class
-        :class:`.Spin2EclipticQuaternions`.
+        :class:`.Spin2EclipticQuaternions`. These quaternions are
+        usually sampled at a sampling frequency that is lower than
+        the sampling frequency of the scientific data. They are saved
+        in the field `spin2ecliptic_quats` of the :class:`.Simulation`
+        class.
 
         You can choose to use the `imo_url` parameter instead of
         `scanning_strategy`: in this case, it will be assumed that you
