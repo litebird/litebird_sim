@@ -71,8 +71,8 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
    used to express the pointing angles.
 
 4. ``Observation.psi`` is a :math:`(n_d, N)` matrix containing the
-   polarization angles (in radians), expressed with respect to the
-   celestial North (ψ). It's initialized together with
+   orientation angles op the :math:`n_d` detectors (in radians), expressed
+   with respect to the celestial North (ψ). It is initialized together with
    ``Observation.pointings``.
 
 5. ``Observation.local_flags`` is a :math:`(n_d, N)` matrix containing
