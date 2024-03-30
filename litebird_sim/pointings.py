@@ -63,7 +63,7 @@ def get_pointings(
     hwp: Optional[HWP] = None,
     store_pointings_in_obs=True,
 ):
-    """Return the time stream of pointings for the detector
+    """Return the time stream of pointings for *one* observation
 
     Given a :class:`Spin2EclipticQuaternions` and a quaternion
     representing the transformation from the reference frame of a
@@ -81,12 +81,12 @@ def get_pointings(
     If all you have is the angle β between the boresight and the
     spin axis, just pass ``quat_rotation_y(β)`` here.
 
-    The parameter `detector_quats` is optional. By default is ``None``,
-    in this case, if you passed an array of :class:`.DetectorInfo`
+    The parameter `detector_quats` is optional. By default, this is
+    ``None``: in this case, if you passed an array of :class:`.DetectorInfo`
     objects to the method :meth:`.Simulation.create_observations`
     through the parameter ``detectors``, get_pointings will use
     the detector quaternions from the same :class:`.DetectorInfo` objects.
-    Otherwise it can contain a stack of detector quaternions. For example,
+    Otherwise, it can contain a stack of detector quaternions. For example,
     it can be:
 
     - The stack of the field `quat` of an instance of the class
@@ -148,6 +148,10 @@ def get_pointings(
             cur_quat.dtype == float
         ), f"error, quaternion must be float, type: {cur_quat.dtype}"
 
+        # Get the quaternions at the same sampling frequency of the TOD.
+        # Since the call is just for ONE detector, we are not going to
+        # waste too much memory. (Moreover, we are re-using `quaternion_buffer`
+        # over and over again in this `for` loop.)
         det2ecliptic_quats = get_det2ecl_quaternions(
             obs,
             spin2ecliptic_quats,
@@ -156,7 +160,11 @@ def get_pointings(
             quaternion_buffer=quaternion_buffer,
         )
 
-        # Compute the pointing direction for each sample
+        # Compute the pointing direction for each sample using the
+        # quaternions in `det2ecliptic_quats`. This is just a matter of
+        # applying the rotation encoded by each quaternion to the
+        # z-axis, which represents the beam axis in the beam reference
+        # frame.
         all_compute_pointing_and_orientation(
             result_matrix=pointing_buffer[idx, :, :].reshape(
                 (1, pointing_buffer.shape[1], 3)
@@ -189,6 +197,9 @@ def get_pointings_for_observations(
     pointing information for a list of observations and returns a list of pointings.
     If a single observation is passed then a single pointing array is returned, and,
     practically, this function only calls :func:`.get_pointings`.
+
+    If `store_pointings_in_obs` is ``True``, then the pointings are stored in each
+    :class:`.Observation` object in `obs`.
     """
 
     if isinstance(obs, Observation):
