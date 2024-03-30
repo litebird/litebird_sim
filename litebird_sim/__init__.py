@@ -48,6 +48,7 @@ from .pointings import (
     get_pointings,
     get_pointings_for_observations,
 )
+from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
     quat_rotation_x,
     quat_rotation_y,
@@ -201,6 +202,9 @@ __all__ = [
     # observations.py
     "Observation",
     "TodDescription",
+    # profiler.py
+    "TimeProfiler",
+    "profile_list_to_speedscope",
     # quaternions.py
     "quat_rotation_x",
     "quat_rotation_y",
