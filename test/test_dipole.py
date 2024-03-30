@@ -232,6 +232,7 @@ def test_dipole_list_of_obs(tmp_path):
         sim.observations,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
         bore2spin_quat=sim.instrument.bore2spin_quat,
+        store_pointings_in_obs=False,
     )
 
     orbit = lbs.SpacecraftOrbit(sim.start_time)
@@ -242,5 +243,5 @@ def test_dipole_list_of_obs(tmp_path):
         obs=sim.observations,
         pos_and_vel=pos_vel,
         pointings=pointings,
-        frequency_ghz=[100.0],
+        frequency_ghz=np.array([100.0]),
     )
