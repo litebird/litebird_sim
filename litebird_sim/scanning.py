@@ -863,6 +863,7 @@ def get_ecl2det_quaternions(
     the frame of reference of the detector itself. The number of
     quaternions is equal to the number of samples hold in this
     observation.
+
     This function is useful when you want to simulate how a point
     source is observed by the detector's beam: if you know the
     Ecliptic coordinates of the point sources, you can easily
