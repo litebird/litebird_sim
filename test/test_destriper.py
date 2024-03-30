@@ -1029,3 +1029,88 @@ def test_destriper_io(tmp_path):
 
 def test_destriper_io_without_destriper(tmp_path):
     _test_destriper_results_io(tmp_path=tmp_path, use_destriper=False)
+
+
+def test_save_baselines_for_many_detectors(tmp_path):
+    nside = 32
+
+    sim = lbs.Simulation(
+        base_path=Path(tmp_path) / "test_errors_dimension",
+        start_time=0,
+        duration_s=astropy.time.TimeDelta(1, format="jd").to("s").value,
+        random_seed=12345,
+    )
+
+    sim.set_instrument(
+        lbs.InstrumentInfo(
+            name="Dummy", boresight_rotangle_rad=np.deg2rad(50), hwp_rpm=46.0
+        )
+    )
+
+    dets = [
+        lbs.DetectorInfo(
+            sampling_rate_hz=1.0,
+            name="A",
+            fwhm_arcmin=20.0,
+            bandcenter_ghz=140.0,
+            bandwidth_ghz=40.0,
+            net_ukrts=50.0,
+            fknee_mhz=50.0,
+            quat=np.array([0.02568196, 0.00506653, 0.0, 0.99965732]),
+        ),
+        lbs.DetectorInfo(
+            sampling_rate_hz=1.0,
+            name="B",
+            fwhm_arcmin=20.0,
+            bandcenter_ghz=140.0,
+            bandwidth_ghz=40.0,
+            net_ukrts=50.0,
+            fknee_mhz=50.0,
+            quat=np.array([0.0145773, 0.02174247, -0.70686447, 0.70686447]),
+        ),
+    ]
+
+    sim.set_scanning_strategy(
+        scanning_strategy=lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45.0),
+            precession_rate_hz=1 / 10_020.0,
+            spin_rate_hz=1 / 60.0,
+        ),
+    )
+
+    sim.create_observations(
+        detectors=dets,
+        num_of_obs_per_detector=sim.mpi_comm.size,
+    )
+
+    assert len(sim.observations) == 1
+
+    sim.set_hwp(
+        lbs.IdealHWP(
+            sim.instrument.hwp_rpm * 2 * np.pi / 60,
+        ),  # applies hwp rotation angle to the polarization angle
+    )
+    sim.compute_pointings()
+
+    lbs.add_noise_to_observations(
+        obs=sim.observations,
+        noise_type="one_over_f",
+        scale=1,
+        random=sim.random,
+    )
+
+    destriper_params_noise = lbs.DestriperParameters(
+        output_coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
+        samples_per_baseline=100,  # ν_samp = 1 Hz ⇒ the baseline is 100 s
+        iter_max=10,
+        threshold=1e-6,
+    )
+
+    destriper_result = lbs.make_destriped_map(
+        nside=nside, obs=sim.observations, pointings=None, params=destriper_params_noise
+    )
+
+    save_destriper_results(
+        output_folder=Path(tmp_path) / "test_errors_dimension",
+        results=destriper_result,
+    )
