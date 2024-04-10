@@ -35,6 +35,7 @@ from .imo import (
     ImoFlatFile,
 )
 from .hwp_sys.hwp_sys import HwpSys
+
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
@@ -119,6 +120,16 @@ from .gaindrifts import (
 )
 
 from .version import __author__, __version__
+
+
+from .pointing_sys.pointing_sys import (
+    ConstantPointingOffset,
+    quat_rotation_specific_axis,
+    get_detector_orientation,
+    get_pointings_with_disturbance,
+    compute_pointing_and_polangle_with_disturb,
+    all_compute_pointing_and_polangle_with_disturb,
+)
 
 __all__ = [
     "__author__",
@@ -245,4 +256,11 @@ __all__ = [
     "apply_gaindrift_for_one_detector",
     "apply_gaindrift_to_tod",
     "apply_gaindrift_to_observations",
+    # pointing_sys.py
+    "ConstantPointingOffset",
+    "quat_rotation_specific_axis",
+    "get_detector_orientation",
+    "get_pointings_with_disturbance",
+    "compute_pointing_and_polangle_with_disturb",
+    "all_compute_pointing_and_polangle_with_disturb"
 ]
