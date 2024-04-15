@@ -485,9 +485,6 @@ class Spin2EclipticQuaternions:
         quat_left_multiply(det2spin_quat, *bore2spin_quat)
 
         pp = PointingProvider(0.0, self.pointing_freq_hz, self.quats)
-        # TODO: use the "right" (as opposed to "left") form of this
-        # call, once https://github.com/litebird/ducc/issues/3 is
-        # solved.
         return pp.get_rotated_quaternions(
             time_skip_s, sampling_rate_hz, det2spin_quat, nsamples, rot_left=False
         )
