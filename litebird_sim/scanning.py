@@ -394,7 +394,7 @@ def calculate_sun_earth_angles_rad(time_vector):
         return YEARLY_OMEGA_SPIN_HZ * time_vector
 
 
-class Spin2EclipticQuaternions:
+class TimeDependentQuaternion:
     """A matrix of quaternions sampled uniformly over time
 
     This class is used to hold quaternions that represent the
@@ -474,7 +474,7 @@ class Spin2EclipticQuaternions:
         if isinstance(self.start_time, astropy.time.Time):
             assert isinstance(time0, astropy.time.Time), (
                 "you must pass an astropy.time.Time object to time0 here, as "
-                "Spin2EclipticQuaternions.start_time = {}"
+                "TimeDependentQuaternion.start_time = {}"
             ).format(self.start_time)
 
             time_skip_s = (time0 - self.start_time).sec
@@ -507,7 +507,7 @@ class ScanningStrategy(ABC):
         start_time: Union[float, astropy.time.Time],
         time_span_s: float,
         delta_time_s: float,
-    ) -> Spin2EclipticQuaternions:
+    ) -> TimeDependentQuaternion:
         """Generate the quaternions for spin-axis-to-Ecliptic rotations
 
         This method simulates the scanning strategy of the spacecraft
@@ -520,7 +520,7 @@ class ScanningStrategy(ABC):
         axis (aligned with the y axis) to the reference frame of the
         Ecliptic Coordinate System.
 
-        The function returns a :class:`Spin2EclipticQuaternions`
+        The function returns a :class:`TimeDependentQuaternion`
         object that fully covers the time interval between
         `start_time` and `start_time + time_span_s`: this means that
         an additional quaternion *after* the time ``t_end = start_time
@@ -732,7 +732,7 @@ class SpinningScanningStrategy(ScanningStrategy):
         start_time: Union[float, astropy.time.Time],
         time_span_s: float,
         delta_time_s: float,
-    ) -> Spin2EclipticQuaternions:
+    ) -> TimeDependentQuaternion:
         pointing_freq_hz = 1.0 / delta_time_s
         num_of_quaternions = ScanningStrategy.optimal_num_of_quaternions(
             time_span_s=time_span_s, delta_time_s=delta_time_s
@@ -753,7 +753,7 @@ class SpinningScanningStrategy(ScanningStrategy):
             time_vector_s=time_s,
         )
 
-        return Spin2EclipticQuaternions(
+        return TimeDependentQuaternion(
             start_time=start_time,
             pointing_freq_hz=pointing_freq_hz,
             quats=spin2ecliptic_quats,
@@ -790,7 +790,7 @@ def get_quaternion_buffer_shape(obs, num_of_detectors=None):
 
 def get_det2ecl_quaternions(
     obs,
-    spin2ecliptic_quats: Spin2EclipticQuaternions,
+    spin2ecliptic_quats: TimeDependentQuaternion,
     detector_quats,
     bore2spin_quat,
     quaternion_buffer=None,
@@ -846,7 +846,7 @@ def get_det2ecl_quaternions(
 
 def get_ecl2det_quaternions(
     obs,
-    spin2ecliptic_quats: Spin2EclipticQuaternions,
+    spin2ecliptic_quats: TimeDependentQuaternion,
     detector_quats,
     bore2spin_quat,
     quaternion_buffer=None,

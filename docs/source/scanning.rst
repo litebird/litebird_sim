@@ -596,7 +596,7 @@ must be defined is
 :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`, which takes
 as inputs the start time, the length of the simulation, and the time
 interval to be used between consecutive quaternions. The method must
-return an instance of the :class:`.Spin2EclipticQuaternions`,
+return an instance of the :class:`.TimeDependentQuaternion`,
 containing the computed sequence of quaternions.
 
 We'll code here a very simple scanning strategy, which does not
@@ -665,8 +665,8 @@ The following code implements our mock scanning strategy::
                )
 
            # Return the quaternions wrapped in an instance of
-           # "Spin2EclipticQuaternions"
-           return lbs.Spin2EclipticQuaternions(
+           # "TimeDependentQuaternion"
+           return lbs.TimeDependentQuaternion(
                start_time=start_time,
                pointing_freq_hz=1.0 / delta_time_s,
                quats=spin2ecliptic_quats,

@@ -7,7 +7,7 @@ import astropy.time
 
 from .observations import (
     Observation,
-    Spin2EclipticQuaternions,
+    TimeDependentQuaternion,
 )
 
 from .hwp import HWP
@@ -54,7 +54,7 @@ def get_pointing_buffer_shape(obs: Observation):
 
 def get_pointings(
     obs,
-    spin2ecliptic_quats: Spin2EclipticQuaternions,
+    spin2ecliptic_quats: TimeDependentQuaternion,
     bore2spin_quat,
     detector_quats=None,
     quaternion_buffer=None,
@@ -65,7 +65,7 @@ def get_pointings(
 ):
     """Return the time stream of pointings for *one* observation
 
-    Given a :class:`Spin2EclipticQuaternions` and a quaternion
+    Given a :class:`TimeDependentQuaternion` and a quaternion
     representing the transformation from the reference frame of a
     detector to the boresight reference frame, compute a set of
     pointings for the detector that encompasses the time span
@@ -185,7 +185,7 @@ def get_pointings(
 
 def get_pointings_for_observations(
     obs: Union[Observation, List[Observation]],
-    spin2ecliptic_quats: Spin2EclipticQuaternions,
+    spin2ecliptic_quats: TimeDependentQuaternion,
     bore2spin_quat,
     hwp: Optional[HWP] = None,
     store_pointings_in_obs=True,

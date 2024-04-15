@@ -10,7 +10,7 @@ from .distribute import distribute_evenly
 
 import logging
 from .scanning import (
-    Spin2EclipticQuaternions,
+    TimeDependentQuaternion,
     get_quaternion_buffer_shape,
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
@@ -663,7 +663,7 @@ class Observation:
 
     def get_det2ecl_quaternions(
         self,
-        spin2ecliptic_quats: Spin2EclipticQuaternions,
+        spin2ecliptic_quats: TimeDependentQuaternion,
         detector_quats,
         bore2spin_quat,
         quaternion_buffer=None,
@@ -686,7 +686,7 @@ class Observation:
 
     def get_ecl2det_quaternions(
         self,
-        spin2ecliptic_quats: Spin2EclipticQuaternions,
+        spin2ecliptic_quats: TimeDependentQuaternion,
         detector_quats,
         bore2spin_quat,
         quaternion_buffer=None,
