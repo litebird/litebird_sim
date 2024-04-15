@@ -378,6 +378,7 @@ def all_rotate_y_vectors(result_matrix, quat_matrix):
         )
 
 
+@njit
 def all_rotate_z_vectors(result_matrix, quat_matrix):
     """Rotate the vector ``[0, 0, 1]`` using quaternions
 
