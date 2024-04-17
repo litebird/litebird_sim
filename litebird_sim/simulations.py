@@ -1653,8 +1653,10 @@ class Simulation:
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
             time_splits = [time_splits]
-        self._impose_and_check_full_split(detector_splits, time_splits)
         self.check_valid_splits(detector_splits, time_splits)
+
+        if recycle_baselines:
+            self._impose_and_check_full_split(detector_splits, time_splits)
 
         if write_to_disk:
             filenames = []
