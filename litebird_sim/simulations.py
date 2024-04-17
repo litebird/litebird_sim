@@ -1660,6 +1660,8 @@ class Simulation:
 
         if write_to_disk:
             filenames = []
+            baselines = None
+            recycled_convergence = None
             for ds in detector_splits:
                 for ts in time_splits:
                     result = make_destriped_map(
@@ -1670,12 +1672,17 @@ class Simulation:
                         components=components,
                         detector_split=ds,
                         time_split=ts,
+                        baselines_list=baselines,
+                        recycled_convergence=recycled_convergence,
                         keep_weights=keep_weights,
                         keep_pixel_idx=keep_pixel_idx,
                         keep_pol_angle_rad=keep_pol_angle_rad,
                         callback=callback,
                         callback_kwargs=callback_kwargs,
                     )
+                    if recycle_baselines and f"{ds}_{ts}" == "full_full":
+                        baselines = result.baselines
+                        recycled_convergence = result.converged
 
                     if append_to_report:
                         self._build_and_append_destriped_report(
@@ -1693,6 +1700,7 @@ class Simulation:
                         custom_base_file=base_file,
                     )
                     filenames.append((dest_file, base_file))
+            del baselines
             return filenames
         else:
             destriped_maps = {}
