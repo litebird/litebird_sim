@@ -1646,12 +1646,14 @@ class Simulation:
         callback: Any = destriper_log_callback,
         callback_kwargs: Optional[Dict[Any, Any]] = None,
         write_to_disk: bool = True,
+        recycle_baselines: bool = False,
     ) -> Union[List[str], dict[str, DestriperResult]]:
         """Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
             time_splits = [time_splits]
+        self._impose_and_check_full_split(detector_splits, time_splits)
         self.check_valid_splits(detector_splits, time_splits)
 
         if write_to_disk:
@@ -1692,6 +1694,8 @@ class Simulation:
             return filenames
         else:
             destriped_maps = {}
+            baselines = None
+            recycled_convergence = None
             for ds in detector_splits:
                 for ts in time_splits:
                     destriped_maps[f"{ds}_{ts}"] = make_destriped_map(
@@ -1702,12 +1706,17 @@ class Simulation:
                         components=components,
                         detector_split=ds,
                         time_split=ts,
+                        baselines_list=baselines,
+                        recycled_convergence=recycled_convergence,
                         keep_weights=keep_weights,
                         keep_pixel_idx=keep_pixel_idx,
                         keep_pol_angle_rad=keep_pol_angle_rad,
                         callback=callback,
                         callback_kwargs=callback_kwargs,
                     )
+                    if recycle_baselines and f"{ds}_{ts}" == "full_full":
+                        baselines = destriped_maps[f"{ds}_{ts}"].baselines
+                        recycled_convergence = destriped_maps[f"{ds}_{ts}"].converged
 
                     if append_to_report:
                         self._build_and_append_destriped_report(
@@ -1716,7 +1725,7 @@ class Simulation:
                             ds,
                             destriped_maps[f"{ds}_{ts}"],
                         )
-
+            del baselines
         return destriped_maps
 
     @_profile
