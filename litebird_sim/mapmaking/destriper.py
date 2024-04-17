@@ -1181,6 +1181,8 @@ def _run_destriper(
     use_preconditioner: bool,
     callback: Any,
     callback_kwargs: Dict[Any, Any],
+    recycled_convergence: bool,
+    recycle_baselines: Optional[bool] = False,
 ) -> Tuple[
     List[npt.ArrayLike],  # The solution, i.e., the list of baselines
     List[npt.ArrayLike],  # The error bars of the baselines
@@ -1310,6 +1312,8 @@ def _run_destriper(
         k += 1
         if k >= max_steps:
             converged = False
+            break
+        if recycle_baselines:
             break
 
         compute_Ax(
