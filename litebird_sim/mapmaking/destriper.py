@@ -328,7 +328,7 @@ class DestriperResult:
     stopping_factor: Optional[float]
     history_of_stopping_factors: Optional[List[float]]
     destriped_map: Optional[npt.ArrayLike]
-    converged: bool
+    converged: Union[bool, str]
     elapsed_time_s: float
     bytes_in_temporary_buffers: int
     detector_split: Optional[str] = "full"
@@ -1314,6 +1314,7 @@ def _run_destriper(
             converged = False
             break
         if recycle_baselines:
+            converged = f"Recycled baselines with 'converged = {recycled_convergence}' were used!"
             break
 
         compute_Ax(
