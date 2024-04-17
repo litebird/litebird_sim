@@ -1441,6 +1441,8 @@ def make_destriped_map(
     keep_pol_angle_rad: bool = False,
     detector_split: str = "full",
     time_split: str = "full",
+    baselines_list: Optional[List[npt.ArrayLike]] = None,
+    recycled_convergence: bool = False,
     callback: Any = destriper_log_callback,
     callback_kwargs: Optional[Dict[Any, Any]] = None,
 ) -> DestriperResult:
@@ -1618,10 +1620,14 @@ def make_destriped_map(
 
         # Each element of this list is a 2D array with shape (N_det, N_baselines),
         # where N_det is the number of detectors in the i-th Observation object
-        baselines_list = [
-            np.zeros((getattr(cur_obs, components[0]).shape[0], len(cur_baseline)))
-            for (cur_obs, cur_baseline) in zip(obs_list, baseline_lengths_list)
-        ]
+        recycle_baselines = False
+        if baselines_list is None:
+            baselines_list = [
+                np.zeros((getattr(cur_obs, components[0]).shape[0], len(cur_baseline)))
+                for (cur_obs, cur_baseline) in zip(obs_list, baseline_lengths_list)
+            ]
+        else:
+            recycle_baselines = True
 
         destriped_map = np.empty((3, number_of_pixels))
         (
@@ -1639,6 +1645,8 @@ def make_destriped_map(
             hit_map=hit_map,
             baseline_lengths_list=baseline_lengths_list,
             baselines_list_start=baselines_list,
+            recycle_baselines=recycle_baselines,
+            recycled_convergence=recycled_convergence,
             dm_list=detector_mask_list,
             tm_list=time_mask_list,
             component=components[0],
