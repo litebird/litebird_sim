@@ -626,6 +626,11 @@ You can save the results of the destriper using the function
 using MPI, you should call both functions on *all* the MPI processes,
 and the number of processes should be the same between the two calls.
 
+In addition, the function :func:`.make_destriped_map` can accept in input
+a custom set of baselines. Provided that these have the correct dimensions,
+the destriper will skip the CG iterations and proceed directly to the
+map-making step.
+
 How the N_obs matrix is stored
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

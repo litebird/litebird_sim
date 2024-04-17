@@ -555,6 +555,12 @@ split as a FITS file. To avoid this and get a dictionary similar to the one retu
 by :meth:`.Simulation.make_binned_map_splits`, you can set the
 `write_to_disk` parameter to `False`.
 
+The method :meth:`.Simulation.make_destriped_map_splits` also offers the
+possibility to recycle the baseline computed from the largest split available.
+Indeed, if the flag `recycle_baselines` is set to `True`, that method enforces
+the computation of the "full_full" split and then reuses the baselines
+computed for that split for all the other splits.
+
 Before performing the computation, the function :meth:`.Simulation.check_valid_splits`
 will check whether the requested split is valid (see :ref:`mapmaking`).
 This is a wrapper around :func:`litebird_sim.check_valid_splits`. If the
