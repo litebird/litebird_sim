@@ -1615,6 +1615,22 @@ class Simulation:
             time_split=time_split,
         )
 
+    def _impose_and_check_full_split(self, detector_splits, time_splits):
+        """
+        Impose the full split if it is not present in the splits.
+        Also, make it the first computed split.
+        """
+        if "full" not in detector_splits:
+            detector_splits.insert(0, "full")
+        else:
+            detector_splits.remove("full")
+            detector_splits.insert(0, "full")
+        if "full" not in time_splits:
+            time_splits.insert(0, "full")
+        else:
+            time_splits.remove("full")
+            time_splits.insert(0, "full")
+
     @_profile
     def make_destriped_map_splits(
         self,
