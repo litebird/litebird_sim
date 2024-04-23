@@ -22,6 +22,7 @@ from .quaternions import (
     quat_left_multiply,
     rotate_x_vector,
     rotate_z_vector,
+    multiply_many_quaternions,
 )
 
 YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * u.year).to(u.s).value
@@ -428,7 +429,30 @@ class TimeDependentQuaternion:
         "Return the number of bytes allocated for the quaternions"
         return self.quats.nbytes
 
-    def get_detector_quats(
+    def __mul__(self, other):
+        """Multiply two time-dependent quaternions together
+
+        The two operands must have the same value for `start_time`
+        and `pointing_freq_hz`, and they must contain the same number
+        of quaternions.
+        """
+        assert self.quats.shape == other.quats.shape
+        assert isinstance(self.start_time, type(other.start_time))
+        if isinstance(self.start_time, float):
+            assert np.isclose(self.start_time, other.start_time)
+        else:
+            assert self.start_time == other.start_time
+        assert np.isclose(self.pointing_freq_hz, other.pointing_freq_hz)
+
+        result = np.empty_like(self.quats.shape)
+        multiply_many_quaternions(a=self.quats, b=other.quats, result=result)
+        return TimeDependentQuaternion(
+            start_time=self.start_time,
+            pointing_freq_hz=self.pointing_freq_hz,
+            quats=result,
+        )
+
+    def slerp(
         self,
         detector_quat,
         bore2spin_quat,
@@ -436,7 +460,7 @@ class TimeDependentQuaternion:
         sampling_rate_hz: float,
         nsamples: int,
     ):
-        """Return detector-to-Ecliptic quaternions
+        """Oversample the quaternion using a “slerp” operation
 
         This method combines the spin-axis-to-Ecliptic quaternions in
         ``self.quat`` with two additional rotations (`detector_quat`,
@@ -833,7 +857,7 @@ def get_det2ecl_quaternions(
         ), f"error, wrong buffer size: {quaternion_buffer.size} != {bufshape}"
 
     for idx, detector_quat in enumerate(detector_quats):
-        quaternion_buffer[:, idx, :] = spin2ecliptic_quats.get_detector_quats(
+        quaternion_buffer[:, idx, :] = spin2ecliptic_quats.slerp(
             detector_quat=detector_quat,
             bore2spin_quat=bore2spin_quat,
             time0=obs.start_time,

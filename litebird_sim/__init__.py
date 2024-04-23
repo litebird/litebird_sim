@@ -63,6 +63,7 @@ from .quaternions import (
     all_rotate_x_vectors,
     all_rotate_y_vectors,
     all_rotate_z_vectors,
+    multiply_many_quaternions,
 )
 from .scanning import (
     compute_pointing_and_orientation,
@@ -219,6 +220,7 @@ __all__ = [
     "all_rotate_x_vectors",
     "all_rotate_y_vectors",
     "all_rotate_z_vectors",
+    "multiply_many_quaternions",
     # scanning.py
     "compute_pointing_and_orientation",
     "all_compute_pointing_and_orientation",

@@ -1,7 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 import numpy as np
-from numba import njit
+import numpy.typing as npt
+from numba import njit, prange
 
 x = np.array([1.0, 0.0, 0.0])
 y = np.array([0.0, 1.0, 0.0])
@@ -403,3 +404,22 @@ def all_rotate_z_vectors(result_matrix, quat_matrix):
             quat_matrix[rowidx, 2],
             quat_matrix[rowidx, 3],
         )
+
+
+@njit(parallel=True)
+def multiply_many_quaternions(
+    a: npt.ArrayLike, b: npt.ArrayLike, result: npt.ArrayLike
+) -> None:
+    """Multiply two sets of quaternions together
+
+    All the matrices must have the same shape ``(N, 4)``. The result of ``a × b`` is saved
+    into `result`."""
+
+    num = a.shape[0]
+    for i in prange(num):
+        a0, a1, a2, a3 = a[i, :]
+        b0, b1, b2, b3 = b[i, :]
+        result[i, 0] = a3 * b0 - a2 * b1 + a1 * b2 + a0 * b3
+        result[i, 1] = a2 * b0 + a3 * b1 - a0 * b2 + a1 * b3
+        result[i, 2] = -a1 * b0 + a0 * b1 + a3 * b2 + a2 * b3
+        result[i, 3] = -a0 * b0 - a1 * b1 - a2 * b2 + a3 * b3

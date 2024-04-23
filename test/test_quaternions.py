@@ -143,3 +143,28 @@ def test_collective_quick_rotations():
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
     lbs.all_rotate_y_vectors(vec, quat.reshape(1, 4))
     assert np.allclose(vec, x)
+
+
+def test_multiply_many_quaternions():
+    first_matrix = np.empty((3, 4))
+    second_matrix = np.empty_like(first_matrix)
+    result_matrix = np.empty_like(first_matrix)
+
+    first_matrix[0, :] = lbs.quat_rotation_x(theta_rad=np.pi / 3.0)
+    first_matrix[1, :] = lbs.quat_rotation_y(theta_rad=-np.pi / 4.0)
+    first_matrix[2, :] = lbs.quat_rotation_z(theta_rad=np.pi / 5.0)
+
+    second_matrix[0, :] = lbs.quat_rotation_y(theta_rad=-np.pi / 6.0)
+    second_matrix[1, :] = lbs.quat_rotation_z(theta_rad=np.pi / 7.0)
+    second_matrix[2, :] = lbs.quat_rotation_x(theta_rad=-np.pi / 8.0)
+
+    lbs.multiply_many_quaternions(a=first_matrix, b=second_matrix, result=result_matrix)
+
+    # Compute the expected result
+    expected_quaternion = np.empty(4)
+    for i in range(first_matrix.shape[0]):
+        expected_quaternion[:] = first_matrix[i, :]
+        lbs.quat_right_multiply(expected_quaternion, *second_matrix[i, :])
+        np.testing.assert_allclose(
+            actual=result_matrix[i, :], desired=expected_quaternion
+        )
