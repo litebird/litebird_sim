@@ -181,7 +181,12 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
             assert len(det_dictionary) == 1
             assert det_dictionary[0]["name"] == det.name
             assert det_dictionary[0]["bandcenter_ghz"] == det.bandcenter_ghz
-            assert det_dictionary[0]["quat"] == list(det.quat)
+            assert det_dictionary[0]["quat"]["quats"] == det.quat.quats.tolist()
+            assert det_dictionary[0]["quat"]["start_time"] == det.quat.start_time
+            assert (
+                det_dictionary[0]["quat"]["sampling_rate_hz"]
+                == det.quat.sampling_rate_hz
+            )
 
         assert np.allclose(tod1_dataset, original_obs.tod1)
         assert np.allclose(tod2_dataset, original_obs.tod2)

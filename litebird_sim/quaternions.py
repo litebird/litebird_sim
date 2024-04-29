@@ -70,7 +70,7 @@ def quat_right_multiply(result, other_v1, other_v2, other_v3, other_w):
             other_w: float,
         )
 
-    This function implements the computation :math:`r = r \times q`,
+    This function implements the computation :math:`r = r \\times q`,
     where `r` is the parameter `result` (a 3-element NumPy array) and
     `q` is the set of parameters `other_v1`, `other_v2`, `other_v3`,
     `other_w`. The reason why the elements of quaternion `q` are
@@ -407,19 +407,71 @@ def all_rotate_z_vectors(result_matrix, quat_matrix):
 
 
 @njit(parallel=True)
-def multiply_many_quaternions(
-    a: npt.ArrayLike, b: npt.ArrayLike, result: npt.ArrayLike
+def multiply_quaternions_list_x_list(
+    array_a: npt.NDArray, array_b: npt.NDArray, result: npt.NDArray
 ) -> None:
     """Multiply two sets of quaternions together
 
     All the matrices must have the same shape ``(N, 4)``. The result of ``a × b`` is saved
     into `result`."""
 
-    num = a.shape[0]
+    num = array_a.shape[0]
     for i in prange(num):
-        a0, a1, a2, a3 = a[i, :]
-        b0, b1, b2, b3 = b[i, :]
+        a0, a1, a2, a3 = array_a[i, :]
+        b0, b1, b2, b3 = array_b[i, :]
         result[i, 0] = a3 * b0 - a2 * b1 + a1 * b2 + a0 * b3
         result[i, 1] = a2 * b0 + a3 * b1 - a0 * b2 + a1 * b3
         result[i, 2] = -a1 * b0 + a0 * b1 + a3 * b2 + a2 * b3
         result[i, 3] = -a0 * b0 - a1 * b1 - a2 * b2 + a3 * b3
+
+
+@njit(parallel=True)
+def multiply_quaternions_list_x_one(
+    array_a: npt.NDArray, single_b: npt.NDArray, result: npt.NDArray
+) -> None:
+    """Multiply a matrix of quaternions by one quaternion: `array_a × single_b`.
+
+    The result of ``a × b`` is saved into `result`."""
+
+    num = array_a.shape[0]
+    b0, b1, b2, b3 = single_b[:]
+    for i in prange(num):
+        a0, a1, a2, a3 = array_a[i, :]
+        result[i, 0] = a3 * b0 - a2 * b1 + a1 * b2 + a0 * b3
+        result[i, 1] = a2 * b0 + a3 * b1 - a0 * b2 + a1 * b3
+        result[i, 2] = -a1 * b0 + a0 * b1 + a3 * b2 + a2 * b3
+        result[i, 3] = -a0 * b0 - a1 * b1 - a2 * b2 + a3 * b3
+
+
+@njit(parallel=True)
+def multiply_quaternions_one_x_list(
+    single_a: npt.NDArray, array_b: npt.NDArray, result: npt.NDArray
+) -> None:
+    """Multiply a matrix of quaternions by one quaternion: `array_a × single_b`.
+
+    The result of ``a × b`` is saved into `result`."""
+
+    num = array_b.shape[0]
+    a0, a1, a2, a3 = single_a[:]
+    for i in prange(num):
+        b0, b1, b2, b3 = array_b[i, :]
+        result[i, 0] = a3 * b0 - a2 * b1 + a1 * b2 + a0 * b3
+        result[i, 1] = a2 * b0 + a3 * b1 - a0 * b2 + a1 * b3
+        result[i, 2] = -a1 * b0 + a0 * b1 + a3 * b2 + a2 * b3
+        result[i, 3] = -a0 * b0 - a1 * b1 - a2 * b2 + a3 * b3
+
+
+@njit(parallel=True)
+def normalize_quaternions(quat_matrix: npt.NDArray) -> None:
+    """Normalize all the quaternions in a matrix with shape (N, 4)
+
+    All the quaternions are normalized in place.
+    """
+    num, _ = quat_matrix.shape
+    for i in prange(num):
+        v1, v2, v3, w = quat_matrix[i, :]
+        norm = np.sqrt(v1**2 + v2**2 + v3**2 + w**2)
+        quat_matrix[i, 0] /= norm
+        quat_matrix[i, 1] /= norm
+        quat_matrix[i, 2] /= norm
+        quat_matrix[i, 3] /= norm

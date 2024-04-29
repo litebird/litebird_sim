@@ -744,7 +744,7 @@ def test_full_destriper(tmp_path):
             bandwidth_ghz=40.0,
             net_ukrts=50.0,
             fknee_mhz=50.0,
-            quat=np.array([0.02568196, 0.00506653, 0.0, 0.99965732]),
+            quat=lbs.RotQuaternion(np.array([0.02568196, 0.00506653, 0.0, 0.99965732])),
         ),
         lbs.DetectorInfo(
             sampling_rate_hz=1.0,
@@ -754,7 +754,9 @@ def test_full_destriper(tmp_path):
             bandwidth_ghz=40.0,
             net_ukrts=50.0,
             fknee_mhz=50.0,
-            quat=np.array([0.0145773, 0.02174247, -0.70686447, 0.70686447]),
+            quat=lbs.RotQuaternion(
+                np.array([0.0145773, 0.02174247, -0.70686447, 0.70686447])
+            ),
         ),
     ]
 

@@ -6,14 +6,37 @@ from typing import Any, Dict, Union, List
 from uuid import UUID
 import numpy as np
 
+import astropy.time as astrotime
 from .imo import Imo
 from .quaternions import quat_rotation_y, quat_rotation_z, quat_left_multiply
+from .scanning import RotQuaternion
 
 from .bandpasses import BandPassInfo
 
 
 def url_to_uuid(url: str) -> UUID:
     return UUID([x for x in url.split("/") if x != ""][-1])
+
+
+def normalize_time_dependent_quaternion(
+    quat: Union[np.ndarray, RotQuaternion],
+) -> RotQuaternion:
+    """Make sure that a quaternion is represented as a :class:`TimeDependentQuaternion` object"""
+
+    if isinstance(quat, RotQuaternion):
+        return quat
+
+    if isinstance(quat, np.ndarray):
+        quat = quat.reshape(4)
+    else:
+        quat = np.array([float(x) for x in quat])
+
+    assert quat.size == 4
+
+    # Normalize the quaternion
+    quat /= np.sqrt(quat.dot(quat))
+
+    return RotQuaternion(quats=quat)
 
 
 @dataclass
@@ -100,7 +123,7 @@ class DetectorInfo:
         - orient (Union[str, None]): The orientation of the detector
              (``Q``/``U``). The default is None
 
-        - quat (np.array([0.0, 0.0, 0.0, 1.0]): The quaternion
+        - quat (:class:`.TimeDependentQuaternion`): The quaternion
              expressing the rotation from the detector reference frame
              to the boresight reference frame. The default is no
              rotation at all, i.e., the detector is aligned with the
@@ -129,16 +152,13 @@ class DetectorInfo:
     bandwidth_ghz: float = 0.0
     pol: Union[str, None] = None
     orient: Union[str, None] = None
-    quat: Any = (0.0, 0.0, 0.0, 1.0)
+    quat: Any = None
 
     def __post_init__(self):
-        assert len(self.quat) == 4
+        if self.quat is None:
+            self.quat = (0.0, 0.0, 0.0, 1.0)
 
-        # Ensure that the quaternion is a NumPy array
-        self.quat = np.array([float(x) for x in self.quat])
-
-        # Normalize the quaternion
-        self.quat /= np.sqrt(self.quat.dot(self.quat))
+        self.quat = normalize_time_dependent_quaternion(self.quat)
 
         if isinstance(self.band_freqs_ghz, np.ndarray):
             assert len(self.band_freqs_ghz) == len(self.band_weights)
@@ -175,7 +195,23 @@ class DetectorInfo:
         result = DetectorInfo()
         for param in fields(DetectorInfo):
             if param.name in dictionary:
-                setattr(result, param.name, dictionary[param.name])
+                if param.name == "quat":
+                    time_dependent_quat = dictionary[param.name]
+                    if isinstance(time_dependent_quat, dict):
+                        start_time = time_dependent_quat["start_time"]
+                        if isinstance(start_time, str):
+                            start_time = astrotime.Time(start_time)
+
+                        result.quat = RotQuaternion(
+                            quats=np.array(time_dependent_quat["quats"]),
+                            start_time=start_time,
+                            sampling_rate_hz=time_dependent_quat["sampling_rate_hz"],
+                        )
+                    else:
+                        # The quaternion is just a list of 4 numbers
+                        result.quat = RotQuaternion(np.array(time_dependent_quat))
+                else:
+                    setattr(result, param.name, dictionary[param.name])
 
         if not isinstance(result.band_freqs_ghz, np.ndarray):
             result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
@@ -332,7 +368,9 @@ class InstrumentInfo:
     wafer_space_cm: float = 0.0
 
     def __post_init__(self):
-        self.bore2spin_quat = self.__compute_bore2spin_quat__()
+        self.bore2spin_quat = normalize_time_dependent_quaternion(
+            self.__compute_bore2spin_quat__()
+        )
 
         for det_idx, det_obj in enumerate(self.channel_objs):
             if not isinstance(det_obj, UUID):

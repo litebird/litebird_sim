@@ -158,13 +158,73 @@ def test_multiply_many_quaternions():
     second_matrix[1, :] = lbs.quat_rotation_z(theta_rad=np.pi / 7.0)
     second_matrix[2, :] = lbs.quat_rotation_x(theta_rad=-np.pi / 8.0)
 
-    lbs.multiply_many_quaternions(a=first_matrix, b=second_matrix, result=result_matrix)
+    lbs.multiply_quaternions_list_x_list(
+        array_a=first_matrix, array_b=second_matrix, result=result_matrix
+    )
 
-    # Compute the expected result
     expected_quaternion = np.empty(4)
+
     for i in range(first_matrix.shape[0]):
         expected_quaternion[:] = first_matrix[i, :]
         lbs.quat_right_multiply(expected_quaternion, *second_matrix[i, :])
         np.testing.assert_allclose(
             actual=result_matrix[i, :], desired=expected_quaternion
         )
+
+
+def test_multiply_many_quaternions_by_one_quaternion():
+    first_matrix = np.empty((3, 4))
+    second_matrix = np.empty_like(first_matrix)
+    result_matrix = np.empty_like(first_matrix)
+
+    first_matrix[0, :] = lbs.quat_rotation_x(theta_rad=np.pi / 3.0)
+    first_matrix[1, :] = lbs.quat_rotation_y(theta_rad=-np.pi / 4.0)
+    first_matrix[2, :] = lbs.quat_rotation_z(theta_rad=np.pi / 5.0)
+
+    second_matrix[0, :] = lbs.quat_rotation_y(theta_rad=-np.pi / 6.0)
+    second_matrix[1, :] = lbs.quat_rotation_z(theta_rad=np.pi / 7.0)
+    second_matrix[2, :] = lbs.quat_rotation_x(theta_rad=-np.pi / 8.0)
+
+    # First test: just use the first entry in `second_matrix` and test the case list × one
+    lbs.multiply_quaternions_list_x_one(
+        array_a=first_matrix, single_b=second_matrix[0, :], result=result_matrix
+    )
+
+    expected_quaternion = np.empty(4)
+
+    for i in range(first_matrix.shape[0]):
+        expected_quaternion[:] = first_matrix[i, :]
+        lbs.quat_right_multiply(expected_quaternion, *second_matrix[0, :])
+        np.testing.assert_allclose(
+            actual=result_matrix[i, :], desired=expected_quaternion
+        )
+
+    # Second test: use the first entry in `first_matrix` and test the case one × list
+    lbs.multiply_quaternions_one_x_list(
+        single_a=first_matrix[0, :], array_b=second_matrix, result=result_matrix
+    )
+
+    expected_quaternion = np.empty(4)
+
+    for i in range(first_matrix.shape[0]):
+        expected_quaternion[:] = first_matrix[0, :]
+        lbs.quat_right_multiply(expected_quaternion, *second_matrix[i, :])
+        np.testing.assert_allclose(
+            actual=result_matrix[i, :], desired=expected_quaternion
+        )
+
+
+def test_normalize_quaternions():
+    quats = np.array(
+        [
+            [0.0, 0.0, 0.0, 1.0],
+            [0.0, 1.0, 2.0, 3.0],
+            [1.0, 0.0, 3.0, 2.0],
+        ]
+    )
+
+    lbs.normalize_quaternions(quats)
+
+    for i in range(quats.shape[0]):
+        cur_quat = quats[i, :]
+        np.testing.assert_almost_equal(actual=np.dot(cur_quat, cur_quat), desired=1.0)

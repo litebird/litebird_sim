@@ -30,7 +30,11 @@ def check_detector(det):
     assert det.orient == "mno"
 
     # The quaternion should be always normalized
-    assert np.allclose(det.quat, [0.00000000, 0.26726124, 0.53452248, 0.80178373])
+    assert isinstance(det.quat, lbs.RotQuaternion)
+    np.testing.assert_allclose(
+        actual=det.quat.quats,
+        desired=[[0.00000000, 0.26726124, 0.53452248, 0.80178373]],
+    )
 
 
 def test_detector_from_dict():
@@ -52,7 +56,11 @@ def test_detector_from_dict():
             "alpha": 76.0,
             "pol": "jkl",
             "orient": "mno",
-            "quat": [0.0, 1.0, 2.0, 3.0],
+            "quat": {
+                "quats": [0.00000000, 0.26726124, 0.53452248, 0.80178373],
+                "start_time": None,
+                "sampling_rate_hz": None,
+            },
         }
     )
 
@@ -79,7 +87,7 @@ fmin_hz = 98.0
 alpha = 76.0
 pol = "jkl"
 orient = "mno"
-quat = [0.0, 1.0, 2.0, 3.0]
+quat = [0.00000000, 0.26726124, 0.53452248, 0.80178373]
 """
     )
 
@@ -176,8 +184,9 @@ def test_freq_channel_from_imo():
     assert det.pol is None
     assert det.orient is None
 
+    assert isinstance(det.quat, lbs.RotQuaternion)
     # The quaternion should be always normalized
-    assert np.allclose(det.quat, [0.0, 0.0, 0.0, 1.0])
+    np.testing.assert_allclose(actual=det.quat.quats, desired=[[0.0, 0.0, 0.0, 1.0]])
 
 
 def test_freq_channel_noise():
@@ -229,7 +238,8 @@ def test_instrument_creation():
     assert np.allclose(instr.spin_rotangle_rad, np.deg2rad(20.0))
 
     assert np.allclose(
-        instr.bore2spin_quat, np.array([-0.01137611, 0.1300295, 0.25660481, 0.9576622])
+        instr.bore2spin_quat.quats,
+        np.array([[-0.01137611, 0.1300295, 0.25660481, 0.9576622]]),
     )
 
 
@@ -278,20 +288,20 @@ def test_det_list_from_imo():
     # frequency channel and aligned with the boresight
     assert det_list[3].name == "foo_boresight"
     assert det_list[3].bandcenter_ghz == 140.0
-    assert np.allclose(det_list[3].quat, np.array([0, 0, 0, 1]))
+    np.testing.assert_allclose(det_list[3].quat.quats, np.array([[0, 0, 0, 1]]))
 
     # The fifth detector must be a Planck-like radiometer
     assert det_list[4].name == "planck30GHz"
     assert det_list[4].channel == "30 GHz"
-    assert np.allclose(det_list[4].fwhm_arcmin, 33.10)
-    assert np.allclose(det_list[4].fknee_mhz, 113.9)
-    assert np.allclose(det_list[4].bandwidth_ghz, 9.89)
-    assert np.allclose(det_list[4].bandcenter_ghz, 28.4)
-    assert np.allclose(det_list[4].sampling_rate_hz, 32.5)
+    np.testing.assert_allclose(det_list[4].fwhm_arcmin, 33.10)
+    np.testing.assert_allclose(det_list[4].fknee_mhz, 113.9)
+    np.testing.assert_allclose(det_list[4].bandwidth_ghz, 9.89)
+    np.testing.assert_allclose(det_list[4].bandcenter_ghz, 28.4)
+    np.testing.assert_allclose(det_list[4].sampling_rate_hz, 32.5)
 
     # Detector det_list[5] must be the same as det_list[0], but with a
     # different sampling rate
-    assert np.allclose(det_list[0].quat, det_list[5].quat)
+    np.testing.assert_allclose(det_list[0].quat.quats, det_list[5].quat.quats)
     for cur_field in fields(lbs.DetectorInfo):
         if cur_field.name in ["sampling_rate_hz", "quat"]:
             continue

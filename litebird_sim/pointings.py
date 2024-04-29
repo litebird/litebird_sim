@@ -7,7 +7,6 @@ import astropy.time
 
 from .observations import (
     Observation,
-    TimeDependentQuaternion,
 )
 
 from .hwp import HWP
@@ -15,6 +14,7 @@ from .hwp import HWP
 from .scanning import (
     get_det2ecl_quaternions,
     all_compute_pointing_and_orientation,
+    RotQuaternion,
 )
 
 from .coordinates import CoordinateSystem
@@ -54,9 +54,9 @@ def get_pointing_buffer_shape(obs: Observation):
 
 def get_pointings(
     obs,
-    spin2ecliptic_quats: TimeDependentQuaternion,
-    bore2spin_quat,
-    detector_quats=None,
+    spin2ecliptic_quats: RotQuaternion,
+    bore2spin_quat: RotQuaternion,
+    detector_quats: Optional[Union[np.ndarray, List[RotQuaternion]]] = None,
     quaternion_buffer=None,
     pointing_buffer=None,
     dtype_pointing=np.float32,
@@ -133,7 +133,15 @@ def get_pointings(
             "No detector quaternions found, have you passed "
             + '"detectors=" to Simulation.create_observations?'
         )
-        detector_quats = obs.quat
+        detector_quats = [RotQuaternion(q) for q in obs.quat]
+    else:
+        assert isinstance(detector_quats, list) or (
+            isinstance(detector_quats, np.ndarray)
+            and isinstance(detector_quats[0], RotQuaternion)
+        ), (
+            "`detector_quats` is a {} object, but starting from version 0.13.0 it must"
+            " be a list of `TimeDependentQuaternion objects"
+        ).format(str(type(detector_quats)))
 
     bufshape = get_pointing_buffer_shape(obs)
     if pointing_buffer is None:
@@ -144,19 +152,17 @@ def get_pointings(
         ), f"error, wrong pointing buffer size: {pointing_buffer.size} != {bufshape}"
 
     for idx, cur_quat in enumerate(detector_quats):
-        assert (
-            cur_quat.dtype == float
-        ), f"error, quaternion must be float, type: {cur_quat.dtype}"
+        assert isinstance(cur_quat, RotQuaternion)
 
         # Get the quaternions at the same sampling frequency of the TOD.
         # Since the call is just for ONE detector, we are not going to
         # waste too much memory. (Moreover, we are re-using `quaternion_buffer`
         # over and over again in this `for` loop.)
         det2ecliptic_quats = get_det2ecl_quaternions(
-            obs,
-            spin2ecliptic_quats,
-            cur_quat.reshape((1, 4)),
-            bore2spin_quat,
+            obs=obs,
+            spin2ecliptic_quats=spin2ecliptic_quats,
+            detector_quats=[RotQuaternion(cur_quat)],
+            bore2spin_quat=bore2spin_quat,
             quaternion_buffer=quaternion_buffer,
         )
 
@@ -185,7 +191,7 @@ def get_pointings(
 
 def get_pointings_for_observations(
     obs: Union[Observation, List[Observation]],
-    spin2ecliptic_quats: TimeDependentQuaternion,
+    spin2ecliptic_quats: RotQuaternion,
     bore2spin_quat,
     hwp: Optional[HWP] = None,
     store_pointings_in_obs=True,

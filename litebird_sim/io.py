@@ -19,6 +19,8 @@ from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
+from .scanning import RotQuaternion
+
 
 __NUMPY_INT_TYPES = [
     np.int8,
@@ -43,6 +45,20 @@ __OBSERVATION_FILE_NAME_MASK = "litebird_tod{global_index:04d}.h5"
 
 
 __FLAGS_GROUP_NAME_REGEXP = re.compile("flags_([0-9]+)")
+
+
+class DetectorJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, RotQuaternion):
+            return {
+                "quats": o.quats.tolist(),
+                "start_time": o.start_time
+                if isinstance(o.start_time, float) or o.start_time is None
+                else str(o.start_time),
+                "sampling_rate_hz": o.sampling_rate_hz,
+            }
+
+        return super().default(o)
 
 
 def write_one_observation(
@@ -98,6 +114,8 @@ def write_one_observation(
             elif type(attr_value) in __NUMPY_SCALAR_TYPES:
                 # Convert a NumPy type into a Python type
                 new_detector[attribute] = attr_value.item()
+            elif isinstance(attr_value, RotQuaternion):
+                new_detector[attribute] = attr_value.quats.item()
             else:
                 # From now on, assume that this attribute is an array whose length
                 # is the same as `obs.n_detectors`
@@ -113,7 +131,7 @@ def write_one_observation(
         det_info.append(new_detector)
 
     # Now encode `det_info` in a JSON string that will be saved later as an attribute
-    detectors_json = json.dumps(det_info)
+    detectors_json = json.dumps(det_info, cls=DetectorJSONEncoder)
 
     if not tod_fields:
         tod_fields = obs.tod_list

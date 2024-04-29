@@ -8,14 +8,6 @@ import numpy as np
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly
 
-import logging
-from .scanning import (
-    TimeDependentQuaternion,
-    get_quaternion_buffer_shape,
-    get_det2ecl_quaternions,
-    get_ecl2det_quaternions,
-)
-
 
 @dataclass
 class TodDescription:
@@ -214,8 +206,17 @@ class Observation:
 
         # Turn list of dict into dict of arrays
         if not self.comm or self.comm.rank == root:
+            # Build a list of all the keys in the dictionaries contained within
+            # `list_of_dict` (which is a *list* of dictionaries)
             keys = list(set().union(*list_of_dict) - set(dir(self)))
+
+            # This will be the dictionary associating each key with the
+            # *array* of value for that dictionary
             dict_of_array = {k: [] for k in keys}
+
+            # This array associates either np.nan or None to each type;
+            # the former indicates that the value is a NumPy array, while
+            # None is used for everything else
             nan_or_none = {}
             for k in keys:
                 for d in list_of_dict:
@@ -226,10 +227,12 @@ class Observation:
                             nan_or_none[k] = None
                     break
 
+            # Finally, build `dict_of_array`
             for d in list_of_dict:
                 for k in keys:
                     dict_of_array[k].append(d.get(k, nan_or_none[k]))
 
+            # Why should this code iterate over `keys`?!?
             for k in keys:
                 dict_of_array = {k: np.array(dict_of_array[k]) for k in keys}
         else:
@@ -651,58 +654,3 @@ class Observation:
             t0 = self.start_time
 
         return t0 + np.arange(self.n_samples) / self.sampling_rate_hz
-
-    # Deprecated methods: Remove ASAP >>>
-    def get_quaternion_buffer_shape(self, num_of_detectors=None):
-        """Deprecated: see scanning.get_quaternion_buffer_shape"""
-        logging.warn(
-            "Observation.get_quaternion_buffer_shape is deprecated and will be "
-            "removed soon, use scanning.get_quaternion_buffer_shape instead"
-        )
-        return get_quaternion_buffer_shape(self, num_of_detectors)
-
-    def get_det2ecl_quaternions(
-        self,
-        spin2ecliptic_quats: TimeDependentQuaternion,
-        detector_quats,
-        bore2spin_quat,
-        quaternion_buffer=None,
-        dtype=np.float64,
-    ):
-        """Deprecated: see scanning.get_det2ecl_quaternions"""
-        logging.warn(
-            "Observation.get_det2ecl_quaternions is deprecated and will be "
-            "removed soon, use scanning.get_det2ecl_quaternions instead"
-        )
-
-        return get_det2ecl_quaternions(
-            self,
-            spin2ecliptic_quats,
-            detector_quats,
-            bore2spin_quat,
-            quaternion_buffer,
-            dtype,
-        )
-
-    def get_ecl2det_quaternions(
-        self,
-        spin2ecliptic_quats: TimeDependentQuaternion,
-        detector_quats,
-        bore2spin_quat,
-        quaternion_buffer=None,
-        dtype=np.float64,
-    ):
-        """Deprecated: see scanning.get_ecl2det_quaternions"""
-        logging.warn(
-            "Observation.get_ecl2det_quaternions is deprecated and will be "
-            "removed soon, use scanning.get_ecl2det_quaternions instead"
-        )
-
-        return get_ecl2det_quaternions(
-            self,
-            spin2ecliptic_quats,
-            detector_quats,
-            bore2spin_quat,
-            quaternion_buffer,
-            dtype,
-        )

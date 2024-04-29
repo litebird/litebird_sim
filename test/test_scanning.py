@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import pytest
 from astropy.time import Time
 import numpy as np
 import litebird_sim as lbs
@@ -61,7 +62,9 @@ def test_calculate_sun_earth_angles_rad():
     )
 
 
-def create_fake_detector(sampling_rate_hz=1, quat=np.array([0.0, 0.0, 0.0, 1.0])):
+def create_fake_detector(
+    sampling_rate_hz: float = 1.0, quat=np.array([0.0, 0.0, 0.0, 1.0])
+):
     return lbs.DetectorInfo(name="dummy", sampling_rate_hz=sampling_rate_hz, quat=quat)
 
 
@@ -95,7 +98,7 @@ def test_simulation_pointings_still():
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
         bore2spin_quat=instr.bore2spin_quat,
-        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
+        detector_quats=[lbs.RotQuaternion()],
     )
 
     colatitude = pointings_and_orientation[..., 0]
@@ -118,11 +121,11 @@ def test_simulation_two_detectors():
 
     # Two detectors, the second rotated by 45°
     quaternions = [
-        np.array([0.0, 0.0, 0.0, 1.0]),
-        np.array([0.0, 0.0, 1.0, 1.0]) / np.sqrt(2),
+        lbs.RotQuaternion(),
+        lbs.RotQuaternion(np.array([0.0, 0.0, 1.0, 1.0]) / np.sqrt(2)),
     ]
-    fakedet1 = create_fake_detector(sampling_rate_hz=1 / 3600, quat=quaternions[0])
-    fakedet2 = create_fake_detector(sampling_rate_hz=1 / 3600, quat=quaternions[1])
+    fakedet2 = create_fake_detector(sampling_rate_hz=1.0 / 3600, quat=quaternions[1])
+    fakedet1 = create_fake_detector(sampling_rate_hz=1.0 / 3600, quat=quaternions[0])
 
     sim.create_observations(
         detectors=[fakedet1, fakedet2],
@@ -190,7 +193,7 @@ def test_simulation_pointings_orientation(tmp_path):
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
         bore2spin_quat=instr.bore2spin_quat,
-        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
+        detector_quats=[lbs.RotQuaternion()],
     )
     orientation = pointings_and_orientation[..., 2]
 
@@ -227,7 +230,7 @@ def test_simulation_pointings_spinning(tmp_path):
     pointings_and_orientation = lbs.get_pointings(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
+        detector_quats=[lbs.RotQuaternion()],
         bore2spin_quat=instr.bore2spin_quat,
     )
     colatitude = pointings_and_orientation[..., 0]
@@ -272,7 +275,9 @@ def test_simulation_pointings_mjd(tmp_path):
         pointings_and_orientation = lbs.get_pointings(
             obs,
             spin2ecliptic_quats=sim.spin2ecliptic_quats,
-            detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
+            detector_quats=[
+                lbs.RotQuaternion(),
+            ],
             bore2spin_quat=instr.bore2spin_quat,
         )
 
@@ -305,7 +310,9 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
         pointings_and_orientation = lbs.get_pointings(
             obs,
             spin2ecliptic_quats=sim.spin2ecliptic_quats,
-            detector_quats=np.array([[0.0, 0.0, 0.0, 1.0]]),
+            detector_quats=[
+                lbs.RotQuaternion(),
+            ],
             bore2spin_quat=instr.bore2spin_quat,
             hwp=IdealHWP(ang_speed_radpsec=1.0, start_angle_rad=0.0),
         )
@@ -336,19 +343,19 @@ def test_scanning_quaternions(tmp_path):
     sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
-    detector_quat = np.array([[0.0, 0.0, 0.0, 1.0]])
+    detector_quat = lbs.RotQuaternion()
 
     det2ecl_quats = lbs.get_det2ecl_quaternions(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=detector_quat,
+        detector_quats=[detector_quat],
         bore2spin_quat=instr.bore2spin_quat,
     )
 
     ecl2det_quats = lbs.get_ecl2det_quaternions(
         obs,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=detector_quat,
+        detector_quats=[detector_quat],
         bore2spin_quat=instr.bore2spin_quat,
     )
 
@@ -361,3 +368,163 @@ def test_scanning_quaternions(tmp_path):
         quat = np.copy(det2ecl_quats[i, :])
         lbs.quat_right_multiply(quat, *ecl2det_quats[i, :])
         assert np.allclose(quat, identity)
+
+
+def test_time_dependent_quaternion_constructor():
+    # Constant quaternion specified by a 1D array
+    q = lbs.RotQuaternion(quats=np.array([0.0, 0.0, 0.0, 1.0]))
+    assert q.quats.shape == (1, 4)
+    np.testing.assert_allclose(q.quats, [[0.0, 0.0, 0.0, 1.0]])
+    assert q.start_time is None
+    assert q.sampling_rate_hz is None
+
+    # Constant quaternion specified by a 2D array
+    q = lbs.RotQuaternion(
+        quats=np.array(
+            [
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
+    )
+    assert q.quats.shape == (1, 4)
+    np.testing.assert_allclose(q.quats, [[0.0, 0.0, 0.0, 1.0]])
+    assert q.start_time is None
+    assert q.sampling_rate_hz is None
+
+    # Variable quaternion specified by a 2D array
+    q = lbs.RotQuaternion(
+        quats=np.array(
+            [
+                [0.0, 0.0, 0.0, 1.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        ),
+        start_time=3.0,
+        sampling_rate_hz=5.0,
+    )
+    assert q.quats.shape == (2, 4)
+    assert q.start_time == 3.0
+    assert q.sampling_rate_hz == 5.0
+
+    # Copy constructor
+    q_copy = lbs.RotQuaternion(q)
+    assert q_copy.is_close_to(q)
+
+    # Check that variable quaternions require both
+    # `start_time` and `sampling_rate_hz`
+    with pytest.raises(AssertionError):
+        _ = lbs.RotQuaternion(
+            quats=np.array(
+                [
+                    [0.0, 0.0, 0.0, 1.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        )
+
+
+def test_time_dependent_quaternion_closeness():
+    a = lbs.RotQuaternion(quats=np.array([0.0, 0.0, 0.0, 1.0]))
+    b = lbs.RotQuaternion(quats=np.array([0.0, 0.0, 0.0, 1.0]))
+    assert a.is_close_to(a)
+    assert a.is_close_to(b)
+    assert b.is_close_to(a)
+
+    a = lbs.RotQuaternion(
+        quats=np.array([0.0, 0.0, 0.0, 1.0]),
+        start_time=0.0,
+    )
+    b = lbs.RotQuaternion(quats=np.array([0.0, 0.0, 0.0, 1.0]))
+    assert not a.is_close_to(b)
+    assert not b.is_close_to(a)
+
+    a = lbs.RotQuaternion(
+        quats=np.array([0.0, 0.0, 0.0, 1.0]),
+        sampling_rate_hz=1.0,
+    )
+    b = lbs.RotQuaternion(quats=np.array([0.0, 0.0, 0.0, 1.0]))
+    assert not a.is_close_to(b)
+    assert not b.is_close_to(a)
+
+    a = lbs.RotQuaternion(
+        quats=np.array([0.0, 0.0, 0.0, 1.0]),
+        start_time=1.0,
+        sampling_rate_hz=10.0,
+    )
+    b = lbs.RotQuaternion(a)
+    assert a.is_close_to(b)
+
+    b = lbs.RotQuaternion(a)
+    b.start_time = 2.0
+    assert not a.is_close_to(b)
+
+    b = lbs.RotQuaternion(a)
+    b.sampling_rate_hz = 3.0
+    assert not a.is_close_to(b)
+
+    a.start_time = Time("2023-01-01T10:00:00")
+    b = lbs.RotQuaternion(a)
+    b.start_time = Time("2023-01-01T10:00:01")
+    assert not a.is_close_to(b)
+
+
+def test_time_dependent_quaternions_operations():
+    qarr1 = lbs.RotQuaternion(
+        quats=np.array(
+            [
+                [0.5, 0.0, 0.0, 0.8660254],
+                [0.0, -0.38268343, 0.0, 0.92387953],
+                [0.0, 0.0, 0.30901699, 0.95105652],
+            ]
+        ),
+        start_time=0.0,
+        sampling_rate_hz=1.0,
+    )
+    qarr2 = lbs.RotQuaternion(
+        quats=np.array(
+            [
+                [0.0, -0.25881905, 0.0, 0.96592583],
+                [0.0, 0.0, 0.22252093, 0.97492791],
+                [-0.19509032, 0.0, 0.0, 0.98078528],
+            ]
+        ),
+        start_time=0.0,
+        sampling_rate_hz=1.0,
+    )
+    qconst1 = lbs.RotQuaternion(
+        quats=np.array([[0.5, 0.0, 0.0, 0.8660254]]),
+    )
+    qconst2 = lbs.RotQuaternion(
+        quats=np.array([[-0.19509032, 0.0, 0.0, 0.98078528]]),
+    )
+
+    # First test: array × array
+    result = qarr1 * qarr2
+    expected = np.empty((3, 4))
+    lbs.multiply_quaternions_list_x_list(
+        array_a=qarr1.quats, array_b=qarr2.quats, result=expected
+    )
+    np.testing.assert_allclose(actual=result.quats, desired=expected)
+
+    # Second test: array × one
+    result = qarr1 * qconst1
+    expected = np.empty((3, 4))
+    lbs.multiply_quaternions_list_x_one(
+        array_a=qarr1.quats, single_b=qconst1.quats[0, :], result=expected
+    )
+    np.testing.assert_allclose(actual=result.quats, desired=expected)
+
+    # Third test: one × array
+    result = qconst1 * qarr1
+    expected = np.empty((3, 4))
+    lbs.multiply_quaternions_one_x_list(
+        single_a=qconst1.quats[0, :], array_b=qarr1.quats, result=expected
+    )
+    np.testing.assert_allclose(actual=result.quats, desired=expected)
+
+    # Fourth test: one × one
+    result = qconst1 * qconst2
+    expected = np.empty((1, 4))
+    expected[0, :] = qconst1.quats[0, :]
+    lbs.quat_right_multiply(expected[0, :], *qconst2.quats[0, :])
+    np.testing.assert_allclose(actual=result.quats, desired=expected)

@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, List, Optional
 from uuid import UUID
 
 from astropy.coordinates import ICRS, get_body_barycentric
@@ -9,6 +9,7 @@ import astropy.time
 import astropy.units as u
 from numba import njit, prange
 import numpy as np
+import numpy.typing as npt
 
 from ducc0.pointingprovider import PointingProvider
 
@@ -20,9 +21,13 @@ from .quaternions import (
     quat_rotation_y,
     quat_rotation_z,
     quat_left_multiply,
+    quat_right_multiply,
     rotate_x_vector,
     rotate_z_vector,
-    multiply_many_quaternions,
+    multiply_quaternions_list_x_list,
+    multiply_quaternions_list_x_one,
+    multiply_quaternions_one_x_list,
+    normalize_quaternions,
 )
 
 YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * u.year).to(u.s).value
@@ -395,67 +400,140 @@ def calculate_sun_earth_angles_rad(time_vector):
         return YEARLY_OMEGA_SPIN_HZ * time_vector
 
 
-class TimeDependentQuaternion:
-    """A matrix of quaternions sampled uniformly over time
+class RotQuaternion:
+    """A matrix of quaternions sampled uniformly over time that encode rotations
 
     This class is used to hold quaternions that represent the
-    transformation from the reference frame of the LiteBIRD spin axis
-    to the Ecliptic reference frame.
+    rotation from the reference frame of the LiteBIRD spin axis
+    to the Ecliptic reference frame. All the quaternions are normalized,
+    i.e., they encode a rotation in 3D space.
 
     The class has the following members:
 
-    - ``start_time`` is either a floating-point number or an
-      ``astropy.time.Time`` object.
-
-    - ``pointing_freq_hz`` is the sampling frequency of the
-      quaternions, in Hertz
-
     - ``quats`` is a NumPy array of shape ``(N × 4)``, containing the
-      ``N`` (normalized) quaternions
+      ``N`` (normalized) quaternions. All the quaternions are guaranteed
+      to be normalized.
+
+    - ``start_time`` is either a floating-point number or an
+      ``astropy.time.Time`` object. It can be ``None`` if and only
+      if there is just *one* quaternion in ``quats``.
+
+    - ``sampling_rate_hz`` is the sampling frequency of the
+      quaternions, in Hertz. It can be ``None`` if and only
+      if there is just *one* quaternion in ``quats``.
 
     """
 
     def __init__(
         self,
-        start_time: Union[float, astropy.time.Time],
-        pointing_freq_hz: float,
-        quats,
+        quats: Union[npt.ArrayLike, "RotQuaternion", None] = None,
+        start_time: Optional[Union[float, astropy.time.Time]] = None,
+        sampling_rate_hz: Optional[float] = None,
     ):
-        self.start_time = start_time
-        self.pointing_freq_hz = pointing_freq_hz
-        self.quats = quats
+        """
+        Create a new instance of a time-dependent quaternion
+
+        If both `start_time` and `sampling_freq_hz` are ``None``, the quaternion
+        is assumed to be constant in time.
+
+        :param quats: Either a 4-element NumPy array, or another instance
+            of :class:`TimeDependentQuaternion`. Its default value is the
+            identity rotation
+        :param start_time: the start time, either a floating point number
+            or an ``astropy.time.Time`` object
+        :param sampling_rate_hz: the sampling frequency
+        """
+
+        if quats is None:
+            quats = np.array([[0.0, 0.0, 0.0, 1.0]])
+
+        if isinstance(quats, RotQuaternion):
+            self.quats = quats.quats
+            self.start_time = quats.start_time
+            self.sampling_rate_hz = quats.sampling_rate_hz
+        else:
+            # Make sure that `quats` is always a 2D array with shape (N, 4),
+            # even if it was originally a 1D array with shape (4,)
+            self.quats = quats.reshape(-1, 4)
+
+            if self.quats.shape[0] > 1:
+                assert (
+                    start_time is not None
+                ), "You must specify start_time if the quaternion is not constant"
+                assert (
+                    sampling_rate_hz is not None
+                ), "You must specify sampling_rate_hz if the quaternion is not constant"
+
+            self.start_time = start_time
+            self.sampling_rate_hz = sampling_rate_hz
+
+        # Normalize the quaternions
+        normalize_quaternions(self.quats)
 
     def nbytes(self):
         "Return the number of bytes allocated for the quaternions"
         return self.quats.nbytes
 
-    def __mul__(self, other):
+    def __mul__(self, other: "RotQuaternion") -> "RotQuaternion":
         """Multiply two time-dependent quaternions together
 
         The two operands must have the same value for `start_time`
         and `pointing_freq_hz`, and they must contain the same number
         of quaternions.
         """
-        assert self.quats.shape == other.quats.shape
-        assert isinstance(self.start_time, type(other.start_time))
-        if isinstance(self.start_time, float):
-            assert np.isclose(self.start_time, other.start_time)
-        else:
-            assert self.start_time == other.start_time
-        assert np.isclose(self.pointing_freq_hz, other.pointing_freq_hz)
 
-        result = np.empty_like(self.quats.shape)
-        multiply_many_quaternions(a=self.quats, b=other.quats, result=result)
-        return TimeDependentQuaternion(
-            start_time=self.start_time,
-            pointing_freq_hz=self.pointing_freq_hz,
-            quats=result,
+        if (self.start_time is not None) and (other.start_time is not None):
+            # Both time-dependent quaternions are actual lists, so we must
+            # first ensure that they have the same starting time and the
+            # same sampling frequency
+            assert self.quats.shape == other.quats.shape
+            assert isinstance(self.start_time, type(other.start_time))
+            if isinstance(self.start_time, float):
+                assert np.isclose(self.start_time, other.start_time)
+            else:
+                assert self.start_time == other.start_time
+            assert np.isclose(self.sampling_rate_hz, other.sampling_rate_hz)
+
+            result_start_time = self.start_time
+            result_sampling_freq_hz = self.sampling_rate_hz
+            result_quats = np.empty_like(self.quats)
+
+            # This is the most expensive case: we must multiply each pair of
+            # quaternions one by one
+            multiply_quaternions_list_x_list(
+                array_a=self.quats, array_b=other.quats, result=result_quats
+            )
+        elif (self.start_time is not None) and (other.start_time is None):
+            # The first quaternion (`a`) is time-dependent, but the other one (`b`) is constant
+            result_start_time = self.start_time
+            result_sampling_freq_hz = self.sampling_rate_hz
+            result_quats = np.empty_like(self.quats)
+            multiply_quaternions_list_x_one(
+                array_a=self.quats, single_b=other.quats[0, :], result=result_quats
+            )
+        elif (self.start_time is None) and (other.start_time is not None):
+            # The first quaternion (`a`) is constant, but the other one (`b`) is time-dependent
+            result_start_time = other.start_time
+            result_sampling_freq_hz = other.sampling_rate_hz
+            result_quats = np.empty_like(other.quats)
+            multiply_quaternions_one_x_list(
+                single_a=self.quats[0, :], array_b=other.quats, result=result_quats
+            )
+        else:
+            # Both quaternions are constant in time
+            result_start_time = None
+            result_sampling_freq_hz = None
+            result_quats = np.copy(self.quats)
+            quat_right_multiply(result_quats[0, :], *other.quats[0, :])
+
+        return RotQuaternion(
+            start_time=result_start_time,
+            sampling_rate_hz=result_sampling_freq_hz,
+            quats=result_quats,
         )
 
     def slerp(
         self,
-        detector_quat,
-        bore2spin_quat,
         time0: Union[float, astropy.time.Time],
         sampling_rate_hz: float,
         nsamples: int,
@@ -490,7 +568,6 @@ class TimeDependentQuaternion:
         must match that of `self.start_time`.
 
         """
-        assert len(detector_quat) == 4
         assert (
             self.quats.shape[0] > 1
         ), "having only one quaternion is still unsupported"
@@ -505,13 +582,39 @@ class TimeDependentQuaternion:
         else:
             time_skip_s = time0 - self.start_time
 
-        det2spin_quat = np.copy(detector_quat)
-        quat_left_multiply(det2spin_quat, *bore2spin_quat)
-
-        pp = PointingProvider(0.0, self.pointing_freq_hz, self.quats)
+        pp = PointingProvider(0.0, self.sampling_rate_hz, self.quats)
         return pp.get_rotated_quaternions(
-            time_skip_s, sampling_rate_hz, det2spin_quat, nsamples, rot_left=False
+            time_skip_s,
+            sampling_rate_hz,
+            np.array([0.0, 0.0, 0.0, 1.0]),
+            nsamples,
+            rot_left=False,
         )
+
+    def is_close_to(self, other: "RotQuaternion") -> bool:
+        if self.quats.shape != other.quats.shape:
+            return False
+
+        if not isinstance(self.start_time, type(other.start_time)):
+            return False
+
+        if isinstance(self.start_time, float):
+            if not np.isclose(self.start_time, other.start_time):
+                return False
+        elif self.start_time is not None:
+            if self.start_time != other.start_time:
+                return False
+
+        if not isinstance(self.sampling_rate_hz, type(other.sampling_rate_hz)):
+            # This catches the case where one variable is None but the other is not
+            return False
+
+        if (self.sampling_rate_hz is not None) and not np.isclose(
+            self.sampling_rate_hz, other.sampling_rate_hz
+        ):
+            return False
+
+        return np.allclose(self.quats, other.quats)
 
 
 # This is an Abstract Base Class (ABC)
@@ -531,7 +634,7 @@ class ScanningStrategy(ABC):
         start_time: Union[float, astropy.time.Time],
         time_span_s: float,
         delta_time_s: float,
-    ) -> TimeDependentQuaternion:
+    ) -> RotQuaternion:
         """Generate the quaternions for spin-axis-to-Ecliptic rotations
 
         This method simulates the scanning strategy of the spacecraft
@@ -756,7 +859,7 @@ class SpinningScanningStrategy(ScanningStrategy):
         start_time: Union[float, astropy.time.Time],
         time_span_s: float,
         delta_time_s: float,
-    ) -> TimeDependentQuaternion:
+    ) -> RotQuaternion:
         pointing_freq_hz = 1.0 / delta_time_s
         num_of_quaternions = ScanningStrategy.optimal_num_of_quaternions(
             time_span_s=time_span_s, delta_time_s=delta_time_s
@@ -777,9 +880,9 @@ class SpinningScanningStrategy(ScanningStrategy):
             time_vector_s=time_s,
         )
 
-        return TimeDependentQuaternion(
+        return RotQuaternion(
             start_time=start_time,
-            pointing_freq_hz=pointing_freq_hz,
+            sampling_rate_hz=pointing_freq_hz,
             quats=spin2ecliptic_quats,
         )
 
@@ -814,9 +917,9 @@ def get_quaternion_buffer_shape(obs, num_of_detectors=None):
 
 def get_det2ecl_quaternions(
     obs,
-    spin2ecliptic_quats: TimeDependentQuaternion,
-    detector_quats,
-    bore2spin_quat,
+    spin2ecliptic_quats: RotQuaternion,
+    detector_quats: List[RotQuaternion],
+    bore2spin_quat: RotQuaternion,
     quaternion_buffer=None,
     dtype=np.float64,
 ):
@@ -857,9 +960,8 @@ def get_det2ecl_quaternions(
         ), f"error, wrong buffer size: {quaternion_buffer.size} != {bufshape}"
 
     for idx, detector_quat in enumerate(detector_quats):
-        quaternion_buffer[:, idx, :] = spin2ecliptic_quats.slerp(
-            detector_quat=detector_quat,
-            bore2spin_quat=bore2spin_quat,
+        complete_quaternion = spin2ecliptic_quats * bore2spin_quat * detector_quat
+        quaternion_buffer[:, idx, :] = complete_quaternion.slerp(
             time0=obs.start_time,
             sampling_rate_hz=obs.sampling_rate_hz,
             nsamples=obs.n_samples,
@@ -870,9 +972,9 @@ def get_det2ecl_quaternions(
 
 def get_ecl2det_quaternions(
     obs,
-    spin2ecliptic_quats: TimeDependentQuaternion,
-    detector_quats,
-    bore2spin_quat,
+    spin2ecliptic_quats: RotQuaternion,
+    detector_quats: RotQuaternion,
+    bore2spin_quat: RotQuaternion,
     quaternion_buffer=None,
     dtype=np.float64,
 ):
@@ -893,10 +995,10 @@ def get_ecl2det_quaternions(
     """
 
     quats = get_det2ecl_quaternions(
-        obs,
-        spin2ecliptic_quats,
-        detector_quats,
-        bore2spin_quat,
+        obs=obs,
+        spin2ecliptic_quats=spin2ecliptic_quats,
+        detector_quats=detector_quats,
+        bore2spin_quat=bore2spin_quat,
         quaternion_buffer=quaternion_buffer,
         dtype=dtype,
     )
