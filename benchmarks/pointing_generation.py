@@ -70,14 +70,7 @@ start = time.perf_counter_ns()
 pointings_and_orientation = lbs.get_pointings(
     obs,
     spin2ecliptic_quats=sim.spin2ecliptic_quats,
-    detector_quats=np.array(
-        [
-            [0.0, 0.0, 0.0, 1.0],
-            [0.0, 0.0, 0.0, 1.0],
-            [0.0, 0.0, 0.0, 1.0],
-            [0.0, 0.0, 0.0, 1.0],
-        ]
-    ),
+    detector_quats=[lbs.RotQuaternion() for i in range(4)],
     bore2spin_quat=instr.bore2spin_quat,
 )
 stop = time.perf_counter_ns()
