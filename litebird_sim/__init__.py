@@ -44,9 +44,7 @@ from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .observations import Observation, TodDescription
 from .pointings import (
     apply_hwp_to_obs,
-    get_pointing_buffer_shape,
-    get_pointings,
-    get_pointings_for_observations,
+    PointingProvider,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
@@ -240,9 +238,7 @@ __all__ = [
     "get_ecl2det_quaternions",
     # pointings.py
     "apply_hwp_to_obs",
-    "get_pointing_buffer_shape",
-    "get_pointings",
-    "get_pointings_for_observations",
+    "PointingProvider",
     # mapmaking
     "make_binned_map",
     "check_valid_splits",
