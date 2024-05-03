@@ -64,15 +64,22 @@ print(
 )
 
 instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
+sim.set_instrument(instr)
 
 # Compute the pointings by running a "slerp" operation
+sim.compute_pointings()
+
 start = time.perf_counter_ns()
-pointings_and_orientation = lbs.get_pointings(
-    obs,
-    spin2ecliptic_quats=sim.spin2ecliptic_quats,
-    detector_quats=[lbs.RotQuaternion() for i in range(4)],
-    bore2spin_quat=instr.bore2spin_quat,
+
+pointings_and_orientation = np.empty(
+    shape=(len(sim.detectors), sim.observations[0].n_samples, 3),
+    dtype=np.float64,
 )
+for cur_obs in sim.observations:
+    for det_idx in range(cur_obs.n_detectors):
+        (cur_pointings, hwp_angle) = cur_obs.get_pointings(det_idx)
+        pointings_and_orientation[det_idx, :, :] = cur_pointings
+
 stop = time.perf_counter_ns()
 elapsed_time = (stop - start) * 1.0e-9
 
@@ -89,7 +96,8 @@ array_file = Path("pointings.npy")
 if array_file.exists():
     with array_file.open("rb") as inp_f:
         reference = np.load(inp_f)
-        np.testing.assert_array_equal(reference, pointings_and_orientation)
+        np.save(file=Path("difference.npy"), arr=reference - pointings_and_orientation)
+        np.testing.assert_array_almost_equal(reference, pointings_and_orientation)
         print(f'The array looks the same as the one in "{array_file}"')
 else:
     with array_file.open("wb") as out_f:
