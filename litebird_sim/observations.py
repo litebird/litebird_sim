@@ -1,9 +1,10 @@
 # -*- encoding: utf-8 -*-
 
 from dataclasses import dataclass
-from typing import Union, List, Any
+from typing import Union, List, Any, Optional
 import astropy.time
 import numpy as np
+import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly
@@ -168,6 +169,8 @@ class Observation:
             self.start_sample,
             self.n_samples,
         ) = self._get_local_start_time_start_and_n_samples()
+
+        self.pointing_provider = None  # type: Optional["PointingProvider"]
 
     @property
     def sampling_rate_hz(self):
@@ -654,3 +657,27 @@ class Observation:
             t0 = self.start_time
 
         return t0 + np.arange(self.n_samples) / self.sampling_rate_hz
+
+    def get_pointings(
+        self,
+        detector_idx: int,
+        pointing_buffer: Optional[npt.NDArray] = None,
+        hwp_buffer: Optional[npt.NDArray] = None,
+    ) -> (npt.NDArray, Optional[npt.NDArray]):
+        assert (
+            (detector_idx >= 0) and (detector_idx < self.n_detectors)
+        ), f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+
+        assert (
+            self.pointing_provider is not None
+        ), "You must initialize pointing_provider; use Simulation.compute_pointings()"
+
+        return self.pointing_provider.get_pointings(
+            detector_quat=self.quat[detector_idx],
+            start_time=self.start_time,
+            start_time_global=self.start_time_global,
+            sampling_rate_hz=self.sampling_rate_hz,
+            nsamples=self.n_samples,
+            pointing_buffer=pointing_buffer,
+            hwp_buffer=hwp_buffer,
+        )

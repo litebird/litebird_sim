@@ -383,3 +383,140 @@ def test_profile_information(tmp_path):
     sim.flush(profile_file_name="profile.json")
     profile_file_path = sim.base_path / "profile.json"
     assert profile_file_path.exists()
+
+
+def _configure_simulation_for_pointings(
+    tmp_path: Path, include_hwp: bool
+) -> lbs.Simulation:
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=0.0,
+        duration_s=61.0,
+        random_seed=12345,
+        imo=lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION),
+    )
+    det = lbs.DetectorInfo.from_imo(
+        sim.imo,
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_T/detector_info",
+    )
+    # Force a round number for the sampling rate, as tests are much easier to write!
+    det.sampling_rate_hz = 1.0
+
+    sim.create_observations(
+        detectors=[det], num_of_obs_per_detector=1, split_list_over_processes=False
+    )
+
+    if include_hwp:
+        hwp = lbs.IdealHWP(
+            ang_speed_radpsec=1.0,
+            start_angle_rad=5.0,
+        )
+        sim.set_hwp(hwp)
+
+    sstr = lbs.SpinningScanningStrategy.from_imo(
+        sim.imo, "/releases/vPTEP/satellite/scanning_parameters"
+    )
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
+
+    instr = lbs.InstrumentInfo.from_imo(
+        sim.imo, "/releases/vPTEP/satellite/LFT/instrument_info"
+    )
+    sim.set_instrument(instr)
+
+    sim.compute_pointings()
+
+    return sim
+
+
+def test_smart_pointings_consistency_with_hwp(tmp_path):
+    sim = _configure_simulation_for_pointings(tmp_path, include_hwp=True)
+
+    for obs in sim.observations:
+        assert obs.pointing_provider is not None
+
+        for det_idx in range(obs.n_detectors):
+            (pointings, hwp_angle) = obs.get_pointings(det_idx)
+            assert pointings.shape == (obs.n_samples, 3)
+            assert hwp_angle.shape == (obs.n_samples,)
+
+
+def test_smart_pointings_consistency_without_hwp(tmp_path):
+    sim = _configure_simulation_for_pointings(tmp_path, include_hwp=False)
+
+    for obs in sim.observations:
+        assert obs.pointing_provider is not None
+
+        for det_idx in range(obs.n_detectors):
+            (pointings, hwp_angle) = obs.get_pointings(det_idx)
+            assert pointings.shape == (obs.n_samples, 3)
+            assert hwp_angle is None
+
+
+def test_smart_pointings_angles(tmp_path):
+    sim = _configure_simulation_for_pointings(tmp_path, include_hwp=True)
+
+    assert len(sim.observations) == 1
+    obs = sim.observations[0]
+
+    (pointings, hwp_angle) = obs.get_pointings(0)
+
+    # These number have been produced using the old `get_pointings`
+    # function present in LBS 0.12.0
+
+    np.testing.assert_allclose(
+        actual=pointings[0:10, :],
+        desired=np.array(
+            [
+                [1.6580627894, 0.0000000000, 1.3977241805],
+                [1.6580531309, 0.0040741359, 1.4019872180],
+                [1.6580241558, 0.0081481804, 1.4062501611],
+                [1.6579758652, 0.0122220423, 1.4105129153],
+                [1.6579082610, 0.0162956301, 1.4147753863],
+                [1.6578213461, 0.0203688526, 1.4190374796],
+                [1.6577151239, 0.0244416186, 1.4232991010],
+                [1.6575895986, 0.0285138369, 1.4275601563],
+                [1.6574447752, 0.0325854166, 1.4318205514],
+                [1.6572806597, 0.0366562667, 1.4360801921],
+            ]
+        ),
+    )
+
+    np.testing.assert_allclose(
+        actual=hwp_angle[0:10],
+        desired=np.array(
+            [
+                5.0,
+                0.71681469,
+                2.71681469,
+                4.71681469,
+                0.43362939,
+                2.43362939,
+                4.43362939,
+                0.15044408,
+                2.15044408,
+                4.15044408,
+            ]
+        ),
+    )
+
+
+def test_smart_pointings_preallocation_with_hwp(tmp_path):
+    sim = _configure_simulation_for_pointings(tmp_path, include_hwp=True)
+
+    # Allocate one buffer for the pointings and one buffer for the HWP angle
+    n_samples = sim.observations[0].n_samples
+    pointings_buf = np.empty(shape=(n_samples, 3))
+    hwp_angle_buf = np.empty(shape=(n_samples, 1))
+
+    for obs in sim.observations:
+        for det_idx in range(obs.n_detectors):
+            # Force obs.get_pointings to use the buffer we allocated once for all
+            # before this double `for` loop
+            (pointings, hwp_angle) = obs.get_pointings(
+                det_idx, pointing_buffer=pointings_buf, hwp_buffer=hwp_angle_buf
+            )
+
+            # numpy.shares_memory() tells if the two arrays use the same memory
+            # buffer
+            assert np.shares_memory(pointings, pointings_buf)
+            assert np.shares_memory(hwp_angle, hwp_angle_buf)

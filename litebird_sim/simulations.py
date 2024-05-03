@@ -34,7 +34,7 @@ from .mapmaking import (
 )
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
-from .pointings import get_pointings
+from .pointings import PointingProvider
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .version import (
     __version__ as litebird_sim_version,
@@ -1294,27 +1294,16 @@ class Simulation:
         assert self.instrument
         assert self.spin2ecliptic_quats
 
-        memory_occupation = 0
-        num_of_obs = 0
-        for cur_obs in self.observations:
-            quaternion_buffer = np.zeros(
-                (cur_obs.n_samples, 1, 4),
-                dtype=np.float64,
-            )
-            get_pointings(
-                cur_obs,
-                self.spin2ecliptic_quats,
-                detector_quats=cur_obs.quat,
-                bore2spin_quat=self.instrument.bore2spin_quat,
-                hwp=self.hwp,
-                quaternion_buffer=quaternion_buffer,
-                dtype_pointing=dtype_pointing,
-                store_pointings_in_obs=True,
-            )
-            del quaternion_buffer
+        bore2ecliptic_quats = self.spin2ecliptic_quats * self.instrument.bore2spin_quat
+        pointing_provider = PointingProvider(
+            bore2ecliptic_quats=bore2ecliptic_quats,
+            hwp=self.hwp,
+        )
+        memory_occupation = pointing_provider.bore2ecliptic_quats.quats.nbytes
 
-            memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
-            num_of_obs += 1
+        num_of_obs = len(self.observations)
+        for cur_obs in self.observations:
+            cur_obs.pointing_provider = pointing_provider
 
         if append_to_report and MPI_ENABLED:
             memory_occupation = MPI_COMM_WORLD.allreduce(memory_occupation)
@@ -1329,7 +1318,7 @@ class Simulation:
                 num_of_obs=num_of_obs,
                 hwp_description=str(self.hwp) if self.hwp else "No HWP",
                 num_of_mpi_processes=MPI_COMM_WORLD.size,
-                memory_occupation=memory_occupation,
+                memory_occupation=int(memory_occupation),
             )
 
     @_profile

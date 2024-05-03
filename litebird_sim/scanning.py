@@ -11,7 +11,7 @@ from numba import njit, prange
 import numpy as np
 import numpy.typing as npt
 
-from ducc0.pointingprovider import PointingProvider
+from ducc0.pointingprovider import PointingProvider as DuccPointingProvider
 
 from .coordinates import DEFAULT_COORDINATE_SYSTEM
 from .imo import Imo
@@ -199,29 +199,23 @@ def all_compute_pointing_and_orientation(result_matrix, quat_matrix):
     Prototype::
 
         all_compute_pointing_and_orientation(
-            result_matrix: numpy.array[D, N, 3],
-            quat_matrix: numpy.array[N, D, 4],
+            result_matrix: numpy.ndarray[N, 3],
+            quat_matrix: numpy.ndarray[N, 4],
         )
 
-    Assuming that `result_matrix` is a (D, N, 3) matrix and `quat_matrix` a (N, D, 4)
-    matrix, iterate over all the N samples and D detectors and apply
+    Assuming that `result_matrix` is a (N, 3) matrix and `quat_matrix` a (N, 4)
+    matrix, iterate over all the N samples and apply
     :func:`compute_pointing_and_orientation` to every item.
 
     """
 
-    n_dets, n_samples, _ = result_matrix.shape
+    n_samples = result_matrix.shape[0]
 
-    assert result_matrix.shape[2] == 3
-    assert quat_matrix.shape[0] == n_samples
-    assert quat_matrix.shape[1] == n_dets
-    assert quat_matrix.shape[2] == 4
-
-    for det_idx in range(n_dets):
-        for sample_idx in prange(n_samples):
-            compute_pointing_and_orientation(
-                result_matrix[det_idx, sample_idx, :],
-                quat_matrix[sample_idx, det_idx, :],
-            )
+    for sample_idx in prange(n_samples):
+        compute_pointing_and_orientation(
+            result_matrix[sample_idx, :],
+            quat_matrix[sample_idx, :],
+        )
 
 
 @njit
@@ -534,7 +528,7 @@ class RotQuaternion:
 
     def slerp(
         self,
-        time0: Union[float, astropy.time.Time],
+        start_time: Union[float, astropy.time.Time],
         sampling_rate_hz: float,
         nsamples: int,
     ):
@@ -573,16 +567,16 @@ class RotQuaternion:
         ), "having only one quaternion is still unsupported"
 
         if isinstance(self.start_time, astropy.time.Time):
-            assert isinstance(time0, astropy.time.Time), (
+            assert isinstance(start_time, astropy.time.Time), (
                 "you must pass an astropy.time.Time object to time0 here, as "
                 "TimeDependentQuaternion.start_time = {}"
             ).format(self.start_time)
 
-            time_skip_s = (time0 - self.start_time).sec
+            time_skip_s = (start_time - self.start_time).sec
         else:
-            time_skip_s = time0 - self.start_time
+            time_skip_s = start_time - self.start_time
 
-        pp = PointingProvider(0.0, self.sampling_rate_hz, self.quats)
+        pp = DuccPointingProvider(0.0, self.sampling_rate_hz, self.quats)
         return pp.get_rotated_quaternions(
             time_skip_s,
             sampling_rate_hz,
@@ -962,7 +956,7 @@ def get_det2ecl_quaternions(
     for idx, detector_quat in enumerate(detector_quats):
         complete_quaternion = spin2ecliptic_quats * bore2spin_quat * detector_quat
         quaternion_buffer[:, idx, :] = complete_quaternion.slerp(
-            time0=obs.start_time,
+            start_time=obs.start_time,
             sampling_rate_hz=obs.sampling_rate_hz,
             nsamples=obs.n_samples,
         )
@@ -1004,25 +998,3 @@ def get_ecl2det_quaternions(
     )
     quats[..., 0:3] *= -1  # Apply the quaternion conjugate
     return quats
-
-
-def _precompile():
-    """Trigger Numba's to pre-compile a few functions defined in this module"""
-    result = np.empty((10, 4))
-    all_spin_to_ecliptic(
-        result_matrix=result,
-        sun_earth_angles_rad=np.linspace(start=0, stop=np.pi, num=result.shape[0]),
-        spin_sun_angle_rad=0.1,
-        precession_rate_hz=0.2,
-        spin_rate_hz=0.3,
-        time_vector_s=np.linspace(start=0.0, stop=1.0, num=result.shape[0]),
-    )
-
-    result = np.empty((1, 10, 3))
-    all_compute_pointing_and_orientation(
-        result_matrix=result,
-        quat_matrix=np.random.rand(result.shape[1], result.shape[0], 4),
-    )
-
-
-_precompile()
