@@ -249,6 +249,13 @@ class PointingProvider:
         self.bore2ecliptic_quats = bore2ecliptic_quats
         self.hwp = hwp
 
+    def has_hwp(self):
+        """Return ``True`` if a HWP has been set.
+
+        If the function returns ``True``, you can access the field `hwp`, which
+        is an instance of one of the descendeants of class :class:`.HWP`."""
+        return self.hwp is not None
+
     def get_pointings(
         self,
         detector_quat: RotQuaternion,
