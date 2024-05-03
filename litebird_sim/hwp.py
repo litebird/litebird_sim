@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import numpy as np
+import numpy.typing as npt
 from numba import njit
 
 
@@ -55,6 +56,38 @@ class HWP:
         You should better use :meth:`.get_hwp_angle` and keep ψ and the α angle
         of the HWP separate. This method is going to be deprecated in a future
         release of the LiteBIRD Simulation Framework.
+        """
+        raise NotImplementedError(
+            "You should not use the HWP class in your code, use IdealHWP instead"
+        )
+
+    def apply_hwp_to_pointings(
+        self,
+        start_time_s: float,
+        delta_time_s: float,  # This will be 1/(19 Hz) in most cases
+        bore2ecl_quaternions_inout: npt.NDArray,  # Boresight→Ecliptic quaternions at 19 Hz
+        hwp_angle_out: npt.NDArray,
+    ) -> None:
+        """
+        Simulates the presence of a HWP on the pointings and the HWP angle
+
+        This method must be redefined in derived classes. The parameter `start_time_s`
+        specifies the time of the first sample in `pointings` and must be a floating-point
+        value; this means that you should already have converted any AstroPy time to a plain
+        scalar before calling this method. The parameter `delta_time_s` is the inverse
+        of the sampling frequency and must be expressed in seconds.
+
+        The result is saved in the NumPy array `hwp_angle_out`, which must have already been
+        allocated with the appropriate number of samples. However, if the HWP is not ideal,
+        it is possible that the `bore2ecl_quaternions_inout` matrix, whose shape is
+        ``(N, 4)`` and contains ``N`` quaternions, is changed by this method, typically
+        via a multiplication with a rotation simulating a wobbling effect.
+
+        :param start_time_s:
+        :param delta_time_s:
+        :param bore2ecl_quaternions_inout:
+        :param hwp_angle_out:
+        :return:
         """
         raise NotImplementedError(
             "You should not use the HWP class in your code, use IdealHWP instead"
@@ -136,6 +169,21 @@ class IdealHWP(HWP):
             delta_time_s=delta_time_s,
             start_angle_rad=self.start_angle_rad,
             ang_speed_radpsec=self.ang_speed_radpsec,
+        )
+
+    def apply_hwp_to_pointings(
+        self,
+        start_time_s: float,
+        delta_time_s: float,  # This will be 1/(19 Hz) in most cases
+        bore2ecl_quaternions_inout: npt.NDArray,  # Boresight→Ecliptic quaternions at 19 Hz
+        hwp_angle_out: npt.NDArray,
+    ) -> None:
+        # We do not touch `bore2ecl_quaternions_inout`, as an ideal HWP does not
+        # alter the (θ, φ) direction of the boresight nor the orientation ψ
+        self.get_hwp_angle(
+            output_buffer=hwp_angle_out,
+            start_time_s=start_time_s,
+            delta_time_s=delta_time_s,
         )
 
     def __str__(self):
