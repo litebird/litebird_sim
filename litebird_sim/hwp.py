@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
+from typing import Optional
 
+import h5py
 import numpy as np
 import numpy.typing as npt
 from numba import njit
@@ -89,6 +91,23 @@ class HWP:
         :param hwp_angle_out:
         :return:
         """
+        raise NotImplementedError(
+            "You should not use the HWP class in your code, use IdealHWP instead"
+        )
+
+    def write_to_hdf5(
+        self, output_file: h5py.File, field_name: str, compression: Optional[str] = None
+    ) -> h5py.Dataset:
+        """Write the definition of the HWP into a HDF5 file
+
+        You should never call this function directly. It is used to save :class:`.Observation`
+        objects to disk.
+        """
+        raise NotImplementedError(
+            "You should not use the HWP class in your code, use IdealHWP instead"
+        )
+
+    def read_from_hdf5(self, input_dataset: h5py.Dataset) -> None:
         raise NotImplementedError(
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
@@ -186,8 +205,52 @@ class IdealHWP(HWP):
             delta_time_s=delta_time_s,
         )
 
+    def write_to_hdf5(
+        self, output_file: h5py.File, field_name: str, compression: Optional[str] = None
+    ) -> h5py.Dataset:
+        # For an ideal HWP, we just save an empty dataset with a few attributes
+        # This means that we must *not* use the "compression" field here, otherwise
+        # h5py will complain that “empty datasets don't support chunks/filters”…
+        new_dataset = output_file.create_dataset(
+            name=field_name,
+            dtype=np.float64,
+        )
+
+        new_dataset.attrs["class_name"] = "IdealHWP"
+        new_dataset.attrs["ang_speed_radpsec"] = self.ang_speed_radpsec
+        new_dataset.attrs["start_angle_rad"] = self.start_angle_rad
+
+        return new_dataset
+
+    def read_from_hdf5(self, input_dataset: h5py.Dataset) -> None:
+        assert input_dataset.attrs["class_name"] == "IdealHWP"
+
+        self.ang_speed_radpsec = input_dataset.attrs["ang_speed_radpsec"]
+        self.start_angle_rad = input_dataset.attrs["start_angle_rad"]
+
     def __str__(self):
         return (
             f"Ideal HWP, with rotating speed {self.ang_speed_radpsec} rad/sec "
             f"and θ₀ = {self.start_angle_rad}"
         )
+
+
+def read_hwp_from_hdf5(input_file: h5py.File, field_name: str) -> HWP:
+    dataset = input_file[field_name]
+    class_name = dataset.attrs["class_name"]
+
+    if class_name == "IdealHWP":
+        # Let's pass dummy values to each field. They will be
+        # fixed once the data are read from the file
+        result = IdealHWP(
+            ang_speed_radpsec=0.0,
+            start_angle_rad=0.0,
+        )
+    else:
+        # If new derived classes from HWP are implemented, add them here with an `elif`
+        assert (
+            False
+        ), f"read_hwp_from_hdf5() does not support a HWP of type {class_name}"
+
+    result.read_from_hdf5(input_dataset=dataset)
+    return result

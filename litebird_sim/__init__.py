@@ -27,6 +27,7 @@ from .healpix import (
 from .hwp import (
     HWP,
     IdealHWP,
+    read_hwp_from_hdf5,
 )
 from .hwp_sys.hwp_sys import (
     HwpSys,
@@ -188,6 +189,7 @@ __all__ = [
     # hwp.py
     "HWP",
     "IdealHWP",
+    "read_hwp_from_hdf5",
     # hwp_sys/hwp_sys.py
     "HwpSys",
     # madam.py
