@@ -646,19 +646,3 @@ def read_list_of_observations(
         )
 
     return observations
-
-
-@deprecated(
-    deprecated_in="0.11",
-    current_version=litebird_sim_version,
-    details="Use Simulation.read_observations",
-)
-def read_observations(
-    sim,
-    path: Union[str, Path] = None,
-    subdir_name: Union[None, str] = "tod",
-    *args,
-    **kwargs,
-):
-    # Here we call the method moved inside Simulation
-    sim.read_observations(path, subdir_name, *args, **kwargs)
