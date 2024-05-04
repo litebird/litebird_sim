@@ -194,24 +194,36 @@ class DetectorInfo:
         """
         result = DetectorInfo()
         for param in fields(DetectorInfo):
-            if param.name in dictionary:
-                if param.name == "quat":
-                    time_dependent_quat = dictionary[param.name]
-                    if isinstance(time_dependent_quat, dict):
-                        start_time = time_dependent_quat["start_time"]
-                        if isinstance(start_time, str):
-                            start_time = astrotime.Time(start_time)
+            if param.name not in dictionary:
+                continue
 
-                        result.quat = RotQuaternion(
-                            quats=np.array(time_dependent_quat["quats"]),
-                            start_time=start_time,
-                            sampling_rate_hz=time_dependent_quat["sampling_rate_hz"],
+            if param.name != "quat":
+                setattr(result, param.name, dictionary[param.name])
+            else:
+                # Quaternions need a more complicated algorithm…
+                time_dependent_quat = dictionary[param.name]
+                if isinstance(time_dependent_quat, dict):
+                    start_time = time_dependent_quat["start_time"]
+                    if isinstance(start_time, str):
+                        start_time = astrotime.Time(start_time)
+
+                    if "quats" in time_dependent_quat:
+                        quats = np.array(time_dependent_quat["quats"])
+                    elif "quaternion_matrix_shape" in time_dependent_quat:
+                        quats = np.zeros(
+                            shape=time_dependent_quat["quaternion_matrix_shape"]
                         )
                     else:
-                        # The quaternion is just a list of 4 numbers
-                        result.quat = RotQuaternion(np.array(time_dependent_quat))
+                        quats = None
+
+                    result.quat = RotQuaternion(
+                        quats=quats,
+                        start_time=start_time,
+                        sampling_rate_hz=time_dependent_quat["sampling_rate_hz"],
+                    )
                 else:
-                    setattr(result, param.name, dictionary[param.name])
+                    # The quaternion is just a list of 4 numbers
+                    result.quat = RotQuaternion(np.array(time_dependent_quat))
 
         if not isinstance(result.band_freqs_ghz, np.ndarray):
             result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)

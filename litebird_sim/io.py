@@ -1,26 +1,26 @@
 # -*- encoding: utf-8 -*-
 
-from collections import namedtuple
-from dataclasses import fields, asdict
 import json
 import logging as log
-from pathlib import Path
 import re
+from collections import namedtuple
+from dataclasses import fields, asdict
+from pathlib import Path
 from typing import Any, Dict, List, Union, Optional
 
 import astropy.time
 import h5py
 import numpy as np
-
 from deprecation import deprecated
 
-from .version import __version__ as litebird_sim_version
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
+from .hwp import read_hwp_from_hdf5
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
+from .pointings import PointingProvider
 from .scanning import RotQuaternion
-
+from .version import __version__ as litebird_sim_version
 
 __NUMPY_INT_TYPES = [
     np.int8,
@@ -50,15 +50,120 @@ __FLAGS_GROUP_NAME_REGEXP = re.compile("flags_([0-9]+)")
 class DetectorJSONEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, RotQuaternion):
-            return {
-                "quats": o.quats.tolist(),
+            result = {
                 "start_time": o.start_time
                 if isinstance(o.start_time, float) or o.start_time is None
                 else str(o.start_time),
                 "sampling_rate_hz": o.sampling_rate_hz,
             }
 
+            if o.quats.nbytes < 1024:
+                # Only save the quaternions if they do not occupy too much memory
+                # (in this case, the information is duplicated because these
+                # quaternions appear both in the metadata and in a dataset within
+                # the HDF5 file, but the waste of space is minimal)
+                result["quats"] = o.quats.tolist()
+            else:
+                # Just save the shape of the matrix; for HDF5 files, the full
+                # matrix will be saved nevertheless
+                result["quaternion_matrix_shape"] = list(o.quats.shape)
+
+            return result
+
         return super().default(o)
+
+
+def write_rot_quaternion_to_hdf5(
+    output_file: h5py.File,
+    rot_matrix: RotQuaternion,
+    field_name: str,
+    compression: Optional[str],
+) -> h5py.Dataset:
+    new_dataset = output_file.create_dataset(
+        field_name,
+        data=rot_matrix.quats,
+        dtype=np.float64,
+        compression=compression,
+    )
+
+    if rot_matrix.start_time is not None:
+        if isinstance(rot_matrix.start_time, astropy.time.Time):
+            start_time = str(rot_matrix.start_time)
+        else:
+            start_time = float(rot_matrix.start_time)
+
+        new_dataset.attrs["start_time"] = start_time
+
+    if rot_matrix.sampling_rate_hz is not None:
+        new_dataset.attrs["sampling_rate_hz"] = float(rot_matrix.sampling_rate_hz)
+
+    return new_dataset
+
+
+def read_rot_quaternion_from_hdf5(
+    input_file: h5py.File,
+    field_name: str,
+) -> RotQuaternion:
+    dataset = input_file[field_name]
+
+    start_time = dataset.attrs.get("start_time", None)
+    if isinstance(start_time, str):
+        start_time = astropy.time.Time(start_time)
+
+    sampling_rate_hz = dataset.attrs.get("sampling_rate_hz", None)
+
+    return RotQuaternion(
+        quats=np.array(dataset),
+        start_time=start_time,
+        sampling_rate_hz=sampling_rate_hz,
+    )
+
+
+def write_pointing_provider_to_hdf5(
+    output_file: h5py.File,
+    field_name: str,
+    pointing_provider: PointingProvider,
+    compression: Optional[str],
+):
+    rot_quaternion_field_name = f"{field_name}_rot_quaternion"
+    write_rot_quaternion_to_hdf5(
+        output_file=output_file,
+        rot_matrix=pointing_provider.bore2ecliptic_quats,
+        field_name=rot_quaternion_field_name,
+        compression=compression,
+    )
+
+    if pointing_provider.has_hwp():
+        hwp_field_name = f"{field_name}_hwp"
+        pointing_provider.hwp.write_to_hdf5(
+            output_file=output_file,
+            field_name=hwp_field_name,
+            compression=compression,
+        )
+
+
+def read_pointing_provider_from_hdf5(
+    input_file: h5py.File,
+    field_name: str,
+) -> PointingProvider:
+    rot_quaternion_field_name = f"{field_name}_rot_quaternion"
+    rot_quaternion = read_rot_quaternion_from_hdf5(
+        input_file=input_file,
+        field_name=rot_quaternion_field_name,
+    )
+
+    hwp = None
+    hwp_field_name = f"{field_name}_hwp"
+    if hwp_field_name in input_file:
+        hwp = read_hwp_from_hdf5(
+            input_file=input_file,
+            field_name=hwp_field_name,
+        )
+
+    return PointingProvider(
+        bore2ecliptic_quats=rot_quaternion,
+        hwp=hwp,
+    )
 
 
 def write_one_observation(
@@ -70,6 +175,7 @@ def write_one_observation(
     local_index: int,
     tod_fields: List[Union[str, TodDescription]] = None,
     gzip_compression: bool = False,
+    write_full_pointings: bool = False,
 ):
     """Write one :class:`Observation` object in a HDF5 file.
 
@@ -88,6 +194,14 @@ def write_one_observation(
     """
 
     compression = "gzip" if gzip_compression else None
+
+    if obs.pointing_provider is not None:
+        write_pointing_provider_to_hdf5(
+            output_file=output_file,
+            field_name="pointing_provider",
+            pointing_provider=obs.pointing_provider,
+            compression=compression,
+        )
 
     # This code assumes that the parameter `detectors` passed to Observation
     # was either an integer or a list of `DetectorInfo` objects, i.e., we
@@ -115,7 +229,9 @@ def write_one_observation(
                 # Convert a NumPy type into a Python type
                 new_detector[attribute] = attr_value.item()
             elif isinstance(attr_value, RotQuaternion):
-                new_detector[attribute] = attr_value.quats.item()
+                # Do not save any information, as the rotation quaternion will be
+                # saved in a dedicated dataset (see below)
+                pass
             else:
                 # From now on, assume that this attribute is an array whose length
                 # is the same as `obs.n_detectors`
@@ -129,6 +245,14 @@ def write_one_observation(
                     new_detector[attribute] = attr_value
 
         det_info.append(new_detector)
+
+        # Save the rotation quaternion of this detector in a dedicated dataset
+        write_rot_quaternion_to_hdf5(
+            output_file=output_file,
+            field_name=f"rot_quaternion_{det_idx:04d}",
+            rot_matrix=obs.quat[det_idx],
+            compression=compression,
+        )
 
     # Now encode `det_info` in a JSON string that will be saved later as an attribute
     detectors_json = json.dumps(det_info, cls=DetectorJSONEncoder)
@@ -164,32 +288,37 @@ def write_one_observation(
         cur_dataset.attrs["description"] = cur_field.description
 
     # Save pointing information only if it is available
-    try:
+    if obs.pointing_provider and write_full_pointings:
+        n_detectors = obs.n_detectors
+        n_samples = obs.n_samples
+
+        pointing_matrix = np.empty(shape=(n_detectors, n_samples, 3))
+
+        hwp_angle = None
+        if obs.pointing_provider.has_hwp():
+            hwp_angle = np.empty(shape=(n_samples,))
+
+        for det_idx in range(n_detectors):
+            obs.get_pointings(
+                det_idx,
+                pointing_buffer=pointing_matrix[det_idx, :, :],
+                hwp_buffer=hwp_angle,
+            )
+
         output_file.create_dataset(
             "pointings",
-            data=obs.__getattribute__("pointings"),
+            data=pointing_matrix,
             dtype=pointings_dtype,
             compression=compression,
         )
-    except (AttributeError, TypeError):
-        pass
 
-    try:
-        output_file.create_dataset(
-            "pixel_index", data=obs.__getattribute__("pixel"), compression=compression
-        )
-    except (AttributeError, TypeError):
-        pass
-
-    try:
-        output_file.create_dataset(
-            "psi",
-            data=obs.__getattribute__("psi"),
-            dtype=pointings_dtype,
-            compression=compression,
-        )
-    except (AttributeError, TypeError):
-        pass
+        if hwp_angle is not None:
+            output_file.create_dataset(
+                "hwp_angle",
+                data=hwp_angle,
+                dtype=pointings_dtype,
+                compression=compression,
+            )
 
     try:
         output_file.create_dataset(
@@ -245,6 +374,7 @@ def write_list_of_observations(
     collective_mpi_call: bool = True,
     tod_fields: List[Union[str, TodDescription]] = [],
     gzip_compression: bool = False,
+    write_full_pointings: bool = False,
 ) -> List[Path]:
     """
     Save a list of observations in a set of HDF5 files
@@ -374,6 +504,7 @@ def write_list_of_observations(
                 local_index=params["local_index"],
                 tod_fields=tod_fields,
                 gzip_compression=gzip_compression,
+                write_full_pointings=write_full_pointings,
             )
 
         file_list.append(file_name)
@@ -432,10 +563,7 @@ def read_one_observation(
     path: Union[str, Path],
     limit_mpi_rank=True,
     tod_dtype=np.float32,
-    pointings_dtype=np.float32,
-    read_pointings_if_present=True,
-    read_pixidx_if_present=True,
-    read_psi_if_present=True,
+    read_quaternions_if_present=True,
     read_global_flags_if_present=True,
     read_local_flags_if_present=True,
     tod_fields: List[str] = ["tod"],
@@ -514,6 +642,13 @@ def read_one_observation(
                     for x in json.loads(hdf5_tod.attrs["detectors"])
                 ]
 
+                # Read the rotation quaternion for this detector, as
+                # it might not have been saved in the JSON record
+                for det_idx, cur_det in enumerate(detectors):
+                    cur_det.quat = read_rot_quaternion_from_hdf5(
+                        input_file=inpf, field_name=f"rot_quaternion_{det_idx:04d}"
+                    )
+
                 result = Observation(
                     detectors=[asdict(d) for d in detectors],
                     n_samples_global=hdf5_tod.shape[1],
@@ -541,15 +676,19 @@ def read_one_observation(
 
         # If it is required, read other optional datasets
         for attr, attr_type, should_read in [
-            ("pointings", pointings_dtype, read_pointings_if_present),
-            ("pixidx", np.int32, read_pixidx_if_present),
-            ("psi", pointings_dtype, read_psi_if_present),
             ("global_flags", None, read_global_flags_if_present),
         ]:
             if (attr in inpf) and should_read:
                 result.__setattr__(attr, inpf[attr].astype(attr_type)[:])
 
-        # Checking if flags are present is trickier because there should be N
+        if read_quaternions_if_present:
+            pointing_provider = read_pointing_provider_from_hdf5(
+                input_file=inpf,
+                field_name="pointing_provider",
+            )
+            result.pointing_provider = pointing_provider
+
+        # Checking if local flags are present is trickier because there should be N
         # datasets, where N is the number of detectors
         if read_local_flags_if_present:
             flags = __find_flags(
@@ -640,7 +779,6 @@ def read_list_of_observations(
                 cur_file_entry.path,
                 limit_mpi_rank=limit_mpi_rank,
                 tod_dtype=tod_dtype,
-                pointings_dtype=pointings_dtype,
                 tod_fields=tod_fields,
             )
         )
