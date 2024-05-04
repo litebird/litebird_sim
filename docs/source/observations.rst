@@ -235,6 +235,48 @@ operate without a :class:`.Simulation` object, you can call
 To read observations, you can use :func:`.Simulation.read_observations` and
 :func:`.read_list_of_observations`.
 
+The framework writes one HDF5 file for each :class:`.Observation`; each
+file contains the following datasets:
+
+- One dataset per each TOD; each dataset has the same name as the ones passed to
+  ``tods=`` in the call to ``create_observations``. It has the following attributes:
+
+  - ``use_mjd`` (Boolean): ``True`` if ``start_time`` is a MJD, ``False`` if it is
+    a plain floating-point value
+
+  - ``start_time`` (Float): the time of the first sample in the TOD, see also
+    ``use_mjd`` to correctly interpret this
+
+  - ``sampling_rate_hz`` (Float)
+
+  - ``detectors`` (string): a JSON record containing basic information about the
+    detectors
+
+  - ``description`` (string): a human-readable string describing what's in this TOD
+
+- ``global_flags``: the matrix of the global flags for the observation
+
+- ``flags_NNNN`: the local flags for detector ``NNNN`` (starting from ``0000``).
+  There are as many datasets of this kind as the number of detectors in this
+  :class:`.Observation` object.
+
+- ``pointing_provider_rot_quaternion``: the rotation quaternion that
+  converts the boresight direction of the focal plane of the instrument
+  into ecliptic coordinates. It is a matrix with shape ``(N, 4)``, and it
+  has the attributes ``start_time`` (either a floating-point value or a string,
+  the latter being used for ``astropy.time.Time`` types) and ``sampling_rate_hz``.
+
+- ``pointing_provider_hwp``: a dataset containing the details of the Half-Wave
+  Plate. Its interprentation depends on the kind of HWP; for instances of the
+  class :class:`.IdealHWP`, the dataset is empty and the only fields are the
+  attributes ``class_name`` (always equal to ``IdealHWP``), ``ang_speed_radpsec``,
+  and ``start_angle_rad`` (two floating-point numbers).
+
+- ``rot_quaternion_NNNN``: the rotation quaternion for detector
+  ``NNNN`` (starting from ``0000``). It has the same structure as
+  ``pointing_provider_rot_quaternion`` (see above), and there are as many datasets of
+  this kind as the number of detectors in this :class:`.Observation` object.
+
   
 Flags
 -----
