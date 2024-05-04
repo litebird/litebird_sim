@@ -1276,7 +1276,6 @@ class Simulation:
     def compute_pointings(
         self,
         append_to_report: bool = True,
-        dtype_pointing=np.float32,
     ):
         """Trigger the computation of pointings.
 
