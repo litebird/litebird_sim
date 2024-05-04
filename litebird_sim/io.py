@@ -183,11 +183,18 @@ def write_one_observation(
     use more high-level functions that are able to write several observations at once,
     like :func:`.write_list_of_observations` and :func:`.write_observations`.
 
+    By default, this function only saves the TODs and the quaternions necessary to
+    compute the pointings; if you want the full pointing information, i.e., the
+    angles θ (colatitude), φ (longitude), ψ (orientation) and α (HWP angle), you
+    must set `write_full_pointings` to ``True``.
+
     The output file is specified by `output_file` and should be opened for writing; the
     observation to be written is passed through the `obs` parameter. The data type to
     use for writing TODs and pointings is specified in the `tod_dtype` and
     `pointings_dtype` (it can either be a NumPy type like ``numpy.float64`` or a
     string, pass ``None`` to use the same type as the one used in the observation).
+    Note that quaternions are always saved using 64-bit floating point numbers.
+
     The `global_index` and `local_index` parameters are two integers that are
     used by high-level functions like :func:`.write_observations` to understand how to
     read several HDF5 files at once; if you do not need them, you can pass 0 to both.
@@ -385,6 +392,11 @@ def write_list_of_observations(
     angles. The function returns a list of the file written (``pathlib.Path``
     objects).
 
+    By default, this function only saves the TODs and the quaternions necessary to
+    compute the pointings; if you want the full pointing information, i.e., the
+    angles θ (colatitude), φ (longitude), ψ (orientation) and α (HWP angle), you
+    must set `write_full_pointings` to ``True``.
+
     The name of the HDF5 files is built using the variable `file_name_mask`,
     which can contain placeholders in the form ``{name}``, where ``name`` can
     be one of the following keys:
@@ -450,7 +462,7 @@ def write_list_of_observations(
 
     To save disk space, you can choose to apply GZip compression to the
     data frames in each HDF5 file (the file will still be a valid .h5
-    file) or to save quaternions instead of full pointings.
+    file).
 
     """
     try:
@@ -578,13 +590,11 @@ def read_one_observation(
     rank of the MPI process reading this file is the same as the rank of the process
     that originally wrote it.
 
-    The flags `tod_dtype` and `pointings_dtype` permit to override the data type of
-    TOD samples and pointing angles used in the HDF5 file.
+    The flags `tod_dtype` permits to override the data type of TOD samples used in
+    the HDF5 file.
 
-    The parameters `read_pointings_if_present`, `read_pixidx_if_present`,
-    `read_psi_if_present`, `read_global_flags_if_present`, and
-    `read_local_flags_if_present` permit to avoid loading some parts of the HDF5 if
-    they are not needed.
+    The parameters `read_global_flags_if_present`, and `read_local_flags_if_present`
+    permit to avoid loading some parts of the HDF5 if they are not needed.
 
     The function returns a :class:`.Observation`, or ``Nothing`` if the HDF5 file
     was ill-formed.
@@ -730,7 +740,6 @@ def _build_file_entry_table(file_name_list: List[Union[str, Path]]) -> List[_Fil
 def read_list_of_observations(
     file_name_list: List[Union[str, Path]],
     tod_dtype=np.float32,
-    pointings_dtype=np.float32,
     limit_mpi_rank: bool = True,
     tod_fields: List[Union[str, TodDescription]] = ["tod"],
 ) -> List[Observation]:

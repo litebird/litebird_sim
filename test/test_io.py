@@ -39,6 +39,7 @@ def __write_complex_observation(
     tmp_path,
     use_mjd: bool,
     gzip_compression: bool,
+    save_pointings: bool,
 ):
     start_time = AstroTime("2021-01-01") if use_mjd else 0
     time_span_s = 60
@@ -111,6 +112,7 @@ def __write_complex_observation(
             subdir_name="",
             gzip_compression=gzip_compression,
             tod_fields=["tod1", "tod2"],
+            write_full_pointings=save_pointings,
         ),
     )
 
@@ -120,6 +122,7 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         tmp_path=tmp_path,
         use_mjd=use_mjd,
         gzip_compression=False,
+        save_pointings=True,
     )
 
     assert len(file_list) == 1
@@ -140,6 +143,7 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         tod1_dataset = inpf["tod1"]
         tod2_dataset = inpf["tod2"]
         pointing_provider_quat_dataset = inpf["pointing_provider_rot_quaternion"]
+        pointings = inpf["pointings"]
         det0_quat_dataset = inpf["rot_quaternion_0000"]
         global_flags = inpf["global_flags"]
         local_flags = inpf["flags_0000"]
@@ -147,6 +151,7 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         assert tod1_dataset.shape == (1, 600)
         assert tod2_dataset.shape == (1, 600)
         assert pointing_provider_quat_dataset.shape == (61, 4)
+        assert pointings.shape == (1, 600, 3)
         assert det0_quat_dataset.shape == (1, 4)
         assert global_flags.shape == (2, 3)
         assert local_flags.shape == (2, 3)
@@ -217,7 +222,10 @@ def test_write_complex_observation_no_mjd(tmp_path):
 
 def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: bool):
     original_obs, det, file_list = __write_complex_observation(
-        tmp_path, use_mjd, gzip_compression
+        tmp_path,
+        use_mjd,
+        gzip_compression,
+        save_pointings=False,
     )
 
     observations = lbs.read_list_of_observations(
