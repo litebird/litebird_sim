@@ -121,7 +121,6 @@ from .io import (
     write_list_of_observations,
     write_observations,
     read_list_of_observations,
-    read_observations,
 )
 
 from .gaindrifts import (
@@ -284,7 +283,6 @@ __all__ = [
     "write_list_of_observations",
     "write_observations",
     "read_list_of_observations",
-    "read_observations",
     # gaindrifts.py
     "GainDriftType",
     "SamplingDist",
