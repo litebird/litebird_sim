@@ -25,16 +25,14 @@ def test_coordinates():
         spin_rate_hz=0.000_833_333_333_333_333_4,
         start_time=start_time,
     )
-
-    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-        start_time, time_span_s, delta_time_s=7200
-    )
+    sim.set_scanning_strategy(scanning)
 
     instr = lbs.InstrumentInfo(
         boresight_rotangle_rad=0.0,
         spin_boresight_angle_rad=0.872_664_625_997_164_8,
         spin_rotangle_rad=3.141_592_653_589_793,
     )
+    sim.set_instrument(instr)
 
     det = lbs.DetectorInfo(
         name="Boresight_detector_T",
@@ -45,23 +43,21 @@ def test_coordinates():
 
     (obs,) = sim.create_observations(detectors=[det])
 
-    pointings = lbs.get_pointings(
-        obs,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-    )
+    sim.compute_pointings()
+
+    pointings, _ = obs.get_pointings(0)
 
     r = hp.Rotator(coord=["E", "G"])
 
-    pointings_gal_hp = np.empty_like(pointings[0])
+    pointings_gal_hp = np.empty_like(pointings)
 
-    pointings_gal_hp[:, 0:2] = r(pointings[0, :, 0], pointings[0, :, 1]).T
-    pointings_gal_hp[:, 2] = pointings[0, :, 2] + r.angle_ref(
-        pointings[0, :, 0], pointings[0, :, 1]
+    pointings_gal_hp[:, 0:2] = r(pointings[:, 0], pointings[:, 1]).T
+    pointings_gal_hp[:, 2] = pointings[:, 2] + r.angle_ref(
+        pointings[:, 0], pointings[:, 1]
     )
 
     pointings_gal_lbs, psi_gal_lbs = lbs.coordinates.rotate_coordinates_e2g(
-        pointings[0, :, 0:2], pointings[0, :, 2]
+        pointings[:, 0:2], pointings[:, 2]
     )
 
     np.testing.assert_allclose(
