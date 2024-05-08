@@ -59,28 +59,16 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
         print("Shape of 'tod': ", cur_obs.tod.shape)
         print("Shape of 'noise': ", cur_obs.noise.shape)
 
-2. ``Observation.pointings`` is initialized when you call
-   :meth:`.Simulation.compute_pointings`. It is a 3-rank
-   tensor of shape :math:`(n_d, N, 2)`, where the last rank collects the
-   two pointing angles colatitude (θ) and longitude (φ), expressed in
-   radians.
-
-3. ``Observation.pointing_coords`` is initialized together with
-   ``Observation.pointings``; it is a value of type
+2. ``Observation.pointing_coords`` is a value of type
    :class:`.CoordinateSystem`, and it identifies the coordinate system
    used to express the pointing angles.
 
-4. ``Observation.psi`` is a :math:`(n_d, N)` matrix containing the
-   orientation angles op the :math:`n_d` detectors (in radians), expressed
-   with respect to the celestial North (ψ). It is initialized together with
-   ``Observation.pointings``.
-
-5. ``Observation.local_flags`` is a :math:`(n_d, N)` matrix containing
+3. ``Observation.local_flags`` is a :math:`(n_d, N)` matrix containing
    flags for the :math:`n_d` detectors. These flags are typically
    associated to peculiarities in the single detectors, like
    saturations or mis-calibrations.
 
-6. ``Observation.global_flags`` is a vector of :math:`N` elements
+4. ``Observation.global_flags`` is a vector of :math:`N` elements
    containing flags that must be associated with *all* the detectors
    in the observation.
 
@@ -220,10 +208,10 @@ following information are saved and restored:
 - Whether times are tracked as floating-point numbers or proper
   AstroPy dates;
 - The TOD matrix (in ``.tod``);
-- Any pointing information stored in ``.pointings`` (the matrix
-  containing the colatitude and longitude of the direction of the main
-  beam axis), ``.psi`` (the polarization angle), and ``.pixidx`` (the
-  index of the pixel in the Healpix pixelization scheme).
+- The quaternions used to create the pointings.
+- Optionally, full pointings can be computed on the fly and stored
+  in the files; this is useful if the TOD is supposed to be read by
+  some other program.
 - Global and local flags saved in ``.global_flags`` and
   ``.local_flags`` (see below).
 

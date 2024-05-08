@@ -6,9 +6,10 @@ This program tests the speed of the code that generates quaternions
 and pointings.
 """
 
-import time
 import sys
+import time
 from pathlib import Path
+
 import numpy as np
 
 # Add the `..` directory to PYTHONPATH, so that we can import "litebird_sim"
@@ -67,7 +68,7 @@ instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
 sim.set_instrument(instr)
 
 # Compute the pointings by running a "slerp" operation
-sim.compute_pointings()
+sim.prepare_pointings()
 
 start = time.perf_counter_ns()
 

@@ -1273,25 +1273,33 @@ class Simulation:
         self.hwp = hwp
 
     @_profile
-    def compute_pointings(
+    def prepare_pointings(
         self,
         append_to_report: bool = True,
     ):
-        """Trigger the computation of pointings.
+        """Trigger the computation of the quaternions needed to compute pointings.
 
         This method must be called after having set the scanning strategy, the
-        instrument, and the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`. It combines the
-        quaternions of the spacecraft, of the instrument, and of the detectors
-        and sets the fields ``pointings``, ``psi``, and ``pointing_coords`` in
-        each observation owned by the simulation.
+        instrument, the HWP, and the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`. A set of observations must
+        have been created using the method :meth:`.create_observations`.
+
+        It combines the quaternions of the spacecraft, of the instrument, and of the detectors
+        and prepares a number of data structures that will be used by the method
+        :meth:`.Observation.get_pointings` to determine the pointing angles and the HWP angle.
         """
         assert self.detectors, (
             "You must call Simulation.create_observations() "
-            "before calling Simulation.compute_pointings"
+            "before calling Simulation.prepare_pointings"
         )
-        assert self.instrument
-        assert self.spin2ecliptic_quats
+        assert self.instrument, (
+            "You must call Simulation.set_instrument() "
+            "before calling Simulation.prepare_pointings"
+        )
+        assert self.spin2ecliptic_quats, (
+            "You must call Simulation.set_scanning_strategy() "
+            "before calling Simulation.prepare_pointings"
+        )
 
         bore2ecliptic_quats = self.spin2ecliptic_quats * self.instrument.bore2spin_quat
         pointing_provider = PointingProvider(
@@ -1361,8 +1369,8 @@ class Simulation:
 
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, and the methond
-        compute_pointings. maps is assumed to be produced by :class:`.Mbs`
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the method
+        :meth:`.prepare_pointings`. maps is assumed to be produced by :class:`.Mbs`
         """
 
         scan_map_in_observations(
@@ -1414,7 +1422,7 @@ class Simulation:
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`, and the pointing
-        through :meth:`.compute_pointings`.
+        through :meth:`.prepare_pointings`.
         """
 
         if not hasattr(self, "pos_and_vel"):

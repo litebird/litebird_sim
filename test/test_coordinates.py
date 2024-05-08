@@ -43,7 +43,7 @@ def test_coordinates():
 
     (obs,) = sim.create_observations(detectors=[det])
 
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     pointings, _ = obs.get_pointings(0)
 

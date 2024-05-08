@@ -93,7 +93,7 @@ def __write_complex_observation(
         ],
     )
 
-    sim.compute_pointings(append_to_report=False)
+    sim.prepare_pointings(append_to_report=False)
 
     obs = sim.observations[0]
     obs.tod1[:] = np.random.random(obs.tod1.shape)

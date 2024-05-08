@@ -289,14 +289,16 @@ report::
       detectors=lbs.DetectorInfo(name="foo", sampling_rate_hz=10),
   )
 
-  sim.compute_pointings()
+  sim.prepare_pointings()
 
   for cur_obs in sim.observations:
+      # We use `_` to ignore the HWP angle
+      cur_pointings, _ = cur_obs.get_pointings(0)
       nside = 64
       pixidx = healpy.ang2pix(
           nside,
-          cur_obs.pointings[0, :, 0],
-          cur_obs.pointings[0, :, 1],
+          cur_pointings[:, 0],
+          cur_pointings[:, 1],
       )
       m = np.zeros(healpy.nside2npix(nside))
       m[pixidx] = 1
@@ -337,15 +339,17 @@ following things:
    (HWP);
 4. It sets the detectors to be simulated and allocates the TODs through
    the call to :meth:`.Simulation.create_observations`;
-5. It generates a pointing information matrix through the call to
-   :meth:`.Simulation.compute_pointings`;
+5. It computes the quaternions needed to compute the actual pointings
+   through the call to :meth:`.Simulation.prepare_pointings`;
 6. It produces a coverage map by setting to 1 all those pixels that
    are visited by the directions encoded in the pointing information
    matrix. To do this, it iterates over all the instances of the
    class :class:`.Observation` in the
    :class:`.Simulation` object. (In this simple example, there is only
    one :class:`.Observation`, but in more complex examples there can
-   be many of them.)
+   be many of them.) For each :class:`.Observation`, it uses the
+   method :meth:`.Observation.get_pointings` to compute the pointing
+   information for that observation.
 7. The objects that were read from IMO are properly listed in the
    report.
 
@@ -434,7 +438,7 @@ number generator provided by the :class:`.Simulation` and seeded with
       detectors=detector,
   )
 
-  sim.compute_pointings()
+  sim.prepare_pointings()
 
   sim.add_dipole()
 
@@ -442,7 +446,7 @@ number generator provided by the :class:`.Simulation` and seeded with
 
   sim.fill_tods(maps=maps)
 
-  times = sim.observations[0].get_times()-sim.observations[0].start_time.cxcsec
+  times = sim.observations[0].get_times() - sim.observations[0].start_time.cxcsec
 
   plt.plot(times,sim.observations[0].tod[0,:])
   plt.xlabel("Time [s]")

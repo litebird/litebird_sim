@@ -23,17 +23,17 @@ function :func:`.scan_map_in_observations`, as the following example
 shows:
 
 .. testcode::
-      
+
    import litebird_sim as lbs
    import numpy as np
-   
+
    hwp_radpsec = np.pi / 8
    start_time_s = 0
    time_span_s = 1
-   
+
    nside = 256
    npix = 12 * nside * nside
-   
+
    # Create a simulation
    sim = lbs.Simulation(
        base_path="./output",
@@ -41,7 +41,7 @@ shows:
        duration_s=time_span_s,
        random_seed=12345,
    )
-   
+
    # Define the scanning strategy
    sim.set_scanning_strategy(
        lbs.SpinningScanningStrategy(
@@ -52,7 +52,7 @@ shows:
        ),
        delta_time_s=7200,
    )
-   
+
    sim.set_instrument(
        lbs.InstrumentInfo(
            boresight_rotangle_rad=0.0,
@@ -60,20 +60,20 @@ shows:
            spin_rotangle_rad=3.141_592_653_589_793,
        ),
    )
-    
+
    # Create a detector object
    det = lbs.DetectorInfo(
        name="Detector",
        sampling_rate_hz=10,
        quat=[0.0, 0.0, 0.0, 1.0],
    )
-   
+
    # Initialize the observation
    (obs,) = sim.create_observations(detectors=[det])
-   
-   # Compute the pointing information
-   sim.compute_pointings()
-   
+
+   # Prepare the quaternions used to compute the pointings
+   sim.prepare_pointings()
+
    # Create a map to scan (in realistic simulations,
    # use the MBS module provided by litebird_sim)
    maps = np.ones((3, npix))
@@ -81,11 +81,11 @@ shows:
 
    # Here scan the map and fill tod
    lbs.scan_map_in_observations(
-       obs, 
+       obs,
        in_map,
        input_map_in_galactic = False,
    )
-   
+
    for i in range(obs.n_samples):
        # + 0. removes leading minus from negative zero
        value = np.round(obs.tod[0][i], 5) + 0.
@@ -102,26 +102,26 @@ shows:
     -0.00451
     -0.00526
     -0.00601
-    -0.00676   
+    -0.00676
 
 
 The input maps to scan can be either included in a dictionary with the name of
-the channel or the name of the dectector as keyword (the routines described in 
+the channel or the name of the dectector as keyword (the routines described in
 :ref:`Mbs` already provied the inputs in the correct format), or a numpy array
 with shape (3, n_pixels).
 
-The pointing information can be included in the observation or passed through 
+The pointing information can be included in the observation or passed through
 `pointings`. If both `obs` and `pointings` are provided, they must be coherent,
 so either a single Observation and a single numpy array, or same lenght list of
 Observations and numpy arrays.
 If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`.
-The effect of a possible HWP is included in the pointing information, see 
+The effect of a possible HWP is included in the pointing information, see
 :ref:`scanning-strategy`.
 
-The routine provides an on-the-fly interpolation of the input maps. This option 
-is available through the argument `interpolation` which specifies the type of TOD 
-interpolation ("" for no interpolation, "linear" for linear interpolation). 
-Default: no interpolation. 
+The routine provides an on-the-fly interpolation of the input maps. This option
+is available through the argument `interpolation` which specifies the type of TOD
+interpolation ("" for no interpolation, "linear" for linear interpolation).
+Default: no interpolation.
 
 
 Adding Noise
@@ -135,7 +135,7 @@ function :func:`.add_noise_to_observations` and the low-level versions
 Here is a short example that shows how to add noise:
 
 .. testcode::
-   
+
    import litebird_sim as lbs
    import numpy as np
 
@@ -152,7 +152,7 @@ Here is a short example that shows how to add noise:
      net_ukrts=100,
      sampling_rate_hz=10
    )
-     
+
    obs = sim.create_observations(detectors=[det])
 
    # Here we add white noise using the detector
@@ -216,7 +216,7 @@ call the low level function directly:
 We can also add 1/f noise using a very similar call to the above:
 
 .. testcode::
-   
+
    import litebird_sim as lbs
 
    sim = lbs.Simulation(
@@ -239,7 +239,7 @@ We can also add 1/f noise using a very similar call to the above:
    # parameters from the detector object
    lbs.noise.add_noise_to_observations(obs, 'one_over_f', random=sim.random)
 
-Again, to generate noise with custom parameters, we can either use the low-level function or edit the :class:`.Observation` object to contain the desired noise parameters. 
+Again, to generate noise with custom parameters, we can either use the low-level function or edit the :class:`.Observation` object to contain the desired noise parameters.
 
 .. testcode::
 
@@ -363,7 +363,7 @@ transparent:
 
   sim.create_observations(detectors=det)
 
-  sim.compute_pointings()
+  sim.prepare_pointings()
 
   sky_signal = np.ones((3,12*nside*nside))*1e-4
 
@@ -381,7 +381,7 @@ transparent:
     3.03378e-04
     6.13975e-05
     4.72613e-05
-    
+
 
 API reference
 -------------

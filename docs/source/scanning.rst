@@ -153,11 +153,14 @@ similar to what is going to be used for LiteBIRD:
   # By default, `create_observations` creates just *one* observation
   obs, = sim.create_observations(detectors=[det])
 
-  # Compute the pointings at the same sampling frequency as the
+  # Prepare the quaternions needed to compute the pointings
   # TOD (10 Hz, see the variable `det` above)
-  sim.compute_pointings()
-  
-  pointings = obs.pointings
+  sim.prepare_pointings()
+
+  # `get_pointings()` returns both the pointing matrix and the
+  # HWP angle; we ignore the latter with `_`, as we do not have
+  # a HWP here
+  pointings, _ = obs.get_pointings(0)
 
   print("Shape:", pointings.shape)
   print("Pointings:")
@@ -165,7 +168,7 @@ similar to what is going to be used for LiteBIRD:
 
 .. testoutput::
 
-  Shape: (1, 600, 2)
+  Shape: (600, 3)
   Pointings:
   [[[ 2.182  0.   ]
     [ 2.182 -0.006]
@@ -198,7 +201,7 @@ for now just keep in mind the overall shape of the code:
    the example above, this is done by the function
    :func:`.get_pointings`.
 
-3. The function :func:`.get_pointings` returns a ``(N, 3)``
+3. The method :meth:`.Observation.get_pointings` returns a ``(N, 3)``
    matrix, where the first column contains the colatitude
    :math:`\theta`, the second column the longitude :math:`\phi`, and
    the third column the orientation angle :math:`\psi`, all expressed
@@ -369,12 +372,12 @@ angle are computed as follows:
 
   .. image:: images/orientation-direction.svg
 
-The purpose of the method :meth:`.Simulation.compute_pointings`, used
-in the example at the beginning of this chapter, is to call
-:func:`.get_det2ecl_quaternions` to compute the quaternions at the
-same sampling frequency as the scientific datastream, and then to
-apply the two definitions above to compute the direction and the
-orientation angle.
+The purpose of the method :meth:`.Simulation.prepare_pointings`, used
+in the example at the beginning of this chapter, is to combine the
+quaternions that model the transformations between the many reference
+frames used in the framework. These quaternions are then used by
+the method :meth:`.Observation.get_pointings` to compute the
+actual pointing directions and the HWP angle on the fly.
 
 
 How the boresight is specified
@@ -434,19 +437,18 @@ calculated with respect to the meridian/parallel going through the
 point the detector is looking at. Again, to reduce memory usage, our
 framework only encodes the angle.
 
-The method :meth:`.Simulation.compute_pointings` stores the pointings
-of the :math:`n_d` detectors kept in the field ``pointings`` of the
-:class:`.Observation`; they are laid out in memory as a :math:`(n_d,
-N, 2)` matrix, where :math:`N` is the number of samples in the
-timeline, and the last dimension holds the colatitude and longitude
-(in radians). The orientation angle is kept in ``Observation.psi``.
-Let's visualize the position of these pointings on a Healpix map::
+The method :meth:`.Observation.get_pointings` returns two matrices: a
+“pointing matrix”, laid in memory as a :math:`(N, 3)` matrix, where
+:math:`N` is the number of samples in the timeline, and the last
+dimension holds the colatitude, longitude, and orientation (in
+radians). The second matrix contains the angle of the HWP. Let's
+visualize the position of these pointings on a Healpix map::
 
    import healpy, numpy as np
    import matplotlib.pylab as plt
 
    nside = 64
-   pixidx = healpy.ang2pix(nside, pointings[0, :, 0], pointings[0, :, 1])
+   pixidx = healpy.ang2pix(nside, pointings[:, 0], pointings[:, 1])
    m = np.zeros(healpy.nside2npix(nside))
    m[pixidx] = 1
    healpy.mollview(m)
@@ -763,7 +765,7 @@ of a descendant of the class :class:`.HWP` to the method
     )
     obs, = sim.create_observations(detectors=[det])
 
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
 
 This example uses the :class:`.IdealHWP`, which represents an ideal
@@ -825,7 +827,7 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
       description="Simple simulation",
       random_seed=12345,
   )
-  
+
   sim.set_scanning_strategy(
       scanning_strategy=lbs.SpinningScanningStrategy(
           spin_sun_angle_rad=np.deg2rad(30),
@@ -840,13 +842,13 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
           spin_boresight_angle_rad=np.deg2rad(65),
       ),
   )
-  
+
   det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
 
   #################################################################
   # Here begins the juicy part
-  
+
   solar_system_ephemeris.set("builtin")
 
   # The variable "icrs_pos" contains the x,y,z coordinates of Jupiter
@@ -924,7 +926,7 @@ main beam axis (:math:`\theta = 0`)::
 
 We see that Jupiter is ~10° away from the beam axis after ~30 seconds
 since the start of the simulation.
-           
+
 API reference
 -------------
 
@@ -947,4 +949,3 @@ API reference
     :members:
     :undoc-members:
     :show-inheritance:
-       

@@ -40,7 +40,7 @@ det = lbs.DetectorInfo(
 
 (obs,) = sim.create_observations(detectors=[det])
 
-sim.compute_pointings()
+sim.prepare_pointings()
 
 # Simulate the orbit of the spacecraft and compute positions and
 # velocities

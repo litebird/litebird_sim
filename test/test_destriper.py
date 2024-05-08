@@ -780,7 +780,7 @@ def test_full_destriper(tmp_path):
             sim.instrument.hwp_rpm * 2 * np.pi / 60,
         ),  # applies hwp rotation angle to the polarization angle
     )
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     mbs_params = lbs.MbsParameters(
         make_cmb=True,

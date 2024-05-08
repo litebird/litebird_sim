@@ -235,7 +235,7 @@ simulation :func:`.Simulation.add_dipole`.
 
   sim.create_observations(detectors=det)
 
-  sim.compute_pointings()
+  sim.prepare_pointings()
 
   sim.compute_pos_and_vel()
 

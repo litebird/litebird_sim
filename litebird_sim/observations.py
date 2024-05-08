@@ -670,7 +670,7 @@ class Observation:
 
         assert (
             self.pointing_provider is not None
-        ), "You must initialize pointing_provider; use Simulation.compute_pointings()"
+        ), "You must initialize pointing_provider; use Simulation.prepare_pointings()"
 
         return self.pointing_provider.get_pointings(
             detector_quat=self.quat[detector_idx],

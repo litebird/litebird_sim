@@ -190,7 +190,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
         split_list_over_processes=False,
     )
 
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     # Generate some white noise
     rs = RandomState(MT19937(SeedSequence(123456789)))
@@ -367,7 +367,7 @@ def test_destriper_coordinate_consistency(tmp_path):
         split_list_over_processes=False,
     )
 
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     params = lbs.MbsParameters(
         make_cmb=True,

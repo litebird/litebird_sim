@@ -378,7 +378,7 @@ def test_profile_information(tmp_path):
     )
     sim.set_instrument(instr)
 
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     sim.flush(profile_file_name="profile.json")
     profile_file_path = sim.base_path / "profile.json"
@@ -423,7 +423,7 @@ def _configure_simulation_for_pointings(
     )
     sim.set_instrument(instr)
 
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     return sim
 
