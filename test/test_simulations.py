@@ -1,14 +1,15 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import pathlib
 from pathlib import Path
 from tempfile import TemporaryDirectory, NamedTemporaryFile
-import numpy as np
-import litebird_sim as lbs
-import pathlib
 from uuid import UUID
 
 import astropy
+import numpy as np
+
+import litebird_sim as lbs
 
 
 class MockPlot:
@@ -386,8 +387,21 @@ def test_profile_information(tmp_path):
 
 
 def _configure_simulation_for_pointings(
-    tmp_path: Path, include_hwp: bool
+    tmp_path: Path,
+    include_hwp: bool,
+    store_full_pointings: bool,
+    num_of_detectors: int = 1,
 ) -> lbs.Simulation:
+    detector_paths = [
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_T/detector_info",
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_B/detector_info",
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_004_QB_040_T/detector_info",
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_004_QB_040_B/detector_info",
+    ]
+    assert num_of_detectors <= len(
+        detector_paths
+    ), "num_of_detectors must be ≤ {}".format(len(detector_paths))
+
     sim = lbs.Simulation(
         base_path=tmp_path / "simulation_dir",
         start_time=0.0,
@@ -395,15 +409,23 @@ def _configure_simulation_for_pointings(
         random_seed=12345,
         imo=lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION),
     )
-    det = lbs.DetectorInfo.from_imo(
-        sim.imo,
-        "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_T/detector_info",
-    )
-    # Force a round number for the sampling rate, as tests are much easier to write!
-    det.sampling_rate_hz = 1.0
+
+    detector_list = [
+        lbs.DetectorInfo.from_imo(
+            sim.imo,
+            url=url,
+        )
+        for url in detector_paths
+    ]
+
+    for cur_det in detector_list:
+        # Force a round number for the sampling rate, as tests are much easier to write!
+        cur_det.sampling_rate_hz = 1.0
 
     sim.create_observations(
-        detectors=[det], num_of_obs_per_detector=1, split_list_over_processes=False
+        detectors=detector_list,
+        num_of_obs_per_detector=1,
+        split_list_over_processes=False,
     )
 
     if include_hwp:
@@ -423,13 +445,15 @@ def _configure_simulation_for_pointings(
     )
     sim.set_instrument(instr)
 
-    sim.prepare_pointings()
+    sim.prepare_pointings(store_full_pointings=store_full_pointings)
 
     return sim
 
 
 def test_smart_pointings_consistency_with_hwp(tmp_path):
-    sim = _configure_simulation_for_pointings(tmp_path, include_hwp=True)
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False
+    )
 
     for obs in sim.observations:
         assert obs.pointing_provider is not None
@@ -441,7 +465,9 @@ def test_smart_pointings_consistency_with_hwp(tmp_path):
 
 
 def test_smart_pointings_consistency_without_hwp(tmp_path):
-    sim = _configure_simulation_for_pointings(tmp_path, include_hwp=False)
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=False, store_full_pointings=False
+    )
 
     for obs in sim.observations:
         assert obs.pointing_provider is not None
@@ -453,7 +479,9 @@ def test_smart_pointings_consistency_without_hwp(tmp_path):
 
 
 def test_smart_pointings_angles(tmp_path):
-    sim = _configure_simulation_for_pointings(tmp_path, include_hwp=True)
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False
+    )
 
     assert len(sim.observations) == 1
     obs = sim.observations[0]
@@ -501,7 +529,9 @@ def test_smart_pointings_angles(tmp_path):
 
 
 def test_smart_pointings_preallocation_with_hwp(tmp_path):
-    sim = _configure_simulation_for_pointings(tmp_path, include_hwp=True)
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False
+    )
 
     # Allocate one buffer for the pointings and one buffer for the HWP angle
     n_samples = sim.observations[0].n_samples
@@ -520,3 +550,85 @@ def test_smart_pointings_preallocation_with_hwp(tmp_path):
             # buffer
             assert np.shares_memory(pointings, pointings_buf)
             assert np.shares_memory(hwp_angle, hwp_angle_buf)
+
+
+def test_smart_pointings_store_matrices_without_hwp(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=False, store_full_pointings=True
+    )
+
+    for cur_obs in sim.observations:
+        assert "pointing_matrix" in dir(cur_obs)
+        assert cur_obs.pointing_matrix.shape == (
+            cur_obs.n_detectors,
+            cur_obs.n_samples,
+            3,
+        )
+        assert cur_obs.hwp_angle is None
+
+
+def test_smart_pointings_store_matrices_with_hwp(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=True
+    )
+
+    for cur_obs in sim.observations:
+        assert "pointing_matrix" in dir(cur_obs)
+        assert cur_obs.pointing_matrix.shape == (
+            cur_obs.n_detectors,
+            cur_obs.n_samples,
+            3,
+        )
+
+        assert cur_obs.hwp_angle is not None
+        assert cur_obs.hwp_angle.shape == (cur_obs.n_samples,)
+
+
+def test_store_pointings_for_one_detector(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False, num_of_detectors=4
+    )
+
+    for cur_obs in sim.observations:
+        pointings, hwp_angle = cur_obs.get_pointings(0)
+        assert pointings.shape == (cur_obs.n_samples, 3)
+        assert hwp_angle.shape == (cur_obs.n_samples,)
+
+
+def test_store_pointings_for_two_detectors(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False, num_of_detectors=4
+    )
+
+    for cur_obs in sim.observations:
+        for cur_pair in ([1, 3], [0, 2], [1, 2]):
+            pointings, hwp_angle = cur_obs.get_pointings(cur_pair)
+            assert pointings.shape == (2, cur_obs.n_samples, 3)
+            assert hwp_angle.shape == (cur_obs.n_samples,)
+
+            for rel_det_idx, abs_det_idx in enumerate(cur_pair):
+                cur_pointings, _ = cur_obs.get_pointings(abs_det_idx)
+                np.testing.assert_allclose(
+                    actual=pointings[rel_det_idx, :, :],
+                    desired=cur_pointings[:, :],
+                    rtol=1e-6,
+                )
+
+
+def test_store_pointings_for_all_detectors(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False, num_of_detectors=4
+    )
+
+    for cur_obs in sim.observations:
+        pointings, hwp_angle = cur_obs.get_pointings("all")
+        assert pointings.shape == (4, cur_obs.n_samples, 3)
+        assert hwp_angle.shape == (cur_obs.n_samples,)
+
+        for det_idx in range(4):
+            cur_pointings, _ = cur_obs.get_pointings(det_idx)
+            np.testing.assert_allclose(
+                actual=pointings[det_idx, :, :],
+                desired=cur_pointings[:, :],
+                rtol=1e-6,
+            )

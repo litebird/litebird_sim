@@ -1,20 +1,46 @@
 # -*- encoding: utf-8 -*-
 import importlib
 from pathlib import Path
+
 import numba
 
+from litebird_sim.mapmaking import (
+    make_binned_map,
+    check_valid_splits,
+    BinnerResult,
+    make_destriped_map,
+    DestriperParameters,
+    DestriperResult,
+    ExternalDestriperParameters,
+)
+from .bandpasses import BandPassInfo
 from .compress import (
     rle_compress,
     rle_decompress,
 )
-from .distribute import distribute_evenly, distribute_optimally
+from .coordinates import (
+    DEFAULT_COORDINATE_SYSTEM,
+    DEFAULT_TIME_SCALE,
+    ECL_TO_GAL_ROT_MATRIX,
+    CoordinateSystem,
+    coord_sys_to_healpix_string,
+)
 from .detectors import (
     DetectorInfo,
     FreqChannelInfo,
     InstrumentInfo,
     detector_list_from_parameters,
 )
-from .bandpasses import BandPassInfo
+from .dipole import add_dipole, add_dipole_to_observations, DipoleType
+from .distribute import distribute_evenly, distribute_optimally
+from .gaindrifts import (
+    GainDriftType,
+    SamplingDist,
+    GainDriftParams,
+    apply_gaindrift_for_one_detector,
+    apply_gaindrift_to_tod,
+    apply_gaindrift_to_observations,
+)
 from .healpix import (
     nside_to_npix,
     npix_to_nside,
@@ -39,13 +65,27 @@ from .imo import (
     Quantity,
     Release,
 )
+from .io import (
+    write_list_of_observations,
+    write_observations,
+    read_list_of_observations,
+)
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
+from .noise import (
+    add_white_noise,
+    add_one_over_f_noise,
+    add_noise,
+    add_noise_to_observations,
+)
 from .observations import Observation, TodDescription
 from .pointings import (
     apply_hwp_to_obs,
     PointingProvider,
+)
+from .pointings_in_obs import (
+    prepare_pointings,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
@@ -67,6 +107,7 @@ from .quaternions import (
     multiply_quaternions_one_x_list,
     normalize_quaternions,
 )
+from .scan_map import scan_map, scan_map_in_observations
 from .scanning import (
     compute_pointing_and_orientation,
     all_compute_pointing_and_orientation,
@@ -79,15 +120,6 @@ from .scanning import (
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
 )
-from litebird_sim.mapmaking import (
-    make_binned_map,
-    check_valid_splits,
-    BinnerResult,
-    make_destriped_map,
-    DestriperParameters,
-    DestriperResult,
-    ExternalDestriperParameters,
-)
 from .simulations import (
     NUMBA_NUM_THREADS_ENVVAR,
     Simulation,
@@ -95,21 +127,6 @@ from .simulations import (
     MpiProcessDescr,
     MpiDistributionDescr,
 )
-from .noise import (
-    add_white_noise,
-    add_one_over_f_noise,
-    add_noise,
-    add_noise_to_observations,
-)
-from .scan_map import scan_map, scan_map_in_observations
-from .coordinates import (
-    DEFAULT_COORDINATE_SYSTEM,
-    DEFAULT_TIME_SCALE,
-    ECL_TO_GAL_ROT_MATRIX,
-    CoordinateSystem,
-    coord_sys_to_healpix_string,
-)
-
 from .spacecraft import (
     compute_l2_pos_and_vel,
     compute_lissajous_pos_and_vel,
@@ -117,24 +134,7 @@ from .spacecraft import (
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
 )
-from .dipole import add_dipole, add_dipole_to_observations, DipoleType
-from .io import (
-    write_list_of_observations,
-    write_observations,
-    read_list_of_observations,
-)
-
-from .gaindrifts import (
-    GainDriftType,
-    SamplingDist,
-    GainDriftParams,
-    apply_gaindrift_for_one_detector,
-    apply_gaindrift_to_tod,
-    apply_gaindrift_to_observations,
-)
-
 from .version import __author__, __version__
-
 
 # Check if the TOAST2 mapmaker is available
 TOAST_ENABLED = importlib.util.find_spec("OpMapMaker", "toast.todmap") is not None
@@ -240,6 +240,8 @@ __all__ = [
     # pointings.py
     "apply_hwp_to_obs",
     "PointingProvider",
+    # pointings_in_obs.py
+    "prepare_pointings",
     # mapmaking
     "make_binned_map",
     "check_valid_splits",

@@ -2,27 +2,38 @@
 
 import codecs
 import json
-from collections import namedtuple
-from dataclasses import asdict, dataclass
-from datetime import datetime
-from deprecation import deprecated
 import logging as log
 import os
 import subprocess
-from typing import List, Tuple, Union, Dict, Any, Optional
-from uuid import uuid4
+from collections import namedtuple
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
+from typing import List, Tuple, Union, Dict, Any, Optional
+from uuid import uuid4
+
+import astropy.time
+import astropy.units
+import jinja2
+import markdown
 import matplotlib.pylab as plt
 import numba
+import numpy as np
+import tomlkit
+from deprecation import deprecated
+from markdown_katex import KatexExtension
 
 from litebird_sim import constants
-from .coordinates import CoordinateSystem
 from . import HWP
+from .coordinates import CoordinateSystem
 from .detectors import DetectorInfo, InstrumentInfo
+from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
+from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
+from .io import write_list_of_observations, read_list_of_observations
 from .mapmaking import (
     make_binned_map,
     check_valid_splits,
@@ -33,31 +44,17 @@ from .mapmaking import (
     destriper_log_callback,
 )
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
+from .noise import add_noise_to_observations
 from .observations import Observation, TodDescription
-from .pointings import PointingProvider
+from .pointings_in_obs import prepare_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
+from .scan_map import scan_map_in_observations
+from .scanning import ScanningStrategy, SpinningScanningStrategy
+from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
-from .dipole import DipoleType, add_dipole_to_observations
-from .scan_map import scan_map_in_observations
-from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .noise import add_noise_to_observations
-from .io import write_list_of_observations, read_list_of_observations
-from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
-
-import astropy.time
-import astropy.units
-import markdown
-import numpy as np
-import jinja2
-import tomlkit
-
-from markdown_katex import KatexExtension
-
-from .scanning import ScanningStrategy, SpinningScanningStrategy
-
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -1275,6 +1272,7 @@ class Simulation:
     @_profile
     def prepare_pointings(
         self,
+        store_full_pointings: bool = False,
         append_to_report: bool = True,
     ):
         """Trigger the computation of the quaternions needed to compute pointings.
@@ -1287,8 +1285,14 @@ class Simulation:
         It combines the quaternions of the spacecraft, of the instrument, and of the detectors
         and prepares a number of data structures that will be used by the method
         :meth:`.Observation.get_pointings` to determine the pointing angles and the HWP angle.
+
+        If `store_full_pointings` is ``True``, the pointing matrix of each
+        :class:`.Observation` object will be saved in a field named ``pointing_matrix``
+        (a matrix with shape ``(N_d, N_samples, 3)``, where ``N_d`` is the number of
+        detectors), and the HWP angle in a field named `hwp_angle` (a vector of
+        ``(N_samples,)`` elements).
         """
-        assert self.detectors, (
+        assert self.observations, (
             "You must call Simulation.create_observations() "
             "before calling Simulation.prepare_pointings"
         )
@@ -1301,17 +1305,18 @@ class Simulation:
             "before calling Simulation.prepare_pointings"
         )
 
-        bore2ecliptic_quats = self.spin2ecliptic_quats * self.instrument.bore2spin_quat
-        pointing_provider = PointingProvider(
-            bore2ecliptic_quats=bore2ecliptic_quats,
+        prepare_pointings(
+            observations=self.observations,
+            instrument=self.instrument,
+            spin2ecliptic_quats=self.spin2ecliptic_quats,
             hwp=self.hwp,
+            store_full_pointings=store_full_pointings,
         )
+
+        pointing_provider = self.observations[0].pointing_provider
+
         memory_occupation = pointing_provider.bore2ecliptic_quats.quats.nbytes
-
         num_of_obs = len(self.observations)
-        for cur_obs in self.observations:
-            cur_obs.pointing_provider = pointing_provider
-
         if append_to_report and MPI_ENABLED:
             memory_occupation = MPI_COMM_WORLD.allreduce(memory_occupation)
             num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
