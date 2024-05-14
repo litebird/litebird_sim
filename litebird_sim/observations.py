@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from typing import Union, List, Any, Optional
+
 import astropy.time
 import numpy as np
 import numpy.typing as npt
@@ -660,24 +661,126 @@ class Observation:
 
     def get_pointings(
         self,
-        detector_idx: int,
+        detector_idx: Union[int, List[int], str],
         pointing_buffer: Optional[npt.NDArray] = None,
         hwp_buffer: Optional[npt.NDArray] = None,
     ) -> (npt.NDArray, Optional[npt.NDArray]):
-        assert (
-            (detector_idx >= 0) and (detector_idx < self.n_detectors)
-        ), f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+        """
+        Compute the pointings for one or more detectors in this observation
 
+        This method triggers the computation of the matrix of pointings that indicate
+        the direction of the line of sight for each sample in the TOD of the current
+        :class:`.Observation` instance. You must call either
+        :func:`.prepare_pointings` or :meth:`.Simulation.prepare_pointings`
+        *before* invoking this method.
+
+        The parameter `detector_idx` specifies which detectors should be included in
+        the computation. Use ``"all"`` to ask for the pointings of *all* the detectors
+        in this Observation; if you just want a subset of them, pass a list with their
+        zero-based index; if you just want the pointings for one detector, you can
+        pass an integer. The following calls are all legitimate::
+
+            # All the detectors are included
+            pointings, hwp_angle = cur_obs.get_pointings("all")
+
+            # Only the first two detectors are included
+            pointings, hwp_angle = cur_obs.get_pointings([0, 1])
+
+            # Only the first detector is used
+            pointings, hwp_angle = cur_obs.get_pointings(0)
+
+        The return value is a pair containing (1) the pointing matrix and (2) the
+        HWP angle. The pointing matrix is a NumPy array with shape ``(N_det, N_samples, 3)``,
+        where ``N_det` is the number of detectors and ``N_samples`` is the number of
+        samples in the TOD (the field ``Observation.n_samples``). The last dimension
+        spans the three angles θ (colatitude, in radians), φ (longitude, in radians),
+        and ψ (orientation angle, in radians). *Important*: if you ask for just *one*
+        detector, the shape of the pointing matrix will always be ``(N_samples, 3)``.
+        The HWP angle is always a vector with shape ``(N_samples,)``, as it does
+        not depend on the list of detectors.
+
+        The return value is allocated internally by the method. If you instead want to
+        pass a pre-allocated structure, you can use the `pointing_buffer` and
+        `hwp_buffer` parameters. In this case, the return value will be *always*
+        equal to ``(pointing_buffer, hwp_buffer)``.
+        """
         assert (
             self.pointing_provider is not None
         ), "You must initialize pointing_provider; use Simulation.prepare_pointings()"
 
-        return self.pointing_provider.get_pointings(
-            detector_quat=self.quat[detector_idx],
-            start_time=self.start_time,
-            start_time_global=self.start_time_global,
-            sampling_rate_hz=self.sampling_rate_hz,
-            nsamples=self.n_samples,
-            pointing_buffer=pointing_buffer,
-            hwp_buffer=hwp_buffer,
-        )
+        # Simplest case: we need just one detector
+        if isinstance(detector_idx, int):
+            assert (
+                (detector_idx >= 0) and (detector_idx < self.n_detectors)
+            ), f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+
+            return self.pointing_provider.get_pointings(
+                detector_quat=self.quat[detector_idx],
+                start_time=self.start_time,
+                start_time_global=self.start_time_global,
+                sampling_rate_hz=self.sampling_rate_hz,
+                nsamples=self.n_samples,
+                pointing_buffer=pointing_buffer,
+                hwp_buffer=hwp_buffer,
+            )
+
+        # More complex case: we need all the detectors
+        if isinstance(detector_idx, str):
+            assert detector_idx == "all", f"Unknown set of detectors: '{detector_idx}'"
+
+            # Recursive call
+            return self.get_pointings(
+                [i for i in range(self.n_detectors)],
+                pointing_buffer=pointing_buffer,
+                hwp_buffer=hwp_buffer,
+            )
+
+        # Most complex case: an explicit list (or NumPy array) of detectors
+        assert np.ndim(detector_idx) != 0
+
+        expected_shape = (len(detector_idx), self.n_samples, 3)
+        if pointing_buffer is not None:
+            assert (
+                pointing_buffer.shape == expected_shape
+            ), "pointing_buffer has a wrong shape, it is {actual} but should be {expected}".format(
+                actual=pointing_buffer.shape, expected=expected_shape
+            )
+        else:
+            pointing_buffer = np.empty(expected_shape, dtype=np.float32)
+
+        expected_shape = (self.n_samples,)
+        if self.pointing_provider.has_hwp():
+            if hwp_buffer is not None:
+                assert (
+                    hwp_buffer.shape == expected_shape
+                ), "hwp_buffer has a wrong shape, it is {actual} but should be {expected}".format(
+                    actual=hwp_buffer.shape, expected=expected_shape
+                )
+            else:
+                hwp_buffer = np.empty(expected_shape, dtype=np.float32)
+        else:
+            hwp_buffer = None
+
+        # For a generic case with *four* detectors, we need *two* iterators.
+        # Consider the detectors
+        #
+        #      det#0    det#1    det#2    det#3
+        #
+        # Suppose that we're asking for the pointings of
+        # detectors #1 and #3. In this case, the pointing matrix will be such that
+        #
+        #    pointings[0, :, :] ← pointings of det#1
+        #    pointings[1, :, :] ← pointings of det#3
+        #
+        # Thus, index 0 in the `pointings` matrix maps to index 1 in the list of
+        # detectors, and index 1 maps to index 3. The `rel_det_idx` index
+        # is used with the `pointings` matrix, while `abs_det_idx` is used
+        # with the list of detectors.
+        for rel_det_idx, abs_det_idx in enumerate(detector_idx):
+            _ = self.get_pointings(
+                abs_det_idx,
+                pointing_buffer=pointing_buffer[rel_det_idx, :, :],
+                hwp_buffer=hwp_buffer,
+            )
+
+        return pointing_buffer, hwp_buffer
