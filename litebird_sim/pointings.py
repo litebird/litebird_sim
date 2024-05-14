@@ -2,13 +2,11 @@
 
 from typing import Optional, Union
 
+import astropy.time
 import numpy as np
 import numpy.typing as npt
-import astropy.time
-
 
 from .hwp import HWP
-
 from .scanning import (
     all_compute_pointing_and_orientation,
     RotQuaternion,
