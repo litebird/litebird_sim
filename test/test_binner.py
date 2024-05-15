@@ -1,5 +1,5 @@
-"""Test mapping routines
-"""
+"""Test mapping routines"""
+
 import numpy as np
 import healpy as hp
 import astropy.units as u
