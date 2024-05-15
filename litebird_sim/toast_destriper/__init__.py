@@ -1,24 +1,21 @@
 # -*- encoding: utf-8 -*-
+import logging
 from collections import namedtuple
 from dataclasses import dataclass
-import logging
 from pathlib import Path
-import numpy as np
-from ducc0 import healpix
-from astropy.time import Time
-
 from typing import Union, List, Any
 
 import healpy  # We need healpy.read_map
-
-from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
-from litebird_sim.mapmaking import ExternalDestriperParameters
-
-from toast.todmap import OpMapMaker  # noqa: F401
-from toast.tod.interval import Interval
+import numpy as np
 import toast.mpi
+from astropy.time import Time
+from ducc0 import healpix
+from toast.tod.interval import Interval
+from toast.todmap import OpMapMaker  # noqa: F401
 
 from litebird_sim.coordinates import CoordinateSystem, rotate_coordinates_e2g
+from litebird_sim.mapmaking import ExternalDestriperParameters
+from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
 
 toast.mpi.use_mpi = MPI_ENABLED
 
@@ -75,7 +72,7 @@ class _Toast2FakeCache:
 
             if coordinates == CoordinateSystem.Galactic:
                 theta_phi, orientation = rotate_coordinates_e2g(
-                    pointings_ecl=theta_phi, pol_angle_ecl=orientation
+                    pointings_ecl_rad=theta_phi, pol_angle_ecl=orientation
                 )
             elif coordinates == CoordinateSystem.Ecliptic:
                 pass  # Do nothing, "theta_phi" and "orientation" are ok
