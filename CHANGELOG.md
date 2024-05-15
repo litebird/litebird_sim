@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fix issue [#317](https://github.com/litebird/litebird_sim/issues/317)
+
 -   Implement a time profiler [#308](https://github.com/litebird/litebird_sim/pull/308)
 
 # Version 0.12.0
