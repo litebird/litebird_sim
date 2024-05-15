@@ -166,30 +166,6 @@ def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> Tuple[float, flo
 
 
 @njit
-def _rotate_coordinates_e2g_for_one_sample(
-    theta_rad: float, phi_rad: float
-) -> Tuple[float, float]:
-    """
-    Parameters
-    ----------
-    theta_rad : float
-      Colatitude in Ecliptic coordinates (in radians)
-
-    phi_rad : float
-      Longitude in Ecliptic coordinates (in radians)
-
-    Returns
-    -------
-    pointings_gal : 2-tuple of floats
-      The value of θ and φ (colatitude and longitude) in Galactic coordinates
-
-    """
-
-    x, y, z = _ang2galvec_one_sample(theta_rad, phi_rad)
-    return _vec2ang_for_one_sample(x, y, z)
-
-
-@njit
 def _rotate_coordinates_and_pol_e2g_for_one_sample(
     theta_ecl_rad: float, phi_ecl_rad: float, psi_ecl_rad: float
 ) -> Tuple[float, float, float]:
@@ -225,33 +201,6 @@ def _rotate_coordinates_and_pol_e2g_for_one_sample(
     psi_gal_rad = psi_ecl_rad + np.arctan2(sinalpha, cosalpha)
 
     return theta_gal_rad, phi_gal_rad, psi_gal_rad
-
-
-@njit
-def _rotate_coordinates_e2g_for_all(pointings_ecl, pointings_gal):
-    """
-    Apply a Ecliptic→Galactic coordinate conversion to a vector of pointings
-
-    Apply a coordinate transformation to to all the pointings in `pointings_ecl` and
-    save the result in `pointings_gal`.
-
-    Parameters
-    ----------
-    pointings_ecl : array
-      ``(N × 2)`` array containing the colatitude and the longitude in ecliptic
-      coordinates. (The array can have shape ``(N × 3)``, the code will still work.)
-
-    pointings_gal : array
-      ``(N × 2)`` array containing the colatitude and the longitude in galactic
-      coordinates. (The array can have shape ``(N × 3)``, the code will still work.)
-    """
-
-    for i in range(len(pointings_ecl[:, 0])):
-        cur_theta, cur_phi = _rotate_coordinates_e2g_for_one_sample(
-            theta_rad=pointings_ecl[i, 0], phi_rad=pointings_ecl[i, 1]
-        )
-        pointings_gal[i, 0] = cur_theta
-        pointings_gal[i, 1] = cur_phi
 
 
 @njit
