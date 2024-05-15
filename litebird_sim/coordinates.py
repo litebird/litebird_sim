@@ -1,11 +1,11 @@
 # -*- encoding: utf-8 -*-
-from numba import njit
-import numpy as np
+from enum import Enum
+from typing import Tuple
 
+import numpy as np
 from astropy.coordinates import BarycentricMeanEcliptic
 from astropy.coordinates import SkyCoord
-
-from enum import Enum
+from numba import njit
 
 """The coordinate system used by the framework"""
 DEFAULT_COORDINATE_SYSTEM = BarycentricMeanEcliptic()
@@ -75,7 +75,7 @@ def ang2vec(theta, phi):
 
 
 def vec2ang(vx, vy, vz):
-    """Transform a vector to angle given by theta,phi.
+    """Transform a vector (or many vectors) to angle given by theta,phi.
 
     Parameters
     ----------
@@ -89,7 +89,7 @@ def vec2ang(vx, vy, vz):
     Returns
     -------
     angles : float, array
-      The angles in radiants in an array of shape (2, N)
+      The angles in radians in an array of shape (2, N)
 
     See Also
     --------
@@ -103,21 +103,24 @@ def vec2ang(vx, vy, vz):
 
 
 @njit
-def _ang2galvec_one_sample(theta, phi):
+def _ang2galvec_one_sample(
+    theta_rad: float, phi_rad: float
+) -> Tuple[float, float, float]:
     """Transform a direction (theta, phi) in Ecliptic coordinates to
     a unit vector in Galactic coordinates.
 
     Parameters
     ----------
-    theta : float, scalar
+    theta_rad : float, scalar
       The angle θ (colatitude) in Ecliptic coordinates
-    phi : float, scalar
+    phi_rad : float, scalar
       The angle φ (longitude) in Ecliptic coordinates
 
     Returns
     -------
     vx, vy, vz : float
-      A tuple of three floats
+      A tuple of three floats representing the (x, y, z) components
+      of the vector
 
     See Also
     --------
@@ -125,8 +128,8 @@ def _ang2galvec_one_sample(theta, phi):
     """
 
     rotmatr = ECL_TO_GAL_ROT_MATRIX
-    st = np.sin(theta)
-    vx, vy, vz = st * np.cos(phi), st * np.sin(phi), np.cos(theta)
+    st = np.sin(theta_rad)
+    vx, vy, vz = st * np.cos(phi_rad), st * np.sin(phi_rad), np.cos(theta_rad)
 
     return (
         rotmatr[0, 0] * vx + rotmatr[0, 1] * vy + rotmatr[0, 2] * vz,
@@ -136,8 +139,8 @@ def _ang2galvec_one_sample(theta, phi):
 
 
 @njit
-def _vec2ang_for_one_sample(vx, vy, vz):
-    """Transform a vector to angle given by theta,phi.
+def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> Tuple[float, float]:
+    """Transform a vector to angle given by (θ,φ).
 
     Parameters
     ----------
@@ -151,24 +154,29 @@ def _vec2ang_for_one_sample(vx, vy, vz):
     Returns
     -------
     theta, phi : float
-      A tuple containing the value of the colatitude and of the longitude
+      A tuple containing the value of the colatitude and of the longitude,
+      in radians
 
     See Also
     --------
     https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L610
     """
 
-    return (np.arctan2(np.sqrt(vx**2 + vy**2), vz), np.arctan2(vy, vx))
+    return np.arctan2(np.sqrt(vx**2 + vy**2), vz), np.arctan2(vy, vx)
 
 
 @njit
-def _rotate_coordinates_e2g_for_one_sample(pointings_ecl):
+def _rotate_coordinates_e2g_for_one_sample(
+    theta_rad: float, phi_rad: float
+) -> Tuple[float, float]:
     """
     Parameters
     ----------
-    pointings_ecl : array
-      ``(2)`` array containing the colatitude and the longitude in ecliptic
-      coordinates
+    theta_rad : float
+      Colatitude in Ecliptic coordinates (in radians)
+
+    phi_rad : float
+      Longitude in Ecliptic coordinates (in radians)
 
     Returns
     -------
@@ -177,122 +185,127 @@ def _rotate_coordinates_e2g_for_one_sample(pointings_ecl):
 
     """
 
-    vec = (_ang2galvec_one_sample(pointings_ecl[0], pointings_ecl[1]),)
-    return _vec2ang_for_one_sample(vec[0], vec[1], vec[2])
+    x, y, z = _ang2galvec_one_sample(theta_rad, phi_rad)
+    return _vec2ang_for_one_sample(x, y, z)
 
 
 @njit
-def _rotate_coordinates_and_pol_e2g_for_one_sample(pointings_ecl, pol_angle_ecl):
+def _rotate_coordinates_and_pol_e2g_for_one_sample(
+    theta_ecl_rad: float, phi_ecl_rad: float, psi_ecl_rad: float
+) -> Tuple[float, float, float]:
     """Rotate the angles theta,phi and psi from ecliptic to galactic coordinates
 
     Parameters
     ----------
-    pointings_ecl : array
-      ``(2)`` array containing the colatitude and the longitude in ecliptic
-      coordinates
+    theta_ecl_rad : float
+      Colatitude in Ecliptic coordinates (in radians)
 
-    pol_angle_ecl : array
-      polarization angle (in radians) in ecliptic coordinates
+    phi_ecl_rad : float
+      Longitude in Ecliptic coordinates (in radians)
+
+    psi_ecl_rad : float
+      Orientation in Ecliptic coordinates (in radians)
 
     Returns
     -------
-    pointings_gal : 2-tuple of floats
-      The value of θ and φ (colatitude and longitude) in Galactic coordinates
-
-    pol_angle_gal: float
-      polarization angle (in radians) in galactic coordinates
+    theta_gal_rad, phi_gal_rad, psi_gal_rad : 3-tuple of floats
+      The value of θ, φ, ψ (colatitude, longitude, orientation) in Galactic
+      coordinates, in radians
     """
 
-    vec = _ang2galvec_one_sample(pointings_ecl[0], pointings_ecl[1])
-    pointings_gal = _vec2ang_for_one_sample(vec[0], vec[1], vec[2])
+    # Rotate the direction θ,φ
+    x, y, z = _ang2galvec_one_sample(theta_rad=theta_ecl_rad, phi_rad=phi_ecl_rad)
+    theta_gal_rad, phi_gal_rad = _vec2ang_for_one_sample(x, y, z)
 
-    sinalpha = NORTH_POLE_VEC[0] * vec[1] - NORTH_POLE_VEC[1] * vec[0]
-    cosalpha = NORTH_POLE_VEC[2] - vec[2] * (
-        NORTH_POLE_VEC[0] * vec[0]
-        + NORTH_POLE_VEC[1] * vec[1]
-        + NORTH_POLE_VEC[2] * vec[2]
+    # Rotate the orientation ψ
+    sinalpha = NORTH_POLE_VEC[0] * y - NORTH_POLE_VEC[1] * x
+    cosalpha = NORTH_POLE_VEC[2] - z * (
+        NORTH_POLE_VEC[0] * x + NORTH_POLE_VEC[1] * y + NORTH_POLE_VEC[2] * z
     )
-    pol_angle_gal = pol_angle_ecl + np.arctan2(sinalpha, cosalpha)
+    psi_gal_rad = psi_ecl_rad + np.arctan2(sinalpha, cosalpha)
 
-    return pointings_gal, pol_angle_gal
+    return theta_gal_rad, phi_gal_rad, psi_gal_rad
 
 
 @njit
 def _rotate_coordinates_e2g_for_all(pointings_ecl, pointings_gal):
     """
+    Apply a Ecliptic→Galactic coordinate conversion to a vector of pointings
+
+    Apply a coordinate transformation to to all the pointings in `pointings_ecl` and
+    save the result in `pointings_gal`.
+
     Parameters
     ----------
     pointings_ecl : array
       ``(N × 2)`` array containing the colatitude and the longitude in ecliptic
-      coordinates
+      coordinates. (The array can have shape ``(N × 3)``, the code will still work.)
 
     pointings_gal : array
       ``(N × 2)`` array containing the colatitude and the longitude in galactic
-      coordinates
+      coordinates. (The array can have shape ``(N × 3)``, the code will still work.)
     """
 
     for i in range(len(pointings_ecl[:, 0])):
-        cur_theta, cur_phi = _rotate_coordinates_e2g_for_one_sample(pointings_ecl[i, :])
+        cur_theta, cur_phi = _rotate_coordinates_e2g_for_one_sample(
+            theta_rad=pointings_ecl[i, 0], phi_rad=pointings_ecl[i, 1]
+        )
         pointings_gal[i, 0] = cur_theta
         pointings_gal[i, 1] = cur_phi
 
 
 @njit
 def _rotate_coordinates_and_pol_e2g_for_all(
-    pointings_ecl, pol_angle_ecl, pointings_gal, pol_angle_gal
-):
+    input_pointings_ecl_rad: np.ndarray,
+    output_pointings_gal_rad: np.ndarray,
+) -> None:
     """
     Parameters
     ----------
-    pointings_ecl : array
-      ``(N × 2)`` array containing the colatitude and the longitude in ecliptic
-      coordinates
+    input_pointings_ecl_rad : array
+      ``(N × 3)`` array containing the colatitude, longitude, orientation in Ecliptic
+      coordinates (in radians)
 
-    pol_angle_ecl : array
-      ``(N)`` polarization angle (in radians) in ecliptic coordinates
-
-    pointings_gal : array
-      ``(N × 2)`` array containing the colatitude and the longitude in galactic
-      coordinates
-
-    pol_angle_gal: array
-      ``(N)`` polarization angle (in radians) in gal actic coordinates
+    output_pointings_gal_rad : array
+      ``(N × 3)`` output array that will contain the colatitude, longitude, orientation
+      in Galactic coordinates (in radians)
     """
 
-    for i in range(len(pointings_ecl[:, 0])):
+    n_samples = input_pointings_ecl_rad.shape[0]
+    for i in range(n_samples):
+        cur_theta_ecl_rad, cur_phi_ecl_rad, cur_psi_ecl_rad = input_pointings_ecl_rad[
+            i, :
+        ]
+
         (
-            cur_direction,
-            cur_pol_angle,
+            cur_theta_gal_rad,
+            cur_phi_gal_rad,
+            cur_psi_gal_rad,
         ) = _rotate_coordinates_and_pol_e2g_for_one_sample(
-            pointings_ecl[i, :], pol_angle_ecl[i]
+            cur_theta_ecl_rad,
+            cur_phi_ecl_rad,
+            cur_psi_ecl_rad,
         )
 
-        pointings_gal[i, 0] = cur_direction[0]
-        pointings_gal[i, 1] = cur_direction[1]
-        pol_angle_gal[i] = cur_pol_angle
+        output_pointings_gal_rad[i, 0] = cur_theta_gal_rad
+        output_pointings_gal_rad[i, 1] = cur_phi_gal_rad
+        output_pointings_gal_rad[i, 2] = cur_psi_gal_rad
 
 
-def rotate_coordinates_e2g(pointings_ecl, pol_angle_ecl=None):
+def rotate_coordinates_e2g(pointings_ecl_rad: np.ndarray) -> np.ndarray:
     """Rotate the angles theta,phi and psi from ecliptic to galactic coordinates
 
     Parameters
     ----------
-    pointings_ecl : array
-      ``(N × 2)`` array containing the colatitude and the longitude in ecliptic
+    pointings_ecl_rad : array
+      ``(N × 3)`` array containing the colatitude and the longitude in ecliptic
       coordinates
-
-    pol_angle_ecl : array
-      ``(N)`` polarization angle (in radians) in ecliptic coordinates, otional
 
     Returns
     -------
-    pointings_gal : array
-      ``(N × 2)`` array containing the colatitude and the longitude in galactic
+    pointings_gal_rad : array
+      ``(N × 3)`` array containing the colatitude and the longitude in galactic
       coordinates
-
-    pol_angle_gal: array
-      ``(N)`` polarization angle (in radians) in gal actic coordinates, returned
-      if pol_angle_ecl is passed
 
     See Also
     --------
@@ -301,14 +314,10 @@ def rotate_coordinates_e2g(pointings_ecl, pol_angle_ecl=None):
     https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L357
     """
 
-    pointings_gal = np.empty_like(pointings_ecl)
+    pointings_gal_rad = np.empty_like(pointings_ecl_rad)
 
-    if type(pol_angle_ecl) is np.ndarray:
-        pol_angle_gal = np.empty_like(pol_angle_ecl)
-        _rotate_coordinates_and_pol_e2g_for_all(
-            pointings_ecl, pol_angle_ecl, pointings_gal, pol_angle_gal
-        )
-        return pointings_gal, pol_angle_gal
-    else:
-        _rotate_coordinates_e2g_for_all(pointings_ecl, pointings_gal)
-        return pointings_gal
+    _rotate_coordinates_and_pol_e2g_for_all(
+        input_pointings_ecl_rad=pointings_ecl_rad,
+        output_pointings_gal_rad=pointings_gal_rad,
+    )
+    return pointings_gal_rad
