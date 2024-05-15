@@ -61,6 +61,7 @@ class PointingProvider:
         nsamples: int,
         pointing_buffer: Optional[npt.NDArray] = None,
         hwp_buffer: Optional[npt.NDArray] = None,
+        pointings_dtype=np.float32,
     ) -> (npt.NDArray, Optional[npt.NDArray]):
         """
 
@@ -79,6 +80,9 @@ class PointingProvider:
             unless this :class:`.PointingProvider` object has no HWP associated, i.e.,
             the parameter ``hwp`` to the constructor ``__init__()`` was set to ``None``:
             in this case, no buffer will be allocated.
+        :param pointings_dtype: The type to use for the arrays `pointing_buffer` and
+            `hwp_buffer`, if they have not been provided. (If `pointing_buffer` and
+            `hwp_buffer` are not ``None``, the original datatype will be kept unchanged.)
         :return: A pair containing `(pointing_buffer, hwp_buffer)`.
         """
 
@@ -99,7 +103,7 @@ class PointingProvider:
 
         if self.hwp is not None:
             if hwp_buffer is None:
-                hwp_buffer = np.empty(nsamples, dtype=np.float64)
+                hwp_buffer = np.empty(nsamples, dtype=pointings_dtype)
 
             start_time_s = start_time - start_time_global
             if isinstance(start_time_s, astropy.time.TimeDelta):
@@ -115,7 +119,7 @@ class PointingProvider:
             hwp_buffer = None
 
         if pointing_buffer is None:
-            pointing_buffer = np.empty(shape=(nsamples, 3), dtype=np.float64)
+            pointing_buffer = np.empty(shape=(nsamples, 3), dtype=pointings_dtype)
 
         all_compute_pointing_and_orientation(
             result_matrix=pointing_buffer,

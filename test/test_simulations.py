@@ -8,6 +8,7 @@ from uuid import UUID
 
 import astropy
 import numpy as np
+import pytest
 
 import litebird_sim as lbs
 
@@ -391,6 +392,7 @@ def _configure_simulation_for_pointings(
     include_hwp: bool,
     store_full_pointings: bool,
     num_of_detectors: int = 1,
+    dtype=np.float32,
 ) -> lbs.Simulation:
     detector_paths = [
         "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_T/detector_info",
@@ -445,7 +447,9 @@ def _configure_simulation_for_pointings(
     )
     sim.set_instrument(instr)
 
-    sim.prepare_pointings(store_full_pointings=store_full_pointings)
+    sim.prepare_pointings(
+        store_full_pointings=store_full_pointings, pointings_dtype=dtype
+    )
 
     return sim
 
@@ -507,6 +511,7 @@ def test_smart_pointings_angles(tmp_path):
                 [1.6572806597, 0.0366562667, 1.4360801921],
             ]
         ),
+        rtol=1e-6,
     )
 
     np.testing.assert_allclose(
@@ -552,13 +557,19 @@ def test_smart_pointings_preallocation_with_hwp(tmp_path):
             assert np.shares_memory(hwp_angle, hwp_angle_buf)
 
 
-def test_smart_pointings_store_matrices_without_hwp(tmp_path):
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_smart_pointings_store_matrices_without_hwp(dtype, tmp_path):
     sim = _configure_simulation_for_pointings(
-        tmp_path, include_hwp=False, store_full_pointings=True
+        tmp_path,
+        include_hwp=False,
+        store_full_pointings=True,
+        dtype=dtype,
     )
 
     for cur_obs in sim.observations:
         assert "pointing_matrix" in dir(cur_obs)
+
+        assert cur_obs.pointing_matrix.dtype == dtype
         assert cur_obs.pointing_matrix.shape == (
             cur_obs.n_detectors,
             cur_obs.n_samples,
@@ -567,13 +578,19 @@ def test_smart_pointings_store_matrices_without_hwp(tmp_path):
         assert cur_obs.hwp_angle is None
 
 
-def test_smart_pointings_store_matrices_with_hwp(tmp_path):
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_smart_pointings_store_matrices_with_hwp(dtype, tmp_path):
     sim = _configure_simulation_for_pointings(
-        tmp_path, include_hwp=True, store_full_pointings=True
+        tmp_path,
+        include_hwp=True,
+        store_full_pointings=True,
+        dtype=dtype,
     )
 
     for cur_obs in sim.observations:
         assert "pointing_matrix" in dir(cur_obs)
+
+        assert cur_obs.pointing_matrix.dtype == dtype
         assert cur_obs.pointing_matrix.shape == (
             cur_obs.n_detectors,
             cur_obs.n_samples,
@@ -581,29 +598,48 @@ def test_smart_pointings_store_matrices_with_hwp(tmp_path):
         )
 
         assert cur_obs.hwp_angle is not None
+        assert cur_obs.hwp_angle.dtype == dtype
         assert cur_obs.hwp_angle.shape == (cur_obs.n_samples,)
 
 
-def test_store_pointings_for_one_detector(tmp_path):
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_compute_pointings_for_one_detector(dtype, tmp_path):
     sim = _configure_simulation_for_pointings(
-        tmp_path, include_hwp=True, store_full_pointings=False, num_of_detectors=4
+        tmp_path,
+        include_hwp=True,
+        store_full_pointings=False,
+        num_of_detectors=4,
     )
 
     for cur_obs in sim.observations:
-        pointings, hwp_angle = cur_obs.get_pointings(0)
+        pointings, hwp_angle = cur_obs.get_pointings(0, pointings_dtype=dtype)
+
+        assert pointings.dtype == dtype
         assert pointings.shape == (cur_obs.n_samples, 3)
+
+        assert hwp_angle.dtype == dtype
         assert hwp_angle.shape == (cur_obs.n_samples,)
 
 
-def test_store_pointings_for_two_detectors(tmp_path):
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_store_pointings_for_two_detectors(dtype, tmp_path):
     sim = _configure_simulation_for_pointings(
-        tmp_path, include_hwp=True, store_full_pointings=False, num_of_detectors=4
+        tmp_path,
+        include_hwp=True,
+        store_full_pointings=False,
+        num_of_detectors=4,
     )
 
     for cur_obs in sim.observations:
         for cur_pair in ([1, 3], [0, 2], [1, 2]):
-            pointings, hwp_angle = cur_obs.get_pointings(cur_pair)
+            pointings, hwp_angle = cur_obs.get_pointings(
+                cur_pair, pointings_dtype=dtype
+            )
+
+            assert pointings.dtype == dtype
             assert pointings.shape == (2, cur_obs.n_samples, 3)
+
+            assert hwp_angle.dtype == dtype
             assert hwp_angle.shape == (cur_obs.n_samples,)
 
             for rel_det_idx, abs_det_idx in enumerate(cur_pair):
@@ -615,18 +651,28 @@ def test_store_pointings_for_two_detectors(tmp_path):
                 )
 
 
-def test_store_pointings_for_all_detectors(tmp_path):
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_smart_pointings_for_all_detectors(dtype, tmp_path):
     sim = _configure_simulation_for_pointings(
-        tmp_path, include_hwp=True, store_full_pointings=False, num_of_detectors=4
+        tmp_path,
+        include_hwp=True,
+        store_full_pointings=False,
+        num_of_detectors=4,
     )
 
     for cur_obs in sim.observations:
-        pointings, hwp_angle = cur_obs.get_pointings("all")
+        pointings, hwp_angle = cur_obs.get_pointings("all", pointings_dtype=dtype)
+
+        assert pointings.dtype == dtype
         assert pointings.shape == (4, cur_obs.n_samples, 3)
+
+        assert hwp_angle.dtype == dtype
         assert hwp_angle.shape == (cur_obs.n_samples,)
 
         for det_idx in range(4):
-            cur_pointings, _ = cur_obs.get_pointings(det_idx)
+            cur_pointings, _ = cur_obs.get_pointings(det_idx, pointings_dtype=dtype)
+
+            assert cur_pointings.dtype == dtype
             np.testing.assert_allclose(
                 actual=pointings[det_idx, :, :],
                 desired=cur_pointings[:, :],

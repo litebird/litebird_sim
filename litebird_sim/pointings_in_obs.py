@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import List, Optional
+import numpy as np
 
 from .detectors import InstrumentInfo
 from .hwp import HWP
@@ -15,6 +16,7 @@ def prepare_pointings(
     spin2ecliptic_quats: RotQuaternion,
     hwp: Optional[HWP],
     store_full_pointings: bool = False,
+    pointings_dtype=np.float32,
 ) -> None:
     """Store the quaternions needed to compute pointings into a list of :class:`.Observation` objects
 
@@ -26,6 +28,7 @@ def prepare_pointings(
     If `store_full_pointings` is ``True``, each :class:`.Observation` object in
     `observations` will have the full pointing matrix and the HWP angle stored
     as members of the object in the fields ``pointing_matrix`` and ``hwp_angle``.
+    The datatype for the pointings is specified by `pointings_dtype`.
     """
 
     bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
@@ -38,6 +41,8 @@ def prepare_pointings(
         cur_obs.pointing_provider = pointing_provider
 
         if store_full_pointings:
-            pointing_matrix, hwp_angle = cur_obs.get_pointings(detector_idx="all")
+            pointing_matrix, hwp_angle = cur_obs.get_pointings(
+                detector_idx="all", pointings_dtype=pointings_dtype
+            )
             cur_obs.pointing_matrix = pointing_matrix
             cur_obs.hwp_angle = hwp_angle

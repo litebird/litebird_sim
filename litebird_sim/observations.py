@@ -664,6 +664,7 @@ class Observation:
         detector_idx: Union[int, List[int], str],
         pointing_buffer: Optional[npt.NDArray] = None,
         hwp_buffer: Optional[npt.NDArray] = None,
+        pointings_dtype=np.float32,
     ) -> (npt.NDArray, Optional[npt.NDArray]):
         """
         Compute the pointings for one or more detectors in this observation
@@ -722,6 +723,7 @@ class Observation:
                 nsamples=self.n_samples,
                 pointing_buffer=pointing_buffer,
                 hwp_buffer=hwp_buffer,
+                pointings_dtype=pointings_dtype,
             )
 
         # More complex case: we need all the detectors
@@ -730,9 +732,10 @@ class Observation:
 
             # Recursive call
             return self.get_pointings(
-                [i for i in range(self.n_detectors)],
+                list(range(self.n_detectors)),
                 pointing_buffer=pointing_buffer,
                 hwp_buffer=hwp_buffer,
+                pointings_dtype=pointings_dtype,
             )
 
         # Most complex case: an explicit list (or NumPy array) of detectors
@@ -746,7 +749,7 @@ class Observation:
                 actual=pointing_buffer.shape, expected=expected_shape
             )
         else:
-            pointing_buffer = np.empty(expected_shape, dtype=np.float32)
+            pointing_buffer = np.empty(expected_shape, dtype=pointings_dtype)
 
         expected_shape = (self.n_samples,)
         if self.pointing_provider.has_hwp():
@@ -757,7 +760,7 @@ class Observation:
                     actual=hwp_buffer.shape, expected=expected_shape
                 )
             else:
-                hwp_buffer = np.empty(expected_shape, dtype=np.float32)
+                hwp_buffer = np.empty(expected_shape, dtype=pointings_dtype)
         else:
             hwp_buffer = None
 

@@ -1274,6 +1274,7 @@ class Simulation:
         self,
         store_full_pointings: bool = False,
         append_to_report: bool = True,
+        pointings_dtype=np.float32,
     ):
         """Trigger the computation of the quaternions needed to compute pointings.
 
@@ -1311,6 +1312,7 @@ class Simulation:
             spin2ecliptic_quats=self.spin2ecliptic_quats,
             hwp=self.hwp,
             store_full_pointings=store_full_pointings,
+            pointings_dtype=pointings_dtype,
         )
 
         pointing_provider = self.observations[0].pointing_provider
