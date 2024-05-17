@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 from typing import List, Optional
+
 import numpy as np
 
 from .detectors import InstrumentInfo
@@ -15,8 +16,6 @@ def prepare_pointings(
     instrument: InstrumentInfo,
     spin2ecliptic_quats: RotQuaternion,
     hwp: Optional[HWP],
-    store_full_pointings: bool = False,
-    pointings_dtype=np.float32,
 ) -> None:
     """Store the quaternions needed to compute pointings into a list of :class:`.Observation` objects
 
@@ -24,11 +23,6 @@ def prepare_pointings(
     of `instrument` into the Ecliptic reference frame. The `spin2ecliptic_quats`
     object must be an instance of the :class:`.RotQuaternion` class and can
     be created using the method :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
-
-    If `store_full_pointings` is ``True``, each :class:`.Observation` object in
-    `observations` will have the full pointing matrix and the HWP angle stored
-    as members of the object in the fields ``pointing_matrix`` and ``hwp_angle``.
-    The datatype for the pointings is specified by `pointings_dtype`.
     """
 
     bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
@@ -40,9 +34,26 @@ def prepare_pointings(
     for cur_obs in observations:
         cur_obs.pointing_provider = pointing_provider
 
-        if store_full_pointings:
-            pointing_matrix, hwp_angle = cur_obs.get_pointings(
-                detector_idx="all", pointings_dtype=pointings_dtype
-            )
-            cur_obs.pointing_matrix = pointing_matrix
-            cur_obs.hwp_angle = hwp_angle
+
+def precompute_pointings(
+    obs_list: List[Observation],
+    pointings_dtype=np.float32,
+) -> None:
+    """Precompute all the pointings for a set of observations
+
+    Compute the full pointing matrix and the HWP angle for each :class:`.Observation`
+    object in `obs_list` and store them in the fields ``pointing_matrix`` and ``hwp_angle``.
+    The datatype for the pointings is specified by `pointings_dtype`.
+    """
+
+    for cur_obs in obs_list:
+        assert "pointing_provider" in dir(cur_obs), (
+            "you must call prepare_pointings() on a set of observations "
+            "before calling precompute_pointings()"
+        )
+
+        pointing_matrix, hwp_angle = cur_obs.get_pointings(
+            detector_idx="all", pointings_dtype=pointings_dtype
+        )
+        cur_obs.pointing_matrix = pointing_matrix
+        cur_obs.hwp_angle = hwp_angle

@@ -86,6 +86,7 @@ from .pointings import (
 )
 from .pointings_in_obs import (
     prepare_pointings,
+    precompute_pointings,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
@@ -242,6 +243,7 @@ __all__ = [
     "PointingProvider",
     # pointings_in_obs.py
     "prepare_pointings",
+    "precompute_pointings",
     # mapmaking
     "make_binned_map",
     "check_valid_splits",

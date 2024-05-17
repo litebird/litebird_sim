@@ -46,7 +46,7 @@ from .mapmaking import (
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .noise import add_noise_to_observations
 from .observations import Observation, TodDescription
-from .pointings_in_obs import prepare_pointings
+from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
@@ -1286,12 +1286,6 @@ class Simulation:
         It combines the quaternions of the spacecraft, of the instrument, and of the detectors
         and prepares a number of data structures that will be used by the method
         :meth:`.Observation.get_pointings` to determine the pointing angles and the HWP angle.
-
-        If `store_full_pointings` is ``True``, the pointing matrix of each
-        :class:`.Observation` object will be saved in a field named ``pointing_matrix``
-        (a matrix with shape ``(N_d, N_samples, 3)``, where ``N_d`` is the number of
-        detectors), and the HWP angle in a field named `hwp_angle` (a vector of
-        ``(N_samples,)`` elements).
         """
         assert self.observations, (
             "You must call Simulation.create_observations() "
@@ -1311,8 +1305,6 @@ class Simulation:
             instrument=self.instrument,
             spin2ecliptic_quats=self.spin2ecliptic_quats,
             hwp=self.hwp,
-            store_full_pointings=store_full_pointings,
-            pointings_dtype=pointings_dtype,
         )
 
         pointing_provider = self.observations[0].pointing_provider
@@ -1334,6 +1326,21 @@ class Simulation:
                 num_of_mpi_processes=MPI_COMM_WORLD.size,
                 memory_occupation=int(memory_occupation),
             )
+
+    def precompute_pointings(self, pointings_dtype=np.float32) -> None:
+        """Compute all the pointings for all observations and save them
+
+        Save the pointing matrix of each :class:`.Observation` object in this simulation
+        into a field named ``pointing_matrix`` (a matrix with shape ``(N_d, N_samples, 3)``,
+        where ``N_d`` is the number of detectors). If a HWP was set, its angle will be
+        saved as well in a field named `hwp_angle` (a vector of ``(N_samples,)`` elements).
+
+        This method can take a significant amount of memory, but it might speed up the
+        execution if you plan to access the pointings repeatedly during a simulation.
+        """
+        precompute_pointings(
+            obs_list=self.observations, pointings_dtype=pointings_dtype
+        )
 
     @_profile
     def compute_pos_and_vel(

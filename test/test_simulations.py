@@ -447,9 +447,10 @@ def _configure_simulation_for_pointings(
     )
     sim.set_instrument(instr)
 
-    sim.prepare_pointings(
-        store_full_pointings=store_full_pointings, pointings_dtype=dtype
-    )
+    sim.prepare_pointings()
+
+    if store_full_pointings:
+        sim.precompute_pointings(pointings_dtype=dtype)
 
     return sim
 
