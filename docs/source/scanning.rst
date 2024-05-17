@@ -143,9 +143,7 @@ similar to what is going to be used for LiteBIRD:
       ),
   )
 
-  # The motion of the spacecraft is now encoded in a set of quaternions,
-  # in the field `sim.spin2ecliptic_quats`. We use it to produce the
-  # pointing information for a fake boresight detector `det`, belonging
+  # We include a fake boresight detector `det`, belonging
   # to the instrument `core` (unlike LiteBIRD, CORE had only one focal
   # plane and one instrument)
   det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
@@ -153,13 +151,15 @@ similar to what is going to be used for LiteBIRD:
   # By default, `create_observations` creates just *one* observation
   obs, = sim.create_observations(detectors=[det])
 
-  # Prepare the quaternions needed to compute the pointings
-  # TOD (10 Hz, see the variable `det` above)
+  # Prepare the quaternions needed to compute the pointings, i.e.,
+  # the direction in the sky where the detector is looking at as
+  # a function of time
   sim.prepare_pointings()
 
   # `get_pointings()` returns both the pointing matrix and the
   # HWP angle; we ignore the latter with `_`, as we do not have
-  # a HWP here
+  # a HWP here. The pointing matrix contains the angles (θ, φ, ψ)
+  # for each sample in the TOD and each detector.
   pointings, _ = obs.get_pointings(0)
 
   print("Shape:", pointings.shape)
@@ -205,7 +205,9 @@ for now just keep in mind the overall shape of the code:
    matrix, where the first column contains the colatitude
    :math:`\theta`, the second column the longitude :math:`\phi`, and
    the third column the orientation angle :math:`\psi`, all expressed
-   in radians.
+   in radians. These angles are expressed in the Ecliptic Coordinate
+   System, where the Equator is aligned with the Ecliptic Plane of
+   the Solar System.
 
 
 Computing the spacecraft's orientation
@@ -224,7 +226,11 @@ for asymmetric beams.)
 
 The next reference frame is the *boresight*, and to convert from the
 detector's reference frame to the boresight there is a rotation, which
-is encoded in a quaternion that is saved in the IMO.
+is encoded in a rotation quaternion that is saved in the IMO. The framework
+implements the class :class:`.RotQuaternion` to encode a rotation
+quaternion; this class can model time-varying rotations as well, which
+can be useful to simulate vibrations and wobbles in the optical structure
+of the instruments.
 
 Next, we move from the reference frame of the boresight to that of the
 spacecraft. The information about the placement of the boresight with
@@ -285,8 +291,9 @@ that of the spin axis:
    included in the IMO and is properly initialized if you call
    :meth:`.DetectorInfo.from_imo`. If you do not specify any
    quaternion, the constructor for :class:`.DetectorInfo` will assume
-   that the detector is looking at the boresight, and it will thus use
-   the quaternion :math:`(0 0 0 1)`; this is the case of the simple
+   that the detector is looking at the boresight, and it will thus create
+   a default :class:`.RotQuaternion` object, which corresponds to the
+   identity quaternion :math:`(0 0 0 1)`; this is the case of the simple
    example we presented above.
 
 2. The second quaternion describes how to convert the reference frame
@@ -355,7 +362,8 @@ split in several blocks inside the :class:`.Observation` class.
 
 Once all the quaternions have been computed at the proper sampling
 rate, the direction of the detector on the sky and its orientation
-angle are computed as follows:
+angle can be computed via a call to :meth:`.Observation.get_pointings`.
+The calculation works as follows:
 
 - The direction is the vector :math:`\vec d = R \hat e_z`, where
   :math:`R` is the overall rotation from the detector's reference
@@ -378,6 +386,15 @@ quaternions that model the transformations between the many reference
 frames used in the framework. These quaternions are then used by
 the method :meth:`.Observation.get_pointings` to compute the
 actual pointing directions and the HWP angle on the fly.
+
+To save memory,:meth:`.Observation.get_pointings` does *not* save the
+pointings in a variable once they are calculated, and so they must be
+recomputed every time you need them. However, in some applications,
+pointings need to be accessed several times during a simulation and these
+repeated computations can introduce a noticeable slowdown in the code. If
+you want to trade speed with memory occupation, you can use the function
+:func:`.precompute_pointings` to compute all the pointings at once and save
+them into every :class:`.Observation` objects.
 
 
 How the boresight is specified
@@ -503,15 +520,44 @@ quaternions only to model rotations, they all must obey the relation
 :math:`v_x^2 + v_y^2 + v_z^2 + w^2 = 1` (*normalized* quaternions),
 which is a property satisfied by rotation quaternions.
 
+The class :class:`.RotQuaternion` can model time-varying quaternions.
+It is enough to provide a list of quaternions, a starting time, and
+a sampling frequency, which is assumed to be constant::
+
+    import litebird_sim as lbs
+
+    time_varying_quaternion = lbs.RotQuaternion(
+        # Three rotation quaternions
+        quats=np.array(
+            [
+                [0.5, 0.0, 0.0, 0.8660254],
+                [0.0, -0.38268343, 0.0, 0.92387953],
+                [0.0, 0.0, 0.30901699, 0.95105652],
+            ]
+        ),
+        start_time=0.0,
+        sampling_rate_hz=1.0,
+    )
+
+
+This example assumes that ``time_varying_quaternion`` describes a
+rotation that evolves with time, starting from ``t = 0`` and lasting
+3 seconds, as the sampling frequency is 1 Hz.
+
+Rotation quaternions can be multiplied together; however, they must refer
+to the same starting time and have the same sampling frequency.
+
 
 Python functions for quaternions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The LiteBIRD Simulation Framework provides three functions,
 :func:`.quat_rotation_x`, :func:`.quat_rotation_y`, :func:`.quat_rotation_z` to
-compute simple rotation quaternions; they return the normalized
+compute simple rotation quaternions; they return plain the normalized
 quaternion representing a rotation by an angle :math:`\theta` around
-one of the three axis `x`, `y`, and `z`:
+one of the three axis `x`, `y`, and `z`. These quaternions are plain
+NumPy arrays and can be passed to the parameter ``quats`` of the
+constructor for :class:`.RotQuaternion`:
 
 .. testcode::
 
@@ -598,8 +644,8 @@ must be defined is
 :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`, which takes
 as inputs the start time, the length of the simulation, and the time
 interval to be used between consecutive quaternions. The method must
-return an instance of the :class:`.TimeDependentQuaternion`,
-containing the computed sequence of quaternions.
+return an instance of the :class:`.RotQuaternion`, containing the
+computed sequence of quaternions.
 
 We'll code here a very simple scanning strategy, which does not
 involve anything fancy: the spacecraft will just spin around the
@@ -621,8 +667,11 @@ The following code implements our mock scanning strategy::
 
    class SimpleScanningStrategy(lbs.ScanningStrategy):
        def generate_spin2ecl_quaternions(
-           self, start_time, time_span_s, delta_time_s,
-       ):
+           self,
+           start_time: Union[float, astropy.time.Time],
+           time_span_s: float,
+           delta_time_s: float,
+       ) -> RotQuaternion:
            # Compute how many quaternions are needed to cover
            # the time interval specified by "time_span_s"
            num_of_quaternions = (
@@ -667,8 +716,8 @@ The following code implements our mock scanning strategy::
                )
 
            # Return the quaternions wrapped in an instance of
-           # "TimeDependentQuaternion"
-           return lbs.TimeDependentQuaternion(
+           # "RotQuaternion"
+           return lbs.RotQuaternion(
                start_time=start_time,
                pointing_freq_hz=1.0 / delta_time_s,
                quats=spin2ecliptic_quats,

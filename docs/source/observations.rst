@@ -59,9 +59,13 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
         print("Shape of 'tod': ", cur_obs.tod.shape)
         print("Shape of 'noise': ", cur_obs.noise.shape)
 
-2. ``Observation.pointing_coords`` is a value of type
-   :class:`.CoordinateSystem`, and it identifies the coordinate system
-   used to express the pointing angles.
+2. If you called :func:`.prepare_pointings()` and then
+   :func:`.precompute_pointings()`, the field ``Observation.pointing_matrix``
+   is a :math:`(n_d, N, 3)` matrix containing the pointing information in
+   Ecliptic coordinates for each detector: colatitude θ, longitude φ,
+   orientation ψ. If you specified a HWP in the call to
+   :func:`.prepare_pointings()`, the field ``Observation.hwp_angle`` will
+   be a :math:`(N,)` vector containing the angle of the HWP in radians.
 
 3. ``Observation.local_flags`` is a :math:`(n_d, N)` matrix containing
    flags for the :math:`n_d` detectors. These flags are typically
