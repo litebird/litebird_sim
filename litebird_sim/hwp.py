@@ -83,7 +83,12 @@ class HWP:
         allocated with the appropriate number of samples. However, if the HWP is not ideal,
         it is possible that the `bore2ecl_quaternions_inout` matrix, whose shape is
         ``(N, 4)`` and contains ``N`` quaternions, is changed by this method, typically
-        via a multiplication with a rotation simulating a wobbling effect.
+        via a multiplication with a rotation simulating a wobbling effect. (Multiplying
+        a quaternion on the *left* of ``bore2ecl_quaternions_inout`` means that you
+        are adding a rotation at the *end* of the chain of transformations, i.e.,
+        after the conversion to the Ecliptic reference frame. Multiplying a quaternion
+        on the *right* means that you are introducing a new rotation between the
+        reference frame of the detector and of the boresight of the focal plane.)
 
         :param start_time_s:
         :param delta_time_s:
