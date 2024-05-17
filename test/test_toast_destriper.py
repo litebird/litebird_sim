@@ -3,14 +3,14 @@
 "Test the interface to the TOAST toast_destriper"
 
 from pathlib import Path
-import numpy as np
+
 import astropy.units as u
-import litebird_sim as lbs
 import healpy
+import numpy as np
 from numpy.random import MT19937, RandomState, SeedSequence
 
+import litebird_sim as lbs
 from litebird_sim import CoordinateSystem
-
 
 COORDINATE_SYSTEM_STR = {
     CoordinateSystem.Ecliptic: "ecliptic",
@@ -95,7 +95,6 @@ def test_basic_functionality(tmp_path):
     sim.observations[0].psi = np.empty((1, num_of_samples))
     sim.observations[0].pointings[0, :, 0] = theta
     sim.observations[0].pointings[0, :, 1] = phi
-    sim.observations[0].pointing_coords = lbs.CoordinateSystem.Ecliptic
     sim.observations[0].psi[0, :] = np.linspace(
         start=0.0,
         stop=np.pi,
