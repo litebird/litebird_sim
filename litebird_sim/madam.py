@@ -4,9 +4,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Union, Optional, List, Dict, Any
 
+import jinja2
 from astropy.io import fits
 from astropy.time import Time as AstroTime
-import jinja2
 
 import litebird_sim
 from . import DetectorInfo
@@ -53,7 +53,7 @@ def _save_pointings_to_fits(
     primary_hdu = fits.PrimaryHDU()
     primary_hdu.header["DET_NAME"] = obs.name[det_idx]
     primary_hdu.header["DET_IDX"] = det_idx
-    primary_hdu.header["COORD"] = str(obs.pointing_coords)
+    primary_hdu.header["COORD"] = "ECLIPTIC"
     primary_hdu.header["TIME0"] = _format_time_for_fits(obs.start_time)
     primary_hdu.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
     primary_hdu.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
