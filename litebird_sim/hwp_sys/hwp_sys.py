@@ -1405,4 +1405,3 @@ class HwpSys:
         mask = cond < COND_THRESHOLD
         res[mask] = np.linalg.solve(self.ata[mask], self.atd[mask])
         return res.T
-
