@@ -16,6 +16,8 @@ def test_hwp_sys():
         start_time=start_time, duration_s=time_span_s, mpi_comm=comm, random_seed=0
     )
 
+    sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
+
     scanning = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.785_398_163_397_448_3,
         precession_rate_hz=8.664_850_513_998_931e-05,
@@ -23,15 +25,14 @@ def test_hwp_sys():
         start_time=start_time,
     )
 
-    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-        start_time, time_span_s, delta_time_s=7200
-    )
+    sim.set_scanning_strategy(scanning_strategy=scanning, delta_time_s=7200)
 
     instr = lbs.InstrumentInfo(
         boresight_rotangle_rad=0.0,
         spin_boresight_angle_rad=0.872_664_625_997_164_8,
         spin_rotangle_rad=3.141_592_653_589_793,
     )
+    sim.set_instrument(instr)
 
     detBT = lbs.DetectorInfo(
         name="Boresight_detector_T",
@@ -62,23 +63,13 @@ def test_hwp_sys():
     )
 
     (obs_boresight,) = sim.create_observations(detectors=[detBT, detBB])
-
-    (pointings_b,) = lbs.get_pointings_for_observations(
-        sim.observations,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        hwp=None,
-        store_pointings_in_obs=True,
-    )
-
     (obs_no_boresight,) = sim.create_observations(detectors=[det165, det105])
 
-    (pointings_nob,) = lbs.get_pointings_for_observations(
-        sim.observations,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        hwp=None,
-        store_pointings_in_obs=True,
+    lbs.prepare_pointings(
+        observations=[obs_boresight, obs_no_boresight],
+        instrument=sim.instrument,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        hwp=sim.hwp,
     )
 
     filepath = str(
@@ -113,7 +104,6 @@ def test_hwp_sys():
     }
 
     sim.parameters = par  # setting the parameter file
-    hwp_sys = lbs.HwpSys(sim)
 
     Mbsparams = lbs.MbsParameters(
         make_cmb=True,
@@ -143,8 +133,8 @@ def test_hwp_sys():
 
     # testing if code works also with list of obs of the same channel
     hwp_sys.fill_tod(
-        obs=[obs_boresight, obs_no_boresight], hwp_radpsec=hwp_radpsec
-    )  # pointings = pointings,
+        obs=[obs_boresight, obs_no_boresight],
+    )
 
     reference_b = np.array(
         [
@@ -206,5 +196,5 @@ def test_hwp_sys():
         dtype=np.float32,
     )
 
-    np.testing.assert_equal(obs_boresight.tod, reference_b)
-    np.testing.assert_equal(obs_no_boresight.tod, reference_nob)
+    np.testing.assert_almost_equal(obs_boresight.tod, reference_b, decimal=10)
+    np.testing.assert_almost_equal(obs_no_boresight.tod, reference_nob, decimal=10)

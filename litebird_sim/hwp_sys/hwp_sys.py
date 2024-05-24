@@ -1122,8 +1122,8 @@ class HwpSys:
     def fill_tod(
         self,
         obs: Union[Observation, List[Observation]],
-        hwp_radpsec: float,
         pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+        hwp_angle: Union[np.ndarray, None] = None,
         save_tod: bool = False,
     ):
         r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
@@ -1142,71 +1142,82 @@ class HwpSys:
                  ``hwp`` to None since the hwp rotation angle is added to
                  the orientation angle within the ``fill_tod`` function.
 
-        hwp_radpsec (float): hwp rotation speed in radiants per second
+        hwp_angle (np.array): `2ωt`, hwp rotation angles, computed by ``Observation.get_pointings(...)``
 
         save_tod (bool): if True, ``tod`` is saved in ``obs.tod``; if False,
                  ``tod`` gets deleted
         """
 
-        if pointings is None:
-            if isinstance(obs, Observation):
-                obs_list = [obs]
-                ptg_list = [obs.pointings]
-                psi_list = [obs.psi]
-            else:
-                obs_list = obs
-                ptg_list = [ob.pointings for ob in obs]
-                psi_list = [ob.psi for ob in obs]
-        else:
-            if isinstance(obs, Observation):
+        # for cur_obs, cur_point, cur_Psi in zip(obs_list, ptg_list, psi_list):
+        if isinstance(obs, Observation):
+            obs_list = [obs]
+            if pointings:
                 assert isinstance(pointings, np.ndarray), (
-                    "You must pass a list of observations *and* a list "
-                    + "of pointing matrices to scan_map_in_observations"
+                    "For one observation you need to pass a np.array "
+                    + "of pointings to fill_tod"
                 )
-                obs_list = [obs]
-                ptg_list = [pointings[:, :, 0:2]]
-                psi_list = [pointings[:, :, 2]]
-            else:
+                assert (
+                    obs.n_detectors == pointings.shape[0]
+                    and obs.n_samples == pointings.shape[1]
+                    and pointings.shape[2] == 3
+                ), (
+                    "You need to pass a pointing np.array with shape"
+                    + "(N_det, N_samples, 3) for each observation"
+                )
+            if hwp_angle:
+                assert isinstance(hwp_angle, np.ndarray), (
+                    "For one observation you need to pass a np.array "
+                    + "of hwp_angles to fill_tod"
+                )
+                assert obs.n_samples == hwp_angle.shape[0], (
+                    f"The observations has {obs.n_samples} samples, but "
+                    + f"hwp_angle has {hwp_angle.size} elements"
+                )
+
+        else:
+            obs_list = obs
+            if pointings:
                 assert isinstance(pointings, list), (
-                    "When you pass a list of observations to scan_map_in_observations, "
+                    "When you pass a list of observations to fill_tod, "
                     + "you must do the same for `pointings`"
                 )
                 assert len(obs) == len(pointings), (
                     f"The list of observations has {len(obs)} elements, but "
                     + f"the list of pointings has {len(pointings)} elements"
                 )
-                obs_list = obs
-                ptg_list = [point[:, :, 0:2] for point in pointings]
-                psi_list = [point[:, :, 2] for point in pointings]
 
-        for cur_obs, cur_point, cur_Psi in zip(obs_list, ptg_list, psi_list):
-            times = cur_obs.get_times()
-
+        for cur_obs in obs_list:
             if self.built_map_on_the_fly:
                 self.atd = np.zeros((self.npix, 3))
                 self.ata = np.zeros((self.npix, 3, 3))
             else:
-                # allocate those for "make_binned_map"
-                # later filled
-                cur_obs.psi = np.empty_like(cur_obs.tod)
-                cur_obs.pixind = np.empty_like(cur_obs.tod, dtype=int)
+                # allocate those for "make_binned_map", later filled
+                cur_obs.pointing_matrix = np.empty(
+                    (cur_obs.n_detectors, cur_obs.n_samples, 3)
+                )
+                cur_obs.pixind = np.empty(
+                    (cur_obs.n_detectors, cur_obs.n_samples), dtype=int
+                )
 
             for idet in range(cur_obs.n_detectors):
+                if (pointings is None) or (hwp_angle is None):
+                    cur_point, hwp_angle = cur_obs.get_pointings(idet)
+                else:
+                    cur_point = pointings[idet, :, :]
+
                 # rotating pointing from ecliptic to galactic as the input map
-                cur_ptg, cur_psi = rotate_coordinates_e2g(
-                    cur_point[idet, :, :], cur_Psi[idet, :]
-                )
+                cur_point = rotate_coordinates_e2g(cur_point)
+
                 # all observed pixels over time (for each sample),
                 # i.e. len(pix)==len(times)
-                pix = hp.ang2pix(self.nside, cur_ptg[:, 0], cur_ptg[:, 1])
+                pix = hp.ang2pix(self.nside, cur_point[:, 0], cur_point[:, 1])
 
-                # separating polarization angle xi from obs.psi = psi + xi
-                # theta = hwp_radpsec * times hwp: rotation angle
+                # separating polarization angle xi from cur_point[:, 2] = psi + xi
                 # xi: polarization angle, i.e. detector dependent
-                # psi: instrument angle, i.e. boresight angle
-                xi = compute_polang_from_detquat(cur_obs.quat[idet])
-                psi = cur_psi - xi
-                del cur_ptg
+                # psi: instrument angle, i.e. boresight direction from focal plane POV
+                xi = compute_polang_from_detquat(cur_obs.quat[idet].quats[0])
+                psi = cur_point[:, 2] - xi
+
                 tod = cur_obs.tod[idet, :]
 
                 if self.integrate_in_band:
@@ -1224,7 +1235,7 @@ class HwpSys:
                         mUQ=self.mUQ,
                         mQU=self.mQU,
                         pixel_ind=pix,
-                        theta=times * hwp_radpsec,
+                        theta=hwp_angle / 2,  # hwp angle returns 2ωt
                         psi=psi,
                         xi=xi,
                         maps=self.maps,
@@ -1242,7 +1253,7 @@ class HwpSys:
                         mUQ=self.mUQ,
                         mQU=self.mQU,
                         pixel_ind=pix,
-                        theta=times * hwp_radpsec,
+                        theta=hwp_angle / 2,  # hwp angle returns 2ωt
                         psi=psi,
                         xi=xi,
                         maps=self.maps,
@@ -1267,7 +1278,7 @@ class HwpSys:
                                 mUQs=self.mUQs,
                                 mQUs=self.mQUs,
                                 pixel_ind=pix,
-                                theta=times * hwp_radpsec,
+                                theta=hwp_angle / 2,  # hwp angle returns 2ωt
                                 psi=psi,
                                 xi=xi,
                             )
@@ -1286,15 +1297,19 @@ class HwpSys:
                                 mUQs=self.mUQs,
                                 mQUs=self.mQUs,
                                 pixel_ind=pix,
-                                theta=times * hwp_radpsec,
+                                theta=hwp_angle / 2,  # hwp angle returns 2ωt
                                 psi=psi,
                                 xi=xi,
                             )
 
                     else:
                         # in this case factor 4 included here
-                        ca = np.cos(2 * cur_psi + 4 * times * hwp_radpsec)
-                        sa = np.sin(2 * cur_psi + 4 * times * hwp_radpsec)
+                        ca = np.cos(
+                            2 * cur_point[:, 2] + 4 * hwp_angle / 2
+                        )  # hwp angle returns 2ωt
+                        sa = np.sin(
+                            2 * cur_point[:, 2] + 4 * hwp_angle / 2
+                        )  # hwp angle returns 2ωt
 
                         self.atd[pix, 0] += tod * 0.5
                         self.atd[pix, 1] += tod * ca * 0.5
@@ -1308,16 +1323,16 @@ class HwpSys:
                         self.ata[pix, 2, 2] += 0.25 * sa * sa
                         del (ca, sa)
 
-                    # del tod
-
                 else:
-                    # this fills variables needed by bin_map
-                    cur_obs.psi[idet, :] = np.array(
-                        cur_psi + 2 * times * hwp_radpsec, dtype=np.float32
-                    )
+                    # this fills variables needed by make_binned_map
+                    cur_obs.pointing_matrix[idet, :, :2] = cur_point[:, :2]
+                    cur_obs.pointing_matrix[idet, :, 2] = (
+                        cur_point[:, 2] + 2 * hwp_angle / 2
+                    )  # hwp angle returns 2ωt
                     cur_obs.pixind[idet, :] = pix
 
-        del (pix, xi, psi, times, self.maps)  # tod
+        # del (pix, xi, psi, times)
+        del (pix, self.maps)
         if not save_tod:
             del tod
 
@@ -1390,3 +1405,4 @@ class HwpSys:
         mask = cond < COND_THRESHOLD
         res[mask] = np.linalg.solve(self.ata[mask], self.atd[mask])
         return res.T
+
