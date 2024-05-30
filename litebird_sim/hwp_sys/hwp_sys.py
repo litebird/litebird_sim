@@ -1125,7 +1125,7 @@ class HwpSys:
         pointings: Union[np.ndarray, List[np.ndarray], None] = None,
         hwp_angle: Union[np.ndarray, None] = None,
         save_tod: bool = False,
-        dtype_pointings = np.float32,
+        dtype_pointings=np.float32,
     ):
         r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
         "on the fly" map production
@@ -1147,7 +1147,7 @@ class HwpSys:
 
         save_tod (bool): if True, ``tod`` is saved in ``obs.tod``; if False,
                  ``tod`` gets deleted
-        
+
         dtype_pointings: if ``pointings`` is None and is computed within ``fill_tod``, this
                          is the dtype for pointings and tod (default: np.float32)
         """
@@ -1205,7 +1205,9 @@ class HwpSys:
 
             for idet in range(cur_obs.n_detectors):
                 if (pointings is None) or (hwp_angle is None):
-                    cur_point, hwp_angle = cur_obs.get_pointings(detector_idx = idet, pointings_dtype=dtype_pointings)
+                    cur_point, hwp_angle = cur_obs.get_pointings(
+                        detector_idx=idet, pointings_dtype=dtype_pointings
+                    )
                 else:
                     cur_point = pointings[idet, :, :]
 

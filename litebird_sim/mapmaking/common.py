@@ -196,8 +196,8 @@ def _compute_pixel_indices(
     for idet in range(num_of_detectors):
         if output_coordinate_system == CoordinateSystem.Galactic:
             curr_pointings_det = rotate_coordinates_e2g(
-                np.array([pointings[idet,:,0], pointings[idet,:,1], psi[idet, :]]).T
-                )
+                np.array([pointings[idet, :, 0], pointings[idet, :, 1], psi[idet, :]]).T
+            )
             polang_all[idet] = curr_pointings_det[:, 2]
         else:
             curr_pointings_det = pointings[idet, :, :]
