@@ -195,14 +195,15 @@ def _compute_pixel_indices(
 
     for idet in range(num_of_detectors):
         if output_coordinate_system == CoordinateSystem.Galactic:
-            curr_pointings_det, polang_all[idet] = rotate_coordinates_e2g(
-                pointings[idet, :, :], psi[idet, :]
-            )
+            curr_pointings_det = rotate_coordinates_e2g(
+                np.array([pointings[idet,:,0], pointings[idet,:,1], psi[idet, :]]).T
+                )
+            polang_all[idet] = curr_pointings_det[:, 2]
         else:
             curr_pointings_det = pointings[idet, :, :]
             polang_all[idet] = psi[idet, :]
 
-        pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
+        pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
 
     if output_coordinate_system == CoordinateSystem.Galactic:
         # Free curr_pointings_det if the output map is already in Galactic coordinates
