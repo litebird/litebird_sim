@@ -131,8 +131,7 @@ def compute_dipole_for_one_sample_total_from_lin_t(
 @njit(parallel=True)
 def add_dipole_for_one_detector(
     tod_det,
-    theta_det,
-    phi_det,
+    theta_phi_det,
     velocity,
     t_cmb_k,
     nu_hz,
@@ -143,23 +142,32 @@ def add_dipole_for_one_detector(
     if dipole_type == DipoleType.LINEAR:
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_linear(
-                theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
+                v_km_s=velocity[i],
+                t_cmb_k=t_cmb_k,
             )
     elif dipole_type == DipoleType.QUADRATIC_EXACT:
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_quadratic_exact(
-                theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
+                v_km_s=velocity[i],
+                t_cmb_k=t_cmb_k,
             )
     elif dipole_type == DipoleType.TOTAL_EXACT:
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_total_exact(
-                theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
+                v_km_s=velocity[i],
+                t_cmb_k=t_cmb_k,
             )
     elif dipole_type == DipoleType.QUADRATIC_FROM_LIN_T:
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_quadratic_from_lin_t(
-                theta=theta_det[i],
-                phi=phi_det[i],
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
                 v_km_s=velocity[i],
                 t_cmb_k=t_cmb_k,
                 q_x=q_x,
@@ -168,8 +176,8 @@ def add_dipole_for_one_detector(
         planck_t0 = planck(nu_hz, t_cmb_k)
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_total_from_lin_t(
-                theta=theta_det[i],
-                phi=phi_det[i],
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
                 v_km_s=velocity[i],
                 t_cmb_k=t_cmb_k,
                 nu_hz=nu_hz,
@@ -200,7 +208,9 @@ def add_dipole(
     `t_cmb_k` is the temperature of the monopole and `frequency_ghz` is an array
     containing the frequencies of each detector in the TOD."""
 
-    assert tod.shape == pointings.shape[0:2]
+    if type(pointings) is np.ndarray:
+        assert tod.shape == pointings.shape[0:2]
+
     assert tod.shape[1] == velocity.shape[0]
 
     for detector_idx in range(tod.shape[0]):
@@ -212,10 +222,14 @@ def add_dipole(
 
         q_x = 0.5 * x * (np.exp(x) + 1) / (np.exp(x) - 1)
 
+        if type(pointings) is np.ndarray:
+            theta_phi_det = pointings[detector_idx, :, :]
+        else:
+            theta_phi_det = pointings(detector_idx)[0][:, 0:2]
+
         add_dipole_for_one_detector(
             tod_det=tod[detector_idx],
-            theta_det=pointings[detector_idx, :, 0],
-            phi_det=pointings[detector_idx, :, 1],
+            theta_phi_det=theta_phi_det,
             velocity=velocity,
             t_cmb_k=t_cmb_k,
             nu_hz=nu_hz,
@@ -257,10 +271,10 @@ def add_dipole_to_observations(
     if pointings is None:
         if isinstance(obs, Observation):
             obs_list = [obs]
-            ptg_list = [obs.pointings]
+            ptg_list = [obs.get_pointings]
         else:
             obs_list = obs
-            ptg_list = [ob.pointings for ob in obs]
+            ptg_list = [ob.get_pointings for ob in obs]
     else:
         if isinstance(obs, Observation):
             assert isinstance(pointings, np.ndarray), (
