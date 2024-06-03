@@ -271,10 +271,18 @@ def add_dipole_to_observations(
     if pointings is None:
         if isinstance(obs, Observation):
             obs_list = [obs]
-            ptg_list = [obs.get_pointings]
+            if hasattr(obs, "pointing_matrix"):
+                ptg_list = [obs.pointing_matrix[:, :, 0:2]]
+            else:
+                ptg_list = [obs.get_pointings]
         else:
             obs_list = obs
-            ptg_list = [ob.get_pointings for ob in obs]
+            ptg_list = []
+            for ob in obs:
+                if hasattr(ob, "pointing_matrix"):
+                    ptg_list.append(ob.pointing_matrix[:, :, 0:2])
+                else:
+                    ptg_list.append(ob.get_pointings)
     else:
         if isinstance(obs, Observation):
             assert isinstance(pointings, np.ndarray), (

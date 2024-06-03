@@ -1339,7 +1339,7 @@ class Simulation:
         execution if you plan to access the pointings repeatedly during a simulation.
         """
         precompute_pointings(
-            obs_list=self.observations, pointings_dtype=pointings_dtype
+            observations=self.observations, pointings_dtype=pointings_dtype
         )
 
     @_profile

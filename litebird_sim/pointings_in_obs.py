@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
 
@@ -12,7 +12,7 @@ from .scanning import RotQuaternion
 
 
 def prepare_pointings(
-    observations: List[Observation],
+    observations: Union[Observation, List[Observation]],
     instrument: InstrumentInfo,
     spin2ecliptic_quats: RotQuaternion,
     hwp: Optional[HWP],
@@ -31,12 +31,17 @@ def prepare_pointings(
         hwp=hwp,
     )
 
-    for cur_obs in observations:
+    if isinstance(observations, Observation):
+        obs_list = [observations]
+    else:
+        obs_list = observations
+
+    for cur_obs in obs_list:
         cur_obs.pointing_provider = pointing_provider
 
 
 def precompute_pointings(
-    obs_list: List[Observation],
+    observations: Union[Observation, List[Observation]],
     pointings_dtype=np.float32,
 ) -> None:
     """Precompute all the pointings for a set of observations
@@ -45,6 +50,11 @@ def precompute_pointings(
     object in `obs_list` and store them in the fields ``pointing_matrix`` and ``hwp_angle``.
     The datatype for the pointings is specified by `pointings_dtype`.
     """
+
+    if isinstance(observations, Observation):
+        obs_list = [observations]
+    else:
+        obs_list = observations
 
     for cur_obs in obs_list:
         assert "pointing_provider" in dir(cur_obs), (
