@@ -14,7 +14,7 @@ import numpy.typing as npt
 from numba import njit
 import healpy as hp
 
-from typing import Union, List, Any, Optional
+from typing import Union, List, Any, Optional, Callable
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.pointings import get_hwp_angle
@@ -191,7 +191,7 @@ def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
 def _build_nobs_matrix(
     nside: int,
     obs_list: List[Observation],
-    ptg_list: List[npt.ArrayLike],
+    ptg_list: Union[List[npt.ArrayLike], List[Callable]],
     hwp: Union[HWP, None],
     dm_list: List[npt.ArrayLike],
     tm_list: List[npt.ArrayLike],

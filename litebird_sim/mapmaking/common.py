@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Callable
 import numpy as np
 import numpy.typing as npt
 from numba import njit
@@ -173,7 +173,7 @@ def _normalize_observations_and_pointings(
 
 def _compute_pixel_indices(
     hpx: Healpix_Base,
-    pointings: npt.ArrayLike,
+    pointings: Union[npt.ArrayLike, Callable],
     num_of_detectors: int,
     num_of_samples: int,
     hwp_angle: npt.ArrayLike,
