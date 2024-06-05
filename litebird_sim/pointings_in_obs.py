@@ -15,7 +15,7 @@ def prepare_pointings(
     observations: Union[Observation, List[Observation]],
     instrument: InstrumentInfo,
     spin2ecliptic_quats: RotQuaternion,
-    hwp: Optional[HWP],
+    hwp: Optional[HWP] = None,
 ) -> None:
     """Store the quaternions needed to compute pointings into a list of :class:`.Observation` objects
 

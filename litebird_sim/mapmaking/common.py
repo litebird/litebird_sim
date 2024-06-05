@@ -117,10 +117,10 @@ def get_map_making_weights(obs: Observation, check: bool = True) -> npt.NDArray:
 
 
 def _normalize_observations_and_pointings(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     pointings: Union[np.ndarray, List[np.ndarray], None],
 ) -> Tuple[List[Observation], List[npt.NDArray], List[npt.NDArray]]:
-    # In map-making routines, we always rely on three local variables:
+    # In map-making routines, we always rely on two local variables:
     #
     # - obs_list contains a list of the observations to be used in the
     #   map-making process by the current MPI process. Unlike the `obs`
@@ -130,50 +130,53 @@ def _normalize_observations_and_pointings(
     # - ptg_list: a list of pointing matrices, one per each observation,
     #   each belonging to the current MPI process
     #
-    # - psi_list: a list of polarisation angle vectors, one per each
-    #   observation, each belonging to the current MPI process
-    #
     # This function builds the tuple (obs_list, ptg_list, psi_list) and
     # returns it.
 
     if pointings is None:
-        if isinstance(obs, Observation):
-            obs_list = [obs]
-            ptg_list = [obs.pointings]
-            psi_list = [obs.psi]
+        if isinstance(observations, Observation):
+            obs_list = [observations]
+            if hasattr(observations, "pointing_matrix"):
+                ptg_list = [observations.pointing_matrix]
+            else:
+                ptg_list = [observations.get_pointings]
         else:
-            obs_list = obs
-            ptg_list = [ob.pointings for ob in obs]
-            psi_list = [ob.psi for ob in obs]
+            obs_list = observations
+            ptg_list = []
+            for ob in observations:
+                if hasattr(ob, "pointing_matrix"):
+                    ptg_list.append(ob.pointing_matrix)
+                else:
+                    ptg_list.append(ob.get_pointings)
     else:
-        if isinstance(obs, Observation):
+        if isinstance(observations, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "You must pass a list of observations *and* a list "
                 + "of pointing matrices to scan_map_in_observations"
             )
-            obs_list = [obs]
-            ptg_list = [pointings[:, :, 0:2]]
-            psi_list = [pointings[:, :, 2]]
+            obs_list = [observations]
+            ptg_list = [pointings]
         else:
             assert isinstance(pointings, list), (
-                "When you pass a list of observations to make_binned_map, "
+                "When you pass a list of observations to scan_map_in_observations, "
                 + "you must do the same for `pointings`"
             )
-            assert len(obs) == len(pointings), (
-                f"The list of observations has {len(obs)} elements, but "
+            assert len(observations) == len(pointings), (
+                f"The list of observations has {len(observations)} elements, but "
                 + f"the list of pointings has {len(pointings)} elements"
             )
-            obs_list = obs
-            ptg_list = [point[:, :, 0:2] for point in pointings]
-            psi_list = [point[:, :, 2] for point in pointings]
+            obs_list = observations
+            ptg_list = pointings
 
-    return obs_list, ptg_list, psi_list
+    return obs_list, ptg_list
 
 
 def _compute_pixel_indices(
     hpx: Healpix_Base,
     pointings: npt.ArrayLike,
-    psi: npt.ArrayLike,
+    num_of_detectors: int,
+    num_of_samples: int,
+    hwp_angle: npt.ArrayLike,
     output_coordinate_system: CoordinateSystem,
 ) -> Tuple[npt.NDArray, npt.NDArray]:
     """Compute the index of each pixel and its attack angle
@@ -189,19 +192,23 @@ def _compute_pixel_indices(
     and the last rank represents the θ and φ angles (in radians) expressed in the
     Ecliptic reference frame.
     """
-    num_of_detectors, num_of_samples, _ = pointings.shape
+
     pixidx_all = np.empty((num_of_detectors, num_of_samples), dtype=int)
     polang_all = np.empty((num_of_detectors, num_of_samples), dtype=np.float64)
 
     for idet in range(num_of_detectors):
-        if output_coordinate_system == CoordinateSystem.Galactic:
-            curr_pointings_det = rotate_coordinates_e2g(
-                np.array([pointings[idet, :, 0], pointings[idet, :, 1], psi[idet, :]]).T
-            )
-            polang_all[idet] = curr_pointings_det[:, 2]
-        else:
+        if type(pointings) is np.ndarray:
             curr_pointings_det = pointings[idet, :, :]
-            polang_all[idet] = psi[idet, :]
+        else:
+            curr_pointings_det, hwp_angle = pointings(idet)
+
+        if hwp_angle is None:
+            hwp_angle = 0
+
+        if output_coordinate_system == CoordinateSystem.Galactic:
+            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+
+        polang_all[idet] = curr_pointings_det[:, 2] + hwp_angle
 
         pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
 

@@ -1367,7 +1367,7 @@ class Simulation:
         )
 
         self.pos_and_vel = spacecraft_pos_and_vel(
-            orbit=orbit, obs=self.observations, delta_time_s=delta_time_s
+            orbit=orbit, observations=self.observations, delta_time_s=delta_time_s
         )
 
     @_profile
@@ -1388,7 +1388,7 @@ class Simulation:
         """
 
         scan_map_in_observations(
-            self.observations,
+            observations=self.observations,
             maps=maps,
             input_map_in_galactic=input_map_in_galactic,
             component=component,
@@ -1443,7 +1443,7 @@ class Simulation:
             self.compute_pos_and_vel()
 
         add_dipole_to_observations(
-            obs=self.observations,
+            observations=self.observations,
             pos_and_vel=self.pos_and_vel,
             t_cmb_k=t_cmb_k,
             dipole_type=dipole_type,
@@ -1487,7 +1487,7 @@ class Simulation:
         """
 
         add_noise_to_observations(
-            obs=self.observations,
+            observations=self.observations,
             noise_type=noise_type,
             random=random,
             component=component,
@@ -1549,7 +1549,7 @@ class Simulation:
                 for ts in time_splits:
                     result = make_binned_map(
                         nside=nside,
-                        obs=self.observations,
+                        observations=self.observations,
                         output_coordinate_system=output_coordinate_system,
                         components=components,
                         detector_split=ds,
@@ -1581,7 +1581,7 @@ class Simulation:
                 for ts in time_splits:
                     binned_maps[f"{ds}_{ts}"] = make_binned_map(
                         nside=nside,
-                        obs=self.observations,
+                        observations=self.observations,
                         output_coordinate_system=output_coordinate_system,
                         components=components,
                         detector_split=ds,
@@ -1621,7 +1621,7 @@ class Simulation:
 
         return make_binned_map(
             nside=nside,
-            obs=self.observations,
+            observations=self.observations,
             output_coordinate_system=output_coordinate_system,
             components=components,
             detector_split=detector_split,

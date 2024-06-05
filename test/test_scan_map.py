@@ -88,16 +88,24 @@ def test_scan_map_no_interpolation():
     (obs1,) = sim.create_observations(detectors=[detT, detB])
     (obs2,) = sim.create_observations(detectors=[detT, detB])
 
-    pointings = lbs.get_pointings(
+    lbs.prepare_pointings(
         obs1,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        detector_quats=[detT.quat, detB.quat],
+        instr,
+        spin2ecliptic_quats,
         hwp=lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec),
     )
+    pointings = obs1.get_pointings("all")[0]
+
+    #    pointings = lbs.get_pointings(
+    #        obs1,
+    #        spin2ecliptic_quats=spin2ecliptic_quats,
+    #        bore2spin_quat=instr.bore2spin_quat,
+    #        detector_quats=[detT.quat, detB.quat],
+    #        hwp=lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec),
+    #    )
 
     lbs.scan_map_in_observations(
-        obs=obs1,
+        observations=obs1,
         pointings=pointings,
         maps=in_map,
         input_map_in_galactic=False,

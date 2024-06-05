@@ -240,7 +240,7 @@ def add_dipole(
 
 
 def add_dipole_to_observations(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     pos_and_vel: SpacecraftPositionAndVelocity,
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     t_cmb_k: float = c.T_CMB_K,
@@ -253,8 +253,8 @@ def add_dipole_to_observations(
     """Add the CMB dipole to some time-ordered data
 
     This is a wrapper around the :func:`.add_dipole` function that applies to the TOD
-    stored in `obs`, which can either be one :class:`.Observation` instance or a list
-    of observations.
+    stored in `observations`, which can either be one :class:`.Observation` instance
+    or a list of observations.
 
     By default, the TOD is added to ``Observation.tod``. If you want to add it to some
     other field of the :class:`.Observation` class, use `component`::
@@ -264,43 +264,43 @@ def add_dipole_to_observations(
             cur_obs.dipole_tod = np.zeros_like(cur_obs.tod)
 
         # Ask `add_dipole_to_observations` to store the dipole
-        # in `obs.dipole_tod`
+        # in `observations.dipole_tod`
         add_dipole_to_observations(sim.observations, component="dipole_tod")
     """
 
     if pointings is None:
-        if isinstance(obs, Observation):
-            obs_list = [obs]
-            if hasattr(obs, "pointing_matrix"):
-                ptg_list = [obs.pointing_matrix[:, :, 0:2]]
+        if isinstance(observations, Observation):
+            obs_list = [observations]
+            if hasattr(observations, "pointing_matrix"):
+                ptg_list = [observations.pointing_matrix[:, :, 0:2]]
             else:
-                ptg_list = [obs.get_pointings]
+                ptg_list = [observations.get_pointings]
         else:
-            obs_list = obs
+            obs_list = observations
             ptg_list = []
-            for ob in obs:
+            for ob in observations:
                 if hasattr(ob, "pointing_matrix"):
                     ptg_list.append(ob.pointing_matrix[:, :, 0:2])
                 else:
                     ptg_list.append(ob.get_pointings)
     else:
-        if isinstance(obs, Observation):
+        if isinstance(observations, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "You must pass a list of observations *and* a list "
                 + "of pointing matrices to add_dipole_to_observations"
             )
-            obs_list = [obs]
+            obs_list = [observations]
             ptg_list = [pointings[:, :, 0:2]]
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to add_dipole_to_observations"
                 + ", you must do the same for `pointings`"
             )
-            assert len(obs) == len(pointings), (
-                f"The list of observations has {len(obs)} elements, but "
+            assert len(observations) == len(pointings), (
+                f"The list of observations has {len(observations)} elements, but "
                 + f"the list of pointings has {len(pointings)} elements"
             )
-            obs_list = obs
+            obs_list = observations
             ptg_list = [point[:, :, 0:2] for point in pointings]
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):

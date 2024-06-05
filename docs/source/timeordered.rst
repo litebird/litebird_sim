@@ -111,9 +111,9 @@ the channel or the name of the dectector as keyword (the routines described in
 with shape (3, n_pixels).
 
 The pointing information can be included in the observation or passed through
-`pointings`. If both `obs` and `pointings` are provided, they must be coherent,
-so either a single Observation and a single numpy array, or same lenght list of
-Observations and numpy arrays.
+`pointings`. If both `observations` and `pointings` are provided, they must be 
+coherent, so either a single Observation and a single numpy array, or same
+lenght list of Observations and numpy arrays.
 If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`.
 The effect of a possible HWP is included in the pointing information, see
 :ref:`scanning-strategy`.

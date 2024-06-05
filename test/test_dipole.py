@@ -231,11 +231,13 @@ def test_dipole_list_of_obs(tmp_path):
     lbs.precompute_pointings(sim.observations)
 
     orbit = lbs.SpacecraftOrbit(sim.start_time)
-    pos_vel = lbs.spacecraft_pos_and_vel(orbit, obs=sim.observations, delta_time_s=10.0)
+    pos_vel = lbs.spacecraft_pos_and_vel(
+        orbit, observations=sim.observations, delta_time_s=10.0
+    )
 
     # Just check that the call works
     lbs.add_dipole_to_observations(
-        obs=sim.observations,
+        observations=sim.observations,
         pos_and_vel=pos_vel,
         frequency_ghz=np.array([100.0]),
     )

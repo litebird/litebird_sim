@@ -195,7 +195,7 @@ def add_noise(
 
 
 def add_noise_to_observations(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     noise_type: str,
     random: np.random.Generator,
     scale: float = 1.0,
@@ -204,13 +204,13 @@ def add_noise_to_observations(
     """Add noise of the defined type to the observations in obs
 
     This class provides an interface to the low-level function :func:`.add_noise`.
-    The parameter `obs` can either be one :class:`.Observation` instance or a list
-    of observations, which are typically taken from the field `observations` of a
-    :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to
+    The parameter `observations` can either be one :class:`.Observation` instance
+    or a list of observations, which are typically taken from the field `observations`
+     of a :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to
     pass the noise parameters here, as they are taken from the characteristics of
-    the detectors saved in `obs`. The parameter `random` must be specified and must
-    be a random number generator that implements the ``normal`` method. You should
-    typically use the `random` field of a :class:`.Simulation` object for this.
+    the detectors saved in `observations`. The parameter `random` must be specified
+    and must be a random number generator that implements the ``normal`` method. You
+    should typically use the `random` field of a :class:`.Simulation` object for this.
 
     By default, the noise is added to ``Observation.tod``. If you want to add it to some
     other field of the :class:`.Observation` class, use `component`:
@@ -220,7 +220,7 @@ def add_noise_to_observations(
             cur_obs.noise_tod = np.zeros_like(cur_obs.tod)
 
         # Ask `add_noise_to_observations` to store the noise
-        # in `obs.noise_tod`
+        # in `observations.noise_tod`
         add_noise_to_observations(sim.observations, …, component="noise_tod")
 
     See :func:`.add_noise` for more information.
@@ -228,10 +228,10 @@ def add_noise_to_observations(
     if noise_type not in ["white", "one_over_f"]:
         raise ValueError("Unknown noise type " + noise_type)
 
-    if isinstance(obs, Observation):
-        obs_list = [obs]
+    if isinstance(observations, Observation):
+        obs_list = [observations]
     else:
-        obs_list = obs
+        obs_list = observations
 
     # iterate through each observation
     for i, cur_obs in enumerate(obs_list):

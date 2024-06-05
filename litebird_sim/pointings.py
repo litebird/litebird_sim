@@ -35,6 +35,26 @@ def apply_hwp_to_obs(obs, hwp: HWP, pointing_matrix):
     )
 
 
+def get_hwp_angle(obs, hwp: HWP):
+    """Obtain the hwp angle for an observation"""
+
+    start_time = obs.start_time - obs.start_time_global
+    if isinstance(start_time, astropy.time.TimeDelta):
+        start_time_s = start_time.to("s").value
+    else:
+        start_time_s = start_time
+
+    angle = np.empty(obs.n_samples)
+
+    hwp.get_hwp_angle(
+        angle,
+        start_time_s,
+        1.0 / obs.sampling_rate_hz,
+    )
+
+    return angle
+
+
 class PointingProvider:
     def __init__(
         self,
