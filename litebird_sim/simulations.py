@@ -1517,7 +1517,8 @@ class Simulation:
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
             time_splits = [time_splits]
-        self.check_valid_splits(detector_splits, time_splits)
+        if detector_splits != ["full"] or time_splits != ["full"]:
+            self.check_valid_splits(detector_splits, time_splits)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_binned_map_splits.md")
@@ -1594,7 +1595,8 @@ class Simulation:
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = "You must use 'make_binned_map_splits' if you want lists of splits!"
             raise ValueError(msg)
-        self.check_valid_splits(detector_split, time_split)
+        if detector_split != "full" or time_split != "full":
+            self.check_valid_splits(detector_split, time_split)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_binned_map.md")
@@ -1653,7 +1655,8 @@ class Simulation:
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
             time_splits = [time_splits]
-        self.check_valid_splits(detector_splits, time_splits)
+        if detector_splits != ["full"] or time_splits != ["full"]:
+            self.check_valid_splits(detector_splits, time_splits)
 
         if recycle_baselines:
             self._impose_and_check_full_split(detector_splits, time_splits)
@@ -1763,7 +1766,8 @@ class Simulation:
                 "You must use 'make_destriped_map_splits' if you want lists of splits!"
             )
             raise ValueError(msg)
-        self.check_valid_splits(detector_split, time_split)
+        if detector_split != "full" or time_split != "full":
+            self.check_valid_splits(detector_split, time_split)
 
         results = make_destriped_map(
             nside=nside,
