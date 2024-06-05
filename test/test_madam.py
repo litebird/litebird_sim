@@ -182,11 +182,14 @@ def run_test_on_madam(
     distribution = sim.describe_mpi_distribution()
     assert distribution is not None
 
-    lbs.get_pointings_for_observations(
+    lbs.prepare_pointings(
         sim.observations,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        store_pointings_in_obs=True,
+        instr,
+        sim.spin2ecliptic_quats,
+    )
+
+    lbs.precompute_pointings(
+        sim.observations,
     )
 
     for cur_obs in sim.observations:
