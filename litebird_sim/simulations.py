@@ -1272,9 +1272,7 @@ class Simulation:
     @_profile
     def prepare_pointings(
         self,
-        store_full_pointings: bool = False,
         append_to_report: bool = True,
-        pointings_dtype=np.float32,
     ):
         """Trigger the computation of the quaternions needed to compute pointings.
 
