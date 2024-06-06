@@ -58,8 +58,8 @@ class BinnerResult:
     invnpp: Any = None
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
     components: List = None
-    detector_split: str = None
-    time_split: str = None
+    detector_split: str = "full"
+    time_split: str = "full"
 
 
 @njit
