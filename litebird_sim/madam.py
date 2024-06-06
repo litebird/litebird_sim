@@ -45,10 +45,14 @@ def _save_pointings_to_fits(
     ensure_parent_dir_exists(file_name)
 
     theta_col = fits.Column(
-        name="THETA", array=obs.pointings[det_idx, :, 0], format="E"
+        name="THETA", array=obs.pointing_matrix[det_idx, :, 0], format="E"
     )
-    phi_col = fits.Column(name="PHI", array=obs.pointings[det_idx, :, 1], format="E")
-    psi_col = fits.Column(name="PSI", array=obs.psi[det_idx, :], format="E")
+    phi_col = fits.Column(
+        name="PHI", array=obs.pointing_matrix[det_idx, :, 1], format="E"
+    )
+    psi_col = fits.Column(
+        name="PSI", array=obs.pointing_matrix[det_idx, :, 2], format="E"
+    )
 
     primary_hdu = fits.PrimaryHDU()
     primary_hdu.header["DET_NAME"] = obs.name[det_idx]

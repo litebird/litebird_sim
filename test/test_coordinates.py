@@ -45,7 +45,7 @@ def test_coordinates():
 
     sim.prepare_pointings()
 
-    pointings, _ = obs.get_pointings(0)
+    pointings, _ = obs.get_pointings(0, pointings_dtype=np.float64)
 
     r = hp.Rotator(coord=["E", "G"])
 

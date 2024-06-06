@@ -93,13 +93,13 @@ def test_simulation_pointings_still():
     lbs.rotate_z_vector(boresight, *sim.spin2ecliptic_quats.quats[-1, :])
     assert np.allclose(np.arctan2(boresight[1], boresight[0]), 2 * np.pi / 365.25)
 
-    # Now redo the calculation using get_pointings
-    pointings_and_orientation = lbs.get_pointings(
+    lbs.prepare_pointings(
         obs,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        detector_quats=[lbs.RotQuaternion()],
+        instr,
+        sim.spin2ecliptic_quats,
     )
+
+    pointings_and_orientation = obs.get_pointings("all")[0]
 
     colatitude = pointings_and_orientation[..., 0]
     longitude = pointings_and_orientation[..., 1]
@@ -144,12 +144,13 @@ def test_simulation_two_detectors():
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
-    pointings_and_orientation = lbs.get_pointings(
+    lbs.prepare_pointings(
         obs,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        detector_quats=quaternions,
+        instr,
+        sim.spin2ecliptic_quats,
     )
+
+    pointings_and_orientation = obs.get_pointings("all")[0]
 
     assert pointings_and_orientation.shape == (2, 24, 3)
 
@@ -189,12 +190,14 @@ def test_simulation_pointings_orientation(tmp_path):
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=0.0)
 
-    pointings_and_orientation = lbs.get_pointings(
+    lbs.prepare_pointings(
         obs,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        detector_quats=[lbs.RotQuaternion()],
+        instr,
+        sim.spin2ecliptic_quats,
     )
+
+    pointings_and_orientation = obs.get_pointings("all")[0]
+
     orientation = pointings_and_orientation[..., 2]
 
     # Check that the orientation scans every value in [-π, +π]
@@ -227,12 +230,14 @@ def test_simulation_pointings_spinning(tmp_path):
 
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(15.0))
 
-    pointings_and_orientation = lbs.get_pointings(
+    lbs.prepare_pointings(
         obs,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        detector_quats=[lbs.RotQuaternion()],
-        bore2spin_quat=instr.bore2spin_quat,
+        instr,
+        sim.spin2ecliptic_quats,
     )
+
+    pointings_and_orientation = obs.get_pointings("all")[0]
+
     colatitude = pointings_and_orientation[..., 0]
 
     reference_spin2ecliptic_file = Path(__file__).parent / "reference_spin2ecl.txt.gz"
@@ -272,14 +277,13 @@ def test_simulation_pointings_mjd(tmp_path):
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
 
     for idx, obs in enumerate(sim.observations):
-        pointings_and_orientation = lbs.get_pointings(
+        lbs.prepare_pointings(
             obs,
-            spin2ecliptic_quats=sim.spin2ecliptic_quats,
-            detector_quats=[
-                lbs.RotQuaternion(),
-            ],
-            bore2spin_quat=instr.bore2spin_quat,
+            instr,
+            sim.spin2ecliptic_quats,
         )
+
+        pointings_and_orientation = obs.get_pointings("all")[0]
 
         filename = Path(__file__).parent / f"reference_obs_pointings{idx:03d}.npy"
         reference = np.load(filename, allow_pickle=False)
@@ -307,15 +311,16 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
     instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(20.0))
 
     for idx, obs in enumerate(sim.observations):
-        pointings_and_orientation = lbs.get_pointings(
+        lbs.prepare_pointings(
             obs,
-            spin2ecliptic_quats=sim.spin2ecliptic_quats,
-            detector_quats=[
-                lbs.RotQuaternion(),
-            ],
-            bore2spin_quat=instr.bore2spin_quat,
+            instr,
+            sim.spin2ecliptic_quats,
             hwp=IdealHWP(ang_speed_radpsec=1.0, start_angle_rad=0.0),
         )
+
+        pointings_and_orientation, hwp_angle = obs.get_pointings("all")
+
+        pointings_and_orientation[..., 2] += hwp_angle
 
         filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"
         reference = np.load(filename, allow_pickle=False)
