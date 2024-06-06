@@ -310,7 +310,6 @@ def write_healpix_map_to_hdu(
     for cn, cu, mm, curr_fitsformat in zip(
         column_names, column_units, pixels, fitsformat
     ):
-        print(f"***************** {curr_fitsformat}")
         cols.append(
             fits.Column(name=cn, format=str(curr_fitsformat), array=mm, unit=cu)
         )

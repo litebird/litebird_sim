@@ -39,6 +39,7 @@ from .mapmaking import (
     check_valid_splits,
     BinnerResult,
     make_destriped_map,
+    save_destriper_results,
     DestriperParameters,
     DestriperResult,
     destriper_log_callback,
@@ -1528,7 +1529,8 @@ class Simulation:
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
             time_splits = [time_splits]
-        self.check_valid_splits(detector_splits, time_splits)
+        if detector_splits != ["full"] or time_splits != ["full"]:
+            self.check_valid_splits(detector_splits, time_splits)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_binned_map_splits.md")
@@ -1605,7 +1607,8 @@ class Simulation:
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = "You must use 'make_binned_map_splits' if you want lists of splits!"
             raise ValueError(msg)
-        self.check_valid_splits(detector_split, time_split)
+        if detector_split != "full" or time_split != "full":
+            self.check_valid_splits(detector_split, time_split)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_binned_map.md")
@@ -1626,12 +1629,138 @@ class Simulation:
             time_split=time_split,
         )
 
+    def _impose_and_check_full_split(self, detector_splits, time_splits):
+        """
+        Impose the full split if it is not present in the splits.
+        Also, make it the first computed split.
+        """
+        if "full" not in detector_splits:
+            detector_splits.insert(0, "full")
+        else:
+            detector_splits.remove("full")
+            detector_splits.insert(0, "full")
+        if "full" not in time_splits:
+            time_splits.insert(0, "full")
+        else:
+            time_splits.remove("full")
+            time_splits.insert(0, "full")
+
+    @_profile
+    def make_destriped_map_splits(
+        self,
+        nside: int,
+        params: DestriperParameters = DestriperParameters(),
+        components: Optional[List[str]] = None,
+        detector_splits: Union[str, List[str]] = "full",
+        time_splits: Union[str, List[str]] = "full",
+        keep_weights: bool = False,
+        keep_pixel_idx: bool = False,
+        keep_pol_angle_rad: bool = False,
+        append_to_report: bool = True,
+        callback: Any = destriper_log_callback,
+        callback_kwargs: Optional[Dict[Any, Any]] = None,
+        write_to_disk: bool = True,
+        recycle_baselines: bool = False,
+    ) -> Union[List[str], dict[str, DestriperResult]]:
+        """Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
+        if isinstance(detector_splits, str):
+            detector_splits = [detector_splits]
+        if isinstance(time_splits, str):
+            time_splits = [time_splits]
+        if detector_splits != ["full"] or time_splits != ["full"]:
+            self.check_valid_splits(detector_splits, time_splits)
+
+        if recycle_baselines:
+            self._impose_and_check_full_split(detector_splits, time_splits)
+
+        if write_to_disk:
+            filenames = []
+            baselines = None
+            recycled_convergence = None
+            for ds in detector_splits:
+                for ts in time_splits:
+                    result = make_destriped_map(
+                        nside=nside,
+                        obs=self.observations,
+                        pointings=None,
+                        params=params,
+                        components=components,
+                        detector_split=ds,
+                        time_split=ts,
+                        baselines_list=baselines,
+                        recycled_convergence=recycled_convergence,
+                        keep_weights=keep_weights,
+                        keep_pixel_idx=keep_pixel_idx,
+                        keep_pol_angle_rad=keep_pol_angle_rad,
+                        callback=callback,
+                        callback_kwargs=callback_kwargs,
+                    )
+                    if recycle_baselines and f"{ds}_{ts}" == "full_full":
+                        baselines = result.baselines
+                        recycled_convergence = result.converged
+
+                    if append_to_report:
+                        self._build_and_append_destriped_report(
+                            "report_destriper_splits.md", ts, ds, result
+                        )
+
+                    dest_file = f"DET{ds}_TIME{ts}_destriper_results.fits"
+                    base_file = (
+                        f"DET{ds}_TIME{ts}_baselines_mpi{MPI_COMM_WORLD.rank:04d}.fits"
+                    )
+                    save_destriper_results(
+                        result,
+                        output_folder=self.base_path,
+                        custom_dest_file=dest_file,
+                        custom_base_file=base_file,
+                    )
+                    filenames.append((dest_file, base_file))
+            del baselines
+            return filenames
+        else:
+            destriped_maps = {}
+            baselines = None
+            recycled_convergence = None
+            for ds in detector_splits:
+                for ts in time_splits:
+                    destriped_maps[f"{ds}_{ts}"] = make_destriped_map(
+                        nside=nside,
+                        obs=self.observations,
+                        pointings=None,
+                        params=params,
+                        components=components,
+                        detector_split=ds,
+                        time_split=ts,
+                        baselines_list=baselines,
+                        recycled_convergence=recycled_convergence,
+                        keep_weights=keep_weights,
+                        keep_pixel_idx=keep_pixel_idx,
+                        keep_pol_angle_rad=keep_pol_angle_rad,
+                        callback=callback,
+                        callback_kwargs=callback_kwargs,
+                    )
+                    if recycle_baselines and f"{ds}_{ts}" == "full_full":
+                        baselines = destriped_maps[f"{ds}_{ts}"].baselines
+                        recycled_convergence = destriped_maps[f"{ds}_{ts}"].converged
+
+                    if append_to_report:
+                        self._build_and_append_destriped_report(
+                            "report_destriper_splits.md",
+                            ts,
+                            ds,
+                            destriped_maps[f"{ds}_{ts}"],
+                        )
+            del baselines
+        return destriped_maps
+
     @_profile
     def make_destriped_map(
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
         components: Optional[List[str]] = None,
+        detector_split: str = "full",
+        time_split: str = "full",
         keep_weights: bool = False,
         keep_pixel_idx: bool = False,
         keep_pol_angle_rad: bool = False,
@@ -1644,12 +1773,22 @@ class Simulation:
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
 
+        if isinstance(detector_split, list) or isinstance(time_split, list):
+            msg = (
+                "You must use 'make_destriped_map_splits' if you want lists of splits!"
+            )
+            raise ValueError(msg)
+        if detector_split != "full" or time_split != "full":
+            self.check_valid_splits(detector_split, time_split)
+
         results = make_destriped_map(
             nside=nside,
             obs=self.observations,
             pointings=None,
             params=params,
             components=components,
+            detector_split=detector_split,
+            time_split=time_split,
             keep_weights=keep_weights,
             keep_pixel_idx=keep_pixel_idx,
             keep_pol_angle_rad=keep_pol_angle_rad,
@@ -1658,6 +1797,24 @@ class Simulation:
         )
 
         if append_to_report:
+            self._build_and_append_destriped_report(
+                "report_destriper.md", detector_split, time_split, results
+            )
+
+        return results
+
+    def _build_and_append_destriped_report(
+        self,
+        template_file: str,
+        detector_split: str,
+        time_split: str,
+        results: DestriperResult,
+    ):
+        template_file_path = get_template_file_path(template_file)
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+
+        if results.params.samples_per_baseline is not None:
             fig, ax = plt.subplots()
             ax.set_xlabel("Iteration number")
             ax.set_ylabel("Residual [K]")
@@ -1667,14 +1824,11 @@ class Simulation:
                 results.history_of_stopping_factors,
                 "ko-",
             )
-
-            template_file_path = get_template_file_path("report_destriper.md")
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-
-            cg_plot_filename = f"destriper-cg-convergence-{uuid4()}.png"
+            cg_plot_filename = f"destriper-DET{detector_split}-TIME{time_split}-cg-convergence-{uuid4()}.png"
 
             self.append_to_report(
+                detector_split=detector_split,
+                time_split=time_split,
                 markdown_text=markdown_template,
                 results=results,
                 history_of_stopping_factors=[
@@ -1688,8 +1842,14 @@ class Simulation:
                     (fig, cg_plot_filename),
                 ],
             )
-
-        return results
+        else:
+            self.append_to_report(
+                detector_split=detector_split,
+                time_split=time_split,
+                markdown_text=markdown_template,
+                results=results,
+                bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
+            )
 
     @_profile
     def write_observations(
