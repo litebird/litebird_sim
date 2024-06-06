@@ -1146,6 +1146,9 @@ class HwpSys:
 
         hwp_angle (np.array): `2ωt`, hwp rotation angles, computed by ``Observation.get_pointings(...)``
 
+        input_map_in_galactic (bool): if True, the input map is in galactic coordinates, pointings
+                 are rotated from ecliptic to galactic and output map will also be in galactic.
+
         save_tod (bool): if True, ``tod`` is saved in ``observations.tod``; if False,
                  ``tod`` gets deleted
 
