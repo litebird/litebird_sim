@@ -133,7 +133,8 @@ def test_hwp_sys():
 
     # testing if code works also with list of obs of the same channel
     hwp_sys.fill_tod(
-        obs=[obs_boresight, obs_no_boresight],
+        observations=[obs_boresight, obs_no_boresight],
+        input_map_in_galactic=True,
     )
 
     reference_b = np.array(
