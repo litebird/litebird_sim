@@ -546,7 +546,7 @@ def apply_gaindrift_to_tod(
 
 
 def apply_gaindrift_to_observations(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     drift_params: GainDriftParams = None,
     user_seed: int = 12345,
     component: str = "tod",
@@ -559,7 +559,7 @@ def apply_gaindrift_to_observations(
 
     Args:
 
-        obs (Union[Observation, List[Observation]]): An instance or a list
+        observations (Union[Observation, List[Observation]]): An instance or a list
           of instances of :class:`.Observation`.
 
         drift_params (:class:`.GainDriftParams`, optional): The gain drift
@@ -575,13 +575,13 @@ def apply_gaindrift_to_observations(
     if drift_params is None:
         drift_params = GainDriftParams()
 
-    if isinstance(obs, Observation):
-        obs_list = [obs]
-    elif isinstance(obs, list):
-        obs_list = obs
+    if isinstance(observations, Observation):
+        obs_list = [observations]
+    elif isinstance(observations, list):
+        obs_list = observations
     else:
         raise TypeError(
-            "The parameter `obs` must be an `Observation` or a list of `Observation`."
+            "The parameter `observations` must be an `Observation` or a list of `Observation`."
         )
 
     for cur_obs in obs_list:

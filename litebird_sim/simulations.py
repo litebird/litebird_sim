@@ -1982,7 +1982,7 @@ class Simulation:
             drift_params = GainDriftParams()
 
         apply_gaindrift_to_observations(
-            obs=self.observations,
+            observations=self.observations,
             drift_params=drift_params,
             user_seed=user_seed,
             component=component,

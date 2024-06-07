@@ -380,7 +380,7 @@ def test_destriper_coordinate_consistency(tmp_path):
     )
     (healpix_maps, file_paths) = mbs.run_all()
 
-    lbs.scan_map_in_observations(obs=sim.observations, maps=healpix_maps)
+    lbs.scan_map_in_observations(observations=sim.observations, maps=healpix_maps)
 
     params = lbs.ExternalDestriperParameters(
         nside=healpy.npix2nside(len(healpix_maps[detectors[0].name][0])),

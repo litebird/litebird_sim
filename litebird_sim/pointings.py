@@ -13,7 +13,7 @@ from .scanning import (
 )
 
 
-def apply_hwp_to_obs(obs, hwp: HWP, pointing_matrix):
+def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     """Modify a pointing matrix to consider the effect of a HWP
 
     This function modifies the variable `pointing_matrix` (a D×N×3 matrix,
@@ -22,7 +22,7 @@ def apply_hwp_to_obs(obs, hwp: HWP, pointing_matrix):
     `hwp`.
     """
 
-    start_time = obs.start_time - obs.start_time_global
+    start_time = observations.start_time - observations.start_time_global
     if isinstance(start_time, astropy.time.TimeDelta):
         start_time_s = start_time.to("s").value
     else:
@@ -31,25 +31,25 @@ def apply_hwp_to_obs(obs, hwp: HWP, pointing_matrix):
     hwp.add_hwp_angle(
         pointing_matrix,
         start_time_s,
-        1.0 / obs.sampling_rate_hz,
+        1.0 / observations.sampling_rate_hz,
     )
 
 
-def get_hwp_angle(obs, hwp: HWP):
+def get_hwp_angle(observations, hwp: HWP):
     """Obtain the hwp angle for an observation"""
 
-    start_time = obs.start_time - obs.start_time_global
+    start_time = observations.start_time - observations.start_time_global
     if isinstance(start_time, astropy.time.TimeDelta):
         start_time_s = start_time.to("s").value
     else:
         start_time_s = start_time
 
-    angle = np.empty(obs.n_samples)
+    angle = np.empty(observations.n_samples)
 
     hwp.get_hwp_angle(
         angle,
         start_time_s,
-        1.0 / obs.sampling_rate_hz,
+        1.0 / observations.sampling_rate_hz,
     )
 
     return angle

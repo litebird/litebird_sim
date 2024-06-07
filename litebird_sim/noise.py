@@ -201,7 +201,7 @@ def add_noise_to_observations(
     scale: float = 1.0,
     component: str = "tod",
 ):
-    """Add noise of the defined type to the observations in obs
+    """Add noise of the defined type to the observations in observations
 
     This class provides an interface to the low-level function :func:`.add_noise`.
     The parameter `observations` can either be one :class:`.Observation` instance

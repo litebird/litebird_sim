@@ -881,7 +881,7 @@ class SpinningScanningStrategy(ScanningStrategy):
         )
 
 
-def get_quaternion_buffer_shape(obs, num_of_detectors=None):
+def get_quaternion_buffer_shape(observations, num_of_detectors=None):
     """Return the shape of the buffer used to hold detector quaternions.
 
     This function can be used to pre-allocate the buffer used by
@@ -893,8 +893,8 @@ def get_quaternion_buffer_shape(obs, num_of_detectors=None):
 
         import numpy as np
         import litebird_sim as lbs
-        obs = lbs.Observation(...)
-        bufshape = get_quaternion_buffer_shape(obs, n_detectors)
+        observations = lbs.Observation(...)
+        bufshape = get_quaternion_buffer_shape(observations, n_detectors)
         quaternions = np.empty(bufshape, dtype=np.float64)
         quats = get_det2ecl_quaternions(
             ...,
@@ -904,13 +904,13 @@ def get_quaternion_buffer_shape(obs, num_of_detectors=None):
     """
 
     if not num_of_detectors:
-        num_of_detectors = obs.n_detectors
+        num_of_detectors = observations.n_detectors
 
-    return (obs.n_samples, num_of_detectors, 4)
+    return (observations.n_samples, num_of_detectors, 4)
 
 
 def get_det2ecl_quaternions(
-    obs,
+    observations,
     spin2ecliptic_quats: RotQuaternion,
     detector_quats: List[RotQuaternion],
     bore2spin_quat: RotQuaternion,
@@ -923,7 +923,7 @@ def get_det2ecl_quaternions(
     quaternions that convert a vector in detector's coordinates
     into the frame of reference of the Ecliptic. The number of
     quaternions is equal to the number of samples hold in this
-    observation, ``obs.n_samples``.
+    observation, ``observations.n_samples``.
     Given that the z axis in the frame of reference of a detector
     points along the main beam axis, this means that if you use
     these quaternions to rotate the vector `z = [0, 0, 1]`, you
@@ -945,7 +945,7 @@ def get_det2ecl_quaternions(
     this buffer.
     """
 
-    bufshape = get_quaternion_buffer_shape(obs, len(detector_quats))
+    bufshape = get_quaternion_buffer_shape(observations, len(detector_quats))
     if quaternion_buffer is None:
         quaternion_buffer = np.empty(bufshape, dtype=dtype)
     else:
@@ -956,16 +956,16 @@ def get_det2ecl_quaternions(
     for idx, detector_quat in enumerate(detector_quats):
         complete_quaternion = spin2ecliptic_quats * bore2spin_quat * detector_quat
         quaternion_buffer[:, idx, :] = complete_quaternion.slerp(
-            start_time=obs.start_time,
-            sampling_rate_hz=obs.sampling_rate_hz,
-            nsamples=obs.n_samples,
+            start_time=observations.start_time,
+            sampling_rate_hz=observations.sampling_rate_hz,
+            nsamples=observations.n_samples,
         )
 
     return quaternion_buffer
 
 
 def get_ecl2det_quaternions(
-    obs,
+    observations,
     spin2ecliptic_quats: RotQuaternion,
     detector_quats: RotQuaternion,
     bore2spin_quat: RotQuaternion,
@@ -989,7 +989,7 @@ def get_ecl2det_quaternions(
     """
 
     quats = get_det2ecl_quaternions(
-        obs=obs,
+        observations=observations,
         spin2ecliptic_quats=spin2ecliptic_quats,
         detector_quats=detector_quats,
         bore2spin_quat=bore2spin_quat,

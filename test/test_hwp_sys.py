@@ -131,7 +131,7 @@ def test_hwp_sys():
     np.testing.assert_equal(hwp_sys.bandpass_profile, hwp_sys.bandpass_profile_solver)
     np.testing.assert_equal(hwp_sys.freqs, hwp_sys.freqs_solver)
 
-    # testing if code works also with list of obs of the same channel
+    # testing if code works also with list of observations of the same channel
     hwp_sys.fill_tod(
         observations=[obs_boresight, obs_no_boresight],
         input_map_in_galactic=True,
