@@ -1502,7 +1502,10 @@ class Simulation:
             )
 
     def check_valid_splits(self, detector_splits, time_splits):
-        """Wrapper around :meth:`litebird_sim.check_valid_splits`. Checks that the splits are valid on the observations."""
+        """
+        Wrapper around :meth:`litebird_sim.check_valid_splits`. Checks that the splits
+        are valid on the observations.
+        """
         try:
             check_valid_splits(self.observations, detector_splits, time_splits)
         except ValueError as e:
@@ -1524,7 +1527,15 @@ class Simulation:
         write_to_disk: bool = True,
         include_inv_covariance: bool = False,
     ) -> Union[List[str], dict[str, BinnerResult]]:
-        """Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
+        """
+        Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the
+        cartesian product of the requested detector and time splits. Here, those can be
+        either strings or lists of strings. The method will return a list of filenames
+        where the maps have been written to disk (`include_inv_covariance` allows to save
+        also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will
+        return a dictionary with the results, where the keys are the strings obtained by joining
+        the detector and time splits with an underscore.
+        """
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -1662,7 +1673,15 @@ class Simulation:
         write_to_disk: bool = True,
         recycle_baselines: bool = False,
     ) -> Union[List[str], dict[str, DestriperResult]]:
-        """Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
+        """
+        Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the
+        cartesian product of the requested detector and time splits. Here, those can be either
+        strings or lists of strings. The method will return a list of filenames where the
+        maps have been written to disk (`include_inv_covariance` allows to save also the
+        inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary
+        with the results, where the keys are the strings obtained by joining the detector and time
+        splits with an underscore.
+        """
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -1882,7 +1901,7 @@ class Simulation:
             tod_path = self.base_path
 
         file_list = write_list_of_observations(
-            obs=self.observations, path=tod_path, *args, **kwargs
+            observations=self.observations, path=tod_path, *args, **kwargs
         )
 
         if append_to_report:
