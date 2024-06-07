@@ -168,7 +168,7 @@ def read_pointing_provider_from_hdf5(
 
 def write_one_observation(
     output_file: h5py.File,
-    obs: Observation,
+    observations: Observation,
     tod_dtype,
     pointings_dtype,
     global_index: int,
@@ -189,8 +189,8 @@ def write_one_observation(
     must set `write_full_pointings` to ``True``.
 
     The output file is specified by `output_file` and should be opened for writing; the
-    observation to be written is passed through the `obs` parameter. The data type to
-    use for writing TODs and pointings is specified in the `tod_dtype` and
+    observation to be written is passed through the `observations` parameter. The data
+    type to use for writing TODs and pointings is specified in the `tod_dtype` and
     `pointings_dtype` (it can either be a NumPy type like ``numpy.float64`` or a
     string, pass ``None`` to use the same type as the one used in the observation).
     Note that quaternions are always saved using 64-bit floating point numbers.
@@ -202,11 +202,11 @@ def write_one_observation(
 
     compression = "gzip" if gzip_compression else None
 
-    if obs.pointing_provider is not None:
+    if observations.pointing_provider is not None:
         write_pointing_provider_to_hdf5(
             output_file=output_file,
             field_name="pointing_provider",
-            pointing_provider=obs.pointing_provider,
+            pointing_provider=observations.pointing_provider,
             compression=compression,
         )
 
@@ -220,12 +220,12 @@ def write_one_observation(
     # We must use this ugly hack because Observation does not store DetectorInfo
     # classes but «spreads» their fields in the namespace of the class Observation.
     detector_info_fields = [x.name for x in fields(DetectorInfo())]
-    for det_idx in range(obs.n_detectors):
+    for det_idx in range(observations.n_detectors):
         new_detector = {}
 
         for attribute in detector_info_fields:
             try:
-                attr_value = obs.__getattribute__(attribute)
+                attr_value = observations.__getattribute__(attribute)
             except AttributeError:
                 continue
 
@@ -241,7 +241,7 @@ def write_one_observation(
                 pass
             else:
                 # From now on, assume that this attribute is an array whose length
-                # is the same as `obs.n_detectors`
+                # is the same as `observations.n_detectors`
                 attr_value = attr_value[det_idx]
                 if type(attr_value) in __NUMPY_SCALAR_TYPES:
                     new_detector[attribute] = attr_value.item()
@@ -257,7 +257,7 @@ def write_one_observation(
         write_rot_quaternion_to_hdf5(
             output_file=output_file,
             field_name=f"rot_quaternion_{det_idx:04d}",
-            rot_matrix=obs.quat[det_idx],
+            rot_matrix=observations.quat[det_idx],
             compression=compression,
         )
 
@@ -265,48 +265,48 @@ def write_one_observation(
     detectors_json = json.dumps(det_info, cls=DetectorJSONEncoder)
 
     if not tod_fields:
-        tod_fields = obs.tod_list
+        tod_fields = observations.tod_list
 
     # Write all the TOD timelines in the HDF5 file, in separate datasets
     for cur_field in tod_fields:
         if not isinstance(cur_field, TodDescription):
             try:
-                cur_field = [x for x in obs.tod_list if x.name == cur_field][0]
+                cur_field = [x for x in observations.tod_list if x.name == cur_field][0]
             except IndexError:
                 raise KeyError(f'TOD with name "{cur_field}" not found in observation')
 
         cur_dataset = output_file.create_dataset(
             cur_field.name,
-            data=obs.__getattribute__(cur_field.name),
+            data=observations.__getattribute__(cur_field.name),
             dtype=tod_dtype if tod_dtype else cur_field.dtype,
             compression=compression,
         )
-        if isinstance(obs.start_time, astropy.time.Time):
-            cur_dataset.attrs["start_time"] = obs.start_time.to_value(
+        if isinstance(observations.start_time, astropy.time.Time):
+            cur_dataset.attrs["start_time"] = observations.start_time.to_value(
                 format="mjd", subfmt="bytes"
             )
             cur_dataset.attrs["mjd_time"] = True
         else:
-            cur_dataset.attrs["start_time"] = obs.start_time
+            cur_dataset.attrs["start_time"] = observations.start_time
             cur_dataset.attrs["mjd_time"] = False
 
-        cur_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
+        cur_dataset.attrs["sampling_rate_hz"] = observations.sampling_rate_hz
         cur_dataset.attrs["detectors"] = detectors_json
         cur_dataset.attrs["description"] = cur_field.description
 
     # Save pointing information only if it is available
-    if obs.pointing_provider and write_full_pointings:
-        n_detectors = obs.n_detectors
-        n_samples = obs.n_samples
+    if observations.pointing_provider and write_full_pointings:
+        n_detectors = observations.n_detectors
+        n_samples = observations.n_samples
 
         pointing_matrix = np.empty(shape=(n_detectors, n_samples, 3))
 
         hwp_angle = None
-        if obs.pointing_provider.has_hwp():
+        if observations.pointing_provider.has_hwp():
             hwp_angle = np.empty(shape=(n_samples,))
 
         for det_idx in range(n_detectors):
-            obs.get_pointings(
+            observations.get_pointings(
                 det_idx,
                 pointing_buffer=pointing_matrix[det_idx, :, :],
                 hwp_buffer=hwp_angle,
@@ -330,7 +330,7 @@ def write_one_observation(
     try:
         output_file.create_dataset(
             "global_flags",
-            data=rle_compress(obs.__getattribute__("global_flags")),
+            data=rle_compress(observations.__getattribute__("global_flags")),
             compression=compression,
         )
     except (AttributeError, TypeError):
@@ -339,8 +339,8 @@ def write_one_observation(
     try:
         # We must separate the flags belonging to different detectors because they
         # might have different shapes
-        for det_idx in range(obs.local_flags.shape[0]):
-            flags = obs.__getattribute__("local_flags")
+        for det_idx in range(observations.local_flags.shape[0]):
+            flags = observations.__getattribute__("local_flags")
             compressed_flags = rle_compress(flags[det_idx, :])
             output_file.create_dataset(
                 f"flags_{det_idx:04d}",
@@ -371,7 +371,7 @@ def _compute_global_start_index(
 
 
 def write_list_of_observations(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     path: Union[str, Path],
     tod_dtype=np.float32,
     pointings_dtype=np.float32,
@@ -422,7 +422,7 @@ def write_list_of_observations(
         ]
 
         write_list_of_observations(
-            obs=[obs1, obs2],  # Write two observations
+            observations=[obs1, obs2],  # Write two observations
             path=".",
             file_name_mask="tod_{myvalue}.h5",
             custom_placeholders=custom_dicts,
@@ -466,31 +466,31 @@ def write_list_of_observations(
 
     """
     try:
-        obs[0]
+        observations[0]
     except TypeError:
-        obs = [obs]
+        observations = [observations]
     except IndexError:
         # Empty list
         # We do not want to return here, as we still need to participate to
         # the call to _compute_global_start_index below
-        obs = []  # type: List[Observation]
+        observations = []  # type: List[Observation]
 
     if not isinstance(path, Path):
         path = Path(path)
 
     global_start_index = _compute_global_start_index(
-        num_of_obs=len(obs),
+        num_of_obs=len(observations),
         start_index=start_index,
         collective_mpi_call=collective_mpi_call,
     )
 
     # Iterate over all the observations and create one HDF5 file for each of them
     file_list = []
-    for obs_idx, cur_obs in enumerate(obs):
+    for obs_idx, cur_obs in enumerate(observations):
         params = {
             "mpi_rank": MPI_COMM_WORLD.rank,
             "mpi_size": MPI_COMM_WORLD.size,
-            "num_of_obs": len(obs),
+            "num_of_obs": len(observations),
             "global_index": global_start_index + obs_idx,
             "local_index": start_index + obs_idx,
         }
@@ -509,7 +509,7 @@ def write_list_of_observations(
         with h5py.File(file_name, "w") as output_file:
             write_one_observation(
                 output_file=output_file,
-                obs=cur_obs,
+                observations=cur_obs,
                 tod_dtype=tod_dtype,
                 pointings_dtype=pointings_dtype,
                 global_index=params["global_index"],
