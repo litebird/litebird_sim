@@ -111,7 +111,7 @@ The output map is in Galactic coordinates, but you can specify the
 coordinate system you want via the parameter `output_coordinates`.
 This is how it should be called::
 
-    result = lbs.make_binned_map(nside=128, obs=obs)
+    result = lbs.make_binned_map(nside=128, observations=observations)
     healpy.mollview(result.binned_map)
 
 (The pointing information is included in the :class:`.Observation`,
@@ -367,7 +367,7 @@ instance of the class :class:`.DestriperParameters`::
         ...
     )
 
-    result = lbs.make_destriped_map(nside=nside, obs=obs, params=params)
+    result = lbs.make_destriped_map(nside=nside, observations=observations, params=params)
     healpy.mollview(result.destriped_map)
 
 The result is an instance of the class :class:`.DestriperResult`, which
@@ -563,7 +563,7 @@ following fields in the :class:`.DestriperParameters` class:
   then the CG algorithm stops.
 - ``samples_per_baseline``: this can either be an integer, in which case it will
   be used for *all* the baselines, or a list of 1D arrays, each containing the
-  length of each baseline for each observation passed through the parameter ``obs``.
+  length of each baseline for each observation passed through the parameter ``observations``.
   Note that if you provide an integer, it might be that not all baselines will
   have exactly that length: it depends whether the number :math:`N_t` of samples
   in the TOD is evenly divisibile by ``samples_per_baseline`` or not. The
@@ -587,7 +587,7 @@ went:
 
 The baselines are saved in the field ``baselines`` of the :class:`.DestriperResult`
 class; this is a list of 2D arrays, where each element in the list is
-associated with one of the observations passed in the parameter ``obs``. The
+associated with one of the observations passed in the parameter ``observations``. The
 shape of each 2D arrays is :math:`(N_d, N_b),` where
 :math:`N_d` is the number of detectors for the observation and :math:`N_b` is
 the number of baselines. A visual representation of the memory layout of
