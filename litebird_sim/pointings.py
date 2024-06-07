@@ -82,7 +82,7 @@ class PointingProvider:
         pointing_buffer: Optional[npt.NDArray] = None,
         hwp_buffer: Optional[npt.NDArray] = None,
         pointings_dtype=np.float32,
-    ) -> (npt.NDArray, Optional[npt.NDArray]):
+    ) -> Union[npt.NDArray, Optional[npt.NDArray]]:
         """
 
         :param detector_quat: An instance of the class :class:`.RotQuaternion`

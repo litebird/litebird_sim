@@ -395,7 +395,7 @@ class Simulation:
         self.numba_threading_layer = numba_threading_layer
 
         self.profile_time = profile_time
-        self.profile_data = []  # type: list(TimeProfiler)
+        self.profile_data = []  # type: List[TimeProfiler]
 
         assert not (parameter_file and parameters), (
             "you cannot use parameter_file and parameters together "

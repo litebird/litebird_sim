@@ -21,7 +21,7 @@ from numba import njit, prange
 import healpy as hp
 
 from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
-from typing import Union, List, Optional, Tuple, Any, Dict
+from typing import Callable, Union, List, Optional, Tuple, Any, Dict
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
 from litebird_sim.pointings import get_hwp_angle
@@ -443,7 +443,7 @@ def _nobs_matrix_to_cholesky(
 def _store_pixel_idx_and_pol_angle_in_obs(
     hpx: Healpix_Base,
     obs_list: List[Observation],
-    ptg_list: List[npt.ArrayLike],
+    ptg_list: Union[List[npt.ArrayLike], List[Callable]],
     hwp: Union[HWP, None],
     output_coordinate_system: CoordinateSystem,
 ):
