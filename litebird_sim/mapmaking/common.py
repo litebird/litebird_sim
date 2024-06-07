@@ -89,20 +89,24 @@ class ExternalDestriperParameters:
     return_rcond: bool = False
 
 
-def get_map_making_weights(obs: Observation, check: bool = True) -> npt.NDArray:
-    """Return a NumPy array containing the weights of each detector in `obs`
+def get_map_making_weights(
+    observations: Observation, check: bool = True
+) -> npt.NDArray:
+    """Return a NumPy array containing the weights of each detector in `observations`
 
-    The number of elements in the result is equal to `obs.n_detectors`. If
+    The number of elements in the result is equal to `observations.n_detectors`. If
     `check` is true, verify that the weights are ok for the map-maker to
     proceed; if not, an `assert` is raised.
     """
 
     try:
-        if isinstance(obs.net_ukrts, (float, int)):
-            obs.net_ukrts = obs.net_ukrts * np.ones(obs.n_detectors)
-        weights = obs.sampling_rate_hz * obs.net_ukrts**2
+        if isinstance(observations.net_ukrts, (float, int)):
+            observations.net_ukrts = observations.net_ukrts * np.ones(
+                observations.n_detectors
+            )
+        weights = observations.sampling_rate_hz * observations.net_ukrts**2
     except AttributeError:
-        weights = np.ones(obs.n_detectors)
+        weights = np.ones(observations.n_detectors)
 
     if check:
         # Check that there are no weird weights
@@ -123,7 +127,7 @@ def _normalize_observations_and_pointings(
     # In map-making routines, we always rely on two local variables:
     #
     # - obs_list contains a list of the observations to be used in the
-    #   map-making process by the current MPI process. Unlike the `obs`
+    #   map-making process by the current MPI process. Unlike the `observations`
     #   parameters used in functions like `make_binned_map`, this is
     #   *always* a list, i.e., even if there is just one observation
     #
@@ -480,22 +484,22 @@ def _build_mask_time_split(
 
 
 def _get_initial_time(
-    obs: Observation,
+    observations: Observation,
 ):
-    if isinstance(obs.start_time_global, astropy.time.Time):
-        t_i = obs.start_time_global.cxcsec
+    if isinstance(observations.start_time_global, astropy.time.Time):
+        t_i = observations.start_time_global.cxcsec
     else:
-        t_i = obs.start_time_global
+        t_i = observations.start_time_global
     return t_i
 
 
 def _get_end_time(
-    obs: Observation,
+    observations: Observation,
 ):
-    if isinstance(obs.end_time_global, astropy.time.Time):
-        t_f = obs.end_time_global.cxcsec
+    if isinstance(observations.end_time_global, astropy.time.Time):
+        t_f = observations.end_time_global.cxcsec
     else:
-        t_f = obs.end_time_global
+        t_f = observations.end_time_global
     return t_f
 
 
@@ -516,7 +520,7 @@ def _build_mask_detector_split(
 
 
 def _check_valid_splits(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     detector_splits: Union[str, List[str]] = "full",
     time_splits: Union[str, List[str]] = "full",
 ):
@@ -536,24 +540,24 @@ def _check_valid_splits(
     valid_time_splits.extend([f"year{i}" for i in range(1, max_years + 1)])
     valid_time_splits.extend([f"survey{i}" for i in range(1, max_surveys + 1)])
 
-    if isinstance(obs, Observation):
-        obs = [obs]
+    if isinstance(observations, Observation):
+        observations = [observations]
     if isinstance(detector_splits, str):
         detector_splits = [detector_splits]
     if isinstance(time_splits, str):
         time_splits = [time_splits]
 
-    _validate_detector_splits(obs, detector_splits, valid_detector_splits)
-    _validate_time_splits(obs, time_splits, valid_time_splits)
+    _validate_detector_splits(observations, detector_splits, valid_detector_splits)
+    _validate_time_splits(observations, time_splits, valid_time_splits)
     print("Splits are valid!")
 
 
-def _validate_detector_splits(obs, detector_splits, valid_detector_splits):
+def _validate_detector_splits(observations, detector_splits, valid_detector_splits):
     for ds in detector_splits:
         if ds not in valid_detector_splits:
             msg = f"Detector split '{ds}' not recognized!\nValid detector splits are {valid_detector_splits}"
             raise ValueError(msg)
-        for cur_obs in obs:
+        for cur_obs in observations:
             if "wafer" in ds:
                 requested_wafer = ds.replace("wafer", "")
                 if requested_wafer not in cur_obs.wafer:
@@ -561,13 +565,13 @@ def _validate_detector_splits(obs, detector_splits, valid_detector_splits):
                     raise AssertionError(msg)
 
 
-def _validate_time_splits(obs, time_splits, valid_time_splits):
+def _validate_time_splits(observations, time_splits, valid_time_splits):
     for ts in time_splits:
         if ts not in valid_time_splits:
             msg = f"Time split '{ts}' not recognized!\nValid time splits are {valid_time_splits}"
             raise ValueError(msg)
         if "year" in ts:
-            for cur_obs in obs:
+            for cur_obs in observations:
                 duration = round(_get_end_time(cur_obs) - _get_initial_time(cur_obs), 0)
                 max_years = duration // t_year_sec
                 requested_years = int(ts.replace("year", ""))

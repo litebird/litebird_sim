@@ -1531,12 +1531,14 @@ def make_destriped_map(
     :param observations: an instance of the class :class:`.Observation`,
        or a list of objects of this kind
     :param pointings: a 3×N array containing the values of the
-       θ,φ,ψ angles (in radians), or a list if `obs` was a
+       θ,φ,ψ angles (in radians), or a list if `observations` was a
        list. If no pointings are specified, they will be
+       taken from `observations` (the most common situation)
     :param params: an instance of the :class:`.DestriperParameters` class
     :param components: a list of components to extract from
-       the TOD and sum together. The default is to use `obs.tod`.
+       the TOD and sum together. The default is to use `observations.tod`.
     :param keep_weights: the destriper adds a `destriper_weights`
+       field to each :class:`.Observation` object in `observations`, and
        it deletes it once the map has been produced. Setting
        this parameter to ``True`` prevents the field from being
        deleted. (Useful for debugging.)

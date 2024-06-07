@@ -1700,7 +1700,7 @@ class Simulation:
                 for ts in time_splits:
                     result = make_destriped_map(
                         nside=nside,
-                        obs=self.observations,
+                        observations=self.observations,
                         pointings=None,
                         params=params,
                         components=components,
@@ -1744,7 +1744,7 @@ class Simulation:
                 for ts in time_splits:
                     destriped_maps[f"{ds}_{ts}"] = make_destriped_map(
                         nside=nside,
-                        obs=self.observations,
+                        observations=self.observations,
                         pointings=None,
                         params=params,
                         components=components,
@@ -1802,7 +1802,7 @@ class Simulation:
 
         results = make_destriped_map(
             nside=nside,
-            obs=self.observations,
+            observations=self.observations,
             pointings=None,
             params=params,
             components=components,
