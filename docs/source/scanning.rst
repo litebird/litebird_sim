@@ -164,19 +164,19 @@ similar to what is going to be used for LiteBIRD:
 
   print("Shape:", pointings.shape)
   print("Pointings:")
-  print(np.array_str(pointings[:, 0:2], precision=3))
+  print(np.array_str(pointings, precision=3))
 
 .. testoutput::
 
   Shape: (600, 3)
   Pointings:
-  [[[ 2.182  0.   ]
-    [ 2.182 -0.006]
-    [ 2.182 -0.012]
-    ...
-    [ 0.089 -2.967]
-    [ 0.088 -3.021]
-    [ 0.087 -3.075]]]
+  [[ 2.182 -0.    -1.571]
+   [ 2.182 -0.006 -1.576]
+   [ 2.182 -0.012 -1.582]
+   ...
+   [ 0.089 -2.967 -1.738]
+   [ 0.088 -3.021 -1.687]
+   [ 0.087 -3.075 -1.635]]
 
 All the details in this code are explained in the next sections, so
 for now just keep in mind the overall shape of the code:
