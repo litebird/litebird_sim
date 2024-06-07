@@ -164,7 +164,7 @@ similar to what is going to be used for LiteBIRD:
 
   print("Shape:", pointings.shape)
   print("Pointings:")
-  print(np.array_str(pointings, precision=3))
+  print(np.array_str(pointings[:, 0:2], precision=3))
 
 .. testoutput::
 
