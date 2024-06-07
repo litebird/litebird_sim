@@ -205,12 +205,13 @@ def add_noise_to_observations(
 
     This class provides an interface to the low-level function :func:`.add_noise`.
     The parameter `observations` can either be one :class:`.Observation` instance
-    or a list of observations, which are typically taken from the field `observations`
-     of a :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to
-    pass the noise parameters here, as they are taken from the characteristics of
-    the detectors saved in `observations`. The parameter `random` must be specified
-    and must be a random number generator that implements the ``normal`` method. You
-    should typically use the `random` field of a :class:`.Simulation` object for this.
+    or a list of observations, which are typically taken from the field
+    `observations` of a :class:`.Simulation` object. Unlike :func:`.add_noise`,
+    it is not needed to pass the noise parameters here, as they are taken from the
+    characteristics of the detectors saved in `observations`. The parameter `random`
+    must be specified and must be a random number generator that implements the
+    ``normal`` method. You should typically use the `random` field of a
+    :class:`.Simulation` object for this.
 
     By default, the noise is added to ``Observation.tod``. If you want to add it to some
     other field of the :class:`.Observation` class, use `component`:

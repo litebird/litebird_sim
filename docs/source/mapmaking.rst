@@ -632,7 +632,7 @@ the destriper will skip the CG iterations and proceed directly to the
 map-making step.
 
 How the N_obs matrix is stored
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The destriper uses a different method to store the matrix :math:`M` in
 memory. As the 3×3 sub-blocks of this matrix need to be inverted often
@@ -780,7 +780,7 @@ so you should call ``mpiexec``, ``mpirun``, or something similar.
 
 
 Creating several maps with Madam
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are cases where you want to create several maps out of
 one simulation. A common case is when you simulate several
