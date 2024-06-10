@@ -199,3 +199,41 @@ def test_hwp_sys():
 
     np.testing.assert_almost_equal(obs_boresight.tod, reference_b, decimal=10)
     np.testing.assert_almost_equal(obs_no_boresight.tod, reference_nob, decimal=10)
+
+    # testing if code works also when passing list of observations, pointings and hwp_angle to fill_tod
+    (new_obs_boresight,) = sim.create_observations(detectors=[detBT, detBB])
+    (new_obs_no_boresight,) = sim.create_observations(detectors=[det165, det105])
+
+    lbs.prepare_pointings(
+        observations=[new_obs_boresight, new_obs_no_boresight],
+        instrument=sim.instrument,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        hwp=sim.hwp,
+    )
+
+    point_b, hwp_angle_b = new_obs_boresight.get_pointings("all")
+    point_nob, hwp_angle_nob = new_obs_no_boresight.get_pointings("all")
+
+    del hwp_sys
+    hwp_sys = lbs.HwpSys(sim)
+
+    hwp_sys.set_parameters(
+        mueller_or_jones="jones",
+        integrate_in_band=True,
+        integrate_in_band_solver=True,
+        correct_in_solver=True,
+        built_map_on_the_fly=False,
+        nside=nside,
+        Mbsparams=Mbsparams,
+        parallel=False,
+    )
+
+    hwp_sys.fill_tod(
+        observations=[new_obs_boresight, new_obs_no_boresight],
+        input_map_in_galactic=True,
+        pointings=[point_b, point_nob],
+        hwp_angle=[hwp_angle_b, hwp_angle_nob],
+    )
+
+    np.testing.assert_almost_equal(new_obs_boresight.tod, reference_b, decimal=10)
+    np.testing.assert_almost_equal(new_obs_no_boresight.tod, reference_nob, decimal=10)
