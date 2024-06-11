@@ -391,10 +391,24 @@ To save memory,:meth:`.Observation.get_pointings` does *not* save the
 pointings in a variable once they are calculated, and so they must be
 recomputed every time you need them. However, in some applications,
 pointings need to be accessed several times during a simulation and these
-repeated computations can introduce a noticeable slowdown in the code. If
-you want to trade speed with memory occupation, you can use the function
+repeated computations can introduce a noticeable slowdown in the code.
+
+If you want to trade speed with memory occupation, you can use the function
 :func:`.precompute_pointings` to compute all the pointings at once and save
-them into every :class:`.Observation` objects.
+them into every :class:`.Observation` objects. This function fills the fields
+`pointing_matrix` and `hwp_angle`. The datatype for the pointings is 
+specified by ``pointings_dtype``. This can be done either with the low level 
+functions::
+
+    obs = sim.create_observations(detectors=[det])
+    lbs.prepare_pointings(obs,sim.instrument,sim.spin2ecliptic_quats)
+    lbs.precompute_pointings(obs, pointings_dtype=np.float64)
+
+or with the methods onf the :class:`.Simulation`::
+
+    sim.create_observations(detectors=[det])
+    sim.prepare_pointings()
+    sim.precompute_pointings(pointings_dtype=np.float64)
 
 
 How the boresight is specified
@@ -985,6 +999,11 @@ API reference
     :show-inheritance:
 
 .. automodule:: litebird_sim.pointings
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. automodule:: litebird_sim.pointings_in_obs
     :members:
     :undoc-members:
     :show-inheritance:
