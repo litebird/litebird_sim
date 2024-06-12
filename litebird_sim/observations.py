@@ -661,7 +661,7 @@ class Observation:
 
     def get_pointings(
         self,
-        detector_idx: Union[int, List[int], str],
+        detector_idx: Union[int, List[int], str] = "all",
         pointing_buffer: Optional[npt.NDArray] = None,
         hwp_buffer: Optional[npt.NDArray] = None,
         pointings_dtype=np.float32,

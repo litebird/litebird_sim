@@ -398,13 +398,13 @@ If you want to trade speed with memory occupation, you can use the function
 them into every :class:`.Observation` objects. This function fills the fields
 `pointing_matrix` and `hwp_angle`. The datatype for the pointings is 
 specified by ``pointings_dtype``. This can be done either with the low level 
-functions::
+functions   ::
 
     obs = sim.create_observations(detectors=[det])
     lbs.prepare_pointings(obs,sim.instrument,sim.spin2ecliptic_quats)
     lbs.precompute_pointings(obs, pointings_dtype=np.float64)
 
-or with the methods onf the :class:`.Simulation`::
+or with the methods of the :class:`.Simulation`::
 
     sim.create_observations(detectors=[det])
     sim.prepare_pointings()
