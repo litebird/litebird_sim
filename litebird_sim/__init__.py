@@ -88,6 +88,16 @@ from .pointings_in_obs import (
     prepare_pointings,
     precompute_pointings,
 )
+from .pointing_sys.pointing_sys import (
+    get_detector_orientation,
+    left_multiply_offset2det,
+    left_multiply_disturb2det,
+    left_multiply_offset2quat,
+    left_multiply_disturb2quat,
+    FocalplaneCoord,
+    SpacecraftCoord,
+    PointingSys,
+)
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
     quat_rotation_x,
@@ -107,6 +117,12 @@ from .quaternions import (
     multiply_quaternions_list_x_one,
     multiply_quaternions_one_x_list,
     normalize_quaternions,
+    quat_rotation,
+    quat_rotation_brdcast,
+    quat_rotation_x_brdcast,
+    quat_rotation_y_brdcast,
+    quat_rotation_z_brdcast,
+
 )
 from .scan_map import scan_map, scan_map_in_observations
 from .scanning import (
@@ -227,6 +243,11 @@ __all__ = [
     "multiply_quaternions_list_x_one",
     "multiply_quaternions_one_x_list",
     "normalize_quaternions",
+    "quat_rotation",
+    "quat_rotation_brdcast",
+    "quat_rotation_x_brdcast",
+    "quat_rotation_y_brdcast",
+    "quat_rotation_z_brdcast",
     # scanning.py
     "compute_pointing_and_orientation",
     "all_compute_pointing_and_orientation",
@@ -296,4 +317,13 @@ __all__ = [
     "apply_gaindrift_for_one_detector",
     "apply_gaindrift_to_tod",
     "apply_gaindrift_to_observations",
+    # pointing_sys.py
+    "get_detector_orientation",
+    "left_multiply_offset2det",
+    "left_multiply_disturb2det",
+    "left_multiply_offset2quat",
+    "left_multiply_disturb2quat",
+    "FocalplaneCoord",
+    "SpacecraftCoord",
+    "PointingSys",
 ]
