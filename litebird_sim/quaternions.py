@@ -447,7 +447,7 @@ def multiply_quaternions_list_x_one(
 def multiply_quaternions_one_x_list(
     single_a: npt.NDArray, array_b: npt.NDArray, result: npt.NDArray
 ) -> None:
-    """Multiply a matrix of quaternions by one quaternion: `array_a × single_b`.
+    """Multiply one quaternion by a matrix of quaternions: `single_a × array_b`.
 
     The result of ``a × b`` is saved into `result`."""
 
