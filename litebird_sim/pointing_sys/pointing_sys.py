@@ -23,6 +23,7 @@ from typing import Union, List, Optional, Iterable
 
 
 def get_detector_orientation(detector:DetectorInfo):
+    #TODO: This infomation should be included in IMo.
     """This function returns the orientation of the detector in the focal plane."""
     if detector.wafer[0]:
         telescope = detector.wafer[0] + 'FT'
@@ -56,34 +57,30 @@ def get_detector_orientation(detector:DetectorInfo):
     return orient_angle
 
 
-def _rotate_z_vectors_brdcast(result_matrix, quat_matrix):
-    """Rotate the z vector using the quaternion `quat`
+def _rotate_z_vectors_brdcast(result_matrix:np.ndarray, quat_matrix:np.ndarray):
+    """Rotate the z vectors using the quaternions `quat_matrix`.
+    This function is a broadcast version of `rotate_z_vector` function.
 
-    Prototype::
+    Args:
+        result_matrix (np.ndarray with shape [N,3]): The matrix to store the rotated vectors.
 
-        rotate_z_vector(
-            result: numpy.array[N, 3],
-            v: numpy.array[N, 4],
-        )
-
-    This function is equivalent to ``rotate_vector(result, v, [0, 0, 1])``, but it's faster.
-
+        quat_matrix (np.ndarray with shape [N,4]):   The matrix of quaternions to rotate the vectors.
     """
     result_matrix[:, 0] = 2 * (quat_matrix[:, 3] * quat_matrix[:, 1] + quat_matrix[:, 0] * quat_matrix[:, 2])
     result_matrix[:, 1] = 2 * (quat_matrix[:, 1] * quat_matrix[:, 2] - quat_matrix[:, 3] * quat_matrix[:, 0])
     result_matrix[:, 2] = 1.0 - 2 * (quat_matrix[:, 0]**2 + quat_matrix[:, 1]**2)
 
 
-def left_multiply_offset2det(detector:DetectorInfo, offset_rad, axis):
+def left_multiply_offset2det(detector:DetectorInfo, offset_rad:float, axis:str):
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
-        `detector`:     The instance of `DetectorInfo` type to which offset is to be added.
-                        The instance will be destructively updated.
+        `detector` (DetectorInfo): The instance of `DetectorInfo` type to which `offset_rad` is to be added.
+                                   The instance will be destructively updated.
 
-        `offset_rad`:   The offset to be added in the specified direction by `axis`, in radians.
+        `offset_rad` (float):      The offset to be added in the specified direction by `axis`, in radians.
 
-        `axis`:         The axis in the reference frame around which the rotation is to be performed.
+        `axis` (str):              The axis in the reference frame around which the rotation is to be performed.
     """
     if axis.lower() == 'x':
         rotation_func = quat_rotation_x
@@ -115,16 +112,31 @@ def left_multiply_offset2det(detector:DetectorInfo, offset_rad, axis):
     detector.quat = orient_quat * interim_quat
 
 
-def left_multiply_disturb2det(detector:DetectorInfo, start_time, sampling_rate_hz, noise_rad, axis):
+def left_multiply_disturb2det(
+    detector:DetectorInfo,
+    start_time,
+    sampling_rate_hz,
+    noise_rad:np.ndarray,
+    axis:str
+    ):
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
-        `detector`:     The instance of `DetectorInfo` type to which offset is to be added.
-                        The instance will be destructively updated.
+        `detector` (DetectorInfo):  The instance of `DetectorInfo` type to which
+                                    `noise_rad` is to be added. The instance will
+                                    be destructively updated.
 
-        `offset_rad`:   The offset to be added in the specified direction by `axis`, in radians.
+        `start_time`: Either a floating-point number or an
+                     `astropy.time.Time` object. It can be `None` if and
+                     only if there is just *one* quaternion in `quats`.
 
-        `axis`:         The axis in the reference frame around which the rotation is to be performed.
+        `sampling_rate_hz`: The sampling frequency of the quaternions, in Hertz.
+                            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
+        `noise_rad` (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
+                                        in radians. It must have shape of 1d NumPy array.
+
+        `axis` (str): The axis in the reference frame around which the rotation is to be performed.
     """
     if axis.lower() == 'x':
         rotation_func = quat_rotation_x_brdcast
@@ -161,16 +173,18 @@ def left_multiply_disturb2det(detector:DetectorInfo, start_time, sampling_rate_h
     )
     detector.quat = orient_quat1 * interim_quat
 
-def left_multiply_offset2quat(result, offset_rad, axis):
+def left_multiply_offset2quat(result:RotQuaternion, offset_rad:float, axis:str):
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
-        `result`:       Input instance of `RotQuaternion` type to which offset is to be added.
-                        The instance will be destructively updated.
+        `result` (RotQuaternion): Input instance of `RotQuaternion` type to which
+                                  `offset_rad` is to be added. The instance will be
+                                  destructively updated.
 
-        `offset_rad`:   The offset to be added in the specified direction by `axis`, in radians.
+        `offset_rad` (float): The offset to be added in the specified direction
+                              by `axis`, in radians.
 
-        `axis`:         The axis in the reference frame around which the rotation is to be performed.
+        `axis` (str): The axis in the reference frame around which the rotation is to be performed.
     """
     if axis.lower() == 'x':
         rotation_func = quat_rotation_x
@@ -201,8 +215,8 @@ def left_multiply_disturb2quat(
     """Add given noise to the quaternion around specific axis and update the quaternion.
 
     Args:
-        `result`:           Input instance of `RotQuaternion` type to which noise is to be added.
-                            The instance will be destructively updated.
+        `result` (RotQuaternion): Input instance of `RotQuaternion` type to which noise is to be added.
+                                  The instance will be destructively updated.
 
         `start_time`:       Either a floating-point number or an `astropy.time.Time` object.
                             It can be `None` if and only
@@ -211,10 +225,10 @@ def left_multiply_disturb2quat(
         `sampling_rate_hz`: The sampling frequency of the quaternions, in Hertz. It can be `None` if and only
                             if there is just *one* quaternion in `quats`.
 
-        `noise_rad`:        The noise to be added in the specified direction by `axis`, in radians.
-                            It must have shape of 1d NumPy array.
+        `noise_rad` (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
+                                        in radians. It must have shape of 1d NumPy array.
 
-        `axis`:             The axis in the reference frame around which the rotation is to be performed.
+        `axis` (str): The axis in the reference frame around which the rotation is to be performed.
     """
 
     if axis.lower() == 'x':
@@ -238,31 +252,68 @@ def left_multiply_disturb2quat(
     result.quats = _result.quats
 
 
-def _ecl2focalplane(offset_rad, axis):
-    if axis.lower() == 'x':
-        axis = 'y'
-    elif axis.lower() == 'y':
-        axis = 'x'
-    elif axis.lower() == 'z':
-        axis = 'z'
-        offset_rad = -offset_rad
-    return (offset_rad, axis)
+def _ecl2focalplane(angle, axis):
+    """Convert the axis and offset from the ecliptic coordinate to the focal plane.
 
-def _ecl2spacecraft(offset_rad, axis):
+    Args:
+        angle (float): The angle which is to be converted.
+
+        axis (str): The axis which is to be converted.
+    """
+
     if axis.lower() == 'x':
         axis = 'y'
     elif axis.lower() == 'y':
         axis = 'x'
     elif axis.lower() == 'z':
         axis = 'z'
-    return (offset_rad, axis)
+        angle = -angle
+    return (angle, axis)
+
+def _ecl2spacecraft(angle, axis):
+    """Convert the axis and offset from the ecliptic coordinate to the spacecraft
+    (Payload module: PLM) coordinate.
+
+    Args:
+        angle (float): The angle which is to be converted.
+
+        axis (str): The axis which is to be converted.
+    """
+
+    if axis.lower() == 'x':
+        axis = 'y'
+    elif axis.lower() == 'y':
+        axis = 'x'
+    elif axis.lower() == 'z':
+        axis = 'z'
+    return (angle, axis)
 
 
 class FocalplaneCoord:
+    """This class create an instans of focal plane to add offset and disturbance to the detectors.
+
+    Args:
+        detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
+    """
     def __init__(self, detectors: List[DetectorInfo]):
         self.detectors = detectors
 
-    def add_offset(self, offset_rad, axis):
+    def add_offset(self, offset_rad, axis:str):
+        """Add a rotational offset to the detectors in the focal plane by specified axis.
+
+        If the `offset_rad` is a scalar, it will be added to all the detectors in the focal plane.
+        If the `offset_rad` is an array with same length of the list of detectors,
+        it will be added to the detectors in the focal plane one by one.
+        In this case, the length of the array must be equal to the number of detectors.
+
+        Args:
+            offset_rad (in case of `float`): The same offset to be added to all detectors on the focal plane
+                                             in the specified direction by `axis`, in radians.
+                       (in case of `array`): The offset to be added to all dtectors on the focal plane
+                                             individually, in the specified direction by `axis`, in radians.
+
+            axis (str): The axis in the reference frame around which the rotation is to be performed.
+        """
         offset_rad, axis = _ecl2focalplane(offset_rad, axis)
         if isinstance(offset_rad, Iterable):
             # Detector by detecgtor
@@ -271,33 +322,93 @@ class FocalplaneCoord:
                 left_multiply_offset2det(det, offset_rad[i], axis)
         else:
             # Global in the focal plane
-            for i, det in enumerate(self.detectors):
+            for det in self.detectors:
                 left_multiply_offset2det(det, offset_rad, axis)
 
-    def add_disturb(self, start_time, sampling_rate_hz, noise_rad_matrix, axis):
-        offset_rad, axis = _ecl2focalplane(None, axis)
+    def add_disturb(self, start_time, sampling_rate_hz, noise_rad_matrix:np.ndarray, axis:str):
+        """Add a rotational disturbance to the detectors in the focal plane by specified axis.
+
+        If the `noise_rad_matrix` has the shape [N,t] where N is the number of detectors,
+        t is the number of timestamps, the disturbance will be added to the detectors
+        in the focal plane detector by detector. This represents the uncommon case
+        where each detector has its own disturbance.
+
+        Args:
+            start_time: It is either a floating-point number or an `astropy.time.Time` object.
+            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
+            sampling_rate_hz: The sampling frequency of the quaternions, in Hertz.
+            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
+            noise_rad_matrix
+                (numpy.ndarray with shape [N,t]): The disturbance to be added to all detectors on the focal plane
+                                                  individually, in the specified direction by `axis`, in radians.
+                (numpy.ndarray with shape [,t]):  The common-mode disturbance to be added to all detectors on the
+                                                  focal plane in the specified direction by `axis`, in radians.
+
+            axis (str): The axis in the reference frame around which the rotation is to be performed.
+        """
+        _, axis = _ecl2focalplane(None, axis)
         if noise_rad_matrix.shape[0] == len(self.detectors):
             # Detector by detecgtor
             for i, det in enumerate(self.detectors):
                 left_multiply_disturb2det(det, start_time, sampling_rate_hz, noise_rad_matrix[i], axis)
         else:
             # Global in the focal plane
-            for i, det in enumerate(self.detectors):
+            for det in self.detectors:
                 left_multiply_disturb2det(det, start_time, sampling_rate_hz, noise_rad_matrix, axis)
 
 class SpacecraftCoord:
+    """This class create an instans of spacecraft to add offset and disturbance to the instrument.
+
+    Args:
+        instrument: `Instrumentinfo` to which offset and disturbance are to be added.
+    """
     def __init__(self, instrument: InstrumentInfo):
         self.instrument = instrument
 
-    def add_offset(self, offset_rad, axis):
+    def add_offset(self, offset_rad, axis:str):
+        """Add a rotational offset to the instrument in the spacecraft by specified axis.
+
+        Args:
+            offset_rad (float): The offset to be added in the specified direction by `axis`, in radians.
+
+            axis (str): The axis in the reference frame around which the rotation is to be performed.
+        """
         offset_rad, axis = _ecl2spacecraft(offset_rad, axis)
         left_multiply_offset2quat(self.instrument.bore2spin_quat, offset_rad, axis)
 
-    def add_disturb(self, start_time, sampling_rate_hz, noise_rad, axis):
-        offset_rad, axis = _ecl2spacecraft(None, axis)
-        left_multiply_disturb2quat(self.instrument.bore2spin_quat, start_time, sampling_rate_hz, noise_rad, axis)
+    def add_disturb(self, start_time, sampling_rate_hz, noise_rad:np.ndarray, axis):
+        """Add a rotational disturbance to the instrument in the spacecraft by specified axis.
+
+        Args:
+            start_time: It is either a floating-point number or an `astropy.time.Time` object.
+            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
+            sampling_rate_hz: The sampling frequency of the quaternions, in Hertz.
+            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
+            noise_rad (1d-numpy.ndarray): The disturbance to be added in the specified
+                                          direction by `axis`, in radians.
+
+            axis (str): The axis in the reference frame around which the rotation is to be performed.
+        """
+        _, axis = _ecl2spacecraft(None, axis)
+        left_multiply_disturb2quat(
+            self.instrument.bore2spin_quat,
+            start_time,
+            sampling_rate_hz,
+            noise_rad,
+            axis
+            )
 
 class PointingSys:
+    """This class provide an interface to add offset and disturbance to the instrument and detectors.
+
+    Args: instrument (InstrumentInfo): The instance of `InstrumentInfo` to which offset and disturbance are to be added.
+
+          detectors (List[DetectorInfo]): List of `Detectorinfo` to which offset and disturbance are to be added.
+    """
     def __init__(self, instrument: InstrumentInfo, detectors: List[DetectorInfo]):
         self.spacecraft = SpacecraftCoord(instrument)
         self.focalplane = FocalplaneCoord(detectors)
