@@ -1,0 +1,607 @@
+[LFT.det_000]
+name = "000_000_000_QA_040_T"
+wafer = "L00"
+pixel = 0
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "Q"
+quat = [0.0, 0.0, 0.0, 1.0]
+
+[LFT.det_001]
+name = "000_000_001_QA_040_B"
+wafer = "L00"
+pixel = 1
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "Q"
+quat = [0.0, 0.0, 0.7071067811865475, 0.7071067811865476]
+
+[LFT.det_002]
+name = "000_000_002_QA_040_T"
+wafer = "L00"
+pixel = 2
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "Q"
+quat = [0.15110408990407337, 0.04048821886283622, 0.25563255317172684, 0.9540336765054371]
+
+[LFT.det_003]
+name = "000_000_003_QA_040_B"
+wafer = "L00"
+pixel = 3
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "Q"
+quat = [0.1354762207522686, -0.07821723252011542, 0.8553631939770863, 0.493844170297569]
+
+[LFT.det_004]
+name = "000_000_004_UB_040_T"
+wafer = "L00"
+pixel = 4
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "U"
+quat = [0.0952312684841057, 0.12410780537633961, 0.9792385299218752, -0.12891919819802478]
+
+[LFT.det_005]
+name = "000_000_005_UB_040_B"
+wafer = "L00"
+pixel = 5
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "U"
+quat = [0.1550961465058979, 0.020418795053682125, 0.6012665656359482, -0.7835858441778597]
+
+[LFT.det_006]
+name = "000_000_006_UB_040_T"
+wafer = "L00"
+pixel = 6
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "U"
+quat = [0.020418795053682104, 0.1550961465058979, 0.7835858441778597, -0.6012665656359482]
+
+[LFT.det_007]
+name = "000_000_007_UB_040_B"
+wafer = "L00"
+pixel = 7
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "U"
+quat = [0.12410780537633961, 0.09523126848410571, 0.12891919819802472, -0.9792385299218752]
+
+[LFT.det_008]
+name = "000_000_008_QA_040_T"
+wafer = "L00"
+pixel = 8
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "Q"
+quat = [-0.15110408990407334, 0.04048821886283626, 0.2556325531717271, -0.954033676505437]
+
+[LFT.det_009]
+name = "000_000_009_QA_040_B"
+wafer = "L00"
+pixel = 9
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "Q"
+quat = [-0.0782172325201154, 0.1354762207522686, -0.49384417029756855, -0.8553631939770865]
+
+[MFT.det_000]
+name = "001_000_000_00A_100_T"
+wafer = "M00"
+pixel = 0
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "00"
+quat = [0.0, 0.0, 0.0, 1.0]
+
+[MFT.det_001]
+name = "001_000_001_00A_100_B"
+wafer = "M00"
+pixel = 1
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "00"
+quat = [0.0, 0.0, 0.7071067811865475, 0.7071067811865476]
+
+[MFT.det_002]
+name = "001_000_002_15A_100_T"
+wafer = "M00"
+pixel = 2
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "15"
+quat = [0.11259259201260513, 0.04663737863436165, 0.6042238136302776, 0.7874398047978537]
+
+[MFT.det_003]
+name = "001_000_003_15A_100_B"
+wafer = "M00"
+pixel = 3
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "15"
+quat = [0.11259259201260513, -0.04663737863436166, 0.9840547817211396, 0.12955326977640774]
+
+[MFT.det_004]
+name = "001_000_004_30B_100_T"
+wafer = "M00"
+pixel = 4
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "30"
+quat = [0.031542107087391476, 0.1177167462279233, 0.7018361144661901, 0.7018361144661902]
+
+[MFT.det_005]
+name = "001_000_005_30B_100_B"
+wafer = "M00"
+pixel = 5
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "30"
+quat = [-0.06093467170257372, 0.10554194733138729, 0.0, 0.9925461516413221]
+
+[MFT.det_006]
+name = "001_000_006_45B_100_T"
+wafer = "M00"
+pixel = 6
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "45"
+quat = [-0.046637378634361654, 0.11259259201260513, 0.9169930745742614, 0.3798309680908621]
+
+[MFT.det_007]
+name = "001_000_007_45B_100_B"
+wafer = "M00"
+pixel = 7
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "45"
+quat = [-0.11259259201260513, 0.046637378634361674, 0.37983096809086203, 0.9169930745742614]
+
+[MFT.det_008]
+name = "001_000_008_60A_100_T"
+wafer = "M00"
+pixel = 8
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "60"
+quat = [1.3877787807814457e-17, 0.1218693434051475, 0.49627307582066127, -0.8595701817498665]
+
+[MFT.det_009]
+name = "001_000_009_60A_100_B"
+wafer = "M00"
+pixel = 9
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "60"
+quat = [0.08617463914053185, 0.08617463914053185, -0.25688984718798835, -0.958725961654179]
+
+[MFT.det_010]
+name = "001_000_0010_75B_100_T"
+wafer = "M00"
+pixel = 10
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "75"
+quat = [-0.12082673427803375, -0.015907141343031762, 0.9169930745742614, -0.37983096809086203]
+
+[MFT.det_011]
+name = "001_000_0011_75B_100_B"
+wafer = "M00"
+pixel = 11
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "75"
+quat = [-0.07418935564367206, -0.09668545066957336, 0.9169930745742613, 0.379830968090862]
+
+[MFT.det_012]
+name = "001_000_0012_90A_100_T"
+wafer = "M00"
+pixel = 12
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "90"
+quat = [-0.08617463914053183, 0.08617463914053185, -0.70183611446619, -0.7018361144661903]
+
+[MFT.det_013]
+name = "001_000_0013_90A_100_B"
+wafer = "M00"
+pixel = 13
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "90"
+quat = [7.462345065765174e-18, 0.12186934340514749, -0.9925461516413221, -1.823277701420353e-16]
+
+[HFT.det_000]
+name = "002_000_000_U_400_T"
+wafer = "H00"
+pixel = 0
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "U"
+quat = [0.0, 0.0, 0.3826834323650898, 0.9238795325112867]
+
+[HFT.det_001]
+name = "002_000_001_U_400_B"
+wafer = "H00"
+pixel = 1
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "U"
+quat = [0.0, 0.0, 0.9238795325112867, 0.38268343236508984]
+
+[HFT.det_002]
+name = "002_000_002_Q_400_T"
+wafer = "H00"
+pixel = 2
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "Q"
+quat = [0.12186934340514749, 0.0, 0.0, 0.9925461516413221]
+
+[HFT.det_003]
+name = "002_000_003_Q_400_B"
+wafer = "H00"
+pixel = 3
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "Q"
+quat = [0.08617463914053185, -0.08617463914053183, 0.7018361144661901, 0.7018361144661902]
+
+[HFT.det_004]
+name = "002_000_004_U_400_T"
+wafer = "H00"
+pixel = 4
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "U"
+quat = [0.09668545066957338, 0.07418935564367207, 0.9840547817211396, 0.1295532697764078]
+
+[HFT.det_005]
+name = "002_000_005_U_400_B"
+wafer = "H00"
+pixel = 5
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "U"
+quat = [0.12082673427803375, -0.01590714134303177, 0.7874398047978539, -0.6042238136302773]
+
+[HFT.det_006]
+name = "002_000_006_U_400_T"
+wafer = "H00"
+pixel = 6
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "T"
+orient = "U"
+quat = [-0.015907141343031728, 0.12082673427803377, 0.6042238136302778, -0.7874398047978536]
+
+[HFT.det_007]
+name = "002_000_007_U_400_B"
+wafer = "H00"
+pixel = 7
+pixtype = "def"
+channel = "ghi"
+bandcenter_ghz = 65.0
+bandwidth_ghz = 14.0
+sampling_rate_hz = 1.0
+fwhm_arcmin = 34.0
+ellipticity = 56.0
+net_ukrts = 78.0
+fknee_mhz = 90.0
+fmin_hz = 98.0
+alpha = 76.0
+pol = "B"
+orient = "U"
+quat = [0.07418935564367211, 0.09668545066957338, -0.1295532697764074, -0.9840547817211397]
