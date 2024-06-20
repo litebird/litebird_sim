@@ -25,35 +25,33 @@ from typing import Union, List, Optional, Iterable
 def get_detector_orientation(detector:DetectorInfo):
     #TODO: This infomation should be included in IMo.
     """This function returns the orientation of the detector in the focal plane."""
-    if detector.wafer[0]:
-        telescope = detector.wafer[0] + 'FT'
-        if telescope == 'LFT' or telescope == 'HFT':
-            orient_angle = 0.
-            handiness = ""
-            if telescope == 'LFT':
-                handiness = detector.name.split('_')[3][1]
-            if detector.orient == 'Q':
-                if detector.pol == 'T':
-                    orient_angle = 0.
-                else:
-                    orient_angle = np.pi/2
+
+    telescope = detector.name.split("_")[0]
+    if telescope == '000' or telescope == '002': # LFT and HFT
+        orient_angle = 0.
+        handiness = ""
+        if telescope == 'LFT':
+            handiness = detector.name.split('_')[3][1]
+        if detector.orient == 'Q':
+            if detector.pol == 'T':
+                orient_angle = 0.
             else:
-                if detector.pol == 'T':
-                    orient_angle = np.pi/4
-                else:
-                    orient_angle = np.pi/4 + np.pi/2
-            if handiness == 'B':
-                orient_angle = -orient_angle
-            return orient_angle
-        else: # MFT
-            orient_angle = np.deg2rad(float(detector.orient))
-            handiness = detector.name.split('_')[3][-1]
-            if detector.pol == 'B':
-                orient_angle += np.pi/2
-            if handiness == 'B':
-                orient_angle = -orient_angle
-    else:
-        orient_angle = 0.0
+                orient_angle = np.pi/2
+        else:
+            if detector.pol == 'T':
+                orient_angle = np.pi/4
+            else:
+                orient_angle = np.pi/4 + np.pi/2
+        if handiness == 'B':
+            orient_angle = -orient_angle
+        return orient_angle
+    else: # MFT
+        orient_angle = np.deg2rad(float(detector.orient))
+        handiness = detector.name.split('_')[3][-1]
+        if detector.pol == 'B':
+            orient_angle += np.pi/2
+        if handiness == 'B':
+            orient_angle = -orient_angle
     return orient_angle
 
 
