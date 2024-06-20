@@ -126,7 +126,7 @@ def left_multiply_disturb2det(
 
         `start_time`: Either a floating-point number or an
                      `astropy.time.Time` object. It can be `None` if and
-                     only if there is just *one* quaternion in `quats`.
+                      only if there is just *one* quaternion in `quats`.
 
         `sampling_rate_hz`: The sampling frequency of the quaternions, in Hertz.
                             It can be `None` if and only if there is just *one* quaternion in `quats`.
@@ -258,7 +258,8 @@ def _ecl2focalplane(angle, axis):
 
         axis (str): The axis which is to be converted.
     """
-
+    if isinstance(angle, list):
+        angle = np.array(angle)
     if axis.lower() == 'x':
         axis = 'y'
     elif axis.lower() == 'y':
@@ -277,7 +278,6 @@ def _ecl2spacecraft(angle, axis):
 
         axis (str): The axis which is to be converted.
     """
-
     if axis.lower() == 'x':
         axis = 'y'
     elif axis.lower() == 'y':
