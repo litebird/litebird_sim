@@ -164,12 +164,12 @@ def left_multiply_disturb2det(
     interim_quat = noise_quats * orient_quat * detector.quat
     _rotate_z_vectors_brdcast(vec_matrix, interim_quat.quats)
 
-    orient_quat1 = RotQuaternion(
+    orient_quat = RotQuaternion(
         start_time=start_time,
         sampling_rate_hz=sampling_rate_hz,
         quats=np.array(quat_rotation_brdcast(orient_rad, vec_matrix))
     )
-    detector.quat = orient_quat1 * interim_quat
+    detector.quat = orient_quat * interim_quat
 
 def left_multiply_offset2quat(result:RotQuaternion, offset_rad:float, axis:str):
     """Add a rotation around the given axis to the quaternion and update the quaternion.
@@ -254,7 +254,7 @@ def _ecl2focalplane(angle, axis):
     """Convert the axis and offset from the ecliptic coordinate to the focal plane.
 
     Args:
-        angle (float): The angle which is to be converted.
+        angle (float or array): The angle which is to be converted.
 
         axis (str): The axis which is to be converted.
     """
@@ -264,6 +264,7 @@ def _ecl2focalplane(angle, axis):
         axis = 'y'
     elif axis.lower() == 'y':
         axis = 'x'
+        angle = -angle
     elif axis.lower() == 'z':
         axis = 'z'
         angle = -angle
@@ -274,14 +275,17 @@ def _ecl2spacecraft(angle, axis):
     (Payload module: PLM) coordinate.
 
     Args:
-        angle (float): The angle which is to be converted.
+        angle (float or array): The angle which is to be converted.
 
         axis (str): The axis which is to be converted.
     """
+    if isinstance(angle, list):
+        angle = np.array(angle)
     if axis.lower() == 'x':
         axis = 'y'
     elif axis.lower() == 'y':
         axis = 'x'
+        angle = -angle
     elif axis.lower() == 'z':
         axis = 'z'
     return (angle, axis)
@@ -313,9 +317,10 @@ class FocalplaneCoord:
             axis (str): The axis in the reference frame around which the rotation is to be performed.
         """
         offset_rad, axis = _ecl2focalplane(offset_rad, axis)
+
         if isinstance(offset_rad, Iterable):
             # Detector by detecgtor
-            assert len(offset_rad) == len(self.detectors)
+            assert len(offset_rad) == len(self.detectors), "The length of the offset_rad must be equal to the number of detectors."
             for i, det in enumerate(self.detectors):
                 left_multiply_offset2det(det, offset_rad[i], axis)
         else:
@@ -328,7 +333,7 @@ class FocalplaneCoord:
 
         If the `noise_rad_matrix` has the shape [N,t] where N is the number of detectors,
         t is the number of timestamps, the disturbance will be added to the detectors
-        in the focal plane detector by detector. This represents the uncommon case
+        in the focal plane detector by detector. This represents the independent case
         where each detector has its own disturbance.
 
         Args:
@@ -346,15 +351,17 @@ class FocalplaneCoord:
 
             axis (str): The axis in the reference frame around which the rotation is to be performed.
         """
-        _, axis = _ecl2focalplane(None, axis)
-        if noise_rad_matrix.shape[0] == len(self.detectors):
-            # Detector by detecgtor
-            for i, det in enumerate(self.detectors):
-                left_multiply_disturb2det(det, start_time, sampling_rate_hz, noise_rad_matrix[i], axis)
-        else:
+        noise_rad_matrix, axis = _ecl2focalplane(noise_rad_matrix, axis)
+
+        if noise_rad_matrix.ndim == 1:
             # Global in the focal plane
             for det in self.detectors:
                 left_multiply_disturb2det(det, start_time, sampling_rate_hz, noise_rad_matrix, axis)
+        else:
+            # Detector by detecgtor
+            assert noise_rad_matrix.shape[0] == len(self.detectors), "The number of detectors must be equal to the number of rows in noise_rad_matrix."
+            for i, det in enumerate(self.detectors):
+                left_multiply_disturb2det(det, start_time, sampling_rate_hz, noise_rad_matrix[i], axis)
 
 class SpacecraftCoord:
     """This class create an instans of spacecraft to add offset and disturbance to the instrument.
@@ -391,7 +398,7 @@ class SpacecraftCoord:
 
             axis (str): The axis in the reference frame around which the rotation is to be performed.
         """
-        _, axis = _ecl2spacecraft(None, axis)
+        noise_rad, axis = _ecl2spacecraft(noise_rad, axis)
         left_multiply_disturb2quat(
             self.instrument.bore2spin_quat,
             start_time,
