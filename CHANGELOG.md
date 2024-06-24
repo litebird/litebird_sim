@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319)
+
 -   Add data splits in time and detector space to destriped maps [#309](https://github.com/litebird/litebird_sim/pull/309)
 
 -   Fix issue [#317](https://github.com/litebird/litebird_sim/issues/317)

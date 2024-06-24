@@ -112,19 +112,20 @@ coordinate system you want via the parameter `output_coordinates`.
 This is how it should be called::
 
     result = lbs.make_binned_map(nside=128, observations=observations)
-    healpy.mollview(result.binned_map)
+    healpy.mollview(result.binned_map[0])
 
-(The pointing information is included in the :class:`.Observation`,
-alternatively pointings can be provided as a list of numpy arrays.)
+The pointing information is obtained from the :class:`.Observation` (either 
+using the precomputed pointing or computed on the fly), alternatively 
+pointings can be provided as a list of numpy arrays.
 The result is an instance of the class :class:`.BinnerResult`
 and contains both the I/Q/U maps and the covariance matrix.
 
 The function :func:`.make_binned_map` has a high level interface in the class
-:class:`.Simulation` that bins the content of the observations into maps
+:class:`.Simulation` that bins the content of the observations into maps.
 The syntax is identical to :func:`.make_binned_map`::
 
     result = sim.make_binned_map(nside=nside)
-    healpy.mollview(result.binned_map)
+    healpy.mollview(result.binned_map[0])
 
 
 The :class:`.BinnerResult` contains the field ``binned_map``, which
@@ -367,9 +368,13 @@ instance of the class :class:`.DestriperParameters`::
         ...
     )
 
-    result = lbs.make_destriped_map(nside=nside, observations=observations, params=params)
+    result = lbs.make_destriped_map(nside=nside,
+                                    observations=observations,
+                                    params=params,
+                                    )
     healpy.mollview(result.destriped_map)
 
+The pointing information is handled identically to :func:`.make_binned_map`.
 The result is an instance of the class :class:`.DestriperResult`, which
 is similar to :class:`.BinnerResult` but it contains much more information.
 
