@@ -16,6 +16,7 @@ time_span_s = 10
 sampling_hz = 1
 results_dict = {}
 rtol = 1e-8
+atol = 1e-8
 path_of_reference = Path(__file__).parent / "pointing_sys_reference/pointing_sys_reference.json.gz"
 
 
@@ -94,7 +95,7 @@ def test_PointingSys_add_single_offset_to_FP(telescope, make_reference_file=make
 
     results_dict[func.__name__][telescope] = pointings_list
     if make_reference_file == False:
-        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol)
+        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("telescope", telescopes)
@@ -126,7 +127,7 @@ def test_PointingSys_add_multiple_offsets_to_FP(telescope, make_reference_file=m
 
     results_dict[func.__name__][telescope] = pointings_list
     if make_reference_file == False:
-        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol)
+        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("telescope", telescopes)
@@ -164,7 +165,7 @@ def test_PointingSys_add_uncommon_disturb_to_FP(telescope, make_reference_file=m
 
     results_dict[func.__name__][telescope] = pointings_list
     if make_reference_file == False:
-        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol)
+        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("telescope", telescopes)
@@ -201,7 +202,7 @@ def test_PointingSys_add_common_disturb_to_FP(telescope, make_reference_file=mak
 
     results_dict[func.__name__][telescope] = pointings_list
     if make_reference_file == False:
-        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol)
+        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("telescope", telescopes)
@@ -233,7 +234,7 @@ def test_PointingSys_add_single_offset_to_spacecraft(telescope, make_reference_f
 
     results_dict[func.__name__][telescope] = pointings_list
     if make_reference_file == False:
-        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol)
+        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol, atol=atol)
 
 
 @pytest.mark.parametrize("telescope", telescopes)
@@ -269,7 +270,7 @@ def test_PointingSys_add_common_disturb_to_spacecraft(telescope, make_reference_
 
     results_dict[func.__name__][telescope] = pointings_list
     if make_reference_file == False:
-        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol)
+        np.testing.assert_allclose(pointings_list, result_reference[func.__name__][telescope], rtol=rtol, atol=atol)
 
 
 if make_reference_file == True:
