@@ -465,7 +465,7 @@ def test_smart_pointings_consistency_with_hwp(tmp_path):
 
         for det_idx in range(obs.n_detectors):
             (pointings, hwp_angle) = obs.get_pointings(det_idx)
-            assert pointings.shape == (obs.n_samples, 3)
+            assert pointings.shape == (1, obs.n_samples, 3)
             assert hwp_angle.shape == (obs.n_samples,)
 
 
@@ -479,7 +479,7 @@ def test_smart_pointings_consistency_without_hwp(tmp_path):
 
         for det_idx in range(obs.n_detectors):
             (pointings, hwp_angle) = obs.get_pointings(det_idx)
-            assert pointings.shape == (obs.n_samples, 3)
+            assert pointings.shape == (1, obs.n_samples, 3)
             assert hwp_angle is None
 
 
@@ -497,7 +497,7 @@ def test_smart_pointings_angles(tmp_path):
     # function present in LBS 0.12.0
 
     np.testing.assert_allclose(
-        actual=pointings[0:10, :],
+        actual=pointings[0, 0:10, :],
         desired=np.array(
             [
                 [1.6580627894, 0.0000000000, 1.3977241805],
@@ -616,7 +616,7 @@ def test_compute_pointings_for_one_detector(dtype, tmp_path):
         pointings, hwp_angle = cur_obs.get_pointings(0, pointings_dtype=dtype)
 
         assert pointings.dtype == dtype
-        assert pointings.shape == (cur_obs.n_samples, 3)
+        assert pointings.shape == (1, cur_obs.n_samples, 3)
 
         assert hwp_angle.dtype == dtype
         assert hwp_angle.shape == (cur_obs.n_samples,)
@@ -647,7 +647,7 @@ def test_store_pointings_for_two_detectors(dtype, tmp_path):
                 cur_pointings, _ = cur_obs.get_pointings(abs_det_idx)
                 np.testing.assert_allclose(
                     actual=pointings[rel_det_idx, :, :],
-                    desired=cur_pointings[:, :],
+                    desired=cur_pointings[0, :, :],
                     rtol=1e-6,
                 )
 
@@ -676,6 +676,6 @@ def test_smart_pointings_for_all_detectors(dtype, tmp_path):
             assert cur_pointings.dtype == dtype
             np.testing.assert_allclose(
                 actual=pointings[det_idx, :, :],
-                desired=cur_pointings[:, :],
+                desired=cur_pointings[0, :, :],
                 rtol=1e-6,
             )

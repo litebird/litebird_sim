@@ -168,15 +168,15 @@ similar to what is going to be used for LiteBIRD:
 
 .. testoutput::
 
-  Shape: (600, 3)
+  Shape: (1, 600, 3)
   Pointings:
-  [[ 2.182 -0.    -1.571]
-   [ 2.182 -0.006 -1.576]
-   [ 2.182 -0.012 -1.582]
-   ...
-   [ 0.089 -2.967 -1.738]
-   [ 0.088 -3.021 -1.687]
-   [ 0.087 -3.075 -1.635]]
+  [[[ 2.182 -0.    -1.571]
+    [ 2.182 -0.006 -1.576]
+    [ 2.182 -0.012 -1.582]
+    ...
+    [ 0.089 -2.967 -1.738]
+    [ 0.088 -3.021 -1.687]
+    [ 0.087 -3.075 -1.635]]]
 
 All the details in this code are explained in the next sections, so
 for now just keep in mind the overall shape of the code:
@@ -201,12 +201,12 @@ for now just keep in mind the overall shape of the code:
    the example above, this is done by the function
    :func:`.get_pointings`.
 
-3. The method :meth:`.Observation.get_pointings` returns a ``(N, 3)``
-   matrix, where the first column contains the colatitude
-   :math:`\theta`, the second column the longitude :math:`\phi`, and
-   the third column the orientation angle :math:`\psi`, all expressed
-   in radians. These angles are expressed in the Ecliptic Coordinate
-   System, where the Equator is aligned with the Ecliptic Plane of
+3. The method :meth:`.Observation.get_pointings` returns a ``(D, N, 3)``
+   matrix, where D represents the detector index, N the index of the sample
+   and the three final columns contain the colatitude :math:`\theta`, 
+   the longitude :math:`\phi`, and the orientation angle :math:`\psi`, 
+   all expressed in radians. These angles are expressed in the Ecliptic
+   Coordinate System, where the Equator is aligned with the Ecliptic Plane of
    the Solar System.
 
 
@@ -361,7 +361,7 @@ split in several blocks inside the :class:`.Observation` class.
    unlikely to be relevant.
 
 Once all the quaternions have been computed at the proper sampling
-rate, the direction of the detector on the sky and its orientation
+rate, the direction of the detector on the sky and its o]rientation
 angle can be computed via a call to :meth:`.Observation.get_pointings`.
 The calculation works as follows:
 
@@ -774,7 +774,7 @@ computing one quaternion every minute, we compute one quaternion every
    pointings = lbs.get_pointings(obs, sim.spin2ecliptic_quats, np.array([det.quat]))
 
    m = np.zeros(healpy.nside2npix(64))
-   pixidx = healpy.ang2pix(64, pointings[:, 0], pointings[:, 1])
+   pixidx = healpy.ang2pix(64, pointings[0, :, 0], pointings[0, :, 1])
    m[pixidx] = 1
    healpy.mollview(m)
 

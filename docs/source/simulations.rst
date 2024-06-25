@@ -518,7 +518,7 @@ straightforward::
 
 See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
 :ref:`dipole-anisotropy`, :ref:`timeordered`, :ref:`mapmaking` for 
-details of the single functions. 
+details of the single functions.
 
 
 Data splits

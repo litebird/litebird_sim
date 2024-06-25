@@ -49,14 +49,14 @@ def test_coordinates():
 
     r = hp.Rotator(coord=["E", "G"])
 
-    pointings_gal_hp = np.empty_like(pointings)
+    pointings_gal_hp = np.empty_like(pointings[0])
 
-    pointings_gal_hp[:, 0:2] = r(pointings[:, 0], pointings[:, 1]).T
-    pointings_gal_hp[:, 2] = pointings[:, 2] + r.angle_ref(
-        pointings[:, 0], pointings[:, 1]
+    pointings_gal_hp[:, 0:2] = r(pointings[0, :, 0], pointings[0, :, 1]).T
+    pointings_gal_hp[:, 2] = pointings[0, :, 2] + r.angle_ref(
+        pointings[0, :, 0], pointings[0, :, 1]
     )
 
-    pointings_gal_lbs = lbs.coordinates.rotate_coordinates_e2g(pointings)
+    pointings_gal_lbs = lbs.coordinates.rotate_coordinates_e2g(pointings[0])
 
     np.testing.assert_allclose(
         pointings_gal_hp, pointings_gal_lbs, rtol=1e-6, atol=1e-6

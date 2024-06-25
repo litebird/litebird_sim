@@ -712,7 +712,7 @@ class Observation:
                 (detector_idx >= 0) and (detector_idx < self.n_detectors)
             ), f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
 
-            return self.pointing_provider.get_pointings(
+            pointing, hwp = self.pointing_provider.get_pointings(
                 detector_quat=self.quat[detector_idx],
                 start_time=self.start_time,
                 start_time_global=self.start_time_global,
@@ -722,6 +722,7 @@ class Observation:
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
             )
+            return pointing.reshape(1, -1, 3), hwp
 
         # More complex case: we need all the detectors
         if isinstance(detector_idx, str):
