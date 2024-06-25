@@ -1,7 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Union
-
 import numpy as np
 import astropy.time
 
@@ -18,44 +16,43 @@ from ..quaternions import (
     rotate_z_vector,
 )
 from ..detectors import DetectorInfo, InstrumentInfo
-from ..simulations import Simulation
-from typing import Union, List, Optional, Iterable
+from typing import Union, List, Iterable
 
 
-def get_detector_orientation(detector:DetectorInfo):
-    #TODO: This infomation should be included in IMo.
+def get_detector_orientation(detector: DetectorInfo):
+    # TODO: This infomation should be included in IMo.
     """This function returns the orientation of the detector in the focal plane."""
 
     telescope = detector.name.split("_")[0]
-    if telescope == '000' or telescope == '002': # LFT and HFT
-        orient_angle = 0.
+    if telescope == "000" or telescope == "002":  # LFT and HFT
+        orient_angle = 0.0
         handiness = ""
-        if telescope == 'LFT':
-            handiness = detector.name.split('_')[3][1]
-        if detector.orient == 'Q':
-            if detector.pol == 'T':
-                orient_angle = 0.
+        if telescope == "LFT":
+            handiness = detector.name.split("_")[3][1]
+        if detector.orient == "Q":
+            if detector.pol == "T":
+                orient_angle = 0.0
             else:
-                orient_angle = np.pi/2
+                orient_angle = np.pi / 2
         else:
-            if detector.pol == 'T':
-                orient_angle = np.pi/4
+            if detector.pol == "T":
+                orient_angle = np.pi / 4
             else:
-                orient_angle = np.pi/4 + np.pi/2
-        if handiness == 'B':
+                orient_angle = np.pi / 4 + np.pi / 2
+        if handiness == "B":
             orient_angle = -orient_angle
         return orient_angle
-    else: # MFT
+    else:  # MFT
         orient_angle = np.deg2rad(float(detector.orient))
-        handiness = detector.name.split('_')[3][-1]
-        if detector.pol == 'B':
-            orient_angle += np.pi/2
-        if handiness == 'B':
+        handiness = detector.name.split("_")[3][-1]
+        if detector.pol == "B":
+            orient_angle += np.pi / 2
+        if handiness == "B":
             orient_angle = -orient_angle
     return orient_angle
 
 
-def _rotate_z_vectors_brdcast(result_matrix:np.ndarray, quat_matrix:np.ndarray):
+def _rotate_z_vectors_brdcast(result_matrix: np.ndarray, quat_matrix: np.ndarray):
     """Rotate the z vectors using the quaternions `quat_matrix`.
     This function is a broadcast version of `rotate_z_vector` function.
 
@@ -64,12 +61,16 @@ def _rotate_z_vectors_brdcast(result_matrix:np.ndarray, quat_matrix:np.ndarray):
 
         quat_matrix (np.ndarray with shape [N,4]):   The matrix of quaternions to rotate the vectors.
     """
-    result_matrix[:, 0] = 2 * (quat_matrix[:, 3] * quat_matrix[:, 1] + quat_matrix[:, 0] * quat_matrix[:, 2])
-    result_matrix[:, 1] = 2 * (quat_matrix[:, 1] * quat_matrix[:, 2] - quat_matrix[:, 3] * quat_matrix[:, 0])
-    result_matrix[:, 2] = 1.0 - 2 * (quat_matrix[:, 0]**2 + quat_matrix[:, 1]**2)
+    result_matrix[:, 0] = 2 * (
+        quat_matrix[:, 3] * quat_matrix[:, 1] + quat_matrix[:, 0] * quat_matrix[:, 2]
+    )
+    result_matrix[:, 1] = 2 * (
+        quat_matrix[:, 1] * quat_matrix[:, 2] - quat_matrix[:, 3] * quat_matrix[:, 0]
+    )
+    result_matrix[:, 2] = 1.0 - 2 * (quat_matrix[:, 0] ** 2 + quat_matrix[:, 1] ** 2)
 
 
-def left_multiply_offset2det(detector:DetectorInfo, offset_rad:float, axis:str):
+def left_multiply_offset2det(detector: DetectorInfo, offset_rad: float, axis: str):
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
@@ -80,11 +81,11 @@ def left_multiply_offset2det(detector:DetectorInfo, offset_rad:float, axis:str):
 
         `axis` (str):              The axis in the reference frame around which the rotation is to be performed.
     """
-    if axis.lower() == 'x':
+    if axis.lower() == "x":
         rotation_func = quat_rotation_x
-    elif axis.lower() == 'y':
+    elif axis.lower() == "y":
         rotation_func = quat_rotation_y
-    elif axis.lower() == 'z':
+    elif axis.lower() == "z":
         rotation_func = quat_rotation_z
     else:
         raise ValueError(f"Invalid axis {axis}, expected 'x', 'y', or 'z")
@@ -96,27 +97,22 @@ def left_multiply_offset2det(detector:DetectorInfo, offset_rad:float, axis:str):
     vect = np.empty(3)
     rotate_z_vector(vect, *detector.quat.quats[0])
 
-
-    orient_quat = RotQuaternion(
-        quats=np.array(quat_rotation(-orient_rad, *vect))
-    )
+    orient_quat = RotQuaternion(quats=np.array(quat_rotation(-orient_rad, *vect)))
 
     interim_quat = offset_quat * orient_quat * detector.quat
     rotate_z_vector(vect, *interim_quat.quats[0])
 
-    orient_quat = RotQuaternion(
-        quats=np.array(quat_rotation(orient_rad, *vect))
-    )
+    orient_quat = RotQuaternion(quats=np.array(quat_rotation(orient_rad, *vect)))
     detector.quat = orient_quat * interim_quat
 
 
 def left_multiply_disturb2det(
-    detector:DetectorInfo,
+    detector: DetectorInfo,
     start_time,
     sampling_rate_hz,
-    noise_rad:np.ndarray,
-    axis:str
-    ):
+    noise_rad: np.ndarray,
+    axis: str,
+):
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
@@ -136,11 +132,11 @@ def left_multiply_disturb2det(
 
         `axis` (str): The axis in the reference frame around which the rotation is to be performed.
     """
-    if axis.lower() == 'x':
+    if axis.lower() == "x":
         rotation_func = quat_rotation_x_brdcast
-    elif axis.lower() == 'y':
+    elif axis.lower() == "y":
         rotation_func = quat_rotation_y_brdcast
-    elif axis.lower() == 'z':
+    elif axis.lower() == "z":
         rotation_func = quat_rotation_z_brdcast
     else:
         raise ValueError(f"Invalid axis {axis}, expected 'x', 'y', or 'z")
@@ -149,8 +145,8 @@ def left_multiply_disturb2det(
     noise_quats = RotQuaternion(
         start_time=start_time,
         sampling_rate_hz=sampling_rate_hz,
-        quats=rotation_func(noise_rad)
-        )
+        quats=rotation_func(noise_rad),
+    )
 
     vec_matrix = np.empty([len(noise_rad), 3])
     _rotate_z_vectors_brdcast(vec_matrix, detector.quat.quats)
@@ -158,7 +154,7 @@ def left_multiply_disturb2det(
     orient_quat = RotQuaternion(
         start_time=start_time,
         sampling_rate_hz=sampling_rate_hz,
-        quats=np.array(quat_rotation_brdcast(-orient_rad, vec_matrix))
+        quats=np.array(quat_rotation_brdcast(-orient_rad, vec_matrix)),
     )
 
     interim_quat = noise_quats * orient_quat * detector.quat
@@ -167,11 +163,12 @@ def left_multiply_disturb2det(
     orient_quat = RotQuaternion(
         start_time=start_time,
         sampling_rate_hz=sampling_rate_hz,
-        quats=np.array(quat_rotation_brdcast(orient_rad, vec_matrix))
+        quats=np.array(quat_rotation_brdcast(orient_rad, vec_matrix)),
     )
     detector.quat = orient_quat * interim_quat
 
-def left_multiply_offset2quat(result:RotQuaternion, offset_rad:float, axis:str):
+
+def left_multiply_offset2quat(result: RotQuaternion, offset_rad: float, axis: str):
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
@@ -184,11 +181,11 @@ def left_multiply_offset2quat(result:RotQuaternion, offset_rad:float, axis:str):
 
         `axis` (str): The axis in the reference frame around which the rotation is to be performed.
     """
-    if axis.lower() == 'x':
+    if axis.lower() == "x":
         rotation_func = quat_rotation_x
-    elif axis.lower() == 'y':
+    elif axis.lower() == "y":
         rotation_func = quat_rotation_y
-    elif axis.lower() == 'z':
+    elif axis.lower() == "z":
         rotation_func = quat_rotation_z
     else:
         raise ValueError(f"Invalid axis {axis}, expected 'x', 'y', or 'z")
@@ -209,7 +206,7 @@ def left_multiply_disturb2quat(
     sampling_rate_hz: float,
     noise_rad: np.ndarray,
     axis: str,
-    ):
+):
     """Add given noise to the quaternion around specific axis and update the quaternion.
 
     Args:
@@ -229,11 +226,11 @@ def left_multiply_disturb2quat(
         `axis` (str): The axis in the reference frame around which the rotation is to be performed.
     """
 
-    if axis.lower() == 'x':
+    if axis.lower() == "x":
         rotation_func = quat_rotation_x_brdcast
-    elif axis.lower() == 'y':
+    elif axis.lower() == "y":
         rotation_func = quat_rotation_y_brdcast
-    elif axis.lower() == 'z':
+    elif axis.lower() == "z":
         rotation_func = quat_rotation_z_brdcast
     else:
         raise ValueError(f"Invalid axis {axis}, expected 'x', 'y', or 'z")
@@ -241,8 +238,8 @@ def left_multiply_disturb2quat(
     noise_quats = RotQuaternion(
         start_time=start_time,
         sampling_rate_hz=sampling_rate_hz,
-        quats=rotation_func(noise_rad)
-        )
+        quats=rotation_func(noise_rad),
+    )
 
     _result = noise_quats * result
     result.start_time = _result.start_time
@@ -260,15 +257,16 @@ def _ecl2focalplane(angle, axis):
     """
     if isinstance(angle, list):
         angle = np.array(angle)
-    if axis.lower() == 'x':
-        axis = 'y'
-    elif axis.lower() == 'y':
-        axis = 'x'
+    if axis.lower() == "x":
+        axis = "y"
+    elif axis.lower() == "y":
+        axis = "x"
         angle = -angle
-    elif axis.lower() == 'z':
-        axis = 'z'
+    elif axis.lower() == "z":
+        axis = "z"
         angle = -angle
     return (angle, axis)
+
 
 def _ecl2spacecraft(angle, axis):
     """Convert the axis and offset from the ecliptic coordinate to the spacecraft
@@ -281,13 +279,13 @@ def _ecl2spacecraft(angle, axis):
     """
     if isinstance(angle, list):
         angle = np.array(angle)
-    if axis.lower() == 'x':
-        axis = 'y'
-    elif axis.lower() == 'y':
-        axis = 'x'
+    if axis.lower() == "x":
+        axis = "y"
+    elif axis.lower() == "y":
+        axis = "x"
         angle = -angle
-    elif axis.lower() == 'z':
-        axis = 'z'
+    elif axis.lower() == "z":
+        axis = "z"
     return (angle, axis)
 
 
@@ -297,10 +295,11 @@ class FocalplaneCoord:
     Args:
         detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
     """
+
     def __init__(self, detectors: List[DetectorInfo]):
         self.detectors = detectors
 
-    def add_offset(self, offset_rad, axis:str):
+    def add_offset(self, offset_rad, axis: str):
         """Add a rotational offset to the detectors in the focal plane by specified axis.
 
         If the `offset_rad` is a scalar, it will be added to all the detectors in the focal plane.
@@ -320,7 +319,9 @@ class FocalplaneCoord:
 
         if isinstance(offset_rad, Iterable):
             # Detector by detecgtor
-            assert len(offset_rad) == len(self.detectors), "The length of the offset_rad must be equal to the number of detectors."
+            assert len(offset_rad) == len(
+                self.detectors
+            ), "The length of the offset_rad must be equal to the number of detectors."
             for i, det in enumerate(self.detectors):
                 left_multiply_offset2det(det, offset_rad[i], axis)
         else:
@@ -328,7 +329,9 @@ class FocalplaneCoord:
             for det in self.detectors:
                 left_multiply_offset2det(det, offset_rad, axis)
 
-    def add_disturb(self, start_time, sampling_rate_hz, noise_rad_matrix:np.ndarray, axis:str):
+    def add_disturb(
+        self, start_time, sampling_rate_hz, noise_rad_matrix: np.ndarray, axis: str
+    ):
         """Add a rotational disturbance to the detectors in the focal plane by specified axis.
 
         If the `noise_rad_matrix` has the shape [N,t] where N is the number of detectors,
@@ -356,12 +359,19 @@ class FocalplaneCoord:
         if noise_rad_matrix.ndim == 1:
             # Global in the focal plane
             for det in self.detectors:
-                left_multiply_disturb2det(det, start_time, sampling_rate_hz, noise_rad_matrix, axis)
+                left_multiply_disturb2det(
+                    det, start_time, sampling_rate_hz, noise_rad_matrix, axis
+                )
         else:
             # Detector by detecgtor
-            assert noise_rad_matrix.shape[0] == len(self.detectors), "The number of detectors must be equal to the number of rows in noise_rad_matrix."
+            assert (
+                noise_rad_matrix.shape[0] == len(self.detectors)
+            ), "The number of detectors must be equal to the number of rows in noise_rad_matrix."
             for i, det in enumerate(self.detectors):
-                left_multiply_disturb2det(det, start_time, sampling_rate_hz, noise_rad_matrix[i], axis)
+                left_multiply_disturb2det(
+                    det, start_time, sampling_rate_hz, noise_rad_matrix[i], axis
+                )
+
 
 class SpacecraftCoord:
     """This class create an instans of spacecraft to add offset and disturbance to the instrument.
@@ -369,10 +379,11 @@ class SpacecraftCoord:
     Args:
         instrument: `Instrumentinfo` to which offset and disturbance are to be added.
     """
+
     def __init__(self, instrument: InstrumentInfo):
         self.instrument = instrument
 
-    def add_offset(self, offset_rad, axis:str):
+    def add_offset(self, offset_rad, axis: str):
         """Add a rotational offset to the instrument in the spacecraft by specified axis.
 
         Args:
@@ -383,7 +394,7 @@ class SpacecraftCoord:
         offset_rad, axis = _ecl2spacecraft(offset_rad, axis)
         left_multiply_offset2quat(self.instrument.bore2spin_quat, offset_rad, axis)
 
-    def add_disturb(self, start_time, sampling_rate_hz, noise_rad:np.ndarray, axis):
+    def add_disturb(self, start_time, sampling_rate_hz, noise_rad: np.ndarray, axis):
         """Add a rotational disturbance to the instrument in the spacecraft by specified axis.
 
         Args:
@@ -404,8 +415,9 @@ class SpacecraftCoord:
             start_time,
             sampling_rate_hz,
             noise_rad,
-            axis
-            )
+            axis,
+        )
+
 
 class PointingSys:
     """This class provide an interface to add offset and disturbance to the instrument and detectors.
@@ -414,6 +426,7 @@ class PointingSys:
 
           detectors (List[DetectorInfo]): List of `Detectorinfo` to which offset and disturbance are to be added.
     """
+
     def __init__(self, instrument: InstrumentInfo, detectors: List[DetectorInfo]):
         self.spacecraft = SpacecraftCoord(instrument)
         self.focalplane = FocalplaneCoord(detectors)

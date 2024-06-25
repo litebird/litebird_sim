@@ -13,6 +13,7 @@ import numpy as np
 import tomlkit
 from pathlib import Path
 
+
 def gen_mock_detector(name, theta_rad, phi_rad):
     telescope, wafer, pix, orient_hand, freq, pol = name.split("_")
     if telescope == "000":
@@ -25,6 +26,8 @@ def gen_mock_detector(name, theta_rad, phi_rad):
     elif telescope == "002":
         telescope = "HFT"
         orient = orient_hand
+
+    print(hand)
 
     wafer = telescope[0] + wafer[-2:]
 
@@ -45,7 +48,7 @@ def gen_mock_detector(name, theta_rad, phi_rad):
         "alpha": 76.0,
         "pol": pol,
         "orient": orient,
-        "quat": [0,0,0,1],
+        "quat": [0, 0, 0, 1],
     }
 
     det = lbs.DetectorInfo.from_dict(data)
@@ -60,6 +63,7 @@ def gen_mock_detector(name, theta_rad, phi_rad):
     data["quat"] = [quat.quats[0][i] for i in range(4)]
     return det, data
 
+
 def append_to_toml_file_with_hierarchy(data, filename, section_name, sub_section_name):
     """
     A function to add a new hierarchical section and data to an existing TOML file.
@@ -72,7 +76,7 @@ def append_to_toml_file_with_hierarchy(data, filename, section_name, sub_section
     """
     # Load the file if it exists, otherwise create a new document
     try:
-        with open(filename, 'r') as file:
+        with open(filename, "r") as file:
             doc = tomlkit.parse(file.read())
     except FileNotFoundError:
         doc = tomlkit.document()
@@ -93,8 +97,9 @@ def append_to_toml_file_with_hierarchy(data, filename, section_name, sub_section
     parent_section[sub_section_name] = sub_section
 
     # Save the modified document back to the file
-    with open(filename, 'w') as file:
+    with open(filename, "w") as file:
         file.write(tomlkit.dumps(doc))
+
 
 def save_to_toml(filename, telescope, orients, handiness, theta, phi):
     for i in range(len(orients)):
@@ -124,10 +129,40 @@ save_to_toml(filename, telescope, orients, handiness, theta, phi)
 telescope = "MFT"
 fov = 14
 sym = 60
-orients = ["00", "00", "15", "15", "30", "30", "45", "45", "60", "60", "75", "75", "90", "90"]
+orients = [
+    "00",
+    "00",
+    "15",
+    "15",
+    "30",
+    "30",
+    "45",
+    "45",
+    "60",
+    "60",
+    "75",
+    "75",
+    "90",
+    "90",
+]
 handiness = ["A", "A", "A", "A", "B", "B", "B", "B", "A", "A", "B", "B", "A", "A"]
 theta = [0, 0, fov, fov, fov, fov, fov, fov, fov, fov, fov, fov, fov, fov]
-phi = [0, 0, sym, sym, 2 * sym, 2 * sym, 3 * sym, 3 * sym, 4 * sym, 4 * sym, 5 * sym, 5 * sym, 6 * sym, 6 * sym]
+phi = [
+    0,
+    0,
+    sym,
+    sym,
+    2 * sym,
+    2 * sym,
+    3 * sym,
+    3 * sym,
+    4 * sym,
+    4 * sym,
+    5 * sym,
+    5 * sym,
+    6 * sym,
+    6 * sym,
+]
 print(f"...generating mock {telescope} focal plane...")
 save_to_toml(filename, telescope, orients, handiness, theta, phi)
 
