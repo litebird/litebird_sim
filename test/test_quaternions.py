@@ -231,29 +231,38 @@ def test_normalize_quaternions():
 
 
 def test_quat_rotations():
-    vec_matrix = np.array([x,y,z])
+    vec_matrix = np.array([x, y, z])
 
     theta_rad = np.pi / 2
-    theta_rad_array = np.array([0.0, np.pi/2, np.pi/3])
+    theta_rad_array = np.array([0.0, np.pi / 2, np.pi / 3])
 
     quat = lbs.quat_rotation(theta_rad, *z)
     assert np.allclose(quat, np.array(lbs.quat_rotation_z(theta_rad)))
 
-
     quat_matrix = lbs.quat_rotation_brdcast(theta_rad, vec_matrix)
-    expected_quat = np.array([np.array(lbs.quat_rotation_x(theta_rad)),
-                            np.array(lbs.quat_rotation_y(theta_rad)),
-                            np.array(lbs.quat_rotation_z(theta_rad))])
+    expected_quat = np.array(
+        [
+            np.array(lbs.quat_rotation_x(theta_rad)),
+            np.array(lbs.quat_rotation_y(theta_rad)),
+            np.array(lbs.quat_rotation_z(theta_rad)),
+        ]
+    )
     assert np.allclose(quat_matrix, expected_quat)
 
     quat_matrix = lbs.quat_rotation_x_brdcast(theta_rad_array)
-    expected_quat = np.array([np.array(lbs.quat_rotation_x(theta)) for theta in theta_rad_array])
+    expected_quat = np.array(
+        [np.array(lbs.quat_rotation_x(theta)) for theta in theta_rad_array]
+    )
     assert np.allclose(quat_matrix, expected_quat)
 
     quat_matrix = lbs.quat_rotation_y_brdcast(theta_rad_array)
-    expected_quat = np.array([np.array(lbs.quat_rotation_y(theta)) for theta in theta_rad_array])
+    expected_quat = np.array(
+        [np.array(lbs.quat_rotation_y(theta)) for theta in theta_rad_array]
+    )
     assert np.allclose(quat_matrix, expected_quat)
 
     quat_matrix = lbs.quat_rotation_y_brdcast(theta_rad_array)
-    expected_quat = np.array([np.array(lbs.quat_rotation_y(theta)) for theta in theta_rad_array])
+    expected_quat = np.array(
+        [np.array(lbs.quat_rotation_y(theta)) for theta in theta_rad_array]
+    )
     assert np.allclose(quat_matrix, expected_quat)
