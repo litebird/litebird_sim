@@ -1,5 +1,7 @@
 # HEAD
 
+# Version 0.13.0
+
 -   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Here is a in-depth list of all the breaking changes in this PR:
 
     1.  Quaternions describing the orientation of the detectors must now be encoded using a `RotQuaternion` object; plain NumPy arrays are no longer supported.
