@@ -1,6 +1,22 @@
 # HEAD
 
--   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Please, note that the argument `dtype_tod` of the method `Simulation.create_observations` has become `tod_type` for consistency with other similar parameters.
+-   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Here is a in-depth list of all the breaking changes in this PR:
+
+    1.  Quaternions describing the orientation of the detectors must now be encoded using a `RotQuaternion` object; plain NumPy arrays are no longer supported.
+
+    2.  Quaternions are now computed using the function `prepare_pointings()` (low-level) and the method `Simulation.prepare_pointings()` (high-level, you should use this). Pointings are no longer kept in memory until you retrieve them using `Observation.get_pointings()`.
+
+    3.  Pointings are no longer accessible using the field `pointings` in the `Observation` class. (Not 100% true, see below.) They are computed on the fly by the method `Observation.get_pointings()`.
+
+    4.  The way pointings are returned differs from how they were stored before. The result of a call to `Observation.get_pointings()` is a 2-element tuple: the first element contains a `(N, 3)` NumPy array containing the colatitude θ, the longitude φ, and the orientation ψ, while the second element is an array of the angles of the HWP. Thus, the orientation angle ψ is now stored together with θ and φ.
+
+    5.  If you want to pre-compute all the pointings instead of computing them on the fly each time you call `Observation.get_pointings()`, you can use the function `precompute_pointings()` (low-level) and the method `Simulation.precompute_pointings()` (high-level). This initializes a number of fields in each `Observation` object, but they are shaped as described in the previous point, i.e., ψ is kept in the same matrix as θ and φ.
+
+    6.  The argument `dtype_tod` of the method `Simulation.create_observations` has become `tod_type` for consistency with other similar parameters.
+
+    7.  The format of the HDF5 files has been slightly changed to let additional information about pointings to be stored.
+
+    See the comments in [PR#319](https://github.com/litebird/litebird_sim/pull/319) and discussion [#312](https://github.com/litebird/litebird_sim/discussions/312) for more details.
 
 -   Add data splits in time and detector space to destriped maps [#309](https://github.com/litebird/litebird_sim/pull/309)
 
