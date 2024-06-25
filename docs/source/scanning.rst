@@ -143,9 +143,7 @@ similar to what is going to be used for LiteBIRD:
       ),
   )
 
-  # The motion of the spacecraft is now encoded in a set of quaternions,
-  # in the field `sim.spin2ecliptic_quats`. We use it to produce the
-  # pointing information for a fake boresight detector `det`, belonging
+  # We include a fake boresight detector `det`, belonging
   # to the instrument `core` (unlike LiteBIRD, CORE had only one focal
   # plane and one instrument)
   det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
@@ -153,11 +151,16 @@ similar to what is going to be used for LiteBIRD:
   # By default, `create_observations` creates just *one* observation
   obs, = sim.create_observations(detectors=[det])
 
-  # Compute the pointings at the same sampling frequency as the
-  # TOD (10 Hz, see the variable `det` above)
-  sim.compute_pointings()
-  
-  pointings = obs.pointings
+  # Prepare the quaternions needed to compute the pointings, i.e.,
+  # the direction in the sky where the detector is looking at as
+  # a function of time
+  sim.prepare_pointings()
+
+  # `get_pointings()` returns both the pointing matrix and the
+  # HWP angle; we ignore the latter with `_`, as we do not have
+  # a HWP here. The pointing matrix contains the angles (θ, φ, ψ)
+  # for each sample in the TOD and each detector.
+  pointings, _ = obs.get_pointings(0)
 
   print("Shape:", pointings.shape)
   print("Pointings:")
@@ -165,15 +168,15 @@ similar to what is going to be used for LiteBIRD:
 
 .. testoutput::
 
-  Shape: (1, 600, 2)
+  Shape: (1, 600, 3)
   Pointings:
-  [[[ 2.182  0.   ]
-    [ 2.182 -0.006]
-    [ 2.182 -0.012]
+  [[[ 2.182 -0.    -1.571]
+    [ 2.182 -0.006 -1.576]
+    [ 2.182 -0.012 -1.582]
     ...
-    [ 0.089 -2.967]
-    [ 0.088 -3.021]
-    [ 0.087 -3.075]]]
+    [ 0.089 -2.967 -1.738]
+    [ 0.088 -3.021 -1.687]
+    [ 0.087 -3.075 -1.635]]]
 
 All the details in this code are explained in the next sections, so
 for now just keep in mind the overall shape of the code:
@@ -198,11 +201,13 @@ for now just keep in mind the overall shape of the code:
    the example above, this is done by the function
    :func:`.get_pointings`.
 
-3. The function :func:`.get_pointings` returns a ``(N, 3)``
-   matrix, where the first column contains the colatitude
-   :math:`\theta`, the second column the longitude :math:`\phi`, and
-   the third column the orientation angle :math:`\psi`, all expressed
-   in radians.
+3. The method :meth:`.Observation.get_pointings` returns a ``(D, N, 3)``
+   matrix, where D represents the detector index, N the index of the sample
+   and the three final columns contain the colatitude :math:`\theta`, 
+   the longitude :math:`\phi`, and the orientation angle :math:`\psi`, 
+   all expressed in radians. These angles are expressed in the Ecliptic
+   Coordinate System, where the Equator is aligned with the Ecliptic Plane of
+   the Solar System.
 
 
 Computing the spacecraft's orientation
@@ -221,7 +226,11 @@ for asymmetric beams.)
 
 The next reference frame is the *boresight*, and to convert from the
 detector's reference frame to the boresight there is a rotation, which
-is encoded in a quaternion that is saved in the IMO.
+is encoded in a rotation quaternion that is saved in the IMO. The framework
+implements the class :class:`.RotQuaternion` to encode a rotation
+quaternion; this class can model time-varying rotations as well, which
+can be useful to simulate vibrations and wobbles in the optical structure
+of the instruments.
 
 Next, we move from the reference frame of the boresight to that of the
 spacecraft. The information about the placement of the boresight with
@@ -282,8 +291,9 @@ that of the spin axis:
    included in the IMO and is properly initialized if you call
    :meth:`.DetectorInfo.from_imo`. If you do not specify any
    quaternion, the constructor for :class:`.DetectorInfo` will assume
-   that the detector is looking at the boresight, and it will thus use
-   the quaternion :math:`(0 0 0 1)`; this is the case of the simple
+   that the detector is looking at the boresight, and it will thus create
+   a default :class:`.RotQuaternion` object, which corresponds to the
+   identity quaternion :math:`(0 0 0 1)`; this is the case of the simple
    example we presented above.
 
 2. The second quaternion describes how to convert the reference frame
@@ -351,8 +361,9 @@ split in several blocks inside the :class:`.Observation` class.
    unlikely to be relevant.
 
 Once all the quaternions have been computed at the proper sampling
-rate, the direction of the detector on the sky and its orientation
-angle are computed as follows:
+rate, the direction of the detector on the sky and its o]rientation
+angle can be computed via a call to :meth:`.Observation.get_pointings`.
+The calculation works as follows:
 
 - The direction is the vector :math:`\vec d = R \hat e_z`, where
   :math:`R` is the overall rotation from the detector's reference
@@ -369,12 +380,35 @@ angle are computed as follows:
 
   .. image:: images/orientation-direction.svg
 
-The purpose of the method :meth:`.Simulation.compute_pointings`, used
-in the example at the beginning of this chapter, is to call
-:func:`.get_det2ecl_quaternions` to compute the quaternions at the
-same sampling frequency as the scientific datastream, and then to
-apply the two definitions above to compute the direction and the
-orientation angle.
+The purpose of the method :meth:`.Simulation.prepare_pointings`, used
+in the example at the beginning of this chapter, is to combine the
+quaternions that model the transformations between the many reference
+frames used in the framework. These quaternions are then used by
+the method :meth:`.Observation.get_pointings` to compute the
+actual pointing directions and the HWP angle on the fly.
+
+To save memory,:meth:`.Observation.get_pointings` does *not* save the
+pointings in a variable once they are calculated, and so they must be
+recomputed every time you need them. However, in some applications,
+pointings need to be accessed several times during a simulation and these
+repeated computations can introduce a noticeable slowdown in the code.
+
+If you want to trade speed with memory occupation, you can use the function
+:func:`.precompute_pointings` to compute all the pointings at once and save
+them into every :class:`.Observation` objects. This function fills the fields
+`pointing_matrix` and `hwp_angle`. The datatype for the pointings is 
+specified by ``pointings_dtype``. This can be done either with the low level 
+functions   ::
+
+    obs = sim.create_observations(detectors=[det])
+    lbs.prepare_pointings(obs,sim.instrument,sim.spin2ecliptic_quats)
+    lbs.precompute_pointings(obs, pointings_dtype=np.float64)
+
+or with the methods of the :class:`.Simulation`::
+
+    sim.create_observations(detectors=[det])
+    sim.prepare_pointings()
+    sim.precompute_pointings(pointings_dtype=np.float64)
 
 
 How the boresight is specified
@@ -434,19 +468,18 @@ calculated with respect to the meridian/parallel going through the
 point the detector is looking at. Again, to reduce memory usage, our
 framework only encodes the angle.
 
-The method :meth:`.Simulation.compute_pointings` stores the pointings
-of the :math:`n_d` detectors kept in the field ``pointings`` of the
-:class:`.Observation`; they are laid out in memory as a :math:`(n_d,
-N, 2)` matrix, where :math:`N` is the number of samples in the
-timeline, and the last dimension holds the colatitude and longitude
-(in radians). The orientation angle is kept in ``Observation.psi``.
-Let's visualize the position of these pointings on a Healpix map::
+The method :meth:`.Observation.get_pointings` returns two matrices: a
+“pointing matrix”, laid in memory as a :math:`(N, 3)` matrix, where
+:math:`N` is the number of samples in the timeline, and the last
+dimension holds the colatitude, longitude, and orientation (in
+radians). The second matrix contains the angle of the HWP. Let's
+visualize the position of these pointings on a Healpix map::
 
    import healpy, numpy as np
    import matplotlib.pylab as plt
 
    nside = 64
-   pixidx = healpy.ang2pix(nside, pointings[0, :, 0], pointings[0, :, 1])
+   pixidx = healpy.ang2pix(nside, pointings[:, 0], pointings[:, 1])
    m = np.zeros(healpy.nside2npix(nside))
    m[pixidx] = 1
    healpy.mollview(m)
@@ -501,15 +534,44 @@ quaternions only to model rotations, they all must obey the relation
 :math:`v_x^2 + v_y^2 + v_z^2 + w^2 = 1` (*normalized* quaternions),
 which is a property satisfied by rotation quaternions.
 
+The class :class:`.RotQuaternion` can model time-varying quaternions.
+It is enough to provide a list of quaternions, a starting time, and
+a sampling frequency, which is assumed to be constant::
+
+    import litebird_sim as lbs
+
+    time_varying_quaternion = lbs.RotQuaternion(
+        # Three rotation quaternions
+        quats=np.array(
+            [
+                [0.5, 0.0, 0.0, 0.8660254],
+                [0.0, -0.38268343, 0.0, 0.92387953],
+                [0.0, 0.0, 0.30901699, 0.95105652],
+            ]
+        ),
+        start_time=0.0,
+        sampling_rate_hz=1.0,
+    )
+
+
+This example assumes that ``time_varying_quaternion`` describes a
+rotation that evolves with time, starting from ``t = 0`` and lasting
+3 seconds, as the sampling frequency is 1 Hz.
+
+Rotation quaternions can be multiplied together; however, they must refer
+to the same starting time and have the same sampling frequency.
+
 
 Python functions for quaternions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The LiteBIRD Simulation Framework provides three functions,
 :func:`.quat_rotation_x`, :func:`.quat_rotation_y`, :func:`.quat_rotation_z` to
-compute simple rotation quaternions; they return the normalized
+compute simple rotation quaternions; they return plain the normalized
 quaternion representing a rotation by an angle :math:`\theta` around
-one of the three axis `x`, `y`, and `z`:
+one of the three axis `x`, `y`, and `z`. These quaternions are plain
+NumPy arrays and can be passed to the parameter ``quats`` of the
+constructor for :class:`.RotQuaternion`:
 
 .. testcode::
 
@@ -596,8 +658,8 @@ must be defined is
 :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`, which takes
 as inputs the start time, the length of the simulation, and the time
 interval to be used between consecutive quaternions. The method must
-return an instance of the :class:`.Spin2EclipticQuaternions`,
-containing the computed sequence of quaternions.
+return an instance of the :class:`.RotQuaternion`, containing the
+computed sequence of quaternions.
 
 We'll code here a very simple scanning strategy, which does not
 involve anything fancy: the spacecraft will just spin around the
@@ -619,8 +681,11 @@ The following code implements our mock scanning strategy::
 
    class SimpleScanningStrategy(lbs.ScanningStrategy):
        def generate_spin2ecl_quaternions(
-           self, start_time, time_span_s, delta_time_s,
-       ):
+           self,
+           start_time: Union[float, astropy.time.Time],
+           time_span_s: float,
+           delta_time_s: float,
+       ) -> RotQuaternion:
            # Compute how many quaternions are needed to cover
            # the time interval specified by "time_span_s"
            num_of_quaternions = (
@@ -665,8 +730,8 @@ The following code implements our mock scanning strategy::
                )
 
            # Return the quaternions wrapped in an instance of
-           # "Spin2EclipticQuaternions"
-           return lbs.Spin2EclipticQuaternions(
+           # "RotQuaternion"
+           return lbs.RotQuaternion(
                start_time=start_time,
                pointing_freq_hz=1.0 / delta_time_s,
                quats=spin2ecliptic_quats,
@@ -709,7 +774,7 @@ computing one quaternion every minute, we compute one quaternion every
    pointings = lbs.get_pointings(obs, sim.spin2ecliptic_quats, np.array([det.quat]))
 
    m = np.zeros(healpy.nside2npix(64))
-   pixidx = healpy.ang2pix(64, pointings[:, 0], pointings[:, 1])
+   pixidx = healpy.ang2pix(64, pointings[0, :, 0], pointings[0, :, 1])
    m[pixidx] = 1
    healpy.mollview(m)
 
@@ -763,7 +828,7 @@ of a descendant of the class :class:`.HWP` to the method
     )
     obs, = sim.create_observations(detectors=[det])
 
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
 
 This example uses the :class:`.IdealHWP`, which represents an ideal
@@ -825,7 +890,7 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
       description="Simple simulation",
       random_seed=12345,
   )
-  
+
   sim.set_scanning_strategy(
       scanning_strategy=lbs.SpinningScanningStrategy(
           spin_sun_angle_rad=np.deg2rad(30),
@@ -840,13 +905,13 @@ boresight detector using :func:`.get_ecl2det_quaternions`:
           spin_boresight_angle_rad=np.deg2rad(65),
       ),
   )
-  
+
   det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10)
   obs, = sim.create_observations(detectors=[det])
 
   #################################################################
   # Here begins the juicy part
-  
+
   solar_system_ephemeris.set("builtin")
 
   # The variable "icrs_pos" contains the x,y,z coordinates of Jupiter
@@ -924,7 +989,7 @@ main beam axis (:math:`\theta = 0`)::
 
 We see that Jupiter is ~10° away from the beam axis after ~30 seconds
 since the start of the simulation.
-           
+
 API reference
 -------------
 
@@ -938,6 +1003,11 @@ API reference
     :undoc-members:
     :show-inheritance:
 
+.. automodule:: litebird_sim.pointings_in_obs
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 .. automodule:: litebird_sim.hwp
     :members:
     :undoc-members:
@@ -947,4 +1017,3 @@ API reference
     :members:
     :undoc-members:
     :show-inheritance:
-       

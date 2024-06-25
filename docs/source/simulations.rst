@@ -502,14 +502,14 @@ straightforward::
     sim.set_scanning_strategy(...)
     sim.set_instrument(...)
     sim.create_observations(...)
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     sim.compute_pos_and_vel()
     sim.add_dipole()
 
     sim.fill_tods(...)
     sim.add_noise(...)
-    
+
     result = sim.make_destriped_map(nside=nside)
     healpy.mollview(result.destriped_map)
 
@@ -518,7 +518,7 @@ straightforward::
 
 See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
 :ref:`dipole-anisotropy`, :ref:`timeordered`, :ref:`mapmaking` for 
-details of the single functions. 
+details of the single functions.
 
 
 Data splits

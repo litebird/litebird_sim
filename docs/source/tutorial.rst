@@ -289,14 +289,16 @@ report::
       detectors=lbs.DetectorInfo(name="foo", sampling_rate_hz=10),
   )
 
-  sim.compute_pointings()
+  sim.prepare_pointings()
 
   for cur_obs in sim.observations:
+      # We use `_` to ignore the HWP angle
+      cur_pointings, _ = cur_obs.get_pointings(0)
       nside = 64
       pixidx = healpy.ang2pix(
           nside,
-          cur_obs.pointings[0, :, 0],
-          cur_obs.pointings[0, :, 1],
+          cur_pointings[:, 0],
+          cur_pointings[:, 1],
       )
       m = np.zeros(healpy.nside2npix(nside))
       m[pixidx] = 1
@@ -337,15 +339,17 @@ following things:
    (HWP);
 4. It sets the detectors to be simulated and allocates the TODs through
    the call to :meth:`.Simulation.create_observations`;
-5. It generates a pointing information matrix through the call to
-   :meth:`.Simulation.compute_pointings`;
+5. It computes the quaternions needed to compute the actual pointings
+   through the call to :meth:`.Simulation.prepare_pointings`;
 6. It produces a coverage map by setting to 1 all those pixels that
    are visited by the directions encoded in the pointing information
    matrix. To do this, it iterates over all the instances of the
    class :class:`.Observation` in the
    :class:`.Simulation` object. (In this simple example, there is only
    one :class:`.Observation`, but in more complex examples there can
-   be many of them.)
+   be many of them.) For each :class:`.Observation`, it uses the
+   method :meth:`.Observation.get_pointings` to compute the pointing
+   information for that observation.
 7. The objects that were read from IMO are properly listed in the
    report.
 
@@ -372,7 +376,7 @@ Creating a signal plus noise timeline
 -------------------------------------
 
 Here we generate a 10 minutes timeline which contains dipole, cmb signal,
-galactic dust, and correlated noise. Foe the noise, we use the random
+galactic dust, and correlated noise. For the noise, we use the random
 number generator provided by the :class:`.Simulation` and seeded with
 ``random_seed``::
 
@@ -434,7 +438,7 @@ number generator provided by the :class:`.Simulation` and seeded with
       detectors=detector,
   )
 
-  sim.compute_pointings()
+  sim.prepare_pointings()
 
   sim.add_dipole()
 
@@ -442,7 +446,7 @@ number generator provided by the :class:`.Simulation` and seeded with
 
   sim.fill_tods(maps=maps)
 
-  times = sim.observations[0].get_times()-sim.observations[0].start_time.cxcsec
+  times = sim.observations[0].get_times() - sim.observations[0].start_time.cxcsec
 
   plt.plot(times,sim.observations[0].tod[0,:])
   plt.xlabel("Time [s]")
@@ -463,6 +467,104 @@ number generator provided by the :class:`.Simulation` and seeded with
   sim.flush()
 
 .. image:: images/tutorial-timeline.png
+   :width: 512
+   :align: center
+   :alt: Screenshot of part of the tutorial produced by our script
+
+
+Creating a signal plus noise timeline 
+-------------------------------------
+
+Here we generate a 1 year timeline which contains cmb signal, galactic
+dust, and white noise. The we bin the timeline in a map. ::
+
+  import litebird_sim as lbs
+  import numpy as np
+  import matplotlib.pylab as plt
+  import healpy as hp
+  from astropy import units, time
+
+  sim = lbs.Simulation(
+      base_path="./tut06",
+      name="Simulation tutorial",
+      start_time=0,
+      duration_s=1 * units.year.to("s"),
+      random_seed=12345,
+  )
+
+  nside = 64
+
+  sim.set_scanning_strategy(
+      scanning_strategy=lbs.SpinningScanningStrategy(
+          spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
+          spin_rate_hz=0.5 / 60,     # Ditto
+          precession_rate_hz=1.0 / (4 * units.day).to("s").value,
+      )
+  )
+
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          name="core",
+          spin_boresight_angle_rad=np.deg2rad(65),
+      ),
+  )
+
+  sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=0.1))
+
+  detector = lbs.DetectorInfo(
+      name="foo", 
+      sampling_rate_hz=3.0, 
+      bandcenter_ghz = 150.0,
+      net_ukrts = 50.0,
+  )
+
+  Mbsparams = lbs.MbsParameters(
+      nside=nside,
+      make_cmb=True,
+      make_fg=True,
+      fg_models=["pysm_dust_0"],
+  )
+
+  mbs = lbs.Mbs(
+      simulation=sim,
+      parameters=Mbsparams,
+      detector_list=detector
+  )
+  maps = mbs.run_all()[0]
+
+  sim.create_observations(
+      detectors=detector,
+  )
+
+  sim.prepare_pointings()
+
+  sim.fill_tods(maps)
+
+  sim.add_noise(random=sim.random, noise_type="white")
+
+  binner_results = sim.make_binned_map(nside=nside)
+  binned = binner_results.binned_map
+
+  plt.figure(figsize=(15, 3.2))
+  hp.mollview(binned[0], sub=131, title="T", unit=r"[K]")
+  hp.mollview(binned[1], sub=132, title="Q", unit=r"[K]")
+  hp.mollview(binned[2], sub=133, title="U", unit=r"[K]")
+
+  sim.append_to_report("""
+
+  ## Maps
+
+  Here 1 year maps:
+
+  ![](maps.png)
+
+  """,
+  figures=[(plt.gcf(), "maps.png")],
+  )
+
+  sim.flush()
+
+.. image:: images/tutorial-maps.png
    :width: 512
    :align: center
    :alt: Screenshot of part of the tutorial produced by our script

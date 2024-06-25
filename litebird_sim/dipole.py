@@ -131,8 +131,7 @@ def compute_dipole_for_one_sample_total_from_lin_t(
 @njit(parallel=True)
 def add_dipole_for_one_detector(
     tod_det,
-    theta_det,
-    phi_det,
+    theta_phi_det,
     velocity,
     t_cmb_k,
     nu_hz,
@@ -143,23 +142,32 @@ def add_dipole_for_one_detector(
     if dipole_type == DipoleType.LINEAR:
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_linear(
-                theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
+                v_km_s=velocity[i],
+                t_cmb_k=t_cmb_k,
             )
     elif dipole_type == DipoleType.QUADRATIC_EXACT:
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_quadratic_exact(
-                theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
+                v_km_s=velocity[i],
+                t_cmb_k=t_cmb_k,
             )
     elif dipole_type == DipoleType.TOTAL_EXACT:
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_total_exact(
-                theta=theta_det[i], phi=phi_det[i], v_km_s=velocity[i], t_cmb_k=t_cmb_k
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
+                v_km_s=velocity[i],
+                t_cmb_k=t_cmb_k,
             )
     elif dipole_type == DipoleType.QUADRATIC_FROM_LIN_T:
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_quadratic_from_lin_t(
-                theta=theta_det[i],
-                phi=phi_det[i],
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
                 v_km_s=velocity[i],
                 t_cmb_k=t_cmb_k,
                 q_x=q_x,
@@ -168,8 +176,8 @@ def add_dipole_for_one_detector(
         planck_t0 = planck(nu_hz, t_cmb_k)
         for i in prange(len(tod_det)):
             tod_det[i] += compute_dipole_for_one_sample_total_from_lin_t(
-                theta=theta_det[i],
-                phi=phi_det[i],
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
                 v_km_s=velocity[i],
                 t_cmb_k=t_cmb_k,
                 nu_hz=nu_hz,
@@ -200,7 +208,9 @@ def add_dipole(
     `t_cmb_k` is the temperature of the monopole and `frequency_ghz` is an array
     containing the frequencies of each detector in the TOD."""
 
-    assert tod.shape == pointings.shape[0:2]
+    if type(pointings) is np.ndarray:
+        assert tod.shape == pointings.shape[0:2]
+
     assert tod.shape[1] == velocity.shape[0]
 
     for detector_idx in range(tod.shape[0]):
@@ -212,10 +222,14 @@ def add_dipole(
 
         q_x = 0.5 * x * (np.exp(x) + 1) / (np.exp(x) - 1)
 
+        if type(pointings) is np.ndarray:
+            theta_phi_det = pointings[detector_idx, :, :]
+        else:
+            theta_phi_det = pointings(detector_idx)[0][0, :, 0:2]
+
         add_dipole_for_one_detector(
             tod_det=tod[detector_idx],
-            theta_det=pointings[detector_idx, :, 0],
-            phi_det=pointings[detector_idx, :, 1],
+            theta_phi_det=theta_phi_det,
             velocity=velocity,
             t_cmb_k=t_cmb_k,
             nu_hz=nu_hz,
@@ -226,7 +240,7 @@ def add_dipole(
 
 
 def add_dipole_to_observations(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     pos_and_vel: SpacecraftPositionAndVelocity,
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     t_cmb_k: float = c.T_CMB_K,
@@ -239,8 +253,8 @@ def add_dipole_to_observations(
     """Add the CMB dipole to some time-ordered data
 
     This is a wrapper around the :func:`.add_dipole` function that applies to the TOD
-    stored in `obs`, which can either be one :class:`.Observation` instance or a list
-    of observations.
+    stored in `observations`, which can either be one :class:`.Observation` instance
+    or a list of observations.
 
     By default, the TOD is added to ``Observation.tod``. If you want to add it to some
     other field of the :class:`.Observation` class, use `component`::
@@ -250,35 +264,43 @@ def add_dipole_to_observations(
             cur_obs.dipole_tod = np.zeros_like(cur_obs.tod)
 
         # Ask `add_dipole_to_observations` to store the dipole
-        # in `obs.dipole_tod`
+        # in `observations.dipole_tod`
         add_dipole_to_observations(sim.observations, component="dipole_tod")
     """
 
     if pointings is None:
-        if isinstance(obs, Observation):
-            obs_list = [obs]
-            ptg_list = [obs.pointings]
+        if isinstance(observations, Observation):
+            obs_list = [observations]
+            if hasattr(observations, "pointing_matrix"):
+                ptg_list = [observations.pointing_matrix[:, :, 0:2]]
+            else:
+                ptg_list = [observations.get_pointings]
         else:
-            obs_list = obs
-            ptg_list = [ob.pointings for ob in obs]
+            obs_list = observations
+            ptg_list = []
+            for ob in observations:
+                if hasattr(ob, "pointing_matrix"):
+                    ptg_list.append(ob.pointing_matrix[:, :, 0:2])
+                else:
+                    ptg_list.append(ob.get_pointings)
     else:
-        if isinstance(obs, Observation):
+        if isinstance(observations, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "You must pass a list of observations *and* a list "
                 + "of pointing matrices to add_dipole_to_observations"
             )
-            obs_list = [obs]
+            obs_list = [observations]
             ptg_list = [pointings[:, :, 0:2]]
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to add_dipole_to_observations"
                 + ", you must do the same for `pointings`"
             )
-            assert len(obs) == len(pointings), (
-                f"The list of observations has {len(obs)} elements, but "
+            assert len(observations) == len(pointings), (
+                f"The list of observations has {len(observations)} elements, but "
                 + f"the list of pointings has {len(pointings)} elements"
             )
-            obs_list = obs
+            obs_list = observations
             ptg_list = [point[:, :, 0:2] for point in pointings]
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):

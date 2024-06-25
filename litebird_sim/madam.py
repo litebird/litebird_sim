@@ -4,9 +4,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Union, Optional, List, Dict, Any
 
+import jinja2
 from astropy.io import fits
 from astropy.time import Time as AstroTime
-import jinja2
 
 import litebird_sim
 from . import DetectorInfo
@@ -38,23 +38,27 @@ def _format_time_for_fits(time: Union[float, AstroTime]) -> Union[float, str]:
 
 
 def _save_pointings_to_fits(
-    obs: Observation,
+    observations: Observation,
     det_idx: int,
     file_name: Union[str, Path],
 ):
     ensure_parent_dir_exists(file_name)
 
     theta_col = fits.Column(
-        name="THETA", array=obs.pointings[det_idx, :, 0], format="E"
+        name="THETA", array=observations.pointing_matrix[det_idx, :, 0], format="E"
     )
-    phi_col = fits.Column(name="PHI", array=obs.pointings[det_idx, :, 1], format="E")
-    psi_col = fits.Column(name="PSI", array=obs.psi[det_idx, :], format="E")
+    phi_col = fits.Column(
+        name="PHI", array=observations.pointing_matrix[det_idx, :, 1], format="E"
+    )
+    psi_col = fits.Column(
+        name="PSI", array=observations.pointing_matrix[det_idx, :, 2], format="E"
+    )
 
     primary_hdu = fits.PrimaryHDU()
-    primary_hdu.header["DET_NAME"] = obs.name[det_idx]
+    primary_hdu.header["DET_NAME"] = observations.name[det_idx]
     primary_hdu.header["DET_IDX"] = det_idx
-    primary_hdu.header["COORD"] = str(obs.pointing_coords)
-    primary_hdu.header["TIME0"] = _format_time_for_fits(obs.start_time)
+    primary_hdu.header["COORD"] = "ECLIPTIC"
+    primary_hdu.header["TIME0"] = _format_time_for_fits(observations.start_time)
     primary_hdu.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
     primary_hdu.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
 
@@ -67,7 +71,7 @@ def _save_pointings_to_fits(
 
 
 def _save_tod_to_fits(
-    obs: Observation,
+    observations: Observation,
     det_idx: int,
     file_name: Union[str, Path],
     components: List[str],
@@ -75,9 +79,9 @@ def _save_tod_to_fits(
     ensure_parent_dir_exists(file_name)
 
     primary_hdu = fits.PrimaryHDU()
-    primary_hdu.header["DET_NAME"] = obs.name[det_idx]
+    primary_hdu.header["DET_NAME"] = observations.name[det_idx]
     primary_hdu.header["DET_IDX"] = det_idx
-    primary_hdu.header["TIME0"] = _format_time_for_fits(obs.start_time)
+    primary_hdu.header["TIME0"] = _format_time_for_fits(observations.start_time)
     primary_hdu.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
     primary_hdu.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
 
@@ -85,7 +89,9 @@ def _save_tod_to_fits(
 
     for cur_component in components:
         col = fits.Column(
-            name="TOD", array=getattr(obs, cur_component)[det_idx, :], format="E"
+            name="TOD",
+            array=getattr(observations, cur_component)[det_idx, :],
+            format="E",
         )
         cur_hdu = fits.BinTableHDU.from_columns([col])
 
@@ -366,7 +372,9 @@ def save_simulation_for_madam(
 
             if save_pointings:
                 _save_pointings_to_fits(
-                    obs=cur_obs, det_idx=cur_local_det_idx, file_name=pointing_file_name
+                    observations=cur_obs,
+                    det_idx=cur_local_det_idx,
+                    file_name=pointing_file_name,
                 )
 
             pointing_files.append(
@@ -384,7 +392,7 @@ def save_simulation_for_madam(
 
             if save_tods:
                 _save_tod_to_fits(
-                    obs=cur_obs,
+                    observations=cur_obs,
                     det_idx=cur_local_det_idx,
                     file_name=tod_file_name,
                     components=components,

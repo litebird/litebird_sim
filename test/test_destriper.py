@@ -365,7 +365,11 @@ def setup_simulation(
     )
     sim.observations[0].psi = PSI_ANGLES[indexes].reshape((1, -1))
 
-    return (sim, solution)
+    pointings = np.concatenate(
+        [sim.observations[0].pointings, sim.observations[0].psi[:, :, None]], axis=2
+    )
+
+    return (sim, solution, pointings)
 
 
 def test_map_maker_parts():
@@ -385,13 +389,13 @@ def test_map_maker_parts():
         return
 
     nside = 1
-    sim, expected_solution = setup_simulation(sigma=0.1)
+    sim, expected_solution, pointings = setup_simulation(sigma=0.1)
 
     baseline_lengths_list = get_baseline_lengths_list(expected_solution)
 
-    obs_list, ptg_list, psi_list = _normalize_observations_and_pointings(
-        obs=sim.observations,
-        pointings=None,
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=sim.observations,
+        pointings=[pointings],
     )
 
     hpx = Healpix_Base(nside=nside, scheme="RING")
@@ -399,7 +403,7 @@ def test_map_maker_parts():
         hpx=hpx,
         obs_list=obs_list,
         ptg_list=ptg_list,
-        psi_list=psi_list,
+        hwp=None,
         output_coordinate_system=CoordinateSystem.Ecliptic,
     )
 
@@ -413,8 +417,6 @@ def test_map_maker_parts():
     nobs_matrix_cholesky = _build_nobs_matrix(
         hpx=hpx,
         obs_list=obs_list,
-        ptg_list=ptg_list,
-        psi_list=psi_list,
         dm_list=detector_mask_list,
         tm_list=time_mask_list,
     )
@@ -628,7 +630,9 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
         return
 
     # Create some test data *without* 1/f noise
-    sim, expected_solution = setup_simulation(sigma=0.1, add_baselines=use_destriper)
+    sim, expected_solution, pointings = setup_simulation(
+        sigma=0.1, add_baselines=use_destriper
+    )
 
     if use_destriper:
         baseline_lengths_list = get_baseline_lengths_list(expected_solution)
@@ -638,8 +642,9 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
     original_tod = np.copy(sim.observations[0].sky_signal)
     result = lbs.make_destriped_map(
         nside=1,
-        obs=sim.observations,
-        pointings=None,
+        observations=sim.observations,
+        pointings=[pointings],
+        hwp=None,
         params=lbs.DestriperParameters(
             output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
             samples_per_baseline=baseline_lengths_list,
@@ -762,7 +767,7 @@ def test_full_destriper(tmp_path):
             bandwidth_ghz=40.0,
             net_ukrts=50.0,
             fknee_mhz=50.0,
-            quat=np.array([0.02568196, 0.00506653, 0.0, 0.99965732]),
+            quat=lbs.RotQuaternion(np.array([0.02568196, 0.00506653, 0.0, 0.99965732])),
         ),
         lbs.DetectorInfo(
             sampling_rate_hz=1.0,
@@ -772,7 +777,9 @@ def test_full_destriper(tmp_path):
             bandwidth_ghz=40.0,
             net_ukrts=50.0,
             fknee_mhz=50.0,
-            quat=np.array([0.0145773, 0.02174247, -0.70686447, 0.70686447]),
+            quat=lbs.RotQuaternion(
+                np.array([0.0145773, 0.02174247, -0.70686447, 0.70686447])
+            ),
         ),
     ]
 
@@ -796,7 +803,7 @@ def test_full_destriper(tmp_path):
             sim.instrument.hwp_rpm * 2 * np.pi / 60,
         ),  # applies hwp rotation angle to the polarization angle
     )
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     mbs_params = lbs.MbsParameters(
         make_cmb=True,
@@ -828,7 +835,7 @@ def test_full_destriper(tmp_path):
     )
 
     lbs.add_noise_to_observations(
-        obs=sim.observations,
+        observations=sim.observations,
         noise_type="one_over_f",
         scale=1,
         random=sim.random,
@@ -842,7 +849,11 @@ def test_full_destriper(tmp_path):
     )
 
     destriper_result = lbs.make_destriped_map(
-        nside=nside, obs=sim.observations, pointings=None, params=destriper_params_noise
+        nside=nside,
+        observations=sim.observations,
+        pointings=None,
+        hwp=None,
+        params=destriper_params_noise,
     )
 
     # Check that the destriper converged to some solution
@@ -1090,10 +1101,10 @@ def test_save_baselines_for_many_detectors(tmp_path):
             sim.instrument.hwp_rpm * 2 * np.pi / 60,
         ),  # applies hwp rotation angle to the polarization angle
     )
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     lbs.add_noise_to_observations(
-        obs=sim.observations,
+        observations=sim.observations,
         noise_type="one_over_f",
         scale=1,
         random=sim.random,
@@ -1107,7 +1118,11 @@ def test_save_baselines_for_many_detectors(tmp_path):
     )
 
     destriper_result = lbs.make_destriped_map(
-        nside=nside, obs=sim.observations, pointings=None, params=destriper_params_noise
+        nside=nside,
+        observations=sim.observations,
+        pointings=None,
+        hwp=None,
+        params=destriper_params_noise,
     )
 
     save_destriper_results(

@@ -121,11 +121,8 @@ def test_solar_dipole_fit(tmpdir):
     (obs_s_o,) = sim.create_observations(detectors=[det])
     (obs_o,) = sim.create_observations(detectors=[det])
 
-    pointings = lbs.get_pointings(
-        obs_s_o,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=sim.instrument.bore2spin_quat,
-    )
+    lbs.prepare_pointings(obs_s_o, sim.instrument, sim.spin2ecliptic_quats, hwp=None)
+    pointings = obs_s_o.get_pointings("all")[0]
 
     orbit_s_o = lbs.SpacecraftOrbit(obs_s_o.start_time)
     orbit_o = lbs.SpacecraftOrbit(obs_o.start_time, solar_velocity_km_s=0.0)
@@ -228,19 +225,19 @@ def test_dipole_list_of_obs(tmp_path):
         )
     )
 
-    pointings = lbs.get_pointings_for_observations(
-        sim.observations,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=sim.instrument.bore2spin_quat,
+    lbs.prepare_pointings(
+        sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=None
     )
+    lbs.precompute_pointings(sim.observations)
 
     orbit = lbs.SpacecraftOrbit(sim.start_time)
-    pos_vel = lbs.spacecraft_pos_and_vel(orbit, obs=sim.observations, delta_time_s=10.0)
+    pos_vel = lbs.spacecraft_pos_and_vel(
+        orbit, observations=sim.observations, delta_time_s=10.0
+    )
 
     # Just check that the call works
     lbs.add_dipole_to_observations(
-        obs=sim.observations,
+        observations=sim.observations,
         pos_and_vel=pos_vel,
-        pointings=pointings,
-        frequency_ghz=[100.0],
+        frequency_ghz=np.array([100.0]),
     )

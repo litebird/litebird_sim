@@ -1,5 +1,5 @@
-"""Test mapping routines
-"""
+"""Test mapping routines"""
+
 import numpy as np
 import healpy as hp
 import astropy.units as u
@@ -79,16 +79,19 @@ def test_make_binned_map_api_simulation(tmp_path):
     instr = lbs.InstrumentInfo(name="core", spin_boresight_angle_rad=np.deg2rad(65))
     det = lbs.DetectorInfo(name="foo", sampling_rate_hz=10, net_ukrts=1.0)
     obss = sim.create_observations(detectors=[det])
-    pointings = lbs.get_pointings(
-        obss[0],
+
+    lbs.prepare_pointings(
+        obss,
+        instr,
         sim.spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
     )
+
+    pointings, _ = obss[0].get_pointings("all")
 
     nside = 64
     #    obss[0].pixind = hp.ang2pix(nside, pointings[..., 0], pointings[..., 1])
     #    obss[0].psi = pointings[..., 2]
-    mapping.make_binned_map(nside=nside, obs=obss, pointings=[pointings])
+    mapping.make_binned_map(nside=nside, observations=obss, pointings=[pointings])
 
 
 def test_make_binned_map_basic_mpi():
@@ -119,17 +122,25 @@ def test_make_binned_map_basic_mpi():
     )
     if obs.comm.rank == 0:
         obs.tod[:] = tod.reshape(2, 18)
-        obs.pointings = np.array(pointings).T.reshape((2, 18, 2))
-        obs.psi = psi.reshape(2, 18)
+        pointings = np.concatenate(
+            [np.array(pointings).T.reshape((2, 18, 2)), psi.reshape(2, 18, 1)], axis=2
+        )
 
     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
+
     res = mapping.make_binned_map(
-        nside=1, obs=[obs], output_coordinate_system=CoordinateSystem.Ecliptic
+        nside=1,
+        observations=[obs],
+        pointings=[pointings],
+        output_coordinate_system=CoordinateSystem.Ecliptic,
     )
     assert np.allclose(res.binned_map, res_map)
 
     obs.set_n_blocks(n_blocks_time=1, n_blocks_det=obs.comm.size)
     res = mapping.make_binned_map(
-        nside=1, obs=[obs], output_coordinate_system=CoordinateSystem.Ecliptic
+        nside=1,
+        observations=[obs],
+        pointings=[pointings],
+        output_coordinate_system=CoordinateSystem.Ecliptic,
     )
     assert np.allclose(res.binned_map, res_map)

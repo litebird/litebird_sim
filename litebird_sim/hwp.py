@@ -1,6 +1,9 @@
 # -*- encoding: utf-8 -*-
+from typing import Optional
 
+import h5py
 import numpy as np
+import numpy.typing as npt
 from numba import njit
 
 
@@ -56,6 +59,60 @@ class HWP:
         of the HWP separate. This method is going to be deprecated in a future
         release of the LiteBIRD Simulation Framework.
         """
+        raise NotImplementedError(
+            "You should not use the HWP class in your code, use IdealHWP instead"
+        )
+
+    def apply_hwp_to_pointings(
+        self,
+        start_time_s: float,
+        delta_time_s: float,  # This will be 1/(19 Hz) in most cases
+        bore2ecl_quaternions_inout: npt.NDArray,  # Boresight→Ecliptic quaternions at 19 Hz
+        hwp_angle_out: npt.NDArray,
+    ) -> None:
+        """
+        Simulates the presence of a HWP on the pointings and the HWP angle
+
+        This method must be redefined in derived classes. The parameter `start_time_s`
+        specifies the time of the first sample in `pointings` and must be a floating-point
+        value; this means that you should already have converted any AstroPy time to a plain
+        scalar before calling this method. The parameter `delta_time_s` is the inverse
+        of the sampling frequency and must be expressed in seconds.
+
+        The result is saved in the NumPy array `hwp_angle_out`, which must have already been
+        allocated with the appropriate number of samples. However, if the HWP is not ideal,
+        it is possible that the `bore2ecl_quaternions_inout` matrix, whose shape is
+        ``(N, 4)`` and contains ``N`` quaternions, is changed by this method, typically
+        via a multiplication with a rotation simulating a wobbling effect. (Multiplying
+        a quaternion on the *left* of ``bore2ecl_quaternions_inout`` means that you
+        are adding a rotation at the *end* of the chain of transformations, i.e.,
+        after the conversion to the Ecliptic reference frame. Multiplying a quaternion
+        on the *right* means that you are introducing a new rotation between the
+        reference frame of the detector and of the boresight of the focal plane.)
+
+        :param start_time_s:
+        :param delta_time_s:
+        :param bore2ecl_quaternions_inout:
+        :param hwp_angle_out:
+        :return:
+        """
+        raise NotImplementedError(
+            "You should not use the HWP class in your code, use IdealHWP instead"
+        )
+
+    def write_to_hdf5(
+        self, output_file: h5py.File, field_name: str, compression: Optional[str] = None
+    ) -> h5py.Dataset:
+        """Write the definition of the HWP into a HDF5 file
+
+        You should never call this function directly. It is used to save :class:`.Observation`
+        objects to disk.
+        """
+        raise NotImplementedError(
+            "You should not use the HWP class in your code, use IdealHWP instead"
+        )
+
+    def read_from_hdf5(self, input_dataset: h5py.Dataset) -> None:
         raise NotImplementedError(
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
@@ -138,8 +195,67 @@ class IdealHWP(HWP):
             ang_speed_radpsec=self.ang_speed_radpsec,
         )
 
+    def apply_hwp_to_pointings(
+        self,
+        start_time_s: float,
+        delta_time_s: float,  # This will be 1/(19 Hz) in most cases
+        bore2ecl_quaternions_inout: npt.NDArray,  # Boresight→Ecliptic quaternions at 19 Hz
+        hwp_angle_out: npt.NDArray,
+    ) -> None:
+        # We do not touch `bore2ecl_quaternions_inout`, as an ideal HWP does not
+        # alter the (θ, φ) direction of the boresight nor the orientation ψ
+        self.get_hwp_angle(
+            output_buffer=hwp_angle_out,
+            start_time_s=start_time_s,
+            delta_time_s=delta_time_s,
+        )
+
+    def write_to_hdf5(
+        self, output_file: h5py.File, field_name: str, compression: Optional[str] = None
+    ) -> h5py.Dataset:
+        # For an ideal HWP, we just save an empty dataset with a few attributes
+        # This means that we must *not* use the "compression" field here, otherwise
+        # h5py will complain that “empty datasets don't support chunks/filters”…
+        new_dataset = output_file.create_dataset(
+            name=field_name,
+            dtype=np.float64,
+        )
+
+        new_dataset.attrs["class_name"] = "IdealHWP"
+        new_dataset.attrs["ang_speed_radpsec"] = self.ang_speed_radpsec
+        new_dataset.attrs["start_angle_rad"] = self.start_angle_rad
+
+        return new_dataset
+
+    def read_from_hdf5(self, input_dataset: h5py.Dataset) -> None:
+        assert input_dataset.attrs["class_name"] == "IdealHWP"
+
+        self.ang_speed_radpsec = input_dataset.attrs["ang_speed_radpsec"]
+        self.start_angle_rad = input_dataset.attrs["start_angle_rad"]
+
     def __str__(self):
         return (
             f"Ideal HWP, with rotating speed {self.ang_speed_radpsec} rad/sec "
             f"and θ₀ = {self.start_angle_rad}"
         )
+
+
+def read_hwp_from_hdf5(input_file: h5py.File, field_name: str) -> HWP:
+    dataset = input_file[field_name]
+    class_name = dataset.attrs["class_name"]
+
+    if class_name == "IdealHWP":
+        # Let's pass dummy values to each field. They will be
+        # fixed once the data are read from the file
+        result = IdealHWP(
+            ang_speed_radpsec=0.0,
+            start_angle_rad=0.0,
+        )
+    else:
+        # If new derived classes from HWP are implemented, add them here with an `elif`
+        assert (
+            False
+        ), f"read_hwp_from_hdf5() does not support a HWP of type {class_name}"
+
+    result.read_from_hdf5(input_dataset=dataset)
+    return result

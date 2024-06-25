@@ -1,20 +1,14 @@
 # -*- encoding: utf-8 -*-
 
 from dataclasses import dataclass
-from typing import Union, List, Any
+from typing import Union, List, Any, Optional
+
 import astropy.time
 import numpy as np
+import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly
-
-import logging
-from .scanning import (
-    Spin2EclipticQuaternions,
-    get_quaternion_buffer_shape,
-    get_det2ecl_quaternions,
-    get_ecl2det_quaternions,
-)
 
 
 @dataclass
@@ -85,9 +79,6 @@ class Observation:
             the latter case, it must be expressed in seconds.
 
         sampling_rate_hz (float): The sampling frequency, in Hertz.
-
-        dtype_tod (dtype): Data type of the TOD array. Use it to balance
-            numerical precision and memory consumption.
 
         n_blocks_det (int): divide the detector axis of the tod (and all the
             arrays of detector attributes) in `n_blocks_det` blocks
@@ -177,6 +168,8 @@ class Observation:
             self.n_samples,
         ) = self._get_local_start_time_start_and_n_samples()
 
+        self.pointing_provider = None  # type: Optional["PointingProvider"]
+
     @property
     def sampling_rate_hz(self):
         return self._sampling_rate_hz
@@ -214,8 +207,17 @@ class Observation:
 
         # Turn list of dict into dict of arrays
         if not self.comm or self.comm.rank == root:
+            # Build a list of all the keys in the dictionaries contained within
+            # `list_of_dict` (which is a *list* of dictionaries)
             keys = list(set().union(*list_of_dict) - set(dir(self)))
+
+            # This will be the dictionary associating each key with the
+            # *array* of value for that dictionary
             dict_of_array = {k: [] for k in keys}
+
+            # This array associates either np.nan or None to each type;
+            # the former indicates that the value is a NumPy array, while
+            # None is used for everything else
             nan_or_none = {}
             for k in keys:
                 for d in list_of_dict:
@@ -226,10 +228,12 @@ class Observation:
                             nan_or_none[k] = None
                     break
 
+            # Finally, build `dict_of_array`
             for d in list_of_dict:
                 for k in keys:
                     dict_of_array[k].append(d.get(k, nan_or_none[k]))
 
+            # Why should this code iterate over `keys`?!?
             for k in keys:
                 dict_of_array = {k: np.array(dict_of_array[k]) for k in keys}
         else:
@@ -652,57 +656,132 @@ class Observation:
 
         return t0 + np.arange(self.n_samples) / self.sampling_rate_hz
 
-    # Deprecated methods: Remove ASAP >>>
-    def get_quaternion_buffer_shape(self, num_of_detectors=None):
-        """Deprecated: see scanning.get_quaternion_buffer_shape"""
-        logging.warn(
-            "Observation.get_quaternion_buffer_shape is deprecated and will be "
-            "removed soon, use scanning.get_quaternion_buffer_shape instead"
-        )
-        return get_quaternion_buffer_shape(self, num_of_detectors)
-
-    def get_det2ecl_quaternions(
+    def get_pointings(
         self,
-        spin2ecliptic_quats: Spin2EclipticQuaternions,
-        detector_quats,
-        bore2spin_quat,
-        quaternion_buffer=None,
-        dtype=np.float64,
-    ):
-        """Deprecated: see scanning.get_det2ecl_quaternions"""
-        logging.warn(
-            "Observation.get_det2ecl_quaternions is deprecated and will be "
-            "removed soon, use scanning.get_det2ecl_quaternions instead"
-        )
+        detector_idx: Union[int, List[int], str] = "all",
+        pointing_buffer: Optional[npt.NDArray] = None,
+        hwp_buffer: Optional[npt.NDArray] = None,
+        pointings_dtype=np.float32,
+    ) -> (npt.NDArray, Optional[npt.NDArray]):
+        """
+        Compute the pointings for one or more detectors in this observation
 
-        return get_det2ecl_quaternions(
-            self,
-            spin2ecliptic_quats,
-            detector_quats,
-            bore2spin_quat,
-            quaternion_buffer,
-            dtype,
-        )
+        This method triggers the computation of the matrix of pointings that indicate
+        the direction of the line of sight for each sample in the TOD of the current
+        :class:`.Observation` instance. You must call either
+        :func:`.prepare_pointings` or :meth:`.Simulation.prepare_pointings`
+        *before* invoking this method.
 
-    def get_ecl2det_quaternions(
-        self,
-        spin2ecliptic_quats: Spin2EclipticQuaternions,
-        detector_quats,
-        bore2spin_quat,
-        quaternion_buffer=None,
-        dtype=np.float64,
-    ):
-        """Deprecated: see scanning.get_ecl2det_quaternions"""
-        logging.warn(
-            "Observation.get_ecl2det_quaternions is deprecated and will be "
-            "removed soon, use scanning.get_ecl2det_quaternions instead"
-        )
+        The parameter `detector_idx` specifies which detectors should be included in
+        the computation. Use ``"all"`` to ask for the pointings of *all* the detectors
+        in this Observation; if you just want a subset of them, pass a list with their
+        zero-based index; if you just want the pointings for one detector, you can
+        pass an integer. The following calls are all legitimate::
 
-        return get_ecl2det_quaternions(
-            self,
-            spin2ecliptic_quats,
-            detector_quats,
-            bore2spin_quat,
-            quaternion_buffer,
-            dtype,
-        )
+            # All the detectors are included
+            pointings, hwp_angle = cur_obs.get_pointings("all")
+
+            # Only the first two detectors are included
+            pointings, hwp_angle = cur_obs.get_pointings([0, 1])
+
+            # Only the first detector is used
+            pointings, hwp_angle = cur_obs.get_pointings(0)
+
+        The return value is a pair containing (1) the pointing matrix and (2) the
+        HWP angle. The pointing matrix is a NumPy array with shape ``(N_det, N_samples, 3)``,
+        where ``N_det` is the number of detectors and ``N_samples`` is the number of
+        samples in the TOD (the field ``Observation.n_samples``). The last dimension
+        spans the three angles θ (colatitude, in radians), φ (longitude, in radians),
+        and ψ (orientation angle, in radians). *Important*: if you ask for just *one*
+        detector, the shape of the pointing matrix will always be ``(N_samples, 3)``.
+        The HWP angle is always a vector with shape ``(N_samples,)``, as it does
+        not depend on the list of detectors.
+
+        The return value is allocated internally by the method. If you instead want to
+        pass a pre-allocated structure, you can use the `pointing_buffer` and
+        `hwp_buffer` parameters. In this case, the return value will be *always*
+        equal to ``(pointing_buffer, hwp_buffer)``.
+        """
+        assert (
+            self.pointing_provider is not None
+        ), "You must initialize pointing_provider; use Simulation.prepare_pointings()"
+
+        # Simplest case: we need just one detector
+        if isinstance(detector_idx, int):
+            assert (
+                (detector_idx >= 0) and (detector_idx < self.n_detectors)
+            ), f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+
+            pointing, hwp = self.pointing_provider.get_pointings(
+                detector_quat=self.quat[detector_idx],
+                start_time=self.start_time,
+                start_time_global=self.start_time_global,
+                sampling_rate_hz=self.sampling_rate_hz,
+                nsamples=self.n_samples,
+                pointing_buffer=pointing_buffer,
+                hwp_buffer=hwp_buffer,
+                pointings_dtype=pointings_dtype,
+            )
+            return pointing.reshape(1, -1, 3), hwp
+
+        # More complex case: we need all the detectors
+        if isinstance(detector_idx, str):
+            assert detector_idx == "all", f"Unknown set of detectors: '{detector_idx}'"
+
+            # Recursive call
+            return self.get_pointings(
+                list(range(self.n_detectors)),
+                pointing_buffer=pointing_buffer,
+                hwp_buffer=hwp_buffer,
+                pointings_dtype=pointings_dtype,
+            )
+
+        # Most complex case: an explicit list (or NumPy array) of detectors
+        assert np.ndim(detector_idx) != 0
+
+        expected_shape = (len(detector_idx), self.n_samples, 3)
+        if pointing_buffer is not None:
+            assert (
+                pointing_buffer.shape == expected_shape
+            ), "pointing_buffer has a wrong shape, it is {actual} but should be {expected}".format(
+                actual=pointing_buffer.shape, expected=expected_shape
+            )
+        else:
+            pointing_buffer = np.empty(expected_shape, dtype=pointings_dtype)
+
+        expected_shape = (self.n_samples,)
+        if self.pointing_provider.has_hwp():
+            if hwp_buffer is not None:
+                assert (
+                    hwp_buffer.shape == expected_shape
+                ), "hwp_buffer has a wrong shape, it is {actual} but should be {expected}".format(
+                    actual=hwp_buffer.shape, expected=expected_shape
+                )
+            else:
+                hwp_buffer = np.empty(expected_shape, dtype=pointings_dtype)
+        else:
+            hwp_buffer = None
+
+        # For a generic case with *four* detectors, we need *two* iterators.
+        # Consider the detectors
+        #
+        #      det#0    det#1    det#2    det#3
+        #
+        # Suppose that we're asking for the pointings of
+        # detectors #1 and #3. In this case, the pointing matrix will be such that
+        #
+        #    pointings[0, :, :] ← pointings of det#1
+        #    pointings[1, :, :] ← pointings of det#3
+        #
+        # Thus, index 0 in the `pointings` matrix maps to index 1 in the list of
+        # detectors, and index 1 maps to index 3. The `rel_det_idx` index
+        # is used with the `pointings` matrix, while `abs_det_idx` is used
+        # with the list of detectors.
+        for rel_det_idx, abs_det_idx in enumerate(detector_idx):
+            _ = self.get_pointings(
+                abs_det_idx,
+                pointing_buffer=pointing_buffer[rel_det_idx, :, :],
+                hwp_buffer=hwp_buffer,
+            )
+
+        return pointing_buffer, hwp_buffer

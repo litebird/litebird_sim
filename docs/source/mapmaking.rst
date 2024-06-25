@@ -75,7 +75,7 @@ detectors::
                 name="0B", sampling_rate_hz=10, quat=lbs.quat_rotation_z(np.pi / 2)
             ),
         ],
-        dtype_tod=np.float64,  # Needed if you use the TOAST destriper
+        tod_dtype=np.float64,  # Needed if you use the TOAST destriper
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         split_list_over_processes=False,
     )
@@ -111,20 +111,21 @@ The output map is in Galactic coordinates, but you can specify the
 coordinate system you want via the parameter `output_coordinates`.
 This is how it should be called::
 
-    result = lbs.make_binned_map(nside=128, obs=obs)
-    healpy.mollview(result.binned_map)
+    result = lbs.make_binned_map(nside=128, observations=observations)
+    healpy.mollview(result.binned_map[0])
 
-(The pointing information is included in the :class:`.Observation`,
-alternatively pointings can be provided as a list of numpy arrays.)
+The pointing information is obtained from the :class:`.Observation` (either 
+using the precomputed pointing or computed on the fly), alternatively 
+pointings can be provided as a list of numpy arrays.
 The result is an instance of the class :class:`.BinnerResult`
 and contains both the I/Q/U maps and the covariance matrix.
 
 The function :func:`.make_binned_map` has a high level interface in the class
-:class:`.Simulation` that bins the content of the observations into maps
+:class:`.Simulation` that bins the content of the observations into maps.
 The syntax is identical to :func:`.make_binned_map`::
 
     result = sim.make_binned_map(nside=nside)
-    healpy.mollview(result.binned_map)
+    healpy.mollview(result.binned_map[0])
 
 
 The :class:`.BinnerResult` contains the field ``binned_map``, which
@@ -367,9 +368,13 @@ instance of the class :class:`.DestriperParameters`::
         ...
     )
 
-    result = lbs.make_destriped_map(nside=nside, obs=obs, params=params)
+    result = lbs.make_destriped_map(nside=nside,
+                                    observations=observations,
+                                    params=params,
+                                    )
     healpy.mollview(result.destriped_map)
 
+The pointing information is handled identically to :func:`.make_binned_map`.
 The result is an instance of the class :class:`.DestriperResult`, which
 is similar to :class:`.BinnerResult` but it contains much more information.
 
@@ -563,7 +568,7 @@ following fields in the :class:`.DestriperParameters` class:
   then the CG algorithm stops.
 - ``samples_per_baseline``: this can either be an integer, in which case it will
   be used for *all* the baselines, or a list of 1D arrays, each containing the
-  length of each baseline for each observation passed through the parameter ``obs``.
+  length of each baseline for each observation passed through the parameter ``observations``.
   Note that if you provide an integer, it might be that not all baselines will
   have exactly that length: it depends whether the number :math:`N_t` of samples
   in the TOD is evenly divisibile by ``samples_per_baseline`` or not. The
@@ -587,7 +592,7 @@ went:
 
 The baselines are saved in the field ``baselines`` of the :class:`.DestriperResult`
 class; this is a list of 2D arrays, where each element in the list is
-associated with one of the observations passed in the parameter ``obs``. The
+associated with one of the observations passed in the parameter ``observations``. The
 shape of each 2D arrays is :math:`(N_d, N_b),` where
 :math:`N_d` is the number of detectors for the observation and :math:`N_b` is
 the number of baselines. A visual representation of the memory layout of
@@ -632,7 +637,7 @@ the destriper will skip the CG iterations and proceed directly to the
 map-making step.
 
 How the N_obs matrix is stored
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The destriper uses a different method to store the matrix :math:`M` in
 memory. As the 3×3 sub-blocks of this matrix need to be inverted often
@@ -725,7 +730,7 @@ would be produced by the *binner*, see above), and the *destriped map*.
    floating point numbers. As the default data type for timelines
    created by ``sim.create_observations`` is a 32-bit float, if you
    plan to run the destriper you should pass the flag
-   ``dtype_tod=np.float64`` to ``sim.create_observations`` (see the
+   ``tod_dtype=np.float64`` to ``sim.create_observations`` (see the
    code above), otherwise ``destripe`` will create an internal copy of
    the TOD converted in 64-bit floating-point numbers, which is
    usually a waste of space.
@@ -780,7 +785,7 @@ so you should call ``mpiexec``, ``mpirun``, or something similar.
 
 
 Creating several maps with Madam
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are cases where you want to create several maps out of
 one simulation. A common case is when you simulate several

@@ -67,7 +67,7 @@ For any kind of gain drift, one can use either the method of :class:`.Simulation
 
     # Applying gain drift on the given TOD component of an `Observation` object
     lbs.apply_gaindrift_to_observations(
-        obs=sim1.observations,
+        observations=sim1.observations,
         drift_params=drift_params,
         component="gain_2_obs",
     )

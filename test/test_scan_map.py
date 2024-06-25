@@ -88,38 +88,44 @@ def test_scan_map_no_interpolation():
     (obs1,) = sim.create_observations(detectors=[detT, detB])
     (obs2,) = sim.create_observations(detectors=[detT, detB])
 
-    pointings = lbs.get_pointings(
+    hwp = lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec)
+
+    lbs.prepare_pointings(
         obs1,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        detector_quats=[detT.quat, detB.quat],
-        hwp=lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec),
+        instr,
+        spin2ecliptic_quats,
+        hwp=hwp,
     )
 
+    pointings, hwp_angle = obs1.get_pointings("all")
+
     lbs.scan_map_in_observations(
-        obs=obs1,
-        pointings=pointings,
+        observations=obs1,
         maps=in_map,
         input_map_in_galactic=False,
         interpolation=None,
     )
+
     out_map1 = lbs.make_binned_map(
-        nside=nside, obs=obs1, output_coordinate_system=lbs.CoordinateSystem.Ecliptic
+        nside=nside,
+        observations=obs1,
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
     )
 
-    obs2.pointings = pointings[:, :, 0:2]
-    obs2.psi = pointings[:, :, 2]
-
     for idet in range(obs2.n_detectors):
-        pixind = hpx.ang2pix(obs2.pointings[idet])
+        pixind = hpx.ang2pix(pointings[idet, :, 0:2])
         obs2.tod[idet, :] = (
             maps[0, pixind]
-            + np.cos(2 * obs2.psi[idet, :]) * maps[1, pixind]
-            + np.sin(2 * obs2.psi[idet, :]) * maps[2, pixind]
+            + np.cos(2 * (pointings[idet, :, 2] + hwp_angle)) * maps[1, pixind]
+            + np.sin(2 * (pointings[idet, :, 2] + hwp_angle)) * maps[2, pixind]
         )
 
     out_map2 = lbs.make_binned_map(
-        nside=nside, obs=obs2, output_coordinate_system=lbs.CoordinateSystem.Ecliptic
+        nside=nside,
+        observations=obs2,
+        pointings=pointings,
+        hwp=hwp,
+        output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
     )
 
     mask1 = get_map_mask(out_map1.binned_map)
@@ -149,20 +155,20 @@ def test_scan_map_no_interpolation():
 
     (obs1,) = sim.create_observations(detectors=[detT, detB])
 
-    pointings = lbs.get_pointings(
+    lbs.prepare_pointings(
         obs1,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        detector_quats=[detT.quat, detB.quat],
+        instr,
+        spin2ecliptic_quats,
+        hwp=hwp,
     )
 
     lbs.scan_map_in_observations(
-        obs1,
-        in_map_G,
-        pointings=pointings,
-        input_map_in_galactic=True,
+        observations=obs1,
+        maps=in_map_G,
+        input_map_in_galactic=False,
     )
-    out_map1 = lbs.make_binned_map(nside=nside, obs=obs1)
+
+    out_map1 = lbs.make_binned_map(nside=nside, observations=obs1)
     mask1 = get_map_mask(out_map1.binned_map)
 
     np.testing.assert_allclose(
@@ -235,17 +241,20 @@ def test_scan_map_linear_interpolation():
     (obs1,) = sim.create_observations(detectors=[detT, detB])
     (obs2,) = sim.create_observations(detectors=[detT, detB])
 
-    pointings = lbs.get_pointings(
+    hwp = lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec)
+
+    lbs.prepare_pointings(
         obs1,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        detector_quats=[detT.quat, detB.quat],
-        hwp=lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec),
+        instr,
+        spin2ecliptic_quats,
+        hwp=hwp,
     )
+
+    pointings, hwp_angle = obs1.get_pointings("all")
 
     # Just check that the code does not crash
     lbs.scan_map_in_observations(
-        obs=obs1,
+        observations=obs1,
         pointings=pointings,
         maps=in_map,
         input_map_in_galactic=False,
@@ -289,10 +298,10 @@ def test_scanning_list_of_obs(tmp_path):
         spin_rotangle_rad=3.141_592_653_589_793,
     )
 
-    pointings = lbs.get_pointings_for_observations(
+    lbs.prepare_pointings(
         sim.observations,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
+        instr,
+        spin2ecliptic_quats,
     )
 
     np.random.seed(seed=123_456_789)
@@ -305,9 +314,8 @@ def test_scanning_list_of_obs(tmp_path):
     # "assert" that are placed at the beginning to check the consistency
     # of observations and pointings
     lbs.scan_map_in_observations(
-        obs=sim.observations,
+        observations=sim.observations,
         maps=maps,
-        pointings=pointings,
         input_map_in_galactic=True,
     )
 
@@ -348,10 +356,10 @@ def test_scanning_list_of_obs_in_other_component(tmp_path):
         spin_rotangle_rad=3.141_592_653_589_793,
     )
 
-    pointings = lbs.get_pointings_for_observations(
+    lbs.prepare_pointings(
         sim.observations,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
+        instr,
+        spin2ecliptic_quats,
     )
 
     # Create fake maps containing only nonzero pixels
@@ -363,9 +371,8 @@ def test_scanning_list_of_obs_in_other_component(tmp_path):
         cur_obs.fg_tod = np.zeros_like(cur_obs.tod)
 
     lbs.scan_map_in_observations(
-        obs=sim.observations,
+        observations=sim.observations,
         maps=maps,
-        pointings=pointings,
         input_map_in_galactic=True,
         component="fg_tod",
     )

@@ -2,27 +2,38 @@
 
 import codecs
 import json
-from collections import namedtuple
-from dataclasses import asdict, dataclass
-from datetime import datetime
-from deprecation import deprecated
 import logging as log
 import os
 import subprocess
-from typing import List, Tuple, Union, Dict, Any, Optional
-from uuid import uuid4
+from collections import namedtuple
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
+from typing import List, Tuple, Union, Dict, Any, Optional
+from uuid import uuid4
+
+import astropy.time
+import astropy.units
+import jinja2
+import markdown
 import matplotlib.pylab as plt
 import numba
+import numpy as np
+import tomlkit
+from deprecation import deprecated
+from markdown_katex import KatexExtension
 
 from litebird_sim import constants
-from .coordinates import CoordinateSystem
 from . import HWP
+from .coordinates import CoordinateSystem
 from .detectors import DetectorInfo, InstrumentInfo
+from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
+from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 from .healpix import write_healpix_map_to_file, npix_to_nside
 from .imo.imo import Imo
+from .io import write_list_of_observations, read_list_of_observations
 from .mapmaking import (
     make_binned_map,
     check_valid_splits,
@@ -34,31 +45,17 @@ from .mapmaking import (
     destriper_log_callback,
 )
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
+from .noise import add_noise_to_observations
 from .observations import Observation, TodDescription
-from .pointings import get_pointings
+from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
+from .scan_map import scan_map_in_observations
+from .scanning import ScanningStrategy, SpinningScanningStrategy
+from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
-from .dipole import DipoleType, add_dipole_to_observations
-from .scan_map import scan_map_in_observations
-from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .noise import add_noise_to_observations
-from .io import write_list_of_observations, read_list_of_observations
-from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
-
-import astropy.time
-import astropy.units
-import markdown
-import numpy as np
-import jinja2
-import tomlkit
-
-from markdown_katex import KatexExtension
-
-from .scanning import ScanningStrategy, SpinningScanningStrategy
-
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -398,7 +395,7 @@ class Simulation:
         self.numba_threading_layer = numba_threading_layer
 
         self.profile_time = profile_time
-        self.profile_data = []  # type: list(TimeProfiler)
+        self.profile_data = []  # type: List[TimeProfiler]
 
         assert not (parameter_file and parameters), (
             "you cannot use parameter_file and parameters together "
@@ -895,7 +892,7 @@ class Simulation:
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
-        dtype_tod: Optional[Any] = None,
+        tod_dtype: Optional[Any] = None,
         tods: List[TodDescription] = [
             TodDescription(name="tod", dtype=np.float32, description="Signal")
         ],
@@ -942,7 +939,7 @@ class Simulation:
         want greater accuracy at the expense of doubling memory
         occupation, choose ``numpy.float64``.
 
-        If you specify `dtype_tod`, this will be used as the parameter
+        If you specify `tod_dtype`, this will be used as the parameter
         for each TOD specified in `tods`, overriding the value of `dtype`.
         This keyword is kept for legacy reasons but should be avoided
         in newer code.
@@ -1001,11 +998,11 @@ class Simulation:
 
         cur_time = self.start_time
 
-        if not dtype_tod:
+        if not tod_dtype:
             self.tod_list = tods
         else:
             self.tod_list = [
-                TodDescription(name=x.name, dtype=dtype_tod, description=x.description)
+                TodDescription(name=x.name, dtype=tod_dtype, description=x.description)
                 for x in tods
             ]
 
@@ -1168,7 +1165,11 @@ class Simulation:
         likely, you want to use :class:`SpinningScanningStrategy`).
         The result is saved in the member variable
         ``spin2ecliptic_quats``, which is an instance of the class
-        :class:`.Spin2EclipticQuaternions`.
+        :class:`.TimeDependentQuaternion`. These quaternions are
+        usually sampled at a sampling frequency that is lower than
+        the sampling frequency of the scientific data. They are saved
+        in the field `spin2ecliptic_quats` of the :class:`.Simulation`
+        class.
 
         You can choose to use the `imo_url` parameter instead of
         `scanning_strategy`: in this case, it will be assumed that you
@@ -1270,49 +1271,45 @@ class Simulation:
         self.hwp = hwp
 
     @_profile
-    def compute_pointings(
+    def prepare_pointings(
         self,
         append_to_report: bool = True,
-        dtype_pointing=np.float32,
     ):
-        """Trigger the computation of pointings.
+        """Trigger the computation of the quaternions needed to compute pointings.
 
         This method must be called after having set the scanning strategy, the
-        instrument, and the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`. It combines the
-        quaternions of the spacecraft, of the instrument, and of the detectors
-        and sets the fields ``pointings``, ``psi``, and ``pointing_coords`` in
-        each observation owned by the simulation.
+        instrument, the HWP, and the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`. A set of observations must
+        have been created using the method :meth:`.create_observations`.
+
+        It combines the quaternions of the spacecraft, of the instrument, and of the detectors
+        and prepares a number of data structures that will be used by the method
+        :meth:`.Observation.get_pointings` to determine the pointing angles and the HWP angle.
         """
-        assert self.detectors, (
+        assert self.observations, (
             "You must call Simulation.create_observations() "
-            "before calling Simulation.compute_pointings"
+            "before calling Simulation.prepare_pointings"
         )
-        assert self.instrument
-        assert self.spin2ecliptic_quats
+        assert self.instrument, (
+            "You must call Simulation.set_instrument() "
+            "before calling Simulation.prepare_pointings"
+        )
+        assert self.spin2ecliptic_quats, (
+            "You must call Simulation.set_scanning_strategy() "
+            "before calling Simulation.prepare_pointings"
+        )
 
-        memory_occupation = 0
-        num_of_obs = 0
-        for cur_obs in self.observations:
-            quaternion_buffer = np.zeros(
-                (cur_obs.n_samples, 1, 4),
-                dtype=np.float64,
-            )
-            get_pointings(
-                cur_obs,
-                self.spin2ecliptic_quats,
-                detector_quats=cur_obs.quat,
-                bore2spin_quat=self.instrument.bore2spin_quat,
-                hwp=self.hwp,
-                quaternion_buffer=quaternion_buffer,
-                dtype_pointing=dtype_pointing,
-                store_pointings_in_obs=True,
-            )
-            del quaternion_buffer
+        prepare_pointings(
+            observations=self.observations,
+            instrument=self.instrument,
+            spin2ecliptic_quats=self.spin2ecliptic_quats,
+            hwp=self.hwp,
+        )
 
-            memory_occupation += cur_obs.pointings.nbytes + cur_obs.psi.nbytes
-            num_of_obs += 1
+        pointing_provider = self.observations[0].pointing_provider
 
+        memory_occupation = pointing_provider.bore2ecliptic_quats.quats.nbytes
+        num_of_obs = len(self.observations)
         if append_to_report and MPI_ENABLED:
             memory_occupation = MPI_COMM_WORLD.allreduce(memory_occupation)
             num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
@@ -1326,8 +1323,23 @@ class Simulation:
                 num_of_obs=num_of_obs,
                 hwp_description=str(self.hwp) if self.hwp else "No HWP",
                 num_of_mpi_processes=MPI_COMM_WORLD.size,
-                memory_occupation=memory_occupation,
+                memory_occupation=int(memory_occupation),
             )
+
+    def precompute_pointings(self, pointings_dtype=np.float32) -> None:
+        """Compute all the pointings for all observations and save them
+
+        Save the pointing matrix of each :class:`.Observation` object in this simulation
+        into a field named ``pointing_matrix`` (a matrix with shape ``(N_d, N_samples, 3)``,
+        where ``N_d`` is the number of detectors). If a HWP was set, its angle will be
+        saved as well in a field named `hwp_angle` (a vector of ``(N_samples,)`` elements).
+
+        This method can take a significant amount of memory, but it might speed up the
+        execution if you plan to access the pointings repeatedly during a simulation.
+        """
+        precompute_pointings(
+            observations=self.observations, pointings_dtype=pointings_dtype
+        )
 
     @_profile
     def compute_pos_and_vel(
@@ -1354,7 +1366,7 @@ class Simulation:
         )
 
         self.pos_and_vel = spacecraft_pos_and_vel(
-            orbit=orbit, obs=self.observations, delta_time_s=delta_time_s
+            orbit=orbit, observations=self.observations, delta_time_s=delta_time_s
         )
 
     @_profile
@@ -1370,12 +1382,12 @@ class Simulation:
 
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, and the methond
-        compute_pointings. maps is assumed to be produced by :class:`.Mbs`
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the method
+        :meth:`.prepare_pointings`. maps is assumed to be produced by :class:`.Mbs`
         """
 
         scan_map_in_observations(
-            self.observations,
+            observations=self.observations,
             maps=maps,
             input_map_in_galactic=input_map_in_galactic,
             component=component,
@@ -1423,14 +1435,14 @@ class Simulation:
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`, and the pointing
-        through :meth:`.compute_pointings`.
+        through :meth:`.prepare_pointings`.
         """
 
         if not hasattr(self, "pos_and_vel"):
             self.compute_pos_and_vel()
 
         add_dipole_to_observations(
-            obs=self.observations,
+            observations=self.observations,
             pos_and_vel=self.pos_and_vel,
             t_cmb_k=t_cmb_k,
             dipole_type=dipole_type,
@@ -1474,7 +1486,7 @@ class Simulation:
         """
 
         add_noise_to_observations(
-            obs=self.observations,
+            observations=self.observations,
             noise_type=noise_type,
             random=random,
             component=component,
@@ -1490,7 +1502,10 @@ class Simulation:
             )
 
     def check_valid_splits(self, detector_splits, time_splits):
-        """Wrapper around :meth:`litebird_sim.check_valid_splits`. Checks that the splits are valid on the observations."""
+        """
+        Wrapper around :meth:`litebird_sim.check_valid_splits`. Checks that the splits
+        are valid on the observations.
+        """
         try:
             check_valid_splits(self.observations, detector_splits, time_splits)
         except ValueError as e:
@@ -1512,7 +1527,15 @@ class Simulation:
         write_to_disk: bool = True,
         include_inv_covariance: bool = False,
     ) -> Union[List[str], dict[str, BinnerResult]]:
-        """Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
+        """
+        Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the
+        cartesian product of the requested detector and time splits. Here, those can be
+        either strings or lists of strings. The method will return a list of filenames
+        where the maps have been written to disk (`include_inv_covariance` allows to save
+        also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will
+        return a dictionary with the results, where the keys are the strings obtained by joining
+        the detector and time splits with an underscore.
+        """
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -1537,7 +1560,7 @@ class Simulation:
                 for ts in time_splits:
                     result = make_binned_map(
                         nside=nside,
-                        obs=self.observations,
+                        observations=self.observations,
                         output_coordinate_system=output_coordinate_system,
                         components=components,
                         detector_split=ds,
@@ -1569,7 +1592,7 @@ class Simulation:
                 for ts in time_splits:
                     binned_maps[f"{ds}_{ts}"] = make_binned_map(
                         nside=nside,
-                        obs=self.observations,
+                        observations=self.observations,
                         output_coordinate_system=output_coordinate_system,
                         components=components,
                         detector_split=ds,
@@ -1610,7 +1633,7 @@ class Simulation:
 
         return make_binned_map(
             nside=nside,
-            obs=self.observations,
+            observations=self.observations,
             output_coordinate_system=output_coordinate_system,
             components=components,
             detector_split=detector_split,
@@ -1650,7 +1673,15 @@ class Simulation:
         write_to_disk: bool = True,
         recycle_baselines: bool = False,
     ) -> Union[List[str], dict[str, DestriperResult]]:
-        """Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the cartesian product of the requested detector and time splits. Here, those can be either strings or lists of strings. The method will return a list of filenames where the maps have been written to disk (`include_inv_covariance` allows to save also the inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary with the results, where the keys are the strings obtained by joining the detector and time splits with an underscore."""
+        """
+        Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the
+        cartesian product of the requested detector and time splits. Here, those can be either
+        strings or lists of strings. The method will return a list of filenames where the
+        maps have been written to disk (`include_inv_covariance` allows to save also the
+        inverse covariance). Alternatively, setting `write_to_disk=False`, it will return a dictionary
+        with the results, where the keys are the strings obtained by joining the detector and time
+        splits with an underscore.
+        """
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -1669,7 +1700,7 @@ class Simulation:
                 for ts in time_splits:
                     result = make_destriped_map(
                         nside=nside,
-                        obs=self.observations,
+                        observations=self.observations,
                         pointings=None,
                         params=params,
                         components=components,
@@ -1713,7 +1744,7 @@ class Simulation:
                 for ts in time_splits:
                     destriped_maps[f"{ds}_{ts}"] = make_destriped_map(
                         nside=nside,
-                        obs=self.observations,
+                        observations=self.observations,
                         pointings=None,
                         params=params,
                         components=components,
@@ -1771,7 +1802,7 @@ class Simulation:
 
         results = make_destriped_map(
             nside=nside,
-            obs=self.observations,
+            observations=self.observations,
             pointings=None,
             params=params,
             components=components,
@@ -1870,7 +1901,7 @@ class Simulation:
             tod_path = self.base_path
 
         file_list = write_list_of_observations(
-            obs=self.observations, path=tod_path, *args, **kwargs
+            observations=self.observations, path=tod_path, *args, **kwargs
         )
 
         if append_to_report:
@@ -1951,7 +1982,7 @@ class Simulation:
             drift_params = GainDriftParams()
 
         apply_gaindrift_to_observations(
-            obs=self.observations,
+            observations=self.observations,
             drift_params=drift_params,
             user_seed=user_seed,
             component=component,

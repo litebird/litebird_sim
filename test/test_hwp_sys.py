@@ -16,6 +16,8 @@ def test_hwp_sys():
         start_time=start_time, duration_s=time_span_s, mpi_comm=comm, random_seed=0
     )
 
+    sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
+
     scanning = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.785_398_163_397_448_3,
         precession_rate_hz=8.664_850_513_998_931e-05,
@@ -23,15 +25,14 @@ def test_hwp_sys():
         start_time=start_time,
     )
 
-    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-        start_time, time_span_s, delta_time_s=7200
-    )
+    sim.set_scanning_strategy(scanning_strategy=scanning, delta_time_s=7200)
 
     instr = lbs.InstrumentInfo(
         boresight_rotangle_rad=0.0,
         spin_boresight_angle_rad=0.872_664_625_997_164_8,
         spin_rotangle_rad=3.141_592_653_589_793,
     )
+    sim.set_instrument(instr)
 
     detBT = lbs.DetectorInfo(
         name="Boresight_detector_T",
@@ -62,23 +63,13 @@ def test_hwp_sys():
     )
 
     (obs_boresight,) = sim.create_observations(detectors=[detBT, detBB])
-
-    (pointings_b,) = lbs.get_pointings_for_observations(
-        sim.observations,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        hwp=None,
-        store_pointings_in_obs=True,
-    )
-
     (obs_no_boresight,) = sim.create_observations(detectors=[det165, det105])
 
-    (pointings_nob,) = lbs.get_pointings_for_observations(
-        sim.observations,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-        hwp=None,
-        store_pointings_in_obs=True,
+    lbs.prepare_pointings(
+        observations=[obs_boresight, obs_no_boresight],
+        instrument=sim.instrument,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        hwp=sim.hwp,
     )
 
     filepath = str(
@@ -113,7 +104,6 @@ def test_hwp_sys():
     }
 
     sim.parameters = par  # setting the parameter file
-    hwp_sys = lbs.HwpSys(sim)
 
     Mbsparams = lbs.MbsParameters(
         make_cmb=True,
@@ -141,10 +131,11 @@ def test_hwp_sys():
     np.testing.assert_equal(hwp_sys.bandpass_profile, hwp_sys.bandpass_profile_solver)
     np.testing.assert_equal(hwp_sys.freqs, hwp_sys.freqs_solver)
 
-    # testing if code works also with list of obs of the same channel
+    # testing if code works also with list of observations of the same channel
     hwp_sys.fill_tod(
-        obs=[obs_boresight, obs_no_boresight], hwp_radpsec=hwp_radpsec
-    )  # pointings = pointings,
+        observations=[obs_boresight, obs_no_boresight],
+        input_map_in_galactic=True,
+    )
 
     reference_b = np.array(
         [
@@ -206,5 +197,43 @@ def test_hwp_sys():
         dtype=np.float32,
     )
 
-    np.testing.assert_equal(obs_boresight.tod, reference_b)
-    np.testing.assert_equal(obs_no_boresight.tod, reference_nob)
+    np.testing.assert_almost_equal(obs_boresight.tod, reference_b, decimal=10)
+    np.testing.assert_almost_equal(obs_no_boresight.tod, reference_nob, decimal=10)
+
+    # testing if code works also when passing list of observations, pointings and hwp_angle to fill_tod
+    (new_obs_boresight,) = sim.create_observations(detectors=[detBT, detBB])
+    (new_obs_no_boresight,) = sim.create_observations(detectors=[det165, det105])
+
+    lbs.prepare_pointings(
+        observations=[new_obs_boresight, new_obs_no_boresight],
+        instrument=sim.instrument,
+        spin2ecliptic_quats=sim.spin2ecliptic_quats,
+        hwp=sim.hwp,
+    )
+
+    point_b, hwp_angle_b = new_obs_boresight.get_pointings("all")
+    point_nob, hwp_angle_nob = new_obs_no_boresight.get_pointings("all")
+
+    del hwp_sys
+    hwp_sys = lbs.HwpSys(sim)
+
+    hwp_sys.set_parameters(
+        mueller_or_jones="jones",
+        integrate_in_band=True,
+        integrate_in_band_solver=True,
+        correct_in_solver=True,
+        built_map_on_the_fly=False,
+        nside=nside,
+        Mbsparams=Mbsparams,
+        parallel=False,
+    )
+
+    hwp_sys.fill_tod(
+        observations=[new_obs_boresight, new_obs_no_boresight],
+        input_map_in_galactic=True,
+        pointings=[point_b, point_nob],
+        hwp_angle=[hwp_angle_b, hwp_angle_nob],
+    )
+
+    np.testing.assert_almost_equal(new_obs_boresight.tod, reference_b, decimal=10)
+    np.testing.assert_almost_equal(new_obs_no_boresight.tod, reference_nob, decimal=10)

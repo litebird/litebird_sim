@@ -79,7 +79,7 @@ class Test_wrappers_gain_drift:
         )
 
         lbs.apply_gaindrift_to_observations(
-            obs=sim1.observations,
+            observations=sim1.observations,
             drift_params=self.drift_params,
             component="gain_2_obs",
         )
@@ -144,7 +144,7 @@ class Test_wrappers_gain_drift:
         )
 
         lbs.apply_gaindrift_to_observations(
-            obs=sim1.observations,
+            observations=sim1.observations,
             drift_params=self.drift_params,
             component="gain_2_obs",
         )

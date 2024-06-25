@@ -4,8 +4,10 @@ import numpy as np
 from numba import njit, prange
 
 from ducc0.healpix import Healpix_Base
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Optional
 from .observations import Observation
+from .hwp import HWP
+from .pointings import get_hwp_angle
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 from .healpix import npix_to_nside
 import logging
@@ -33,7 +35,7 @@ def scan_map_for_one_detector(tod_det, input_T, input_Q, input_U, pol_angle_det)
 def scan_map(
     tod,
     pointings,
-    pol_angle,
+    hwp_angle,
     maps: Dict[str, np.ndarray],
     input_names,
     input_map_in_galactic: bool = True,
@@ -53,16 +55,21 @@ def scan_map(
     interpolation, "linear" for linear interpolation)
     """
 
-    assert tod.shape == pointings.shape[0:2]
+    if type(pointings) is np.ndarray:
+        assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(tod.shape[0]):
-        if input_map_in_galactic:
-            curr_pointings_det, curr_pol_angle_det = rotate_coordinates_e2g(
-                pointings[detector_idx, :, :], pol_angle[detector_idx, :]
-            )
-        else:
+        if type(pointings) is np.ndarray:
             curr_pointings_det = pointings[detector_idx, :, :]
-            curr_pol_angle_det = pol_angle[detector_idx, :]
+        else:
+            curr_pointings_det, hwp_angle = pointings(detector_idx)
+            curr_pointings_det = curr_pointings_det.reshape(-1, 3)
+
+        if hwp_angle is None:
+            hwp_angle = 0
+
+        if input_map_in_galactic:
+            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
         if input_names is None:
             maps_det = maps
@@ -73,14 +80,14 @@ def scan_map(
 
         if interpolation in ["", None]:
             hpx = Healpix_Base(nside, "RING")
-            pixel_ind_det = hpx.ang2pix(curr_pointings_det)
+            pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
 
             scan_map_for_one_detector(
                 tod_det=tod[detector_idx],
                 input_T=maps_det[0, pixel_ind_det],
                 input_Q=maps_det[1, pixel_ind_det],
                 input_U=maps_det[2, pixel_ind_det],
-                pol_angle_det=curr_pol_angle_det,
+                pol_angle_det=curr_pointings_det[:, 2] + hwp_angle,
             )
 
         elif interpolation == "linear":
@@ -95,7 +102,7 @@ def scan_map(
                 input_U=hp.get_interp_val(
                     maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
                 ),
-                pol_angle_det=curr_pol_angle_det,
+                pol_angle_det=curr_pointings_det[:, 2] + hwp_angle,
             )
 
         else:
@@ -107,9 +114,10 @@ def scan_map(
 
 
 def scan_map_in_observations(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     maps: Dict[str, np.ndarray],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    hwp: Optional[HWP] = None,
     input_map_in_galactic: bool = True,
     component: str = "tod",
     interpolation: Union[str, None] = "",
@@ -117,8 +125,8 @@ def scan_map_in_observations(
     """Scan a map filling time-ordered data
 
     This is a wrapper around the :func:`.scan_map` function that applies to the TOD
-    stored in `obs` and the pointings stored in `pointings`. The two types can either
-    bed a :class:`.Observation` instance and a NumPy matrix, or a list
+    stored in `observations` and the pointings stored in `pointings`. The two types
+    can either bed a :class:`.Observation` instance and a NumPy matrix, or a list
     of observations and a list of NumPy matrices; in the latter case, they must have
     the same number of elements.
 
@@ -142,43 +150,47 @@ def scan_map_in_observations(
             cur_obs.sky_tod = np.zeros_like(cur_obs.tod)
 
         # Ask `add_noise_to_observations` to store the noise
-        # in `obs.sky_tod`
+        # in `observations.sky_tod`
         scan_map_in_observations(sim.observations, …, component="sky_tod")
 
     """
 
     if pointings is None:
-        if isinstance(obs, Observation):
-            obs_list = [obs]
-            ptg_list = [obs.pointings]
-            psi_list = [obs.psi]
+        if isinstance(observations, Observation):
+            obs_list = [observations]
+            if hasattr(observations, "pointing_matrix"):
+                ptg_list = [observations.pointing_matrix]
+            else:
+                ptg_list = [observations.get_pointings]
         else:
-            obs_list = obs
-            ptg_list = [ob.pointings for ob in obs]
-            psi_list = [ob.psi for ob in obs]
+            obs_list = observations
+            ptg_list = []
+            for ob in observations:
+                if hasattr(ob, "pointing_matrix"):
+                    ptg_list.append(ob.pointing_matrix)
+                else:
+                    ptg_list.append(ob.get_pointings)
     else:
-        if isinstance(obs, Observation):
+        if isinstance(observations, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "You must pass a list of observations *and* a list "
                 + "of pointing matrices to scan_map_in_observations"
             )
-            obs_list = [obs]
-            ptg_list = [pointings[:, :, 0:2]]
-            psi_list = [pointings[:, :, 2]]
+            obs_list = [observations]
+            ptg_list = [pointings]
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to scan_map_in_observations, "
                 + "you must do the same for `pointings`"
             )
-            assert len(obs) == len(pointings), (
-                f"The list of observations has {len(obs)} elements, but "
+            assert len(observations) == len(pointings), (
+                f"The list of observations has {len(observations)} elements, but "
                 + f"the list of pointings has {len(pointings)} elements"
             )
-            obs_list = obs
-            ptg_list = [point[:, :, 0:2] for point in pointings]
-            psi_list = [point[:, :, 2] for point in pointings]
+            obs_list = observations
+            ptg_list = pointings
 
-    for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
+    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         if isinstance(maps, dict):
             if all(item in maps.keys() for item in cur_obs.name):
                 input_names = cur_obs.name
@@ -206,10 +218,23 @@ def scan_map_in_observations(
             )
             input_names = None
 
+        if hwp is None:
+            if hasattr(cur_obs, "hwp_angle"):
+                hwp_angle = cur_obs.hwp_angle
+            else:
+                hwp_angle = None
+        else:
+            if type(cur_ptg) is np.ndarray:
+                hwp_angle = get_hwp_angle(cur_obs, hwp)
+            else:
+                logging.warning(
+                    "For using an external HWP object also pass a pre-calculated pointing"
+                )
+
         scan_map(
             tod=getattr(cur_obs, component),
             pointings=cur_ptg,
-            pol_angle=cur_psi,
+            hwp_angle=hwp_angle,
             maps=maps,
             input_names=input_names,
             input_map_in_galactic=input_map_in_galactic,

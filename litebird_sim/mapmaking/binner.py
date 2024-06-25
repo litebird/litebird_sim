@@ -14,12 +14,16 @@ import numpy.typing as npt
 from numba import njit
 import healpy as hp
 
-from typing import Union, List, Any
+from typing import Union, List, Any, Optional, Callable
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
+from litebird_sim.pointings import get_hwp_angle
+from litebird_sim.hwp import HWP
 from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
 from litebird_sim.healpix import nside_to_npix
+
+import logging
 
 from .common import (
     _compute_pixel_indices,
@@ -187,8 +191,8 @@ def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
 def _build_nobs_matrix(
     nside: int,
     obs_list: List[Observation],
-    ptg_list: List[npt.ArrayLike],
-    psi_list: List[npt.ArrayLike],
+    ptg_list: Union[List[npt.ArrayLike], List[Callable]],
+    hwp: Union[HWP, None],
     dm_list: List[npt.ArrayLike],
     tm_list: List[npt.ArrayLike],
     output_coordinate_system: CoordinateSystem,
@@ -199,15 +203,30 @@ def _build_nobs_matrix(
 
     nobs_matrix = np.zeros((n_pix, 3, 3))
 
-    for obs_idx, (cur_obs, cur_ptg, cur_psi, cur_d_mask, cur_t_mask) in enumerate(
-        zip(obs_list, ptg_list, psi_list, dm_list, tm_list)
+    for obs_idx, (cur_obs, cur_ptg, cur_d_mask, cur_t_mask) in enumerate(
+        zip(obs_list, ptg_list, dm_list, tm_list)
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
+
+        if hwp is None:
+            if hasattr(cur_obs, "hwp_angle"):
+                hwp_angle = cur_obs.hwp_angle
+            else:
+                hwp_angle = None
+        else:
+            if type(cur_ptg) is np.ndarray:
+                hwp_angle = get_hwp_angle(cur_obs, hwp)
+            else:
+                logging.warning(
+                    "For using an external HWP object also pass a pre-calculated pointing"
+                )
 
         pixidx_all, polang_all = _compute_pixel_indices(
             hpx=hpx,
             pointings=cur_ptg,
-            psi=cur_psi,
+            num_of_detectors=cur_obs.n_detectors,
+            num_of_samples=cur_obs.n_samples,
+            hwp_angle=hwp_angle,
             output_coordinate_system=output_coordinate_system,
         )
 
@@ -252,8 +271,9 @@ def _build_nobs_matrix(
 
 def make_binned_map(
     nside: int,
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    hwp: Optional[HWP] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     components: List[str] = None,
     detector_split: str = "full",
@@ -264,8 +284,8 @@ def make_binned_map(
     Map a list of observations
 
     Args:
-        obs (list of :class:`Observations`): observations to be mapped. They
-            are required to have the following attributes as arrays
+        observations (list of :class:`Observations`): observations to be mapped.
+            They are required to have the following attributes as arrays
 
             * `pointings`: the pointing information (in radians) for each tod
                sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
@@ -298,8 +318,8 @@ def make_binned_map(
     if not components:
         components = ["tod"]
 
-    obs_list, ptg_list, psi_list = _normalize_observations_and_pointings(
-        obs=obs, pointings=pointings
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=observations, pointings=pointings
     )
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
@@ -310,7 +330,7 @@ def make_binned_map(
         nside=nside,
         obs_list=obs_list,
         ptg_list=ptg_list,
-        psi_list=psi_list,
+        hwp=hwp,
         dm_list=detector_mask_list,
         tm_list=time_mask_list,
         output_coordinate_system=output_coordinate_system,
@@ -332,7 +352,7 @@ def make_binned_map(
 
 
 def check_valid_splits(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     detector_splits: Union[str, List[str]] = "full",
     time_splits: Union[str, List[str]] = "full",
 ):
@@ -347,8 +367,8 @@ def check_valid_splits(
     If the splits are not compatible with the input data, an error is raised.
 
     Args:
-        obs (list of :class:`Observations`): observations to be mapped. They
-            are required to have the following attributes as arrays
+        observations (list of :class:`Observations`): observations to be mapped.
+            They are required to have the following attributes as arrays
 
             * `pointings`: the pointing information (in radians) for each tod
                sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
@@ -393,4 +413,4 @@ def check_valid_splits(
                 ["1", "2", "3", "4", "5", "6"].
 
     """
-    _check_valid_splits(obs, detector_splits, time_splits)
+    _check_valid_splits(observations, detector_splits, time_splits)

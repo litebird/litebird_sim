@@ -21,8 +21,10 @@ from numba import njit, prange
 import healpy as hp
 
 from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD
-from typing import Union, List, Optional, Tuple, Any, Dict
+from typing import Callable, Union, List, Optional, Tuple, Any, Dict
+from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
+from litebird_sim.pointings import get_hwp_angle
 from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
 
 from .common import (
@@ -441,12 +443,25 @@ def _nobs_matrix_to_cholesky(
 def _store_pixel_idx_and_pol_angle_in_obs(
     hpx: Healpix_Base,
     obs_list: List[Observation],
-    ptg_list: List[npt.ArrayLike],
-    psi_list: List[npt.ArrayLike],
+    ptg_list: Union[List[npt.ArrayLike], List[Callable]],
+    hwp: Union[HWP, None],
     output_coordinate_system: CoordinateSystem,
 ):
-    for cur_obs, cur_ptg, cur_psi in zip(obs_list, ptg_list, psi_list):
+    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         cur_obs.destriper_weights = get_map_making_weights(cur_obs, check=True)
+
+        if hwp is None:
+            if hasattr(cur_obs, "hwp_angle"):
+                hwp_angle = cur_obs.hwp_angle
+            else:
+                hwp_angle = None
+        else:
+            if type(cur_ptg) is np.ndarray:
+                hwp_angle = get_hwp_angle(cur_obs, hwp)
+            else:
+                logging.warning(
+                    "For using an external HWP object also pass a pre-calculated pointing"
+                )
 
         (
             cur_obs.destriper_pixel_idx,
@@ -454,7 +469,9 @@ def _store_pixel_idx_and_pol_angle_in_obs(
         ) = _compute_pixel_indices(
             hpx=hpx,
             pointings=cur_ptg,
-            psi=cur_psi,
+            num_of_detectors=cur_obs.n_detectors,
+            num_of_samples=cur_obs.n_samples,
+            hwp_angle=hwp_angle,
             output_coordinate_system=output_coordinate_system,
         )
 
@@ -462,8 +479,6 @@ def _store_pixel_idx_and_pol_angle_in_obs(
 def _build_nobs_matrix(
     hpx: Healpix_Base,
     obs_list: List[Observation],
-    ptg_list: List[npt.ArrayLike],
-    psi_list: List[npt.ArrayLike],
     dm_list: List[npt.ArrayLike],
     tm_list: List[npt.ArrayLike],
 ) -> NobsMatrix:
@@ -472,9 +487,7 @@ def _build_nobs_matrix(
     # In this way we reduce the memory usage by ~30% and the code is faster too.
     nobs_matrix = np.zeros((hpx.npix(), 6))  # Do not use np.empty() here!
 
-    for cur_obs, cur_ptg, cur_psi, cur_d_mask, cur_t_mask in zip(
-        obs_list, ptg_list, psi_list, dm_list, tm_list
-    ):
+    for cur_obs, cur_d_mask, cur_t_mask in zip(obs_list, dm_list, tm_list):
         _accumulate_nobs_matrix(
             pix_idx=cur_obs.destriper_pixel_idx,
             psi_angle_rad=cur_obs.destriper_pol_angle_rad,
@@ -1437,8 +1450,9 @@ def destriper_log_callback(
 
 def make_destriped_map(
     nside: int,
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]] = None,
+    hwp: Optional[HWP] = None,
     params: DestriperParameters = DestriperParameters(),
     components: Optional[List[str]] = None,
     keep_weights: bool = False,
@@ -1455,8 +1469,8 @@ def make_destriped_map(
     Applies the destriping algorithm to produce a map out from a TOD
 
     This function takes the samples stored in the list of
-    :class:`.Observation` objects `obs` and produces a destriped map.
-    Pointings can either be embedded in the `obs` objects or provided
+    :class:`.Observation` objects `observations` and produces a destriped map.
+    Pointings can either be embedded in the `observations` objects or provided
     through the parameter `pointings`.
 
     The `params` argument is an instance of the class
@@ -1467,8 +1481,8 @@ def make_destriped_map(
 
     The samples in the TOD can be saved in several fields within each
     :class:`.Observation` object. For instance, you could have
-    generated a noise component in `obs.noise_tod`, the dipole in
-    `obs.dipole_tod`, etc., and you want to produce a map containing
+    generated a noise component in `observations.noise_tod`, the dipole in
+    `observations.dipole_tod`, etc., and you want to produce a map containing
     the *sum* of all these components. In this case, you can pass
     a list of strings containing the name of the fields as the
     parameter `components`, and the destriper will add them together
@@ -1508,23 +1522,23 @@ def make_destriped_map(
 
         my_window_handle = CreateProgressWindow(...)
         make_destriped_map(
-            obs=obs_list,
+            observations=obs_list,
             params=params,
             callback=my_gui_callback,
             callback_kwargs={"window_handle": my_window_handle},
         )
 
-    :param obs: an instance of the class :class:`.Observation`,
+    :param observations: an instance of the class :class:`.Observation`,
        or a list of objects of this kind
     :param pointings: a 3×N array containing the values of the
-       θ,φ,ψ angles (in radians), or a list if `obs` was a
+       θ,φ,ψ angles (in radians), or a list if `observations` was a
        list. If no pointings are specified, they will be
-       taken from `obs` (the most common situation)
+       taken from `observations` (the most common situation)
     :param params: an instance of the :class:`.DestriperParameters` class
     :param components: a list of components to extract from
-       the TOD and sum together. The default is to use `obs.tod`.
+       the TOD and sum together. The default is to use `observations.tod`.
     :param keep_weights: the destriper adds a `destriper_weights`
-       field to each :class:`.Observation` object in `obs`, and
+       field to each :class:`.Observation` object in `observations`, and
        it deletes it once the map has been produced. Setting
        this parameter to ``True`` prevents the field from being
        deleted. (Useful for debugging.)
@@ -1552,8 +1566,8 @@ def make_destriped_map(
 
     do_destriping = params.samples_per_baseline is not None
 
-    obs_list, ptg_list, psi_list = _normalize_observations_and_pointings(
-        obs=obs, pointings=pointings
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=observations, pointings=pointings
     )
 
     hpx = Healpix_Base(nside=nside, scheme="RING")
@@ -1566,7 +1580,7 @@ def make_destriped_map(
         hpx=hpx,
         obs_list=obs_list,
         ptg_list=ptg_list,
-        psi_list=psi_list,
+        hwp=hwp,
         output_coordinate_system=params.output_coordinate_system,
     )
 
@@ -1591,8 +1605,6 @@ def make_destriped_map(
     nobs_matrix_cholesky = _build_nobs_matrix(
         hpx=hpx,
         obs_list=obs_list,
-        ptg_list=ptg_list,
-        psi_list=psi_list,
         dm_list=detector_mask_list,
         tm_list=time_mask_list,
     )

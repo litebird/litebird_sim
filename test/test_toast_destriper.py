@@ -3,14 +3,14 @@
 "Test the interface to the TOAST toast_destriper"
 
 from pathlib import Path
-import numpy as np
+
 import astropy.units as u
-import litebird_sim as lbs
 import healpy
+import numpy as np
 from numpy.random import MT19937, RandomState, SeedSequence
 
+import litebird_sim as lbs
 from litebird_sim import CoordinateSystem
-
 
 COORDINATE_SYSTEM_STR = {
     CoordinateSystem.Ecliptic: "ecliptic",
@@ -95,7 +95,6 @@ def test_basic_functionality(tmp_path):
     sim.observations[0].psi = np.empty((1, num_of_samples))
     sim.observations[0].pointings[0, :, 0] = theta
     sim.observations[0].pointings[0, :, 1] = phi
-    sim.observations[0].pointing_coords = lbs.CoordinateSystem.Ecliptic
     sim.observations[0].psi[0, :] = np.linspace(
         start=0.0,
         stop=np.pi,
@@ -185,12 +184,12 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
                 name="0B", sampling_rate_hz=10, quat=lbs.quat_rotation_z(np.pi / 2)
             ),
         ],
-        dtype_tod=np.float64,
+        tod_dtype=np.float64,
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         split_list_over_processes=False,
     )
 
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     # Generate some white noise
     rs = RandomState(MT19937(SeedSequence(123456789)))
@@ -362,12 +361,12 @@ def test_destriper_coordinate_consistency(tmp_path):
     # We create two detectors, whose polarization angles are separated by π/2
     sim.create_observations(
         detectors=detectors,
-        dtype_tod=np.float64,  # Needed if you use the TOAST toast_destriper
+        tod_dtype=np.float64,  # Needed if you use the TOAST toast_destriper
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         split_list_over_processes=False,
     )
 
-    sim.compute_pointings()
+    sim.prepare_pointings()
 
     params = lbs.MbsParameters(
         make_cmb=True,
@@ -381,7 +380,7 @@ def test_destriper_coordinate_consistency(tmp_path):
     )
     (healpix_maps, file_paths) = mbs.run_all()
 
-    lbs.scan_map_in_observations(obs=sim.observations, maps=healpix_maps)
+    lbs.scan_map_in_observations(observations=sim.observations, maps=healpix_maps)
 
     params = lbs.ExternalDestriperParameters(
         nside=healpy.npix2nside(len(healpix_maps[detectors[0].name][0])),

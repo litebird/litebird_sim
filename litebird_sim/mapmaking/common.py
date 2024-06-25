@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Callable
 import numpy as np
 import numpy.typing as npt
 from numba import njit
@@ -89,20 +89,24 @@ class ExternalDestriperParameters:
     return_rcond: bool = False
 
 
-def get_map_making_weights(obs: Observation, check: bool = True) -> npt.NDArray:
-    """Return a NumPy array containing the weights of each detector in `obs`
+def get_map_making_weights(
+    observations: Observation, check: bool = True
+) -> npt.NDArray:
+    """Return a NumPy array containing the weights of each detector in `observations`
 
-    The number of elements in the result is equal to `obs.n_detectors`. If
+    The number of elements in the result is equal to `observations.n_detectors`. If
     `check` is true, verify that the weights are ok for the map-maker to
     proceed; if not, an `assert` is raised.
     """
 
     try:
-        if isinstance(obs.net_ukrts, (float, int)):
-            obs.net_ukrts = obs.net_ukrts * np.ones(obs.n_detectors)
-        weights = obs.sampling_rate_hz * obs.net_ukrts**2
+        if isinstance(observations.net_ukrts, (float, int)):
+            observations.net_ukrts = observations.net_ukrts * np.ones(
+                observations.n_detectors
+            )
+        weights = observations.sampling_rate_hz * observations.net_ukrts**2
     except AttributeError:
-        weights = np.ones(obs.n_detectors)
+        weights = np.ones(observations.n_detectors)
 
     if check:
         # Check that there are no weird weights
@@ -117,91 +121,101 @@ def get_map_making_weights(obs: Observation, check: bool = True) -> npt.NDArray:
 
 
 def _normalize_observations_and_pointings(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     pointings: Union[np.ndarray, List[np.ndarray], None],
 ) -> Tuple[List[Observation], List[npt.NDArray], List[npt.NDArray]]:
-    # In map-making routines, we always rely on three local variables:
+    # In map-making routines, we always rely on two local variables:
     #
     # - obs_list contains a list of the observations to be used in the
-    #   map-making process by the current MPI process. Unlike the `obs`
+    #   map-making process by the current MPI process. Unlike the `observations`
     #   parameters used in functions like `make_binned_map`, this is
     #   *always* a list, i.e., even if there is just one observation
     #
     # - ptg_list: a list of pointing matrices, one per each observation,
     #   each belonging to the current MPI process
     #
-    # - psi_list: a list of polarisation angle vectors, one per each
-    #   observation, each belonging to the current MPI process
-    #
     # This function builds the tuple (obs_list, ptg_list, psi_list) and
     # returns it.
 
     if pointings is None:
-        if isinstance(obs, Observation):
-            obs_list = [obs]
-            ptg_list = [obs.pointings]
-            psi_list = [obs.psi]
+        if isinstance(observations, Observation):
+            obs_list = [observations]
+            if hasattr(observations, "pointing_matrix"):
+                ptg_list = [observations.pointing_matrix]
+            else:
+                ptg_list = [observations.get_pointings]
         else:
-            obs_list = obs
-            ptg_list = [ob.pointings for ob in obs]
-            psi_list = [ob.psi for ob in obs]
+            obs_list = observations
+            ptg_list = []
+            for ob in observations:
+                if hasattr(ob, "pointing_matrix"):
+                    ptg_list.append(ob.pointing_matrix)
+                else:
+                    ptg_list.append(ob.get_pointings)
     else:
-        if isinstance(obs, Observation):
+        if isinstance(observations, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "You must pass a list of observations *and* a list "
                 + "of pointing matrices to scan_map_in_observations"
             )
-            obs_list = [obs]
-            ptg_list = [pointings[:, :, 0:2]]
-            psi_list = [pointings[:, :, 2]]
+            obs_list = [observations]
+            ptg_list = [pointings]
         else:
             assert isinstance(pointings, list), (
-                "When you pass a list of observations to make_binned_map, "
+                "When you pass a list of observations to scan_map_in_observations, "
                 + "you must do the same for `pointings`"
             )
-            assert len(obs) == len(pointings), (
-                f"The list of observations has {len(obs)} elements, but "
+            assert len(observations) == len(pointings), (
+                f"The list of observations has {len(observations)} elements, but "
                 + f"the list of pointings has {len(pointings)} elements"
             )
-            obs_list = obs
-            ptg_list = [point[:, :, 0:2] for point in pointings]
-            psi_list = [point[:, :, 2] for point in pointings]
+            obs_list = observations
+            ptg_list = pointings
 
-    return obs_list, ptg_list, psi_list
+    return obs_list, ptg_list
 
 
 def _compute_pixel_indices(
     hpx: Healpix_Base,
-    pointings: npt.ArrayLike,
-    psi: npt.ArrayLike,
+    pointings: Union[npt.ArrayLike, Callable],
+    num_of_detectors: int,
+    num_of_samples: int,
+    hwp_angle: npt.ArrayLike,
     output_coordinate_system: CoordinateSystem,
 ) -> Tuple[npt.NDArray, npt.NDArray]:
     """Compute the index of each pixel and its attack angle
 
-    The routine returns a pair of arrays whose size is `num_of_sample`: the first
-    one contains the index of the pixels in the Healpix map represented by `hpx`,
-    and the second the value of the ψ angle (in radians). The coordinates used are
-    the ones specified by `output_coordinate_system`.
+    The routine returns a pair of arrays whose size is ``(N_d, N_t)`` each: rows in
+    the first array contain the index of the pixels in the Healpix map represented by `hpx`
+    for a given detector, while rows in the second array the value of the ψ angle (in
+    radians) for each detector. The coordinates used are the ones specified by
+    `output_coordinate_system`.
 
     The code assumes that `pointings` is a tensor of rank ``(N_d, N_t, 2)``, with
     ``N_d`` the number of detectors and ``N_t`` the number of samples in the TOD,
     and the last rank represents the θ and φ angles (in radians) expressed in the
     Ecliptic reference frame.
     """
-    num_of_detectors, num_of_samples, _ = pointings.shape
+
     pixidx_all = np.empty((num_of_detectors, num_of_samples), dtype=int)
     polang_all = np.empty((num_of_detectors, num_of_samples), dtype=np.float64)
 
     for idet in range(num_of_detectors):
-        if output_coordinate_system == CoordinateSystem.Galactic:
-            curr_pointings_det, polang_all[idet] = rotate_coordinates_e2g(
-                pointings[idet, :, :], psi[idet, :]
-            )
-        else:
+        if type(pointings) is np.ndarray:
             curr_pointings_det = pointings[idet, :, :]
-            polang_all[idet] = psi[idet, :]
+        else:
+            curr_pointings_det, hwp_angle = pointings(idet)
+            curr_pointings_det = curr_pointings_det.reshape(-1, 3)
 
-        pixidx_all[idet] = hpx.ang2pix(curr_pointings_det)
+        if hwp_angle is None:
+            hwp_angle = 0
+
+        if output_coordinate_system == CoordinateSystem.Galactic:
+            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+
+        polang_all[idet] = curr_pointings_det[:, 2] + hwp_angle
+
+        pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
 
     if output_coordinate_system == CoordinateSystem.Galactic:
         # Free curr_pointings_det if the output map is already in Galactic coordinates
@@ -471,22 +485,22 @@ def _build_mask_time_split(
 
 
 def _get_initial_time(
-    obs: Observation,
+    observations: Observation,
 ):
-    if isinstance(obs.start_time_global, astropy.time.Time):
-        t_i = obs.start_time_global.cxcsec
+    if isinstance(observations.start_time_global, astropy.time.Time):
+        t_i = observations.start_time_global.cxcsec
     else:
-        t_i = obs.start_time_global
+        t_i = observations.start_time_global
     return t_i
 
 
 def _get_end_time(
-    obs: Observation,
+    observations: Observation,
 ):
-    if isinstance(obs.end_time_global, astropy.time.Time):
-        t_f = obs.end_time_global.cxcsec
+    if isinstance(observations.end_time_global, astropy.time.Time):
+        t_f = observations.end_time_global.cxcsec
     else:
-        t_f = obs.end_time_global
+        t_f = observations.end_time_global
     return t_f
 
 
@@ -507,7 +521,7 @@ def _build_mask_detector_split(
 
 
 def _check_valid_splits(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     detector_splits: Union[str, List[str]] = "full",
     time_splits: Union[str, List[str]] = "full",
 ):
@@ -527,24 +541,24 @@ def _check_valid_splits(
     valid_time_splits.extend([f"year{i}" for i in range(1, max_years + 1)])
     valid_time_splits.extend([f"survey{i}" for i in range(1, max_surveys + 1)])
 
-    if isinstance(obs, Observation):
-        obs = [obs]
+    if isinstance(observations, Observation):
+        observations = [observations]
     if isinstance(detector_splits, str):
         detector_splits = [detector_splits]
     if isinstance(time_splits, str):
         time_splits = [time_splits]
 
-    _validate_detector_splits(obs, detector_splits, valid_detector_splits)
-    _validate_time_splits(obs, time_splits, valid_time_splits)
+    _validate_detector_splits(observations, detector_splits, valid_detector_splits)
+    _validate_time_splits(observations, time_splits, valid_time_splits)
     print("Splits are valid!")
 
 
-def _validate_detector_splits(obs, detector_splits, valid_detector_splits):
+def _validate_detector_splits(observations, detector_splits, valid_detector_splits):
     for ds in detector_splits:
         if ds not in valid_detector_splits:
             msg = f"Detector split '{ds}' not recognized!\nValid detector splits are {valid_detector_splits}"
             raise ValueError(msg)
-        for cur_obs in obs:
+        for cur_obs in observations:
             if "wafer" in ds:
                 requested_wafer = ds.replace("wafer", "")
                 if requested_wafer not in cur_obs.wafer:
@@ -552,13 +566,13 @@ def _validate_detector_splits(obs, detector_splits, valid_detector_splits):
                     raise AssertionError(msg)
 
 
-def _validate_time_splits(obs, time_splits, valid_time_splits):
+def _validate_time_splits(observations, time_splits, valid_time_splits):
     for ts in time_splits:
         if ts not in valid_time_splits:
             msg = f"Time split '{ts}' not recognized!\nValid time splits are {valid_time_splits}"
             raise ValueError(msg)
         if "year" in ts:
-            for cur_obs in obs:
+            for cur_obs in observations:
                 duration = round(_get_end_time(cur_obs) - _get_initial_time(cur_obs), 0)
                 max_years = duration // t_year_sec
                 requested_years = int(ts.replace("year", ""))

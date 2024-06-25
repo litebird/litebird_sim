@@ -172,7 +172,7 @@ def run_test_on_madam(
 
     sim.create_observations(
         detectors=detectors,
-        dtype_tod=np.float64,
+        tod_dtype=np.float64,
         split_list_over_processes=False,
         num_of_obs_per_detector=2,
         n_blocks_det=n_blocks_det,
@@ -182,10 +182,14 @@ def run_test_on_madam(
     distribution = sim.describe_mpi_distribution()
     assert distribution is not None
 
-    lbs.get_pointings_for_observations(
+    lbs.prepare_pointings(
         sim.observations,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
+        instr,
+        sim.spin2ecliptic_quats,
+    )
+
+    lbs.precompute_pointings(
+        sim.observations,
     )
 
     for cur_obs in sim.observations:
