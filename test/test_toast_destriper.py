@@ -184,7 +184,7 @@ def run_destriper_tests(tmp_path, coordinates: CoordinateSystem):
                 name="0B", sampling_rate_hz=10, quat=lbs.quat_rotation_z(np.pi / 2)
             ),
         ],
-        dtype_tod=np.float64,
+        tod_dtype=np.float64,
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         split_list_over_processes=False,
     )
@@ -361,7 +361,7 @@ def test_destriper_coordinate_consistency(tmp_path):
     # We create two detectors, whose polarization angles are separated by π/2
     sim.create_observations(
         detectors=detectors,
-        dtype_tod=np.float64,  # Needed if you use the TOAST toast_destriper
+        tod_dtype=np.float64,  # Needed if you use the TOAST toast_destriper
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         split_list_over_processes=False,
     )

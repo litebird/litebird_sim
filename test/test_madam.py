@@ -172,7 +172,7 @@ def run_test_on_madam(
 
     sim.create_observations(
         detectors=detectors,
-        dtype_tod=np.float64,
+        tod_dtype=np.float64,
         split_list_over_processes=False,
         num_of_obs_per_detector=2,
         n_blocks_det=n_blocks_det,

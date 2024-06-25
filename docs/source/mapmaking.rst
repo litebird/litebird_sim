@@ -75,7 +75,7 @@ detectors::
                 name="0B", sampling_rate_hz=10, quat=lbs.quat_rotation_z(np.pi / 2)
             ),
         ],
-        dtype_tod=np.float64,  # Needed if you use the TOAST destriper
+        tod_dtype=np.float64,  # Needed if you use the TOAST destriper
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         split_list_over_processes=False,
     )
@@ -730,7 +730,7 @@ would be produced by the *binner*, see above), and the *destriped map*.
    floating point numbers. As the default data type for timelines
    created by ``sim.create_observations`` is a 32-bit float, if you
    plan to run the destriper you should pass the flag
-   ``dtype_tod=np.float64`` to ``sim.create_observations`` (see the
+   ``tod_dtype=np.float64`` to ``sim.create_observations`` (see the
    code above), otherwise ``destripe`` will create an internal copy of
    the TOD converted in 64-bit floating-point numbers, which is
    usually a waste of space.

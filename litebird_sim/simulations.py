@@ -892,7 +892,7 @@ class Simulation:
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
-        dtype_tod: Optional[Any] = None,
+        tod_dtype: Optional[Any] = None,
         tods: List[TodDescription] = [
             TodDescription(name="tod", dtype=np.float32, description="Signal")
         ],
@@ -939,7 +939,7 @@ class Simulation:
         want greater accuracy at the expense of doubling memory
         occupation, choose ``numpy.float64``.
 
-        If you specify `dtype_tod`, this will be used as the parameter
+        If you specify `tod_dtype`, this will be used as the parameter
         for each TOD specified in `tods`, overriding the value of `dtype`.
         This keyword is kept for legacy reasons but should be avoided
         in newer code.
@@ -998,11 +998,11 @@ class Simulation:
 
         cur_time = self.start_time
 
-        if not dtype_tod:
+        if not tod_dtype:
             self.tod_list = tods
         else:
             self.tod_list = [
-                TodDescription(name=x.name, dtype=dtype_tod, description=x.description)
+                TodDescription(name=x.name, dtype=tod_dtype, description=x.description)
                 for x in tods
             ]
 

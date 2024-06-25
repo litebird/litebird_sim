@@ -1,6 +1,6 @@
 # HEAD
 
--   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319)
+-   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Please, note that the argument `dtype_tod` of the method `Simulation.create_observations` has become `tod_type` for consistency with other similar parameters.
 
 -   Add data splits in time and detector space to destriped maps [#309](https://github.com/litebird/litebird_sim/pull/309)
 

@@ -246,7 +246,7 @@ def test_distribute_observation(tmp_path):
         )
         det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
         obs_list = sim.create_observations(
-            detectors=[det], num_of_obs_per_detector=5, dtype_tod=dtype
+            detectors=[det], num_of_obs_per_detector=5, tod_dtype=dtype
         )
 
         assert len(obs_list) == 5

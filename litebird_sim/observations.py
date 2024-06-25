@@ -80,9 +80,6 @@ class Observation:
 
         sampling_rate_hz (float): The sampling frequency, in Hertz.
 
-        dtype_tod (dtype): Data type of the TOD array. Use it to balance
-            numerical precision and memory consumption.
-
         n_blocks_det (int): divide the detector axis of the tod (and all the
             arrays of detector attributes) in `n_blocks_det` blocks
 
