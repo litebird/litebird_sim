@@ -476,6 +476,7 @@ def normalize_quaternions(quat_matrix: npt.NDArray) -> None:
         quat_matrix[i, 2] /= norm
         quat_matrix[i, 3] /= norm
 
+
 @njit
 def quat_rotation(theta_rad, x, y, z):
     """This function rotates a quaternion by theta_rad about a specific axis.
@@ -486,7 +487,7 @@ def quat_rotation(theta_rad, x, y, z):
         z (float): The z element of vector to rotate the quaternion about.
     """
     s = np.sin(theta_rad / 2)
-    return (x*s, y*s, z*s, np.cos(theta_rad / 2))
+    return (x * s, y * s, z * s, np.cos(theta_rad / 2))
 
 
 def quat_rotation_brdcast(theta_rad, vec_matrix):
@@ -496,7 +497,9 @@ def quat_rotation_brdcast(theta_rad, vec_matrix):
         vec_matrix (numpy.array[N, 3]): The vectors to rotate the quaternion about.
     """
     s = np.sin(theta_rad / 2)
-    return np.hstack([vec_matrix * s, np.cos(theta_rad / 2) * np.ones((vec_matrix.shape[0], 1))])
+    return np.hstack(
+        [vec_matrix * s, np.cos(theta_rad / 2) * np.ones((vec_matrix.shape[0], 1))]
+    )
 
 
 def quat_rotation_x_brdcast(theta_rad_array):
@@ -515,12 +518,14 @@ def quat_rotation_x_brdcast(theta_rad_array):
     sin_theta_over_2 = np.sin(theta_rad_array / 2)
     cos_theta_over_2 = np.cos(theta_rad_array / 2)
     return np.stack(
-        [sin_theta_over_2,
-         np.zeros_like(theta_rad_array),
-         np.zeros_like(theta_rad_array),
-         cos_theta_over_2],
-        axis=-1
-        )
+        [
+            sin_theta_over_2,
+            np.zeros_like(theta_rad_array),
+            np.zeros_like(theta_rad_array),
+            cos_theta_over_2,
+        ],
+        axis=-1,
+    )
 
 
 def quat_rotation_y_brdcast(theta_rad_array):
@@ -539,12 +544,14 @@ def quat_rotation_y_brdcast(theta_rad_array):
     sin_theta_over_2 = np.sin(theta_rad_array / 2)
     cos_theta_over_2 = np.cos(theta_rad_array / 2)
     return np.stack(
-        [np.zeros_like(theta_rad_array),
-         sin_theta_over_2,
-         np.zeros_like(theta_rad_array),
-         cos_theta_over_2],
-        axis=-1
-        )
+        [
+            np.zeros_like(theta_rad_array),
+            sin_theta_over_2,
+            np.zeros_like(theta_rad_array),
+            cos_theta_over_2,
+        ],
+        axis=-1,
+    )
 
 
 def quat_rotation_z_brdcast(theta_rad_array):
@@ -563,9 +570,11 @@ def quat_rotation_z_brdcast(theta_rad_array):
     sin_theta_over_2 = np.sin(theta_rad_array / 2)
     cos_theta_over_2 = np.cos(theta_rad_array / 2)
     return np.stack(
-        [np.zeros_like(theta_rad_array),
-         np.zeros_like(theta_rad_array),
-         sin_theta_over_2,
-         cos_theta_over_2],
-        axis=-1
-        )
+        [
+            np.zeros_like(theta_rad_array),
+            np.zeros_like(theta_rad_array),
+            sin_theta_over_2,
+            cos_theta_over_2,
+        ],
+        axis=-1,
+    )

@@ -122,7 +122,6 @@ from .quaternions import (
     quat_rotation_x_brdcast,
     quat_rotation_y_brdcast,
     quat_rotation_z_brdcast,
-
 )
 from .scan_map import scan_map, scan_map_in_observations
 from .scanning import (
