@@ -17,7 +17,26 @@ from ..quaternions import (
 )
 from ..detectors import DetectorInfo, InstrumentInfo
 from typing import Union, List, Iterable
+from numba import njit
 
+@njit
+def get_wedgeHWP_pointing_angle_correction(
+        wedge_angle: float,
+        refractive_index: float,
+        hwp_angle: float,
+        det_phi: float,
+        ):
+    """
+    Calculate the (time-dependent) angle correction to θ of the detector pointing (θ,ϕ,ψ) due to the spinning wedge HWP for a single detector and time sample.
+    Args:
+        wedge_angle: angle of the wedge HWP in radian.
+        refractive_index: refractive index of the HWP.
+        hwp_angle: angle of the HWP for a single time sample in radian.
+        det_phi: ϕ angle of the detector coming from its pointing direction in the focal plane reference frame, in radian.
+    Returns:
+        float, the angle shift of the boresight due to the spinning wedge HWP.
+    """
+    return (refractive_index - 1) * wedge_angle * np.cos(det_phi - hwp_angle)
 
 def get_detector_orientation(detector: DetectorInfo):
     # TODO: This infomation should be included in IMo.
