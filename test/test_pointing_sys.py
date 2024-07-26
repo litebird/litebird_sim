@@ -97,7 +97,7 @@ def test_PointingSys_add_single_offset_to_FP(
     func = test_PointingSys_add_single_offset_to_FP
     sim, dets = gen_simulation_and_dets(telescope)
 
-    pointing_sys = lbs.PointingSys(sim.instrument, dets)
+    pointing_sys = lbs.PointingSys(sim, dets)
     single_offset = np.deg2rad(1.0)
     axis = "x"
     pointing_sys.focalplane.add_offset(single_offset, axis)
@@ -134,7 +134,7 @@ def test_PointingSys_add_multiple_offsets_to_FP(
     func = test_PointingSys_add_multiple_offsets_to_FP
     sim, dets = gen_simulation_and_dets(telescope)
 
-    pointing_sys = lbs.PointingSys(sim.instrument, dets)
+    pointing_sys = lbs.PointingSys(sim, dets)
     multiple_offsets = np.linspace(0, np.deg2rad(1), len(dets))
     axis = "x"
     pointing_sys.focalplane.add_offset(multiple_offsets, axis)
@@ -181,9 +181,9 @@ def test_PointingSys_add_uncommon_disturb_to_FP(
             noise_rad_matrix[i, :], sigma=np.deg2rad(sigmas[i]), random=sim.random
         )
 
-    pointing_sys = lbs.PointingSys(sim.instrument, dets)
+    pointing_sys = lbs.PointingSys(sim, dets)
     axis = "x"
-    pointing_sys.focalplane.add_disturb(start_time, sampling_hz, noise_rad_matrix, axis)
+    pointing_sys.focalplane.add_disturb(noise_rad_matrix, axis)
 
     sim.create_observations(detectors=dets)
     lbs.prepare_pointings(
@@ -224,11 +224,9 @@ def test_PointingSys_add_common_disturb_to_FP(
     sim.init_random(random_seed=12_345)
     lbs.add_white_noise(noise_rad_1d_array, sigma=np.deg2rad(1), random=sim.random)
 
-    pointing_sys = lbs.PointingSys(sim.instrument, dets)
+    pointing_sys = lbs.PointingSys(sim, dets)
     axis = "x"
-    pointing_sys.focalplane.add_disturb(
-        start_time, sampling_hz, noise_rad_1d_array, axis
-    )
+    pointing_sys.focalplane.add_disturb(noise_rad_1d_array, axis)
     sim.create_observations(detectors=dets)
 
     lbs.prepare_pointings(
@@ -263,7 +261,7 @@ def test_PointingSys_add_single_offset_to_spacecraft(
     func = test_PointingSys_add_single_offset_to_spacecraft
     sim, dets = gen_simulation_and_dets(telescope)
 
-    pointing_sys = lbs.PointingSys(sim.instrument, dets)
+    pointing_sys = lbs.PointingSys(sim, dets)
     single_offset = np.deg2rad(1.0)
     axis = "x"
     pointing_sys.spacecraft.add_offset(single_offset, axis)
@@ -306,11 +304,9 @@ def test_PointingSys_add_common_disturb_to_spacecraft(
     sim.init_random(random_seed=12_345)
     lbs.add_white_noise(noise_rad_1d_array, sigma=np.deg2rad(1), random=sim.random)
 
-    pointing_sys = lbs.PointingSys(sim.instrument, dets)
+    pointing_sys = lbs.PointingSys(sim, dets)
     axis = "x"
-    pointing_sys.spacecraft.add_disturb(
-        start_time, sampling_hz, noise_rad_1d_array, axis
-    )
+    pointing_sys.spacecraft.add_disturb(noise_rad_1d_array, axis)
 
     sim.create_observations(detectors=dets)
     lbs.prepare_pointings(
