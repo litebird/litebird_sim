@@ -15,7 +15,7 @@ from ..quaternions import (
     quat_rotation_z_brdcast,
     rotate_z_vector,
 )
-from ..detectors import DetectorInfo, InstrumentInfo
+from ..detectors import DetectorInfo
 from typing import Union, List, Iterable
 from numba import njit
 
