@@ -6,8 +6,6 @@ from numba import njit, prange
 
 from .observations import Observation
 
-## si potrebbero definire diversi ordini di nonlinearity
-
 
 @njit
 def apply_quadratic_nonlin_for_one_sample(data, g_one_over_k):

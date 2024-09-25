@@ -13,13 +13,10 @@ from .hwp import HWP
 
 """def convert_pW_to_K(power_pW, NET, NEP):
     temperature_K = power_pW * NET*1e-6/NEP*1e-18/sqrt(2) 
-    return(temperature_K)"""  # we could implement this if we prefer having IMo quantities in pW
+    return(temperature_K)"""  # we could use this if we prefer having IMo quantities in pW
 
 
 # We calculate the additive signal coming from hwp harmonics.
-# For generality, we could store the rotation angle (half the value from get_hwp_angle) to allow simulations of odd harmonics as well. --> to do!
-
-
 # here we calculate 2f directly.
 @njit
 def compute_2f_for_one_sample(angle_rad, amplitude_k, monopole_k):
@@ -39,8 +36,8 @@ def add_2f(
     hwp: HWP,
     start_time_s,
     delta_time_s,
-    amplitude_k: float,  #  leggere dall'imo ???
-    monopole_k: float,  #  leggere dall'imo ???
+    amplitude_k: float,
+    monopole_k: float,
 ):
     assert len(tod.shape) == 2
     num_of_dets = tod.shape[0]
