@@ -1,5 +1,6 @@
 # HEAD
 
+-   Improve the documentation of the binner and the destriper [#333](https://github.com/litebird/litebird_sim/pull/333)
 -   Make the code compatible with Python 3.12 [#332](https://github.com/litebird/litebird_sim/pull/332)
 
 # Version 0.13.0
