@@ -1,5 +1,7 @@
 # HEAD
 
+-   Make the code compatible with Python 3.12 [#332](https://github.com/litebird/litebird_sim/pull/332)
+
 # Version 0.13.0
 
 -   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Here is a in-depth list of all the breaking changes in this PR:
