@@ -1,9 +1,9 @@
 # -*- encoding: utf-8 -*-
 
-# In this file, we test our own implementation of the destriping algorithm.
-# We consider a simple TOD with very few samples, so that it's possible to
-# write the matrices used to express the destriping problem in full form.
-# After having created the matrices in memory and having inverted them,
+# In this file, we test our implementation of the destriping algorithm.
+# We consider a simple TOD with very few samples so that it’s possible to
+# write the matrices used to express the destriping problem in explicit form.
+# After creating the matrices in memory and inverting them,
 # we check that the analytical solution is close enough to the output
 # of `make_destriped_map`.
 #
@@ -85,18 +85,16 @@ PIXEL_INDEXES = np.array(
 assert len(PIXEL_INDEXES) == NUM_OF_SAMPLES
 
 
-# These are the attack angles for the seven samples in the TOD
-# If you change these, be sure to properly sample each pixel
-# listed in PIXEL_INDEXES (at least three non-degenerate angles
-# per pixel must be provided).
+# These are the attack angles for the seven samples in the TOD. If you
+# change these, sample each pixel listed in PIXEL_INDEXES (at least
+# three non-degenerate angles per pixel must be provided).
 #
-# Since we want to test the code with 2 MPI processes and we
-# rely on the ability of the Observation class to split TODs
-# among processes, we cannot tell how many samples should go
-# in the first baseline and how many in the second one: either
-# it will be 4 in rank #0 and 3 in rank #1, or vice versa.
-# Therefore, we choose the angles so that the N_obs matrix
-# is non-singular for the two possible baseline lengths
+# Since we want to test the code with 2 MPI processes and we rely on
+# the ability of the Observation class to split TODs among processes,
+# we cannot tell how many samples should go in the first baseline and
+# how many in the second one: either it will be 4 in rank #0 and 3 in
+# rank #1, or vice versa. Therefore, we choose the angles so that the
+# N_obs matrix is non-singular for the two possible baseline lengths
 # [4, 3] and [3, 4].
 PSI_ANGLES = np.array(
     [
@@ -113,14 +111,14 @@ assert len(PSI_ANGLES) == NUM_OF_SAMPLES
 
 
 # Note that the average of these values is *not* zero. Thus, the
-# destriping equation is going to retrieve different numbers, because
-# the output of a destriper always produces zero-mean baselines.
+# destriping equation will retrieve different numbers because the
+# output of a destriper always produces zero-mean baselines.
 BASELINE_VALUES = np.array([10.0, 12.0])
 
 
-# This class is used to hold information about those matrices used in
-# the analytical solution that are too complex to write down explicitly
-# and thus need to be calculated.
+# This class holds information about matrices used in the analytical
+# solution that are too complex to write down explicitly and thus
+# need to be calculated.
 @dataclass
 class AnalyticalSolution:
     num_of_samples_in_tod: int = NUM_OF_SAMPLES
