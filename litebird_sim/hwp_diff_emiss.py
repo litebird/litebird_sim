@@ -39,6 +39,13 @@ def add_2f(
     amplitude_k: float,
     monopole_k: float,
 ):
+    """Add the HWP differential emission to some time-ordered data
+
+    This functions modifies the values in `tod` by adding the contribution of the HWP
+    synchronous signal coming from differential emission. The `amplitude_k` argument must be
+    a N_dets array containing the amplitude of the HWPSS. The `monopole_k` argument must have
+    the same size and contain the value of the nominal optical power for the considered frequency channel."""
+
     assert len(tod.shape) == 2
     num_of_dets = tod.shape[0]
 
