@@ -54,6 +54,7 @@ To simulate a quadratic non-linearity, one can use the method of :class:`.Simula
 
 One has to specify the :math:`g_1` parameter using the ``g_one_over_k`` argument as in the following example:
 
+.. code-block:: python
     # Define non-linear parameters for the detectors. We choose the same value for both detectors in this example, but it is not necessary.
     sim.observations[0].g_one_over_k = np.ones(len(dets)) * 1e-3
     
