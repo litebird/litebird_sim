@@ -27,6 +27,7 @@ Welcome to litebird_sim's documentation!
    mpi
    reports
    gaindrifts
+   non_linearity
    external_modules
    profiling
    integrating

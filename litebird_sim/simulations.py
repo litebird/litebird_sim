@@ -32,6 +32,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 from .healpix import write_healpix_map_to_file, npix_to_nside
+from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
 from .io import write_list_of_observations, read_list_of_observations
 from .mapmaking import (
@@ -46,6 +47,7 @@ from .mapmaking import (
 )
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .noise import add_noise_to_observations
+from .non_linearity import apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
@@ -1466,6 +1468,53 @@ class Simulation:
                 dip_lon_deg=dip_lon_deg,
                 dip_velocity=dip_velocity,
             )
+
+    @_profile
+    def add_2f(
+        self,
+        append_to_report: bool = False,
+        component: str = "tod",
+    ):
+        """Fills the tod with dipole.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the pointing
+        through :meth:`.prepare_pointings`.
+        """
+
+        add_2f_to_observations(
+            observations=self.observations,
+            hwp=self.hwp,
+            component=component,
+        )
+
+        """if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_2f.md")
+
+            dip_lat_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lat_rad)
+            dip_lon_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lon_rad)
+            dip_velocity = self.pos_and_vel.orbit.solar_velocity_km_s
+
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                t_cmb_k=t_cmb_k,
+                dipole_type=dipole_type,
+                dip_lat_deg=dip_lat_deg,
+                dip_lon_deg=dip_lon_deg,
+                dip_velocity=dip_velocity,
+            )"""
+
+    @_profile
+    def apply_quadratic_nonlin(
+        self,
+        component: str = "tod",
+    ):
+        apply_quadratic_nonlin_to_observations(
+            observations=self.observations, component=component
+        )
 
     @_profile
     def add_noise(
