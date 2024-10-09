@@ -5,15 +5,17 @@ Non-linearity is the effect of a non-ideal TES detectors' response. This means t
 The LiteBIRD Simulation Framework provides a non-linearity simulation module to simulate the effect of non-linearity on TODs.
 
 The framework provides the simplest case, which is a quadratic non-linearity. 
+This case is described in `Micheli+2024 <https://arxiv.org/pdf/2407.15294>`_, where the effect of non-linearity is propagated to the estimation of the tensor-to-scalar ratio.
 Considering a first order correction of the usual linear gain, a TOD :math:`d(t)` is modified according to:
 
 .. math::
     d(t) = [1+g_1 d(t)] d(t)
 
-
 where :math:`g_1` is the detector non-linearity factor in units of :math:`K^{-1}`.
 
-To simulate a quadratic non-linearity, one can use the method of :class:`.Simulation` class :meth:`.Simulation.apply_quadratic_nonlin()`, or any of the low level functions: :func:`.apply_quadratic_nonlin_to_observations()`, :func:`.apply_quadratic_nonlin_for_one_detector()`. The following example shows the typical usage of the method and low level functions:
+To simulate a quadratic non-linearity, one can use the method of :class:`.Simulation` class :meth:`.Simulation.apply_quadratic_nonlin()`, 
+or any of the low level functions: :func:`.apply_quadratic_nonlin_to_observations()`, :func:`.apply_quadratic_nonlin_for_one_detector()`. 
+The following example shows the typical usage of the method and low level functions:
 
 
 .. code-block:: python
