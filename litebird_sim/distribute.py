@@ -84,6 +84,45 @@ def distribute_evenly(num_of_elements, num_of_groups):
     return result
 
 
+def distribute_detector_blocks(detector_blocks):
+    """Similar to the function :func:`distribute_evenly()`, this function returns the named-tuples of the starting index of the detectors in a group
+    with respect to the global list of detectors and the number of detectors
+    in the group. Unlike the :func:`distribute_evenly()`, this function simply
+    uses the detector groups given in `detector_blocks` attribute.
+
+    Example:
+        Following the example given in
+        :meth:`litebird_sim.Observation._make_detector_blocks()`,
+        `distribute_detector_blocks()` will return
+
+        ```
+        [
+            Span(start_idx=0, num_of_elements=2),
+            Span(start_idx=2, num_of_elements=2),
+            Span(start_idx=4, num_of_elements=1),
+        ]
+        ```
+
+    Args:
+        detector_blocks (dict): The detector block object. See :meth:`litebird_sim.Observation._make_detector_blocks()`.
+
+    Returns:
+        A list of 2-elements named-tuples containing (1) the starting index of
+        the detectors of the block with respect to the flatten list of entire
+        detector blocks and (2) the number of elements in the detector block.
+    """
+    cur_position = 0
+    prev_length = 0
+    result = []
+    for key in detector_blocks:
+        cur_length = len(detector_blocks[key])
+        cur_position += prev_length
+        prev_length = cur_length
+        result.append(Span(start_idx=cur_position, num_of_elements=cur_length))
+
+    return result
+
+
 # The following implementation of the painter's partition problem is
 # heavily inspired by the code at
 # https://www.geeksforgeeks.org/painters-partition-problem-set-2/?ref=rp

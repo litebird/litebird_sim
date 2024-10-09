@@ -7,8 +7,10 @@ import astropy.time
 import numpy as np
 import numpy.typing as npt
 
+from collections import defaultdict
+
 from .coordinates import DEFAULT_TIME_SCALE
-from .distribute import distribute_evenly
+from .distribute import distribute_evenly, distribute_detector_blocks
 
 
 @dataclass
@@ -80,11 +82,19 @@ class Observation:
 
         sampling_rate_hz (float): The sampling frequency, in Hertz.
 
+        det_blocks_attributes (list of strings): The list of detector attributes that
+            will be used to divide detector axis of the tod (and all their attributes).
+            For example, with ``det_blocks_attributes = ["wafer", "pixel"]``, the
+            detectors will be divided into the blocks such that all detectors in a
+            block will have same ``wafer`` and ``pixel`` attribute.
+
         n_blocks_det (int): divide the detector axis of the tod (and all the
-            arrays of detector attributes) in `n_blocks_det` blocks
+            arrays of detector attributes) in `n_blocks_det` blocks. Will be ignored
+            if ``det_blocks_attributes`` is not `None`.
 
         n_blocks_time (int): divide the time axis of the tod in
-            `n_blocks_time` blocks
+            `n_blocks_time` blocks. Will be ignored if ``det_blocks_attributes``
+            is not `None`.
 
         comm: either `None` (do not use MPI) or a MPI communicator
             object, like `mpi4py.MPI.COMM_WORLD`. Its size is required to be at
@@ -103,6 +113,7 @@ class Observation:
         sampling_rate_hz: float,
         allocate_tod=True,
         tods=None,
+        det_blocks_attributes: Union[List[str], None] = None,
         n_blocks_det=1,
         n_blocks_time=1,
         comm=None,
@@ -123,6 +134,10 @@ class Observation:
             delta = 1.0 / sampling_rate_hz
         self.end_time_global = start_time_global + n_samples_global * delta
 
+        self._sampling_rate_hz = sampling_rate_hz
+        self._det_blocks_attributes = det_blocks_attributes
+        self.detector_blocks = None
+
         if isinstance(detectors, int):
             self._n_detectors_global = detectors
         else:
@@ -131,9 +146,12 @@ class Observation:
             else:
                 self._n_detectors_global = len(detectors)
 
-        self._sampling_rate_hz = sampling_rate_hz
+            if self._det_blocks_attributes is not None and comm.size > 1:
+                n_blocks_det, n_blocks_time = self._make_detector_blocks(
+                    detectors, comm
+                )
 
-        # Neme of the attributes that store an array with the value of a
+        # Name of the attributes that store an array with the value of a
         # property for each of the (local) detectors
         self._attr_det_names = []
         self._check_blocks(n_blocks_det, n_blocks_time)
@@ -159,8 +177,17 @@ class Observation:
                 setattr(self, cur_tod.name, None)
 
         self.setattr_det_global("det_idx", np.arange(self._n_detectors_global), root)
+
+        self.detectors_global = []
+
+        if self.detector_blocks is not None:
+            for key in self.detector_blocks:
+                self.detectors_global += self.detector_blocks[key]
+        else:
+            self.detectors_global = detectors
+
         if not isinstance(detectors, int):
-            self._set_attributes_from_list_of_dict(detectors, root)
+            self._set_attributes_from_list_of_dict(self.detectors_global, root)
 
         (
             self.start_time,
@@ -203,7 +230,7 @@ class Observation:
         return self.start_time_global + start * delta, start, num
 
     def _set_attributes_from_list_of_dict(self, list_of_dict, root):
-        assert len(list_of_dict) == self.n_detectors_global
+        np.testing.assert_equal(len(list_of_dict), self.n_detectors_global)
 
         # Turn list of dict into dict of arrays
         if not self.comm or self.comm.rank == root:
@@ -273,10 +300,86 @@ class Observation:
     def n_blocks_det(self):
         return self._n_blocks_det
 
+    def _make_detector_blocks(self, detectors, comm):
+        """This function distributes the detectors in groups such that each
+        group has same set of attributes specified by the strings in
+        `self._det_block_attributes`. Once the groups are made, number of
+        detector blocks is set to be the total number of detector groups
+        whereas the number of time blocks is computed using the number of
+        detector blocks and the size of `comm` communicator.
+
+        The blocks of detectors are stored in `self.detector_blocks`. It is a
+        dictionary object with the tuple of `self._det_blocks_attributes` values
+        as dictionary keys and the list of detectors corresponding to the key
+        as the dictionary value. This dictionary is sorted so that that the
+        group with largest number of detectors comes first and the one with
+        the least number of detectors, comes last.
+
+        Example:
+            For
+
+            ```
+            detectors = [
+                "000_002_123_xx_140_x",
+                "000_005_321_xx_140_x",
+                "000_004_456_xx_119_x",
+                "000_002_654_xx_140_x",
+                "000_004_789_xx_119_x",
+            ]
+            ```
+
+            and `self._det_blocks_attributes = ["channel", "wafer"]`,
+            `_make_detector_blocks()` will set
+
+            ```
+            self.detector_blocks = {
+                ("140", "L02"): ["000_002_123_xx_140_x", "000_002_654_xx_140_x"],
+                ("119", "L04"): ["000_004_456_xx_119_x", "000_004_789_xx_119_x"],
+                ("140", "L05"): ["000_005_321_xx_140_x"],
+            }
+            ```
+
+            and return `n_blocks_det = 3`
+
+        Args:
+            detectors (List[dict]): List of detectors
+
+            comm: The MPI communicator
+
+        Returns:
+            n_blocks_det (int): Number of detector blocks
+
+            n_blocks_time (int): Number of time blocks
+
+        """
+        self.detector_blocks = defaultdict(list)
+        for det in detectors:
+            key = tuple(det[attribute] for attribute in self._det_blocks_attributes)
+            self.detector_blocks[key].append(det)
+
+        self.detector_blocks = dict(
+            sorted(
+                self.detector_blocks.items(),
+                key=lambda item: len(item[1]),
+                reverse=True,
+            )
+        )
+        n_blocks_det = len(self.detector_blocks)
+        n_blocks_time = comm.size // n_blocks_det
+
+        return n_blocks_det, n_blocks_time
+
     def _check_blocks(self, n_blocks_det, n_blocks_time):
         if self.comm is None:
             if n_blocks_det != 1 or n_blocks_time != 1:
                 raise ValueError("Only one block allowed without an MPI comm")
+        elif n_blocks_det == 0 or n_blocks_time == 0:
+            raise ValueError(
+                "The number of detector blocks and the number of time blocks "
+                "must be must be non-zero\n"
+                f"n_blocks_det = {n_blocks_det}, "
+                f"n_blocks_time = {n_blocks_time}"
+            )
         elif n_blocks_det > self.n_detectors_global:
             raise ValueError(
                 "You can not have more detector blocks than detectors "
@@ -296,21 +399,33 @@ class Observation:
 
     def _get_start_and_num(self, n_blocks_det, n_blocks_time):
         """For both detectors and time, returns the starting (global)
-        index and lenght of each block if the number of blocks is changed to the
+        index and length of each block if the number of blocks is changed to the
         values passed as arguments
         """
-        det_start, det_n = np.array(
-            [
-                [span.start_idx, span.num_of_elements]
-                for span in distribute_evenly(self._n_detectors_global, n_blocks_det)
-            ]
-        ).T
+        if self._det_blocks_attributes is None or self.comm.size == 1:
+            det_start, det_n = np.array(
+                [
+                    [span.start_idx, span.num_of_elements]
+                    for span in distribute_evenly(
+                        self._n_detectors_global, n_blocks_det
+                    )
+                ]
+            ).T
+        else:
+            det_start, det_n = np.array(
+                [
+                    [span.start_idx, span.num_of_elements]
+                    for span in distribute_detector_blocks(self.detector_blocks)
+                ]
+            ).T
+
         time_start, time_n = np.array(
             [
                 [span.start_idx, span.num_of_elements]
                 for span in distribute_evenly(self._n_samples_global, n_blocks_time)
             ]
         ).T
+
         return (
             np.array(det_start),
             np.array(det_n),
@@ -327,6 +442,7 @@ class Observation:
             return (self._n_detectors_global, self._n_samples_global)
 
         _, det_n, _, time_n = self._get_start_and_num(n_blocks_det, n_blocks_time)
+
         try:
             return (
                 det_n[self.comm.rank // n_blocks_time],

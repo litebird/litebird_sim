@@ -889,6 +889,7 @@ class Simulation:
         detectors: List[DetectorInfo],
         num_of_obs_per_detector: int = 1,
         split_list_over_processes=True,
+        det_blocks_attributes: Union[List[str], None] = None,
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
@@ -922,7 +923,12 @@ class Simulation:
         simulating 10 detectors and you specify ``n_blocks_det=5``,
         this means that each observation will handle ``10 / 5 = 2``
         detectors. The default is that *all* the detectors be kept
-        together (``n_blocks_det=1``).
+        together (``n_blocks_det=1``). On the other hand, the parameter
+        `det_blocks_attributes` specifies the list of detector attributes
+        to be used to create the groups of detectors. For example, with
+        ``det_blocks_attributes = ["wafer", "pixel"]``, the detectors will
+        be divided into the groups such that all detectors in a group will
+        have same ``wafer`` and ``pixel`` attribute.
 
         The parameter `n_blocks_time` specifies the number of time
         splits of the observations. In the case of a 3-month-long
@@ -1013,6 +1019,7 @@ class Simulation:
                 start_time_global=cur_time,
                 sampling_rate_hz=sampfreq_hz,
                 n_samples_global=nsamples,
+                det_blocks_attributes=det_blocks_attributes,
                 n_blocks_det=n_blocks_det,
                 n_blocks_time=n_blocks_time,
                 comm=(None if split_list_over_processes else self.mpi_comm),
