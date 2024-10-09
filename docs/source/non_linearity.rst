@@ -30,10 +30,10 @@ The following example shows the typical usage of the method and low level functi
 
     dets = [
         lbs.DetectorInfo(
-            name="det_A", sampling_hz=sampling_hz
+            name="det_A", sampling_rate_hz=sampling_hz
         ),
         lbs.DetectorInfo(
-            name="det_B", sampling_hz=sampling_hz
+            name="det_B", sampling_rate_hz=sampling_hz
         ),
     ]
 
@@ -65,14 +65,14 @@ One has to specify the :math:`g_1` parameter using the ``g_one_over_k`` argument
     sim.apply_quadratic_nonlin(component = "nl_2_self",)
 
     # Applying non-linearity on the given TOD component of an `Observation` object
-    lbs.apply_quadratic_nonlin_to_observations(
+    lbs.non_linearity.apply_quadratic_nonlin_to_observations(
         observations=sim.observations,
         component="nl_2_obs",
     )
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
-        lbs.apply_quadratic_nonlin_for_one_detector(
+        lbs.non_linearity.apply_quadratic_nonlin_for_one_detector(
             tod_det=tod,
             g_one_over_k=sim.observations[0].g_one_over_k[idx],
         )
