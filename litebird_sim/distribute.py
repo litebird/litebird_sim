@@ -50,7 +50,7 @@ def distribute_evenly(num_of_elements, num_of_groups):
 
     # If leftovers == 0, then the number of elements is divided evenly
     # by num_of_groups, and the solution is trivial. If it's not, then
-    # each of the "leftoverss" is placed in one of the first groups.
+    # each of the "leftovers" is placed in one of the first groups.
     #
     # Example: let's split 8 elements in 3 groups. In this case,
     # base_length=2 and leftovers=2 (elements #7 and #8):
@@ -68,7 +68,7 @@ def distribute_evenly(num_of_elements, num_of_groups):
             cur_length = base_length + 1
             cur_pos = cur_length * i
         else:
-            # No need to accomodate for leftovers, but consider their
+            # No need to accommodate for leftovers, but consider their
             # presence in fixing the starting position for this group
             cur_length = base_length
             cur_pos = base_length * i + leftovers
@@ -85,10 +85,12 @@ def distribute_evenly(num_of_elements, num_of_groups):
 
 
 def distribute_detector_blocks(detector_blocks):
-    """Similar to the function :func:`distribute_evenly()`, this function returns the named-tuples of the starting index of the detectors in a group
-    with respect to the global list of detectors and the number of detectors
-    in the group. Unlike the :func:`distribute_evenly()`, this function simply
-    uses the detector groups given in `detector_blocks` attribute.
+    """Similar to the :func:`distribute_evenly()` function, this function
+    returns a list of named-tuples, with fields `start_idx` (the starting
+    index of the detector in a group within the global list of detectors) and
+    num_of_elements` (the number of detectors in the group). Unlike
+    :func:`distribute_evenly()`, this function simply uses the detector groups
+    given in the `detector_blocks` attribute.
 
     Example:
         Following the example given in

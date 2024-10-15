@@ -82,19 +82,20 @@ class Observation:
 
         sampling_rate_hz (float): The sampling frequency, in Hertz.
 
-        det_blocks_attributes (list of strings): The list of detector attributes that
-            will be used to divide detector axis of the tod (and all their attributes).
-            For example, with ``det_blocks_attributes = ["wafer", "pixel"]``, the
-            detectors will be divided into the blocks such that all detectors in a
-            block will have same ``wafer`` and ``pixel`` attribute.
+        det_blocks_attributes (list of strings): The list of detector
+            attributes that will be used to divide the detector axis of the
+            tod matrix and all its attributes. For example, with
+            ``det_blocks_attributes = ["wafer", "pixel"]``, the detectors will
+            be divided into blocks such that all detectors in a block will
+            have the same ``wafer`` and ``pixel`` attribute.
 
         n_blocks_det (int): divide the detector axis of the tod (and all the
-            arrays of detector attributes) in `n_blocks_det` blocks. Will be ignored
-            if ``det_blocks_attributes`` is not `None`.
+            arrays of detector attributes) in `n_blocks_det` blocks. It will
+            be ignored if ``det_blocks_attributes`` is not `None`.
 
         n_blocks_time (int): divide the time axis of the tod in
-            `n_blocks_time` blocks. Will be ignored if ``det_blocks_attributes``
-            is not `None`.
+            `n_blocks_time` blocks. It will be ignored
+            if ``det_blocks_attributes`` is not `None`.
 
         comm: either `None` (do not use MPI) or a MPI communicator
             object, like `mpi4py.MPI.COMM_WORLD`. Its size is required to be at
@@ -302,18 +303,18 @@ class Observation:
 
     def _make_detector_blocks(self, detectors, comm):
         """This function distributes the detectors in groups such that each
-        group has same set of attributes specified by the strings in
-        `self._det_block_attributes`. Once the groups are made, number of
-        detector blocks is set to be the total number of detector groups
+        group has the same set of attributes specified by the strings in
+        `self._det_block_attributes`. Once the groups are made, the number of
+        detector blocks is set to be the total number of detector groups,
         whereas the number of time blocks is computed using the number of
         detector blocks and the size of `comm` communicator.
 
-        The blocks of detectors are stored in `self.detector_blocks`. It is a
-        dictionary object with the tuple of `self._det_blocks_attributes` values
+        The detector blocks are stored in `self.detector_blocks`. This
+        dictionary object has the tuple of `self._det_blocks_attributes` values
         as dictionary keys and the list of detectors corresponding to the key
-        as the dictionary value. This dictionary is sorted so that that the
-        group with largest number of detectors comes first and the one with
-        the least number of detectors, comes last.
+        as dictionary values. This dictionary is sorted so that the
+        group with the largest number of detectors comes first and the one with
+        the fewest detectors comes last.
 
         Example:
             For
@@ -778,7 +779,7 @@ class Observation:
         pointing_buffer: Optional[npt.NDArray] = None,
         hwp_buffer: Optional[npt.NDArray] = None,
         pointings_dtype=np.float32,
-    ) -> (npt.NDArray, Optional[npt.NDArray]):
+    ) -> tuple[npt.NDArray, Optional[npt.NDArray]]:
         """
         Compute the pointings for one or more detectors in this observation
 
