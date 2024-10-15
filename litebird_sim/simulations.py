@@ -925,10 +925,10 @@ class Simulation:
         detectors. The default is that *all* the detectors be kept
         together (``n_blocks_det=1``). On the other hand, the parameter
         `det_blocks_attributes` specifies the list of detector attributes
-        to be used to create the groups of detectors. For example, with
+        to create the groups of detectors. For example, with
         ``det_blocks_attributes = ["wafer", "pixel"]``, the detectors will
-        be divided into the groups such that all detectors in a group will
-        have same ``wafer`` and ``pixel`` attribute.
+        be divided into groups such that all detectors in a group will
+        have the same ``wafer`` and ``pixel`` attribute.
 
         The parameter `n_blocks_time` specifies the number of time
         splits of the observations. In the case of a 3-month-long
