@@ -50,7 +50,7 @@ def distribute_evenly(num_of_elements, num_of_groups):
 
     # If leftovers == 0, then the number of elements is divided evenly
     # by num_of_groups, and the solution is trivial. If it's not, then
-    # each of the "leftoverss" is placed in one of the first groups.
+    # each of the "leftovers" is placed in one of the first groups.
     #
     # Example: let's split 8 elements in 3 groups. In this case,
     # base_length=2 and leftovers=2 (elements #7 and #8):
@@ -68,7 +68,7 @@ def distribute_evenly(num_of_elements, num_of_groups):
             cur_length = base_length + 1
             cur_pos = cur_length * i
         else:
-            # No need to accomodate for leftovers, but consider their
+            # No need to accommodate for leftovers, but consider their
             # presence in fixing the starting position for this group
             cur_length = base_length
             cur_pos = base_length * i + leftovers
@@ -81,6 +81,47 @@ def distribute_evenly(num_of_elements, num_of_groups):
         + f"num_of_groups={num_of_groups})"
     )
     assert sum([pair.num_of_elements for pair in result]) == num_of_elements
+    return result
+
+
+def distribute_detector_blocks(detector_blocks):
+    """Similar to the :func:`distribute_evenly()` function, this function
+    returns a list of named-tuples, with fields `start_idx` (the starting
+    index of the detector in a group within the global list of detectors) and
+    num_of_elements` (the number of detectors in the group). Unlike
+    :func:`distribute_evenly()`, this function simply uses the detector groups
+    given in the `detector_blocks` attribute.
+
+    Example:
+        Following the example given in
+        :meth:`litebird_sim.Observation._make_detector_blocks()`,
+        `distribute_detector_blocks()` will return
+
+        ```
+        [
+            Span(start_idx=0, num_of_elements=2),
+            Span(start_idx=2, num_of_elements=2),
+            Span(start_idx=4, num_of_elements=1),
+        ]
+        ```
+
+    Args:
+        detector_blocks (dict): The detector block object. See :meth:`litebird_sim.Observation._make_detector_blocks()`.
+
+    Returns:
+        A list of 2-elements named-tuples containing (1) the starting index of
+        the detectors of the block with respect to the flatten list of entire
+        detector blocks and (2) the number of elements in the detector block.
+    """
+    cur_position = 0
+    prev_length = 0
+    result = []
+    for key in detector_blocks:
+        cur_length = len(detector_blocks[key])
+        cur_position += prev_length
+        prev_length = cur_length
+        result.append(Span(start_idx=cur_position, num_of_elements=cur_length))
+
     return result
 
 
