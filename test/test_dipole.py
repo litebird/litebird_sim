@@ -37,7 +37,7 @@ def test_dipole_models():
         lbs.DipoleType.TOTAL_FROM_LIN_T: [[-0.004_976, 0.121_683, -0.004_976]],
     }
 
-    for (cur_type, cur_ref) in reference.items():
+    for cur_type, cur_ref in reference.items():
         tod[:] = 0.0
         lbs.add_dipole(
             tod,
@@ -54,7 +54,7 @@ def test_dipole_models():
 def bin_map(tod, pixel_indexes, binned_map, accum_map, hit_map):
     # This is a helper function that implements a quick-and-dirty mapmaker.
     # We implement here a simple binner that works only in temperature (unlike
-    # lbs.make_bin_maps, which solves for the I/Q/U Stokes components and is
+    # `lbs.make_binned_map`, which solves for the I/Q/U Stokes components and is
     # an overkill here).
 
     for idx in range(len(accum_map)):
@@ -89,7 +89,9 @@ def test_solar_dipole_fit(tmpdir):
     nside = 32
     sampling_hz = 0.1
 
-    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=12345
+    )
 
     sim.set_scanning_strategy(
         lbs.SpinningScanningStrategy(
@@ -119,11 +121,8 @@ def test_solar_dipole_fit(tmpdir):
     (obs_s_o,) = sim.create_observations(detectors=[det])
     (obs_o,) = sim.create_observations(detectors=[det])
 
-    pointings = lbs.get_pointings(
-        obs_s_o,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=sim.instrument.bore2spin_quat,
-    )
+    lbs.prepare_pointings(obs_s_o, sim.instrument, sim.spin2ecliptic_quats, hwp=None)
+    pointings = obs_s_o.get_pointings("all")[0]
 
     orbit_s_o = lbs.SpacecraftOrbit(obs_s_o.start_time)
     orbit_o = lbs.SpacecraftOrbit(obs_o.start_time, solar_velocity_km_s=0.0)
@@ -183,12 +182,12 @@ def test_solar_dipole_fit(tmpdir):
     mono, dip = hp.fit_dipole(dip_map)
 
     r = hp.Rotator(coord=["E", "G"])
-    l, b = hp.vec2ang(r(dip), lonlat=True)
+    longitude, latitude = hp.vec2ang(r(dip), lonlat=True)
 
     # Amplitude, longitude and latitude
     test.assertAlmostEqual(np.sqrt(np.sum(dip**2)) * 1e6, 3362.08, delta=1)
-    test.assertAlmostEqual(l[0], 264.021, 1)
-    test.assertAlmostEqual(b[0], 48.253, 1)
+    test.assertAlmostEqual(longitude[0], 264.021, 1)
+    test.assertAlmostEqual(latitude[0], 48.253, 1)
 
 
 def test_dipole_list_of_obs(tmp_path):
@@ -196,6 +195,7 @@ def test_dipole_list_of_obs(tmp_path):
         base_path=tmp_path / "simulation_dir",
         start_time=Time("2020-01-01T00:00:00"),
         duration_s=100.0,
+        random_seed=12345,
     )
     dets = [
         lbs.DetectorInfo(name="A", sampling_rate_hz=1),
@@ -225,19 +225,19 @@ def test_dipole_list_of_obs(tmp_path):
         )
     )
 
-    pointings = lbs.get_pointings_for_observations(
-        sim.observations,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=sim.instrument.bore2spin_quat,
+    lbs.prepare_pointings(
+        sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=None
     )
+    lbs.precompute_pointings(sim.observations)
 
     orbit = lbs.SpacecraftOrbit(sim.start_time)
-    pos_vel = lbs.spacecraft_pos_and_vel(orbit, obs=sim.observations, delta_time_s=10.0)
+    pos_vel = lbs.spacecraft_pos_and_vel(
+        orbit, observations=sim.observations, delta_time_s=10.0
+    )
 
     # Just check that the call works
     lbs.add_dipole_to_observations(
-        obs=sim.observations,
+        observations=sim.observations,
         pos_and_vel=pos_vel,
-        pointings=pointings,
-        frequency_ghz=[100.0],
+        frequency_ghz=np.array([100.0]),
     )

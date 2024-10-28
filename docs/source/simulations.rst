@@ -64,6 +64,9 @@ Take this example of a simple TOML file:
 .. code-block:: toml
 
    # This is file "my_conf.toml"
+   [simulation]
+   random_seed = 12345
+
    [general]
    nside = 512
    imo_version = "v1.3"
@@ -78,6 +81,8 @@ the terminal::
 
   sim = lbs.Simulation(parameter_file="my_conf.toml")
 
+  print("Seed for the random number generator:",
+        sim.parameters["simulation"]["random_seed"])
   print("NSIDE =", sim.parameters["general"]["nside"])
   print("The IMO I'm going to use is",
         sim.parameters["general"]["imo_version"])
@@ -90,6 +95,7 @@ The output of the script is the following:
 
 .. code-block:: text
 
+    Seed for the random number generator: 12345
     NSIDE = 512
     The IMO I'm going to use is v1.3
     Here are the sky components I'm going to simulate:
@@ -118,6 +124,16 @@ parameters in the section named ``simulation`` are the following:
 - ``name``: a string containing the name of the simulation.
 - ``description``: a string containing a (possibly long) description
   of what the simulation does.
+- ``random_seed``: the seed for the random number generator. An integer
+  value ensures the reproducibility of the results obtained with random
+  numbers; by passing ``None`` there will not be the possibility to
+  re-obtain the same outputs. You can find more details in :ref:`random-numbers`.
+- ``numba_num_of_threads``: number of threads used by Numba when running
+  a parallel calculation.
+- ``numba_threading_layer``: the multi-threading library to be used by
+  Numba for parallel computations. See the `Numba user's manual
+  <https://numba.readthedocs.io/en/stable/user/threading-layer.html>`_ to
+  check which choices are available.
 
 These parameters can be used instead of the keywords in the
 constructor of the :class:`.Simulation` class. Consider the following
@@ -128,7 +144,10 @@ code::
       start_time=astropy.time.Time("2020-02-01T10:30:00"),
       duration_s=3600.0,
       name="My simulation",
-      description="A long description should be put here")
+      description="A long description should be put here",
+      random_seed=12345,
+      numba_num_of_threads=4,
+      numba_threading_layer="workqueue",
   )
 
 You can achieve the same if you create a TOML file named ``foo.toml``
@@ -142,6 +161,9 @@ that contains the following lines:
    duration_s = 3600.0
    name = "My simulation"
    description = "A long description should be put here"
+   random_seed = 12345
+   numba_num_of_threads = 4
+   numba_threading_layer = "workqueue"
 
 and then you initialize the `sim` variable in your Python code as
 follows::
@@ -206,7 +228,7 @@ a :class:`.Simulation` object::
   import mpi4py
 
   # This simulation *must* be ran using MPI
-  sim = lbs.Simulation(mpi_comm=mpi4py.MPI.COMM_WORLD)
+  sim = lbs.Simulation(mpi_comm=mpi4py.MPI.COMM_WORLD, random_seed=12345)
 
 The framework sets a number of variables related to MPI; these
 variables are *always* defined, even if MPI is not available, and they
@@ -220,7 +242,7 @@ initialize a :class:`.Simulation` object using the variable
 
   # This simulation can take advantage of MPI if present,
   # otherwise it will stick to serial execution
-  sim = lbs.Simulation(mpi_comm=lbs.MPI_COMM_WORLD)
+  sim = lbs.Simulation(mpi_comm=lbs.MPI_COMM_WORLD, random_seed=12345)
 
 See the page :ref:`using_mpi` for more information.
 
@@ -240,7 +262,11 @@ formulae, plots, and value substitution::
     import litebird_sim as lbs
     import matplotlib.pylab as plt
 
-    sim = lbs.Simulation(name="My simulation", base_path="output")
+    sim = lbs.Simulation(
+        name="My simulation",
+        base_path="output",
+        random_seed=12345,
+    )
     data_points = [0, 1, 2, 3]
 
     plt.plot(data_points)
@@ -269,6 +295,7 @@ formulae, plots, and value substitution::
 And here is the output, which is saved in ``output/report.html``:
 
 .. image:: images/report_example.png
+  :align: center
 
 
 Logging
@@ -288,7 +315,7 @@ can use the functions ``debug``, ``info``, ``warning``, ``error``, and
 
   import litebird_sim as lbs
   import logging as log       # "log" is shorter to write
-  my_sim = lbs.Simulation()
+  my_sim = lbs.Simulation(random_seed=12345)
   log.info("the simulation starts here!")
   pi = 3.15
   if pi != 3.14:
@@ -323,7 +350,7 @@ an example. Suppose that we changed our example above, so that
   import litebird_sim as lbs
   import logging as log  # "log" is shorter to write
 
-  my_sim = lbs.Simulation()
+  my_sim = lbs.Simulation(random_seed=12345)
   log.debug("the simulation starts here!")
   pi = 3.15
   if pi != 3.14:
@@ -459,6 +486,105 @@ is a list of :class:`.MpiObservationDescr` objects: it
 contains the size of the TOD array, the names of the detectors,
 and other useful information. Refer to the documentation of
 each class to know what is inside.
+
+High level interface
+--------------------
+
+The class :class:`.Simulation` has a powerful high level
+interface that allows to quickly generate a scanning strategy,
+allocate the observations, generate simulated timelines
+cointaing signal, noise and dipole, build maps, and 
+save(read) the entire simulation object. The syntax is 
+straightforward::
+
+    sim = lbs.Simulation(...)
+
+    sim.set_scanning_strategy(...)
+    sim.set_instrument(...)
+    sim.create_observations(...)
+    sim.prepare_pointings()
+
+    sim.compute_pos_and_vel()
+    sim.add_dipole()
+
+    sim.fill_tods(...)
+    sim.add_noise(...)
+
+    result = sim.make_destriped_map(nside=nside)
+    healpy.mollview(result.destriped_map)
+
+    sim.write_observations(...)
+    sim.read_observations(...)
+
+See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
+:ref:`dipole-anisotropy`, :ref:`timeordered`, :ref:`mapmaking` for 
+details of the single functions.
+
+
+Data splits
+^^^^^^^^^^^
+
+Since the class :class:`.Simulation` is interfaced to
+:func:`litebird_sim.make_binned_map` and :func:`litebird_sim.make_destriped_map`,
+it is able to provide data splits
+both in time and detector space (see :ref:`mapmaking`
+for more details on the splitting and the available options).
+In addition, the class contains :meth:`.Simulation.make_binned_map_splits`,
+which is a wrapper around :func:`litebird_sim.make_binned_map`,
+and :meth:`.Simulation.make_destriped_map_splits`, which is a wrapper
+around :func:`litebird_sim.make_destriped_map`.
+These allows to perform the mapmaking on multiple choices
+of splits at once (passed as a list of strings).
+Indeed, the functions will loop over the cartesian
+product of the time and detector splits. The default
+behavior is to perform the mapmaking in each combination
+and save the result to disk, to avoid memory issues. 
+In particular, in the case of :meth:`.Simulation.make_binned_map_splits`,
+only the binned maps are saved to disk, unless you set
+`include_inv_covariance` to `True`. This saves the elements of
+the inverse covariance as extra fields in the output FITS file.
+This default behavior can be changed by setting the `write_to_disk` parameter
+to `False`. Then, the function returns a dictionary
+containing the full results of the mapmaking for each split.
+The keys are strings that describe the split in the
+format "{Dsplit}_{Tsplit}", such as "waferL00_year1". 
+On the other hand, the default behavior of
+:meth:`.Simulation.make_destriped_map_splits` is to save to disk
+the complete :class:`.mapmaking.DestriperResult` class for each
+split as a FITS file. To avoid this and get a dictionary similar to the one returned
+by :meth:`.Simulation.make_binned_map_splits`, you can set the
+`write_to_disk` parameter to `False`.
+
+The method :meth:`.Simulation.make_destriped_map_splits` also offers the
+possibility to recycle the baseline computed from the largest split available.
+Indeed, if the flag `recycle_baselines` is set to `True`, that method enforces
+the computation of the "full_full" split and then reuses the baselines
+computed for that split for all the other splits.
+
+Before performing the computation, the function :meth:`.Simulation.check_valid_splits`
+will check whether the requested split is valid (see :ref:`mapmaking`).
+This is a wrapper around :func:`litebird_sim.check_valid_splits`. If the
+split is not valid, the function will raise a ValueError. In addition, it
+will check whether the requested split is compatible with the duration of
+the observation and with the detector list. Thus, for example, if the
+observation lasts 1 year, the split "year2" will raise an AsserionError. Similarly,
+if the observation is performed with some detector contained in the L00
+wafer, the split "waferL03" will also raise an AsserionError.
+
+.. _simulation-profiling:
+
+Profiling a simulation
+----------------------
+
+The class :class:`.Simulation` provides an higher-level interface to the
+functions described in the chapter :ref:`profiling`. The decorator ``@profile``
+automatically wraps a method of the :class:`.Simulation` class so that it measures
+the time spent to run the method and adds it to an internal list of
+:class:`.TimeProfiler` objects. When the :meth:`.Simulation.flush` method is
+called, each MPI process creates its own JSON file containing the methods that
+have been measured during the execution of the simulation. These files are
+stored in the output directory and have names like ``profile_mpi00000.json``,
+``profile_mpi00001.json``, etc.
 
 
 API reference

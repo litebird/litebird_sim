@@ -339,19 +339,19 @@ class SpacecraftPositionAndVelocity:
 
 
 def compute_start_and_span_for_obs(
-    obs: Union[Observation, List[Observation]]
+    observations: Union[Observation, List[Observation]],
 ) -> Tuple[astropy.time.Time, float]:
     """
     Compute the start time and the overall duration in seconds of a set of observations.
 
-    The code returns the earliest start time of the observations in `obs` as well
-    as their overall time span. Gaps between observations are neglected.
+    The code returns the earliest start time of the observations in `observations` as
+    well as their overall time span. Gaps between observations are neglected.
     """
 
-    if isinstance(obs, Observation):
-        obs_list = [obs]
+    if isinstance(observations, Observation):
+        obs_list = [observations]
     else:
-        obs_list = obs
+        obs_list = observations
 
     start_time, end_time = None, None
     for cur_obs in obs_list:
@@ -374,7 +374,7 @@ def compute_start_and_span_for_obs(
 
 def spacecraft_pos_and_vel(
     orbit: SpacecraftOrbit,
-    obs: Union[Observation, List[Observation], None] = None,
+    observations: Union[Observation, List[Observation], None] = None,
     start_time: Union[astropy.time.Time, None] = None,
     time_span_s: Union[float, None] = None,
     delta_time_s: float = 86400.0,
@@ -393,15 +393,18 @@ def spacecraft_pos_and_vel(
     equal to `earth_l2_distance_km`.
 
     The result is an object of type :class:`.SpacecraftPositionAndVelocity`.
+
+    If SpacecraftOrbit.solar_velocity_km_s > 0 also the Sun velocity in the rest
+    frame of the CMB is added to the total velocity of the spacecraft.
     """
-    assert obs or (
+    assert observations or (
         start_time and time_span_s
     ), "You must either provide a Observation or start_time/time_span_s"
 
-    if obs:
+    if observations:
         # The caller either provided an observation or a list of observations.
         # Let's compute the overall time span
-        start_time, time_span_s = compute_start_and_span_for_obs(obs)
+        start_time, time_span_s = compute_start_and_span_for_obs(observations)
 
     # We are going to compute the position of the L2 point at N times. The value N
     # is chosen such that the spacing between two consecutive times is never longer

@@ -23,7 +23,7 @@ The usage of the facility is easy::
   plt.plot(data_points)
   fig = plt.gcf()
 
-  sim = lbs.Simulation(base_dir="./report_example")
+  sim = lbs.Simulation(base_dir="./report_example", random_seed=12345)
   sim.append_to_text("""
 
   ## Section name

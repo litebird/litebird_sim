@@ -66,7 +66,7 @@ created, and write the following::
   import litebird_sim as lbs
 
   print("Starting the program...")
-  sim = lbs.Simulation(base_path="./tut01")
+  sim = lbs.Simulation(base_path="./tut01", random_seed=12345)
   sim.append_to_report("Hello, world!")
   sim.flush()
   print("Done!")
@@ -101,11 +101,13 @@ customary to shorten it to ``lbs``::
 The next interesting stuff happens when we instantiate a
 :class:`.Simulation` object::
 
-  sim = lbs.Simulation(base_path="./tut01")
+  sim = lbs.Simulation(base_path="./tut01", random_seed=12345,)
 
 Creating a :class:`.Simulation` object makes a lot of complicated
-things happen beyond the scenes. In this short example, what happens
-is the following:
+things happen behind the scenes. For example, the mandatory parameter
+``random_seed`` is used to build a random number generator useful for
+generating noise. In this short example, the important things are
+the following:
 
 1. The code checks if a directory named ``tut01`` exists; if not, it
    is created.
@@ -142,60 +144,56 @@ parameters that describe the instruments being simulated: how many
 detectors there are, what are their properties, etc. These information
 are usually kept in an Instrument MOdel database, IMO for short.
 
-The LiteBIRD IMO is managed using `instrumentdb
+The LiteBIRD IMO is managed using `InstrumentDB
 <https://github.com/ziotom78/instrumentdb>`_, a web-based database,
 but it can be retrieved also as a bundle of files. The LiteBIRD
 simulation framework seamlessy interacts with the IMO database and
 permits to retrieve all the parameters that describe the LiteBIRD
 instruments.
 
-The best way to interact with the IMO is to have a local copy
-installed on your laptop. You should ask permission to the LiteBIRD
-Simulation Team for downloading the IMO from the (protected) site
-`litebird_imo <https://github.com/litebird/litebird_imo>`_. Save it in
-a folder on your computer, e.g., ``/storage/litebird_imo``, and then
-run the following command:
+The simulation framework contains a IMO containing a small
+representation of the instruments as described in the paper
+`*Probing cosmic inflation with the LiteBIRD cosmic microwave background
+polarization survey* <https://academic.oup.com/ptep/article/2023/4/042F01/6835420>`_
+(PTEP, 2022). We will use this small IMO in the tutorial; if you
+want to do some serious work, you should install your own copy
+of the “full” official IMO. Refer to :ref:`imo-configuration` for
+more information.
 
-.. code-block:: text
+Our next example will use the IMO to run something more interesting:
 
-  python -m litebird_sim.install_imo
-
-and run the program interactively to configure the IMO. You typically
-want to use a «local copy»; specify the folder where the file
-``schema.json`` you downloaded before resides (under
-``/storage/litebird_imo/IMO`` in our case). Save the changes by pressing
-``s``, and you will have your IMO configured.
-
-Our next example will use the IMO to run something more interesting::
+.. testcode::
 
   import litebird_sim as lbs
 
-  sim = lbs.Simulation(base_path="./tut02")
+  imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
+
+  sim = lbs.Simulation(base_path="./tut02", random_seed=12345)
   lft_file = sim.imo.query(
-      "/releases/v1.3/satellite/LFT/instrument_info"
+      "/releases/vPTEP/satellite/LFT/instrument_info"
   )
   sim.append_to_report(
       "The instrument {{ name }} has {{ num }} channels.",
       name=lft_file.metadata["name"],
       num=lft_file.metadata['number_of_channels'],
   )
-  sim.flush()
 
-If you run this program, it will produce a report containing the
-following message:
+  html_report_path = sim.flush()
+  print(f"Done, the report has been saved in file {html_report_path.name}")
 
-.. code-block:: text
 
-  The instrument LFT has 12 channels.
+.. testoutput::
+
+  Done, the report has been saved in file report.html
 
 Let's dig into the code of the example. The first line looks almost
 the same as in the previous example::
 
   # Previous example
-  sim = lbs.Simulation(base_path="./tut01")
+  sim = lbs.Simulation(base_path="./tut01", random_seed=12345)
 
   # This example
-  sim = lbs.Simulation(base_path="./tut02")
+  sim = lbs.Simulation(base_path="./tut02", random_seed=12345)
 
 Yet a big difference went unnoticed: since you configured the IMO
 using the ``install_imo`` module, the :class:`.Simulation` class
@@ -203,7 +201,7 @@ managed to read the database contents and initialize a set of member
 variables. This is why we have been able to write the next line::
 
   lft_file = sim.imo.query(
-      "/releases/v1.3/satellite/LFT/instrument_info"
+      "/releases/vPTEP/satellite/LFT/instrument_info"
   )
 
 Although the parameter looks like a path to some file, it is a
@@ -224,6 +222,13 @@ used in the text to put some actual values within the placeholders
 ``{{ … }}``. This is the syntax used by `Jinja2
 <https://jinja.palletsprojects.com/en/2.11.x/>`_, a powerful
 templating library.
+
+The last lines write the report to disk and return the path to the
+HTML file::
+
+  html_report_path = sim.flush()
+  print(f"Done, the report has been saved in file {html_report_path.name}")
+
 
 This example showed you how to retrieve information from the IMO and
 introduced some features of the method
@@ -250,41 +255,51 @@ report::
   import matplotlib.pylab as plt
   import astropy.units as u
 
+  imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
+
   sim = lbs.Simulation(
       base_path="./tut04",
       name="Simulation tutorial",
       start_time=0,
       duration_s=86400.,
+      random_seed=12345,
+      imo=imo,
   )
 
   sim.set_scanning_strategy(
-      scanning_strategy=lbs.SpinningScanningStrategy(
-          spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
-          spin_rate_hz=0.5 / 60,     # Ditto
-          # We use astropy to convert the period (4 days) in
-          # seconds
-          precession_rate_hz=1.0 / (4 * u.day).to("s").value,
-      )
+      scanning_strategy=lbs.SpinningScanningStrategy.from_imo(
+          imo=imo,
+          url="/releases/vPTEP/satellite/scanning_parameters",
+      ),
   )
 
   sim.set_instrument(
-      lbs.InstrumentInfo(
-          name="core",
-          spin_boresight_angle_rad=np.deg2rad(65),
+      lbs.InstrumentInfo.from_imo(
+          imo=imo,
+          url="/releases/vPTEP/satellite/LFT/instrument_info",
       ),
   )
 
   sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=0.1))
 
+  # It is entirely possible to mix up definitions taken from
+  # the IMO with hand-made objects. In this example, we create
+  # a mock detector instead of reading one from the PTEP IMO.
   sim.create_observations(
       detectors=lbs.DetectorInfo(name="foo", sampling_rate_hz=10),
   )
 
-  sim.compute_pointings()
+  sim.prepare_pointings()
 
   for cur_obs in sim.observations:
+      # We use `_` to ignore the HWP angle
+      cur_pointings, _ = cur_obs.get_pointings(0)
       nside = 64
-      pixidx = healpy.ang2pix(nside, cur_obs.pointings[0, :, 0], cur_obs.pointings[0, :, 1])
+      pixidx = healpy.ang2pix(
+          nside,
+          cur_pointings[:, 0],
+          cur_pointings[:, 1],
+      )
       m = np.zeros(healpy.nside2npix(nside))
       m[pixidx] = 1
       healpy.mollview(m)
@@ -324,15 +339,19 @@ following things:
    (HWP);
 4. It sets the detectors to be simulated and allocates the TODs through
    the call to :meth:`.Simulation.create_observations`;
-5. It generates a pointing information matrix through the call to
-   :meth:`.Simulation.compute_pointings`;
+5. It computes the quaternions needed to compute the actual pointings
+   through the call to :meth:`.Simulation.prepare_pointings`;
 6. It produces a coverage map by setting to 1 all those pixels that
    are visited by the directions encoded in the pointing information
    matrix. To do this, it iterates over all the instances of the
    class :class:`.Observation` in the
    :class:`.Simulation` object. (In this simple example, there is only
    one :class:`.Observation`, but in more complex examples there can
-   be many of them.)
+   be many of them.) For each :class:`.Observation`, it uses the
+   method :meth:`.Observation.get_pointings` to compute the pointing
+   information for that observation.
+7. The objects that were read from IMO are properly listed in the
+   report.
 
 If you run the example, you will see that the folder ``tut04`` will be
 populated with the following files:
@@ -344,20 +363,22 @@ populated with the following files:
   $
 
 A new file has appeared: ``coverage_map.png``. If you open the file
-``report.html``, you will get the map in the report (here the image
-has been cropped a bit, because the report is longer):
+``report.html``, you will see that the map has been included in the
+report:
 
 .. image:: images/tutorial-coverage-map.png
    :width: 512
    :align: center
-   :alt: Screenshot of part of the tutorial produced by our script
+   :alt: Screenshot of the report produced by our script
 
 
 Creating a signal plus noise timeline 
 -------------------------------------
 
 Here we generate a 10 minutes timeline which contains dipole, cmb signal,
-galactic dust, and correlated noise::
+galactic dust, and correlated noise. For the noise, we use the random
+number generator provided by the :class:`.Simulation` and seeded with
+``random_seed``::
 
   import litebird_sim as lbs
   import healpy, numpy as np
@@ -369,7 +390,8 @@ galactic dust, and correlated noise::
       name="Simulation tutorial",
       start_time=time.Time("2025-01-01T00:00:00"),
       duration_s=10 * units.minute.to("s"),
-      )
+      random_seed=12345,
+  )
 
   sim.set_scanning_strategy(
       scanning_strategy=lbs.SpinningScanningStrategy(
@@ -416,15 +438,15 @@ galactic dust, and correlated noise::
       detectors=detector,
   )
 
-  sim.compute_pointings()
+  sim.prepare_pointings()
 
   sim.add_dipole()
 
-  sim.add_noise()
+  sim.add_noise(sim.random)
 
   sim.fill_tods(maps=maps)
 
-  times = sim.observations[0].get_times()-sim.observations[0].start_time.cxcsec
+  times = sim.observations[0].get_times() - sim.observations[0].start_time.cxcsec
 
   plt.plot(times,sim.observations[0].tod[0,:])
   plt.xlabel("Time [s]")
@@ -449,6 +471,104 @@ galactic dust, and correlated noise::
    :align: center
    :alt: Screenshot of part of the tutorial produced by our script
 
+
+Creating a signal plus noise timeline 
+-------------------------------------
+
+Here we generate a 1 year timeline which contains cmb signal, galactic
+dust, and white noise. The we bin the timeline in a map. ::
+
+  import litebird_sim as lbs
+  import numpy as np
+  import matplotlib.pylab as plt
+  import healpy as hp
+  from astropy import units, time
+
+  sim = lbs.Simulation(
+      base_path="./tut06",
+      name="Simulation tutorial",
+      start_time=0,
+      duration_s=1 * units.year.to("s"),
+      random_seed=12345,
+  )
+
+  nside = 64
+
+  sim.set_scanning_strategy(
+      scanning_strategy=lbs.SpinningScanningStrategy(
+          spin_sun_angle_rad=np.deg2rad(30), # CORE-specific parameter
+          spin_rate_hz=0.5 / 60,     # Ditto
+          precession_rate_hz=1.0 / (4 * units.day).to("s").value,
+      )
+  )
+
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          name="core",
+          spin_boresight_angle_rad=np.deg2rad(65),
+      ),
+  )
+
+  sim.set_hwp(lbs.IdealHWP(ang_speed_radpsec=0.1))
+
+  detector = lbs.DetectorInfo(
+      name="foo", 
+      sampling_rate_hz=3.0, 
+      bandcenter_ghz = 150.0,
+      net_ukrts = 50.0,
+  )
+
+  Mbsparams = lbs.MbsParameters(
+      nside=nside,
+      make_cmb=True,
+      make_fg=True,
+      fg_models=["pysm_dust_0"],
+  )
+
+  mbs = lbs.Mbs(
+      simulation=sim,
+      parameters=Mbsparams,
+      detector_list=detector
+  )
+  maps = mbs.run_all()[0]
+
+  sim.create_observations(
+      detectors=detector,
+  )
+
+  sim.prepare_pointings()
+
+  sim.fill_tods(maps)
+
+  sim.add_noise(random=sim.random, noise_type="white")
+
+  binner_results = sim.make_binned_map(nside=nside)
+  binned = binner_results.binned_map
+
+  plt.figure(figsize=(15, 3.2))
+  hp.mollview(binned[0], sub=131, title="T", unit=r"[K]")
+  hp.mollview(binned[1], sub=132, title="Q", unit=r"[K]")
+  hp.mollview(binned[2], sub=133, title="U", unit=r"[K]")
+
+  sim.append_to_report("""
+
+  ## Maps
+
+  Here 1 year maps:
+
+  ![](maps.png)
+
+  """,
+  figures=[(plt.gcf(), "maps.png")],
+  )
+
+  sim.flush()
+
+.. image:: images/tutorial-maps.png
+   :width: 512
+   :align: center
+   :alt: Screenshot of part of the tutorial produced by our script
+
 The elements shown in these tutorials should allow you to generate more
-complex scripts. The next section detail the features of the framework
+complex scripts. The next sections detail the features of the framework
 in greater detail.

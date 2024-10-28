@@ -169,12 +169,12 @@ def get_pixel_format(t):
     except Exception:
         pass
     try:
-        if type(t) is str:
+        if isinstance(t, str):
             return "A%d" % (len(t))
     except Exception:
         pass
     try:
-        if type(t[0]) is str:
+        if isinstance(t[0], str):
             length = max(len(s) for s in t)
             return "A%d" % (length)
     except Exception:
@@ -196,7 +196,7 @@ def write_healpix_map_to_hdu(
     column_units=None,
     name=None,
     extra_header=(),
-):
+) -> fits.BinTableHDU:
     """Write a Healpix map into a FITS HDU.
 
     This function is a stripped-down implementation of
@@ -257,6 +257,10 @@ def write_healpix_map_to_hdu(
            name="MYMAP")
     """
 
+    if len(pixels.shape) == 2:
+        # "pixels" is a 2D matrix, convert it into a list of 1D matrices
+        pixels = [pixels[i, :] for i in range(pixels.shape[0])]
+
     if not hasattr(pixels, "__len__"):
         raise TypeError("The map must be a sequence")
 
@@ -291,7 +295,7 @@ def write_healpix_map_to_hdu(
     else:
         assert len(column_names) == len(
             pixels
-        ), "Number of column_names != number of maps"
+        ), f"{len(column_names)=} != {len(pixels)=}"
 
     if column_units is None or isinstance(column_units, str):
         column_units = [column_units] * len(pixels)
@@ -306,7 +310,6 @@ def write_healpix_map_to_hdu(
     for cn, cu, mm, curr_fitsformat in zip(
         column_names, column_units, pixels, fitsformat
     ):
-        print(f"***************** {curr_fitsformat}")
         cols.append(
             fits.Column(name=cn, format=str(curr_fitsformat), array=mm, unit=cu)
         )

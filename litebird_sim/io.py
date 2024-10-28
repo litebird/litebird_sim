@@ -1,22 +1,26 @@
 # -*- encoding: utf-8 -*-
 
-from collections import namedtuple
-from dataclasses import fields, asdict
 import json
 import logging as log
-from pathlib import Path
 import re
+from collections import namedtuple
+from dataclasses import fields, asdict
+from pathlib import Path
 from typing import Any, Dict, List, Union, Optional
 
 import astropy.time
 import h5py
 import numpy as np
+from deprecation import deprecated
 
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
+from .hwp import read_hwp_from_hdf5
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
-from .simulations import Simulation
+from .pointings import PointingProvider
+from .scanning import RotQuaternion
+from .version import __version__ as litebird_sim_version
 
 __NUMPY_INT_TYPES = [
     np.int8,
@@ -29,8 +33,10 @@ __NUMPY_FLOAT_TYPES = [
     np.float16,
     np.float32,
     np.float64,
-    np.float128,
 ]
+
+if "float128" in dir(np):
+    __NUMPY_FLOAT_TYPES.append(np.float128)
 
 __NUMPY_SCALAR_TYPES = __NUMPY_INT_TYPES + __NUMPY_FLOAT_TYPES
 
@@ -41,15 +47,135 @@ __OBSERVATION_FILE_NAME_MASK = "litebird_tod{global_index:04d}.h5"
 __FLAGS_GROUP_NAME_REGEXP = re.compile("flags_([0-9]+)")
 
 
+class DetectorJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, RotQuaternion):
+            result = {
+                "start_time": o.start_time
+                if isinstance(o.start_time, float) or o.start_time is None
+                else str(o.start_time),
+                "sampling_rate_hz": o.sampling_rate_hz,
+            }
+
+            if o.quats.nbytes < 1024:
+                # Only save the quaternions if they do not occupy too much memory
+                # (in this case, the information is duplicated because these
+                # quaternions appear both in the metadata and in a dataset within
+                # the HDF5 file, but the waste of space is minimal)
+                result["quats"] = o.quats.tolist()
+            else:
+                # Just save the shape of the matrix; for HDF5 files, the full
+                # matrix will be saved nevertheless
+                result["quaternion_matrix_shape"] = list(o.quats.shape)
+
+            return result
+
+        return super().default(o)
+
+
+def write_rot_quaternion_to_hdf5(
+    output_file: h5py.File,
+    rot_matrix: RotQuaternion,
+    field_name: str,
+    compression: Optional[str],
+) -> h5py.Dataset:
+    new_dataset = output_file.create_dataset(
+        field_name,
+        data=rot_matrix.quats,
+        dtype=np.float64,
+        compression=compression,
+    )
+
+    if rot_matrix.start_time is not None:
+        if isinstance(rot_matrix.start_time, astropy.time.Time):
+            start_time = str(rot_matrix.start_time)
+        else:
+            start_time = float(rot_matrix.start_time)
+
+        new_dataset.attrs["start_time"] = start_time
+
+    if rot_matrix.sampling_rate_hz is not None:
+        new_dataset.attrs["sampling_rate_hz"] = float(rot_matrix.sampling_rate_hz)
+
+    return new_dataset
+
+
+def read_rot_quaternion_from_hdf5(
+    input_file: h5py.File,
+    field_name: str,
+) -> RotQuaternion:
+    dataset = input_file[field_name]
+
+    start_time = dataset.attrs.get("start_time", None)
+    if isinstance(start_time, str):
+        start_time = astropy.time.Time(start_time)
+
+    sampling_rate_hz = dataset.attrs.get("sampling_rate_hz", None)
+
+    return RotQuaternion(
+        quats=np.array(dataset),
+        start_time=start_time,
+        sampling_rate_hz=sampling_rate_hz,
+    )
+
+
+def write_pointing_provider_to_hdf5(
+    output_file: h5py.File,
+    field_name: str,
+    pointing_provider: PointingProvider,
+    compression: Optional[str],
+):
+    rot_quaternion_field_name = f"{field_name}_rot_quaternion"
+    write_rot_quaternion_to_hdf5(
+        output_file=output_file,
+        rot_matrix=pointing_provider.bore2ecliptic_quats,
+        field_name=rot_quaternion_field_name,
+        compression=compression,
+    )
+
+    if pointing_provider.has_hwp():
+        hwp_field_name = f"{field_name}_hwp"
+        pointing_provider.hwp.write_to_hdf5(
+            output_file=output_file,
+            field_name=hwp_field_name,
+            compression=compression,
+        )
+
+
+def read_pointing_provider_from_hdf5(
+    input_file: h5py.File,
+    field_name: str,
+) -> PointingProvider:
+    rot_quaternion_field_name = f"{field_name}_rot_quaternion"
+    rot_quaternion = read_rot_quaternion_from_hdf5(
+        input_file=input_file,
+        field_name=rot_quaternion_field_name,
+    )
+
+    hwp = None
+    hwp_field_name = f"{field_name}_hwp"
+    if hwp_field_name in input_file:
+        hwp = read_hwp_from_hdf5(
+            input_file=input_file,
+            field_name=hwp_field_name,
+        )
+
+    return PointingProvider(
+        bore2ecliptic_quats=rot_quaternion,
+        hwp=hwp,
+    )
+
+
 def write_one_observation(
     output_file: h5py.File,
-    obs: Observation,
+    observations: Observation,
     tod_dtype,
     pointings_dtype,
     global_index: int,
     local_index: int,
     tod_fields: List[Union[str, TodDescription]] = None,
     gzip_compression: bool = False,
+    write_full_pointings: bool = False,
 ):
     """Write one :class:`Observation` object in a HDF5 file.
 
@@ -57,17 +183,32 @@ def write_one_observation(
     use more high-level functions that are able to write several observations at once,
     like :func:`.write_list_of_observations` and :func:`.write_observations`.
 
+    By default, this function only saves the TODs and the quaternions necessary to
+    compute the pointings; if you want the full pointing information, i.e., the
+    angles θ (colatitude), φ (longitude), ψ (orientation) and α (HWP angle), you
+    must set `write_full_pointings` to ``True``.
+
     The output file is specified by `output_file` and should be opened for writing; the
-    observation to be written is passed through the `obs` parameter. The data type to
-    use for writing TODs and pointings is specified in the `tod_dtype` and
+    observation to be written is passed through the `observations` parameter. The data
+    type to use for writing TODs and pointings is specified in the `tod_dtype` and
     `pointings_dtype` (it can either be a NumPy type like ``numpy.float64`` or a
     string, pass ``None`` to use the same type as the one used in the observation).
+    Note that quaternions are always saved using 64-bit floating point numbers.
+
     The `global_index` and `local_index` parameters are two integers that are
     used by high-level functions like :func:`.write_observations` to understand how to
     read several HDF5 files at once; if you do not need them, you can pass 0 to both.
     """
 
     compression = "gzip" if gzip_compression else None
+
+    if observations.pointing_provider is not None:
+        write_pointing_provider_to_hdf5(
+            output_file=output_file,
+            field_name="pointing_provider",
+            pointing_provider=observations.pointing_provider,
+            compression=compression,
+        )
 
     # This code assumes that the parameter `detectors` passed to Observation
     # was either an integer or a list of `DetectorInfo` objects, i.e., we
@@ -79,12 +220,12 @@ def write_one_observation(
     # We must use this ugly hack because Observation does not store DetectorInfo
     # classes but «spreads» their fields in the namespace of the class Observation.
     detector_info_fields = [x.name for x in fields(DetectorInfo())]
-    for det_idx in range(obs.n_detectors):
+    for det_idx in range(observations.n_detectors):
         new_detector = {}
 
         for attribute in detector_info_fields:
             try:
-                attr_value = obs.__getattribute__(attribute)
+                attr_value = observations.__getattribute__(attribute)
             except AttributeError:
                 continue
 
@@ -94,9 +235,13 @@ def write_one_observation(
             elif type(attr_value) in __NUMPY_SCALAR_TYPES:
                 # Convert a NumPy type into a Python type
                 new_detector[attribute] = attr_value.item()
+            elif isinstance(attr_value, RotQuaternion):
+                # Do not save any information, as the rotation quaternion will be
+                # saved in a dedicated dataset (see below)
+                pass
             else:
                 # From now on, assume that this attribute is an array whose length
-                # is the same as `obs.n_detectors`
+                # is the same as `observations.n_detectors`
                 attr_value = attr_value[det_idx]
                 if type(attr_value) in __NUMPY_SCALAR_TYPES:
                     new_detector[attribute] = attr_value.item()
@@ -108,71 +253,84 @@ def write_one_observation(
 
         det_info.append(new_detector)
 
+        # Save the rotation quaternion of this detector in a dedicated dataset
+        write_rot_quaternion_to_hdf5(
+            output_file=output_file,
+            field_name=f"rot_quaternion_{det_idx:04d}",
+            rot_matrix=observations.quat[det_idx],
+            compression=compression,
+        )
+
     # Now encode `det_info` in a JSON string that will be saved later as an attribute
-    detectors_json = json.dumps(det_info)
+    detectors_json = json.dumps(det_info, cls=DetectorJSONEncoder)
 
     if not tod_fields:
-        tod_fields = obs.tod_list
+        tod_fields = observations.tod_list
 
     # Write all the TOD timelines in the HDF5 file, in separate datasets
     for cur_field in tod_fields:
         if not isinstance(cur_field, TodDescription):
             try:
-                cur_field = [x for x in obs.tod_list if x.name == cur_field][0]
+                cur_field = [x for x in observations.tod_list if x.name == cur_field][0]
             except IndexError:
                 raise KeyError(f'TOD with name "{cur_field}" not found in observation')
 
         cur_dataset = output_file.create_dataset(
             cur_field.name,
-            data=obs.__getattribute__(cur_field.name),
+            data=observations.__getattribute__(cur_field.name),
             dtype=tod_dtype if tod_dtype else cur_field.dtype,
             compression=compression,
         )
-        if isinstance(obs.start_time, astropy.time.Time):
-            cur_dataset.attrs["start_time"] = obs.start_time.to_value(
+        if isinstance(observations.start_time, astropy.time.Time):
+            cur_dataset.attrs["start_time"] = observations.start_time.to_value(
                 format="mjd", subfmt="bytes"
             )
             cur_dataset.attrs["mjd_time"] = True
         else:
-            cur_dataset.attrs["start_time"] = obs.start_time
+            cur_dataset.attrs["start_time"] = observations.start_time
             cur_dataset.attrs["mjd_time"] = False
 
-        cur_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
+        cur_dataset.attrs["sampling_rate_hz"] = observations.sampling_rate_hz
         cur_dataset.attrs["detectors"] = detectors_json
         cur_dataset.attrs["description"] = cur_field.description
 
     # Save pointing information only if it is available
-    try:
+    if observations.pointing_provider and write_full_pointings:
+        n_detectors = observations.n_detectors
+        n_samples = observations.n_samples
+
+        pointing_matrix = np.empty(shape=(n_detectors, n_samples, 3))
+
+        hwp_angle = None
+        if observations.pointing_provider.has_hwp():
+            hwp_angle = np.empty(shape=(n_samples,))
+
+        for det_idx in range(n_detectors):
+            observations.get_pointings(
+                det_idx,
+                pointing_buffer=pointing_matrix[det_idx, :, :],
+                hwp_buffer=hwp_angle,
+            )
+
         output_file.create_dataset(
             "pointings",
-            data=obs.__getattribute__("pointings"),
+            data=pointing_matrix,
             dtype=pointings_dtype,
             compression=compression,
         )
-    except (AttributeError, TypeError):
-        pass
 
-    try:
-        output_file.create_dataset(
-            "pixel_index", data=obs.__getattribute__("pixel"), compression=compression
-        )
-    except (AttributeError, TypeError):
-        pass
-
-    try:
-        output_file.create_dataset(
-            "psi",
-            data=obs.__getattribute__("psi"),
-            dtype=pointings_dtype,
-            compression=compression,
-        )
-    except (AttributeError, TypeError):
-        pass
+        if hwp_angle is not None:
+            output_file.create_dataset(
+                "hwp_angle",
+                data=hwp_angle,
+                dtype=pointings_dtype,
+                compression=compression,
+            )
 
     try:
         output_file.create_dataset(
             "global_flags",
-            data=rle_compress(obs.__getattribute__("global_flags")),
+            data=rle_compress(observations.__getattribute__("global_flags")),
             compression=compression,
         )
     except (AttributeError, TypeError):
@@ -181,8 +339,8 @@ def write_one_observation(
     try:
         # We must separate the flags belonging to different detectors because they
         # might have different shapes
-        for det_idx in range(obs.local_flags.shape[0]):
-            flags = obs.__getattribute__("local_flags")
+        for det_idx in range(observations.local_flags.shape[0]):
+            flags = observations.__getattribute__("local_flags")
             compressed_flags = rle_compress(flags[det_idx, :])
             output_file.create_dataset(
                 f"flags_{det_idx:04d}",
@@ -213,7 +371,7 @@ def _compute_global_start_index(
 
 
 def write_list_of_observations(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     path: Union[str, Path],
     tod_dtype=np.float32,
     pointings_dtype=np.float32,
@@ -223,6 +381,7 @@ def write_list_of_observations(
     collective_mpi_call: bool = True,
     tod_fields: List[Union[str, TodDescription]] = [],
     gzip_compression: bool = False,
+    write_full_pointings: bool = False,
 ) -> List[Path]:
     """
     Save a list of observations in a set of HDF5 files
@@ -232,6 +391,11 @@ def write_list_of_observations(
     `pointings_dtype` as the default datatypes for the samples and the pointing
     angles. The function returns a list of the file written (``pathlib.Path``
     objects).
+
+    By default, this function only saves the TODs and the quaternions necessary to
+    compute the pointings; if you want the full pointing information, i.e., the
+    angles θ (colatitude), φ (longitude), ψ (orientation) and α (HWP angle), you
+    must set `write_full_pointings` to ``True``.
 
     The name of the HDF5 files is built using the variable `file_name_mask`,
     which can contain placeholders in the form ``{name}``, where ``name`` can
@@ -258,7 +422,7 @@ def write_list_of_observations(
         ]
 
         write_list_of_observations(
-            obs=[obs1, obs2],  # Write two observations
+            observations=[obs1, obs2],  # Write two observations
             path=".",
             file_name_mask="tod_{myvalue}.h5",
             custom_placeholders=custom_dicts,
@@ -298,35 +462,35 @@ def write_list_of_observations(
 
     To save disk space, you can choose to apply GZip compression to the
     data frames in each HDF5 file (the file will still be a valid .h5
-    file) or to save quaternions instead of full pointings.
+    file).
 
     """
     try:
-        obs[0]
+        observations[0]
     except TypeError:
-        obs = [obs]
+        observations = [observations]
     except IndexError:
         # Empty list
         # We do not want to return here, as we still need to participate to
         # the call to _compute_global_start_index below
-        obs = []  # type: List[Observation]
+        observations = []  # type: List[Observation]
 
     if not isinstance(path, Path):
         path = Path(path)
 
     global_start_index = _compute_global_start_index(
-        num_of_obs=len(obs),
+        num_of_obs=len(observations),
         start_index=start_index,
         collective_mpi_call=collective_mpi_call,
     )
 
     # Iterate over all the observations and create one HDF5 file for each of them
     file_list = []
-    for obs_idx, cur_obs in enumerate(obs):
+    for obs_idx, cur_obs in enumerate(observations):
         params = {
             "mpi_rank": MPI_COMM_WORLD.rank,
             "mpi_size": MPI_COMM_WORLD.size,
-            "num_of_obs": len(obs),
+            "num_of_obs": len(observations),
             "global_index": global_start_index + obs_idx,
             "local_index": start_index + obs_idx,
         }
@@ -345,13 +509,14 @@ def write_list_of_observations(
         with h5py.File(file_name, "w") as output_file:
             write_one_observation(
                 output_file=output_file,
-                obs=cur_obs,
+                observations=cur_obs,
                 tod_dtype=tod_dtype,
                 pointings_dtype=pointings_dtype,
                 global_index=params["global_index"],
                 local_index=params["local_index"],
                 tod_fields=tod_fields,
                 gzip_compression=gzip_compression,
+                write_full_pointings=write_full_pointings,
             )
 
         file_list.append(file_name)
@@ -359,58 +524,25 @@ def write_list_of_observations(
     return file_list
 
 
+@deprecated(
+    deprecated_in="0.11",
+    current_version=litebird_sim_version,
+    details="Use Simulation.write_observations",
+)
 def write_observations(
-    sim: Simulation,
+    sim,
     subdir_name: Union[None, str] = "tod",
     include_in_report: bool = True,
     *args,
     **kwargs,
 ) -> List[Path]:
-    """Write a set of observations as HDF5
-
-    This function is a wrapper to :func:`.write_list_of_observations` that saves
-    the observations associated with the simulation to a subdirectory within the
-    output path of the simulation. The subdirectory is named `subdir_name`; if
-    you want to avoid creating a subdirectory, just pass an empty string or None.
-
-    This function only writes HDF5 for the observations that belong to the current
-    MPI process. If you have distributed the observations over several processes,
-    you must call this function on each MPI process.
-
-    For a full explanation of the available parameters, see the documentation for
-    :func:`.write_list_of_observations`.
-    """
-
-    if subdir_name:
-        tod_path = sim.base_path / subdir_name
-        # Ensure that the subdirectory exists
-        tod_path.mkdir(exist_ok=True)
-    else:
-        tod_path = sim.base_path
-
-    file_list = write_list_of_observations(
-        obs=sim.observations, path=tod_path, *args, **kwargs
+    # Here we call the method moved inside Simulation
+    return sim.write_observations(
+        subdir_name,
+        include_in_report,
+        *args,
+        **kwargs,
     )
-
-    if include_in_report:
-        sim.append_to_report(
-            """
-## TOD files
-
-{% if file_list %}
-The following files containing Time-Ordered Data (TOD) have been written:
-
-{% for file in file_list %}
-- {{ file }}
-{% endfor %}
-{% else %}
-No TOD files have been written to disk.
-{% endif %}
-""",
-            file_list=file_list,
-        )
-
-    return file_list
 
 
 def __find_flags(inpf, expected_num_of_dets: int, expected_num_of_samples: int):
@@ -443,10 +575,7 @@ def read_one_observation(
     path: Union[str, Path],
     limit_mpi_rank=True,
     tod_dtype=np.float32,
-    pointings_dtype=np.float32,
-    read_pointings_if_present=True,
-    read_pixidx_if_present=True,
-    read_psi_if_present=True,
+    read_quaternions_if_present=True,
     read_global_flags_if_present=True,
     read_local_flags_if_present=True,
     tod_fields: List[str] = ["tod"],
@@ -461,13 +590,11 @@ def read_one_observation(
     rank of the MPI process reading this file is the same as the rank of the process
     that originally wrote it.
 
-    The flags `tod_dtype` and `pointings_dtype` permit to override the data type of
-    TOD samples and pointing angles used in the HDF5 file.
+    The flags `tod_dtype` permits to override the data type of TOD samples used in
+    the HDF5 file.
 
-    The parameters `read_pointings_if_present`, `read_pixidx_if_present`,
-    `read_psi_if_present`, `read_global_flags_if_present`, and
-    `read_local_flags_if_present` permit to avoid loading some parts of the HDF5 if
-    they are not needed.
+    The parameters `read_global_flags_if_present`, and `read_local_flags_if_present`
+    permit to avoid loading some parts of the HDF5 if they are not needed.
 
     The function returns a :class:`.Observation`, or ``Nothing`` if the HDF5 file
     was ill-formed.
@@ -525,6 +652,13 @@ def read_one_observation(
                     for x in json.loads(hdf5_tod.attrs["detectors"])
                 ]
 
+                # Read the rotation quaternion for this detector, as
+                # it might not have been saved in the JSON record
+                for det_idx, cur_det in enumerate(detectors):
+                    cur_det.quat = read_rot_quaternion_from_hdf5(
+                        input_file=inpf, field_name=f"rot_quaternion_{det_idx:04d}"
+                    )
+
                 result = Observation(
                     detectors=[asdict(d) for d in detectors],
                     n_samples_global=hdf5_tod.shape[1],
@@ -540,7 +674,7 @@ def read_one_observation(
                 result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])
             else:
                 # All the fields must conform to the same shape as `Observation.tod`
-                assert result.tod.shape == hdf5_tod.shape
+                assert result.__getattribute__(tod_fields[0]).shape == hdf5_tod.shape
                 result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])
 
         # If we arrive here, we must have read at least one TOD
@@ -552,21 +686,25 @@ def read_one_observation(
 
         # If it is required, read other optional datasets
         for attr, attr_type, should_read in [
-            ("pointings", pointings_dtype, read_pointings_if_present),
-            ("pixidx", np.int32, read_pixidx_if_present),
-            ("psi", pointings_dtype, read_psi_if_present),
             ("global_flags", None, read_global_flags_if_present),
         ]:
             if (attr in inpf) and should_read:
                 result.__setattr__(attr, inpf[attr].astype(attr_type)[:])
 
-        # Checking if flags are present is trickier because there should be N
+        if read_quaternions_if_present:
+            pointing_provider = read_pointing_provider_from_hdf5(
+                input_file=inpf,
+                field_name="pointing_provider",
+            )
+            result.pointing_provider = pointing_provider
+
+        # Checking if local flags are present is trickier because there should be N
         # datasets, where N is the number of detectors
         if read_local_flags_if_present:
             flags = __find_flags(
                 inpf,
-                expected_num_of_dets=result.tod.shape[0],
-                expected_num_of_samples=result.tod.shape[1],
+                expected_num_of_dets=result.__getattribute__(tod_fields[0]).shape[0],
+                expected_num_of_samples=result.__getattribute__(tod_fields[0]).shape[1],
             )
             if flags is not None:
                 result.__setattr__("local_flags", flags)
@@ -602,7 +740,6 @@ def _build_file_entry_table(file_name_list: List[Union[str, Path]]) -> List[_Fil
 def read_list_of_observations(
     file_name_list: List[Union[str, Path]],
     tod_dtype=np.float32,
-    pointings_dtype=np.float32,
     limit_mpi_rank: bool = True,
     tod_fields: List[Union[str, TodDescription]] = ["tod"],
 ) -> List[Observation]:
@@ -651,36 +788,8 @@ def read_list_of_observations(
                 cur_file_entry.path,
                 limit_mpi_rank=limit_mpi_rank,
                 tod_dtype=tod_dtype,
-                pointings_dtype=pointings_dtype,
                 tod_fields=tod_fields,
             )
         )
 
     return observations
-
-
-def read_observations(
-    sim: Simulation,
-    path: Union[str, Path] = None,
-    subdir_name: Union[None, str] = "tod",
-    *args,
-    **kwargs,
-):
-    """Read a list of observations from a set of files in a simulation
-
-    This function is a wrapper around the function :func:`.read_list_of_observations`.
-    It reads all the HDF5 files that are present in the directory whose name is
-    `subdir_name` and is a child of `path`, and it stores them in the
-    :class:`.Simulation` object `sim`.
-
-    If `path` is not specified, the default is to use the value of ``sim.base_path``;
-    this is meaningful if you are trying to read back HDF5 files that have been saved
-    earlier in the same session.
-    """
-    if path is None:
-        path = sim.base_path
-
-    obs = read_list_of_observations(
-        file_name_list=list((path / subdir_name).glob("**/*.h5")), *args, **kwargs
-    )
-    sim.observations = obs

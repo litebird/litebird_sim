@@ -35,7 +35,7 @@ A similar procedure can be used with conda:
 .. code-block:: text
 
    # Create a conda environment
-   conda create -n lbs_env python=3.8 
+   conda create -n lbs_env python=3.9
 
    # Activate the environment
    conda activate lbs_env
@@ -65,9 +65,8 @@ above, then checkout and install a local copy of the framework.
 Run code validators
 ~~~~~~~~~~~~~~~~~~~
 
-As every commit and pull request is validated through `black
-<https://github.com/psf/black>`_ and `flake8
-<https://pypi.org/project/flake8/>`_, you might want to run them
+As every commit and pull request is validated through `ruff
+<https://github.com/astral-sh/ruff>`_, you might want to run them
 before pushing modifications to the GitHub repository. In this case
 enter the ``litebird_sim`` directory and run the following command:
 

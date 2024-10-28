@@ -18,7 +18,7 @@ def nearest_pow2(data):
     return int(2 ** np.ceil(np.log2(len(data))))
 
 
-def add_white_noise(data, sigma: float, random=None):
+def add_white_noise(data, sigma: float, random):
     """Adds white noise with the given sigma to the array data.
 
     To be called from add_noise_to_observations.
@@ -27,13 +27,14 @@ def add_white_noise(data, sigma: float, random=None):
 
         `data` : 1-D numpy array
 
-        `sigma` : white noise level
+        `sigma` : the white noise level per sample. Be sure *not* to include cosmic ray
+                  loss, repointing maneuvers, etc., as these affect the integration time
+                  but **not** the white noise per sample.
 
-        `random` : a random number generator if you want reproducible randomness
+        `random` : a random number generator that implements the ``normal`` method.
+                   You should typically use the `random` field of a :class:`.Simulation`
+                   object for this. It must be specified
     """
-    if random is None:
-        random = np.random.default_rng()
-
     data += random.normal(0, sigma, data.shape)
 
 
@@ -59,7 +60,7 @@ def add_one_over_f_noise(
     alpha: float,
     sigma: float,
     sampling_rate_hz: float,
-    random=None,
+    random,
 ):
     """Adds a 1/f noise timestream with the given f knee and alpha to data
     To be called from add_noise_to_observations
@@ -74,15 +75,16 @@ def add_one_over_f_noise(
 
         `alpha` : low frequency spectral tilt
 
-        `sigma` : white noise level
+        `sigma` : the white noise level per sample. Be sure *not* to include cosmic ray
+                  loss, repointing maneuvers, etc., as these affect the integration time
+                  but **not** the white noise per sample.
 
         `sampling_rate_hz` : the sampling frequency of the data
 
-        `random` : a random number generator if you want reproducible randomness
+        `random` : a random number generator that implements the ``normal`` method.
+                   You should typically use the `random` field of a :class:`.Simulation`
+                   object for this. It must be specified
     """
-
-    if random is None:
-        random = np.random.default_rng()
 
     noiselen = nearest_pow2(data)
 
@@ -113,8 +115,8 @@ def add_noise(
     fknee_mhz,
     fmin_hz,
     alpha,
+    random,
     scale=1.0,
-    random=None,
 ):
     """
     Add noise (white or 1/f) to a 2D array of floating-point values
@@ -126,10 +128,14 @@ def add_noise(
     The parameter `noisetype` must either be ``white`` or ``one_over_f``; in the latter
     case, the noise will contain a 1/f part and a white noise part.
 
+    Be sure *not* to include cosmic ray loss, repointing maneuvers, etc., in the value
+    passed as `net_ukrts`, as these affect the integration time but **not** the white
+    noise per sample.
+
     The parameter `scale` can be used to introduce measurement unit conversions when
     appropriate. Default units: [K].
 
-    The parameter `random`, if specified, must be a random number generator that
+    The parameter `random` must be specified and must be a random number generator that
     implements the ``normal`` method. You should typically use the `random` field
     of a :class:`.Simulation` object for this.
 
@@ -189,30 +195,33 @@ def add_noise(
 
 
 def add_noise_to_observations(
-    obs: Union[Observation, List[Observation]],
+    observations: Union[Observation, List[Observation]],
     noise_type: str,
+    random: np.random.Generator,
     scale: float = 1.0,
-    random: Union[np.random.Generator, None] = None,
     component: str = "tod",
 ):
-    """Add noise of the defined type to the observations in obs
+    """Add noise of the defined type to the observations in observations
 
     This class provides an interface to the low-level function :func:`.add_noise`.
-    The parameter `obs` can either be one :class:`.Observation` instance or a list
-    of observations, which are typically taken from the field `observations` of a
-    :class:`.Simulation` object. Unlike :func:`.add_noise`, it is not needed to
-    pass the noise parameters here, as they are taken from the characteristics of
-    the detectors saved in `obs`.
+    The parameter `observations` can either be one :class:`.Observation` instance
+    or a list of observations, which are typically taken from the field
+    `observations` of a :class:`.Simulation` object. Unlike :func:`.add_noise`,
+    it is not needed to pass the noise parameters here, as they are taken from the
+    characteristics of the detectors saved in `observations`. The parameter `random`
+    must be specified and must be a random number generator that implements the
+    ``normal`` method. You should typically use the `random` field of a
+    :class:`.Simulation` object for this.
 
     By default, the noise is added to ``Observation.tod``. If you want to add it to some
-    other field of the :class:`.Observation` class, use `component`::
+    other field of the :class:`.Observation` class, use `component`:
 
         for cur_obs in sim.observations:
             # Allocate a new TOD for the noise alone
             cur_obs.noise_tod = np.zeros_like(cur_obs.tod)
 
         # Ask `add_noise_to_observations` to store the noise
-        # in `obs.noise_tod`
+        # in `observations.noise_tod`
         add_noise_to_observations(sim.observations, …, component="noise_tod")
 
     See :func:`.add_noise` for more information.
@@ -220,10 +229,10 @@ def add_noise_to_observations(
     if noise_type not in ["white", "one_over_f"]:
         raise ValueError("Unknown noise type " + noise_type)
 
-    if isinstance(obs, Observation):
-        obs_list = [obs]
+    if isinstance(observations, Observation):
+        obs_list = [observations]
     else:
-        obs_list = obs
+        obs_list = observations
 
     # iterate through each observation
     for i, cur_obs in enumerate(obs_list):

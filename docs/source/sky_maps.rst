@@ -23,7 +23,7 @@ framework to generate a CMB map::
 
     import litebird_sim as lbs
 
-    sim = lbs.Simulation(base_path="../output")
+    sim = lbs.Simulation(base_path="../output", random_seed=12345)
     params = lbs.MbsParameters(
         make_cmb=True,
         fg_models=["pysm_synch_0", "pysm_freefree_1"],
@@ -49,6 +49,11 @@ In the dictionary containing the maps Mbs returns also two useful variables:
 
 - The coordinates of the generated maps, in the key `Coordinates`
 - The parameters used for the syntetic map generation, in the key `Mbs_parameters` 
+
+If ``store_alms`` in :class:`.MbsParameters` is True, ``run_all`` returns alms
+instead of pixel space maps. The user can set the maximum multipole of these alms with
+``lmax_alms``, the default value is :math:`4\times N_{side}`. If ``gaussian_smooth`` is 
+False, umbeamed maps or alms are returned.
 
 Available emission models
 -------------------------

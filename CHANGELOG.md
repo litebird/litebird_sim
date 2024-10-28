@@ -1,10 +1,106 @@
 # HEAD
 
+-   Improve the documentation of the binner and the destriper [#333](https://github.com/litebird/litebird_sim/pull/333)
+-   Make the code compatible with Python 3.12 [#332](https://github.com/litebird/litebird_sim/pull/332)
+
+# Version 0.13.0
+
+-   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Here is a in-depth list of all the breaking changes in this PR:
+
+    1.  Quaternions describing the orientation of the detectors must now be encoded using a `RotQuaternion` object; plain NumPy arrays are no longer supported.
+
+    2.  Quaternions are now computed using the function `prepare_pointings()` (low-level) and the method `Simulation.prepare_pointings()` (high-level, you should use this). Pointings are no longer kept in memory until you retrieve them using `Observation.get_pointings()`.
+
+    3.  Pointings are no longer accessible using the field `pointings` in the `Observation` class. (Not 100% true, see below.) They are computed on the fly by the method `Observation.get_pointings()`.
+
+    4.  The way pointings are returned differs from how they were stored before. The result of a call to `Observation.get_pointings()` is a 2-element tuple: the first element contains a `(N, 3)` NumPy array containing the colatitude θ, the longitude φ, and the orientation ψ, while the second element is an array of the angles of the HWP. Thus, the orientation angle ψ is now stored together with θ and φ.
+
+    5.  If you want to pre-compute all the pointings instead of computing them on the fly each time you call `Observation.get_pointings()`, you can use the function `precompute_pointings()` (low-level) and the method `Simulation.precompute_pointings()` (high-level). This initializes a number of fields in each `Observation` object, but they are shaped as described in the previous point, i.e., ψ is kept in the same matrix as θ and φ.
+
+    6.  The argument `dtype_tod` of the method `Simulation.create_observations` has become `tod_type` for consistency with other similar parameters.
+
+    7.  The format of the HDF5 files has been slightly changed to let additional information about pointings to be stored.
+
+    See the comments in [PR#319](https://github.com/litebird/litebird_sim/pull/319) and discussion [#312](https://github.com/litebird/litebird_sim/discussions/312) for more details.
+
+-   Add data splits in time and detector space to destriped maps [#309](https://github.com/litebird/litebird_sim/pull/309)
+
+-   Fix issue [#317](https://github.com/litebird/litebird_sim/issues/317)
+
+-   Implement a time profiler [#308](https://github.com/litebird/litebird_sim/pull/308)
+
+# Version 0.12.0
+
+-   **Breaking change**: Disambiguate between “polarization angle” and “orientation” [#305](https://github.com/litebird/litebird_sim/pull/305). A few functions have been renamed as a consequence of this change; however, they are low-level functions that are used internally (`compute_pointing_and_polangle`, `all_compute_pointing_and_polangle`, `polarization_angle`), so external codes should be unaffected by this PR.
+
+-   **Breaking change**: Reworking of the IO, `write_observations` and `read_observations` are now part of the class simulation [#293](https://github.com/litebird/litebird_sim/pull/293)
+
+-   Mbs optionally returns alms instead of maps [#306](https://github.com/litebird/litebird_sim/pull/306)
+
+-   Include the possibility to pass components to fill_tods,  add_dipole and add_noise [#302](https://github.com/litebird/litebird_sim/issues/302)
+
+-   Add data splits in time and detector space to binned maps [#291](https://github.com/litebird/litebird_sim/pull/291)
+
+-   Add support for partial multithreading using Numba [#276](https://github.com/litebird/litebird_sim/pull/276)
+
+-   Fixing bug in mbs to pass general bandpass to mbs [#271](https://github.com/litebird/litebird_sim/pull/271)
+
+-   Support for numpy.float128 made optional, this fixes importing issue on ARM architectures [#286](https://github.com/litebird/litebird_sim/pull/286)
+
+-   Improve the documentation about noise simulations [#283](https://github.com/litebird/litebird_sim/pull/283)
+
+-   Use libinsdb to access the IMO [#282](https://github.com/litebird/litebird_sim/pull/282)
+
+-   Move from `flake8`/`black` to `ruff` [#281](https://github.com/litebird/litebird_sim/pull/281/)
+
+-   New module to simulate HWP systematics [#232](https://github.com/litebird/litebird_sim/pull/232)
+
+# Version 0.11.0
+
+-   **Breaking change**: Change the interface to the binner, implement a new destriper, and make the dependency on TOAST optional [#260](https://github.com/litebird/litebird_sim/pull/260)
+
+-   **Breaking change**: Drop support for Python 3.7 and 3.8 [#254](https://github.com/litebird/litebird_sim/pull/254)
+
+-   **Breaking change**: Fix noise seed inconsistency [#256](https://github.com/litebird/litebird_sim/pull/256)
+
+-   Be more robust when parsing UUIDs and URLs coming from the IMo [#274](https://github.com/litebird/litebird_sim/pull/274)
+
+-   Solve typing error in destriper [#272](https://github.com/litebird/litebird_sim/pull/272)
+
+-   Include default PTEP IMO for tests and demos [#230](https://github.com/litebird/litebird_sim/pull/230)
+
+-   Fixed typo in timeordered.rst [#250](https://github.com/litebird/litebird_sim/pull/250)
+
+-   Fix error in reading observation when it does not have tod field [#262](https://github.com/litebird/litebird_sim/pull/262) 
+
+-   Bug in mbs for band integration solved [#251](https://github.com/litebird/litebird_sim/pull/251)
+
+-   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
+
+# Version 0.10.0
+
+-   Some memory optimization [#245](https://github.com/litebird/litebird_sim/pull/245)
+
+-   Improve the docstring for `scan_map_in_observations` [#248](https://github.com/litebird/litebird_sim/pull/248)
+
+-   New interface for `make_bin_map` in `Simulation` [#244](https://github.com/litebird/litebird_sim/pull/244)
+
+-   Added gain drift simulation module [#243](https://github.com/litebird/litebird_sim/pull/243)
+
+-   Enable the use of other names than `tod` when calling the TOAST2 destriper [#242](https://github.com/litebird/litebird_sim/pull/242)
+
+-   Use Poetry instead of Pip to specify the dependencies for the documentation [#237](https://github.com/litebird/litebird_sim/pull/237)
+
+-   Remove bandpass-related warnings [#236](https://github.com/litebird/litebird_sim/pull/236)
+
+-   Add TOD interpolation [#233](https://github.com/litebird/litebird_sim/pull/233)
+
+-   Improve the documentation [#231](https://github.com/litebird/litebird_sim/pull/231)
+
 -   Mbs supports generic bandpasses and can generate solar dipole [#227](https://github.com/litebird/litebird_sim/pull/227)
 
 -   Improve the support for multiple TODs in the same `Observation` [#225](https://github.com/litebird/litebird_sim/pull/225)
 
--   Improve the documentation [#231](https://github.com/litebird/litebird_sim/pull/231)
 
 # Version 0.9.0
 
@@ -29,8 +125,6 @@
 -   Add flag for coordinate system choice of madam output maps [#208](https://github.com/litebird/litebird_sim/pull/208)
 
 -   Improve support for multiple TODs [#205](https://github.com/litebird/litebird_sim/pull/205)
-
--   Implement a bandpass generator [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200)
 
 # Version 0.8.0
 

@@ -1,15 +1,16 @@
 # -*- encoding: utf-8 -*-
 
 import os
+import pathlib
 from pathlib import Path
 from tempfile import TemporaryDirectory, NamedTemporaryFile
-
-import numpy as np
-import litebird_sim as lbs
-import pathlib
 from uuid import UUID
 
 import astropy
+import numpy as np
+import pytest
+
+import litebird_sim as lbs
 
 
 class MockPlot:
@@ -18,7 +19,7 @@ class MockPlot:
 
 
 def test_healpix_map_write(tmp_path):
-    sim = lbs.Simulation(base_path=tmp_path / "simulation_dir")
+    sim = lbs.Simulation(base_path=tmp_path / "simulation_dir", random_seed=12345)
     output_file = sim.write_healpix_map(filename="test.fits.gz", pixels=np.zeros(12))
 
     assert isinstance(output_file, pathlib.Path)
@@ -42,6 +43,7 @@ def test_markdown_report(tmp_path):
         description="Lorem ipsum",
         start_time=1.0,
         duration_s=3600.0,
+        random_seed=12345,
     )
     output_file = sim.write_healpix_map(filename="test.fits.gz", pixels=np.zeros(12))
 
@@ -69,6 +71,8 @@ Lorem ipsum
 
 The simulation starts at t0=1.0 and lasts 3600.0 seconds.
 
+The seed used for the random number generator is 12345.
+
 [TOC]
 
 
@@ -86,8 +90,6 @@ And here are the data points:
     print(sim.report)
     assert reference.strip() in sim.report.strip()
 
-    sim.flush()
-
 
 def test_imo_in_report(tmp_path):
     curpath = pathlib.Path(__file__).parent
@@ -98,6 +100,7 @@ def test_imo_in_report(tmp_path):
         name="My simulation",
         description="Lorem ipsum",
         imo=imo,
+        random_seed=12345,
     )
 
     entity_uuid = UUID("dd32cb51-f7d5-4c03-bf47-766ce87dc3ba")
@@ -123,17 +126,23 @@ def test_parameter_dict(tmp_path):
 
     sim = lbs.Simulation(
         parameters={
+            "simulation": {
+                "random_seed": 12345,
+            },
             "general": {
                 "a": 10,
                 "b": 20.0,
                 "c": False,
                 "subtable": {"d": date(2020, 7, 1), "e": "Hello, world!"},
-            }
+            },
         }
     )
 
     assert not sim.parameter_file
     assert isinstance(sim.parameters, dict)
+
+    assert "simulation" in sim.parameters
+    assert sim.parameters["simulation"]["random_seed"] == 12345
 
     assert "general" in sim.parameters
     assert sim.parameters["general"]["a"] == 10
@@ -145,7 +154,7 @@ def test_parameter_dict(tmp_path):
     assert sim.parameters["general"]["subtable"]["e"] == "Hello, world!"
 
     try:
-        sim = lbs.Simulation(parameter_file="dummy", parameters={"a": 10})
+        sim = lbs.Simulation(parameter_file="dummy", parameters={"a": 12345})
         assert False, "Simulation object should have asserted"
     except AssertionError:
         pass
@@ -162,6 +171,7 @@ def test_parameter_file():
 start_time = "2020-01-01T00:00:00"
 duration_s = 11.0
 description = "Dummy description"
+random_seed = 12345
 
 [general]
 a = 10
@@ -184,6 +194,7 @@ e = "Hello, world!"
         assert isinstance(sim.start_time, astropy.time.Time)
         assert sim.duration_s == 11.0
         assert sim.description == "Dummy description"
+        assert sim.random_seed == 12345
 
         assert "general" in sim.parameters
         assert sim.parameters["general"]["a"] == 10
@@ -212,6 +223,7 @@ def test_duration_units_in_parameter_file():
 [simulation]
 start_time = "2020-01-01T00:00:00"
 duration_s = "1 day"
+random_seed = 12345
 """
         )
 
@@ -221,16 +233,20 @@ duration_s = "1 day"
         assert "simulation" in sim.parameters
         assert isinstance(sim.start_time, astropy.time.Time)
         assert sim.duration_s == 86400.0
+        assert sim.random_seed == 12345
 
 
 def test_distribute_observation(tmp_path):
-    for dtype in (np.float16, np.float32, np.float64, np.float128):
+    for dtype in (np.float16, np.float32, np.float64):
         sim = lbs.Simulation(
-            base_path=tmp_path / "simulation_dir", start_time=1.0, duration_s=11.0
+            base_path=tmp_path / "simulation_dir",
+            start_time=1.0,
+            duration_s=11.0,
+            random_seed=12345,
         )
         det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
         obs_list = sim.create_observations(
-            detectors=[det], num_of_obs_per_detector=5, dtype_tod=dtype
+            detectors=[det], num_of_obs_per_detector=5, tod_dtype=dtype
         )
 
         assert len(obs_list) == 5
@@ -243,7 +259,10 @@ def test_distribute_observation(tmp_path):
 
 def test_distribute_observation_many_tods(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir", start_time=1.0, duration_s=11.0
+        base_path=tmp_path / "simulation_dir",
+        start_time=1.0,
+        duration_s=11.0,
+        random_seed=12345,
     )
     det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
     sim.create_observations(
@@ -283,6 +302,7 @@ def test_distribute_observation_astropy(tmp_path):
         base_path=tmp_path / "simulation_dir",
         start_time=astropy.time.Time("2020-01-01T00:00:00"),
         duration_s=11.0,
+        random_seed=12345,
     )
     det = lbs.DetectorInfo("dummy", sampling_rate_hz=15)
     obs_list = sim.create_observations(detectors=[det], num_of_obs_per_detector=5)
@@ -297,6 +317,7 @@ def test_describe_distribution(tmp_path):
         base_path=tmp_path / "simulation_dir",
         start_time=0.0,
         duration_s=40.0,
+        random_seed=12345,
     )
     det = lbs.DetectorInfo("dummy", sampling_rate_hz=10.0)
 
@@ -330,3 +351,331 @@ def test_describe_distribution(tmp_path):
             assert obs.tod_names == ["tod", "fg_tod", "dipole_tod"]
             assert obs.tod_shape == (1, 100)
             assert obs.tod_dtype == ["float32", "float64", "float32"]
+
+
+def test_profile_information(tmp_path):
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=0.0,
+        duration_s=61.0,
+        random_seed=12345,
+        imo=lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION),
+    )
+    det = lbs.DetectorInfo.from_imo(
+        sim.imo,
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_T/detector_info",
+    )
+
+    sim.create_observations(
+        detectors=[det], num_of_obs_per_detector=1, split_list_over_processes=False
+    )
+
+    sstr = lbs.SpinningScanningStrategy.from_imo(
+        sim.imo, "/releases/vPTEP/satellite/scanning_parameters"
+    )
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
+
+    instr = lbs.InstrumentInfo.from_imo(
+        sim.imo, "/releases/vPTEP/satellite/LFT/instrument_info"
+    )
+    sim.set_instrument(instr)
+
+    sim.prepare_pointings()
+
+    sim.flush(profile_file_name="profile.json")
+    profile_file_path = sim.base_path / "profile.json"
+    assert profile_file_path.exists()
+
+
+def _configure_simulation_for_pointings(
+    tmp_path: Path,
+    include_hwp: bool,
+    store_full_pointings: bool,
+    num_of_detectors: int = 1,
+    dtype=np.float32,
+) -> lbs.Simulation:
+    detector_paths = [
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_T/detector_info",
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_B/detector_info",
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_004_QB_040_T/detector_info",
+        "/releases/vPTEP/satellite/LFT/L1-040/000_000_004_QB_040_B/detector_info",
+    ]
+    assert num_of_detectors <= len(
+        detector_paths
+    ), "num_of_detectors must be ≤ {}".format(len(detector_paths))
+
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=0.0,
+        duration_s=61.0,
+        random_seed=12345,
+        imo=lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION),
+    )
+
+    detector_list = [
+        lbs.DetectorInfo.from_imo(
+            sim.imo,
+            url=url,
+        )
+        for url in detector_paths
+    ]
+
+    for cur_det in detector_list:
+        # Force a round number for the sampling rate, as tests are much easier to write!
+        cur_det.sampling_rate_hz = 1.0
+
+    sim.create_observations(
+        detectors=detector_list,
+        num_of_obs_per_detector=1,
+        split_list_over_processes=False,
+    )
+
+    if include_hwp:
+        hwp = lbs.IdealHWP(
+            ang_speed_radpsec=1.0,
+            start_angle_rad=5.0,
+        )
+        sim.set_hwp(hwp)
+
+    sstr = lbs.SpinningScanningStrategy.from_imo(
+        sim.imo, "/releases/vPTEP/satellite/scanning_parameters"
+    )
+    sim.set_scanning_strategy(scanning_strategy=sstr, delta_time_s=0.5)
+
+    instr = lbs.InstrumentInfo.from_imo(
+        sim.imo, "/releases/vPTEP/satellite/LFT/instrument_info"
+    )
+    sim.set_instrument(instr)
+
+    sim.prepare_pointings()
+
+    if store_full_pointings:
+        sim.precompute_pointings(pointings_dtype=dtype)
+
+    return sim
+
+
+def test_smart_pointings_consistency_with_hwp(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False
+    )
+
+    for obs in sim.observations:
+        assert obs.pointing_provider is not None
+
+        for det_idx in range(obs.n_detectors):
+            (pointings, hwp_angle) = obs.get_pointings(det_idx)
+            assert pointings.shape == (1, obs.n_samples, 3)
+            assert hwp_angle.shape == (obs.n_samples,)
+
+
+def test_smart_pointings_consistency_without_hwp(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=False, store_full_pointings=False
+    )
+
+    for obs in sim.observations:
+        assert obs.pointing_provider is not None
+
+        for det_idx in range(obs.n_detectors):
+            (pointings, hwp_angle) = obs.get_pointings(det_idx)
+            assert pointings.shape == (1, obs.n_samples, 3)
+            assert hwp_angle is None
+
+
+def test_smart_pointings_angles(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False
+    )
+
+    assert len(sim.observations) == 1
+    obs = sim.observations[0]
+
+    (pointings, hwp_angle) = obs.get_pointings(0)
+
+    # These number have been produced using the old `get_pointings`
+    # function present in LBS 0.12.0
+
+    np.testing.assert_allclose(
+        actual=pointings[0, 0:10, :],
+        desired=np.array(
+            [
+                [1.6580627894, 0.0000000000, 1.3977241805],
+                [1.6580531309, 0.0040741359, 1.4019872180],
+                [1.6580241558, 0.0081481804, 1.4062501611],
+                [1.6579758652, 0.0122220423, 1.4105129153],
+                [1.6579082610, 0.0162956301, 1.4147753863],
+                [1.6578213461, 0.0203688526, 1.4190374796],
+                [1.6577151239, 0.0244416186, 1.4232991010],
+                [1.6575895986, 0.0285138369, 1.4275601563],
+                [1.6574447752, 0.0325854166, 1.4318205514],
+                [1.6572806597, 0.0366562667, 1.4360801921],
+            ]
+        ),
+        rtol=1e-6,
+    )
+
+    np.testing.assert_allclose(
+        actual=hwp_angle[0:10],
+        desired=np.array(
+            [
+                5.0,
+                0.71681469,
+                2.71681469,
+                4.71681469,
+                0.43362939,
+                2.43362939,
+                4.43362939,
+                0.15044408,
+                2.15044408,
+                4.15044408,
+            ]
+        ),
+    )
+
+
+def test_smart_pointings_preallocation_with_hwp(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False
+    )
+
+    # Allocate one buffer for the pointings and one buffer for the HWP angle
+    n_samples = sim.observations[0].n_samples
+    pointings_buf = np.empty(shape=(n_samples, 3))
+    hwp_angle_buf = np.empty(shape=(n_samples, 1))
+
+    for obs in sim.observations:
+        for det_idx in range(obs.n_detectors):
+            # Force obs.get_pointings to use the buffer we allocated once for all
+            # before this double `for` loop
+            (pointings, hwp_angle) = obs.get_pointings(
+                det_idx, pointing_buffer=pointings_buf, hwp_buffer=hwp_angle_buf
+            )
+
+            # numpy.shares_memory() tells if the two arrays use the same memory
+            # buffer
+            assert np.shares_memory(pointings, pointings_buf)
+            assert np.shares_memory(hwp_angle, hwp_angle_buf)
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_smart_pointings_store_matrices_without_hwp(dtype, tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path,
+        include_hwp=False,
+        store_full_pointings=True,
+        dtype=dtype,
+    )
+
+    for cur_obs in sim.observations:
+        assert "pointing_matrix" in dir(cur_obs)
+
+        assert cur_obs.pointing_matrix.dtype == dtype
+        assert cur_obs.pointing_matrix.shape == (
+            cur_obs.n_detectors,
+            cur_obs.n_samples,
+            3,
+        )
+        assert cur_obs.hwp_angle is None
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_smart_pointings_store_matrices_with_hwp(dtype, tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path,
+        include_hwp=True,
+        store_full_pointings=True,
+        dtype=dtype,
+    )
+
+    for cur_obs in sim.observations:
+        assert "pointing_matrix" in dir(cur_obs)
+
+        assert cur_obs.pointing_matrix.dtype == dtype
+        assert cur_obs.pointing_matrix.shape == (
+            cur_obs.n_detectors,
+            cur_obs.n_samples,
+            3,
+        )
+
+        assert cur_obs.hwp_angle is not None
+        assert cur_obs.hwp_angle.dtype == dtype
+        assert cur_obs.hwp_angle.shape == (cur_obs.n_samples,)
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_compute_pointings_for_one_detector(dtype, tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path,
+        include_hwp=True,
+        store_full_pointings=False,
+        num_of_detectors=4,
+    )
+
+    for cur_obs in sim.observations:
+        pointings, hwp_angle = cur_obs.get_pointings(0, pointings_dtype=dtype)
+
+        assert pointings.dtype == dtype
+        assert pointings.shape == (1, cur_obs.n_samples, 3)
+
+        assert hwp_angle.dtype == dtype
+        assert hwp_angle.shape == (cur_obs.n_samples,)
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_store_pointings_for_two_detectors(dtype, tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path,
+        include_hwp=True,
+        store_full_pointings=False,
+        num_of_detectors=4,
+    )
+
+    for cur_obs in sim.observations:
+        for cur_pair in ([1, 3], [0, 2], [1, 2]):
+            pointings, hwp_angle = cur_obs.get_pointings(
+                cur_pair, pointings_dtype=dtype
+            )
+
+            assert pointings.dtype == dtype
+            assert pointings.shape == (2, cur_obs.n_samples, 3)
+
+            assert hwp_angle.dtype == dtype
+            assert hwp_angle.shape == (cur_obs.n_samples,)
+
+            for rel_det_idx, abs_det_idx in enumerate(cur_pair):
+                cur_pointings, _ = cur_obs.get_pointings(abs_det_idx)
+                np.testing.assert_allclose(
+                    actual=pointings[rel_det_idx, :, :],
+                    desired=cur_pointings[0, :, :],
+                    rtol=1e-6,
+                )
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_smart_pointings_for_all_detectors(dtype, tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path,
+        include_hwp=True,
+        store_full_pointings=False,
+        num_of_detectors=4,
+    )
+
+    for cur_obs in sim.observations:
+        pointings, hwp_angle = cur_obs.get_pointings("all", pointings_dtype=dtype)
+
+        assert pointings.dtype == dtype
+        assert pointings.shape == (4, cur_obs.n_samples, 3)
+
+        assert hwp_angle.dtype == dtype
+        assert hwp_angle.shape == (cur_obs.n_samples,)
+
+        for det_idx in range(4):
+            cur_pointings, _ = cur_obs.get_pointings(det_idx, pointings_dtype=dtype)
+
+            assert cur_pointings.dtype == dtype
+            np.testing.assert_allclose(
+                actual=pointings[det_idx, :, :],
+                desired=cur_pointings[0, :, :],
+                rtol=1e-6,
+            )

@@ -6,10 +6,37 @@ from typing import Any, Dict, Union, List
 from uuid import UUID
 import numpy as np
 
+import astropy.time as astrotime
 from .imo import Imo
 from .quaternions import quat_rotation_y, quat_rotation_z, quat_left_multiply
+from .scanning import RotQuaternion
 
 from .bandpasses import BandPassInfo
+
+
+def url_to_uuid(url: str) -> UUID:
+    return UUID([x for x in url.split("/") if x != ""][-1])
+
+
+def normalize_time_dependent_quaternion(
+    quat: Union[np.ndarray, RotQuaternion],
+) -> RotQuaternion:
+    """Make sure that a quaternion is represented as a :class:`TimeDependentQuaternion` object"""
+
+    if isinstance(quat, RotQuaternion):
+        return quat
+
+    if isinstance(quat, np.ndarray):
+        quat = quat.reshape(4)
+    else:
+        quat = np.array([float(x) for x in quat])
+
+    assert quat.size == 4
+
+    # Normalize the quaternion
+    quat /= np.sqrt(quat.dot(quat))
+
+    return RotQuaternion(quats=quat)
 
 
 @dataclass
@@ -50,6 +77,7 @@ class DetectorInfo:
 
         - sampling_rate_hz (float): The sampling rate of the ADC
              associated with this detector. The default is 0.0
+
         - fwhm_arcmin: (float): The Full Width Half Maximum of the
              radiation pattern associated with the detector, in
              arcminutes. The default is 0.0
@@ -59,10 +87,14 @@ class DetectorInfo:
 
         - net_ukrts (float): The noise equivalent temperature of the
              signal produced by the detector in nominal conditions,
-             expressed in μK/√s.. The default is 0.0
+             expressed in μK/√s. This is the noise per sample to be
+             used when adding noise to the timelines. The default is 0.0
 
         - pol_sensitivity_ukarcmin (float): The detector sensitivity
-            in microK_arcmin. The default is 0.0
+            in microK_arcmin. This value considers the effect of cosmic ray loss,
+            repointing maneuvers, etc., and other issues that cause loss of
+            integration time. Therefore, it should **not** be used with the
+            functions that add noise to the timelines. The default is 0.0
 
         - bandcenter_ghz (float): The center frequency of the
              detector, in GHz. The default is 0.0
@@ -91,7 +123,7 @@ class DetectorInfo:
         - orient (Union[str, None]): The orientation of the detector
              (``Q``/``U``). The default is None
 
-        - quat (np.array([0.0, 0.0, 0.0, 1.0]): The quaternion
+        - quat (:class:`.TimeDependentQuaternion`): The quaternion
              expressing the rotation from the detector reference frame
              to the boresight reference frame. The default is no
              rotation at all, i.e., the detector is aligned with the
@@ -120,18 +152,15 @@ class DetectorInfo:
     bandwidth_ghz: float = 0.0
     pol: Union[str, None] = None
     orient: Union[str, None] = None
-    quat: Any = np.array([0.0, 0.0, 0.0, 1.0])
+    quat: Any = None
 
     def __post_init__(self):
-        assert len(self.quat) == 4
+        if self.quat is None:
+            self.quat = (0.0, 0.0, 0.0, 1.0)
 
-        # Ensure that the quaternion is a NumPy array
-        self.quat = np.array([float(x) for x in self.quat])
+        self.quat = normalize_time_dependent_quaternion(self.quat)
 
-        # Normalize the quaternion
-        self.quat /= np.sqrt(self.quat.dot(self.quat))
-
-        if type(self.band_freqs_ghz) == np.ndarray:
+        if isinstance(self.band_freqs_ghz, np.ndarray):
             assert len(self.band_freqs_ghz) == len(self.band_weights)
 
     @staticmethod
@@ -165,10 +194,38 @@ class DetectorInfo:
         """
         result = DetectorInfo()
         for param in fields(DetectorInfo):
-            if param.name in dictionary:
-                setattr(result, param.name, dictionary[param.name])
+            if param.name not in dictionary:
+                continue
 
-        if type(result.band_freqs_ghz) != np.ndarray:
+            if param.name != "quat":
+                setattr(result, param.name, dictionary[param.name])
+            else:
+                # Quaternions need a more complicated algorithm…
+                time_dependent_quat = dictionary[param.name]
+                if isinstance(time_dependent_quat, dict):
+                    start_time = time_dependent_quat["start_time"]
+                    if isinstance(start_time, str):
+                        start_time = astrotime.Time(start_time)
+
+                    if "quats" in time_dependent_quat:
+                        quats = np.array(time_dependent_quat["quats"])
+                    elif "quaternion_matrix_shape" in time_dependent_quat:
+                        quats = np.zeros(
+                            shape=time_dependent_quat["quaternion_matrix_shape"]
+                        )
+                    else:
+                        quats = None
+
+                    result.quat = RotQuaternion(
+                        quats=quats,
+                        start_time=start_time,
+                        sampling_rate_hz=time_dependent_quat["sampling_rate_hz"],
+                    )
+                else:
+                    # The quaternion is just a list of 4 numbers
+                    result.quat = RotQuaternion(np.array(time_dependent_quat))
+
+        if not isinstance(result.band_freqs_ghz, np.ndarray):
             result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
             result.band_freqs_ghz, result.band_weights = [
                 result.band.freqs_ghz,
@@ -263,7 +320,12 @@ class FreqChannelInfo:
         # proper UUIDs
         for det_idx, det_obj in enumerate(self.detector_objs):
             if not isinstance(det_obj, UUID):
-                self.detector_objs[det_idx] = UUID(det_obj)
+                if "/" in det_obj:
+                    cur_uuid = url_to_uuid(det_obj)
+                else:
+                    cur_uuid = UUID(det_obj)
+
+                self.detector_objs[det_idx] = cur_uuid
 
     @staticmethod
     def from_dict(dictionary: Dict[str, Any]):
@@ -272,7 +334,7 @@ class FreqChannelInfo:
             if param.name in dictionary:
                 setattr(result, param.name, dictionary[param.name])
 
-        if type(result.band_freqs_ghz) != np.ndarray:
+        if not isinstance(result.band_freqs_ghz, np.ndarray):
             result.band = BandPassInfo(result.bandcenter_ghz, result.bandwidth_ghz)
             result.band_freqs_ghz, result.band_weights = [
                 result.band.freqs_ghz,
@@ -318,11 +380,18 @@ class InstrumentInfo:
     wafer_space_cm: float = 0.0
 
     def __post_init__(self):
-        self.bore2spin_quat = self.__compute_bore2spin_quat__()
+        self.bore2spin_quat = normalize_time_dependent_quaternion(
+            self.__compute_bore2spin_quat__()
+        )
 
         for det_idx, det_obj in enumerate(self.channel_objs):
             if not isinstance(det_obj, UUID):
-                self.channel_objs[det_idx] = UUID(det_obj)
+                if "/" in det_obj:
+                    cur_uuid = url_to_uuid(det_obj)
+                else:
+                    cur_uuid = UUID(det_obj)
+
+                self.channel_objs[det_idx] = cur_uuid
 
     def __compute_bore2spin_quat__(self):
         quat = np.array(quat_rotation_z(self.boresight_rotangle_rad))
@@ -371,7 +440,6 @@ class InstrumentInfo:
 def detector_list_from_parameters(
     imo: Imo, definition_list: List[Any]
 ) -> List[DetectorInfo]:
-
     result = []
 
     for det_def in definition_list:

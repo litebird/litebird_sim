@@ -401,6 +401,7 @@ def test_write_hdf5_mpi(tmp_path):
         base_path=tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
+        random_seed=12345,
     )
 
     det = lbs.DetectorInfo(
@@ -413,8 +414,8 @@ def test_write_hdf5_mpi(tmp_path):
     num_of_obs = 12
     sim.create_observations(detectors=[det], num_of_obs_per_detector=num_of_obs)
 
-    file_names = lbs.write_observations(
-        sim, subdir_name="tod", file_name_mask="litebird_tod{global_index:04d}.h5"
+    file_names = sim.write_observations(
+        subdir_name="tod", file_name_mask="litebird_tod{global_index:04d}.h5"
     )
 
     assert len(file_names) == len(sim.observations)
@@ -435,28 +436,69 @@ def test_write_hdf5_mpi(tmp_path):
 
 
 def test_simulation_random():
-    sim = lbs.Simulation()
-    assert sim.random is not None
-
-    state = sim.random.bit_generator.state
-
     comm_world = lbs.MPI_COMM_WORLD
 
-    assert state["bit_generator"] == "PCG64"
-    assert state["has_uint32"] == 0
-    assert state["uinteger"] == 0
+    # First, we want to test that by using the same seed, the results are the same
+    sim1 = lbs.Simulation(random_seed=12345)
+    sim2 = lbs.Simulation(random_seed=12345)
+    assert sim1.random is not None
+    assert sim2.random is not None
+
+    state1 = sim1.random.bit_generator.state
+    state2 = sim2.random.bit_generator.state
+
+    assert state1["bit_generator"] == "PCG64"
+    assert state2["bit_generator"] == "PCG64"
+    assert state1["has_uint32"] == 0
+    assert state2["has_uint32"] == 0
+    assert state1["uinteger"] == 0
+    assert state2["uinteger"] == 0
 
     # We only check the state of the first four MPI process. It's important
     # to ensure that they are all different, but there is little sense in
     # checking *every* process.
     if comm_world.rank == 0:
-        assert state["state"]["state"] == 24896973052328222577814399574126207392
+        assert state1["state"]["state"] == 24896973052328222577814399574126207392
+        assert state2["state"]["state"] == 24896973052328222577814399574126207392
     elif comm_world.rank == 1:
-        assert state["state"]["state"] == 158287254809478086677339590508859947181
+        assert state1["state"]["state"] == 158287254809478086677339590508859947181
+        assert state2["state"]["state"] == 158287254809478086677339590508859947181
     elif comm_world.rank == 2:
-        assert state["state"]["state"] == 133763967953742274472419503117976972596
+        assert state1["state"]["state"] == 133763967953742274472419503117976972596
+        assert state2["state"]["state"] == 133763967953742274472419503117976972596
     elif comm_world.rank == 3:
-        assert state["state"]["state"] == 233910118701024945237145923486727240452
+        assert state1["state"]["state"] == 233910118701024945237145923486727240452
+        assert state2["state"]["state"] == 233910118701024945237145923486727240452
+
+    # Second, we want to test that by using None as seed, the results are different
+    sim3 = lbs.Simulation(random_seed=None)
+    sim4 = lbs.Simulation(random_seed=None)
+    # Even if random_seed=None, we want a RNG
+    assert sim3.random is not None
+    assert sim4.random is not None
+
+    state3 = sim3.random.bit_generator.state
+    state4 = sim4.random.bit_generator.state
+
+    # Even if random_seed=None, the RNG is still a PCG64
+    assert state3["bit_generator"] == "PCG64"
+    assert state4["bit_generator"] == "PCG64"
+    assert state3["has_uint32"] == 0
+    assert state4["has_uint32"] == 0
+    assert state3["uinteger"] == 0
+    assert state4["uinteger"] == 0
+
+    # We only check the state of the first four MPI process. It's important
+    # to ensure that they are all different, but there is little sense in
+    # checking *every* process.
+    if comm_world.rank == 0:
+        assert state3["state"]["state"] != state4["state"]["state"]
+    elif comm_world.rank == 1:
+        assert state3["state"]["state"] != state4["state"]["state"]
+    elif comm_world.rank == 2:
+        assert state3["state"]["state"] != state4["state"]["state"]
+    elif comm_world.rank == 3:
+        assert state3["state"]["state"] != state4["state"]["state"]
 
 
 def main():

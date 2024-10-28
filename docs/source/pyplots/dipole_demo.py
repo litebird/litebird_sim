@@ -7,7 +7,7 @@ start_time = Time("2022-01-01")
 time_span_s = 120.0  # Two minutes
 sampling_hz = 20
 
-sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s, random_seed=12345)
 
 # We pick a simple scanning strategy where the spin axis is aligned
 # with the Sun-Earth axis, and the spacecraft spins once every minute
@@ -40,7 +40,7 @@ det = lbs.DetectorInfo(
 
 (obs,) = sim.create_observations(detectors=[det])
 
-sim.compute_pointings()
+sim.prepare_pointings()
 
 # Simulate the orbit of the spacecraft and compute positions and
 # velocities

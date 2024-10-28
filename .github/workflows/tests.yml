@@ -8,13 +8,10 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-13]
         mpi: ["none", openmpi] # mpich
-        python: [3.7, 3.9]
+        python: [3.9, 3.12]
         exclude:
-          - os: macos-latest
-            mpi: mpich
-            python: 3.7
           - os: macos-latest
             mpi: mpich
             python: 3.9
@@ -62,9 +59,16 @@ jobs:
             EXTRAS="$EXTRAS -E mpi"
           fi
           poetry export --without-hashes $EXTRAS -o requirements.txt
+          pip install --upgrade pip
           pip install -r requirements.txt
         env:
           DUCC0_OPTIMIZATION: none
+
+      - name: Install TOAST2
+        run: |
+          if [ ${{ matrix.python }} == 3.9 ]; then
+            pip install toast
+          fi
 
       - name: Enable rich traceback
         continue-on-error: true

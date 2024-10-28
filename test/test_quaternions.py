@@ -143,3 +143,126 @@ def test_collective_quick_rotations():
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
     lbs.all_rotate_y_vectors(vec, quat.reshape(1, 4))
     assert np.allclose(vec, x)
+
+
+def test_multiply_many_quaternions():
+    first_matrix = np.empty((3, 4))
+    second_matrix = np.empty_like(first_matrix)
+    result_matrix = np.empty_like(first_matrix)
+
+    first_matrix[0, :] = lbs.quat_rotation_x(theta_rad=np.pi / 3.0)
+    first_matrix[1, :] = lbs.quat_rotation_y(theta_rad=-np.pi / 4.0)
+    first_matrix[2, :] = lbs.quat_rotation_z(theta_rad=np.pi / 5.0)
+
+    second_matrix[0, :] = lbs.quat_rotation_y(theta_rad=-np.pi / 6.0)
+    second_matrix[1, :] = lbs.quat_rotation_z(theta_rad=np.pi / 7.0)
+    second_matrix[2, :] = lbs.quat_rotation_x(theta_rad=-np.pi / 8.0)
+
+    lbs.multiply_quaternions_list_x_list(
+        array_a=first_matrix, array_b=second_matrix, result=result_matrix
+    )
+
+    expected_quaternion = np.empty(4)
+
+    for i in range(first_matrix.shape[0]):
+        expected_quaternion[:] = first_matrix[i, :]
+        lbs.quat_right_multiply(expected_quaternion, *second_matrix[i, :])
+        np.testing.assert_allclose(
+            actual=result_matrix[i, :], desired=expected_quaternion
+        )
+
+
+def test_multiply_many_quaternions_by_one_quaternion():
+    first_matrix = np.empty((3, 4))
+    second_matrix = np.empty_like(first_matrix)
+    result_matrix = np.empty_like(first_matrix)
+
+    first_matrix[0, :] = lbs.quat_rotation_x(theta_rad=np.pi / 3.0)
+    first_matrix[1, :] = lbs.quat_rotation_y(theta_rad=-np.pi / 4.0)
+    first_matrix[2, :] = lbs.quat_rotation_z(theta_rad=np.pi / 5.0)
+
+    second_matrix[0, :] = lbs.quat_rotation_y(theta_rad=-np.pi / 6.0)
+    second_matrix[1, :] = lbs.quat_rotation_z(theta_rad=np.pi / 7.0)
+    second_matrix[2, :] = lbs.quat_rotation_x(theta_rad=-np.pi / 8.0)
+
+    # First test: just use the first entry in `second_matrix` and test the case list × one
+    lbs.multiply_quaternions_list_x_one(
+        array_a=first_matrix, single_b=second_matrix[0, :], result=result_matrix
+    )
+
+    expected_quaternion = np.empty(4)
+
+    for i in range(first_matrix.shape[0]):
+        expected_quaternion[:] = first_matrix[i, :]
+        lbs.quat_right_multiply(expected_quaternion, *second_matrix[0, :])
+        np.testing.assert_allclose(
+            actual=result_matrix[i, :], desired=expected_quaternion
+        )
+
+    # Second test: use the first entry in `first_matrix` and test the case one × list
+    lbs.multiply_quaternions_one_x_list(
+        single_a=first_matrix[0, :], array_b=second_matrix, result=result_matrix
+    )
+
+    expected_quaternion = np.empty(4)
+
+    for i in range(first_matrix.shape[0]):
+        expected_quaternion[:] = first_matrix[0, :]
+        lbs.quat_right_multiply(expected_quaternion, *second_matrix[i, :])
+        np.testing.assert_allclose(
+            actual=result_matrix[i, :], desired=expected_quaternion
+        )
+
+
+def test_normalize_quaternions():
+    quats = np.array(
+        [
+            [0.0, 0.0, 0.0, 1.0],
+            [0.0, 1.0, 2.0, 3.0],
+            [1.0, 0.0, 3.0, 2.0],
+        ]
+    )
+
+    lbs.normalize_quaternions(quats)
+
+    for i in range(quats.shape[0]):
+        cur_quat = quats[i, :]
+        np.testing.assert_almost_equal(actual=np.dot(cur_quat, cur_quat), desired=1.0)
+
+
+def test_quat_rotations():
+    vec_matrix = np.array([x, y, z])
+
+    theta_rad = np.pi / 2
+    theta_rad_array = np.array([0.0, np.pi / 2, np.pi / 3])
+
+    quat = lbs.quat_rotation(theta_rad, *z)
+    assert np.allclose(quat, np.array(lbs.quat_rotation_z(theta_rad)))
+
+    quat_matrix = lbs.quat_rotation_brdcast(theta_rad, vec_matrix)
+    expected_quat = np.array(
+        [
+            np.array(lbs.quat_rotation_x(theta_rad)),
+            np.array(lbs.quat_rotation_y(theta_rad)),
+            np.array(lbs.quat_rotation_z(theta_rad)),
+        ]
+    )
+    assert np.allclose(quat_matrix, expected_quat)
+
+    quat_matrix = lbs.quat_rotation_x_brdcast(theta_rad_array)
+    expected_quat = np.array(
+        [np.array(lbs.quat_rotation_x(theta)) for theta in theta_rad_array]
+    )
+    assert np.allclose(quat_matrix, expected_quat)
+
+    quat_matrix = lbs.quat_rotation_y_brdcast(theta_rad_array)
+    expected_quat = np.array(
+        [np.array(lbs.quat_rotation_y(theta)) for theta in theta_rad_array]
+    )
+    assert np.allclose(quat_matrix, expected_quat)
+
+    quat_matrix = lbs.quat_rotation_y_brdcast(theta_rad_array)
+    expected_quat = np.array(
+        [np.array(lbs.quat_rotation_y(theta)) for theta in theta_rad_array]
+    )
+    assert np.allclose(quat_matrix, expected_quat)

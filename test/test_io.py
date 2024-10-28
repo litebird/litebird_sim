@@ -1,10 +1,11 @@
 # -*- encoding: utf-8 -*-
 import json
 
-from astropy.time import Time as AstroTime
-import numpy as np
-import litebird_sim as lbs
 import h5py
+import numpy as np
+from astropy.time import Time as AstroTime
+
+import litebird_sim as lbs
 
 NUMPY_TYPES = [
     (np.float32, "float32"),
@@ -34,24 +35,11 @@ def test_write_healpix_map(tmp_path):
         lbs.write_healpix_map_to_file(filename, pixels, dtype=cur_dtype, name=cur_name)
 
 
-def test_write_simple_observation(tmp_path):
-    obs = lbs.Observation(
-        detectors=3, n_samples_global=10, start_time_global=0.0, sampling_rate_hz=1.0
-    )
-
-    files = lbs.write_list_of_observations(obs=obs, path=tmp_path)
-    assert len(files) == 1
-    assert files[0].exists()
-
-    # Try to open the file to check that it's a real HDF5 file
-    with h5py.File(files[0], "r"):
-        pass
-
-
 def __write_complex_observation(
     tmp_path,
     use_mjd: bool,
     gzip_compression: bool,
+    save_pointings: bool,
 ):
     start_time = AstroTime("2021-01-01") if use_mjd else 0
     time_span_s = 60
@@ -61,7 +49,9 @@ def __write_complex_observation(
         base_path=tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
+        random_seed=12345,
     )
+
     scanning = lbs.SpinningScanningStrategy(
         spin_sun_angle_rad=0.785_398_163_397_448_3,
         precession_rate_hz=8.664_850_513_998_931e-05,
@@ -69,8 +59,10 @@ def __write_complex_observation(
         start_time=start_time,
     )
 
-    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
-        start_time, time_span_s, delta_time_s=1.0
+    sim.set_scanning_strategy(
+        scanning_strategy=scanning,
+        delta_time_s=1.0,
+        append_to_report=False,
     )
 
     instr = lbs.InstrumentInfo(
@@ -78,6 +70,13 @@ def __write_complex_observation(
         spin_boresight_angle_rad=0.872_664_625_997_164_8,
         spin_rotangle_rad=3.141_592_653_589_793,
     )
+    sim.set_instrument(instr)
+
+    hwp = lbs.IdealHWP(
+        ang_speed_radpsec=1.0,
+        start_angle_rad=2.0,
+    )
+    sim.set_hwp(hwp)
 
     det = lbs.DetectorInfo(
         name="Dummy detector",
@@ -89,37 +88,31 @@ def __write_complex_observation(
     sim.create_observations(
         detectors=[det],
         tods=[
-            lbs.TodDescription(name="tod", description="TOD", dtype=np.float64),
-            lbs.TodDescription(
-                name="other_tod", description="Another TOD", dtype=np.float32
-            ),
+            lbs.TodDescription(name="tod1", description="First TOD", dtype=np.float64),
+            lbs.TodDescription(name="tod2", description="Second TOD", dtype=np.float32),
         ],
     )
 
+    sim.prepare_pointings(append_to_report=False)
+
     obs = sim.observations[0]
-    obs.tod[:] = np.random.random(obs.tod.shape)
-    obs.other_tod[:] = 1.0
+    obs.tod1[:] = np.random.random(obs.tod1.shape)
+    obs.tod2[:] = 1.0
 
-    obs.pointings = lbs.get_pointings(
-        obs,
-        spin2ecliptic_quats=spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
-    )
-
-    obs.local_flags = np.zeros(obs.tod.shape, dtype="uint16")
+    obs.local_flags = np.zeros(obs.tod1.shape, dtype="uint16")
     obs.local_flags[0, 12:15] = 1
 
-    obs.global_flags = np.zeros(obs.tod.shape[1], dtype="uint32")
+    obs.global_flags = np.zeros(obs.tod1.shape[1], dtype="uint32")
     obs.global_flags[12:15] = 15
 
     return (
         obs,
         det,
-        lbs.write_observations(
-            sim=sim,
+        sim.write_observations(
             subdir_name="",
             gzip_compression=gzip_compression,
-            tod_fields=["tod", "other_tod"],
+            tod_fields=["tod1", "tod2"],
+            write_full_pointings=save_pointings,
         ),
     )
 
@@ -129,14 +122,16 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         tmp_path=tmp_path,
         use_mjd=use_mjd,
         gzip_compression=False,
+        save_pointings=True,
     )
 
     assert len(file_list) == 1
 
     with h5py.File(file_list[0], "r") as inpf:
-        assert "tod" in inpf
-        assert "other_tod" in inpf
-        assert "pointings" in inpf
+        assert "tod1" in inpf
+        assert "tod2" in inpf
+        assert "pointing_provider_rot_quaternion" in inpf
+        assert "pointing_provider_hwp" in inpf
         assert "global_flags" in inpf
         assert "flags_0000" in inpf
 
@@ -145,21 +140,25 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
         assert "global_index" in inpf.attrs
         assert "local_index" in inpf.attrs
 
-        tod_dataset = inpf["tod"]
-        other_tod_dataset = inpf["other_tod"]
-        pointings_dataset = inpf["pointings"]
+        tod1_dataset = inpf["tod1"]
+        tod2_dataset = inpf["tod2"]
+        pointing_provider_quat_dataset = inpf["pointing_provider_rot_quaternion"]
+        pointings = inpf["pointings"]
+        det0_quat_dataset = inpf["rot_quaternion_0000"]
         global_flags = inpf["global_flags"]
         local_flags = inpf["flags_0000"]
 
-        assert tod_dataset.shape == (1, 600)
-        assert other_tod_dataset.shape == (1, 600)
-        assert pointings_dataset.shape == (1, 600, 3)
+        assert tod1_dataset.shape == (1, 600)
+        assert tod2_dataset.shape == (1, 600)
+        assert pointing_provider_quat_dataset.shape == (61, 4)
+        assert pointings.shape == (1, 600, 3)
+        assert det0_quat_dataset.shape == (1, 4)
         assert global_flags.shape == (2, 3)
         assert local_flags.shape == (2, 3)
 
-        for (cur_dataset, description) in [
-            (tod_dataset, "TOD"),
-            (other_tod_dataset, "Another TOD"),
+        for cur_dataset, description in [
+            (tod1_dataset, "First TOD"),
+            (tod2_dataset, "Second TOD"),
         ]:
             if use_mjd:
                 assert (
@@ -182,11 +181,19 @@ def __test_write_complex_observation(tmp_path, use_mjd: bool):
             assert len(det_dictionary) == 1
             assert det_dictionary[0]["name"] == det.name
             assert det_dictionary[0]["bandcenter_ghz"] == det.bandcenter_ghz
-            assert det_dictionary[0]["quat"] == list(det.quat)
+            assert det_dictionary[0]["quat"]["quats"] == det.quat.quats.tolist()
+            assert det_dictionary[0]["quat"]["start_time"] == det.quat.start_time
+            assert (
+                det_dictionary[0]["quat"]["sampling_rate_hz"]
+                == det.quat.sampling_rate_hz
+            )
 
-        assert np.allclose(tod_dataset, original_obs.tod)
-        assert np.allclose(other_tod_dataset, original_obs.other_tod)
-        assert np.allclose(pointings_dataset, original_obs.pointings)
+        np.testing.assert_allclose(tod1_dataset, original_obs.tod1)
+        np.testing.assert_allclose(tod2_dataset, original_obs.tod2)
+        np.testing.assert_allclose(
+            pointing_provider_quat_dataset,
+            original_obs.pointing_provider.bore2ecliptic_quats.quats,
+        )
 
         assert np.all(
             global_flags[:]
@@ -215,11 +222,14 @@ def test_write_complex_observation_no_mjd(tmp_path):
 
 def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: bool):
     original_obs, det, file_list = __write_complex_observation(
-        tmp_path, use_mjd, gzip_compression
+        tmp_path,
+        use_mjd,
+        gzip_compression,
+        save_pointings=False,
     )
 
     observations = lbs.read_list_of_observations(
-        file_name_list=tmp_path.glob("*.h5"), tod_fields=["tod", "other_tod"]
+        file_name_list=tmp_path.glob("*.h5"), tod_fields=["tod1", "tod2"]
     )
     assert len(observations) == 1
 
@@ -231,21 +241,24 @@ def __test_read_complex_observation(tmp_path, use_mjd: bool, gzip_compression: b
     # Check that the TodDescription objects have been restored correctly
     assert len(obs.tod_list) == 2
     assert isinstance(obs.tod_list[0], lbs.TodDescription)
-    assert obs.tod_list[0].name == "tod"
-    assert obs.tod_list[0].description == "TOD"
+    assert obs.tod_list[0].name == "tod1"
+    assert obs.tod_list[0].description == "First TOD"
     assert obs.tod_list[0].dtype == np.float32
     assert isinstance(obs.tod_list[1], lbs.TodDescription)
-    assert obs.tod_list[1].name == "other_tod"
-    assert obs.tod_list[1].description == "Another TOD"
+    assert obs.tod_list[1].name == "tod2"
+    assert obs.tod_list[1].description == "Second TOD"
     assert obs.tod_list[1].dtype == np.float32
 
-    assert obs.tod.shape == (1, 600)
-    assert np.allclose(obs.tod, original_obs.tod)
+    assert obs.tod1.shape == (1, 600)
+    np.testing.assert_allclose(actual=obs.tod1, desired=original_obs.tod1)
 
-    assert obs.pointings.shape == (1, 600, 3)
-    assert np.allclose(obs.pointings, original_obs.pointings)
+    assert obs.pointing_provider.bore2ecliptic_quats.quats.shape == (61, 4)
+    np.testing.assert_allclose(
+        actual=obs.pointing_provider.bore2ecliptic_quats.quats,
+        desired=original_obs.pointing_provider.bore2ecliptic_quats.quats,
+    )
 
-    ref_flags = np.zeros(obs.tod.shape, dtype="uint16")
+    ref_flags = np.zeros(obs.tod1.shape, dtype="uint16")
     ref_flags[0, 12:15] = 1
 
     assert np.all(ref_flags == obs.local_flags)
@@ -268,14 +281,6 @@ def test_read_complex_observation_no_mjd(tmp_path):
 
 
 def test_gzip_compression_in_obs(tmp_path):
-    __test_read_complex_observation(
-        tmp_path,
-        use_mjd=False,
-        gzip_compression=True,
-    )
-
-
-def test_quaternions_in_hdf5(tmp_path):
     __test_read_complex_observation(
         tmp_path,
         use_mjd=False,

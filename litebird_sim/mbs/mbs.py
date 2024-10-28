@@ -1,18 +1,17 @@
 # -*- encoding: utf-8 -*-
 
-from dataclasses import dataclass, fields
-from datetime import date
 import logging as log
 import math
-import os
+from dataclasses import dataclass, fields
+from datetime import date
 from pathlib import Path
 from typing import Any, Dict, Union
 
-import toml
-import numpy as np
 import healpy as hp
+import numpy as np
 import pysm3
 import pysm3.units as u
+import toml
 
 import litebird_sim as lbs
 from litebird_sim import constants as c
@@ -24,6 +23,7 @@ class _InstrumentFreq:
     bandwidth_ghz: float = 0.0  # d.bandwidth_ghz
     fwhm_arcmin: float = 0.0  # fwhm_arcmin
     p_sens_ukarcmin: float = 0.0  # pol_sensitivity_ukarcmin
+    band: Union[lbs.BandPassInfo, None] = None  # container for the band
 
     @staticmethod
     def from_dict(dictionary):
@@ -32,6 +32,7 @@ class _InstrumentFreq:
             bandwidth_ghz=dictionary["bandwidth_ghz"],
             fwhm_arcmin=dictionary["fwhm_arcmin"],
             p_sens_ukarcmin=dictionary["p_sens_ukarcmin"],
+            band=dictionary.get("band", None),
         )
 
     @staticmethod
@@ -42,6 +43,7 @@ class _InstrumentFreq:
             bandwidth_ghz=data["freq_band"],
             fwhm_arcmin=data["beam"],
             p_sens_ukarcmin=data["p_sens"],
+            band=data.get("band", None),
         )
 
     @staticmethod
@@ -52,6 +54,7 @@ class _InstrumentFreq:
             bandwidth_ghz=data["freq_band"],
             fwhm_arcmin=data["beam"],
             p_sens_ukarcmin=data["p_sens"],
+            band=data.get("band", None),
         )
 
 
@@ -185,6 +188,14 @@ class MbsParameters:
       contained in the dictionary returned by `Mbs.run_all` are converted
       in ecliptic coordinates using the `healpy` routine `rotate_map_alms`
 
+    - ``store_alms`` (default: ``False``): when ``True`` the maps contained
+      in the dictionary returned by `Mbs.run_all` are stored as `alms`
+      computed by the `healpy` routine `map2alm` assuming `iter=0`
+      If you want unbeamed alms set gaussian_smooth = False
+
+    - ``lmax_alms`` (defuaul: ``4 x nside``): lmax assumed in the alm computation
+      and in the rotation to ecliptic coordinates performed by `rotate_map_alms`
+
     """
 
     nside: int = 512
@@ -209,6 +220,8 @@ class MbsParameters:
     output_string: Union[str, None] = None
     units: str = "K_CMB"
     maps_in_ecliptic: bool = False
+    store_alms: bool = False
+    lmax_alms: Union[int, None] = None
 
     def __post_init__(self):
         if self.n_split == 1:
@@ -231,6 +244,9 @@ class MbsParameters:
 
         if not self.output_string:
             self.output_string = "date_" + date.today().strftime("%y%m%d")
+
+        if self.lmax_alms is None:
+            self.lmax_alms = 4 * self.nside
 
     @staticmethod
     def from_dict(dictionary):
@@ -331,6 +347,7 @@ class Mbs:
                 bandwidth_ghz=d.bandwidth_ghz,
                 fwhm_arcmin=d.fwhm_arcmin,
                 p_sens_ukarcmin=d.pol_sensitivity_ukarcmin,
+                band=d.band if hasattr(d, "band") else None,
             )
 
     def _parse_instrument_from_ch_list(self):
@@ -346,6 +363,7 @@ class Mbs:
                 bandwidth_ghz=ch.bandwidth_ghz,
                 fwhm_arcmin=ch.fwhm_arcmin,
                 p_sens_ukarcmin=ch.pol_sensitivity_channel_ukarcmin,
+                band=ch.band if hasattr(ch, "band") else None,
             )
 
     def _parse_instrument(self):
@@ -599,19 +617,19 @@ class Mbs:
             sky = pysm3.Sky(
                 nside=nside,
                 component_objects=[
-                    pysm3.CMBMap(nside, map_IQU=(Path(cur_map_path)).absolute())
+                    pysm3.CMBMap(nside, map_IQU=str((Path(cur_map_path)).absolute()))
                 ],
             )
 
             for Nchnl, chnl in enumerate(channels):
-                if hasattr(instr[chnl], "band"):
+                if instr[chnl].band:
                     freq = instr[chnl].band.bandcenter_ghz
                 else:
                     freq = instr[chnl].bandcenter_ghz
 
                 if self.params.bandpass_int:
-                    if hasattr(instr[chnl], "band"):
-                        bandpass_frequencies = instr[chnl].band.freqs_ghz
+                    if instr[chnl].band:
+                        bandpass_frequencies = instr[chnl].band.freqs_ghz * u.GHz
                         weights = instr[chnl].band.weights
                     else:
                         band = instr[chnl].bandwidth_ghz
@@ -704,14 +722,14 @@ class Mbs:
                 fg_map_matrix = np.zeros((n_channels, 3, npix))
 
             for Nchnl, chnl in enumerate(channels):
-                if hasattr(instr[chnl], "band"):
+                if instr[chnl].band:
                     freq = instr[chnl].band.bandcenter_ghz
                 else:
                     freq = instr[chnl].bandcenter_ghz
                 fwhm_arcmin = instr[chnl].fwhm_arcmin
                 if self.params.bandpass_int:
-                    if hasattr(instr[chnl], "band"):
-                        bandpass_frequencies = instr[chnl].band.freqs_ghz
+                    if instr[chnl].band:
+                        bandpass_frequencies = instr[chnl].band.freqs_ghz * u.GHz
                         weights = instr[chnl].band.weights
                     else:
                         band = instr[chnl].bandwidth_ghz
@@ -781,6 +799,15 @@ class Mbs:
         if rank == 0 and self.params.save:
             output_directory.mkdir(parents=True, exist_ok=True)
 
+        if not self.params.save:
+            dipole_map_matrix = np.zeros((n_channels, npix))
+
+        if rank != 0:
+            if not self.params.save:
+                return (dipole_map_matrix, saved_maps)
+            else:
+                return (None, saved_maps)
+
         if sun_velocity is None:
             sun_velocity = (
                 c.SOLAR_VELOCITY_GAL_LAT_RAD,
@@ -801,7 +828,7 @@ class Mbs:
             dipole_map_matrix = np.zeros((n_channels, npix))
 
         for Nchnl, chnl in enumerate(channels):
-            if hasattr(instr[chnl], "band"):
+            if instr[chnl].band:
                 freq = instr[chnl].band.bandcenter_ghz
             else:
                 freq = instr[chnl].bandcenter_ghz
@@ -970,9 +997,13 @@ class Mbs:
                 for nch, chnl in enumerate(channels):
                     if self.params.maps_in_ecliptic:
                         tot[nch] = r.rotate_map_alms(
-                            tot[nch], lmax=4 * self.params.nside
+                            tot[nch], lmax=self.params.lmax_alms
                         )
-                    tot_dict[chnl] = tot[nch]
+                    if self.params.store_alms:
+                        alms = hp.map2alm(tot[nch], lmax=self.params.lmax_alms, iter=0)
+                        tot_dict[chnl] = alms
+                    else:
+                        tot_dict[chnl] = tot[nch]
                 if self.params.maps_in_ecliptic:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
                 else:

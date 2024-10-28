@@ -13,19 +13,22 @@ Welcome to litebird_sim's documentation!
    installation
    tutorial
    simulations
+   imo
    detectors
    observations
    data_layout
-   mapmaking
-   sky_maps
    scanning
-   bandpasses
-   dipole
-   imo
+   sky_maps
    timeordered
-   reports
+   dipole
+   mapmaking
+   bandpasses
+   random_numbers
    mpi
+   reports
+   gaindrifts
    external_modules
+   profiling
    integrating
    bibliography
 

@@ -1,4 +1,3 @@
-import litebird_sim as lbs
 from litebird_sim import BandPassInfo
 import unittest
 import numpy as np
@@ -19,7 +18,7 @@ def test_tophat_bpass():
         name="Top-Hat ",
     )
     f0, f1 = B0.get_edges()
-    bandrange = f0 - bwidth_ghz, f1 + bwidth_ghz
+    bandrange = bcenter - bwidth_ghz, bcenter + bwidth_ghz
     freqs_ghz = np.linspace(bandrange[0], bandrange[1], Nsamp)
 
     assert np.allclose(B0.freqs_ghz, freqs_ghz)

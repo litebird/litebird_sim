@@ -6,9 +6,8 @@ from astropy.io import fits
 import numpy as np
 import astropy.units as u
 
-import litebird_sim
 import litebird_sim as lbs
-from litebird_sim.madam import _sort_obs_per_det, _ObsInMpiProcess
+from litebird_sim.madam import _sort_obs_per_det
 from litebird_sim.simulations import (
     MpiDistributionDescr,
     MpiProcessDescr,
@@ -35,6 +34,7 @@ def test_sort_obs_per_det():
         mpi_processes=[
             MpiProcessDescr(
                 mpi_rank=0,
+                numba_num_of_threads=1,
                 observations=[
                     MpiObservationDescr(
                         det_names=["A"],
@@ -62,6 +62,7 @@ def test_sort_obs_per_det():
             ),
             MpiProcessDescr(
                 mpi_rank=1,
+                numba_num_of_threads=1,
                 observations=[
                     MpiObservationDescr(
                         det_names=["A"],
@@ -149,6 +150,7 @@ def run_test_on_madam(
         start_time=start_time,
         duration_s=86400.0,
         mpi_comm=lbs.MPI_COMM_WORLD,
+        random_seed=12345,
     )
 
     sim.set_scanning_strategy(
@@ -170,7 +172,7 @@ def run_test_on_madam(
 
     sim.create_observations(
         detectors=detectors,
-        dtype_tod=np.float64,
+        tod_dtype=np.float64,
         split_list_over_processes=False,
         num_of_obs_per_detector=2,
         n_blocks_det=n_blocks_det,
@@ -180,17 +182,21 @@ def run_test_on_madam(
     distribution = sim.describe_mpi_distribution()
     assert distribution is not None
 
-    lbs.get_pointings_for_observations(
+    lbs.prepare_pointings(
         sim.observations,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        bore2spin_quat=instr.bore2spin_quat,
+        instr,
+        sim.spin2ecliptic_quats,
+    )
+
+    lbs.precompute_pointings(
+        sim.observations,
     )
 
     for cur_obs in sim.observations:
         cur_obs.tod[:] = float(lbs.MPI_COMM_WORLD.rank)
         cur_obs.fg_tod = np.zeros_like(cur_obs.tod) + 1000 + lbs.MPI_COMM_WORLD.rank
 
-    params = lbs.DestriperParameters(
+    params = lbs.ExternalDestriperParameters(
         nside=16,
         nnz=3,
         baseline_length_s=100,

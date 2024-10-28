@@ -10,6 +10,8 @@
 
     -   `CHANGELOG.md` (be sure to leave an empty `HEAD` title at the
         top);
+
+    Commit all the changes to `master`.
     
 -   Build the release:
 
@@ -17,18 +19,10 @@
     poetry build
     ```
 
--   Upload the `.tar.gz` and `.whl` files to the PyPI Test server:
+-   Upload the package to PyPI:
 
     ```
-    twine upload --repository-url https://test.pypi.org/legacy/ dist/litebird_sim_*
-    ```
-
--   Check that everything looks right by opening the URL shown by Twine
-
--   If everything looks ok, upload the package to PyPI:
-
-    ```
-    twine upload dist/litebird_sim_*
+    poetry publish
     ```
 
 -   Create a new tag and push it to GitHub:

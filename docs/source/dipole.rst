@@ -14,8 +14,9 @@ the rest frame of the CMB is the composition of several components:
 4. The motion of the Milky Way.
 
 Components 1 and 2 are simulated by the LiteBIRD Simulation Framework
-using appropriate models for the motions, while components 3 and 4
-have been measured by the COBE experiment.
+using appropriate models for the motions, while components 3 and 4 are
+included using the Sun velocity derived by the solar dipole measured
+by the Planck satellite. 
 
 The motion of the spacecraft around L2 is modelled using a Lissajous
 orbit similar to what was used for the WMAP experiment
@@ -27,7 +28,8 @@ Position and velocity of the spacecraft
 
 The class :class:`.SpacecraftOrbit` describes the orbit of the
 LiteBIRD spacecraft with respect to the Barycentric Ecliptic Reference
-Frame; this class is necessary because the class
+Frame and the motion of Barycentric Ecliptic Reference Frame with respect
+to the CMB; this class is necessary because the class
 :class:`.ScanningStrategy` (see the chapter :ref:`scanning-strategy`)
 only models the *direction* each instrument is looking at but knows
 nothing about the velocity of the spacecraft itself.
@@ -35,7 +37,9 @@ nothing about the velocity of the spacecraft itself.
 The class :class:`.SpacecraftOrbit` is a dataclass that is able to
 initialize its members to sensible default values, which are taken
 from the literature. As the LiteBIRD orbit around L2 is not fixed yet,
-the code assumes a WMAP-like Lissajous orbit.
+the code assumes a WMAP-like Lissajous orbit, :cite:`2008:wmap:cavaluzzi`.
+For the Sun velocity it assumes Planck 2018 solar dipole 
+:cite:`2020:planck:hfi_data_processing`.
 
 To compute the position/velocity of the spacecraft, you call
 :func:`.spacecraft_pos_and_vel`; it requires either a time span or an
@@ -157,7 +161,7 @@ which kind of approximation to use:
    .. math::
 
       \Delta T = \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\left(T_0 / \gamma\bigl(1 - \vec\beta\cdot\hat n\bigr)\right)}{\mathrm{BB}(T_0)} - 1\right) =
-      \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\bigl(\nu\gamma(1-\vec\beta\cdot\hat n), T_0\bigr)}{\bigl(\gamma(1-\vec\beta\cdot\hat n)\bigr)^3\mathrm{BB}(t_0)}\right).
+      \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\bigl(\nu\gamma(1-\vec\beta\cdot\hat n), T_0\bigr)}{\bigl(\gamma(1-\vec\beta\cdot\hat n)\bigr)^3\mathrm{BB}(T_0)}\right).
 
    In this case too, the temperature variation depends on the
    frequency because of :eq:`linearized-dipole`. This is the formula
@@ -194,7 +198,11 @@ simulation :func:`.Simulation.add_dipole`.
   time_span_s = 1000.0
   sampling_hz = 10.0
 
-  sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s)
+  sim = lbs.Simulation(
+      start_time=start_time,
+      duration_s=time_span_s,
+      random_seed=12345,
+  )
 
   # We pick a simple scanning strategy where the spin axis is aligned
   # with the Sun-Earth axis, and the spacecraft spins once every minute
@@ -227,7 +235,7 @@ simulation :func:`.Simulation.add_dipole`.
 
   sim.create_observations(detectors=det)
 
-  sim.compute_pointings()
+  sim.prepare_pointings()
 
   sim.compute_pos_and_vel()
 
@@ -244,6 +252,9 @@ simulation :func:`.Simulation.add_dipole`.
    3.45582e-03
    3.45712e-03
 
+Note that even if :func:`Simulation.compute_pos_and_vel` is not explicitly
+invoked, :func:`Simulation.add_dipole` takes care of that internally initializing 
+:class:`SpacecraftOrbit` and computing positions and velocities.
 
 API reference
 -------------
