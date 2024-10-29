@@ -1,8 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-
-from numba import njit, prange
 import numpy as np
+from numba import njit, prange
 
 from typing import Union, List
 from numbers import Number
@@ -33,9 +32,7 @@ def add_2f_for_one_detector(tod_det, angle_det_rad, amplitude_k, monopole_k):
 
 def add_2f(
     tod,
-    hwp: HWP,
-    start_time_s,
-    delta_time_s,
+    hwp_angle,
     amplitude_k: float,
     monopole_k: float,
 ):
@@ -58,12 +55,6 @@ def add_2f(
     assert len(amplitude_k) == num_of_dets
     assert len(monopole_k) == num_of_dets
 
-    angle_rad = np.empty(tod.shape[1])
-
-    hwp.get_hwp_angle(
-        output_buffer=angle_rad, start_time_s=start_time_s, delta_time_s=delta_time_s
-    )  # fills angle_rad with 2*hwp angle
-
     for detector_idx in range(tod.shape[0]):
         add_2f_for_one_detector(
             tod_det=tod[detector_idx],
@@ -75,7 +66,7 @@ def add_2f(
 
 def add_2f_to_observations(
     observations: Union[Observation, List[Observation]],
-    hwp: HWP,
+    hwp: Optional[HWP] = None,
     component: str = "tod",
 ):
     """Add the HWP differential emission to some time-ordered data
@@ -87,7 +78,7 @@ def add_2f_to_observations(
     By default, the TOD is added to ``Observation.tod``. If you want to add it to some
     other field of the :class:`.Observation` class, use `component`::
 
-        for cur_obs in sim.observations:
+    for cur_obs in sim.observations:
         # Allocate a new TOD for the 2f alone
         cur_obs.2f_tod = np.zeros_like(cur_obs.tod)
 
@@ -101,12 +92,24 @@ def add_2f_to_observations(
         obs_list = observations
 
     # iterate through each observation
-    for i, cur_obs in enumerate(obs_list):
+    for cur_obs in obs_list:
+
+        if hwp is None:
+            if hasattr(cur_obs, "hwp_angle"):
+                hwp_angle = cur_obs.hwp_angle
+            else:
+                hwp_angle = None
+        else:
+            if type(cur_ptg) is np.ndarray:
+                hwp_angle = get_hwp_angle(cur_obs, hwp)
+            else:
+                logging.warning(
+                    "For using an external HWP object also pass a pre-calculated pointing"
+                )
+
         add_2f(
             tod=getattr(cur_obs, component),
-            hwp=hwp,
-            start_time_s=(cur_obs.start_time - cur_obs.start_time_global).to("s").value,
-            delta_time_s=1 / cur_obs.sampling_rate_hz,
+            hwp_angle=hwp_angle,
             amplitude_k=cur_obs.amplitude_k,
             monopole_k=cur_obs.monopole_k,
         )
