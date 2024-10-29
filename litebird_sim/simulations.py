@@ -1473,8 +1473,8 @@ class Simulation:
     def add_2f(
         self,
         component: str = "tod",
-        amplitude_2f_k: Optional[float, None] = None,
-        optical_power_k: Optional[float, None] = None,
+        amplitude_2f_k: Union[float, None] = None,
+        optical_power_k: Union[float, None] = None,
         append_to_report: bool = False,
     ):
         """Add the HWP differential emission to all the observations of this
@@ -1520,11 +1520,11 @@ class Simulation:
     def apply_quadratic_nonlin(
         self,
         component: str = "tod",
-        g_one_over_k: Optional[float, None] = None,
+        g_one_over_k: Union[float, None] = None,
         append_to_report: bool = False,
     ):
         apply_quadratic_nonlin_to_observations(
-            observations=self.observations, 
+            observations=self.observations,
             component=component,
             g_one_over_k=g_one_over_k,
         )

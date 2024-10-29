@@ -3,7 +3,7 @@
 import numpy as np
 from numba import njit, prange
 
-from typing import Union, List
+from typing import Union, List, Optional
 from numbers import Number
 
 from .observations import Observation
@@ -33,8 +33,8 @@ def add_2f_for_one_detector(tod_det, angle_det_rad, amplitude_k, monopole_k):
 def add_2f(
     tod,
     hwp_angle,
-    amplitude_k: float,
-    monopole_k: float,
+    amplitude_2f_k: float,
+    optical_power_k: float,
 ):
     """Add the HWP differential emission to some time-ordered data
 
@@ -46,21 +46,21 @@ def add_2f(
     assert len(tod.shape) == 2
     num_of_dets = tod.shape[0]
 
-    if isinstance(amplitude_k, Number):
-        amplitude_k = np.array([amplitude_k] * num_of_dets)
+    if isinstance(amplitude_2f_k, Number):
+        amplitude_2f_k = np.array([amplitude_2f_k] * num_of_dets)
 
     if isinstance(monopole_k, Number):
-        monopole_k = np.array([monopole_k] * num_of_dets)
+        optical_power_k = np.array([optical_power_k] * num_of_dets)
 
-    assert len(amplitude_k) == num_of_dets
-    assert len(monopole_k) == num_of_dets
+    assert len(amplitude_2f_k) == num_of_dets
+    assert len(optical_power_k) == num_of_dets
 
     for detector_idx in range(tod.shape[0]):
         add_2f_for_one_detector(
             tod_det=tod[detector_idx],
             angle_det_rad=angle_rad,
-            amplitude_k=amplitude_k[detector_idx],
-            monopole_k=monopole_k[detector_idx],
+            amplitude_k=amplitude_2f_k[detector_idx],
+            monopole_k=optical_power_k[detector_idx],
         )
 
 
@@ -68,6 +68,8 @@ def add_2f_to_observations(
     observations: Union[Observation, List[Observation]],
     hwp: Optional[HWP] = None,
     component: str = "tod",
+    amplitude_2f_k: Union[float, None] = None,
+    optical_power_k: Union[float, None] = None,
 ):
     """Add the HWP differential emission to some time-ordered data
 
@@ -93,6 +95,11 @@ def add_2f_to_observations(
 
     # iterate through each observation
     for cur_obs in obs_list:
+        if amplitude_2f_k is None:
+            amplitude_2f_k = cur_obs.amplitude_2f_k
+
+        if optical_power_k is None:
+            optical_power_k = cur_obs.optical_power_k
 
         if hwp is None:
             if hasattr(cur_obs, "hwp_angle"):
@@ -110,6 +117,6 @@ def add_2f_to_observations(
         add_2f(
             tod=getattr(cur_obs, component),
             hwp_angle=hwp_angle,
-            amplitude_k=cur_obs.amplitude_k,
-            monopole_k=cur_obs.monopole_k,
+            amplitude_2f_k=amplitude_2f_k,
+            optical_power_k=optical_power_k,
         )

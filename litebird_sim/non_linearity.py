@@ -38,7 +38,7 @@ def apply_quadratic_nonlin(tod, g_one_over_k: float):
 def apply_quadratic_nonlin_to_observations(
     observations: Union[Observation, List[Observation]],
     component: str = "tod",
-    g_one_over_k: Optional[float, None] = None,
+    g_one_over_k: Union[float, None] = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -65,9 +65,8 @@ def apply_quadratic_nonlin_to_observations(
 
     # iterate through each observation
     for cur_obs in obs_list:
-
         if g_one_over_k is None:
-            g_one_over_k = cur_obs.g_one_over_k     
+            g_one_over_k = cur_obs.g_one_over_k
 
         apply_quadratic_nonlin(
             tod=getattr(cur_obs, component),
