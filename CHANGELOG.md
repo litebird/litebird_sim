@@ -1,5 +1,7 @@
 # HEAD
 
+-   Module for including nonlinearity in the simulations [#331](https://github.com/litebird/litebird_sim/pull/331)
+
 # Version 0.13.0
 
 -   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Here is a in-depth list of all the breaking changes in this PR:
