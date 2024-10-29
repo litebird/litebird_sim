@@ -8,6 +8,7 @@ from numbers import Number
 
 from .observations import Observation
 from .hwp import HWP
+from .pointings import get_hwp_angle
 
 
 """def convert_pW_to_K(power_pW, NET, NEP):
@@ -39,8 +40,8 @@ def add_2f(
     """Add the HWP differential emission to some time-ordered data
 
     This functions modifies the values in `tod` by adding the contribution of the HWP
-    synchronous signal coming from differential emission. The `amplitude_k` argument must be
-    a N_dets array containing the amplitude of the HWPSS. The `monopole_k` argument must have
+    synchronous signal coming from differential emission. The `amplitude_2f_k` argument must be
+    a N_dets array containing the amplitude of the HWPSS. The `optical_power_k` argument must have
     the same size and contain the value of the nominal optical power for the considered frequency channel."""
 
     assert len(tod.shape) == 2
@@ -49,7 +50,7 @@ def add_2f(
     if isinstance(amplitude_2f_k, Number):
         amplitude_2f_k = np.array([amplitude_2f_k] * num_of_dets)
 
-    if isinstance(monopole_k, Number):
+    if isinstance(optical_power_k, Number):
         optical_power_k = np.array([optical_power_k] * num_of_dets)
 
     assert len(amplitude_2f_k) == num_of_dets
@@ -58,7 +59,7 @@ def add_2f(
     for detector_idx in range(tod.shape[0]):
         add_2f_for_one_detector(
             tod_det=tod[detector_idx],
-            angle_det_rad=angle_rad,
+            angle_det_rad=hwp_angle,
             amplitude_k=amplitude_2f_k[detector_idx],
             monopole_k=optical_power_k[detector_idx],
         )
@@ -107,12 +108,7 @@ def add_2f_to_observations(
             else:
                 hwp_angle = None
         else:
-            if type(cur_ptg) is np.ndarray:
-                hwp_angle = get_hwp_angle(cur_obs, hwp)
-            else:
-                logging.warning(
-                    "For using an external HWP object also pass a pre-calculated pointing"
-                )
+            hwp_angle = get_hwp_angle(cur_obs, hwp)
 
         add_2f(
             tod=getattr(cur_obs, component),

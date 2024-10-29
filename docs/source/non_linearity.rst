@@ -5,7 +5,8 @@ Non-linearity is the effect of a non-ideal TES detectors' response. This means t
 The LiteBIRD Simulation Framework provides a non-linearity simulation module to simulate the effect of non-linearity on TODs.
 
 The framework provides the simplest case, which is a quadratic non-linearity. 
-This case is described in `Micheli+2024 <https://arxiv.org/pdf/2407.15294>`_, where the effect of non-linearity is propagated to the estimation of the tensor-to-scalar ratio.
+This case is described in `Micheli+2024 <https://arxiv.org/pdf/2407.15294>`_, where the effect of non-linearity is propagated to the estimation of the tensor-to-scalar ratio. 
+
 Considering a first order correction of the usual linear gain, a TOD :math:`d(t)` is modified according to:
 
 .. math::
@@ -54,7 +55,7 @@ The following example shows the typical usage of the method and low level functi
     sim.observations[0].nl_2_obs = np.ones_like(sim.observations[0].tod)
     sim.observations[0].nl_2_det = np.ones_like(sim.observations[0].tod)
 
-One has to specify the :math:`g_1` parameter using the ``g_one_over_k`` argument as in the following example:
+If the non-linearity parameter is not read from the IMo, one has to specify :math:`g_1` using the ``g_one_over_k`` argument as in the following example:
 
 .. code-block:: python
 
@@ -76,6 +77,87 @@ One has to specify the :math:`g_1` parameter using the ``g_one_over_k`` argument
             tod_det=tod,
             g_one_over_k=sim.observations[0].g_one_over_k[idx],
         )
+
+In particular, the effect of detector non-linearity needs to be included to assess its impact when coupled to other systematic effects. As described in `Micheli+2024 <https://arxiv.org/pdf/2407.15294>`_, a typical case is the coupling with HWP synchronous signal (HWPSS) appearing at twice the rotation frequency of the HWP. 
+This kind of signal can be produced by non-idealities of the HWP, such as its differential transmission and emission.
+
+In that case, the usual TOD :math:`d(t)` will contain an additional term, and can be written as:
+
+.. math::
+    d(t) = d(t) = I + \mathrm{Re}[\epsilon_{\mathrm{pol}}e^{4i\chi}(Q+iU)]+A_2 \cos(2 \omega_{HWP} t) + N
+    
+where :math:`A_2` is the amplitude of the HWPSS and :math:`\omega_{HWP}` is the rotation speed of the HWP. In presence of detector non-linearity, the 2f signal is up-modulated to 4f, affecting the science band.
+
+The framework provides an independent module to introduce this signal in the simulation, adding it to the TODs. To simulate the 2f signal from a rotating, non-ideal  HWP, one can use the method of :class:`.Simulation` class :meth:`.Simulation.add_2f()`, 
+or any of the low level functions: :func:`.add_2f_to_observations()`, :func:`.add_2f_for_one_detector()`. 
+
+If the 2f amplitude is not read from the IMo, one has to specify :math:`A_2` using the ``amplitude_2f_k`` argument. The argument ``optical_power_k`` allows to include the integrated nominal optical power expected for each channel as in the following example:
+
+.. code-block:: python
+
+    import numpy as np
+    import litebird_sim as lbs
+    from astropy.time import Time
+    from litebird_sim.pointings import get_hwp_angle
+
+    
+    telescope = "LFT"
+    channel = "L4-140"
+    detlist = ["000_001_017_QB_140_T", "000_001_017_QB_140_B"]
+    imo_version = "vPTEP"
+    start_time = Time("2025-02-02T00:00:00")
+    mission_time_days = 1
+
+    imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
+
+
+    sim = lbs.Simulation(
+        base_path="nonlin_example",
+        start_time=start_time,
+        imo=imo,
+        duration_s=mission_time_days * 24 * 3600.0,
+        random_seed=12345,
+    )
+    
+    # Load the definition of the instrument 
+    sim.set_instrument(
+        lbs.InstrumentInfo.from_imo(
+            imo,
+            f"/releases/{imo_version}/satellite/{telescope}/instrument_info",
+        )
+    )
+
+    dets = [] 
+    for n_det in detlist:
+        det = lbs.DetectorInfo.from_imo(
+            url=f"/releases/{imo_version}/satellite/{telescope}/{channel}/{n_det}/detector_info",
+            imo=imo,)
+        det.sampling_rate_hz = 1
+        dets.append(det)
+
+    sim.create_observations(
+        detectors=dets,
+        split_list_over_processes=False,
+    )
+    
+    sim.set_scanning_strategy(imo_url=f"/releases/{imo_version}/satellite/scanning_parameters/")
+    
+    sim.set_hwp(
+        lbs.IdealHWP(sim.instrument.hwp_rpm * 2 * np.pi / 60,),
+    )
+    
+    sim.prepare_pointings()
+    sim.precompute_pointings()
+
+    # Creating fiducial TODs
+    sim.observations[0].tod_2f = np.zeros_like(sim.observations[0].tod)
+
+    # Define differential emission parameters for the detectors.
+    sim.observations[0].amplitude_2f_k = np.array([0.1, 0.1])
+    sim.observations[0].optical_power_k = np.array([1.0, 1.0])
+
+    # Adding 2f signal from HWP differential emission using the `Simulation` class method
+    sim.add_2f(component="tod_2f")
 
 
 Refer to the :ref:`gd-api-reference` for the full list of non-linearity simulation parameters.
