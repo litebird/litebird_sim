@@ -204,7 +204,10 @@ class Observation:
 
     @property
     def n_detectors(self):
-        return len(self.det_idx)
+        if self.det_idx is None:
+            return 0
+        else:
+            return len(self.det_idx)
 
     def _get_local_start_time_start_and_n_samples(self):
         _, _, start, num = self._get_start_and_num(

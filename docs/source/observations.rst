@@ -97,8 +97,15 @@ With this memory layout, typical operations look like this::
 Parallel applications
 ---------------------
 
-The only work that the :class:`.Observation` class actually does is handling
-parallelism. ``obs.tod`` can be distributed over a 
+The :class:`.Observation` class allows the distribution of ``obs.tod`` over multiple MPI
+processes to enable the parallelization of computations. The distribution of ``obs.tod``
+can be achieved in two different ways:
+
+1. Uniform distribution of detectors along the detector axis
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+With ``n_blocks_det`` and ``n_blocks_time`` arguments of :class:`.Observation` class,
+the ``obs.tod`` is evenly distributed over a 
 ``n_blocks_det`` by ``n_blocks_time`` grid of MPI ranks. The blocks can be
 changed at run-time.
 
@@ -111,7 +118,7 @@ The main advantage is that the example operations in the Serial section are
 achieved with the same lines of code.
 The price to pay is that you have to set detector properties with special methods.
 
-::
+.. code-block:: python
 
   import litebird_sim as lbs
   from mpi4py import MPI
@@ -158,21 +165,222 @@ TOD) gets distributed.
 
 .. image:: ./images/observation_data_distribution.png
 
-When ``n_blocks_det != 1``,  keep in mind that ``obs.tod[0]`` or
-``obs.wn_levels[0]`` are quantities of the first *local* detector, not global.
-This should not be a problem as the only thing that matters is that the two
-quantities refer to the same detector. If you need the global detector index,
-you can get it with ``obs.det_idx[0]``, which is created
-at construction time.
+2. Custom grouping of detectors along the detector axis
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To get a better understanding of how observations are being used in a
-MPI simulation, use the method :meth:`.Simulation.describe_mpi_distribution`.
-This method must be called *after* the observations have been allocated using
-:meth:`.Simulation.create_observations`; it will return an instance of the
-class :class:`.MpiDistributionDescr`, which can be inspected to determine
-which detectors and time spans are covered by each observation in all the
-MPI processes that are being used. For more information, refer to the Section
-:ref:`simulations`.
+While uniform distribution of detectors along the detector axis optimizes load
+balancing, it is less suitable for simulating the some effects, like crosstalk and
+noise correlation between the detectors. This uniform distribution across MPI
+processes necessitates the transfer of large TOD arrays across multiple MPI processes,
+which complicates the code implementation and may potentially lead to significant
+performance overhead. To save us from this situation, the :class:`Observation` class
+accepts an argument ``det_blocks_attributes`` that is a list of string objects
+specifying the detector attributes to create the group of detectors. Once the
+detector groups are made, the detectors are distributed to the MPI processes in such
+a way that all the detectors of a group reside on the same MPI process.
+
+If a valid ``det_blocks_attributes`` argument is passed to the :class:`Observation`
+class, the arguments ``n_blocks_det`` and ``n_blocks_time`` are ignored. Since the
+``det_blocks_attributes`` creates the detector blocks dynamically, the
+``n_blocks_time`` is computed during runtime using the size of MPI communicator and
+the number of detector blocks (``n_blocks_time = comm.size // n_blocks_det``).
+
+The detector blocks made in this way can be accessed with
+``Observation.detector_blocks``. It is a dictionary object has the tuple of
+``self._det_blocks_attributes`` values as dictionary keys and the list of detectors
+corresponding to the key as dictionary values. This dictionary is sorted so that the
+group with the largest number of detectors comes first and the one with
+the fewest detectors comes last.
+
+The following example illustrates the distribution of ``obs.tod`` matrix across the
+MPI processes when ``det_blocks_attributes`` is specified.
+
+.. code-block:: python
+
+  import litebird_sim as lbs
+
+  comm = lbs.MPI_COMM_WORLD
+
+  start_time = 456
+  duration_s = 100
+  sampling_freq_Hz = 1
+
+  # Creating a list of detectors.
+  dets = [
+      lbs.DetectorInfo(
+          name="channel1_w9_detA",
+          wafer="wafer_9",
+          channel="channel1",
+          sampling_rate_hz=1,
+      ),
+      lbs.DetectorInfo(
+          name="channel1_w3_detB",
+          wafer="wafer_3",
+          channel="channel1",
+          sampling_rate_hz=1,
+      ),
+      lbs.DetectorInfo(
+          name="channel1_w1_detC",
+          wafer="wafer_1",
+          channel="channel1",
+          sampling_rate_hz=1,
+      ),
+      lbs.DetectorInfo(
+          name="channel1_w1_detD",
+          wafer="wafer_1",
+          channel="channel1",
+          sampling_rate_hz=1,
+      ),
+      lbs.DetectorInfo(
+          name="channel2_w4_detA",
+          wafer="wafer_4",
+          channel="channel2",
+          sampling_rate_hz=1,
+      ),
+      lbs.DetectorInfo(
+          name="channel2_w4_detB",
+          wafer="wafer_4",
+          channel="channel2",
+          sampling_rate_hz=1,
+      ),
+  ]
+
+  # Initializing a simulation
+  sim = lbs.Simulation(
+      start_time=start_time,
+      duration_s=duration_s,
+      random_seed=12345,
+      mpi_comm=comm,
+  )
+
+  # Creating the observations with detector blocks
+  sim.create_observations(
+      detectors=dets,
+      split_list_over_processes=False,
+      num_of_obs_per_detector=3,
+      det_blocks_attributes=["channel"], # case 1 and 2
+      # det_blocks_attributes=["channel", "wafer"] # case 3
+  )
+
+With the list of detectors defined in the code snippet above, we can see how the
+detectors axis and time axis is divided depending on the size of MPI communicator and
+``det_blocks_attributes``.
+
+**Case 1**
+
+*Size of MPI communicator = 3*, ``det_blocks_attributes=["channel"]``
+
+::
+
+                    Detector axis --->
+                      Two blocks --->
+        +------------------+   +------------------+
+        | Rank 0           |   | Rank 1           |
+        +------------------+   +------------------+
+        | channel1_w9_detA |   | channel2_w4_detA |
+  T     +                  +   +                  +
+  i  O  | channel1_w3_detB |   | channel2_w4_detB |
+  m  n  +                  +   +------------------+
+  e  e  | channel1_w1_detC |
+        +                  +
+  a  b  | channel1_w1_detD |
+  x  l  +------------------+
+  i  o  
+  s  c  ...........................................
+     k
+  |  |  +------------------+
+  |  |  | Rank 2           |
+  ⋎  ⋎  +------------------+
+        | (Unused)         |
+        +------------------+
+
+**Case 2**
+
+*Size of MPI communicator = 4*, ``det_blocks_attributes=["channel"]``
+
+::
+
+                    Detector axis --->
+                      Two blocks --->
+        +------------------+   +------------------+
+        | Rank 0           |   | Rank 2           |
+        +------------------+   +------------------+
+        | channel1_w9_detA |   | channel2_w4_detA |
+        +                  +   +                  +
+        | channel1_w3_detB |   | channel2_w4_detB |
+  T     +                  +   +------------------+
+  i  T  | channel1_w1_detC |
+  m  w  +                  +
+  e  o  | channel1_w1_detD |
+        +------------------+
+  a  b
+  x  l  ...........................................
+  i  o
+  s  c  +------------------+   +------------------+
+     k  | Rank 1           |   | Rank 3           |
+  |  |  +------------------+   +------------------+
+  |  |  | channel1_w9_detA |   | channel2_w4_detA |
+  ⋎  ⋎  +                  +   +                  +
+        | channel1_w3_detB |   | channel2_w4_detB |
+        +                  +   +------------------+
+        | channel1_w1_detC |
+        +                  +
+        | channel1_w1_detD |
+        +------------------+
+
+**Case 3**
+
+*Size of MPI communicator = 10*, ``det_blocks_attributes=["channel", "wafer"]``
+
+::
+
+                                            Detector axis --->
+                                             Four blocks --->
+        +------------------+   +------------------+   +------------------+   +------------------+
+        | Rank 0           |   | Rank 2           |   | Rank 4           |   | Rank 6           |
+        +------------------+   +------------------+   +------------------+   +------------------+
+  T     | channel1_w1_detC |   | channel2_w4_detA |   | channel1_w9_detA |   | channel1_w3_detB |
+  i  T  +                  +   +                  +   +------------------+   +------------------+
+  m  w  | channel1_w1_detD |   | channel2_w4_detB |
+  e  o  +------------------+   +------------------+   
+        
+        .........................................................................................
+
+  a  b  +------------------+   +------------------+   +------------------+   +------------------+
+  x  l  | Rank 1           |   | Rank 3           |   | Rank 5           |   | Rank 7           |
+  i  o  +------------------+   +------------------+   +------------------+   +------------------+
+  s  c  | channel1_w1_detC |   | channel2_w4_detA |   | channel1_w9_detA |   | channel1_w3_detB |
+     k  +                  +   +                  +   +------------------+   +------------------+
+  |  |  | channel1_w1_detD |   | channel2_w4_detB |
+  |  |  +------------------+   +------------------+
+  ⋎  ⋎
+        .........................................................................................
+
+        +------------------+   +------------------+
+        | Rank 8           |   | Rank 9           |
+        +------------------+   +------------------+
+        | (Unused)         |   | (Unused)         |
+        +------------------+   +------------------+
+
+.. note::
+  When ``n_blocks_det != 1``,  keep in mind that ``obs.tod[0]`` or
+  ``obs.wn_levels[0]`` are quantities of the first *local* detector, not global.
+  This should not be a problem as the only thing that matters is that the two
+  quantities refer to the same detector. If you need the global detector index,
+  you can get it with ``obs.det_idx[0]``, which is created at construction time.
+  ``obs.det_idx`` stores the detector indices of the detectors available to an
+  :class:`Observation` class, with respect to the list of detectors stored in
+  ``obs.detectors_global`` variable.
+
+.. note::
+  To get a better understanding of how observations are being used in a
+  MPI simulation, use the method :meth:`.Simulation.describe_mpi_distribution`.
+  This method must be called *after* the observations have been allocated using
+  :meth:`.Simulation.create_observations`; it will return an instance of the
+  class :class:`.MpiDistributionDescr`, which can be inspected to determine
+  which detectors and time spans are covered by each observation in all the
+  MPI processes that are being used. For more information, refer to the Section
+  :ref:`simulations`.
 
 Other notable functionalities
 -----------------------------
