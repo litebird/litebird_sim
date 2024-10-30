@@ -1,42 +1,28 @@
 # -*- encoding: utf-8 -*-
 
 import numpy as np
+import healpy as hp
 import astropy.time
 from ..simulations import Simulation
 from ..scanning import RotQuaternion
 from ..quaternions import (
+    rotate_x_vector,
+    rotate_z_vector,
     quat_rotation,
     quat_rotation_brdcast,
     quat_rotation_x,
     quat_rotation_y,
     quat_rotation_z,
+    quat_rotation_brdcast_single_axis,
     quat_rotation_x_brdcast,
     quat_rotation_y_brdcast,
     quat_rotation_z_brdcast,
     rotate_z_vector,
 )
 from ..detectors import DetectorInfo
+from ..hwp import _get_ideal_hwp_angle
 from typing import Union, List, Iterable
-from numba import njit
 
-@njit
-def get_wedgeHWP_pointing_angle_correction(
-        wedge_angle: float,
-        refractive_index: float,
-        hwp_angle: float,
-        det_phi: float,
-        ):
-    """
-    Calculate the (time-dependent) angle correction to θ of the detector pointing (θ,ϕ,ψ) due to the spinning wedge HWP for a single detector and time sample.
-    Args:
-        wedge_angle: angle of the wedge HWP in radian.
-        refractive_index: refractive index of the HWP.
-        hwp_angle: angle of the HWP for a single time sample in radian.
-        det_phi: ϕ angle of the detector coming from its pointing direction in the focal plane reference frame, in radian.
-    Returns:
-        float, the angle shift of the boresight due to the spinning wedge HWP.
-    """
-    return (refractive_index - 1) * wedge_angle * np.cos(det_phi - hwp_angle)
 
 def get_detector_orientation(detector: DetectorInfo):
     # TODO: This infomation should be included in IMo.
@@ -187,6 +173,53 @@ def left_multiply_disturb2det(
     detector.quat = orient_quat * interim_quat
 
 
+def left_multiply_quat2det(
+    detector: DetectorInfo,
+    start_time,
+    sampling_rate_hz,
+    disturb_quats: RotQuaternion,
+):
+    """Add a rotation around the given axis to the quaternion and update the quaternion.
+
+    Args:
+        `detector` (DetectorInfo):  The instance of `DetectorInfo` type to which
+                                    `noise_rad` is to be added. The instance will
+                                    be destructively updated.
+
+        `start_time`: Either a floating-point number or an
+                     `astropy.time.Time` object. It can be `None` if and
+                      only if there is just *one* quaternion in `quats`.
+
+        `sampling_rate_hz`: The sampling frequency of the quaternions, in Hertz.
+                            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
+        `noise_rad` (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
+                                        in radians. It must have shape of 1d NumPy array.
+
+        `axis` (str): The axis in the reference frame around which the rotation is to be performed.
+    """
+    orient_rad = get_detector_orientation(detector)
+
+    vec_matrix = np.empty([disturb_quats.quats.shape[0], 3])
+    _rotate_z_vectors_brdcast(vec_matrix, detector.quat.quats)
+
+    orient_quat = RotQuaternion(
+        start_time=start_time,
+        sampling_rate_hz=sampling_rate_hz,
+        quats=np.array(quat_rotation_brdcast(-orient_rad, vec_matrix)),
+    )
+
+    interim_quat = disturb_quats * orient_quat * detector.quat
+    _rotate_z_vectors_brdcast(vec_matrix, interim_quat.quats)
+
+    orient_quat = RotQuaternion(
+        start_time=start_time,
+        sampling_rate_hz=sampling_rate_hz,
+        quats=np.array(quat_rotation_brdcast(orient_rad, vec_matrix)),
+    )
+    detector.quat = orient_quat * interim_quat
+
+
 def left_multiply_offset2quat(result: RotQuaternion, offset_rad: float, axis: str):
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
@@ -316,6 +349,7 @@ class FocalplaneCoord:
     """
 
     def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
+        self.sim = sim
         self.start_time = sim.start_time
         self.sampling_rate_hz = detectors[0].sampling_rate_hz
         self.detectors = detectors
@@ -387,6 +421,99 @@ class FocalplaneCoord:
                     det, self.start_time, self.sampling_rate_hz, noise_rad_matrix[i], axis
                 )
 
+class HWPCoord:
+    def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
+        self.sim = sim
+        self.start_time = sim.start_time
+        self.sampling_rate_hz = detectors[0].sampling_rate_hz
+        self.detectors = detectors
+        self.ang_speed_radpsec = 0.0
+        self.tilt_angle_rad = 0.0
+        self.tilt_phase_rad = 0.0
+        self.hwp_raw_angles = None
+
+    @staticmethod
+    def get_wedgeHWP_pointing_shift_angle(
+        wedge_angle: float,
+        refractive_index: float
+        ):
+        """
+        Calculate the (time-dependent) angle correction to θ of the detector pointing (θ,ϕ,ψ) due to the spinning wedge HWP for a single detector and time sample.
+        Args:
+            wedge_angle: angle of the wedge HWP in radian.
+            refractive_index: refractive index of the HWP.
+        Returns:
+            float, the angle shift of the boresight due to the spinning wedge HWP.
+        """
+        return (refractive_index - 1.0) * wedge_angle
+
+    def add_hwp_rot_disturb(self):
+        obs = self.sim.create_observations(self.detectors)
+        _start_time = obs[0].start_time - obs[0].start_time_global
+        _delta_time = obs[0].get_delta_time()
+        n_samples = self.sim.spin2ecliptic_quats.quats.shape[0]
+        pointing_rot_angles = np.empty(n_samples)
+        self.sim.observations = []
+
+        if isinstance(_start_time, astropy.time.TimeDelta):
+            start_time_s = _start_time.to("s").value
+            delta_time_s = _delta_time.to("s").value
+        else:
+            start_time_s = _start_time
+            delta_time_s = _delta_time
+
+        # store the ideal HWP angle in `pointing_rot_angles`
+        _get_ideal_hwp_angle(
+            output_buffer=pointing_rot_angles,
+            start_time_s=start_time_s,
+            delta_time_s=delta_time_s,
+            start_angle_rad=self.sim.hwp.start_angle_rad,
+            ang_speed_radpsec=self.ang_speed_radpsec,
+        )
+        # make the quaternion to tilt
+        # add the tilt phase
+        pointing_rot_angles += self.tilt_phase_rad
+        self.hwp_raw_angles = pointing_rot_angles
+
+        rotational_quats_x = RotQuaternion(
+                start_time=self.start_time,
+                sampling_rate_hz=self.sampling_rate_hz,
+                quats=quat_rotation_x_brdcast(self.tilt_angle_rad * 1/np.sqrt(2))
+            )
+        rotational_quats_y = RotQuaternion(
+            start_time=self.start_time,
+            sampling_rate_hz=self.sampling_rate_hz,
+            quats=quat_rotation_y_brdcast(self.tilt_angle_rad * 1/np.sqrt(2))
+        )
+        quat = rotational_quats_x * rotational_quats_y
+        vec_x = np.zeros(3)
+        vec_z = np.zeros(3)
+        rotate_x_vector(vec_x, *quat.quats[0])
+        rotate_z_vector(vec_z, *quat.quats[0])
+        #xang = hp.vec2ang(vec_x)
+
+
+        self.correction_angle = np.arccos(vec_x[0]/np.sqrt((vec_x[0]**2+vec_x[1]**2)))
+        #print(self.correction_angle)
+        #print(xang[1])
+
+        rotational_quats_x = RotQuaternion(
+                start_time=self.start_time,
+                sampling_rate_hz=self.sampling_rate_hz,
+                quats=quat_rotation_x_brdcast(self.tilt_angle_rad * np.cos(pointing_rot_angles))
+            )
+        rotational_quats_y = RotQuaternion(
+            start_time=self.start_time,
+            sampling_rate_hz=self.sampling_rate_hz,
+            quats=quat_rotation_y_brdcast(self.tilt_angle_rad * np.sin(pointing_rot_angles))
+        )
+        disturb_quats = rotational_quats_x * rotational_quats_y
+        for det in self.detectors:
+            left_multiply_quat2det(
+                det, self.start_time, self.sampling_rate_hz, disturb_quats
+            )
+        return disturb_quats
+
 
 class SpacecraftCoord:
     """This class create an instans of spacecraft to add offset and disturbance to the instrument.
@@ -396,6 +523,7 @@ class SpacecraftCoord:
     """
 
     def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
+        self.sim = sim
         self.start_time = sim.start_time
         self.sampling_rate_hz = detectors[0].sampling_rate_hz
         self.instrument = sim.instrument
@@ -442,4 +570,5 @@ class PointingSys:
         for detector in detectors:
             assert detector.sampling_rate_hz == det0_sampling_rate, "Not all detectors have the same sampling_rate_hz"
         self.focalplane = FocalplaneCoord(sim, detectors)
+        self.hwp = HWPCoord(sim, detectors)
         self.spacecraft = SpacecraftCoord(sim, detectors)

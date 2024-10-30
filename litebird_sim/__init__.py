@@ -94,8 +94,10 @@ from .pointing_sys.pointing_sys import (
     left_multiply_disturb2det,
     left_multiply_offset2quat,
     left_multiply_disturb2quat,
+    left_multiply_quat2det,
     FocalplaneCoord,
     SpacecraftCoord,
+    HWPCoord,
     PointingSys,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
@@ -322,6 +324,7 @@ __all__ = [
     "left_multiply_disturb2det",
     "left_multiply_offset2quat",
     "left_multiply_disturb2quat",
+    "left_multiply_quat2det",
     "FocalplaneCoord",
     "SpacecraftCoord",
     "PointingSys",

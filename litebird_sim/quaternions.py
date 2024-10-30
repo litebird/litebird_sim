@@ -501,6 +501,17 @@ def quat_rotation_brdcast(theta_rad, vec_matrix):
         [vec_matrix * s, np.cos(theta_rad / 2) * np.ones((vec_matrix.shape[0], 1))]
     )
 
+def quat_rotation_brdcast_single_axis(theta_rad_array, vec):
+    """This function rotates a quaternion by theta_rad about a specific axis.
+    Args:
+        theta_rad_array (numpy.array): The angles to rotate the quaternion by in radians.
+        vec (numpy.array[3]): The vector to rotate the quaternion about.
+    """
+    s = np.sin(theta_rad_array / 2)
+    c = np.cos(theta_rad_array / 2)
+    return np.hstack(
+        [vec * s[:, np.newaxis], c[:, np.newaxis]]
+    )
 
 def quat_rotation_x_brdcast(theta_rad_array):
     """Return a quaternion representing a rotation around the x axis
