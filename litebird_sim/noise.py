@@ -235,7 +235,7 @@ def add_noise_to_observations(
         obs_list = observations
 
     # iterate through each observation
-    for i, cur_obs in enumerate(obs_list):
+    for cur_obs in obs_list:
         add_noise(
             tod=getattr(cur_obs, component),
             noise_type=noise_type,
