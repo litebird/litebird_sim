@@ -49,7 +49,7 @@ def add_convolved_sky_to_observations(
 
         # Now go through all the pointings for this detector
         # It might be advantageous to concatenate several chunks of observations
-        # together - this can make interoplation a bit more efficient.
+        # together - this can make interpolation a bit more efficient.
         # For now, let's just go through the chunks individually ...
 
         for cur_obs in obs_list:
@@ -61,6 +61,9 @@ def add_convolved_sky_to_observations(
             ptgnew = np.empty((ptg.shape[0], 3), dtype=ptg.dtype)
             ptgnew[:, 0:2] = ptg
             ptgnew[:, 2] = psi
+
+            # Get a reference to the TOD to which we should add our signal
         #    cur_tod = getattr(cur_obs, component)[det_idx]
 
+        # Compute our signal and add it
         #    cur_tod += interp.interpol(ptgnew)
