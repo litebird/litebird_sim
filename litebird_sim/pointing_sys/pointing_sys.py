@@ -6,14 +6,11 @@ import astropy.time
 from ..simulations import Simulation
 from ..scanning import RotQuaternion
 from ..quaternions import (
-    rotate_x_vector,
-    rotate_z_vector,
     quat_rotation,
     quat_rotation_brdcast,
     quat_rotation_x,
     quat_rotation_y,
     quat_rotation_z,
-    quat_rotation_brdcast_single_axis,
     quat_rotation_x_brdcast,
     quat_rotation_y_brdcast,
     quat_rotation_z_brdcast,
@@ -470,32 +467,7 @@ class HWPCoord:
             start_angle_rad=self.sim.hwp.start_angle_rad,
             ang_speed_radpsec=self.ang_speed_radpsec,
         )
-        # make the quaternion to tilt
-        # add the tilt phase
         pointing_rot_angles += self.tilt_phase_rad
-        self.hwp_raw_angles = pointing_rot_angles
-
-        rotational_quats_x = RotQuaternion(
-                start_time=self.start_time,
-                sampling_rate_hz=self.sampling_rate_hz,
-                quats=quat_rotation_x_brdcast(self.tilt_angle_rad * 1/np.sqrt(2))
-            )
-        rotational_quats_y = RotQuaternion(
-            start_time=self.start_time,
-            sampling_rate_hz=self.sampling_rate_hz,
-            quats=quat_rotation_y_brdcast(self.tilt_angle_rad * 1/np.sqrt(2))
-        )
-        quat = rotational_quats_x * rotational_quats_y
-        vec_x = np.zeros(3)
-        vec_z = np.zeros(3)
-        rotate_x_vector(vec_x, *quat.quats[0])
-        rotate_z_vector(vec_z, *quat.quats[0])
-        #xang = hp.vec2ang(vec_x)
-
-
-        self.correction_angle = np.arccos(vec_x[0]/np.sqrt((vec_x[0]**2+vec_x[1]**2)))
-        #print(self.correction_angle)
-        #print(xang[1])
 
         rotational_quats_x = RotQuaternion(
                 start_time=self.start_time,
@@ -512,7 +484,6 @@ class HWPCoord:
             left_multiply_quat2det(
                 det, self.start_time, self.sampling_rate_hz, disturb_quats
             )
-        return disturb_quats
 
 
 class SpacecraftCoord:
