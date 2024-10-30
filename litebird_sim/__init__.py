@@ -18,6 +18,7 @@ from .compress import (
     rle_compress,
     rle_decompress,
 )
+from .beam_convolution import add_convolved_sky_to_observations
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,
@@ -174,6 +175,8 @@ __all__ = [
     "__author__",
     "__version__",
     "PTEP_IMO_LOCATION",
+    # beam_convolution.py
+    "add_convolved_sky_to_observations",
     # compress.py
     "rle_compress",
     "rle_decompress",
