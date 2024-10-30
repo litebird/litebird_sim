@@ -32,6 +32,7 @@ from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
 from .healpix import write_healpix_map_to_file, npix_to_nside
+from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
 from .io import write_list_of_observations, read_list_of_observations
 from .mapmaking import (
@@ -46,6 +47,7 @@ from .mapmaking import (
 )
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .noise import add_noise_to_observations
+from .non_linearity import apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
@@ -1427,8 +1429,8 @@ class Simulation:
         self,
         t_cmb_k: float = constants.T_CMB_K,
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
-        append_to_report: bool = True,
         component: str = "tod",
+        append_to_report: bool = True,
     ):
         """Fills the tod with dipole.
 
@@ -1468,12 +1470,88 @@ class Simulation:
             )
 
     @_profile
+    def add_2f(
+        self,
+        component: str = "tod",
+        amplitude_2f_k: Union[float, None] = None,
+        optical_power_k: Union[float, None] = None,
+        append_to_report: bool = False,
+    ):
+        """Add the HWP differential emission to all the observations of this
+        simulation
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the pointing
+        through :meth:`.prepare_pointings`.
+        """
+
+        add_2f_to_observations(
+            observations=self.observations,
+            hwp=self.hwp,
+            component=component,
+            amplitude_2f_k=amplitude_2f_k,
+            optical_power_k=optical_power_k,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_2f.md")
+
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            if amplitude_2f_k is None:
+                amp = "Amplitudes taken from IMo"
+            else:
+                amp = amplitude_2f_k
+
+            if optical_power_k is None:
+                op = "Optical power taken from IMo"
+            else:
+                op = optical_power_k
+
+            self.append_to_report(
+                markdown_template,
+                amplitude_2f=amp,
+                optical_power=op,
+            )
+
+    @_profile
+    def apply_quadratic_nonlin(
+        self,
+        component: str = "tod",
+        g_one_over_k: Union[float, None] = None,
+        append_to_report: bool = False,
+    ):
+        apply_quadratic_nonlin_to_observations(
+            observations=self.observations,
+            component=component,
+            g_one_over_k=g_one_over_k,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_quad_nonlin.md")
+
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            if g_one_over_k is None:
+                g = "Detector non-linearity factor taken from IMo"
+            else:
+                g = g_one_over_k
+
+            self.append_to_report(
+                markdown_template,
+                g=g,
+            )
+
+    @_profile
     def add_noise(
         self,
         random: np.random.Generator,
         noise_type: str = "one_over_f",
-        append_to_report: bool = True,
         component: str = "tod",
+        append_to_report: bool = True,
     ):
         """Adds noise to tods.
 
@@ -1523,9 +1601,9 @@ class Simulation:
         components: Optional[List[str]] = None,
         detector_splits: Union[str, List[str]] = "full",
         time_splits: Union[str, List[str]] = "full",
-        append_to_report: bool = True,
         write_to_disk: bool = True,
         include_inv_covariance: bool = False,
+        append_to_report: bool = True,
     ) -> Union[List[str], dict[str, BinnerResult]]:
         """
         Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the
@@ -1667,11 +1745,11 @@ class Simulation:
         keep_weights: bool = False,
         keep_pixel_idx: bool = False,
         keep_pol_angle_rad: bool = False,
-        append_to_report: bool = True,
         callback: Any = destriper_log_callback,
         callback_kwargs: Optional[Dict[Any, Any]] = None,
         write_to_disk: bool = True,
         recycle_baselines: bool = False,
+        append_to_report: bool = True,
     ) -> Union[List[str], dict[str, DestriperResult]]:
         """
         Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the
