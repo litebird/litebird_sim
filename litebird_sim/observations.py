@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from typing import Union, List, Any, Optional
+import numbers
 
 import astropy.time
 import numpy as np
@@ -11,6 +12,7 @@ from collections import defaultdict
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly, distribute_detector_blocks
+from .detectors import DetectorInfo
 
 
 @dataclass
@@ -142,15 +144,15 @@ class Observation:
         if isinstance(detectors, int):
             self._n_detectors_global = detectors
         else:
-            if comm and comm.size > 1:
-                self._n_detectors_global = comm.bcast(len(detectors), root)
+            if self.comm and self.comm.size > 1:
+                self._n_detectors_global = self.comm.bcast(len(detectors), root)
+
+                if self._det_blocks_attributes is not None:
+                    n_blocks_det, n_blocks_time = self._make_detector_blocks(
+                        detectors, self.comm
+                    )
             else:
                 self._n_detectors_global = len(detectors)
-
-            if self._det_blocks_attributes is not None and comm.size > 1:
-                n_blocks_det, n_blocks_time = self._make_detector_blocks(
-                    detectors, comm
-                )
 
         # Name of the attributes that store an array with the value of a
         # property for each of the (local) detectors
@@ -673,7 +675,10 @@ class Observation:
         is_in_grid = self.comm.rank < self._n_blocks_det * self._n_blocks_time
         comm_grid = self.comm.Split(int(is_in_grid))
         if not is_in_grid:  # The process does not own any detector (and TOD)
-            setattr(self, name, None)
+            null_det = DetectorInfo()
+            attribute = getattr(null_det, name, None)
+            value = 0 if isinstance(attribute, numbers.Number) else None
+            setattr(self, name, value)
             return
 
         my_col = comm_grid.rank % self._n_blocks_time

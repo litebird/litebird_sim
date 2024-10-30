@@ -187,7 +187,7 @@ the number of detector blocks (``n_blocks_time = comm.size // n_blocks_det``).
 
 The detector blocks made in this way can be accessed with
 ``Observation.detector_blocks``. It is a dictionary object has the tuple of
-``self._det_blocks_attributes`` values as dictionary keys and the list of detectors
+``det_blocks_attributes`` values as dictionary keys and the list of detectors
 corresponding to the key as dictionary values. This dictionary is sorted so that the
 group with the largest number of detectors comes first and the one with
 the fewest detectors comes last.
@@ -211,37 +211,37 @@ MPI processes when ``det_blocks_attributes`` is specified.
           name="channel1_w9_detA",
           wafer="wafer_9",
           channel="channel1",
-          sampling_rate_hz=1,
+          sampling_rate_hz=sampling_freq_Hz,
       ),
       lbs.DetectorInfo(
           name="channel1_w3_detB",
           wafer="wafer_3",
           channel="channel1",
-          sampling_rate_hz=1,
+          sampling_rate_hz=sampling_freq_Hz,
       ),
       lbs.DetectorInfo(
           name="channel1_w1_detC",
           wafer="wafer_1",
           channel="channel1",
-          sampling_rate_hz=1,
+          sampling_rate_hz=sampling_freq_Hz,
       ),
       lbs.DetectorInfo(
           name="channel1_w1_detD",
           wafer="wafer_1",
           channel="channel1",
-          sampling_rate_hz=1,
+          sampling_rate_hz=sampling_freq_Hz,
       ),
       lbs.DetectorInfo(
           name="channel2_w4_detA",
           wafer="wafer_4",
           channel="channel2",
-          sampling_rate_hz=1,
+          sampling_rate_hz=sampling_freq_Hz,
       ),
       lbs.DetectorInfo(
           name="channel2_w4_detB",
           wafer="wafer_4",
           channel="channel2",
-          sampling_rate_hz=1,
+          sampling_rate_hz=sampling_freq_Hz,
       ),
   ]
 
