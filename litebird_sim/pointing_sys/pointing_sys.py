@@ -76,12 +76,12 @@ def left_multiply_offset2det(detector: DetectorInfo, offset_rad: float, axis: st
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
-        `detector` (DetectorInfo): The instance of `DetectorInfo` type to which `offset_rad` is to be added.
+        detector (DetectorInfo): The instance of `DetectorInfo` type to which `offset_rad` is to be added.
                                    The instance will be destructively updated.
 
-        `offset_rad` (float):      The offset to be added in the specified direction by `axis`, in radians.
+        offset_rad (float):      The offset to be added in the specified direction by `axis`, in radians.
 
-        `axis` (str):              The axis in the reference frame around which the rotation is to be performed.
+        axis (str):              The axis in the reference frame around which the rotation is to be performed.
     """
     if axis.lower() == "x":
         rotation_func = quat_rotation_x
@@ -118,21 +118,21 @@ def left_multiply_disturb2det(
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
-        `detector` (DetectorInfo):  The instance of `DetectorInfo` type to which
+        detector (DetectorInfo):  The instance of `DetectorInfo` type to which
                                     `noise_rad` is to be added. The instance will
                                     be destructively updated.
 
-        `start_time`: Either a floating-point number or an
+        start_time: Either a floating-point number or an
                      `astropy.time.Time` object. It can be `None` if and
                       only if there is just *one* quaternion in `quats`.
 
-        `sampling_rate_hz`: The sampling frequency of the quaternions, in Hertz.
+        sampling_rate_hz: The sampling frequency of the quaternions, in Hertz.
                             It can be `None` if and only if there is just *one* quaternion in `quats`.
 
-        `noise_rad` (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
+        noise_rad (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
                                         in radians. It must have shape of 1d NumPy array.
 
-        `axis` (str): The axis in the reference frame around which the rotation is to be performed.
+        axis (str): The axis in the reference frame around which the rotation is to be performed.
     """
     if axis.lower() == "x":
         rotation_func = quat_rotation_x_brdcast
@@ -179,21 +179,21 @@ def left_multiply_quat2det(
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
-        `detector` (DetectorInfo):  The instance of `DetectorInfo` type to which
+        detector (DetectorInfo):  The instance of `DetectorInfo` type to which
                                     `noise_rad` is to be added. The instance will
                                     be destructively updated.
 
-        `start_time`: Either a floating-point number or an
+        start_time: Either a floating-point number or an
                      `astropy.time.Time` object. It can be `None` if and
                       only if there is just *one* quaternion in `quats`.
 
-        `sampling_rate_hz`: The sampling frequency of the quaternions, in Hertz.
+        sampling_rate_hz: The sampling frequency of the quaternions, in Hertz.
                             It can be `None` if and only if there is just *one* quaternion in `quats`.
 
-        `noise_rad` (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
+        noise_rad (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
                                         in radians. It must have shape of 1d NumPy array.
 
-        `axis` (str): The axis in the reference frame around which the rotation is to be performed.
+        axis (str): The axis in the reference frame around which the rotation is to be performed.
     """
     orient_rad = get_detector_orientation(detector)
 
@@ -221,14 +221,14 @@ def left_multiply_offset2quat(result: RotQuaternion, offset_rad: float, axis: st
     """Add a rotation around the given axis to the quaternion and update the quaternion.
 
     Args:
-        `result` (RotQuaternion): Input instance of `RotQuaternion` type to which
+        result (RotQuaternion): Input instance of `RotQuaternion` type to which
                                   `offset_rad` is to be added. The instance will be
                                   destructively updated.
 
-        `offset_rad` (float): The offset to be added in the specified direction
+        offset_rad (float): The offset to be added in the specified direction
                               by `axis`, in radians.
 
-        `axis` (str): The axis in the reference frame around which the rotation is to be performed.
+        axis (str): The axis in the reference frame around which the rotation is to be performed.
     """
     if axis.lower() == "x":
         rotation_func = quat_rotation_x
@@ -259,20 +259,20 @@ def left_multiply_disturb2quat(
     """Add given noise to the quaternion around specific axis and update the quaternion.
 
     Args:
-        `result` (RotQuaternion): Input instance of `RotQuaternion` type to which noise is to be added.
+        result (RotQuaternion): Input instance of `RotQuaternion` type to which noise is to be added.
                                   The instance will be destructively updated.
 
-        `start_time`:       Either a floating-point number or an `astropy.time.Time` object.
+        start_time:       Either a floating-point number or an `astropy.time.Time` object.
                             It can be `None` if and only
                             if there is just *one* quaternion in `quats`.
 
-        `sampling_rate_hz`: The sampling frequency of the quaternions, in Hertz. It can be `None` if and only
+        sampling_rate_hz: The sampling frequency of the quaternions, in Hertz. It can be `None` if and only
                             if there is just *one* quaternion in `quats`.
 
-        `noise_rad` (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
+        noise_rad (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
                                         in radians. It must have shape of 1d NumPy array.
 
-        `axis` (str): The axis in the reference frame around which the rotation is to be performed.
+        axis (str): The axis in the reference frame around which the rotation is to be performed.
     """
 
     if axis.lower() == "x":
@@ -342,10 +342,13 @@ class FocalplaneCoord:
     """This class create an instans of focal plane to add offset and disturbance to the detectors.
 
     Args:
+        sim: `Simulation` instance whose .instrument is injected with the systematics.
+
         detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
     """
 
     def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
+        """Initialize the focal plane with the detectors."""
         self.sim = sim
         self.start_time = sim.start_time
         self.sampling_rate_hz = detectors[0].sampling_rate_hz
@@ -360,12 +363,12 @@ class FocalplaneCoord:
         In this case, the length of the array must be equal to the number of detectors.
 
         Args:
-            offset_rad (in case of `float`): The same offset to be added to all detectors on the focal plane
+            `offset_rad` (in case of `float`): The same offset to be added to all detectors on the focal plane
                                              in the specified direction by `axis`, in radians.
                        (in case of `array`): The offset to be added to all dtectors on the focal plane
                                              individually, in the specified direction by `axis`, in radians.
 
-            axis (str): The axis in the reference frame around which the rotation is to be performed.
+            `axis` (str): The axis in the reference frame around which the rotation is to be performed.
         """
         offset_rad, axis = _ecl2focalplane(offset_rad, axis)
 
@@ -419,7 +422,30 @@ class FocalplaneCoord:
                 )
 
 class HWPCoord:
+    """A Class to add pointing disturbance due to the spinning HWP."""
     def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
+        """Initialize the HWP with the detectors.
+
+        Args:
+            sim: `Simulation` instance whose .instrument is injected with the systematics.
+
+            detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
+
+        Discription of the internal instance variables:
+            sim: `Simulation` instance whose .instrument is injected with the systematics.
+
+            start_time: The start time of the simulation.
+
+            sampling_rate_hz: The sampling rate of the detectors.
+
+            detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
+
+            ang_speed_radpsec: The angular speed of the spinning HWP.
+
+            tilt_angle_rad: The tilt angle of the HWP.
+
+            tilt_phase_rad: The phase of the tilted HWP.
+        """
         self.sim = sim
         self.start_time = sim.start_time
         self.sampling_rate_hz = detectors[0].sampling_rate_hz
@@ -427,7 +453,6 @@ class HWPCoord:
         self.ang_speed_radpsec = 0.0
         self.tilt_angle_rad = 0.0
         self.tilt_phase_rad = 0.0
-        self.hwp_raw_angles = None
 
     @staticmethod
     def get_wedgeHWP_pointing_shift_angle(
@@ -435,22 +460,28 @@ class HWPCoord:
         refractive_index: float
         ):
         """
-        Calculate the (time-dependent) angle correction to θ of the detector pointing (θ,ϕ,ψ) due to the spinning wedge HWP for a single detector and time sample.
+        Calculate the (time-dependent) angle correction to θ of the detector pointing (θ,ϕ,ψ)
+        due to the spinning wedge HWP for a single detector and time sample.
+
         Args:
-            wedge_angle: angle of the wedge HWP in radian.
-            refractive_index: refractive index of the HWP.
+            wedge_angle (float): angle of the wedge HWP in radian.
+
+            refractive_index (float): refractive index of the HWP.
+
         Returns:
-            float, the angle shift of the boresight due to the spinning wedge HWP.
+            float, the pointing angle shift due to the spinning wedge HWP.
         """
         return (refractive_index - 1.0) * wedge_angle
 
     def add_hwp_rot_disturb(self):
+        """Add a rotational disturbance synchrinized with the HWP
+        to the detectors in the focal plane.
+        """
         obs = self.sim.create_observations(self.detectors)
         _start_time = obs[0].start_time - obs[0].start_time_global
         _delta_time = obs[0].get_delta_time()
         n_samples = self.sim.spin2ecliptic_quats.quats.shape[0]
         pointing_rot_angles = np.empty(n_samples)
-        self.sim.observations = []
 
         if isinstance(_start_time, astropy.time.TimeDelta):
             start_time_s = _start_time.to("s").value
@@ -459,7 +490,6 @@ class HWPCoord:
             start_time_s = _start_time
             delta_time_s = _delta_time
 
-        # store the ideal HWP angle in `pointing_rot_angles`
         _get_ideal_hwp_angle(
             output_buffer=pointing_rot_angles,
             start_time_s=start_time_s,
@@ -487,13 +517,18 @@ class HWPCoord:
 
 
 class SpacecraftCoord:
-    """This class create an instans of spacecraft to add offset and disturbance to the instrument.
-
-    Args:
-        sim: `Simulation` instance whose .instrument is injected with the systematics.
+    """This class create an instans of spacecraft to add offset and
+    disturbance to the instrument.
     """
 
     def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
+        """Initialize the spacecraft with the instrument.
+
+        Args:
+            sim: `Simulation` instance whose .instrument is injected with the systematics.
+
+            detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
+        """
         self.sim = sim
         self.start_time = sim.start_time
         self.sampling_rate_hz = detectors[0].sampling_rate_hz
@@ -534,6 +569,7 @@ class PointingSys:
 
     Args:
         sim (Simulation): an instance whose .instrument is injected with the systematics.
+
         detectors (List[DetectorInfo]): List of `Detectorinfo` to which offset and disturbance are to be added.
     """
     def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
