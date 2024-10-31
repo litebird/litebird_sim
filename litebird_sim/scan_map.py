@@ -87,7 +87,7 @@ def scan_map(
                 input_T=maps_det[0, pixel_ind_det],
                 input_Q=maps_det[1, pixel_ind_det],
                 input_U=maps_det[2, pixel_ind_det],
-                pol_angle_det=curr_pointings_det[:, 2] + hwp_angle,
+                pol_angle_det=curr_pointings_det[:, 2] + 2 * hwp_angle,
             )
 
         elif interpolation == "linear":
@@ -102,7 +102,7 @@ def scan_map(
                 input_U=hp.get_interp_val(
                     maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
                 ),
-                pol_angle_det=curr_pointings_det[:, 2] + hwp_angle,
+                pol_angle_det=curr_pointings_det[:, 2] + 2 * hwp_angle,
             )
 
         else:
