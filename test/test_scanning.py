@@ -320,7 +320,7 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
 
         pointings_and_orientation, hwp_angle = obs.get_pointings("all")
 
-        pointings_and_orientation[..., 2] += hwp_angle
+        pointings_and_orientation[..., 2] += 2 * hwp_angle
 
         filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"
         reference = np.load(filename, allow_pickle=False)
