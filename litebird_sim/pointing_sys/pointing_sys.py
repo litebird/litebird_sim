@@ -442,7 +442,7 @@ class HWPCoord:
 
             ang_speed_radpsec: The angular speed of the spinning HWP.
 
-            tilt_angle_rad: The tilt angle of the HWP.
+            tilt_angle_rad: The tilted pointing angle from the expected pointing direction.
 
             tilt_phase_rad: The phase of the tilted HWP.
         """
@@ -490,12 +490,20 @@ class HWPCoord:
             start_time_s = _start_time
             delta_time_s = _delta_time
 
+        # `_get_ideal_hwp_angle()` returns the ideal HWP angle for the given time
+        # whici is
+        # :math:`\psi + \psi_\text{hwp,0} + 2 \omega_\text{hwp} t`, where
+        # :math:`\psi_\text{hwp,0}` is the start angle specified in the constructor
+        # and :math:`\omega_\text{hwp}` is the angular speed of the HWP.
+        # Since it is multiplied by 2, to obtain the ideal HWP angle, we need to divide it by 2.
+        # So we devide the angular speed by 2 as `self.ang_speed_radpsec/2.0`.
+        scaled_ang_speed_radpsec = self.ang_speed_radpsec/2.0
         _get_ideal_hwp_angle(
             output_buffer=pointing_rot_angles,
             start_time_s=start_time_s,
             delta_time_s=delta_time_s,
             start_angle_rad=self.sim.hwp.start_angle_rad,
-            ang_speed_radpsec=self.ang_speed_radpsec,
+            ang_speed_radpsec=scaled_ang_speed_radpsec,
         )
         pointing_rot_angles += self.tilt_phase_rad
 
