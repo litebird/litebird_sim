@@ -55,6 +55,7 @@ from .hwp import (
     IdealHWP,
     read_hwp_from_hdf5,
 )
+from .hwp_diff_emiss import add_2f, add_2f_to_observations
 from .hwp_sys.hwp_sys import (
     HwpSys,
 )
@@ -328,4 +329,7 @@ __all__ = [
     "FocalplaneCoord",
     "SpacecraftCoord",
     "PointingSys",
+    # hwp_diff_emiss.py
+    "add_2f",
+    "add_2f_to_observations",
 ]
