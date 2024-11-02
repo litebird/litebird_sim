@@ -1,10 +1,10 @@
 # -*- encoding: utf-8 -*-
 
 import numpy as np
-import healpy as hp
 import astropy.time
-from ..simulations import Simulation
+
 from ..scanning import RotQuaternion
+from ..simulations import Simulation
 from ..quaternions import (
     quat_rotation,
     quat_rotation_brdcast,
@@ -16,7 +16,7 @@ from ..quaternions import (
     quat_rotation_z_brdcast,
     rotate_z_vector,
 )
-from ..detectors import DetectorInfo
+from ..detectors import DetectorInfo, InstrumentInfo
 from ..hwp import _get_ideal_hwp_angle
 from typing import Union, List, Iterable
 
@@ -347,8 +347,6 @@ class FocalplaneCoord:
     """This class create an instans of focal plane to add offset and disturbance to the detectors.
 
     Args:
-        sim: `Simulation` instance whose .instrument is injected with the systematics.
-
         detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
     """
 
@@ -368,12 +366,12 @@ class FocalplaneCoord:
         In this case, the length of the array must be equal to the number of detectors.
 
         Args:
-            `offset_rad` (in case of `float`): The same offset to be added to all detectors on the focal plane
+            offset_rad (in case of `float`): The same offset to be added to all detectors on the focal plane
                                              in the specified direction by `axis`, in radians.
                        (in case of `array`): The offset to be added to all dtectors on the focal plane
                                              individually, in the specified direction by `axis`, in radians.
 
-            `axis` (str): The axis in the reference frame around which the rotation is to be performed.
+            axis (str): The axis in the reference frame around which the rotation is to be performed.
         """
         offset_rad, axis = _ecl2focalplane(offset_rad, axis)
 
@@ -400,6 +398,12 @@ class FocalplaneCoord:
         where each detector has its own disturbance.
 
         Args:
+            start_time: It is either a floating-point number or an `astropy.time.Time` object.
+            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
+            sampling_rate_hz: The sampling frequency of the quaternions, in Hertz.
+            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
             noise_rad_matrix
                 (numpy.ndarray with shape [N,t]): The disturbance to be added to all detectors on the focal plane
                                                   individually, in the specified direction by `axis`, in radians.
@@ -414,7 +418,11 @@ class FocalplaneCoord:
             # Global in the focal plane
             for det in self.detectors:
                 left_multiply_disturb2det(
-                    det, self.start_time, self.sampling_rate_hz, noise_rad_matrix, axis
+                    det,
+                    self.start_time,
+                    self.sampling_rate_hz,
+                    noise_rad_matrix,
+                    axis
                 )
         else:
             # Detector by detecgtor
@@ -423,8 +431,69 @@ class FocalplaneCoord:
             ), "The number of detectors must be equal to the number of rows in noise_rad_matrix."
             for i, det in enumerate(self.detectors):
                 left_multiply_disturb2det(
-                    det, self.start_time, self.sampling_rate_hz, noise_rad_matrix[i], axis
+                    det,
+                    self.start_time,
+                    self.sampling_rate_hz,
+                    noise_rad_matrix[i],
+                    axis
                 )
+
+
+class SpacecraftCoord:
+    """This class create an instans of spacecraft to add offset and disturbance to the instrument.
+
+    Args:
+        instrument: `Instrumentinfo` to which offset and disturbance are to be added.
+    """
+
+    def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
+        """Initialize the spacecraft with the instrument.
+
+        Args:
+            sim: `Simulation` instance whose .instrument is injected with the systematics.
+
+            detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
+        """
+        self.sim = sim
+        self.start_time = sim.start_time
+        self.sampling_rate_hz = detectors[0].sampling_rate_hz
+        self.instrument = sim.instrument
+
+    def add_offset(self, offset_rad, axis: str):
+        """Add a rotational offset to the instrument in the spacecraft by specified axis.
+
+        Args:
+            offset_rad (float): The offset to be added in the specified direction by `axis`, in radians.
+
+            axis (str): The axis in the reference frame around which the rotation is to be performed.
+        """
+        offset_rad, axis = _ecl2spacecraft(offset_rad, axis)
+        left_multiply_offset2quat(
+            self.instrument.bore2spin_quat, offset_rad, axis)
+
+    def add_disturb(self, noise_rad: np.ndarray, axis):
+        """Add a rotational disturbance to the instrument in the spacecraft by specified axis.
+
+        Args:
+            start_time: It is either a floating-point number or an `astropy.time.Time` object.
+            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
+            sampling_rate_hz: The sampling frequency of the quaternions, in Hertz.
+            It can be `None` if and only if there is just *one* quaternion in `quats`.
+
+            noise_rad (1d-numpy.ndarray): The disturbance to be added in the specified
+                                          direction by `axis`, in radians.
+
+            axis (str): The axis in the reference frame around which the rotation is to be performed.
+        """
+        noise_rad, axis = _ecl2spacecraft(noise_rad, axis)
+        left_multiply_disturb2quat(
+            self.instrument.bore2spin_quat,
+            self.start_time,
+            self.sampling_rate_hz,
+            noise_rad,
+            axis,
+        )
 
 
 class HWPCoord:
@@ -533,55 +602,6 @@ class HWPCoord:
             )
 
 
-class SpacecraftCoord:
-    """This class create an instans of spacecraft to add offset and
-    disturbance to the instrument.
-    """
-
-    def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
-        """Initialize the spacecraft with the instrument.
-
-        Args:
-            sim: `Simulation` instance whose .instrument is injected with the systematics.
-
-            detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
-        """
-        self.sim = sim
-        self.start_time = sim.start_time
-        self.sampling_rate_hz = detectors[0].sampling_rate_hz
-        self.instrument = sim.instrument
-
-    def add_offset(self, offset_rad, axis: str):
-        """Add a rotational offset to the instrument in the spacecraft by specified axis.
-
-        Args:
-            offset_rad (float): The offset to be added in the specified direction by `axis`, in radians.
-
-            axis (str): The axis in the reference frame around which the rotation is to be performed.
-        """
-        offset_rad, axis = _ecl2spacecraft(offset_rad, axis)
-        left_multiply_offset2quat(
-            self.instrument.bore2spin_quat, offset_rad, axis)
-
-    def add_disturb(self, noise_rad: np.ndarray, axis):
-        """Add a rotational disturbance to the instrument in the spacecraft by specified axis.
-
-        Args:
-            noise_rad (1d-numpy.ndarray): The disturbance to be added in the specified
-                                          direction by `axis`, in radians.
-
-            axis (str): The axis in the reference frame around which the rotation is to be performed.
-        """
-        noise_rad, axis = _ecl2spacecraft(noise_rad, axis)
-        left_multiply_disturb2quat(
-            self.instrument.bore2spin_quat,
-            self.start_time,
-            self.sampling_rate_hz,
-            noise_rad,
-            axis,
-        )
-
-
 class PointingSys:
     """This class provide an interface to add offset and disturbance to the instrument and detectors.
 
@@ -592,9 +612,9 @@ class PointingSys:
     """
 
     def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
-        det0_sampling_rate = detectors[0].sampling_rate_hz
         for detector in detectors:
-            assert detector.sampling_rate_hz == det0_sampling_rate, "Not all detectors have the same sampling_rate_hz"
+            assert detector.sampling_rate_hz == detectors[
+                0].sampling_rate_hz, "Not all detectors have the same sampling_rate_hz"
         self.focalplane = FocalplaneCoord(sim, detectors)
         self.hwp = HWPCoord(sim, detectors)
         self.spacecraft = SpacecraftCoord(sim, detectors)
