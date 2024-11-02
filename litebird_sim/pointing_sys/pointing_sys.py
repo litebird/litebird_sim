@@ -64,12 +64,15 @@ def _rotate_z_vectors_brdcast(result_matrix: np.ndarray, quat_matrix: np.ndarray
         quat_matrix (np.ndarray with shape [N,4]):   The matrix of quaternions to rotate the vectors.
     """
     result_matrix[:, 0] = 2 * (
-        quat_matrix[:, 3] * quat_matrix[:, 1] + quat_matrix[:, 0] * quat_matrix[:, 2]
+        quat_matrix[:, 3] * quat_matrix[:, 1] +
+        quat_matrix[:, 0] * quat_matrix[:, 2]
     )
     result_matrix[:, 1] = 2 * (
-        quat_matrix[:, 1] * quat_matrix[:, 2] - quat_matrix[:, 3] * quat_matrix[:, 0]
+        quat_matrix[:, 1] * quat_matrix[:, 2] -
+        quat_matrix[:, 3] * quat_matrix[:, 0]
     )
-    result_matrix[:, 2] = 1.0 - 2 * (quat_matrix[:, 0] ** 2 + quat_matrix[:, 1] ** 2)
+    result_matrix[:, 2] = 1.0 - 2 * \
+        (quat_matrix[:, 0] ** 2 + quat_matrix[:, 1] ** 2)
 
 
 def left_multiply_offset2det(detector: DetectorInfo, offset_rad: float, axis: str):
@@ -99,12 +102,14 @@ def left_multiply_offset2det(detector: DetectorInfo, offset_rad: float, axis: st
     vect = np.empty(3)
     rotate_z_vector(vect, *detector.quat.quats[0])
 
-    orient_quat = RotQuaternion(quats=np.array(quat_rotation(-orient_rad, *vect)))
+    orient_quat = RotQuaternion(quats=np.array(
+        quat_rotation(-orient_rad, *vect)))
 
     interim_quat = offset_quat * orient_quat * detector.quat
     rotate_z_vector(vect, *interim_quat.quats[0])
 
-    orient_quat = RotQuaternion(quats=np.array(quat_rotation(orient_rad, *vect)))
+    orient_quat = RotQuaternion(
+        quats=np.array(quat_rotation(orient_rad, *vect)))
     detector.quat = orient_quat * interim_quat
 
 
@@ -421,8 +426,10 @@ class FocalplaneCoord:
                     det, self.start_time, self.sampling_rate_hz, noise_rad_matrix[i], axis
                 )
 
+
 class HWPCoord:
     """A Class to add pointing disturbance due to the spinning HWP."""
+
     def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
         """Initialize the HWP with the detectors.
 
@@ -458,7 +465,7 @@ class HWPCoord:
     def get_wedgeHWP_pointing_shift_angle(
         wedge_angle: float,
         refractive_index: float
-        ):
+    ):
         """
         Calculate the (time-dependent) angle correction to θ of the detector pointing (θ,ϕ,ψ)
         due to the spinning wedge HWP for a single detector and time sample.
@@ -508,14 +515,16 @@ class HWPCoord:
         pointing_rot_angles += self.tilt_phase_rad
 
         rotational_quats_x = RotQuaternion(
-                start_time=self.start_time,
-                sampling_rate_hz=self.sampling_rate_hz,
-                quats=quat_rotation_x_brdcast(self.tilt_angle_rad * np.cos(pointing_rot_angles))
-            )
+            start_time=self.start_time,
+            sampling_rate_hz=self.sampling_rate_hz,
+            quats=quat_rotation_x_brdcast(
+                self.tilt_angle_rad * np.cos(pointing_rot_angles))
+        )
         rotational_quats_y = RotQuaternion(
             start_time=self.start_time,
             sampling_rate_hz=self.sampling_rate_hz,
-            quats=quat_rotation_y_brdcast(self.tilt_angle_rad * np.sin(pointing_rot_angles))
+            quats=quat_rotation_y_brdcast(
+                self.tilt_angle_rad * np.sin(pointing_rot_angles))
         )
         disturb_quats = rotational_quats_x * rotational_quats_y
         for det in self.detectors:
@@ -551,7 +560,8 @@ class SpacecraftCoord:
             axis (str): The axis in the reference frame around which the rotation is to be performed.
         """
         offset_rad, axis = _ecl2spacecraft(offset_rad, axis)
-        left_multiply_offset2quat(self.instrument.bore2spin_quat, offset_rad, axis)
+        left_multiply_offset2quat(
+            self.instrument.bore2spin_quat, offset_rad, axis)
 
     def add_disturb(self, noise_rad: np.ndarray, axis):
         """Add a rotational disturbance to the instrument in the spacecraft by specified axis.
@@ -580,6 +590,7 @@ class PointingSys:
 
         detectors (List[DetectorInfo]): List of `Detectorinfo` to which offset and disturbance are to be added.
     """
+
     def __init__(self, sim: Simulation, detectors: List[DetectorInfo]):
         det0_sampling_rate = detectors[0].sampling_rate_hz
         for detector in detectors:
