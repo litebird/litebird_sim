@@ -679,6 +679,11 @@ few lines of code:
 
 The following code implements our mock scanning strategy::
 
+   import litebird_sim as lbs
+   from litebird_sim import RotQuaternion
+   import astropy
+   from typing import Union
+
    class SimpleScanningStrategy(lbs.ScanningStrategy):
        def generate_spin2ecl_quaternions(
            self,
@@ -733,7 +738,7 @@ The following code implements our mock scanning strategy::
            # "RotQuaternion"
            return lbs.RotQuaternion(
                start_time=start_time,
-               pointing_freq_hz=1.0 / delta_time_s,
+               sampling_rate_hz=1.0 / delta_time_s,
                quats=spin2ecliptic_quats,
            )
 
@@ -770,8 +775,10 @@ computing one quaternion every minute, we compute one quaternion every
        name="foo",
        sampling_rate_hz=1.0 / ((1.0 * u.day).to("s").value),
    )
+
    (obs,) = sim.create_observations(detectors=[det])
-   pointings = lbs.get_pointings(obs, sim.spin2ecliptic_quats, np.array([det.quat]))
+   lbs.prepare_pointings(obs, lbs.InstrumentInfo(), sim.spin2ecliptic_quats)
+   pointings, _ = obs.get_pointings("all")
 
    m = np.zeros(healpy.nside2npix(64))
    pixidx = healpy.ang2pix(64, pointings[0, :, 0], pointings[0, :, 1])
@@ -810,7 +817,7 @@ of a descendant of the class :class:`.HWP` to the method
     )
 
     sim.set_instrument(
-        instr = lbs.InstrumentInfo(
+        instrument = lbs.InstrumentInfo(
             boresight_rotangle_rad=0.0,
             spin_boresight_angle_rad=0.872_664_625_997_164_8,
             spin_rotangle_rad=3.141_592_653_589_793,
@@ -830,9 +837,23 @@ of a descendant of the class :class:`.HWP` to the method
 
     sim.prepare_pointings()
 
+    pointing, hwp_angle = sim.observations[0].get_pointings()
 
 This example uses the :class:`.IdealHWP`, which represents an ideal
 spinning HWP.
+The method :func:`.get_pointings` returns both pointing and hwp angle
+on the fly.
+As shown before a similar syntax allow to precompute the pointing and the 
+hwp angle::
+
+    sim.prepare_pointings()
+    sim.precompute_pointings()
+
+    sim.observations[0].pointing_matrix.shape
+    sim.observations[0].hwp_angle.shape
+
+This fills the fields `pointing_matrix` and `hwp_angle` for all the
+observations in the current simulation. 
 
 
 Observing point sources in the sky
