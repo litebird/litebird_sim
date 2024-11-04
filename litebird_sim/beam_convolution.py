@@ -32,7 +32,6 @@ def add_convolved_sky_to_one_detector(
         mueller_matrix,
         single_precision=convolution_params.single_precision,
         epsilon=convolution_params.epsilon,
-        ofactor=convolution_params.ofactor,
         nthreads=nthreads,
     )
 
@@ -141,13 +140,13 @@ def add_convolved_sky_to_observations(
         if isinstance(observations, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "You must pass a list of observations *and* a list "
-                + "of pointing matrices to scan_map_in_observations"
+                + "of pointing matrices to add_convolved_sky_to_observations"
             )
             obs_list = [observations]
             ptg_list = [pointings]
         else:
             assert isinstance(pointings, list), (
-                "When you pass a list of observations to scan_map_in_observations, "
+                "When you pass a list of observations to add_convolved_sky_to_observations, "
                 + "you must do the same for `pointings`"
             )
             assert len(observations) == len(pointings), (
@@ -174,7 +173,7 @@ def add_convolved_sky_to_observations(
                 )
                 if dict_input_sky_alms_in_galactic != input_sky_alms_in_galactic:
                     logging.warning(
-                        "input_sky_alms_in_galactic variable in scan_map_in_observations"
+                        "input_sky_alms_in_galactic variable in add_convolved_sky_to_observations"
                         + " overwritten!"
                     )
                 input_sky_alms_in_galactic = dict_input_sky_alms_in_galactic
