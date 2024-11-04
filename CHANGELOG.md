@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change**: Redefinition of the hwp angle returned by `get_pointings()` [#340](https://github.com/litebird/litebird_sim/pull/340)
+
 -   Module for including nonlinearity in the simulations [#331](https://github.com/litebird/litebird_sim/pull/331)
 
 -   Improve the documentation of the binner and the destriper [#333](https://github.com/litebird/litebird_sim/pull/333)
