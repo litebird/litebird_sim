@@ -63,7 +63,6 @@ def scan_map(
             curr_pointings_det = pointings[detector_idx, :, :]
         else:
             curr_pointings_det, hwp_angle = pointings(detector_idx)
-            curr_pointings_det = curr_pointings_det.reshape(-1, 3)
 
         if hwp_angle is None:
             hwp_angle = 0

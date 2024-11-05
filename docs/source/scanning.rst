@@ -168,15 +168,15 @@ similar to what is going to be used for LiteBIRD:
 
 .. testoutput::
 
-  Shape: (1, 600, 3)
+  Shape: (600, 3)
   Pointings:
-  [[[ 2.182 -0.    -1.571]
+  [[ 2.182 -0.    -1.571]
     [ 2.182 -0.006 -1.576]
     [ 2.182 -0.012 -1.582]
     ...
     [ 0.089 -2.967 -1.738]
     [ 0.088 -3.021 -1.687]
-    [ 0.087 -3.075 -1.635]]]
+    [ 0.087 -3.075 -1.635]]
 
 All the details in this code are explained in the next sections, so
 for now just keep in mind the overall shape of the code:
@@ -201,12 +201,27 @@ for now just keep in mind the overall shape of the code:
    the example above, this is done by the function
    :func:`.get_pointings`.
 
-3. The method :meth:`.Observation.get_pointings` returns a ``(D, N, 3)``
-   matrix, where D represents the detector index, N the index of the sample
-   and the three final columns contain the colatitude :math:`\theta`, 
-   the longitude :math:`\phi`, and the orientation angle :math:`\psi`, 
-   all expressed in radians. These angles are expressed in the Ecliptic
-   Coordinate System, where the Equator is aligned with the Ecliptic Plane of
+3. The method :meth:`.Observation.get_pointings` returns an array with
+   either 2 or 3 fields depending on the argument passed:
+
+   - if an integer is passed, this is interpreted as the index of the
+     detector in the observation, and a ``(N, 3)`` matrix is returned 
+     where the first column contains the colatitude :math:`\theta`, 
+     the second column the longitude :math:`\phi`, and the third column
+     the orientation angle :math:`\psi`, all expressed in radians.
+
+   - if a list containing indices is passed, this is interpreted as
+     a list of detectors in the observation for which we want to compute
+     the pointing. It returns a ``(D, N, 3)`` matrix where D represents 
+     the detector index, N the index of the sample and the three final
+     columns are the same described in the first case.
+
+   - if the string "all" is passed then a ``(D, N, 3)`` matrix is returned
+     containig the pointing information for all the detectors in the 
+     observation.
+
+   These angles are expressed in the Ecliptic Coordinate
+   System, where the Equator is aligned with the Ecliptic Plane of
    the Solar System.
 
 
@@ -361,7 +376,7 @@ split in several blocks inside the :class:`.Observation` class.
    unlikely to be relevant.
 
 Once all the quaternions have been computed at the proper sampling
-rate, the direction of the detector on the sky and its o]rientation
+rate, the direction of the detector on the sky and its orientation
 angle can be computed via a call to :meth:`.Observation.get_pointings`.
 The calculation works as follows:
 

@@ -205,7 +205,6 @@ def _compute_pixel_indices(
             curr_pointings_det = pointings[idet, :, :]
         else:
             curr_pointings_det, hwp_angle = pointings(idet)
-            curr_pointings_det = curr_pointings_det.reshape(-1, 3)
 
         if hwp_angle is None:
             hwp_angle = 0

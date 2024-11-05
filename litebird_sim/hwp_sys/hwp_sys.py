@@ -1256,7 +1256,6 @@ class HwpSys:
                         cur_point, cur_hwp_angle = cur_obs.get_pointings(
                             detector_idx=idet, pointings_dtype=dtype_pointings
                         )
-                        cur_point = cur_point.reshape(-1, 3)
                     else:
                         cur_point = ptg_list[idx_obs][idet, :, :]
                         cur_hwp_angle = hwp_angle_list[idx_obs]
