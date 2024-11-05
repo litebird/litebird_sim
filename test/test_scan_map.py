@@ -116,8 +116,8 @@ def test_scan_map_no_interpolation():
         pixind = hpx.ang2pix(pointings[idet, :, 0:2])
         obs2.tod[idet, :] = (
             maps[0, pixind]
-            + np.cos(2 * (pointings[idet, :, 2] + hwp_angle)) * maps[1, pixind]
-            + np.sin(2 * (pointings[idet, :, 2] + hwp_angle)) * maps[2, pixind]
+            + np.cos(2 * pointings[idet, :, 2] + 4 * hwp_angle) * maps[1, pixind]
+            + np.sin(2 * pointings[idet, :, 2] + 4 * hwp_angle) * maps[2, pixind]
         )
 
     out_map2 = lbs.make_binned_map(
