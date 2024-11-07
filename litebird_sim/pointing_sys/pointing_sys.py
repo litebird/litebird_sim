@@ -550,8 +550,14 @@ class HWPCoord:
         return (refractive_index - 1.0) * wedge_angle
 
     def add_hwp_rot_disturb(self):
-        """Add a rotational disturbance synchrinized with the HWP
-        to the detectors in the focal plane.
+        """Add a rotational pointing disturbance synchrinized with the HWP
+        to detectors in the focal plane.
+        This method multyply quaternions to `DetectorInfo.quat` (RotQuaternion)
+        to inject rotational pointing disturbance around .
+
+        After the systematics injection, the pointings will be rotated around an
+        expected pointing direction far from a angular distance of `self.tilt_angle_rad`.
+        The pointing rotation frequency is determined by `self.ang_speed_radpsec`.
         """
         obs = self.sim.create_observations(self.detectors)
         _start_time = obs[0].start_time - obs[0].start_time_global
@@ -581,8 +587,11 @@ class HWPCoord:
             start_angle_rad=self.sim.hwp.start_angle_rad,
             ang_speed_radpsec=scaled_ang_speed_radpsec,
         )
+        # Set initial phase of pointing disturbance
         pointing_rot_angles += self.tilt_phase_rad
 
+        # It decompose a pointing rotation around z-axis in forcal plane reference france to
+        # a simple harmonic oscillation around x- and y-axis.
         rotational_quats_x = RotQuaternion(
             start_time=self.start_time,
             sampling_rate_hz=self.sampling_rate_hz,
@@ -595,7 +604,9 @@ class HWPCoord:
             quats=quat_rotation_y_brdcast(
                 self.tilt_angle_rad * np.sin(pointing_rot_angles))
         )
+        # generate quaternions it makes rotational disturbance to pointings around z-axis
         disturb_quats = rotational_quats_x * rotational_quats_y
+        # multiply them to detector quaternions.
         for det in self.detectors:
             left_multiply_quat2det(
                 det, self.start_time, self.sampling_rate_hz, disturb_quats
