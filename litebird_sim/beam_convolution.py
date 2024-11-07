@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import numpy as np
+import ducc0
 from typing import Union, List, Dict, Optional
 from .observations import Observation
 from .hwp import HWP
@@ -24,18 +25,31 @@ def add_convolved_sky_to_one_detector(
     # global variable?
     nthreads = 0
 
-    fullconv = MuellerConvolver(
-        convolution_params.lmax,
-        convolution_params.kmax,
-        sky_alms_det,
-        beam_alms_det,
-        mueller_matrix,
-        single_precision=convolution_params.single_precision,
-        epsilon=convolution_params.epsilon,
-        nthreads=nthreads,
-    )
-
-    tod_det += fullconv.signal(pointings_det, hwp_angle)
+    if (
+        hwp_angle is None
+    ):  # we cannot simulate HWP, so let's use classic 4pi convolution
+        inter = ducc0.totalconvolve.Interpolator(
+            sky_alms_det,
+            beam_alms_det,
+            separate=False,
+            lmax=convolution_params.lmax,
+            kmax=convolution_params.kmax,
+            epsilon=convolution_params.epsilon,
+            nthreads=nthreads,
+        )
+        tod_det += inter.interpol(pointings_det)
+    else:
+        fullconv = MuellerConvolver(
+            convolution_params.lmax,
+            convolution_params.kmax,
+            sky_alms_det,
+            beam_alms_det,
+            mueller_matrix,
+            single_precision=convolution_params.single_precision,
+            epsilon=convolution_params.epsilon,
+            nthreads=nthreads,
+        )
+        tod_det += fullconv.signal(pointings_det, hwp_angle)
 
 
 def add_convolved_sky(
