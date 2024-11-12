@@ -8,7 +8,7 @@ import tomlkit
 from pathlib import Path
 import pytest
 
-make_reference_file = False  # if True, generate reference file at `path_of_reference`.
+make_reference_file = False # if True, generate reference file at `path_of_reference`.
 
 telescopes = ["LFT", "MFT", "HFT"]
 start_time = 0
@@ -44,6 +44,7 @@ def gen_simulation_and_dets(telescope):
         ),
         delta_time_s=1.0 / sampling_hz,
     )
+    sim.spin2ecliptic_quats.start_time = np.float64(start_time)
     sim.set_instrument(
         lbs.InstrumentInfo(
             name="mock_LiteBIRD",
@@ -96,12 +97,13 @@ def test_PointingSys_add_single_offset_to_FP(
 ):
     func = test_PointingSys_add_single_offset_to_FP
     sim, dets = gen_simulation_and_dets(telescope)
+    (obs,) = sim.create_observations(detectors=dets)
 
-    pointing_sys = lbs.PointingSys(sim, dets)
+    pointing_sys = lbs.PointingSys(sim, obs, dets)
     single_offset = np.deg2rad(1.0)
     axis = "x"
     pointing_sys.focalplane.add_offset(single_offset, axis)
-    sim.create_observations(detectors=dets)
+
     lbs.prepare_pointings(
         sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=sim.hwp
     )
@@ -133,13 +135,13 @@ def test_PointingSys_add_multiple_offsets_to_FP(
 ):
     func = test_PointingSys_add_multiple_offsets_to_FP
     sim, dets = gen_simulation_and_dets(telescope)
+    (obs,) = sim.create_observations(detectors=dets)
 
-    pointing_sys = lbs.PointingSys(sim, dets)
+    pointing_sys = lbs.PointingSys(sim, obs, dets)
     multiple_offsets = np.linspace(0, np.deg2rad(1), len(dets))
     axis = "x"
     pointing_sys.focalplane.add_offset(multiple_offsets, axis)
 
-    sim.create_observations(detectors=dets)
     lbs.prepare_pointings(
         sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=sim.hwp
     )
@@ -171,8 +173,9 @@ def test_PointingSys_add_uncommon_disturb_to_FP(
 ):
     func = test_PointingSys_add_uncommon_disturb_to_FP
     sim, dets = gen_simulation_and_dets(telescope)
+    (obs,) = sim.create_observations(detectors=dets)
 
-    nquats = sim.spin2ecliptic_quats.quats.shape[0]
+    nquats = obs.n_samples + 1
     noise_rad_matrix = np.zeros([len(dets), nquats])
     sigmas = np.linspace(0, np.deg2rad(1), len(dets))
     sim.init_random(random_seed=12_345)
@@ -181,11 +184,10 @@ def test_PointingSys_add_uncommon_disturb_to_FP(
             noise_rad_matrix[i, :], sigma=np.deg2rad(sigmas[i]), random=sim.random
         )
 
-    pointing_sys = lbs.PointingSys(sim, dets)
+    pointing_sys = lbs.PointingSys(sim, obs, dets)
     axis = "x"
     pointing_sys.focalplane.add_disturb(noise_rad_matrix, axis)
 
-    sim.create_observations(detectors=dets)
     lbs.prepare_pointings(
         sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=sim.hwp
     )
@@ -217,14 +219,14 @@ def test_PointingSys_add_common_disturb_to_FP(
 ):
     func = test_PointingSys_add_common_disturb_to_FP
     sim, dets = gen_simulation_and_dets(telescope)
-
-    nquats = sim.spin2ecliptic_quats.quats.shape[0]
+    (obs,) = sim.create_observations(detectors=dets)
+    nquats = obs.n_samples + 1
     noise_rad_1d_array = np.zeros(nquats)
 
     sim.init_random(random_seed=12_345)
     lbs.add_white_noise(noise_rad_1d_array, sigma=np.deg2rad(1), random=sim.random)
 
-    pointing_sys = lbs.PointingSys(sim, dets)
+    pointing_sys = lbs.PointingSys(sim, obs, dets)
     axis = "x"
     pointing_sys.focalplane.add_disturb(noise_rad_1d_array, axis)
     sim.create_observations(detectors=dets)
@@ -260,13 +262,14 @@ def test_PointingSys_add_single_offset_to_spacecraft(
 ):
     func = test_PointingSys_add_single_offset_to_spacecraft
     sim, dets = gen_simulation_and_dets(telescope)
+    (obs,) = sim.create_observations(detectors=dets)
 
-    pointing_sys = lbs.PointingSys(sim, dets)
+    pointing_sys = lbs.PointingSys(sim, obs, dets)
     single_offset = np.deg2rad(1.0)
     axis = "x"
     pointing_sys.spacecraft.add_offset(single_offset, axis)
 
-    sim.create_observations(detectors=dets)
+
     lbs.prepare_pointings(
         sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=sim.hwp
     )
@@ -298,17 +301,18 @@ def test_PointingSys_add_common_disturb_to_spacecraft(
 ):
     func = test_PointingSys_add_common_disturb_to_spacecraft
     sim, dets = gen_simulation_and_dets(telescope)
+    (obs,) = sim.create_observations(detectors=dets)
+    nquats = obs.n_samples + 1
 
-    nquats = sim.spin2ecliptic_quats.quats.shape[0]
     noise_rad_1d_array = np.zeros(nquats)
     sim.init_random(random_seed=12_345)
     lbs.add_white_noise(noise_rad_1d_array, sigma=np.deg2rad(1), random=sim.random)
 
-    pointing_sys = lbs.PointingSys(sim, dets)
+    pointing_sys = lbs.PointingSys(sim, obs, dets)
     axis = "x"
     pointing_sys.spacecraft.add_disturb(noise_rad_1d_array, axis)
 
-    sim.create_observations(detectors=dets)
+
     lbs.prepare_pointings(
         sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=sim.hwp
     )
