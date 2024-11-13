@@ -21,7 +21,8 @@ from ..hwp import _get_ideal_hwp_angle
 
 
 def get_detector_orientation(detector: DetectorInfo):
-    # TODO: This infomation should be included in IMo.
+    # TODO: This function depends on the detector name format.
+    # We need to think a rubust way to get the orientation.
     """This function returns the orientation of the detector in the focal plane."""
 
     telescope = detector.name.split("_")[0]
@@ -143,12 +144,14 @@ def left_multiply_syst_quats(
     start_time,
     sampling_rate_hz,
 ):
-    """Add a rotation around the given axis to the quaternion and update the quaternion.
+    """Multiply the systematic quaternions `syst_quats` to the `result` quaternions.
 
     Args:
-        detector (DetectorInfo):  The instance of `DetectorInfo` type to which
-                                    `noise_rad` is to be added. The instance will
-                                    be destructively updated.
+        result: The quaternion to which the rotation is to be added.
+
+        syst_quats: The quaternions to be multiplied to the `result`.
+
+        detector: The detector to which the rotation is to be added.
 
         start_time: Either a floating-point number or an
                      `astropy.time.Time` object. It can be `None` if and
@@ -156,45 +159,57 @@ def left_multiply_syst_quats(
 
         sampling_rate_hz: The sampling frequency of the quaternions, in Hertz.
                             It can be `None` if and only if there is just *one* quaternion in `quats`.
-
-        noise_rad (1d-numpy.ndarray): The noise to be added in the specified direction by `axis`,
-                                        in radians. It must have shape of 1d NumPy array.
-
-        axis (str): The axis in the reference frame around which the rotation is to be performed.
     """
+    # get the orientation angle of the detector in the focal plane
     orient_rad = get_detector_orientation(detector)
 
+    # make the pointing direction (vec_matrix: xyz vector) of each detector in the focal plane.
+    # It will be used to unify the reference coordinates of each detector.
     vec_matrix = np.empty([syst_quats.quats.shape[0], 3])
     _rotate_z_vectors_brdcast(vec_matrix, result.quats)
 
+    # generate quaternions which rotate the detector's reference frame by
+    # `-orient_rad` around its pointing direction.
     _orient_quat = RotQuaternion(
         start_time=start_time,
         sampling_rate_hz=sampling_rate_hz,
         quats=np.array(quat_rotation_brdcast(-orient_rad, vec_matrix)),
     )
 
+    # Add the systematic rotation to the detector pointings.
+    # The operation: (_orient_quat * result) unifies the reference coordinates of each detector.
+    # Without this, we cannot rotate the detectors around the specified axis.
     interim_quat = syst_quats * _orient_quat * result
-    _rotate_z_vectors_brdcast(vec_matrix, interim_quat.quats)
 
+    # Reuse the vec_matrix to make the pointing direction of each detector in the focal plane.
+    _rotate_z_vectors_brdcast(vec_matrix, interim_quat.quats)
+    # Generate quaternions to back-rotate the detector's reference frame by `orient_rad`
+    # around its pointing direction.
     _orient_quat = RotQuaternion(
         start_time=start_time,
         sampling_rate_hz=sampling_rate_hz,
         quats=np.array(quat_rotation_brdcast(orient_rad, vec_matrix)),
     )
+    # we back-rotate the detectors to their original reference frame.
+    # By this operation, the detectors polarization angle is brought back to the original position.
     _result = _orient_quat * interim_quat
+
     result.start_time = syst_quats.start_time
     result.sampling_rate_hz = syst_quats.sampling_rate_hz
     result.quats = _result.quats
 
 class FocalplaneCoord:
     """This class create an instans of focal plane to add offset and disturbance to the detectors.
+    Methods in this class multipliy systematic quaternions to `Observation.quat`(List[RotQuaternion]).
 
     Args:
-        detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
-    """
+        sim: `Simulation` instance.
 
+        obs: `Observation` instance whose .quat is injected with the systematics.
+
+        detectors: List of `Detectorinfo`.
+    """
     def __init__(self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]):
-        """Initialize the focal plane with the detectors."""
         self.sim = sim
         self.obs = obs
         self.start_time = obs.start_time
@@ -203,6 +218,7 @@ class FocalplaneCoord:
 
     def add_offset(self, offset_rad, axis: str):
         """Add a rotational offset to the detectors in the focal plane by specified axis.
+        This method multiplies systematic quaternions to `Observation.quat`(List[RotQuaternion]).
 
         If the `offset_rad` is a scalar, it will be added to all the detectors in the focal plane.
         If the `offset_rad` is an array with same length of the list of detectors,
@@ -250,6 +266,7 @@ class FocalplaneCoord:
         self, noise_rad_matrix: np.ndarray, axis: str
     ):
         """Add a rotational disturbance to the detectors in the focal plane by specified axis.
+        This method multiplies systematic quaternions to `Observation.quat`(List[RotQuaternion]).
 
         If the `noise_rad_matrix` has the shape [N,t] where N is the number of detectors,
         t is the number of timestamps, the disturbance will be added to the detectors
@@ -257,12 +274,6 @@ class FocalplaneCoord:
         where each detector has its own disturbance.
 
         Args:
-            start_time: It is either a floating-point number or an `astropy.time.Time` object.
-            It can be `None` if and only if there is just *one* quaternion in `quats`.
-
-            sampling_rate_hz: The sampling frequency of the quaternions, in Hertz.
-            It can be `None` if and only if there is just *one* quaternion in `quats`.
-
             noise_rad_matrix
                 (numpy.ndarray with shape [N,t]): The disturbance to be added to all detectors on the focal plane
                                                   individually, in the specified direction by `axis`, in radians.
@@ -311,28 +322,28 @@ class FocalplaneCoord:
 
 class SpacecraftCoord:
     """This class create an instans of spacecraft to add offset and disturbance to the instrument.
+    Methods in this calss multipliy systematic quaternions to `Simulation.spin2ecliptic_quats`(RotQuaternion).
 
     Args:
-        instrument: `Instrumentinfo` to which offset and disturbance are to be added.
+            sim: `Simulation` instance.
+
+            obs: `Observation` instance whose .quat is injected with the systematics.
+
+            detectors: List of `Detectorinfo`.
     """
-
     def __init__(self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]):
-        """Initialize the spacecraft with the instrument.
-
-        Args:
-            sim: `Simulation` instance whose .instrument is injected with the systematics.
-
-            detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
-        """
         self.sim = sim
         self.obs = obs
         self.start_time = obs.start_time
+        self.sim.spin2ecliptic_quats.start_time = obs.start_time
         self.sampling_rate_hz = obs.sampling_rate_hz
         self.instrument = sim.instrument
         self.detectors = detectors
 
+
     def add_offset(self, offset_rad, axis: str):
         """Add a rotational offset to the instrument in the spacecraft by specified axis.
+        This method multiplies systematic quaternions to `Simulation.spin2ecliptic_quats`(RotQuaternion).
 
         Args:
             offset_rad (float): The offset to be added in the specified direction by `axis`, in radians.
@@ -346,14 +357,9 @@ class SpacecraftCoord:
 
     def add_disturb(self, noise_rad: np.ndarray, axis):
         """Add a rotational disturbance to the instrument in the spacecraft by specified axis.
+        This method multiplies systematic quaternions to `Simulation.spin2ecliptic_quats`(RotQuaternion).
 
         Args:
-            start_time: It is either a floating-point number or an `astropy.time.Time` object.
-            It can be `None` if and only if there is just *one* quaternion in `quats`.
-
-            sampling_rate_hz: The sampling frequency of the quaternions, in Hertz.
-            It can be `None` if and only if there is just *one* quaternion in `quats`.
-
             noise_rad (1d-numpy.ndarray): The disturbance to be added in the specified
                                           direction by `axis`, in radians.
 
@@ -370,19 +376,20 @@ class SpacecraftCoord:
 
 
 class HWPCoord:
-    """A Class to add pointing disturbance due to the spinning HWP."""
+    """A Class to add pointing disturbance due to the spinning HWP.
+    Methods in this class multiply systematic quaternions to `DetectorInfo.quat`(RotQuaternion).
 
+    Args:
+            sim: `Simulation` instance.
+
+            obs: `Observation` instance whose .quat is injected with the systematics.
+
+            detectors: List of `Detectorinfo`.
+    """
     def __init__(self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]):
-        """Initialize the HWP with the detectors.
-
-        Args:
-            sim: `Simulation` instance whose .instrument is injected with the systematics.
-
-            detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
+        """Initialize the HWPcoord class.
 
         Discription of the internal instance variables:
-            sim: `Simulation` instance whose .instrument is injected with the systematics.
-
             start_time: The start time of the simulation.
 
             sampling_rate_hz: The sampling rate of the detectors.
@@ -409,9 +416,9 @@ class HWPCoord:
         wedge_angle: float,
         refractive_index: float
     ):
-        """
-        Calculate the (time-dependent) angle correction to θ of the detector pointing (θ,ϕ,ψ)
-        due to the spinning wedge HWP for a single detector and time sample.
+        """Calculate the pointing angle shift due to the wedged HWP.
+        It assumes that the HWP has same refractive index between its ordinary
+        and extraordinary optic axes.
 
         Args:
             wedge_angle (float): angle of the wedge HWP in radian.
@@ -419,7 +426,7 @@ class HWPCoord:
             refractive_index (float): refractive index of the HWP.
 
         Returns:
-            float, the pointing angle shift due to the spinning wedge HWP.
+            float, the pointing angle shift due to the wedged HWP.
         """
         return (refractive_index - 1.0) * wedge_angle
 
@@ -431,12 +438,17 @@ class HWPCoord:
         ):
         """Add a rotational pointing disturbance synchrinized with the HWP
         to detectors in the focal plane.
-        This method multyply quaternions to `DetectorInfo.quat` (RotQuaternion)
-        to inject rotational pointing disturbance around .
 
         After the systematics injection, the pointings will be rotated around an
         expected pointing direction far from a angular distance of `self.tilt_angle_rad`.
         The pointing rotation frequency is determined by `self.ang_speed_radpsec`.
+
+        Args:
+            tilt_angle_rad (float): The tilted pointing angle from the expected pointing direction.
+
+            ang_speed_radpsec (float): The angular speed of the pointing circular disturbance.
+
+            tilt_phase_rad (float): Angle at which the gradient direction of HWP's wedge.
         """
         self.ang_speed_radpsec = ang_speed_radpsec
         self.tilt_angle_rad = tilt_angle_rad
@@ -488,7 +500,7 @@ class HWPCoord:
         )
         # generate quaternions it makes rotational disturbance to pointings around z-axis
         disturb_quats = rotational_quats_x * rotational_quats_y
-        # multiply them to detector quaternions.
+        # multiply them to obs.quat
         for idx in self.obs.det_idx:
             left_multiply_syst_quats(
                 self.obs.quat[idx],
@@ -503,14 +515,21 @@ class PointingSys:
     """This class provide an interface to add offset and disturbance to the instrument and detectors.
 
     Args:
-        sim (Simulation): an instance whose .instrument is injected with the systematics.
+        sim (Simulation): `Simulation` instance whose .spin2ecliptic_quats is injected with the systematics.
 
-        detectors (List[DetectorInfo]): List of `Detectorinfo` to which offset and disturbance are to be added.
+        obs (Observation): `Observation` instance whose .quat is injected with the systematics.
+
+        detectors (List[DetectorInfo]): List of `Detectorinfo`.
     """
 
     def __init__(self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]):
         for detector in detectors:
-            assert detector.sampling_rate_hz == detectors[0].sampling_rate_hz, "Not all detectors have the same sampling_rate_hz"
+            assert (
+                detector.sampling_rate_hz == detectors[0].sampling_rate_hz
+            ), "Not all detectors have the same sampling_rate_hz"
+        assert (
+            np.isclose(sim.spin2ecliptic_quats.start_time, obs.start_time)
+        ), "The `start_time` of the `Simulation.spin2ecliptic_quats.start_time` and the Observation.start_time must be the same."
         self.focalplane = FocalplaneCoord(sim, obs, detectors)
         self.hwp = HWPCoord(sim, obs, detectors)
         self.spacecraft = SpacecraftCoord(sim, obs, detectors)
