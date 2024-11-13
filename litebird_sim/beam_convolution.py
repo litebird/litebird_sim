@@ -119,17 +119,21 @@ def add_convolved_sky_to_observations(
 
     Arguments
     ---------
-    obs_list: list[Observation],
+    observations: Union[Observation, List[Observation]],
         List of Observation objects, containing detector names, pointings,
         and TOD data, to which the computed TOD are added.
-    slm_dictionary:  dict[str, any]
+    sky_alms: Dict[str, np.ndarray]
         sky a_lm. Typically only one set of sky a_lm is needed per detector frequency
-    blm_dictionary: dict[str, any]
+    beam_alms: Dict[str, np.ndarray]
         beam a_lm. Usually one set of a_lm is needed for every detector.
-    det2slm: dict[str, str]
-        converts detector name to a key for `slm_dictionary`
-    det2slm: dict[str, str]
-        converts detector name to a key for `blm_dictionary`
+    pointings: Union[np.ndarray, List[np.ndarray], None] = None
+        detector pointing information
+    hwp: Optional[HWP] = None
+        the HWP information. If `None`, we assume traditional 4pi convolution.
+    input_sky_alms_in_galactic: bool = True
+        whether the input sky alms are in galactic coordinates.
+    convolution_params: Optional[Dict]
+        collection of parameters for the convolution
     component: str
         name of the TOD component to which the computed data shall be added
     """
