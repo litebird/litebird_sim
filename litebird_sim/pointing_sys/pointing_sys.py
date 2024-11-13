@@ -2,7 +2,7 @@
 
 import numpy as np
 import astropy.time
-from typing import Union, List, Iterable
+from typing import List, Iterable
 
 from ..scanning import RotQuaternion
 from ..simulations import Simulation
@@ -16,7 +16,7 @@ from ..quaternions import (
     quat_rotation_y,
     quat_rotation_z,
 )
-from ..detectors import DetectorInfo, InstrumentInfo
+from ..detectors import DetectorInfo
 from ..hwp import _get_ideal_hwp_angle
 
 
@@ -325,11 +325,11 @@ class SpacecraftCoord:
     Methods in this calss multipliy systematic quaternions to `Simulation.spin2ecliptic_quats`(RotQuaternion).
 
     Args:
-            sim: `Simulation` instance.
+        sim: `Simulation` instance.
 
-            obs: `Observation` instance whose .quat is injected with the systematics.
+        obs: `Observation` instance whose .quat is injected with the systematics.
 
-            detectors: List of `Detectorinfo`.
+        detectors: List of `Detectorinfo`.
     """
     def __init__(self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]):
         self.sim = sim
@@ -396,11 +396,11 @@ class HWPCoord:
 
             detectors: List of `Detectorinfo` to which offset and disturbance are to be added.
 
-            ang_speed_radpsec: The angular speed of the spinning HWP.
+            ang_speed_radpsec (float): The angular speed of the spinning HWP.
 
-            tilt_angle_rad: The tilted pointing angle from the expected pointing direction.
+            tilt_angle_rad (float): The tilted pointing angle from the expected pointing direction.
 
-            tilt_phase_rad: The phase of the tilted HWP.
+            tilt_phase_rad (float): The phase of the tilted HWP.
         """
         self.sim = sim
         self.obs = obs
