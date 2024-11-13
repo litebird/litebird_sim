@@ -481,7 +481,7 @@ class RotQuaternion:
             # first ensure that they have the same starting time and the
             # same sampling frequency
             assert (
-                self.quats.shape == other.quats.shape,
+                self.quats.shape == other.quats.shape
             ), f"quaternions have different shapes: {self.quats.shape} vs {other.quats.shape}"
             assert (
                 isinstance(self.start_time, type(other.start_time))
