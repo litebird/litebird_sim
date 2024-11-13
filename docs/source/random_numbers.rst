@@ -1,7 +1,7 @@
 .. _random-numbers:
 
-Random numbers in ``litebird_sim``
-==================================
+Random numbers
+==============
 
 The LiteBIRD Simulation Framework can be used to generate random numbers,
 used for example for producing noise timelines. In order to do so,

@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join("..", "..")))
 
 # -- Project information -----------------------------------------------------
 
-project = "LiteBIRD simulation pipeline"
+project = "LBS"
 copyright = "2020, The LiteBIRD Simulation Team"
 author = "The LiteBIRD Simulation Team"
 

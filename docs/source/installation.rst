@@ -1,7 +1,7 @@
 .. _installation_procedure:
 
-Installing the framework
-========================
+Installation
+============
 
 The framework is `registered on PyPI <https://pypi.org/project/litebird-sim/>`_,
 it can be installed with the following procedure:
