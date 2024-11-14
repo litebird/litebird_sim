@@ -337,6 +337,50 @@ def test_PointingSys_add_common_disturb_to_spacecraft(
             atol=atol,
         )
 
+@pytest.mark.parametrize("telescope", telescopes)
+def test_PointingSys_add_hwp_rot_disturb(
+    telescope, make_reference_file=make_reference_file
+):
+    func = test_PointingSys_add_hwp_rot_disturb
+    sim, dets = gen_simulation_and_dets(telescope)
+    (obs,) = sim.create_observations(detectors=dets)
+    sim.init_random(random_seed=12_345)
+
+    pointing_sys = lbs.PointingSys(sim, obs, dets)
+    ang_speed_radpsec = sim.instrument.hwp_rpm * 2 * np.pi / 60
+    tilt_phase_rad = 0.0
+    wedge_angle_rad = np.deg2rad(1.0)
+    refractive_idx = 3.1
+    tilt_angle_rad = pointing_sys.hwp.get_wedgeHWP_pointing_shift_angle(
+        wedge_angle_rad,
+        refractive_idx
+    )
+    pointing_sys.hwp.add_hwp_rot_disturb(tilt_angle_rad, ang_speed_radpsec, tilt_phase_rad)
+
+    lbs.prepare_pointings(
+        sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=sim.hwp
+    )
+
+    pointings_list = []
+    for cur_obs in sim.observations:
+        for det_idx in range(cur_obs.n_detectors):
+            pointings, hwp_angle = cur_obs.get_pointings(
+                det_idx, pointings_dtype=np.float32
+            )
+            pointings_list.append(pointings.tolist())
+
+    if func.__name__ not in results_dict:
+        results_dict[func.__name__] = {}
+
+    results_dict[func.__name__][telescope] = pointings_list
+    if not make_reference_file:
+        np.testing.assert_allclose(
+            pointings_list,
+            result_reference[func.__name__][telescope],
+            rtol=rtol,
+            atol=atol,
+        )
+
 
 if make_reference_file:
     print("make_reference_file == True: Generating reference file.")
@@ -349,5 +393,6 @@ if make_reference_file:
         test_PointingSys_add_common_disturb_to_spacecraft(
             telescope, make_reference_file
         )
+        test_PointingSys_add_hwp_rot_disturb(telescope, make_reference_file)
     with gzip.open(path_of_reference, "wt", encoding="utf-8") as f:
         json.dump(results_dict, f, ensure_ascii=False, indent=4)
