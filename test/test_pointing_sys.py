@@ -114,7 +114,7 @@ def test_PointingSys_add_single_offset_to_FP(
             pointings, hwp_angle = cur_obs.get_pointings(
                 det_idx, pointings_dtype=np.float32
             )
-            pointings_list.append(pointings[0].tolist())
+            pointings_list.append(pointings.tolist())
 
     if func.__name__ not in results_dict:
         results_dict[func.__name__] = {}
@@ -152,7 +152,7 @@ def test_PointingSys_add_multiple_offsets_to_FP(
             pointings, hwp_angle = cur_obs.get_pointings(
                 det_idx, pointings_dtype=np.float32
             )
-            pointings_list.append(pointings[0].tolist())
+            pointings_list.append(pointings.tolist())
 
     if func.__name__ not in results_dict:
         results_dict[func.__name__] = {}
@@ -198,7 +198,7 @@ def test_PointingSys_add_uncommon_disturb_to_FP(
             pointings, hwp_angle = cur_obs.get_pointings(
                 det_idx, pointings_dtype=np.float32
             )
-            pointings_list.append(pointings[0].tolist())
+            pointings_list.append(pointings.tolist())
 
     if func.__name__ not in results_dict:
         results_dict[func.__name__] = {}
@@ -241,7 +241,7 @@ def test_PointingSys_add_common_disturb_to_FP(
             pointings, hwp_angle = cur_obs.get_pointings(
                 det_idx, pointings_dtype=np.float32
             )
-            pointings_list.append(pointings[0].tolist())
+            pointings_list.append(pointings.tolist())
 
     if func.__name__ not in results_dict:
         results_dict[func.__name__] = {}
@@ -280,7 +280,7 @@ def test_PointingSys_add_single_offset_to_spacecraft(
             pointings, hwp_angle = cur_obs.get_pointings(
                 det_idx, pointings_dtype=np.float32
             )
-            pointings_list.append(pointings[0].tolist())
+            pointings_list.append(pointings.tolist())
 
     if func.__name__ not in results_dict:
         results_dict[func.__name__] = {}
@@ -323,7 +323,7 @@ def test_PointingSys_add_common_disturb_to_spacecraft(
             pointings, hwp_angle = cur_obs.get_pointings(
                 det_idx, pointings_dtype=np.float32
             )
-            pointings_list.append(pointings[0].tolist())
+            pointings_list.append(pointings.tolist())
 
     if func.__name__ not in results_dict:
         results_dict[func.__name__] = {}

@@ -160,9 +160,9 @@ If the 2f amplitude is not read from the IMo, one has to specify :math:`A_2` usi
     sim.add_2f(component="tod_2f")
 
 
-Refer to the :ref:`gd-api-reference` for the full list of non-linearity simulation parameters.
+Refer to the :ref:`nl-api-reference` for the full list of non-linearity simulation parameters.
 
-.. _gd-api-reference:
+.. _nl-api-reference:
 
 API reference
 -------------

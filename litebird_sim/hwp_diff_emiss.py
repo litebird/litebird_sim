@@ -20,7 +20,7 @@ from .pointings import get_hwp_angle
 # here we calculate 2f directly.
 @njit
 def compute_2f_for_one_sample(angle_rad, amplitude_k, monopole_k):
-    return amplitude_k * np.cos(angle_rad) + monopole_k
+    return amplitude_k * np.cos(2 * angle_rad) + monopole_k
 
 
 @njit(parallel=True)

@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change**: Redefinition (ωt instead of 2ωt) of the hwp angle returned by `get_pointings()`. Change in the pointing returned by `Observation.get_pointings()`, now behaving as it was before this [commit](https://github.com/litebird/litebird_sim/pull/319/commits/b3bc3bb2049c152cc183d6cfc68f4598f5b93ec0). Documentation updated accordingly. [#340](https://github.com/litebird/litebird_sim/pull/340)
+
 -   Module for including nonlinearity in the simulations [#331](https://github.com/litebird/litebird_sim/pull/331)
 
 -   Improve the documentation of the binner and the destriper [#333](https://github.com/litebird/litebird_sim/pull/333)
