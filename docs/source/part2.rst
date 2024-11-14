@@ -7,7 +7,6 @@ Structure of the framework
    simulations.rst
    imo.rst
    detectors.rst
-   bandpasses.rst
    observations.rst
    data_layout.rst
    profiling.rst

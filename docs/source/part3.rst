@@ -5,6 +5,7 @@ Basic simulation modules
    :maxdepth: 1
 
    scanning.rst
+   hwp.rst
    noise.rst
    sky_maps.rst
    dipole.rst
