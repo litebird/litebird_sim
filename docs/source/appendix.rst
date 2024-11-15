@@ -1,5 +1,5 @@
-Part 1: Introduction
-====================
+Appendices
+==========
 
 .. toctree::
    :maxdepth: 1

@@ -168,16 +168,20 @@ Again, to generate noise with custom parameters, we can either use the low-level
 
 .. warning::
 
-    Be sure you understand the difference between the noise level in a
-    timestream and the noise level in a map. Although of course the
-    latter depends on the former, the conversion depends on several factors.
+    It's crucial to grasp the distinction between the noise level in a
+    timestream and the noise level in a map. While the latter is
+    dependent on the former, the conversion is influenced by several
+    factors. This understanding will empower you in your data analysis
+    tasks.
 
-    A common mistake is use the mission time divided by the number of pixels in
-    the map in a call to :func:`.add_white_noise`. This is **wrong**, as the noise
-    level per pixel depends on the overall integration time, which is always
-    less than the mission time because of cosmic ray loss, repointing maneuvers, etc.
-    These effects reduce the number of samples in the timeline that can be used to
-    estimate the map, but they do not affect the noise of the timeline.
+    A common mistake is to use the mission time divided by the number
+    of pixels in the map in a call to func:`.add_white_noise`. This is
+    **wrong**, as the noise level per pixel depends on the overall
+    integration time, which is always less than the mission time
+    because of cosmic ray loss, repointing maneuvers, etc. These
+    effects reduce the number of samples in the timeline that can be
+    used to estimate the map, but they do not affect the noise of the
+    timeline.
 
 
 Methods of the Simulation class

@@ -5,3 +5,4 @@ Introduction
    :maxdepth: 1
 
    installation.rst
+   singularity.rst

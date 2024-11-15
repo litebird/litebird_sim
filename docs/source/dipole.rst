@@ -4,19 +4,22 @@ Dipole anisotropy
 =================
 
 The LiteBIRD Simulation Framework provides tools to simulate the
-signal associated with the relative velocity between the spacecraft's
-rest frame with respect to the CMB. The motion of the spacecraft in
-the rest frame of the CMB is the composition of several components:
+signal associated with the relative velocity between the rest frame of
+the spacecraft with respect to the CMB. The motion of the spacecraft
+in the rest frame of the CMB is the composition of several components:
 
 1. The motion of the spacecraft around L2;
+
 2. The motion of the L2 point in the Ecliptic plane;
+
 3. The motion of the Solar System around the Galactic Centre;
+
 4. The motion of the Milky Way.
 
 Components 1 and 2 are simulated by the LiteBIRD Simulation Framework
-using appropriate models for the motions, while components 3 and 4 are
-included using the Sun velocity derived by the solar dipole measured
-by the Planck satellite. 
+using appropriate motion models, while components 3 and 4 are included
+using the Sun velocity derived by the solar dipole measured by the
+Planck satellite.
 
 The motion of the spacecraft around L2 is modelled using a Lissajous
 orbit similar to what was used for the WMAP experiment
@@ -28,21 +31,21 @@ Position and velocity of the spacecraft
 
 The class :class:`.SpacecraftOrbit` describes the orbit of the
 LiteBIRD spacecraft with respect to the Barycentric Ecliptic Reference
-Frame and the motion of Barycentric Ecliptic Reference Frame with respect
-to the CMB; this class is necessary because the class
+Frame and the motion of the Barycentric Ecliptic Reference Frame with
+respect to the CMB; this class is necessary because the class
 :class:`.ScanningStrategy` (see the chapter :ref:`scanning-strategy`)
 only models the *direction* each instrument is looking at but knows
 nothing about the velocity of the spacecraft itself.
 
-The class :class:`.SpacecraftOrbit` is a dataclass that is able to
-initialize its members to sensible default values, which are taken
-from the literature. As the LiteBIRD orbit around L2 is not fixed yet,
-the code assumes a WMAP-like Lissajous orbit, :cite:`2008:wmap:cavaluzzi`.
-For the Sun velocity it assumes Planck 2018 solar dipole 
+The class :class:`.SpacecraftOrbit` is a dataclass that can initialize
+its members to sensible default values taken from the literature. As
+the LiteBIRD orbit around L2 is not fixed yet, the code assumes a
+WMAP-like Lissajous orbit, :cite:`2008:wmap:cavaluzzi`. For the Sun
+velocity it assumes Planck 2018 solar dipole
 :cite:`2020:planck:hfi_data_processing`.
 
 To compute the position/velocity of the spacecraft, you call
-:func:`.spacecraft_pos_and_vel`; it requires either a time span or an
+:func:`.spacecraft_pos_and_vel`; it requires either a period or an
 :class:`.Observation` object, and it returns an instance of the class
 :class:`.SpacecraftPositionAndVelocity`:
 
@@ -75,9 +78,9 @@ the table with the positions and the velocities in the fields
 arrays of shape ``(nsamples, 3)``.
 
 Here is a slightly more complex example that shows how to plot the
-distance between the spacecraft and the Sun as a function of time, as
-well as its speed. The latter quantity is of course most relevant when
-computing the CMB dipole.
+distance between the spacecraft and the Sun as a function of time and
+speed. The latter quantity is, of course, most relevant when computing
+the CMB dipole.
 
 .. plot:: pyplots/spacecraft_demo.py
    :include-source:
@@ -118,13 +121,13 @@ and :math:`\mathrm{BB}(\nu, T)` is the spectral radiance of a
 black-body according to Planck's law:
 
 .. math:: \mathrm{BB}(\nu, T) = \frac{2h\nu^3}{c^2} \frac1{e^{h\nu/k_B T} - 1} = \frac{2h\nu^3}{c^2} \frac1{e^x - 1}.
-      
-There is no numerical issue in computing the full formula, but often
-models use some simplifications, to make the math easier to work on
-the blackboard. The LiteBIRD Simulation Framework implements several
-simplifications of the formula, which are based on a series expansion
-of :eq:`dipole`; the caller must pass an object of type
-:class:`.DipoleType` (an `enum class
+
+There is no numerical issue in computing the complete formula, but
+often, models use some simplifications to make the math more
+manageable to work on the blackboard. The LiteBIRD Simulation
+Framework implements several simplifications of the formula, which are
+based on a series expansion of :eq:`dipole`; the caller must pass an
+object of type :class:`.DipoleType` (an `enum class
 <https://docs.python.org/3/library/enum.html>`_), whose value signals
 which kind of approximation to use:
 
@@ -184,8 +187,8 @@ Methods of class simulation
 ---------------------------
 
 The class :class:`.Simulation` provides two simple functions that compute
-poisition and velocity of the spacescraft :func:`.Simulation.compute_pos_and_vel`, 
-and add the solar and orbital dipole to all the observations of a given 
+poisition and velocity of the spacescraft :func:`.Simulation.compute_pos_and_vel`,
+and add the solar and orbital dipole to all the observations of a given
 simulation :func:`.Simulation.add_dipole`.
 
 .. testcode::
@@ -253,7 +256,7 @@ simulation :func:`.Simulation.add_dipole`.
    3.45712e-03
 
 Note that even if :func:`Simulation.compute_pos_and_vel` is not explicitly
-invoked, :func:`Simulation.add_dipole` takes care of that internally initializing 
+invoked, :func:`Simulation.add_dipole` takes care of that internally initializing
 :class:`SpacecraftOrbit` and computing positions and velocities.
 
 API reference

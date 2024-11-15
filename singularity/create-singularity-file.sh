@@ -14,7 +14,7 @@ Usage: $(basename $0) UBUNTU_VERSION MPI_LIBRARY [BRANCH]
 
 where:
 
-  UBUNTU_VERSION is the number of the Ubuntu distribution to use (e.g., 20.04)
+  UBUNTU_VERSION is the number of the Ubuntu distribution to use (e.g., 24.04)
   MPI_LIBRARY    is either "openmpi", "mpich", or "none"
   BRANCH         specifies the branch to clone, or "master" if nothing is provided
 EOF

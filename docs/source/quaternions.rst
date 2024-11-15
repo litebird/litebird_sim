@@ -1,29 +1,28 @@
-.. _quaternions:
+.. _quaternions-chapter:
 
 Quaternions
 ===========
 
-Rotations are important to define a scanning strategy. Here we present
-a short tutorial on quaternions and explain the facilities provided by
-LBS.
+Rotations are important in defining a scanning strategy. Here, we
+present a short tutorial on quaternions and explain the facilities
+provided by LBS.
 
-To describe a rotation in 3D space, there are several choices: `Euler
+There are several choices to describe a rotation in 3D space: `Euler
 angles <https://en.wikipedia.org/wiki/Euler_angles>`_, `rotation
 matrices <https://en.wikipedia.org/wiki/Rotation_matrix>`_,
 `quaternions <https://en.wikipedia.org/wiki/Quaternion>`_, etc. Each
-of these systems has its own share of advantages and disadvantages:
-for instance, rotation matrices are handy when you have a vector and
-want to rotate it, as it's just a matter of doing a matrix-vector
-multiplication. Quaternions are more complicated on this regard, but
+of these systems has its share of advantages and disadvantages. For
+instance, rotation matrices are handy when you have a vector and want
+to rotate it, as it is just a matter of doing a matrix-vector
+multiplication. Quaternions are more complicated in this regard, but
 they offer a mathematical operation called *slerp* (shorthand for
-*spherical linear interpolation*), which is incredibly useful and not
-available with other representations, like rotation matrices. We
-assume that the reader knows what quaternion are and their
-mathematical properties; if you are not, be sure to read the book
-*Visualizing quaternions*, by Andrew J. Hanson (Elsevier, 2006,
-ISBN-0080474772) and the provocative essay by Marc ten Bosch, `Let's
-remove Quaternions from every 3D engine
-<https://marctenbosch.com/quaternions/>`_.
+*spherical linear interpolation*) that is not available with other
+representations, like rotation matrices. We assume that the reader
+knows what quaternions are and their mathematical properties; if you
+are not, be sure to read the book *Visualizing quaternions*, by
+Andrew J. Hanson (Elsevier, 2006, ISBN-0080474772) and the provocative
+essay by Marc ten Bosch, `Let’s remove Quaternions from every 3D
+engine <https://marctenbosch.com/quaternions/>`_.
 
 The LiteBIRD simulation framework models quaternions using the
 convention :math:`(v_x, v_y, v_z, w)`; be aware that some textbooks
@@ -33,8 +32,8 @@ quaternions only to model rotations, they all must obey the relation
 which is a property satisfied by rotation quaternions.
 
 The class :class:`.RotQuaternion` can model time-varying quaternions.
-It is enough to provide a list of quaternions, a starting time, and
-a sampling frequency, which is assumed to be constant::
+It is enough to provide a list of quaternions, a starting time, and a
+sampling frequency, which is assumed to be constant::
 
     import litebird_sim as lbs
 
@@ -116,11 +115,12 @@ performs the calculation :math:`r \leftarrow q \times r` (where
 
 Note the syntax for :func:`.quat_left_multiply`: you are supposed to
 pass the four components of the quaternion :math:`q` as separate
-arguments, and thus we need to prepend the call to ``lbs.quat_rotation_z``
-with ``*`` to expand the result (a 4-element tuple) into the four
-parameters required by :func:`.quat_left_multiply`. The reason for
-this weird syntax is efficiency, as this kind of function call can be
-easily optimized by Numba (which is used extensively in the code).
+arguments, and thus we need to prepend the call to
+``lbs.quat_rotation_z`` with ``*`` to expand the result (a 4-element
+tuple) into the four parameters required by
+:func:`.quat_left_multiply`. The reason for this weird syntax is
+efficiency, as Numba (which is used extensively in the code) can
+easily optimize this kind of function call.
 
 Finally, the framework provides the function :func:`.rotate_vector`,
 which applies the rotation described by a normalized quaternion to a
