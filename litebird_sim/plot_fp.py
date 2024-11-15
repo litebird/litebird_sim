@@ -124,7 +124,7 @@ Detector info.
         """
         return info_text
 
-    def generate_text_file(self, filename, selected_detector_list, duration_yr=1.0):
+    def generate_dets_list_file(self, filename, selected_detector_list, duration_yr=1.0):
         """Generate a text file with the selected detector list.
         The NET on detector is scaled by the`scaling_factor`:
         :math:`\sqrt{\frac{duration_yr}{3} \times \frac{N_{\rm dets}^{\rm e2e}}{N_{\rm dets}^{\rm ch}}}`
@@ -264,6 +264,8 @@ Detector info.
         print("[green]Do you want to make a detector list file? (y/n) [/green]")
         ans = self.ask_yes_or_no()
         if ans == "y":
+            print("[green]Input mission duration to define a scaling factor for NET (unit: yr):[/green]")
+            duration_yr = float(input())
             print("[green]Specify the directory to save:[/green]")
             self.base_path = input()
             if self.base_path == "":
@@ -329,7 +331,7 @@ Detector info.
             filename = "detectors_"+self.telescope+"_"+self.channel+"_T+B.txt"
             self.selected_detector_list = sorted(
                 self.selected_detector_list, key=lambda detector: detector.name)
-            self.generate_text_file(filename, self.selected_detector_list)
+            self.generate_dets_list_file(filename, self.selected_detector_list, duration_yr)
 
 
 if __name__ == "__main__":
