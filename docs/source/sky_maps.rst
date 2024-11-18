@@ -26,6 +26,7 @@ framework to generate a CMB map::
     sim = lbs.Simulation(base_path="../output", random_seed=12345)
     params = lbs.MbsParameters(
         make_cmb=True,
+        make_fg=True,
         fg_models=["pysm_synch_0", "pysm_freefree_1"],
     )
     mbs = lbs.Mbs(
@@ -34,7 +35,7 @@ framework to generate a CMB map::
         channel_list=[
             lbs.FreqChannelInfo.from_imo(
                 sim.imo,
-                "/releases/v1.3/satellite/LFT/L1-040/channel_info",
+                "/releases/vPTEP/satellite/LFT/L1-040/channel_info",
             ),
         ],
     )
@@ -65,21 +66,43 @@ following:
 - Anomalous emission:
   
   - ``pysm_ame_1``
+
+- CO Lines:
+  
+  - ``pysm_co_1``
+    
+  - ``pysm_co_2``
+
+  - ``pysm_co_3``
     
 - Dust:
   
   - ``pysm_dust_0``
     
   - ``pysm_dust_1``
+
+  - ``pysm_dust_2``
+
+  - ``pysm_dust_3``
     
   - ``pysm_dust_4``
     
   - ``pysm_dust_5``
+
+  - ``pysm_dust_6``
     
   - ``pysm_dust_7``
     
   - ``pysm_dust_8``
 
+  - ``pysm_dust_9``
+    
+  - ``pysm_dust_10``
+    
+  - ``pysm_dust_11``
+    
+  - ``pysm_dust_12``
+    
 - Free-free:
   
   - ``pysm_freefree_1``
@@ -90,6 +113,18 @@ following:
     
   - ``pysm_synch_1``
 
+  - ``pysm_synch_2``
+
+  - ``pysm_synch_3``
+
+  - ``pysm_synch_4``
+
+  - ``pysm_synch_5``
+
+  - ``pysm_synch_6``
+
+
+See `here <https://github.com/galsci/pysm/blob/3.4.0/pysm3/data/presets.cfg>`_ for the details of the modeling.
 
 Monte Carlo simulations
 -----------------------
