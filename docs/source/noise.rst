@@ -188,7 +188,71 @@ Methods of the Simulation class
 -------------------------------
 
 The class :class:`.Simulation` provides the function
-:func:`.Simulation.add_noise` adds noise to the timelines.
+:func:`.Simulation.add_noise` which adds noise to the timelines.
+All the details of the noise are provided in the class observation and
+the interface is simplified. 
+
+.. testcode::
+
+  import litebird_sim as lbs
+  from astropy.time import Time
+  import numpy as np
+
+  start_time = 0
+  time_span_s = 1000.0
+  sampling_hz = 10.0
+  nside = 128
+
+  sim = lbs.Simulation(
+      start_time=start_time,
+      duration_s=time_span_s,
+      random_seed=12345,
+  )
+
+  # We pick a simple scanning strategy where the spin axis is aligned
+  # with the Sun-Earth axis, and the spacecraft spins once every minute
+  sim.set_scanning_strategy(
+      lbs.SpinningScanningStrategy(
+          spin_sun_angle_rad=np.deg2rad(0),
+          precession_rate_hz=0,
+          spin_rate_hz=1 / 60,
+          start_time=start_time,
+      ),
+      delta_time_s=5.0,
+   )
+
+  # We simulate an instrument whose boresight is perpendicular to
+  # the spin axis.
+  sim.set_instrument(
+      lbs.InstrumentInfo(
+          boresight_rotangle_rad=0.0,
+          spin_boresight_angle_rad=np.deg2rad(90),
+          spin_rotangle_rad=np.deg2rad(75),
+      )
+  )
+
+  # A simple detector looking along the boresight direction
+  det = lbs.DetectorInfo(
+      name="Boresight_detector",
+      sampling_rate_hz=sampling_hz,
+      bandcenter_ghz=100.0,
+      net_ukrts=50.0,
+  )
+
+  sim.create_observations(detectors=det)
+
+  sim.add_noise(noise_type='one_over_f')
+
+  for i in range(5):
+      print(f"{sim.observations[0].tod[0][i]:.5e}")
+
+.. testoutput::
+
+    2.83998e-04
+    -7.58942e-05
+    1.72505e-04
+    -6.97704e-05
+    -8.41885e-05
 
 API reference
 -------------

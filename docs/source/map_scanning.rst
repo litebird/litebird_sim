@@ -174,7 +174,7 @@ transparent:
 
   sim.fill_tods(sky_signal)
 
-  sim.add_noise(noise_type='white', random=sim.random)
+  sim.add_noise(noise_type='white')
 
   for i in range(5):
       print(f"{sim.observations[0].tod[0][i]:.5e}")
