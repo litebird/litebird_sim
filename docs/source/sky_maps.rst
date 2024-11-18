@@ -23,11 +23,14 @@ framework to generate a CMB map::
 
     import litebird_sim as lbs
 
+    nside = 512
+
     sim = lbs.Simulation(base_path="../output", random_seed=12345)
     params = lbs.MbsParameters(
         make_cmb=True,
         make_fg=True,
         fg_models=["pysm_synch_0", "pysm_freefree_1"],
+        nside=nside,
     )
     mbs = lbs.Mbs(
         simulation=sim,
@@ -56,6 +59,7 @@ instead of pixel space maps. The user can set the maximum multipole of these alm
 ``lmax_alms``, the default value is :math:`4\times N_{side}`. If ``gaussian_smooth`` is 
 False, umbeamed maps or alms are returned.
 
+
 Available emission models
 -------------------------
 
@@ -66,6 +70,8 @@ following:
 - Anomalous emission:
   
   - ``pysm_ame_1``
+
+  - ``pysm_ame_2``
 
 - CO Lines:
   
@@ -124,7 +130,9 @@ following:
   - ``pysm_synch_6``
 
 
-See `here <https://github.com/galsci/pysm/blob/3.4.0/pysm3/data/presets.cfg>`_ for the details of the modeling.
+See `here <https://github.com/galsci/pysm/blob/3.4.0/pysm3/data/presets.cfg>`_ for the 
+details of the foreground modes implemented.
+
 
 Monte Carlo simulations
 -----------------------
