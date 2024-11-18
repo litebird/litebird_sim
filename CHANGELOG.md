@@ -8,6 +8,10 @@
 
 -   Make the code compatible with Python 3.12 [#332](https://github.com/litebird/litebird_sim/pull/332)
 
+-  plot_fp.py which visualizes focal plane and `DetectorInfo` is implemented. 
+Also it can generate a dector list file by clicking visualized detectors. 
+The function is executable by: `python -m litebird_sim.plot_fp` [#345](https://github.com/litebird/litebird_sim/pull/345)
+
 # Version 0.13.0
 
 -   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Here is a in-depth list of all the breaking changes in this PR:
