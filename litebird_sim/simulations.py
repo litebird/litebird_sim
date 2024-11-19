@@ -1548,7 +1548,7 @@ class Simulation:
     @_profile
     def add_noise(
         self,
-        random: Union[np.random.Generator, None] = None,
+        random: np.random.Generator,
         noise_type: str = "one_over_f",
         component: str = "tod",
         append_to_report: bool = True,
@@ -1562,9 +1562,6 @@ class Simulation:
         generator thatimplements the ``normal`` method. You should typically
         use the `random` field of a :class:`.Simulation` object for this.
         """
-
-        if random is None:
-            random = self.random
 
         add_noise_to_observations(
             observations=self.observations,
