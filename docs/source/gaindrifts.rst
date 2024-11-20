@@ -1,12 +1,24 @@
 Gain drift injection
 ====================
 
-Gain drift is the systematic that is multiplicative to time-ordered data. The LiteBIRD Simulation Framework provides a gain drift simulation module that is based on the implementation of the same in ``toast3``. Though the exact nature of the gain drift depends on the specifics of the electronics, the gain drift module provides the functions to simulate two kinds of gain drifts:
+Gain drift is the systematic that is multiplicative to time-ordered
+data. The LiteBIRD Simulation Framework provides a gain drift
+simulation module based on the same module in ``toast3``. Though the
+exact nature of the gain drift depends on the specifics of the
+electronics, the gain drift module provides the functions to simulate
+two kinds of gain drifts:
 
-1. Linear gain drift
-2. Thermal gain drift
+1. Linear gain drifts;
 
-For any kind of gain drift, one can use either the method of :class:`.Simulation` class :meth:`.Simulation.apply_gaindrift()`, or any of the low level functions: :func:`.apply_gaindrift_to_observations()`, :func:`.apply_gaindrift_to_tod()`, :func:`.apply_gaindrift_for_one_detector()`. The following example shows the typical usage of the method and low level functions:
+2. Thermal gain drifts.
+
+For any gain drift, one can use either the method of
+:class:`.Simulation` class :meth:`.Simulation.apply_gaindrift()`, or
+any of the low-level functions:
+:func:`.apply_gaindrift_to_observations()`,
+:func:`.apply_gaindrift_to_tod()`,
+:func:`.apply_gaindrift_for_one_detector()`. The following example
+shows the typical usage of the method and low-level functions:
 
 .. code-block:: python
 
@@ -92,12 +104,20 @@ For any kind of gain drift, one can use either the method of :class:`.Simulation
             det_name=sim1.observations[0].name[idx],
             drift_params=drift_params,
         )
-    
+
     # The four TODs we obtain this way are equal to each other.
 
-One has to specify the gain drift simulation parameters as an instance of the :class:`.GainDriftParams` class. The type of the gain drift can be specified using the enum class :class:`.GainDriftType`. The :class:`.GainDriftParams` class also offers the facility to specify the distribution of the slope for the linear gain and the distribution of the detector mismatch for the thermal gain, which can be specified with the help of another enum class :class:`.SamplingDist`.
+One has to specify the gain drift simulation parameters as an instance
+of the :class:`.GainDriftParams` class. The type of the gain drift can
+be selected using the enum class :class:`.GainDriftType`. The
+:class:`.GainDriftParams` class also offers the facility to specify
+the distribution of the slope for the linear gain and the distribution
+of the detector mismatch for the thermal gain, which can be specified
+with the help of the enum class :class:`.SamplingDist`.
 
-Following is an example of linear gain drift simulation parameters where the slope of gain for different detectors follow Gaussian distribution with mean 0.8 and standard deviation 0.2:
+Following is an example of linear gain drift simulation parameters
+where the slope of gain for different detectors follows Gaussian
+distribution with a mean of 0.8 and a standard deviation of 0.2:
 
 .. code-block:: python
 
@@ -110,7 +130,9 @@ Following is an example of linear gain drift simulation parameters where the slo
         sampling_gaussian_scale = 0.2,
     )
 
-The following example show the thermal gain drift simulation parameters where the detector mismatch within a detector group has uniform distribution varying between the factors 0.2 to 0.8:
+The following example shows the thermal gain drift simulation
+parameters where the detector mismatch within a detector group has a
+uniform distribution varying between the factors 0.2 to 0.8:
 
 .. code-block:: python
 
@@ -128,45 +150,97 @@ Refer to the :ref:`gd-api-reference` for the full list of gain drift simulation 
 Linear gain drift
 -----------------
 
-Linear gain drift is the linearly increasing factor to the TODs. The :mod:`.gaindrifts` module provides method and functions to simulate the linear gain drift with the possibility of periodic calibration. The calibration event resets the gain factor to one periodically after every calibration period interval. The calibration period can be specified with the attribute :attr:`.GainDriftParams.calibration_period_sec`. The following example shows the time evolution of the linear gain drift factor over four days with calibration period of 24 hours:
+Linear gain drift is the linearly increasing factor for TODs. The
+:mod:`.gaindrifts` module provides methods and functions to simulate
+the linear gain drift with the possibility of periodic calibration.
+The calibration event resets the gain factor to one periodically after
+every calibration period interval. You can specify the calibration
+period with the attribute
+:attr:`.GainDriftParams.calibration_period_sec`. The following example
+shows the time evolution of the linear gain drift factor over four
+days with a calibration period of 24 hours:
 
 .. plot:: pyplots/lingain_demo.py
    :include-source:
 
-Note that the figure above shows only the nature of linear gain drift factor that is to be multiplied with the sky TOD, to obtain the sky TOD with linear gain.
+Note that the figure above shows only the nature of the linear gain
+drift factor to be multiplied by the sky TOD.
 
-The module is written in a way to generate different gain slopes for different detectors. The slope (or the peak amplitude) of the linear gain is determined by the factor :math:`\sigma_{drift}\times\delta`, where :math:`\sigma_{drift}` is a dimensionless parameter specified by :attr:`.GainDriftParams.sigma_drift` and :math:`\delta` is the random factor generated uniquely for each detector. The distribution of :math:`\delta` or conversely, the distribution of the gain slopes over all the detectors can be specified with attributes of :class:`.SamplingDist` enum class and the associated parameters listed in :class:`.GainDriftParams`.
+The module generates different gain slopes for different detectors.
+The factor :math:`\sigma_{drift}\times\delta` determines the slope (or
+the peak amplitude) of the linear gain, where :math:`\sigma_{drift}`
+is a dimensionless parameter specified by
+:attr:`.GainDriftParams.sigma_drift` and :math:`\delta` is the random
+factor generated uniquely for each detector. The distribution of
+:math:`\delta` or, conversely, the distribution of the gain slopes
+over all the detectors can be specified with attributes of
+:class:`.SamplingDist` enum class and the associated parameters listed
+in :class:`.GainDriftParams`.
 
 Thermal gain drift
 ------------------
 
-The thermal gain drift is modelled as the gain drift due to :math:`1/f` fluctuation in focalplane temperature. In the first step, the :math:`1/f` noise timestream is generated from oversampled power spectral density given by
+The thermal gain drift is modelled as the gain drift due to
+:math:`1/f` fluctuation in focalplane temperature. In the first step,
+the :math:`1/f` noise timestream is generated from oversampled power
+spectral density given by
 
 .. math::
     S(f) = \sigma_{drift}^2\left(\frac{f_{knee}}{f}\right)^{\alpha_{drift}}
 
-The noise timestream is considered to be same for all the detectors belonging to a given detector group. One may specify which detector parameter to be used to make detector group, using the attribute :attr:`.GainDriftParams.focalplane_group`. It can be set to `"wafer"`, `"pixtype"` or even `"channel"`. For example, if :attr:`.GainDriftParams.focalplane_group = "wafer"`, all the detectors with same wafer name will be considered in one group and will have same noise timestream.
+The noise timestream is considered to be the same for all the
+detectors belonging to a given detector group. One may specify which
+detector parameter to use to make a detector group, using the
+attribute :attr:`.GainDriftParams.focalplane_group`. Valid values are
+`"wafer"`, `"pixtype"`, or `"channel"`. For example, if
+:attr:`.GainDriftParams.focalplane_group = "wafer"`, all the detectors
+with the same wafer name will be considered in one group and have the
+same noise timestream.
 
-Once the noise timestreams are obtained for all focalplane groups, a mismatch for the detectors within a group is introduced by a random factor and the detector mismatch factor. The noise timestream with detector mismatch can be given as following
+Once the noise timestreams are obtained for all the groups in the
+focal plane, the code inserts a mismatch for the detectors within a
+group by a random factor and the detector mismatch factor. We can
+express the noise timestream with detector mismatch using the
+following expression:
 
 .. math::
     t^{(mis)}_{stream} = (1 + \delta\times\alpha_{mis})t_{stream}
 
-where :math:`\alpha_{mis}` is the detector mismatch factor specified using the attribute :attr:`.GainDriftParams.detector_mismatch` and :math:`\delta` is the random factor generated uniquely for each detector. The distribution of :math:`\delta` or conversely, the distribution of noise timestream mismatch can be specified with attributes of :class:`.SamplingDist` enum class and the associated parameters listed in :class:`.GainDriftParams`.
+where :math:`\alpha_{mis}` is the detector mismatch factor specified
+using the attribute :attr:`.GainDriftParams.detector_mismatch` and
+:math:`\delta` is the random factor generated uniquely for each
+detector. The distribution of :math:`\delta` or, conversely, the
+distribution of noise timestream mismatch can be specified with
+attributes of :class:`.SamplingDist` enum class and the associated
+parameters listed in :class:`.GainDriftParams`.
 
-The mismatched timestream is then scaled and passed through a responsivity function to finally obtain the thermal gain factor (:math:`\sigma`):
+The mismatched timestream is then scaled and passed through a
+responsivity function to obtain the thermal gain factor
+(:math:`\sigma`):
 
 .. math::
     \sigma = \text{responsivity_function}\left(1+\frac{ t^{(mis)}_{stream} \times \delta_T }{T_{bath}}\right)
 
-where :math:`\delta_T` is the amplitude of the thermal gain fluctuation in Kelvin unit, specified with attribute :attr:`.GainDriftParams.thermal_fluctuation_amplitude_K`, and :math:`T_{bath}` is the temperature of the focalplane in Kelvin unit specified with the attribute :attr:`.GainDriftParams.focalplane_Tbath_K`.
+where :math:`\delta_T` is the amplitude of the thermal gain
+fluctuation in Kelvin unit, specified with attribute
+:attr:`.GainDriftParams.thermal_fluctuation_amplitude_K`, and
+:math:`T_{bath}` is the temperature of the focalplane in Kelvin unit
+specified with the attribute
+:attr:`.GainDriftParams.focalplane_Tbath_K`.
 
-The following example shows the comparison of thermal gain drift factor with or without detector mismatch over 100 seconds.
+The following example shows the comparison of thermal gain drift
+factor with or without detector mismatch over 100 seconds.
 
 .. plot:: pyplots/thermalgain_demo.py
    :include-source:
 
-In the plots above, when there is no detector mismatch, ``det_A_wafer_1`` and ``det_B_wafer_1`` have same gain drift factor as they belong to the same focalplane group (grouped by wafer name). But when the detector mismatch is enabled, the two gain drift factors have same shape due to the same underlying noise timestream, but differ slightly in amplitude due to an additional random mismatch factor.
+In the plots above, when there is no detector mismatch,
+``det_A_wafer_1`` and ``det_B_wafer_1`` have the same gain drift
+factor as they belong to the same focal plane group (grouped by wafer
+name). However, when the detector mismatch is enabled, the two gain
+drift factors have the same shape due to the same underlying noise
+timestream but differ slightly in amplitude due to an additional
+random mismatch factor.
 
 .. _gd-api-reference:
 
