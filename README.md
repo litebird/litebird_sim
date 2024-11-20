@@ -112,6 +112,20 @@ command:
     make.bat html
     ```
 
+### Focal plane visualizer 
+
+We can visualize detectors in the focal plane by:
+```
+python -m litebird_sim.plot_fp
+```
+This software loads the IMo which is installed in the machine you are using. 
+As the conversation unfolds, an interactive Matplotlib window will appear. 
+Detectors corresponding to the specified channels are represented as blue dots. 
+Clicking on a dot reveals the `DetectorInfo` for that detector in real time, highlighted with a red star. 
+Additionally, if you agree during the conversation to generate a detector file,
+a list of starred detectors will be saved into a text file at the designated location after you closed the plot.
+
+![plot_fp_usage](https://private-user-images.githubusercontent.com/83496454/388083441-93876c66-8b61-40c0-b23f-79a6998e5e33.gif?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MzIxMDQ2MDcsIm5iZiI6MTczMjEwNDMwNywicGF0aCI6Ii84MzQ5NjQ1NC8zODgwODM0NDEtOTM4NzZjNjYtOGI2MS00MGMwLWIyM2YtNzlhNjk5OGU1ZTMzLmdpZj9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDExMjAlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQxMTIwVDEyMDUwN1omWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTZlOTk2M2M3NDgyZjUyY2M4NjFiOGE3ZjliM2RhMWU1YWU2NjFkNmM1ZGQxYzAzM2Y3ZDVmOGI3ZTdhMTAwNjEmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.MoAArSYcXhQgVYaer_O72XHIamO_Ex6B5ITuyVgB8_g)
 
 ## Roadmap
 
