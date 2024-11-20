@@ -3,36 +3,23 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to litebird_sim's documentation!
+LBS User’s Manual
 ========================================
+
+This is the User’s Manual of the LiteBIRD Simulation Framework.
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Parts
 
+   part1.rst
+   part2.rst
+   part3.rst
+   part4.rst
+   part5.rst
+   part6.rst
+   appendix.rst
    installation
-   tutorial
-   simulations
-   imo
-   detectors
-   observations
-   data_layout
-   scanning
-   sky_maps
-   timeordered
-   dipole
-   mapmaking
-   bandpasses
-   random_numbers
-   mpi
-   reports
-   gaindrifts
-   non_linearity
-   external_modules
-   profiling
-   integrating
-   bibliography
-
 
 Indices and tables
 ==================
