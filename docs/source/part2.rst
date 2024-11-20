@@ -7,6 +7,7 @@ Structure of the framework
    simulations.rst
    imo.rst
    detectors.rst
+   plot_fp.rst
    observations.rst
    data_layout.rst
    profiling.rst
