@@ -50,7 +50,7 @@ class DetectorInfoViewer:
             y (float): The y coordinate of the detector on the focal plane.
         """
         q = det_info.quat.quats[0]
-        r = np.array([0., 0., 1., 0.])
+        r = np.array([0.0, 0.0, 1.0, 0.0])
         if telescope == "LFT":
             # Rotate the FPU 180 degrees for projection if LFT is selected
             q_z = quat_rotation_z(np.deg2rad(180))
@@ -73,7 +73,7 @@ class DetectorInfoViewer:
         Args:
             detector (DetectorInfo): Detector information.
         """
-        info_text = fr"""
+        info_text = rf"""
         Detector info.
           $\cdot~$name: {detector.name}
           $\cdot~$wafer: {detector.wafer}
@@ -101,7 +101,7 @@ class DetectorInfoViewer:
         Args:
             detector (DetectorInfo): Detector information.
         """
-        info_text = fr"""
+        info_text = rf"""
 Detector info.
     name: {det1.name}, {det2.name}
     pol: {det1.pol}, {det2.pol}
@@ -124,7 +124,9 @@ Detector info.
         """
         return info_text
 
-    def generate_dets_list_file(self, filename, selected_detector_list, duration_yr=1.0):
+    def generate_dets_list_file(
+        self, filename, selected_detector_list, duration_yr=1.0
+    ):
         """Generate a text file with the selected detector list.
         The NET on detector is scaled by the`scaling_factor`:
         :math:`\sqrt{\frac{duration_yr}{3} \times \frac{N_{\rm dets}^{\rm e2e}}{N_{\rm dets}^{\rm ch}}}`
@@ -137,16 +139,16 @@ Detector info.
         header = "# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name\n"
         selected_number_of_dets = len(selected_detector_list)
         scaling_factor = np.sqrt(
-            duration_yr/3. * selected_number_of_dets/self.ndets_in_channel)
+            duration_yr / 3.0 * selected_number_of_dets / self.ndets_in_channel
+        )
         with open(os.path.join(self.base_path, filename), "w") as file:
             file.write(header)
             for detector in selected_detector_list:
                 scaled_net = np.round(detector.net_ukrts * scaling_factor, 2)
                 line = f"{self.telescope}\t\t{self.channel}\t\t{detector.net_ukrts}\t\t{selected_number_of_dets}/{self.ndets_in_channel}\t\t{scaled_net}\t\t{detector.name}\n"
                 file.write(line)
-        print(f'[green]The {filename} is generated.[/green]')
-        print(
-            f"[green]Location:[/green] [cyan]{self.base_path}/{filename}[/cyan]")
+        print(f"[green]The {filename} is generated.[/green]")
+        print(f"[green]Location:[/green] [cyan]{self.base_path}/{filename}[/cyan]")
 
     def on_plot_click(self, event):
         """Select the detector by clicking on the plot.
@@ -160,8 +162,9 @@ Detector info.
             blue = "#1f77b4"
             red = "#b41f44"
             # distance between the clicked point and the detector
-            distance = ((self.x_ch - event.xdata)**2 +
-                        (self.y_ch - event.ydata)**2)**0.5
+            distance = (
+                (self.x_ch - event.xdata) ** 2 + (self.y_ch - event.ydata) ** 2
+            ) ** 0.5
             if np.min(distance) < 0.3:
                 sorted_indices = np.argsort(distance)
                 indices = [sorted_indices[0], sorted_indices[1]]
@@ -189,16 +192,15 @@ Detector info.
     def ask_yes_or_no(self):
         while True:
             ans = input().lower()
-            if ans == 'y':
+            if ans == "y":
                 print("[green]Create a detector list file.[/green]")
                 break
-            elif ans == 'n':
+            elif ans == "n":
                 print("[green]No detector list file will be created.[/green]")
                 break
             else:
                 print("[ref]Invalid input. Please enter 'y' or 'n'.[/red]")
-                print(
-                    "[green]Do you want to make a detector list file? [y/n][/green]")
+                print("[green]Do you want to make a detector list file? [y/n][/green]")
         return ans
 
     def extract_location_from_toml(self, file_path):
@@ -207,34 +209,32 @@ Detector info.
         Args:
             file_path (str): The path to the toml file.
         """
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             data = toml.load(file)
-            loc = data['repositories'][0]['location']
+            loc = data["repositories"][0]["location"]
         return loc
 
     def main(self):
-
         if not CONFIG_FILE_PATH.exists():
             imo = Imo()
             self.imo_version = "vPTEP"
         else:
             IMO_ROOT_PATH = self.extract_location_from_toml(CONFIG_FILE_PATH)
-            imo = Imo(
-                flatfile_location=os.path.join(IMO_ROOT_PATH, "schema.json")
-            )
+            imo = Imo(flatfile_location=os.path.join(IMO_ROOT_PATH, "schema.json"))
             versions = list(imo.imoobject.releases.keys())
-            versions_with_idx = [
-                f"({i+1}). {ver}" for i, ver in enumerate(versions)]
+            versions_with_idx = [f"({i+1}). {ver}" for i, ver in enumerate(versions)]
             print(
-                f"[green]Available IMO versions:[/green] [cyan]{versions_with_idx}[/cyan]")
+                f"[green]Available IMO versions:[/green] [cyan]{versions_with_idx}[/cyan]"
+            )
             print("[green]Input IMO version's number: [/green]")
             version_idx = input()
-            self.imo_version = versions[int(version_idx)-1]
+            self.imo_version = versions[int(version_idx) - 1]
 
         sim = Simulation(random_seed=None, imo=imo)
 
         print(
-            "[green]Input telescope's number:[/green] [cyan]['(1). LFT', '(2). MFT', '(3). HFT'][/cyan]")
+            "[green]Input telescope's number:[/green] [cyan]['(1). LFT', '(2). MFT', '(3). HFT'][/cyan]"
+        )
         telescope_id = input()
 
         if telescope_id == "1":
@@ -244,8 +244,7 @@ Detector info.
         elif telescope_id == "3":
             self.telescope = "HFT"
         else:
-            raise ValueError(
-                "Invalid telescope number. Please input 1, 2 or 3.")
+            raise ValueError("Invalid telescope number. Please input 1, 2 or 3.")
 
         inst_info = sim.imo.query(
             f"/releases/{self.imo_version}/satellite/{self.telescope}/instrument_info"
@@ -253,37 +252,40 @@ Detector info.
         channel_list = inst_info.metadata["channel_names"]
         # add index to the channel list
         channel_list_with_idx = [
-            f"({i+1}). {channel}" for i, channel in enumerate(channel_list)]
+            f"({i+1}). {channel}" for i, channel in enumerate(channel_list)
+        ]
 
         print(
-            f"[green]The availavle channels are:[/green] [cyan]{channel_list_with_idx}[/cyan]")
+            f"[green]The availavle channels are:[/green] [cyan]{channel_list_with_idx}[/cyan]"
+        )
         print("[green]Input the channel's number:[/green]")
         channel_idx = input()
-        self.channel = channel_list[int(channel_idx)-1]
+        self.channel = channel_list[int(channel_idx) - 1]
 
         print("[green]Do you want to make a detector list file? (y/n) [/green]")
         ans = self.ask_yes_or_no()
         if ans == "y":
-            print("[green]Input mission duration to define a scaling factor for NET (unit: yr):[/green]")
+            print(
+                "[green]Input mission duration to define a scaling factor for NET (unit: yr):[/green]"
+            )
             duration_yr = float(input())
             print("[green]Specify the directory to save:[/green]")
             self.base_path = input()
             if self.base_path == "":
                 self.base_path = "./"
-                print(
-                    "[green]The file will be saved in the current directory.[/green]")
-            if self.base_path.endswith('/'):
+                print("[green]The file will be saved in the current directory.[/green]")
+            if self.base_path.endswith("/"):
                 self.base_path = self.base_path[:-1]
 
         for ch in channel_list:
             channel_info = FreqChannelInfo.from_imo(
                 imo=imo,
-                url=f'/releases/{self.imo_version}/satellite/{self.telescope}/{ch}/channel_info'
+                url=f"/releases/{self.imo_version}/satellite/{self.telescope}/{ch}/channel_info",
             )
             for detector_name in channel_info.detector_names:
                 det = DetectorInfo.from_imo(
                     imo=imo,
-                    url=f'/releases/{self.imo_version}/satellite/{self.telescope}/{ch}/{detector_name}/detector_info'
+                    url=f"/releases/{self.imo_version}/satellite/{self.telescope}/{ch}/{detector_name}/detector_info",
                 )
                 if self.channel == ch:
                     self.channel_dets_list.append(det)
@@ -305,20 +307,29 @@ Detector info.
 
         for i, det in enumerate(self.total_dets_list):
             self.x_tot[i], self.y_tot[i] = self.get_det_xy(det, self.telescope)
-        self.ax1.scatter(self.x_tot, self.y_tot,
-                         marker="x", s=25, color="black")
+        self.ax1.scatter(self.x_tot, self.y_tot, marker="x", s=25, color="black")
 
         for i, det in enumerate(self.channel_dets_list):
             self.x_ch[i], self.y_ch[i] = self.get_det_xy(det, self.telescope)
-            self.scatter.append(self.ax1.plot(self.x_ch[i], self.y_ch[i], "o",
-                                              markersize=8, color="#1f77b4")[0])
+            self.scatter.append(
+                self.ax1.plot(
+                    self.x_ch[i], self.y_ch[i], "o", markersize=8, color="#1f77b4"
+                )[0]
+            )
 
         self.ax1.set_xlabel(r"$\theta\cos(\phi)$ [degrees]")
         self.ax1.set_ylabel(r"$\theta\sin(\phi)$ [degrees]")
 
         self.ax2 = self.fig.add_subplot(1, 2, 2, aspect="equal")
-        self.info_box = self.ax2.text(0.02, 0.98, "", transform=self.ax2.transAxes, va="top",
-                                      ha="left", bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5))
+        self.info_box = self.ax2.text(
+            0.02,
+            0.98,
+            "",
+            transform=self.ax2.transAxes,
+            va="top",
+            ha="left",
+            bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.5),
+        )
         self.ax2.set_axis_off()
 
         print("[blue]Click is available...[/blue]")
@@ -328,10 +339,13 @@ Detector info.
 
         # Save the detector list file.
         if ans == "y":
-            filename = "detectors_"+self.telescope+"_"+self.channel+"_T+B.txt"
+            filename = "detectors_" + self.telescope + "_" + self.channel + "_T+B.txt"
             self.selected_detector_list = sorted(
-                self.selected_detector_list, key=lambda detector: detector.name)
-            self.generate_dets_list_file(filename, self.selected_detector_list, duration_yr)
+                self.selected_detector_list, key=lambda detector: detector.name
+            )
+            self.generate_dets_list_file(
+                filename, self.selected_detector_list, duration_yr
+            )
 
 
 if __name__ == "__main__":
