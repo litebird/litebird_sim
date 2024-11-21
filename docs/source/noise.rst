@@ -241,7 +241,7 @@ the interface is simplified.
 
   sim.create_observations(detectors=det)
 
-  sim.add_noise(noise_type='one_over_f', random=sim.random)
+  sim.add_noise(noise_type='one_over_f')
 
   for i in range(5):
       print(f"{sim.observations[0].tod[0][i]:.5e}")

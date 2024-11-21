@@ -10,9 +10,11 @@
 
 -   Make the code compatible with Python 3.12 [#332](https://github.com/litebird/litebird_sim/pull/332)
 
--  plot_fp.py which visualizes focal plane and `DetectorInfo` is implemented. 
+-   plot_fp.py which visualizes focal plane and `DetectorInfo` is implemented. 
 Also it can generate a dector list file by clicking visualized detectors. 
 The function is executable by: `python -m litebird_sim.plot_fp` [#345](https://github.com/litebird/litebird_sim/pull/345)
+
+-   Simulation.add_noise() uses self.random as default random number generator [#349](https://github.com/litebird/litebird_sim/pull/349)
 
 # Version 0.13.0
 
