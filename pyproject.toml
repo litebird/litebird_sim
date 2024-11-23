@@ -4,6 +4,7 @@ version = "0.13.0"
 description = "Simulation tools for the LiteBIRD experiment"
 authors = [
     "The LiteBIRD Simulation Team",
+    "Yusuke Takase <takase_y@s.okayama-u.ac.jp>",
     "Ranajoy Banerji <ranajoy.cosmo@gmail.com>",
     "Marco Bortolami <marco.bortolami@unife.it>",
     "Mathew Galloway <mathew.galloway@astro.uio.no>",
