@@ -89,7 +89,7 @@ from .pointings_in_obs import (
     prepare_pointings,
     precompute_pointings,
 )
-from .pointing_sys.pointing_sys import (
+from .pointing_sys import (
     get_detector_orientation,
     left_multiply_syst_quats,
     FocalplaneCoord,

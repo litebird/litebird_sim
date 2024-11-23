@@ -41,7 +41,7 @@ def gen_simulation_and_dets(telescope):
     sim.set_scanning_strategy(
         scanning_strategy=lbs.SpinningScanningStrategy(
             spin_sun_angle_rad=np.deg2rad(45.0),
-            spin_rate_hz=0.5 / 60.0,
+            spin_rate_hz=0.05 / 60.0,
             precession_rate_hz=1.0 / (3.2 * 60 * 60),
         ),
         delta_time_s=1.0 / sampling_hz,
