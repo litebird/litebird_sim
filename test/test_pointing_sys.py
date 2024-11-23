@@ -1,12 +1,14 @@
 # -*- encoding: utf-8 -*-
 
-import numpy as np
-import litebird_sim as lbs
-import json
 import gzip
-import tomlkit
+import json
 from pathlib import Path
+
+import numpy as np
 import pytest
+import tomlkit
+
+import litebird_sim as lbs
 
 make_reference_file = False # if True, generate reference file at `path_of_reference`.
 

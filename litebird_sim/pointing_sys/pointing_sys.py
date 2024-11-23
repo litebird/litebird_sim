@@ -1,27 +1,29 @@
 # -*- encoding: utf-8 -*-
 
-import numpy as np
-import astropy.time
-from typing import List, Iterable
+from typing import Iterable, List
 
-from ..scanning import RotQuaternion
-from ..simulations import Simulation
+import astropy.time
+import numpy as np
+
+from ..detectors import DetectorInfo
+from ..hwp import _get_ideal_hwp_angle
 from ..observations import Observation
 from ..quaternions import (
     quat_rotation_brdcast,
-    quat_rotation_x_brdcast,
-    quat_rotation_y_brdcast,
-    quat_rotation_z_brdcast,
     quat_rotation_x,
+    quat_rotation_x_brdcast,
     quat_rotation_y,
+    quat_rotation_y_brdcast,
     quat_rotation_z,
+    quat_rotation_z_brdcast,
 )
-from ..detectors import DetectorInfo
-from ..hwp import _get_ideal_hwp_angle
+from ..scanning import RotQuaternion
+from ..simulations import Simulation
 
 
 def get_detector_orientation(detector: DetectorInfo):
     # TODO: This function depends on the detector name format.
+    # In the IMo-v2, it is confirmed to be worked.
     # We need to think a rubust way to get the orientation.
     """This function returns the orientation of the detector in the focal plane."""
 
@@ -53,6 +55,7 @@ def get_detector_orientation(detector: DetectorInfo):
             orient_angle = -orient_angle
     return orient_angle
 
+
 def _rotate_z_vectors_brdcast(result_matrix: np.ndarray, quat_matrix: np.ndarray):
     """Rotate the z vectors using the quaternions `quat_matrix`.
     This function is a broadcast version of `rotate_z_vector` function.
@@ -63,15 +66,13 @@ def _rotate_z_vectors_brdcast(result_matrix: np.ndarray, quat_matrix: np.ndarray
         quat_matrix (np.ndarray with shape [N,4]):   The matrix of quaternions to rotate the vectors.
     """
     result_matrix[:, 0] = 2 * (
-        quat_matrix[:, 3] * quat_matrix[:, 1] +
-        quat_matrix[:, 0] * quat_matrix[:, 2]
+        quat_matrix[:, 3] * quat_matrix[:, 1] + quat_matrix[:, 0] * quat_matrix[:, 2]
     )
     result_matrix[:, 1] = 2 * (
-        quat_matrix[:, 1] * quat_matrix[:, 2] -
-        quat_matrix[:, 3] * quat_matrix[:, 0]
+        quat_matrix[:, 1] * quat_matrix[:, 2] - quat_matrix[:, 3] * quat_matrix[:, 0]
     )
-    result_matrix[:, 2] = 1.0 - 2 * \
-        (quat_matrix[:, 0] ** 2 + quat_matrix[:, 1] ** 2)
+    result_matrix[:, 2] = 1.0 - 2 * (quat_matrix[:, 0] ** 2 + quat_matrix[:, 1] ** 2)
+
 
 def _ecl2focalplane(angle, axis):
     """Convert the axis and offset from the ecliptic coordinate to the focal plane.
@@ -93,6 +94,7 @@ def _ecl2focalplane(angle, axis):
         angle = -angle
     return (angle, axis)
 
+
 def _ecl2spacecraft(angle, axis):
     """Convert the axis and offset from the ecliptic coordinate to the spacecraft
     (Payload module: PLM) coordinate.
@@ -112,6 +114,7 @@ def _ecl2spacecraft(angle, axis):
     elif axis.lower() == "z":
         axis = "z"
     return (angle, axis)
+
 
 def _get_rotator(axis, broadcast=False):
     """Get the rotation function for the given axis.
@@ -136,6 +139,7 @@ def _get_rotator(axis, broadcast=False):
     else:
         raise ValueError("Invalid axis. The axis must be one of 'x', 'y', or 'z'. ")
     return rotation_func
+
 
 def left_multiply_syst_quats(
     result: RotQuaternion,
@@ -198,6 +202,7 @@ def left_multiply_syst_quats(
     result.sampling_rate_hz = syst_quats.sampling_rate_hz
     result.quats = _result.quats
 
+
 class FocalplaneCoord:
     """This class create an instans of focal plane to add offset and disturbance to the detectors.
     Methods in this class multipliy systematic quaternions to `Observation.quat`(List[RotQuaternion]).
@@ -209,7 +214,10 @@ class FocalplaneCoord:
 
         detectors: List of `Detectorinfo`.
     """
-    def __init__(self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]):
+
+    def __init__(
+        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+    ):
         self.sim = sim
         self.obs = obs
         self.start_time = obs.start_time
@@ -242,7 +250,9 @@ class FocalplaneCoord:
                 self.detectors
             ), "The length of the offset_rad must be equal to the number of detectors."
             for idx in self.obs.det_idx:
-                syst_quat = RotQuaternion(quats=np.array(rotation_func(offset_rad[idx])))
+                syst_quat = RotQuaternion(
+                    quats=np.array(rotation_func(offset_rad[idx]))
+                )
                 left_multiply_syst_quats(
                     self.obs.quat[idx],
                     syst_quat,
@@ -262,9 +272,7 @@ class FocalplaneCoord:
                     self.sampling_rate_hz,
                 )
 
-    def add_disturb(
-        self, noise_rad_matrix: np.ndarray, axis: str
-    ):
+    def add_disturb(self, noise_rad_matrix: np.ndarray, axis: str):
         """Add a rotational disturbance to the detectors in the focal plane by specified axis.
         This method multiplies systematic quaternions to `Observation.quat`(List[RotQuaternion]).
 
@@ -291,7 +299,7 @@ class FocalplaneCoord:
                 syst_quat = RotQuaternion(
                     start_time=self.start_time,
                     sampling_rate_hz=self.sampling_rate_hz,
-                    quats=np.array(rotation_func(noise_rad_matrix))
+                    quats=np.array(rotation_func(noise_rad_matrix)),
                 )
                 left_multiply_syst_quats(
                     self.obs.quat[idx],
@@ -309,7 +317,7 @@ class FocalplaneCoord:
                 syst_quat = RotQuaternion(
                     start_time=self.start_time,
                     sampling_rate_hz=self.sampling_rate_hz,
-                    quats=np.array(rotation_func(noise_rad_matrix[idx]))
+                    quats=np.array(rotation_func(noise_rad_matrix[idx])),
                 )
                 left_multiply_syst_quats(
                     self.obs.quat[idx],
@@ -331,7 +339,10 @@ class SpacecraftCoord:
 
         detectors: List of `Detectorinfo`.
     """
-    def __init__(self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]):
+
+    def __init__(
+        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+    ):
         self.sim = sim
         self.obs = obs
         self.start_time = obs.start_time
@@ -339,7 +350,6 @@ class SpacecraftCoord:
         self.sampling_rate_hz = obs.sampling_rate_hz
         self.instrument = sim.instrument
         self.detectors = detectors
-
 
     def add_offset(self, offset_rad, axis: str):
         """Add a rotational offset to the instrument in the spacecraft by specified axis.
@@ -370,7 +380,7 @@ class SpacecraftCoord:
         syst_quat = RotQuaternion(
             start_time=self.start_time,
             sampling_rate_hz=self.sampling_rate_hz,
-            quats=np.array(rotation_func(noise_rad))
+            quats=np.array(rotation_func(noise_rad)),
         )
         self.sim.spin2ecliptic_quats *= syst_quat
 
@@ -386,7 +396,10 @@ class HWPCoord:
 
             detectors: List of `Detectorinfo`.
     """
-    def __init__(self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]):
+
+    def __init__(
+        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+    ):
         """Initialize the HWPcoord class.
 
         Discription of the internal instance variables:
@@ -412,10 +425,7 @@ class HWPCoord:
         self.tilt_phase_rad = 0.0
 
     @staticmethod
-    def get_wedgeHWP_pointing_shift_angle(
-        wedge_angle: float,
-        refractive_index: float
-    ):
+    def get_wedgeHWP_pointing_shift_angle(wedge_angle: float, refractive_index: float):
         """Calculate the pointing angle shift due to the wedged HWP.
         It assumes that the HWP has same refractive index between its ordinary
         and extraordinary optic axes.
@@ -435,7 +445,7 @@ class HWPCoord:
         tilt_angle_rad: float,
         ang_speed_radpsec: float,
         tilt_phase_rad=0.0,
-        ):
+    ):
         """Add a rotational pointing disturbance synchrinized with the HWP
         to detectors in the focal plane.
 
@@ -482,13 +492,15 @@ class HWPCoord:
             start_time=self.start_time,
             sampling_rate_hz=self.sampling_rate_hz,
             quats=quat_rotation_x_brdcast(
-                self.tilt_angle_rad * np.cos(pointing_rot_angles))
+                self.tilt_angle_rad * np.cos(pointing_rot_angles)
+            ),
         )
         rotational_quats_y = RotQuaternion(
             start_time=self.start_time,
             sampling_rate_hz=self.sampling_rate_hz,
             quats=quat_rotation_y_brdcast(
-                self.tilt_angle_rad * np.sin(pointing_rot_angles))
+                self.tilt_angle_rad * np.sin(pointing_rot_angles)
+            ),
         )
         # generate quaternions it makes rotational disturbance to pointings around z-axis
         disturb_quats = rotational_quats_x * rotational_quats_y
@@ -514,13 +526,15 @@ class PointingSys:
         detectors (List[DetectorInfo]): List of `Detectorinfo`.
     """
 
-    def __init__(self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]):
+    def __init__(
+        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+    ):
         for detector in detectors:
             assert (
                 detector.sampling_rate_hz == detectors[0].sampling_rate_hz
             ), "Not all detectors have the same sampling_rate_hz"
-        assert (
-            np.isclose(sim.spin2ecliptic_quats.start_time, obs.start_time)
+        assert np.isclose(
+            sim.spin2ecliptic_quats.start_time, obs.start_time
         ), "The `start_time` of the `Simulation.spin2ecliptic_quats.start_time` and the Observation.start_time must be the same."
         self.focalplane = FocalplaneCoord(sim, obs, detectors)
         self.hwp = HWPCoord(sim, obs, detectors)
