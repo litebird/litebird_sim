@@ -10,7 +10,7 @@ import tomlkit
 
 import litebird_sim as lbs
 
-make_reference_file = False # if True, generate reference file at `path_of_reference`.
+make_reference_file = False  # if True, generate reference file at `path_of_reference`.
 
 telescopes = ["LFT", "MFT", "HFT"]
 start_time = 0
@@ -271,7 +271,6 @@ def test_PointingSys_add_single_offset_to_spacecraft(
     axis = "x"
     pointing_sys.spacecraft.add_offset(single_offset, axis)
 
-
     lbs.prepare_pointings(
         sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=sim.hwp
     )
@@ -314,7 +313,6 @@ def test_PointingSys_add_common_disturb_to_spacecraft(
     axis = "x"
     pointing_sys.spacecraft.add_disturb(noise_rad_1d_array, axis)
 
-
     lbs.prepare_pointings(
         sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=sim.hwp
     )
@@ -339,6 +337,7 @@ def test_PointingSys_add_common_disturb_to_spacecraft(
             atol=atol,
         )
 
+
 @pytest.mark.parametrize("telescope", telescopes)
 def test_PointingSys_add_hwp_rot_disturb(
     telescope, make_reference_file=make_reference_file
@@ -354,10 +353,11 @@ def test_PointingSys_add_hwp_rot_disturb(
     wedge_angle_rad = np.deg2rad(1.0)
     refractive_idx = 3.1
     tilt_angle_rad = pointing_sys.hwp.get_wedgeHWP_pointing_shift_angle(
-        wedge_angle_rad,
-        refractive_idx
+        wedge_angle_rad, refractive_idx
     )
-    pointing_sys.hwp.add_hwp_rot_disturb(tilt_angle_rad, ang_speed_radpsec, tilt_phase_rad)
+    pointing_sys.hwp.add_hwp_rot_disturb(
+        tilt_angle_rad, ang_speed_radpsec, tilt_phase_rad
+    )
 
     lbs.prepare_pointings(
         sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=sim.hwp
