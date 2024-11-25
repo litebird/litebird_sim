@@ -13,6 +13,7 @@ from collections import defaultdict
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly, distribute_detector_blocks
 from .detectors import DetectorInfo
+from .mpi import comm_grid
 
 
 @dataclass
@@ -164,6 +165,17 @@ class Observation:
         else:
             self._n_blocks_det = 1
             self._n_blocks_time = 1
+
+        if comm and comm.size > 1:
+            if comm.rank < self.n_blocks_det * n_blocks_time:
+                matrix_color = 1
+            else:
+                from .mpi import MPI
+
+                matrix_color = MPI.UNDEFINED
+
+            comm_obs_grid = comm.Split(matrix_color, comm.rank)
+            comm_grid._set_comm_obs_grid(comm_obs_grid=comm_obs_grid)
 
         self.tod_list = tods
         for cur_tod in self.tod_list:

@@ -173,13 +173,13 @@ balancing, it is less suitable for simulating the some effects, like crosstalk a
 noise correlation between the detectors. This uniform distribution across MPI
 processes necessitates the transfer of large TOD arrays across multiple MPI processes,
 which complicates the code implementation and may potentially lead to significant
-performance overhead. To save us from this situation, the :class:`Observation` class
+performance overhead. To save us from this situation, the :class:`.Observation` class
 accepts an argument ``det_blocks_attributes`` that is a list of string objects
 specifying the detector attributes to create the group of detectors. Once the
 detector groups are made, the detectors are distributed to the MPI processes in such
 a way that all the detectors of a group reside on the same MPI process.
 
-If a valid ``det_blocks_attributes`` argument is passed to the :class:`Observation`
+If a valid ``det_blocks_attributes`` argument is passed to the :class:`.Observation`
 class, the arguments ``n_blocks_det`` and ``n_blocks_time`` are ignored. Since the
 ``det_blocks_attributes`` creates the detector blocks dynamically, the
 ``n_blocks_time`` is computed during runtime using the size of MPI communicator and
@@ -369,7 +369,7 @@ detectors axis and time axis is divided depending on the size of MPI communicato
   quantities refer to the same detector. If you need the global detector index,
   you can get it with ``obs.det_idx[0]``, which is created at construction time.
   ``obs.det_idx`` stores the detector indices of the detectors available to an
-  :class:`Observation` class, with respect to the list of detectors stored in
+  :class:`.Observation` class, with respect to the list of detectors stored in
   ``obs.detectors_global`` variable.
 
 .. note::
