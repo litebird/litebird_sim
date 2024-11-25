@@ -1,0 +1,1647 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Detectors, channels, and instruments &#8212; LBS 0.13.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!-- 
+    this give us a css class that will be invisible only if js is disabled 
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/asciinema-player_2.6.1.css" />
+    <link rel="stylesheet" type="text/css" href="_static/asciinema-custom.css" />
+    <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="_static/contentui.css" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=26a4bc78f4c0ddb94549"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549" />
+
+    <script src="_static/documentation_options.js?v=1019fba8"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/asciinema-player_2.6.1.js"></script>
+    <script src="_static/contentui.js"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'detectors';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Focal plane visualization" href="plot_fp.html" />
+    <link rel="prev" title="The IMo" href="imo.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">LBS 0.13.0 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part1.html">
+    Introduction
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="part2.html">
+    Structure of the framework
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part3.html">
+    Basic simulation modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part4.html">
+    Systematic effects
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part5.html">
+    Data-reduction modules
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="part6.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="appendix.html">
+    Appendices
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="installation.html">
+    Installation
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part1.html">
+    Introduction
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="part2.html">
+    Structure of the framework
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part3.html">
+    Basic simulation modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part4.html">
+    Systematic effects
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part5.html">
+    Data-reduction modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part6.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="appendix.html">
+    Appendices
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="installation.html">
+    Installation
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="simulations.html">Simulations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imo.html">The IMo</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Detectors, channels, and instruments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plot_fp.html">Focal plane visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="observations.html">Observations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_layout.html">Data layout</a></li>
+<li class="toctree-l1"><a class="reference internal" href="profiling.html">Profiling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reports.html">Creating reports</a></li>
+<li class="toctree-l1"><a class="reference internal" href="random_numbers.html">Random numbers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mpi.html">Multithreading and MPI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integrating.html">Integrating existing codes</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="part2.html" class="nav-link">Structure of the framework</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Detectors, channels, and instruments</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="detectors-channels-and-instruments">
+<span id="detectors"></span><h1>Detectors, channels, and instruments<a class="headerlink" href="#detectors-channels-and-instruments" title="Link to this heading">#</a></h1>
+<p>The core of the LiteBIRD instruments is the set of <em>detectors</em> that
+perform the measurement of the electromagnetic power entering through
+the telescope. Several simulation modules revolve around the concept
+of «detector», «frequency channel», and «instrument», and the LiteBIRD
+Simulation Framework implements a few classes and functions to handle
+the information associated with them.</p>
+<p>Consider this example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="n">detectors</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">lbs</span><span class="o">.</span><span class="n">DetectorInfo</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Dummy detector #1&quot;</span><span class="p">,</span>
+        <span class="n">net_ukrts</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span>
+        <span class="n">bandcenter_ghz</span><span class="o">=</span><span class="mf">123.4</span><span class="p">,</span>
+        <span class="n">bandwidth_ghz</span><span class="o">=</span><span class="mf">5.6</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">lbs</span><span class="o">.</span><span class="n">DetectorInfo</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Dummy detector #2&quot;</span><span class="p">,</span>
+        <span class="n">net_ukrts</span><span class="o">=</span><span class="mf">110.0</span><span class="p">,</span>
+        <span class="n">fwhm_arcmin</span><span class="o">=</span><span class="mf">65.8</span><span class="p">,</span>
+    <span class="p">),</span>
+<span class="p">]</span>
+
+<span class="c1"># Now simulate the behavior of the two detectors</span>
+<span class="c1"># …</span>
+</pre></div>
+</div>
+<p>Here you see that the <a class="reference internal" href="#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">DetectorInfo</span></code></a> class can be used to
+store information related to single detectors, and that you can choose
+which information provide for each detector: the example specifies
+bandshape information only for the first detector (<code class="docutils literal notranslate"><span class="pre">Dummy</span> <span class="pre">detector</span>
+<span class="pre">#1</span></code>), but not for the other. Missing information is usually
+initialized with zero or a sensible default. The simulation modules
+provided by the framework typically expect one or more
+<a class="reference internal" href="#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">DetectorInfo</span></code></a> objects to be passed as input.</p>
+<p>Detectors are grouped according to their nominal central frequency in
+<em>frequency channels</em>; there are several frequency channels in the
+three LiteBIRD instruments (LFT, MFT, HFT), and sometimes one does not
+need to simulate each detector within a frequency channel, but only
+the channel as a whole. In this case there is the
+<a class="reference internal" href="#litebird_sim.detectors.FreqChannelInfo" title="litebird_sim.detectors.FreqChannelInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">FreqChannelInfo</span></code></a> class, which can produce a mock
+<a class="reference internal" href="#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">DetectorInfo</span></code></a> object by taking out the «average» information
+of the frequency channel:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="n">chinfo</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">FreqChannelInfo</span><span class="p">(</span>
+    <span class="n">bandcenter_ghz</span><span class="o">=</span><span class="mf">40.0</span><span class="p">,</span>
+    <span class="n">net_channel_ukrts</span><span class="o">=</span><span class="mf">40.0</span><span class="p">,</span> <span class="c1"># Taken from Sugai et al. 2020 (JLTP)</span>
+    <span class="n">number_of_detectors</span><span class="o">=</span><span class="mi">64</span><span class="p">,</span> <span class="c1"># 32 pairs</span>
+<span class="p">)</span>
+
+<span class="c1"># Return a &quot;mock&quot; detector that is representative of the</span>
+<span class="c1"># frequency channel</span>
+<span class="n">mock_det</span> <span class="o">=</span> <span class="n">chinfo</span><span class="o">.</span><span class="n">get_boresight_detector</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;mydet&quot;</span><span class="p">)</span>
+
+<span class="c1"># Look, ma, a detector!</span>
+<span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mock_det</span><span class="p">,</span> <span class="n">lbs</span><span class="o">.</span><span class="n">DetectorInfo</span><span class="p">)</span>
+<span class="k">assert</span> <span class="n">mock_det</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;mydet&quot;</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The NET of one detector at 40 GHz is </span><span class="si">{0:.1f}</span><span class="s2"> µK·√s&quot;</span>
+      <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mock_det</span><span class="o">.</span><span class="n">net_ukrts</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>The NET of one detector at 40 GHz is 320.0 µK·√s
+</pre></div>
+</div>
+<p>Finally, the <code class="xref py py-class docutils literal notranslate"><span class="pre">Instrument</span></code> class holds information about one of
+the three instruments onboard the LiteBIRD spacecraft (LFT, MFT, and
+HFT).</p>
+<section id="reading-from-the-imo">
+<h2>Reading from the IMO<a class="headerlink" href="#reading-from-the-imo" title="Link to this heading">#</a></h2>
+<p>The way information about detectors and frequency channels is stored
+in the IMO (see <a class="reference internal" href="imo.html#imo"><span class="std std-ref">The IMo</span></a>) closely match the <a class="reference internal" href="#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">DetectorInfo</span></code></a> and
+<a class="reference internal" href="#litebird_sim.detectors.FreqChannelInfo" title="litebird_sim.detectors.FreqChannelInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">FreqChannelInfo</span></code></a> classes. In fact, they can be retrieved
+easily from the IMO using the static methods
+<a class="reference internal" href="#litebird_sim.detectors.DetectorInfo.from_imo" title="litebird_sim.detectors.DetectorInfo.from_imo"><code class="xref py py-meth docutils literal notranslate"><span class="pre">DetectorInfo.from_imo()</span></code></a> and <a class="reference internal" href="#litebird_sim.detectors.FreqChannelInfo.from_imo" title="litebird_sim.detectors.FreqChannelInfo.from_imo"><code class="xref py py-meth docutils literal notranslate"><span class="pre">FreqChannelInfo.from_imo()</span></code></a>.</p>
+<p>The following example uses the PTEP IMO to show how to use the API:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="c1"># The location of the PTEP IMO is stored in the constant</span>
+<span class="c1"># PTEP_IMO_LOCATION</span>
+<span class="n">imo</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Imo</span><span class="p">(</span><span class="n">flatfile_location</span><span class="o">=</span><span class="n">lbs</span><span class="o">.</span><span class="n">PTEP_IMO_LOCATION</span><span class="p">)</span>
+
+<span class="n">det</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">DetectorInfo</span><span class="o">.</span><span class="n">from_imo</span><span class="p">(</span>
+    <span class="n">imo</span><span class="o">=</span><span class="n">imo</span><span class="p">,</span>
+    <span class="n">url</span><span class="o">=</span><span class="s2">&quot;/releases/vPTEP/satellite/LFT/L1-040/&quot;</span>
+        <span class="s2">&quot;000_000_003_QA_040_T/detector_info&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The bandcenter for </span><span class="si">{</span><span class="n">det</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> is </span><span class="si">{</span><span class="n">det</span><span class="o">.</span><span class="n">bandcenter_ghz</span><span class="si">}</span><span class="s2"> GHz&quot;</span><span class="p">)</span>
+
+<span class="n">freqch</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">FreqChannelInfo</span><span class="o">.</span><span class="n">from_imo</span><span class="p">(</span>
+    <span class="n">imo</span><span class="o">=</span><span class="n">imo</span><span class="p">,</span>
+    <span class="n">url</span><span class="o">=</span><span class="s2">&quot;/releases/vPTEP/satellite/LFT/L1-040/channel_info&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span>
+    <span class="sa">f</span><span class="s2">&quot;The average bandcenter for </span><span class="si">{</span><span class="n">freqch</span><span class="o">.</span><span class="n">channel</span><span class="si">}</span><span class="s2"> &quot;</span>
+    <span class="sa">f</span><span class="s2">&quot;is </span><span class="si">{</span><span class="n">freqch</span><span class="o">.</span><span class="n">bandcenter_ghz</span><span class="si">}</span><span class="s2"> GHz&quot;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>The bandcenter for 000_000_003_QA_040_T is 40.0 GHz
+The average bandcenter for L1-040 is 40.0 GHz
+</pre></div>
+</div>
+</section>
+<section id="detectors-in-parameter-files">
+<h2>Detectors in parameter files<a class="headerlink" href="#detectors-in-parameter-files" title="Link to this heading">#</a></h2>
+<p>It is often the case that the list of detectors to simulate must be
+read from a parameter file. There are several situations that
+typically need to be accomodated:</p>
+<ol class="arabic simple">
+<li><p>In some simulations, you just need to simulate one detector (whose
+parameters can be taken either from the IMO or from the parameter
+file itself);</p></li>
+<li><p>In other cases, you want to simulate all the detectors in one or
+more frequency channels: in this case, you would like to avoid
+specifying them one by one!</p></li>
+<li><p>In other cases, you might want to specify just a subset</p></li>
+<li><p>Finally, you might base your simulation on the IMO definition of a
+detector/channel but twiddle a bit with some parameters.</p></li>
+</ol>
+<p>The LiteBIRD simulation framework provides a way to read a set of
+detectors/channels from a dictionary, which can be used to build a
+list of <a class="reference internal" href="#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">DetectorInfo</span></code></a>/<a class="reference internal" href="#litebird_sim.detectors.FreqChannelInfo" title="litebird_sim.detectors.FreqChannelInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">FreqChannelInfo</span></code></a> objects.</p>
+<p>In the following examples, we will refer to a «mock» IMO, which
+contains information about a few fake detectors. It’s included in the
+source distribution of the framework, under the directory
+<code class="docutils literal notranslate"><span class="pre">litebird_sim/test/mock_imo</span></code>, and it defines one frequency channel
+with four detectors. Here is a summary of its contents:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="c1"># This ensures that the mock IMO can be found when generating this</span>
+<span class="c1"># HTML page</span>
+<span class="n">imo</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Imo</span><span class="p">(</span><span class="n">flatfile_location</span><span class="o">=</span><span class="n">lbs</span><span class="o">.</span><span class="n">PTEP_IMO_LOCATION</span><span class="p">)</span>
+
+<span class="c1"># This UUID refers to a 140 GHz &quot;channel_info&quot; object.</span>
+<span class="n">ch</span> <span class="o">=</span> <span class="n">imo</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;/data_files/463e9ea9-c1f0-484d-9bfd-05092851d8f4&quot;</span><span class="p">)</span>
+<span class="n">metadata</span> <span class="o">=</span> <span class="n">ch</span><span class="o">.</span><span class="n">metadata</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Here are the contents of the mock IMO:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Channel: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;channel&quot;</span><span class="p">]</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+
+<span class="n">detector_names</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;detector_names&quot;</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;There are </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">detector_names</span><span class="p">)</span><span class="si">}</span><span class="s1"> detectors&#39;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Here are the first 5 of them:&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">obj</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;detector_names&quot;</span><span class="p">],</span>
+                          <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;detector_objs&quot;</span><span class="p">]))[</span><span class="mi">0</span><span class="p">:</span><span class="mi">5</span><span class="p">]:</span>
+    <span class="n">det_obj</span> <span class="o">=</span> <span class="n">imo</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+    <span class="n">det_metadata</span> <span class="o">=</span> <span class="n">det_obj</span><span class="o">.</span><span class="n">metadata</span>
+    <span class="n">bandcenter_ghz</span> <span class="o">=</span> <span class="n">det_metadata</span><span class="p">[</span><span class="s2">&quot;bandcenter_ghz&quot;</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;  </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">: band center at </span><span class="si">{</span><span class="n">bandcenter_ghz</span><span class="si">:</span><span class="s1">.1f</span><span class="si">}</span><span class="s1"> GHz&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Here are the contents of the mock IMO:
+Channel: M1-140
+There are 366 detectors
+Here are the first 5 of them:
+  001_002_030_00A_140_T: band center at 140.0 GHz
+  001_002_030_00A_140_B: band center at 140.0 GHz
+  001_002_031_15B_140_T: band center at 140.0 GHz
+  001_002_031_00B_140_B: band center at 140.0 GHz
+  001_002_022_15A_140_T: band center at 140.0 GHz
+</pre></div>
+</div>
+<p>Now, let’s turn back to the problem of specifying a set of detectors
+in a parameter file. The following TOML file shows some of the
+possibilities granted by the framework. The parameter <cite>random_seed</cite>
+is mandatory for the <a class="reference internal" href="simulations.html#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> constructor.</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># This is file &quot;det_list1.toml&quot;</span>
+
+<span class="c1"># Mandatory parameter</span>
+<span class="k">[simulation]</span>
+<span class="n">random_seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">12345</span>
+
+<span class="c1"># In this example we list the detectors to use in the simulation</span>
+<span class="c1"># using one of TOML&#39;s features: lists of elements. They are</span>
+<span class="c1"># indicated using double square brackets, and each occurrence</span>
+<span class="c1"># appends a new item to the end of the list.</span>
+
+<span class="c1"># First element</span>
+<span class="k">[[detectors]]</span>
+<span class="c1"># Take the parameters for the detector from the IMO;</span>
+<span class="c1"># here we specify the UUID of the object</span>
+<span class="n">detector_info_obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data_files/34b46c91-e196-49b9-9d44-d69b4827f751&quot;</span>
+
+<span class="c1"># Append two more elements</span>
+<span class="k">[[detectors]]</span>
+<span class="c1"># Take the parameters for the set of detectors from the channel</span>
+<span class="c1"># information in the IMO. As above, we use an UUID</span>
+<span class="n">channel_info_obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data_files/463e9ea9-c1f0-484d-9bfd-05092851d8f4&quot;</span>
+<span class="c1"># Just generate two detectors (default is to generate all the</span>
+<span class="c1"># detectors in this frequency channel, which contains *four*</span>
+<span class="c1"># detectors). This is useful when debugging, because it can</span>
+<span class="c1"># drastically reduce the amount of data to simulate</span>
+<span class="n">num_of_detectors_from_channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span>
+
+<span class="c1"># Append one more element</span>
+<span class="k">[[detectors]]</span>
+<span class="c1"># Unlike in the previous example, here we just want to generate *one*</span>
+<span class="c1"># mock detector associated with a specified frequency channel. This</span>
+<span class="c1"># detector will be aligned with the boresight of the focal plane, and</span>
+<span class="c1"># it will use the «average» detector parameters for this channel</span>
+<span class="n">channel_info_obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data_files/463e9ea9-c1f0-484d-9bfd-05092851d8f4&quot;</span>
+<span class="c1"># This implies num_of_detectors_from_channel == 1</span>
+<span class="n">use_only_one_boresight_detector</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">detector_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;foo_boresight&quot;</span>
+
+<span class="c1"># Append one more element</span>
+<span class="k">[[detectors]]</span>
+<span class="c1"># Set up every parameter manually</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;planck30GHz&quot;</span>
+<span class="n">channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;30 GHz&quot;</span>
+<span class="n">fwhm_arcmin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">33.10</span>
+<span class="n">fknee_mhz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">113.9</span>
+<span class="n">bandwidth_ghz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">9.89</span>
+<span class="n">bandcenter_ghz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">28.4</span>
+<span class="n">sampling_rate_hz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">32.5</span>
+
+<span class="c1"># Add one last element</span>
+<span class="k">[[detectors]]</span>
+<span class="c1"># Take the parameters from the IMO but fix one parameter by hand</span>
+<span class="n">detector_info_obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data_files/34b46c91-e196-49b9-9d44-d69b4827f751&quot;</span>
+<span class="n">sampling_rate_hz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="w">   </span><span class="c1"># Fix this parameter</span>
+</pre></div>
+</div>
+<p>If the TOML file you are using in your simulation follows this
+structure, you can use the function
+<a class="reference internal" href="#litebird_sim.detectors.detector_list_from_parameters" title="litebird_sim.detectors.detector_list_from_parameters"><code class="xref py py-func docutils literal notranslate"><span class="pre">detector_list_from_parameters()</span></code></a>, which parses the parameters
+and uses an <a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a> object to build a list of
+<a class="reference internal" href="#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">DetectorInfo</span></code></a> objects.</p>
+<p>The following code will read the TOML file above and produce a list of
+6 detectors:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="n">imo</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Imo</span><span class="p">(</span><span class="n">flatfile_location</span><span class="o">=</span><span class="n">lbs</span><span class="o">.</span><span class="n">PTEP_IMO_LOCATION</span><span class="p">)</span>
+
+<span class="c1"># Tell Simulation to use the PTEP IMO and to</span>
+<span class="c1"># load the TOML file shown above</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">imo</span><span class="o">=</span><span class="n">imo</span><span class="p">,</span> <span class="n">parameter_file</span><span class="o">=</span><span class="s2">&quot;det_list1.toml&quot;</span><span class="p">)</span>
+
+<span class="n">det_list</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">detector_list_from_parameters</span><span class="p">(</span>
+    <span class="n">imo</span><span class="o">=</span><span class="n">sim</span><span class="o">.</span><span class="n">imo</span><span class="p">,</span>
+    <span class="n">definition_list</span><span class="o">=</span><span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;detectors&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">det</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">det_list</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">idx</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">. </span><span class="si">{</span><span class="n">det</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: band center at </span><span class="si">{</span><span class="n">det</span><span class="o">.</span><span class="n">bandcenter_ghz</span><span class="si">}</span><span class="s2"> GHz&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>1. 000_000_003_QA_040_T: band center at 40.0 GHz
+2. 001_002_030_00A_140_T: band center at 140.0 GHz
+3. 001_002_030_00A_140_B: band center at 140.0 GHz
+4. foo_boresight: band center at 140.0 GHz
+5. planck30GHz: band center at 28.4 GHz
+6. 000_000_003_QA_040_T: band center at 40.0 GHz
+</pre></div>
+</div>
+<p>You are not forced to use <code class="docutils literal notranslate"><span class="pre">detectors</span></code> as the name of the parameter
+in the TOML file, as <a class="reference internal" href="#litebird_sim.detectors.detector_list_from_parameters" title="litebird_sim.detectors.detector_list_from_parameters"><code class="xref py py-func docutils literal notranslate"><span class="pre">detector_list_from_parameters()</span></code></a> accepts a
+generic list. As an example, consider the following TOML file. Note
+again the mandatory parameter <cite>random_seed</cite>.</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># This is file &quot;det_list2.toml&quot;</span>
+
+<span class="c1"># Mandatory parameter</span>
+<span class="k">[simulation]</span>
+<span class="n">random_seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">12345</span>
+
+<span class="k">[simulation1]</span>
+
+<span class="c1"># Detectors to be used for the first simulation</span>
+<span class="k">[[simulation1.detectors]]</span>
+<span class="n">detector_info_obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data_files/899ba8cc-789c-47bf-9bb1-40f61b25b3a9&quot;</span>
+
+<span class="k">[simulation2]</span>
+
+<span class="c1"># Detectors to be used for the second simulation</span>
+<span class="k">[[simulation2.detectors]]</span>
+<span class="n">detector_info_obj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/data_files/e4401060-9233-4b14-a642-c00293c99c70&quot;</span>
+</pre></div>
+</div>
+<p>Its purpose is to provide the parameters for a two-staged simulation,
+and each of them requires its own list of detectors. For this purpose,
+it uses the TOML syntax <code class="docutils literal notranslate"><span class="pre">[[simulation1.detectors]]</span></code> to specify that
+the <code class="docutils literal notranslate"><span class="pre">detectors</span></code> list belongs to the section <code class="docutils literal notranslate"><span class="pre">simulation1</span></code>, and
+similarly for <code class="docutils literal notranslate"><span class="pre">[[simulation2.detectors]]</span></code>. Here is a Python script
+that interprets the TOML file and prints the detectors to be used at
+each stage of the simulation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="n">imo</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Imo</span><span class="p">(</span><span class="n">flatfile_location</span><span class="o">=</span><span class="n">lbs</span><span class="o">.</span><span class="n">PTEP_IMO_LOCATION</span><span class="p">)</span>
+
+<span class="c1"># Tell the Simulation object that we want to use the PTEP IMO</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">imo</span><span class="o">=</span><span class="n">imo</span><span class="p">,</span> <span class="n">parameter_file</span><span class="o">=</span><span class="s2">&quot;det_list2.toml&quot;</span><span class="p">)</span>
+
+<span class="n">det_list1</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">detector_list_from_parameters</span><span class="p">(</span>
+    <span class="n">imo</span><span class="o">=</span><span class="n">sim</span><span class="o">.</span><span class="n">imo</span><span class="p">,</span>
+    <span class="n">definition_list</span><span class="o">=</span><span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;simulation1&quot;</span><span class="p">][</span><span class="s2">&quot;detectors&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+
+<span class="n">det_list2</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">detector_list_from_parameters</span><span class="p">(</span>
+    <span class="n">imo</span><span class="o">=</span><span class="n">sim</span><span class="o">.</span><span class="n">imo</span><span class="p">,</span>
+    <span class="n">definition_list</span><span class="o">=</span><span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;simulation2&quot;</span><span class="p">][</span><span class="s2">&quot;detectors&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Detectors to be used in the first simulation:&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">det</span> <span class="ow">in</span> <span class="n">det_list1</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- </span><span class="si">{</span><span class="n">det</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Detectors to be used in the second simulation:&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">det</span> <span class="ow">in</span> <span class="n">det_list2</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- </span><span class="si">{</span><span class="n">det</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Detectors to be used in the first simulation:
+- 000_000_004_QB_040_B
+Detectors to be used in the second simulation:
+- 000_000_004_QB_040_T
+</pre></div>
+</div>
+</section>
+<section id="bandpasses">
+<h2>Bandpasses<a class="headerlink" href="#bandpasses" title="Link to this heading">#</a></h2>
+<p>Any electromagnetic detector is sensitive only to some frequencies of
+the spectrum, and it is vital to know what they are. We refer to these
+as the «bandpass», i.e., the list of frequencies that can «pass
+through the detector» and be detected. A bandpass is a function
+<span class="math notranslate nohighlight">\(B(\nu)\)</span> that associates the frequency <span class="math notranslate nohighlight">\(\nu\)</span> with a pure
+number in the range 0…1, representing the fraction of power that is
+actually measured by the instrument. The functional form of
+<span class="math notranslate nohighlight">\(B(\nu)\)</span> is usually called the <em>bandshape</em>, and it is usually
+nonzero in a limited subset of the real space.</p>
+<p>A widely used analytical model of the bandshape is the top-hat bandpass:</p>
+<div class="math notranslate nohighlight" id="eq-tophatbandpass">
+<span id="equation-eq-tophatbandpass"></span><span class="eqno">(1)<a class="headerlink" href="#eq-tophatbandpass" title="Link to this equation">#</a></span>\[\begin{split}B(\nu) = \begin{cases}
+1\,\text{ if } \nu_0 - \Delta\nu/2 &lt; \nu &lt; \nu_0 + \Delta\nu/2,\\
+0\,\text{ otherwise.}
+\end{cases}\end{split}\]</div>
+<p>Given a bandshape <span class="math notranslate nohighlight">\(B(\nu)\)</span>, two quantities are usually employed
+to synthetically represent it:</p>
+<ul>
+<li><p>The <em>central frequency</em> <span class="math notranslate nohighlight">\(\left&lt;\nu\right&gt;\)</span>, which is just the
+average value of <span class="math notranslate nohighlight">\(\nu\)</span> when weighted with <span class="math notranslate nohighlight">\(B(\nu)\)</span>:</p>
+<div class="math notranslate nohighlight">
+\[\left&lt;\nu\right&gt; = \frac{\int_0^\infty \nu B(\nu)\,\mathrm{d}\nu}{\int_0^\infty B(\nu)\,\mathrm{d}\nu}\]</div>
+<p>which is of course the formula of the weighted average. For the
+top-hat band, the central frequency is <span class="math notranslate nohighlight">\(\nu_0\)</span>.</p>
+</li>
+<li><p>The <em>bandwidth</em> <span class="math notranslate nohighlight">\(\Delta\nu\)</span>, which is the <em>width</em> of the band,
+i.e., a measurement of how wide is the subrange of the
+electromagnetic spectrum sampled by the detector:</p>
+<div class="math notranslate nohighlight">
+\[\Delta\nu^2 = \frac{\left(\int_0^\infty B(\nu)\,\mathrm{d}\nu\right)^2}{\int_0^\infty B^2(\nu)\,\mathrm{d}\nu},\]</div>
+<p>which is again inspired by the formula of the standard square
+deviation. For the top-hat bandshape, the value of <span class="math notranslate nohighlight">\(\Delta\nu\)</span>
+in <a class="reference internal" href="#equation-eq-tophatbandpass">(1)</a> is exactly the bandwidth.</p>
+</li>
+</ul>
+<section id="modeling-bandshapes">
+<h3>Modeling bandshapes<a class="headerlink" href="#modeling-bandshapes" title="Link to this heading">#</a></h3>
+<p>In the LiteBIRD Simulation Framework, bandpasses are encoded in the
+class <a class="reference internal" href="#litebird_sim.bandpasses.BandPassInfo" title="litebird_sim.bandpasses.BandPassInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">BandPassInfo</span></code></a>, which can be used either to load
+bandpasses from the IMO or to generate them on scratch. In the latter
+case, you must specify the central frequency and the bandwidth,
+alongside with other parameter that introduce a random component meant
+to make the band more realistic. Here is a simple example, which shows
+how to create a bandpass and then how to add «noise» to make it more
+realistic:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pylab</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="c1"># Generate the «model» (i.e., ideal band, with no wiggles)</span>
+<span class="n">band</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">BandPassInfo</span><span class="p">(</span>
+    <span class="n">bandcenter_ghz</span><span class="o">=</span><span class="mf">43.0</span><span class="p">,</span>
+    <span class="n">bandwidth_ghz</span><span class="o">=</span><span class="mf">10.0</span><span class="p">,</span>
+    <span class="n">bandtype</span><span class="o">=</span><span class="s2">&quot;top-hat-cosine&quot;</span><span class="p">,</span>
+    <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">nsamples_inband</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">band</span><span class="o">.</span><span class="n">freqs_ghz</span><span class="p">,</span> <span class="n">band</span><span class="o">.</span><span class="n">weights</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Ideal band&quot;</span><span class="p">)</span>
+
+<span class="c1"># Now generate a more realistic band with random wiggles</span>
+<span class="n">new_weights</span> <span class="o">=</span> <span class="n">band</span><span class="o">.</span><span class="n">bandpass_resampling</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span>
+    <span class="n">band</span><span class="o">.</span><span class="n">freqs_ghz</span><span class="p">,</span>
+    <span class="n">new_weights</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Random realization&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Frequency [GHz]&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Weight&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>(<a class="reference download internal" download="" href="_downloads/57cb5d5e5a03f83dcbbc60b5819d0a7a/bandpass_demo.py"><code class="xref download docutils literal notranslate"><span class="pre">Source</span> <span class="pre">code</span></code></a>, <a class="reference download internal" download="" href="_downloads/3c7f580fe11f6ae3b6b2537ebb1e5707/bandpass_demo.png"><code class="xref download docutils literal notranslate"><span class="pre">png</span></code></a>, <a class="reference download internal" download="" href="_downloads/97eedd704b5c69d06e0c8099efc36685/bandpass_demo.hires.png"><code class="xref download docutils literal notranslate"><span class="pre">hires.png</span></code></a>, <a class="reference download internal" download="" href="_downloads/4cd1b70cc4ca892052d924dadee24f11/bandpass_demo.pdf"><code class="xref download docutils literal notranslate"><span class="pre">pdf</span></code></a>)</p>
+<figure class="align-default">
+<img alt="_images/bandpass_demo.png" class="plot-directive" src="_images/bandpass_demo.png" />
+</figure>
+</section>
+</section>
+<section id="module-litebird_sim.detectors">
+<span id="api-reference"></span><h2>API reference<a class="headerlink" href="#module-litebird_sim.detectors" title="Link to this heading">#</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.detectors.</span></span><span class="sig-name descname"><span class="pre">DetectorInfo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wafer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampling_rate_hz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fwhm_arcmin</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ellipticity</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandcenter_ghz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandwidth_ghz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_freqs_ghz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_weights</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">net_ukrts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pol_sensitivity_ukarcmin</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fknee_mhz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fmin_hz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pol</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">orient</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A class wrapping the basic information about a detector.</p>
+<p>This is a data class that encodes the basic properties of a
+LiteBIRD detector. It can be initialized in three ways:</p>
+<ul>
+<li><p>Through the default constructor; all its parameters are
+optional, but you probably want to specify at least <cite>name</cite> and
+<cite>sampling_rate_hz</cite>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">det</span> <span class="o">=</span> <span class="n">DetectorInfo</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;dummy&quot;</span><span class="p">,</span> <span class="n">sampling_rate_hz</span><span class="o">=</span><span class="mf">10.0</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p>Through the class method <a class="reference internal" href="#litebird_sim.detectors.DetectorInfo.from_dict" title="litebird_sim.detectors.DetectorInfo.from_dict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_dict()</span></code></a>, which takes a
+dictionary as input.</p></li>
+<li><p>Through the class method <a class="reference internal" href="#litebird_sim.detectors.DetectorInfo.from_imo" title="litebird_sim.detectors.DetectorInfo.from_imo"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_imo()</span></code></a>, which reads the
+definition of a detector from the LiteBIRD Instrument Model (see
+the <a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a> class).</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>-</em>) – the name of the detector; the default is the
+empty string</p></li>
+<li><p><strong>wafer</strong> (<em>-</em>) – The name of the wafer hosting the
+detector, e.g. <code class="docutils literal notranslate"><span class="pre">H00</span></code>, <code class="docutils literal notranslate"><span class="pre">L07</span></code>, etc. The default is None</p></li>
+<li><p><strong>pixel</strong> (<em>-</em>) – The number of the pixel within the
+wafer. The default is None</p></li>
+<li><p><strong>pixtype</strong> (<em>-</em>) – The type of the pixel, e.g.,
+<code class="docutils literal notranslate"><span class="pre">HP1</span></code>, <code class="docutils literal notranslate"><span class="pre">LP3</span></code>, etc. The default is None</p></li>
+<li><p><strong>channel</strong> (<em>-</em>) – The channel. The default is None</p></li>
+<li><p><strong>sampling_rate_hz</strong> (<em>-</em>) – The sampling rate of the ADC
+associated with this detector. The default is 0.0</p></li>
+<li><p><strong>fwhm_arcmin</strong> (<em>-</em>) – (float): The Full Width Half Maximum of the
+radiation pattern associated with the detector, in
+arcminutes. The default is 0.0</p></li>
+<li><p><strong>ellipticity</strong> (<em>-</em>) – The ellipticity of the radiation
+pattern associated with the detector. The default is 0.0</p></li>
+<li><p><strong>net_ukrts</strong> (<em>-</em>) – The noise equivalent temperature of the
+signal produced by the detector in nominal conditions,
+expressed in μK/√s. This is the noise per sample to be
+used when adding noise to the timelines. The default is 0.0</p></li>
+<li><p><strong>pol_sensitivity_ukarcmin</strong> (<em>-</em>) – The detector sensitivity
+in microK_arcmin. This value considers the effect of cosmic ray loss,
+repointing maneuvers, etc., and other issues that cause loss of
+integration time. Therefore, it should <strong>not</strong> be used with the
+functions that add noise to the timelines. The default is 0.0</p></li>
+<li><p><strong>bandcenter_ghz</strong> (<em>-</em>) – The center frequency of the
+detector, in GHz. The default is 0.0</p></li>
+<li><p><strong>bandwidth_ghz</strong> (<em>-</em>) – The bandwidth of the detector, in
+GHz. The default is 0.0</p></li>
+<li><p><strong>band_freqs_ghz</strong> (<em>-</em>) – band sampled frequencies, in GHz.
+The default is None</p></li>
+<li><p><strong>band_weights</strong> (<em>-</em>) – band profile. The default is None</p></li>
+<li><p><strong>fknee_mhz</strong> (<em>-</em>) – The knee frequency between the 1/f and
+the white noise components in nominal conditions, in mHz.
+The default is 0.0</p></li>
+<li><p><strong>fmin_hz</strong> (<em>-</em>) – The minimum frequency of the noise when
+producing synthetic noise, in Hz. The default is 0.0</p></li>
+<li><p><strong>alpha</strong> (<em>-</em>) – The slope of the 1/f component of the noise
+in nominal conditions. The default is 0.0</p></li>
+<li><p><strong>pol</strong> (<em>-</em>) – The polarization of the detector
+(<code class="docutils literal notranslate"><span class="pre">T</span></code>/<code class="docutils literal notranslate"><span class="pre">B</span></code>). The default is None</p></li>
+<li><p><strong>orient</strong> (<em>-</em>) – The orientation of the detector
+(<code class="docutils literal notranslate"><span class="pre">Q</span></code>/<code class="docutils literal notranslate"><span class="pre">U</span></code>). The default is None</p></li>
+<li><p><strong>quat</strong> (<em>-</em>) – The quaternion
+expressing the rotation from the detector reference frame
+to the boresight reference frame. The default is no
+rotation at all, i.e., the detector is aligned with the
+boresight direction.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.alpha">
+<span class="sig-name descname"><span class="pre">alpha</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.alpha" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.band_freqs_ghz">
+<span class="sig-name descname"><span class="pre">band_freqs_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.band_freqs_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.band_weights">
+<span class="sig-name descname"><span class="pre">band_weights</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.band_weights" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.bandcenter_ghz">
+<span class="sig-name descname"><span class="pre">bandcenter_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.bandcenter_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.bandwidth_ghz">
+<span class="sig-name descname"><span class="pre">bandwidth_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.bandwidth_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.channel">
+<span class="sig-name descname"><span class="pre">channel</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.channel" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.ellipticity">
+<span class="sig-name descname"><span class="pre">ellipticity</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.ellipticity" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.fknee_mhz">
+<span class="sig-name descname"><span class="pre">fknee_mhz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.fknee_mhz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.fmin_hz">
+<span class="sig-name descname"><span class="pre">fmin_hz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.fmin_hz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.from_dict">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dictionary</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.from_dict" title="Link to this definition">#</a></dt>
+<dd><p>Create a detector from the contents of a dictionary</p>
+<p>The parameter <cite>dictionary</cite> must contain one key for each of
+the fields in this dataclass:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">wafer</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pixel</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pixtype</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">channel</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bandcenter_ghz</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bandwidth_ghz</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">band_freqs_ghz</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">band_weights</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sampling_rate_hz</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fwhm_arcmin</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ellipticity</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">net_ukrts</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pol_sensitivity_ukarcmin</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fknee_mhz</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fmin_hz</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">alpha</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pol</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">orient</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">quat</span></code></p></li>
+</ul>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.from_imo">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_imo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imo</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.imo.Imo"><span class="pre">Imo</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">UUID</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.from_imo" title="Link to this definition">#</a></dt>
+<dd><p>Create a <cite>DetectorInfo</cite> object from a definition in the IMO</p>
+<p>The <cite>url</cite> must either specify a UUID or a full URL to the
+object.</p>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+<span class="n">imo</span> <span class="o">=</span> <span class="n">Imo</span><span class="p">()</span>
+<span class="n">det</span> <span class="o">=</span> <span class="n">DetectorInfo</span><span class="o">.</span><span class="n">from_imo</span><span class="p">(</span>
+    <span class="n">imo</span><span class="o">=</span><span class="n">imo</span><span class="p">,</span>
+    <span class="n">url</span><span class="o">=</span><span class="s2">&quot;/releases/v1.0/satellite/LFT/L1-040/L00_008_QA_040T/detector_info&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.fwhm_arcmin">
+<span class="sig-name descname"><span class="pre">fwhm_arcmin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.fwhm_arcmin" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.name" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.net_ukrts">
+<span class="sig-name descname"><span class="pre">net_ukrts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.net_ukrts" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.orient">
+<span class="sig-name descname"><span class="pre">orient</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.orient" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.pixel">
+<span class="sig-name descname"><span class="pre">pixel</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.pixel" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.pixtype">
+<span class="sig-name descname"><span class="pre">pixtype</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.pixtype" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.pol">
+<span class="sig-name descname"><span class="pre">pol</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.pol" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.pol_sensitivity_ukarcmin">
+<span class="sig-name descname"><span class="pre">pol_sensitivity_ukarcmin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.pol_sensitivity_ukarcmin" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.quat">
+<span class="sig-name descname"><span class="pre">quat</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Any</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.quat" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.sampling_rate_hz">
+<span class="sig-name descname"><span class="pre">sampling_rate_hz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.sampling_rate_hz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.DetectorInfo.wafer">
+<span class="sig-name descname"><span class="pre">wafer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.DetectorInfo.wafer" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.detectors.</span></span><span class="sig-name descname"><span class="pre">FreqChannelInfo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bandcenter_ghz:</span> <span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channel:</span> <span class="pre">Optional[str]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandwidth_ghz:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_freqs_ghz:</span> <span class="pre">Optional[numpy.ndarray]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">band_weights:</span> <span class="pre">Optional[numpy.ndarray]</span> <span class="pre">=</span> <span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">net_detector_ukrts:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">net_channel_ukrts:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pol_sensitivity_channel_ukarcmin:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampling_rate_hz:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fwhm_arcmin:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fknee_mhz:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fmin_hz:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1e-05</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">number_of_detectors:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detector_names:</span> <span class="pre">List[str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detector_objs:</span> <span class="pre">List[uuid.UUID]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.alpha">
+<span class="sig-name descname"><span class="pre">alpha</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1.0</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.alpha" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.band_freqs_ghz">
+<span class="sig-name descname"><span class="pre">band_freqs_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.band_freqs_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.band_weights">
+<span class="sig-name descname"><span class="pre">band_weights</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.band_weights" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.bandcenter_ghz">
+<span class="sig-name descname"><span class="pre">bandcenter_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.bandcenter_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.bandwidth_ghz">
+<span class="sig-name descname"><span class="pre">bandwidth_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.bandwidth_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.channel">
+<span class="sig-name descname"><span class="pre">channel</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.channel" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.detector_names">
+<span class="sig-name descname"><span class="pre">detector_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.detector_names" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.detector_objs">
+<span class="sig-name descname"><span class="pre">detector_objs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">UUID</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.detector_objs" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.fknee_mhz">
+<span class="sig-name descname"><span class="pre">fknee_mhz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.fknee_mhz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.fmin_hz">
+<span class="sig-name descname"><span class="pre">fmin_hz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1e-05</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.fmin_hz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.from_dict">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dictionary</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.from_dict" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.from_imo">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_imo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imo</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.imo.Imo"><span class="pre">Imo</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">UUID</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.from_imo" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.fwhm_arcmin">
+<span class="sig-name descname"><span class="pre">fwhm_arcmin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.fwhm_arcmin" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.get_boresight_detector">
+<span class="sig-name descname"><span class="pre">get_boresight_detector</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mock'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><span class="pre">DetectorInfo</span></a></span></span><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.get_boresight_detector" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.net_channel_ukrts">
+<span class="sig-name descname"><span class="pre">net_channel_ukrts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.net_channel_ukrts" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.net_detector_ukrts">
+<span class="sig-name descname"><span class="pre">net_detector_ukrts</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.net_detector_ukrts" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.number_of_detectors">
+<span class="sig-name descname"><span class="pre">number_of_detectors</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.number_of_detectors" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.pol_sensitivity_channel_ukarcmin">
+<span class="sig-name descname"><span class="pre">pol_sensitivity_channel_ukarcmin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.pol_sensitivity_channel_ukarcmin" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.FreqChannelInfo.sampling_rate_hz">
+<span class="sig-name descname"><span class="pre">sampling_rate_hz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.FreqChannelInfo.sampling_rate_hz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.detectors.</span></span><span class="sig-name descname"><span class="pre">InstrumentInfo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">boresight_rotangle_rad:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin_boresight_angle_rad:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spin_rotangle_rad:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hwp_rpm:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">number_of_channels:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channel_names:</span> <span class="pre">List[str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channel_objs:</span> <span class="pre">List[uuid.UUID]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wafer_names:</span> <span class="pre">List[str]</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">wafer_space_cm:</span> <span class="pre">float</span> <span class="pre">=</span> <span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.bore2spin_quat">
+<span class="sig-name descname"><span class="pre">bore2spin_quat</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">array([0.,</span> <span class="pre">0.,</span> <span class="pre">0.,</span> <span class="pre">1.])</span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.bore2spin_quat" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.boresight_rotangle_rad">
+<span class="sig-name descname"><span class="pre">boresight_rotangle_rad</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.boresight_rotangle_rad" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.channel_names">
+<span class="sig-name descname"><span class="pre">channel_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.channel_names" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.channel_objs">
+<span class="sig-name descname"><span class="pre">channel_objs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">UUID</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.channel_objs" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.from_dict">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dictionary</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.from_dict" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.from_imo">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_imo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imo</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.imo.Imo"><span class="pre">Imo</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">UUID</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.from_imo" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.hwp_rpm">
+<span class="sig-name descname"><span class="pre">hwp_rpm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.hwp_rpm" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.name" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.number_of_channels">
+<span class="sig-name descname"><span class="pre">number_of_channels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.number_of_channels" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.spin_boresight_angle_rad">
+<span class="sig-name descname"><span class="pre">spin_boresight_angle_rad</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.spin_boresight_angle_rad" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.spin_rotangle_rad">
+<span class="sig-name descname"><span class="pre">spin_rotangle_rad</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.spin_rotangle_rad" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.wafer_names">
+<span class="sig-name descname"><span class="pre">wafer_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.wafer_names" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.detectors.InstrumentInfo.wafer_space_cm">
+<span class="sig-name descname"><span class="pre">wafer_space_cm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.detectors.InstrumentInfo.wafer_space_cm" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="litebird_sim.detectors.detector_list_from_parameters">
+<span class="sig-prename descclassname"><span class="pre">litebird_sim.detectors.</span></span><span class="sig-name descname"><span class="pre">detector_list_from_parameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imo</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.imo.Imo"><span class="pre">Imo</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">definition_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><span class="pre">DetectorInfo</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#litebird_sim.detectors.detector_list_from_parameters" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="litebird_sim.detectors.normalize_time_dependent_quaternion">
+<span class="sig-prename descclassname"><span class="pre">litebird_sim.detectors.</span></span><span class="sig-name descname"><span class="pre">normalize_time_dependent_quaternion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="scanning.html#litebird_sim.scanning.RotQuaternion" title="litebird_sim.scanning.RotQuaternion"><span class="pre">RotQuaternion</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="scanning.html#litebird_sim.scanning.RotQuaternion" title="litebird_sim.scanning.RotQuaternion"><span class="pre">RotQuaternion</span></a></span></span><a class="headerlink" href="#litebird_sim.detectors.normalize_time_dependent_quaternion" title="Link to this definition">#</a></dt>
+<dd><p>Make sure that a quaternion is represented as a <code class="xref py py-class docutils literal notranslate"><span class="pre">TimeDependentQuaternion</span></code> object</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="litebird_sim.detectors.url_to_uuid">
+<span class="sig-prename descclassname"><span class="pre">litebird_sim.detectors.</span></span><span class="sig-name descname"><span class="pre">url_to_uuid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">UUID</span></span></span><a class="headerlink" href="#litebird_sim.detectors.url_to_uuid" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py class" id="module-litebird_sim.bandpasses">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.bandpasses.</span></span><span class="sig-name descname"><span class="pre">BandPassInfo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bandcenter_ghz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandwidth_ghz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandlow_ghz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandhigh_ghz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsamples_inband</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bandtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'top-hat'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha_exp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta_exp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cosine_apo_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cheby_poly_order</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cheby_ripple_dB</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A class wrapping the basic information about a detector bandpass.</p>
+<p>This class encodes the basic properties of a frequency band.</p>
+<p>It can be initialized in three ways:</p>
+<ul class="simple">
+<li><p>The default constructor will generate top-hat bandpasses,
+assuming that band centroid and width are provided.</p></li>
+<li><p>Through the class method <a class="reference internal" href="#litebird_sim.bandpasses.BandPassInfo.from_imo" title="litebird_sim.bandpasses.BandPassInfo.from_imo"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_imo()</span></code></a>, which reads the
+detector bandpass from the LiteBIRD Instrument Model (see
+the <a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a> class).</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bandcenter_ghz</strong> (<em>-</em>) – center frequency in GHz</p></li>
+<li><p><strong>bandwidth_ghz</strong> (<em>-</em>) – width of the band (default=0.)</p></li>
+<li><p><strong>bandlow_ghz</strong> (<em>-</em>) – lowest frequency to sample the band,
+i.e. the first element of the frequency array considered
+(default: bandcenter_ghz - bandwidth_ghz)</p></li>
+<li><p><strong>bandhigh_ghz</strong> (<em>-</em>) – highest frequency to sample the band,
+i.e. the last element of frequency array considered
+(default: bandcenter_ghz + bandwidth_ghz)</p></li>
+<li><p><strong>nsamples_inband</strong> (<em>-</em>) – number of elements to sample the band
+(default=128)</p></li>
+<li><p><strong>name</strong> (<em>-</em>) – ID of the band</p></li>
+<li><p><strong>normalize</strong> (<em>-</em>) – If set to true bandpass weights will be
+normalized to 1</p></li>
+<li><p><strong>bandtype</strong> (<em>-</em>) – <p>a string describing the band profile. It can be
+one of the following:</p>
+<blockquote>
+<div><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">top-hat</span></code> (default)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">top-hat-exp</span></code>: the edges of the band are apodized with an
+exponential profile</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">top-hat-cosine</span></code>: the edges of the band are apodized with
+a cosine profile</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cheby</span></code>: the bandpass encodes a Chebyshev profile</p></li>
+</ul>
+</div></blockquote>
+</p></li>
+<li><p><strong>alpha_exp</strong> (<em>-</em>) – out-of-band exponential decay index for
+low freq edge.</p></li>
+<li><p><strong>beta_exp</strong> (<em>-</em>) – out-of-band exponential decay index for
+high freq edge</p></li>
+<li><p><strong>cosine_apo_length</strong> (<em>-</em>) – the numerical factor related to
+the cosine apodization length</p></li>
+<li><p><strong>cheby_poly_order</strong> (<em>-</em>) – chebyshev filter order.</p></li>
+<li><p><strong>cheby_ripple_dB</strong> (<em>-</em>) – maximum ripple amplitude in decibels.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.alpha_exp">
+<span class="sig-name descname"><span class="pre">alpha_exp</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.alpha_exp" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.bandcenter_ghz">
+<span class="sig-name descname"><span class="pre">bandcenter_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.bandcenter_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.bandhigh_ghz">
+<span class="sig-name descname"><span class="pre">bandhigh_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.bandhigh_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.bandlow_ghz">
+<span class="sig-name descname"><span class="pre">bandlow_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.bandlow_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.bandpass_resampling">
+<span class="sig-name descname"><span class="pre">bandpass_resampling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bstrap_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nresample</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">54</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.bandpass_resampling" title="Link to this definition">#</a></dt>
+<dd><p>Resample a  bandpass with bootstrap resampling.</p>
+<p>Note that the user can provide any sampler built with the
+<cite>interpolate_band</cite> method; otherwise, an error will be raised!</p>
+<p>This function should be used when the user wants to generate
+many realizations of bandpasses, e.g. per detector bands.
+There is no need to initialize many
+instances of the class <a class="reference internal" href="#litebird_sim.bandpasses.BandPassInfo" title="litebird_sim.bandpasses.BandPassInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">BandPassInfo</span></code></a>, just rerun this
+functions multiple times issuing the same bandpass model instance.</p>
+<p>Args :</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt><cite>bstrap_size</cite> (int): encodes the size of the random dataset</dt><dd><p>to be generated from the Sampler</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><cite>nresample</cite> (int): define how fine is the grid for the</dt><dd><p>resampled bandpass</p>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><cite>model</cite> (BandPassInfo.model): We can resample from a model previously</dt><dd><p>constructed with this function. The default value is set to <code class="docutils literal notranslate"><span class="pre">None</span></code>:
+in this case, it initializes the bandpass sampler with the model set
+in the class instance (recommended use).</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.bandtype">
+<span class="sig-name descname"><span class="pre">bandtype</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'top-hat'</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.bandtype" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.bandwidth_ghz">
+<span class="sig-name descname"><span class="pre">bandwidth_ghz</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.0</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.bandwidth_ghz" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.beta_exp">
+<span class="sig-name descname"><span class="pre">beta_exp</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.beta_exp" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.cheby_poly_order">
+<span class="sig-name descname"><span class="pre">cheby_poly_order</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.cheby_poly_order" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.cheby_ripple_dB">
+<span class="sig-name descname"><span class="pre">cheby_ripple_dB</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.cheby_ripple_dB" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.cosine_apo_length">
+<span class="sig-name descname"><span class="pre">cosine_apo_length</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.cosine_apo_length" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.find_central_frequency">
+<span class="sig-name descname"><span class="pre">find_central_frequency</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.find_central_frequency" title="Link to this definition">#</a></dt>
+<dd><p>Find the effective central frequency of
+a bandpass profile as defined in <a class="reference external" href="https://arxiv.org/abs/1303.5070">https://arxiv.org/abs/1303.5070</a></p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.from_imo">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_imo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imo</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.imo.Imo"><span class="pre">Imo</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">UUID</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.from_imo" title="Link to this definition">#</a></dt>
+<dd><p>Create a <cite>BandPassInfo</cite> object from a definition in the IMO
+The <cite>url</cite> must either specify a UUID or a full URL to the
+object.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.get_edges">
+<span class="sig-name descname"><span class="pre">get_edges</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.get_edges" title="Link to this definition">#</a></dt>
+<dd><p>get the edges of the tophat band</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.get_normalization">
+<span class="sig-name descname"><span class="pre">get_normalization</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.get_normalization" title="Link to this definition">#</a></dt>
+<dd><p>Estimate the integral over the frequency band</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.model">
+<span class="sig-name descname"><span class="pre">model</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.model" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.name" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.normalize">
+<span class="sig-name descname"><span class="pre">normalize</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.normalize" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.normalize_band">
+<span class="sig-name descname"><span class="pre">normalize_band</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.normalize_band" title="Link to this definition">#</a></dt>
+<dd><p>Normalize the band transmission coefficients</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.bandpasses.BandPassInfo.nsamples_inband">
+<span class="sig-name descname"><span class="pre">nsamples_inband</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">128</span></em><a class="headerlink" href="#litebird_sim.bandpasses.BandPassInfo.nsamples_inband" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="imo.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">The IMo</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="plot_fp.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Focal plane visualization</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#reading-from-the-imo">Reading from the IMO</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#detectors-in-parameter-files">Detectors in parameter files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#bandpasses">Bandpasses</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#modeling-bandshapes">Modeling bandshapes</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-litebird_sim.detectors">API reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo"><code class="docutils literal notranslate"><span class="pre">DetectorInfo</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.alpha"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.alpha</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.band_freqs_ghz"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.band_freqs_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.band_weights"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.band_weights</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.bandcenter_ghz"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.bandcenter_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.bandwidth_ghz"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.bandwidth_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.channel"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.channel</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.ellipticity"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.ellipticity</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.fknee_mhz"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.fknee_mhz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.fmin_hz"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.fmin_hz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.from_dict"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.from_dict()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.from_imo"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.from_imo()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.fwhm_arcmin"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.fwhm_arcmin</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.name"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.name</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.net_ukrts"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.net_ukrts</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.orient"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.orient</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.pixel"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.pixel</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.pixtype"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.pixtype</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.pol"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.pol</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.pol_sensitivity_ukarcmin"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.pol_sensitivity_ukarcmin</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.quat"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.quat</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.sampling_rate_hz"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.sampling_rate_hz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.DetectorInfo.wafer"><code class="docutils literal notranslate"><span class="pre">DetectorInfo.wafer</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.alpha"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.alpha</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.band_freqs_ghz"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.band_freqs_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.band_weights"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.band_weights</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.bandcenter_ghz"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.bandcenter_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.bandwidth_ghz"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.bandwidth_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.channel"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.channel</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.detector_names"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.detector_names</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.detector_objs"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.detector_objs</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.fknee_mhz"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.fknee_mhz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.fmin_hz"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.fmin_hz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.from_dict"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.from_dict()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.from_imo"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.from_imo()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.fwhm_arcmin"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.fwhm_arcmin</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.get_boresight_detector"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.get_boresight_detector()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.net_channel_ukrts"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.net_channel_ukrts</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.net_detector_ukrts"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.net_detector_ukrts</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.number_of_detectors"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.number_of_detectors</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.pol_sensitivity_channel_ukarcmin"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.pol_sensitivity_channel_ukarcmin</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.FreqChannelInfo.sampling_rate_hz"><code class="docutils literal notranslate"><span class="pre">FreqChannelInfo.sampling_rate_hz</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.bore2spin_quat"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.bore2spin_quat</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.boresight_rotangle_rad"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.boresight_rotangle_rad</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.channel_names"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.channel_names</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.channel_objs"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.channel_objs</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.from_dict"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.from_dict()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.from_imo"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.from_imo()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.hwp_rpm"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.hwp_rpm</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.name"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.name</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.number_of_channels"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.number_of_channels</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.spin_boresight_angle_rad"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.spin_boresight_angle_rad</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.spin_rotangle_rad"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.spin_rotangle_rad</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.wafer_names"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.wafer_names</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.InstrumentInfo.wafer_space_cm"><code class="docutils literal notranslate"><span class="pre">InstrumentInfo.wafer_space_cm</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.detector_list_from_parameters"><code class="docutils literal notranslate"><span class="pre">detector_list_from_parameters()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.normalize_time_dependent_quaternion"><code class="docutils literal notranslate"><span class="pre">normalize_time_dependent_quaternion()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.detectors.url_to_uuid"><code class="docutils literal notranslate"><span class="pre">url_to_uuid()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo"><code class="docutils literal notranslate"><span class="pre">BandPassInfo</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.alpha_exp"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.alpha_exp</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.bandcenter_ghz"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.bandcenter_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.bandhigh_ghz"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.bandhigh_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.bandlow_ghz"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.bandlow_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.bandpass_resampling"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.bandpass_resampling()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.bandtype"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.bandtype</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.bandwidth_ghz"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.bandwidth_ghz</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.beta_exp"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.beta_exp</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.cheby_poly_order"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.cheby_poly_order</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.cheby_ripple_dB"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.cheby_ripple_dB</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.cosine_apo_length"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.cosine_apo_length</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.find_central_frequency"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.find_central_frequency()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.from_imo"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.from_imo()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.get_edges"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.get_edges()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.get_normalization"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.get_normalization()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.model"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.model</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.name"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.name</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.normalize"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.normalize</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.normalize_band"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.normalize_band()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.bandpasses.BandPassInfo.nsamples_inband"><code class="docutils literal notranslate"><span class="pre">BandPassInfo.nsamples_inband</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="_sources/detectors.rst.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2020, The LiteBIRD Simulation Team.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.4.7.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

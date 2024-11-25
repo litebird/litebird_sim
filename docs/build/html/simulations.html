@@ -1,0 +1,1711 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Simulations &#8212; LBS 0.13.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!-- 
+    this give us a css class that will be invisible only if js is disabled 
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/asciinema-player_2.6.1.css" />
+    <link rel="stylesheet" type="text/css" href="_static/asciinema-custom.css" />
+    <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="_static/contentui.css" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=26a4bc78f4c0ddb94549"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549" />
+
+    <script src="_static/documentation_options.js?v=1019fba8"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/asciinema-player_2.6.1.js"></script>
+    <script src="_static/contentui.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'simulations';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="The IMo" href="imo.html" />
+    <link rel="prev" title="Structure of the framework" href="part2.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">LBS 0.13.0 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part1.html">
+    Introduction
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="part2.html">
+    Structure of the framework
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part3.html">
+    Basic simulation modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part4.html">
+    Systematic effects
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part5.html">
+    Data-reduction modules
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="part6.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="appendix.html">
+    Appendices
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="installation.html">
+    Installation
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part1.html">
+    Introduction
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="part2.html">
+    Structure of the framework
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part3.html">
+    Basic simulation modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part4.html">
+    Systematic effects
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part5.html">
+    Data-reduction modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part6.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="appendix.html">
+    Appendices
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="installation.html">
+    Installation
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Simulations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imo.html">The IMo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="detectors.html">Detectors, channels, and instruments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plot_fp.html">Focal plane visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="observations.html">Observations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_layout.html">Data layout</a></li>
+<li class="toctree-l1"><a class="reference internal" href="profiling.html">Profiling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reports.html">Creating reports</a></li>
+<li class="toctree-l1"><a class="reference internal" href="random_numbers.html">Random numbers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mpi.html">Multithreading and MPI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integrating.html">Integrating existing codes</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="part2.html" class="nav-link">Structure of the framework</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Simulations</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="simulations">
+<span id="id1"></span><h1>Simulations<a class="headerlink" href="#simulations" title="Link to this heading">#</a></h1>
+<p>The LiteBIRD Simulation Framework is built on the <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a>
+class, which should be instantiated in any pipeline built using this
+framework. The class acts as a container for the many analysis modules
+available to the user, and it offers the following features:</p>
+<ol class="arabic simple">
+<li><p>Provenance model;</p></li>
+<li><p>Interface with the instrument database;</p></li>
+<li><p>System abstractions;</p></li>
+<li><p>Generation of reports;</p></li>
+<li><p>Printing status messages on the terminal (logging).</p></li>
+</ol>
+<section id="provenance-model">
+<h2>Provenance model<a class="headerlink" href="#provenance-model" title="Link to this heading">#</a></h2>
+<p>A «provenance model» is, generally speaking, a way to track the
+history and origin of a data set by recording the following
+information:</p>
+<ol class="arabic simple">
+<li><p>Who or what created the dataset?</p></li>
+<li><p>Which algorithm or instrumentation was used to produce it?</p></li>
+<li><p>Which steps were undertaken to process the raw data?</p></li>
+<li><p>How can one get access to the raw samples used to produce the
+dataset?</p></li>
+</ol>
+<p>The LiteBIRD Simulation Framework tracks these information using
+parameter files (in TOML format), accessing the LiteBIRD Instrument
+Model (IMO) through the unique identifiers provided by the Data Access
+Layer (DAL), and generating reports after the simulation completes.</p>
+</section>
+<section id="parameter-files">
+<span id="id2"></span><h2>Parameter files<a class="headerlink" href="#parameter-files" title="Link to this heading">#</a></h2>
+<p>When you run a simulation, there are typically plenty of parameters
+that need to be passed to the code: the resolution of an output map,
+the names of the detectors to simulate, whether to include synchrotron
+emission in the sky model, etc.</p>
+<p>The <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> class eases this task by accepting the path to
+a TOML file as a parameter (<code class="docutils literal notranslate"><span class="pre">parameter_file</span></code>). Specifying this
+parameter triggers two actions:</p>
+<ol class="arabic simple">
+<li><p>The file is copied to the output directory where the simulation
+output files are going to be written (i.e., the same that contains
+<code class="docutils literal notranslate"><span class="pre">report.html</span></code>);</p></li>
+<li><p>The file is read and made available in the field
+<code class="docutils literal notranslate"><span class="pre">Simulation.parameters</span></code> (a Python dictionary).</p></li>
+</ol>
+<p>Using a parameter file is optional; if you do not specify
+<code class="docutils literal notranslate"><span class="pre">parameter_file</span></code> while creating a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object, the
+<cite>parameters</cite> field will be set to an empty dictionary. (You can even
+directly pass a dictionary to a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object: this can
+be handy if you already constructed a parameter object somewhere
+else.)</p>
+<p>Take this example of a simple TOML file:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># This is file &quot;my_conf.toml&quot;</span>
+<span class="k">[simulation]</span>
+<span class="n">random_seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">12345</span>
+
+<span class="k">[general]</span>
+<span class="n">nside</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">512</span>
+<span class="n">imo_version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;v1.3&quot;</span>
+
+<span class="k">[sky_model]</span>
+<span class="n">components</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;synchrotron&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;dust&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;cmb&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>The following example loads the TOML file and prints its contents to
+the terminal:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">parameter_file</span><span class="o">=</span><span class="s2">&quot;my_conf.toml&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Seed for the random number generator:&quot;</span><span class="p">,</span>
+      <span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;simulation&quot;</span><span class="p">][</span><span class="s2">&quot;random_seed&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;NSIDE =&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;general&quot;</span><span class="p">][</span><span class="s2">&quot;nside&quot;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;The IMO I&#39;m going to use is&quot;</span><span class="p">,</span>
+      <span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;general&quot;</span><span class="p">][</span><span class="s2">&quot;imo_version&quot;</span><span class="p">])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Here are the sky components I&#39;m going to simulate:&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">sim</span><span class="o">.</span><span class="n">parameters</span><span class="p">[</span><span class="s2">&quot;sky_model&quot;</span><span class="p">][</span><span class="s2">&quot;components&quot;</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="n">component</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The output of the script is the following:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Seed for the random number generator: 12345
+NSIDE = 512
+The IMO I&#39;m going to use is v1.3
+Here are the sky components I&#39;m going to simulate:
+- synchrotron
+- dust
+- cmb
+</pre></div>
+</div>
+<p>A <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object only interprets the section
+<code class="docutils literal notranslate"><span class="pre">simulation</span></code> and leaves everything else unevaluated: it’s up to the
+simulation modules to make sense of any other section. The recognized
+parameters in the section named <code class="docutils literal notranslate"><span class="pre">simulation</span></code> are the following:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">base_path</span></code>: a string containing the path where to save the
+results of the simulation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">start_time</span></code>: the start time of the simulation. If it is a string
+or a <a class="reference external" href="https://github.com/toml-lang/toml/blob/master/toml.md#user-content-local-date-time">TOML datetime</a>,
+it will be passed to the constructor for <code class="docutils literal notranslate"><span class="pre">astropy.time.Time</span></code>,
+otherwise it must be a floating-point value.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">duration_s</span></code>: a floating-point number specifying how many seconds
+the simulation should last. You can pass a string, which can contain
+a measurement unit as well: in this case, you are not forced to
+specify the duration in seconds. Valid units are: <code class="docutils literal notranslate"><span class="pre">days</span></code> (or
+<code class="docutils literal notranslate"><span class="pre">day</span></code>), <code class="docutils literal notranslate"><span class="pre">hours</span></code> (or <code class="docutils literal notranslate"><span class="pre">hour</span></code>), <code class="docutils literal notranslate"><span class="pre">min</span></code>, and <code class="docutils literal notranslate"><span class="pre">sec</span></code> (or <code class="docutils literal notranslate"><span class="pre">s</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code>: a string containing the name of the simulation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">description</span></code>: a string containing a (possibly long) description
+of what the simulation does.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">random_seed</span></code>: the seed for the random number generator. An integer
+value ensures the reproducibility of the results obtained with random
+numbers; by passing <code class="docutils literal notranslate"><span class="pre">None</span></code> there will not be the possibility to
+re-obtain the same outputs. You can find more details in <a class="reference internal" href="random_numbers.html#random-numbers"><span class="std std-ref">Random numbers</span></a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">numba_num_of_threads</span></code>: number of threads used by Numba when running
+a parallel calculation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">numba_threading_layer</span></code>: the multi-threading library to be used by
+Numba for parallel computations. See the <a class="reference external" href="https://numba.readthedocs.io/en/stable/user/threading-layer.html">Numba user’s manual</a> to
+check which choices are available.</p></li>
+</ul>
+<p>These parameters can be used instead of the keywords in the
+constructor of the <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> class. Consider the following
+code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span>
+    <span class="n">base_path</span><span class="o">=</span><span class="s2">&quot;/storage/output&quot;</span><span class="p">,</span>
+    <span class="n">start_time</span><span class="o">=</span><span class="n">astropy</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">Time</span><span class="p">(</span><span class="s2">&quot;2020-02-01T10:30:00&quot;</span><span class="p">),</span>
+    <span class="n">duration_s</span><span class="o">=</span><span class="mf">3600.0</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My simulation&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;A long description should be put here&quot;</span><span class="p">,</span>
+    <span class="n">random_seed</span><span class="o">=</span><span class="mi">12345</span><span class="p">,</span>
+    <span class="n">numba_num_of_threads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">numba_threading_layer</span><span class="o">=</span><span class="s2">&quot;workqueue&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>You can achieve the same if you create a TOML file named <code class="docutils literal notranslate"><span class="pre">foo.toml</span></code>
+that contains the following lines:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[simulation]</span>
+<span class="n">base_path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/storage/output&quot;</span>
+<span class="n">start_time</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ld">2020-02-01T10:30:00</span>
+<span class="n">duration_s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">3600.0</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;My simulation&quot;</span>
+<span class="n">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;A long description should be put here&quot;</span>
+<span class="n">random_seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">12345</span>
+<span class="n">numba_num_of_threads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span>
+<span class="n">numba_threading_layer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;workqueue&quot;</span>
+</pre></div>
+</div>
+<p>and then you initialize the <cite>sim</cite> variable in your Python code as
+follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">parameter_file</span><span class="o">=</span><span class="s2">&quot;foo.toml&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>A nice feature of the framework is that the duration of the mission
+must not be specified in seconds. You would achieve identical results
+if you specify the duration in one of the following ways:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># All of these are the same</span>
+<span class="n">duration_s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;1 hour&quot;</span>
+<span class="n">duration_s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;60 min&quot;</span>
+<span class="n">duration_s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;3600 s&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="interface-with-the-instrument-database">
+<span id="imo-interface"></span><h2>Interface with the instrument database<a class="headerlink" href="#interface-with-the-instrument-database" title="Link to this heading">#</a></h2>
+<p>To simulation LiteBIRD’s data acquisition, the simulation code must be
+aware of the characteristics of the instrument. These are specified in
+the LiteBIRD Instrument Model (IMO) database, which can be accessed by
+people with sufficient rights. This Simulation Framework has the
+ability to access the database and take the input parameters necessary
+for its analysis modules to produce the expected output.</p>
+</section>
+<section id="system-abstractions">
+<h2>System abstractions<a class="headerlink" href="#system-abstractions" title="Link to this heading">#</a></h2>
+<p>In some cases, simulations must be ran on HPC computers, distributing
+the job on many processing units; in other cases, a simple laptop
+might be enough. The LiteBIRD Simulation Framework uses MPI to
+parallelize its codes, which is however an optional dependency: the
+code can be ran serially.</p>
+<p>If you want to use MPI in your scripts, assuming that you have created
+a virtual environment as explained in the <a class="reference internal" href="tutorial.html#tutorial"><span class="std std-ref">Tutorial</span></a>, you have
+just to install <a class="reference external" href="https://mpi4py.readthedocs.io/en/stable/">mpi4py</a>:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>mpi4py
+
+<span class="c1"># Always do this after &quot;pip install&quot;, it will record the</span>
+<span class="c1"># version number of mpi4py and all the other libraries</span>
+<span class="c1"># you have installed in your virtual environment</span>
+$<span class="w"> </span>pip<span class="w"> </span>freeze<span class="w"> </span>&gt;<span class="w"> </span>requirements.txt
+
+<span class="c1"># Run the program using 4 processes</span>
+$<span class="w"> </span>mpiexec<span class="w"> </span>-n<span class="w"> </span><span class="m">4</span><span class="w"> </span>python3<span class="w"> </span>my_script.py
+</pre></div>
+</div>
+<p>The framework will detect the presence of <code class="docutils literal notranslate"><span class="pre">mpi4py</span></code>, and it will
+automatically use distributed algorithms where applicable; otherwise,
+serial algorithms will be used. You can configure this while creating
+a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+<span class="kn">import</span> <span class="nn">mpi4py</span>
+
+<span class="c1"># This simulation *must* be ran using MPI</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">mpi_comm</span><span class="o">=</span><span class="n">mpi4py</span><span class="o">.</span><span class="n">MPI</span><span class="o">.</span><span class="n">COMM_WORLD</span><span class="p">,</span> <span class="n">random_seed</span><span class="o">=</span><span class="mi">12345</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The framework sets a number of variables related to MPI; these
+variables are <em>always</em> defined, even if MPI is not available, and they
+can be used to make the code work in serial environments too. If your
+code must be able to run both with and without MPI, you should
+initialize a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object using the variable
+<a class="reference internal" href="mpi.html#litebird_sim.mpi.MPI_COMM_WORLD" title="litebird_sim.mpi.MPI_COMM_WORLD"><code class="xref py py-data docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code></a>, which is either <code class="docutils literal notranslate"><span class="pre">mpi4py.MPI.COMM_WORLD</span></code>
+(the default MPI communicator) or a dummy class if MPI is disabled:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="c1"># This simulation can take advantage of MPI if present,</span>
+<span class="c1"># otherwise it will stick to serial execution</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">mpi_comm</span><span class="o">=</span><span class="n">lbs</span><span class="o">.</span><span class="n">MPI_COMM_WORLD</span><span class="p">,</span> <span class="n">random_seed</span><span class="o">=</span><span class="mi">12345</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See the page <a class="reference internal" href="mpi.html#using-mpi"><span class="std std-ref">Multithreading and MPI</span></a> for more information.</p>
+</section>
+<section id="generation-of-reports">
+<span id="report-generation"></span><h2>Generation of reports<a class="headerlink" href="#generation-of-reports" title="Link to this heading">#</a></h2>
+<p>This section should explain how reports can be generated, first from
+the perspective of a library user, and then describing how developers
+can generate plots for their own modules.</p>
+<p>Here is an example, showing several advanced topics like mathematical
+formulae, plots, and value substitution:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pylab</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;My simulation&quot;</span><span class="p">,</span>
+    <span class="n">base_path</span><span class="o">=</span><span class="s2">&quot;output&quot;</span><span class="p">,</span>
+    <span class="n">random_seed</span><span class="o">=</span><span class="mi">12345</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">data_points</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">data_points</span><span class="p">)</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">gcf</span><span class="p">()</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">append_to_report</span><span class="p">(</span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">Here is a formula for $`f(x)`$:</span>
+
+<span class="s1">```math</span>
+<span class="s1">f(x) = \sin x</span>
+<span class="s1">```</span>
+
+<span class="s1">And here is a completely unrelated plot:</span>
+
+<span class="s1">![](myplot.png)</span>
+
+<span class="s1">The data points have the following values:</span>
+<span class="s1">{</span><span class="si">% f</span><span class="s1">or sample in data_points %}</span>
+<span class="s1">- {{ sample }}</span>
+<span class="s1">{</span><span class="si">% e</span><span class="s1">ndfor %}</span>
+<span class="s1">&#39;&#39;&#39;</span><span class="p">,</span> <span class="n">figures</span><span class="o">=</span><span class="p">[(</span><span class="n">fig</span><span class="p">,</span> <span class="s2">&quot;myplot.png&quot;</span><span class="p">)],</span>
+     <span class="n">data_points</span><span class="o">=</span><span class="n">data_points</span><span class="p">)</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>And here is the output, which is saved in <code class="docutils literal notranslate"><span class="pre">output/report.html</span></code>:</p>
+<img alt="_images/report_example.png" class="align-center" src="_images/report_example.png" />
+</section>
+<section id="logging">
+<h2>Logging<a class="headerlink" href="#logging" title="Link to this heading">#</a></h2>
+<p>The report generation tools described above are useful to produce a
+synthetic report of the <em>scientific</em> outcomes of a simulation.
+However, one often wants to monitor the execution of the code in a
+more detailed manner, checking which functions have been called, how
+often, etc. In this case, the best option is to write messages to the
+terminal. Python provides the <a class="reference external" href="https://docs.python.org/3/library/logging.html">logging</a> module for this
+purpose, and when you initialize a <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object, the
+module is initialized with a set of sensible defaults. In your code you
+can use the functions <code class="docutils literal notranslate"><span class="pre">debug</span></code>, <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">warning</span></code>, <code class="docutils literal notranslate"><span class="pre">error</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">critical</span></code> to monitor what’s happening during execution:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+<span class="kn">import</span> <span class="nn">logging</span> <span class="k">as</span> <span class="nn">log</span>       <span class="c1"># &quot;log&quot; is shorter to write</span>
+<span class="n">my_sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">random_seed</span><span class="o">=</span><span class="mi">12345</span><span class="p">)</span>
+<span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;the simulation starts here!&quot;</span><span class="p">)</span>
+<span class="n">pi</span> <span class="o">=</span> <span class="mf">3.15</span>
+<span class="k">if</span> <span class="n">pi</span> <span class="o">!=</span> <span class="mf">3.14</span><span class="p">:</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;wrong value of pi!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The output of the code above is the following:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[2020-07-18 06:25:27,653 INFO] the simulation starts here!
+[2020-07-18 06:25:27,653 ERROR] wrong value of pi!
+</pre></div>
+</div>
+<p>Note that the messages are prepended with the date, time, and level of
+severity of the message.</p>
+<p>A few environment variables can taylor the way logging is done:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">LOG_DEBUG</span></code>: by default, debug messages are not printed to the
+terminal, because they are often too verbose for typical uses. If
+you want to debug your code, set a non-empty value to this variable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">LOG_ALL_MPI</span></code>: by default, if you are using MPI then only messages
+from the process running with rank 0 will be printed. Setting this
+environment variable will make all the processes print their message
+to the terminal. (Caution: there might be overlapping messages, if
+two processes happen to write at the same time.)</p></li>
+</ul>
+<p>The way you use these variable from the terminal is illustrated with
+an example. Suppose that we changed our example above, so that
+<code class="docutils literal notranslate"><span class="pre">log.debug</span></code> is called instead of <code class="docutils literal notranslate"><span class="pre">log.info</span></code>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+<span class="kn">import</span> <span class="nn">logging</span> <span class="k">as</span> <span class="nn">log</span>  <span class="c1"># &quot;log&quot; is shorter to write</span>
+
+<span class="n">my_sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">random_seed</span><span class="o">=</span><span class="mi">12345</span><span class="p">)</span>
+<span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;the simulation starts here!&quot;</span><span class="p">)</span>
+<span class="n">pi</span> <span class="o">=</span> <span class="mf">3.15</span>
+<span class="k">if</span> <span class="n">pi</span> <span class="o">!=</span> <span class="mf">3.14</span><span class="p">:</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;wrong value of pi!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this case, running the script will produce no messages, as the
+default is to skip <code class="docutils literal notranslate"><span class="pre">log.debug</span></code> calls:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>$ python my_script.py
+$
+</pre></div>
+</div>
+<p>However, running the script with the environment variable
+<code class="docutils literal notranslate"><span class="pre">LOG_DEBUG</span></code> set will make the messages appear:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>$ LOG_DEBUG=1 python my_script.py
+[2020-07-18 06:31:03,223 DEBUG] the simulation starts here!
+[2020-07-18 06:31:03,224 DEBUG] wrong value of pi!
+$
+</pre></div>
+</div>
+</section>
+<section id="monitoring-mpi-processes">
+<h2>Monitoring MPI processes<a class="headerlink" href="#monitoring-mpi-processes" title="Link to this heading">#</a></h2>
+<p>When using MPI, the method <a class="reference internal" href="#litebird_sim.simulations.Simulation.create_observations" title="litebird_sim.simulations.Simulation.create_observations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.create_observations()</span></code></a>
+distributes detectors and time spans over all the available
+MPI processes. The <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> class provides a method
+that enables the user to inspect how the TOD has been split
+among the many MPI processes: <a class="reference internal" href="#litebird_sim.simulations.Simulation.describe_mpi_distribution" title="litebird_sim.simulations.Simulation.describe_mpi_distribution"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.describe_mpi_distribution()</span></code></a>.</p>
+<p>The method must be called at the same time on <em>all</em> the MPI
+processess, once you have successfully called
+<a class="reference internal" href="#litebird_sim.simulations.Simulation.create_observations" title="litebird_sim.simulations.Simulation.create_observations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.create_observations()</span></code></a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="c1"># Be sure to create a `Simulation` object and create</span>
+<span class="c1"># the observations:</span>
+<span class="c1">#</span>
+<span class="c1">#     sim = lbs.Simulation(…)</span>
+<span class="c1">#     sim.create_observations(…)</span>
+
+<span class="c1"># Now ask the framework to report how it&#39;s using each MPI process</span>
+<span class="n">descr</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">describe_mpi_distribution</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The return type for <a class="reference internal" href="#litebird_sim.simulations.Simulation.describe_mpi_distribution" title="litebird_sim.simulations.Simulation.describe_mpi_distribution"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.describe_mpi_distribution()</span></code></a>
+is <a class="reference internal" href="#litebird_sim.simulations.MpiDistributionDescr" title="litebird_sim.simulations.MpiDistributionDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiDistributionDescr</span></code></a>, which can be printed on the
+spot using <code class="docutils literal notranslate"><span class="pre">print(descr)</span></code>. The result looks like the following
+example:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span># MPI rank #1
+
+## Observation #0
+- Start time: 0.0
+- Duration: 21600.0 s
+- 1 detector(s) (0A)
+- TOD(s): tod
+- TOD shape: 1×216000
+- Types of the TODs: float64
+
+## Observation #1
+- Start time: 43200.0
+- Duration: 21600.0 s
+- 1 detector(s) (0A)
+- TOD(s): tod
+- TOD shape: 1×216000
+- Types of the TODs: float64
+
+# MPI rank #2
+
+## Observation #0
+- Start time: 21600.0
+- Duration: 21600.0 s
+- 1 detector(s) (0A)
+- TOD(s): tod
+- TOD shape: 1×216000
+- Types of the TODs: float64
+
+## Observation #1
+- Start time: 64800.0
+- Duration: 21600.0 s
+- 1 detector(s) (0A)
+- TOD(s): tod
+- TOD shape: 1×216000
+- Types of the TODs: float64
+
+# MPI rank #3
+
+## Observation #0
+- Start time: 0.0
+- Duration: 21600.0 s
+- 1 detector(s) (0B)
+- TOD(s): tod
+- TOD shape: 1×216000
+- Types of the TODs: float64
+
+## Observation #1
+- Start time: 43200.0
+- Duration: 21600.0 s
+- 1 detector(s) (0B)
+- TOD(s): tod
+- TOD shape: 1×216000
+- Types of the TODs: float64
+
+# MPI rank #4
+
+## Observation #0
+- Start time: 21600.0
+- Duration: 21600.0 s
+- 1 detector(s) (0B)
+- TOD(s): tod
+- TOD shape: 1×216000
+- Types of the TODs: float64
+
+## Observation #1
+- Start time: 64800.0
+- Duration: 21600.0 s
+- 1 detector(s) (0B)
+- TOD(s): tod
+- TOD shape: 1×216000
+- Types of the TODs: float64
+</pre></div>
+</div>
+<p>The class <a class="reference internal" href="#litebird_sim.simulations.MpiDistributionDescr" title="litebird_sim.simulations.MpiDistributionDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiDistributionDescr</span></code></a> contains a list
+of <a class="reference internal" href="#litebird_sim.simulations.MpiProcessDescr" title="litebird_sim.simulations.MpiProcessDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiProcessDescr</span></code></a>, which describe the «contents»
+of each MPI process. The most important field in each
+<a class="reference internal" href="#litebird_sim.simulations.MpiProcessDescr" title="litebird_sim.simulations.MpiProcessDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiProcessDescr</span></code></a> instance is <cite>observations</cite>, which
+is a list of <a class="reference internal" href="#litebird_sim.simulations.MpiObservationDescr" title="litebird_sim.simulations.MpiObservationDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiObservationDescr</span></code></a> objects: it
+contains the size of the TOD array, the names of the detectors,
+and other useful information. Refer to the documentation of
+each class to know what is inside.</p>
+</section>
+<section id="high-level-interface">
+<h2>High level interface<a class="headerlink" href="#high-level-interface" title="Link to this heading">#</a></h2>
+<p>The class <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> has a powerful high level
+interface that allows to quickly generate a scanning strategy,
+allocate the observations, generate simulated timelines
+cointaing signal, noise and dipole, build maps, and
+save(read) the entire simulation object. The syntax is
+straightforward:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">set_scanning_strategy</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">set_instrument</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">create_observations</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">prepare_pointings</span><span class="p">()</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">compute_pos_and_vel</span><span class="p">()</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">add_dipole</span><span class="p">()</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">fill_tods</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">add_noise</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">make_destriped_map</span><span class="p">(</span><span class="n">nside</span><span class="o">=</span><span class="n">nside</span><span class="p">)</span>
+<span class="n">healpy</span><span class="o">.</span><span class="n">mollview</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">destriped_map</span><span class="p">)</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">write_observations</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">read_observations</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See the documentation in <a class="reference internal" href="observations.html#observations"><span class="std std-ref">Observations</span></a>, <a class="reference internal" href="scanning.html#scanning-strategy"><span class="std std-ref">Scanning strategy</span></a>
+<a class="reference internal" href="dipole.html#dipole-anisotropy"><span class="std std-ref">Dipole anisotropy</span></a>, <a class="reference internal" href="noise.html#noise"><span class="std std-ref">Instrumental noise</span></a>, <a class="reference internal" href="map_scanning.html#mapscanning"><span class="std std-ref">Scanning a map to fill a TOD</span></a>, <a class="reference internal" href="mapmaking.html#mapmaking"><span class="std std-ref">Map-making</span></a> for
+details of the single functions.</p>
+<section id="data-splits">
+<h3>Data splits<a class="headerlink" href="#data-splits" title="Link to this heading">#</a></h3>
+<p>Since the class <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> is interfaced to
+<code class="xref py py-func docutils literal notranslate"><span class="pre">litebird_sim.make_binned_map()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">litebird_sim.make_destriped_map()</span></code>,
+it is able to provide data splits
+both in time and detector space (see <a class="reference internal" href="mapmaking.html#mapmaking"><span class="std std-ref">Map-making</span></a>
+for more details on the splitting and the available options).
+In addition, the class contains <a class="reference internal" href="#litebird_sim.simulations.Simulation.make_binned_map_splits" title="litebird_sim.simulations.Simulation.make_binned_map_splits"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.make_binned_map_splits()</span></code></a>,
+which is a wrapper around <code class="xref py py-func docutils literal notranslate"><span class="pre">litebird_sim.make_binned_map()</span></code>,
+and <a class="reference internal" href="#litebird_sim.simulations.Simulation.make_destriped_map_splits" title="litebird_sim.simulations.Simulation.make_destriped_map_splits"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.make_destriped_map_splits()</span></code></a>, which is a wrapper
+around <code class="xref py py-func docutils literal notranslate"><span class="pre">litebird_sim.make_destriped_map()</span></code>.
+These allows to perform the mapmaking on multiple choices
+of splits at once (passed as a list of strings).
+Indeed, the functions will loop over the cartesian
+product of the time and detector splits. The default
+behavior is to perform the mapmaking in each combination
+and save the result to disk, to avoid memory issues.
+In particular, in the case of <a class="reference internal" href="#litebird_sim.simulations.Simulation.make_binned_map_splits" title="litebird_sim.simulations.Simulation.make_binned_map_splits"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.make_binned_map_splits()</span></code></a>,
+only the binned maps are saved to disk, unless you set
+<cite>include_inv_covariance</cite> to <cite>True</cite>. This saves the elements of
+the inverse covariance as extra fields in the output FITS file.
+This default behavior can be changed by setting the <cite>write_to_disk</cite> parameter
+to <cite>False</cite>. Then, the function returns a dictionary
+containing the full results of the mapmaking for each split.
+The keys are strings that describe the split in the
+format “{Dsplit}_{Tsplit}”, such as “waferL00_year1”.
+On the other hand, the default behavior of
+<a class="reference internal" href="#litebird_sim.simulations.Simulation.make_destriped_map_splits" title="litebird_sim.simulations.Simulation.make_destriped_map_splits"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.make_destriped_map_splits()</span></code></a> is to save to disk
+the complete <a class="reference internal" href="mapmaking.html#litebird_sim.mapmaking.DestriperResult" title="litebird_sim.mapmaking.DestriperResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">mapmaking.DestriperResult</span></code></a> class for each
+split as a FITS file. To avoid this and get a dictionary similar to the one returned
+by <a class="reference internal" href="#litebird_sim.simulations.Simulation.make_binned_map_splits" title="litebird_sim.simulations.Simulation.make_binned_map_splits"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.make_binned_map_splits()</span></code></a>, you can set the
+<cite>write_to_disk</cite> parameter to <cite>False</cite>.</p>
+<p>The method <a class="reference internal" href="#litebird_sim.simulations.Simulation.make_destriped_map_splits" title="litebird_sim.simulations.Simulation.make_destriped_map_splits"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.make_destriped_map_splits()</span></code></a> also offers the
+possibility to recycle the baseline computed from the largest split available.
+Indeed, if the flag <cite>recycle_baselines</cite> is set to <cite>True</cite>, that method enforces
+the computation of the “full_full” split and then reuses the baselines
+computed for that split for all the other splits.</p>
+<p>Before performing the computation, the function <a class="reference internal" href="#litebird_sim.simulations.Simulation.check_valid_splits" title="litebird_sim.simulations.Simulation.check_valid_splits"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.check_valid_splits()</span></code></a>
+will check whether the requested split is valid (see <a class="reference internal" href="mapmaking.html#mapmaking"><span class="std std-ref">Map-making</span></a>).
+This is a wrapper around <code class="xref py py-func docutils literal notranslate"><span class="pre">litebird_sim.check_valid_splits()</span></code>. If the
+split is not valid, the function will raise a ValueError. In addition, it
+will check whether the requested split is compatible with the duration of
+the observation and with the detector list. Thus, for example, if the
+observation lasts 1 year, the split “year2” will raise an AsserionError. Similarly,
+if the observation is performed with some detector contained in the L00
+wafer, the split “waferL03” will also raise an AsserionError.</p>
+</section>
+</section>
+<section id="profiling-a-simulation">
+<span id="simulation-profiling"></span><h2>Profiling a simulation<a class="headerlink" href="#profiling-a-simulation" title="Link to this heading">#</a></h2>
+<p>The class <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> provides an higher-level interface to the
+functions described in the chapter <a class="reference internal" href="profiling.html#profiling"><span class="std std-ref">Profiling</span></a>. The decorator <code class="docutils literal notranslate"><span class="pre">&#64;profile</span></code>
+automatically wraps a method of the <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> class so that it measures
+the time spent to run the method and adds it to an internal list of
+<a class="reference internal" href="profiling.html#litebird_sim.profiler.TimeProfiler" title="litebird_sim.profiler.TimeProfiler"><code class="xref py py-class docutils literal notranslate"><span class="pre">TimeProfiler</span></code></a> objects. When the <a class="reference internal" href="#litebird_sim.simulations.Simulation.flush" title="litebird_sim.simulations.Simulation.flush"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.flush()</span></code></a> method is
+called, each MPI process creates its own JSON file containing the methods that
+have been measured during the execution of the simulation. These files are
+stored in the output directory and have names like <code class="docutils literal notranslate"><span class="pre">profile_mpi00000.json</span></code>,
+<code class="docutils literal notranslate"><span class="pre">profile_mpi00001.json</span></code>, etc.</p>
+</section>
+<section id="module-litebird_sim.simulations">
+<span id="api-reference"></span><h2>API reference<a class="headerlink" href="#module-litebird_sim.simulations" title="Link to this heading">#</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiDistributionDescr">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.simulations.</span></span><span class="sig-name descname"><span class="pre">MpiDistributionDescr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_of_observations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">detectors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="detectors.html#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><span class="pre">DetectorInfo</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mpi_processes</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#litebird_sim.simulations.MpiProcessDescr" title="litebird_sim.simulations.MpiProcessDescr"><span class="pre">MpiProcessDescr</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.MpiDistributionDescr" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A class that describes how observations are distributed among MPI processes</p>
+<p>The fields defined in this dataclass are the following:</p>
+<ul class="simple">
+<li><p><cite>num_of_observations</cite> (int): overall number of observations in <em>all</em> the
+MPI processes</p></li>
+<li><p><cite>detectors</cite> (list of <a class="reference internal" href="detectors.html#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">DetectorInfo</span></code></a> objects): list of <em>all</em> the
+detectors used in the observations</p></li>
+<li><p><cite>mpi_processes</cite>: list of <a class="reference internal" href="#litebird_sim.simulations.MpiProcessDescr" title="litebird_sim.simulations.MpiProcessDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiProcessDescr</span></code></a> instances, describing
+the kind of data that each MPI process is currently holding</p></li>
+</ul>
+<p>Use <a class="reference internal" href="#litebird_sim.simulations.Simulation.describe_mpi_distribution" title="litebird_sim.simulations.Simulation.describe_mpi_distribution"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.describe_mpi_distribution()</span></code></a> to get an instance of this
+object.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiDistributionDescr.detectors">
+<span class="sig-name descname"><span class="pre">detectors</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="detectors.html#litebird_sim.detectors.DetectorInfo" title="litebird_sim.detectors.DetectorInfo"><span class="pre">DetectorInfo</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.simulations.MpiDistributionDescr.detectors" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiDistributionDescr.mpi_processes">
+<span class="sig-name descname"><span class="pre">mpi_processes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#litebird_sim.simulations.MpiProcessDescr" title="litebird_sim.simulations.MpiProcessDescr"><span class="pre">MpiProcessDescr</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.simulations.MpiDistributionDescr.mpi_processes" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiDistributionDescr.num_of_observations">
+<span class="sig-name descname"><span class="pre">num_of_observations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#litebird_sim.simulations.MpiDistributionDescr.num_of_observations" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.simulations.</span></span><span class="sig-name descname"><span class="pre">MpiObservationDescr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">det_names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tod_names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tod_shape</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tod_dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tod_description</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_of_samples</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_of_detectors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class is used within <a class="reference internal" href="#litebird_sim.simulations.MpiProcessDescr" title="litebird_sim.simulations.MpiProcessDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiProcessDescr</span></code></a>. It describes the
+kind and size of the data held by a <a class="reference internal" href="observations.html#litebird_sim.observations.Observation" title="litebird_sim.observations.Observation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Observation</span></code></a> object.</p>
+<p>Its fields are:</p>
+<ul class="simple">
+<li><p><cite>det_names</cite> (list of <code class="docutils literal notranslate"><span class="pre">str</span></code>): names of the detectors handled by
+this observation</p></li>
+<li><p><cite>tod_names</cite> (list of <code class="docutils literal notranslate"><span class="pre">str</span></code>): names of the fields containing the TODs
+(e.g., <code class="docutils literal notranslate"><span class="pre">tod</span></code>, <code class="docutils literal notranslate"><span class="pre">cmb_tod</span></code>, <code class="docutils literal notranslate"><span class="pre">dipole_tod</span></code>, …)</p></li>
+<li><p><cite>tod_shape</cite> (tuples of <code class="docutils literal notranslate"><span class="pre">int</span></code>): shape of each TOD held by the observation.
+This is <em>not</em> a list, because all the TODs are assumed to have the same shape</p></li>
+<li><p><cite>tod_dtype</cite> (list of <code class="docutils literal notranslate"><span class="pre">str</span></code>): string representing the NumPy data type of each
+TODs, in the same order as in the field <cite>tod_name</cite></p></li>
+<li><p><cite>tod_description</cite> (list of <code class="docutils literal notranslate"><span class="pre">str</span></code>): list of human-readable descriptions
+for each TOD, in the same order as in the field <cite>tod_name</cite></p></li>
+<li><p><cite>start_time</cite> (either a <code class="docutils literal notranslate"><span class="pre">float</span></code> or a <code class="docutils literal notranslate"><span class="pre">astropy.time.Time</span></code>): start date
+of the observation</p></li>
+<li><p><cite>duration_s</cite> (<code class="docutils literal notranslate"><span class="pre">float</span></code>): duration of the TOD in seconds</p></li>
+<li><p><cite>num_of_samples</cite> (<code class="docutils literal notranslate"><span class="pre">int</span></code>): number of samples held by this TOD</p></li>
+<li><p><cite>num_of_detectors</cite> (<code class="docutils literal notranslate"><span class="pre">int</span></code>): number of detectors held by this TOD. It’s
+the length of the field <cite>det_names</cite> (see above)</p></li>
+</ul>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr.det_names">
+<span class="sig-name descname"><span class="pre">det_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr.det_names" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr.duration_s">
+<span class="sig-name descname"><span class="pre">duration_s</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span></em><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr.duration_s" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr.num_of_detectors">
+<span class="sig-name descname"><span class="pre">num_of_detectors</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr.num_of_detectors" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr.num_of_samples">
+<span class="sig-name descname"><span class="pre">num_of_samples</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr.num_of_samples" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr.start_time">
+<span class="sig-name descname"><span class="pre">start_time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Time</span></em><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr.start_time" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr.tod_description">
+<span class="sig-name descname"><span class="pre">tod_description</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr.tod_description" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr.tod_dtype">
+<span class="sig-name descname"><span class="pre">tod_dtype</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr.tod_dtype" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr.tod_names">
+<span class="sig-name descname"><span class="pre">tod_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr.tod_names" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiObservationDescr.tod_shape">
+<span class="sig-name descname"><span class="pre">tod_shape</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#litebird_sim.simulations.MpiObservationDescr.tod_shape" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiProcessDescr">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.simulations.</span></span><span class="sig-name descname"><span class="pre">MpiProcessDescr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mpi_rank</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numba_num_of_threads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">observations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#litebird_sim.simulations.MpiObservationDescr" title="litebird_sim.simulations.MpiObservationDescr"><span class="pre">MpiObservationDescr</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.MpiProcessDescr" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Description of the kind of data held by a MPI process</p>
+<p>This class is used within <a class="reference internal" href="#litebird_sim.simulations.MpiDistributionDescr" title="litebird_sim.simulations.MpiDistributionDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiDistributionDescr</span></code></a>. Its fields are:</p>
+<ul class="simple">
+<li><p><cite>mpi_rank</cite>: rank of the MPI process described by this instance</p></li>
+<li><p><cite>observations</cite>: list of <a class="reference internal" href="#litebird_sim.simulations.MpiObservationDescr" title="litebird_sim.simulations.MpiObservationDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiObservationDescr</span></code></a> objects, each
+describing one observation managed by the MPI process with rank
+<cite>mpi_rank</cite>.</p></li>
+<li><dl class="simple">
+<dt><cite>numba_num_of_threads</cite> (<code class="docutils literal notranslate"><span class="pre">int</span></code>): number of threads used by Numba</dt><dd><p>in the MPI process with rank <cite>mpi_rank</cite>.</p>
+</dd>
+</dl>
+</li>
+</ul>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiProcessDescr.mpi_rank">
+<span class="sig-name descname"><span class="pre">mpi_rank</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#litebird_sim.simulations.MpiProcessDescr.mpi_rank" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiProcessDescr.numba_num_of_threads">
+<span class="sig-name descname"><span class="pre">numba_num_of_threads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#litebird_sim.simulations.MpiProcessDescr.numba_num_of_threads" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.MpiProcessDescr.observations">
+<span class="sig-name descname"><span class="pre">observations</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#litebird_sim.simulations.MpiObservationDescr" title="litebird_sim.simulations.MpiObservationDescr"><span class="pre">MpiObservationDescr</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#litebird_sim.simulations.MpiProcessDescr.observations" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.simulations.OutputFileRecord">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.simulations.</span></span><span class="sig-name descname"><span class="pre">OutputFileRecord</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.OutputFileRecord" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.OutputFileRecord.description">
+<span class="sig-name descname"><span class="pre">description</span></span><a class="headerlink" href="#litebird_sim.simulations.OutputFileRecord.description" title="Link to this definition">#</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="litebird_sim.simulations.OutputFileRecord.path">
+<span class="sig-name descname"><span class="pre">path</span></span><a class="headerlink" href="#litebird_sim.simulations.OutputFileRecord.path" title="Link to this definition">#</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.simulations.</span></span><span class="sig-name descname"><span class="pre">Simulation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">random_seed=''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_path=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mpi_comm=&lt;litebird_sim.mpi._SerialMpiCommunicator</span> <span class="pre">object&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">description=''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration_s=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">imo=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameter_file=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">parameters=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numba_threads=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">numba_threading_layer=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">profile_time:</span> <span class="pre">bool</span> <span class="pre">=</span> <span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>A container object for running simulations</p>
+<p>This is the most important class in the Litebird_sim framework. It
+initializes an output directory that will contain all the products
+of a simulation and will handle the generation of reports and
+writing of output files.</p>
+<p>Be sure to call <a class="reference internal" href="#litebird_sim.simulations.Simulation.flush" title="litebird_sim.simulations.Simulation.flush"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.flush()</span></code></a> when the simulation is
+completed. This ensures that all the information are saved to disk
+before the completion of your script.</p>
+<p>You can access the fields <cite>base_path</cite>, <cite>name</cite>, <cite>mpi_comm</cite>, and
+<cite>description</cite> in the <cite>Simulation</cite> object:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">litebird_sim</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;My simulation&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running </span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">, saving results in </span><span class="si">{</span><span class="n">sim</span><span class="o">.</span><span class="n">base_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The member variable <cite>observations</cite> is a list of
+<a class="reference internal" href="observations.html#litebird_sim.observations.Observation" title="litebird_sim.observations.Observation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Observation</span></code></a> objects, which is initialized by the method
+<a class="reference internal" href="#litebird_sim.simulations.Simulation.create_observations" title="litebird_sim.simulations.Simulation.create_observations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create_observations()</span></code></a>.</p>
+<p>This class keeps track of any output file saved in <cite>base_path</cite>
+through the member variable <cite>self.list_of_outputs</cite>. This is a list
+of objects of type <a class="reference internal" href="#litebird_sim.simulations.OutputFileRecord" title="litebird_sim.simulations.OutputFileRecord"><code class="xref py py-meth docutils literal notranslate"><span class="pre">OutputFileRecord()</span></code></a>, which are 2-tuples
+of the form <code class="docutils literal notranslate"><span class="pre">(path,</span> <span class="pre">description)</span></code>, where <code class="docutils literal notranslate"><span class="pre">path</span></code> is a
+<code class="docutils literal notranslate"><span class="pre">pathlib.Path</span></code> object and <code class="docutils literal notranslate"><span class="pre">description</span></code> is a <cite>str</cite> object:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">curpath</span><span class="p">,</span> <span class="n">curdescr</span> <span class="ow">in</span> <span class="n">sim</span><span class="o">.</span><span class="n">list_of_outputs</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">curpath</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">curdescr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When pointing information is needed, you can call the method
+<a class="reference internal" href="#litebird_sim.simulations.Simulation.set_scanning_strategy" title="litebird_sim.simulations.Simulation.set_scanning_strategy"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.set_scanning_strategy()</span></code></a>, which
+initializes the members <cite>pointing_freq_hz</cite> and
+<cite>spin2ecliptic_quats</cite>; these members are used by functions like
+<code class="xref py py-func docutils literal notranslate"><span class="pre">get_pointings()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>random_seed</strong> (int or <cite>None</cite>) – the seed used for the random number
+generator. The user is required to set this parameter. By setting it to
+<cite>None</cite>, the generation of random numbers will not be reproducible.</p></li>
+<li><p><strong>base_path</strong> (str or <cite>pathlib.Path</cite>) – the folder that will
+contain the output. If this folder does not exist and the
+user has sufficient rights, it will be created.</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – a string identifying the simulation. This will
+be used in the reports.</p></li>
+<li><p><strong>mpi_comm</strong> – either <cite>None</cite> (do not use MPI) or a MPI communicator
+object, like <cite>mpi4py.MPI.COMM_WORLD</cite>.</p></li>
+<li><p><strong>description</strong> (<em>str</em>) – a (possibly long) description of the
+simulation, to be put in the report saved in <cite>base_path</cite>).</p></li>
+<li><p><strong>start_time</strong> (float or <code class="docutils literal notranslate"><span class="pre">astropy.time.Time</span></code>) – the start time of
+the simulation. It can be either an arbitrary
+floating-point number (e.g., 0) or an
+<code class="docutils literal notranslate"><span class="pre">astropy.time.Time</span></code> instance; in the latter case, this
+triggers a more precise (and slower) computation of
+pointing information.</p></li>
+<li><p><strong>duration_s</strong> (<em>float</em>) – Number of seconds the simulation should
+last.</p></li>
+<li><p><strong>imo</strong> (<a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a>) – an instance of the <a class="reference internal" href="imo.html#litebird_sim.imo.Imo" title="litebird_sim.imo.Imo"><code class="xref py py-class docutils literal notranslate"><span class="pre">Imo</span></code></a> class.
+If not provided, the default constructor will be called,
+which means that the IMO to be used will be the default
+one configured using the <code class="docutils literal notranslate"><span class="pre">install_imo</span></code> program.</p></li>
+<li><p><strong>parameter_file</strong> (str or <cite>pathlib.Path</cite>) – path to a TOML file
+that contains the parameters for the simulation. This file
+will be copied into <cite>base_path</cite>, and its contents will be
+read into the field <cite>parameters</cite> (a Python dictionary).</p></li>
+<li><p><strong>numba_threads</strong> (<em>int</em>) – number of threads to use when calling
+Numba functions. If no value is passed but the environment
+variable <code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code> is set, its value will be used;
+otherwise a number of threads equal to the number of CPU
+cores will be used.</p></li>
+<li><p><strong>numba_threading_layer</strong> (<em>str</em>) – name of the Numba threading layer
+to use. See the Numba User’s Manual:
+&lt;<a class="reference external" href="https://numba.readthedocs.io/en/stable/user/threading-layer.html">https://numba.readthedocs.io/en/stable/user/threading-layer.html</a>&gt;</p></li>
+<li><p><strong>profile_time</strong> (<em>bool</em>) – if <code class="docutils literal notranslate"><span class="pre">True</span></code> (the default), record information about
+the time spent while doing some time-consuming tasks.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.add_2f">
+<span class="sig-name descname"><span class="pre">add_2f</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.add_2f" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.add_dipole">
+<span class="sig-name descname"><span class="pre">add_dipole</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.add_dipole" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.add_noise">
+<span class="sig-name descname"><span class="pre">add_noise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.add_noise" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.append_to_report">
+<span class="sig-name descname"><span class="pre">append_to_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">markdown_text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append_newline</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figures</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.append_to_report" title="Link to this definition">#</a></dt>
+<dd><p>Append text and figures to the simulation report</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>markdown_text</strong> (<em>str</em>) – text to be appended to the report.</p></li>
+<li><p><strong>append_newline</strong> (<em>bool</em>) – append newlines to the end of the
+text. This ensures that calling again this method will
+produce a separate paragraph.</p></li>
+<li><p><strong>figures</strong> (<em>list</em><em> of </em><em>2-tuples</em>) – list of Matplotlib figures to
+be saved in the report. Each tuple must contain one
+figure and one filename. The figures will be saved
+using the specified file name in the output
+directory. The file name must match the one used as
+reference in the Markdown text.</p></li>
+<li><p><strong>kwargs</strong> – any other keyword argument will be used to expand
+the text <cite>markdown_text</cite> using the <a class="reference external" href="https://palletsprojects.com/p/jinja/">Jinja2 library</a> library.</p></li>
+</ul>
+</dd>
+</dl>
+<p>A Simulation class can generate reports in Markdown format.
+Use this function to add some text to the report, possibly
+including figures. The function has no effect if called from
+an MPI rank different from #0.</p>
+<p>It is possible to use objects other than Matplotlib
+figures. The only method this function calls is <cite>savefig</cite>,
+with no arguments.</p>
+<p>Images are saved immediately during the call, but the text
+will be written to disk only when
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">flush()</span></code> is called.</p>
+<p>You can put LaTeX formulae in the text, using <code class="docutils literal notranslate"><span class="pre">$`...`$</span></code>
+for inline equations and the <cite>math</cite> tag in fenced text for
+displayed equations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.apply_gaindrift">
+<span class="sig-name descname"><span class="pre">apply_gaindrift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.apply_gaindrift" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.apply_quadratic_nonlin">
+<span class="sig-name descname"><span class="pre">apply_quadratic_nonlin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.apply_quadratic_nonlin" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.check_valid_splits">
+<span class="sig-name descname"><span class="pre">check_valid_splits</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">detector_splits</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_splits</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.check_valid_splits" title="Link to this definition">#</a></dt>
+<dd><p>Wrapper around <code class="xref py py-meth docutils literal notranslate"><span class="pre">litebird_sim.check_valid_splits()</span></code>. Checks that the splits
+are valid on the observations.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.compute_pos_and_vel">
+<span class="sig-name descname"><span class="pre">compute_pos_and_vel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.compute_pos_and_vel" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.create_observations">
+<span class="sig-name descname"><span class="pre">create_observations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.create_observations" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.describe_mpi_distribution">
+<span class="sig-name descname"><span class="pre">describe_mpi_distribution</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#litebird_sim.simulations.MpiDistributionDescr" title="litebird_sim.simulations.MpiDistributionDescr"><span class="pre">MpiDistributionDescr</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.simulations.Simulation.describe_mpi_distribution" title="Link to this definition">#</a></dt>
+<dd><p>Return a <a class="reference internal" href="#litebird_sim.simulations.MpiDistributionDescr" title="litebird_sim.simulations.MpiDistributionDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiDistributionDescr</span></code></a> object describing observations</p>
+<p>This method returns a <a class="reference internal" href="#litebird_sim.simulations.MpiDistributionDescr" title="litebird_sim.simulations.MpiDistributionDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiDistributionDescr</span></code></a> that describes the data
+stored in each MPI process running concurrently. It is a great debugging tool
+when you are using MPI, and it can be used for tasks where you have to carefully
+orchestrate they way different MPI processes run together.</p>
+<p>If this method is called before <a class="reference internal" href="#litebird_sim.simulations.Simulation.create_observations" title="litebird_sim.simulations.Simulation.create_observations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.create_observations()</span></code></a>, it will
+return <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<p>This method should be called by <em>all</em> the MPI processes. It can be executed in a
+serial environment (i.e., without MPI) and will still return meaningful values.</p>
+<p>The typical usage for this method is to call it once you have called
+<a class="reference internal" href="#litebird_sim.simulations.Simulation.create_observations" title="litebird_sim.simulations.Simulation.create_observations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.create_observations()</span></code></a> to check that the TODs have been
+laid in memory in the way you expect:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>sim.create_observations(…)
+distr = sim.describe_mpi_distribution()
+if litebird_sim.MPI_COMM_WORLD.rank == 0:
+    print(distr)
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.distribute_workload">
+<span class="sig-name descname"><span class="pre">distribute_workload</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">observations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="observations.html#litebird_sim.observations.Observation" title="litebird_sim.observations.Observation"><span class="pre">Observation</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.distribute_workload" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.fill_tods">
+<span class="sig-name descname"><span class="pre">fill_tods</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.fill_tods" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.flush">
+<span class="sig-name descname"><span class="pre">flush</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">include_git_diff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_imo_url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'https://litebirdimo.ssdc.asi.it'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">profile_file_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.flush" title="Link to this definition">#</a></dt>
+<dd><p>Terminate a simulation.</p>
+<p>This function must be called when a simulation is complete. It
+will save pending data to the output directory.</p>
+<p>It returns a <cite>Path</cite> object pointing to the HTML file that has
+been saved in the directory pointed by <code class="docutils literal notranslate"><span class="pre">self.base_path</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.generate_spin2ecl_quaternions">
+<span class="sig-name descname"><span class="pre">generate_spin2ecl_quaternions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scanning_strategy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="scanning.html#litebird_sim.scanning.ScanningStrategy" title="litebird_sim.scanning.ScanningStrategy"><span class="pre">ScanningStrategy</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">imo_url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append_to_report</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.generate_spin2ecl_quaternions" title="Link to this definition">#</a></dt>
+<dd><div class="deprecated">
+<p><span class="versionmodified deprecated">Deprecated since version 0.9: </span>Use set_scanning_strategy</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.get_list_of_tods">
+<span class="sig-name descname"><span class="pre">get_list_of_tods</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="observations.html#litebird_sim.observations.TodDescription" title="litebird_sim.observations.TodDescription"><span class="pre">TodDescription</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#litebird_sim.simulations.Simulation.get_list_of_tods" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.get_tod_descriptions">
+<span class="sig-name descname"><span class="pre">get_tod_descriptions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#litebird_sim.simulations.Simulation.get_tod_descriptions" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.get_tod_dtypes">
+<span class="sig-name descname"><span class="pre">get_tod_dtypes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#litebird_sim.simulations.Simulation.get_tod_dtypes" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.get_tod_names">
+<span class="sig-name descname"><span class="pre">get_tod_names</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#litebird_sim.simulations.Simulation.get_tod_names" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.init_random">
+<span class="sig-name descname"><span class="pre">init_random</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">random_seed</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.init_random" title="Link to this definition">#</a></dt>
+<dd><p>Initialize a random number generator in the <cite>random</cite> field</p>
+<p>This function creates a random number generator and saves it in the
+field <cite>random</cite>. It should be used whenever a random number generator
+is needed in the simulation.
+In the case <cite>random_seed</cite> has not been set to <cite>None</cite>, it ensures that
+different MPI processes have their own different seed, which stems
+from the parameter <cite>random_seed</cite>, and the results will be reproducible.
+The generator is PCG64, and it is ensured that the sequences in each MPI
+process are independent. If <cite>init_random</cite> is called with the same seed
+but a different number of MPI ranks, the sequence of random numbers
+will be different.
+In the case <cite>random_seed</cite> has been set to <cite>None</cite>, no seed will be
+used and the results obtained with the random number generator will
+not be reproducible.</p>
+<p>This method is automatically called in the constructor, but it can be
+called again as many times as required. The typical case is when
+one wants to use a seed that has been read from a parameter file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.make_binned_map">
+<span class="sig-name descname"><span class="pre">make_binned_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.make_binned_map" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.make_binned_map_splits">
+<span class="sig-name descname"><span class="pre">make_binned_map_splits</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.make_binned_map_splits" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.make_destriped_map">
+<span class="sig-name descname"><span class="pre">make_destriped_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.make_destriped_map" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.make_destriped_map_splits">
+<span class="sig-name descname"><span class="pre">make_destriped_map_splits</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.make_destriped_map_splits" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.precompute_pointings">
+<span class="sig-name descname"><span class="pre">precompute_pointings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointings_dtype=&lt;class</span> <span class="pre">'numpy.float32'&gt;</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.simulations.Simulation.precompute_pointings" title="Link to this definition">#</a></dt>
+<dd><p>Compute all the pointings for all observations and save them</p>
+<p>Save the pointing matrix of each <a class="reference internal" href="observations.html#litebird_sim.observations.Observation" title="litebird_sim.observations.Observation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Observation</span></code></a> object in this simulation
+into a field named <code class="docutils literal notranslate"><span class="pre">pointing_matrix</span></code> (a matrix with shape <code class="docutils literal notranslate"><span class="pre">(N_d,</span> <span class="pre">N_samples,</span> <span class="pre">3)</span></code>,
+where <code class="docutils literal notranslate"><span class="pre">N_d</span></code> is the number of detectors). If a HWP was set, its angle will be
+saved as well in a field named <cite>hwp_angle</cite> (a vector of <code class="docutils literal notranslate"><span class="pre">(N_samples,)</span></code> elements).</p>
+<p>This method can take a significant amount of memory, but it might speed up the
+execution if you plan to access the pointings repeatedly during a simulation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.prepare_pointings">
+<span class="sig-name descname"><span class="pre">prepare_pointings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.prepare_pointings" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.read_observations">
+<span class="sig-name descname"><span class="pre">read_observations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.read_observations" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.record_profile_info">
+<span class="sig-name descname"><span class="pre">record_profile_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">profiler</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="profiling.html#litebird_sim.profiler.TimeProfiler" title="litebird_sim.profiler.TimeProfiler"><span class="pre">TimeProfiler</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.record_profile_info" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.set_hwp">
+<span class="sig-name descname"><span class="pre">set_hwp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">hwp</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="hwp.html#litebird_sim.hwp.HWP" title="litebird_sim.hwp.HWP"><span class="pre">HWP</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.set_hwp" title="Link to this definition">#</a></dt>
+<dd><p>Set the HWP to be used in the simulation</p>
+<p>The argument must be a class derived from <a class="reference internal" href="hwp.html#litebird_sim.hwp.HWP" title="litebird_sim.hwp.HWP"><code class="xref py py-class docutils literal notranslate"><span class="pre">HWP</span></code></a>, for instance
+<a class="reference internal" href="hwp.html#litebird_sim.hwp.IdealHWP" title="litebird_sim.hwp.IdealHWP"><code class="xref py py-class docutils literal notranslate"><span class="pre">IdealHWP</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.set_instrument">
+<span class="sig-name descname"><span class="pre">set_instrument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">instrument</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="detectors.html#litebird_sim.detectors.InstrumentInfo" title="litebird_sim.detectors.InstrumentInfo"><span class="pre">InstrumentInfo</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.set_instrument" title="Link to this definition">#</a></dt>
+<dd><p>Set the instrument to be used in the simulation.</p>
+<p>This function sets the <code class="docutils literal notranslate"><span class="pre">self.instrument</span></code> field to the instance
+of the class <a class="reference internal" href="detectors.html#litebird_sim.detectors.InstrumentInfo" title="litebird_sim.detectors.InstrumentInfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">InstrumentInfo</span></code></a> that has been passed as
+argument. The purpose of the instrument is to provide the reference
+frame for the direction of each detector.</p>
+<p>Note that you should not simulate more than one instrument in the same
+simulation. This is enforced by the fact that if you call <cite>set_instrument</cite>
+twice, the second call will overwrite the instrument that was formerly
+set.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.set_scanning_strategy">
+<span class="sig-name descname"><span class="pre">set_scanning_strategy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scanning_strategy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">None</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="scanning.html#litebird_sim.scanning.ScanningStrategy" title="litebird_sim.scanning.ScanningStrategy"><span class="pre">ScanningStrategy</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">imo_url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">60.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append_to_report</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.set_scanning_strategy" title="Link to this definition">#</a></dt>
+<dd><p>Simulate the motion of the spacecraft in free space</p>
+<p>This method computes the quaternions that encode the evolution
+of the spacecraft’s orientation in time, assuming the scanning
+strategy described in the parameter <cite>scanning_strategy</cite> (an
+object of a class derived by <a class="reference internal" href="scanning.html#litebird_sim.scanning.ScanningStrategy" title="litebird_sim.scanning.ScanningStrategy"><code class="xref py py-class docutils literal notranslate"><span class="pre">ScanningStrategy</span></code></a>; most
+likely, you want to use <code class="xref py py-class docutils literal notranslate"><span class="pre">SpinningScanningStrategy</span></code>).
+The result is saved in the member variable
+<code class="docutils literal notranslate"><span class="pre">spin2ecliptic_quats</span></code>, which is an instance of the class
+<code class="xref py py-class docutils literal notranslate"><span class="pre">TimeDependentQuaternion</span></code>. These quaternions are
+usually sampled at a sampling frequency that is lower than
+the sampling frequency of the scientific data. They are saved
+in the field <cite>spin2ecliptic_quats</cite> of the <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a>
+class.</p>
+<p>You can choose to use the <cite>imo_url</cite> parameter instead of
+<cite>scanning_strategy</cite>: in this case, it will be assumed that you
+want to simulate a nominal, spinning scanning strategy, and
+the object in the IMO with address <cite>imo_url</cite> (e.g.,
+<code class="docutils literal notranslate"><span class="pre">/releases/v1.0/satellite/scanning_parameters/</span></code>) describing
+the parameters of the scanning strategy will be loaded. In
+this case, a <code class="xref py py-class docutils literal notranslate"><span class="pre">SpinningScanningStrategy</span></code> object will be
+created automatically.</p>
+<p>The parameter <cite>delta_time_s</cite> specifies how often should
+quaternions be computed; see
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">ScanningStrategy.set_scanning_strategy()</span></code> for
+more information.</p>
+<p>If the parameter <cite>append_to_report</cite> is set to <code class="docutils literal notranslate"><span class="pre">True</span></code> (the
+default), some information about the pointings will be included
+in the report saved by the <a class="reference internal" href="#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object. This will
+be done only if the process has rank #0.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.write_healpix_map">
+<span class="sig-name descname"><span class="pre">write_healpix_map</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pixels</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#litebird_sim.simulations.Simulation.write_healpix_map" title="Link to this definition">#</a></dt>
+<dd><p>Save a Healpix map in the output folder</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filename</strong> (<code class="docutils literal notranslate"><span class="pre">str</span></code> or <code class="docutils literal notranslate"><span class="pre">pathlib.Path</span></code>) – Name of the
+file. It must be a relative path, but it can include
+subdirectories.</p></li>
+<li><p><strong>pixels</strong> – array containing the pixels, or list of arrays if
+you want to save several maps into the same FITS table
+(e.g., I, Q, U components)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A <cite>pathlib.Path</cite> object containing the full path of the
+FITS file that has been saved.</p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">sim</span> <span class="o">=</span> <span class="n">Simulation</span><span class="p">(</span><span class="n">base_path</span><span class="o">=</span><span class="s2">&quot;/storage/litebird/mysim&quot;</span><span class="p">)</span>
+<span class="n">pixels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">12</span><span class="p">)</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">write_healpix_map</span><span class="p">(</span><span class="s2">&quot;zero_map.fits.gz&quot;</span><span class="p">,</span> <span class="n">pixels</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This method saves an Healpix map into a FITS files that is
+written into the output folder for the simulation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.simulations.Simulation.write_observations">
+<span class="sig-name descname"><span class="pre">write_observations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.simulations.Simulation.write_observations" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="litebird_sim.simulations.get_template_file_path">
+<span class="sig-prename descclassname"><span class="pre">litebird_sim.simulations.</span></span><span class="sig-name descname"><span class="pre">get_template_file_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Path</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Path</span></span></span><a class="headerlink" href="#litebird_sim.simulations.get_template_file_path" title="Link to this definition">#</a></dt>
+<dd><p>Return a Path object pointing to the full path of a template file.</p>
+<p>Template files are used by the framework to produce automatic
+reports. They are produced using template files, which usually
+reside in the <code class="docutils literal notranslate"><span class="pre">templates</span></code> subfolder of the main repository.</p>
+<p>Given a filename (e.g., <code class="docutils literal notranslate"><span class="pre">report_header.md</span></code>), this function
+returns a full, absolute path to the file within the <code class="docutils literal notranslate"><span class="pre">templates</span></code>
+folder of the <code class="docutils literal notranslate"><span class="pre">litebird_sim</span></code> source code.</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="part2.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Structure of the framework</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="imo.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">The IMo</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#provenance-model">Provenance model</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parameter-files">Parameter files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#interface-with-the-instrument-database">Interface with the instrument database</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#system-abstractions">System abstractions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generation-of-reports">Generation of reports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logging">Logging</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#monitoring-mpi-processes">Monitoring MPI processes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#high-level-interface">High level interface</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#data-splits">Data splits</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#profiling-a-simulation">Profiling a simulation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-litebird_sim.simulations">API reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiDistributionDescr"><code class="docutils literal notranslate"><span class="pre">MpiDistributionDescr</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiDistributionDescr.detectors"><code class="docutils literal notranslate"><span class="pre">MpiDistributionDescr.detectors</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiDistributionDescr.mpi_processes"><code class="docutils literal notranslate"><span class="pre">MpiDistributionDescr.mpi_processes</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiDistributionDescr.num_of_observations"><code class="docutils literal notranslate"><span class="pre">MpiDistributionDescr.num_of_observations</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr.det_names"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr.det_names</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr.duration_s"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr.duration_s</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr.num_of_detectors"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr.num_of_detectors</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr.num_of_samples"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr.num_of_samples</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr.start_time"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr.start_time</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr.tod_description"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr.tod_description</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr.tod_dtype"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr.tod_dtype</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr.tod_names"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr.tod_names</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiObservationDescr.tod_shape"><code class="docutils literal notranslate"><span class="pre">MpiObservationDescr.tod_shape</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiProcessDescr"><code class="docutils literal notranslate"><span class="pre">MpiProcessDescr</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiProcessDescr.mpi_rank"><code class="docutils literal notranslate"><span class="pre">MpiProcessDescr.mpi_rank</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiProcessDescr.numba_num_of_threads"><code class="docutils literal notranslate"><span class="pre">MpiProcessDescr.numba_num_of_threads</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.MpiProcessDescr.observations"><code class="docutils literal notranslate"><span class="pre">MpiProcessDescr.observations</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.OutputFileRecord"><code class="docutils literal notranslate"><span class="pre">OutputFileRecord</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.OutputFileRecord.description"><code class="docutils literal notranslate"><span class="pre">OutputFileRecord.description</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.OutputFileRecord.path"><code class="docutils literal notranslate"><span class="pre">OutputFileRecord.path</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation"><code class="docutils literal notranslate"><span class="pre">Simulation</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.add_2f"><code class="docutils literal notranslate"><span class="pre">Simulation.add_2f()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.add_dipole"><code class="docutils literal notranslate"><span class="pre">Simulation.add_dipole()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.add_noise"><code class="docutils literal notranslate"><span class="pre">Simulation.add_noise()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.append_to_report"><code class="docutils literal notranslate"><span class="pre">Simulation.append_to_report()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.apply_gaindrift"><code class="docutils literal notranslate"><span class="pre">Simulation.apply_gaindrift()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.apply_quadratic_nonlin"><code class="docutils literal notranslate"><span class="pre">Simulation.apply_quadratic_nonlin()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.check_valid_splits"><code class="docutils literal notranslate"><span class="pre">Simulation.check_valid_splits()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.compute_pos_and_vel"><code class="docutils literal notranslate"><span class="pre">Simulation.compute_pos_and_vel()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.create_observations"><code class="docutils literal notranslate"><span class="pre">Simulation.create_observations()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.describe_mpi_distribution"><code class="docutils literal notranslate"><span class="pre">Simulation.describe_mpi_distribution()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.distribute_workload"><code class="docutils literal notranslate"><span class="pre">Simulation.distribute_workload()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.fill_tods"><code class="docutils literal notranslate"><span class="pre">Simulation.fill_tods()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.flush"><code class="docutils literal notranslate"><span class="pre">Simulation.flush()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.generate_spin2ecl_quaternions"><code class="docutils literal notranslate"><span class="pre">Simulation.generate_spin2ecl_quaternions()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.get_list_of_tods"><code class="docutils literal notranslate"><span class="pre">Simulation.get_list_of_tods()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.get_tod_descriptions"><code class="docutils literal notranslate"><span class="pre">Simulation.get_tod_descriptions()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.get_tod_dtypes"><code class="docutils literal notranslate"><span class="pre">Simulation.get_tod_dtypes()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.get_tod_names"><code class="docutils literal notranslate"><span class="pre">Simulation.get_tod_names()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.init_random"><code class="docutils literal notranslate"><span class="pre">Simulation.init_random()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.make_binned_map"><code class="docutils literal notranslate"><span class="pre">Simulation.make_binned_map()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.make_binned_map_splits"><code class="docutils literal notranslate"><span class="pre">Simulation.make_binned_map_splits()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.make_destriped_map"><code class="docutils literal notranslate"><span class="pre">Simulation.make_destriped_map()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.make_destriped_map_splits"><code class="docutils literal notranslate"><span class="pre">Simulation.make_destriped_map_splits()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.precompute_pointings"><code class="docutils literal notranslate"><span class="pre">Simulation.precompute_pointings()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.prepare_pointings"><code class="docutils literal notranslate"><span class="pre">Simulation.prepare_pointings()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.read_observations"><code class="docutils literal notranslate"><span class="pre">Simulation.read_observations()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.record_profile_info"><code class="docutils literal notranslate"><span class="pre">Simulation.record_profile_info()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.set_hwp"><code class="docutils literal notranslate"><span class="pre">Simulation.set_hwp()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.set_instrument"><code class="docutils literal notranslate"><span class="pre">Simulation.set_instrument()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.set_scanning_strategy"><code class="docutils literal notranslate"><span class="pre">Simulation.set_scanning_strategy()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.write_healpix_map"><code class="docutils literal notranslate"><span class="pre">Simulation.write_healpix_map()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.Simulation.write_observations"><code class="docutils literal notranslate"><span class="pre">Simulation.write_observations()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.simulations.get_template_file_path"><code class="docutils literal notranslate"><span class="pre">get_template_file_path()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="_sources/simulations.rst.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2020, The LiteBIRD Simulation Team.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.4.7.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

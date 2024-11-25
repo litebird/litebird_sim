@@ -1,0 +1,805 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Ideal Half Wave Plate &#8212; LBS 0.13.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!-- 
+    this give us a css class that will be invisible only if js is disabled 
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/asciinema-player_2.6.1.css" />
+    <link rel="stylesheet" type="text/css" href="_static/asciinema-custom.css" />
+    <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="_static/contentui.css" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=26a4bc78f4c0ddb94549"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549" />
+
+    <script src="_static/documentation_options.js?v=1019fba8"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/asciinema-player_2.6.1.js"></script>
+    <script src="_static/contentui.js"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'hwp';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Instrumental noise" href="noise.html" />
+    <link rel="prev" title="Quaternions" href="quaternions.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">LBS 0.13.0 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part1.html">
+    Introduction
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part2.html">
+    Structure of the framework
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="part3.html">
+    Basic simulation modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part4.html">
+    Systematic effects
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part5.html">
+    Data-reduction modules
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="part6.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="appendix.html">
+    Appendices
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="installation.html">
+    Installation
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part1.html">
+    Introduction
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part2.html">
+    Structure of the framework
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="part3.html">
+    Basic simulation modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part4.html">
+    Systematic effects
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part5.html">
+    Data-reduction modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part6.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="appendix.html">
+    Appendices
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="installation.html">
+    Installation
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="scanning.html">Scanning strategy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quaternions.html">Quaternions</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Ideal Half Wave Plate</a></li>
+<li class="toctree-l1"><a class="reference internal" href="noise.html">Instrumental noise</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sky_maps.html">Synthetic sky maps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dipole.html">Dipole anisotropy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="map_scanning.html">Scanning a map to fill a TOD</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="part3.html" class="nav-link">Basic simulation modules</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Ideal Half Wave Plate</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="ideal-half-wave-plate">
+<h1>Ideal Half Wave Plate<a class="headerlink" href="#ideal-half-wave-plate" title="Link to this heading">#</a></h1>
+<p>The rotation of the polarization angle induced by a HWP can be
+included in the returned pointing information by passing an instance
+of a descendant of the class <a class="reference internal" href="#litebird_sim.hwp.HWP" title="litebird_sim.hwp.HWP"><code class="xref py py-class docutils literal notranslate"><span class="pre">HWP</span></code></a> to the method
+<a class="reference internal" href="simulations.html#litebird_sim.simulations.Simulation.set_hwp" title="litebird_sim.simulations.Simulation.set_hwp"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.set_hwp()</span></code></a>. Here is an example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="n">sim</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">Simulation</span><span class="p">(</span>
+    <span class="n">start_time</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+    <span class="n">duration_s</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span>
+    <span class="n">random_seed</span><span class="o">=</span><span class="mi">12345</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">set_scanning_strategy</span><span class="p">(</span>
+    <span class="n">lbs</span><span class="o">.</span><span class="n">SpinningScanningStrategy</span><span class="p">(</span>
+        <span class="n">spin_sun_angle_rad</span><span class="o">=</span><span class="mf">0.785_398_163_397_448_3</span><span class="p">,</span>
+        <span class="n">precession_rate_hz</span><span class="o">=</span><span class="mf">8.664_850_513_998_931e-05</span><span class="p">,</span>
+        <span class="n">spin_rate_hz</span><span class="o">=</span><span class="mf">0.000_833_333_333_333_333_4</span><span class="p">,</span>
+        <span class="n">start_time</span><span class="o">=</span><span class="n">sim</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="n">delta_time_s</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">set_instrument</span><span class="p">(</span>
+    <span class="n">instrument</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">InstrumentInfo</span><span class="p">(</span>
+        <span class="n">boresight_rotangle_rad</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">spin_boresight_angle_rad</span><span class="o">=</span><span class="mf">0.872_664_625_997_164_8</span><span class="p">,</span>
+        <span class="n">spin_rotangle_rad</span><span class="o">=</span><span class="mf">3.141_592_653_589_793</span><span class="p">,</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">set_hwp</span><span class="p">(</span>
+    <span class="n">lbs</span><span class="o">.</span><span class="n">IdealHWP</span><span class="p">(</span><span class="n">ang_speed_radpsec</span><span class="o">=</span><span class="mf">4.084_070_449_666_731</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="n">det</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">DetectorInfo</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Boresight_detector&quot;</span><span class="p">,</span>
+    <span class="n">sampling_rate_hz</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">quat</span><span class="o">=</span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">],</span>
+<span class="p">)</span>
+<span class="n">obs</span><span class="p">,</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">create_observations</span><span class="p">(</span><span class="n">detectors</span><span class="o">=</span><span class="p">[</span><span class="n">det</span><span class="p">])</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">prepare_pointings</span><span class="p">()</span>
+
+<span class="n">pointing</span><span class="p">,</span> <span class="n">hwp_angle</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">observations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_pointings</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>This example uses the <a class="reference internal" href="#litebird_sim.hwp.IdealHWP" title="litebird_sim.hwp.IdealHWP"><code class="xref py py-class docutils literal notranslate"><span class="pre">IdealHWP</span></code></a>, which represents an ideal
+spinning HWP. The method <code class="xref py py-func docutils literal notranslate"><span class="pre">get_pointings()</span></code> returns both pointing
+and hwp angle on the fly. As shown before a similar syntax allow to
+precompute the pointing and the hwp angle:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span><span class="o">.</span><span class="n">prepare_pointings</span><span class="p">()</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">precompute_pointings</span><span class="p">()</span>
+
+<span class="n">sim</span><span class="o">.</span><span class="n">observations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">pointing_matrix</span><span class="o">.</span><span class="n">shape</span>
+<span class="n">sim</span><span class="o">.</span><span class="n">observations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hwp_angle</span><span class="o">.</span><span class="n">shape</span>
+</pre></div>
+</div>
+<p>This fills the fields <cite>pointing_matrix</cite> and <cite>hwp_angle</cite> for all the
+observations in the current simulation.</p>
+<section id="module-litebird_sim.hwp">
+<span id="api-reference"></span><h2>API reference<a class="headerlink" href="#module-litebird_sim.hwp" title="Link to this heading">#</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.hwp.HWP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.hwp.</span></span><span class="sig-name descname"><span class="pre">HWP</span></span><a class="headerlink" href="#litebird_sim.hwp.HWP" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Abstract class that represents a generic HWP</p>
+<p>Being an abstract class, you should never instantiate it. It is used
+to signal the type of parameters to some functions (e.g.,
+<code class="xref py py-func docutils literal notranslate"><span class="pre">get_pointings()</span></code>).</p>
+<p>If you need to use a HWP object, you should better use derived
+classes like <a class="reference internal" href="#litebird_sim.hwp.IdealHWP" title="litebird_sim.hwp.IdealHWP"><code class="xref py py-class docutils literal notranslate"><span class="pre">IdealHWP</span></code></a>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.HWP.add_hwp_angle">
+<span class="sig-name descname"><span class="pre">add_hwp_angle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointing_buffer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.hwp.HWP.add_hwp_angle" title="Link to this definition">#</a></dt>
+<dd><p>Modify pointings so that they include the effect of the HWP</p>
+<p>This method must be redefined in derived classes. The parameter
+<code class="docutils literal notranslate"><span class="pre">pointing_buffer</span></code> must be a D×N×3 matrix representing the three angles
+<code class="docutils literal notranslate"><span class="pre">(colatitude,</span> <span class="pre">longitude,</span> <span class="pre">orientation)</span></code> for D detectors and N measurements.
+The function only alters <code class="docutils literal notranslate"><span class="pre">orientation</span></code> and returns nothing.</p>
+<p>The parameters <cite>start_time_s</cite> and <cite>delta_time_s</cite> specify the time of the
+first sample in <cite>pointings</cite> and must be floating-point values; this means
+that you should already have converted any AstroPy time to a plain scalar
+before calling this method.</p>
+<p><em>Warning</em>: this changes the interpretation of the ψ variable in the pointings!
+You should better use <a class="reference internal" href="#litebird_sim.hwp.HWP.get_hwp_angle" title="litebird_sim.hwp.HWP.get_hwp_angle"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_hwp_angle()</span></code></a> and keep ψ and the α angle
+of the HWP separate. This method is going to be deprecated in a future
+release of the LiteBIRD Simulation Framework.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.HWP.apply_hwp_to_pointings">
+<span class="sig-name descname"><span class="pre">apply_hwp_to_pointings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bore2ecl_quaternions_inout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">_ScalarType_co</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hwp_angle_out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">_ScalarType_co</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.hwp.HWP.apply_hwp_to_pointings" title="Link to this definition">#</a></dt>
+<dd><p>Simulates the presence of a HWP on the pointings and the HWP angle</p>
+<p>This method must be redefined in derived classes. The parameter <cite>start_time_s</cite>
+specifies the time of the first sample in <cite>pointings</cite> and must be a floating-point
+value; this means that you should already have converted any AstroPy time to a plain
+scalar before calling this method. The parameter <cite>delta_time_s</cite> is the inverse
+of the sampling frequency and must be expressed in seconds.</p>
+<p>The result is saved in the NumPy array <cite>hwp_angle_out</cite>, which must have already been
+allocated with the appropriate number of samples. However, if the HWP is not ideal,
+it is possible that the <cite>bore2ecl_quaternions_inout</cite> matrix, whose shape is
+<code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">4)</span></code> and contains <code class="docutils literal notranslate"><span class="pre">N</span></code> quaternions, is changed by this method, typically
+via a multiplication with a rotation simulating a wobbling effect. (Multiplying
+a quaternion on the <em>left</em> of <code class="docutils literal notranslate"><span class="pre">bore2ecl_quaternions_inout</span></code> means that you
+are adding a rotation at the <em>end</em> of the chain of transformations, i.e.,
+after the conversion to the Ecliptic reference frame. Multiplying a quaternion
+on the <em>right</em> means that you are introducing a new rotation between the
+reference frame of the detector and of the boresight of the focal plane.)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_time_s</strong></p></li>
+<li><p><strong>delta_time_s</strong></p></li>
+<li><p><strong>bore2ecl_quaternions_inout</strong></p></li>
+<li><p><strong>hwp_angle_out</strong></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.HWP.get_hwp_angle">
+<span class="sig-name descname"><span class="pre">get_hwp_angle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_buffer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.hwp.HWP.get_hwp_angle" title="Link to this definition">#</a></dt>
+<dd><p>Calculate the rotation angle of the HWP</p>
+<p>This method must be redefined in derived classes. The parameter <cite>start_time_s</cite>
+specifies the time of the first sample in <cite>pointings</cite> and must be a floating-point
+value; this means that you should already have converted any AstroPy time to a plain
+scalar before calling this method. The parameter <cite>delta_time_s</cite> is the inverse
+of the sampling frequency and must be expressed in seconds.</p>
+<p>The result will be saved in <cite>output_buffer</cite>, which must have already been allocated
+with the appropriate number of samples.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.HWP.read_from_hdf5">
+<span class="sig-name descname"><span class="pre">read_from_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dataset</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.hwp.HWP.read_from_hdf5" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.HWP.write_to_hdf5">
+<span class="sig-name descname"><span class="pre">write_to_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">File</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dataset</span></span></span><a class="headerlink" href="#litebird_sim.hwp.HWP.write_to_hdf5" title="Link to this definition">#</a></dt>
+<dd><p>Write the definition of the HWP into a HDF5 file</p>
+<p>You should never call this function directly. It is used to save <a class="reference internal" href="observations.html#litebird_sim.observations.Observation" title="litebird_sim.observations.Observation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Observation</span></code></a>
+objects to disk.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="litebird_sim.hwp.IdealHWP">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">litebird_sim.hwp.</span></span><span class="sig-name descname"><span class="pre">IdealHWP</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ang_speed_radpsec</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_angle_rad</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#litebird_sim.hwp.IdealHWP" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#litebird_sim.hwp.HWP" title="litebird_sim.hwp.HWP"><code class="xref py py-class docutils literal notranslate"><span class="pre">HWP</span></code></a></p>
+<p>A ideal half-wave plate that spins regularly</p>
+<p>This class represents a perfect HWP that spins with constant angular velocity.
+The constructor accepts the angular speed, expressed in rad/sec, and the
+start angle (in radians). The latter should be referred to the first time
+sample in the simulation, i.e., the earliest sample simulated in any of the
+MPI processes used for the simulation.</p>
+<p>Given a polarization angle <span class="math notranslate nohighlight">\(\psi\)</span>, this class turns it into
+<span class="math notranslate nohighlight">\(\psi + \psi_\text{hwp,0} + 2 \omega_\text{hwp} t\)</span>, where
+<span class="math notranslate nohighlight">\(\psi_\text{hwp,0}\)</span> is the start angle specified in the constructor
+and <span class="math notranslate nohighlight">\(\omega_\text{hwp}\)</span> is the angular speed of the HWP.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.IdealHWP.add_hwp_angle">
+<span class="sig-name descname"><span class="pre">add_hwp_angle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pointing_buffer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.hwp.IdealHWP.add_hwp_angle" title="Link to this definition">#</a></dt>
+<dd><p>Modify pointings so that they include the effect of the HWP</p>
+<p>This method must be redefined in derived classes. The parameter
+<code class="docutils literal notranslate"><span class="pre">pointing_buffer</span></code> must be a D×N×3 matrix representing the three angles
+<code class="docutils literal notranslate"><span class="pre">(colatitude,</span> <span class="pre">longitude,</span> <span class="pre">orientation)</span></code> for D detectors and N measurements.
+The function only alters <code class="docutils literal notranslate"><span class="pre">orientation</span></code> and returns nothing.</p>
+<p>The parameters <cite>start_time_s</cite> and <cite>delta_time_s</cite> specify the time of the
+first sample in <cite>pointings</cite> and must be floating-point values; this means
+that you should already have converted any AstroPy time to a plain scalar
+before calling this method.</p>
+<p><em>Warning</em>: this changes the interpretation of the ψ variable in the pointings!
+You should better use <a class="reference internal" href="#litebird_sim.hwp.IdealHWP.get_hwp_angle" title="litebird_sim.hwp.IdealHWP.get_hwp_angle"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_hwp_angle()</span></code></a> and keep ψ and the α angle
+of the HWP separate. This method is going to be deprecated in a future
+release of the LiteBIRD Simulation Framework.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.IdealHWP.apply_hwp_to_pointings">
+<span class="sig-name descname"><span class="pre">apply_hwp_to_pointings</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bore2ecl_quaternions_inout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">_ScalarType_co</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hwp_angle_out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">_ScalarType_co</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.hwp.IdealHWP.apply_hwp_to_pointings" title="Link to this definition">#</a></dt>
+<dd><p>Simulates the presence of a HWP on the pointings and the HWP angle</p>
+<p>This method must be redefined in derived classes. The parameter <cite>start_time_s</cite>
+specifies the time of the first sample in <cite>pointings</cite> and must be a floating-point
+value; this means that you should already have converted any AstroPy time to a plain
+scalar before calling this method. The parameter <cite>delta_time_s</cite> is the inverse
+of the sampling frequency and must be expressed in seconds.</p>
+<p>The result is saved in the NumPy array <cite>hwp_angle_out</cite>, which must have already been
+allocated with the appropriate number of samples. However, if the HWP is not ideal,
+it is possible that the <cite>bore2ecl_quaternions_inout</cite> matrix, whose shape is
+<code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">4)</span></code> and contains <code class="docutils literal notranslate"><span class="pre">N</span></code> quaternions, is changed by this method, typically
+via a multiplication with a rotation simulating a wobbling effect. (Multiplying
+a quaternion on the <em>left</em> of <code class="docutils literal notranslate"><span class="pre">bore2ecl_quaternions_inout</span></code> means that you
+are adding a rotation at the <em>end</em> of the chain of transformations, i.e.,
+after the conversion to the Ecliptic reference frame. Multiplying a quaternion
+on the <em>right</em> means that you are introducing a new rotation between the
+reference frame of the detector and of the boresight of the focal plane.)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_time_s</strong></p></li>
+<li><p><strong>delta_time_s</strong></p></li>
+<li><p><strong>bore2ecl_quaternions_inout</strong></p></li>
+<li><p><strong>hwp_angle_out</strong></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.IdealHWP.get_hwp_angle">
+<span class="sig-name descname"><span class="pre">get_hwp_angle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_buffer</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta_time_s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.hwp.IdealHWP.get_hwp_angle" title="Link to this definition">#</a></dt>
+<dd><p>Calculate the rotation angle of the HWP</p>
+<p>This method must be redefined in derived classes. The parameter <cite>start_time_s</cite>
+specifies the time of the first sample in <cite>pointings</cite> and must be a floating-point
+value; this means that you should already have converted any AstroPy time to a plain
+scalar before calling this method. The parameter <cite>delta_time_s</cite> is the inverse
+of the sampling frequency and must be expressed in seconds.</p>
+<p>The result will be saved in <cite>output_buffer</cite>, which must have already been allocated
+with the appropriate number of samples.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.IdealHWP.read_from_hdf5">
+<span class="sig-name descname"><span class="pre">read_from_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dataset</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#litebird_sim.hwp.IdealHWP.read_from_hdf5" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="litebird_sim.hwp.IdealHWP.write_to_hdf5">
+<span class="sig-name descname"><span class="pre">write_to_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">File</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dataset</span></span></span><a class="headerlink" href="#litebird_sim.hwp.IdealHWP.write_to_hdf5" title="Link to this definition">#</a></dt>
+<dd><p>Write the definition of the HWP into a HDF5 file</p>
+<p>You should never call this function directly. It is used to save <a class="reference internal" href="observations.html#litebird_sim.observations.Observation" title="litebird_sim.observations.Observation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Observation</span></code></a>
+objects to disk.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="litebird_sim.hwp.read_hwp_from_hdf5">
+<span class="sig-prename descclassname"><span class="pre">litebird_sim.hwp.</span></span><span class="sig-name descname"><span class="pre">read_hwp_from_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_file</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">File</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">field_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#litebird_sim.hwp.HWP" title="litebird_sim.hwp.HWP"><span class="pre">HWP</span></a></span></span><a class="headerlink" href="#litebird_sim.hwp.read_hwp_from_hdf5" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="quaternions.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Quaternions</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="noise.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Instrumental noise</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-litebird_sim.hwp">API reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.HWP"><code class="docutils literal notranslate"><span class="pre">HWP</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.HWP.add_hwp_angle"><code class="docutils literal notranslate"><span class="pre">HWP.add_hwp_angle()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.HWP.apply_hwp_to_pointings"><code class="docutils literal notranslate"><span class="pre">HWP.apply_hwp_to_pointings()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.HWP.get_hwp_angle"><code class="docutils literal notranslate"><span class="pre">HWP.get_hwp_angle()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.HWP.read_from_hdf5"><code class="docutils literal notranslate"><span class="pre">HWP.read_from_hdf5()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.HWP.write_to_hdf5"><code class="docutils literal notranslate"><span class="pre">HWP.write_to_hdf5()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.IdealHWP"><code class="docutils literal notranslate"><span class="pre">IdealHWP</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.IdealHWP.add_hwp_angle"><code class="docutils literal notranslate"><span class="pre">IdealHWP.add_hwp_angle()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.IdealHWP.apply_hwp_to_pointings"><code class="docutils literal notranslate"><span class="pre">IdealHWP.apply_hwp_to_pointings()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.IdealHWP.get_hwp_angle"><code class="docutils literal notranslate"><span class="pre">IdealHWP.get_hwp_angle()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.IdealHWP.read_from_hdf5"><code class="docutils literal notranslate"><span class="pre">IdealHWP.read_from_hdf5()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.IdealHWP.write_to_hdf5"><code class="docutils literal notranslate"><span class="pre">IdealHWP.write_to_hdf5()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.hwp.read_hwp_from_hdf5"><code class="docutils literal notranslate"><span class="pre">read_hwp_from_hdf5()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="_sources/hwp.rst.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2020, The LiteBIRD Simulation Team.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.4.7.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>

@@ -85,7 +85,7 @@ def _ecl2focalplane(angle, axis):
     Args:
         angle (`float` or `array`): The angle which is to be converted.
 
-        axis (`str`): The axis which is to be converted.
+        axis (`str`): The axis which is to be converted. It must be one of 'x', 'y', or 'z'.
     """
     if isinstance(angle, list):
         angle = np.array(angle)
@@ -107,7 +107,7 @@ def _ecl2spacecraft(angle, axis):
     Args:
         angle (`float or `array`): The angle which is to be converted.
 
-        axis (`str`): The axis which is to be converted.
+        axis (`str`): The axis which is to be converted. It must be one of 'x', 'y', or 'z'.
     """
     if isinstance(angle, list):
         angle = np.array(angle)
@@ -125,9 +125,9 @@ def _get_rotator(axis, broadcast=False):
     """Get the rotation function for the given axis.
 
     Args:
-        axis (`str`): The axis in the reference frame around which the rotation is to be performed.
+        axis (`str`): The axis in the reference frame around which the rotation is to be performed. It must be one of 'x', 'y', or 'z'.
 
-        broadcast (`bool`): If True, the broadcast version of the rotation function is returned.
+        broadcast (`bool`): If `True`, the broadcast version of the rotation function is returned.
     """
     if axis.lower() == "x":
         rotation_func = quat_rotation_x
@@ -211,11 +211,11 @@ class FocalplaneCoord:
     Methods in this class multiply systematic quaternions to :attr:`.Observation.quat` (List[:class:`.RotQuaternion`]).
 
     Args:
-        sim: :class:`.Simulation` instance.
+        sim (`Simulation`): :class:`.Simulation` instance.
 
-        obs: :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
+        obs (`Observation`): :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
 
-        detectors (List[:class:`.DetectorInfo`]): List of :class:`.DetectorInfo` instances.
+        detectors (`List[DetectorInfo]`): List of :class:`.DetectorInfo` instances.
     """
 
     def __init__(
@@ -242,7 +242,7 @@ class FocalplaneCoord:
                 (in case of `float`): The same offset to be added to all detectors on the focal plane in the specified direction by `axis`, in radians.
                 (in case of `array`): The offset to be added to all dtectors on the focal plane individually, in the specified direction by `axis`, in radians.
 
-            axis (`str`): The axis in the reference frame around which the rotation is to be performed.
+            axis (`str`): The axis in the reference frame around which the rotation is to be performed. It must be one of 'x', 'y', or 'z'.
         """
         offset_rad, axis = _ecl2focalplane(offset_rad, axis)
         rotation_func = _get_rotator(axis)
@@ -291,7 +291,7 @@ class FocalplaneCoord:
 
                 (`numpy.ndarray` with shape [, `t`]):  The common-mode disturbance to be added to all detectors on the focal plane in the specified direction by `axis`, in radians.
 
-            axis (`str`): The axis in the reference frame around which the rotation is to be performed.
+            axis (`str`): The axis in the reference frame around which the rotation is to be performed. It must be one of 'x', 'y', or 'z'.
         """
         noise_rad_matrix, axis = _ecl2focalplane(noise_rad_matrix, axis)
         rotation_func = _get_rotator(axis, broadcast=True)
@@ -337,11 +337,11 @@ class SpacecraftCoord:
     Methods in this class multiply systematic quaternions to :attr:`.Simulation.spin2ecliptic_quats` (:class:`.RotQuaternion`).
 
     Args:
-        sim: :class:`.Simulation` instance.
+        sim (`Simulation`): :class:`.Simulation` instance.
 
-        obs: :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
+        obs (`Observation`): :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
 
-        detectors: List of :class:`.DetectorInfo`.
+        detectors (`List[DetectorInfo]`): List of :class:`.DetectorInfo` instances.
     """
 
     def __init__(
@@ -363,7 +363,7 @@ class SpacecraftCoord:
         Args:
             offset_rad (`float`): The offset to be added in the specified direction by `axis`, in radians.
 
-            axis (`str`): The axis in the reference frame around which the rotation is to be performed.
+            axis (`str`): The axis in the reference frame around which the rotation is to be performed. It must be one of 'x', 'y', or 'z'.
         """
         offset_rad, axis = _ecl2spacecraft(offset_rad, axis)
         rotation_func = _get_rotator(axis)
@@ -378,7 +378,7 @@ class SpacecraftCoord:
         Args:
             noise_rad (1d-`numpy.ndarray`): The disturbance to be added in the specified direction by `axis`, in radians.
 
-            axis (`str`): The axis in the reference frame around which the rotation is to be performed.
+            axis (`str`): The axis in the reference frame around which the rotation is to be performed. It must be one of 'x', 'y', or 'z'.
         """
         noise_rad, axis = _ecl2spacecraft(noise_rad, axis)
         rotation_func = _get_rotator(axis, broadcast=True)
@@ -396,11 +396,11 @@ class HWPCoord:
     Methods in this class multiply systematic quaternions to :attr:`DetectorInfo.quat` (:class:`.RotQuaternion`).
 
     Args:
-        sim: :class:`.Simulation` instance.
+        sim (`Simulation`): :class:`.Simulation` instance.
 
-        obs: :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
+        obs (`Observation`): :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
 
-        detectors: List of :class:`.DetectorInfo`.
+        detectors (`List[DetectorInfo]`): List of :class:`.DetectorInfo` instances.
     """
 
     def __init__(
@@ -411,9 +411,9 @@ class HWPCoord:
         Description of the internal instance variables:
             start_time: The start time of the simulation.
 
-            sampling_rate_hz: The sampling rate of the detectors.
+            sampling_rate_hz (`float`): The sampling rate of the detectors.
 
-            detectors: List of :class:`.DetectorInfo` to which offset and disturbance are to be added.
+            detectors (`List[DetectorInfo]`): List of :class:`.DetectorInfo` to which offset and disturbance are to be added.
 
             ang_speed_radpsec (`float`): The angular speed of the spinning HWP.
 
@@ -524,11 +524,11 @@ class PointingSys:
     """This class provide an interface to add offset and disturbance to the instrument and detectors.
 
     Args:
-        sim (:class:`.Simulation`): :class:`.Simulation` instance whose .spin2ecliptic_quats is injected with the systematics.
+        sim (`Simulation`): :class:`.Simulation` instance whose .spin2ecliptic_quats is injected with the systematics.
 
-        obs (:class:`.Observation`): :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
+        obs (`Observation`): :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
 
-        detectors (List[:class:`.DetectorInfo`]): List of :class:`.DetectorInfo`.
+        detectors (`List[Detector]`): List of :class:`.DetectorInfo`.
     """
 
     def __init__(

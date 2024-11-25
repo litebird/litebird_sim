@@ -1,0 +1,729 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Multithreading and MPI &#8212; LBS 0.13.0 documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!-- 
+    this give us a css class that will be invisible only if js is disabled 
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=26a4bc78f4c0ddb94549" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=a746c00c" />
+    <link rel="stylesheet" type="text/css" href="_static/asciinema-player_2.6.1.css" />
+    <link rel="stylesheet" type="text/css" href="_static/asciinema-custom.css" />
+    <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="_static/contentui.css" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=26a4bc78f4c0ddb94549"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549" />
+
+    <script src="_static/documentation_options.js?v=1019fba8"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/asciinema-player_2.6.1.js"></script>
+    <script src="_static/contentui.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'mpi';</script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Integrating existing codes" href="integrating.html" />
+    <link rel="prev" title="Random numbers" href="random_numbers.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-3 navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">LBS 0.13.0 documentation</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part1.html">
+    Introduction
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="part2.html">
+    Structure of the framework
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part3.html">
+    Basic simulation modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part4.html">
+    Systematic effects
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part5.html">
+    Data-reduction modules
+  </a>
+</li>
+
+            <li class="nav-item dropdown">
+                <button class="btn dropdown-toggle nav-item" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-controls="pst-nav-more-links">
+                    More
+                </button>
+                <ul id="pst-nav-more-links" class="dropdown-menu">
+                    
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="part6.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="appendix.html">
+    Appendices
+  </a>
+</li>
+
+
+<li class=" ">
+  <a class="nav-link dropdown-item nav-internal" href="installation.html">
+    Installation
+  </a>
+</li>
+
+                </ul>
+            </li>
+            
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part1.html">
+    Introduction
+  </a>
+</li>
+
+
+<li class="nav-item current active">
+  <a class="nav-link nav-internal" href="part2.html">
+    Structure of the framework
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part3.html">
+    Basic simulation modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part4.html">
+    Systematic effects
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part5.html">
+    Data-reduction modules
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="part6.html">
+    Tutorials
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="appendix.html">
+    Appendices
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="installation.html">
+    Installation
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+      </div>
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+<nav class="bd-docs-nav bd-links"
+     aria-label="Section Navigation">
+  <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="simulations.html">Simulations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imo.html">The IMo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="detectors.html">Detectors, channels, and instruments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="plot_fp.html">Focal plane visualization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="observations.html">Observations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_layout.html">Data layout</a></li>
+<li class="toctree-l1"><a class="reference internal" href="profiling.html">Profiling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="reports.html">Creating reports</a></li>
+<li class="toctree-l1"><a class="reference internal" href="random_numbers.html">Random numbers</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Multithreading and MPI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="integrating.html">Integrating existing codes</a></li>
+</ul>
+</div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="part2.html" class="nav-link">Structure of the framework</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Multithreading and MPI</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="multithreading-and-mpi">
+<span id="using-mpi"></span><h1>Multithreading and MPI<a class="headerlink" href="#multithreading-and-mpi" title="Link to this heading">#</a></h1>
+<p>As typical operations on time-ordered data can be quite consuming,
+the LiteBIRD Simulation Framework provides a number of tools to
+exploit the presence of multiple CPU cores and even multiple
+computing nodes. This section details how to take advantage
+of these facilities and is split in two parts:</p>
+<ul class="simple">
+<li><p>We will first present the ability of the framework to use multiple
+CPU threads; in this context, the data samples are kept in a chunk
+of memory that is shared between several processes. The framework
+uses Numba, which can take advantage either of the <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onetbb.html">Intel
+Threading Building Blocks</a>
+library or of <a class="reference external" href="https://www.openmp.org/">OpenMP</a>.</p></li>
+<li><p>Then, we will discuss the possibility to run the code on
+multiple <em>computing nodes</em>, where the memory of each node is
+<strong>not</strong> shared with the others. The framework is able to
+use any MPI library, through the Python package
+<a class="reference external" href="https://mpi4py.readthedocs.io/en/stable/">mpi4py</a>.</p></li>
+</ul>
+<section id="multithreading">
+<h2>Multithreading<a class="headerlink" href="#multithreading" title="Link to this heading">#</a></h2>
+<p>Some parts of the LiteBIRD Simulation Framework are able to
+exploit multiple cores because several of its modules rely on
+the <a class="reference external" href="https://numba.pydata.org/">Numba</a> library.</p>
+<p>If you are running your code on your multi-core laptop, you do not
+have to do anything fancy in order to use all the CPUs on your machine:
+in its default configuration, the Framework should be able to take
+advantage all the available CPU cores.</p>
+<p>However, if you want to tune the way the Framework uses the CPUs,
+you can either set the environment variable <code class="docutils literal notranslate"><span class="pre">OMP_NUM_THREADS</span></code>
+to the number of CPUs to use, or use two parameters in
+the constructor of the class <a class="reference internal" href="simulations.html#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a>:</p>
+<ul class="simple">
+<li><p><cite>numba_num_of_threads</cite>: this is the number of CPUs that Numba will
+use for parallel calculations. The parameter defaults to <code class="docutils literal notranslate"><span class="pre">None</span></code>,
+which means that Numba will check how many CPUs are available and will
+use all of them.</p></li>
+<li><p><cite>numba_threading_layer</cite>: this parameter is a string that specifies
+which threading library should be used by Numba. The value depends
+both on the version of Numba you are running and on the availability
+of these libraries, as they are not installed together with the
+LiteBIRD Simulation Framework. Numba 0.53 provides the following choices:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">tbb</span></code>: <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onetbb.html">Intel Threading Building Blocks</a>.
+You should pick this if you are running your code on Intel machines and the
+Tbb library is available.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">omp</span></code>: <a class="reference external" href="https://www.openmp.org/">OpenMP</a>. If you pick this one,
+be sure that the OpenPM library is available.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">workqueue</span></code>: this is an internal threading library provided by Numba.
+It’s probably the least efficient of the three; its main advantage is
+that it is always available.</p></li>
+</ul>
+</li>
+</ul>
+<p>These parameters can be passed through a TOML parameter file (see
+<a class="reference internal" href="simulations.html#parameter-files"><span class="std std-ref">Parameter files</span></a>) as well:</p>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="c1"># This is file &quot;my_conf.toml&quot;</span>
+<span class="k">[simulation]</span>
+<span class="n">random_seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">12345</span>
+<span class="n">numba_num_of_threads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span>
+<span class="n">numba_threading_layer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;tbb&quot;</span>
+</pre></div>
+</div>
+<p>Both <code class="docutils literal notranslate"><span class="pre">tbb</span></code> and <code class="docutils literal notranslate"><span class="pre">omp</span></code> require that the relevant library be available on
+your system, as the command <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">litebird_sim</span></code> does <strong>not</strong> install
+them. If you are running your code on a HPC cluster, it is probably a matter
+of running a command like the following:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># This might change depending on how the environment on your cluster</span>
+<span class="c1"># is configured; the following commands are just examples.</span>
+$<span class="w"> </span>module<span class="w"> </span>load<span class="w"> </span>tbb<span class="w">     </span><span class="c1"># Intel Threading Building Blocks</span>
+$<span class="w"> </span>module<span class="w"> </span>load<span class="w"> </span>openmp<span class="w">  </span><span class="c1"># OpenMP</span>
+</pre></div>
+</div>
+</section>
+<section id="mpi">
+<h2>MPI<a class="headerlink" href="#mpi" title="Link to this heading">#</a></h2>
+<p>The LiteBIRD Simulation Framework lists mpi4py as an <em>optional</em>
+dependency. This means that simulation codes should be able to cope
+with the lack of MPI.</p>
+<p>The framework can be forced to use MPI or not using the variable
+<code class="docutils literal notranslate"><span class="pre">LITEBIRD_SIM_MPI</span></code>:</p>
+<ul class="simple">
+<li><p>Set the variable to 1 or an empty value to <em>force</em> importing <cite>mpi4py</cite>;</p></li>
+<li><p>Set the variable to 0 to avoid importing <cite>mpi4py</cite>;</p></li>
+<li><p>If the variable is not set, the code will try to import <cite>mpi4py</cite>,
+but in case of error it will not complain and will silently shift to
+serial execution.</p></li>
+</ul>
+<p>The framework provides a global variable, <a class="reference internal" href="#litebird_sim.mpi.MPI_COMM_WORLD" title="litebird_sim.mpi.MPI_COMM_WORLD"><code class="xref py py-data docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code></a>,
+which is the same as <code class="docutils literal notranslate"><span class="pre">mpi4py.MPI.COMM_WORLD</span></code> if MPI is being used.
+Otherwise, if MPI is <strong>not</strong> being used, it still contains the
+following members:</p>
+<ul class="simple">
+<li><p><cite>rank</cite> (set to <code class="docutils literal notranslate"><span class="pre">0</span></code>);</p></li>
+<li><p><cite>size</cite> (set to <code class="docutils literal notranslate"><span class="pre">1</span></code>).</p></li>
+</ul>
+<p>Thus, the following code works regardless whether MPI is present or
+not:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="k">if</span> <span class="n">lbs</span><span class="o">.</span><span class="n">MPI_COMM_WORLD</span><span class="o">.</span><span class="n">rank</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Hello, world!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>However, you can use <a class="reference internal" href="#litebird_sim.mpi.MPI_COMM_WORLD" title="litebird_sim.mpi.MPI_COMM_WORLD"><code class="xref py py-data docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code></a> to call MPI functions
+only if MPI was actually enabled. You can check this using the Boolean
+variable <a class="reference internal" href="#litebird_sim.mpi.MPI_ENABLED" title="litebird_sim.mpi.MPI_ENABLED"><code class="xref py py-data docutils literal notranslate"><span class="pre">MPI_ENABLED</span></code></a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">litebird_sim</span> <span class="k">as</span> <span class="nn">lbs</span>
+
+<span class="n">comm</span> <span class="o">=</span> <span class="n">lbs</span><span class="o">.</span><span class="n">MPI_COMM_WORLD</span>
+<span class="k">if</span> <span class="n">lbs</span><span class="o">.</span><span class="n">MPI_ENABLED</span><span class="p">:</span>
+    <span class="n">comm</span><span class="o">.</span><span class="n">barrier</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>To ensure that your code uses MPI in the proper way, you should always
+use <a class="reference internal" href="#litebird_sim.mpi.MPI_COMM_WORLD" title="litebird_sim.mpi.MPI_COMM_WORLD"><code class="xref py py-data docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code></a> instead of importing <code class="docutils literal notranslate"><span class="pre">mpi4py</span></code> directly.</p>
+<section id="enabling-disabling-mpi">
+<h3>Enabling/disabling MPI<a class="headerlink" href="#enabling-disabling-mpi" title="Link to this heading">#</a></h3>
+<p>The user can control whether MPI must be used or not in a script,
+through the environment variable <code class="docutils literal notranslate"><span class="pre">LITEBIRD_SIM_MPI</span></code> (<code class="docutils literal notranslate"><span class="pre">ENABLE_MPI</span></code>
+is accepted as well):</p>
+<ul class="simple">
+<li><p>If the variable is set to the empty string or to <code class="docutils literal notranslate"><span class="pre">1</span></code>, <code class="docutils literal notranslate"><span class="pre">true</span></code>,
+<code class="docutils literal notranslate"><span class="pre">on</span></code>, <code class="docutils literal notranslate"><span class="pre">yes</span></code>, then <code class="docutils literal notranslate"><span class="pre">mpi4py</span></code> is imported, and an exception is
+raised if this cannot be done (e.g., because it was not installed
+using the flag <code class="docutils literal notranslate"><span class="pre">--extra=mpi</span></code> when <code class="docutils literal notranslate"><span class="pre">poetry</span> <span class="pre">install</span></code> was called).</p></li>
+<li><p>If the variable is set to <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">false</span></code>, <code class="docutils literal notranslate"><span class="pre">off</span></code> or <code class="docutils literal notranslate"><span class="pre">no</span></code>, then
+<code class="docutils literal notranslate"><span class="pre">mpi4py</span></code> is <em>not</em> imported, even if it is installed.</p></li>
+<li><p>If the variable is not set, then <code class="docutils literal notranslate"><span class="pre">mpi4py</span></code> will be imported, but
+any failure will be accepted and the framework will silently switch
+to serial mode.</p></li>
+</ul>
+</section>
+<section id="grasping-how-mpi-is-being-used">
+<h3>Grasping how MPI is being used<a class="headerlink" href="#grasping-how-mpi-is-being-used" title="Link to this heading">#</a></h3>
+<p>You will typically use MPI to spread TODs among many MPI processes, so
+that the simulation can span several detectors and a longer time scale.
+Unfortunately, this means that it’s often complicated to understand how
+data is being kept in memory.</p>
+<p>If you use the <a class="reference internal" href="simulations.html#litebird_sim.simulations.Simulation" title="litebird_sim.simulations.Simulation"><code class="xref py py-class docutils literal notranslate"><span class="pre">Simulation</span></code></a> object (and you should, you <em>really</em>
+should!), you can call <a class="reference internal" href="simulations.html#litebird_sim.simulations.Simulation.describe_mpi_distribution" title="litebird_sim.simulations.Simulation.describe_mpi_distribution"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.describe_mpi_distribution()</span></code></a> after
+you have allocated the TODs via <a class="reference internal" href="simulations.html#litebird_sim.simulations.Simulation.create_observations" title="litebird_sim.simulations.Simulation.create_observations"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Simulation.create_observations()</span></code></a>; it
+will return an instance of the class <a class="reference internal" href="simulations.html#litebird_sim.simulations.MpiDistributionDescr" title="litebird_sim.simulations.MpiDistributionDescr"><code class="xref py py-class docutils literal notranslate"><span class="pre">MpiDistributionDescr</span></code></a>, which
+can be inspected and printed to the terminal. See Section <a class="reference internal" href="simulations.html#simulations"><span class="std std-ref">Simulations</span></a>
+for more information about this.</p>
+</section>
+<section id="module-litebird_sim.mpi">
+<span id="api-reference"></span><h3>API reference<a class="headerlink" href="#module-litebird_sim.mpi" title="Link to this heading">#</a></h3>
+<dl class="py data">
+<dt class="sig sig-object py" id="litebird_sim.mpi.MPI_COMM_WORLD">
+<span class="sig-prename descclassname"><span class="pre">litebird_sim.mpi.</span></span><span class="sig-name descname"><span class="pre">MPI_COMM_WORLD</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;litebird_sim.mpi._SerialMpiCommunicator</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#litebird_sim.mpi.MPI_COMM_WORLD" title="Link to this definition">#</a></dt>
+<dd><p>Global variable equal either to <cite>mpi4py.MPI.COMM_WORLD</cite> or a object
+that defines the member variables <cite>rank = 0</cite> and <cite>size = 1</cite>.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="litebird_sim.mpi.MPI_CONFIGURATION">
+<span class="sig-prename descclassname"><span class="pre">litebird_sim.mpi.</span></span><span class="sig-name descname"><span class="pre">MPI_CONFIGURATION</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#litebird_sim.mpi.MPI_CONFIGURATION" title="Link to this definition">#</a></dt>
+<dd><p>If <a class="reference internal" href="#litebird_sim.mpi.MPI_ENABLED" title="litebird_sim.mpi.MPI_ENABLED"><code class="xref py py-data docutils literal notranslate"><span class="pre">MPI_ENABLED</span></code></a> is <cite>True</cite>, this is a dictionary containing
+information about the MPI configuration. Otherwise, it is an empty
+dictionary</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="litebird_sim.mpi.MPI_ENABLED">
+<span class="sig-prename descclassname"><span class="pre">litebird_sim.mpi.</span></span><span class="sig-name descname"><span class="pre">MPI_ENABLED</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#litebird_sim.mpi.MPI_ENABLED" title="Link to this definition">#</a></dt>
+<dd><p><cite>True</cite> if MPI should be used by the application. The value of this
+variable is set according to the following rules:</p>
+<ul class="simple">
+<li><p>If the environment variable <code class="xref py py-data docutils literal notranslate"><span class="pre">LITEBIRD_SIM_MPI</span></code> is set to
+<cite>1</cite>, use MPI and fail if <cite>mpi4py</cite> cannot be imported;</p></li>
+<li><p>If the environment variable <code class="xref py py-data docutils literal notranslate"><span class="pre">LITEBIRD_SIM_MPI</span></code> is set to
+<cite>0</cite>, avoid using MPI even if <cite>mpi4py</cite> is present;</p></li>
+<li><p>If the environment variable <code class="xref py py-data docutils literal notranslate"><span class="pre">LITEBIRD_SIM_MPI</span></code> is <em>not</em> set,
+try to use MPI and gracefully revert to a serial mode of execution
+if <cite>mpi4py</cite> cannot be imported.</p></li>
+</ul>
+</dd></dl>
+
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="random_numbers.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Random numbers</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="integrating.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Integrating existing codes</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#multithreading">Multithreading</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#mpi">MPI</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#enabling-disabling-mpi">Enabling/disabling MPI</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#grasping-how-mpi-is-being-used">Grasping how MPI is being used</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#module-litebird_sim.mpi">API reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.mpi.MPI_COMM_WORLD"><code class="docutils literal notranslate"><span class="pre">MPI_COMM_WORLD</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.mpi.MPI_CONFIGURATION"><code class="docutils literal notranslate"><span class="pre">MPI_CONFIGURATION</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#litebird_sim.mpi.MPI_ENABLED"><code class="docutils literal notranslate"><span class="pre">MPI_ENABLED</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+  <div class="sidebar-secondary-item">
+
+  <div class="tocsection sourcelink">
+    <a href="_sources/mpi.rst.txt">
+      <i class="fa-solid fa-file-lines"></i> Show Source
+    </a>
+  </div>
+</div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=26a4bc78f4c0ddb94549"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=26a4bc78f4c0ddb94549"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2020, The LiteBIRD Simulation Team.
+      <br/>
+    
+  </p>
+</div>
+      
+        <div class="footer-item">
+
+  <p class="sphinx-version">
+    Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.4.7.
+    <br/>
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+    <div class="footer-items__end">
+      
+        <div class="footer-item">
+<p class="theme-version">
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.16.0.
+</p></div>
+      
+    </div>
+  
+</div>
+
+  </footer>
+  </body>
+</html>
