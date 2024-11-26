@@ -16,6 +16,8 @@ The function is executable by: `python -m litebird_sim.plot_fp` [#345](https://g
 
 -   Simulation.add_noise() uses self.random as default random number generator [#349](https://github.com/litebird/litebird_sim/pull/349)
 
+-   Mbs updated, code aligned to pysm 3.4.0, CO lines included plus other new foreground models [#347](https://github.com/litebird/litebird_sim/pull/347)
+
 # Version 0.13.0
 
 -   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Here is a in-depth list of all the breaking changes in this PR:
