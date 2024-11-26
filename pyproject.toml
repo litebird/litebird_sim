@@ -30,15 +30,14 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-numba = "^0.57.1"
-numpy = "^1.24"
+numba = "^0.59.1"
+numpy = "^1.26"
 astropy = "5.3.4"
 tomlkit = "^0.12.1"
 
 mpi4py = {version = "^3.1", optional = true}
 
-sphinx = "^6.2.1"
-sphinx_rtd_theme = "^1.2.2"
+sphinx = "^7.4"
 sphinxcontrib-bibtex = "^2.5.0"
 sphinxcontrib-contentui = "^0.2.5"
 "sphinxcontrib.asciinema" = "^0.3.7"
@@ -67,6 +66,7 @@ deprecation = "^2.1.0"
 scipy = "^1.11.3"
 ruff = "^0.1.7"
 libinsdb = "^0.7.4"
+pydata-sphinx-theme = "^0.16.0"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]

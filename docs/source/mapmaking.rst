@@ -43,9 +43,9 @@ detectors::
     import numpy as np
     import astropy.units as u
     from numpy.random import MT19937, RandomState, SeedSequence
-    
+
     import litebird_sim as lbs
-    
+
     sim = lbs.Simulation(
         base_path="destriper_output",
         start_time=0,
@@ -66,7 +66,7 @@ detectors::
         name="core",
         spin_boresight_angle_rad=np.deg2rad(65),
     )
-    
+
     # We create two detectors, whose polarization angles are separated by π/2
     sim.create_observations(
         detectors=[
@@ -85,7 +85,7 @@ detectors::
     for curobs in sim.observations:
         curobs.tod *= 0.0
         curobs.tod += rs.randn(*curobs.tod.shape)
-  
+
 
 The paper :cite:`2009:kurkisuonio:destriping` explains
 the theory of binners and destripers. Our implementation
@@ -98,13 +98,13 @@ Binner
 ------
 
 Once you have generated a set of observations, either on a single
-process or distributed over several mpi processes, you can create a 
+process or distributed over several mpi processes, you can create a
 simple binned map with the function :func:`.make_binned_map`. This function
 takes one or more :class:`.Observation` objects and the Healpix
 resolution of the output map (``nside``), and it produces a coadded map.
 The algorithm assumes white noise and each detector gets weighted by
 :math:`1 / \text{NET}^2`. If the pointing information is not provided in the
-observation, it can be passed through the optional argument `pointings`, 
+observation, it can be passed through the optional argument `pointings`,
 with a syntax similar to :func:`.scan_map_in_observations`.
 The output map is in Galactic coordinates, but you can specify the
 coordinate system you want via the parameter `output_coordinates`.
@@ -335,7 +335,7 @@ There are three supported options for the detector split:
 - ``"waferXXX"``: use the detectors in the wafer XXX. The XXX part
   must specify the wafer (e.g. "L00", "M01", or "H02").
 
-The final data split will correspond to the combination of the two splits. 
+The final data split will correspond to the combination of the two splits.
 
 The function :func:`.check_valid_splits` will check whether the requested
 split is part of the list above. If the split is not valid, the function
@@ -377,7 +377,7 @@ The result is an instance of the class :class:`.DestriperResult`, which
 is similar to :class:`.BinnerResult` but it contains much more information.
 
 Function :func:`.make_destriped_map` has a high level interface in the class
-:class:`.Simulation` that applies the destriper algorithm to all the 
+:class:`.Simulation` that applies the destriper algorithm to all the
 observations in the simulation.
 The syntax is identical to :func:`.make_destriped_map`::
 
@@ -712,14 +712,14 @@ The procedure to use the TOAST2 destriper is similar to the steps required to
 call the internal destriper: you must create a
 :class:`.ExternalDestriperParameters` object that specifies which input
 parameters (apart from the timelines) should be used::
-  
+
     params = lbs.ExternalDestriperParameters(
         nside=16,
         return_hit_map=True,
         return_binned_map=True,
         return_destriped_map=True,
     )
-  
+
 The parameters we use here are the resolution of the output map
 (``nside=16``), and the kind of results that must be returned:
 specifically, we are looking here for the *hit map* (i.e., a map that
@@ -744,7 +744,7 @@ To run the TOAST2 destriper, you simply call
   result = lbs.destripe_with_toast2(sim, params)
 
 The result is an instance of the class :class:`.Toast2DestriperResult` and
-contains the three maps we have asked above (hit map, binned map, 
+contains the three maps we have asked above (hit map, binned map,
 destriped map).
 
 .. note::
