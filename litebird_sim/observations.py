@@ -13,7 +13,7 @@ from collections import defaultdict
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly, distribute_detector_blocks
 from .detectors import DetectorInfo
-from .mpi import comm_grid
+from .mpi import MPI_COMM_GRID
 
 
 @dataclass
@@ -175,7 +175,7 @@ class Observation:
                 matrix_color = MPI.UNDEFINED
 
             comm_obs_grid = comm.Split(matrix_color, comm.rank)
-            comm_grid._set_comm_obs_grid(comm_obs_grid=comm_obs_grid)
+            MPI_COMM_GRID._set_comm_obs_grid(comm_obs_grid=comm_obs_grid)
 
         self.tod_list = tods
         for cur_tod in self.tod_list:

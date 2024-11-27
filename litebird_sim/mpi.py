@@ -61,7 +61,7 @@ class _GridCommClass:
 #: that defines the member variables `rank = 0` and `size = 1`.
 MPI_COMM_WORLD = _SerialMpiCommunicator()
 
-comm_grid = _GridCommClass()
+MPI_COMM_GRID = _GridCommClass()
 
 #: `True` if MPI should be used by the application. The value of this
 #: variable is set according to the following rules:
@@ -90,8 +90,8 @@ if _enable_mpi in [True, None]:
         from mpi4py import MPI
 
         MPI_COMM_WORLD = MPI.COMM_WORLD
-        comm_grid._set_comm_obs_grid(comm_obs_grid=MPI.COMM_WORLD)
-        comm_grid._set_null_comm(comm_null=MPI.COMM_NULL)
+        MPI_COMM_GRID._set_comm_obs_grid(comm_obs_grid=MPI.COMM_WORLD)
+        MPI_COMM_GRID._set_null_comm(comm_null=MPI.COMM_NULL)
         MPI_ENABLED = True
         MPI_CONFIGURATION = mpi4py.get_config()
     except ImportError:

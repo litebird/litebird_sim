@@ -72,7 +72,7 @@ from .io import (
 )
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
-from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, comm_grid
+from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
 from .noise import (
     add_white_noise,
     add_one_over_f_noise,
@@ -218,7 +218,7 @@ __all__ = [
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
     "MPI_CONFIGURATION",
-    "comm_grid",
+    "MPI_COMM_GRID",
     # observations.py
     "Observation",
     "TodDescription",

@@ -20,7 +20,7 @@ from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 import healpy as hp
 
-from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD, comm_grid
+from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from typing import Callable, Union, List, Optional, Tuple, Any, Dict
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
@@ -44,7 +44,7 @@ if MPI_ENABLED:
 
 
 __DESTRIPER_RESULTS_FILE_NAME = "destriper_results.fits"
-__BASELINES_FILE_NAME = f"baselines_mpi{comm_grid.COMM_OBS_GRID.rank:04d}.fits"
+__BASELINES_FILE_NAME = f"baselines_mpi{MPI_COMM_GRID.COMM_OBS_GRID.rank:04d}.fits"
 
 
 def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
@@ -498,8 +498,8 @@ def _build_nobs_matrix(
         )
 
     # Now we must accumulate the result of every MPI process
-    if MPI_ENABLED and comm_grid.COMM_OBS_GRID != comm_grid.COMM_NULL:
-        comm_grid.COMM_OBS_GRID.Allreduce(
+    if MPI_ENABLED and MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
+        MPI_COMM_GRID.COMM_OBS_GRID.Allreduce(
             mpi4py.MPI.IN_PLACE, nobs_matrix, op=mpi4py.MPI.SUM
         )
 
@@ -748,10 +748,10 @@ def _compute_binned_map(
             )
 
     if MPI_ENABLED:
-        comm_grid.COMM_OBS_GRID.Allreduce(
+        MPI_COMM_GRID.COMM_OBS_GRID.Allreduce(
             mpi4py.MPI.IN_PLACE, output_sky_map, op=mpi4py.MPI.SUM
         )
-        comm_grid.COMM_OBS_GRID.Allreduce(
+        MPI_COMM_GRID.COMM_OBS_GRID.Allreduce(
             mpi4py.MPI.IN_PLACE, output_hit_map, op=mpi4py.MPI.SUM
         )
 
@@ -993,7 +993,7 @@ def _mpi_dot(a: List[npt.ArrayLike], b: List[npt.ArrayLike]) -> float:
     # the dot product
     local_result = sum([np.dot(x1.flatten(), x2.flatten()) for (x1, x2) in zip(a, b)])
     if MPI_ENABLED:
-        return comm_grid.COMM_OBS_GRID.allreduce(local_result, op=mpi4py.MPI.SUM)
+        return MPI_COMM_GRID.COMM_OBS_GRID.allreduce(local_result, op=mpi4py.MPI.SUM)
     else:
         return local_result
 
@@ -1010,7 +1010,7 @@ def _get_stopping_factor(residual: List[npt.ArrayLike]) -> float:
     """
     local_result = np.max(np.abs(residual))
     if MPI_ENABLED:
-        return comm_grid.COMM_OBS_GRID.allreduce(local_result, op=mpi4py.MPI.MAX)
+        return MPI_COMM_GRID.COMM_OBS_GRID.allreduce(local_result, op=mpi4py.MPI.MAX)
     else:
         return local_result
 
@@ -1424,7 +1424,7 @@ def _run_destriper(
     bytes_in_temporary_buffers += mask.nbytes
 
     if MPI_ENABLED:
-        bytes_in_temporary_buffers = comm_grid.COMM_OBS_GRID.allreduce(
+        bytes_in_temporary_buffers = MPI_COMM_GRID.COMM_OBS_GRID.allreduce(
             bytes_in_temporary_buffers,
             op=mpi4py.MPI.SUM,
         )
@@ -1619,9 +1619,9 @@ def make_destriped_map(
     binned_map = np.empty((3, number_of_pixels))
     hit_map = np.empty(number_of_pixels)
 
-    if comm_grid.COMM_OBS_GRID != comm_grid.COMM_NULL:
+    if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
         # perform the following operations when MPI is not being used
-        # OR when the comm_grid.COMM_OBS_GRID is not a NULL communicator
+        # OR when the MPI_COMM_GRID.COMM_OBS_GRID is not a NULL communicator
         if do_destriping:
             try:
                 # This will fail if the parameter is a scalar
@@ -1686,7 +1686,7 @@ def make_destriped_map(
             )
 
             if MPI_ENABLED:
-                bytes_in_temporary_buffers = comm_grid.COMM_OBS_GRID.allreduce(
+                bytes_in_temporary_buffers = MPI_COMM_GRID.COMM_OBS_GRID.allreduce(
                     bytes_in_temporary_buffers,
                     op=mpi4py.MPI.SUM,
                 )
@@ -2014,11 +2014,11 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
 
     primary_hdu = fits.PrimaryHDU()
     primary_hdu.header["MPIRANK"] = (
-        comm_grid.COMM_OBS_GRID.rank,
+        MPI_COMM_GRID.COMM_OBS_GRID.rank,
         "The rank of the MPI process that wrote this file",
     )
     primary_hdu.header["MPISIZE"] = (
-        comm_grid.COMM_OBS_GRID.size,
+        MPI_COMM_GRID.COMM_OBS_GRID.size,
         "The number of MPI processes used in the computation",
     )
 
@@ -2234,11 +2234,11 @@ def load_destriper_results(
             baselines_file_name = folder / __BASELINES_FILE_NAME
 
         with fits.open(baselines_file_name) as inpf:
-            assert comm_grid.COMM_OBS_GRID.rank == inpf[0].header["MPIRANK"], (
+            assert MPI_COMM_GRID.COMM_OBS_GRID.rank == inpf[0].header["MPIRANK"], (
                 "You must call load_destriper_results using the "
                 "same MPI layout that was used for save_destriper_results "
             )
-            assert comm_grid.COMM_OBS_GRID.size == inpf[0].header["MPISIZE"], (
+            assert MPI_COMM_GRID.COMM_OBS_GRID.size == inpf[0].header["MPISIZE"], (
                 "You must call load_destriper_results using the "
                 "same MPI layout that was used for save_destriper_results"
             )
