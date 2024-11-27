@@ -61,6 +61,16 @@ class _GridCommClass:
 #: that defines the member variables `rank = 0` and `size = 1`.
 MPI_COMM_WORLD = _SerialMpiCommunicator()
 
+
+#: Global object with two attributes:
+#:
+#: - ``COMM_OBS_GRID``: It is a partition of ``MPI_COMM_WORLD`` that includes all the
+#:   MPI processes with global rank less than ``n_blocks_time * n_blocks_det``. On MPI
+#:   processes with higher ranks, it points to NULL MPI communicator
+#:   ``mpi4py.MPI.COMM_NULL``.
+#:
+#: - ``COMM_NULL``: If :data:`.MPI_ENABLED` is ``True``, this object points to a NULL
+#:   MPI communicator (``mpi4py.MPI.COMM_NULL``). Otherwise it is ``None``.
 MPI_COMM_GRID = _GridCommClass()
 
 #: `True` if MPI should be used by the application. The value of this
