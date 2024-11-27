@@ -24,10 +24,14 @@ framework to generate a CMB map::
 
     import litebird_sim as lbs
 
+    nside = 512
+
     sim = lbs.Simulation(base_path="../output", random_seed=12345)
     params = lbs.MbsParameters(
         make_cmb=True,
+        make_fg=True,
         fg_models=["pysm_synch_0", "pysm_freefree_1"],
+        nside=nside,
     )
     mbs = lbs.Mbs(
         simulation=sim,
@@ -35,7 +39,7 @@ framework to generate a CMB map::
         channel_list=[
             lbs.FreqChannelInfo.from_imo(
                 sim.imo,
-                "/releases/v1.3/satellite/LFT/L1-040/channel_info",
+                "/releases/vPTEP/satellite/LFT/L1-040/channel_info",
             ),
         ],
     )
@@ -59,6 +63,7 @@ multipole of these alms with ``lmax_alms``, the default value is
 :math:`4\times N_{side}`. If ``gaussian_smooth`` is False, Mbs returns
 the umbeamed maps or alms.
 
+
 Available emission models
 -------------------------
 
@@ -70,20 +75,44 @@ following:
 
   - ``pysm_ame_1``
 
+  - ``pysm_ame_2``
+
+- CO Lines:
+  
+  - ``pysm_co_1``
+    
+  - ``pysm_co_2``
+
+  - ``pysm_co_3``
+    
 - Dust:
 
   - ``pysm_dust_0``
 
   - ``pysm_dust_1``
 
+  - ``pysm_dust_2``
+
+  - ``pysm_dust_3``
+    
   - ``pysm_dust_4``
 
   - ``pysm_dust_5``
 
+  - ``pysm_dust_6``
+    
   - ``pysm_dust_7``
 
   - ``pysm_dust_8``
 
+  - ``pysm_dust_9``
+    
+  - ``pysm_dust_10``
+    
+  - ``pysm_dust_11``
+    
+  - ``pysm_dust_12``
+    
 - Free-free:
 
   - ``pysm_freefree_1``
@@ -93,6 +122,20 @@ following:
   - ``pysm_synch_0``
 
   - ``pysm_synch_1``
+
+  - ``pysm_synch_2``
+
+  - ``pysm_synch_3``
+
+  - ``pysm_synch_4``
+
+  - ``pysm_synch_5``
+
+  - ``pysm_synch_6``
+
+
+See `here <https://github.com/galsci/pysm/blob/3.4.0/pysm3/data/presets.cfg>`_ for
+details of the foreground modes implemented.
 
 
 Monte Carlo simulations
