@@ -13,7 +13,7 @@ from collections import defaultdict
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly, distribute_detector_blocks
 from .detectors import DetectorInfo
-from .mpi import MPI_COMM_GRID
+from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 
 
 @dataclass
@@ -159,23 +159,14 @@ class Observation:
         # property for each of the (local) detectors
         self._attr_det_names = []
         self._check_blocks(n_blocks_det, n_blocks_time)
-        if comm and comm.size > 1:
+        if self.comm and self.comm.size > 1:
             self._n_blocks_det = n_blocks_det
             self._n_blocks_time = n_blocks_time
         else:
             self._n_blocks_det = 1
             self._n_blocks_time = 1
 
-        if comm and comm.size > 1:
-            if comm.rank < self.n_blocks_det * n_blocks_time:
-                matrix_color = 1
-            else:
-                from .mpi import MPI
-
-                matrix_color = MPI.UNDEFINED
-
-            comm_obs_grid = comm.Split(matrix_color, comm.rank)
-            MPI_COMM_GRID._set_comm_obs_grid(comm_obs_grid=comm_obs_grid)
+        self._set_mpi_subcommunicators()
 
         self.tod_list = tods
         for cur_tod in self.tod_list:
@@ -922,3 +913,55 @@ class Observation:
             )
 
         return pointing_buffer, hwp_buffer
+
+    def _set_mpi_subcommunicators(self):
+        """
+        This function splits the global MPI communicator into three kinds of
+        sub-communicators:
+
+        1. A sub-communicator containing all the processes with global rank less than
+        `n_blocks_det * n_blocks_time`. Outside of this global rank, the
+        sub-communicator is NULL.
+
+        2. A sub-communicator for each block of detectors, that contains all the
+        processes corresponding to that detector block. If a process doesn't
+        contain a detector, the sub-communicator is NULL.
+
+        3. A sub-communicator for each block of time that contains all the processes
+        corresponding to that time block. If a process doesn't contain a detector,
+        the sub-communicator is NULL.
+        """
+
+        # Set the detector and time block sub-communicators to
+        # `_SerialMpiCommunicator()` when MPI is not being used
+        self.comm_det_block = _SerialMpiCommunicator()
+        self.comm_time_block = _SerialMpiCommunicator()
+
+        if self.comm and self.comm.size > 1:
+            if self.comm.rank < self.n_blocks_det * self.n_blocks_time:
+                matrix_color = 1
+            else:
+                from .mpi import MPI
+
+                matrix_color = MPI.UNDEFINED
+
+            # Case1: For `0 < rank < n_blocks_det * n_blocks_time`,
+            # `comm_obs_grid` is a sub-communicator that includes processes
+            # from rank 0 to `n_blocks_det * n_blocks_time - 1`.
+            # Case 2: For `n_blocks_det * n_blocks_time <= rank < comm.size`,
+            # `comm_obs_grid = MPI.COMM_NULL`
+            comm_obs_grid = self.comm.Split(matrix_color, self.comm.rank)
+            MPI_COMM_GRID._set_comm_obs_grid(comm_obs_grid=comm_obs_grid)
+
+            # If the `MPI_COMM_GRID.COMM_OBS_GRID` is not NULL, we split it in
+            # communicators corresponding to each detector and time block
+            # If `MPI_COMM_GRID.COMM_OBS_GRID` is NULL, we set the communicators
+            # corresponding to detector and time blocks to NULL.
+            if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
+                det_color = MPI_COMM_GRID.COMM_OBS_GRID.rank // self.n_blocks_time
+                time_color = MPI_COMM_GRID.COMM_OBS_GRID.rank % self.n_blocks_time
+                self.comm_det_block = MPI_COMM_GRID.COMM_OBS_GRID.Split(det_color)
+                self.comm_time_block = MPI_COMM_GRID.COMM_OBS_GRID.Split(time_color)
+            else:
+                self.comm_det_block = MPI_COMM_GRID.COMM_NULL
+                self.comm_time_block = MPI_COMM_GRID.COMM_NULL
