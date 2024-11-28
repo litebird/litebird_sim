@@ -675,29 +675,27 @@ class Observation:
             setattr(self, name, info)
             return
 
-        is_in_grid = self.comm.rank < self._n_blocks_det * self._n_blocks_time
-        comm_grid = self.comm.Split(int(is_in_grid))
-        if not is_in_grid:  # The process does not own any detector (and TOD)
+        if (
+            MPI_COMM_GRID.COMM_OBS_GRID == MPI_COMM_GRID.COMM_NULL
+        ):  # The process does not own any detector (and TOD)
             null_det = DetectorInfo()
             attribute = getattr(null_det, name, None)
             value = 0 if isinstance(attribute, numbers.Number) else None
             setattr(self, name, value)
             return
 
-        my_col = comm_grid.rank % self._n_blocks_time
-        comm_col = comm_grid.Split(my_col)
+        my_col = MPI_COMM_GRID.COMM_OBS_GRID.rank % self._n_blocks_time
         root_col = root // self._n_blocks_det
         if my_col == root_col:
-            if comm_grid.rank == root:
+            if MPI_COMM_GRID.COMM_OBS_GRID.rank == root:
                 starts, nums, _, _ = self._get_start_and_num(
                     self._n_blocks_det, self._n_blocks_time
                 )
                 info = [info[s : s + n] for s, n in zip(starts, nums)]
 
-            info = comm_col.scatter(info, root)
+            info = self.comm_time_block.scatter(info, root)
 
-        comm_row = comm_grid.Split(comm_grid.rank // self._n_blocks_time)
-        info = comm_row.bcast(info, root_col)
+        info = self.comm_det_block.bcast(info, root_col)
         assert (not self.tod_list) or len(info) == len(
             getattr(self, self.tod_list[0].name)
         )
