@@ -1,7 +1,7 @@
 .. _plot_fp:
 
 Focal plane visualization
-===========
+=========================
 
 We can visualize detectors in the focal plane by:
 
