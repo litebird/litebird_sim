@@ -77,7 +77,7 @@ def add_convolved_sky_to_one_detector(
         if convolution_params.single_precision:
             _ftype = np.float32
             _ctype = np.complex64
-            intertype = Interpolato_f
+            intertype = Interpolator_f
         else:
             _ftype = np.float64
             _ctype = np.complex128

@@ -14,7 +14,11 @@ from litebird_sim.mapmaking import (
     ExternalDestriperParameters,
 )
 from .bandpasses import BandPassInfo
-from .beam_convolution import add_convolved_sky_to_observations
+from .beam_convolution import (
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
+from .mueller_convolver import MuellerConvolver
 from .beam_synthesis import (
     alm_index,
     alm_size,
@@ -24,10 +28,6 @@ from .beam_synthesis import (
 from .compress import (
     rle_compress,
     rle_decompress,
-)
-from .beam_convolution import (
-    add_convolved_sky_to_observations,
-    BeamConvolutionParameters,
 )
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
@@ -84,7 +84,6 @@ from .io import (
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
-from .mueller_convolver import MuellerConvolver
 from .noise import (
     add_white_noise,
     add_one_over_f_noise,
@@ -184,6 +183,7 @@ __all__ = [
     "PTEP_IMO_LOCATION",
     # beam_convolution.py
     "add_convolved_sky_to_observations",
+    "BeamConvolutionParameters",
     # beam_synthesis.py
     "alm_index",
     "alm_size",
