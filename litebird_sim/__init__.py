@@ -14,11 +14,17 @@ from litebird_sim.mapmaking import (
     ExternalDestriperParameters,
 )
 from .bandpasses import BandPassInfo
+from .beam_convolution import add_convolved_sky_to_observations
+from .beam_synthesis import (
+    allocate_alm,
+    alm_index,
+    alm_size,
+    gauss_beam_to_alm,
+)
 from .compress import (
     rle_compress,
     rle_decompress,
 )
-from .beam_convolution import add_convolved_sky_to_observations
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,
@@ -82,14 +88,6 @@ from .noise import (
     add_noise_to_observations,
 )
 from .observations import Observation, TodDescription
-from .pointings import (
-    apply_hwp_to_obs,
-    PointingProvider,
-)
-from .pointings_in_obs import (
-    prepare_pointings,
-    precompute_pointings,
-)
 from .pointing_sys.pointing_sys import (
     get_detector_orientation,
     left_multiply_offset2det,
@@ -99,6 +97,14 @@ from .pointing_sys.pointing_sys import (
     FocalplaneCoord,
     SpacecraftCoord,
     PointingSys,
+)
+from .pointings import (
+    apply_hwp_to_obs,
+    PointingProvider,
+)
+from .pointings_in_obs import (
+    prepare_pointings,
+    precompute_pointings,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
@@ -178,6 +184,11 @@ __all__ = [
     "PTEP_IMO_LOCATION",
     # beam_convolution.py
     "add_convolved_sky_to_observations",
+    # beam_synthesis.py
+    "allocate_alm",
+    "alm_index",
+    "alm_size",
+    "gauss_beam_to_alm",
     # compress.py
     "rle_compress",
     "rle_decompress",
