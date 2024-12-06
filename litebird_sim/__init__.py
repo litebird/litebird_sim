@@ -18,7 +18,10 @@ from .compress import (
     rle_compress,
     rle_decompress,
 )
-from .beam_convolution import add_convolved_sky_to_observations, BeamConvolutionParameters
+from .beam_convolution import (
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,

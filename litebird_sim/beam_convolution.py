@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import Union, List, Dict, Optional
 
-import ducc0
+from ducc0.totalconvolve import Interpolator, Interpolator_f
 import numpy as np
 
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
@@ -56,9 +56,8 @@ def add_convolved_sky_to_one_detector(
         else:
             beam_lamx = len(beam_alms_det)
 
-
         default_lmax = min(sky_lamx, beam_lamx)
-        default_kmax = default_lmax
+        default_kmax = default_lmax - 4
         logging.warning(
             (
                 "No convolution parameters, I will use the defaults "
@@ -69,29 +68,40 @@ def add_convolved_sky_to_one_detector(
         )
         convolution_params = BeamConvolutionParameters(
             lmax=default_lmax,
-            kmax=default_kmax-4,
+            kmax=default_kmax,
         )
 
     if (
         hwp_angle is None
     ):  # we cannot simulate HWP, so let's use classic 4pi convolution
-        inter = ducc0.totalconvolve.Interpolator(
-            sky_alms_det,
-            beam_alms_det,
+        if convolution_params.single_precision:
+            _ftype = np.float32
+            _ctype = np.complex64
+            intertype = Interpolato_f
+        else:
+            _ftype = np.float64
+            _ctype = np.complex128
+            intertype = Interpolator
+
+        _slm = sky_alms_det.astype(_ctype)
+
+        inter = intertype(
+            sky=_slm,
+            beam=beam_alms_det,
             separate=False,
             lmax=convolution_params.lmax,
             kmax=convolution_params.kmax,
             epsilon=convolution_params.epsilon,
             nthreads=nthreads,
         )
-        tod_det += inter.interpol(pointings_det)
+        tod_det += inter.interpol(pointings_det.astype(_ftype))
     else:
         fullconv = MuellerConvolver(
-            lmax = convolution_params.lmax,
-            kmax = convolution_params.kmax,
-            slm = sky_alms_det,
-            blm = beam_alms_det,
-            mueller = mueller_matrix,
+            slm=sky_alms_det,
+            blm=beam_alms_det,
+            mueller=mueller_matrix,
+            lmax=convolution_params.lmax,
+            kmax=convolution_params.kmax,
             single_precision=convolution_params.single_precision,
             epsilon=convolution_params.epsilon,
             nthreads=nthreads,
@@ -128,8 +138,8 @@ def add_convolved_sky(
         if input_sky_alms_in_galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
-        #FIXME: Fix this at some point ducc wants phi 0 -> 2pi
-        curr_pointings_det[:,1] = np.mod(curr_pointings_det[:,1], 2 * np.pi)
+        # FIXME: Fix this at some point, ducc wants phi 0 -> 2pi
+        curr_pointings_det[:, 1] = np.mod(curr_pointings_det[:, 1], 2 * np.pi)
 
         if input_sky_names is None:
             sky_alms_det = sky_alms
@@ -155,8 +165,8 @@ def add_convolved_sky(
 
 def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
-    sky_alms: Dict[str, np.ndarray],  # at some point optional
-    beam_alms: Dict[str, np.ndarray],  # at some point optional
+    sky_alms: Dict[str, np.ndarray],  # at some point optional, taken from the obs
+    beam_alms: Dict[str, np.ndarray],  # at some point optional, taken from the obs
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     hwp: Optional[HWP] = None,
     input_sky_alms_in_galactic: bool = True,

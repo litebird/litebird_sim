@@ -254,7 +254,7 @@ class MuellerConvolver:
         # print(np.max(np.abs(out-out2)))
         return out
 
-    def __init__(self, *, lmax, kmax, slm, blm, mueller, single_precision=True,
+    def __init__(self, *, slm, blm, mueller, lmax, kmax, single_precision=True,
                  epsilon=1e-4, npoints=1000000000,sigma_min=1.2, sigma_max=2.5,
                  nthreads=1):
         self._ftype = np.float32 if single_precision else np.float64

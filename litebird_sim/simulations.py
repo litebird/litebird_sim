@@ -52,6 +52,10 @@ from .observations import Observation, TodDescription
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
+from .beam_convolution import (
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .version import (
@@ -1419,6 +1423,58 @@ class Simulation:
                 self.append_to_report(
                     markdown_template,
                     nside=nside,
+                    has_cmb="N/A",
+                    has_fg="N/A",
+                    fg_model="N/A",
+                )
+
+    @_profile
+    def convolve_sky(
+        self,
+        sky_alms: Dict[str, np.ndarray],
+        beam_alms: Dict[str, np.ndarray],
+        input_sky_alms_in_galactic: bool = True,
+        convolution_params: Optional[BeamConvolutionParameters] = None,
+        component: str = "tod",
+        append_to_report: bool = True,
+    ):
+        """Fills the TODs, convolving a set of alms.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the method
+        :meth:`.prepare_pointings`. alms are assumed to be produced by :class:`.Mbs`
+        """
+
+        add_convolved_sky_to_observations(
+            observations=self.observations,
+            sky_alms=sky_alms,
+            beam_alms=beam_alms,
+            input_sky_alms_in_galactic=input_sky_alms_in_galactic,
+            component=component,
+            convolution_params=convolution_params,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_convolve_sky.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            if isinstance(sky_alms, dict):
+                if "Mbs_parameters" in sky_alms.keys():
+                    if sky_alms["Mbs_parameters"].make_fg:
+                        fg_model = sky_alms["Mbs_parameters"].fg_models
+                    else:
+                        fg_model = "N/A"
+
+                    self.append_to_report(
+                        markdown_template,
+                        has_cmb=sky_alms["Mbs_parameters"].make_cmb,
+                        has_fg=sky_alms["Mbs_parameters"].make_fg,
+                        fg_model=fg_model,
+                    )
+            else:
+                self.append_to_report(
+                    markdown_template,
                     has_cmb="N/A",
                     has_fg="N/A",
                     fg_model="N/A",
