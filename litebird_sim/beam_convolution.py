@@ -1,14 +1,36 @@
 # -*- encoding: utf-8 -*-
 
-import numpy as np
-import ducc0
-from typing import Union, List, Dict, Optional
-from .observations import Observation
-from .hwp import HWP
-from .pointings import get_hwp_angle
-from .coordinates import rotate_coordinates_e2g, CoordinateSystem
-from .mueller_convolver import MuellerConvolver
 import logging
+from dataclasses import dataclass
+from typing import Union, List, Dict, Optional
+
+import ducc0
+import numpy as np
+
+from .coordinates import rotate_coordinates_e2g, CoordinateSystem
+from .hwp import HWP
+from .mueller_convolver import MuellerConvolver
+from .observations import Observation
+from .pointings import get_hwp_angle
+
+
+@dataclass
+class BeamConvolutionParameters:
+    """Parameters used by the 4π beam convolution code
+
+    Fields:
+
+    - ``lmax`` (int): Maximum value for ℓ for the sky and beam coefficients
+    - ``kmax`` (int): Maximum value for m (azimuthal moment) for beam coefficients
+    - ``single_precision`` (bool): Set it to ``False`` to use 64-bit floating points
+      in the calculation
+    - ``epsilon`` (float): The desired relative accuracy of the interpolation
+    """
+
+    lmax: int
+    kmax: int
+    single_precision: bool = True
+    epsilon: float = 1e-7
 
 
 def add_convolved_sky_to_one_detector(
@@ -18,12 +40,26 @@ def add_convolved_sky_to_one_detector(
     mueller_matrix,
     pointings_det,
     hwp_angle,
-    convolution_params,  # convolution_params: XXX = YYY,
+    convolution_params: Optional[BeamConvolutionParameters] = None,
+    nthreads: int = 0,
 ):
     """ """
 
-    # global variable?
-    nthreads = 0
+    if not convolution_params:
+        default_lmax = min(len(sky_alms_det), len(beam_alms_det))
+        default_kmax = default_lmax
+        logging.warning(
+            (
+                "No convolution parameters, I will use the defaults "
+                "(ℓ_max={lmax}, m_max={kmax}), but this "
+                "might lead to unexpected errors and "
+                "gross misestimates"
+            ).format(lmax=default_lmax, kmax=default_kmax)
+        )
+        convolution_params = BeamConvolutionParameters(
+            lmax=default_lmax,
+            kmax=default_kmax,
+        )
 
     if (
         hwp_angle is None
@@ -60,8 +96,9 @@ def add_convolved_sky(
     input_sky_names,
     beam_alms: Dict[str, np.ndarray],
     input_beam_names,
-    convolution_params,  # convolution_params: XXX = YYY,
+    convolution_params: Optional[BeamConvolutionParameters] = None,
     input_sky_alms_in_galactic: bool = True,
+    nthreads: int = 0,
 ):
     """ """
 
@@ -101,6 +138,7 @@ def add_convolved_sky(
             pointings_det=curr_pointings_det,
             hwp_angle=hwp_angle,
             convolution_params=convolution_params,
+            nthreads=nthreads,
         )
 
 
@@ -111,8 +149,9 @@ def add_convolved_sky_to_observations(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     hwp: Optional[HWP] = None,
     input_sky_alms_in_galactic: bool = True,
-    convolution_params=None,  # convolution_params: XXX = YYY,
+    convolution_params: Optional[BeamConvolutionParameters] = None,
     component: str = "tod",
+    nthreads: int = 0,
 ):
     """Convolve sky maps with generic detector beams and add the resulting
     signal to TOD.
@@ -132,10 +171,18 @@ def add_convolved_sky_to_observations(
         the HWP information. If `None`, we assume traditional 4pi convolution.
     input_sky_alms_in_galactic: bool = True
         whether the input sky alms are in galactic coordinates.
-    convolution_params: Optional[Dict]
-        collection of parameters for the convolution
+    convolution_params: Optional[BeamConvolutionParameters]
+        Parameters to tune the beam convolution. If the default is used, the
+        code will try to find sensible numbers for these parameters. However,
+        this should not be used in production code!
     component: str
         name of the TOD component to which the computed data shall be added
+    nthreads: int
+        number of threads to use in the convolution. The default (0) will use
+        all the available CPUs. If you have a :class:`Simulation`
+        object, a wise choice is to pass the field ``numba_num_of_threads``
+        if it is nonzero, because the caller might have specified to use
+        fewer cores than what is available.
     """
 
     if pointings is None:
@@ -157,14 +204,14 @@ def add_convolved_sky_to_observations(
         if isinstance(observations, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "You must pass a list of observations *and* a list "
-                + "of pointing matrices to add_convolved_sky_to_observations"
+                "of pointing matrices to add_convolved_sky_to_observations"
             )
             obs_list = [observations]
             ptg_list = [pointings]
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to add_convolved_sky_to_observations, "
-                + "you must do the same for `pointings`"
+                "you must do the same for `pointings`"
             )
             assert len(observations) == len(pointings), (
                 f"The list of observations has {len(observations)} elements, but "
@@ -181,8 +228,8 @@ def add_convolved_sky_to_observations(
                 input_sky_names = cur_obs.channel
             else:
                 raise ValueError(
-                    "The dictionary maps does not contain all the relevant"
-                    + "keys, please check the list of detectors and channels"
+                    "The dictionary maps does not contain all the relevant "
+                    "keys, please check the list of detectors and channels"
                 )
             if "Coordinates" in sky_alms.keys():
                 dict_input_sky_alms_in_galactic = (
@@ -191,13 +238,13 @@ def add_convolved_sky_to_observations(
                 if dict_input_sky_alms_in_galactic != input_sky_alms_in_galactic:
                     logging.warning(
                         "input_sky_alms_in_galactic variable in add_convolved_sky_to_observations"
-                        + " overwritten!"
+                        " overwritten!"
                     )
                 input_sky_alms_in_galactic = dict_input_sky_alms_in_galactic
         else:
             assert isinstance(sky_alms, np.ndarray), (
-                "sky_alms must either a dictionary contaning keys for all the"
-                + "channels/detectors, or be a numpy array of dim (3 x Nlm)"
+                "sky_alms must be either a dictionary contaning the keys for all the"
+                + "channels/detectors or a 3×N_ℓm NumPy array"
             )
             input_sky_names = None
 
@@ -208,13 +255,13 @@ def add_convolved_sky_to_observations(
                 input_beam_names = cur_obs.channel
             else:
                 raise ValueError(
-                    "The dictionary beams does not contain all the relevant"
-                    + "keys, please check the list of detectors and channels"
+                    "The dictionary beams does not contain all the relevant "
+                    "keys, please check the list of detectors and channels"
                 )
         else:
             assert isinstance(beam_alms, np.ndarray), (
-                "beam_alms must either a dictionary contaning keys for all the"
-                + "channels/detectors, or be a numpy array of dim (3 x Nlm)"
+                "beam_alms must be either a dictionary containing keys for all the "
+                "channels/detectors or a 3×N_ℓm NumPy array"
             )
             input_beam_names = None
 
@@ -228,7 +275,7 @@ def add_convolved_sky_to_observations(
                 hwp_angle = get_hwp_angle(cur_obs, hwp)
             else:
                 logging.warning(
-                    "For using an external HWP object also pass a pre-calculated pointing"
+                    "To use an external HWP object, you must pass a pre-calculated pointing, too"
                 )
 
         add_convolved_sky(
@@ -241,4 +288,5 @@ def add_convolved_sky_to_observations(
             input_beam_names=input_beam_names,
             convolution_params=convolution_params,
             input_sky_alms_in_galactic=input_sky_alms_in_galactic,
+            nthreads=nthreads,
         )
