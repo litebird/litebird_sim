@@ -517,7 +517,7 @@ straightforward::
     sim.read_observations(...)
 
 See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
-:ref:`dipole-anisotropy`, :ref:`timeordered`, :ref:`mapmaking` for 
+:ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`mapmaking` for 
 details of the single functions.
 
 

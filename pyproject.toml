@@ -4,6 +4,7 @@ version = "0.13.0"
 description = "Simulation tools for the LiteBIRD experiment"
 authors = [
     "The LiteBIRD Simulation Team",
+    "Yusuke Takase <takase_y@s.okayama-u.ac.jp>",
     "Ranajoy Banerji <ranajoy.cosmo@gmail.com>",
     "Marco Bortolami <marco.bortolami@unife.it>",
     "Mathew Galloway <mathew.galloway@astro.uio.no>",
@@ -30,15 +31,14 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.13"
-numba = "^0.60.0"
-numpy = "^1.24"
+numba = "^0.59.1"
+numpy = "^1.26"
 astropy = "5.3.4"
 tomlkit = "^0.12.1"
 
 mpi4py = {version = "^3.1", optional = true}
 
-sphinx = "^6.2.1"
-sphinx_rtd_theme = "^1.2.2"
+sphinx = "^7.4"
 sphinxcontrib-bibtex = "^2.5.0"
 sphinxcontrib-contentui = "^0.2.5"
 "sphinxcontrib.asciinema" = "^0.3.7"
@@ -58,7 +58,7 @@ PyGithub = "^2.1"
 requests = "^2.31.0"
 rich = "^13.4.2"
 ducc0 = "^0.31.0"
-pysm3 = "~3.3.2"
+pysm3 = "~3.4.0"
 asciimatics = "^1.14.0"
 pyperclip = "^1.8.2"
 pre-commit = "^2.15.0"
@@ -67,6 +67,7 @@ deprecation = "^2.1.0"
 scipy = "^1.11.3"
 ruff = "^0.1.7"
 libinsdb = "^0.7.4"
+pydata-sphinx-theme = "^0.16.0"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]

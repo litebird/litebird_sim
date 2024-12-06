@@ -480,13 +480,23 @@ class RotQuaternion:
             # Both time-dependent quaternions are actual lists, so we must
             # first ensure that they have the same starting time and the
             # same sampling frequency
-            assert self.quats.shape == other.quats.shape
-            assert isinstance(self.start_time, type(other.start_time))
+            assert (
+                self.quats.shape == other.quats.shape
+            ), f"quaternions have different shapes: {self.quats.shape} vs {other.quats.shape}"
+            assert isinstance(
+                self.start_time, type(other.start_time)
+            ), f"start_time must have the same type: {type(self.start_time)} vs {type(other.start_time)}"
             if isinstance(self.start_time, float):
-                assert np.isclose(self.start_time, other.start_time)
+                assert np.isclose(
+                    self.start_time, other.start_time
+                ), f"start_time must be the same value: {self.start_time} vs {other.start_time}"
             else:
-                assert self.start_time == other.start_time
-            assert np.isclose(self.sampling_rate_hz, other.sampling_rate_hz)
+                assert (
+                    self.start_time == other.start_time
+                ), f"start_time must be the same value: {self.start_time} vs {other.start_time}"
+            assert np.isclose(
+                self.sampling_rate_hz, other.sampling_rate_hz
+            ), f"sampling_rate_hz must be the same value: {self.sampling_rate_hz} vs {other.sampling_rate_hz}"
 
             result_start_time = self.start_time
             result_sampling_freq_hz = self.sampling_rate_hz
@@ -524,6 +534,20 @@ class RotQuaternion:
             start_time=result_start_time,
             sampling_rate_hz=result_sampling_freq_hz,
             quats=result_quats,
+        )
+
+    def conj(self):
+        return RotQuaternion(
+            start_time=self.start_time,
+            sampling_rate_hz=self.sampling_rate_hz,
+            quats=np.array(
+                [
+                    -self.quats[:, 0],
+                    -self.quats[:, 1],
+                    -self.quats[:, 2],
+                    self.quats[:, 3],
+                ]
+            ),
         )
 
     def slerp(

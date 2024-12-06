@@ -320,11 +320,16 @@ def test_simulation_pointings_hwp_mjd(tmp_path):
 
         pointings_and_orientation, hwp_angle = obs.get_pointings("all")
 
-        pointings_and_orientation[..., 2] += hwp_angle
+        pointings_and_orientation[..., 2] += 2 * hwp_angle
+        pointings_and_orientation[..., 2] = np.mod(
+            pointings_and_orientation[..., 2], 2 * np.pi
+        )
 
         filename = Path(__file__).parent / f"reference_obs_pointings_hwp{idx:03d}.npy"
         reference = np.load(filename, allow_pickle=False)
-        assert np.allclose(pointings_and_orientation, reference)
+        reference[..., 2] = np.mod(reference[..., 2], 2 * np.pi)
+
+        assert np.allclose(pointings_and_orientation, reference, rtol=1e-5)
 
 
 def test_scanning_quaternions(tmp_path):

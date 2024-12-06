@@ -1,7 +1,7 @@
 .. _reporting:
 
-Creating reports with litebird_sim
-==================================
+Creating reports
+================
 
 The LiteBIRD simulation framework has the ability to automatically
 produce reports in the output directory specified during the creation

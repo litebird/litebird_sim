@@ -1,7 +1,23 @@
 # HEAD
+-   **Breaking change**: `PointingSys()` now requires `Observation` as an argument. And several functions to add pointing systematics are merged into `left_multiply_syst_quats()`.
+
+-   **Breaking change**: Redefinition (ωt instead of 2ωt) of the hwp angle returned by `get_pointings()`. Change in the pointing returned by `Observation.get_pointings()`, now behaving as it was before this [commit](https://github.com/litebird/litebird_sim/pull/319/commits/b3bc3bb2049c152cc183d6cfc68f4598f5b93ec0). Documentation updated accordingly. [#340](https://github.com/litebird/litebird_sim/pull/340)
+
+-   Restructure the manual and use a new, cleaner style [#342](https://github.com/litebird/litebird_sim/pull/342)
+
+-   Module for including nonlinearity in the simulations [#331](https://github.com/litebird/litebird_sim/pull/331)
 
 -   Improve the documentation of the binner and the destriper [#333](https://github.com/litebird/litebird_sim/pull/333)
+
 -   Make the code compatible with Python 3.12 [#332](https://github.com/litebird/litebird_sim/pull/332)
+
+-   plot_fp.py which visualizes focal plane and `DetectorInfo` is implemented. 
+Also it can generate a dector list file by clicking visualized detectors. 
+The function is executable by: `python -m litebird_sim.plot_fp` [#345](https://github.com/litebird/litebird_sim/pull/345)
+
+-   Simulation.add_noise() uses self.random as default random number generator [#349](https://github.com/litebird/litebird_sim/pull/349)
+
+-   Mbs updated, code aligned to pysm 3.4.0, CO lines included plus other new foreground models [#347](https://github.com/litebird/litebird_sim/pull/347)
 
 # Version 0.13.0
 
