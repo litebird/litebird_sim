@@ -680,12 +680,21 @@ class Observation:
 
             # All the detectors are included
             pointings, hwp_angle = cur_obs.get_pointings("all")
+            # This returns ``(N_det, N_samples, 3)`` array
 
             # Only the first two detectors are included
             pointings, hwp_angle = cur_obs.get_pointings([0, 1])
+            # This returns ``(2, N_samples, 3)`` array
 
             # Only the first detector is used
             pointings, hwp_angle = cur_obs.get_pointings(0)
+            # This returns ``(N_samples, 3)`` array
+
+            # NB if a list of indices is passed an array of dimension ``(N_det, N_samples, 3)``
+            # is always returned
+            # For example this
+            pointings, hwp_angle = cur_obs.get_pointings([0])
+            # returns ``(1, N_samples, 3)`` array
 
         The return value is a pair containing (1) the pointing matrix and (2) the
         HWP angle. The pointing matrix is a NumPy array with shape ``(N_det, N_samples, 3)``,
@@ -693,7 +702,8 @@ class Observation:
         samples in the TOD (the field ``Observation.n_samples``). The last dimension
         spans the three angles θ (colatitude, in radians), φ (longitude, in radians),
         and ψ (orientation angle, in radians). *Important*: if you ask for just *one*
-        detector, the shape of the pointing matrix will always be ``(N_samples, 3)``.
+        detector passing the index of the detector, the shape of the pointing matrix
+        will always be ``(N_samples, 3)``.
         The HWP angle is always a vector with shape ``(N_samples,)``, as it does
         not depend on the list of detectors.
 
@@ -712,7 +722,7 @@ class Observation:
                 (detector_idx >= 0) and (detector_idx < self.n_detectors)
             ), f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
 
-            pointing, hwp = self.pointing_provider.get_pointings(
+            return self.pointing_provider.get_pointings(
                 detector_quat=self.quat[detector_idx],
                 start_time=self.start_time,
                 start_time_global=self.start_time_global,
@@ -722,7 +732,6 @@ class Observation:
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
             )
-            return pointing.reshape(1, -1, 3), hwp
 
         # More complex case: we need all the detectors
         if isinstance(detector_idx, str):

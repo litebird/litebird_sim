@@ -205,7 +205,6 @@ def _compute_pixel_indices(
             curr_pointings_det = pointings[idet, :, :]
         else:
             curr_pointings_det, hwp_angle = pointings(idet)
-            curr_pointings_det = curr_pointings_det.reshape(-1, 3)
 
         if hwp_angle is None:
             hwp_angle = 0
@@ -213,7 +212,7 @@ def _compute_pixel_indices(
         if output_coordinate_system == CoordinateSystem.Galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
-        polang_all[idet] = curr_pointings_det[:, 2] + hwp_angle
+        polang_all[idet] = curr_pointings_det[:, 2] + 2 * hwp_angle
 
         pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
 

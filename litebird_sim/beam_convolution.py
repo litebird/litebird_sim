@@ -46,7 +46,18 @@ def add_convolved_sky_to_one_detector(
     """ """
 
     if not convolution_params:
-        default_lmax = min(len(sky_alms_det), len(beam_alms_det))
+        if sky_alms_det.ndim == 2:
+            sky_lamx = len(sky_alms_det[0])
+        else:
+            sky_lamx = len(sky_alms_det)
+
+        if beam_alms_det.ndim == 2:
+            beam_lamx = len(beam_alms_det[0])
+        else:
+            beam_lamx = len(beam_alms_det)
+
+
+        default_lmax = min(sky_lamx, beam_lamx)
         default_kmax = default_lmax
         logging.warning(
             (
@@ -58,7 +69,7 @@ def add_convolved_sky_to_one_detector(
         )
         convolution_params = BeamConvolutionParameters(
             lmax=default_lmax,
-            kmax=default_kmax,
+            kmax=default_kmax-4,
         )
 
     if (
@@ -76,16 +87,16 @@ def add_convolved_sky_to_one_detector(
         tod_det += inter.interpol(pointings_det)
     else:
         fullconv = MuellerConvolver(
-            convolution_params.lmax,
-            convolution_params.kmax,
-            sky_alms_det,
-            beam_alms_det,
-            mueller_matrix,
+            lmax = convolution_params.lmax,
+            kmax = convolution_params.kmax,
+            slm = sky_alms_det,
+            blm = beam_alms_det,
+            mueller = mueller_matrix,
             single_precision=convolution_params.single_precision,
             epsilon=convolution_params.epsilon,
             nthreads=nthreads,
         )
-        tod_det += fullconv.signal(pointings_det, hwp_angle)
+        tod_det += fullconv.signal(ptg=pointings_det, alpha=hwp_angle)
 
 
 def add_convolved_sky(
@@ -114,11 +125,11 @@ def add_convolved_sky(
         else:
             curr_pointings_det, hwp_angle = pointings(detector_idx)
 
-        if hwp_angle is None:
-            hwp_angle = 0
-
         if input_sky_alms_in_galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+
+        #FIXME: Fix this at some point ducc wants phi 0 -> 2pi
+        curr_pointings_det[:,1] = np.mod(curr_pointings_det[:,1], 2 * np.pi)
 
         if input_sky_names is None:
             sky_alms_det = sky_alms

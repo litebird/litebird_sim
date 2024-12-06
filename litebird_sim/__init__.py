@@ -16,9 +16,9 @@ from litebird_sim.mapmaking import (
 from .bandpasses import BandPassInfo
 from .beam_convolution import add_convolved_sky_to_observations
 from .beam_synthesis import (
-    allocate_alm,
     alm_index,
     alm_size,
+    allocate_alm,
     gauss_beam_to_alm,
 )
 from .compress import (
@@ -88,12 +88,8 @@ from .noise import (
     add_noise_to_observations,
 )
 from .observations import Observation, TodDescription
-from .pointing_sys.pointing_sys import (
+from .pointing_sys import (
     get_detector_orientation,
-    left_multiply_offset2det,
-    left_multiply_disturb2det,
-    left_multiply_offset2quat,
-    left_multiply_disturb2quat,
     FocalplaneCoord,
     SpacecraftCoord,
     PointingSys,
@@ -185,9 +181,9 @@ __all__ = [
     # beam_convolution.py
     "add_convolved_sky_to_observations",
     # beam_synthesis.py
-    "allocate_alm",
     "alm_index",
     "alm_size",
+    "allocate_alm",
     "gauss_beam_to_alm",
     # compress.py
     "rle_compress",
