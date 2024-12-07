@@ -30,7 +30,7 @@ class BeamConvolutionParameters:
     lmax: int
     kmax: int
     single_precision: bool = True
-    epsilon: float = 1e-7
+    epsilon: float = 1e-5
 
 
 def add_convolved_sky_to_one_detector(
@@ -71,9 +71,8 @@ def add_convolved_sky_to_one_detector(
             kmax=default_kmax,
         )
 
-    if (
-        hwp_angle is None
-    ):  # we cannot simulate HWP, so let's use classic 4pi convolution
+    if hwp_angle is None:
+        # we cannot simulate HWP, so let's use classic 4pi convolution
         if convolution_params.single_precision:
             _ftype = np.float32
             _ctype = np.complex64
@@ -84,17 +83,18 @@ def add_convolved_sky_to_one_detector(
             intertype = Interpolator
 
         _slm = sky_alms_det.astype(_ctype)
+        _blm = beam_alms_det.astype(_ctype)
 
         inter = intertype(
             sky=_slm,
-            beam=beam_alms_det,
+            beam=_blm,
             separate=False,
             lmax=convolution_params.lmax,
             kmax=convolution_params.kmax,
             epsilon=convolution_params.epsilon,
             nthreads=nthreads,
         )
-        tod_det += inter.interpol(pointings_det.astype(_ftype))
+        tod_det += inter.interpol(pointings_det.astype(_ftype))[0]
     else:
         fullconv = MuellerConvolver(
             slm=sky_alms_det,
