@@ -14,6 +14,17 @@ from litebird_sim.mapmaking import (
     ExternalDestriperParameters,
 )
 from .bandpasses import BandPassInfo
+from .beam_convolution import (
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
+from .mueller_convolver import MuellerConvolver
+from .beam_synthesis import (
+    alm_index,
+    alm_size,
+    allocate_alm,
+    gauss_beam_to_alm,
+)
 from .compress import (
     rle_compress,
     rle_decompress,
@@ -55,7 +66,6 @@ from .hwp import (
     IdealHWP,
     read_hwp_from_hdf5,
 )
-from .hwp_diff_emiss import add_2f, add_2f_to_observations
 from .hwp_sys.hwp_sys import (
     HwpSys,
 )
@@ -81,6 +91,12 @@ from .noise import (
     add_noise_to_observations,
 )
 from .observations import Observation, TodDescription
+from .pointing_sys import (
+    get_detector_orientation,
+    FocalplaneCoord,
+    SpacecraftCoord,
+    PointingSys,
+)
 from .pointings import (
     apply_hwp_to_obs,
     PointingProvider,
@@ -88,14 +104,6 @@ from .pointings import (
 from .pointings_in_obs import (
     prepare_pointings,
     precompute_pointings,
-)
-from .pointing_sys import (
-    get_detector_orientation,
-    left_multiply_syst_quats,
-    FocalplaneCoord,
-    SpacecraftCoord,
-    HWPCoord,
-    PointingSys,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
@@ -173,6 +181,14 @@ __all__ = [
     "__author__",
     "__version__",
     "PTEP_IMO_LOCATION",
+    # beam_convolution.py
+    "add_convolved_sky_to_observations",
+    "BeamConvolutionParameters",
+    # beam_synthesis.py
+    "alm_index",
+    "alm_size",
+    "allocate_alm",
+    "gauss_beam_to_alm",
     # compress.py
     "rle_compress",
     "rle_decompress",
@@ -217,6 +233,8 @@ __all__ = [
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
     "MPI_CONFIGURATION",
+    # mueller_convolver.py
+    "MuellerConvolver",
     # observations.py
     "Observation",
     "TodDescription",
@@ -317,12 +335,11 @@ __all__ = [
     "apply_gaindrift_to_observations",
     # pointing_sys.py
     "get_detector_orientation",
-    "left_multiply_syst_quats",
+    "left_multiply_offset2det",
+    "left_multiply_disturb2det",
+    "left_multiply_offset2quat",
+    "left_multiply_disturb2quat",
     "FocalplaneCoord",
     "SpacecraftCoord",
-    "HWPCoord",
     "PointingSys",
-    # hwp_diff_emiss.py
-    "add_2f",
-    "add_2f_to_observations",
 ]
