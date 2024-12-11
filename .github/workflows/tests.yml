@@ -30,7 +30,7 @@ jobs:
       # store it
       - name: Cache PySM3 data files
         id: cache-pysm3
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/pysm3-data
           key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}
