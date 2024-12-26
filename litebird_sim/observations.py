@@ -603,6 +603,9 @@ class Observation:
         self._n_blocks_det = n_blocks_det
         self._n_blocks_time = n_blocks_time
 
+        # Update the sub-communicators
+        self._set_mpi_subcommunicators()
+
         for name in self._attr_det_names:
             info = None
             if is_in_old_fist_col:

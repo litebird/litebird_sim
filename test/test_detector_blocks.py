@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import litebird_sim as lbs
 
 # data for testing detector blocks and MPI sub-communicators
@@ -156,3 +157,7 @@ def test_mpi_subcommunicators(dets=dets):
             # be the NULL communicators
             np.testing.assert_equal(obs.comm_det_block, lbs.MPI_COMM_GRID.COMM_NULL)
             np.testing.assert_equal(obs.comm_time_block, lbs.MPI_COMM_GRID.COMM_NULL)
+
+
+if __name__ == "__main__":
+    pytest.main([f"{__file__}"])
