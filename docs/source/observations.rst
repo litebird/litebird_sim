@@ -169,15 +169,16 @@ TOD) gets distributed.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 While uniform distribution of detectors along the detector axis optimizes load
-balancing, it is less suitable for simulating the some effects, like crosstalk and
-noise correlation between the detectors. This uniform distribution across MPI
-processes necessitates the transfer of large TOD arrays across multiple MPI processes,
-which complicates the code implementation and may potentially lead to significant
-performance overhead. To save us from this situation, the :class:`.Observation` class
+balancing, it is less suitable for simulating some effects, like crosstalk and
+noise correlation between the detectors. For these effects, uniform distribution
+across MPI processes necessitates the transfer of large TOD arrays across multiple
+MPI processes, which complicates the code implementation and may potentially lead
+to significant performance overhead. To save us from this situation, the
+:class:`.Observation` class
 accepts an argument ``det_blocks_attributes`` that is a list of string objects
 specifying the detector attributes to create the group of detectors. Once the
 detector groups are made, the detectors are distributed to the MPI processes in such
-a way that all the detectors of a group reside on the same MPI process.
+a way that all the detectors of a group reside on the same set of MPI processes.
 
 If a valid ``det_blocks_attributes`` argument is passed to the :class:`.Observation`
 class, the arguments ``n_blocks_det`` and ``n_blocks_time`` are ignored. Since the
@@ -186,7 +187,7 @@ class, the arguments ``n_blocks_det`` and ``n_blocks_time`` are ignored. Since t
 the number of detector blocks (``n_blocks_time = comm.size // n_blocks_det``).
 
 The detector blocks made in this way can be accessed with
-``Observation.detector_blocks``. It is a dictionary object has the tuple of
+``Observation.detector_blocks``. It is a dictionary object that has the tuple of
 ``det_blocks_attributes`` values as dictionary keys and the list of detectors
 corresponding to the key as dictionary values. This dictionary is sorted so that the
 group with the largest number of detectors comes first and the one with
@@ -268,99 +269,21 @@ detectors axis and time axis is divided depending on the size of MPI communicato
 
 **Case 1**
 
-*Size of MPI communicator = 3*, ``det_blocks_attributes=["channel"]``
+*Size of global MPI communicator = 3*, ``det_blocks_attributes=["channel"]``
 
-::
-
-                    Detector axis --->
-                      Two blocks --->
-        +------------------+   +------------------+
-        | Rank 0           |   | Rank 1           |
-        +------------------+   +------------------+
-        | channel1_w9_detA |   | channel2_w4_detA |
-  T     +                  +   +                  +
-  i  O  | channel1_w3_detB |   | channel2_w4_detB |
-  m  n  +                  +   +------------------+
-  e  e  | channel1_w1_detC |
-        +                  +
-  a  b  | channel1_w1_detD |
-  x  l  +------------------+
-  i  o  
-  s  c  ...........................................
-     k
-  |  |  +------------------+
-  |  |  | Rank 2           |
-  ⋎  ⋎  +------------------+
-        | (Unused)         |
-        +------------------+
+.. image:: ./images/detector_groups_case1.png
 
 **Case 2**
 
-*Size of MPI communicator = 4*, ``det_blocks_attributes=["channel"]``
+*Size of global MPI communicator = 4*, ``det_blocks_attributes=["channel"]``
 
-::
-
-                    Detector axis --->
-                      Two blocks --->
-        +------------------+   +------------------+
-        | Rank 0           |   | Rank 2           |
-        +------------------+   +------------------+
-        | channel1_w9_detA |   | channel2_w4_detA |
-        +                  +   +                  +
-        | channel1_w3_detB |   | channel2_w4_detB |
-  T     +                  +   +------------------+
-  i  T  | channel1_w1_detC |
-  m  w  +                  +
-  e  o  | channel1_w1_detD |
-        +------------------+
-  a  b
-  x  l  ...........................................
-  i  o
-  s  c  +------------------+   +------------------+
-     k  | Rank 1           |   | Rank 3           |
-  |  |  +------------------+   +------------------+
-  |  |  | channel1_w9_detA |   | channel2_w4_detA |
-  ⋎  ⋎  +                  +   +                  +
-        | channel1_w3_detB |   | channel2_w4_detB |
-        +                  +   +------------------+
-        | channel1_w1_detC |
-        +                  +
-        | channel1_w1_detD |
-        +------------------+
+.. image:: ./images/detector_groups_case2.png
 
 **Case 3**
 
-*Size of MPI communicator = 10*, ``det_blocks_attributes=["channel", "wafer"]``
+*Size of global MPI communicator = 10*, ``det_blocks_attributes=["channel", "wafer"]``
 
-::
-
-                                            Detector axis --->
-                                             Four blocks --->
-        +------------------+   +------------------+   +------------------+   +------------------+
-        | Rank 0           |   | Rank 2           |   | Rank 4           |   | Rank 6           |
-        +------------------+   +------------------+   +------------------+   +------------------+
-  T     | channel1_w1_detC |   | channel2_w4_detA |   | channel1_w9_detA |   | channel1_w3_detB |
-  i  T  +                  +   +                  +   +------------------+   +------------------+
-  m  w  | channel1_w1_detD |   | channel2_w4_detB |
-  e  o  +------------------+   +------------------+   
-        
-        .........................................................................................
-
-  a  b  +------------------+   +------------------+   +------------------+   +------------------+
-  x  l  | Rank 1           |   | Rank 3           |   | Rank 5           |   | Rank 7           |
-  i  o  +------------------+   +------------------+   +------------------+   +------------------+
-  s  c  | channel1_w1_detC |   | channel2_w4_detA |   | channel1_w9_detA |   | channel1_w3_detB |
-     k  +                  +   +                  +   +------------------+   +------------------+
-  |  |  | channel1_w1_detD |   | channel2_w4_detB |
-  |  |  +------------------+   +------------------+
-  ⋎  ⋎
-        .........................................................................................
-
-        +------------------+   +------------------+
-        | Rank 8           |   | Rank 9           |
-        +------------------+   +------------------+
-        | (Unused)         |   | (Unused)         |
-        +------------------+   +------------------+
+.. image:: ./images/detector_groups_case3.png
 
 .. note::
   When ``n_blocks_det != 1``,  keep in mind that ``obs.tod[0]`` or
@@ -381,6 +304,84 @@ detectors axis and time axis is divided depending on the size of MPI communicato
   which detectors and time spans are covered by each observation in all the
   MPI processes that are being used. For more information, refer to the Section
   :ref:`simulations`.
+
+MPI communicators
+^^^^^^^^^^^^^^^^^
+
+The simulation framework exposes MPI communicators at different
+levels. The first one is the global MPI communicator. It can be
+accessed with a global variable :data:`.MPI_COMM_WORLD`, and it is
+same as ``mpi4py.MPI.COMM_WORLD``. It contains all the MPI processes
+used by the script. The other MPI communicators defined in the
+simulation framework are the partitions of global MPI communicator and
+they contain the MPI processes that have certain properties as we
+explain below. For all the examples in this sub-section, we consider
+the distribution of TODs across 10 MPI processes with ``n_blocks_time = 2``
+and ``n_blocks_det = 4``.
+
+To distribute the TODs across
+``n_blocks_det`` :math:`\times` ``n_blocks_time`` :math:`=\, N`
+MPI ranks, it is necessary that the script is executed with at least
+:math:`N` MPI processes. There is, however, no upper limit on the
+number of MPI processes to be used. When the number of MPI processes
+is higher than :math:`N`, it leaves all the MPI processes with
+``rank`` :math:`\geq N` with no detector (and TOD). In many cases, it
+is useful to identify the unused ranks so that they can be avoided
+while performing some computations. The :class:`.Observation` class
+makes this happen by making a sub-communicator containing only the
+processes that contain a non-zero number of detectors (and TODs).
+
+However, once the detectors and TODs are distributed across several
+processes, it is not trivial to find out all the ranks that contain
+the TOD chunks of a given detector (or detector block). Likewise, it
+is hard to find all the ranks that contain the TOD chunks
+corresponding to the same time interval. To solve this issue, :class:`.Observation`
+class provides the MPI sub-communicators corresponding to different
+groups of MPI processes.
+
+The three sub-communicators provided by the framework - each generated
+by splitting the global MPI communicator - are listed below. The
+process ranks in the sub-communicators are based on the order of their
+global ranks:
+
+- **Grid communicator**: Once the number of detector blocks and the
+  number of time blocks are available, the Observation class splits the
+  global communicator into a grid communicator and a null communicator.
+  Grid communicator consist all the mpi processes whose rank is less
+  than :math:`N`. The null communicator contains all other MPI
+  processes. On the MPI processes with global rank less than
+  :math:`N`, the global variable ``MPI_COMM_GRID.COMM_OBS_GRID``
+  points to the grid communicator. On other MPI processes, it points
+  to the null MPI communicator (``MPI_COMM_GRID.COMM_NULL`` which is
+  same as ``mpi4py.MPI.COMM_NULL``). In the example below, the
+  processes with global rank from 0 to 7 belong to the grid
+  sub-communicator. Since the processes with rank 8 and 9 are unused,
+  they are excluded from the grid communicator.
+
+  .. image:: ./images/grid_communicator.png
+
+- **Detector-block communicator**: The detector-block communicator is
+  made by splitting the grid communicator into ``n_blocks_det``
+  sub-communicators, such that each sub-communicator contains the
+  processes where TODs of the same set of detectors reside. This
+  sub-communicator can be accessed with ``comm_det_blocks`` attribute
+  of the :class:`.Observation` class. In the following example, the
+  grid communicator is split into 4 detector-block communicators
+  containing the processes with global rank 0-1, 2-3, 4-5, and 6-7
+  respectively.
+
+  .. image:: ./images/detector_block_communicator.png
+
+- **Time-block communicator**: The time-block communicator is made by
+  splitting the grid communicator into ``n_blocks_time``
+  sub-communicators, such that each sub-communicator contains the
+  processes where TOD chunks of same time interval reside. This
+  sub-communicator can be accessed with ``comm_time_block`` attribute
+  of the :class:`.Observation` class. In the example below, the grid
+  communicator is split into 2 time-block communicators containing the
+  processes with global rank 0-2-4-6 and 1-3-5-7 respectively.
+
+  .. image:: ./images/time_block_communicator.png
 
 Other notable functionalities
 -----------------------------
