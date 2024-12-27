@@ -959,24 +959,25 @@ class HwpSys:
                 }
 
                 for attr, default_value in default_attrs.items():
-                    if not hasattr(self, attr):
+                    if not paramdict.get(attr):
                         setattr(self, attr, default_value)
                 self.beta = np.deg2rad(self.beta)
+                
             else:  # mueller_or_jones == "mueller":
                 default_attrs = {
-                    "mII": 0.0,
+                    "mII": 1.0,
                     "mQI": 0.0,
                     "mUI": 0.0,
                     "mIQ": 0.0,
                     "mIU": 0.0,
-                    "mQQ": 0.0,
-                    "mUU": 0.0,
+                    "mQQ": 1.0,
+                    "mUU": -1.0,
                     "mUQ": 0.0,
                     "mQU": 0.0,
                 }
 
                 for attr, default_value in default_attrs.items():
-                    if not hasattr(self, attr):
+                    if not paramdict.get(attr):
                         setattr(self, attr, default_value)
 
             if np.any(maps) is None:
@@ -1067,26 +1068,27 @@ class HwpSys:
                         "z2s": 0.0,
                     }
 
-                for attr, default_value in default_attrs.items():
-                    if not hasattr(self, attr):
-                        setattr(self, attr, default_value)
+                    for attr, default_value in default_attrs.items():
+                        if not paramdict.get(attr):
+                            setattr(self, attr, default_value)
                     self.betas = np.deg2rad(self.betas)
+                        
                 else:  # mueller_or_jones == "mueller":
                     default_attrs = {
-                        "mIIs": 0.0,
+                        "mIIs": 1.0,
                         "mQIs": 0.0,
                         "mUIs": 0.0,
                         "mIQs": 0.0,
                         "mIUs": 0.0,
-                        "mQQs": 0.0,
-                        "mUUs": 0.0,
+                        "mQQs": 1.0,
+                        "mUUs": -1.0,
                         "mUQs": 0.0,
                         "mQUs": 0.0,
                     }
 
-                for attr, default_value in default_attrs.items():
-                    if not hasattr(self, attr):
-                        setattr(self, attr, default_value)
+                    for attr, default_value in default_attrs.items():
+                        if not paramdict.get(attr):
+                            setattr(self, attr, default_value)
 
         # conversion from Jones to Mueller
         if mueller_or_jones == "jones":
