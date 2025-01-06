@@ -925,12 +925,12 @@ class Observation:
         sub-communicator is NULL.
 
         2. A sub-communicator for each block of detectors, that contains all the
-        processes corresponding to that detector block. If a process doesn't
-        contain a detector, the sub-communicator is NULL.
+        processes corresponding to that detector block. This sub-communicator
+        is an attribute of the :class:`.Observation` class.
 
         3. A sub-communicator for each block of time that contains all the processes
-        corresponding to that time block. If a process doesn't contain a detector,
-        the sub-communicator is NULL.
+        corresponding to that time block.  This sub-communicator
+        is an attribute of the :class:`.Observation` class.
         """
 
         # Set the detector and time block sub-communicators to

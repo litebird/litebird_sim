@@ -360,6 +360,18 @@ global ranks:
 
   .. image:: ./images/grid_communicator.png
 
+  Note that, to exclude the MPI processes belonging to the null
+  communicator from the computations, one should enclose the
+  computations under an if condition comparing
+  ``MPI_COMM_GRID.COMM_OBS_GRID`` against ``MPI_COMM_GRID.COMM_NULL``:
+
+  ::
+    
+    if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
+        # proceed with the following computations when 
+        # MPI_COMM_GRID.COMM_OBS_GRID is not null
+        ...
+
 - **Detector-block communicator**: The detector-block communicator is
   made by splitting the grid communicator into ``n_blocks_det``
   sub-communicators, such that each sub-communicator contains the
