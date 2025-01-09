@@ -166,9 +166,11 @@ def test_construction_from_detectors():
         assert obs.wafer is None
         assert obs.pixel is None
         assert obs.pixtype is None
-        assert obs.ellipticity is None
         assert obs.quat is None
-        assert obs.alpha is None
+        # On the processes, that does not own any detector (and TOD), the numerical
+        # attributes of `DetectorInfo()` are assigned to zero
+        assert obs.ellipticity == 0
+        assert obs.alpha == 0
 
     obs.set_n_blocks(n_blocks_time=1, n_blocks_det=1)
     if comm_world.rank == 0:
@@ -216,7 +218,7 @@ def test_observation_tod_two_block_time():
             comm=comm_world,
         )
     except ValueError:
-        # Not enough processes to split the TOD, constuctor expected to rise
+        # Not enough processes to split the TOD, constructor expected to rise
         if comm_world.size < 2:
             return
 
@@ -240,7 +242,7 @@ def test_observation_tod_two_block_det():
             comm=comm_world,
         )
     except ValueError:
-        # Not enough processes to split the TOD, constuctor expected to rise
+        # Not enough processes to split the TOD, constructor expected to rise
         if comm_world.size < 2:
             return
 
@@ -264,7 +266,7 @@ def test_observation_tod_set_blocks():
             comm=comm_world,
         )
     except ValueError:
-        # Not enough processes to split the TOD, constuctor expected to rise
+        # Not enough processes to split the TOD, constructor expected to rise
         if comm_world.size < 2:
             return
 
@@ -501,7 +503,7 @@ def test_simulation_random():
         assert state3["state"]["state"] != state4["state"]["state"]
 
 
-def main():
+if __name__ == "__main__":
     test_observation_time()
     test_construction_from_detectors()
     test_observation_tod_single_block()
@@ -534,6 +536,3 @@ def main():
 
         if tmp_dir:
             tmp_dir.cleanup()
-
-
-main()
