@@ -68,6 +68,7 @@ scipy = "^1.11.3"
 ruff = "^0.1.7"
 libinsdb = "^0.7.4"
 pydata-sphinx-theme = "^0.16.0"
+poetry-plugin-export = "^1.8.0"
 
 [tool.poetry.extras]
 mpi = ["mpi4py"]
