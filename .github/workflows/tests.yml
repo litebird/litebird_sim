@@ -30,7 +30,7 @@ jobs:
       # store it
       - name: Cache PySM3 data files
         id: cache-pysm3
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/pysm3-data
           key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}
@@ -48,7 +48,7 @@ jobs:
       - name: Install basic dependencies (MPI, FFTW, poetry, IMO)
         run: |
           ./bin/install-deps.sh ${{ matrix.mpi }}
-          pip install poetry
+          pip install poetry==1.8.5
           mkdir -p $HOME/.config/litebird_imo
           echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
