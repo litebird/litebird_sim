@@ -189,11 +189,13 @@ class MbsParameters:
       in ecliptic coordinates using the `healpy` routine `rotate_map_alms`
 
     - ``store_alms`` (default: ``False``): when ``True`` the maps contained
-      in the dictionary returned by `Mbs.run_all` are stored as `alms`
-      computed by the `healpy` routine `map2alm` assuming `iter=0`
-      If you want unbeamed alms set gaussian_smooth = False
+      in the dictionary returned by `Mbs.run_all` are stored as objects
+      of type :class:`.SphericalHarmonics`, i.e., they contain the a_ℓm
+      coefficients of the spherical harmonic expansion of the maps.
+      The coefficients are computed through the Healpy routine `map2alm`,
+      assuming `iter=0`. If you want unbeamed alms set ``gaussian_smooth=False``.
 
-    - ``lmax_alms`` (defuaul: ``4 x nside``): lmax assumed in the alm computation
+    - ``lmax_alms`` (defuaul: ``4 x nside``): ℓ_max assumed in the a_ℓm computation
       and in the rotation to ecliptic coordinates performed by `rotate_map_alms`
 
     """
@@ -1001,7 +1003,17 @@ class Mbs:
                         )
                     if self.params.store_alms:
                         alms = hp.map2alm(tot[nch], lmax=self.params.lmax_alms, iter=0)
-                        tot_dict[chnl] = alms
+                        if not isinstance(tuple, alms):
+                            alms = (alms,)
+
+                        tot_dict[chnl] = (
+                            lbs.SphericalHarmonics(
+                                values=x,
+                                l_max=self.params.lmax_alms,
+                                m_max=self.params.lmax_alms,
+                            )
+                            for x in alms
+                        )
                     else:
                         tot_dict[chnl] = tot[nch]
                 if self.params.maps_in_ecliptic:

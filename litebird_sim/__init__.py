@@ -18,7 +18,6 @@ from .beam_convolution import (
     add_convolved_sky_to_observations,
     BeamConvolutionParameters,
 )
-from .mueller_convolver import MuellerConvolver
 from .beam_synthesis import (
     alm_index,
     alm_size,
@@ -84,6 +83,7 @@ from .io import (
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
+from .mueller_convolver import MuellerConvolver
 from .noise import (
     add_white_noise,
     add_one_over_f_noise,
@@ -156,6 +156,9 @@ from .spacecraft import (
     spacecraft_pos_and_vel,
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
+)
+from .spherical_harmonics import (
+    SphericalHarmonics,
 )
 from .version import __author__, __version__
 
@@ -342,4 +345,6 @@ __all__ = [
     "FocalplaneCoord",
     "SpacecraftCoord",
     "PointingSys",
+    # spherical_harmonics.py
+    "SphericalHarmonics",
 ]
