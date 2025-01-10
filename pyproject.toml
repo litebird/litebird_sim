@@ -77,6 +77,9 @@ jupyter = ["jupyter"]
 [tool.ruff]
 lint.extend-select = []
 
+[tool.ruff.lint.per-file-ignores]
+"*.ipynb" = ["E402"]
+
 [build-system]
 requires = ["poetry_core>=1.0"]
 build-backend = "poetry.core.masonry.api"
