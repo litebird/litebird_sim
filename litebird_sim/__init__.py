@@ -20,7 +20,6 @@ from .beam_convolution import (
 )
 from .beam_synthesis import (
     alm_index,
-    alm_size,
     allocate_alm,
     gauss_beam_to_alm,
 )
@@ -189,7 +188,6 @@ __all__ = [
     "BeamConvolutionParameters",
     # beam_synthesis.py
     "alm_index",
-    "alm_size",
     "allocate_alm",
     "gauss_beam_to_alm",
     # compress.py

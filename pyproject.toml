@@ -75,7 +75,7 @@ mpi = ["mpi4py"]
 jupyter = ["jupyter"]
 
 [tool.ruff]
-extend-select = []
+lint.extend-select = []
 
 [build-system]
 requires = ["poetry_core>=1.0"]

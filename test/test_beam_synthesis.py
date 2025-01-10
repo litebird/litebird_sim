@@ -20,6 +20,11 @@ def test_gaussbeam_circular():
         psi_pol_rad=0.3,
         cross_polar_leakage=1e-9,
     )
+
+    assert alm.values.shape == (3, 20)
+    assert alm.lmax == lmax
+    assert alm.mmax == mmax
+
     expected_alm = np.zeros((3, 20), dtype=np.complex128)
     expected_alm[0, alm_index(lmax, 0, 0)] = 0.14104738845624820
     expected_alm[0, alm_index(lmax, 1, 0)] = 0.23885579431100701
@@ -52,7 +57,11 @@ def test_gaussbeam_circular():
         -7.5172173128476391e-2 - 0.10987885868853610j
     )
 
-    np.testing.assert_allclose(alm, expected_alm)
+    # We avoid implementing a `for` loop here so if anything fails we see
+    # immediately which is the culprit
+    np.testing.assert_allclose(alm.values[0, :], expected_alm[0, :])
+    np.testing.assert_allclose(alm.values[1, :], expected_alm[1, :])
+    np.testing.assert_allclose(alm.values[2, :], expected_alm[2, :])
 
 
 def test_gaussbeam_elliptical():
@@ -70,6 +79,11 @@ def test_gaussbeam_elliptical():
         psi_pol_rad=0.3,
         cross_polar_leakage=1e-9,
     )
+
+    assert alm.values.shape == (3, 20)
+    assert alm.lmax == lmax
+    assert alm.mmax == mmax
+
     expected_alm = np.zeros((3, 20), dtype=np.complex128)
     expected_alm[0, alm_index(lmax, 0, 0)] = 0.14104738845624820
     expected_alm[0, alm_index(lmax, 1, 0)] = 0.23471087240802022
@@ -140,4 +154,8 @@ def test_gaussbeam_elliptical():
         -1.3853572270340774e-2 - 1.3301164946881163e-2j
     )
 
-    np.testing.assert_allclose(alm, expected_alm)
+    # We avoid implementing a `for` loop here so if anything fails we see
+    # immediately which is the culprit
+    np.testing.assert_allclose(alm.values[0, :], expected_alm[0, :])
+    np.testing.assert_allclose(alm.values[1, :], expected_alm[1, :])
+    np.testing.assert_allclose(alm.values[2, :], expected_alm[2, :])

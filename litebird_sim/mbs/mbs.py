@@ -1009,8 +1009,8 @@ class Mbs:
                         tot_dict[chnl] = (
                             lbs.SphericalHarmonics(
                                 values=x,
-                                l_max=self.params.lmax_alms,
-                                m_max=self.params.lmax_alms,
+                                lmax=self.params.lmax_alms,
+                                mmax=self.params.lmax_alms,
                             )
                             for x in alms
                         )

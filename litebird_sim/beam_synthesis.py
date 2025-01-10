@@ -3,23 +3,10 @@
 from typing import Optional
 
 import numpy as np
-import numpy.typing as npt
 from numpy import sqrt, exp, sin, cos, log
 from scipy.special import iv as bessel_i
 
-
-def alm_size(lmax: int, mmax: Optional[int] = None) -> int:
-    """Given a value for ℓ_max and m_max, return the size of the array a_ℓm
-
-    If `mmax` is not provided, it is set equal to `lmax`
-    """
-    if mmax is None:
-        mmax = lmax
-    else:
-        assert mmax >= 0
-        assert mmax <= lmax
-
-    return mmax * (2 * lmax + 1 - mmax) // 2 + lmax + 1
+from .spherical_harmonics import SphericalHarmonics
 
 
 def alm_index(lmax: int, ell: int, m: int) -> int:
@@ -30,7 +17,7 @@ def alm_index(lmax: int, ell: int, m: int) -> int:
 
 def allocate_alm(
     lmax: int, mmax: Optional[int] = None, nstokes: int = 3, dtype=np.complex128
-) -> npt.NDArray:
+) -> SphericalHarmonics:
     """
     Allocate a NumPy array that will hold a set of a_ℓm coefficients
 
@@ -40,8 +27,12 @@ def allocate_alm(
     :param dtype: The data type. It should be a complex type.
     :return: A newly-allocate NumPy array
     """
-    nalm = alm_size(lmax, mmax)
-    return np.zeros((nstokes, nalm), dtype=dtype)
+    nalm = SphericalHarmonics.num_of_alm_coefficients(lmax, mmax)
+    return SphericalHarmonics(
+        values=np.zeros((nstokes, nalm), dtype=dtype),
+        lmax=lmax,
+        mmax=mmax if mmax else lmax,
+    )
 
 
 def gauss_beam_to_alm(
@@ -52,8 +43,7 @@ def gauss_beam_to_alm(
     psi_ell_rad: float,
     psi_pol_rad: float,
     cross_polar_leakage: float,
-    alm: Optional[npt.NDArray] = None,
-) -> npt.NDArray:
+) -> SphericalHarmonics:
     """
     Return an array of spherical harmonics a_ℓm that represents a Gaussian beam
 
@@ -66,16 +56,12 @@ def gauss_beam_to_alm(
       respect to the x-axis
     :param psi_pol_rad: The polarization of the beam with respect to the x-axis
     :param cross_polar_leakage: The cross-polar leakage (pure number)
-    :param alm: If provided, it is the buffer that will contain the a_ℓm coefficients.
-      It should be a NumPy 1D array of complex values allocated using
-      :ref:`.allocate_alm`.
     :return:
       The array containing the a_ℓm values. If the `alm` parameter was not ``None``,
       this is the array that is returned.
     """
 
-    if alm is None:
-        alm = allocate_alm(lmax, mmax)
+    alm = allocate_alm(lmax, mmax, nstokes=3)
 
     if fwhm_max_rad is None:
         fwhm_rad = fwhm_min_rad
@@ -86,23 +72,16 @@ def gauss_beam_to_alm(
         ellipticity = fwhm_max_rad / fwhm_min_rad
         is_elliptical = ellipticity != 1.0
 
-    assert (
-        len(alm.shape) == 2
-    ), "The a_ℓm array should be a 2D array with size (N_STOKES, SIZE)"
-    assert (
-        alm_size(lmax, mmax) == alm.shape[1]
-    ), f"Wrong size of the a_ℓm array ({alm.shape})"
-
-    num_stokes = alm.shape[0]
+    num_stokes = alm.nstokes
     is_polarized = not np.isnan(psi_pol_rad)
 
     if not is_elliptical:
         # Circular beam
         sigma_squared = fwhm_rad**2 / (8 * log(2))
         for ell in range(lmax + 1):
-            alm[0, alm_index(lmax, ell, 0)] = sqrt((2 * ell + 1) / (4 * np.pi)) * exp(
-                -0.5 * sigma_squared * ell**2
-            )
+            alm.values[0, alm_index(lmax, ell, 0)] = sqrt(
+                (2 * ell + 1) / (4 * np.pi)
+            ) * exp(-0.5 * sigma_squared * ell**2)
 
         if num_stokes > 1 and is_polarized:
             f1 = cos(2 * psi_pol_rad) - sin(2 * psi_pol_rad) * 1.0j
@@ -112,8 +91,8 @@ def gauss_beam_to_alm(
                     * exp(-sigma_squared * ell**2 / 2)
                     * f1
                 )
-                alm[1, alm_index(lmax, ell, 2)] = value
-                alm[2, alm_index(lmax, ell, 2)] = value * 1.0j
+                alm.values[1, alm_index(lmax, ell, 2)] = value
+                alm.values[2, alm_index(lmax, ell, 2)] = value * 1.0j
     else:
         # Elliptical beam
         e_squared = 1.0 - 1.0 / ellipticity**2
@@ -123,7 +102,7 @@ def gauss_beam_to_alm(
         for ell in range(lmax + 1):
             tmp = ell**2 * sigma_x_squared
             for m in range(0, min(ell, mmax) + 1, 2):
-                alm[0, alm_index(lmax, ell, m)] = (
+                alm.values[0, alm_index(lmax, ell, m)] = (
                     np.sqrt((2 * ell + 1) / (4 * np.pi))
                     * exp(-0.5 * tmp * (1.0 - e_squared / 2))
                     * bessel_i(m // 2, 0.25 * tmp * e_squared)
@@ -147,8 +126,8 @@ def gauss_beam_to_alm(
                     * bessel_i(1, tmp2)
                 )
 
-                alm[1, alm_index(lmax, ell, 0)] = value * cos(2 * rho)
-                alm[2, alm_index(lmax, ell, 0)] = value * sin(2 * rho)
+                alm.values[1, alm_index(lmax, ell, 0)] = value * cos(2 * rho)
+                alm.values[2, alm_index(lmax, ell, 0)] = value * sin(2 * rho)
 
                 # m = 2, 4, …
 
@@ -158,8 +137,8 @@ def gauss_beam_to_alm(
                     )
                     b1 = f1 * bessel_i((m - 2) // 2, tmp2)
                     b2 = f2 * bessel_i((m + 2) // 2, tmp2)
-                    alm[1, alm_index(lmax, ell, m)] = value * (b1 + b2)
-                    alm[2, alm_index(lmax, ell, m)] = value * (b1 - b2) * 1j
+                    alm.values[1, alm_index(lmax, ell, m)] = value * (b1 + b2)
+                    alm.values[2, alm_index(lmax, ell, m)] = value * (b1 - b2) * 1j
 
         # Rotate the multipoles through angle psi_ell about the z-axis, so
         # the beam is in the right orientation (only need this for even m).
@@ -168,18 +147,18 @@ def gauss_beam_to_alm(
             f1 = cos(m * psi_ell_rad) - sin(m * psi_ell_rad) * 1j
             for n in range(num_stokes):
                 for ell in range(m, lmax + 1):
-                    alm[n, alm_index(lmax, ell, m)] *= f1
+                    alm.values[n, alm_index(lmax, ell, m)] *= f1
 
     # Adjust multipoles for cross-polar leakage
-    alm[0, :] *= (1.0 + cross_polar_leakage) / 2
+    alm.values[0, :] *= (1.0 + cross_polar_leakage) / 2
 
     if num_stokes > 1:
         for n in (1, 2):
-            alm[n, :] *= (1.0 - cross_polar_leakage) / 2
+            alm.values[n, :] *= (1.0 - cross_polar_leakage) / 2
 
     # Adjust the normalization
     if num_stokes > 1:
         for n in (1, 2):
-            alm[n, :] *= -sqrt(2.0)
+            alm.values[n, :] *= -sqrt(2.0)
 
     return alm
