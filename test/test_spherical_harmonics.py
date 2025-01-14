@@ -7,8 +7,8 @@ from litebird_sim import SphericalHarmonics
 
 
 def test_num_of_alm_coefficients():
-    assert SphericalHarmonics.num_of_alm_coefficients(lmax=4) == 15
-    assert SphericalHarmonics.num_of_alm_coefficients(lmax=4, mmax=3) == 14
+    assert SphericalHarmonics.num_of_alm_from_lmax(lmax=4) == 15
+    assert SphericalHarmonics.num_of_alm_from_lmax(lmax=4, mmax=3) == 14
 
 
 def test_alm_array_size():

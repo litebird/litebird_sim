@@ -28,13 +28,21 @@ class SphericalHarmonics:
         if not self.mmax:
             self.mmax = self.lmax
 
+        if isinstance(self.values, tuple):
+            # self.values is most likely the result of a call to healpy.map2alm
+            # with pol=True, thus it is a 3-tuple containing three NumPy arrays
+            self.values = np.array([self.values[i] for i in range(len(self.values))])
+
         if len(self.values.shape) == 1:
-            np.reshape(self.values, (1, -1))
+            self.values = np.reshape(self.values, (1, len(self.values)))
 
         self.nstokes = self.values.shape[0]
         if self.nstokes != 1 and self.nstokes != 3:
             raise ValueError(
-                "The number of Stokes parameters in SphericalHarmonics should be 1 or 3"
+                (
+                    "The number of Stokes parameters in "
+                    "SphericalHarmonics should be 1 or 3 instead of {}."
+                ).format(self.nstokes)
             )
 
         expected_shape = SphericalHarmonics.alm_array_size(
@@ -48,8 +56,13 @@ class SphericalHarmonics:
                 ).format(actual=self.values.shape, expected=expected_shape)
             )
 
+    @property
+    def num_of_alm_per_stokes(self):
+        """Number of a_ℓm coefficients per each Stokes component"""
+        return self.values.shape[1]
+
     @staticmethod
-    def num_of_alm_coefficients(lmax: int, mmax: Optional[int] = None) -> int:
+    def num_of_alm_from_lmax(lmax: int, mmax: Optional[int] = None) -> int:
         """Given a value for ℓ_max and m_max, return the size of the array a_ℓm
 
         If `mmax` is not provided, it is set equal to `lmax`
@@ -66,4 +79,4 @@ class SphericalHarmonics:
     def alm_array_size(
         lmax: int, mmax: Optional[int] = None, nstokes: int = 3
     ) -> tuple[int, int]:
-        return nstokes, SphericalHarmonics.num_of_alm_coefficients(lmax, mmax)
+        return nstokes, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)

@@ -27,7 +27,7 @@ def allocate_alm(
     :param dtype: The data type. It should be a complex type.
     :return: A newly-allocate NumPy array
     """
-    nalm = SphericalHarmonics.num_of_alm_coefficients(lmax, mmax)
+    nalm = SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)
     return SphericalHarmonics(
         values=np.zeros((nstokes, nalm), dtype=dtype),
         lmax=lmax,
