@@ -4,14 +4,16 @@ import logging
 from dataclasses import dataclass
 from typing import Union, List, Dict, Optional
 
-from ducc0.totalconvolve import Interpolator, Interpolator_f
 import numpy as np
+import numpy.typing as npt
+from ducc0.totalconvolve import Interpolator, Interpolator_f
 
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 from .hwp import HWP
 from .mueller_convolver import MuellerConvolver
 from .observations import Observation
 from .pointings import get_hwp_angle
+from .spherical_harmonics import SphericalHarmonics
 
 
 @dataclass
@@ -35,8 +37,8 @@ class BeamConvolutionParameters:
 
 def add_convolved_sky_to_one_detector(
     tod_det,
-    sky_alms_det,
-    beam_alms_det,
+    sky_alms_det: SphericalHarmonics,
+    beam_alms_det: SphericalHarmonics,
     mueller_matrix,
     pointings_det,
     hwp_angle,
@@ -46,15 +48,8 @@ def add_convolved_sky_to_one_detector(
     """ """
 
     if not convolution_params:
-        if sky_alms_det.ndim == 2:
-            sky_lamx = len(sky_alms_det[0])
-        else:
-            sky_lamx = len(sky_alms_det)
-
-        if beam_alms_det.ndim == 2:
-            beam_lamx = len(beam_alms_det[0])
-        else:
-            beam_lamx = len(beam_alms_det)
+        sky_lamx = sky_alms_det.num_of_alm_per_stokes
+        beam_lamx = beam_alms_det.num_of_alm_per_stokes
 
         default_lmax = min(sky_lamx, beam_lamx)
         default_kmax = default_lmax - 4
@@ -82,8 +77,8 @@ def add_convolved_sky_to_one_detector(
             _ctype = np.complex128
             intertype = Interpolator
 
-        _slm = sky_alms_det.astype(_ctype)
-        _blm = beam_alms_det.astype(_ctype)
+        _slm = sky_alms_det.values.astype(_ctype)
+        _blm = beam_alms_det.values.astype(_ctype)
 
         inter = intertype(
             sky=_slm,
@@ -113,9 +108,9 @@ def add_convolved_sky(
     tod,
     pointings,
     hwp_angle,
-    sky_alms: Dict[str, np.ndarray],
+    sky_alms: Dict[str, SphericalHarmonics],
     input_sky_names,
-    beam_alms: Dict[str, np.ndarray],
+    beam_alms: Dict[str, SphericalHarmonics],
     input_beam_names,
     convolution_params: Optional[BeamConvolutionParameters] = None,
     input_sky_alms_in_galactic: bool = True,
@@ -165,9 +160,13 @@ def add_convolved_sky(
 
 def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
-    sky_alms: Dict[str, np.ndarray],  # at some point optional, taken from the obs
-    beam_alms: Dict[str, np.ndarray],  # at some point optional, taken from the obs
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    sky_alms: Dict[
+        str, SphericalHarmonics
+    ],  # at some point optional, taken from the obs
+    beam_alms: Dict[
+        str, SphericalHarmonics
+    ],  # at some point optional, taken from the obs
+    pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None,
     hwp: Optional[HWP] = None,
     input_sky_alms_in_galactic: bool = True,
     convolution_params: Optional[BeamConvolutionParameters] = None,
@@ -182,11 +181,11 @@ def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
         List of Observation objects, containing detector names, pointings,
         and TOD data, to which the computed TOD are added.
-    sky_alms: Dict[str, np.ndarray]
+    sky_alms: Dict[str, SphericalHarmonics]
         sky a_lm. Typically only one set of sky a_lm is needed per detector frequency
-    beam_alms: Dict[str, np.ndarray]
+    beam_alms: Dict[str, SphericalHarmonics]
         beam a_lm. Usually one set of a_lm is needed for every detector.
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None
+    pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
         detector pointing information
     hwp: Optional[HWP] = None
         the HWP information. If `None`, we assume traditional 4pi convolution.
@@ -242,6 +241,8 @@ def add_convolved_sky_to_observations(
             ptg_list = pointings
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+        # TODO: catch the condition where the a_ℓm are stored in a
+        #  SphericalHarmonics instance
         if isinstance(sky_alms, dict):
             if all(item in sky_alms.keys() for item in cur_obs.name):
                 input_sky_names = cur_obs.name
@@ -264,11 +265,13 @@ def add_convolved_sky_to_observations(
                 input_sky_alms_in_galactic = dict_input_sky_alms_in_galactic
         else:
             assert isinstance(sky_alms, np.ndarray), (
-                "sky_alms must be either a dictionary contaning the keys for all the"
-                + "channels/detectors or a 3×N_ℓm NumPy array"
+                "sky_alms must be either a dictionary contaning the keys for all the "
+                "channels/detectors or a 3×N_ℓm NumPy array"
             )
             input_sky_names = None
 
+        # TODO: catch the condition where the b_ℓm are stored in a
+        #  SphericalHarmonics instance
         if isinstance(beam_alms, dict):
             if all(item in beam_alms.keys() for item in cur_obs.name):
                 input_beam_names = cur_obs.name
