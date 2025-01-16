@@ -56,6 +56,7 @@ from .beam_convolution import (
     add_convolved_sky_to_observations,
     BeamConvolutionParameters,
 )
+from .spherical_harmonics import SphericalHarmonics
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .version import (
