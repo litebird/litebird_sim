@@ -36,7 +36,7 @@ def scan_map(
     tod,
     pointings,
     hwp_angle,
-    maps: Dict[str, np.ndarray],
+    maps: Union[np.ndarray, Dict[str, np.ndarray]],
     input_names,
     input_map_in_galactic: bool = True,
     interpolation: Union[str, None] = "",
@@ -114,7 +114,7 @@ def scan_map(
 
 def scan_map_in_observations(
     observations: Union[Observation, List[Observation]],
-    maps: Dict[str, np.ndarray],
+    maps: Union[np.ndarray, Dict[str, np.ndarray]],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     hwp: Optional[HWP] = None,
     input_map_in_galactic: bool = True,

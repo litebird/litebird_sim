@@ -1378,7 +1378,7 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: Dict[str, np.ndarray],
+        maps: Union[np.ndarray, Dict[str, np.ndarray]],
         input_map_in_galactic: bool = True,
         component: str = "tod",
         interpolation: Union[str, None] = "",
@@ -1431,8 +1431,8 @@ class Simulation:
     @_profile
     def convolve_sky(
         self,
-        sky_alms: Dict[str, np.ndarray],
-        beam_alms: Dict[str, np.ndarray],
+        sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
+        beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
         input_sky_alms_in_galactic: bool = True,
         convolution_params: Optional[BeamConvolutionParameters] = None,
         component: str = "tod",

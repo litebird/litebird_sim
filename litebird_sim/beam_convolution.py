@@ -137,9 +137,9 @@ def add_convolved_sky(
     tod,
     pointings,
     hwp_angle,
-    sky_alms: Dict[str, SphericalHarmonics],
+    sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
     input_sky_names,
-    beam_alms: Dict[str, SphericalHarmonics],
+    beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
     input_beam_names,
     convolution_params: Optional[BeamConvolutionParameters] = None,
     input_sky_alms_in_galactic: bool = True,
@@ -148,7 +148,7 @@ def add_convolved_sky(
     """ """
 
     # just filled
-    mueller = np.identity(4)
+    mueller = np.diag([1, 1, -1, -1])
 
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
@@ -189,11 +189,11 @@ def add_convolved_sky(
 
 def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
-    sky_alms: Dict[
-        str, SphericalHarmonics
+    sky_alms: Union[
+        SphericalHarmonics, Dict[str, SphericalHarmonics]
     ],  # at some point optional, taken from the obs
-    beam_alms: Dict[
-        str, SphericalHarmonics
+    beam_alms: Union[
+        SphericalHarmonics, Dict[str, SphericalHarmonics]
     ],  # at some point optional, taken from the obs
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None,
     hwp: Optional[HWP] = None,
@@ -210,9 +210,9 @@ def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
         List of Observation objects, containing detector names, pointings,
         and TOD data, to which the computed TOD are added.
-    sky_alms: Dict[str, SphericalHarmonics]
+    sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
         sky a_lm. Typically only one set of sky a_lm is needed per detector frequency
-    beam_alms: Dict[str, SphericalHarmonics]
+    beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
         beam a_lm. Usually one set of a_lm is needed for every detector.
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
         detector pointing information
