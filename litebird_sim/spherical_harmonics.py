@@ -85,8 +85,15 @@ class SphericalHarmonics:
         self,
         lmax_out: int,
         mmax_out: int = None,
-        inplace=False,
+        inplace: bool = False,
     ):
+        """This method resizes a SphericalHarmonics object, either truncating it or
+        padding it with zeros.
+        If inplace is False (default) it return a new istance of SphericalHarmonics
+        with the adjusted size otherwise it resizes the existing object.
+        Much of the code is adapted from healpy
+        https://github.com/healpy/healpy/blob/a57770262788bb72281d48fdfe427d1098898d53/lib/healpy/sphtfunc.py#L1436
+        """
         lmax_in = self.lmax
         mmax_in = self.mmax
 
@@ -113,4 +120,8 @@ class SphericalHarmonics:
             self.lmax = lmax_out
             self.mmax = mmax_out
         else:
-            return res
+            return SphericalHarmonics(
+                values=res,
+                lmax=lmax_out,
+                mmax=mmax_out,
+            )

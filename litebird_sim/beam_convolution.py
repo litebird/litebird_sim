@@ -23,7 +23,8 @@ class BeamConvolutionParameters:
     Fields:
 
     - ``lmax`` (int): Maximum value for ℓ for the sky and beam coefficients
-    - ``mmax`` (int): Maximum value for m (azimuthal moment) for beam coefficients
+    - ``mmax`` (int): Maximum value for m (azimuthal moment) for beam coefficients,
+      must be ≦ lmax - 4
     - ``single_precision`` (bool): Set it to ``False`` to use 64-bit floating points
       in the calculation
     - ``epsilon`` (float): The desired relative accuracy of the interpolation
@@ -49,14 +50,12 @@ def add_convolved_sky_to_one_detector(
 
     if not convolution_params:
         sky_lmax = sky_alms_det.lmax
-        sky_mmax = sky_alms_det.mmax
 
         beam_lmax = beam_alms_det.lmax
         beam_mmax = beam_alms_det.mmax
 
         default_lmax = min(sky_lmax, beam_lmax)
-
-        default_mmax = min(default_lmax - 4, sky_mmax, beam_mmax)
+        default_mmax = min(default_lmax - 4, beam_mmax)
 
         logging.warning(
             (
@@ -71,8 +70,26 @@ def add_convolved_sky_to_one_detector(
             mmax=default_mmax,
         )
 
+    else:
+        assert convolution_params.lmax - 4 >= convolution_params.mmax, (
+            "Error in the convolution parameters m_max must be ≦ ℓ_max!"
+            "Here ℓ_max={lmax} and m_max={lmax}!"
+        ).format(lmax=convolution_params.lmax, mmax=convolution_params.mmax)
+
+    _slm = sky_alms_det.values
+
+    if (convolution_params.lmax != beam_alms_det.lmax) or (
+        convolution_params.mmax != beam_alms_det.mmax
+    ):
+        _blm = beam_alms_det.resize_alm(
+            convolution_params.lmax, convolution_params.mmax, inplace=False
+        ).values
+    else:
+        _blm = beam_alms_det.values
+
     if hwp_angle is None:
         # we cannot simulate HWP, so let's use classic 4pi convolution
+        # FIXME!! we need to understand what to do with the interface here
         if convolution_params.single_precision:
             _ftype = np.float32
             _ctype = np.complex64
@@ -82,12 +99,9 @@ def add_convolved_sky_to_one_detector(
             _ctype = np.complex128
             intertype = Interpolator
 
-        _slm = sky_alms_det.values.astype(_ctype)
-        _blm = beam_alms_det.values.astype(_ctype)
-
         inter = intertype(
-            sky=_slm,
-            beam=_blm,
+            sky=_slm.astype(_ctype),
+            beam=_blm.astype(_ctype),
             separate=False,
             lmax=convolution_params.lmax,
             kmax=convolution_params.mmax,
@@ -97,8 +111,8 @@ def add_convolved_sky_to_one_detector(
         tod_det += inter.interpol(pointings_det.astype(_ftype))[0]
     else:
         fullconv = MuellerConvolver(
-            slm=sky_alms_det.values,
-            blm=beam_alms_det.values,
+            slm=_slm,
+            blm=_blm,
             mueller=mueller_matrix,
             lmax=convolution_params.lmax,
             kmax=convolution_params.mmax,
