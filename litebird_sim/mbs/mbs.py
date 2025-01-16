@@ -1003,17 +1003,6 @@ class Mbs:
                         )
                     if self.params.store_alms:
                         alms = hp.map2alm(tot[nch], lmax=self.params.lmax_alms, iter=0)
-                        # !!!Check this part!!!!
-                        #                        if not isinstance(alms, tuple) or :
-                        #                            alms = (alms,)
-                        #                        tot_dict[chnl] = (
-                        #                            lbs.SphericalHarmonics(
-                        #                                values=x,
-                        #                                lmax=self.params.lmax_alms,
-                        #                                mmax=self.params.lmax_alms,
-                        #                            )
-                        #                            for x in alms
-                        #                        )
                         tot_dict[chnl] = lbs.SphericalHarmonics(
                             values=alms,
                             lmax=self.params.lmax_alms,
