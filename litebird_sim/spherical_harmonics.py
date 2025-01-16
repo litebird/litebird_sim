@@ -25,12 +25,12 @@ class SphericalHarmonics:
     nstokes: int = field(init=False)
 
     def __post_init__(self):
-        if not self.mmax:
+        if self.mmax is None:
             self.mmax = self.lmax
 
         if isinstance(self.values, tuple):
-            # self.values is most likely the result of a call to healpy.map2alm
-            # with pol=True, thus it is a 3-tuple containing three NumPy arrays
+            # if self.values is a 3-tuple containing three NumPy arrays
+            # it gets converted converted in NumPy array
             self.values = np.array([self.values[i] for i in range(len(self.values))])
 
         if len(self.values.shape) == 1:
@@ -80,3 +80,37 @@ class SphericalHarmonics:
         lmax: int, mmax: Optional[int] = None, nstokes: int = 3
     ) -> tuple[int, int]:
         return nstokes, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)
+
+    def resize_alm(
+        self,
+        lmax_out: int,
+        mmax_out: int = None,
+        inplace=False,
+    ):
+        lmax_in = self.lmax
+        mmax_in = self.mmax
+
+        if mmax_out is None:
+            mmax_out = lmax_out
+
+        res = np.zeros(
+            (self.nstokes, SphericalHarmonics.num_of_alm_from_lmax(lmax_out, mmax_out)),
+            dtype=self.values.dtype,
+        )
+
+        lmaxmin = min(lmax_in, lmax_out)
+        mmaxmin = min(mmax_in, mmax_out)
+
+        ofs_i, ofs_o = 0, 0
+        for m in range(0, mmaxmin + 1):
+            nval = lmaxmin - m + 1
+            res[:, ofs_o : ofs_o + nval] = self.values[:, ofs_i : ofs_i + nval]
+            ofs_i += lmax_in - m + 1
+            ofs_o += lmax_out - m + 1
+
+        if inplace:
+            self.values = res
+            self.lmax = lmax_out
+            self.mmax = mmax_out
+        else:
+            return res

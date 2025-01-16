@@ -23,14 +23,14 @@ class BeamConvolutionParameters:
     Fields:
 
     - ``lmax`` (int): Maximum value for ℓ for the sky and beam coefficients
-    - ``kmax`` (int): Maximum value for m (azimuthal moment) for beam coefficients
+    - ``mmax`` (int): Maximum value for m (azimuthal moment) for beam coefficients
     - ``single_precision`` (bool): Set it to ``False`` to use 64-bit floating points
       in the calculation
     - ``epsilon`` (float): The desired relative accuracy of the interpolation
     """
 
     lmax: int
-    kmax: int
+    mmax: int
     single_precision: bool = True
     epsilon: float = 1e-5
 
@@ -48,22 +48,27 @@ def add_convolved_sky_to_one_detector(
     """ """
 
     if not convolution_params:
-        sky_lamx = sky_alms_det.num_of_alm_per_stokes
-        beam_lamx = beam_alms_det.num_of_alm_per_stokes
+        sky_lmax = sky_alms_det.lmax
+        sky_mmax = sky_alms_det.mmax
 
-        default_lmax = min(sky_lamx, beam_lamx)
-        default_kmax = default_lmax - 4
+        beam_lmax = beam_alms_det.lmax
+        beam_mmax = beam_alms_det.mmax
+
+        default_lmax = min(sky_lmax, beam_lmax)
+
+        default_mmax = min(default_lmax - 4, sky_mmax, beam_mmax)
+
         logging.warning(
             (
                 "No convolution parameters, I will use the defaults "
-                "(ℓ_max={lmax}, m_max={kmax}), but this "
+                "(ℓ_max={lmax}, m_max={mmax}), but this "
                 "might lead to unexpected errors and "
                 "gross misestimates"
-            ).format(lmax=default_lmax, kmax=default_kmax)
+            ).format(lmax=default_lmax, mmax=default_mmax)
         )
         convolution_params = BeamConvolutionParameters(
             lmax=default_lmax,
-            kmax=default_kmax,
+            mmax=default_mmax,
         )
 
     if hwp_angle is None:
@@ -85,18 +90,18 @@ def add_convolved_sky_to_one_detector(
             beam=_blm,
             separate=False,
             lmax=convolution_params.lmax,
-            kmax=convolution_params.kmax,
+            kmax=convolution_params.mmax,
             epsilon=convolution_params.epsilon,
             nthreads=nthreads,
         )
         tod_det += inter.interpol(pointings_det.astype(_ftype))[0]
     else:
         fullconv = MuellerConvolver(
-            slm=sky_alms_det,
-            blm=beam_alms_det,
+            slm=sky_alms_det.values,
+            blm=beam_alms_det.values,
             mueller=mueller_matrix,
             lmax=convolution_params.lmax,
-            kmax=convolution_params.kmax,
+            kmax=convolution_params.mmax,
             single_precision=convolution_params.single_precision,
             epsilon=convolution_params.epsilon,
             nthreads=nthreads,
@@ -264,9 +269,9 @@ def add_convolved_sky_to_observations(
                     )
                 input_sky_alms_in_galactic = dict_input_sky_alms_in_galactic
         else:
-            assert isinstance(sky_alms, np.ndarray), (
-                "sky_alms must be either a dictionary contaning the keys for all the "
-                "channels/detectors or a 3×N_ℓm NumPy array"
+            assert isinstance(sky_alms, SphericalHarmonics), (
+                "sky_alms must be either a dictionary contaning the keys for all the"
+                "channels/detectors or a SphericalHarmonics object"
             )
             input_sky_names = None
 
@@ -283,9 +288,9 @@ def add_convolved_sky_to_observations(
                     "keys, please check the list of detectors and channels"
                 )
         else:
-            assert isinstance(beam_alms, np.ndarray), (
+            assert isinstance(beam_alms, SphericalHarmonics), (
                 "beam_alms must be either a dictionary containing keys for all the "
-                "channels/detectors or a 3×N_ℓm NumPy array"
+                "channels/detectors or a SphericalHarmonics object"
             )
             input_beam_names = None
 
@@ -301,6 +306,7 @@ def add_convolved_sky_to_observations(
                 logging.warning(
                     "To use an external HWP object, you must pass a pre-calculated pointing, too"
                 )
+                hwp_angle = None
 
         add_convolved_sky(
             tod=getattr(cur_obs, component),

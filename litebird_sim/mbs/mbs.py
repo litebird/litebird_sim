@@ -248,7 +248,7 @@ class MbsParameters:
             self.output_string = "date_" + date.today().strftime("%y%m%d")
 
         if self.lmax_alms is None:
-            self.lmax_alms = 4 * self.nside
+            self.lmax_alms = 3 * self.nside - 1
 
     @staticmethod
     def from_dict(dictionary):
@@ -1003,16 +1003,21 @@ class Mbs:
                         )
                     if self.params.store_alms:
                         alms = hp.map2alm(tot[nch], lmax=self.params.lmax_alms, iter=0)
-                        if not isinstance(tuple, alms):
-                            alms = (alms,)
-
-                        tot_dict[chnl] = (
-                            lbs.SphericalHarmonics(
-                                values=x,
-                                lmax=self.params.lmax_alms,
-                                mmax=self.params.lmax_alms,
-                            )
-                            for x in alms
+                        # !!!Check this part!!!!
+                        #                        if not isinstance(alms, tuple) or :
+                        #                            alms = (alms,)
+                        #                        tot_dict[chnl] = (
+                        #                            lbs.SphericalHarmonics(
+                        #                                values=x,
+                        #                                lmax=self.params.lmax_alms,
+                        #                                mmax=self.params.lmax_alms,
+                        #                            )
+                        #                            for x in alms
+                        #                        )
+                        tot_dict[chnl] = lbs.SphericalHarmonics(
+                            values=alms,
+                            lmax=self.params.lmax_alms,
+                            mmax=self.params.lmax_alms,
                         )
                     else:
                         tot_dict[chnl] = tot[nch]
