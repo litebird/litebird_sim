@@ -1437,6 +1437,7 @@ class Simulation:
         convolution_params: Optional[BeamConvolutionParameters] = None,
         component: str = "tod",
         append_to_report: bool = True,
+        nthreads: Union[int, None] = None,
     ):
         """Fills the TODs, convolving a set of alms.
 
@@ -1446,6 +1447,9 @@ class Simulation:
         :meth:`.prepare_pointings`. alms are assumed to be produced by :class:`.Mbs`
         """
 
+        if nthreads is None:
+            nthreads = self.numba_threads
+
         add_convolved_sky_to_observations(
             observations=self.observations,
             sky_alms=sky_alms,
@@ -1453,6 +1457,7 @@ class Simulation:
             input_sky_alms_in_galactic=input_sky_alms_in_galactic,
             component=component,
             convolution_params=convolution_params,
+            nthreads=nthreads,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

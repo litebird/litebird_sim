@@ -4,6 +4,8 @@ import logging
 from dataclasses import dataclass
 from typing import Union, List, Dict, Optional
 
+import os
+
 import numpy as np
 import numpy.typing as npt
 from ducc0.totalconvolve import Interpolator, Interpolator_f
@@ -14,6 +16,9 @@ from .mueller_convolver import MuellerConvolver
 from .observations import Observation
 from .pointings import get_hwp_angle
 from .spherical_harmonics import SphericalHarmonics
+
+# Name of the environment variable used in the convolution
+NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
 
 
 @dataclass
@@ -195,7 +200,7 @@ def add_convolved_sky_to_observations(
     input_sky_alms_in_galactic: bool = True,
     convolution_params: Optional[BeamConvolutionParameters] = None,
     component: str = "tod",
-    nthreads: int = 0,
+    nthreads: Union[int, None] = None,
 ):
     """Convolve sky maps with generic detector beams and add the resulting
     signal to TOD.
@@ -326,6 +331,12 @@ def add_convolved_sky_to_observations(
                     "To use an external HWP object, you must pass a pre-calculated pointing, too"
                 )
                 hwp_angle = None
+
+        if nthreads is None:
+            if NUM_THREADS_ENVVAR in os.environ:
+                nthreads = int(os.environ[NUM_THREADS_ENVVAR])
+            else:
+                nthreads = 0
 
         add_convolved_sky(
             tod=getattr(cur_obs, component),
