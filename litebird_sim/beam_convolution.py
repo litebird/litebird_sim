@@ -73,10 +73,15 @@ def add_convolved_sky_to_one_detector(
     else:
         assert convolution_params.lmax - 4 >= convolution_params.mmax, (
             "Error in the convolution parameters m_max must be ≦ ℓ_max!"
-            "Here ℓ_max={lmax} and m_max={lmax}!"
+            "Here ℓ_max={lmax} and m_max={mmax}!"
         ).format(lmax=convolution_params.lmax, mmax=convolution_params.mmax)
 
-    _slm = sky_alms_det.values
+    if convolution_params.lmax != sky_alms_det.lmax:
+        _slm = sky_alms_det.resize_alm(
+            convolution_params.lmax, convolution_params.lmax, inplace=False
+        ).values
+    else:
+        _slm = sky_alms_det.values
 
     if (convolution_params.lmax != beam_alms_det.lmax) or (
         convolution_params.mmax != beam_alms_det.mmax
