@@ -134,13 +134,18 @@ class MuellerConvolver:
                 blm2[3][lrange, -m] = np.conj(blm[3, idxrange]) * sign
             # E/B components
             if ncomp > 2:
-                # Adri's notes [10], spin +2
+                # positive m
+                # Adri's notes [10] and [9]
+                # spin +2
                 blm2[1][lrange, m] = -blm[1, idxrange] - 1j*blm[2, idxrange]
-                # Adri's notes [9], spin -2
+                # spin -2
                 blm2[2][lrange, m] = -blm[1, idxrange] + 1j*blm[2, idxrange]
+
                 # negative m
                 # Adri's notes [2]
+                # spin +2
                 blm2[1][lrange, -m] = np.conj(blm2[2][lrange, m]) * sign
+                # spin -2
                 blm2[2][lrange, -m] = np.conj(blm2[1][lrange, m]) * sign
             idx += lmax+1-m
 
@@ -151,6 +156,7 @@ class MuellerConvolver:
         sqrt2 = np.sqrt(2.0)
         nbeam = 5
         inc = 4
+
         res = np.zeros((nbeam, ncomp, nalm(lmax, mmax+inc)), dtype=self._ctype)
         blm_eff = [self.AlmPM(lmax, mmax+4) for _ in range(4)]
 
@@ -179,7 +185,7 @@ class MuellerConvolver:
                       (sqrt2*e2ia) * (C[0, 2] * blm2[0][lrange, m-2]
                                     + C[3, 2] * blm2[3][lrange, m-2])
                     + (C[1, 2]*e4ia) * blm2[1][lrange, m-4]
-                    + C[2, 2]        * blm2[2][lrange, m])
+                    +  C[2, 2]       * blm2[2][lrange, m])
                 # V component, Marta notes [4d]
                 blm_eff[3][lrange, m] = (
                       C[0, 3] * blm2[0][lrange, m]
@@ -251,7 +257,7 @@ class MuellerConvolver:
         # out2[0] *=0.2
         # out2[1:] *=0.4
         # out2 = out2.view(np.complex128)
-        # print(np.max(np.abs(out-out2)))
+        # print(np.max(np.abs(out-out2)),np.max(out2))
         return out
 
     def __init__(self, *, slm, blm, mueller, lmax, kmax, single_precision=True,
@@ -264,8 +270,8 @@ class MuellerConvolver:
         self._kmax = kmax
         tmp = self.mueller_tc_prep(blm, mueller, lmax, kmax)
         tmp = self.pseudo_fft(tmp)
-
         # construct the five interpolators for the individual components
+
         # All sets of blm are checked up to which kmax they contain significant
         # coefficients, and the interpolator is chosen accordingly
         tmp = truncate_blm(tmp, self._lmax, self._kmax + 4)
@@ -276,11 +282,21 @@ class MuellerConvolver:
             else ducc0.totalconvolve.Interpolator)
         for i in range(5):
             if tmp[i] is not None:  # component is not zero
+                print(i)
                 self._inter.append(
-                    intertype(self._slm, tmp[i][0], False, self._lmax,
-                              tmp[i][1], epsilon=epsilon, npoints=npoints,
-                              sigma_min=sigma_min, sigma_max=sigma_max,
-                              nthreads=nthreads))
+                    intertype(
+                        sky=self._slm,
+                        beam=tmp[i][0],
+                        separate=False,
+                        lmax=self._lmax,
+                        kmax=tmp[i][1],
+                        npoints=npoints,
+                        sigma_min=sigma_min,
+                        sigma_max=sigma_max,
+                        epsilon=epsilon,
+                        nthreads=nthreads,
+                        )
+                    )
             else:  # we can ignore this component entirely
                 self._inter.append(None)
 

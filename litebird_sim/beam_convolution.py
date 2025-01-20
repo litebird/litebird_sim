@@ -130,7 +130,7 @@ def add_convolved_sky_to_one_detector(
             epsilon=convolution_params.epsilon,
             nthreads=nthreads,
         )
-        tod_det += fullconv.signal(ptg=pointings_det, alpha=hwp_angle)
+        tod_det += fullconv.signal(ptg=pointings_det, alpha=-hwp_angle)
 
 
 def add_convolved_sky(
@@ -149,6 +149,8 @@ def add_convolved_sky(
 
     # just filled
     mueller = np.diag([1, 1, -1, -1])
+    #mueller = np.diag([1, 1, 1, 1])
+
 
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
