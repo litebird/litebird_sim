@@ -149,8 +149,7 @@ def add_convolved_sky(
 
     # just filled
     mueller = np.diag([1, 1, -1, -1])
-    #mueller = np.diag([1, 1, 1, 1])
-
+    # mueller = np.diag([1, 1, 1, 1])
 
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
