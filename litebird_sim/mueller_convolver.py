@@ -13,13 +13,14 @@ def nalm(lmax, mmax):
 
 
 # Adri 2020 A25/A35
+# Conjugate by YUya
 def mueller_to_C(mueller):
     T = np.zeros((4, 4), dtype=np.complex128)
     T[0, 0] = T[3, 3] = 1.0
     T[1, 1] = T[2, 1] = 1.0 / np.sqrt(2.0)
     T[1, 2] =  1j / np.sqrt(2.0)
     T[2, 2] = -1j / np.sqrt(2.0)
-    return T.dot(mueller.dot(np.conj(T.T)))
+    return np.conj(T.dot(mueller.dot(np.conj(T.T))))
 
 
 def truncate_blm(inp, lmax, kmax, epsilon=1e-10):
@@ -167,31 +168,32 @@ class MuellerConvolver:
             e4ia = np.exp(4j*alpha)
             e4iac = np.exp(-4j*alpha)
 # FIXME: do I need to calculate anything for negative m?
+# Modifications the beam and complex mueller spin combination and direction of rotation
             for m in range(-mmax-4, mmax+4+1):
                 lrange = slice(abs(m), lmax+1)
                 # T component, Marta notes [4a]
                 blm_eff[0][lrange, m] = (
                       C[0, 0] * blm2[0][lrange, m]
                     + C[3, 0] * blm2[3][lrange, m]
-                    + 1.0/sqrt2 * ((C[1, 0]*e2ia ) * blm2[2][lrange, m+2]
-                                  +(C[2, 0]*e2iac) * blm2[1][lrange, m-2]))
+                    + 1.0/sqrt2 * ((C[1, 0]*e2iac ) * blm2[1][lrange, m-2]
+                                  +(C[2, 0]*e2ia) * blm2[2][lrange, m+2]))
                 # E/B components, Marta notes [4b,c]
                 blm_eff[1][lrange, m] = (
-                      (sqrt2*e2iac) * (C[0, 1] * blm2[0][lrange, m+2]
+                      (sqrt2*e2ia) * (C[0, 1] * blm2[0][lrange, m+2]
                                      + C[3, 1] * blm2[3][lrange, m+2])
-                    + (C[2, 1]*e4iac) * blm2[2][lrange, m+4]
-                    +  C[1, 1]        * blm2[1][lrange, m])
+                    + (C[2, 1]*e4ia) * blm2[2][lrange, m+4]
+                    +  C[1, 1]       * blm2[1][lrange, m])
                 blm_eff[2][lrange, m] = (
-                      (sqrt2*e2ia) * (C[0, 2] * blm2[0][lrange, m-2]
+                      (sqrt2*e2iac) * (C[0, 2] * blm2[0][lrange, m-2]
                                     + C[3, 2] * blm2[3][lrange, m-2])
-                    + (C[1, 2]*e4ia) * blm2[1][lrange, m-4]
-                    +  C[2, 2]       * blm2[2][lrange, m])
+                    + (C[1, 2]*e4iac) * blm2[1][lrange, m-4]
+                    +  C[2, 2]        * blm2[2][lrange, m])
                 # V component, Marta notes [4d]
                 blm_eff[3][lrange, m] = (
                       C[0, 3] * blm2[0][lrange, m]
                     + C[3, 3] * blm2[3][lrange, m]
-                    + 1.0/sqrt2 * ((C[1, 3]*e2ia ) * blm2[2][lrange, m+2]
-                                  +(C[2, 3]*e2iac) * blm2[1][lrange, m-2]))
+                    + 1.0/sqrt2 * ((C[1, 3]*e2iac) * blm2[1][lrange, m+2]
+                                  +(C[2, 3]*e2ia)  * blm2[2][lrange, m-2]))
 
             # TEMPORARY sanity check ...
             def check(xp, xm, lrange, m):
