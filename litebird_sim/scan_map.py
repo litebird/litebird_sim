@@ -117,9 +117,6 @@ def scan_map(
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
 
-    if hwp_angle is None:
-        hwp_angle = 0
-
     if pol_angle_detectors is None:
         pol_angle_detectors = np.zeros(n_detectors)
 
@@ -131,6 +128,9 @@ def scan_map(
             curr_pointings_det = pointings[detector_idx, :, :]
         else:
             curr_pointings_det, hwp_angle = pointings(detector_idx)
+
+        if hwp_angle is None:
+            hwp_angle = 0
 
         if input_map_in_galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
@@ -298,15 +298,17 @@ def scan_map_in_observations(
             input_names = None
 
         if hwp is None:
-            if hasattr(cur_obs, "hwp_angle"):
-                hwp_angle = cur_obs.hwp_angle
+            if cur_obs.has_hwp:
+                if hasattr(cur_obs, "hwp_angle"):
+                    hwp_angle = cur_obs.hwp_angle
+                else:
+                    hwp_angle = None
             else:
-                hwp_angle = None
-                assert (cur_obs.mueller_hwp != None).any(), (
-                    "Some detectors have been initialized with a mueller_hwp,"
-                    "but no hwp_angle is in the Observation"
+                assert all(m is None for m in cur_obs.mueller_hwp), (
+                    "Detectors have been initialized with a mueller_hwp,"
+                    "but no HWP is either passed or initilized in the pointing"
                 )
-
+                hwp_angle = None
         else:
             if type(cur_ptg) is np.ndarray:
                 hwp_angle = get_hwp_angle(cur_obs, hwp)
