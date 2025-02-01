@@ -6,6 +6,8 @@ import numpy as np
 import numpy.typing as npt
 from numba import njit
 
+mueller_ideal_hwp = np.diag([1, 1, -1, -1])
+
 
 class HWP:
     """
@@ -182,7 +184,7 @@ class IdealHWP(HWP):
     def __init__(self, ang_speed_radpsec: float, start_angle_rad=0.0):
         self.ang_speed_radpsec = ang_speed_radpsec
         self.start_angle_rad = start_angle_rad
-        self.mueller = np.diag([1, 1, -1, -1])
+        self.mueller = mueller_ideal_hwp
 
     def get_hwp_angle(
         self, output_buffer, start_time_s: float, delta_time_s: float

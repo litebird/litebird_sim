@@ -6,12 +6,28 @@ from numba import njit, prange
 from ducc0.healpix import Healpix_Base
 from typing import Union, List, Dict, Optional
 from .observations import Observation
-from .hwp import HWP
+from .hwp import HWP, mueller_ideal_hwp
 from .pointings import get_hwp_angle
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 from .healpix import npix_to_nside
 import logging
 import healpy as hp
+
+
+def vec_stokes(T, Q, U):
+    return np.array([T, Q, U, 0])
+
+
+def vec_polarimeter(angle, gamma):
+    # (1,0,0,0) x Mpol x Rpol
+    return np.array([1, gamma * np.cos(2 * angle), gamma * np.sin(2 * angle), 0])
+
+
+@njit
+def rot_matrix(angle):
+    ca = np.cos(2 * angle)
+    sa = np.sin(2 * angle)
+    return np.array([[1, 0, 0, 0], [0, ca, sa, 0], [0, -sa, ca, 0], [0, 0, 0, 1]])
 
 
 @njit
@@ -35,13 +51,49 @@ def scan_map_for_one_detector(
         )
 
 
+@njit
+def compute_signal_generic_hwp_for_one_sample(Stokes, Vpol, Rhwp, Mhwp, Rtel):
+    """Bolometric equation for generic HWP Mueller matrix
+    (1,0,0,0) x Mpol x Rpol x Rhwp^T x Mhwp x Rhwp x Rtel x Stokes
+    """
+    return Vpol @ Rhwp.T @ Mhwp @ Rhwp @ Rtel @ Stokes
+
+
+@njit(parallel=True)
+def scan_map_generic_hwp_for_one_detector(
+    tod_det,
+    input_T,
+    input_Q,
+    input_U,
+    orientation_telescope,
+    pol_angle_det,
+    pol_eff_det,
+    hwp_angle,
+    mueller_hwp,
+):
+    polarimeter = vec_polarimeter(pol_angle_det, pol_eff_det)
+
+    for i in prange(len(tod_det)):
+        vec_S = vec_stokes(input_T[i], input_Q[i], input_U[i], 0)
+        rot_hwp = rot_matrix(hwp_angle[i])
+        rot_tel = rot_matrix(orientation_telescope[i])
+        tod_det[i] += compute_signal_generic_hwp_for_one_sample(
+            Stokes=vec_S,
+            Vpol=polarimeter,
+            Rhwp=rot_hwp,
+            Mhwp=mueller_hwp,
+            Rtel=rot_tel,
+        )
+
+
 def scan_map(
     tod,
     pointings,
     maps: Dict[str, np.ndarray],
-    pol_angle: float = 0.0,
-    pol_eff: float = 1.0,
+    pol_angle_detectors: Union[np.ndarray, None] = None,
+    pol_eff_detectors: Union[np.ndarray, None] = None,
     hwp_angle: Union[np.ndarray, None] = None,
+    mueller_hwp: Union[np.ndarray, None] = None,
     input_names: Union[str, None] = None,
     input_map_in_galactic: bool = True,
     interpolation: Union[str, None] = "",
@@ -60,17 +112,25 @@ def scan_map(
     interpolation, "linear" for linear interpolation)
     """
 
+    n_detectors = tod.shape[0]
+
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
 
-    for detector_idx in range(tod.shape[0]):
+    if hwp_angle is None:
+        hwp_angle = 0
+
+    if pol_angle_detectors is None:
+        pol_angle_detectors = np.zeros(n_detectors)
+
+    if pol_eff_detectors is None:
+        pol_eff_detectors = np.ones(n_detectors)
+
+    for detector_idx in range(n_detectors):
         if type(pointings) is np.ndarray:
             curr_pointings_det = pointings[detector_idx, :, :]
         else:
             curr_pointings_det, hwp_angle = pointings(detector_idx)
-
-        if hwp_angle is None:
-            hwp_angle = 0
 
         if input_map_in_galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
@@ -85,41 +145,50 @@ def scan_map(
         if interpolation in ["", None]:
             hpx = Healpix_Base(nside, "RING")
             pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
-
-            scan_map_for_one_detector(
-                tod_det=tod[detector_idx],
-                input_T=maps_det[0, pixel_ind_det],
-                input_Q=maps_det[1, pixel_ind_det],
-                input_U=maps_det[2, pixel_ind_det],
-                pol_angle_det=pol_angle[detector_idx]
-                + curr_pointings_det[:, 2]
-                + 2 * hwp_angle,
-                pol_eff_det=pol_eff[detector_idx],
-            )
-
+            input_T = maps_det[0, pixel_ind_det]
+            input_Q = maps_det[1, pixel_ind_det]
+            input_U = maps_det[2, pixel_ind_det]
         elif interpolation == "linear":
-            scan_map_for_one_detector(
-                tod_det=tod[detector_idx],
-                input_T=hp.get_interp_val(
-                    maps_det[0, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
-                ),
-                input_Q=hp.get_interp_val(
-                    maps_det[1, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
-                ),
-                input_U=hp.get_interp_val(
-                    maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
-                ),
-                pol_angle_det=pol_angle[detector_idx]
-                + curr_pointings_det[:, 2]
-                + 2 * hwp_angle,
-                pol_eff_det=pol_eff[detector_idx],
+            input_T = hp.get_interp_val(
+                maps_det[0, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
             )
-
+            input_Q = hp.get_interp_val(
+                maps_det[1, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
+            )
+            input_U = hp.get_interp_val(
+                maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
+            )
         else:
             raise ValueError(
                 "Wrong value for interpolation. It should be one of the following:\n"
                 + '- "" for no interpolation\n'
                 + '- "linear" for linear interpolation\n'
+            )
+
+        if (mueller_hwp[detector_idx] is None) or (
+            (mueller_hwp[detector_idx] == mueller_ideal_hwp).any()
+        ):
+            scan_map_for_one_detector(
+                tod_det=tod[detector_idx],
+                input_T=input_T,
+                input_Q=input_Q,
+                input_U=input_U,
+                pol_angle_det=pol_angle_detectors[detector_idx]
+                + curr_pointings_det[:, 2]
+                + 2 * hwp_angle,
+                pol_eff_det=pol_eff_detectors[detector_idx],
+            )
+        else:
+            scan_map_generic_hwp_for_one_detector(
+                tod_det=tod[detector_idx],
+                input_T=input_T,
+                input_Q=input_Q,
+                input_U=input_U,
+                orientation_telescope=curr_pointings_det[:, 2],
+                pol_angle_det=pol_angle_detectors[detector_idx],
+                pol_eff_det=pol_eff_detectors[detector_idx],
+                hwp_angle=hwp_angle,
+                mueller_hwp=mueller_hwp[detector_idx],
             )
 
 
@@ -250,9 +319,10 @@ def scan_map_in_observations(
             tod=getattr(cur_obs, component),
             pointings=cur_ptg,
             maps=maps,
-            pol_angle=cur_obs.pol_angle_rad,
-            pol_eff=cur_obs.pol_efficiency,
+            pol_angle_detectors=cur_obs.pol_angle_rad,
+            pol_eff_detectors=cur_obs.pol_efficiency,
             hwp_angle=hwp_angle,
+            mueller_hwp=cur_obs.mueller_hwp,
             input_names=input_names,
             input_map_in_galactic=input_map_in_galactic,
             interpolation=interpolation,
