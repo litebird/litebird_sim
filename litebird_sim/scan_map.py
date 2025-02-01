@@ -15,13 +15,15 @@ import healpy as hp
 
 
 @njit
-def compute_signal_for_one_sample(T, Q, U, co, si):
+def compute_signal_for_one_sample(T, Q, U, co, si, gamma):
     """Bolometric equation"""
-    return T + co * Q + si * U
+    return T + gamma * (co * Q + si * U)
 
 
 @njit(parallel=True)
-def scan_map_for_one_detector(tod_det, input_T, input_Q, input_U, pol_angle_det):
+def scan_map_for_one_detector(
+    tod_det, input_T, input_Q, input_U, pol_angle_det, pol_eff_det
+):
     for i in prange(len(tod_det)):
         tod_det[i] += compute_signal_for_one_sample(
             T=input_T[i],
@@ -29,15 +31,18 @@ def scan_map_for_one_detector(tod_det, input_T, input_Q, input_U, pol_angle_det)
             U=input_U[i],
             co=np.cos(2 * pol_angle_det[i]),
             si=np.sin(2 * pol_angle_det[i]),
+            gamma=pol_eff_det,
         )
 
 
 def scan_map(
     tod,
     pointings,
-    hwp_angle,
     maps: Dict[str, np.ndarray],
-    input_names,
+    pol_angle: float = 0.0,
+    pol_eff: float = 1.0,
+    hwp_angle: Union[np.ndarray, None] = None,
+    input_names: Union[str, None] = None,
     input_map_in_galactic: bool = True,
     interpolation: Union[str, None] = "",
 ):
@@ -86,7 +91,10 @@ def scan_map(
                 input_T=maps_det[0, pixel_ind_det],
                 input_Q=maps_det[1, pixel_ind_det],
                 input_U=maps_det[2, pixel_ind_det],
-                pol_angle_det=curr_pointings_det[:, 2] + 2 * hwp_angle,
+                pol_angle_det=pol_angle[detector_idx]
+                + curr_pointings_det[:, 2]
+                + 2 * hwp_angle,
+                pol_eff_det=pol_eff[detector_idx],
             )
 
         elif interpolation == "linear":
@@ -101,7 +109,10 @@ def scan_map(
                 input_U=hp.get_interp_val(
                     maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
                 ),
-                pol_angle_det=curr_pointings_det[:, 2] + 2 * hwp_angle,
+                pol_angle_det=pol_angle[detector_idx]
+                + curr_pointings_det[:, 2]
+                + 2 * hwp_angle,
+                pol_eff_det=pol_eff[detector_idx],
             )
 
         else:
@@ -222,6 +233,11 @@ def scan_map_in_observations(
                 hwp_angle = cur_obs.hwp_angle
             else:
                 hwp_angle = None
+                assert (cur_obs.mueller_hwp != None).any(), (
+                    "Some detectors have been initialized with a mueller_hwp,"
+                    "but no hwp_angle is in the Observation"
+                )
+
         else:
             if type(cur_ptg) is np.ndarray:
                 hwp_angle = get_hwp_angle(cur_obs, hwp)
@@ -233,8 +249,10 @@ def scan_map_in_observations(
         scan_map(
             tod=getattr(cur_obs, component),
             pointings=cur_ptg,
-            hwp_angle=hwp_angle,
             maps=maps,
+            pol_angle=cur_obs.pol_angle_rad,
+            pol_eff=cur_obs.pol_efficiency,
+            hwp_angle=hwp_angle,
             input_names=input_names,
             input_map_in_galactic=input_map_in_galactic,
             interpolation=interpolation,
