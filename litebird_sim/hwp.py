@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 from numba import njit
 
-mueller_ideal_hwp = np.diag([1, 1, -1, -1])
+mueller_ideal_hwp = np.diag([1.0, 1.0, -1.0, -1.0])
 
 
 class HWP:

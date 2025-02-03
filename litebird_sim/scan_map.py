@@ -14,20 +14,25 @@ import logging
 import healpy as hp
 
 
-def vec_stokes(T, Q, U):
-    return np.array([T, Q, U, 0])
+@njit
+def vec_stokes(stokes, T, Q, U):
+    stokes[0] = T
+    stokes[1] = Q
+    stokes[2] = U
 
 
+@njit
 def vec_polarimeter(angle, gamma):
     # (1,0,0,0) x Mpol x Rpol
     return np.array([1, gamma * np.cos(2 * angle), gamma * np.sin(2 * angle), 0])
 
 
 @njit
-def rot_matrix(angle):
+def rot_matrix(mat, angle):
     ca = np.cos(2 * angle)
     sa = np.sin(2 * angle)
-    return np.array([[1, 0, 0, 0], [0, ca, sa, 0], [0, -sa, ca, 0], [0, 0, 0, 1]])
+    mat[1, :] = [0, ca, sa, 0]
+    mat[2, :] = [0, -sa, ca, 0]
 
 
 @njit
@@ -73,10 +78,14 @@ def scan_map_generic_hwp_for_one_detector(
 ):
     polarimeter = vec_polarimeter(pol_angle_det, pol_eff_det)
 
+    vec_S = np.zeros(4)
+    rot_hwp = np.diag(np.ones(4))
+    rot_tel = np.diag(np.ones(4))
+
     for i in prange(len(tod_det)):
-        vec_S = vec_stokes(input_T[i], input_Q[i], input_U[i], 0)
-        rot_hwp = rot_matrix(hwp_angle[i])
-        rot_tel = rot_matrix(orientation_telescope[i])
+        vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
+        rot_matrix(rot_hwp, hwp_angle[i])
+        rot_matrix(rot_tel, orientation_telescope[i])
         tod_det[i] += compute_signal_generic_hwp_for_one_sample(
             Stokes=vec_S,
             Vpol=polarimeter,
@@ -129,9 +138,6 @@ def scan_map(
         else:
             curr_pointings_det, hwp_angle = pointings(detector_idx)
 
-        if hwp_angle is None:
-            hwp_angle = 0
-
         if input_map_in_galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
@@ -166,19 +172,33 @@ def scan_map(
             )
 
         if (mueller_hwp[detector_idx] is None) or (
-            (mueller_hwp[detector_idx] == mueller_ideal_hwp).any()
+            (mueller_hwp[detector_idx] == mueller_ideal_hwp).all()
         ):
+            # With HWP implements:
+            # (T + Q ρ Cos[2 (2 α - θ + ψ])] + U ρ Sin[2 (2 α - θ + ψ)])
+            # without
+            # (T + Q ρ Cos[2 (θ + ψ])] + U ρ Sin[2 (θ + ψ)])
+            # ρ: polarization efficiency
+            # θ: polarization angle
+            # ψ: angle of the telescope
+            # α: HWP angle
             scan_map_for_one_detector(
                 tod_det=tod[detector_idx],
                 input_T=input_T,
                 input_Q=input_Q,
                 input_U=input_U,
-                pol_angle_det=pol_angle_detectors[detector_idx]
-                + curr_pointings_det[:, 2]
-                + 2 * hwp_angle,
+                pol_angle_det=(
+                    pol_angle_detectors[detector_idx] + curr_pointings_det[:, 2]
+                    if mueller_hwp[detector_idx] is None
+                    else 2 * hwp_angle
+                    - pol_angle_detectors[detector_idx]
+                    + curr_pointings_det[:, 2]
+                ),
                 pol_eff_det=pol_eff_detectors[detector_idx],
             )
         else:
+            # This implements:
+            # (1,0,0,0) x Mpol(ρ) x Rpol(θ) x Rhwp(α)^T x Mhwp x Rhwp(α) x Rtel(ψ) x Stokes
             scan_map_generic_hwp_for_one_detector(
                 tod_det=tod[detector_idx],
                 input_T=input_T,
@@ -302,7 +322,7 @@ def scan_map_in_observations(
                 if hasattr(cur_obs, "hwp_angle"):
                     hwp_angle = cur_obs.hwp_angle
                 else:
-                    hwp_angle = None
+                    hwp_angle = cur_obs.get_pointings()[1]
             else:
                 assert all(m is None for m in cur_obs.mueller_hwp), (
                     "Detectors have been initialized with a mueller_hwp,"
