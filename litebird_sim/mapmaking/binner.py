@@ -224,6 +224,7 @@ def _build_nobs_matrix(
         pixidx_all, polang_all = _compute_pixel_indices(
             hpx=hpx,
             pointings=cur_ptg,
+            pol_angle_detectors=cur_obs.pol_angle_rad,
             num_of_detectors=cur_obs.n_detectors,
             num_of_samples=cur_obs.n_samples,
             hwp_angle=hwp_angle,
