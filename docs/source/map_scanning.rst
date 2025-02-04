@@ -35,7 +35,7 @@ where
     * :math:`M_{\rm pol}` is mueller matrix of the polarimeter;
     * :math:`M_{\rm HWP}` is mueller matrix of the HWP;
     * :math:`R` is rotation matrix;
-    * :math:`\vec{S}` is the Stokes vector;
+    * :math:`\vec{S}` is the Stokes vector.
 
 You can fill with signal an existing TOD by using the
 function :func:`.scan_map_in_observations`, as the following example
@@ -136,13 +136,17 @@ coherent, so either a single Observation and a single numpy array, or same
 lenght list of Observations and numpy arrays.
 If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`.
 The effect of a possible HWP is included in the pointing information, see
-:ref:`scanning-strategy`.
+:ref:`scanning-strategy`, the polarization angle of the detectors is taken from 
+the corresponding attributes included in the observations. The same applies to 
+the polarization efficiency. 
 
 The routine provides an on-the-fly interpolation of the input maps. This option
 is available through the argument `interpolation` which specifies the type of TOD
 interpolation ("" for no interpolation, "linear" for linear interpolation).
 Default: no interpolation.
 
+The low level function, :func:`.scan_map`, allows a more refined handling of the
+inputs. 
 
 Methods of the Simulation class
 -------------------------------
