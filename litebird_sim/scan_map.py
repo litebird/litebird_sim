@@ -19,6 +19,7 @@ def vec_stokes(stokes, T, Q, U):
     stokes[0] = T
     stokes[1] = Q
     stokes[2] = U
+<<<<<<< Updated upstream
 
 
 @njit
@@ -38,6 +39,22 @@ def rot_matrix(mat, angle):
     sa = np.sin(2 * angle)
     mat[1, 1:3] = ca, sa
     mat[2, 1:3] = -sa, ca
+=======
+
+
+@njit
+def vec_polarimeter(angle, gamma):
+    # (1,0,0,0) x Mpol x Rpol
+    return np.array([1, gamma * np.cos(2 * angle), gamma * np.sin(2 * angle), 0])
+
+
+@njit
+def rot_matrix(mat, angle):
+    ca = np.cos(2 * angle)
+    sa = np.sin(2 * angle)
+    mat[1, :] = [0, ca, sa, 0]
+    mat[2, :] = [0, -sa, ca, 0]
+>>>>>>> Stashed changes
 
 
 @njit
@@ -83,7 +100,12 @@ def scan_map_generic_hwp_for_one_detector(
 ):
     polarimeter = vec_polarimeter(pol_angle_det, pol_eff_det)
 
+    vec_S = np.zeros(4)
+    rot_hwp = np.diag(np.ones(4))
+    rot_tel = np.diag(np.ones(4))
+
     for i in prange(len(tod_det)):
+<<<<<<< Updated upstream
         vec_S = np.zeros(4, dtype=np.float64)
         rot_hwp = np.eye(4, dtype=np.float64)
         rot_tel = np.eye(4, dtype=np.float64)
@@ -92,6 +114,11 @@ def scan_map_generic_hwp_for_one_detector(
         rot_matrix(rot_hwp, hwp_angle[i])
         rot_matrix(rot_tel, orientation_telescope[i])
 
+=======
+        vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
+        rot_matrix(rot_hwp, hwp_angle[i])
+        rot_matrix(rot_tel, orientation_telescope[i])
+>>>>>>> Stashed changes
         tod_det[i] += compute_signal_generic_hwp_for_one_sample(
             Stokes=vec_S,
             Vpol=polarimeter,
