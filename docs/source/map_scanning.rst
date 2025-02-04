@@ -5,7 +5,39 @@ Scanning a map to fill a TOD
 
 The framework provides :func:`.scan_map`, a routine which scans an
 input map accordingly to the scanning strategy and fills the detector
-timestreams. You can fill with signal an existing TOD by using the
+timestreams. It implements three possible algebras:
+
+- No HWP:
+
+.. math:: 
+   d_t = T + \gamma \left(Q\cos(2\theta + 2\psi_t)+U\sin(2\theta + 2\psi_t)\right),
+   :label: noHWP
+
+where :math:`\theta` is the polarization angle of the detecotor, :math:`\psi_t` 
+is the orientation of the telescope at the time :math:`t`, and :math:`\gamma`
+is the polarization efficiency.
+
+- Ideal HWP:
+
+.. math::
+   d_t = T + \gamma \left(Q\cos(4\alpha_t - 2\theta + 2\psi_t)+U\sin(4\alpha_t - 2\theta + 2\psi_t)\right),
+   :label: idealHWP
+
+where :math:`\alpha_t` is the HWP angle at the time :math:`t`.
+
+- Generic HWP:
+
+.. math::
+   d_t = (1,0,0,0) \times M_{\rm pol} \times R(\theta) \times R^T(\alpha_t) \times M_{\rm HWP} \times R(\alpha_t) \times R(\psi_t) \times \vec{S}
+   :label: genericHWP
+
+where 
+    * :math:`M_{\rm pol}` is mueller matrix of the polarimeter;
+    * :math:`M_{\rm HWP}` is mueller matrix of the HWP;
+    * :math:`R` is rotation matrix;
+    * :math:`\vec{S}` is the Stokes vector;
+
+You can fill with signal an existing TOD by using the
 function :func:`.scan_map_in_observations`, as the following example
 shows:
 
@@ -91,6 +123,7 @@ shows:
     -0.00601
     -0.00676
 
+The code automatically selects the fastest algebra based on the provided HWP.
 
 The input maps to scan can be either included in a dictionary with the name of
 the channel or the name of the dectector as keyword (the routines described in
