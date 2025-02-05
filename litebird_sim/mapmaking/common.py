@@ -215,7 +215,9 @@ def _compute_pixel_indices(
         if hwp_angle is None:
             polang_all[idet] = pol_angle_detectors[idet] + curr_pointings_det[:, 2]
         else:
-            polang_all[idet] = 2 * hwp_angle - pol_angle_detectors[idet] + curr_pointings_det[:, 2] 
+            polang_all[idet] = (
+                2 * hwp_angle - pol_angle_detectors[idet] + curr_pointings_det[:, 2]
+            )
 
         pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
 

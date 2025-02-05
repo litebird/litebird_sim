@@ -1,7 +1,7 @@
 # -*- encoding: utf-8 -*-
 
-from pathlib import Path
 from dataclasses import fields
+from pathlib import Path
 from uuid import UUID
 
 import numpy as np

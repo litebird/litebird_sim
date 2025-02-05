@@ -104,7 +104,7 @@ def test_make_binned_map_basic_mpi():
     pix = np.repeat(np.arange(12), 3)
     pointings = hp.pix2ang(1, pix)
 
-    ndets = 2 
+    ndets = 2
 
     tod = np.empty(36)
     for i in range(len(tod)):
@@ -125,7 +125,8 @@ def test_make_binned_map_basic_mpi():
     if obs.comm.rank == 0:
         obs.tod[:] = tod.reshape(ndets, 18)
         pointings = np.concatenate(
-            [np.array(pointings).T.reshape((ndets, 18, 2)), psi.reshape(ndets, 18, 1)], axis=2
+            [np.array(pointings).T.reshape((ndets, 18, 2)), psi.reshape(ndets, 18, 1)],
+            axis=2,
         )
 
     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
