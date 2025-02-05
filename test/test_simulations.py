@@ -93,7 +93,7 @@ And here are the data points:
 
 def test_imo_in_report(tmp_path):
     curpath = pathlib.Path(__file__).parent
-    imo = lbs.Imo(flatfile_location=curpath / "mock_imo")
+    imo = lbs.Imo(flatfile_location=curpath / "test_imo")
 
     sim = lbs.Simulation(
         base_path=tmp_path / "simulation_dir",

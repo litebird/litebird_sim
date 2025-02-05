@@ -96,13 +96,13 @@ quat = [0.00000000, 0.26726124, 0.53452248, 0.80178373]
     check_detector(det)
 
 
-def load_mock_imo():
+def load_test_imo():
     curpath = Path(__file__).parent
-    return lbs.Imo(flatfile_location=curpath / "mock_imo")
+    return lbs.Imo(flatfile_location=curpath / "test_imo")
 
 
 def test_detector_from_imo():
-    imo = load_mock_imo()
+    imo = load_test_imo()
 
     uuid = UUID("78fe75f1-a011-44b6-86dd-445dc9634416")
     det = lbs.DetectorInfo.from_imo(imo, uuid)
@@ -160,7 +160,7 @@ def test_freq_channel_creation():
 
 
 def test_freq_channel_from_imo():
-    imo = load_mock_imo()
+    imo = load_test_imo()
 
     uuid = UUID("ff087ba3-d973-4dc3-b72b-b68abb979a90")
     ch = lbs.FreqChannelInfo.from_imo(imo, uuid)
@@ -244,7 +244,7 @@ def test_instrument_creation():
 
 
 def test_instrument_from_imo():
-    imo = load_mock_imo()
+    imo = load_test_imo()
 
     uuid = UUID("f58e1c9b-d2fe-4db4-9ad5-65f644f12db7")
     instr = lbs.InstrumentInfo.from_imo(imo, uuid)
