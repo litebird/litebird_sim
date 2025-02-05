@@ -245,8 +245,8 @@ def write_one_observation(
                 attr_value = attr_value[det_idx]
                 if type(attr_value) in __NUMPY_SCALAR_TYPES:
                     new_detector[attribute] = attr_value.item()
-                elif type(attr_value) is np.ndarray:
-                    new_detector[attribute] = [x.item() for x in attr_value]
+                elif isinstance(attr_value, np.ndarray):
+                    new_detector[attribute] = attr_value.tolist()
                 else:
                     # Fallback: we assume this is a plain Python type
                     new_detector[attribute] = attr_value
