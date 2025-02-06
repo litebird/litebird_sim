@@ -1,4 +1,7 @@
 # HEAD
+
+-   Implementation of distributing detectors across the MPI processes by grouping them according to given attributes [#334](https://github.com/litebird/litebird_sim/pull/334)
+
 -   **Breaking change**: `PointingSys()` now requires `Observation` as an argument. And several functions to add pointing systematics are merged into `left_multiply_syst_quats()`.
 
 -   **Breaking change**: Redefinition (ωt instead of 2ωt) of the hwp angle returned by `get_pointings()`. Change in the pointing returned by `Observation.get_pointings()`, now behaving as it was before this [commit](https://github.com/litebird/litebird_sim/pull/319/commits/b3bc3bb2049c152cc183d6cfc68f4598f5b93ec0). Documentation updated accordingly. [#340](https://github.com/litebird/litebird_sim/pull/340)
