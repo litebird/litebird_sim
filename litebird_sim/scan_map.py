@@ -75,7 +75,7 @@ def scan_map_generic_hwp_for_one_detector(
     input_T,
     input_Q,
     input_U,
-    orientation_telescope,
+    orientation_det,
     pol_angle_det,
     pol_eff_det,
     hwp_angle,
@@ -90,7 +90,7 @@ def scan_map_generic_hwp_for_one_detector(
     for i in range(len(tod_det)):
         vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
         rot_matrix(rot_hwp, hwp_angle[i])
-        rot_matrix(rot_tel, orientation_telescope[i])
+        rot_matrix(rot_tel, orientation_det[i])
 
         tod_det[i] += compute_signal_generic_hwp_for_one_sample(
             Stokes=vec_S,
@@ -210,7 +210,7 @@ def scan_map(
                 input_T=input_T,
                 input_Q=input_Q,
                 input_U=input_U,
-                orientation_telescope=curr_pointings_det[:, 2],
+                orientation_det=curr_pointings_det[:, 2],
                 pol_angle_det=pol_angle_detectors[detector_idx],
                 pol_eff_det=pol_eff_detectors[detector_idx],
                 hwp_angle=hwp_angle,

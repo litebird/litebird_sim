@@ -45,8 +45,8 @@ def add_convolved_sky_to_one_detector(
     tod_det,
     sky_alms_det: SphericalHarmonics,
     beam_alms_det: SphericalHarmonics,
-    mueller_matrix,
     pointings_det,
+    mueller_matrix,
     hwp_angle,
     convolution_params: Optional[BeamConvolutionParameters] = None,
     nthreads: int = 0,
@@ -136,25 +136,24 @@ def add_convolved_sky_to_one_detector(
 def add_convolved_sky(
     tod,
     pointings,
-    hwp_angle,
     sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
-    input_sky_names,
     beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
-    input_beam_names,
+    hwp_angle: Union[np.ndarray, None] = None,
+    mueller_hwp: Union[np.ndarray, None] = None,
+    input_sky_names: Union[str, None] = None,
+    input_beam_names: Union[str, None] = None,
     convolution_params: Optional[BeamConvolutionParameters] = None,
     input_sky_alms_in_galactic: bool = True,
     nthreads: int = 0,
 ):
     """ """
 
-    # just filled
-    mueller = np.diag([1, 1, -1, -1])
-    # mueller = np.diag([1, 1, 1, 1])
+    n_detectors = tod.shape[0]
 
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
 
-    for detector_idx in range(tod.shape[0]):
+    for detector_idx in range(n_detectors):
         if type(pointings) is np.ndarray:
             curr_pointings_det = pointings[detector_idx, :, :]
         else:
@@ -180,8 +179,8 @@ def add_convolved_sky(
             tod_det=tod[detector_idx],
             sky_alms_det=sky_alms_det,
             beam_alms_det=beam_alms_det,
-            mueller_matrix=mueller,
             pointings_det=curr_pointings_det,
+            mueller_matrix=mueller_hwp[detector_idx],
             hwp_angle=hwp_angle,
             convolution_params=convolution_params,
             nthreads=nthreads,
@@ -320,18 +319,24 @@ def add_convolved_sky_to_observations(
             input_beam_names = None
 
         if hwp is None:
-            if hasattr(cur_obs, "hwp_angle"):
-                hwp_angle = cur_obs.hwp_angle
+            if cur_obs.has_hwp:
+                if hasattr(cur_obs, "hwp_angle"):
+                    hwp_angle = cur_obs.hwp_angle
+                else:
+                    hwp_angle = cur_obs.get_pointings()[1]
             else:
+                assert all(m is None for m in cur_obs.mueller_hwp), (
+                    "Detectors have been initialized with a mueller_hwp,"
+                    "but no HWP is either passed or initilized in the pointing"
+                )
                 hwp_angle = None
         else:
             if type(cur_ptg) is np.ndarray:
                 hwp_angle = get_hwp_angle(cur_obs, hwp)
             else:
                 logging.warning(
-                    "To use an external HWP object, you must pass a pre-calculated pointing, too"
+                    "For using an external HWP object also pass a pre-calculated pointing"
                 )
-                hwp_angle = None
 
         if nthreads is None:
             if NUM_THREADS_ENVVAR in os.environ:
@@ -342,10 +347,11 @@ def add_convolved_sky_to_observations(
         add_convolved_sky(
             tod=getattr(cur_obs, component),
             pointings=cur_ptg,
-            hwp_angle=hwp_angle,
             sky_alms=sky_alms,
-            input_sky_names=input_sky_names,
             beam_alms=beam_alms,
+            hwp_angle=hwp_angle,
+            mueller_hwp=cur_obs.mueller_hwp,
+            input_sky_names=input_sky_names,
             input_beam_names=input_beam_names,
             convolution_params=convolution_params,
             input_sky_alms_in_galactic=input_sky_alms_in_galactic,
