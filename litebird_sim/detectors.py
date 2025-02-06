@@ -132,7 +132,9 @@ class DetectorInfo:
              rotation at all, i.e., the detector is aligned with the
              boresight direction.
 
-        - pol_angle_rad (float): polarization angle of the detector in radiants. The default is 0.
+        - pol_angle_rad (float): polarization angle of the detector with
+             respect to the x-axis of the reference frame of the detector,
+             in radians. The default is 0.
 
         - pol_efficiency (float): polarization efficiency of the detector,
              defined as γ of eq. 15 of astro-ph/0606606. The default is 1.
