@@ -104,6 +104,8 @@ def test_make_binned_map_basic_mpi():
     pix = np.repeat(np.arange(12), 3)
     pointings = hp.pix2ang(1, pix)
 
+    ndets = 2
+
     tod = np.empty(36)
     for i in range(len(tod)):
         tod[i] = (
@@ -114,19 +116,22 @@ def test_make_binned_map_basic_mpi():
 
     # Craft the observation with the attributes needed for map-making
     obs = lbs.Observation(
-        detectors=2,
+        detectors=ndets,
         n_samples_global=18,
         start_time_global=0.0,
         sampling_rate_hz=1.0,
         comm=lbs.MPI_COMM_WORLD,
     )
     if obs.comm.rank == 0:
-        obs.tod[:] = tod.reshape(2, 18)
+        obs.tod[:] = tod.reshape(ndets, 18)
         pointings = np.concatenate(
-            [np.array(pointings).T.reshape((2, 18, 2)), psi.reshape(2, 18, 1)], axis=2
+            [np.array(pointings).T.reshape((ndets, 18, 2)), psi.reshape(ndets, 18, 1)],
+            axis=2,
         )
 
     obs.set_n_blocks(n_blocks_time=obs.comm.size, n_blocks_det=1)
+
+    obs.pol_angle_rad = np.zeros(ndets)
 
     res = mapping.make_binned_map(
         nside=1,

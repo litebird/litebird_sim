@@ -45,7 +45,7 @@ from .mapmaking import (
     DestriperResult,
     destriper_log_callback,
 )
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD
+from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
@@ -896,6 +896,7 @@ class Simulation:
         detectors: List[DetectorInfo],
         num_of_obs_per_detector: int = 1,
         split_list_over_processes=True,
+        det_blocks_attributes: Union[List[str], None] = None,
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
@@ -929,7 +930,12 @@ class Simulation:
         simulating 10 detectors and you specify ``n_blocks_det=5``,
         this means that each observation will handle ``10 / 5 = 2``
         detectors. The default is that *all* the detectors be kept
-        together (``n_blocks_det=1``).
+        together (``n_blocks_det=1``). On the other hand, the parameter
+        `det_blocks_attributes` specifies the list of detector attributes
+        to create the groups of detectors. For example, with
+        ``det_blocks_attributes = ["wafer", "pixel"]``, the detectors will
+        be divided into groups such that all detectors in a group will
+        have the same ``wafer`` and ``pixel`` attribute.
 
         The parameter `n_blocks_time` specifies the number of time
         splits of the observations. In the case of a 3-month-long
@@ -1020,6 +1026,7 @@ class Simulation:
                 start_time_global=cur_time,
                 sampling_rate_hz=sampfreq_hz,
                 n_samples_global=nsamples,
+                det_blocks_attributes=det_blocks_attributes,
                 n_blocks_det=n_blocks_det,
                 n_blocks_time=n_blocks_time,
                 comm=(None if split_list_over_processes else self.mpi_comm),
@@ -1221,7 +1228,8 @@ class Simulation:
 
         num_of_obs = len(self.observations)
         if append_to_report and MPI_ENABLED:
-            num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
+            if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
+                num_of_obs = MPI_COMM_GRID.COMM_OBS_GRID.allreduce(num_of_obs)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_quaternions.md")
@@ -1318,8 +1326,11 @@ class Simulation:
         memory_occupation = pointing_provider.bore2ecliptic_quats.quats.nbytes
         num_of_obs = len(self.observations)
         if append_to_report and MPI_ENABLED:
-            memory_occupation = MPI_COMM_WORLD.allreduce(memory_occupation)
-            num_of_obs = MPI_COMM_WORLD.allreduce(num_of_obs)
+            if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
+                memory_occupation = MPI_COMM_GRID.COMM_OBS_GRID.allreduce(
+                    memory_occupation
+                )
+                num_of_obs = MPI_COMM_GRID.COMM_OBS_GRID.allreduce(num_of_obs)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_pointings.md")

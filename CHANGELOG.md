@@ -1,4 +1,19 @@
 # HEAD
+
+-   **Breaking change**: Change to the pointing API [#358](https://github.com/litebird/litebird_sim/pull/358), in detail:
+
+    1. DetectorInfo has three new attributes: pol_angle_rad (polarization angle), pol_efficiency (polarization efficiency)and mueller_hwp (mueller matrix of the HWP).
+
+    2. get_pointings() return only the orientation ψ of the detector, the polarization angle is a separate variable stored in the `Observation` class. The same class also handles the mueller_hwp for each detector, and it has a new bool variable `has_hwp` that is set to true if an HWP object is passed to `prepare_pointings()`.
+
+    3. The mock vPTEP IMo has been updated accordingly.
+
+    4. The `HWP` class has a new field called mueller, that contains the mueller matrix of the HWP.
+
+    5. The function `scan_map()` now handles three possible algebras: (i) no HWP, (ii) ideal HWP, (iii) generic optical chain.
+
+-   Implementation of distributing detectors across the MPI processes by grouping them according to given attributes [#334](https://github.com/litebird/litebird_sim/pull/334)
+
 -   **Breaking change**: `PointingSys()` now requires `Observation` as an argument. And several functions to add pointing systematics are merged into `left_multiply_syst_quats()`.
 
 -   **Breaking change**: Redefinition (ωt instead of 2ωt) of the hwp angle returned by `get_pointings()`. Change in the pointing returned by `Observation.get_pointings()`, now behaving as it was before this [commit](https://github.com/litebird/litebird_sim/pull/319/commits/b3bc3bb2049c152cc183d6cfc68f4598f5b93ec0). Documentation updated accordingly. [#340](https://github.com/litebird/litebird_sim/pull/340)
