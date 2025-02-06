@@ -1,17 +1,17 @@
 # -*- encoding: utf-8 -*-
 
-from dataclasses import dataclass, fields
-from datetime import date
 import logging as log
 import math
+from dataclasses import dataclass, fields
+from datetime import date
 from pathlib import Path
 from typing import Any, Dict, Union
 
-import toml
-import numpy as np
 import healpy as hp
+import numpy as np
 import pysm3
 import pysm3.units as u
+import toml
 
 import litebird_sim as lbs
 from litebird_sim import constants as c
@@ -617,7 +617,7 @@ class Mbs:
             sky = pysm3.Sky(
                 nside=nside,
                 component_objects=[
-                    pysm3.CMBMap(nside, map_IQU=(Path(cur_map_path)).absolute())
+                    pysm3.CMBMap(nside, map_IQU=str((Path(cur_map_path)).absolute()))
                 ],
             )
 

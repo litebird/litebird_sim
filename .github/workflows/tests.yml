@@ -10,7 +10,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-13]
         mpi: ["none", openmpi] # mpich
-        python: [3.9, 3.11]
+        python: [3.9, 3.12]
         exclude:
           - os: macos-latest
             mpi: mpich
@@ -30,7 +30,7 @@ jobs:
       # store it
       - name: Cache PySM3 data files
         id: cache-pysm3
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/pysm3-data
           key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}

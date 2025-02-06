@@ -4,8 +4,8 @@ Map-making
 ==========
 
 The primary aim of the LiteBIRD Simulation Framework is to create
-synthetic timestreams as if they were acquired by the real LiteBIRD
-Instrument. The process that creates maps out of these timelines is
+synthetic timestreams as if the real LiteBIRD acquired them.
+The process of creating maps out of these timelines is
 called *map-making* and it is strictly considered a data-analysis
 task, not a simulation task. However, since most of the assessments on
 the quality of a timestream can only be done on maps, the LiteBIRD
@@ -21,10 +21,10 @@ The framework provides the following solutions:
 
 2. A *destriper*, i.e., a more advanced map-maker that can remove the
    effect of correlated instrumental noise from the timelines before
-   producing a map. The correlated noise is usually referred as 1/f
+   producing a map. We usually refer to correlated noise as 1/f
    noise, and the purpose of the destriper is to estimate its
    contribution and remove it from the timelines; then, a classical
-   *binner* is ran over the cleaned timelines.
+   *binner* is run over the cleaned timelines.
 
 3. A wrapper that enables you to use the
    `TOAST2 <https://github.com/hpc4cmb/toast>`_ destriper. (To use
@@ -33,19 +33,19 @@ The framework provides the following solutions:
 
 4. You can also use :func:`.save_simulation_for_madam` to save TODs
    and pointing information to disk and then manually call the `Madam
-   mapmaker <https://arxiv.org/abs/astro-ph/0412517>`_.
+   map-maker <https://arxiv.org/abs/astro-ph/0412517>`_.
 
-In this chapter, we assume that you have already created the timelines
-that must be provided as input to the destriper. Here is a sample code
+In this chapter, we assume you have already created the timelines
+to be used as input to the destriper. Here is a sample code
 that creates a simple timeline containing white noise for two
 detectors::
 
     import numpy as np
     import astropy.units as u
     from numpy.random import MT19937, RandomState, SeedSequence
-    
+
     import litebird_sim as lbs
-    
+
     sim = lbs.Simulation(
         base_path="destriper_output",
         start_time=0,
@@ -66,7 +66,7 @@ detectors::
         name="core",
         spin_boresight_angle_rad=np.deg2rad(65),
     )
-    
+
     # We create two detectors, whose polarization angles are separated by π/2
     sim.create_observations(
         detectors=[
@@ -85,13 +85,12 @@ detectors::
     for curobs in sim.observations:
         curobs.tod *= 0.0
         curobs.tod += rs.randn(*curobs.tod.shape)
-  
 
-The theory of binners and destripers is explained
-in the paper :cite:`2009:kurkisuonio:destriping`,
-and the implementation closely follows the terminology
-used in the paper. In this chapter, we will refer to
-the paper as KS2009.
+
+The paper :cite:`2009:kurkisuonio:destriping` explains
+the theory of binners and destripers. Our implementation
+closely follows the terminology used in the paper. In
+this chapter, we will refer to the paper as KS2009.
 
 .. _mapmaking-binner:
 
@@ -99,13 +98,13 @@ Binner
 ------
 
 Once you have generated a set of observations, either on a single
-process or distributed over several mpi processes, you can create a 
+process or distributed over several mpi processes, you can create a
 simple binned map with the function :func:`.make_binned_map`. This function
-takes: a single (or a list of) :class:`.Observation`, the Healpix
-resolution of the output map (``nside``) and produces a coadded map.
-It assumes white noise and each detector gets weighted by 
-:math:`1 / NET^2`. If the pointing information is not provided in the
-observation, it can be passed through the optional argument `pointings`, 
+takes one or more :class:`.Observation` objects and the Healpix
+resolution of the output map (``nside``), and it produces a coadded map.
+The algorithm assumes white noise and each detector gets weighted by
+:math:`1 / \text{NET}^2`. If the pointing information is not provided in the
+observation, it can be passed through the optional argument `pointings`,
 with a syntax similar to :func:`.scan_map_in_observations`.
 The output map is in Galactic coordinates, but you can specify the
 coordinate system you want via the parameter `output_coordinates`.
@@ -114,13 +113,13 @@ This is how it should be called::
     result = lbs.make_binned_map(nside=128, observations=observations)
     healpy.mollview(result.binned_map[0])
 
-The pointing information is obtained from the :class:`.Observation` (either 
-using the precomputed pointing or computed on the fly), alternatively 
-pointings can be provided as a list of numpy arrays.
+The function obtains pointing information from the :class:`.Observation`
+(either using the precomputed pointing or computed on the fly). As an
+alternative, you can provide pointings as a list of numpy arrays.
 The result is an instance of the class :class:`.BinnerResult`
 and contains both the I/Q/U maps and the covariance matrix.
 
-The function :func:`.make_binned_map` has a high level interface in the class
+Function :func:`.make_binned_map` has a high-level interface in the class
 :class:`.Simulation` that bins the content of the observations into maps.
 The syntax is identical to :func:`.make_binned_map`::
 
@@ -128,22 +127,21 @@ The syntax is identical to :func:`.make_binned_map`::
     healpy.mollview(result.binned_map[0])
 
 
-The :class:`.BinnerResult` contains the field ``binned_map``, which
-is a Healpix map containing the binned values of the samples.
+The :class:`.BinnerResult` class contains the field ``binned_map``,
+which is a Healpix map containing the binned values of the samples.
 
-It is now worth explaining how the binned map is calculated, and we
-will do it using a simple example. Suppose that we have measured just
-two pixels in the map with only seven measurements. (These numbers are
-ridiculous, but in this way the matrices we are going to write will be
-more manageable!)
+Using a simple example, we now explain how the function calculates
+the binned map. Suppose we measured just two pixels in the map with
+only seven measurements. (These numbers are ridiculous, but in this
+way, the matrices we will write will be more manageable!)
 
 Each sample is associated with a direction in the sky (the *pointing
-information*), but from the point of view of the binner the only quantity that
-matters is the index of the pixel in the map associated with the pointing
-direction. In our example, the seven samples will measure just two pixels in the
-sky, with different attack (polarization) angles. The following figure and
-table show how the two pixels are observed by the seven TOD samples. The
-bars refer to the polarization angle of the detector.
+information*), but from the point of view of the binner, the only
+quantity that matters is the pixel index in the map associated with
+the pointing direction. In our example, the seven samples will measure
+just two pixels in the sky with different attack (polarization) angles.
+The following figure and table show how the seven TOD samples observe
+the two pixels. The bars refer to the polarization angle of the detector.
 
 .. |pixel1| image:: images/destriper-pixel1.svg
 
@@ -210,10 +208,10 @@ our case). Thus, for our simple example :math:`P` is
 where the number of rows matches the number of samples in the TOD (7), and
 for each pixel there are three columns corresponding to I, Q, and U.
 
-It is important that each pixel be covered by enough samples: to recover the
-three Stokes parameters associated with it (I, Q, and U), there must
-be at least three non-degenerate polarization angles. KS2009
-describes how to recover this information through the matrix
+Enough samples must cover each pixel: there must be at least three
+non-degenerate polarization angles to recover the three Stokes
+parameters associated with it (I, Q, and U). KS2009 describes
+how to compute them through the matrix
 :math:`M = P^T\cdot C_w^{-1}\cdot P`, where :math:`C_w` is a diagonal
 matrix with shape :math:`(N_t, N_t)`, where each element along the diagonal
 is :math:`\sigma^2`, the white-noise variance of the sample:
@@ -321,45 +319,44 @@ splits both in time and in detector space. The time split is passed
 through a string in the parameter `time_split`; the same applies for
 `detector_split`. Currently, the supported time splits are:
 
-- ``"full"`` (default): no split is performed.
-- ``"first_half"``: the first half of the TOD is used.
-- ``"second_half"``: the second half of the TOD is used.
-- ``"odd"``: the odd samples of the TOD are used.
-- ``"even"``: the even samples of the TOD are used.
-- ``"yearX"``: the TOD samples relative to the X-th year of observation
-  is used. The X-th part must be an integer between 1 and 3. 
+- ``"full"`` (default): no split.
+- ``"first_half"``: use the first half of the TOD.
+- ``"second_half"``: use the second half of the TOD.
+- ``"odd"``: use the odd samples of the TOD.
+- ``"even"``: use the even samples of the TOD.
+- ``"yearX"``: use the TOD samples relative to the X-th year of observation.
+  The X-th part must be an integer between 1 and 3.
 - ``"surveyX"``: assuming that a complete survey is performed in 6 months,
-  the X-th survey is used. The X-th part must be an integer between 1 and 6.
+  use the X-th survey. X must be an integer between 1 and 6.
 
-As regards the detector split, the supported options are:
+There are three supported options for the detector split:
 
 - ``"full"`` (default): no split is performed.
-- ``"waferXXX"``: the detectors in the wafer XXX are used. The XXX part
-  must specify the desired wafer (e.g. "L00", "M01", or "H02").
+- ``"waferXXX"``: use the detectors in the wafer XXX. The XXX part
+  must specify the wafer (e.g. "L00", "M01", or "H02").
 
-The final data split will correspond to the combination of the two splits. 
+The final data split will correspond to the combination of the two splits.
 
 The function :func:`.check_valid_splits` will check whether the requested
 split is part of the list above. If the split is not valid, the function
-will raise a ValueError. In addition, it will check whether the requested
-split is compatible with the duration of the observation and with the detector
-list. Thus, for example, if the observation lasts 1 year, the split "year2"
-will raise an AsserionError. Similarly, if the observation is performed with some
-detector contained in the L00 wafer, the split "waferL03" will also raise
-an AsserionError.
+will raise a ``ValueError``. In addition, it will check whether the requested
+split is compatible with the observation duration and the detector
+list. Thus, for example, if the observation lasts one year, the split ``year2``
+will raise an ``AssertionError``. Similarly, if some detector in the L00 wafer
+does the observation, ``waferL03`` will also raise an ``AssertionError``.
 
 .. _mapmaking-destriper:
 
 Destriper
 ---------
 
-If you know that your simulation contains 1/f noise, you should avoid
-using the binner and use a better map-making algorithm, as the
-hypothesis that the noise be white drops and the binning equation is
-no longer valid.
+If you know that your simulation contains 1/f noise, you should avoid using
+the binner and instead employ a better map-making algorithm. With 1/f noise,
+the hypothesis that the noise be white drops and the binning equation is no
+longer valid.
 
 The destriping algorithm is implemented by the :func:`.make_destriped_map`,
-which is functionally equivalent to :func:`.make_binned_map`. However, as
+functionally equivalent to :func:`.make_binned_map`. However, as
 the algorithm it implements is more complex, you must provide more
 information when calling it. Specifically, you should instantiate an
 instance of the class :class:`.DestriperParameters`::
@@ -368,30 +365,32 @@ instance of the class :class:`.DestriperParameters`::
         ...
     )
 
-    result = lbs.make_destriped_map(nside=nside,
-                                    observations=observations,
-                                    params=params,
-                                    )
+    result = lbs.make_destriped_map(
+        nside=nside,
+        observations=observations,
+        params=params,
+    )
     healpy.mollview(result.destriped_map)
 
-The pointing information is handled identically to :func:`.make_binned_map`.
+Pointing information is handled identically to :func:`.make_binned_map`.
 The result is an instance of the class :class:`.DestriperResult`, which
 is similar to :class:`.BinnerResult` but it contains much more information.
 
-The function :func:`.make_destriped_map` has a high level interface in the class
-:class:`.Simulation` that applies the destriper algorithm to all the 
+Function :func:`.make_destriped_map` has a high level interface in the class
+:class:`.Simulation` that applies the destriper algorithm to all the
 observations in the simulation.
 The syntax is identical to :func:`.make_destriped_map`::
 
     result = sim.make_destriped_map(nside=nside)
     healpy.mollview(result.destriped_map)
 
-We will now explain how a destriper works and what is the meaning of each
+We will now explain how a destriper works and what the meaning of each
 parameter in the classes :class:`.DestriperParameters` and
-:class:`.DestriperResult`. Apart from KS2009, another source of information
-is the file ``test/test_destriper.py``: it compares the results of the
-destriper with the analytical solution of the simple 7-sample model we are
-discussing here.
+:class:`.DestriperResult` is. Apart from KS2009, another source of information
+is the file
+`test/test_destriper.py <https://github.com/litebird/litebird_sim/blob/master/test/test_destriper.py>`_:
+it compares the results of the destriper with the analytical solution of the
+simple 7-sample model we discuss here.
 
 The idea of a destriper is to group consecutive samples in the same TOD into
 different *baselines*. Each baseline must contain a number of samples such that
@@ -400,7 +399,7 @@ too many samples! A good rule of thumb is to make the time span covered by
 one baseline shorter than the inverse of the knee frequency for that detector.
 The destriper works by assuming that the effect of 1/f noise on all the samples
 within the baselines is a purely additive factor; this is an approximation,
-but for experiments like Planck has shown to work well.
+but for experiments like Planck, it has worked well.
 
 .. figure:: images/destriper-baselines.svg
 
@@ -420,22 +419,22 @@ a cleaned map. It does so by doing the following steps:
 3.   It applies a binning operation on the cleaned TOD, using the same equations
      explained in the section :ref:`mapmaking-binner`.
 
-To show a concrete example about how the destriper works, we will resume the
-toy TOD containing 7 samples that was discussed in section :ref:`mapmaking-binner`.
-We will group these samples in two baselines of 4 and 3 samples respectively.
+To provide a concrete example of how the destriper works, we will resume the toy
+TOD containing seven samples that we discussed in the section :ref:`mapmaking-binner`.
+We will group these samples into two baselines of 4 and 3 samples, respectively.
 
 It's easier to understand what the algorithm does if we play following the rules
-of the destriper: instead of thinking of true 1/f noise, let's pretend that what
-we actually have in the TOD are the *baselines*: constant values that last for
+of the destriper: instead of thinking of proper 1/f noise, let's pretend that what
+we have in the TOD are the *baselines*: constant values that last for
 some time and are added to the samples in the TOD. How can the destriper understand
 the level of each baseline in the figure above? The trick is easy to understand
 if we recall Table :ref:`todsamples-in-mapmaking-table`. Let's consider the first
-pixel: it was visited by the first two samples, then the detector moved to another
+pixel: it was measured by the first two samples, then the detector moved to another
 position in the sky (the second pixel), but it moved back to the first pixel just
 while measuring the last sample in the TOD (#7). The point is that the first two samples
 #1 and #2 belong to the first baseline, since it lasts 4 pixels, while sample #7 belongs
-to the second one. Yet, once 1/f noise is taken into account, the estimated I/Q/U
-parameter for this pixel must agree. This problem can be rewritten as a :math:`\chi^2`
+to the second one. Yet, once we take 1/f noise into account, the estimated I/Q/U
+parameter for this pixel must agree. We can rewrite this problem as a :math:`\chi^2`
 minimization problem: the destriper looks for the values of the two baselines that
 minimize the discrepancy in the values of the pixels as estimated by every sample in the TOD.
 
@@ -454,12 +453,12 @@ destriper requires a new matrix :math:`F,` whose shape is :math:`(N_t, N_b)`:
    0& 1
    \end{pmatrix}
 
-Don't be fooled by the fact that the number of columns is the same as the number
+Don’t be fooled by the fact that the number of columns is the same as the number
 of pixels in the map: in this case, the number of columns corresponds to the
 number of *baselines* in the TOD! The operator :math:`F` tells which baseline
-“owns” the samples in the TOD, and, as you can see, we are actually assigning
+“owns” the samples in the TOD, and, as you can see, we are assigning
 the first four samples to the first baseline and the last three samples to
-the last baseline. The application of :math:`F` to a set of :math:`N_t` samples
+the last baseline. Applying :math:`F` to a set of :math:`N_t` samples
 (the TOD) produces a vector containing :math:`N_b` samples (the baselines). As
 it is always the case that :math:`N_b \ll N_t,` this means that :math:`F` is
 a very tall and narrow matrix!
@@ -517,13 +516,13 @@ there are two problems with this formula:
 1. Matrix :math:`A` is too large to be inverted;
 2. Matrix :math:`A` is not invertible!
 
-The second point is quite alarming, and it might sound like it is an irrecoverable
+The second point is alarming, and it might sound like an irrecoverable
 problem. The fact that :math:`\det A = 0` stems from the fact that the solution to
 the destriping equation is not unique, as if :math:`a` is a solution, then
 :math:`a + K` is still a solution for any scalar constant :math:`K.` (Remember, the
 purpose of the destriper is to make the many measurements for I/Q/U within each
-pixel *consistent* once the baselines are subtracted, and the consistency is the same
-if all the baselines are shifted by the same amount!) What we are looking for is
+pixel *consistent* once it subtracts the baselines and the consistency is the same
+if it shifts all the baselines by the same amount!) We are looking for
 a solution :math:`a` that is orthogonal to the null space of :math:`A`.
 
 We can solve both problems by employing the fact that :math:`A` is a symmetric
@@ -535,21 +534,21 @@ without trying to invert :math:`A`. If you are curious about the details of
 the algorithm, a good pedagogical reference is :cite:`1994:shewchuk:conjugategradient`.
 
 The way the algorithm works is to start from a guess for :math:`x` (the set of
-baselines) which must be orthogonal to the null-space of :math:`A`; in our
+baselines), which must be orthogonal to the null-space of :math:`A`; in our
 case, it is enough to require that the mean value of the first guess of the baselines
 is zero, i.e., :math:`\sum_i x_i = 0`. Starting from guess :math:`x^{(0)},` the
 algorithm produces a new guess :math:`x^{(1)}` such that :math:`r^{(1)} = Ax^{(1)} - b` is
 closer to zero than :math:`r^{(0)} = Ax^{(0)} - b`. The procedure keeps going until the
 residual :math:`r^{(n)} = Ax^{(n)} - b` is small enough, always satisfying the
 fact that :math:`\sum_i x_i^{(n)} = 0` for any :math:`n.` Thus, the final solution
-will be such that the average value of the baselines will be zero.
+will have the property that the average value of the baselines will be zero.
 
 The CG algorithm requires iterations to continue until the residuals :math:`r^{(n)}`
 are “small enough”. But how can we tell this? Vector :math:`r^{(n)}` contains
 :math:`N_b` elements, corresponding to the residual for each baseline, and it might
 be that some of the residuals are small and some are not. The most common way to
-deal with this is to compute some kind of norm over :math:`r^{(n)}` to produce a
-single scalar, and then to check whether this value is below some threshold.
+deal with this is to compute some norm over :math:`r^{(n)}` to produce a
+single scalar and then to check whether this value is below some threshold.
 There are several possible definitions for the norm:
 
 1. The standard :math:`L_2` norm (Euclidean): :math:`\left\|r^{(n)}\right\|^2`;
@@ -568,12 +567,12 @@ following fields in the :class:`.DestriperParameters` class:
   then the CG algorithm stops.
 - ``samples_per_baseline``: this can either be an integer, in which case it will
   be used for *all* the baselines, or a list of 1D arrays, each containing the
-  length of each baseline for each observation passed through the parameter ``observations``.
-  Note that if you provide an integer, it might be that not all baselines will
-  have exactly that length: it depends whether the number :math:`N_t` of samples
-  in the TOD is evenly divisibile by ``samples_per_baseline`` or not. The
-  algorithm tries to make the number of elements per baseline as evenly as
-  possible.
+  length of each baseline for each observation passed through the parameter
+  ``observations``. Note that if you provide an integer, it might be that not all
+  baselines will have exactly that length: it depends on whether the number
+  :math:`N_t` of samples in the TOD is evenly divisible by ``samples_per_baseline``
+  or not. The algorithm tries to make the number of elements per baseline as evenly
+  as possible.
 - ``use_preconditioner``: if this flag is ``True``, the preconditioning matrix
   :math:`F^T\cdot C_w^{-1}\cdot F` will be used with the CG algorithm. This
   might speed up the convergence.
@@ -602,27 +601,27 @@ the field ``baselines`` is shown in the following figure.
 
     Memory layout for baselines.
 
-The image assumes that the baselines contain data for two detectors A and B.
-In the **upper image**, the baselines are shown as horizontal lines that span the
-time range covered by the two (consecutive) observations. The baselines for
-detector A are shown using continuous lines, while the lines for B are dashed.
+The image assumes the baselines contain data for two detectors, A and B.
+In the **upper image**, the baselines are shown as horizontal lines that span
+the time range covered by the two (consecutive) observations. We use continuous
+lines for the baselines of detector A and dashed lines for B.
 Note that the number of baselines in the first :class:`.Observation` object
-(5) is different than the number in the second object (3).
-The **lower image** offers a visual representation of the layout of the
-``baselines`` field in the class :class:`.DestriperResult`: it is a Python
-list of two elements, each containing 2D arrays with shape :math:`(N_d, N_b)`.
-The *i*-th row of each 2D array contains the baselines for the *i*-th detector.
+(5) differs from the number in the second object (3). The **lower image** offers
+a visual representation of the layout of the ``baselines`` field in the class
+:class:`.DestriperResult`: a Python list of two elements, each containing 2D
+arrays with shape :math:`(N_d, N_b)`. The *i*-th row of each 2D array contains
+the baselines for the *i*-th detector.
 
 The field ``baseline_errors`` has the same memory layout as ``baselines``
 and contains a rough estimate of the error per each baseline, assuming that
-the noise in the baselines are not correlated. (Unrealistic!) Finally,
+the noise in the baselines is not correlated. (Unrealistic!) Finally,
 the field ``baseline_lengths`` is a list of 1D integer arrays of :math:`N_b`
 elements containing the number of samples in each baseline; it should match
 the value provided in the field ``samples_per_baseline`` in the class
 :class:`.DestriperParameters`.
 
-Once a solution for the destriping equation has been computed, you can ask
-to remove the baselines from the TOD using one of the functions
+Once the destriper has computed a solution for the destriping equation, you
+can ask to remove the baselines from the TOD using one of the functions
 :func:`.remove_baselines_from_tod` or :func:`.remove_destriper_baselines_from_tod`.
 
 You can save the results of the destriper using the function
@@ -631,10 +630,9 @@ You can save the results of the destriper using the function
 using MPI, you should call both functions on *all* the MPI processes,
 and the number of processes should be the same between the two calls.
 
-In addition, the function :func:`.make_destriped_map` can accept in input
-a custom set of baselines. Provided that these have the correct dimensions,
-the destriper will skip the CG iterations and proceed directly to the
-map-making step.
+In addition, func:`.make_destriped_map` can accept a custom set of baselines
+as input. The destriper will skip the CG iterations and proceed directly to
+the map-making step if these have the correct dimensions.
 
 How the N_obs matrix is stored
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -683,10 +681,15 @@ store the value of :math:`M_i^{-1}`.
 Data splits
 ^^^^^^^^^^^
 
-Similarly to the function :func:`.make_binned_map`, also :func:`.make_destriped_map` is able to provide data splits both in time and in detector space. Given that the splits are implemented identically, refer to the documentation of :func:`.make_binned_map` for more details. 
+Similarly to the function :func:`.make_binned_map`,
+:func:`.make_destriped_map` too can provide data splits both in time
+and detector space. Given that the splits are implemented in the same
+way, refer to the documentation of :func:`.make_binned_map` for more
+details.
 
-The only difference we must mention here is that each split is applied to the TOD before the destriper is run. This means that the baselines will be computed using only the samples that fall within the split.
-
+The difference is that each split is applied to the TOD before the
+destriper runs. Therefore, the destriper will only use the samples
+within the split to compute the baselines.
 
 TOAST2 Destriper
 ----------------
@@ -709,14 +712,14 @@ The procedure to use the TOAST2 destriper is similar to the steps required to
 call the internal destriper: you must create a
 :class:`.ExternalDestriperParameters` object that specifies which input
 parameters (apart from the timelines) should be used::
-  
+
     params = lbs.ExternalDestriperParameters(
         nside=16,
         return_hit_map=True,
         return_binned_map=True,
         return_destriped_map=True,
     )
-  
+
 The parameters we use here are the resolution of the output map
 (``nside=16``), and the kind of results that must be returned:
 specifically, we are looking here for the *hit map* (i.e., a map that
@@ -741,7 +744,7 @@ To run the TOAST2 destriper, you simply call
   result = lbs.destripe_with_toast2(sim, params)
 
 The result is an instance of the class :class:`.Toast2DestriperResult` and
-contains the three maps we have asked above (hit map, binned map, 
+contains the three maps we have asked above (hit map, binned map,
 destriped map).
 
 .. note::
@@ -858,15 +861,15 @@ only once, including *all* the TOD components, and then call
 
 It is important that the `components` parameter in the call to
 :func:`.save_simulation_for_madam` list *all* the components, even
-if they are not going to be used in the first and second map. The reason
-is that this parameter is used by the function to create a «map» of the
-components as they are supposed to be found in the FITS files; for
+if you ask Madam not to use them in the first and second maps. The reason
+is that the function uses this parameter to create a «map» of the
+components as they are supposed to appear in the FITS files; for
 example, the ``cmb_tod`` field is the *third* in each TOD file, but this
 would not be apparent while producing the first map, where it is the
 *second* in the list of components that must be used. The ``.par``
-file will list the components that need to be actually used to
+file will list the components that need to be used to
 create the map, so it will not be confused if the TOD FITS files
-will contain more components than needed. (This is a neat feature
+contain more components than needed. (This is a neat feature
 of Madam.)
 
 .. note::
@@ -878,24 +881,23 @@ of Madam.)
    file*.
 
    The *simulation file* represents a «map» of the content of a
-   set of FITS files. No information about the map-making process
-   is included in a simulation file: it just tells how many FITS
-   files should be read and what is inside each of them.
+   set of FITS files. A simulation file includes no information
+   about the map-making process; it just tells how many FITS
+   files to read and what is inside each.
 
-   The *parameter file* is used to tell Madam how you want maps
-   to be created. It's in the parameter file that you can ask
-   Madam to skip parts of the TODs, for example because you do
-   not want to include the dipole in the output map.
+   The *parameter file* tells Madam how to create the maps. You
+   can ask Madam to skip parts of the TODs in the parameter file.
+   For example, you do not want to include the dipole in the output map.
 
    When you call :func:`.save_simulation_for_madam`, the
    `components` parameter is used to build the *simulation file*:
    thus, if you plan to build more than one map out of the same
    set of components, you want to have the very same simulation
-   files, because they «describe» what's in the FITS files. This
+   files because they «describe» what’s in the FITS files. This
    is the reason why we passed the same value to `components`
    every time we called :func:`.save_simulation_for_madam`.
 
-   But when we create the three *parameter files*, each of them
+   However, when we create the three *parameter files*, each of them
    differs in the list of components that need to be included.
    If you inspect the three files ``cmb+wn/madam.par``,
    ``cmb+wn+1f/madam.par``, and ``cmb+wn+1f+dip/madam.par``, you

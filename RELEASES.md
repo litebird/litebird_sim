@@ -22,7 +22,7 @@
 -   Upload the package to PyPI:
 
     ```
-    poetry upload
+    poetry publish
     ```
 
 -   Create a new tag and push it to GitHub:

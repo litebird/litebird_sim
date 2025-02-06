@@ -55,6 +55,7 @@ from .hwp import (
     IdealHWP,
     read_hwp_from_hdf5,
 )
+from .hwp_diff_emiss import add_2f, add_2f_to_observations
 from .hwp_sys.hwp_sys import (
     HwpSys,
 )
@@ -88,14 +89,12 @@ from .pointings_in_obs import (
     prepare_pointings,
     precompute_pointings,
 )
-from .pointing_sys.pointing_sys import (
+from .pointing_sys import (
     get_detector_orientation,
-    left_multiply_offset2det,
-    left_multiply_disturb2det,
-    left_multiply_offset2quat,
-    left_multiply_disturb2quat,
+    left_multiply_syst_quats,
     FocalplaneCoord,
     SpacecraftCoord,
+    HWPCoord,
     PointingSys,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
@@ -319,11 +318,12 @@ __all__ = [
     "apply_gaindrift_to_observations",
     # pointing_sys.py
     "get_detector_orientation",
-    "left_multiply_offset2det",
-    "left_multiply_disturb2det",
-    "left_multiply_offset2quat",
-    "left_multiply_disturb2quat",
+    "left_multiply_syst_quats",
     "FocalplaneCoord",
     "SpacecraftCoord",
+    "HWPCoord",
     "PointingSys",
+    # hwp_diff_emiss.py
+    "add_2f",
+    "add_2f_to_observations",
 ]

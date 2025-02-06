@@ -130,7 +130,7 @@ def _get_ideal_hwp_angle(
     for sample_idx in range(output_buffer.size):
         angle = (
             start_angle_rad
-            + (start_time_s + delta_time_s * sample_idx) * 2 * ang_speed_radpsec
+            + (start_time_s + delta_time_s * sample_idx) * ang_speed_radpsec
         ) % (2 * np.pi)
 
         output_buffer[sample_idx] = angle
@@ -139,7 +139,14 @@ def _get_ideal_hwp_angle(
 def _add_ideal_hwp_angle(
     pointing_buffer, start_time_s, delta_time_s, start_angle_rad, ang_speed_radpsec
 ):
-    detectors, samples, _ = pointing_buffer.shape
+    shape = pointing_buffer.shape
+    if len(shape) == 3:
+        detectors, samples, _ = shape
+    elif len(shape) == 2:
+        detectors, samples = shape
+    else:
+        ValueError("Wrong shape for the pointing_buffer")
+
     hwp_angles = np.empty(samples, dtype=pointing_buffer.dtype)
     _get_ideal_hwp_angle(
         output_buffer=hwp_angles,
@@ -148,9 +155,12 @@ def _add_ideal_hwp_angle(
         start_angle_rad=start_angle_rad,
         ang_speed_radpsec=ang_speed_radpsec,
     )
-
-    for det_idx in range(detectors):
-        pointing_buffer[det_idx, :, 2] += hwp_angles
+    if len(shape) == 3:
+        for det_idx in range(detectors):
+            pointing_buffer[det_idx, :, 2] += 2 * hwp_angles
+    elif len(shape) == 2:
+        for det_idx in range(detectors):
+            pointing_buffer[det_idx, :] += 2 * hwp_angles
 
 
 class IdealHWP(HWP):
@@ -202,7 +212,7 @@ class IdealHWP(HWP):
         bore2ecl_quaternions_inout: npt.NDArray,  # Boresight→Ecliptic quaternions at 19 Hz
         hwp_angle_out: npt.NDArray,
     ) -> None:
-        # We do not touch `bore2ecl_quaternions_inout`, as an ideal HWP does not
+        # We do not touch `bore2ecl_quaternions_input`, as an ideal HWP does not
         # alter the (θ, φ) direction of the boresight nor the orientation ψ
         self.get_hwp_angle(
             output_buffer=hwp_angle_out,
