@@ -127,7 +127,7 @@ def orientation_angle(theta_rad, phi_rad, ordir):
 
 @njit
 def compute_pointing_and_orientation(result, quaternion):
-    """Store in "result" the pointing direction and polarization angle.
+    """Store in "result" the pointing direction and orientation angle.
 
     Prototype::
 
@@ -178,10 +178,10 @@ def compute_pointing_and_orientation(result, quaternion):
     theta_pointing = np.arctan2(np.sqrt(result[0] ** 2 + result[1] ** 2), result[2])
     phi_pointing = np.arctan2(result[1], result[0])
 
-    # Now reuse "result" to compute the polarization direction
+    # Now reuse "result" to compute the orientation
     rotate_x_vector(result, vx, vy, vz, w)
 
-    # Compute the polarization angle
+    # Compute the orientation angle
     orientation = orientation_angle(
         theta_rad=theta_pointing, phi_rad=phi_pointing, ordir=result
     )
@@ -956,7 +956,7 @@ def get_det2ecl_quaternions(
     by the detector.
     This is a low-level function; you should usually call the function
     :func:`.get_pointings`, which wraps this function to compute
-    both the pointing direction and the polarization angle.
+    both the pointing direction and the orientation angle.
     See also the method :func:`.get_ecl2det_quaternions`, which
     mirrors this one.
     If you plan to call this function repeatedly, you can save

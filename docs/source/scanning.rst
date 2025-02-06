@@ -221,6 +221,9 @@ for now, keep in mind the overall shape of the code:
    These angles are expressed in the Ecliptic Coordinate System, where
    the Equator is aligned with the Ecliptic Plane of the Solar System.
 
+N.B. The polarization angle of the detectors is not included in the pointing
+information but is passed through the :class:`DetectorInfo` and transferd to the
+observations as array of attributes.
 
 Computing the orientation of the spacecraft
 -------------------------------------------

@@ -132,6 +132,18 @@ class DetectorInfo:
              rotation at all, i.e., the detector is aligned with the
              boresight direction.
 
+        - pol_angle_rad (float): polarization angle of the detector with
+             respect to the x-axis of the reference frame of the detector,
+             in radians. The default is 0.
+
+        - pol_efficiency (float): polarization efficiency of the detector,
+             defined as γ of eq. 15 of astro-ph/0606606. The default is 1.
+
+        - mueller_hwp (Union[None, np.ndarray]): mueller matrix of the HWP.
+             The default is None (i.e. no HWP)
+
+
+
     """
 
     name: str = ""
@@ -155,6 +167,9 @@ class DetectorInfo:
     pol: Union[str, None] = None
     orient: Union[str, None] = None
     quat: Any = None
+    pol_angle_rad: float = 0.0
+    pol_efficiency: float = 1.0
+    mueller_hwp: Union[None, np.ndarray] = None
 
     def __post_init__(self):
         if self.quat is None:
@@ -164,6 +179,11 @@ class DetectorInfo:
 
         if isinstance(self.band_freqs_ghz, np.ndarray):
             assert len(self.band_freqs_ghz) == len(self.band_weights)
+
+        if self.mueller_hwp is None:
+            self.has_hwp = False
+        else:
+            self.has_hwp = True
 
     @staticmethod
     def from_dict(dictionary: Dict[str, Any]):
@@ -193,6 +213,9 @@ class DetectorInfo:
         - ``pol``
         - ``orient``
         - ``quat``
+        - ``pol_angle_rad``
+        - ``pol_efficiency``
+        - ``mueller_hwp``
 
         """
         result = DetectorInfo()

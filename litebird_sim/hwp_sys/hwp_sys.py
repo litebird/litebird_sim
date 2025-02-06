@@ -45,7 +45,7 @@ def _dBodTth(nu):
 
 
 @njit
-def compute_polang_from_detquat(quat):
+def compute_orientation_from_detquat(quat):
     if quat[2] == 0:
         polang = 0
     else:
@@ -1275,7 +1275,7 @@ class HwpSys:
                 # separating polarization angle xi from cur_point[:, 2] = psi + xi
                 # xi: polarization angle, i.e. detector dependent
                 # psi: instrument angle, i.e. boresight direction from focal plane POV
-                xi = compute_polang_from_detquat(cur_obs.quat[idet].quats[0]) % (
+                xi = compute_orientation_from_detquat(cur_obs.quat[idet].quats[0]) % (
                     2 * np.pi
                 )
                 psi = (cur_point[:, 2] - xi) % (2 * np.pi)

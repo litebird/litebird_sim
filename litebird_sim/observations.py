@@ -203,6 +203,9 @@ class Observation:
 
         self.pointing_provider = None  # type: Optional["PointingProvider"]
 
+        # By default this is set to False, prepare_pointings() can change its value
+        self.has_hwp = False
+
     @property
     def sampling_rate_hz(self):
         return self._sampling_rate_hz
