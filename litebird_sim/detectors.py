@@ -75,6 +75,9 @@ class DetectorInfo:
 
         - channel (Union[str, None]): The channel. The default is None
 
+        - squid (Union[int, None]): The squid number of the detector.
+             The default value is None.
+
         - sampling_rate_hz (float): The sampling rate of the ADC
              associated with this detector. The default is 0.0
 
@@ -146,6 +149,7 @@ class DetectorInfo:
     pixel: Union[int, None] = None
     pixtype: Union[str, None] = None
     channel: Union[str, None] = None
+    squid: Union[int, None] = None
     sampling_rate_hz: float = 0.0
     fwhm_arcmin: float = 0.0
     ellipticity: float = 0.0
@@ -158,8 +162,6 @@ class DetectorInfo:
     fknee_mhz: float = 0.0
     fmin_hz: float = 0.0
     alpha: float = 0.0
-    bandcenter_ghz: float = 0.0
-    bandwidth_ghz: float = 0.0
     pol: Union[str, None] = None
     orient: Union[str, None] = None
     quat: Any = None
@@ -193,6 +195,7 @@ class DetectorInfo:
         - ``pixel``
         - ``pixtype``
         - ``channel``
+        - ``squid``
         - ``bandcenter_ghz``
         - ``bandwidth_ghz``
         - ``band_freqs_ghz``

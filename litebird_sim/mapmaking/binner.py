@@ -68,7 +68,7 @@ class BinnerResult:
 
 @njit
 def _solve_binning(nobs_matrix, atd):
-    # Sove the map-making equation
+    # Solve the map-making equation
     #
     # This method alters the parameter `nobs_matrix`, so that after its completion
     # each 3×3 matrix in nobs_matrix[idx, :, :] will be the *inverse*.

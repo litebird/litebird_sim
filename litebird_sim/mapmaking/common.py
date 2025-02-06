@@ -223,7 +223,10 @@ def _compute_pixel_indices(
 
     if output_coordinate_system == CoordinateSystem.Galactic:
         # Free curr_pointings_det if the output map is already in Galactic coordinates
-        del curr_pointings_det
+        try:
+            del curr_pointings_det
+        except UnboundLocalError:
+            pass
 
     return pixidx_all, polang_all
 
