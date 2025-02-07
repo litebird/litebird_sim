@@ -38,8 +38,8 @@ def allocate_alm(
 def gauss_beam_to_alm(
     lmax: int,
     mmax: int,
-    fwhm_min_rad: float,
-    fwhm_max_rad: Union[float, None] = None,
+    fwhm_rad: float,
+    ellipticity: Optional[float] = 1.0,
     psi_ell_rad: Optional[float] = 0.0,
     psi_pol_rad: Union[float, None] = 0.0,
     cross_polar_leakage: Optional[float] = 0.0,
@@ -49,26 +49,21 @@ def gauss_beam_to_alm(
 
     :param lmax: The maximum value for ℓ
     :param mmax: The maximum range for m; usually this is equal to ``lmax``
-    :param fwhm_min_rad: The FHWM along the minor axis
-    :param fwhm_max_rad: The FWHM along the major axis. Set this to ``None`` to
-      assume a circular beam, i.e., ``fwhm_max_rad == fwhm_min_rad``
+    :param fwhm_rad: The FHWM of the beam, defined as the geometric mean of minor
+      and major axes
+    :param ellipticity: The ellipticity of the beam, defined as major axis/minor
+      axis. Default is 1 (circular beam).
     :param psi_ell_rad: The inclination of the major axis of the ellipse with
-      respect to the x-axis
+      respect to the x-axis. This is not relevant for cirular beams. Default is 0.
     :param psi_pol_rad: The polarization of the beam with respect to the x-axis,
-      if None only I beam will be returned
-    :param cross_polar_leakage: The cross-polar leakage (pure number)
+      if None only I beam will be returned. Default is 0 rad.
+    :param cross_polar_leakage: The cross-polar leakage (pure number). Default is 0.
+
     :return:
       The SphericalHarmonics object containing the a_ℓm values.
     """
 
-    if fwhm_max_rad is None:
-        fwhm_rad = fwhm_min_rad
-        ellipticity = 1.0
-        is_elliptical = False
-    else:
-        fwhm_rad = np.sqrt(fwhm_max_rad * fwhm_min_rad)
-        ellipticity = fwhm_max_rad / fwhm_min_rad
-        is_elliptical = ellipticity != 1.0
+    is_elliptical = False if ellipticity == 1.0 else True
 
     is_polarized = psi_pol_rad is not None
 
