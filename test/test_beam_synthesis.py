@@ -14,8 +14,8 @@ def test_gaussbeam_circular():
     alm = gauss_beam_to_alm(
         lmax=lmax,
         mmax=mmax,
-        fwhm_min_rad=0.5,
-        fwhm_max_rad=None,
+        fwhm_rad=0.5,
+        ellipticity=1.0,
         psi_ell_rad=0.1,
         psi_pol_rad=0.3,
         cross_polar_leakage=1e-9,
@@ -57,8 +57,8 @@ def test_gaussbeam_elliptical():
     alm = gauss_beam_to_alm(
         lmax=lmax,
         mmax=mmax,
-        fwhm_min_rad=0.5,
-        fwhm_max_rad=0.8,
+        fwhm_rad=np.sqrt(0.8 * 0.5),
+        ellipticity=1.6,
         psi_ell_rad=0.1,
         psi_pol_rad=0.3,
         cross_polar_leakage=1e-9,
