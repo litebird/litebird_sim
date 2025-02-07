@@ -284,7 +284,6 @@ class MuellerConvolver:
             else ducc0.totalconvolve.Interpolator)
         for i in range(5):
             if tmp[i] is not None:  # component is not zero
-                print(i)
                 self._inter.append(
                     intertype(
                         sky=self._slm,

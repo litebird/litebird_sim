@@ -14,7 +14,7 @@ timestreams. It implements three possible algebras:
    :label: noHWP
 
 where :math:`\theta` is the polarization angle of the detecotor, :math:`\psi_t` 
-is the orientation of the telescope at the time :math:`t`, and :math:`\gamma`
+is the orientation of the detector at the time :math:`t`, and :math:`\gamma`
 is the polarization efficiency.
 
 - Ideal HWP:
