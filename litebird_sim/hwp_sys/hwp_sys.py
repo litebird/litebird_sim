@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Nov 14 13:06:42 2024
+
+@author: gomes
+"""
+
 # -*- encoding: utf-8 -*-
 import logging
 from typing import Union, List
@@ -6,8 +14,8 @@ import healpy as hp
 import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
-from numba import njit
-
+from numba import njit, prange
+import gc
 import litebird_sim as lbs
 from litebird_sim import mpi
 from .bandpass_template_module import bandpass_profile
@@ -15,6 +23,8 @@ from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
+from ..non_linearity import apply_quadratic_nonlin_for_one_detector
+
 
 COND_THRESHOLD = 1e10
 
@@ -44,7 +54,7 @@ def _dBodTth(nu):
     )
 
 
-@njit
+@njit(parallel=True)
 def compute_polang_from_detquat(quat):
     if quat[2] == 0:
         polang = 0
@@ -57,6 +67,20 @@ def compute_polang_from_detquat(quat):
 
     return polang
 
+def MakeDetectorBlocks(obs, comm, rank, print_detector_blocks=True):
+    comm_size = comm.Get_size()
+    dets_list=[i for i in range(obs.n_detectors)]
+    dets_block = list()
+    for count in range(comm_size): 
+        dets_block.append(dets_list[count::comm_size])
+    
+    if print_detector_blocks & rank==0:
+        print("FILL_TOD() PARALLELIZATION:\n=======================\n-------------------")
+        for r in range(comm_size):
+            print("rank",r,"|", dets_block[r]," \n -------------------")
+    
+    return dets_block[rank]
+        
 
 def JonesToMueller(jones):
     """
@@ -162,109 +186,36 @@ def get_mueller_from_jones(h1, h2, z1, z2, beta):
 
     return mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU
 
-@njit
-def compute_QU_mixing_terms(theta, rot_harm, a=0.078):
-    """
-    Arguments
-    
-    theta = incidence angle (in degrees)    
-    rot_harm = rotation harmonic (2f or 4f)
-    a = 0.078deg^-1 for LFT 140GHz band
-    """
-    
-    
-    # values for reference angle 10deg
-    # this should be put inside the IMO instead of written here
-    
-    M_2f = np.array([[4.89*1e-6,5.15*1e-4,5.16*1e-4],
-                    [5.43*1e-4,3.10*1e-3,3.28*1e-3],
-                    [5.42*1e-4,2.96*1e-3,3.24*1e-3]], dtype=np.float32)
-    
-    
-    M_4f = np.array([[1.09*1e-7,9.26*1e-5,9.25*1e-5],
-                    [8.86*1e-5,0.959,0.959],
-                    [8.86*1e-5,0.959,0.959]], dtype=np.float32)
-    
-    factor = (np.sin(np.deg2rad(a*theta))**2/np.sin(np.deg2rad(a*10))**2)
-    if rot_harm=='2f':
-        mQQ = M_2f[1,1]*factor
-        mUU = M_2f[2,2]*factor
-        mQU = M_2f[1,2]*factor
-        mUQ = M_2f[2,1]*factor
-    elif rot_harm=='4f':
-        mQQ = M_4f[1,1]*factor
-        mUU = M_4f[2,2]*factor
-        mQU = M_4f[1,2]*factor
-        mUQ = M_4f[2,1]*factor
-    
-    return [mQQ,mUU,mQU,mUQ]
-    
 
-@njit
-def compute_epsilon1_and_2(theta, rot_harm, a=0.078):
-    """
-    Arguments
-    
-    theta = incidence angle (in degrees)    
-    rot_harm = rotation harmonic (2f or 4f)
-    a = 0.078deg^-1 for LFT 140GHz band
-    """
-    
-    
-    # values for reference angle 10deg
-    # this should be put inside the IMO instead of written here
-    
-    M_2f = np.array([[4.89*1e-6,5.15*1e-4,5.16*1e-4],
-                    [5.43*1e-4,3.10*1e-3,3.28*1e-3],
-                    [5.42*1e-4,2.96*1e-3,3.24*1e-3]], dtype=np.float32)
-    
-    
-    M_4f = np.array([[1.09*1e-7,9.26*1e-5,9.25*1e-5],
-                    [8.86*1e-5,0.959,0.959],
-                    [8.86*1e-5,0.959,0.959]], dtype=np.float32)
-    
-    if rot_harm=='2f':
-        e1 = M_2f[1,0]*(np.sin(np.deg2rad(a*theta))**2/np.sin(np.deg2rad(a*10))**2)
-        e2 = M_2f[2,0]*(np.sin(np.deg2rad(a*theta))**2/np.sin(np.deg2rad(a*10))**2)
-    elif rot_harm=='4f':
-        e1 = M_4f[1,0]*(np.sin(np.deg2rad(a*theta))**2/np.sin(np.deg2rad(a*10))**2)
-        e2 = M_4f[2,0]*(np.sin(np.deg2rad(a*theta))**2/np.sin(np.deg2rad(a*10))**2)
-    
-    return [e1,e2]
-    
+@njit(parallel=True)
+def compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Psi02Phi, sin2Psi02Phi):
 
-@njit
-def compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, c2ThXi, s2ThXi, xi):
-
-    psi_0=xi
-    Tterm = mII + mQI*np.cos(2*psi_0) + mUI*np.sin(2*psi_0)
+    Tterm = mII + mQI*cos2Psi02Phi + mUI*sin2Psi02Phi
 
     return Tterm
 
 
-@njit
+@njit(parallel=True)
 def compute_Qterm_for_one_sample_for_tod(
-    mIQ, mQQ, mUU, mIU, mUQ, mQU, c2ThPs, c2PsXi, c4Th, s2ThPs, s2PsXi, s4Th, psi, xi
+    mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Psi02Phi, sin2Psi02Phi
 ):
     
-    psi_0=xi
-    Qterm = np.cos(2*psi) * (mIQ + mQQ*np.cos(2*psi_0) + mUQ*np.sin(2*psi_0)) - np.sin(2*psi) * (mIU + mQU*np.cos(2*psi_0) + mUU*np.sin(2*psi_0))
+    Qterm = np.cos(2*psi+2*phi) * (mIQ + mQQ*cos2Psi02Phi + mUQ*sin2Psi02Phi) - np.sin(2*psi+2*phi) * (mIU + mQU*cos2Psi02Phi + mUU*sin2Psi02Phi)
 
     return Qterm
 
 
-@njit
+@njit(parallel=True)
 def compute_Uterm_for_one_sample_for_tod(
-    mIU, mQU, mUQ, mIQ, mQQ, mUU, c2ThPs, c2PsXi, c4Th, s2ThPs, s2PsXi, s4Th, psi, xi
+    mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Psi02Phi, sin2Psi02Phi
 ):
-
-    psi_0=xi    
-    Uterm = np.sin(2*psi) * (mIQ + mQQ*np.cos(2*psi_0) + mUQ*np.sin(2*psi_0)) + np.cos(2*psi) * (mIU + mQU*np.cos(2*psi_0) + mUU*np.sin(2*psi_0)) 
+  
+    Uterm = np.sin(2*psi+2*phi) * (mIQ + mQQ*cos2Psi02Phi + mUQ*sin2Psi02Phi) + np.cos(2*psi+2*phi) * (mIU + mQU*cos2Psi02Phi + mUU*sin2Psi02Phi) 
 
     return Uterm
 
 
-@njit
+@njit(parallel=True)
 def compute_signal_for_one_sample(
     T,
     Q,
@@ -278,146 +229,81 @@ def compute_signal_for_one_sample(
     mUU,
     mUQ,
     mQU,
-    c2ThPs,
-    s2ThPs,
-    c2PsXi,
-    s2PsXi,
-    c2ThXi,
-    s2ThXi,
-    c4Th,
-    s4Th,
     psi,
-    xi,
+    phi,
+    cos2Psi02Phi,
+    sin2Psi02Phi
 ):
+    
+    
     """Bolometric equation, tod filling for a single (time) sample"""
-    d = T * compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, c2ThXi, s2ThXi, xi)
+    d = T * compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Psi02Phi, sin2Psi02Phi)
     
     d += Q * compute_Qterm_for_one_sample_for_tod(
-        mIQ, mQQ, mUU, mIU, mUQ, mQU, c2ThPs, c2PsXi, c4Th, s2ThPs, s2PsXi, s4Th, psi, xi
+        mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Psi02Phi, sin2Psi02Phi
     )
     
     d += U * compute_Uterm_for_one_sample_for_tod(
-        mIU, mQU, mUQ, mIQ, mQQ, mUU, c2ThPs, c2PsXi, c4Th, s2ThPs, s2PsXi, s4Th, psi, xi
+        mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Psi02Phi, sin2Psi02Phi
     )
 
     return d
 
-@njit
+@njit(parallel=True)
 def compute_signal_for_one_detector(
     tod_det,
-    mII,
-    mQI,
-    mUI,
-    mIQ,
-    mIU,
-    mQQ,
-    mUU,
-    mUQ,
-    mQU,
     pixel_ind,
+    m0f,
+    m2f,
+    m4f,    
     theta,
     psi,
-    xi,
     maps,
-    e1_list,
-    e2_list,    
-    mQQ_list,
-    mUU_list,
-    mQU_list,
-    mUQ_list,
-    rot_harm
+    cos2Psi02Phi,
+    sin2Psi02Phi,
+    phi
 ):
     
     """
     Single-frequency case: compute the signal for a single detector,
     looping over (time) samples.
     """
-    
-    phi_2f = np.array([[-2.32,-0.49,-2.06],
-                       [2.86, -0.25, -2.00],
-                       [1.29,-2.01,2.54]],dtype=np.float32)*2
-    
-    phi_4f = np.array([[-0.84,-0.04,-1.61],
-                       [0.14, -0.00061, -0.00056-np.pi/2],
-                       [-1.43,-0.00070-np.pi/2,np.pi-0.00065]],dtype=np.float32)*2
-
-    print(np.cos(2*xi), np.sin(2*xi))
-    
-    #mQI=1.01*1e-4*np.cos(2*(theta[i]-psi[i]) + 2.86) + e1*np.cos(4*(theta[i]-psi[i]) + 0.14),
-    #mUI=1.01*1e-4*np.cos(2*(theta[i]-psi[i]) + 1.29) + e2*np.cos(4*(theta[i]-psi[i]) - 1.43),
-    for i in range(len(tod_det)):
-
+  
+    for i in prange(len(tod_det)):
+        FourRhoPsiPhi = 4*(theta[i]-psi[i]-phi)
+        TwoRhoPsiPhi  = 2*(theta[i]-psi[i]-phi)
         tod_det[i] += compute_signal_for_one_sample(
             T=maps[0, pixel_ind[i]],
             Q=maps[1, pixel_ind[i]],
             U=maps[2, pixel_ind[i]],
-            mII=1.0,
-            mQI=e1_list[0]*np.cos(2*(theta[i]-psi[i]) + 2.86) + e1_list[1]*np.cos(4*(theta[i]-psi[i]) + 0.47),
-            mUI=e2_list[0]*np.cos(2*(theta[i]-psi[i]) + 1.29) + e2_list[1]*np.cos(4*(theta[i]-psi[i]) - 1.10),
-            mIQ=0.0, 
-            mIU=0.0,
-            mQQ=np.cos(4*(theta[i]-psi[i])),
-            mUU=-np.cos(4*(theta[i]-psi[i])),
-            mUQ=np.sin(4*(theta[i]-psi[i])),
-            mQU=np.sin(4*(theta[i]-psi[i])),
-            c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
-            s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
-            c2PsXi=np.cos(2 * psi[i] + 2 * xi),
-            s2PsXi=np.sin(2 * psi[i] + 2 * xi),
-            c2ThXi=np.cos(2 * theta[i] - 2 * xi),
-            s2ThXi=np.sin(2 * theta[i] - 2 * xi),
-            c4Th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
+            mII=m0f[0,0] + m2f[0,0]*np.cos(TwoRhoPsiPhi - 2.32) + m4f[0,0]*np.cos(FourRhoPsiPhi - 0.84),
+            mQI=m0f[1,0] + m2f[1,0]*np.cos(TwoRhoPsiPhi + 2.86) + m4f[1,0]*np.cos(FourRhoPsiPhi + 0.14),
+            mUI=m0f[2,0] + m2f[2,0]*np.cos(TwoRhoPsiPhi + 1.29) + m4f[2,0]*np.cos(FourRhoPsiPhi - 1.43),
+            mIQ=m0f[0,1] + m2f[0,1]*np.cos(TwoRhoPsiPhi - 0.49) + m4f[0,1]*np.cos(FourRhoPsiPhi - 0.04),
+            mIU=m0f[0,2] + m2f[0,2]*np.cos(TwoRhoPsiPhi - 2.06) + m4f[0,2]*np.cos(FourRhoPsiPhi - 1.61), 
+            mQQ=m0f[1,1] + m2f[1,1]*np.cos(TwoRhoPsiPhi - 0.25) + m4f[1,1]*np.cos(FourRhoPsiPhi - 0.00061),
+            mUU=m0f[2,2] + m2f[2,2]*np.cos(TwoRhoPsiPhi + 2.54) + m4f[2,2]*np.cos(FourRhoPsiPhi + np.pi - 0.00065),
+            mUQ=m0f[2,1] + m2f[2,1]*np.cos(TwoRhoPsiPhi - 2.01) + m4f[2,1]*np.cos(FourRhoPsiPhi - 0.00070 - np.pi/2),
+            mQU=m0f[1,2] + m2f[1,2]*np.cos(TwoRhoPsiPhi - 2.00) + m4f[1,2]*np.cos(FourRhoPsiPhi - 0.00056 - np.pi/2),          
             psi=psi[i],
-            xi = xi,
+            phi=phi,
+            cos2Psi02Phi=cos2Psi02Phi,
+            sin2Psi02Phi=sin2Psi02Phi
         )
         
-    """    
-    for i in range(len(tod_det)):
-
-        tod_det[i] += compute_signal_for_one_sample(
-            T=maps[0, pixel_ind[i]],
-            Q=maps[1, pixel_ind[i]],
-            U=maps[2, pixel_ind[i]],
-            mII=1.0,
-            mQI=e1_list[0]*np.cos(2*(theta[i]-psi[i]) + 2.86) + e1_list[1]*np.cos(4*(theta[i]-psi[i]) + 0.47),
-            mUI=e2_list[0]*np.cos(2*(theta[i]-psi[i]) + 1.29) + e2_list[1]*np.cos(4*(theta[i]-psi[i]) - 1.10),
-            mIQ=0.0, 
-            mIU=0.0,
-            mQQ=mQQ_list[0]*np.cos(2*(theta[i]-psi[i]) + phi_2f[1,1]) + mQQ_list[1]*np.cos(4*(theta[i]-psi[i]) + phi_4f[1,1]),
-            mUU=mUU_list[0]*np.cos(2*(theta[i]-psi[i]) + phi_2f[2,2]) + mUU_list[1]*np.cos(4*(theta[i]-psi[i]) + phi_4f[2,2]),
-            mUQ=mUQ_list[0]*np.cos(2*(theta[i]-psi[i]) + phi_2f[2,1]) + mUQ_list[1]*np.cos(4*(theta[i]-psi[i]) + phi_2f[2,1]),
-            mQU=mQU_list[0]*np.cos(2*(theta[i]-psi[i]) + phi_2f[1,2]) + mQU_list[1]*np.cos(4*(theta[i]-psi[i]) + phi_2f[1,2]),
-            c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
-            s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
-            c2PsXi=np.cos(2 * psi[i] + 2 * xi),
-            s2PsXi=np.sin(2 * psi[i] + 2 * xi),
-            c2ThXi=np.cos(2 * theta[i] - 2 * xi),
-            s2ThXi=np.sin(2 * theta[i] - 2 * xi),
-            c4Th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            psi=psi[i],
-            xi = xi,
-        )
-      """  
+   
 
 
-@njit
+@njit(parallel=True)
 def integrate_inband_signal_for_one_sample(
     T,
     Q,
     U,
     freqs,
     band,
-    mII,
-    mQI,
-    mUI,
-    mIQ,
-    mIU,
-    mQQ,
-    mUU,
-    mUQ,
-    mQU,
+    m0f,
+    m2f,
+    m4f,  
     c2ThPs,
     s2ThPs,
     c2PsXi,
@@ -434,31 +320,28 @@ def integrate_inband_signal_for_one_sample(
     """
     tod = 0
     for i in range(len(band) - 1):
+
         dnu = freqs[i + 1] - freqs[i]
         tod += (
             (
                 band[i]
                 * compute_signal_for_one_sample(
-                    T=T[i],
-                    Q=Q[i],
-                    U=U[i],
-                    mII=mII[i],
-                    mQI=mQI[i],
-                    mUI=mUI[i],
-                    mIQ=mIQ[i],
-                    mIU=mIU[i],
-                    mQQ=mQQ[i],
-                    mUU=mUU[i],
-                    mUQ=mUQ[i],
-                    mQU=mQU[i],
-                    c2ThPs=c2ThPs,
-                    s2ThPs=s2ThPs,
-                    c2PsXi=c2PsXi,
-                    s2PsXi=s2PsXi,
-                    c2ThXi=c2ThXi,
-                    s2ThXi=s2ThXi,
-                    c4Th=c4Th,
-                    s4Th=s4Th,
+                    T=maps[0, pixel_ind[i]],
+                    Q=maps[1, pixel_ind[i]],
+                    U=maps[2, pixel_ind[i]],
+                    mII=m0f[0,0] + m2f[0,0]*np.cos(TwoRhoPsiPhi - 2.32) + m4f[0,0]*np.cos(FourRhoPsiPhi - 0.84),
+                    mQI=m0f[1,0] + m2f[1,0]*np.cos(TwoRhoPsiPhi + 2.86) + m4f[1,0]*np.cos(FourRhoPsiPhi + 0.14),
+                    mUI=m0f[2,0] + m2f[2,0]*np.cos(TwoRhoPsiPhi + 1.29) + m4f[2,0]*np.cos(FourRhoPsiPhi - 1.43),
+                    mIQ=m0f[0,1] + m2f[0,1]*np.cos(TwoRhoPsiPhi - 0.49) + m4f[0,1]*np.cos(FourRhoPsiPhi - 0.04),
+                    mIU=m0f[0,2] + m2f[0,2]*np.cos(TwoRhoPsiPhi - 2.06) + m4f[0,2]*np.cos(FourRhoPsiPhi - 1.61), 
+                    mQQ=m0f[1,1] + m2f[1,1]*np.cos(TwoRhoPsiPhi - 0.25) + m4f[1,1]*np.cos(FourRhoPsiPhi - 0.00061),
+                    mUU=m0f[2,2] + m2f[2,2]*np.cos(TwoRhoPsiPhi + 2.54) + m4f[2,2]*np.cos(FourRhoPsiPhi + np.pi - 0.00065),
+                    mUQ=m0f[2,1] + m2f[2,1]*np.cos(TwoRhoPsiPhi - 2.01) + m4f[2,1]*np.cos(FourRhoPsiPhi - 0.00070 + np.pi/2),
+                    mQU=m0f[1,2] + m2f[1,2]*np.cos(TwoRhoPsiPhi - 2.00) + m4f[1,2]*np.cos(FourRhoPsiPhi - 0.00056 + np.pi/2),          
+                    psi=psi[i],
+                    phi=phi,
+                    cos2Psi02Phi=cos2Psi02Phi,
+                    sin2Psi02Phi=sin2Psi02Phi
                 )
                 + band[i + 1]
                 * compute_signal_for_one_sample(
@@ -491,7 +374,7 @@ def integrate_inband_signal_for_one_sample(
     return tod
 
 
-@njit
+@njit(parallel=True)
 def integrate_inband_signal_for_one_detector(
     tod_det,
     freqs,
@@ -542,7 +425,7 @@ def integrate_inband_signal_for_one_detector(
         )
 
 
-@njit
+@njit(parallel=True)
 def compute_TQUsolver_for_one_sample(
     mIIs,
     mQIs,
@@ -553,80 +436,65 @@ def compute_TQUsolver_for_one_sample(
     mUUs,
     mUQs,
     mQUs,
-    c2ThPs,
-    s2ThPs,
-    c2PsXi,
-    s2PsXi,
-    c2ThXi,
-    s2ThXi,
-    c4Th,
-    s4Th,
-    rho,
     psi,
-    xi
+    phi,
+    cos2Psi02Phi,
+    sin2Psi02Phi
 ):
     r"""
     Single-frequency case: computes :math:`A^T A` and :math:`A^T d`
     for a single detector, for one (time) sample.
     """
-    Tterm = compute_Tterm_for_one_sample_for_tod(mIIs, mQIs, mUIs, c2ThXi, s2ThXi, xi)
+    Tterm = compute_Tterm_for_one_sample_for_tod(mIIs, mQIs, mUIs, cos2Psi02Phi, sin2Psi02Phi)
+
     Qterm = compute_Qterm_for_one_sample_for_tod(
-        mIQs, mQQs, mUUs, mIUs, mUQs, mQUs, c2ThPs, c2PsXi, c4Th, s2ThPs, s2PsXi, s4Th, psi, xi
+        mIQs, mQQs, mUUs, mIUs, mUQs, mQUs, psi, phi, cos2Psi02Phi, sin2Psi02Phi
     )
     Uterm = compute_Uterm_for_one_sample_for_tod(
-        mIUs, mQUs, mUQs, mIQs, mQQs, mUUs, c2ThPs, c2PsXi, c4Th, s2ThPs, s2PsXi, s4Th, psi, xi
+        mIUs, mQUs, mUQs, mIQs, mQQs, mUUs, psi, phi, cos2Psi02Phi, sin2Psi02Phi
     )
         
     return Tterm, Qterm, Uterm
 
 
-@njit
+@njit(parallel=True)
 def compute_atd_ata_for_one_detector(
     atd,
     ata,
     tod,
-    mIIs,
-    mQIs,
-    mUIs,
-    mIQs,
-    mIUs,
-    mQQs,
-    mUUs,
-    mUQs,
-    mQUs,
+    m0f_solver,
+    m2f_solver,
+    m4f_solver,
     pixel_ind,
     theta,
     psi,
-    xi,
+    phi,
+    cos2Psi02Phi,
+    sin2Psi02Phi,
 ):
     r"""
     Single-frequency case: compute :math:`A^T A` and :math:`A^T d`
     for a single detector, looping over (time) samples.
     """
-    for i in range(len(tod)):
-        rho=theta[i]
+    
+    for i in prange(len(tod)):
+        FourRhoPsiPhi = 4*(theta[i]-psi[i]-phi)
+        TwoRhoPsiPhi  = 2*(theta[i]-psi[i]-phi)
         #psi_i = 2*np.arctan2(np.sqrt(quats_rot[i][0]**2 + quats_rot[i][1]**2 + quats_rot[i][2]**2),quats_rot[i][3])
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
-            mIIs=1.0,
-            mQIs=0.0,
-            mUIs=0.0,
-            mIQs=0.0, 
-            mIUs=0.0,
-            mQQs=np.cos(4*(theta[i]-psi[i])),
-            mUUs=-np.cos(4*(theta[i]-psi[i])),
-            mUQs=np.sin(4*(theta[i]-psi[i])),
-            mQUs=np.sin(4*(theta[i]-psi[i])),
-            c2ThPs=np.cos(2 * theta[i] + 2 * psi[i]),
-            s2ThPs=np.sin(2 * theta[i] + 2 * psi[i]),
-            c2PsXi=np.cos(2 * psi[i] + 2 * xi),
-            s2PsXi=np.sin(2 * psi[i] + 2 * xi),
-            c2ThXi=np.cos(2 * theta[i] - 2 * xi),
-            s2ThXi=np.sin(2 * theta[i] - 2 * xi),
-            c4Th=np.cos(4 * theta[i] + 2 * psi[i] - 2 * xi),
-            s4Th=np.sin(4 * theta[i] + 2 * psi[i] - 2 * xi),            
-            rho=rho,
+            mIIs=m0f_solver[0,0] + m2f_solver[0,0]*np.cos(TwoRhoPsiPhi - 2.32) + m4f_solver[0,0]*np.cos(FourRhoPsiPhi),
+            mQIs=m0f_solver[1,0] + m2f_solver[1,0]*np.cos(TwoRhoPsiPhi + 2.86) + m4f_solver[1,0]*np.cos(FourRhoPsiPhi),
+            mUIs=m0f_solver[2,0] + m2f_solver[2,0]*np.cos(TwoRhoPsiPhi + 1.29) + m4f_solver[2,0]*np.cos(FourRhoPsiPhi),
+            mIQs=m0f_solver[0,1] + m2f_solver[0,1]*np.cos(TwoRhoPsiPhi - 0.49) + m4f_solver[0,1]*np.cos(FourRhoPsiPhi),
+            mIUs=m0f_solver[0,2] + m2f_solver[0,2]*np.cos(TwoRhoPsiPhi - 2.06) + m4f_solver[0,2]*np.cos(FourRhoPsiPhi), 
+            mQQs=m0f_solver[1,1] + m2f_solver[1,1]*np.cos(TwoRhoPsiPhi - 0.25) + m4f_solver[1,1]*np.cos(FourRhoPsiPhi),
+            mUUs=m0f_solver[2,2] + m2f_solver[2,2]*np.cos(TwoRhoPsiPhi + 2.54) + m4f_solver[2,2]*np.cos(FourRhoPsiPhi + np.pi),
+            mUQs=m0f_solver[2,1] + m2f_solver[2,1]*np.cos(TwoRhoPsiPhi - 2.01) + m4f_solver[2,1]*np.cos(FourRhoPsiPhi - np.pi/2),
+            mQUs=m0f_solver[1,2] + m2f_solver[1,2]*np.cos(TwoRhoPsiPhi - 2.00) + m4f_solver[1,2]*np.cos(FourRhoPsiPhi - np.pi/2),          
             psi=psi[i],
-            xi=xi
+            phi=phi,
+            cos2Psi02Phi=cos2Psi02Phi,
+            sin2Psi02Phi=sin2Psi02Phi
         )
 
         atd[pixel_ind[i], 0] += tod[i] * Tterm
@@ -641,7 +509,7 @@ def compute_atd_ata_for_one_detector(
         ata[pixel_ind[i], 2, 2] += Uterm * Uterm
 
 
-@njit
+@njit(parallel=True)
 def integrate_inband_TQUsolver_for_one_sample(
     freqs,
     band,
@@ -721,7 +589,7 @@ def integrate_inband_TQUsolver_for_one_sample(
     return intTterm, intQterm, intUterm
 
 
-@njit
+@njit(parallel=True)
 def integrate_inband_atd_ata_for_one_detector(
     atd,
     ata,
@@ -795,7 +663,6 @@ class HwpSys:
     def set_parameters(
         self,
         nside: Union[int, None] = None,
-        mueller_or_jones: str = "mueller" or "jones",
         Mbsparams: Union[MbsParameters, None] = None,
         integrate_in_band: Union[bool, None] = None,
         built_map_on_the_fly: Union[bool, None] = None,
@@ -810,20 +677,6 @@ class HwpSys:
 
             Args:
               nside (integer): nside used in the analysis
-              mueller_or_jones (str): "mueller" or "jones" (case insensitive)
-                  it is the kind of HWP matrix to be injected as a starting point
-                  if 'jones' is chosen, the parameters :math:`h_1`, :math:`h_2`,
-                  :math:`\beta`, :math:`\zeta_1`, :math:`\zeta_2`
-                  are used to build the Jones matrix
-                  :math:`\begin{pmatrix} 1 + h_1 & \zeta_1 \\
-                  \zeta_2 & - (1 + h_2) e^{i \beta} \\ \end{pmatrix}`
-                  and then converted to Mueller.
-                  :math:`\zeta_1`, :math:`\zeta_2` are assumed to be complex
-                  :math:`h_1`, :math:`h_2`, :math:`\beta` are assumed to be real
-                  :math:`\beta` is assumed to be in degrees (later converted to radians.
-                  To reproduce the ideal HWP case, set all Jones parameters to 0.
-                  If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
-                  :math:`M^{UU} = -1` and all the others to 0.
               Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
                   Input maps needs to be in galactic (mbs default)
               integrate_in_band (bool): performs the band integration for tod generation
@@ -841,6 +694,7 @@ class HwpSys:
                   (i.e. input maps are not generated)
               parallel (bool): uses parallelization if set to True
         """
+        
         # for parallelization
         if parallel:
             comm = lbs.MPI_COMM_WORLD
@@ -876,47 +730,6 @@ class HwpSys:
                 "include_beam_throughput", False
             )
 
-            mueller_or_jones = mueller_or_jones.lower()
-            if mueller_or_jones == "jones":
-                self.h1 = paramdict.get("h1", False)
-                self.h2 = paramdict.get("h2", False)
-                self.beta = paramdict.get("beta", False)
-                if paramdict.get("z1", False):
-                    self.z1 = complex(paramdict.get("z1"))
-                if paramdict.get("z2", False):
-                    self.z2 = complex(paramdict.get("z2"))
-
-                self.h1s = paramdict.get("h1s", False)
-                self.h2s = paramdict.get("h2s", False)
-                self.betas = paramdict.get("betas", False)
-                if paramdict.get("z1s", False):
-                    self.z1s = complex(paramdict.get("z1s"))
-                if paramdict.get("z2s", False):
-                    self.z2s = complex(paramdict.get("z2s"))
-
-            elif mueller_or_jones == "mueller":
-                self.mII = paramdict.get("mII", False)
-                self.mQI = paramdict.get("mQI", False)
-                self.mUI = paramdict.get("mUI", False)
-                self.mIQ = paramdict.get("mIQ", False)
-                self.mIU = paramdict.get("mIU", False)
-                self.mQQ = paramdict.get("mQQ", False)
-                self.mUU = paramdict.get("mUU", False)
-                self.mUQ = paramdict.get("mUQ", False)
-                self.mQU = paramdict.get("mQU", False)
-
-                self.mIIs = paramdict.get("mIIs", False)
-                self.mQIs = paramdict.get("mQIs", False)
-                self.mUIs = paramdict.get("mUIs", False)
-                self.mIQs = paramdict.get("mIQs", False)
-                self.mIUs = paramdict.get("mIUs", False)
-                self.mQQs = paramdict.get("mQQs", False)
-                self.mUUs = paramdict.get("mUUs", False)
-                self.mUQs = paramdict.get("mUQs", False)
-                self.mQUs = paramdict.get("mQUs", False)
-
-            else:
-                raise ValueError("mueller_or_jones not specified")
 
             self.band_filename = paramdict.get("band_filename", False)
             self.band_filename_solver = paramdict.get("band_filename_solver", False)
@@ -954,19 +767,19 @@ class HwpSys:
                             )
                         )
 
-        if not self.integrate_in_band:
+        if not hasattr(self, "integrate_in_band"):
             if integrate_in_band is not None:
                 self.integrate_in_band = integrate_in_band
 
-        if not self.built_map_on_the_fly:
+        if not hasattr(self, "built_map_on_the_fly"):
             if built_map_on_the_fly is not None:
                 self.built_map_on_the_fly = built_map_on_the_fly
 
-        if not self.correct_in_solver:
+        if not hasattr(self, "correct_in_solver"):
             if correct_in_solver is not None:
                 self.correct_in_solver = correct_in_solver
 
-        if not self.integrate_in_band_solver:
+        if not hasattr(self, "integrate_in_band_solver"):
             if integrate_in_band_solver is not None:
                 self.integrate_in_band_solver = integrate_in_band_solver
 
@@ -987,53 +800,9 @@ class HwpSys:
         self.npix = hp.nside2npix(self.nside)
 
         if Channel is None:
-            Channel = lbs.FreqChannelInfo(bandcenter_ghz=100)
+            Channel = lbs.FreqChannelInfo(bandcenter_ghz=140)
 
         if self.integrate_in_band:
-            if mueller_or_jones == "jones":
-                try:
-                    (
-                        self.freqs,
-                        self.h1,
-                        self.h2,
-                        self.beta,
-                        self.z1,
-                        self.z2,
-                    ) = np.loadtxt(
-                        self.band_filename, dtype=complex, unpack=True, comments="#"
-                    )
-
-                    self.freqs = np.array(self.freqs, dtype=float)
-                    self.h1 = np.array(self.h1, dtype=float)
-                    self.h2 = np.array(self.h2, dtype=float)
-                    self.beta = np.array(self.beta, dtype=float)
-                    self.beta = np.deg2rad(self.beta)
-
-                except Exception:
-                    print(
-                        "missing band_filename in the parameter file"
-                        + " or wrong number of columns for jones matrix"
-                    )
-            else:  # mueller_or_jones == "mueller"
-                try:
-                    (
-                        self.freqs,
-                        self.mII,
-                        self.mQI,
-                        self.mUI,
-                        self.mIQ,
-                        self.mIU,
-                        self.mQQ,
-                        self.mUU,
-                        self.mUQ,
-                        self.mQU,
-                    ) = np.loadtxt(self.band_filename, unpack=True, comments="#")
-                except Exception:
-                    print(
-                        "missing band_filename in the parameter file"
-                        + " or wrong number of columns for mueller matrix"
-                    )
-            self.nfreqs = len(self.freqs)
 
             if not self.bandpass:
                 self.cmb2bb = _dBodTth(self.freqs)
@@ -1077,100 +846,19 @@ class HwpSys:
             del maps
 
         else:
-            if mueller_or_jones == "jones":
-                default_attrs = {
-                    "h1": 0.0,
-                    "h2": 0.0,
-                    "beta": 0.0,
-                    "z1": 0.0,
-                    "z2": 0.0,
-                }
-
-                for attr, default_value in default_attrs.items():
-                    if not paramdict.get(attr):
-                        setattr(self, attr, default_value)
-                self.beta = np.deg2rad(self.beta)
-                
-            else:  # mueller_or_jones == "mueller":
-                default_attrs = {
-                    "mII": 1.0,
-                    "mQI": 0.0,
-                    "mUI": 0.0,
-                    "mIQ": 0.0,
-                    "mIU": 0.0,
-                    "mQQ": 1.0,
-                    "mUU": -1.0,
-                    "mUQ": 0.0,
-                    "mQU": 0.0,
-                }
-
-                for attr, default_value in default_attrs.items():
-                    if not paramdict.get(attr):
-                        setattr(self, attr, default_value)
-
             if np.any(maps) is None:
                 mbs = lbs.Mbs(
                     simulation=self.sim, parameters=Mbsparams, channel_list=Channel
                 )
                 self.maps = mbs.run_all()[0][Channel.channel]
             else:
+
                 self.maps = maps
+                
                 del maps
 
         if self.correct_in_solver:
             if self.integrate_in_band_solver:
-                if mueller_or_jones == "jones":
-                    try:
-                        (
-                            self.freqs_solver,
-                            self.h1s,
-                            self.h2s,
-                            self.betas,
-                            self.z1s,
-                            self.z2s,
-                        ) = np.loadtxt(
-                            self.band_filename_solver,
-                            dtype=complex,
-                            unpack=True,
-                            comments="#",
-                        )
-
-                        self.freqs_solver = np.array(self.freqs_solver, dtype=float)
-                        self.h1s = np.array(self.h1s, dtype=float)
-                        self.h2s = np.array(self.h2s, dtype=float)
-                        self.betas = np.array(self.betas, dtype=float)
-                        self.betas = np.deg2rad(self.betas)
-
-                    except Exception:
-                        print(
-                            "you have not provided a band_filename_solver"
-                            + "in the parameter file, or wrong number of columns!"
-                        )
-
-                else:  # mueller_or_jones == "mueller":
-                    try:
-                        (
-                            self.freqs_solver,
-                            self.mIIs,
-                            self.mQIs,
-                            self.mUIs,
-                            self.mIQs,
-                            self.mIUs,
-                            self.mQQs,
-                            self.mUUs,
-                            self.mUQs,
-                            self.mQUs,
-                        ) = np.loadtxt(
-                            self.band_filename_solver,
-                            unpack=True,
-                            comments="#",
-                        )
-                    except Exception:
-                        print(
-                            "you have not provided a band_filename_solver"
-                            + "in the parameter file, or wrong number of columns!"
-                        )
-
                 if not self.bandpass_solver:
                     self.cmb2bb_solver = _dBodTth(self.freqs_solver)
 
@@ -1186,84 +874,19 @@ class HwpSys:
 
                 self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
 
-            else:
-                if mueller_or_jones == "jones":
-                    default_attrs = {
-                        "h1s": 0.0,
-                        "h2s": 0.0,
-                        "betas": 0.0,
-                        "z1s": 0.0,
-                        "z2s": 0.0,
-                    }
-
-                    for attr, default_value in default_attrs.items():
-                        if not paramdict.get(attr):
-                            setattr(self, attr, default_value)
-                    self.betas = np.deg2rad(self.betas)
-                        
-                else:  # mueller_or_jones == "mueller":
-                    default_attrs = {
-                        "mIIs": 1.0,
-                        "mQIs": 0.0,
-                        "mUIs": 0.0,
-                        "mIQs": 0.0,
-                        "mIUs": 0.0,
-                        "mQQs": 1.0,
-                        "mUUs": -1.0,
-                        "mUQs": 0.0,
-                        "mQUs": 0.0,
-                    }
-
-                    for attr, default_value in default_attrs.items():
-                        if not paramdict.get(attr):
-                            setattr(self, attr, default_value)
-
-        # conversion from Jones to Mueller
-        if mueller_or_jones == "jones":
-            # Mueller terms of fixed HWP (single/multi freq), to fill tod
-            (
-                self.mII,
-                self.mQI,
-                self.mUI,
-                self.mIQ,
-                self.mIU,
-                self.mQQ,
-                self.mUU,
-                self.mUQ,
-                self.mQU,
-            ) = get_mueller_from_jones(
-                h1=self.h1, h2=self.h2, z1=self.z1, z2=self.z2, beta=self.beta
-            )
-
-            # Mueller terms of fixed HWP (single/multi freq), to fill A^TA and A^Td
-            if self.correct_in_solver:
-                (
-                    self.mIIs,
-                    self.mQIs,
-                    self.mUIs,
-                    self.mIQs,
-                    self.mIUs,
-                    self.mQQs,
-                    self.mUUs,
-                    self.mUQs,
-                    self.mQUs,
-                ) = get_mueller_from_jones(
-                    h1=self.h1s, h2=self.h2s, z1=self.z1s, z2=self.z2s, beta=self.betas
-                )
 
 
         
     def fill_tod(
         self,
-        observations: Union[Observation, List[Observation]],
+        observations: Union[Observation, List[Observation]]=None,
         pointings: Union[np.ndarray, List[np.ndarray], None] = None,
         hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
         input_map_in_galactic: bool = True,
         save_tod: bool = False,
         dtype_pointings=np.float32,
-        incidence_angle: float=0.0,
-        rot_harm = '4f',
-        include_QU_mixing: bool = True
+        apply_non_linearity = False,
+        parallel: bool = False
     ):
         r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
         "on the fly" map production
@@ -1300,78 +923,107 @@ class HwpSys:
 
         dtype_pointings: if ``pointings`` is None and is computed within ``fill_tod``, this
                          is the dtype for pointings and tod (default: np.float32).
-        """
 
-        if pointings is None:
-            if hwp_angle:
-                raise Warning(
-                    "You passed hwp_angle, but you did not pass pointings, "
-                    + "so hwp_angle will be ignored and re-computed on the fly."
-                )
-            hwp_angle_list = []
-            if isinstance(observations, Observation):
-                obs_list = [observations]
-                if hasattr(observations, "pointing_matrix"):
-                    ptg_list = [observations.pointing_matrix]
-                else:
-                    ptg_list = []
-            else:
-                obs_list = observations
-                ptg_list = []
-                for ob in observations:
-                    if hasattr(ob, "pointing_matrix"):
-                        ptg_list.append(ob.pointing_matrix)
+        mueller_or_jones: mueller_or_jones (str): "mueller" or "jones" (case insensitive)
+                  it is the kind of HWP matrix to be injected as a starting point
+                  if 'jones' is chosen, the parameters :math:`h_1`, :math:`h_2`,
+                  :math:`\beta`, :math:`\zeta_1`, :math:`\zeta_2`
+                  are used to build the Jones matrix
+                  :math:`\begin{pmatrix} 1 + h_1 & \zeta_1 \\
+                  \zeta_2 & - (1 + h_2) e^{i \beta} \\ \end{pmatrix}`
+                  and then converted to Mueller.
+                  :math:`\zeta_1`, :math:`\zeta_2` are assumed to be complex
+                  :math:`h_1`, :math:`h_2`, :math:`\beta` are assumed to be real
+                  :math:`\beta` is assumed to be in degrees (later converted to radians.
+                  To reproduce the ideal HWP case, set all Jones parameters to 0.
+                  If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
+                  :math:`M^{UU} = -1` and all the others to 0.
+        """
+        if parallel:
+            comm = lbs.MPI_COMM_WORLD
+            rank = comm.Get_rank()
+            comm_size = comm.Get_size()
         else:
-            if isinstance(observations, Observation):
-                assert isinstance(pointings, np.ndarray), (
-                    "For one observation you need to pass a np.array "
-                    + "of pointings to fill_tod"
-                )
-                assert (
-                    observations.n_detectors == pointings.shape[0]
-                    and observations.n_samples == pointings.shape[1]
-                    and pointings.shape[2] == 3
-                ), (
-                    "You need to pass a pointing np.array with shape"
-                    + "(N_det, N_samples, 3) for the observation"
-                )
-                obs_list = [observations]
-                ptg_list = [pointings]
+            rank=0
+            comm_size=1
+        if rank==0:
+            if pointings is None:
                 if hwp_angle:
-                    assert isinstance(hwp_angle, np.ndarray), (
-                        "For one observation, hwp_angle must be passed "
-                        + "as a np.array to fill_tod"
+                    raise Warning(
+                        "You passed hwp_angle, but you did not pass pointings, "
+                        + "so hwp_angle will be ignored and re-computed on the fly."
                     )
-                    assert observations.n_samples == hwp_angle.shape[0], (
-                        "You need to pass a hwp_angle np.array with shape"
-                        + "N_samples for the observation"
-                    )
-                    hwp_angle_list = [hwp_angle]
+                hwp_angle_list = []
+                if isinstance(observations, Observation):
+                    obs_list = [observations]
+                    if hasattr(observations, "pointing_matrix"):
+                        ptg_list = [observations.pointing_matrix]
+                    else:
+                        ptg_list = []
                 else:
-                    raise ValueError(
-                        "If you pass pointings, you must also pass hwp_angle."
-                    )
+                    obs_list = observations
+                    ptg_list = []
+                    for ob in observations:
+                        if hasattr(ob, "pointing_matrix"):
+                            ptg_list.append(ob.pointing_matrix)
             else:
-                assert isinstance(pointings, list), (
-                    "When you pass a list of observations to fill_tod, "
-                    + "you must a list of `pointings`"
-                )
-                assert len(observations) == len(pointings), (
-                    f"The list of observations has {len(observations)} elements, but "
-                    + f"the list of pointings has {len(pointings)} elements"
-                )
-                obs_list = observations
-                ptg_list = pointings
-                if hwp_angle:
-                    assert len(observations) == len(hwp_angle), (
-                        f"The list of observations has {len(observations)} elements, but "
-                        + f"the list of hwp_angle has {len(hwp_angle)} elements"
+                if isinstance(observations, Observation):
+                    assert isinstance(pointings, np.ndarray), (
+                        "For one observation you need to pass a np.array "
+                        + "of pointings to fill_tod"
                     )
-                    hwp_angle_list = hwp_angle
+                    assert (
+                        observations.n_detectors == pointings.shape[0]
+                        and observations.n_samples == pointings.shape[1]
+                        and pointings.shape[2] == 3
+                    ), (
+                        "You need to pass a pointing np.array with shape"
+                        + "(N_det, N_samples, 3) for the observation"
+                    )
+                    obs_list = [observations]
+                    ptg_list = [pointings]
+                    if hwp_angle:
+                        assert isinstance(hwp_angle, np.ndarray), (
+                            "For one observation, hwp_angle must be passed "
+                            + "as a np.array to fill_tod"
+                        )
+                        assert observations.n_samples == hwp_angle.shape[0], (
+                            "You need to pass a hwp_angle np.array with shape"
+                            + "N_samples for the observation"
+                        )
+                        hwp_angle_list = [hwp_angle]
+                    else:
+                        raise ValueError(
+                            "If you pass pointings, you must also pass hwp_angle."
+                        )
                 else:
-                    raise ValueError(
-                        "If you pass pointings, you must also pass hwp_angle."
+                    assert isinstance(pointings, list), (
+                        "When you pass a list of observations to fill_tod, "
+                        + "you must a list of `pointings`"
                     )
+                    assert len(observations) == len(pointings), (
+                        f"The list of observations has {len(observations)} elements, but "
+                        + f"the list of pointings has {len(pointings)} elements"
+                    )
+                    obs_list = observations
+                    ptg_list = pointings
+                    if hwp_angle:
+                        assert len(observations) == len(hwp_angle), (
+                            f"The list of observations has {len(observations)} elements, but "
+                            + f"the list of hwp_angle has {len(hwp_angle)} elements"
+                        )
+                        hwp_angle_list = hwp_angle
+                    else:
+                        raise ValueError(
+                            "If you pass pointings, you must also pass hwp_angle."
+                        )
+        else:
+            obs_list=None
+            ptg_list=None
+        
+        if parallel:
+            obs_list=comm.bcast(obs_list,root=0)
+            ptg_list=comm.bcast(ptg_list,root=0)
 
         for idx_obs, cur_obs in enumerate(obs_list):
             if self.built_map_on_the_fly:
@@ -1384,8 +1036,17 @@ class HwpSys:
                         (cur_obs.n_detectors, cur_obs.n_samples, 3),
                         dtype=dtype_pointings,
                     )
+                
 
-            for idet in range(cur_obs.n_detectors):
+            dets_block = MakeDetectorBlocks(cur_obs, comm, rank)
+
+            for idet in dets_block:
+                print("rank",rank,"calculating tod for detector",idet)
+                cur_det = self.sim.detectors[idet] 
+                
+                tod = cur_obs.tod[idet, :]
+                
+
                 if pointings is None:
                     if (not ptg_list) or (not hwp_angle_list):
                         cur_point, cur_hwp_angle = cur_obs.get_pointings(
@@ -1398,15 +1059,14 @@ class HwpSys:
                 else:
                     cur_point = ptg_list[idx_obs][idet, :, :]
                     cur_hwp_angle = hwp_angle_list[idx_obs]
-
+    
                 # rotating pointing from ecliptic to galactic as the input map
                 if input_map_in_galactic:
                     cur_point = rotate_coordinates_e2g(cur_point)
-
+    
                 # all observed pixels over time (for each sample),
                 # i.e. len(pix)==len(times)
                 pix = hp.ang2pix(self.nside, cur_point[:, 0], cur_point[:, 1])
-
                 # separating polarization angle xi from cur_point[:, 2] = psi + xi
                 # xi: polarization angle, i.e. detector dependent
                 # psi: instrument angle, i.e. boresight direction from focal plane POV
@@ -1414,206 +1074,61 @@ class HwpSys:
                     2 * np.pi
                 )
                 psi = (cur_point[:, 2] - xi) % (2 * np.pi)
-        
+    
+                phi = np.deg2rad(cur_det.phi)
+            
+                cos2Psi02Phi = np.cos(2*xi-2*phi)
+                sin2Psi02Phi = np.sin(2*xi-2*phi)
 
-                tod = cur_obs.tod[idet, :]
+                compute_signal_for_one_detector(
+                    tod_det=tod,
+                    pixel_ind=pix,
+                    m0f=cur_det.matrix_hwp['0f'],
+                    m2f=cur_det.matrix_hwp['2f'],
+                    m4f=cur_det.matrix_hwp['4f'],
+                    theta=np.array(cur_hwp_angle / 2,dtype=np.float32),  # hwp angle returns 2 ^it
+                    psi=np.array(psi,dtype=np.float32),
+                    maps=np.array(self.maps,dtype=np.float32),
+                    cos2Psi02Phi=cos2Psi02Phi,
+                    sin2Psi02Phi=sin2Psi02Phi,
+                    phi = phi
+                )
                 
-                                
-                if rot_harm == ['2f']:
-                    e1,e2 = compute_epsilon1_and_2(incidence_angle, rot_harm[0])
-                    e1_list=[e1,0.0]
-                    e2_list=[e2,0.0]
-                    
-                elif rot_harm == ['4f']:
-                    e1,e2 = compute_epsilon1_and_2(incidence_angle, rot_harm[0])
-                    e1_list=[0.0,e1]
-                    e2_list=[0.0,e2]
-                    
-                elif rot_harm == ['2f','4f']:
-                    e1_2f,e2_2f = compute_epsilon1_and_2(incidence_angle, rot_harm[0])
-                    e1_4f,e2_4f = compute_epsilon1_and_2(incidence_angle, rot_harm[1])
-                    e1_list=[e1_2f,e1_4f]
-                    e2_list=[e2_2f,e2_4f]
-                    print(e1_list,e2_list)
-                    
-                if include_QU_mixing is True:
-                    
-                    if rot_harm == ['2f']:
-                        mQQ,mUU,mQU,mUQ = compute_QU_mixing_terms(incidence_angle, rot_harm[0])
-                        mQQ_list=[mQQ,0.0]
-                        mUU_list=[mUU,0.0]
-                        mQU_list=[mQU,0.0]
-                        mUQ_list=[mUQ,0.0]
-                        
-                    elif rot_harm == ['4f']:
-                        mQQ,mUU,mQU,mUQ = compute_QU_mixing_terms(incidence_angle, rot_harm[0])
-                        mQQ_list=[0.0,mQQ]
-                        mUU_list=[0.0,mUU]
-                        mQU_list=[0.0,mQU]
-                        mUQ_list=[0.0,mUQ]
-                        
-                    elif rot_harm == ['2f','4f']:
-                        mQQ_2f,mUU_2f,mQU_2f,mUQ_2f = compute_QU_mixing_terms(incidence_angle, rot_harm[0])
-                        mQQ_4f,mUU_4f,mQU_4f,mUQ_4f = compute_QU_mixing_terms(incidence_angle, rot_harm[1])
-                        mQQ_list=[mQQ_2f,mQQ_4f]
-                        mUU_list=[mUU_2f,mUU_4f]
-                        mQU_list=[mQU_2f,mQU_4f]
-                        mUQ_list=[mUQ_2f,mUQ_4f]
-                    
-                    else: 
-                        print("rot_harm must be one of the following: ['2f'], ['4f'] or ['2f','4f']")
-                        return
-
-                
-                
-                if self.integrate_in_band:
-                    integrate_inband_signal_for_one_detector(
-                        tod_det=tod,
-                        freqs=self.freqs,
-                        band=self.cmb2bb,
-                        mII=self.mII,
-                        mQI=self.mQI,
-                        mUI=self.mUI,
-                        mIQ=self.mIQ,
-                        mIU=self.mIU,
-                        mQQ=self.mQQ,
-                        mUU=self.mUU,
-                        mUQ=self.mUQ,
-                        mQU=self.mQU,
-                        pixel_ind=pix,
-                        theta=cur_hwp_angle / 2,  # hwp angle returns 2ωt
-                        psi=psi,
-                        xi=xi,
-                        maps=self.maps,
-                    )
-                else:
-                    compute_signal_for_one_detector(
-                        tod_det=tod,
-                        mII=self.mII,
-                        mQI=self.mQI,
-                        mUI=self.mUI,
-                        mIQ=self.mIQ,
-                        mIU=self.mIU,
-                        mQQ=self.mQQ,
-                        mUU=self.mUU,
-                        mUQ=self.mUQ,
-                        mQU=self.mQU,
-                        pixel_ind=pix,
-                        theta=cur_hwp_angle / 2,  # hwp angle returns 2ωt
-                        psi=psi,
-                        xi=xi,
-                        maps=self.maps,
-                        e1_list=e1_list,
-                        e2_list=e2_list,
-                        mQQ_list=mQQ_list,
-                        mUU_list=mUU_list,
-                        mQU_list=mQU_list,
-                        mUQ_list=mUQ_list,
-                        rot_harm = rot_harm
-                    )
-                    
-                    
-                    
                 if self.built_map_on_the_fly:
-                    if self.correct_in_solver:
-                        if self.integrate_in_band_solver:
-                            integrate_inband_atd_ata_for_one_detector(
-                                atd=self.atd,
-                                ata=self.ata,
-                                tod=tod,
-                                freqs=self.freqs_solver,
-                                band=self.cmb2bb_solver,
-                                mIIs=self.mIIs,
-                                mQIs=self.mQIs,
-                                mUIs=self.mUIs,
-                                mIQs=self.mIQs,
-                                mIUs=self.mIUs,
-                                mQQs=self.mQQs,
-                                mUUs=self.mUUs,
-                                mUQs=self.mUQs,
-                                mQUs=self.mQUs,
-                                pixel_ind=pix,
-                                theta=cur_hwp_angle / 2,  # hwp angle returns 2ωt
-                                psi=psi,
-                                xi=xi,
-                            )
-                        else:
-                            
-                            compute_atd_ata_for_one_detector(
-                                atd=self.atd,
-                                ata=self.ata,
-                                tod=tod,
-                                mIIs=1,
-                                mQIs=0,
-                                mUIs=0,
-                                mIQs=0,
-                                mIUs=0,
-                                mQQs=1,
-                                mUUs=-1,
-                                mUQs=0,
-                                mQUs=0,
-                                pixel_ind=pix,
-                                theta=cur_hwp_angle / 2,  # hwp angle returns 2ωt
-                                psi=psi,
-                                xi=xi,  
-                            )
-                            
+                    compute_atd_ata_for_one_detector(
+                        atd=self.atd,
+                        ata=self.ata,
+                        tod=tod,
+                        m0f_solver=cur_det.matrix_hwp_solver['0f'],
+                        m2f_solver=cur_det.matrix_hwp_solver['2f'],
+                        m4f_solver=cur_det.matrix_hwp_solver['4f'],
+                        pixel_ind=pix,
+                        theta=np.array(cur_hwp_angle / 2,dtype=np.float32),  # hwp angle returns 2ωt
+                        psi=np.array(psi,dtype=np.float32),
+                        phi=phi,
+                        cos2Psi02Phi=cos2Psi02Phi,
+                        sin2Psi02Phi=sin2Psi02Phi,
+                    )
+                        
+            
+            sum_of_ata = np.zeros(self.ata.shape)
+            sum_of_atd = np.zeros(self.atd.shape)
+            comm.Reduce(self.ata, sum_of_ata, op=mpi.MPI.SUM, root=0)
+            comm.Reduce(self.atd, sum_of_atd, op=mpi.MPI.SUM, root=0)
+            if rank==0:
+                self.ata=sum_of_ata
+                self.atd=sum_of_atd
 
-                    else:
-                        # in this case factor 4 included here
-                        ca = np.cos(
-                            2 * cur_point[:, 2] + 4 * cur_hwp_angle / 2
-                        )  # hwp angle returns 2ωt
-                        sa = np.sin(
-                            2 * cur_point[:, 2] + 4 * cur_hwp_angle / 2
-                        )  # hwp angle returns 2ωt
+        if rank==0:
+            del (pix, self.maps)
+            if not save_tod:
+                del tod
 
-                        self.atd[pix, 0] += tod * 0.5
-                        self.atd[pix, 1] += tod * ca * 0.5
-                        self.atd[pix, 2] += tod * sa * 0.5
-
-                        self.ata[pix, 0, 0] += 0.25
-                        self.ata[pix, 1, 0] += 0.25 * ca
-                        self.ata[pix, 2, 0] += 0.25 * sa
-                        self.ata[pix, 1, 1] += 0.25 * ca * ca
-                        self.ata[pix, 2, 1] += 0.25 * ca * sa
-                        self.ata[pix, 2, 2] += 0.25 * sa * sa
-                        del (ca, sa)
-
-                else:
-                    # this fills variables needed by make_binned_map
-                    cur_obs.pointing_matrix[idet, :, :] = cur_point
-
-        del (pix, self.maps)
-        if not save_tod:
-            del tod
-
-        del (
-            self.mII,
-            self.mQI,
-            self.mUI,
-            self.mIQ,
-            self.mIU,
-            self.mQQ,
-            self.mUU,
-            self.mUQ,
-            self.mQU,
-        )
-        if self.correct_in_solver:
-            del (
-                self.mIIs,
-                self.mQIs,
-                self.mUIs,
-                self.mIQs,
-                self.mIUs,
-                self.mQQs,
-                self.mUUs,
-                self.mUQs,
-                self.mQUs,
-            )
-
+                      
         return
 
+    
+        
     def make_map(self, observations):
         """It generates "on the fly" map. This option is only availabe if
         `built_map_on_the_fly` is set to True.
@@ -1626,11 +1141,11 @@ class HwpSys:
         Returns:
             map (float): rebinned T,Q,U maps
         """
-
+        
+        
         assert (
             self.built_map_on_the_fly
         ), "make_map available only with built_map_on_the_fly option activated"
-
         # from mapping.py
         if all([obs.comm is None for obs in observations]) or not mpi.MPI_ENABLED:
             # Serial call
@@ -1641,21 +1156,26 @@ class HwpSys:
                 for i in range(len(observations) - 1)
             ]
         ):
-            self.atd = observations[0].comm.allreduce(self.atd, mpi.MPI.SUM)
-            self.ata = observations[0].comm.allreduce(self.ata, mpi.MPI.SUM)
+            pass
+            #self.atd = observations[0].comm.allreduce(self.atd, mpi.MPI.SUM)
+            #self.ata = observations[0].comm.allreduce(self.ata, mpi.MPI.SUM)
         else:
             raise NotImplementedError(
                 "All observations must be distributed over the same MPI groups"
             )
+        
+        #comm = lbs.MPI_COMM_WORLD
+        #rank = comm.Get_rank()
 
         self.ata[:, 0, 1] = self.ata[:, 1, 0]
         self.ata[:, 0, 2] = self.ata[:, 2, 0]
         self.ata[:, 1, 2] = self.ata[:, 2, 1]
-        
-        
 
         cond = np.linalg.cond(self.ata)
         res = np.full_like(self.atd, hp.UNSEEN)
         mask = cond < COND_THRESHOLD
         res[mask] = np.linalg.solve(self.ata, self.atd)
         return res.T
+
+
+
