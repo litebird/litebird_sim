@@ -1,9 +1,11 @@
 # fmt: off
 # MR: This code is maintained externally, so I'm switching auto-formatting off
 # to make updating from outside sources easier.
+from dataclasses import dataclass
+from typing import List, Optional
+
 import ducc0
 import numpy as np
-
 
 __all__ = ["MuellerConvolver"]
 
@@ -22,22 +24,32 @@ def mueller_to_C(mueller):
     T[2, 2] = -1j / np.sqrt(2.0)
     return np.conj(T.dot(mueller.dot(np.conj(T.T))))
 
+@dataclass
+class TruncatedBlm:
+    blms: np.ndarray
+    mmax: int
 
-def truncate_blm(inp, lmax, kmax, epsilon=1e-10):
+
+def truncate_blm(inp, lmax: int, mmax: int, epsilon=1e-10) -> List[Optional[TruncatedBlm]]:
     limit = epsilon * np.max(np.abs(inp))
-    out = []
+    out = []  # type:List[Optional[TruncatedBlm]]
     for i in range(len(inp)):
         maxk = -1
         idx = 0
-        for k in range(kmax+1):
-            if np.max(np.abs(inp[i, :, idx:idx+lmax+1-k])) > limit:
+        for k in range(mmax + 1):
+            if np.max(np.abs(inp[i, :, idx:idx + lmax + 1 - k])) > limit:
                 maxk = k
-            idx += lmax+1-k
+            idx += lmax + 1 - k
 #        print("component",i,"maxk=",maxk)
         if maxk == -1:
             out.append(None)
         else:
-            out.append((inp[i, :, : nalm(lmax, maxk)].copy(), maxk))
+            out.append(
+                TruncatedBlm(
+                    blms =inp[i, :, : nalm(lmax, maxk)].copy(),
+                    mmax= maxk,
+                )
+            )
     return out
 
 
@@ -282,26 +294,28 @@ class MuellerConvolver:
         intertype = (ducc0.totalconvolve.Interpolator_f
             if self._ctype == np.complex64
             else ducc0.totalconvolve.Interpolator)
-        for i in range(5):
-            if tmp[i] is not None:  # component is not zero
-                self._inter.append(
-                    intertype(
-                        sky=self._slm,
-                        beam=tmp[i][0],
-                        separate=False,
-                        lmax=self._lmax,
-                        kmax=tmp[i][1],
-                        npoints=npoints,
-                        sigma_min=sigma_min,
-                        sigma_max=sigma_max,
-                        epsilon=epsilon,
-                        nthreads=nthreads,
-                        )
-                    )
-            else:  # we can ignore this component entirely
+        for cur_component in tmp:
+            if cur_component is None:
+                # We can ignore this component entirely
                 self._inter.append(None)
+                continue
 
-    def signal(self, *, ptg, alpha):
+            self._inter.append(
+                intertype(
+                    sky=self._slm,
+                    beam=cur_component.blms,
+                    separate=False,
+                    lmax=self._lmax,
+                    kmax=cur_component.mmax,
+                    npoints=npoints,
+                    sigma_min=sigma_min,
+                    sigma_max=sigma_max,
+                    epsilon=epsilon,
+                    nthreads=nthreads,
+                    )
+                )
+
+    def signal(self, *, ptg, alpha, strict_typing: bool):
         """Computes the convolved signal for a set of pointings and HWP angles.
 
         Parameters
@@ -316,6 +330,22 @@ class MuellerConvolver:
         signal : numpy.ndarray((nptg,), dtype=numpy.float32/64)
             the signal measured by the detector
         """
+        if strict_typing:
+            if (ptg.dtype != self._ftype):
+                raise TypeError(
+                    "pointings are {} but they should be {}; consider "
+                    "passing `strict_typing=False` to BeamConvolutionParameters.".format(
+                        str(ptg.dtype), str(self._ftype),
+                    )
+                )
+            if (alpha.dtype != self._ftype):
+                raise TypeError(
+                    "HWP angles are {} but they should be {}; consider "
+                    "passing `strict_typing=False` to BeamConvolutionParameters.".format(
+                        str(alpha.dtype), str(self._ftype),
+                    )
+                )
+
         ptg = ptg.astype(self._ftype)
         alpha = alpha.astype(self._ftype)
         if self._inter[0] is not None:
