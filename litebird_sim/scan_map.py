@@ -220,12 +220,17 @@ def scan_map(
 
 def scan_map_in_observations(
     observations: Union[Observation, List[Observation]],
-    maps: Union[np.ndarray, Dict[str, np.ndarray]],
+    maps: Union[
+        np.ndarray,
+        Dict[str, np.ndarray],
+        List[np.ndarray],
+        List[Dict[str, np.ndarray]],
+    ],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     hwp: Optional[HWP] = None,
     input_map_in_galactic: bool = True,
     component: str = "tod",
-    interpolation: Union[str, None] = "",
+    interpolation: Optional[str] = "",
 ):
     """Scan a map filling time-ordered data
 
@@ -295,20 +300,23 @@ def scan_map_in_observations(
             obs_list = observations
             ptg_list = pointings
 
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
-        if isinstance(maps, dict):
-            if all(item in maps.keys() for item in cur_obs.name):
+    # Ensure `maps` is a list for iteration
+    maps_list = [maps] if isinstance(maps, (np.ndarray, dict)) else maps
+
+    for cur_obs, cur_ptg, curr_maps in zip(obs_list, ptg_list, maps_list):
+        if isinstance(curr_maps, dict):
+            if all(item in curr_maps.keys() for item in cur_obs.name):
                 input_names = cur_obs.name
-            elif all(item in maps.keys() for item in cur_obs.channel):
+            elif all(item in curr_maps.keys() for item in cur_obs.channel):
                 input_names = cur_obs.channel
             else:
                 raise ValueError(
                     "The dictionary maps does not contain all the relevant"
                     + "keys, please check the list of detectors and channels"
                 )
-            if "Coordinates" in maps.keys():
+            if "Coordinates" in curr_maps.keys():
                 dict_input_map_in_galactic = (
-                    maps["Coordinates"] is CoordinateSystem.Galactic
+                    curr_maps["Coordinates"] is CoordinateSystem.Galactic
                 )
                 if dict_input_map_in_galactic != input_map_in_galactic:
                     logging.warning(
@@ -317,7 +325,7 @@ def scan_map_in_observations(
                     )
                 input_map_in_galactic = dict_input_map_in_galactic
         else:
-            assert isinstance(maps, np.ndarray), (
+            assert isinstance(curr_maps, np.ndarray), (
                 "maps must either a dictionary contaning keys for all the"
                 + "channels/detectors, or be a numpy array of dim (3 x Npix)"
             )
@@ -346,7 +354,7 @@ def scan_map_in_observations(
         scan_map(
             tod=getattr(cur_obs, component),
             pointings=cur_ptg,
-            maps=maps,
+            maps=curr_maps,
             pol_angle_detectors=cur_obs.pol_angle_rad,
             pol_eff_detectors=cur_obs.pol_efficiency,
             hwp_angle=hwp_angle,

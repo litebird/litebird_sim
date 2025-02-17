@@ -240,12 +240,10 @@ def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
         List of Observation objects, containing detector names, pointings,
         and TOD data, to which the computed TOD are added.
-    sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics],
-                    List[SphericalHarmonics],List[Dict[str, SphericalHarmonics]]],
-        sky a_lm. Typically only one set of sky a_lm is needed per detector frequency
-    beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics],
-                    List[SphericalHarmonics],List[Dict[str, SphericalHarmonics]]],
-        beam a_lm. Usually one set of a_lm is needed for every detector.
+    sky_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics], List]
+        Sky a_lm coefficients. Typically one set per detector frequency.
+    beam_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics], List]
+        Beam a_lm coefficients. Typically one set per detector.
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
         detector pointing information
     hwp: Optional[HWP] = None
@@ -256,7 +254,7 @@ def add_convolved_sky_to_observations(
         Parameters to tune the beam convolution. If the default is used, the
         code will try to find sensible numbers for these parameters. However,
         this should not be used in production code!
-    component: str
+    component: str, default="tod"
         name of the TOD component to which the computed data shall be added
     nthreads: int
         number of threads to use in the convolution. The default (0) will use

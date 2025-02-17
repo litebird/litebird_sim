@@ -176,12 +176,11 @@ def generate_gauss_beam_alms(
     # Ensure observations is always a list
     obs_list = [observations] if isinstance(observations, Observation) else observations
 
-    beams = []
+    mmax_val = mmax or lmax  # Use mmax if provided, else default to lmax
 
+    beams = []
     for cur_obs in obs_list:
         blms = {}
-        mmax_val = mmax or lmax  # Use mmax if provided, else default to lmax
-
         for detector_idx, det_name in enumerate(cur_obs.name):
             fwhm_rad = cur_obs.fwhm_arcmin[detector_idx] * ARCMIN_TO_RAD
 
