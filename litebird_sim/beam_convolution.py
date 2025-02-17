@@ -198,10 +198,16 @@ def add_convolved_sky(
 def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
     sky_alms: Union[
-        SphericalHarmonics, Dict[str, SphericalHarmonics]
+        SphericalHarmonics,
+        Dict[str, SphericalHarmonics],
+        List[SphericalHarmonics],
+        List[Dict[str, SphericalHarmonics]],
     ],  # at some point optional, taken from the obs
     beam_alms: Union[
-        SphericalHarmonics, Dict[str, SphericalHarmonics]
+        SphericalHarmonics,
+        Dict[str, SphericalHarmonics],
+        List[SphericalHarmonics],
+        List[Dict[str, SphericalHarmonics]],
     ],  # at some point optional, taken from the obs
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None,
     hwp: Optional[HWP] = None,
@@ -218,9 +224,11 @@ def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
         List of Observation objects, containing detector names, pointings,
         and TOD data, to which the computed TOD are added.
-    sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
+    sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics],
+                    List[SphericalHarmonics],List[Dict[str, SphericalHarmonics]]],
         sky a_lm. Typically only one set of sky a_lm is needed per detector frequency
-    beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
+    beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics],
+                    List[SphericalHarmonics],List[Dict[str, SphericalHarmonics]]],
         beam a_lm. Usually one set of a_lm is needed for every detector.
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
         detector pointing information
@@ -277,86 +285,90 @@ def add_convolved_sky_to_observations(
             obs_list = observations
             ptg_list = pointings
 
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
-        # TODO: catch the condition where the a_ℓm are stored in a
-        #  SphericalHarmonics instance
-        if isinstance(sky_alms, dict):
-            if all(item in sky_alms.keys() for item in cur_obs.name):
-                input_sky_names = cur_obs.name
-            elif all(item in sky_alms.keys() for item in cur_obs.channel):
-                input_sky_names = cur_obs.channel
-            else:
+    # Ensure `sky_alms` and `beam_alms` are lists for iteration
+    sky_alms_list = (
+        [sky_alms] if isinstance(sky_alms, (SphericalHarmonics, dict)) else sky_alms
+    )
+    beam_alms_list = (
+        [beam_alms] if isinstance(beam_alms, (SphericalHarmonics, dict)) else beam_alms
+    )
+
+    for cur_obs, cur_ptg, curr_skies, curr_beams in zip(
+        obs_list, ptg_list, sky_alms_list, beam_alms_list
+    ):
+        # Determine input sky names
+        if isinstance(curr_skies, dict):
+            input_sky_names = (
+                cur_obs.name
+                if all(k in curr_skies for k in cur_obs.name)
+                else cur_obs.channel
+                if all(k in curr_skies for k in cur_obs.channel)
+                else None
+            )
+            if input_sky_names is None:
                 raise ValueError(
-                    "The dictionary maps does not contain all the relevant "
-                    "keys, please check the list of detectors and channels"
+                    "Sky a_lm dictionary keys do not match detector/channel names."
                 )
-            if "Coordinates" in sky_alms.keys():
+
+            if "Coordinates" in curr_skies:
                 dict_input_sky_alms_in_galactic = (
-                    sky_alms["Coordinates"] is CoordinateSystem.Galactic
+                    curr_skies["Coordinates"] is CoordinateSystem.Galactic
                 )
                 if dict_input_sky_alms_in_galactic != input_sky_alms_in_galactic:
                     logging.warning(
-                        "input_sky_alms_in_galactic variable in add_convolved_sky_to_observations"
-                        " overwritten!"
+                        "Overriding `input_sky_alms_in_galactic` from sky_alms dictionary."
                     )
                 input_sky_alms_in_galactic = dict_input_sky_alms_in_galactic
         else:
-            assert isinstance(sky_alms, SphericalHarmonics), (
-                "sky_alms must be either a dictionary contaning the keys for all the"
-                "channels/detectors or a SphericalHarmonics object"
-            )
+            assert isinstance(
+                curr_skies, SphericalHarmonics
+            ), "Invalid sky_alms format."
             input_sky_names = None
 
-        # TODO: catch the condition where the b_ℓm are stored in a
-        #  SphericalHarmonics instance
-        if isinstance(beam_alms, dict):
-            if all(item in beam_alms.keys() for item in cur_obs.name):
-                input_beam_names = cur_obs.name
-            elif all(item in beam_alms.keys() for item in cur_obs.channel):
-                input_beam_names = cur_obs.channel
-            else:
+        # Determine input beam names
+        if isinstance(curr_beams, dict):
+            input_beam_names = (
+                cur_obs.name
+                if all(k in curr_beams for k in cur_obs.name)
+                else cur_obs.channel
+                if all(k in curr_beams for k in cur_obs.channel)
+                else None
+            )
+            if input_beam_names is None:
                 raise ValueError(
-                    "The dictionary beams does not contain all the relevant "
-                    "keys, please check the list of detectors and channels"
+                    "Beam a_lm dictionary keys do not match detector/channel names."
                 )
         else:
-            assert isinstance(beam_alms, SphericalHarmonics), (
-                "beam_alms must be either a dictionary containing keys for all the "
-                "channels/detectors or a SphericalHarmonics object"
-            )
+            assert isinstance(
+                curr_beams, SphericalHarmonics
+            ), "Invalid beam_alms format."
             input_beam_names = None
 
+        # Handle HWP angles
         if hwp is None:
             if cur_obs.has_hwp:
-                if hasattr(cur_obs, "hwp_angle"):
-                    hwp_angle = cur_obs.hwp_angle
-                else:
-                    hwp_angle = cur_obs.get_pointings()[1]
+                hwp_angle = getattr(cur_obs, "hwp_angle", cur_obs.get_pointings()[1])
             else:
-                assert all(m is None for m in cur_obs.mueller_hwp), (
-                    "Detectors have been initialized with a mueller_hwp,"
-                    "but no HWP is either passed or initilized in the pointing"
-                )
+                assert all(
+                    m is None for m in cur_obs.mueller_hwp
+                ), "Detectors have mueller_hwp, but no HWP provided."
                 hwp_angle = None
         else:
-            if type(cur_ptg) is np.ndarray:
+            if isinstance(cur_ptg, np.ndarray):
                 hwp_angle = get_hwp_angle(cur_obs, hwp)
             else:
-                logging.warning(
-                    "For using an external HWP object also pass a pre-calculated pointing"
-                )
+                logging.warning("HWP provided, but no precomputed pointings passed.")
 
+        # Set number of threads
         if nthreads is None:
-            if NUM_THREADS_ENVVAR in os.environ:
-                nthreads = int(os.environ[NUM_THREADS_ENVVAR])
-            else:
-                nthreads = 0
+            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
 
+        # Perform convolution
         add_convolved_sky(
             tod=getattr(cur_obs, component),
             pointings=cur_ptg,
-            sky_alms=sky_alms,
-            beam_alms=beam_alms,
+            sky_alms=curr_skies,
+            beam_alms=curr_beams,
             hwp_angle=hwp_angle,
             mueller_hwp=cur_obs.mueller_hwp,
             input_sky_names=input_sky_names,
