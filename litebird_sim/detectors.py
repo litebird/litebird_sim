@@ -88,6 +88,10 @@ class DetectorInfo:
         - ellipticity (float): The ellipticity of the radiation
              pattern associated with the detector. The default is 0.0
 
+        - psi_rad (float): The inclination respect to the x-axis of the major
+             axis of the ellipse of the radiation pattern associated with
+             the detector. The dfault is 0.
+
         - net_ukrts (float): The noise equivalent temperature of the
              signal produced by the detector in nominal conditions,
              expressed in μK/√s. This is the noise per sample to be
@@ -155,6 +159,7 @@ class DetectorInfo:
     sampling_rate_hz: float = 0.0
     fwhm_arcmin: float = 0.0
     ellipticity: float = 0.0
+    psi_rad: float = 0.0
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
     band_freqs_ghz: Union[None, np.ndarray] = None
@@ -205,6 +210,7 @@ class DetectorInfo:
         - ``sampling_rate_hz``
         - ``fwhm_arcmin``
         - ``ellipticity``
+        - ``psi_rad``
         - ``net_ukrts``
         - ``pol_sensitivity_ukarcmin``
         - ``fknee_mhz``

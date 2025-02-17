@@ -57,6 +57,7 @@ from .beam_convolution import (
     BeamConvolutionParameters,
 )
 from .spherical_harmonics import SphericalHarmonics
+from .beam_synthesis import generate_gauss_beam_alms
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .version import (
@@ -1439,6 +1440,28 @@ class Simulation:
                     has_fg="N/A",
                     fg_model="N/A",
                 )
+
+    @_profile
+    def get_gauss_beam_alms(self, lmax: int, mmax: Optional[int] = None):
+        """
+        Compute Gaussian beam spherical harmonic coefficients.
+
+        This function synthesizes beam `a_lm` coefficients from the information
+        stored in the detectors list.
+
+        Parameters:
+        -----------
+        lmax : int
+            Maximum multipole moment.
+        mmax : Optional[int], default=None
+            Maximum azimuthal multipole moment. Defaults to `lmax` if None.
+
+        Returns:
+        --------
+        List[dict]
+            A list of dictionaries containing beam `a_lm` values per detector.
+        """
+        return generate_gauss_beam_alms(self.observations, lmax, mmax)
 
     @_profile
     def convolve_sky(

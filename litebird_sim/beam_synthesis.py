@@ -1,12 +1,15 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import numpy as np
 from numpy import sqrt, exp, sin, cos, log
 from scipy.special import iv as bessel_i
 
 from .spherical_harmonics import SphericalHarmonics
+from .observations import Observation
+
+from .constants import ARCMIN_TO_RAD
 
 
 def alm_index(lmax: int, ell: int, m: int) -> int:
@@ -161,3 +164,37 @@ def gauss_beam_to_alm(
             alm.values[n, :] *= -sqrt(2.0)
 
     return alm
+
+
+def generate_gauss_beam_alms(
+    observations: Union[Observation, List[Observation]],
+    lmax: int,
+    mmax: Optional[int] = None,
+):
+    """Generate Gaussian beam spherical harmonic coefficients for each detector."""
+
+    # Ensure observations is always a list
+    obs_list = [observations] if isinstance(observations, Observation) else observations
+
+    beams = []
+
+    for cur_obs in obs_list:
+        blms = {}
+        mmax_val = mmax or lmax  # Use mmax if provided, else default to lmax
+
+        for detector_idx, det_name in enumerate(cur_obs.name):
+            fwhm_rad = cur_obs.fwhm_arcmin[detector_idx] * ARCMIN_TO_RAD
+
+            blms[det_name] = gauss_beam_to_alm(
+                lmax=lmax,
+                mmax=mmax_val,
+                fwhm_rad=fwhm_rad,
+                ellipticity=cur_obs.ellipticity[detector_idx],
+                psi_ell_rad=cur_obs.psi_rad[detector_idx],
+                psi_pol_rad=cur_obs.pol_angle_rad[detector_idx],
+                cross_polar_leakage=0,
+            )
+
+        beams.append(blms)
+
+    return beams

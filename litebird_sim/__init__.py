@@ -24,6 +24,7 @@ from .beam_synthesis import (
     alm_index,
     allocate_alm,
     gauss_beam_to_alm,
+    generate_gauss_beam_alms,
 )
 from .compress import (
     rle_compress,
@@ -195,6 +196,7 @@ __all__ = [
     "alm_index",
     "allocate_alm",
     "gauss_beam_to_alm",
+    "generate_gauss_beam_alms",
     # compress.py
     "rle_compress",
     "rle_decompress",
