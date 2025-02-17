@@ -30,7 +30,7 @@ class SphericalHarmonics:
 
         if isinstance(self.values, tuple):
             # if self.values is a 3-tuple containing three NumPy arrays
-            # it gets converted converted in NumPy array
+            # it gets converted in NumPy array
             self.values = np.array([self.values[i] for i in range(len(self.values))])
 
         if len(self.values.shape) == 1:
