@@ -1,10 +1,9 @@
 # -*- encoding: utf-8 -*-
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import Union, List, Dict, Optional
-
-import os
 
 import numpy as np
 import numpy.typing as npt
@@ -33,12 +32,17 @@ class BeamConvolutionParameters:
     - ``single_precision`` (bool): Set it to ``False`` to use 64-bit floating points
       in the calculation
     - ``epsilon`` (float): The desired relative accuracy of the interpolation
+    - ``strict_typing`` (bool): If ``True`` (the default), a ``TypeError` exception
+      will be raised if the type of the pointings does not match ``single_precision``.
+      If ``False``, the type of the pointings will be converted silently to make the
+      code works at the expense of additional memory consumption.
     """
 
     lmax: int
     mmax: int
     single_precision: bool = True
     epsilon: float = 1e-5
+    strict_typing: bool = True
 
 
 def add_convolved_sky_to_one_detector(
@@ -101,24 +105,32 @@ def add_convolved_sky_to_one_detector(
         # we cannot simulate HWP, so let's use classic 4pi convolution
         # FIXME!! we need to understand what to do with the interface here
         if convolution_params.single_precision:
-            _ftype = np.float32
-            _ctype = np.complex64
+            real_type = np.float32
+            complex_type = np.complex64
             intertype = Interpolator_f
         else:
-            _ftype = np.float64
-            _ctype = np.complex128
+            real_type = np.float64
+            complex_type = np.complex128
             intertype = Interpolator
 
         inter = intertype(
-            sky=_slm.astype(_ctype),
-            beam=_blm.astype(_ctype),
+            sky=_slm.astype(complex_type),
+            beam=_blm.astype(complex_type),
             separate=False,
             lmax=convolution_params.lmax,
             kmax=convolution_params.mmax,
             epsilon=convolution_params.epsilon,
             nthreads=nthreads,
         )
-        tod_det += inter.interpol(pointings_det.astype(_ftype))[0]
+
+        if convolution_params.strict_typing and (pointings_det.dtype != real_type):
+            raise TypeError(
+                "pointings are {} but they should be {}; consider "
+                "passing `strict_typing=False` to BeamConvolutionParameters.".format(
+                    pointings_det.dtype, real_type
+                )
+            )
+        tod_det += inter.interpol(pointings_det.astype(real_type, copy=False))[0]
     else:
         fullconv = MuellerConvolver(
             slm=_slm,

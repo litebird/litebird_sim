@@ -15,6 +15,8 @@ from litebird_sim.mapmaking import (
 )
 from .bandpasses import BandPassInfo
 from .beam_convolution import (
+    add_convolved_sky_to_one_detector,
+    add_convolved_sky,
     add_convolved_sky_to_observations,
     BeamConvolutionParameters,
 )
@@ -83,7 +85,6 @@ from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
 from .mueller_convolver import MuellerConvolver
-
 from .noise import (
     add_white_noise,
     add_one_over_f_noise,
@@ -180,11 +181,14 @@ numba.config.THREADING_LAYER_CONFIG = ["tbb", "omp", "workqueue"]
 
 PTEP_IMO_LOCATION = Path(__file__).parent.parent / "default_imo"
 
+
 __all__ = [
     "__author__",
     "__version__",
     "PTEP_IMO_LOCATION",
     # beam_convolution.py
+    "add_convolved_sky_to_one_detector",
+    "add_convolved_sky",
     "add_convolved_sky_to_observations",
     "BeamConvolutionParameters",
     # beam_synthesis.py
