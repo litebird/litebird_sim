@@ -81,7 +81,7 @@ def add_convolved_sky_to_one_detector(
 
     else:
         assert convolution_params.lmax - 4 >= convolution_params.mmax, (
-            "Error in the convolution parameters m_max must be ≦ ℓ_max!"
+            "Error in the convolution parameters m_max must be ≦ ℓ_max-4!"
             "Here ℓ_max={lmax} and m_max={mmax}!"
         ).format(lmax=convolution_params.lmax, mmax=convolution_params.mmax)
 
@@ -160,6 +160,9 @@ def add_convolved_sky(
 ):
     """ """
 
+    if mueller_hwp is not None:
+        assert tod.shape[0] == mueller_hwp.shape[0]
+
     n_detectors = tod.shape[0]
 
     if type(pointings) is np.ndarray:
@@ -187,12 +190,17 @@ def add_convolved_sky(
         else:
             beam_alms_det = beam_alms[input_beam_names[detector_idx]]
 
+        if mueller_hwp is None:
+            mueller_matrix = None
+        else:
+            mueller_matrix = mueller_hwp[detector_idx]
+
         add_convolved_sky_to_one_detector(
             tod_det=tod[detector_idx],
             sky_alms_det=sky_alms_det,
             beam_alms_det=beam_alms_det,
             pointings_det=curr_pointings_det,
-            mueller_matrix=mueller_hwp[detector_idx],
+            mueller_matrix=mueller_matrix,
             hwp_angle=hwp_angle,
             convolution_params=convolution_params,
             nthreads=nthreads,
