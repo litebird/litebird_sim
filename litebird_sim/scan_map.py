@@ -335,7 +335,8 @@ def scan_map_in_observations(
             if cur_obs.has_hwp:
                 hwp_angle = getattr(cur_obs, "hwp_angle", cur_obs.get_pointings()[1])
             else:
-                assert all(m is None for m in cur_obs.mueller_hwp), (
+                assert all(
+                    m is None for m in cur_obs.mueller_hwp
                 ), "Detectors have mueller_hwp, but no HWP provided."
                 hwp_angle = None
         else:
