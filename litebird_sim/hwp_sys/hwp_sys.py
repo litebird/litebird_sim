@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
 # -*- encoding: utf-8 -*-
-
 import logging
 from typing import Union, List
 
@@ -868,6 +866,9 @@ class HwpSys:
 
                 self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
 
+        if self.built_map_on_the_fly:
+            self.atd = np.zeros((self.npix, 3))
+            self.ata = np.zeros((self.npix, 3, 3))
 
 
         
@@ -1020,10 +1021,8 @@ class HwpSys:
             ptg_list=comm.bcast(ptg_list,root=0)
 
         for idx_obs, cur_obs in enumerate(obs_list):
-            if self.built_map_on_the_fly:
-                self.atd = np.zeros((self.npix, 3))
-                self.ata = np.zeros((self.npix, 3, 3))
-            else:
+
+            if not self.built_map_on_the_fly:
                 # allocate those for "make_binned_map", later filled
                 if not hasattr(cur_obs, "pointing_matrix"):
                     cur_obs.pointing_matrix = np.empty(
@@ -1040,7 +1039,6 @@ class HwpSys:
                 
                 tod = cur_obs.tod[idet, :]
                 
-
                 if pointings is None:
                     if (not ptg_list) or (not hwp_angle_list):
                         cur_point, cur_hwp_angle = cur_obs.get_pointings(
