@@ -333,23 +333,16 @@ def scan_map_in_observations(
 
         if hwp is None:
             if cur_obs.has_hwp:
-                if hasattr(cur_obs, "hwp_angle"):
-                    hwp_angle = cur_obs.hwp_angle
-                else:
-                    hwp_angle = cur_obs.get_pointings()[1]
+                hwp_angle = getattr(cur_obs, "hwp_angle", cur_obs.get_pointings()[1])
             else:
                 assert all(m is None for m in cur_obs.mueller_hwp), (
-                    "Detectors have been initialized with a mueller_hwp,"
-                    "but no HWP is either passed or initilized in the pointing"
-                )
+                ), "Detectors have mueller_hwp, but no HWP provided."
                 hwp_angle = None
         else:
-            if type(cur_ptg) is np.ndarray:
+            if isinstance(cur_ptg, np.ndarray):
                 hwp_angle = get_hwp_angle(cur_obs, hwp)
             else:
-                logging.warning(
-                    "For using an external HWP object also pass a pre-calculated pointing"
-                )
+                logging.warning("HWP provided, but no precomputed pointings passed.")
 
         scan_map(
             tod=getattr(cur_obs, component),
