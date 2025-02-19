@@ -133,6 +133,31 @@ variable :data:`.MPI_ENABLED`::
 To ensure that your code uses MPI in the proper way, you should always
 use :data:`.MPI_COMM_WORLD` instead of importing ``mpi4py`` directly.
 
+The simulation framework also provides a global object
+:data:`.MPI_COMM_GRID`. It has two attributes:
+
+- ``COMM_OBS_GRID``: This is an MPI communicator that contains all the
+  MPI processes with the global rank less than ``n_blocks_time * n_blocks_det``.
+  It provides a safety net to the operations and MPI communications
+  that are needed to be performed only on the partition of :data:`.MPI_COMM_WORLD`
+  that contain non-zero number of pointings and TODs. By default,
+  ``COMM_OBS_GRID`` points to the global MPI communicator :data:`.MPI_COMM_WORLD`.
+  It is updated once :class:`.Observation` are defined. For example,
+  consider the case when a user runs the simulation with 10 MPI
+  processes but due some specific ``det_blocks_attributes`` argument
+  in :class:`.Observation` class, the number of detector and time
+  blocks are determined to be 2 and 4 respectively. Then the
+  simulation framework will store the pointings and TODs only on
+  :math:`2\times4=8` MPI processes and the last two ranks of :data:`.MPI_COMM_WORLD`
+  will be left unused. Once this happens, ``COMM_OBS_GRID`` on first 8
+  ranks (rank 0 to 7) will point to the local sub-communicator
+  containing the processes with global rank 0 to 7. On the unused
+  ranks, it will simply point to the NULL communicator.
+- ``COMM_NULL``: If :data:`.MPI_ENABLED` is ``True``, this object
+  points to a NULL MPI communicator (``mpi4py.MPI.COMM_NULL``).
+  Otherwise it is set to ``None``. The user should compare
+  ``COMM_OBS_GRID`` with ``COMM_NULL`` on every MPI process in order
+  to avoid running a piece of code on unused MPI processes.
 
 Enabling/disabling MPI
 ----------------------

@@ -73,7 +73,7 @@ from .io import (
 )
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
-from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
+from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
 from .noise import (
     add_white_noise,
     add_one_over_f_noise,
@@ -89,14 +89,12 @@ from .pointings_in_obs import (
     prepare_pointings,
     precompute_pointings,
 )
-from .pointing_sys.pointing_sys import (
+from .pointing_sys import (
     get_detector_orientation,
-    left_multiply_offset2det,
-    left_multiply_disturb2det,
-    left_multiply_offset2quat,
-    left_multiply_disturb2quat,
+    left_multiply_syst_quats,
     FocalplaneCoord,
     SpacecraftCoord,
+    HWPCoord,
     PointingSys,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
@@ -219,6 +217,7 @@ __all__ = [
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
     "MPI_CONFIGURATION",
+    "MPI_COMM_GRID",
     # observations.py
     "Observation",
     "TodDescription",
@@ -319,12 +318,10 @@ __all__ = [
     "apply_gaindrift_to_observations",
     # pointing_sys.py
     "get_detector_orientation",
-    "left_multiply_offset2det",
-    "left_multiply_disturb2det",
-    "left_multiply_offset2quat",
-    "left_multiply_disturb2quat",
+    "left_multiply_syst_quats",
     "FocalplaneCoord",
     "SpacecraftCoord",
+    "HWPCoord",
     "PointingSys",
     # hwp_diff_emiss.py
     "add_2f",

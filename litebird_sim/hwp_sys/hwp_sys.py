@@ -52,8 +52,8 @@ def _dBodTth(nu):
     )
 
 
-@njit(parallel=True)
-def compute_polang_from_detquat(quat):
+@njit
+def compute_orientation_from_detquat(quat):
     if quat[2] == 0:
         polang = 0
     else:

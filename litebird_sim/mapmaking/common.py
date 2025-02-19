@@ -178,9 +178,10 @@ def _normalize_observations_and_pointings(
 def _compute_pixel_indices(
     hpx: Healpix_Base,
     pointings: Union[npt.ArrayLike, Callable],
+    pol_angle_detectors: npt.ArrayLike,
     num_of_detectors: int,
     num_of_samples: int,
-    hwp_angle: npt.ArrayLike,
+    hwp_angle: Union[npt.ArrayLike, None],
     output_coordinate_system: CoordinateSystem,
 ) -> Tuple[npt.NDArray, npt.NDArray]:
     """Compute the index of each pixel and its attack angle
@@ -197,6 +198,8 @@ def _compute_pixel_indices(
     Ecliptic reference frame.
     """
 
+    assert len(pol_angle_detectors) == num_of_detectors
+
     pixidx_all = np.empty((num_of_detectors, num_of_samples), dtype=int)
     polang_all = np.empty((num_of_detectors, num_of_samples), dtype=np.float64)
 
@@ -206,19 +209,24 @@ def _compute_pixel_indices(
         else:
             curr_pointings_det, hwp_angle = pointings(idet)
 
-        if hwp_angle is None:
-            hwp_angle = 0
-
         if output_coordinate_system == CoordinateSystem.Galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
-        polang_all[idet] = curr_pointings_det[:, 2] + 2 * hwp_angle
+        if hwp_angle is None:
+            polang_all[idet] = pol_angle_detectors[idet] + curr_pointings_det[:, 2]
+        else:
+            polang_all[idet] = (
+                2 * hwp_angle - pol_angle_detectors[idet] + curr_pointings_det[:, 2]
+            )
 
         pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
 
     if output_coordinate_system == CoordinateSystem.Galactic:
         # Free curr_pointings_det if the output map is already in Galactic coordinates
-        del curr_pointings_det
+        try:
+            del curr_pointings_det
+        except UnboundLocalError:
+            pass
 
     return pixidx_all, polang_all
 

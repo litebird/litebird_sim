@@ -2,13 +2,18 @@
 
 from dataclasses import dataclass
 from typing import Union, List, Any, Optional
+import numbers
 
 import astropy.time
 import numpy as np
 import numpy.typing as npt
 
+from collections import defaultdict
+
 from .coordinates import DEFAULT_TIME_SCALE
-from .distribute import distribute_evenly
+from .distribute import distribute_evenly, distribute_detector_blocks
+from .detectors import DetectorInfo
+from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 
 
 @dataclass
@@ -80,11 +85,20 @@ class Observation:
 
         sampling_rate_hz (float): The sampling frequency, in Hertz.
 
+        det_blocks_attributes (list of strings): The list of detector
+            attributes that will be used to divide the detector axis of the
+            tod matrix and all its attributes. For example, with
+            ``det_blocks_attributes = ["wafer", "pixel"]``, the detectors will
+            be divided into blocks such that all detectors in a block will
+            have the same ``wafer`` and ``pixel`` attribute.
+
         n_blocks_det (int): divide the detector axis of the tod (and all the
-            arrays of detector attributes) in `n_blocks_det` blocks
+            arrays of detector attributes) in `n_blocks_det` blocks. It will
+            be ignored if ``det_blocks_attributes`` is not `None`.
 
         n_blocks_time (int): divide the time axis of the tod in
-            `n_blocks_time` blocks
+            `n_blocks_time` blocks. It will be ignored
+            if ``det_blocks_attributes`` is not `None`.
 
         comm: either `None` (do not use MPI) or a MPI communicator
             object, like `mpi4py.MPI.COMM_WORLD`. Its size is required to be at
@@ -103,6 +117,7 @@ class Observation:
         sampling_rate_hz: float,
         allocate_tod=True,
         tods=None,
+        det_blocks_attributes: Union[List[str], None] = None,
         n_blocks_det=1,
         n_blocks_time=1,
         comm=None,
@@ -123,26 +138,35 @@ class Observation:
             delta = 1.0 / sampling_rate_hz
         self.end_time_global = start_time_global + n_samples_global * delta
 
+        self._sampling_rate_hz = sampling_rate_hz
+        self._det_blocks_attributes = det_blocks_attributes
+        self.detector_blocks = None
+
         if isinstance(detectors, int):
             self._n_detectors_global = detectors
         else:
-            if comm and comm.size > 1:
-                self._n_detectors_global = comm.bcast(len(detectors), root)
+            if self.comm and self.comm.size > 1:
+                self._n_detectors_global = self.comm.bcast(len(detectors), root)
+
+                if self._det_blocks_attributes is not None:
+                    n_blocks_det, n_blocks_time = self._make_detector_blocks(
+                        detectors, self.comm
+                    )
             else:
                 self._n_detectors_global = len(detectors)
 
-        self._sampling_rate_hz = sampling_rate_hz
-
-        # Neme of the attributes that store an array with the value of a
+        # Name of the attributes that store an array with the value of a
         # property for each of the (local) detectors
         self._attr_det_names = []
         self._check_blocks(n_blocks_det, n_blocks_time)
-        if comm and comm.size > 1:
+        if self.comm and self.comm.size > 1:
             self._n_blocks_det = n_blocks_det
             self._n_blocks_time = n_blocks_time
         else:
             self._n_blocks_det = 1
             self._n_blocks_time = 1
+
+        self._set_mpi_subcommunicators()
 
         self.tod_list = tods
         for cur_tod in self.tod_list:
@@ -159,8 +183,17 @@ class Observation:
                 setattr(self, cur_tod.name, None)
 
         self.setattr_det_global("det_idx", np.arange(self._n_detectors_global), root)
+
+        self.detectors_global = []
+
+        if self.detector_blocks is not None:
+            for key in self.detector_blocks:
+                self.detectors_global += self.detector_blocks[key]
+        else:
+            self.detectors_global = detectors
+
         if not isinstance(detectors, int):
-            self._set_attributes_from_list_of_dict(detectors, root)
+            self._set_attributes_from_list_of_dict(self.detectors_global, root)
 
         (
             self.start_time,
@@ -170,13 +203,19 @@ class Observation:
 
         self.pointing_provider = None  # type: Optional["PointingProvider"]
 
+        # By default this is set to False, prepare_pointings() can change its value
+        self.has_hwp = False
+
     @property
     def sampling_rate_hz(self):
         return self._sampling_rate_hz
 
     @property
     def n_detectors(self):
-        return len(self.det_idx)
+        if self.det_idx is None:
+            return 0
+        else:
+            return len(self.det_idx)
 
     def _get_local_start_time_start_and_n_samples(self):
         _, _, start, num = self._get_start_and_num(
@@ -203,7 +242,7 @@ class Observation:
         return self.start_time_global + start * delta, start, num
 
     def _set_attributes_from_list_of_dict(self, list_of_dict, root):
-        assert len(list_of_dict) == self.n_detectors_global
+        np.testing.assert_equal(len(list_of_dict), self.n_detectors_global)
 
         # Turn list of dict into dict of arrays
         if not self.comm or self.comm.rank == root:
@@ -273,10 +312,86 @@ class Observation:
     def n_blocks_det(self):
         return self._n_blocks_det
 
+    def _make_detector_blocks(self, detectors, comm):
+        """This function distributes the detectors in groups such that each
+        group has the same set of attributes specified by the strings in
+        `self._det_block_attributes`. Once the groups are made, the number of
+        detector blocks is set to be the total number of detector groups,
+        whereas the number of time blocks is computed using the number of
+        detector blocks and the size of `comm` communicator.
+
+        The detector blocks are stored in `self.detector_blocks`. This
+        dictionary object has the tuple of `self._det_blocks_attributes` values
+        as dictionary keys and the list of detectors corresponding to the key
+        as dictionary values. This dictionary is sorted so that the
+        group with the largest number of detectors comes first and the one with
+        the fewest detectors comes last.
+
+        Example:
+            For
+
+            ```
+            detectors = [
+                "000_002_123_xx_140_x",
+                "000_005_321_xx_140_x",
+                "000_004_456_xx_119_x",
+                "000_002_654_xx_140_x",
+                "000_004_789_xx_119_x",
+            ]
+            ```
+
+            and `self._det_blocks_attributes = ["channel", "wafer"]`,
+            `_make_detector_blocks()` will set
+
+            ```
+            self.detector_blocks = {
+                ("140", "L02"): ["000_002_123_xx_140_x", "000_002_654_xx_140_x"],
+                ("119", "L04"): ["000_004_456_xx_119_x", "000_004_789_xx_119_x"],
+                ("140", "L05"): ["000_005_321_xx_140_x"],
+            }
+            ```
+
+            and return `n_blocks_det = 3`
+
+        Args:
+            detectors (List[dict]): List of detectors
+
+            comm: The MPI communicator
+
+        Returns:
+            n_blocks_det (int): Number of detector blocks
+
+            n_blocks_time (int): Number of time blocks
+
+        """
+        self.detector_blocks = defaultdict(list)
+        for det in detectors:
+            key = tuple(det[attribute] for attribute in self._det_blocks_attributes)
+            self.detector_blocks[key].append(det)
+
+        self.detector_blocks = dict(
+            sorted(
+                self.detector_blocks.items(),
+                key=lambda item: len(item[1]),
+                reverse=True,
+            )
+        )
+        n_blocks_det = len(self.detector_blocks)
+        n_blocks_time = comm.size // n_blocks_det
+
+        return n_blocks_det, n_blocks_time
+
     def _check_blocks(self, n_blocks_det, n_blocks_time):
         if self.comm is None:
             if n_blocks_det != 1 or n_blocks_time != 1:
                 raise ValueError("Only one block allowed without an MPI comm")
+        elif n_blocks_det == 0 or n_blocks_time == 0:
+            raise ValueError(
+                "The number of detector blocks and the number of time blocks "
+                "must be must be non-zero\n"
+                f"n_blocks_det = {n_blocks_det}, "
+                f"n_blocks_time = {n_blocks_time}"
+            )
         elif n_blocks_det > self.n_detectors_global:
             raise ValueError(
                 "You can not have more detector blocks than detectors "
@@ -296,21 +411,33 @@ class Observation:
 
     def _get_start_and_num(self, n_blocks_det, n_blocks_time):
         """For both detectors and time, returns the starting (global)
-        index and lenght of each block if the number of blocks is changed to the
+        index and length of each block if the number of blocks is changed to the
         values passed as arguments
         """
-        det_start, det_n = np.array(
-            [
-                [span.start_idx, span.num_of_elements]
-                for span in distribute_evenly(self._n_detectors_global, n_blocks_det)
-            ]
-        ).T
+        if self._det_blocks_attributes is None or self.comm.size == 1:
+            det_start, det_n = np.array(
+                [
+                    [span.start_idx, span.num_of_elements]
+                    for span in distribute_evenly(
+                        self._n_detectors_global, n_blocks_det
+                    )
+                ]
+            ).T
+        else:
+            det_start, det_n = np.array(
+                [
+                    [span.start_idx, span.num_of_elements]
+                    for span in distribute_detector_blocks(self.detector_blocks)
+                ]
+            ).T
+
         time_start, time_n = np.array(
             [
                 [span.start_idx, span.num_of_elements]
                 for span in distribute_evenly(self._n_samples_global, n_blocks_time)
             ]
         ).T
+
         return (
             np.array(det_start),
             np.array(det_n),
@@ -327,6 +454,7 @@ class Observation:
             return (self._n_detectors_global, self._n_samples_global)
 
         _, det_n, _, time_n = self._get_start_and_num(n_blocks_det, n_blocks_time)
+
         try:
             return (
                 det_n[self.comm.rank // n_blocks_time],
@@ -478,6 +606,9 @@ class Observation:
         self._n_blocks_det = n_blocks_det
         self._n_blocks_time = n_blocks_time
 
+        # Update the sub-communicators
+        self._set_mpi_subcommunicators()
+
         for name in self._attr_det_names:
             info = None
             if is_in_old_fist_col:
@@ -550,26 +681,27 @@ class Observation:
             setattr(self, name, info)
             return
 
-        is_in_grid = self.comm.rank < self._n_blocks_det * self._n_blocks_time
-        comm_grid = self.comm.Split(int(is_in_grid))
-        if not is_in_grid:  # The process does not own any detector (and TOD)
-            setattr(self, name, None)
+        if (
+            MPI_COMM_GRID.COMM_OBS_GRID == MPI_COMM_GRID.COMM_NULL
+        ):  # The process does not own any detector (and TOD)
+            null_det = DetectorInfo()
+            attribute = getattr(null_det, name, None)
+            value = 0 if isinstance(attribute, numbers.Number) else None
+            setattr(self, name, value)
             return
 
-        my_col = comm_grid.rank % self._n_blocks_time
-        comm_col = comm_grid.Split(my_col)
+        my_col = MPI_COMM_GRID.COMM_OBS_GRID.rank % self._n_blocks_time
         root_col = root // self._n_blocks_det
         if my_col == root_col:
-            if comm_grid.rank == root:
+            if MPI_COMM_GRID.COMM_OBS_GRID.rank == root:
                 starts, nums, _, _ = self._get_start_and_num(
                     self._n_blocks_det, self._n_blocks_time
                 )
                 info = [info[s : s + n] for s, n in zip(starts, nums)]
 
-            info = comm_col.scatter(info, root)
+            info = self.comm_time_block.scatter(info, root)
 
-        comm_row = comm_grid.Split(comm_grid.rank // self._n_blocks_time)
-        info = comm_row.bcast(info, root_col)
+        info = self.comm_det_block.bcast(info, root_col)
         assert (not self.tod_list) or len(info) == len(
             getattr(self, self.tod_list[0].name)
         )
@@ -662,7 +794,7 @@ class Observation:
         pointing_buffer: Optional[npt.NDArray] = None,
         hwp_buffer: Optional[npt.NDArray] = None,
         pointings_dtype=np.float32,
-    ) -> (npt.NDArray, Optional[npt.NDArray]):
+    ) -> tuple[npt.NDArray, Optional[npt.NDArray]]:
         """
         Compute the pointings for one or more detectors in this observation
 
@@ -794,3 +926,55 @@ class Observation:
             )
 
         return pointing_buffer, hwp_buffer
+
+    def _set_mpi_subcommunicators(self):
+        """
+        This function splits the global MPI communicator into three kinds of
+        sub-communicators:
+
+        1. A sub-communicator containing all the processes with global rank less than
+        `n_blocks_det * n_blocks_time`. Outside of this global rank, the
+        sub-communicator is NULL.
+
+        2. A sub-communicator for each block of detectors, that contains all the
+        processes corresponding to that detector block. This sub-communicator
+        is an attribute of the :class:`.Observation` class.
+
+        3. A sub-communicator for each block of time that contains all the processes
+        corresponding to that time block.  This sub-communicator
+        is an attribute of the :class:`.Observation` class.
+        """
+
+        # Set the detector and time block sub-communicators to
+        # `_SerialMpiCommunicator()` when MPI is not being used
+        self.comm_det_block = _SerialMpiCommunicator()
+        self.comm_time_block = _SerialMpiCommunicator()
+
+        if self.comm and self.comm.size > 1:
+            if self.comm.rank < self.n_blocks_det * self.n_blocks_time:
+                matrix_color = 1
+            else:
+                from .mpi import MPI
+
+                matrix_color = MPI.UNDEFINED
+
+            # Case1: For `0 < rank < n_blocks_det * n_blocks_time`,
+            # `comm_obs_grid` is a sub-communicator that includes processes
+            # from rank 0 to `n_blocks_det * n_blocks_time - 1`.
+            # Case 2: For `n_blocks_det * n_blocks_time <= rank < comm.size`,
+            # `comm_obs_grid = MPI.COMM_NULL`
+            comm_obs_grid = self.comm.Split(matrix_color, self.comm.rank)
+            MPI_COMM_GRID._set_comm_obs_grid(comm_obs_grid=comm_obs_grid)
+
+            # If the `MPI_COMM_GRID.COMM_OBS_GRID` is not NULL, we split it in
+            # communicators corresponding to each detector and time block
+            # If `MPI_COMM_GRID.COMM_OBS_GRID` is NULL, we set the communicators
+            # corresponding to detector and time blocks to NULL.
+            if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
+                det_color = MPI_COMM_GRID.COMM_OBS_GRID.rank // self.n_blocks_time
+                time_color = MPI_COMM_GRID.COMM_OBS_GRID.rank % self.n_blocks_time
+                self.comm_det_block = MPI_COMM_GRID.COMM_OBS_GRID.Split(det_color)
+                self.comm_time_block = MPI_COMM_GRID.COMM_OBS_GRID.Split(time_color)
+            else:
+                self.comm_det_block = MPI_COMM_GRID.COMM_NULL
+                self.comm_time_block = MPI_COMM_GRID.COMM_NULL
