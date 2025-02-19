@@ -48,7 +48,7 @@ jobs:
       - name: Install basic dependencies (MPI, FFTW, poetry, IMO)
         run: |
           ./bin/install-deps.sh ${{ matrix.mpi }}
-          pip install poetry
+          pip install poetry==1.8
           mkdir -p $HOME/.config/litebird_imo
           echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
