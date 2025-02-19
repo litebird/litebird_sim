@@ -52,8 +52,8 @@ def _dBodTth(nu):
     )
 
 
-@njit
-def compute_orientation_from_detquat(quat):
+@njit(parallel=True)
+def compute_polang_from_detquat(quat):
     if quat[2] == 0:
         polang = 0
     else:
@@ -328,7 +328,6 @@ def compute_signal_for_one_detector(
             cos2Psi02Phi=cos2Psi02Phi,
             sin2Psi02Phi=sin2Psi02Phi,
         )
-
 
 
 @njit(parallel=True)
