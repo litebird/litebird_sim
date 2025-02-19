@@ -1070,7 +1070,9 @@ class HwpSys:
                 
 
             for idet in range(cur_obs.n_detectors):
+
                 print("rank",rank,"calculating tod for detector",idet*rank + idet)
+
                 cur_det = self.sim.detectors[idet*rank + idet] 
                 
                 tod = cur_obs.tod[idet, :]
@@ -1098,9 +1100,12 @@ class HwpSys:
                 # separating polarization angle xi from cur_point[:, 2] = psi + xi
                 # xi: polarization angle, i.e. detector dependent
                 # psi: instrument angle, i.e. boresight direction from focal plane POV
-                xi = compute_polang_from_detquat(cur_obs.quat[idet].quats[0]) % (
-                    2 * np.pi
-                )
+                #xi = compute_polang_from_detquat(cur_obs.quat[idet].quats[0]) % (
+                #    2 * np.pi
+                #)
+
+                xi = cur_det.pol_angle_rad
+                
                 psi = (cur_point[:, 2] - xi) % (2 * np.pi)
     
                 phi = np.deg2rad(cur_det.phi)
