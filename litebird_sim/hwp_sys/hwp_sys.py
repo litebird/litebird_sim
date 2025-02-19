@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Nov 14 13:06:42 2024
+
+@author: gomes
+"""
+
 # -*- encoding: utf-8 -*-
 import logging
 from typing import Union, List
@@ -59,20 +67,6 @@ def compute_polang_from_detquat(quat):
 
     return polang
 
-def MakeDetectorBlocks(obs, comm, rank, print_detector_blocks=True):
-    comm_size = comm.Get_size()
-    dets_list=[i for i in range(obs.n_detectors)]
-    dets_block = list()
-    for count in range(comm_size): 
-        dets_block.append(dets_list[count::comm_size])
-    
-    if print_detector_blocks & rank==0:
-        print("FILL_TOD() PARALLELIZATION:\n=======================\n-------------------")
-        for r in range(comm_size):
-            print("rank",r,"|", dets_block[r]," \n -------------------")
-    
-    return dets_block[rank]
-        
 
 def JonesToMueller(jones):
     """
@@ -657,7 +651,7 @@ class HwpSys:
         nside: Union[int, None] = None,
         Mbsparams: Union[MbsParameters, None] = None,
         integrate_in_band: Union[bool, None] = None,
-        built_map_on_the_fly: Union[bool, None] = None,
+        build_map_on_the_fly: Union[bool, None] = None,
         correct_in_solver: Union[bool, None] = None,
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
@@ -672,7 +666,7 @@ class HwpSys:
               Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
                   Input maps needs to be in galactic (mbs default)
               integrate_in_band (bool): performs the band integration for tod generation
-              built_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
+              build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
               correct_in_solver (bool): if the map is computed on the fly,
                                         fills :math:`A^T A` using map-making (solver)
                                         HWP parameters
@@ -710,7 +704,7 @@ class HwpSys:
             self.nside = paramdict.get("nside", False)
 
             self.integrate_in_band = paramdict.get("integrate_in_band", False)
-            self.built_map_on_the_fly = paramdict.get("built_map_on_the_fly", False)
+            self.build_map_on_the_fly = paramdict.get("build_map_on_the_fly", False)
             self.correct_in_solver = paramdict.get("correct_in_solver", False)
             self.integrate_in_band_solver = paramdict.get(
                 "integrate_in_band_solver", False
@@ -763,9 +757,9 @@ class HwpSys:
             if integrate_in_band is not None:
                 self.integrate_in_band = integrate_in_band
 
-        if not hasattr(self, "built_map_on_the_fly"):
-            if built_map_on_the_fly is not None:
-                self.built_map_on_the_fly = built_map_on_the_fly
+        if not hasattr(self, "build_map_on_the_fly"):
+            if build_map_on_the_fly is not None:
+                self.build_map_on_the_fly = build_map_on_the_fly
 
         if not hasattr(self, "correct_in_solver"):
             if correct_in_solver is not None:
@@ -866,7 +860,7 @@ class HwpSys:
 
                 self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
 
-        if self.built_map_on_the_fly:
+        if self.build_map_on_the_fly:
             self.atd = np.zeros((self.npix, 3))
             self.ata = np.zeros((self.npix, 3, 3))
 
@@ -881,7 +875,7 @@ class HwpSys:
         save_tod: bool = False,
         dtype_pointings=np.float32,
         apply_non_linearity = False,
-        parallel: bool = False
+        comm = None,
     ):
         r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
         "on the fly" map production
@@ -934,95 +928,89 @@ class HwpSys:
                   If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
                   :math:`M^{UU} = -1` and all the others to 0.
         """
-        if parallel:
-            comm = lbs.MPI_COMM_WORLD
-            rank = comm.Get_rank()
-            comm_size = comm.Get_size()
-        else:
-            rank=0
-            comm_size=1
-        if rank==0:
-            if pointings is None:
-                if hwp_angle:
-                    raise Warning(
-                        "You passed hwp_angle, but you did not pass pointings, "
-                        + "so hwp_angle will be ignored and re-computed on the fly."
-                    )
-                hwp_angle_list = []
-                if isinstance(observations, Observation):
-                    obs_list = [observations]
-                    if hasattr(observations, "pointing_matrix"):
-                        ptg_list = [observations.pointing_matrix]
-                    else:
-                        ptg_list = []
+
+        rank = comm.Get_rank()
+        comm_size = comm.Get_size()
+
+        assert(observations,None),(
+            "You need to pass at least one observation to fill_tod.")
+
+
+        if pointings is None:
+            if hwp_angle:
+                raise Warning(
+                    "You passed hwp_angle, but you did not pass pointings, "
+                    + "so hwp_angle will be ignored and re-computed on the fly."
+                )
+            hwp_angle_list = []
+            if isinstance(observations, Observation):
+                obs_list = [observations]
+                if hasattr(observations, "pointing_matrix"):
+                    ptg_list = [observations.pointing_matrix]
                 else:
-                    obs_list = observations
                     ptg_list = []
-                    for ob in observations:
-                        if hasattr(ob, "pointing_matrix"):
-                            ptg_list.append(ob.pointing_matrix)
             else:
-                if isinstance(observations, Observation):
-                    assert isinstance(pointings, np.ndarray), (
-                        "For one observation you need to pass a np.array "
-                        + "of pointings to fill_tod"
-                    )
-                    assert (
-                        observations.n_detectors == pointings.shape[0]
-                        and observations.n_samples == pointings.shape[1]
-                        and pointings.shape[2] == 3
-                    ), (
-                        "You need to pass a pointing np.array with shape"
-                        + "(N_det, N_samples, 3) for the observation"
-                    )
-                    obs_list = [observations]
-                    ptg_list = [pointings]
-                    if hwp_angle:
-                        assert isinstance(hwp_angle, np.ndarray), (
-                            "For one observation, hwp_angle must be passed "
-                            + "as a np.array to fill_tod"
-                        )
-                        assert observations.n_samples == hwp_angle.shape[0], (
-                            "You need to pass a hwp_angle np.array with shape"
-                            + "N_samples for the observation"
-                        )
-                        hwp_angle_list = [hwp_angle]
-                    else:
-                        raise ValueError(
-                            "If you pass pointings, you must also pass hwp_angle."
-                        )
-                else:
-                    assert isinstance(pointings, list), (
-                        "When you pass a list of observations to fill_tod, "
-                        + "you must a list of `pointings`"
-                    )
-                    assert len(observations) == len(pointings), (
-                        f"The list of observations has {len(observations)} elements, but "
-                        + f"the list of pointings has {len(pointings)} elements"
-                    )
-                    obs_list = observations
-                    ptg_list = pointings
-                    if hwp_angle:
-                        assert len(observations) == len(hwp_angle), (
-                            f"The list of observations has {len(observations)} elements, but "
-                            + f"the list of hwp_angle has {len(hwp_angle)} elements"
-                        )
-                        hwp_angle_list = hwp_angle
-                    else:
-                        raise ValueError(
-                            "If you pass pointings, you must also pass hwp_angle."
-                        )
+                obs_list = observations
+                ptg_list = []
+                for ob in observations:
+                    if hasattr(ob, "pointing_matrix"):
+                        ptg_list.append(ob.pointing_matrix)
         else:
-            obs_list=None
-            ptg_list=None
-        
-        if parallel:
-            obs_list=comm.bcast(obs_list,root=0)
-            ptg_list=comm.bcast(ptg_list,root=0)
+            if isinstance(observations, Observation):
+                assert isinstance(pointings, np.ndarray), (
+                    "For one observation you need to pass a np.array "
+                    + "of pointings to fill_tod"
+                )
+                assert (
+                    observations.n_detectors == pointings.shape[0]
+                    and observations.n_samples == pointings.shape[1]
+                    and pointings.shape[2] == 3
+                ), (
+                    "You need to pass a pointing np.array with shape"
+                    + "(N_det, N_samples, 3) for the observation"
+                )
+                obs_list = [observations]
+                ptg_list = [pointings]
+                if hwp_angle:
+                    assert isinstance(hwp_angle, np.ndarray), (
+                        "For one observation, hwp_angle must be passed "
+                        + "as a np.array to fill_tod"
+                    )
+                    assert observations.n_samples == hwp_angle.shape[0], (
+                        "You need to pass a hwp_angle np.array with shape"
+                        + "N_samples for the observation"
+                    )
+                    hwp_angle_list = [hwp_angle]
+                else:
+                    raise ValueError(
+                        "If you pass pointings, you must also pass hwp_angle."
+                    )
+            else:
+                assert isinstance(pointings, list), (
+                    "When you pass a list of observations to fill_tod, "
+                    + "you must a list of `pointings`"
+                )
+                assert len(observations) == len(pointings), (
+                    f"The list of observations has {len(observations)} elements, but "
+                    + f"the list of pointings has {len(pointings)} elements"
+                )
+                obs_list = observations
+                ptg_list = pointings
+                if hwp_angle:
+                    assert len(observations) == len(hwp_angle), (
+                        f"The list of observations has {len(observations)} elements, but "
+                        + f"the list of hwp_angle has {len(hwp_angle)} elements"
+                    )
+                    hwp_angle_list = hwp_angle
+                else:
+                    raise ValueError(
+                        "If you pass pointings, you must also pass hwp_angle."
+                    )
+    
 
         for idx_obs, cur_obs in enumerate(obs_list):
 
-            if not self.built_map_on_the_fly:
+            if not self.build_map_on_the_fly:
                 # allocate those for "make_binned_map", later filled
                 if not hasattr(cur_obs, "pointing_matrix"):
                     cur_obs.pointing_matrix = np.empty(
@@ -1031,11 +1019,9 @@ class HwpSys:
                     )
                 
 
-            dets_block = MakeDetectorBlocks(cur_obs, comm, rank)
-
-            for idet in dets_block:
-                print("rank",rank,"calculating tod for detector",idet)
-                cur_det = self.sim.detectors[idet] 
+            for idet in range(cur_obs.n_detectors):
+                print("rank",rank,"calculating tod for detector",idet*rank + idet)
+                cur_det = self.sim.detectors[idet*rank + idet] 
                 
                 tod = cur_obs.tod[idet, :]
                 
@@ -1075,9 +1061,9 @@ class HwpSys:
                 compute_signal_for_one_detector(
                     tod_det=tod,
                     pixel_ind=pix,
-                    m0f=cur_det.matrix_hwp['0f'],
-                    m2f=cur_det.matrix_hwp['2f'],
-                    m4f=cur_det.matrix_hwp['4f'],
+                    m0f=cur_det.hwp_matrix['0f'],
+                    m2f=cur_det.hwp_matrix['2f'],
+                    m4f=cur_det.hwp_matrix['4f'],
                     theta=np.array(cur_hwp_angle / 2,dtype=np.float32),  # hwp angle returns 2 ^it
                     psi=np.array(psi,dtype=np.float32),
                     maps=np.array(self.maps,dtype=np.float32),
@@ -1086,14 +1072,14 @@ class HwpSys:
                     phi = phi
                 )
                 
-                if self.built_map_on_the_fly:
+                if self.build_map_on_the_fly:
                     compute_atd_ata_for_one_detector(
                         atd=self.atd,
                         ata=self.ata,
                         tod=tod,
-                        m0f_solver=cur_det.matrix_hwp_solver['0f'],
-                        m2f_solver=cur_det.matrix_hwp_solver['2f'],
-                        m4f_solver=cur_det.matrix_hwp_solver['4f'],
+                        m0f_solver=cur_det.hwp_matrix_solver['0f'],
+                        m2f_solver=cur_det.hwp_matrix_solver['2f'],
+                        m4f_solver=cur_det.hwp_matrix_solver['4f'],
                         pixel_ind=pix,
                         theta=np.array(cur_hwp_angle / 2,dtype=np.float32),  # hwp angle returns 2ωt
                         psi=np.array(psi,dtype=np.float32),
@@ -1123,7 +1109,7 @@ class HwpSys:
         
     def make_map(self, observations):
         """It generates "on the fly" map. This option is only availabe if
-        `built_map_on_the_fly` is set to True.
+        `build_map_on_the_fly` is set to True.
 
         Args:
              observations list of class:`Observations`: only necessary for the communicator
@@ -1136,8 +1122,8 @@ class HwpSys:
         
         
         assert (
-            self.built_map_on_the_fly
-        ), "make_map available only with built_map_on_the_fly option activated"
+            self.build_map_on_the_fly
+        ), "make_map available only with build_map_on_the_fly option activated"
         # from mapping.py
         if all([obs.comm is None for obs in observations]) or not mpi.MPI_ENABLED:
             # Serial call
