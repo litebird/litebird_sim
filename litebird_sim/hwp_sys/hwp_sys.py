@@ -45,7 +45,7 @@ def _dBodTth(nu):
 
 
 @njit(parallel=True)
-def compute_polang_from_detquat(quat):
+def compute_orientation_from_detquat(quat):
     if quat[2] == 0:
         polang = 0
     else:
@@ -448,7 +448,7 @@ class HwpSys:
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
-        parallel: Union[bool, None] = None,
+        comm: Union[bool, None] = None,
     ):
         r"""It sets the input paramters reading a dictionary `sim.parameters`
         with key "hwp_sys" and the following input arguments
@@ -472,14 +472,6 @@ class HwpSys:
               (i.e. input maps are not generated)
           parallel (bool): uses parallelization if set to True
         """
-
-        # for parallelization
-        if parallel:
-            comm = lbs.MPI_COMM_WORLD
-            rank = comm.Get_rank()
-        else:
-            comm = None
-            rank = 0
 
         # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
@@ -626,7 +618,7 @@ class HwpSys:
                 mbs = lbs.Mbs(
                     simulation=self.sim, parameters=Mbsparams, channel_list=Channel
                 )
-                self.maps = mbs.run_all()[0][Channel.channel]
+                self.maps = mbs.run_all()[0][f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"]
             else:
                 self.maps = maps
 
@@ -717,10 +709,9 @@ class HwpSys:
         """
 
         rank = comm.Get_rank()
-
-        assert isinstance(
-            observations,
-            None,
+        print(observations)
+        assert (
+            observations is not None
         ), "You need to pass at least one observation to fill_tod."
 
         if pointings is None:
@@ -793,7 +784,8 @@ class HwpSys:
                     raise ValueError(
                         "If you pass pointings, you must also pass hwp_angle."
                     )
-
+                
+        
         for idx_obs, cur_obs in enumerate(obs_list):
             if not self.build_map_on_the_fly:
                 # allocate those for "make_binned_map", later filled
@@ -807,6 +799,67 @@ class HwpSys:
                 print("rank", rank, "calculating tod for detector", idet * rank + idet)
 
                 cur_det = self.sim.detectors[idet * rank + idet]
+
+                if cur_det.mueller_hwp is None:
+
+                    cur_det.mueller_hwp = {
+                        '0f':
+                        np.array([
+                            [1,0,0],
+                            [0,0,0],
+                            [0,0,0]],
+                            dtype=np.float32),
+                        
+                        '2f':
+                        np.array([
+                            [0,0,0],
+                            [0,0,0],
+                            [0,0,0]],
+                            dtype=np.float32),
+
+                        '4f':
+                        np.array([
+                            [0,0,0],
+                            [0,1,1],
+                            [0,1,1]],
+                            dtype=np.float32),
+                        }
+        
+                    raise Warning(
+                        "You did not pass a mueller_hwp, "
+                        + "so the matrices for the ideal case will be applied."
+                    )   
+                    
+
+                if cur_det.mueller_hwp_solver is None:
+
+                    cur_det.mueller_hwp_solver = {
+                        '0f':
+                        np.array([
+                            [1,0,0],
+                            [0,0,0],
+                            [0,0,0]],
+                            dtype=np.float32),
+                        
+                        '2f':
+                        np.array([
+                            [0,0,0],
+                            [0,0,0],
+                            [0,0,0]],
+                            dtype=np.float32),
+
+                        '4f':
+                        np.array([
+                            [0,0,0],
+                            [0,1,1],
+                            [0,1,1]],
+                            dtype=np.float32),
+                        }
+        
+                    raise Warning(
+                        "You did not pass a mueller_hw_solver, "
+                        + "so the matrices for the ideal case will be applied."
+                    )        
 
                 tod = cur_obs.tod[idet, :]
 
@@ -849,9 +902,9 @@ class HwpSys:
                 compute_signal_for_one_detector(
                     tod_det=tod,
                     pixel_ind=pix,
-                    m0f=cur_det.hwp_matrix["0f"],
-                    m2f=cur_det.hwp_matrix["2f"],
-                    m4f=cur_det.hwp_matrix["4f"],
+                    m0f=cur_det.mueller_hwp["0f"],
+                    m2f=cur_det.mueller_hwp["2f"],
+                    m4f=cur_det.mueller_hwp["4f"],
                     theta=np.array(
                         cur_hwp_angle / 2, dtype=np.float32
                     ),  # hwp angle returns 2 ^it
@@ -867,9 +920,9 @@ class HwpSys:
                         atd=self.atd,
                         ata=self.ata,
                         tod=tod,
-                        m0f_solver=cur_det.hwp_matrix_solver["0f"],
-                        m2f_solver=cur_det.hwp_matrix_solver["2f"],
-                        m4f_solver=cur_det.hwp_matrix_solver["4f"],
+                        m0f_solver=cur_det.mueller_hwp_solver["0f"],
+                        m2f_solver=cur_det.mueller_hwp_solver["2f"],
+                        m4f_solver=cur_det.mueller_hwp_solver["4f"],
                         pixel_ind=pix,
                         theta=np.array(
                             cur_hwp_angle / 2, dtype=np.float32
