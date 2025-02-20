@@ -1,5 +1,7 @@
 # HEAD
 
+-   **Breaking change**: Bug in the 1/f noise generation has been corrected. Previously, the frequency array was miscalculated due to an incorrect factor of 2 in the sample spacing passed to the SciPy function fft.rfftfreq. [#362](https://github.com/litebird/litebird_sim/pull/362). 
+
 -   **Breaking change**: Change to the pointing API [#358](https://github.com/litebird/litebird_sim/pull/358), in detail:
 
     1. DetectorInfo has three new attributes: pol_angle_rad (polarization angle), pol_efficiency (polarization efficiency)and mueller_hwp (mueller matrix of the HWP).
