@@ -7,6 +7,7 @@ import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from numba import njit, prange
+from warnings import warn
 import litebird_sim as lbs
 from litebird_sim import mpi
 from .bandpass_template_module import bandpass_profile
@@ -209,30 +210,30 @@ def mueller_interpolation(Theta, harmonic, i, j):
 
 
 @njit(parallel=True)
-def compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Psi02Phi, sin2Psi02Phi):
-    Tterm = mII + mQI * cos2Psi02Phi + mUI * sin2Psi02Phi
+def compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi):
+    Tterm = mII + mQI * cos2Xi2Phi + mUI * sin2Xi2Phi
 
     return Tterm
 
 
 @njit(parallel=True)
 def compute_Qterm_for_one_sample_for_tod(
-    mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Psi02Phi, sin2Psi02Phi
+    mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
 ):
     Qterm = np.cos(2 * psi + 2 * phi) * (
-        mIQ + mQQ * cos2Psi02Phi + mUQ * sin2Psi02Phi
-    ) - np.sin(2 * psi + 2 * phi) * (mIU + mQU * cos2Psi02Phi + mUU * sin2Psi02Phi)
+        mIQ + mQQ * cos2Xi2Phi + mUQ * sin2Xi2Phi
+    ) - np.sin(2 * psi + 2 * phi) * (mIU + mQU * cos2Xi2Phi + mUU * sin2Xi2Phi)
 
     return Qterm
 
 
 @njit(parallel=True)
 def compute_Uterm_for_one_sample_for_tod(
-    mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Psi02Phi, sin2Psi02Phi
+    mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
 ):
     Uterm = np.sin(2 * psi + 2 * phi) * (
-        mIQ + mQQ * cos2Psi02Phi + mUQ * sin2Psi02Phi
-    ) + np.cos(2 * psi + 2 * phi) * (mIU + mQU * cos2Psi02Phi + mUU * sin2Psi02Phi)
+        mIQ + mQQ * cos2Xi2Phi + mUQ * sin2Xi2Phi
+    ) + np.cos(2 * psi + 2 * phi) * (mIU + mQU * cos2Xi2Phi + mUU * sin2Xi2Phi)
 
     return Uterm
 
@@ -253,20 +254,20 @@ def compute_signal_for_one_sample(
     mQU,
     psi,
     phi,
-    cos2Psi02Phi,
-    sin2Psi02Phi,
+    cos2Xi2Phi,
+    sin2Xi2Phi,
 ):
     """Bolometric equation, tod filling for a single (time) sample"""
     d = T * compute_Tterm_for_one_sample_for_tod(
-        mII, mQI, mUI, cos2Psi02Phi, sin2Psi02Phi
+        mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi
     )
 
     d += Q * compute_Qterm_for_one_sample_for_tod(
-        mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Psi02Phi, sin2Psi02Phi
+        mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
     )
 
     d += U * compute_Uterm_for_one_sample_for_tod(
-        mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Psi02Phi, sin2Psi02Phi
+        mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
     )
 
     return d
@@ -274,7 +275,7 @@ def compute_signal_for_one_sample(
 
 @njit(parallel=True)
 def compute_signal_for_one_detector(
-    tod_det, pixel_ind, m0f, m2f, m4f, theta, psi, maps, cos2Psi02Phi, sin2Psi02Phi, phi
+    tod_det, pixel_ind, m0f, m2f, m4f, theta, psi, maps, cos2Xi2Phi, sin2Xi2Phi, phi
 ):
     """
     Single-frequency case: compute the signal for a single detector,
@@ -305,20 +306,20 @@ def compute_signal_for_one_detector(
             + m4f[0, 2] * np.cos(FourRhoPsiPhi - 1.61),
             mQQ=m0f[1, 1]
             + m2f[1, 1] * np.cos(TwoRhoPsiPhi - 0.25)
-            + m4f[1, 1] * np.cos(FourRhoPsiPhi - 0.00061),
+            + m4f[1, 1] * np.cos(FourRhoPsiPhi),
             mUU=m0f[2, 2]
             + m2f[2, 2] * np.cos(TwoRhoPsiPhi + 2.54)
-            + m4f[2, 2] * np.cos(FourRhoPsiPhi + np.pi - 0.00065),
+            + m4f[2, 2] * np.cos(FourRhoPsiPhi + np.pi),
             mUQ=m0f[2, 1]
             + m2f[2, 1] * np.cos(TwoRhoPsiPhi - 2.01)
-            + m4f[2, 1] * np.cos(FourRhoPsiPhi - 0.00070 - np.pi / 2),
+            + m4f[2, 1] * np.cos(FourRhoPsiPhi - np.pi / 2),
             mQU=m0f[1, 2]
             + m2f[1, 2] * np.cos(TwoRhoPsiPhi - 2.00)
-            + m4f[1, 2] * np.cos(FourRhoPsiPhi - 0.00056 - np.pi / 2),
+            + m4f[1, 2] * np.cos(FourRhoPsiPhi - np.pi / 2),
             psi=psi[i],
             phi=phi,
-            cos2Psi02Phi=cos2Psi02Phi,
-            sin2Psi02Phi=sin2Psi02Phi,
+            cos2Xi2Phi=cos2Xi2Phi,
+            sin2Xi2Phi=sin2Xi2Phi,
         )
 
 
@@ -335,22 +336,22 @@ def compute_TQUsolver_for_one_sample(
     mQUs,
     psi,
     phi,
-    cos2Psi02Phi,
-    sin2Psi02Phi,
+    cos2Xi2Phi,
+    sin2Xi2Phi,
 ):
     r"""
     Single-frequency case: computes :math:`A^T A` and :math:`A^T d`
     for a single detector, for one (time) sample.
     """
     Tterm = compute_Tterm_for_one_sample_for_tod(
-        mIIs, mQIs, mUIs, cos2Psi02Phi, sin2Psi02Phi
+        mIIs, mQIs, mUIs, cos2Xi2Phi, sin2Xi2Phi
     )
 
     Qterm = compute_Qterm_for_one_sample_for_tod(
-        mIQs, mQQs, mUUs, mIUs, mUQs, mQUs, psi, phi, cos2Psi02Phi, sin2Psi02Phi
+        mIQs, mQQs, mUUs, mIUs, mUQs, mQUs, psi, phi, cos2Xi2Phi, sin2Xi2Phi
     )
     Uterm = compute_Uterm_for_one_sample_for_tod(
-        mIUs, mQUs, mUQs, mIQs, mQQs, mUUs, psi, phi, cos2Psi02Phi, sin2Psi02Phi
+        mIUs, mQUs, mUQs, mIQs, mQQs, mUUs, psi, phi, cos2Xi2Phi, sin2Xi2Phi
     )
 
     return Tterm, Qterm, Uterm
@@ -368,8 +369,8 @@ def compute_atd_ata_for_one_detector(
     theta,
     psi,
     phi,
-    cos2Psi02Phi,
-    sin2Psi02Phi,
+    cos2Xi2Phi,
+    sin2Xi2Phi,
 ):
     r"""
     Single-frequency case: compute :math:`A^T A` and :math:`A^T d`
@@ -410,8 +411,8 @@ def compute_atd_ata_for_one_detector(
             + m4f_solver[1, 2] * np.cos(FourRhoPsiPhi - np.pi / 2),
             psi=psi[i],
             phi=phi,
-            cos2Psi02Phi=cos2Psi02Phi,
-            sin2Psi02Phi=sin2Psi02Phi,
+            cos2Xi2Phi=cos2Xi2Phi,
+            sin2Xi2Phi=sin2Xi2Phi,
         )
 
         atd[pixel_ind[i], 0] += tod[i] * Tterm
@@ -585,6 +586,10 @@ class HwpSys:
             # Normalize the band
             self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
 
+            if comm is not None:
+                rank = comm.Get_rank()
+            else: 
+                rank=0
             if np.any(maps) is None:
                 if rank == 0:
                     myinstr = {}
@@ -607,7 +612,7 @@ class HwpSys:
                         self.maps[ifreq] = maps["ch" + str(ifreq)]
                 else:
                     self.maps = None
-                if parallel:
+                if comm is not None:
                     self.maps = comm.bcast(self.maps, root=0)
             else:
                 self.maps = maps
@@ -645,6 +650,8 @@ class HwpSys:
             self.atd = np.zeros((self.npix, 3))
             self.ata = np.zeros((self.npix, 3, 3))
 
+        self.comm = comm
+
     def fill_tod(
         self,
         observations: Union[Observation, List[Observation]] = None,
@@ -654,7 +661,6 @@ class HwpSys:
         save_tod: bool = False,
         dtype_pointings=np.float32,
         apply_non_linearity=False,
-        comm=None,
     ):
         r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
         "on the fly" map production
@@ -691,24 +697,9 @@ class HwpSys:
 
         dtype_pointings: if ``pointings`` is None and is computed within ``fill_tod``, this
                          is the dtype for pointings and tod (default: np.float32).
-
-        mueller_or_jones: mueller_or_jones (str): "mueller" or "jones" (case insensitive)
-                  it is the kind of HWP matrix to be injected as a starting point
-                  if 'jones' is chosen, the parameters :math:`h_1`, :math:`h_2`,
-                  :math:`\beta`, :math:`\zeta_1`, :math:`\zeta_2`
-                  are used to build the Jones matrix
-                  :math:`\begin{pmatrix} 1 + h_1 & \zeta_1 \\
-                  \zeta_2 & - (1 + h_2) e^{i \beta} \\ \end{pmatrix}`
-                  and then converted to Mueller.
-                  :math:`\zeta_1`, :math:`\zeta_2` are assumed to be complex
-                  :math:`h_1`, :math:`h_2`, :math:`\beta` are assumed to be real
-                  :math:`\beta` is assumed to be in degrees (later converted to radians.
-                  To reproduce the ideal HWP case, set all Jones parameters to 0.
-                  If Mueller parameters are used, set :math:`M^{II/QQ} = 1`,
-                  :math:`M^{UU} = -1` and all the others to 0.
         """
 
-        rank = comm.Get_rank()
+        rank = self.comm.Get_rank()
         print(observations)
         assert (
             observations is not None
@@ -796,8 +787,6 @@ class HwpSys:
                     )
 
             for idet in range(cur_obs.n_detectors):
-                print("rank", rank, "calculating tod for detector", idet * rank + idet)
-
                 cur_det = self.sim.detectors[idet * rank + idet]
 
                 if cur_det.mueller_hwp is None:
@@ -825,7 +814,7 @@ class HwpSys:
                             dtype=np.float32),
                         }
         
-                    raise Warning(
+                    warn(
                         "You did not pass a mueller_hwp, "
                         + "so the matrices for the ideal case will be applied."
                     )   
@@ -856,8 +845,8 @@ class HwpSys:
                             dtype=np.float32),
                         }
         
-                    raise Warning(
-                        "You did not pass a mueller_hw_solver, "
+                    warn(
+                        "You did not pass a mueller_hwp_solver, "
                         + "so the matrices for the ideal case will be applied."
                     )        
 
@@ -896,8 +885,8 @@ class HwpSys:
 
                 phi = np.deg2rad(cur_det.phi)
 
-                cos2Psi02Phi = np.cos(2 * xi - 2 * phi)
-                sin2Psi02Phi = np.sin(2 * xi - 2 * phi)
+                cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
+                sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
 
                 compute_signal_for_one_detector(
                     tod_det=tod,
@@ -910,8 +899,8 @@ class HwpSys:
                     ),  # hwp angle returns 2 ^it
                     psi=np.array(psi, dtype=np.float32),
                     maps=np.array(self.maps, dtype=np.float32),
-                    cos2Psi02Phi=cos2Psi02Phi,
-                    sin2Psi02Phi=sin2Psi02Phi,
+                    cos2Xi2Phi=cos2Xi2Phi,
+                    sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
                 )
 
@@ -929,17 +918,10 @@ class HwpSys:
                         ),  # hwp angle returns 2ωt
                         psi=np.array(psi, dtype=np.float32),
                         phi=phi,
-                        cos2Psi02Phi=cos2Psi02Phi,
-                        sin2Psi02Phi=sin2Psi02Phi,
+                        cos2Xi2Phi=cos2Xi2Phi,
+                        sin2Xi2Phi=sin2Xi2Phi,
                     )
 
-            sum_of_ata = np.zeros(self.ata.shape)
-            sum_of_atd = np.zeros(self.atd.shape)
-            comm.Reduce(self.ata, sum_of_ata, op=mpi.MPI.SUM, root=0)
-            comm.Reduce(self.atd, sum_of_atd, op=mpi.MPI.SUM, root=0)
-            if rank == 0:
-                self.ata = sum_of_ata
-                self.atd = sum_of_atd
 
         if rank == 0:
             del (pix, self.maps)
@@ -974,16 +956,12 @@ class HwpSys:
                 for i in range(len(observations) - 1)
             ]
         ):
-            pass
-            # self.atd = observations[0].comm.allreduce(self.atd, mpi.MPI.SUM)
-            # self.ata = observations[0].comm.allreduce(self.ata, mpi.MPI.SUM)
+            self.atd = observations[0].comm.allreduce(self.atd, mpi.MPI.SUM)
+            self.ata = observations[0].comm.allreduce(self.ata, mpi.MPI.SUM)
         else:
             raise NotImplementedError(
                 "All observations must be distributed over the same MPI groups"
             )
-
-        # comm = lbs.MPI_COMM_WORLD
-        # rank = comm.Get_rank()
 
         self.ata[:, 0, 1] = self.ata[:, 1, 0]
         self.ata[:, 0, 2] = self.ata[:, 2, 0]
