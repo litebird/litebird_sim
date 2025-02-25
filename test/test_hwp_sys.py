@@ -193,5 +193,3 @@ def test_hwp_sys():
     else:
         exit(0)
 
-
-test_hwp_sys()
