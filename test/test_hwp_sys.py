@@ -1,6 +1,5 @@
 import litebird_sim as lbs
 import numpy as np
-from pathlib import Path
 from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
 
 
@@ -198,3 +197,6 @@ def test_hwp_sys():
         exit(1)
     else:
         exit(0)
+
+
+test_hwp_sys()
