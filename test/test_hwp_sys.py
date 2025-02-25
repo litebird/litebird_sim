@@ -3,77 +3,82 @@ import numpy as np
 from pathlib import Path
 from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
 
-def test_hwp_sys():
 
-    start_time=0
-    time_span_s = 365*24*3600
+def test_hwp_sys():
+    start_time = 0
+    time_span_s = 365 * 24 * 3600
     nside = 256
     sampling = 1
     hwp_radpsec = lbs.IdealHWP(
         46 * 2 * np.pi / 60,
     ).ang_speed_radpsec
 
-    sim = lbs.Simulation(
-        start_time=start_time, duration_s=time_span_s, random_seed=0
-    )
+    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s, random_seed=0)
 
     sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
 
     comm = sim.mpi_comm
 
     channelinfo = lbs.FreqChannelInfo(
-        bandcenter_ghz=140.0, 
-        channel='L4-140', 
+        bandcenter_ghz=140.0,
+        channel="L4-140",
         bandwidth_ghz=42.0,
-        net_detector_ukrts=38.44, 
-        net_channel_ukrts=3.581435543962163, 
+        net_detector_ukrts=38.44,
+        net_channel_ukrts=3.581435543962163,
         pol_sensitivity_channel_ukarcmin=7.24525963532118,
     )
 
     dets = []
-    i=0
-    quats=[[0.03967584136504414, 0.03725809501267564, 0.0, 0.9985177324254199],
-           [0.05440050811606006, -0.001709604840948807, 0.706058659733029, 0.7060586597330291]]
+    i = 0
+    quats = [
+        [0.03967584136504414, 0.03725809501267564, 0.0, 0.9985177324254199],
+        [
+            0.05440050811606006,
+            -0.001709604840948807,
+            0.706058659733029,
+            0.7060586597330291,
+        ],
+    ]
     for i in range(2):
         det = lbs.DetectorInfo.from_dict(
-            {"channel" : channelinfo,
-            "bandcenter_ghz" : 140.0,
-            "sampling_rate_hz" : sampling,
-            "quat" : quats[i]
-            })
- 
+            {
+                "channel": channelinfo,
+                "bandcenter_ghz": 140.0,
+                "sampling_rate_hz": sampling,
+                "quat": quats[i],
+            }
+        )
+
         det.phi = 0
         dets.append(det)
 
-
     scan_strat = lbs.SpinningScanningStrategy(
-            spin_sun_angle_rad=np.deg2rad(45.0),
-            precession_rate_hz=1.0 / (60.0 * 192.348),
-            spin_rate_hz=0.05 / 60.0,
-        )
-
-    sim.set_scanning_strategy(
-        append_to_report=False,
-        scanning_strategy=scan_strat
+        spin_sun_angle_rad=np.deg2rad(45.0),
+        precession_rate_hz=1.0 / (60.0 * 192.348),
+        spin_rate_hz=0.05 / 60.0,
     )
+
+    sim.set_scanning_strategy(append_to_report=False, scanning_strategy=scan_strat)
 
     instr = lbs.InstrumentInfo(
-        name='LFT', 
-        boresight_rotangle_rad=0.0, 
-        spin_boresight_angle_rad=0.8726646259971648, 
-        spin_rotangle_rad=0.0, 
-        hwp_rpm=46.0, 
-        number_of_channels=1
+        name="LFT",
+        boresight_rotangle_rad=0.0,
+        spin_boresight_angle_rad=0.8726646259971648,
+        spin_rotangle_rad=0.0,
+        hwp_rpm=46.0,
+        number_of_channels=1,
     )
-    
+
     sim.set_instrument(instr)
 
-    (obs,) = sim.create_observations(detectors=dets, n_blocks_det=comm.size, split_list_over_processes=False)
+    (obs,) = sim.create_observations(
+        detectors=dets, n_blocks_det=comm.size, split_list_over_processes=False
+    )
 
     for idet in range(obs.n_detectors):
-        sim.detectors[idet].pol_angle_rad = compute_orientation_from_detquat(obs.quat[idet].quats[0]) % (
-                            2 * np.pi
-                        )
+        sim.detectors[idet].pol_angle_rad = compute_orientation_from_detquat(
+            obs.quat[idet].quats[0]
+        ) % (2 * np.pi)
 
     sim.prepare_pointings(append_to_report=False)
 
@@ -87,16 +92,13 @@ def test_hwp_sys():
         gaussian_smooth=True,
         bandpass_int=False,
         maps_in_ecliptic=True,
-        nside=nside,  
+        nside=nside,
         units="K_CMB",
     )
 
+    mbs = lbs.Mbs(simulation=sim, parameters=Mbsparams, channel_list=[channelinfo])
 
-    mbs = lbs.Mbs(
-        simulation=sim, parameters=Mbsparams, channel_list=[channelinfo]
-        )
-    
-    input_maps = mbs.run_all()[0]['L4-140']
+    input_maps = mbs.run_all()[0]["L4-140"]
 
     hwp_sys = lbs.HwpSys(sim)
 
@@ -104,11 +106,11 @@ def test_hwp_sys():
         nside=nside,
         maps=input_maps,
         Channel=channelinfo,
-        Mbsparams = Mbsparams,
-        integrate_in_band = False,
-        integrate_in_band_solver = False,
-        build_map_on_the_fly = True,
-        correct_in_solver = True,
+        Mbsparams=Mbsparams,
+        integrate_in_band=False,
+        integrate_in_band_solver=False,
+        build_map_on_the_fly=True,
+        correct_in_solver=True,
         comm=comm,
     )
 
@@ -117,34 +119,40 @@ def test_hwp_sys():
         input_map_in_galactic=False,
     )
 
+    output_maps = hwp_sys.make_map([obs])
 
-    output_maps=hwp_sys.make_map([obs])
-
-    test_arr = np.isclose(input_maps[0], output_maps[0], atol=1e-9)
+    test_arr = np.isclose(input_maps, output_maps, atol=1e-9)
     true_count = np.count_nonzero(test_arr)
-    percentage = 100-((true_count / test_arr.size) * 100)
-    if percentage>0.1:
+    percentage = 100 - ((true_count / test_arr.size) * 100)
+    if percentage > 0.1:
         exit(1)
-
 
     # testing if code works also when passing list of observations, pointings and hwp_angle to fill_tod
 
     dets2 = []
-    i=0
-    quats=[[0.06740000004400000, 0.0256776000009992898, 0.0, 0.987687266626111],
-           [0.04540050811606006, -0.002109604840948807, 0.809058659733029, 0.990586597330291]]
-    
+    i = 0
+    quats = [
+        [0.06740000004400000, 0.0256776000009992898, 0.0, 0.987687266626111],
+        [
+            0.04540050811606006,
+            -0.002109604840948807,
+            0.809058659733029,
+            0.990586597330291,
+        ],
+    ]
+
     for i in range(2):
         det = lbs.DetectorInfo.from_dict(
-            {"channel" : channelinfo,
-            "bandcenter_ghz" : 140.0,
-            "sampling_rate_hz" : sampling,
-            "quat" : quats[i]
-            })
- 
+            {
+                "channel": channelinfo,
+                "bandcenter_ghz": 140.0,
+                "sampling_rate_hz": sampling,
+                "quat": quats[i],
+            }
+        )
+
         det.phi = 45
         dets2.append(det)
-
 
     (new_obs_phi0,) = sim.create_observations(detectors=dets)
     (new_obs_phi45,) = sim.create_observations(detectors=dets2)
@@ -163,16 +171,15 @@ def test_hwp_sys():
     del output_maps
     hwp_sys = lbs.HwpSys(sim)
 
-  
     hwp_sys.set_parameters(
         nside=nside,
         maps=input_maps,
         Channel=channelinfo,
-        Mbsparams = Mbsparams,
-        integrate_in_band = False,
-        integrate_in_band_solver = False,
-        build_map_on_the_fly = True,
-        correct_in_solver = True,
+        Mbsparams=Mbsparams,
+        integrate_in_band=False,
+        integrate_in_band_solver=False,
+        build_map_on_the_fly=True,
+        correct_in_solver=True,
         comm=comm,
     )
 
@@ -183,13 +190,11 @@ def test_hwp_sys():
         hwp_angle=[hwp_angle_0, hwp_angle_45],
     )
 
-
-    output_maps=hwp_sys.make_map([obs])
-    test_arr = np.isclose(input_maps[0], output_maps[0], atol=1e-9)
+    output_maps = hwp_sys.make_map([obs])
+    test_arr = np.isclose(input_maps, output_maps, atol=1e-9)
     true_count = np.count_nonzero(test_arr)
-    percentage = 100-((true_count / test_arr.size) * 100)
-    if percentage>0.1:
+    percentage = 100 - ((true_count / test_arr.size) * 100)
+    if percentage > 0.1:
         exit(1)
     else:
         exit(0)
-
