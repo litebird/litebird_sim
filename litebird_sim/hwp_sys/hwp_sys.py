@@ -7,7 +7,6 @@ import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from numba import njit, prange
-from warnings import warn
 import litebird_sim as lbs
 from litebird_sim import mpi
 from .bandpass_template_module import bandpass_profile
@@ -258,9 +257,7 @@ def compute_signal_for_one_sample(
     sin2Xi2Phi,
 ):
     """Bolometric equation, tod filling for a single (time) sample"""
-    d = T * compute_Tterm_for_one_sample_for_tod(
-        mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi
-    )
+    d = T * compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi)
 
     d += Q * compute_Qterm_for_one_sample_for_tod(
         mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
@@ -384,19 +381,19 @@ def compute_atd_ata_for_one_detector(
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=m0f_solver[0, 0]
             + m2f_solver[0, 0] * np.cos(TwoRhoPsiPhi - 2.32)
-            + m4f_solver[0, 0] * np.cos(FourRhoPsiPhi),
+            + m4f_solver[0, 0] * np.cos(FourRhoPsiPhi - 0.84),
             mQIs=m0f_solver[1, 0]
             + m2f_solver[1, 0] * np.cos(TwoRhoPsiPhi + 2.86)
-            + m4f_solver[1, 0] * np.cos(FourRhoPsiPhi),
+            + m4f_solver[1, 0] * np.cos(FourRhoPsiPhi + 0.14),
             mUIs=m0f_solver[2, 0]
             + m2f_solver[2, 0] * np.cos(TwoRhoPsiPhi + 1.29)
-            + m4f_solver[2, 0] * np.cos(FourRhoPsiPhi),
+            + m4f_solver[2, 0] * np.cos(FourRhoPsiPhi - 1.43),
             mIQs=m0f_solver[0, 1]
             + m2f_solver[0, 1] * np.cos(TwoRhoPsiPhi - 0.49)
-            + m4f_solver[0, 1] * np.cos(FourRhoPsiPhi),
+            + m4f_solver[0, 1] * np.cos(FourRhoPsiPhi - 0.04),
             mIUs=m0f_solver[0, 2]
             + m2f_solver[0, 2] * np.cos(TwoRhoPsiPhi - 2.06)
-            + m4f_solver[0, 2] * np.cos(FourRhoPsiPhi),
+            + m4f_solver[0, 2] * np.cos(FourRhoPsiPhi - 1.61),
             mQQs=m0f_solver[1, 1]
             + m2f_solver[1, 1] * np.cos(TwoRhoPsiPhi - 0.25)
             + m4f_solver[1, 1] * np.cos(FourRhoPsiPhi),
@@ -588,8 +585,8 @@ class HwpSys:
 
             if comm is not None:
                 rank = comm.Get_rank()
-            else: 
-                rank=0
+            else:
+                rank = 0
             if np.any(maps) is None:
                 if rank == 0:
                     myinstr = {}
@@ -623,7 +620,9 @@ class HwpSys:
                 mbs = lbs.Mbs(
                     simulation=self.sim, parameters=Mbsparams, channel_list=Channel
                 )
-                self.maps = mbs.run_all()[0][f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"]
+                self.maps = mbs.run_all()[0][
+                    f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"
+                ]
             else:
                 self.maps = maps
 
@@ -699,8 +698,8 @@ class HwpSys:
                          is the dtype for pointings and tod (default: np.float32).
         """
 
-        rank = self.comm.Get_rank()
-        print(observations)
+        rank = self.comm.rank
+
         assert (
             observations is not None
         ), "You need to pass at least one observation to fill_tod."
@@ -775,8 +774,7 @@ class HwpSys:
                     raise ValueError(
                         "If you pass pointings, you must also pass hwp_angle."
                     )
-                
-        
+
         for idx_obs, cur_obs in enumerate(obs_list):
             if not self.build_map_on_the_fly:
                 # allocate those for "make_binned_map", later filled
@@ -790,65 +788,30 @@ class HwpSys:
                 cur_det = self.sim.detectors[idet * rank + idet]
 
                 if cur_det.mueller_hwp is None:
-
                     cur_det.mueller_hwp = {
-                        '0f':
-                        np.array([
-                            [1,0,0],
-                            [0,0,0],
-                            [0,0,0]],
-                            dtype=np.float32),
-                        
-                        '2f':
-                        np.array([
-                            [0,0,0],
-                            [0,0,0],
-                            [0,0,0]],
-                            dtype=np.float32),
-
-                        '4f':
-                        np.array([
-                            [0,0,0],
-                            [0,1,1],
-                            [0,1,1]],
-                            dtype=np.float32),
-                        }
-        
-                    warn(
-                        "You did not pass a mueller_hwp, "
-                        + "so the matrices for the ideal case will be applied."
-                    )   
-                    
+                        "0f": np.array(
+                            [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32
+                        ),
+                        "2f": np.array(
+                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32
+                        ),
+                        "4f": np.array(
+                            [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float32
+                        ),
+                    }
 
                 if cur_det.mueller_hwp_solver is None:
-
                     cur_det.mueller_hwp_solver = {
-                        '0f':
-                        np.array([
-                            [1,0,0],
-                            [0,0,0],
-                            [0,0,0]],
-                            dtype=np.float32),
-                        
-                        '2f':
-                        np.array([
-                            [0,0,0],
-                            [0,0,0],
-                            [0,0,0]],
-                            dtype=np.float32),
-
-                        '4f':
-                        np.array([
-                            [0,0,0],
-                            [0,1,1],
-                            [0,1,1]],
-                            dtype=np.float32),
-                        }
-        
-                    warn(
-                        "You did not pass a mueller_hwp_solver, "
-                        + "so the matrices for the ideal case will be applied."
-                    )        
+                        "0f": np.array(
+                            [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32
+                        ),
+                        "2f": np.array(
+                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32
+                        ),
+                        "4f": np.array(
+                            [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float32
+                        ),
+                    }
 
                 tod = cur_obs.tod[idet, :]
 
@@ -905,28 +868,27 @@ class HwpSys:
                 )
 
                 if self.build_map_on_the_fly:
-                    compute_atd_ata_for_one_detector(
-                        atd=self.atd,
-                        ata=self.ata,
-                        tod=tod,
-                        m0f_solver=cur_det.mueller_hwp_solver["0f"],
-                        m2f_solver=cur_det.mueller_hwp_solver["2f"],
-                        m4f_solver=cur_det.mueller_hwp_solver["4f"],
-                        pixel_ind=pix,
-                        theta=np.array(
-                            cur_hwp_angle / 2, dtype=np.float32
-                        ),  # hwp angle returns 2ωt
-                        psi=np.array(psi, dtype=np.float32),
-                        phi=phi,
-                        cos2Xi2Phi=cos2Xi2Phi,
-                        sin2Xi2Phi=sin2Xi2Phi,
-                    )
+                    if self.correct_in_solver:
+                        compute_atd_ata_for_one_detector(
+                            atd=self.atd,
+                            ata=self.ata,
+                            tod=tod,
+                            m0f_solver=cur_det.mueller_hwp_solver["0f"],
+                            m2f_solver=cur_det.mueller_hwp_solver["2f"],
+                            m4f_solver=cur_det.mueller_hwp_solver["4f"],
+                            pixel_ind=pix,
+                            theta=np.array(
+                                cur_hwp_angle / 2, dtype=np.float32
+                            ),  # hwp angle returns 2ωt
+                            psi=np.array(psi, dtype=np.float32),
+                            phi=phi,
+                            cos2Xi2Phi=cos2Xi2Phi,
+                            sin2Xi2Phi=sin2Xi2Phi,
+                        )
 
-
-        if rank == 0:
-            del (pix, self.maps)
-            if not save_tod:
-                del tod
+        del (pix, self.maps)
+        if not save_tod:
+            del tod
 
         return
 
@@ -956,8 +918,8 @@ class HwpSys:
                 for i in range(len(observations) - 1)
             ]
         ):
-            self.atd = observations[0].comm.allreduce(self.atd, mpi.MPI.SUM)
-            self.ata = observations[0].comm.allreduce(self.ata, mpi.MPI.SUM)
+            self.atd = self.comm.allreduce(self.atd, mpi.MPI.SUM)
+            self.ata = self.comm.allreduce(self.ata, mpi.MPI.SUM)
         else:
             raise NotImplementedError(
                 "All observations must be distributed over the same MPI groups"
