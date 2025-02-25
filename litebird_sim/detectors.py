@@ -142,6 +142,10 @@ class DetectorInfo:
         - mueller_hwp (Union[None, np.ndarray]): mueller matrix of the HWP.
              The default is None (i.e. no HWP)
 
+		- mueller_hwp_solver (Union[None, np.ndarray]): mueller matrix of the HWP
+             for the mapmaking. It allows to have a non-ideal HWP in the solver.
+             The default is None (i.e. no HWP)
+
 
 
     """
@@ -170,6 +174,7 @@ class DetectorInfo:
     pol_angle_rad: float = 0.0
     pol_efficiency: float = 1.0
     mueller_hwp: Union[None, np.ndarray] = None
+    mueller_hwp_solver: Union[None, np.ndarray] = None
 
     def __post_init__(self):
         if self.quat is None:
