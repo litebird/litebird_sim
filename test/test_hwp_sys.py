@@ -92,9 +92,11 @@ def test_hwp_sys():
     )
 
 
-    input_maps = [hp.read_map("InputMap_T.fits"),hp.read_map("InputMap_Q.fits"),hp.read_map("InputMap_U.fits")]
-    input_maps=hp.ud_grade(input_maps,nside)
-    #input_maps = mbs.run_all()[0]['']
+    mbs = lbs.Mbs(
+        simulation=sim, parameters=Mbsparams, channel_list=[channelinfo]
+        )
+    
+    input_maps = mbs.run_all()[0]['L4-140']
 
     hwp_sys = lbs.HwpSys(sim)
 
@@ -191,3 +193,5 @@ def test_hwp_sys():
     else:
         exit(0)
 
+
+test_hwp_sys()
