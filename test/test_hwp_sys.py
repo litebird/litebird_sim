@@ -126,7 +126,6 @@ def test_hwp_sys():
         Mbsparams=Mbsparams,
     )
 
-
     # testing if code works also with list of observations of the same channel
     hwp_sys.fill_tod(
         observations=[obs_boresight, obs_no_boresight],
