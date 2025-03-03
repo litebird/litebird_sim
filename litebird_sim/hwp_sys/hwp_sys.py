@@ -6,6 +6,7 @@ import healpy as hp
 import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
+import numba
 from numba import njit, prange
 import litebird_sim as lbs
 from litebird_sim import mpi
@@ -44,7 +45,7 @@ def _dBodTth(nu):
     )
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def compute_orientation_from_detquat(quat):
     if quat[2] == 0:
         polang = 0
@@ -163,12 +164,12 @@ def get_mueller_from_jones(h1, h2, z1, z2, beta):
     return mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def mueller_interpolation(Theta, harmonic, i, j):
     mueller0deg = {
-        "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32),
-        "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32),
-        "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float32),
+        "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
+        "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
+        "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64),
     }
 
     mueller10deg = {
@@ -178,7 +179,7 @@ def mueller_interpolation(Theta, harmonic, i, j):
                 [9.60 * 1e-5, 1.88 * 1e-4, 4.87 * 1e-4],
                 [4.39 * 1e-6, -4.63 * 1e-4, 7.48 * 1e-4],
             ],
-            dtype=np.float32,
+            dtype=np.float64,
         ),
         "2f": np.array(
             [
@@ -186,7 +187,7 @@ def mueller_interpolation(Theta, harmonic, i, j):
                 [5.43 * 1e-4, 3.10 * 1e-3, 3.28 * 1e-3],
                 [5.42 * 1e-4, 2.96 * 1e-3, 3.24 * 1e-3],
             ],
-            dtype=np.float32,
+            dtype=np.float64,
         ),
         "4f": np.array(
             [
@@ -194,7 +195,7 @@ def mueller_interpolation(Theta, harmonic, i, j):
                 [8.86 * 1e-5, 0.959, 0.959],
                 [8.86 * 1e-5, 0.959, 0.959],
             ],
-            dtype=np.float32,
+            dtype=np.float64,
         ),
     }
 
@@ -208,14 +209,14 @@ def mueller_interpolation(Theta, harmonic, i, j):
     )
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi):
     Tterm = mII + mQI * cos2Xi2Phi + mUI * sin2Xi2Phi
 
     return Tterm
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def compute_Qterm_for_one_sample_for_tod(
     mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
 ):
@@ -226,7 +227,7 @@ def compute_Qterm_for_one_sample_for_tod(
     return Qterm
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def compute_Uterm_for_one_sample_for_tod(
     mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
 ):
@@ -237,7 +238,7 @@ def compute_Uterm_for_one_sample_for_tod(
     return Uterm
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def compute_signal_for_one_sample(
     T,
     Q,
@@ -270,7 +271,7 @@ def compute_signal_for_one_sample(
     return d
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def compute_signal_for_one_detector(
     tod_det, pixel_ind, m0f, m2f, m4f, theta, psi, maps, cos2Xi2Phi, sin2Xi2Phi, phi
 ):
@@ -303,16 +304,16 @@ def compute_signal_for_one_detector(
             + m4f[0, 2] * np.cos(FourRhoPsiPhi - 1.61),
             mQQ=m0f[1, 1]
             + m2f[1, 1] * np.cos(TwoRhoPsiPhi - 0.25)
-            + m4f[1, 1] * np.cos(FourRhoPsiPhi),
+            + m4f[1, 1] * np.cos(FourRhoPsiPhi - 0.00061),
             mUU=m0f[2, 2]
             + m2f[2, 2] * np.cos(TwoRhoPsiPhi + 2.54)
-            + m4f[2, 2] * np.cos(FourRhoPsiPhi + np.pi),
+            + m4f[2, 2] * np.cos(FourRhoPsiPhi + np.pi - 0.00065),
             mUQ=m0f[2, 1]
             + m2f[2, 1] * np.cos(TwoRhoPsiPhi - 2.01)
-            + m4f[2, 1] * np.cos(FourRhoPsiPhi - np.pi / 2),
+            + m4f[2, 1] * np.cos(FourRhoPsiPhi - 0.00070 - np.pi / 2),
             mQU=m0f[1, 2]
             + m2f[1, 2] * np.cos(TwoRhoPsiPhi - 2.00)
-            + m4f[1, 2] * np.cos(FourRhoPsiPhi - np.pi / 2),
+            + m4f[1, 2] * np.cos(FourRhoPsiPhi - 0.00056 - np.pi / 2),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -320,7 +321,7 @@ def compute_signal_for_one_detector(
         )
 
 
-@njit(parallel=True)
+@njit(parallel=False)
 def compute_TQUsolver_for_one_sample(
     mIIs,
     mQIs,
@@ -354,10 +355,10 @@ def compute_TQUsolver_for_one_sample(
     return Tterm, Qterm, Uterm
 
 
-@njit(parallel=True)
-def compute_atd_ata_for_one_detector(
-    atd,
+@njit(parallel=False)
+def compute_ata_atd_for_one_detector(
     ata,
+    atd,
     tod,
     m0f_solver,
     m2f_solver,
@@ -396,16 +397,16 @@ def compute_atd_ata_for_one_detector(
             + m4f_solver[0, 2] * np.cos(FourRhoPsiPhi - 1.61),
             mQQs=m0f_solver[1, 1]
             + m2f_solver[1, 1] * np.cos(TwoRhoPsiPhi - 0.25)
-            + m4f_solver[1, 1] * np.cos(FourRhoPsiPhi),
+            + m4f_solver[1, 1] * np.cos(FourRhoPsiPhi - 0.00061),
             mUUs=m0f_solver[2, 2]
             + m2f_solver[2, 2] * np.cos(TwoRhoPsiPhi + 2.54)
-            + m4f_solver[2, 2] * np.cos(FourRhoPsiPhi + np.pi),
+            + m4f_solver[2, 2] * np.cos(FourRhoPsiPhi + np.pi - 0.00065),
             mUQs=m0f_solver[2, 1]
             + m2f_solver[2, 1] * np.cos(TwoRhoPsiPhi - 2.01)
-            + m4f_solver[2, 1] * np.cos(FourRhoPsiPhi - np.pi / 2),
+            + m4f_solver[2, 1] * np.cos(FourRhoPsiPhi - 0.00070 - np.pi / 2),
             mQUs=m0f_solver[1, 2]
             + m2f_solver[1, 2] * np.cos(TwoRhoPsiPhi - 2.00)
-            + m4f_solver[1, 2] * np.cos(FourRhoPsiPhi - np.pi / 2),
+            + m4f_solver[1, 2] * np.cos(FourRhoPsiPhi - 0.00056 - np.pi / 2),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -646,8 +647,8 @@ class HwpSys:
                 self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
 
         if self.build_map_on_the_fly:
-            self.atd = np.zeros((self.npix, 3))
-            self.ata = np.zeros((self.npix, 3, 3))
+            self.atd = np.zeros((self.npix, 3), dtype=np.float64)
+            self.ata = np.zeros((self.npix, 3, 3), dtype=np.float64)
 
         self.comm = comm
 
@@ -658,7 +659,7 @@ class HwpSys:
         hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
         input_map_in_galactic: bool = True,
         save_tod: bool = False,
-        dtype_pointings=np.float32,
+        dtype_pointings=np.float64,
         apply_non_linearity=False,
     ):
         r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
@@ -695,9 +696,10 @@ class HwpSys:
                  ``tod`` gets deleted.
 
         dtype_pointings: if ``pointings`` is None and is computed within ``fill_tod``, this
-                         is the dtype for pointings and tod (default: np.float32).
+                         is the dtype for pointings and tod (default: np.float64).
         """
 
+        print("NUMBA", numba.get_num_threads())
         rank = self.comm.rank
 
         assert (
@@ -784,36 +786,38 @@ class HwpSys:
                         dtype=dtype_pointings,
                     )
 
+            print("dets obs", cur_obs.n_detectors)
+            print("dets sim", len(self.sim.detectors))
             for idet in range(cur_obs.n_detectors):
                 cur_det = self.sim.detectors[idet * rank + idet]
 
                 if cur_det.mueller_hwp is None:
                     cur_det.mueller_hwp = {
                         "0f": np.array(
-                            [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32
+                            [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                         ),
                         "2f": np.array(
-                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32
+                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                         ),
                         "4f": np.array(
-                            [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float32
+                            [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64
                         ),
                     }
 
                 if cur_det.mueller_hwp_solver is None:
                     cur_det.mueller_hwp_solver = {
                         "0f": np.array(
-                            [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32
+                            [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                         ),
                         "2f": np.array(
-                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float32
+                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                         ),
                         "4f": np.array(
-                            [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float32
+                            [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64
                         ),
                     }
 
-                tod = cur_obs.tod[idet, :]
+                tod = np.float64(cur_obs.tod[idet, :])
 
                 if pointings is None:
                     if (not ptg_list) or (not hwp_angle_list):
@@ -858,10 +862,10 @@ class HwpSys:
                     m2f=cur_det.mueller_hwp["2f"],
                     m4f=cur_det.mueller_hwp["4f"],
                     theta=np.array(
-                        cur_hwp_angle / 2, dtype=np.float32
+                        cur_hwp_angle / 2, dtype=np.float64
                     ),  # hwp angle returns 2 ^it
-                    psi=np.array(psi, dtype=np.float32),
-                    maps=np.array(self.maps, dtype=np.float32),
+                    psi=np.array(psi, dtype=np.float64),
+                    maps=np.array(self.maps, dtype=np.float64),
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
@@ -869,18 +873,18 @@ class HwpSys:
 
                 if self.build_map_on_the_fly:
                     if self.correct_in_solver:
-                        compute_atd_ata_for_one_detector(
-                            atd=self.atd,
+                        compute_ata_atd_for_one_detector(
                             ata=self.ata,
+                            atd=self.atd,
                             tod=tod,
                             m0f_solver=cur_det.mueller_hwp_solver["0f"],
                             m2f_solver=cur_det.mueller_hwp_solver["2f"],
                             m4f_solver=cur_det.mueller_hwp_solver["4f"],
                             pixel_ind=pix,
                             theta=np.array(
-                                cur_hwp_angle / 2, dtype=np.float32
+                                cur_hwp_angle / 2, dtype=np.float64
                             ),  # hwp angle returns 2ωt
-                            psi=np.array(psi, dtype=np.float32),
+                            psi=np.array(psi, dtype=np.float64),
                             phi=phi,
                             cos2Xi2Phi=cos2Xi2Phi,
                             sin2Xi2Phi=sin2Xi2Phi,
