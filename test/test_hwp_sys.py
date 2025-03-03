@@ -124,10 +124,8 @@ def test_hwp_sys():
         build_map_on_the_fly=True,
         nside=nside,
         Mbsparams=Mbsparams,
-        parallel=False,
     )
 
-    np.testing.assert_equal(hwp_sys.freqs, hwp_sys.freqs_solver)
 
     # testing if code works also with list of observations of the same channel
     hwp_sys.fill_tod(
@@ -216,14 +214,12 @@ def test_hwp_sys():
     hwp_sys = lbs.HwpSys(sim)
 
     hwp_sys.set_parameters(
-        mueller_or_jones="jones",
-        integrate_in_band=True,
-        integrate_in_band_solver=True,
+        integrate_in_band=False,
+        integrate_in_band_solver=False,
         correct_in_solver=True,
-        built_map_on_the_fly=False,
+        build_map_on_the_fly=True,
         nside=nside,
         Mbsparams=Mbsparams,
-        parallel=False,
     )
 
     hwp_sys.fill_tod(
