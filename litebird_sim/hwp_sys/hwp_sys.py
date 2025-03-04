@@ -6,7 +6,6 @@ import healpy as hp
 import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
-import numba
 from numba import njit, prange
 import litebird_sim as lbs
 from litebird_sim import mpi
@@ -15,7 +14,6 @@ from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
-
 
 COND_THRESHOLD = 1e10
 
@@ -659,7 +657,7 @@ class HwpSys:
         hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
         input_map_in_galactic: bool = True,
         save_tod: bool = False,
-        dtype_pointings=np.float64,
+        dtype_pointings=np.float32,
         apply_non_linearity=False,
     ):
         r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
@@ -699,7 +697,6 @@ class HwpSys:
                          is the dtype for pointings and tod (default: np.float64).
         """
 
-        print("NUMBA", numba.get_num_threads())
         rank = self.comm.rank
 
         assert (
@@ -786,8 +783,6 @@ class HwpSys:
                         dtype=dtype_pointings,
                     )
 
-            print("dets obs", cur_obs.n_detectors)
-            print("dets sim", len(self.sim.detectors))
             for idet in range(cur_obs.n_detectors):
                 cur_det = self.sim.detectors[idet * rank + idet]
 
