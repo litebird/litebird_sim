@@ -119,7 +119,6 @@ def test_hwp_sys():
         integrate_in_band=False,
         integrate_in_band_solver=False,
         build_map_on_the_fly=True,
-        correct_in_solver=True,
         comm=comm,
     )
 
@@ -187,7 +186,6 @@ def test_hwp_sys():
         integrate_in_band=False,
         integrate_in_band_solver=False,
         build_map_on_the_fly=True,
-        correct_in_solver=True,
         comm=comm,
     )
 

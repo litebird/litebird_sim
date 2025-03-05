@@ -441,7 +441,6 @@ class HwpSys:
         Mbsparams: Union[MbsParameters, None] = None,
         integrate_in_band: Union[bool, None] = None,
         build_map_on_the_fly: Union[bool, None] = None,
-        correct_in_solver: Union[bool, None] = None,
         integrate_in_band_solver: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
@@ -456,9 +455,6 @@ class HwpSys:
               Input maps needs to be in galactic (mbs default)
           integrate_in_band (bool): performs the band integration for tod generation
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
-          correct_in_solver (bool): if the map is computed on the fly,
-                                    fills :math:`A^T A` using map-making (solver)
-                                    HWP parameters
           integrate_in_band_solver (bool): performs the band integration for the
                                            map-making solver
           Channel (:class:`.FreqChannelInfo`): an instance of the
@@ -486,7 +482,6 @@ class HwpSys:
 
             self.integrate_in_band = paramdict.get("integrate_in_band", False)
             self.build_map_on_the_fly = paramdict.get("build_map_on_the_fly", False)
-            self.correct_in_solver = paramdict.get("correct_in_solver", False)
             self.integrate_in_band_solver = paramdict.get(
                 "integrate_in_band_solver", False
             )
@@ -540,10 +535,6 @@ class HwpSys:
         if not hasattr(self, "build_map_on_the_fly"):
             if build_map_on_the_fly is not None:
                 self.build_map_on_the_fly = build_map_on_the_fly
-
-        if not hasattr(self, "correct_in_solver"):
-            if correct_in_solver is not None:
-                self.correct_in_solver = correct_in_solver
 
         if not hasattr(self, "integrate_in_band_solver"):
             if integrate_in_band_solver is not None:
@@ -627,22 +618,21 @@ class HwpSys:
 
                 del maps
 
-        if self.correct_in_solver:
-            if self.integrate_in_band_solver:
-                if not self.bandpass_solver:
-                    self.cmb2bb_solver = _dBodTth(self.freqs_solver)
+        if self.integrate_in_band_solver:
+            if not self.bandpass_solver:
+                self.cmb2bb_solver = _dBodTth(self.freqs_solver)
 
-                elif self.bandpass_solver:
-                    self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
-                        self.freqs_solver,
-                        self.bandpass_solver,
-                        self.include_beam_throughput,
-                    )
-                    self.cmb2bb_solver = (
-                        _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
-                    )
+            elif self.bandpass_solver:
+                self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
+                    self.freqs_solver,
+                    self.bandpass_solver,
+                    self.include_beam_throughput,
+                )
+                self.cmb2bb_solver = (
+                    _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
+                )
 
-                self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
+            self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
 
         if self.build_map_on_the_fly:
             self.atd = np.zeros((self.npix, 3), dtype=np.float64)
@@ -866,24 +856,23 @@ class HwpSys:
                     phi=phi,
                 )
 
-                if self.build_map_on_the_fly:
-                    if self.correct_in_solver:
-                        compute_ata_atd_for_one_detector(
-                            ata=self.ata,
-                            atd=self.atd,
-                            tod=tod,
-                            m0f_solver=cur_det.mueller_hwp_solver["0f"],
-                            m2f_solver=cur_det.mueller_hwp_solver["2f"],
-                            m4f_solver=cur_det.mueller_hwp_solver["4f"],
-                            pixel_ind=pix,
-                            theta=np.array(
-                                cur_hwp_angle / 2, dtype=np.float64
-                            ),  # hwp angle returns 2ωt
-                            psi=np.array(psi, dtype=np.float64),
-                            phi=phi,
-                            cos2Xi2Phi=cos2Xi2Phi,
-                            sin2Xi2Phi=sin2Xi2Phi,
-                        )
+            if self.build_map_on_the_fly:
+                compute_ata_atd_for_one_detector(
+                    ata=self.ata,
+                    atd=self.atd,
+                    tod=tod,
+                    m0f_solver=cur_det.mueller_hwp_solver["0f"],
+                    m2f_solver=cur_det.mueller_hwp_solver["2f"],
+                    m4f_solver=cur_det.mueller_hwp_solver["4f"],
+                    pixel_ind=pix,
+                    theta=np.array(
+                        cur_hwp_angle / 2, dtype=np.float64
+                    ),  # hwp angle returns 2ωt
+                    psi=np.array(psi, dtype=np.float64),
+                    phi=phi,
+                    cos2Xi2Phi=cos2Xi2Phi,
+                    sin2Xi2Phi=sin2Xi2Phi,
+                )
 
         del (pix, self.maps)
         if not save_tod:
