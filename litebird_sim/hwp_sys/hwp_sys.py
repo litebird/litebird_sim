@@ -463,7 +463,7 @@ class HwpSys:
               Input maps needs to be in galactic (mbs default)
               if `maps` is not None, `Mbsparams` is ignored
               (i.e. input maps are not generated)
-          parallel (bool): uses parallelization if set to True
+          comm (SerialMpiCommunicator): MPI communicator
         """
 
         # set defaults for band integration
