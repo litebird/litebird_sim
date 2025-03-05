@@ -573,10 +573,8 @@ class HwpSys:
             # Normalize the band
             self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
 
-            if comm is not None:
-                rank = comm.Get_rank()
-            else:
-                rank = 0
+            rank = comm.rank
+
             if np.any(maps) is None:
                 if rank == 0:
                     myinstr = {}
