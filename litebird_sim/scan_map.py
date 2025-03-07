@@ -240,9 +240,10 @@ def scan_map_in_observations(
     of observations and a list of NumPy matrices; in the latter case, they must have
     the same number of elements.
 
-    The field `maps` must either be a dictionary associating the name of each detector
-    with a ``(3, NPIX)`` array containing the three I/Q/U maps or a plain ``(3, NPIX)``
-    array. In the latter case, the I/Q/U maps will be used for all the detectors.
+    The field `maps` must either be a (list of) dictionary associating the name of each
+    detector with a ``(3, NPIX)`` array containing the three I/Q/U maps or a 
+    plain ``(3, NPIX)`` array. In the latter case, the I/Q/U maps will be used for all
+    the detectors.
 
     The coordinate system is usually specified using the key `Coordinates` in the
     dictionary passed to the `maps` argument, and it must be an instance of
@@ -263,6 +264,27 @@ def scan_map_in_observations(
         # in `observations.sky_tod`
         scan_map_in_observations(sim.observations, …, component="sky_tod")
 
+    Arguments
+    ---------
+    observations: Union[Observation, List[Observation]],
+        List of Observation objects, containing detector names, pointings,
+        and TOD data, to which the computed TOD are added.
+    maps : Union[np.ndarray, Dict[str, np.ndarray], List]
+        Input maps. Typically one set per detector or per channel.
+    beam_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics], List]
+        Beam a_lm coefficients. Typically one set per detector.
+    pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
+        detector pointing information.
+    hwp: Optional[HWP] = None.
+        the HWP information. If `None`, the code assumes no hwp in pointings in 
+        passed, otherwise it uses the information stored in the Observation class
+    input_sky_alms_in_galactic: bool = True.
+        whether the input sky alms are in galactic coordinates.
+    component: str, default="tod".
+        name of the TOD component to which the computed data shall be added
+    interpolation: str, default="".
+        use the healpy function get_interp_val when scanning the input map
+        for now only "linear" interpolation supported.
     """
 
     if pointings is None:

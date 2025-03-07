@@ -241,13 +241,14 @@ def add_convolved_sky_to_observations(
         List of Observation objects, containing detector names, pointings,
         and TOD data, to which the computed TOD are added.
     sky_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics], List]
-        Sky a_lm coefficients. Typically one set per detector frequency.
+        Sky a_lm coefficients. Typically one set per detector or per channel.
     beam_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics], List]
         Beam a_lm coefficients. Typically one set per detector.
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
         detector pointing information
     hwp: Optional[HWP] = None
-        the HWP information. If `None`, we assume traditional 4pi convolution.
+        the HWP information. If `None`, the code assumes no hwp in pointings in 
+        passed, otherwise it uses the information stored in the Observation class.
     input_sky_alms_in_galactic: bool = True
         whether the input sky alms are in galactic coordinates.
     convolution_params: Optional[BeamConvolutionParameters]
