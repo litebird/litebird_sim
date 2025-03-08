@@ -1,239 +1,200 @@
 import litebird_sim as lbs
 import numpy as np
-from pathlib import Path
+from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
+from litebird_sim import mpi
 
 
 def test_hwp_sys():
-    comm = lbs.MPI_COMM_WORLD
-
     start_time = 0
-    time_span_s = 10
+    time_span_s = 365 * 24 * 3600
     nside = 64
-    sampling_hz = 1
-    hwp_radpsec = 4.084_070_449_666_731
+    sampling = 1
+    hwp_radpsec = lbs.IdealHWP(
+        46 * 2 * np.pi / 60,
+    ).ang_speed_radpsec
 
-    sim = lbs.Simulation(
-        start_time=start_time, duration_s=time_span_s, mpi_comm=comm, random_seed=0
-    )
+    sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s, random_seed=0)
 
     sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
 
-    scanning = lbs.SpinningScanningStrategy(
-        spin_sun_angle_rad=0.785_398_163_397_448_3,
-        precession_rate_hz=8.664_850_513_998_931e-05,
-        spin_rate_hz=0.000_833_333_333_333_333_4,
-        start_time=start_time,
+    comm = sim.mpi_comm
+    rank = comm.rank
+
+    channelinfo = lbs.FreqChannelInfo(
+        bandcenter_ghz=140.0,
+        channel="L4-140",
+        bandwidth_ghz=42.0,
+        net_detector_ukrts=38.44,
+        net_channel_ukrts=3.581435543962163,
+        pol_sensitivity_channel_ukarcmin=7.24525963532118,
     )
 
-    sim.set_scanning_strategy(scanning_strategy=scanning, delta_time_s=7200)
+    dets = []
+
+    quats = [
+        [0.03967584136504414, 0.03725809501267564, 0.0, 0.9985177324254199],
+        [
+            0.05440050811606006,
+            -0.001709604840948807,
+            0.706058659733029,
+            0.7060586597330291,
+        ],
+    ]
+
+    for d in range(2):
+        det = lbs.DetectorInfo.from_dict(
+            {
+                "channel": channelinfo,
+                "bandcenter_ghz": 140.0,
+                "sampling_rate_hz": sampling,
+                "quat": quats[d],
+            }
+        )
+        det.phi = 133.2
+        dets.append(det)
+
+    scan_strat = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=np.deg2rad(45.0),
+        precession_rate_hz=1.0 / (60.0 * 192.348),
+        spin_rate_hz=0.05 / 60.0,
+    )
+
+    sim.set_scanning_strategy(append_to_report=False, scanning_strategy=scan_strat)
 
     instr = lbs.InstrumentInfo(
+        name="LFT",
         boresight_rotangle_rad=0.0,
-        spin_boresight_angle_rad=0.872_664_625_997_164_8,
-        spin_rotangle_rad=3.141_592_653_589_793,
+        spin_boresight_angle_rad=0.8726646259971648,
+        spin_rotangle_rad=0.0,
+        hwp_rpm=46.0,
+        number_of_channels=1,
     )
+
     sim.set_instrument(instr)
 
-    detBT = lbs.DetectorInfo(
-        name="Boresight_detector_T",
-        sampling_rate_hz=sampling_hz,
-        bandcenter_ghz=100.0,
-        quat=[0.0, 0.0, 0.0, 1.0],
+    (obs,) = sim.create_observations(
+        detectors=dets,
+        n_blocks_det=comm.size,
+        split_list_over_processes=False,
     )
 
-    detBB = lbs.DetectorInfo(
-        name="Boresight_detector_B",
-        sampling_rate_hz=sampling_hz,
-        bandcenter_ghz=100.0,
-        quat=[0.0, 0.0, 1.0 / np.sqrt(2.0), 1.0 / np.sqrt(2.0)],
-    )
+    for idet in range(obs.n_detectors):
+        sim.detectors[idet].pol_angle_rad = compute_orientation_from_detquat(
+            obs.quat[idet].quats[0]
+        ) % (2 * np.pi)
 
-    det165 = lbs.DetectorInfo(
-        name="not_boresight_detector_165",
-        sampling_rate_hz=sampling_hz,
-        bandcenter_ghz=100.0,
-        quat=[-0.07962602, 0.07427495, 0.98554952, 0.12975006],
-    )
-
-    det105 = lbs.DetectorInfo(
-        name="not_boresight_detector_105",
-        sampling_rate_hz=sampling_hz,
-        bandcenter_ghz=100.0,
-        quat=[0.00924192, -0.10162824, -0.78921165, 0.6055834],
-    )
-
-    (obs_boresight,) = sim.create_observations(detectors=[detBT, detBB])
-    (obs_no_boresight,) = sim.create_observations(detectors=[det165, det105])
-
-    lbs.prepare_pointings(
-        observations=[obs_boresight, obs_no_boresight],
-        instrument=sim.instrument,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        hwp=sim.hwp,
-    )
-
-    filepath = str(
-        Path(__file__).parent.parent
-        / "litebird_sim"
-        / "hwp_sys"
-        / "examples"
-        / "MFT_100_h_beta_z.txt"
-    )
-    mft = np.loadtxt(filepath)
-
-    nu = mft[:, 0]
-
-    par = {
-        "hwp_sys": {
-            "band_filename": filepath,
-            "band_filename_solver": filepath,  # same as tod parameters
-            "bandpass": {
-                "band_type": "top-hat",
-                "band_low_edge": nu[0],
-                "band_high_edge": nu[-1],
-                "bandcenter_ghz": 100,
-            },
-            "bandpass_solver": {
-                "band_type": "top-hat",
-                "band_low_edge": nu[0],
-                "band_high_edge": nu[-1],
-                "bandcenter_ghz": 100,
-            },
-            "include_beam_throughput": False,
-        }
-    }
-
-    sim.parameters = par  # setting the parameter file
+    sim.prepare_pointings(append_to_report=False)
 
     Mbsparams = lbs.MbsParameters(
         make_cmb=True,
-        make_fg=True,
-        fg_models=["pysm_synch_1", "pysm_freefree_1", "pysm_dust_1", "pysm_ame_1"],
-        bandpass_int=True,
-        maps_in_ecliptic=False,
         seed_cmb=1234,
+        make_noise=False,
+        make_dipole=True,
+        make_fg=True,
+        fg_models=["pysm_synch_0", "pysm_dust_0", "pysm_freefree_1"],
+        gaussian_smooth=True,
+        bandpass_int=False,
+        maps_in_ecliptic=True,
         nside=nside,
+        units="K_CMB",
     )
+
+    if rank == 0:
+        mbs = lbs.Mbs(simulation=sim, parameters=Mbsparams, channel_list=[channelinfo])
+
+        input_maps = mbs.run_all()[0]["L4-140"]
+    else:
+        input_maps = None
+
+    if mpi.MPI_ENABLED:
+        input_maps = comm.bcast(input_maps, root=0)
 
     hwp_sys = lbs.HwpSys(sim)
 
     hwp_sys.set_parameters(
-        mueller_or_jones="jones",
-        integrate_in_band=True,
-        integrate_in_band_solver=True,
-        correct_in_solver=True,
-        built_map_on_the_fly=False,
         nside=nside,
+        maps=input_maps,
+        Channel=channelinfo,
         Mbsparams=Mbsparams,
-        parallel=False,
+        integrate_in_band=False,
+        integrate_in_band_solver=False,
+        build_map_on_the_fly=True,
+        comm=comm,
     )
 
-    np.testing.assert_equal(hwp_sys.bandpass_profile, hwp_sys.bandpass_profile_solver)
-    np.testing.assert_equal(hwp_sys.freqs, hwp_sys.freqs_solver)
-
-    # testing if code works also with list of observations of the same channel
     hwp_sys.fill_tod(
-        observations=[obs_boresight, obs_no_boresight],
-        input_map_in_galactic=True,
+        observations=[obs],
+        input_map_in_galactic=False,
     )
 
-    reference_b = np.array(
-        [
-            [
-                3.0560230e-05,
-                2.9122459e-05,
-                2.9265628e-05,
-                3.0336547e-05,
-                -1.9575957e-05,
-                -1.8873492e-05,
-                -1.9916168e-05,
-                -1.9199055e-05,
-                -1.9401938e-05,
-                -1.9470222e-05,
-            ],
-            [
-                2.8618011e-05,
-                3.0030897e-05,
-                2.9890767e-05,
-                2.8842858e-05,
-                -1.9244833e-05,
-                -1.9962308e-05,
-                -1.8914921e-05,
-                -1.9619934e-05,
-                -1.9429232e-05,
-                -1.9365529e-05,
-            ],
-        ],
-        dtype=np.float32,
-    )
+    output_maps = hwp_sys.make_map([obs])
 
-    reference_nob = np.array(
-        [
-            [
-                1.6051326e-05,
-                1.6835435e-05,
-                1.5598331e-05,
-                1.6891758e-05,
-                1.6264255e-05,
-                1.5769723e-05,
-                1.7102797e-05,
-                1.5715126e-05,
-                1.6552618e-05,
-                1.6356096e-05,
-            ],
-            [
-                -4.7307349e-05,
-                -4.8946167e-05,
-                -4.7057129e-05,
-                -4.8257643e-05,
-                -4.7521422e-05,
-                -4.8152131e-05,
-                -4.8154547e-05,
-                -4.6702909e-05,
-                -4.9267896e-05,
-                -4.7250538e-05,
-            ],
-        ],
-        dtype=np.float32,
-    )
-
-    np.testing.assert_almost_equal(obs_boresight.tod, reference_b, decimal=10)
-    np.testing.assert_almost_equal(obs_no_boresight.tod, reference_nob, decimal=10)
+    np.testing.assert_almost_equal(input_maps, output_maps, decimal=9, verbose=True)
 
     # testing if code works also when passing list of observations, pointings and hwp_angle to fill_tod
-    (new_obs_boresight,) = sim.create_observations(detectors=[detBT, detBB])
-    (new_obs_no_boresight,) = sim.create_observations(detectors=[det165, det105])
+
+    dets2 = []
+    i = 0
+    quats = [
+        [0.06740000004400000, 0.0256776000009992898, 0.0, 0.987687266626111],
+        [
+            0.04540050811606006,
+            -0.002109604840948807,
+            0.809058659733029,
+            0.990586597330291,
+        ],
+    ]
+
+    for i in range(2):
+        det = lbs.DetectorInfo.from_dict(
+            {
+                "channel": channelinfo,
+                "bandcenter_ghz": 140.0,
+                "sampling_rate_hz": sampling,
+                "quat": quats[i],
+            }
+        )
+
+        det.phi = 45
+        dets2.append(det)
+
+    (new_obs,) = sim.create_observations(detectors=dets2)
+    for idet in range(new_obs.n_detectors):
+        sim.detectors[idet].pol_angle_rad = compute_orientation_from_detquat(
+            new_obs.quat[idet].quats[0]
+        ) % (2 * np.pi)
 
     lbs.prepare_pointings(
-        observations=[new_obs_boresight, new_obs_no_boresight],
+        observations=[obs, new_obs],
         instrument=sim.instrument,
         spin2ecliptic_quats=sim.spin2ecliptic_quats,
         hwp=sim.hwp,
     )
 
-    point_b, hwp_angle_b = new_obs_boresight.get_pointings("all")
-    point_nob, hwp_angle_nob = new_obs_no_boresight.get_pointings("all")
+    point_0, hwp_angle_0 = obs.get_pointings("all")
+    point_45, hwp_angle_45 = new_obs.get_pointings("all")
 
     del hwp_sys
+    del output_maps
     hwp_sys = lbs.HwpSys(sim)
 
     hwp_sys.set_parameters(
-        mueller_or_jones="jones",
-        integrate_in_band=True,
-        integrate_in_band_solver=True,
-        correct_in_solver=True,
-        built_map_on_the_fly=False,
         nside=nside,
+        maps=input_maps,
+        Channel=channelinfo,
         Mbsparams=Mbsparams,
-        parallel=False,
+        integrate_in_band=False,
+        integrate_in_band_solver=False,
+        build_map_on_the_fly=True,
+        comm=comm,
     )
 
     hwp_sys.fill_tod(
-        observations=[new_obs_boresight, new_obs_no_boresight],
-        input_map_in_galactic=True,
-        pointings=[point_b, point_nob],
-        hwp_angle=[hwp_angle_b, hwp_angle_nob],
+        observations=[obs, new_obs],
+        input_map_in_galactic=False,
+        pointings=[point_0, point_45],
+        hwp_angle=[hwp_angle_0, hwp_angle_45],
     )
 
-    np.testing.assert_almost_equal(new_obs_boresight.tod, reference_b, decimal=10)
-    np.testing.assert_almost_equal(new_obs_no_boresight.tod, reference_nob, decimal=10)
+    output_maps = hwp_sys.make_map([obs])
+    np.testing.assert_almost_equal(input_maps, output_maps, decimal=9, verbose=True)
