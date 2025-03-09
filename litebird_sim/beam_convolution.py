@@ -247,7 +247,7 @@ def add_convolved_sky_to_observations(
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
         detector pointing information
     hwp: Optional[HWP] = None
-        the HWP information. If `None`, the code assumes no hwp in pointings in 
+        the HWP information. If `None`, the code assumes no hwp in pointings in
         passed, otherwise it uses the information stored in the Observation class.
     input_sky_alms_in_galactic: bool = True
         whether the input sky alms are in galactic coordinates.

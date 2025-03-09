@@ -60,6 +60,7 @@ from .spherical_harmonics import SphericalHarmonics
 from .beam_synthesis import generate_gauss_beam_alms
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
+from .mbs import Mbs, MbsParameters
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -1462,6 +1463,40 @@ class Simulation:
             A list of dictionaries containing beam `a_lm` values per detector.
         """
         return generate_gauss_beam_alms(self.observations, lmax, mmax)
+
+    @_profile
+    def get_sky(
+        self,
+        parameters: MbsParameters,
+    ):
+        """
+        Generates sky maps for the observations using the provided parameters.
+
+        Args:
+            parameters (MbsParameters): Configuration parameters for the Mbs simulation.
+
+        Returns:
+            List[dict]: A list of dictionaries containing sky maps values per detector.
+        """
+
+        if parameters.seed_cmb is None:
+            log.warning(
+                "seed_cmb is None. This could lead to unexpected behavior in MPI jobs."
+            )
+
+        maps = []
+
+        for obs in self.observations:
+            detector_list = [det for det in self.detectors if det.name in obs.name]
+
+            mbs = Mbs(
+                simulation=self,
+                parameters=parameters,
+                detector_list=detector_list,
+            )
+            maps.append(mbs.run_all()[0])
+
+        return maps
 
     @_profile
     def convolve_sky(

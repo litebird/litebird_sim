@@ -241,7 +241,7 @@ def scan_map_in_observations(
     the same number of elements.
 
     The field `maps` must either be a (list of) dictionary associating the name of each
-    detector with a ``(3, NPIX)`` array containing the three I/Q/U maps or a 
+    detector with a ``(3, NPIX)`` array containing the three I/Q/U maps or a
     plain ``(3, NPIX)`` array. In the latter case, the I/Q/U maps will be used for all
     the detectors.
 
@@ -276,7 +276,7 @@ def scan_map_in_observations(
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
         detector pointing information.
     hwp: Optional[HWP] = None.
-        the HWP information. If `None`, the code assumes no hwp in pointings in 
+        the HWP information. If `None`, the code assumes no hwp in pointings in
         passed, otherwise it uses the information stored in the Observation class
     input_sky_alms_in_galactic: bool = True.
         whether the input sky alms are in galactic coordinates.
