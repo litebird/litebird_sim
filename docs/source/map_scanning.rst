@@ -46,7 +46,6 @@ shows:
    import litebird_sim as lbs
    import numpy as np
 
-   hwp_radpsec = np.pi / 8
    start_time_s = 0
    time_span_s = 1
 

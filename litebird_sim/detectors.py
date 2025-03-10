@@ -86,7 +86,7 @@ class DetectorInfo:
              arcminutes. The default is 0.0
 
         - ellipticity (float): The ellipticity of the radiation
-             pattern associated with the detector. The default is 0.0
+             pattern associated with the detector. The default is 1.0
 
         - psi_rad (float): The inclination respect to the x-axis of the major
              axis of the ellipse of the radiation pattern associated with
@@ -158,7 +158,7 @@ class DetectorInfo:
     squid: Union[int, None] = None
     sampling_rate_hz: float = 0.0
     fwhm_arcmin: float = 0.0
-    ellipticity: float = 0.0
+    ellipticity: float = 1.0
     psi_rad: float = 0.0
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
