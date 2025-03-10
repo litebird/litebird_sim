@@ -17,6 +17,24 @@ class SphericalHarmonics:
 
     This small data class keeps the array and the values `l_max` and `m_max` together.
     The shape of `values` is *always* ``(nstokes, ncoeff)``, even if ``nstokes == 1``.
+
+
+    Attributes
+    ----------
+    values : np.ndarray
+        The spherical harmonics coefficients, stored in a NumPy array of shape `(nstokes, ncoeff)`.
+    lmax : int
+        The maximum degree ℓ_max of the expansion.
+    mmax : int, optional
+        The maximum order m_max of the expansion. If None, it is set equal to `lmax`.
+    nstokes : int
+        The number of Stokes parameters (1 for intensity-only, 3 for polarization).
+
+    Raises
+    ------
+    ValueError
+        If `nstokes` is not 1 or 3.
+        If the shape of `values` does not match the expected shape for given `lmax` and `mmax`.
     """
 
     values: np.ndarray
@@ -25,6 +43,22 @@ class SphericalHarmonics:
     nstokes: int = field(init=False)
 
     def __post_init__(self):
+        """
+        Initializes the `SphericalHarmonics` instance by validating and reshaping the input data.
+
+        - If `mmax` is not provided, it is set equal to `lmax`.
+        - If `values` is a tuple of three arrays, it is converted into a NumPy array.
+        - Ensures `values` has shape `(nstokes, ncoeff)`, reshaping if necessary.
+        - Validates that `nstokes` is either 1 or 3.
+        - Checks that the shape of `values` matches the expected shape.
+
+        Raises
+        ------
+        ValueError
+            If `nstokes` is not 1 or 3.
+            If `values` does not have the expected shape.
+        """
+
         if self.mmax is None:
             self.mmax = self.lmax
 
@@ -58,14 +92,38 @@ class SphericalHarmonics:
 
     @property
     def num_of_alm_per_stokes(self):
-        """Number of a_ℓm coefficients per each Stokes component"""
+        """
+        Returns the number of a_ℓm coefficients per Stokes component.
+
+        Returns
+        -------
+        int
+            The number of coefficients per Stokes parameter.
+        """
         return self.values.shape[1]
 
     @staticmethod
     def num_of_alm_from_lmax(lmax: int, mmax: Optional[int] = None) -> int:
-        """Given a value for ℓ_max and m_max, return the size of the array a_ℓm
-
+        """
+        Computes the number of a_ℓm coefficients for given ℓ_max and m_max.
         If `mmax` is not provided, it is set equal to `lmax`
+
+        Parameters
+        ----------
+        lmax : int
+            The maximum degree ℓ_max.
+        mmax : int, optional
+            The maximum order m_max. If None, it is set equal to `lmax`.
+
+        Returns
+        -------
+        int
+            The number of a_ℓm coefficients.
+
+        Raises
+        ------
+        AssertionError
+            If `mmax` is negative or greater than `lmax`.
         """
         if mmax is None:
             mmax = lmax
@@ -79,6 +137,23 @@ class SphericalHarmonics:
     def alm_array_size(
         lmax: int, mmax: Optional[int] = None, nstokes: int = 3
     ) -> tuple[int, int]:
+        """
+        Computes the expected shape of the a_ℓm array.
+
+        Parameters
+        ----------
+        lmax : int
+            The maximum degree ℓ_max.
+        mmax : int, optional
+            The maximum order m_max. If None, it is set equal to `lmax`.
+        nstokes : int, default=3
+            The number of Stokes parameters (1 for intensity-only, 3 for full polarization).
+
+        Returns
+        -------
+        tuple[int, int]
+            The expected shape `(nstokes, ncoeff)`, where `ncoeff` is the number of a_ℓm coefficients.
+        """
         return nstokes, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)
 
     def resize_alm(
@@ -87,13 +162,34 @@ class SphericalHarmonics:
         mmax_out: int = None,
         inplace: bool = False,
     ):
-        """This method resizes a SphericalHarmonics object, either truncating it or
-        padding it with zeros.
-        If inplace is False (default) it return a new istance of SphericalHarmonics
-        with the adjusted size otherwise it resizes the existing object.
-        Much of the code is adapted from healpy
-        https://github.com/healpy/healpy/blob/a57770262788bb72281d48fdfe427d1098898d53/lib/healpy/sphtfunc.py#L1436
         """
+        Resizes the spherical harmonics coefficients, either truncating or padding them with zeros.
+
+        If `inplace` is False (default), returns a new instance of `SphericalHarmonics` with the adjusted size.
+        Otherwise, modifies the current object in place.
+
+        Parameters
+        ----------
+        lmax_out : int
+            The new maximum degree ℓ_max.
+        mmax_out : int, optional
+            The new maximum order m_max. If None, it is set equal to `lmax_out`.
+        inplace : bool, default=False
+            If True, modifies the current object instead of returning a new one.
+
+        Returns
+        -------
+        SphericalHarmonics or None
+            A new `SphericalHarmonics` instance with resized coefficients if `inplace` is False.
+            Otherwise, modifies the current instance in place and returns None.
+
+        Notes
+        -----
+        - The method resizes the coefficient array while preserving existing values.
+        - Adapted from HealPy's spherical harmonics resizing implementation.
+          https://github.com/healpy/healpy/blob/a57770262788bb72281d48fdfe427d1098898d53/lib/healpy/sphtfunc.py#L1436
+        """
+
         lmax_in = self.lmax
         mmax_in = self.mmax
 

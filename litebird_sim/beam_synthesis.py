@@ -13,8 +13,23 @@ from .constants import ARCMIN_TO_RAD
 
 
 def alm_index(lmax: int, ell: int, m: int) -> int:
-    "Return the index of an a_ℓm coefficient in an array"
+    """
+    Return the index of an a_ℓm coefficient in an array.
 
+    Parameters
+    ----------
+    lmax : int
+        ℓ_max of the expansion.
+    ell : int
+        The degree ℓ of the coefficient.
+    m : int
+        The order m of the coefficient.
+
+    Returns
+    -------
+    int
+        The index of the a_ℓm coefficient in the array.
+    """
     return m * (2 * lmax + 1 - m) // 2 + ell
 
 
@@ -22,13 +37,23 @@ def allocate_alm(
     lmax: int, mmax: Optional[int] = None, nstokes: int = 3, dtype=np.complex128
 ) -> SphericalHarmonics:
     """
-    Allocate a NumPy array that will hold a set of a_ℓm coefficients
+    Allocate an array to store spherical harmonics coefficients.
 
-    :param lmax: The maximum value for ℓ
-    :param mmax: The maximum value for m. If ``None``, it is set to `lmax`
-    :param nstokes: The number of Stokes parameters to consider
-    :param dtype: The data type. It should be a complex type.
-    :return: A newly-allocate NumPy array
+    Parameters
+    ----------
+    lmax : int
+        The maximum degree ℓ_max.
+    mmax : int, optional
+        The maximum order m_max. If None, it is set equal to `lmax`.
+    nstokes : int, default=3
+        The number of Stokes parameters.
+    dtype : data-type, default=np.complex128
+        The data type of the array (should be a complex type).
+
+    Returns
+    -------
+    SphericalHarmonics
+        A SphericalHarmonics instance initialized with zeros.
     """
     nalm = SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)
     return SphericalHarmonics(
@@ -48,22 +73,29 @@ def gauss_beam_to_alm(
     cross_polar_leakage: Optional[float] = 0.0,
 ) -> SphericalHarmonics:
     """
-    Return an array of spherical harmonics a_ℓm that represents a Gaussian beam
+    Compute spherical harmonics coefficients a_ℓm representing a Gaussian beam.
 
-    :param lmax: The maximum value for ℓ
-    :param mmax: The maximum range for m; usually this is equal to ``lmax``
-    :param fwhm_rad: The FHWM of the beam, defined as the geometric mean of minor
-      and major axes
-    :param ellipticity: The ellipticity of the beam, defined as major axis/minor
-      axis. Default is 1 (circular beam).
-    :param psi_ell_rad: The inclination of the major axis of the ellipse with
-      respect to the x-axis. This is not relevant for cirular beams. Default is 0.
-    :param psi_pol_rad: The polarization of the beam with respect to the x-axis,
-      if None only I beam will be returned. Default is 0 rad.
-    :param cross_polar_leakage: The cross-polar leakage (pure number). Default is 0.
+    Parameters
+    ----------
+    lmax : int
+        Maximum spherical harmonic degree ℓ_max.
+    mmax : int
+        Maximum spherical harmonic order m_max.
+    fwhm_rad : float
+        Full width at half maximum (FWHM) of the beam in radians.
+    ellipticity : float, optional, default=1.0
+        Beam ellipticity (major axis / minor axis). Default is 1 (circular beam).
+    psi_ell_rad : float, optional, default=0.0
+        Orientation of the beam's major axis (radians).
+    psi_pol_rad : float, optional, default=0.0
+        Polarization angle of the beam. If None, only the intensity (I) is computed.
+    cross_polar_leakage : float, optional, default=0.0
+        Cross-polar leakage factor (pure number).
 
-    :return:
-      The SphericalHarmonics object containing the a_ℓm values.
+    Returns
+    -------
+    SphericalHarmonics
+        The spherical harmonics coefficients representing the beam.
     """
 
     is_elliptical = False if ellipticity == 1.0 else True
@@ -171,8 +203,24 @@ def generate_gauss_beam_alms(
     lmax: int,
     mmax: Optional[int] = None,
 ):
-    """Generate Gaussian beam spherical harmonic coefficients for each detector."""
+    """
+    Generate Gaussian beam spherical harmonics coefficients for each detector in
+    the given Observation
 
+    Parameters
+    ----------
+    observation : Observation
+        Observation object containing detector parameters.
+    lmax : int
+        Maximum spherical harmonic degree ℓ_max.
+    mmax : int, optional
+        Maximum spherical harmonic order m_max. If None, it defaults to `lmax`.
+
+    Returns
+    -------
+    dict
+        Dictionary mapping detector names to SphericalHarmonics objects.
+    """
     mmax_val = mmax or lmax  # Use mmax if provided, else default to lmax
 
     blms = {}

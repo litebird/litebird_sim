@@ -224,6 +224,13 @@ transparent:
     4.72613e-05
 
 
+The input sky can be generated using the function :func:`.Simulation.get_sky` 
+which produces sky maps for all the detectors of a given observation based 
+on an instance of :class:`.mbs.MbsParameters`. These methods are MPI-compatible, 
+distributing inputs based on the job’s detector configuration without requiring 
+broadcast operations.
+
+
 API reference
 -------------
 

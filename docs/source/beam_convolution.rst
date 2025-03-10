@@ -319,6 +319,3 @@ API reference
 
 .. automodule:: litebird_sim.spherical_harmonics
     :members:
-    :undoc-members:
-    :show-inheritance:
-
