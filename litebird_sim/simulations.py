@@ -1459,10 +1459,14 @@ class Simulation:
 
         Returns:
         --------
-        List[dict]
-            A list of dictionaries containing beam `a_lm` values per detector.
+        Dictionary
+            A dictionary containing beam `a_lm` values per detector.
         """
-        return generate_gauss_beam_alms(self.observations, lmax, mmax)
+
+        if not self.observations:
+            raise ValueError("No observations available to generate sky maps.")
+
+        return generate_gauss_beam_alms(self.observations[0], lmax, mmax)
 
     @_profile
     def get_sky(
@@ -1476,7 +1480,7 @@ class Simulation:
             parameters (MbsParameters): Configuration parameters for the Mbs simulation.
 
         Returns:
-            List[dict]: A list of dictionaries containing sky maps values per detector.
+            Dict: A dictionary containing sky maps values per detector.
         """
 
         if parameters.seed_cmb is None:
@@ -1484,19 +1488,19 @@ class Simulation:
                 "seed_cmb is None. This could lead to unexpected behavior in MPI jobs."
             )
 
-        maps = []
+        if not self.observations:
+            raise ValueError("No observations available to generate sky maps.")
 
-        for obs in self.observations:
-            detector_list = [det for det in self.detectors if det.name in obs.name]
+        detector_names = set(self.observations[0].name)
+        detector_list = [det for det in self.detectors if det.name in detector_names]
 
-            mbs = Mbs(
-                simulation=self,
-                parameters=parameters,
-                detector_list=detector_list,
-            )
-            maps.append(mbs.run_all()[0])
+        mbs = Mbs(
+            simulation=self,
+            parameters=parameters,
+            detector_list=detector_list,
+        )
 
-        return maps
+        return mbs.run_all()[0]
 
     @_profile
     def convolve_sky(

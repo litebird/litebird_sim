@@ -214,16 +214,10 @@ def add_convolved_sky(
 def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
     sky_alms: Union[
-        SphericalHarmonics,
-        Dict[str, SphericalHarmonics],
-        List[SphericalHarmonics],
-        List[Dict[str, SphericalHarmonics]],
+        SphericalHarmonics, Dict[str, SphericalHarmonics]
     ],  # at some point optional, taken from the obs
     beam_alms: Union[
-        SphericalHarmonics,
-        Dict[str, SphericalHarmonics],
-        List[SphericalHarmonics],
-        List[Dict[str, SphericalHarmonics]],
+        SphericalHarmonics, Dict[str, SphericalHarmonics]
     ],  # at some point optional, taken from the obs
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None,
     hwp: Optional[HWP] = None,
@@ -240,10 +234,10 @@ def add_convolved_sky_to_observations(
     observations: Union[Observation, List[Observation]],
         List of Observation objects, containing detector names, pointings,
         and TOD data, to which the computed TOD are added.
-    sky_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics], List]
-        Sky a_lm coefficients. Typically one set per detector or per channel.
-    beam_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics], List]
-        Beam a_lm coefficients. Typically one set per detector.
+    sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
+        sky a_lm. Typically only one set of sky a_lm is needed per detector frequency
+    beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
+        beam a_lm. Usually one set of a_lm is needed for every detector.
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
         detector pointing information
     hwp: Optional[HWP] = None
@@ -300,24 +294,14 @@ def add_convolved_sky_to_observations(
             obs_list = observations
             ptg_list = pointings
 
-    # Ensure `sky_alms` and `beam_alms` are lists for iteration
-    sky_alms_list = (
-        [sky_alms] if isinstance(sky_alms, (SphericalHarmonics, dict)) else sky_alms
-    )
-    beam_alms_list = (
-        [beam_alms] if isinstance(beam_alms, (SphericalHarmonics, dict)) else beam_alms
-    )
-
-    for cur_obs, cur_ptg, curr_skies, curr_beams in zip(
-        obs_list, ptg_list, sky_alms_list, beam_alms_list
-    ):
+    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         # Determine input sky names
-        if isinstance(curr_skies, dict):
+        if isinstance(sky_alms, dict):
             input_sky_names = (
                 cur_obs.name
-                if all(k in curr_skies for k in cur_obs.name)
+                if all(k in sky_alms for k in cur_obs.name)
                 else cur_obs.channel
-                if all(k in curr_skies for k in cur_obs.channel)
+                if all(k in sky_alms for k in cur_obs.channel)
                 else None
             )
             if input_sky_names is None:
@@ -325,9 +309,9 @@ def add_convolved_sky_to_observations(
                     "Sky a_lm dictionary keys do not match detector/channel names."
                 )
 
-            if "Coordinates" in curr_skies:
+            if "Coordinates" in sky_alms:
                 dict_input_sky_alms_in_galactic = (
-                    curr_skies["Coordinates"] is CoordinateSystem.Galactic
+                    sky_alms["Coordinates"] is CoordinateSystem.Galactic
                 )
                 if dict_input_sky_alms_in_galactic != input_sky_alms_in_galactic:
                     logging.warning(
@@ -335,18 +319,16 @@ def add_convolved_sky_to_observations(
                     )
                 input_sky_alms_in_galactic = dict_input_sky_alms_in_galactic
         else:
-            assert isinstance(
-                curr_skies, SphericalHarmonics
-            ), "Invalid sky_alms format."
+            assert isinstance(sky_alms, SphericalHarmonics), "Invalid sky_alms format."
             input_sky_names = None
 
         # Determine input beam names
-        if isinstance(curr_beams, dict):
+        if isinstance(beam_alms, dict):
             input_beam_names = (
                 cur_obs.name
-                if all(k in curr_beams for k in cur_obs.name)
+                if all(k in beam_alms for k in cur_obs.name)
                 else cur_obs.channel
-                if all(k in curr_beams for k in cur_obs.channel)
+                if all(k in beam_alms for k in cur_obs.channel)
                 else None
             )
             if input_beam_names is None:
@@ -355,7 +337,7 @@ def add_convolved_sky_to_observations(
                 )
         else:
             assert isinstance(
-                curr_beams, SphericalHarmonics
+                beam_alms, SphericalHarmonics
             ), "Invalid beam_alms format."
             input_beam_names = None
 
@@ -382,8 +364,8 @@ def add_convolved_sky_to_observations(
         add_convolved_sky(
             tod=getattr(cur_obs, component),
             pointings=cur_ptg,
-            sky_alms=curr_skies,
-            beam_alms=curr_beams,
+            sky_alms=sky_alms,
+            beam_alms=beam_alms,
             hwp_angle=hwp_angle,
             mueller_hwp=cur_obs.mueller_hwp,
             input_sky_names=input_sky_names,

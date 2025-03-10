@@ -220,12 +220,7 @@ def scan_map(
 
 def scan_map_in_observations(
     observations: Union[Observation, List[Observation]],
-    maps: Union[
-        np.ndarray,
-        Dict[str, np.ndarray],
-        List[np.ndarray],
-        List[Dict[str, np.ndarray]],
-    ],
+    maps: Union[np.ndarray, Dict[str, np.ndarray]],
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     hwp: Optional[HWP] = None,
     input_map_in_galactic: bool = True,
@@ -269,17 +264,15 @@ def scan_map_in_observations(
     observations: Union[Observation, List[Observation]],
         List of Observation objects, containing detector names, pointings,
         and TOD data, to which the computed TOD are added.
-    maps : Union[np.ndarray, Dict[str, np.ndarray], List]
+    maps : Union[np.ndarray, Dict[str, np.ndarray]]
         Input maps. Typically one set per detector or per channel.
-    beam_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics], List]
-        Beam a_lm coefficients. Typically one set per detector.
     pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
         detector pointing information.
     hwp: Optional[HWP] = None.
         the HWP information. If `None`, the code assumes no hwp in pointings in
         passed, otherwise it uses the information stored in the Observation class
-    input_sky_alms_in_galactic: bool = True.
-        whether the input sky alms are in galactic coordinates.
+    input_map_in_galactic: bool = True.
+        whether the input maps are in galactic coordinates.
     component: str, default="tod".
         name of the TOD component to which the computed data shall be added
     interpolation: str, default="".
@@ -322,23 +315,20 @@ def scan_map_in_observations(
             obs_list = observations
             ptg_list = pointings
 
-    # Ensure `maps` is a list for iteration
-    maps_list = [maps] if isinstance(maps, (np.ndarray, dict)) else maps
-
-    for cur_obs, cur_ptg, curr_maps in zip(obs_list, ptg_list, maps_list):
-        if isinstance(curr_maps, dict):
-            if all(item in curr_maps.keys() for item in cur_obs.name):
+    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+        if isinstance(maps, dict):
+            if all(item in maps.keys() for item in cur_obs.name):
                 input_names = cur_obs.name
-            elif all(item in curr_maps.keys() for item in cur_obs.channel):
+            elif all(item in maps.keys() for item in cur_obs.channel):
                 input_names = cur_obs.channel
             else:
                 raise ValueError(
                     "The dictionary maps does not contain all the relevant"
                     + "keys, please check the list of detectors and channels"
                 )
-            if "Coordinates" in curr_maps.keys():
+            if "Coordinates" in maps.keys():
                 dict_input_map_in_galactic = (
-                    curr_maps["Coordinates"] is CoordinateSystem.Galactic
+                    maps["Coordinates"] is CoordinateSystem.Galactic
                 )
                 if dict_input_map_in_galactic != input_map_in_galactic:
                     logging.warning(
@@ -347,7 +337,7 @@ def scan_map_in_observations(
                     )
                 input_map_in_galactic = dict_input_map_in_galactic
         else:
-            assert isinstance(curr_maps, np.ndarray), (
+            assert isinstance(maps, np.ndarray), (
                 "maps must either a dictionary contaning keys for all the"
                 + "channels/detectors, or be a numpy array of dim (3 x Npix)"
             )
@@ -370,7 +360,7 @@ def scan_map_in_observations(
         scan_map(
             tod=getattr(cur_obs, component),
             pointings=cur_ptg,
-            maps=curr_maps,
+            maps=maps,
             pol_angle_detectors=cur_obs.pol_angle_rad,
             pol_eff_detectors=cur_obs.pol_efficiency,
             hwp_angle=hwp_angle,
