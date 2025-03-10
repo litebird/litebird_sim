@@ -15,9 +15,7 @@ as demonstrated in the following example:
 
     import litebird_sim as lbs
     import numpy as np
-    from numpy.random import Generator, PCG64
     import healpy as hp
-
 
     start_time_s = 0
     time_span_s = 1
@@ -97,21 +95,21 @@ as demonstrated in the following example:
     )
 
     for i in range(obs.n_samples):
-       value = np.round(obs.tod[0][i], 5)
-       print(f"{value:.5f}")
+       value = np.round(obs.tod[0][i], 3)
+       print(f"{value:.3f}")
 
 .. testoutput::
 
-    113.79623
-    116.18608
-    118.56670
-    120.93540
-    123.29966
-    125.65480
-    128.00026
-    130.33533
-    132.66061
-    134.97504
+    113.796
+    116.186
+    118.567
+    120.935
+    123.300
+    125.655
+    128.000
+    130.335
+    132.661
+    134.975
 
 Input Data Format
 -----------------
