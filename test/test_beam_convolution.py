@@ -5,6 +5,8 @@ import pytest
 
 import litebird_sim as lbs
 
+import healpy as hp
+
 STRICT_TYPES_TEST_FIELDS = (
     "tod_dtype, pointings_dtype, single_precision, strict_typing, expect_error"
 )
@@ -100,3 +102,118 @@ def test_beam_convolution_strict_types(
             lbs.add_convolved_sky(**arguments)
     else:
         lbs.add_convolved_sky(**arguments)
+
+
+def test_beam_convolution():
+    start_time = 0
+    time_span_s = 3600
+    nside_in = 256
+    sampling_hz = 1
+
+    net = 50.0
+
+    tolerance = 1e-5
+
+    lmax = 128
+    mmax = lmax - 4
+
+    fwhm_arcmin = 4.0 * 60
+
+    npix = lbs.nside_to_npix(nside_in)
+
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=12345
+    )
+
+    scanning = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=0.785_398_163_397_448_3,
+        precession_rate_hz=8.664_850_513_998_931e-05,
+        spin_rate_hz=0.000_833_333_333_333_333_4,
+        start_time=start_time,
+    )
+
+    spin2ecliptic_quats = scanning.generate_spin2ecl_quaternions(
+        start_time, time_span_s, delta_time_s=60
+    )
+
+    instr = lbs.InstrumentInfo(
+        boresight_rotangle_rad=0.0,
+        spin_boresight_angle_rad=0.872_664_625_997_164_8,
+        spin_rotangle_rad=3.141_592_653_589_793,
+    )
+
+    detT = lbs.DetectorInfo(
+        name="Boresight_detector_T",
+        sampling_rate_hz=sampling_hz,
+        fwhm_arcmin=fwhm_arcmin,
+        net_ukrts=net,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+        pol_angle_rad=0.0,
+    )
+
+    detB = lbs.DetectorInfo(
+        name="Boresight_detector_B",
+        sampling_rate_hz=sampling_hz,
+        fwhm_arcmin=fwhm_arcmin,
+        net_ukrts=net,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+        pol_angle_rad=np.pi / 2.0,
+    )
+
+    np.random.seed(seed=123_456_789)
+    inmaps = np.random.normal(0, 1, (3, npix))
+
+    maps = hp.smoothing(inmaps, fwhm=np.deg2rad(fwhm_arcmin / 60.0), pol=True)
+    alms = lbs.SphericalHarmonics(values=hp.map2alm(inmaps, lmax=lmax), lmax=lmax)
+
+    (obs1,) = sim.create_observations(detectors=[detT, detB], tod_dtype=np.float64)
+    (obs2,) = sim.create_observations(detectors=[detT, detB], tod_dtype=np.float64)
+
+    lbs.prepare_pointings(
+        obs1,
+        instr,
+        spin2ecliptic_quats,
+    )
+
+    lbs.prepare_pointings(
+        obs2,
+        instr,
+        spin2ecliptic_quats,
+    )
+
+    lbs.scan_map_in_observations(
+        observations=obs1,
+        maps=maps,
+        input_map_in_galactic=False,
+        interpolation="linear",
+    )
+
+    blms = lbs.generate_gauss_beam_alms(
+        observation=obs2,
+        lmax=lmax,
+        mmax=mmax,
+    )
+
+    Convparams = lbs.BeamConvolutionParameters(
+        lmax=lmax,
+        mmax=mmax,
+        single_precision=False,
+        epsilon=1e-5,
+    )
+
+    lbs.add_convolved_sky_to_observations(
+        observations=obs2,
+        sky_alms=alms,
+        beam_alms=blms,
+        input_sky_alms_in_galactic=False,
+        convolution_params=Convparams,
+    )
+
+    np.testing.assert_allclose(
+        obs1.tod,
+        obs2.tod,
+        rtol=tolerance,
+        atol=0.1,
+    )

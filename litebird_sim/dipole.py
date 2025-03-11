@@ -225,7 +225,10 @@ def add_dipole(
         if type(pointings) is np.ndarray:
             theta_phi_det = pointings[detector_idx, :, :]
         else:
-            theta_phi_det = pointings(detector_idx)[0][:, 0:2]
+            theta_phi_det = pointings(
+                detector_idx,
+                pointings_dtype=tod.dtype,
+            )[0][:, 0:2]
 
         add_dipole_for_one_detector(
             tod_det=tod[detector_idx],

@@ -263,7 +263,9 @@ def add_convolved_sky(
         if type(pointings) is np.ndarray:
             curr_pointings_det = pointings[detector_idx, :, :]
         else:
-            curr_pointings_det, hwp_angle = pointings(detector_idx)
+            curr_pointings_det, hwp_angle = pointings(
+                detector_idx, pointings_dtype=tod.dtype
+            )
 
         if input_sky_alms_in_galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
@@ -436,7 +438,13 @@ def add_convolved_sky_to_observations(
         # Handle HWP angles
         if hwp is None:
             if cur_obs.has_hwp:
-                hwp_angle = getattr(cur_obs, "hwp_angle", cur_obs.get_pointings()[1])
+                hwp_angle = getattr(
+                    cur_obs,
+                    "hwp_angle",
+                    cur_obs.get_pointings(
+                        pointings_dtype=getattr(cur_obs, component).dtype
+                    )[1],
+                )
             else:
                 assert all(
                     m is None for m in cur_obs.mueller_hwp

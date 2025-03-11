@@ -142,7 +142,9 @@ def scan_map(
         if type(pointings) is np.ndarray:
             curr_pointings_det = pointings[detector_idx, :, :]
         else:
-            curr_pointings_det, hwp_angle = pointings(detector_idx)
+            curr_pointings_det, hwp_angle = pointings(
+                detector_idx, pointings_dtype=tod.dtype
+            )
 
         if input_map_in_galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
