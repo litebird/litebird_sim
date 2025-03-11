@@ -3,9 +3,9 @@
 Scanning a map to fill a TOD
 ============================
 
-The framework provides :func:`.scan_map`, a routine which scans an
-input map accordingly to the scanning strategy and fills the detector
-timestreams. It implements three possible algebras:
+The framework provides the function :func:`.scan_map`, which scans an input map according 
+to the defined scanning strategy and fills the detector timestreams (TOD). 
+This function supports three different algebras:
 
 - No HWP:
 
@@ -37,7 +37,7 @@ where
     * :math:`R` is rotation matrix;
     * :math:`\vec{S}` is the Stokes vector.
 
-You can fill with signal an existing TOD by using the
+You can fill with signal the TODs of an existing observation by using the
 function :func:`.scan_map_in_observations`, as the following example
 shows:
 
@@ -122,7 +122,7 @@ shows:
     -0.00601
     -0.00676
 
-The code automatically selects the fastest algebra based on the provided HWP.
+The code automatically selects the most efficient algebra based on the HWP settings.
 
 The input maps to scan can be either included in a dictionary with the name of
 the channel or the name of the dectector as keyword (the routines described in

@@ -510,15 +510,17 @@ straightforward::
     sim.fill_tods(...)
     sim.add_noise(...)
 
+    sim.convolve_sky(...)
+
     result = sim.make_destriped_map(nside=nside)
     healpy.mollview(result.destriped_map)
 
     sim.write_observations(...)
     sim.read_observations(...)
 
-See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
-:ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`mapmaking` for 
-details of the single functions.
+See the documentation in :ref:`observations`, :ref:`scanning-strategy`, 
+:ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`beamconvolution`, 
+:ref:`mapmaking` for details of the single functions.
 
 
 Data splits
