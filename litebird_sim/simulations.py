@@ -1369,7 +1369,8 @@ class Simulation:
         solar_velocity_gal_lat_rad: float = constants.SOLAR_VELOCITY_GAL_LAT_RAD,
         solar_velocity_gal_lon_rad: float = constants.SOLAR_VELOCITY_GAL_LON_RAD,
     ):
-        """Computes the position and the velocity of the spacescraft for computing
+        """
+        Computes the position and the velocity of the spacescraft for computing
         the dipole.
         It wraps the :class:`.SpacecraftOrbit` and calls :meth:`.SpacecraftOrbit`.
         The parameters that can be modified are the sampling of position and velocity
@@ -1390,6 +1391,53 @@ class Simulation:
         )
 
     @_profile
+    def add_dipole(
+        self,
+        t_cmb_k: float = constants.T_CMB_K,
+        dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
+        component: str = "tod",
+        append_to_report: bool = True,
+    ):
+        """
+        Fills the tod with dipole.
+
+        It is a wrapper for the function :function:`.add_dipole_to_observations`
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.create_observations`, and the pointing
+        through :meth:`.prepare_pointings`.
+        """
+
+        if not hasattr(self, "pos_and_vel"):
+            self.compute_pos_and_vel()
+
+        add_dipole_to_observations(
+            observations=self.observations,
+            pos_and_vel=self.pos_and_vel,
+            t_cmb_k=t_cmb_k,
+            dipole_type=dipole_type,
+            component=component,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_dipole.md")
+
+            dip_lat_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lat_rad)
+            dip_lon_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lon_rad)
+            dip_velocity = self.pos_and_vel.orbit.solar_velocity_km_s
+
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                t_cmb_k=t_cmb_k,
+                dipole_type=dipole_type,
+                dip_lat_deg=dip_lat_deg,
+                dip_lon_deg=dip_lon_deg,
+                dip_velocity=dip_velocity,
+            )
+
+    @_profile
     def fill_tods(
         self,
         maps: Union[np.ndarray, Dict[str, np.ndarray]],
@@ -1398,12 +1446,16 @@ class Simulation:
         interpolation: Union[str, None] = "",
         append_to_report: bool = True,
     ):
-        """Fills the TODs, scanning a map.
+        """
+        Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
+        It is a wrapper for the function :function:`.scan_map_in_observations`
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, and the method
+        :meth:`.set_instrument` and :meth:`.create_observations`, and the method
         :meth:`.prepare_pointings`. maps is assumed to be produced by :class:`.Mbs`
+        or through :meth:`.get_sky`.
+
         """
 
         scan_map_in_observations(
@@ -1515,6 +1567,7 @@ class Simulation:
     ):
         """Fills the TODs, convolving a set of alms.
 
+        It is a wrapper for the function :function:`.add_convolved_sky_to_observations`
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`, and the method
@@ -1558,51 +1611,6 @@ class Simulation:
                     has_fg="N/A",
                     fg_model="N/A",
                 )
-
-    @_profile
-    def add_dipole(
-        self,
-        t_cmb_k: float = constants.T_CMB_K,
-        dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
-        component: str = "tod",
-        append_to_report: bool = True,
-    ):
-        """Fills the tod with dipole.
-
-        This method must be called after having set the scanning strategy, the
-        instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, and the pointing
-        through :meth:`.prepare_pointings`.
-        """
-
-        if not hasattr(self, "pos_and_vel"):
-            self.compute_pos_and_vel()
-
-        add_dipole_to_observations(
-            observations=self.observations,
-            pos_and_vel=self.pos_and_vel,
-            t_cmb_k=t_cmb_k,
-            dipole_type=dipole_type,
-            component=component,
-        )
-
-        if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_dipole.md")
-
-            dip_lat_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lat_rad)
-            dip_lon_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lon_rad)
-            dip_velocity = self.pos_and_vel.orbit.solar_velocity_km_s
-
-            with template_file_path.open("rt") as inpf:
-                markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
-                t_cmb_k=t_cmb_k,
-                dipole_type=dipole_type,
-                dip_lat_deg=dip_lat_deg,
-                dip_lon_deg=dip_lon_deg,
-                dip_velocity=dip_velocity,
-            )
 
     @_profile
     def add_2f(

@@ -113,7 +113,8 @@ def scan_map(
     input_map_in_galactic: bool = True,
     interpolation: Union[str, None] = "",
 ):
-    """Scan a map filling time-ordered data
+    """
+    Scan a sky map and fill time-ordered data (TOD) based on detector observations.
 
     This function modifies the values in `tod` by adding the contribution of the
     bolometric equation given a list of TQU maps `maps`. The `pointings` argument
@@ -125,6 +126,52 @@ def scan_map(
     False the input map is assumed in ecliptic coordinates, default galactic. The
     `interpolation` argument specifies the type of TOD interpolation ("" for no
     interpolation, "linear" for linear interpolation)
+
+    Parameters
+    ----------
+    tod : np.ndarray
+        Time-ordered data (TOD) array of shape (n_detectors, n_samples) that will be filled 
+        with the simulated sky signal.
+    pointings : np.ndarray or callable
+        Pointing information for each detector. If an array, it should have shape 
+        (n_detectors, n_samples, 2), where the last dimension contains (theta, phi) in radians.
+        If a callable, it should return pointing data when passed a detector index.
+    maps : dict of str -> np.ndarray
+        Dictionary containing Stokes parameter maps (T, Q, U) in Healpix format. The keys 
+        correspond to different sky components.
+    pol_angle_detectors : np.ndarray or None, default=None
+        Polarization angles of detectors in radians. If None, all angles are set to zero.
+    pol_eff_detectors : np.ndarray or None, default=None
+        Polarization efficiency of detectors. If None, all detectors have unit efficiency.
+    hwp_angle : np.ndarray or None, default=None
+        Half-wave plate (HWP) angles for each detector in radians. If None, HWP effects are 
+        ignored.
+    mueller_hwp : np.ndarray or None, default=None
+        Mueller matrices for the HWP. If None, a standard polarization response is used.
+    input_names : str or None, default=None
+        Names of the sky maps to use for each detector. If None, all detectors use the same map.
+    input_map_in_galactic : bool, default=True
+        Whether the input sky maps are provided in Galactic coordinates. If False, they are 
+        assumed to be in Ecliptic coordinates.
+    interpolation : str or None, default=""
+        Method for extracting values from the maps:
+        - "" (default): Nearest-neighbor interpolation.
+        - "linear": Linear interpolation using Healpix.
+
+    Raises
+    ------
+    ValueError
+        If an invalid interpolation method is provided.
+    AssertionError
+        If `tod` and `pointings` shapes are inconsistent.
+
+    Notes
+    -----
+    - The function modifies `tod` in place by adding the scanned sky signal.
+    - If `mueller_hwp` is provided, a full HWP Mueller matrix transformation is applied.
+    - Polarization angles are corrected based on telescope orientation and HWP effects.
+    - This function is crucial for simulating realistic observations in CMB and astrophysical 
+      experiments.
     """
 
     n_detectors = tod.shape[0]
@@ -229,7 +276,9 @@ def scan_map_in_observations(
     component: str = "tod",
     interpolation: Optional[str] = "",
 ):
-    """Scan a map filling time-ordered data
+    """
+
+    Scan a sky map and fill time-ordered data (TOD) for a set of observations.
 
     This is a wrapper around the :func:`.scan_map` function that applies to the TOD
     stored in `observations` and the pointings stored in `pointings`. The two types
@@ -261,25 +310,51 @@ def scan_map_in_observations(
         # in `observations.sky_tod`
         scan_map_in_observations(sim.observations, …, component="sky_tod")
 
-    Arguments
-    ---------
-    observations: Union[Observation, List[Observation]],
-        List of Observation objects, containing detector names, pointings,
-        and TOD data, to which the computed TOD are added.
-    maps : Union[np.ndarray, Dict[str, np.ndarray]]
-        Input maps. Typically one set per detector or per channel.
-    pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None
-        detector pointing information.
-    hwp: Optional[HWP] = None.
-        the HWP information. If `None`, the code assumes no hwp in pointings in
-        passed, otherwise it uses the information stored in the Observation class
-    input_map_in_galactic: bool = True.
-        whether the input maps are in galactic coordinates.
-    component: str, default="tod".
-        name of the TOD component to which the computed data shall be added
-    interpolation: str, default="".
-        use the healpy function get_interp_val when scanning the input map
-        for now only "linear" interpolation supported.
+    Parameters
+    ----------
+    observations : Observation or list of Observation
+        One or more `Observation` objects containing detector names, pointings, 
+        and TOD data, to which the computed sky signal will be added.
+    maps : np.ndarray or dict of str -> np.ndarray
+        Sky maps containing Stokes parameters (T, Q, U). If a dictionary, keys 
+        should match detector or channel names, and values should be arrays of shape (3, NPIX).
+        If a single array is provided, the same map is used for all detectors.
+    pointings : np.ndarray or list of np.ndarray, optional
+        Pointing matrices associated with the observations. If None, the function 
+        extracts pointing information from the `Observation` objects.
+    hwp : HWP, optional
+        Half-wave plate (HWP) model. If None, HWP effects are ignored unless 
+        the `Observation` object contains HWP data.
+    input_map_in_galactic : bool, default=True
+        Whether the input sky maps are provided in Galactic coordinates. If False, they 
+        are assumed to be in Ecliptic coordinates.
+    component : str, default="tod"
+        The TOD component in the `Observation` object where the computed signal will be stored.
+    interpolation : str, optional, default=""
+        Method for extracting values from the sky maps:
+        - "" (default): Nearest-neighbor interpolation.
+        - "linear": Linear interpolation using Healpix.
+
+    Raises
+    ------
+    ValueError
+        If the dictionary `maps` does not contain the required detector or channel keys.
+    AssertionError
+        If the number of observations and pointings do not match.
+        If `maps` is not a dictionary or a valid `(3, NPIX)` NumPy array.
+        If `tod` and `pointings` shapes are inconsistent.
+
+    Notes
+    -----
+    - This function modifies `observations` in place by adding the computed sky signal 
+      to the specified `component` field.
+    - If `maps` is a dictionary, its `Coordinates` key (if present) must match 
+      `input_map_in_galactic`, otherwise a warning is issued.
+    - If `pointings` is None, the function attempts to extract them from `Observation` objects.
+    - If an HWP model is provided, the function computes HWP angles and applies the 
+      corresponding Mueller matrices.
+    - This function supports both single observations and lists of observations, 
+      handling each one separately.
     """
 
     if pointings is None:
