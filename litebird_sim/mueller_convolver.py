@@ -15,7 +15,7 @@ def nalm(lmax, mmax):
 
 
 # Adri 2020 A25/A35
-# Conjugate by Yuya
+# Conjugate by YUya
 def mueller_to_C(mueller):
     T = np.zeros((4, 4), dtype=np.complex128)
     T[0, 0] = T[3, 3] = 1.0

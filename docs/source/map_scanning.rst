@@ -122,7 +122,7 @@ shows:
     -0.00601
     -0.00676
 
-The code automatically selects the most efficient algebra based on the HWP settings.
+The code automatically selects the fastest algebra based on the provided HWP.
 
 The input maps to scan can be either included in a dictionary with the name of
 the channel or the name of the dectector as keyword (the routines described in

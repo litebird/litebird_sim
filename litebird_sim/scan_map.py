@@ -129,28 +129,28 @@ def scan_map(
     Parameters
     ----------
     tod : np.ndarray
-        Time-ordered data (TOD) array of shape (n_detectors, n_samples) that will be filled
+        Time-ordered data (TOD) array of shape (n_detectors, n_samples) that will be filled 
         with the simulated sky signal.
     pointings : np.ndarray or callable
-        Pointing information for each detector. If an array, it should have shape
+        Pointing information for each detector. If an array, it should have shape 
         (n_detectors, n_samples, 2), where the last dimension contains (theta, phi) in radians.
         If a callable, it should return pointing data when passed a detector index.
     maps : dict of str -> np.ndarray
-        Dictionary containing Stokes parameter maps (T, Q, U) in Healpix format. The keys
+        Dictionary containing Stokes parameter maps (T, Q, U) in Healpix format. The keys 
         correspond to different sky components.
     pol_angle_detectors : np.ndarray or None, default=None
         Polarization angles of detectors in radians. If None, all angles are set to zero.
     pol_eff_detectors : np.ndarray or None, default=None
         Polarization efficiency of detectors. If None, all detectors have unit efficiency.
     hwp_angle : np.ndarray or None, default=None
-        Half-wave plate (HWP) angles for each detector in radians. If None, HWP effects are
+        Half-wave plate (HWP) angles for each detector in radians. If None, HWP effects are 
         ignored.
     mueller_hwp : np.ndarray or None, default=None
         Mueller matrices for the HWP. If None, a standard polarization response is used.
     input_names : str or None, default=None
         Names of the sky maps to use for each detector. If None, all detectors use the same map.
     input_map_in_galactic : bool, default=True
-        Whether the input sky maps are provided in Galactic coordinates. If False, they are
+        Whether the input sky maps are provided in Galactic coordinates. If False, they are 
         assumed to be in Ecliptic coordinates.
     interpolation : str or None, default=""
         Method for extracting values from the maps:
@@ -164,6 +164,13 @@ def scan_map(
     AssertionError
         If `tod` and `pointings` shapes are inconsistent.
 
+    Notes
+    -----
+    - The function modifies `tod` in place by adding the scanned sky signal.
+    - If `mueller_hwp` is provided, a full HWP Mueller matrix transformation is applied.
+    - Polarization angles are corrected based on telescope orientation and HWP effects.
+    - This function is crucial for simulating realistic observations in CMB and astrophysical 
+      experiments.
     """
 
     n_detectors = tod.shape[0]
@@ -304,20 +311,20 @@ def scan_map_in_observations(
     Parameters
     ----------
     observations : Observation or list of Observation
-        One or more `Observation` objects containing detector names, pointings,
+        One or more `Observation` objects containing detector names, pointings, 
         and TOD data, to which the computed sky signal will be added.
     maps : np.ndarray or dict of str -> np.ndarray
-        Sky maps containing Stokes parameters (T, Q, U). If a dictionary, keys
+        Sky maps containing Stokes parameters (T, Q, U). If a dictionary, keys 
         should match detector or channel names, and values should be arrays of shape (3, NPIX).
         If a single array is provided, the same map is used for all detectors.
     pointings : np.ndarray or list of np.ndarray, optional
-        Pointing matrices associated with the observations. If None, the function
+        Pointing matrices associated with the observations. If None, the function 
         extracts pointing information from the `Observation` objects.
     hwp : HWP, optional
-        Half-wave plate (HWP) model. If None, HWP effects are ignored unless
+        Half-wave plate (HWP) model. If None, HWP effects are ignored unless 
         the `Observation` object contains HWP data.
     input_map_in_galactic : bool, default=True
-        Whether the input sky maps are provided in Galactic coordinates. If False, they
+        Whether the input sky maps are provided in Galactic coordinates. If False, they 
         are assumed to be in Ecliptic coordinates.
     component : str, default="tod"
         The TOD component in the `Observation` object where the computed signal will be stored.
@@ -337,14 +344,14 @@ def scan_map_in_observations(
 
     Notes
     -----
-    - This function modifies `observations` in place by adding the computed sky signal
+    - This function modifies `observations` in place by adding the computed sky signal 
       to the specified `component` field.
-    - If `maps` is a dictionary, its `Coordinates` key (if present) must match
+    - If `maps` is a dictionary, its `Coordinates` key (if present) must match 
       `input_map_in_galactic`, otherwise a warning is issued.
     - If `pointings` is None, the function attempts to extract them from `Observation` objects.
-    - If an HWP model is provided, the function computes HWP angles and applies the
+    - If an HWP model is provided, the function computes HWP angles and applies the 
       corresponding Mueller matrices.
-    - This function supports both single observations and lists of observations,
+    - This function supports both single observations and lists of observations, 
       handling each one separately.
     """
 
