@@ -1,5 +1,7 @@
 # HEAD
 
+-   Make `@_profile` preserve docstrings [#371](https://github.com/litebird/litebird_sim/pull/371)
+
 # Version 0.14.0
 
 -   **Breaking change**: Bug in the 1/f noise generation has been corrected. Previously, the frequency array was miscalculated due to an incorrect factor of 2 in the sample spacing passed to the SciPy function fft.rfftfreq. [#362](https://github.com/litebird/litebird_sim/pull/362). 
