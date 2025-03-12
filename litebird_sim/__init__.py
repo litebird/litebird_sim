@@ -34,7 +34,7 @@ from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,
     ECL_TO_GAL_ROT_MATRIX,
-    CoordinateSystem,
+	    CoordinateSystem,
     coord_sys_to_healpix_string,
 )
 from .detectors import (

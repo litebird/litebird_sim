@@ -91,7 +91,6 @@ def scan_map_generic_hwp_for_one_detector(
         vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
         rot_matrix(rot_hwp, hwp_angle[i])
         rot_matrix(rot_tel, orientation_det[i])
-
         tod_det[i] += compute_signal_generic_hwp_for_one_sample(
             Stokes=vec_S,
             Vpol=polarimeter,
@@ -185,7 +184,6 @@ def scan_map(
             curr_pointings_det, hwp_angle = pointings(
                 detector_idx, pointings_dtype=tod.dtype
             )
-
         if input_map_in_galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 

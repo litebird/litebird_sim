@@ -3,9 +3,9 @@
 Scanning a map to fill a TOD
 ============================
 
-The framework provides the function :func:`.scan_map`, which scans an input map according 
-to the defined scanning strategy and fills the detector timestreams (TOD). 
-This function supports three different algebras:
+The framework provides :func:`.scan_map`, a routine which scans an
+input map accordingly to the scanning strategy and fills the detector
+timestreams. It implements three possible algebras:
 
 - No HWP:
 
@@ -14,7 +14,7 @@ This function supports three different algebras:
    :label: noHWP
 
 where :math:`\theta` is the polarization angle of the detecotor, :math:`\psi_t` 
-is the orientation of the detector at the time :math:`t`, and :math:`\gamma`
+is the orientation of the telescope at the time :math:`t`, and :math:`\gamma`
 is the polarization efficiency.
 
 - Ideal HWP:
@@ -37,7 +37,7 @@ where
     * :math:`R` is rotation matrix;
     * :math:`\vec{S}` is the Stokes vector.
 
-You can fill with signal the TODs of an existing observation by using the
+You can fill with signal an existing TOD by using the
 function :func:`.scan_map_in_observations`, as the following example
 shows:
 
