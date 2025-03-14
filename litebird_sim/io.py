@@ -42,10 +42,14 @@ __NUMPY_SCALAR_TYPES = __NUMPY_INT_TYPES + __NUMPY_FLOAT_TYPES
 
 
 __OBSERVATION_FILE_NAME_MASK = "litebird_tod{global_index:04d}.h5"
-
+__COMMANDER_FILE_NAME_MASK   = "litebird_{band:03i}_{global_index:06d}.h5"
 
 __FLAGS_GROUP_NAME_REGEXP = re.compile("flags_([0-9]+)")
 
+# File format definition strings
+__LITEBIRD  = 'LiteBIRD'
+__COMMANDER = 'commander'
+__MADAM     = 'madam'
 
 class DetectorJSONEncoder(json.JSONEncoder):
     def default(self, o):
@@ -165,6 +169,17 @@ def read_pointing_provider_from_hdf5(
         hwp=hwp,
     )
 
+def write_observation_commander(
+    output_file_name: str,
+    observations: Observation,
+
+    """Writes one observation as a commander3-compatible hdf5 file"""
+
+    #Writes this observation to a series of files
+    # probably has to assume all observations from the same band are in the same observation
+    print(Observation)
+
+    raise NotImplementedError("write_observation_commander is not implemented yet")
 
 def write_one_observation(
     output_file: h5py.File,
@@ -382,9 +397,11 @@ def write_list_of_observations(
     tod_fields: List[Union[str, TodDescription]] = [],
     gzip_compression: bool = False,
     write_full_pointings: bool = False,
+    file_format: str = __LITEBIRD,
 ) -> List[Path]:
     """
-    Save a list of observations in a set of HDF5 files
+    Save a list of observations in a set of HDF5 files. The format of the HDF5 
+    files is specified by the file_format string which can be either 'LiteBIRD',    or 'commander'
 
     This function takes one or more observations and saves the TODs in several
     HDF5 (each observation leads to *one* file), using `tod_dtype` and
@@ -502,22 +519,37 @@ def write_list_of_observations(
             cur_placeholders = custom_placeholders[obs_idx]
             params = dict(params, **cur_placeholders)
 
-        # Build the file name out of the template
-        file_name = path / file_name_mask.format(**params)
+        match file_format:
+            case __LITEBIRD:
+                # Build the file name out of the template
+                file_name = path / file_name_mask.format(**params)
 
-        # Write the HDF5 file
-        with h5py.File(file_name, "w") as output_file:
-            write_one_observation(
-                output_file=output_file,
-                observations=cur_obs,
-                tod_dtype=tod_dtype,
-                pointings_dtype=pointings_dtype,
-                global_index=params["global_index"],
-                local_index=params["local_index"],
-                tod_fields=tod_fields,
-                gzip_compression=gzip_compression,
-                write_full_pointings=write_full_pointings,
-            )
+                # Write the HDF5 file
+                with h5py.File(file_name, "w") as output_file:
+                    write_one_observation(
+                        output_file=output_file,
+                        observations=cur_obs,
+                        tod_dtype=tod_dtype,
+                        pointings_dtype=pointings_dtype,
+                        global_index=params["global_index"],
+                        local_index=params["local_index"],
+                        tod_fields=tod_fields,
+                        gzip_compression=gzip_compression,
+                        write_full_pointings=write_full_pointings,
+                    )
+            case __COMMANDER:
+                file_name = path / __COMMANDER_FILE_NAME_MASK
+
+                write_observation_commander(
+                    output_file_name=file_name,
+                    observations=cur_obs,
+                    )
+
+            case __MADAM:
+                raise NotImplementedError('Exporting madam-compatible hdf5 files is not supported. Please look at save_simulation_for_madam() instead.')
+
+            case _:
+                raise ValueError('Unknown output file format: ' + file_format)
 
         file_list.append(file_name)
 
