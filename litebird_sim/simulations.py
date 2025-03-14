@@ -1103,7 +1103,11 @@ class Simulation:
         numba_num_of_threads_all = []  # type: list[int]
 
         for obs in self.observations:
-            cur_det_names = list(obs.name)
+            try:
+                cur_det_names = list(obs.name)
+            except TypeError:
+                # This observation has no `.name` field, so it is empty
+                cur_det_names = ["<empty>"]
 
             shapes = [
                 tuple(getattr(obs, cur_tod.name).shape) for cur_tod in self.tod_list
