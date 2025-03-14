@@ -141,9 +141,6 @@ class DetectorInfo:
 
         - mueller_hwp (Union[None, np.ndarray]): mueller matrix of the HWP.
              The default is None (i.e. no HWP)
-
-
-
     """
 
     name: str = ""
