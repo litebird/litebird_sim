@@ -1,11 +1,16 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
-
 from tempfile import TemporaryDirectory
 
-import numpy as np
 import astropy.time as astrotime
+import numpy as np
+
 import litebird_sim as lbs
+
+
+# Do *not* call pytest on these tests! Some of them accept a path as argument,
+# and PyTest will pass a different path for each MPI process. This is *wrong*,
+# as some of these tests assume that all the MPI processes get the same path!
 
 
 def test_observation_time():
@@ -503,6 +508,142 @@ def test_simulation_random():
         assert state3["state"]["state"] != state4["state"]["state"]
 
 
+def test_empty_observations(tmp_path):
+    """
+    Check that when there are empty observations the code still runs
+    """
+    comm = lbs.MPI_COMM_WORLD
+
+    if comm.size != 3:
+        # This test is meant to be run with 3 processes
+        return
+
+    ### Mission params
+    telescope = "LFT"
+    channel = "L4-140"
+    detector_list = [
+        "000_005_027_UA_140_B",
+        "000_005_027_UA_140_T",
+    ]
+    mission_time_days = 10
+    detector_sampling_freq = 1
+
+    ### Simulation params
+    imo_version = "vPTEP"
+    base_path = "mwe"
+    nside = 16
+
+    imo = lbs.Imo()
+
+    # Simulation initialization
+    sim = lbs.Simulation(
+        base_path=base_path,
+        start_time=0.0,
+        duration_s=mission_time_days * 24 * 60.0,
+        random_seed=5455,
+        mpi_comm=comm,
+        imo=imo,
+    )
+
+    # Instrument definition
+    sim.set_instrument(
+        lbs.InstrumentInfo.from_imo(
+            imo,
+            f"/releases/{imo_version}/satellite/{telescope}/instrument_info",
+        )
+    )
+
+    # Detector list
+    dets = []
+    for n_det in detector_list:
+        det = lbs.DetectorInfo.from_imo(
+            url=f"/releases/{imo_version}/satellite/{telescope}/{channel}/{n_det}/detector_info",
+            imo=imo,
+        )
+        det.sampling_rate_hz = detector_sampling_freq
+        dets.append(det)
+
+    # Scanning strategy
+    sim.set_scanning_strategy(
+        scanning_strategy=lbs.SpinningScanningStrategy.from_imo(
+            imo=imo,
+            url=f"/releases/{imo_version}/satellite/scanning_parameters",
+        ),
+    )
+
+    # Create observations. Note that we require 3 observations per detector but
+    # 2 detector blocks
+    sim.create_observations(
+        detectors=dets,
+        num_of_obs_per_detector=3,
+        n_blocks_det=2,
+        n_blocks_time=1,
+        split_list_over_processes=False,
+    )
+    distr = sim.describe_mpi_distribution()
+
+    # Be sure that printing the MPI distribution does not make the code crash
+    if lbs.MPI_COMM_WORLD.rank == 0:
+        print(distr)
+
+    # Of the three processes, the last one should not be included in the MPI grid
+    if comm.rank == 0:
+        assert lbs.MPI_COMM_GRID.is_this_process_in_grid()
+    elif comm.rank == 1:
+        assert lbs.MPI_COMM_GRID.is_this_process_in_grid()
+    elif comm.rank == 2:
+        assert not lbs.MPI_COMM_GRID.is_this_process_in_grid()
+
+    # Compute pointings
+    sim.prepare_pointings()
+
+    # Channel info
+    ch_info = []
+    n_ch_info = lbs.FreqChannelInfo.from_imo(
+        imo,
+        f"/releases/{imo_version}/satellite/{telescope}/{channel}/channel_info",
+    )
+    ch_info.append(n_ch_info)
+
+    # CMB map
+    Mbsparams = lbs.MbsParameters(
+        make_cmb=True,
+        make_fg=False,
+        seed_cmb=1,
+        gaussian_smooth=True,
+        bandpass_int=False,
+        nside=nside,
+        units="uK_CMB",
+        maps_in_ecliptic=False,
+        output_string="mbs_cmb_lens",
+    )
+
+    mbs_obj = lbs.Mbs(
+        simulation=sim,
+        parameters=Mbsparams,
+        channel_list=ch_info,
+    )
+
+    if comm.rank == 0:
+        input_maps = mbs_obj.run_all()
+    else:
+        input_maps = None
+
+    input_maps = lbs.MPI_COMM_WORLD.bcast(input_maps, 0)
+
+    # Scanning the sky
+    lbs.scan_map_in_observations(
+        sim.observations, maps=input_maps[0][channel], input_map_in_galactic=True
+    )
+
+    binned_maps = sim.make_binned_map(nside)
+
+    if comm.rank != 2:
+        assert binned_maps is not None
+    else:
+        assert binned_maps is None
+
+
 if __name__ == "__main__":
     test_observation_time()
     test_construction_from_detectors()
@@ -512,27 +653,28 @@ if __name__ == "__main__":
     test_observation_tod_set_blocks()
     test_simulation_random()
 
-    # It's critical that all MPI processes use the same output directory
-    if lbs.MPI_ENABLED:
-        if lbs.MPI_COMM_WORLD.rank == 0:
+    for cur_test_fn in [test_write_hdf5_mpi, test_empty_observations]:
+        # It's critical that all MPI processes use the same output directory
+        if lbs.MPI_ENABLED:
+            if lbs.MPI_COMM_WORLD.rank == 0:
+                tmp_dir = TemporaryDirectory()
+                tmp_path = tmp_dir.name
+                lbs.MPI_COMM_WORLD.bcast(tmp_path, root=0)
+            else:
+                tmp_dir = None
+                tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
+        else:
             tmp_dir = TemporaryDirectory()
             tmp_path = tmp_dir.name
-            lbs.MPI_COMM_WORLD.bcast(tmp_path, root=0)
-        else:
-            tmp_dir = None
-            tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
-    else:
-        tmp_dir = TemporaryDirectory()
-        tmp_path = tmp_dir.name
 
-    try:
-        test_write_hdf5_mpi(tmp_path)
-    finally:
-        # Now we can remove the temporary directory, but first make
-        # sure that there are no other MPI processes still waiting to
-        # finish
-        if lbs.MPI_ENABLED:
-            lbs.MPI_COMM_WORLD.barrier()
+        try:
+            cur_test_fn(tmp_path)
+        finally:
+            # Now we can remove the temporary directory, but first make
+            # sure that there are no other MPI processes still waiting to
+            # finish
+            if lbs.MPI_ENABLED:
+                lbs.MPI_COMM_WORLD.barrier()
 
-        if tmp_dir:
-            tmp_dir.cleanup()
+            if tmp_dir:
+                tmp_dir.cleanup()

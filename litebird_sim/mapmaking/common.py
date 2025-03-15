@@ -1,15 +1,14 @@
 from dataclasses import dataclass
 from typing import Union, List, Tuple, Callable
+
+import astropy.time
 import numpy as np
 import numpy.typing as npt
-from numba import njit
-import astropy.time
-
 from ducc0.healpix import Healpix_Base
+from numba import njit
 
 from litebird_sim.coordinates import CoordinateSystem, rotate_coordinates_e2g
 from litebird_sim.observations import Observation
-
 
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not
