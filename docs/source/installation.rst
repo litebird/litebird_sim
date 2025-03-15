@@ -66,6 +66,9 @@ for this.
    # Clone the code locally
    git clone https://github.com/litebird/litebird_sim litebird_sim
 
+   # If you are running Poetry 2.0 or above, run this to install the `export` plugin
+   pip install poetry-plugin-export
+
    # Generate requirements.txt and install all the dependencies
    poetry export --without-hashes $EXTRAS -o requirements.txt
    pip install --upgrade pip
