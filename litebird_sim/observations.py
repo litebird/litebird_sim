@@ -686,7 +686,7 @@ class Observation:
         ):  # The process does not own any detector (and TOD)
             null_det = DetectorInfo()
             attribute = getattr(null_det, name, None)
-            value = 0 if isinstance(attribute, numbers.Number) else None
+            value = np.array([0]) if isinstance(attribute, numbers.Number) else [None]
             setattr(self, name, value)
             return
 
