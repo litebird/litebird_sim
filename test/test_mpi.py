@@ -686,14 +686,4 @@ if __name__ == "__main__":
             tmp_dir = TemporaryDirectory()
             tmp_path = tmp_dir.name
 
-        try:
-            cur_test_fn(tmp_path)
-        finally:
-            # Now we can remove the temporary directory, but first make
-            # sure that there are no other MPI processes still waiting to
-            # finish
-            if lbs.MPI_ENABLED:
-                lbs.MPI_COMM_WORLD.barrier()
-
-            if tmp_dir:
-                tmp_dir.cleanup()
+        cur_test_fn(tmp_path)
