@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
 from tempfile import TemporaryDirectory
-import pytest
 
 import astropy.time as astrotime
 import numpy as np
@@ -9,7 +8,7 @@ import numpy as np
 import litebird_sim as lbs
 
 
-# Do *not* call pytest on these tests! Some of them accept a path as argument,
+# Do *not* call pytest on these tests! Some of them accept a path as an argument,
 # and PyTest will pass a different path for each MPI process. This is *wrong*,
 # as some of these tests assume that all the MPI processes get the same path!
 
@@ -509,8 +508,7 @@ def test_simulation_random():
         assert state3["state"]["state"] != state4["state"]["state"]
 
 
-@pytest.mark.parametrize("use_hwp", [False, True])
-def test_empty_observations(tmp_path, use_hwp):
+def _test_empty_observations(tmp_path, use_hwp):
     """
     Check that when there are empty observations the code still runs
     """
@@ -658,6 +656,11 @@ def test_empty_observations(tmp_path, use_hwp):
         assert destriped_maps is None
 
     sim.flush()
+
+
+def test_empty_observations(tmp_path):
+    for use_hwp in [True, False]:
+        _test_empty_observations(tmp_path, use_hwp)
 
 
 if __name__ == "__main__":
