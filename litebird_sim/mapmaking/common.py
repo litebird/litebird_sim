@@ -1,15 +1,15 @@
 from dataclasses import dataclass
 from typing import Union, List, Tuple, Callable
+
+import astropy.time
 import numpy as np
 import numpy.typing as npt
-from numba import njit
-import astropy.time
-
 from ducc0.healpix import Healpix_Base
+from numba import njit
 
 from litebird_sim.coordinates import CoordinateSystem, rotate_coordinates_e2g
 from litebird_sim.observations import Observation
-
+from litebird_sim.mpi import MPI_COMM_GRID
 
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not
@@ -108,7 +108,7 @@ def get_map_making_weights(
     except AttributeError:
         weights = np.ones(observations.n_detectors)
 
-    if check:
+    if check and MPI_COMM_GRID.is_this_process_in_grid():
         # Check that there are no weird weights
         assert np.all(
             np.isfinite(weights)
