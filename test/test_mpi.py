@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
 from tempfile import TemporaryDirectory
+import pytest
 
 import astropy.time as astrotime
 import numpy as np
@@ -508,7 +509,8 @@ def test_simulation_random():
         assert state3["state"]["state"] != state4["state"]["state"]
 
 
-def test_empty_observations(tmp_path):
+@pytest.mark.parametrize("use_hwp", [False, True])
+def test_empty_observations(tmp_path, use_hwp):
     """
     Check that when there are empty observations the code still runs
     """
@@ -539,7 +541,7 @@ def test_empty_observations(tmp_path):
     sim = lbs.Simulation(
         base_path=base_path,
         start_time=0.0,
-        duration_s=mission_time_days * 24 * 60.0,
+        duration_s=mission_time_days * 24 * 60 * 60.0,
         random_seed=5455,
         mpi_comm=comm,
         imo=imo,
@@ -570,6 +572,14 @@ def test_empty_observations(tmp_path):
             url=f"/releases/{imo_version}/satellite/scanning_parameters",
         ),
     )
+
+    if use_hwp:
+        # Ideal Half-wave plate
+        sim.set_hwp(
+            lbs.IdealHWP(
+                sim.instrument.hwp_rpm * 2 * np.pi / 60,
+            ),
+        )
 
     # Create observations. Note that we require 3 observations per detector but
     # 2 detector blocks
