@@ -48,9 +48,14 @@ def prepare_pointings(
         for cur_obs in obs_list:
             cur_obs.has_hwp = False
     else:
-        for idet in cur_obs.det_idx:
-            if cur_obs.mueller_hwp[idet] is None:
-                cur_obs.mueller_hwp[idet] = hwp.mueller
+        if cur_obs.det_idx is not None:
+            if cur_obs.no_mueller_hwp():
+                cur_obs.mueller_hwp = [hwp.mueller for i in cur_obs.det_idx]
+            else:
+                for idet in list(cur_obs.det_idx):
+                    if cur_obs.mueller_hwp[idet] is None:
+                        cur_obs.mueller_hwp[idet] = hwp.mueller
+
         for cur_obs in obs_list:
             cur_obs.has_hwp = True
 
