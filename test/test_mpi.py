@@ -1,5 +1,7 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
+
+from io import StringIO
 from tempfile import TemporaryDirectory
 
 import astropy.time as astrotime
@@ -84,7 +86,8 @@ def test_construction_from_detectors():
     comm_world = lbs.MPI_COMM_WORLD
 
     if comm_world.rank == 0:
-        print(f"MPI configuration: {lbs.MPI_CONFIGURATION}")
+        tmpbuf = StringIO()
+        print(f"MPI configuration: {lbs.MPI_CONFIGURATION}", file=tmpbuf)
 
     det1 = dict(
         name="pol01",
@@ -592,7 +595,8 @@ def _test_empty_observations(tmp_path, use_hwp):
 
     # Be sure that printing the MPI distribution does not make the code crash
     if lbs.MPI_COMM_WORLD.rank == 0:
-        print(distr)
+        tmpdest = StringIO()
+        print(distr, file=tmpdest)
 
     # Of the three processes, the last one should not be included in the MPI grid
     if comm.rank == 0:
