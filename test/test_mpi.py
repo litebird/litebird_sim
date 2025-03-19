@@ -638,10 +638,16 @@ def test_empty_observations(tmp_path):
 
     binned_maps = sim.make_binned_map(nside)
 
+    destriped_maps = sim.make_destriped_map(nside)
+
     if comm.rank != 2:
         assert binned_maps is not None
+        assert destriped_maps is not None
     else:
         assert binned_maps is None
+        assert destriped_maps is None
+
+    sim.flush()
 
 
 if __name__ == "__main__":

@@ -1566,6 +1566,9 @@ def make_destriped_map(
     """
     elapsed_time_s = time.monotonic()
 
+    if not MPI_COMM_GRID.is_this_process_in_grid():
+        return None
+
     if not components:
         components = ["tod"]
 

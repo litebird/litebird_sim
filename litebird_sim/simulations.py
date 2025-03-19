@@ -1816,7 +1816,7 @@ class Simulation:
                         baselines = result.baselines
                         recycled_convergence = result.converged
 
-                    if append_to_report:
+                    if append_to_report and MPI_COMM_GRID.is_this_process_in_grid():
                         self._build_and_append_destriped_report(
                             "report_destriper_splits.md", ts, ds, result
                         )
@@ -1825,12 +1825,14 @@ class Simulation:
                     base_file = (
                         f"DET{ds}_TIME{ts}_baselines_mpi{MPI_COMM_WORLD.rank:04d}.fits"
                     )
-                    save_destriper_results(
-                        result,
-                        output_folder=self.base_path,
-                        custom_dest_file=dest_file,
-                        custom_base_file=base_file,
-                    )
+
+                    if MPI_COMM_GRID.is_this_process_in_grid():
+                        save_destriper_results(
+                            result,
+                            output_folder=self.base_path,
+                            custom_dest_file=dest_file,
+                            custom_base_file=base_file,
+                        )
                     filenames.append((dest_file, base_file))
             del baselines
             return filenames
@@ -1860,7 +1862,7 @@ class Simulation:
                         baselines = destriped_maps[f"{ds}_{ts}"].baselines
                         recycled_convergence = destriped_maps[f"{ds}_{ts}"].converged
 
-                    if append_to_report:
+                    if append_to_report and MPI_COMM_GRID.is_this_process_in_grid():
                         self._build_and_append_destriped_report(
                             "report_destriper_splits.md",
                             ts,
@@ -1913,7 +1915,7 @@ class Simulation:
             callback_kwargs=callback_kwargs,
         )
 
-        if append_to_report:
+        if append_to_report and MPI_COMM_GRID.is_this_process_in_grid():
             self._build_and_append_destriped_report(
                 "report_destriper.md", detector_split, time_split, results
             )
