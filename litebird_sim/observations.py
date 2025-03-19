@@ -698,12 +698,11 @@ class Observation:
             setattr(self, name, info)
             return
 
-        if (
-            MPI_COMM_GRID.COMM_OBS_GRID == MPI_COMM_GRID.COMM_NULL
-        ):  # The process does not own any detector (and TOD)
+        if not MPI_COMM_GRID.is_this_process_in_grid():
+            # The process does not own any detector (and TOD)
             null_det = DetectorInfo()
             attribute = getattr(null_det, name, None)
-            value = 0 if isinstance(attribute, numbers.Number) else None
+            value = np.array([0]) if isinstance(attribute, numbers.Number) else None
             setattr(self, name, value)
             return
 
