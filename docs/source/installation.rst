@@ -44,22 +44,40 @@ A similar procedure can be used with conda:
    pip install litebird_sim
 
 
-Hacking litebird_sim
---------------------
+Hacking LBS
+-----------
 
-To develop ``litebird_sim``, you can create an enviroment, as described
-above, then checkout and install a local copy of the framework.
+If you plan to work on the source code of LBS, you should clone the
+repository and create a virtual environment for it. The virtual
+environment must be prepared by installing all the packages needed by
+LBS; we use `Poetry <https://python-poetry.org/docs/basic-usage/>`_
+for this.
 
 .. code-block:: text
 
-   # Create a virtual environment and activate it
-   virtualenv my_venv && . my_venv/bin/activate
+   # Create a virtual environment with
+   virtualenv lbs_env
+   # or with
+   python3 -m venv lbs_env
 
-   # First clone the code
+   # Activate the environment
+   . lbs_env/bin/activate
+
+   # Clone the code locally
    git clone https://github.com/litebird/litebird_sim litebird_sim
 
-   # Then install it with pip
-   cd litebird_sim && pip install .
+   # If you are running Poetry 2.0 or above, run this to install the `export` plugin
+   pip install poetry-plugin-export
+
+   # Generate requirements.txt and install all the dependencies
+   poetry export --without-hashes $EXTRAS -o requirements.txt
+   pip install --upgrade pip
+   pip install -r requirements.txt
+
+Note that these commands will *not* make ``litebird_sim`` available in
+the virtual environment: you can run ``import litebird_sim`` only
+within the main folder of the Git repository. (This is the typical use
+case for people developing LBS.)
 
 
 Run code validators

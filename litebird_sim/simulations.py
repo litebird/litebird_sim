@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 
 import codecs
+import functools
 import json
 import logging as log
 import os
@@ -250,6 +251,7 @@ def _profile(function):
     :class:`.Simulation`.
     """
 
+    @functools.wraps(function)
     def profile_wrapper(*args, **kwargs):
         self = args[0]
 

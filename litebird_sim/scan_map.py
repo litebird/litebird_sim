@@ -75,7 +75,7 @@ def scan_map_generic_hwp_for_one_detector(
     input_T,
     input_Q,
     input_U,
-    orientation_det,
+    orientation_telescope,
     pol_angle_det,
     pol_eff_det,
     hwp_angle,
@@ -90,7 +90,8 @@ def scan_map_generic_hwp_for_one_detector(
     for i in range(len(tod_det)):
         vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
         rot_matrix(rot_hwp, hwp_angle[i])
-        rot_matrix(rot_tel, orientation_det[i])
+        rot_matrix(rot_tel, orientation_telescope[i])
+
         tod_det[i] += compute_signal_generic_hwp_for_one_sample(
             Stokes=vec_S,
             Vpol=polarimeter,
@@ -257,7 +258,7 @@ def scan_map(
                 input_T=input_T,
                 input_Q=input_Q,
                 input_U=input_U,
-                orientation_det=curr_pointings_det[:, 2],
+                orientation_telescope=curr_pointings_det[:, 2],
                 pol_angle_det=pol_angle_detectors[detector_idx],
                 pol_eff_det=pol_eff_detectors[detector_idx],
                 hwp_angle=hwp_angle,
@@ -420,11 +421,15 @@ def scan_map_in_observations(
 
         if hwp is None:
             if cur_obs.has_hwp:
-                hwp_angle = getattr(cur_obs, "hwp_angle", cur_obs.get_pointings()[1])
+                if hasattr(cur_obs, "hwp_angle"):
+                    hwp_angle = cur_obs.hwp_angle
+                else:
+                    hwp_angle = cur_obs.get_pointings()[1]
             else:
-                assert all(
-                    m is None for m in cur_obs.mueller_hwp
-                ), "Detectors have mueller_hwp, but no HWP provided."
+                assert all(m is None for m in cur_obs.mueller_hwp), (
+                    "Detectors have been initialized with a mueller_hwp,"
+                    "but no HWP is either passed or initilized in the pointing"
+                )
                 hwp_angle = None
         else:
             if isinstance(cur_ptg, np.ndarray):
