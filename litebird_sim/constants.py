@@ -1,6 +1,9 @@
 # -*- encoding: utf-8 -*-
+import numpy as np
 from astropy.constants import c as c_light
 from astropy.constants import h, k_B
+
+ARCMIN_TO_RAD = np.pi / 180 / 60
 
 C_LIGHT_KM_S = c_light.value / 1e3
 H_OVER_K_B = h.value / k_B.value

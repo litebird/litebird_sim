@@ -53,8 +53,15 @@ from .observations import Observation, TodDescription
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
+from .beam_convolution import (
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
+from .spherical_harmonics import SphericalHarmonics
+from .beam_synthesis import generate_gauss_beam_alms
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
+from .mbs import Mbs, MbsParameters
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -1364,7 +1371,8 @@ class Simulation:
         solar_velocity_gal_lat_rad: float = constants.SOLAR_VELOCITY_GAL_LAT_RAD,
         solar_velocity_gal_lon_rad: float = constants.SOLAR_VELOCITY_GAL_LON_RAD,
     ):
-        """Computes the position and the velocity of the spacescraft for computing
+        """
+        Computes the position and the velocity of the spacescraft for computing
         the dipole.
         It wraps the :class:`.SpacecraftOrbit` and calls :meth:`.SpacecraftOrbit`.
         The parameters that can be modified are the sampling of position and velocity
@@ -1385,20 +1393,71 @@ class Simulation:
         )
 
     @_profile
+    def add_dipole(
+        self,
+        t_cmb_k: float = constants.T_CMB_K,
+        dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
+        component: str = "tod",
+        append_to_report: bool = True,
+    ):
+        """
+        Fills the tod with dipole.
+
+        It is a wrapper for the function :function:`.add_dipole_to_observations`
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.create_observations`, and the pointing
+        through :meth:`.prepare_pointings`.
+        """
+
+        if not hasattr(self, "pos_and_vel"):
+            self.compute_pos_and_vel()
+
+        add_dipole_to_observations(
+            observations=self.observations,
+            pos_and_vel=self.pos_and_vel,
+            t_cmb_k=t_cmb_k,
+            dipole_type=dipole_type,
+            component=component,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_dipole.md")
+
+            dip_lat_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lat_rad)
+            dip_lon_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lon_rad)
+            dip_velocity = self.pos_and_vel.orbit.solar_velocity_km_s
+
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                t_cmb_k=t_cmb_k,
+                dipole_type=dipole_type,
+                dip_lat_deg=dip_lat_deg,
+                dip_lon_deg=dip_lon_deg,
+                dip_velocity=dip_velocity,
+            )
+
+    @_profile
     def fill_tods(
         self,
-        maps: Dict[str, np.ndarray],
+        maps: Union[np.ndarray, Dict[str, np.ndarray]],
         input_map_in_galactic: bool = True,
         component: str = "tod",
         interpolation: Union[str, None] = "",
         append_to_report: bool = True,
     ):
-        """Fills the TODs, scanning a map.
+        """
+        Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
+        It is a wrapper for the function :function:`.scan_map_in_observations`
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, and the method
+        :meth:`.set_instrument` and :meth:`.create_observations`, and the method
         :meth:`.prepare_pointings`. maps is assumed to be produced by :class:`.Mbs`
+        or through :meth:`.get_sky`.
+
         """
 
         scan_map_in_observations(
@@ -1438,49 +1497,122 @@ class Simulation:
                 )
 
     @_profile
-    def add_dipole(
-        self,
-        t_cmb_k: float = constants.T_CMB_K,
-        dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
-        component: str = "tod",
-        append_to_report: bool = True,
-    ):
-        """Fills the tod with dipole.
+    def get_gauss_beam_alms(self, lmax: int, mmax: Optional[int] = None):
+        """
+        Compute Gaussian beam spherical harmonic coefficients.
 
-        This method must be called after having set the scanning strategy, the
-        instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, and the pointing
-        through :meth:`.prepare_pointings`.
+        This function synthesizes beam `a_lm` coefficients from the information
+        stored in the detectors list.
+
+        Parameters:
+        -----------
+        lmax : int
+            Maximum multipole moment.
+        mmax : Optional[int], default=None
+            Maximum azimuthal multipole moment. Defaults to `lmax` if None.
+
+        Returns:
+        --------
+        Dictionary
+            A dictionary containing beam `a_lm` values per detector.
         """
 
-        if not hasattr(self, "pos_and_vel"):
-            self.compute_pos_and_vel()
+        if not self.observations:
+            raise ValueError("No observations available to generate sky maps.")
 
-        add_dipole_to_observations(
+        return generate_gauss_beam_alms(self.observations[0], lmax, mmax)
+
+    @_profile
+    def get_sky(
+        self,
+        parameters: MbsParameters,
+    ):
+        """
+        Generates sky maps for the observations using the provided parameters.
+
+        Args:
+            parameters (MbsParameters): Configuration parameters for the Mbs simulation.
+
+        Returns:
+            Dict: A dictionary containing sky maps values per detector.
+        """
+
+        if parameters.seed_cmb is None:
+            log.warning(
+                "seed_cmb is None. This could lead to unexpected behavior in MPI jobs."
+            )
+
+        if not self.observations:
+            raise ValueError("No observations available to generate sky maps.")
+
+        detector_names = set(self.observations[0].name)
+        detector_list = [det for det in self.detectors if det.name in detector_names]
+
+        mbs = Mbs(
+            simulation=self,
+            parameters=parameters,
+            detector_list=detector_list,
+        )
+
+        return mbs.run_all()[0]
+
+    @_profile
+    def convolve_sky(
+        self,
+        sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
+        beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
+        input_sky_alms_in_galactic: bool = True,
+        convolution_params: Optional[BeamConvolutionParameters] = None,
+        component: str = "tod",
+        append_to_report: bool = True,
+        nthreads: Union[int, None] = None,
+    ):
+        """Fills the TODs, convolving a set of alms.
+
+        It is a wrapper for the function :function:`.add_convolved_sky_to_observations`
+        This method must be called after having set the scanning strategy, the
+        instrument, the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`, and the method
+        :meth:`.prepare_pointings`. alms are assumed to be produced by :class:`.Mbs`
+        """
+
+        if nthreads is None:
+            nthreads = self.numba_threads
+
+        add_convolved_sky_to_observations(
             observations=self.observations,
-            pos_and_vel=self.pos_and_vel,
-            t_cmb_k=t_cmb_k,
-            dipole_type=dipole_type,
+            sky_alms=sky_alms,
+            beam_alms=beam_alms,
+            input_sky_alms_in_galactic=input_sky_alms_in_galactic,
             component=component,
+            convolution_params=convolution_params,
+            nthreads=nthreads,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_dipole.md")
-
-            dip_lat_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lat_rad)
-            dip_lon_deg = np.rad2deg(self.pos_and_vel.orbit.solar_velocity_gal_lon_rad)
-            dip_velocity = self.pos_and_vel.orbit.solar_velocity_km_s
-
+            template_file_path = get_template_file_path("report_convolve_sky.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
-            self.append_to_report(
-                markdown_template,
-                t_cmb_k=t_cmb_k,
-                dipole_type=dipole_type,
-                dip_lat_deg=dip_lat_deg,
-                dip_lon_deg=dip_lon_deg,
-                dip_velocity=dip_velocity,
-            )
+            if isinstance(sky_alms, dict):
+                if "Mbs_parameters" in sky_alms.keys():
+                    if sky_alms["Mbs_parameters"].make_fg:
+                        fg_model = sky_alms["Mbs_parameters"].fg_models
+                    else:
+                        fg_model = "N/A"
+
+                    self.append_to_report(
+                        markdown_template,
+                        has_cmb=sky_alms["Mbs_parameters"].make_cmb,
+                        has_fg=sky_alms["Mbs_parameters"].make_fg,
+                        fg_model=fg_model,
+                    )
+            else:
+                self.append_to_report(
+                    markdown_template,
+                    has_cmb="N/A",
+                    has_fg="N/A",
+                    fg_model="N/A",
+                )
 
     @_profile
     def add_2f(

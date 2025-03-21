@@ -176,7 +176,7 @@ def test_freq_channel_from_imo():
     assert det.channel == "65 GHz"
     assert det.sampling_rate_hz == 12.0
     assert det.fwhm_arcmin == 58.0
-    assert det.ellipticity == 0.0
+    assert det.ellipticity == 1.0
     assert det.net_ukrts == 300.0
     assert det.fknee_mhz == 25.0
     assert det.fmin_hz == 1.0

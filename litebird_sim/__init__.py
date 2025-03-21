@@ -14,6 +14,18 @@ from litebird_sim.mapmaking import (
     ExternalDestriperParameters,
 )
 from .bandpasses import BandPassInfo
+from .beam_convolution import (
+    add_convolved_sky_to_one_detector,
+    add_convolved_sky,
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
+from .beam_synthesis import (
+    alm_index,
+    allocate_alm,
+    gauss_beam_to_alm,
+    generate_gauss_beam_alms,
+)
 from .compress import (
     rle_compress,
     rle_decompress,
@@ -55,7 +67,6 @@ from .hwp import (
     IdealHWP,
     read_hwp_from_hdf5,
 )
-from .hwp_diff_emiss import add_2f, add_2f_to_observations
 from .hwp_sys.hwp_sys import (
     HwpSys,
 )
@@ -74,6 +85,7 @@ from .io import (
 from .madam import save_simulation_for_madam
 from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
+from .mueller_convolver import MuellerConvolver
 from .noise import (
     add_white_noise,
     add_one_over_f_noise,
@@ -81,6 +93,12 @@ from .noise import (
     add_noise_to_observations,
 )
 from .observations import Observation, TodDescription
+from .pointing_sys import (
+    get_detector_orientation,
+    FocalplaneCoord,
+    SpacecraftCoord,
+    PointingSys,
+)
 from .pointings import (
     apply_hwp_to_obs,
     PointingProvider,
@@ -88,14 +106,6 @@ from .pointings import (
 from .pointings_in_obs import (
     prepare_pointings,
     precompute_pointings,
-)
-from .pointing_sys import (
-    get_detector_orientation,
-    left_multiply_syst_quats,
-    FocalplaneCoord,
-    SpacecraftCoord,
-    HWPCoord,
-    PointingSys,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
@@ -149,6 +159,9 @@ from .spacecraft import (
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
 )
+from .spherical_harmonics import (
+    SphericalHarmonics,
+)
 from .version import __author__, __version__
 
 # Check if the TOAST2 mapmaker is available
@@ -169,10 +182,21 @@ numba.config.THREADING_LAYER_CONFIG = ["tbb", "omp", "workqueue"]
 
 PTEP_IMO_LOCATION = Path(__file__).parent.parent / "default_imo"
 
+
 __all__ = [
     "__author__",
     "__version__",
     "PTEP_IMO_LOCATION",
+    # beam_convolution.py
+    "add_convolved_sky_to_one_detector",
+    "add_convolved_sky",
+    "add_convolved_sky_to_observations",
+    "BeamConvolutionParameters",
+    # beam_synthesis.py
+    "alm_index",
+    "allocate_alm",
+    "gauss_beam_to_alm",
+    "generate_gauss_beam_alms",
     # compress.py
     "rle_compress",
     "rle_decompress",
@@ -218,6 +242,8 @@ __all__ = [
     "MPI_ENABLED",
     "MPI_CONFIGURATION",
     "MPI_COMM_GRID",
+    # mueller_convolver.py
+    "MuellerConvolver",
     # observations.py
     "Observation",
     "TodDescription",
@@ -318,12 +344,13 @@ __all__ = [
     "apply_gaindrift_to_observations",
     # pointing_sys.py
     "get_detector_orientation",
-    "left_multiply_syst_quats",
+    "left_multiply_offset2det",
+    "left_multiply_disturb2det",
+    "left_multiply_offset2quat",
+    "left_multiply_disturb2quat",
     "FocalplaneCoord",
     "SpacecraftCoord",
-    "HWPCoord",
     "PointingSys",
-    # hwp_diff_emiss.py
-    "add_2f",
-    "add_2f_to_observations",
+    # spherical_harmonics.py
+    "SphericalHarmonics",
 ]
