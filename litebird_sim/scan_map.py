@@ -1,17 +1,18 @@
 # -*- encoding: utf-8 -*-
 
+import logging
+from typing import Union, List, Dict, Optional
+
+import healpy as hp
 import numpy as np
+from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
-from ducc0.healpix import Healpix_Base
-from typing import Union, List, Dict, Optional
-from .observations import Observation
-from .hwp import HWP, mueller_ideal_hwp
-from .pointings import get_hwp_angle
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 from .healpix import npix_to_nside
-import logging
-import healpy as hp
+from .hwp import HWP, mueller_ideal_hwp
+from .observations import Observation
+from .pointings import get_hwp_angle
 
 
 @njit
@@ -330,9 +331,9 @@ def scan_map_in_observations(
                 else:
                     hwp_angle = cur_obs.get_pointings()[1]
             else:
-                assert all(m is None for m in cur_obs.mueller_hwp), (
+                assert cur_obs.no_mueller_hwp(), (
                     "Detectors have been initialized with a mueller_hwp,"
-                    "but no HWP is either passed or initilized in the pointing"
+                    "but no HWP is either passed or initialized in pointings"
                 )
                 hwp_angle = None
         else:
@@ -340,7 +341,7 @@ def scan_map_in_observations(
                 hwp_angle = get_hwp_angle(cur_obs, hwp)
             else:
                 logging.warning(
-                    "For using an external HWP object also pass a pre-calculated pointing"
+                    "To use an external HWP object, pass pre-calculated pointings"
                 )
 
         scan_map(

@@ -7,24 +7,23 @@
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
+import logging
 from dataclasses import dataclass
+from typing import Union, List, Any, Optional, Callable
 
+import healpy as hp
 import numpy as np
 import numpy.typing as npt
-from numba import njit
-import healpy as hp
-
-from typing import Union, List, Any, Optional, Callable
-from litebird_sim.observations import Observation
-from litebird_sim.coordinates import CoordinateSystem
-from litebird_sim.pointings import get_hwp_angle
-from litebird_sim.hwp import HWP
-from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
+from numba import njit
+
+from litebird_sim import mpi
+from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.healpix import nside_to_npix
-
-import logging
-
+from litebird_sim.hwp import HWP
+from litebird_sim.mpi import MPI_COMM_GRID
+from litebird_sim.observations import Observation
+from litebird_sim.pointings import get_hwp_angle
 from .common import (
     _compute_pixel_indices,
     _normalize_observations_and_pointings,
@@ -261,7 +260,9 @@ def _build_nobs_matrix(
             for i in range(len(obs_list) - 1)
         ]
     ):
-        nobs_matrix = obs_list[0].comm.allreduce(nobs_matrix, mpi.MPI.SUM)
+        nobs_matrix = mpi.MPI_COMM_GRID.COMM_OBS_GRID.allreduce(
+            nobs_matrix, mpi.MPI.SUM
+        )
     else:
         raise NotImplementedError(
             "All observations must be distributed over the same MPI groups"
@@ -279,7 +280,7 @@ def make_binned_map(
     components: List[str] = None,
     detector_split: str = "full",
     time_split: str = "full",
-) -> BinnerResult:
+) -> Optional[BinnerResult]:
     """Bin Map-maker
 
     Map a list of observations
@@ -313,8 +314,13 @@ def make_binned_map(
 
     Returns:
         An instance of the class :class:`.MapMakerResult`. If the observations are
-            distributed over MPI Processes, all of them get a copy of the same object.
+            distributed over MPI Processes, all of them get a copy of the same object,
+            unless the current MPI process does not hold any TOD sample: in the latter
+            case, ``None`` is returned.
     """
+
+    if not MPI_COMM_GRID.is_this_process_in_grid():
+        return None
 
     if not components:
         components = ["tod"]

@@ -41,16 +41,21 @@ def prepare_pointings(
 
     # If the hwp object is passed and is not initialised in the observations, it gets applied to all detectors
     if hwp is None:
-        assert all(m is None for m in cur_obs.mueller_hwp), (
+        assert cur_obs.no_mueller_hwp(), (
             "Some detectors have been initialized with a mueller_hwp,"
             "but no HWP object has been passed to prepare_pointings."
         )
         for cur_obs in obs_list:
             cur_obs.has_hwp = False
     else:
-        for idet in cur_obs.det_idx:
-            if cur_obs.mueller_hwp[idet] is None:
-                cur_obs.mueller_hwp[idet] = hwp.mueller
+        if cur_obs.det_idx is not None:
+            if cur_obs.no_mueller_hwp():
+                cur_obs.mueller_hwp = [hwp.mueller for i in cur_obs.det_idx]
+            else:
+                for idet in list(cur_obs.det_idx):
+                    if cur_obs.mueller_hwp[idet] is None:
+                        cur_obs.mueller_hwp[idet] = hwp.mueller
+
         for cur_obs in obs_list:
             cur_obs.has_hwp = True
 

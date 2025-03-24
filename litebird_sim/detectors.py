@@ -145,9 +145,6 @@ class DetectorInfo:
         - mueller_hwp_solver (Union[None, np.ndarray]): mueller matrix of the HWP
              for the mapmaking. It allows to have a non-ideal HWP in the solver.
              The default is None (i.e. no HWP)
-
-
-
     """
 
     name: str = ""
