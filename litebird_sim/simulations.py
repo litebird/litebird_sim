@@ -1654,35 +1654,36 @@ class Simulation:
             )
         if write_to_disk:
             filenames = []
-            for ds in detector_splits:
-                for ts in time_splits:
-                    result = make_binned_map(
-                        nside=nside,
-                        observations=self.observations,
-                        output_coordinate_system=output_coordinate_system,
-                        components=components,
-                        detector_split=ds,
-                        time_split=ts,
-                    )
-                    file = f"binned_map_DET{ds}_TIME{ts}.fits"
-                    names = ["I", "Q", "U"]
-                    result = list(result.__dict__.items())
-                    mapp = result.pop(0)[1]
-                    inv_cov = result.pop(0)[1]
-                    coords = result.pop(0)[1].name
-                    del result
-                    inv_cov = inv_cov.T[np.tril_indices(3)]
-                    inv_cov[[2, 3]] = inv_cov[[3, 2]]
-                    inv_cov = list(inv_cov)
-                    if include_inv_covariance:
-                        names.extend(["II", "IQ", "IU", "QQ", "QU", "UU"])
-                        for _ in range(6):
-                            mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
-                    filenames.append(
-                        self.write_healpix_map(
-                            file, mapp, column_names=names, coord=coords
+            if MPI_COMM_GRID.is_this_process_in_grid():
+                for ds in detector_splits:
+                    for ts in time_splits:
+                        result = make_binned_map(
+                            nside=nside,
+                            observations=self.observations,
+                            output_coordinate_system=output_coordinate_system,
+                            components=components,
+                            detector_split=ds,
+                            time_split=ts,
                         )
-                    )
+                        file = f"binned_map_DET{ds}_TIME{ts}.fits"
+                        names = ["I", "Q", "U"]
+                        result = list(result.__dict__.items())
+                        mapp = result.pop(0)[1]
+                        inv_cov = result.pop(0)[1]
+                        coords = result.pop(0)[1].name
+                        del result
+                        inv_cov = inv_cov.T[np.tril_indices(3)]
+                        inv_cov[[2, 3]] = inv_cov[[3, 2]]
+                        inv_cov = list(inv_cov)
+                        if include_inv_covariance:
+                            names.extend(["II", "IQ", "IU", "QQ", "QU", "UU"])
+                            for _ in range(6):
+                                mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
+                        filenames.append(
+                            self.write_healpix_map(
+                                file, mapp, column_names=names, coord=coords
+                            )
+                        )
             return filenames
         else:
             binned_maps = {}
