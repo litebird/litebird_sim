@@ -46,7 +46,6 @@ shows:
    import litebird_sim as lbs
    import numpy as np
 
-   hwp_radpsec = np.pi / 8
    start_time_s = 0
    time_span_s = 1
 
@@ -223,6 +222,13 @@ transparent:
     3.03378e-04
     6.13975e-05
     4.72613e-05
+
+
+The input sky can be generated using the function :func:`.Simulation.get_sky` 
+which produces sky maps for all the detectors of a given observation based 
+on an instance of :class:`.mbs.MbsParameters`. These methods are MPI-compatible, 
+distributing inputs based on the job’s detector configuration without requiring 
+broadcast operations.
 
 
 API reference

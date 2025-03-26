@@ -23,17 +23,12 @@ Simulation Team plans to implement in `litebird_sim`.
 | Synthetic bandpass generation    | Complete |          |                                 | [#160](https://github.com/litebird/litebird_sim/pull/160), [#200](https://github.com/litebird/litebird_sim/pull/200) |
 | Calibration non-idealities       | Complete |          |                                 | [#243](https://github.com/litebird/litebird_sim/pull/243)                                                            |
 | Pointing systematics             | Complete |          |                                 | [#319](https://github.com/litebird/litebird_sim/pull/319)                                                            |
-| Beam convolution                 | Partial  |          | Through ducc0                   | [ducc.totalconvolve](https://gitlab.mpcdf.mpg.de/mtr/ducc/-/tree/ducc0/)                                             |
+| Beam convolution                 | Complete |          | Through [ducc0](https://gitlab.mpcdf.mpg.de/mtr/ducc/-/tree/ducc0/)                   | [#338](https://github.com/litebird/litebird_sim/pull/338)                                             |
 | Cosmic-ray glitch generation     | Partial  |          |                                 | No PRs yet                                                                                                           |
 | HWP simulation                   | Partial  |          |                                 | [#117](https://github.com/litebird/litebird_sim/pull/117)                                                            |
 | ADC simulation                   | Partial  |          | Through the CR glitch generator | No PRs yet                                                                                                           |
 | Correlated noise generation      | Missing  |          |                                 |                                                                                                                      |
 | Dipole calibration               | Missing  |          |                                 |                                                                                                                      |
-
-## Beam convolution
-
--   `ducc0` already provides a 4π convolution code, and it is already available within `litebird_sim`
--   A high-level interface to `ducc0` is still missing
 
 ## Destriping+calibration map-maker
 
