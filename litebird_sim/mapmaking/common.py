@@ -110,12 +110,12 @@ def get_map_making_weights(
 
     if check:
         # Check that there are no weird weights
-        assert np.all(
-            np.isfinite(weights)
-        ), f"Not all the detectors' weights are finite numbers: {weights}"
-        assert np.all(
-            weights > 0.0
-        ), f"Not all the detectors' weights are positive: {weights}"
+        assert np.all(np.isfinite(weights)), (
+            f"Not all the detectors' weights are finite numbers: {weights}"
+        )
+        assert np.all(weights > 0.0), (
+            f"Not all the detectors' weights are positive: {weights}"
+        )
 
     return weights
 
@@ -209,8 +209,8 @@ def _compute_pixel_indices(
             curr_pointings_det = pointings[idet, :, :]
         else:
             curr_pointings_det, hwp_angle = pointings(
-                idet,
-                pointings_dtype=pointings_dtype)
+                idet, pointings_dtype=pointings_dtype
+            )
 
         if output_coordinate_system == CoordinateSystem.Galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)

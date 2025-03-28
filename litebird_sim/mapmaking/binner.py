@@ -197,7 +197,7 @@ def _build_nobs_matrix(
     tm_list: List[npt.ArrayLike],
     output_coordinate_system: CoordinateSystem,
     components: List[str],
-    pointings_dtype = np.float32,
+    pointings_dtype=np.float32,
 ) -> npt.ArrayLike:
     hpx = Healpix_Base(nside, "RING")
     n_pix = nside_to_npix(nside)
@@ -236,10 +236,10 @@ def _build_nobs_matrix(
         first_component = getattr(cur_obs, components[0])
         for idx, cur_component_name in enumerate(components):
             cur_component = getattr(cur_obs, cur_component_name)
-            assert (
-                cur_component.shape == first_component.shape
-            ), 'The two TODs "{}" and "{}" do not have a matching shape'.format(
-                components[0], cur_component_name
+            assert cur_component.shape == first_component.shape, (
+                'The two TODs "{}" and "{}" do not have a matching shape'.format(
+                    components[0], cur_component_name
+                )
             )
             _accumulate_samples_and_build_nobs_matrix(
                 cur_component,
@@ -281,7 +281,7 @@ def make_binned_map(
     components: List[str] = None,
     detector_split: str = "full",
     time_split: str = "full",
-    pointings_dtype = np.float32,
+    pointings_dtype=np.float32,
 ) -> BinnerResult:
     """Bin Map-maker
 

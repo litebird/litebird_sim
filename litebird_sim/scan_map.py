@@ -112,7 +112,7 @@ def scan_map(
     input_names: Union[str, None] = None,
     input_map_in_galactic: bool = True,
     interpolation: Union[str, None] = "",
-    pointings_dtype = np.float32,
+    pointings_dtype=np.float32,
 ):
     """
     Scan a sky map and fill time-ordered data (TOD) based on detector observations.
@@ -275,7 +275,7 @@ def scan_map_in_observations(
     input_map_in_galactic: bool = True,
     component: str = "tod",
     interpolation: Optional[str] = "",
-    pointings_dtype = np.float32,
+    pointings_dtype=np.float32,
 ):
     """
 

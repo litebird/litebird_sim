@@ -68,9 +68,9 @@ def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
         [2 3 2 3]
     """
     assert num_of_segments > 0, f"num_of_segments={num_of_segments} is not positive"
-    assert (
-        n >= num_of_segments
-    ), f"n={n} is smaller than num_of_segments={num_of_segments}"
+    assert n >= num_of_segments, (
+        f"n={n} is smaller than num_of_segments={num_of_segments}"
+    )
 
     start_positions = np.array(
         [int(i * n / num_of_segments) for i in range(num_of_segments + 1)],
@@ -446,7 +446,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
     ptg_list: Union[List[npt.ArrayLike], List[Callable]],
     hwp: Union[HWP, None],
     output_coordinate_system: CoordinateSystem,
-    pointings_dtype = np.float32,
+    pointings_dtype=np.float32,
 ):
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         cur_obs.destriper_weights = get_map_making_weights(cur_obs, check=True)
@@ -1473,7 +1473,7 @@ def make_destriped_map(
     recycled_convergence: bool = False,
     callback: Any = destriper_log_callback,
     callback_kwargs: Optional[Dict[Any, Any]] = None,
-    pointings_dtype = np.float32,
+    pointings_dtype=np.float32,
 ) -> DestriperResult:
     """
     Applies the destriping algorithm to produce a map out from a TOD
