@@ -68,9 +68,9 @@ def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
         [2 3 2 3]
     """
     assert num_of_segments > 0, f"num_of_segments={num_of_segments} is not positive"
-    assert n >= num_of_segments, (
-        f"n={n} is smaller than num_of_segments={num_of_segments}"
-    )
+    assert (
+        n >= num_of_segments
+    ), f"n={n} is smaller than num_of_segments={num_of_segments}"
 
     start_positions = np.array(
         [int(i * n / num_of_segments) for i in range(num_of_segments + 1)],

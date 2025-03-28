@@ -110,12 +110,12 @@ def get_map_making_weights(
 
     if check:
         # Check that there are no weird weights
-        assert np.all(np.isfinite(weights)), (
-            f"Not all the detectors' weights are finite numbers: {weights}"
-        )
-        assert np.all(weights > 0.0), (
-            f"Not all the detectors' weights are positive: {weights}"
-        )
+        assert np.all(
+            np.isfinite(weights)
+        ), f"Not all the detectors' weights are finite numbers: {weights}"
+        assert np.all(
+            weights > 0.0
+        ), f"Not all the detectors' weights are positive: {weights}"
 
     return weights
 

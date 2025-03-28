@@ -236,10 +236,10 @@ def _build_nobs_matrix(
         first_component = getattr(cur_obs, components[0])
         for idx, cur_component_name in enumerate(components):
             cur_component = getattr(cur_obs, cur_component_name)
-            assert cur_component.shape == first_component.shape, (
-                'The two TODs "{}" and "{}" do not have a matching shape'.format(
-                    components[0], cur_component_name
-                )
+            assert (
+                cur_component.shape == first_component.shape
+            ), 'The two TODs "{}" and "{}" do not have a matching shape'.format(
+                components[0], cur_component_name
             )
             _accumulate_samples_and_build_nobs_matrix(
                 cur_component,
