@@ -112,6 +112,7 @@ def scan_map(
     input_names: Union[str, None] = None,
     input_map_in_galactic: bool = True,
     interpolation: Union[str, None] = "",
+    pointings_dtype = np.float32,
 ):
     """
     Scan a sky map and fill time-ordered data (TOD) based on detector observations.
@@ -190,7 +191,7 @@ def scan_map(
             curr_pointings_det = pointings[detector_idx, :, :]
         else:
             curr_pointings_det, hwp_angle = pointings(
-                detector_idx, pointings_dtype=tod.dtype
+                detector_idx, pointings_dtype=pointings_dtype
             )
         if input_map_in_galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
@@ -274,6 +275,7 @@ def scan_map_in_observations(
     input_map_in_galactic: bool = True,
     component: str = "tod",
     interpolation: Optional[str] = "",
+    pointings_dtype = np.float32,
 ):
     """
 
@@ -448,4 +450,5 @@ def scan_map_in_observations(
             input_names=input_names,
             input_map_in_galactic=input_map_in_galactic,
             interpolation=interpolation,
+            pointings_dtype=pointings_dtype,
         )

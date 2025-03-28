@@ -183,6 +183,7 @@ def _compute_pixel_indices(
     num_of_samples: int,
     hwp_angle: Union[npt.ArrayLike, None],
     output_coordinate_system: CoordinateSystem,
+    pointings_dtype=np.float32,
 ) -> Tuple[npt.NDArray, npt.NDArray]:
     """Compute the index of each pixel and its attack angle
 
@@ -207,7 +208,9 @@ def _compute_pixel_indices(
         if type(pointings) is np.ndarray:
             curr_pointings_det = pointings[idet, :, :]
         else:
-            curr_pointings_det, hwp_angle = pointings(idet)
+            curr_pointings_det, hwp_angle = pointings(
+                idet,
+                pointings_dtype=pointings_dtype)
 
         if output_coordinate_system == CoordinateSystem.Galactic:
             curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)

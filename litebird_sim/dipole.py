@@ -197,6 +197,7 @@ def add_dipole(
     # lbs.FreqChannelInfo.from_imo(url=…, imo=imo).bandcenter_ghz
     # using as url f"/releases/v1.0/satellite/{telescope}/{channel}/channel_info"
     dipole_type: DipoleType,
+    pointings_dtype = np.float32,
 ):
     """
     Add the CMB dipole contribution to time-ordered data (TOD).
@@ -279,7 +280,7 @@ def add_dipole(
         else:
             theta_phi_det = pointings(
                 detector_idx,
-                pointings_dtype=tod.dtype,
+                pointings_dtype=pointings_dtype
             )[0][:, 0:2]
 
         add_dipole_for_one_detector(
@@ -304,6 +305,7 @@ def add_dipole_to_observations(
         np.ndarray, None
     ] = None,  # e.g. central frequency of channel from
     component: str = "tod",
+    pointings_dtype=np.float32,
 ):
     """
     Add the CMB dipole signal to the time-ordered data (TOD) stored in one or more
@@ -429,4 +431,5 @@ def add_dipole_to_observations(
             t_cmb_k=t_cmb_k,
             frequency_ghz=frequency_ghz,
             dipole_type=dipole_type,
+            pointings_dtype=pointings_dtype,
         )

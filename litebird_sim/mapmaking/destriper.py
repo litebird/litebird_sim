@@ -446,6 +446,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
     ptg_list: Union[List[npt.ArrayLike], List[Callable]],
     hwp: Union[HWP, None],
     output_coordinate_system: CoordinateSystem,
+    pointings_dtype = np.float32,
 ):
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         cur_obs.destriper_weights = get_map_making_weights(cur_obs, check=True)
@@ -474,6 +475,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
             num_of_samples=cur_obs.n_samples,
             hwp_angle=hwp_angle,
             output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
         )
 
 
@@ -1471,6 +1473,7 @@ def make_destriped_map(
     recycled_convergence: bool = False,
     callback: Any = destriper_log_callback,
     callback_kwargs: Optional[Dict[Any, Any]] = None,
+    pointings_dtype = np.float32,
 ) -> DestriperResult:
     """
     Applies the destriping algorithm to produce a map out from a TOD
@@ -1589,6 +1592,7 @@ def make_destriped_map(
         ptg_list=ptg_list,
         hwp=hwp,
         output_coordinate_system=params.output_coordinate_system,
+        pointings_dtype=pointings_dtype,
     )
 
     if len(components) > 1:
