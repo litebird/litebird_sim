@@ -133,31 +133,44 @@ def scan_map(
     tod : np.ndarray
         Time-ordered data (TOD) array of shape (n_detectors, n_samples) that will be filled
         with the simulated sky signal.
+
     pointings : np.ndarray or callable
         Pointing information for each detector. If an array, it should have shape
         (n_detectors, n_samples, 2), where the last dimension contains (theta, phi) in radians.
         If a callable, it should return pointing data when passed a detector index.
+
     maps : dict of str -> np.ndarray
         Dictionary containing Stokes parameter maps (T, Q, U) in Healpix format. The keys
         correspond to different sky components.
+
     pol_angle_detectors : np.ndarray or None, default=None
         Polarization angles of detectors in radians. If None, all angles are set to zero.
+
     pol_eff_detectors : np.ndarray or None, default=None
         Polarization efficiency of detectors. If None, all detectors have unit efficiency.
+
     hwp_angle : np.ndarray or None, default=None
         Half-wave plate (HWP) angles for each detector in radians. If None, HWP effects are
         ignored.
+
     mueller_hwp : np.ndarray or None, default=None
         Mueller matrices for the HWP. If None, a standard polarization response is used.
+
     input_names : str or None, default=None
         Names of the sky maps to use for each detector. If None, all detectors use the same map.
+
     input_map_in_galactic : bool, default=True
         Whether the input sky maps are provided in Galactic coordinates. If False, they are
         assumed to be in Ecliptic coordinates.
+
     interpolation : str or None, default=""
         Method for extracting values from the maps:
         - "" (default): Nearest-neighbor interpolation.
         - "linear": Linear interpolation using Healpix.
+
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float32`.
 
     Raises
     ------
@@ -316,25 +329,35 @@ def scan_map_in_observations(
     observations : Observation or list of Observation
         One or more `Observation` objects containing detector names, pointings,
         and TOD data, to which the computed sky signal will be added.
+
     maps : np.ndarray or dict of str -> np.ndarray
         Sky maps containing Stokes parameters (T, Q, U). If a dictionary, keys
         should match detector or channel names, and values should be arrays of shape (3, NPIX).
         If a single array is provided, the same map is used for all detectors.
+
     pointings : np.ndarray or list of np.ndarray, optional
         Pointing matrices associated with the observations. If None, the function
         extracts pointing information from the `Observation` objects.
+
     hwp : HWP, optional
         Half-wave plate (HWP) model. If None, HWP effects are ignored unless
         the `Observation` object contains HWP data.
+
     input_map_in_galactic : bool, default=True
         Whether the input sky maps are provided in Galactic coordinates. If False, they
         are assumed to be in Ecliptic coordinates.
+
     component : str, default="tod"
         The TOD component in the `Observation` object where the computed signal will be stored.
+
     interpolation : str, optional, default=""
         Method for extracting values from the sky maps:
         - "" (default): Nearest-neighbor interpolation.
         - "linear": Linear interpolation using Healpix.
+
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float32`.
 
     Raises
     ------
@@ -352,6 +375,7 @@ def scan_map_in_observations(
     - If `maps` is a dictionary, its `Coordinates` key (if present) must match
       `input_map_in_galactic`, otherwise a warning is issued.
     - If `pointings` is None, the function attempts to extract them from `Observation` objects.
+      If the pointing is generated on the fly pointings_dtype specifies its type.
     - If an HWP model is provided, the function computes HWP angles and applies the
       corresponding Mueller matrices.
     - This function supports both single observations and lists of observations,
@@ -426,7 +450,9 @@ def scan_map_in_observations(
                 if hasattr(cur_obs, "hwp_angle"):
                     hwp_angle = cur_obs.hwp_angle
                 else:
-                    hwp_angle = cur_obs.get_pointings()[1]
+                    hwp_angle = cur_obs.get_pointings(pointings_dtype=pointings_dtype)[
+                        1
+                    ]
             else:
                 assert all(m is None for m in cur_obs.mueller_hwp), (
                     "Detectors have been initialized with a mueller_hwp,"

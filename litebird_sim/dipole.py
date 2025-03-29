@@ -239,6 +239,10 @@ def add_dipole(
     dipole_type : DipoleType
         Specifies the method used to compute the dipole contribution.
 
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float32`.
+
     Notes
     -----
     - The dipole contribution is computed individually for each detector using
@@ -347,10 +351,15 @@ def add_dipole_to_observations(
         stored. Default is `"tod"`, but a different field (e.g., `"dipole_tod"`) can
         be specified.
 
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float32`.
+
     Notes
     -----
     - If `pointings` is not provided, the function will extract pointing matrices from
-      the `Observation` objects.
+      the `Observation` objects. If the pointing is generated on the fly pointings_dtype
+      specifies its type.
     - The spacecraft velocity is interpolated over the timestamps of each observation.
 
     Example

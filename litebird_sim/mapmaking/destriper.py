@@ -1566,6 +1566,10 @@ def make_destriped_map(
        want (see above for an example).
     :param callback_kwargs: additional keyword arguments to be
        passed to the `callback` function
+    :param pointings_dtype(dtype): data type for pointings generated on
+        the fly. If the pointing is passed or already precomputed this
+        parameter is ineffective. Default is `np.float32`.
+
     :return: an instance of the :class:`.DestriperResult`
        containing the destriped map and other useful information
     """

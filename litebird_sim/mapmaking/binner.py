@@ -313,6 +313,9 @@ def make_binned_map(
             :class:`.Observation` object
         detector_split (str): select the detector split to use in the map-making
         time_split (str): select the time split to use in the map-making.
+        pointings_dtype(dtype): data type for pointings generated on the fly. If
+            the pointing is passed or already precomputed this parameter is
+            ineffective. Default is `np.float32`.
 
     Returns:
         An instance of the class :class:`.MapMakerResult`. If the observations are
