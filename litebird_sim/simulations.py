@@ -1908,6 +1908,7 @@ class Simulation:
         callback_kwargs: Optional[Dict[Any, Any]] = None,
         write_to_disk: bool = True,
         recycle_baselines: bool = False,
+        pointings_dtype=np.float32,
         append_to_report: bool = True,
     ) -> Union[List[str], dict[str, DestriperResult]]:
         """
@@ -1950,6 +1951,7 @@ class Simulation:
                         keep_pol_angle_rad=keep_pol_angle_rad,
                         callback=callback,
                         callback_kwargs=callback_kwargs,
+                        pointings_dtype=pointings_dtype,
                     )
                     if recycle_baselines and f"{ds}_{ts}" == "full_full":
                         baselines = result.baselines
@@ -1994,6 +1996,7 @@ class Simulation:
                         keep_pol_angle_rad=keep_pol_angle_rad,
                         callback=callback,
                         callback_kwargs=callback_kwargs,
+                        pointings_dtype=pointings_dtype,
                     )
                     if recycle_baselines and f"{ds}_{ts}" == "full_full":
                         baselines = destriped_maps[f"{ds}_{ts}"].baselines
@@ -2022,6 +2025,7 @@ class Simulation:
         keep_pol_angle_rad: bool = False,
         callback: Any = destriper_log_callback,
         callback_kwargs: Optional[Dict[Any, Any]] = None,
+        pointings_dtype=np.float32,
         append_to_report: bool = True,
     ) -> DestriperResult:
         """
@@ -2050,6 +2054,7 @@ class Simulation:
             keep_pol_angle_rad=keep_pol_angle_rad,
             callback=callback,
             callback_kwargs=callback_kwargs,
+            pointings_dtype=pointings_dtype,
         )
 
         if append_to_report:
