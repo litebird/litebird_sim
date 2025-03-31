@@ -197,7 +197,7 @@ def add_dipole(
     # lbs.FreqChannelInfo.from_imo(url=…, imo=imo).bandcenter_ghz
     # using as url f"/releases/v1.0/satellite/{telescope}/{channel}/channel_info"
     dipole_type: DipoleType,
-    pointings_dtype=np.float32,
+    pointings_dtype=np.float64,
 ):
     """
     Add the CMB dipole contribution to time-ordered data (TOD).
@@ -241,7 +241,7 @@ def add_dipole(
 
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
-        already precomputed this parameter is ineffective. Default is `np.float32`.
+        already precomputed this parameter is ineffective. Default is `np.float64`.
 
     Notes
     -----
@@ -308,7 +308,7 @@ def add_dipole_to_observations(
         np.ndarray, None
     ] = None,  # e.g. central frequency of channel from
     component: str = "tod",
-    pointings_dtype=np.float32,
+    pointings_dtype=np.float64,
 ):
     """
     Add the CMB dipole signal to the time-ordered data (TOD) stored in one or more
@@ -353,7 +353,7 @@ def add_dipole_to_observations(
 
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
-        already precomputed this parameter is ineffective. Default is `np.float32`.
+        already precomputed this parameter is ineffective. Default is `np.float64`.
 
     Notes
     -----

@@ -81,7 +81,7 @@ class PointingProvider:
         nsamples: int,
         pointing_buffer: Optional[npt.NDArray] = None,
         hwp_buffer: Optional[npt.NDArray] = None,
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
     ) -> Union[npt.NDArray, Optional[npt.NDArray]]:
         """
 

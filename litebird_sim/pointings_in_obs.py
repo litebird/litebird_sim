@@ -57,7 +57,7 @@ def prepare_pointings(
 
 def precompute_pointings(
     observations: Union[Observation, List[Observation]],
-    pointings_dtype=np.float32,
+    pointings_dtype=np.float64,
 ) -> None:
     """Precompute all the pointings for a set of observations
 

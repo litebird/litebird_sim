@@ -195,7 +195,7 @@ def add_convolved_sky(
     input_beam_names: Union[str, None] = None,
     convolution_params: Optional[BeamConvolutionParameters] = None,
     input_sky_alms_in_galactic: bool = True,
-    pointings_dtype=np.float32,
+    pointings_dtype=np.float64,
     nthreads: int = 0,
 ):
     """
@@ -234,7 +234,7 @@ def add_convolved_sky(
         assumed to be in equatorial coordinates.
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
-        already precomputed this parameter is ineffective. Default is `np.float32`.
+        already precomputed this parameter is ineffective. Default is `np.float64`.
     nthreads : int, default=0
         Number of threads to use for convolution. If set to 0, all available CPU cores
         will be used.
@@ -317,7 +317,7 @@ def add_convolved_sky_to_observations(
     input_sky_alms_in_galactic: bool = True,
     convolution_params: Optional[BeamConvolutionParameters] = None,
     component: str = "tod",
-    pointings_dtype=np.float32,
+    pointings_dtype=np.float64,
     nthreads: Union[int, None] = None,
 ):
     """
@@ -349,7 +349,7 @@ def add_convolved_sky_to_observations(
         The name of the TOD component to which the computed data is added.
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
-        already precomputed this parameter is ineffective. Default is `np.float32`.
+        already precomputed this parameter is ineffective. Default is `np.float64`.
     nthreads : int, default=None
         Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
         environment variable.

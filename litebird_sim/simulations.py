@@ -1348,7 +1348,7 @@ class Simulation:
                 memory_occupation=int(memory_occupation),
             )
 
-    def precompute_pointings(self, pointings_dtype=np.float32) -> None:
+    def precompute_pointings(self, pointings_dtype=np.float64) -> None:
         """Compute all the pointings for all observations and save them
 
         Save the pointing matrix of each :class:`.Observation` object in this simulation
@@ -1398,7 +1398,7 @@ class Simulation:
         t_cmb_k: float = constants.T_CMB_K,
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
         component: str = "tod",
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ):
         """
@@ -1448,7 +1448,7 @@ class Simulation:
         input_map_in_galactic: bool = True,
         component: str = "tod",
         interpolation: Union[str, None] = "",
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ):
         """
@@ -1568,7 +1568,7 @@ class Simulation:
         input_sky_alms_in_galactic: bool = True,
         convolution_params: Optional[BeamConvolutionParameters] = None,
         component: str = "tod",
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
         nthreads: Union[int, None] = None,
     ):
@@ -1757,7 +1757,7 @@ class Simulation:
         time_splits: Union[str, List[str]] = "full",
         write_to_disk: bool = True,
         include_inv_covariance: bool = False,
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ) -> Union[List[str], dict[str, BinnerResult]]:
         """
@@ -1843,7 +1843,7 @@ class Simulation:
         components: Optional[List[str]] = None,
         detector_split: str = "full",
         time_split: str = "full",
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ) -> BinnerResult:
         """
@@ -1908,7 +1908,7 @@ class Simulation:
         callback_kwargs: Optional[Dict[Any, Any]] = None,
         write_to_disk: bool = True,
         recycle_baselines: bool = False,
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ) -> Union[List[str], dict[str, DestriperResult]]:
         """
@@ -2025,7 +2025,7 @@ class Simulation:
         keep_pol_angle_rad: bool = False,
         callback: Any = destriper_log_callback,
         callback_kwargs: Optional[Dict[Any, Any]] = None,
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ) -> DestriperResult:
         """

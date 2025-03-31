@@ -446,7 +446,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
     ptg_list: Union[List[npt.ArrayLike], List[Callable]],
     hwp: Union[HWP, None],
     output_coordinate_system: CoordinateSystem,
-    pointings_dtype=np.float32,
+    pointings_dtype=np.float64,
 ):
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         cur_obs.destriper_weights = get_map_making_weights(cur_obs, check=True)
@@ -1473,7 +1473,7 @@ def make_destriped_map(
     recycled_convergence: bool = False,
     callback: Any = destriper_log_callback,
     callback_kwargs: Optional[Dict[Any, Any]] = None,
-    pointings_dtype=np.float32,
+    pointings_dtype=np.float64,
 ) -> DestriperResult:
     """
     Applies the destriping algorithm to produce a map out from a TOD
@@ -1568,7 +1568,7 @@ def make_destriped_map(
        passed to the `callback` function
     :param pointings_dtype(dtype): data type for pointings generated on
         the fly. If the pointing is passed or already precomputed this
-        parameter is ineffective. Default is `np.float32`.
+        parameter is ineffective. Default is `np.float64`.
 
     :return: an instance of the :class:`.DestriperResult`
        containing the destriped map and other useful information

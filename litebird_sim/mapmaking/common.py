@@ -183,7 +183,7 @@ def _compute_pixel_indices(
     num_of_samples: int,
     hwp_angle: Union[npt.ArrayLike, None],
     output_coordinate_system: CoordinateSystem,
-    pointings_dtype=np.float32,
+    pointings_dtype=np.float64,
 ) -> Tuple[npt.NDArray, npt.NDArray]:
     """Compute the index of each pixel and its attack angle
 

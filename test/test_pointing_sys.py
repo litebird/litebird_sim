@@ -114,7 +114,7 @@ def test_PointingSys_add_single_offset_to_FP(
     for cur_obs in sim.observations:
         for det_idx in range(cur_obs.n_detectors):
             pointings, hwp_angle = cur_obs.get_pointings(
-                det_idx, pointings_dtype=np.float32
+                det_idx, pointings_dtype=np.float64
             )
             pointings_list.append(pointings.tolist())
 
@@ -152,7 +152,7 @@ def test_PointingSys_add_multiple_offsets_to_FP(
     for cur_obs in sim.observations:
         for det_idx in range(cur_obs.n_detectors):
             pointings, hwp_angle = cur_obs.get_pointings(
-                det_idx, pointings_dtype=np.float32
+                det_idx, pointings_dtype=np.float64
             )
             pointings_list.append(pointings.tolist())
 
@@ -198,7 +198,7 @@ def test_PointingSys_add_uncommon_disturb_to_FP(
     for cur_obs in sim.observations:
         for det_idx in range(cur_obs.n_detectors):
             pointings, hwp_angle = cur_obs.get_pointings(
-                det_idx, pointings_dtype=np.float32
+                det_idx, pointings_dtype=np.float64
             )
             pointings_list.append(pointings.tolist())
 
@@ -241,7 +241,7 @@ def test_PointingSys_add_common_disturb_to_FP(
     for cur_obs in sim.observations:
         for det_idx in range(cur_obs.n_detectors):
             pointings, hwp_angle = cur_obs.get_pointings(
-                det_idx, pointings_dtype=np.float32
+                det_idx, pointings_dtype=np.float64
             )
             pointings_list.append(pointings.tolist())
 
@@ -279,7 +279,7 @@ def test_PointingSys_add_single_offset_to_spacecraft(
     for cur_obs in sim.observations:
         for det_idx in range(cur_obs.n_detectors):
             pointings, hwp_angle = cur_obs.get_pointings(
-                det_idx, pointings_dtype=np.float32
+                det_idx, pointings_dtype=np.float64
             )
             pointings_list.append(pointings.tolist())
 
@@ -321,7 +321,7 @@ def test_PointingSys_add_common_disturb_to_spacecraft(
     for cur_obs in sim.observations:
         for det_idx in range(cur_obs.n_detectors):
             pointings, hwp_angle = cur_obs.get_pointings(
-                det_idx, pointings_dtype=np.float32
+                det_idx, pointings_dtype=np.float64
             )
             pointings_list.append(pointings.tolist())
 
@@ -367,7 +367,7 @@ def test_PointingSys_add_hwp_rot_disturb(
     for cur_obs in sim.observations:
         for det_idx in range(cur_obs.n_detectors):
             pointings, hwp_angle = cur_obs.get_pointings(
-                det_idx, pointings_dtype=np.float32
+                det_idx, pointings_dtype=np.float64
             )
             pointings_list.append(pointings.tolist())
 

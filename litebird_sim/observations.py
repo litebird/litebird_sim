@@ -793,7 +793,7 @@ class Observation:
         detector_idx: Union[int, List[int], str] = "all",
         pointing_buffer: Optional[npt.NDArray] = None,
         hwp_buffer: Optional[npt.NDArray] = None,
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
     ) -> tuple[npt.NDArray, Optional[npt.NDArray]]:
         """
         Compute the pointings for one or more detectors in this observation
