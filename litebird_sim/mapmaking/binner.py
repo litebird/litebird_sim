@@ -197,6 +197,7 @@ def _build_nobs_matrix(
     tm_list: List[npt.ArrayLike],
     output_coordinate_system: CoordinateSystem,
     components: List[str],
+    pointings_dtype=np.float64,
 ) -> npt.ArrayLike:
     hpx = Healpix_Base(nside, "RING")
     n_pix = nside_to_npix(nside)
@@ -229,6 +230,7 @@ def _build_nobs_matrix(
             num_of_samples=cur_obs.n_samples,
             hwp_angle=hwp_angle,
             output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
         )
 
         first_component = getattr(cur_obs, components[0])
@@ -279,6 +281,7 @@ def make_binned_map(
     components: List[str] = None,
     detector_split: str = "full",
     time_split: str = "full",
+    pointings_dtype=np.float64,
 ) -> BinnerResult:
     """Bin Map-maker
 
@@ -310,6 +313,9 @@ def make_binned_map(
             :class:`.Observation` object
         detector_split (str): select the detector split to use in the map-making
         time_split (str): select the time split to use in the map-making.
+        pointings_dtype(dtype): data type for pointings generated on the fly. If
+            the pointing is passed or already precomputed this parameter is
+            ineffective. Default is `np.float64`.
 
     Returns:
         An instance of the class :class:`.MapMakerResult`. If the observations are
@@ -336,6 +342,7 @@ def make_binned_map(
         tm_list=time_mask_list,
         output_coordinate_system=output_coordinate_system,
         components=components,
+        pointings_dtype=pointings_dtype,
     )
 
     rhs = _extract_map_and_fill_info(nobs_matrix)

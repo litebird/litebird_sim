@@ -195,6 +195,7 @@ def add_convolved_sky(
     input_beam_names: Union[str, None] = None,
     convolution_params: Optional[BeamConvolutionParameters] = None,
     input_sky_alms_in_galactic: bool = True,
+    pointings_dtype=np.float64,
     nthreads: int = 0,
 ):
     """
@@ -231,6 +232,9 @@ def add_convolved_sky(
     input_sky_alms_in_galactic : bool, default=True
         Whether the input sky maps are provided in Galactic coordinates. If False, they are
         assumed to be in equatorial coordinates.
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float64`.
     nthreads : int, default=0
         Number of threads to use for convolution. If set to 0, all available CPU cores
         will be used.
@@ -264,7 +268,7 @@ def add_convolved_sky(
             curr_pointings_det = pointings[detector_idx, :, :]
         else:
             curr_pointings_det, hwp_angle = pointings(
-                detector_idx, pointings_dtype=tod.dtype
+                detector_idx, pointings_dtype=pointings_dtype
             )
 
         if input_sky_alms_in_galactic:
@@ -313,6 +317,7 @@ def add_convolved_sky_to_observations(
     input_sky_alms_in_galactic: bool = True,
     convolution_params: Optional[BeamConvolutionParameters] = None,
     component: str = "tod",
+    pointings_dtype=np.float64,
     nthreads: Union[int, None] = None,
 ):
     """
@@ -342,13 +347,17 @@ def add_convolved_sky_to_observations(
         Parameters controlling the beam convolution, including resolution limits and numerical precision.
     component : str, default="tod"
         The name of the TOD component to which the computed data is added.
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float64`.
     nthreads : int, default=None
         Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
         environment variable.
 
     Notes
     -----
-    - If `pointings` is not provided, it is inferred from the `Observation` objects.
+    - If `pointings` is not provided, it is inferred from the `Observation` objects. If the pointing is passed
+        or already precomputed this parameter is ineffective. Default is `np.float32`.
     - The function determines the correct sky and beam harmonics from the detector names or channels.
     - Calls `add_convolved_sky` to process the TOD for all detectors.
     """
@@ -441,9 +450,7 @@ def add_convolved_sky_to_observations(
                 hwp_angle = getattr(
                     cur_obs,
                     "hwp_angle",
-                    cur_obs.get_pointings(
-                        pointings_dtype=getattr(cur_obs, component).dtype
-                    )[1],
+                    cur_obs.get_pointings(pointings_dtype=pointings_dtype)[1],
                 )
             else:
                 assert all(
@@ -472,5 +479,6 @@ def add_convolved_sky_to_observations(
             input_beam_names=input_beam_names,
             convolution_params=convolution_params,
             input_sky_alms_in_galactic=input_sky_alms_in_galactic,
+            pointings_dtype=pointings_dtype,
             nthreads=nthreads,
         )

@@ -197,6 +197,7 @@ def add_dipole(
     # lbs.FreqChannelInfo.from_imo(url=…, imo=imo).bandcenter_ghz
     # using as url f"/releases/v1.0/satellite/{telescope}/{channel}/channel_info"
     dipole_type: DipoleType,
+    pointings_dtype=np.float64,
 ):
     """
     Add the CMB dipole contribution to time-ordered data (TOD).
@@ -238,6 +239,10 @@ def add_dipole(
     dipole_type : DipoleType
         Specifies the method used to compute the dipole contribution.
 
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float64`.
+
     Notes
     -----
     - The dipole contribution is computed individually for each detector using
@@ -277,10 +282,9 @@ def add_dipole(
         if type(pointings) is np.ndarray:
             theta_phi_det = pointings[detector_idx, :, :]
         else:
-            theta_phi_det = pointings(
-                detector_idx,
-                pointings_dtype=tod.dtype,
-            )[0][:, 0:2]
+            theta_phi_det = pointings(detector_idx, pointings_dtype=pointings_dtype)[0][
+                :, 0:2
+            ]
 
         add_dipole_for_one_detector(
             tod_det=tod[detector_idx],
@@ -304,6 +308,7 @@ def add_dipole_to_observations(
         np.ndarray, None
     ] = None,  # e.g. central frequency of channel from
     component: str = "tod",
+    pointings_dtype=np.float64,
 ):
     """
     Add the CMB dipole signal to the time-ordered data (TOD) stored in one or more
@@ -346,10 +351,15 @@ def add_dipole_to_observations(
         stored. Default is `"tod"`, but a different field (e.g., `"dipole_tod"`) can
         be specified.
 
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float64`.
+
     Notes
     -----
     - If `pointings` is not provided, the function will extract pointing matrices from
-      the `Observation` objects.
+      the `Observation` objects. If the pointing is generated on the fly pointings_dtype
+      specifies its type.
     - The spacecraft velocity is interpolated over the timestamps of each observation.
 
     Example
@@ -429,4 +439,5 @@ def add_dipole_to_observations(
             t_cmb_k=t_cmb_k,
             frequency_ghz=frequency_ghz,
             dipole_type=dipole_type,
+            pointings_dtype=pointings_dtype,
         )

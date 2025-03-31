@@ -1348,7 +1348,7 @@ class Simulation:
                 memory_occupation=int(memory_occupation),
             )
 
-    def precompute_pointings(self, pointings_dtype=np.float32) -> None:
+    def precompute_pointings(self, pointings_dtype=np.float64) -> None:
         """Compute all the pointings for all observations and save them
 
         Save the pointing matrix of each :class:`.Observation` object in this simulation
@@ -1398,6 +1398,7 @@ class Simulation:
         t_cmb_k: float = constants.T_CMB_K,
         dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
         component: str = "tod",
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ):
         """
@@ -1419,6 +1420,7 @@ class Simulation:
             t_cmb_k=t_cmb_k,
             dipole_type=dipole_type,
             component=component,
+            pointings_dtype=pointings_dtype,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1446,6 +1448,7 @@ class Simulation:
         input_map_in_galactic: bool = True,
         component: str = "tod",
         interpolation: Union[str, None] = "",
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ):
         """
@@ -1466,6 +1469,7 @@ class Simulation:
             input_map_in_galactic=input_map_in_galactic,
             component=component,
             interpolation=interpolation,
+            pointings_dtype=pointings_dtype,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1564,6 +1568,7 @@ class Simulation:
         input_sky_alms_in_galactic: bool = True,
         convolution_params: Optional[BeamConvolutionParameters] = None,
         component: str = "tod",
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
         nthreads: Union[int, None] = None,
     ):
@@ -1586,6 +1591,7 @@ class Simulation:
             input_sky_alms_in_galactic=input_sky_alms_in_galactic,
             component=component,
             convolution_params=convolution_params,
+            pointings_dtype=pointings_dtype,
             nthreads=nthreads,
         )
 
@@ -1751,6 +1757,7 @@ class Simulation:
         time_splits: Union[str, List[str]] = "full",
         write_to_disk: bool = True,
         include_inv_covariance: bool = False,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ) -> Union[List[str], dict[str, BinnerResult]]:
         """
@@ -1791,6 +1798,7 @@ class Simulation:
                         components=components,
                         detector_split=ds,
                         time_split=ts,
+                        pointings_dtype=pointings_dtype,
                     )
                     file = f"binned_map_DET{ds}_TIME{ts}.fits"
                     names = ["I", "Q", "U"]
@@ -1823,6 +1831,7 @@ class Simulation:
                         components=components,
                         detector_split=ds,
                         time_split=ts,
+                        pointings_dtype=pointings_dtype,
                     )
         return binned_maps
 
@@ -1834,6 +1843,7 @@ class Simulation:
         components: Optional[List[str]] = None,
         detector_split: str = "full",
         time_split: str = "full",
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ) -> BinnerResult:
         """
@@ -1864,6 +1874,7 @@ class Simulation:
             components=components,
             detector_split=detector_split,
             time_split=time_split,
+            pointings_dtype=pointings_dtype,
         )
 
     def _impose_and_check_full_split(self, detector_splits, time_splits):
@@ -1897,6 +1908,7 @@ class Simulation:
         callback_kwargs: Optional[Dict[Any, Any]] = None,
         write_to_disk: bool = True,
         recycle_baselines: bool = False,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ) -> Union[List[str], dict[str, DestriperResult]]:
         """
@@ -1939,6 +1951,7 @@ class Simulation:
                         keep_pol_angle_rad=keep_pol_angle_rad,
                         callback=callback,
                         callback_kwargs=callback_kwargs,
+                        pointings_dtype=pointings_dtype,
                     )
                     if recycle_baselines and f"{ds}_{ts}" == "full_full":
                         baselines = result.baselines
@@ -1983,6 +1996,7 @@ class Simulation:
                         keep_pol_angle_rad=keep_pol_angle_rad,
                         callback=callback,
                         callback_kwargs=callback_kwargs,
+                        pointings_dtype=pointings_dtype,
                     )
                     if recycle_baselines and f"{ds}_{ts}" == "full_full":
                         baselines = destriped_maps[f"{ds}_{ts}"].baselines
@@ -2011,6 +2025,7 @@ class Simulation:
         keep_pol_angle_rad: bool = False,
         callback: Any = destriper_log_callback,
         callback_kwargs: Optional[Dict[Any, Any]] = None,
+        pointings_dtype=np.float64,
         append_to_report: bool = True,
     ) -> DestriperResult:
         """
@@ -2039,6 +2054,7 @@ class Simulation:
             keep_pol_angle_rad=keep_pol_angle_rad,
             callback=callback,
             callback_kwargs=callback_kwargs,
+            pointings_dtype=pointings_dtype,
         )
 
         if append_to_report:
