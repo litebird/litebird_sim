@@ -209,7 +209,7 @@ def test_beam_convolution():
         beam_alms=blms,
         input_sky_alms_in_galactic=False,
         convolution_params=Convparams,
-        pointings_dtype=np.float32,
+        pointings_dtype=np.float64,
     )
 
     np.testing.assert_allclose(
@@ -218,3 +218,4 @@ def test_beam_convolution():
         rtol=tolerance,
         atol=0.1,
     )
+

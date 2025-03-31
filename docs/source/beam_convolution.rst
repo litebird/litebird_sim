@@ -92,6 +92,7 @@ as demonstrated in the following example:
         blms,
         input_sky_alms_in_galactic=True,
         convolution_params=Convparams,
+        pointings_dtype=np.float32,
     )
 
     for i in range(obs.n_samples):
@@ -304,6 +305,7 @@ For a single-task execution, refer to the following example:
                      beam_alms=blms,
                      convolution_params=Convparams,
                      input_sky_alms_in_galactic=True,
+                     pointings_dtype=np.float32,
                      nthreads = 0)
 
 
