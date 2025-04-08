@@ -11,3 +11,4 @@ Basic simulation modules
    sky_maps.rst
    dipole.rst
    map_scanning.rst
+   beam_convolution.rst

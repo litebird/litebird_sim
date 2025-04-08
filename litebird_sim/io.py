@@ -374,7 +374,7 @@ def write_list_of_observations(
     observations: Union[Observation, List[Observation]],
     path: Union[str, Path],
     tod_dtype=np.float32,
-    pointings_dtype=np.float32,
+    pointings_dtype=np.float64,
     file_name_mask: str = __OBSERVATION_FILE_NAME_MASK,
     custom_placeholders: Optional[List[Dict[str, Any]]] = None,
     start_index: int = 0,

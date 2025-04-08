@@ -197,16 +197,73 @@ def add_dipole(
     # lbs.FreqChannelInfo.from_imo(url=…, imo=imo).bandcenter_ghz
     # using as url f"/releases/v1.0/satellite/{telescope}/{channel}/channel_info"
     dipole_type: DipoleType,
+    pointings_dtype=np.float64,
 ):
-    """Add the CMB dipole to some time-ordered data
+    """
+    Add the CMB dipole contribution to time-ordered data (TOD).
 
-    This functions modifies the values in `tod` by adding the contribution of the
-    CMB dipole. Use `dipole_type` to specify which kind of approximation to use
+    Use `dipole_type` to specify which kind of approximation to use
     for the dipole component. The `pointings` argument must be a N×3 matrix containing
     the pointing information, where N is the size of the `tod` array. The `velocity`
-    argument is usually computed through :func:`.spacecraft_pos_and_vel`. Finally,
-    `t_cmb_k` is the temperature of the monopole and `frequency_ghz` is an array
-    containing the frequencies of each detector in the TOD."""
+    argument is usually computed through :func:`.spacecraft_pos_and_vel`.
+
+    This function modifies the `tod` array by adding the contribution of the Cosmic
+    Microwave Background (CMB) dipole, based on the provided pointing information,
+    spacecraft velocity, and observation frequency.
+
+    Parameters
+    ----------
+    tod : np.ndarray
+        A 2D array representing the time-ordered data, with shape `(N_detectors, N_samples)`,
+        where `N_detectors` is the number of detectors and `N_samples` is the number
+        of time samples.
+
+    pointings : np.ndarray or callable
+        The pointing matrix, which can be:
+        - A numpy array of shape `(N_detectors, N_samples, 2)`, containing the pointing
+          angles `(theta, phi)` for each detector and time sample.
+        - A callable function that returns the pointing information when called with
+          `(detector_idx, pointings_dtype)`.
+
+    velocity : np.ndarray
+        A 2D array of shape `(N_samples, 3)`, representing the spacecraft velocity in
+        three Cartesian coordinates over time.
+
+    t_cmb_k : float
+        The temperature of the CMB monopole in Kelvin.
+
+    frequency_ghz : np.ndarray
+        A 1D array of length `N_detectors`, containing the observation frequencies
+        (band centers) in GHz for each detector.
+
+    dipole_type : DipoleType
+        Specifies the method used to compute the dipole contribution.
+
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float64`.
+
+    Notes
+    -----
+    - The dipole contribution is computed individually for each detector using
+      :func:`add_dipole_for_one_detector`.
+    - If `pointings` is a numpy array, it must match the shape of `tod` along the
+      first two dimensions.
+    - The number of time samples in `tod` must match the length of `velocity`.
+
+    Example
+    -------
+    ```python
+    add_dipole(
+        tod=my_tod,
+        pointings=my_pointings,
+        velocity=my_velocity,
+        t_cmb_k=2.725,
+        frequency_ghz=np.array([30, 40, 70]),  # Example frequencies in GHz
+        dipole_type=DipoleType.TOTAL_FROM_LIN_T,
+    )
+    ```
+    """
 
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
@@ -225,7 +282,9 @@ def add_dipole(
         if type(pointings) is np.ndarray:
             theta_phi_det = pointings[detector_idx, :, :]
         else:
-            theta_phi_det = pointings(detector_idx)[0][:, 0:2]
+            theta_phi_det = pointings(detector_idx, pointings_dtype=pointings_dtype)[0][
+                :, 0:2
+            ]
 
         add_dipole_for_one_detector(
             tod_det=tod[detector_idx],
@@ -249,23 +308,76 @@ def add_dipole_to_observations(
         np.ndarray, None
     ] = None,  # e.g. central frequency of channel from
     component: str = "tod",
+    pointings_dtype=np.float64,
 ):
-    """Add the CMB dipole to some time-ordered data
+    """
+    Add the CMB dipole signal to the time-ordered data (TOD) stored in one or more
+    `Observation` objects.
 
-    This is a wrapper around the :func:`.add_dipole` function that applies to the TOD
-    stored in `observations`, which can either be one :class:`.Observation` instance
-    or a list of observations.
+    This function acts as a wrapper around :func:`.add_dipole`, ensuring that the dipole
+    signal is correctly computed and added to the TOD associated with `observations`.
 
     By default, the TOD is added to ``Observation.tod``. If you want to add it to some
     other field of the :class:`.Observation` class, use `component`::
 
-        for cur_obs in sim.observations:
-            # Allocate a new TOD for the dipole alone
-            cur_obs.dipole_tod = np.zeros_like(cur_obs.tod)
+    Parameters
+    ----------
+    observations : Union[Observation, List[Observation]]
+        A single `Observation` instance or a list of `Observation` objects whose TOD
+        will be modified by adding the CMB dipole signal.
 
-        # Ask `add_dipole_to_observations` to store the dipole
-        # in `observations.dipole_tod`
-        add_dipole_to_observations(sim.observations, component="dipole_tod")
+    pos_and_vel : SpacecraftPositionAndVelocity
+        An object providing spacecraft position and velocity information, which is
+        necessary to compute the dipole contribution.
+
+    pointings : Union[np.ndarray, List[np.ndarray], None], optional
+        If provided, this should be an array (or list of arrays) containing the pointing
+        matrices for the observations. If `None`, the function will extract pointing
+        matrices from the `Observation` objects.
+
+    t_cmb_k : float, optional
+        The temperature of the cosmic microwave background (CMB) in Kelvin. Default
+        is `c.T_CMB_K`.
+
+    dipole_type : DipoleType, optional
+        Specifies the type of dipole to be added. Default is `DipoleType.TOTAL_FROM_LIN_T`.
+
+    frequency_ghz : Union[np.ndarray, None], optional
+        The observation frequency in GHz. If `None`, the function will use the
+        `bandcenter_ghz` attribute from each `Observation`.
+
+    component : str, optional
+        The name of the attribute in `Observation` where the dipole signal should be
+        stored. Default is `"tod"`, but a different field (e.g., `"dipole_tod"`) can
+        be specified.
+
+    pointings_dtype : dtype, optional
+        Data type for pointings generated on the fly. If the pointing is passed or
+        already precomputed this parameter is ineffective. Default is `np.float64`.
+
+    Notes
+    -----
+    - If `pointings` is not provided, the function will extract pointing matrices from
+      the `Observation` objects. If the pointing is generated on the fly pointings_dtype
+      specifies its type.
+    - The spacecraft velocity is interpolated over the timestamps of each observation.
+
+    Example
+    -------
+    To add the dipole to the default TOD field:
+
+    ```python
+    add_dipole_to_observations(sim.observations, pos_and_vel)
+    ```
+
+    To store the dipole in a separate component:
+
+    ```python
+    for obs in sim.observations:
+        obs.dipole_tod = np.zeros_like(obs.tod)
+
+    add_dipole_to_observations(sim.observations, pos_and_vel, component="dipole_tod")
+    ```
     """
 
     if pointings is None:
@@ -327,4 +439,5 @@ def add_dipole_to_observations(
             t_cmb_k=t_cmb_k,
             frequency_ghz=frequency_ghz,
             dipole_type=dipole_type,
+            pointings_dtype=pointings_dtype,
         )

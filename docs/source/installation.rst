@@ -72,12 +72,9 @@ for this.
    # Generate requirements.txt and install all the dependencies
    poetry export --without-hashes $EXTRAS -o requirements.txt
    pip install --upgrade pip
-   pip install -r requirements.txt
 
-Note that these commands will *not* make ``litebird_sim`` available in
-the virtual environment: you can run ``import litebird_sim`` only
-within the main folder of the Git repository. (This is the typical use
-case for people developing LBS.)
+   # Install litebird_sim in the environment
+   pip install -e .
 
 
 Run code validators

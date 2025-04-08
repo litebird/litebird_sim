@@ -1,5 +1,7 @@
 # HEAD
 
+-   Module for performing the 4π beam convolution [#338](https://github.com/litebird/litebird_sim/pull/338)
+
 -   Make `@_profile` preserve docstrings [#371](https://github.com/litebird/litebird_sim/pull/371)
 
 # Version 0.14.0
