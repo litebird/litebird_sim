@@ -382,7 +382,9 @@ def scan_map_in_observations(
       handling each one separately.
     """
 
-    obs_list, ptg_list = _normalize_observations_and_pointings(observations=observations, pointings=pointings)
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=observations, pointings=pointings
+    )
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         if isinstance(maps, dict):

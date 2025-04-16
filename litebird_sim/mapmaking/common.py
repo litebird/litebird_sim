@@ -176,7 +176,7 @@ def _compute_pixel_indices(
         try:
             del curr_pointings_det
         except UnboundLocalError:
-            pass    
+            pass
 
     return pixidx_all, polang_all
 
