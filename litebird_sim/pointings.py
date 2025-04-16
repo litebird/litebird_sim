@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional, Union
+from typing import Optional, Union, List, Tuple
 
 import astropy.time
 import numpy as np
@@ -11,6 +11,8 @@ from .scanning import (
     all_compute_pointing_and_orientation,
     RotQuaternion,
 )
+
+from .observations import Observation
 
 
 def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
@@ -53,6 +55,61 @@ def get_hwp_angle(observations, hwp: HWP):
     )
 
     return angle
+
+
+def _normalize_observations_and_pointings(
+    observations: Union[Observation, List[Observation]],
+    pointings: Union[np.ndarray, List[np.ndarray], None],
+) -> Tuple[List[Observation], List[npt.NDArray], List[npt.NDArray]]:
+    # In map-making routines, we always rely on two local variables:
+    #
+    # - obs_list contains a list of the observations to be used in the
+    #   map-making process by the current MPI process. Unlike the `observations`
+    #   parameters used in functions like `make_binned_map`, this is
+    #   *always* a list, i.e., even if there is just one observation
+    #
+    # - ptg_list: a list of pointing matrices, one per each observation,
+    #   each belonging to the current MPI process
+    #
+    # This function builds the tuple (obs_list, ptg_list, psi_list) and
+    # returns it.
+
+    if pointings is None:
+        if isinstance(observations, Observation):
+            obs_list = [observations]
+            if hasattr(observations, "pointing_matrix"):
+                ptg_list = [observations.pointing_matrix]
+            else:
+                ptg_list = [observations.get_pointings]
+        else:
+            obs_list = observations
+            ptg_list = []
+            for ob in observations:
+                if hasattr(ob, "pointing_matrix"):
+                    ptg_list.append(ob.pointing_matrix)
+                else:
+                    ptg_list.append(ob.get_pointings)
+    else:
+        if isinstance(observations, Observation):
+            assert isinstance(pointings, np.ndarray), (
+                "You must pass a list of observations *and* a list "
+                + "of pointing matrices to scan_map_in_observations"
+            )
+            obs_list = [observations]
+            ptg_list = [pointings]
+        else:
+            assert isinstance(pointings, list), (
+                "When you pass a list of observations to scan_map_in_observations, "
+                + "you must do the same for `pointings`"
+            )
+            assert len(observations) == len(pointings), (
+                f"The list of observations has {len(observations)} elements, but "
+                + f"the list of pointings has {len(pointings)} elements"
+            )
+            obs_list = observations
+            ptg_list = pointings
+
+    return obs_list, ptg_list
 
 
 class PointingProvider:

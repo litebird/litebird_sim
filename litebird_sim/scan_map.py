@@ -7,7 +7,7 @@ from ducc0.healpix import Healpix_Base
 from typing import Union, List, Dict, Optional
 from .observations import Observation
 from .hwp import HWP, mueller_ideal_hwp
-from .pointings import get_hwp_angle
+from .pointings import get_hwp_angle, _normalize_observations_and_pointings
 from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 from .healpix import npix_to_nside
 import logging
@@ -382,40 +382,7 @@ def scan_map_in_observations(
       handling each one separately.
     """
 
-    if pointings is None:
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix]
-            else:
-                ptg_list = [observations.get_pointings]
-        else:
-            obs_list = observations
-            ptg_list = []
-            for ob in observations:
-                if hasattr(ob, "pointing_matrix"):
-                    ptg_list.append(ob.pointing_matrix)
-                else:
-                    ptg_list.append(ob.get_pointings)
-    else:
-        if isinstance(observations, Observation):
-            assert isinstance(pointings, np.ndarray), (
-                "You must pass a list of observations *and* a list "
-                + "of pointing matrices to scan_map_in_observations"
-            )
-            obs_list = [observations]
-            ptg_list = [pointings]
-        else:
-            assert isinstance(pointings, list), (
-                "When you pass a list of observations to scan_map_in_observations, "
-                + "you must do the same for `pointings`"
-            )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
-            )
-            obs_list = observations
-            ptg_list = pointings
+    obs_list, ptg_list = _normalize_observations_and_pointings(observations=observations, pointings=pointings)
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         if isinstance(maps, dict):
