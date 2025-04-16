@@ -279,8 +279,8 @@ def compute_signal_for_one_detector(
     """
 
     for i in prange(len(tod_det)):
-        FourRhoPsiPhi = 4 * (theta[i] - psi[i] - phi)
-        TwoRhoPsiPhi = 2 * (theta[i] - psi[i] - phi)
+        FourRhoPsiPhi = 4 * theta[i]
+        TwoRhoPsiPhi = 2 * theta[i]
         tod_det[i] += compute_signal_for_one_sample(
             T=maps[0, pixel_ind[i]],
             Q=maps[1, pixel_ind[i]],
@@ -374,8 +374,8 @@ def compute_ata_atd_for_one_detector(
     """
 
     for i in prange(len(tod)):
-        FourRhoPsiPhi = 4 * (theta[i] - psi[i] - phi)
-        TwoRhoPsiPhi = 2 * (theta[i] - psi[i] - phi)
+        FourRhoPsiPhi = 4 * theta[i]
+        TwoRhoPsiPhi = 2 * theta[i]
         # psi_i = 2*np.arctan2(np.sqrt(quats_rot[i][0]**2 + quats_rot[i][1]**2 + quats_rot[i][2]**2),quats_rot[i][3])
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=m0f_solver[0, 0]
@@ -826,7 +826,7 @@ class HwpSys:
                 # xi: polarization angle, i.e. detector dependent
                 # psi: instrument angle, i.e. boresight direction from focal plane POV
                 xi = cur_det.pol_angle_rad
-                psi = (cur_point[:, 2] - xi) % (2 * np.pi)
+                psi = cur_point[:, 2]
 
                 phi = np.deg2rad(cur_det.phi)
 
@@ -840,8 +840,8 @@ class HwpSys:
                     m2f=cur_det.mueller_hwp["2f"],
                     m4f=cur_det.mueller_hwp["4f"],
                     theta=np.array(
-                        cur_hwp_angle / 2, dtype=np.float64
-                    ),  # hwp angle returns 2 ^it
+                        cur_hwp_angle, dtype=np.float64
+                    ), 
                     psi=np.array(psi, dtype=np.float64),
                     maps=np.array(self.maps, dtype=np.float64),
                     cos2Xi2Phi=cos2Xi2Phi,
@@ -859,8 +859,8 @@ class HwpSys:
                     m4f_solver=cur_det.mueller_hwp_solver["4f"],
                     pixel_ind=pix,
                     theta=np.array(
-                        cur_hwp_angle / 2, dtype=np.float64
-                    ),  # hwp angle returns 2ωt
+                        cur_hwp_angle, dtype=np.float64
+                    ),
                     psi=np.array(psi, dtype=np.float64),
                     phi=phi,
                     cos2Xi2Phi=cos2Xi2Phi,
