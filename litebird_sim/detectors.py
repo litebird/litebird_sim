@@ -150,8 +150,9 @@ class DetectorInfo:
              for the mapmaking. It allows to have a non-ideal HWP in the solver.
              The default is None (i.e. no HWP)
 
-        - pointing_theta_phi_psi_deg (Union[None, np.ndarray]): The angles θ, φ, and ψ
-             (colatitude, longitude, and orientation) of the pointing direction, expressed in degrees
+        - pointing_theta_phi_psi_deg (Union[None, np.ndarray]): The angles θ, φ,
+             and ψ (colatitude, longitude, and orientation) of the pointing direction,
+             expressed in degrees.
     """
 
     name: str = ""
