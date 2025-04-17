@@ -277,7 +277,7 @@ def test_observation_tod_set_blocks():
             )
             assert np.all(obs.row_int.astype(str) == obs.row_str)
         else:
-            assert obs.row_int is None
+            assert obs.row_int == [None]
             assert obs.row_str is None
 
     # Two time blocks
