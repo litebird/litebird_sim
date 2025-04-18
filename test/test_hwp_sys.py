@@ -51,7 +51,7 @@ def test_hwp_sys():
                 "quat": quats[d],
             }
         )
-        det.phi = 133.2
+        det.pointing_theta_phi_psi_deg = [0, 132, 0]
         dets.append(det)
 
     scan_strat = lbs.SpinningScanningStrategy(
@@ -156,7 +156,7 @@ def test_hwp_sys():
             }
         )
 
-        det.phi = 45
+        det.pointing_theta_phi_psi_deg = [0, 45, 0]
         dets2.append(det)
 
     (new_obs,) = sim.create_observations(detectors=dets2)
