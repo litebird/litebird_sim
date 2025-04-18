@@ -202,7 +202,6 @@ def test_hwp_sys():
 
 
 def test_hwp_sys_angles():
-    
     # testing if the angles are well defined (the tod computed with hwp_sys and the one
     # computed with scan_map must be the same)
 
