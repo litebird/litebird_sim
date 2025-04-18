@@ -828,7 +828,7 @@ class HwpSys:
                 xi = cur_det.pol_angle_rad
                 psi = cur_point[:, 2]
 
-                phi = np.deg2rad(cur_det.phi)
+                phi = np.deg2rad(cur_det.pointing_theta_phi_psi_deg[1])
 
                 cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
                 sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
