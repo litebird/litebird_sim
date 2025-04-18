@@ -79,7 +79,8 @@ def test_detector_blocks(dets=dets, sampling_freq_Hz=sampling_freq_Hz):
         tod_len_per_det_per_proc += obs.tod.shape[1]
 
         # No testing required if the proc doesn't owns a detector
-        if obs.det_idx is not None:
+        print(f"rank = {comm.rank}, {obs.det_idx}, {[idx for idx in obs.det_idx]}")
+        if not any(idx is None for idx in obs.det_idx):
             det_names_per_obs = [
                 obs.detectors_global[idx]["name"] for idx in obs.det_idx
             ]

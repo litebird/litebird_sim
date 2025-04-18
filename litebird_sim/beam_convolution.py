@@ -445,23 +445,7 @@ def add_convolved_sky_to_observations(
             input_beam_names = None
 
         # Handle HWP angles
-        if hwp is None:
-            if cur_obs.has_hwp:
-                hwp_angle = getattr(
-                    cur_obs,
-                    "hwp_angle",
-                    cur_obs.get_pointings(pointings_dtype=pointings_dtype)[1],
-                )
-            else:
-                assert all(
-                    m is None for m in cur_obs.mueller_hwp
-                ), "Detectors have mueller_hwp, but no HWP provided."
-                hwp_angle = None
-        else:
-            if isinstance(cur_ptg, np.ndarray):
-                hwp_angle = get_hwp_angle(cur_obs, hwp)
-            else:
-                logging.warning("HWP provided, but no precomputed pointings passed.")
+        hwp_angle = get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         # Set number of threads
         if nthreads is None:

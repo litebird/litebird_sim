@@ -208,18 +208,7 @@ def _build_nobs_matrix(
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
 
-        if hwp is None:
-            if hasattr(cur_obs, "hwp_angle"):
-                hwp_angle = cur_obs.hwp_angle
-            else:
-                hwp_angle = None
-        else:
-            if type(cur_ptg) is np.ndarray:
-                hwp_angle = get_hwp_angle(cur_obs, hwp)
-            else:
-                logging.warning(
-                    "For using an external HWP object also pass a pre-calculated pointing"
-                )
+        hwp_angle = get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         pixidx_all, polang_all = _compute_pixel_indices(
             hpx=hpx,

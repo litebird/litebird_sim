@@ -37,24 +37,38 @@ def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     )
 
 
-def get_hwp_angle(observations, hwp: HWP):
+def get_hwp_angle(obs: Observation, hwp: Union[HWP, None], pointing_dtype=np.float64):
     """Obtain the hwp angle for an observation"""
 
-    start_time = observations.start_time - observations.start_time_global
-    if isinstance(start_time, astropy.time.TimeDelta):
-        start_time_s = start_time.to("s").value
+    if hwp is None:
+        if obs.has_hwp:
+            if hasattr(obs, "hwp_angle"):
+                hwp_angle = obs.hwp_angle
+            else:
+                hwp_angle = obs.get_pointings(pointings_dtype=pointing_dtype)[1]
+        else:
+            if hasattr(obs, "mueller_hwp"):
+                assert all(m is None for m in obs.mueller_hwp), (
+                    "Detectors have been initialized with a mueller_hwp,"
+                    "but no HWP is either passed or initilized in the pointing"
+                )
+            hwp_angle = None
     else:
-        start_time_s = start_time
+        start_time = obs.start_time - obs.start_time_global
+        if isinstance(start_time, astropy.time.TimeDelta):
+            start_time_s = start_time.to("s").value
+        else:
+            start_time_s = start_time
 
-    angle = np.empty(observations.n_samples)
+        hwp_angle = np.empty(obs.n_samples)
 
-    hwp.get_hwp_angle(
-        angle,
-        start_time_s,
-        1.0 / observations.sampling_rate_hz,
-    )
+        hwp.get_hwp_angle(
+            hwp_angle,
+            start_time_s,
+            1.0 / obs.sampling_rate_hz,
+        )
 
-    return angle
+    return hwp_angle
 
 
 def _normalize_observations_and_pointings(
