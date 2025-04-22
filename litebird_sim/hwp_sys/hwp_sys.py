@@ -279,8 +279,8 @@ def compute_signal_for_one_detector(
     """
 
     for i in prange(len(tod_det)):
-        FourRho = 4 * theta[i]
-        TwoRho = 2 * theta[i]
+        FourRho = 4 * (theta[i] - phi)
+        TwoRho = 2 * (theta[i] - phi)
         tod_det[i] += compute_signal_for_one_sample(
             T=maps[0, pixel_ind[i]],
             Q=maps[1, pixel_ind[i]],
@@ -374,8 +374,8 @@ def compute_ata_atd_for_one_detector(
     """
 
     for i in prange(len(tod)):
-        FourRho = 4 * theta[i]
-        TwoRho = 2 * theta[i]
+        FourRho = 4 * (theta[i] - phi)
+        TwoRho = 2 * (theta[i] - phi)
         # psi_i = 2*np.arctan2(np.sqrt(quats_rot[i][0]**2 + quats_rot[i][1]**2 + quats_rot[i][2]**2),quats_rot[i][3])
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=m0f_solver[0, 0]
