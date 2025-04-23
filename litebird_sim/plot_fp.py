@@ -7,14 +7,14 @@ import os
 from pathlib import Path
 import toml
 from rich import print
-from .quaternions import (
+from litebird_sim.quaternions import (
     quat_left_multiply,
     quat_right_multiply,
     quat_rotation_z,
 )
-from .simulations import Simulation
-from .imo import Imo
-from .detectors import DetectorInfo, FreqChannelInfo
+from litebird_sim.simulations import Simulation
+from litebird_sim.imo import Imo
+from litebird_sim.detectors import DetectorInfo, FreqChannelInfo
 
 CONFIG_FILE_PATH = Path.home() / ".config" / "litebird_imo" / "imo.toml"
 
@@ -76,22 +76,25 @@ class DetectorInfoViewer:
         info_text = rf"""
         Detector info.
           $\cdot~$name: {detector.name}
-          $\cdot~$wafer: {detector.wafer}
-          $\cdot~$pixel: {detector.pixel}
-          $\cdot~$pixtype: {detector.pixtype}
-          $\cdot~$channel: {detector.channel}
-          $\cdot~$sampling_rate_hz: {detector.sampling_rate_hz}
-          $\cdot~$fwhm_arcmin: {detector.fwhm_arcmin}
-          $\cdot~$ellipticity: {detector.ellipticity}
-          $\cdot~$bandcenter_ghz: {detector.bandcenter_ghz}
-          $\cdot~$net_ukrts: {detector.net_ukrts}
-          $\cdot~$pol_sensitivity_ukarcmin: {detector.pol_sensitivity_ukarcmin}
-          $\cdot~$fknee_mhz: {detector.fknee_mhz}
-          $\cdot~$fmin_hz: {detector.fmin_hz}
-          $\cdot~$alpha: {detector.alpha}
-          $\cdot~$pol: {detector.pol}
-          $\cdot~$orient: {detector.orient}
-          $\cdot~$quat: {detector.quat.quats[0]}
+	      $\cdot~$bandcenter_ghz: {detector.bandcenter_ghz}
+	      $\cdot~$bandwidth_ghz: {detector.bandcenter_ghz}
+	      $\cdot~$quat: {detector.quat.quats[0]}
+	      $\cdot~$orient: {detector.orient}
+	      $\cdot~$wafer: {detector.wafer}
+	      $\cdot~$pixel: {detector.pixel}
+	      $\cdot~$channel: {detector.channel}
+	      $\cdot~$sampling_rate_hz: {detector.sampling_rate_hz}
+	      $\cdot~$fwhm_arcmin: {detector.fwhm_arcmin}
+	      $\cdot~$ellipticity: {detector.ellipticity}
+	      $\cdot~$net_ukrts: {detector.net_ukrts}
+	      $\cdot~$pol_sensitivity_ukarcmin: {detector.pol_sensitivity_ukarcmin}
+	      $\cdot~$fknee_mhz: {detector.fknee_mhz}
+	      $\cdot~$fmin_hz: {detector.fmin_hz}
+	      $\cdot~$ellipticity: {detector.ellipticity}
+	      $\cdot~$pointing_u_v: {detector.pointing_u_v}
+	      $\cdot~$pointing_theta_phi_psi_deg: {detector.pointing_theta_phi_psi_deg}
+	      $\cdot~$pol_angle_rad: {detector.pol_angle_rad}
+	      $\cdot~$mueller_hwp: {detector.mueller_hwp}
         """
         return info_text
 
@@ -102,25 +105,28 @@ class DetectorInfoViewer:
             detector (DetectorInfo): Detector information.
         """
         info_text = rf"""
-Detector info.
-    name: {det1.name}, {det2.name}
-    pol: {det1.pol}, {det2.pol}
-    quat: {det1.quat.quats[0]}
-           : {det2.quat.quats[0]}
-    orient: {det1.orient}
-    wafer: {det1.wafer}
-    pixel: {det1.pixel}
-    pixtype: {det1.pixtype}
-    channel: {det1.channel}
-    sampling_rate_hz: {det1.sampling_rate_hz}
-    fwhm_arcmin: {det1.fwhm_arcmin}
-    ellipticity: {det1.ellipticity}
-    bandcenter_ghz: {det1.bandcenter_ghz}
-    net_ukrts: {det1.net_ukrts}
-    pol_sensitivity_ukarcmin: {det1.pol_sensitivity_ukarcmin}
-    fknee_mhz: {det1.fknee_mhz}
-    fmin_hz: {det1.fmin_hz}
-    alpha: {det1.alpha}
+		Detector info.
+		    name: {det1.name}, {det2.name}
+		    bandcenter_ghz: {det1.bandcenter_ghz}
+		    bandwidth_ghz: {det1.bandcenter_ghz}
+		    quat: {det1.quat.quats[0]}
+		           : {det2.quat.quats[0]}
+		    orient: {det1.orient}
+		    wafer: {det1.wafer}
+		    pixel: {det1.pixel}
+		    channel: {det1.channel}
+		    sampling_rate_hz: {det1.sampling_rate_hz}
+		    fwhm_arcmin: {det1.fwhm_arcmin}
+		    ellipticity: {det1.ellipticity}
+		    net_ukrts: {det1.net_ukrts}
+		    pol_sensitivity_ukarcmin: {det1.pol_sensitivity_ukarcmin}
+		    fknee_mhz: {det1.fknee_mhz}
+		    fmin_hz: {det1.fmin_hz}
+		    ellipticity: {det1.ellipticity}
+		    pointing_u_v: {det1.pointing_u_v}
+		    pointing_theta_phi_psi_deg: {det1.pointing_theta_phi_psi_deg}
+		    pol_angle_rad: {det1.pol_angle_rad}, {det2.pol_angle_rad}
+		    mueller_hwp: {det1.mueller_hwp}
         """
         return info_text
 
@@ -145,7 +151,7 @@ Detector info.
             file.write(header)
             for detector in selected_detector_list:
                 scaled_net = np.round(detector.net_ukrts * scaling_factor, 2)
-                line = f"{self.telescope}\t\t{self.channel}\t\t{detector.net_ukrts}\t\t{selected_number_of_dets}/{self.ndets_in_channel}\t\t{scaled_net}\t\t{detector.name}\n"
+                line = f"'LMHFT'\t\t{self.channel}\t\t{detector.net_ukrts}\t\t{selected_number_of_dets}/{self.ndets_in_channel}\t\t{scaled_net}\t\t{detector.name}\n"
                 file.write(line)
         print(f"[green]The {filename} is generated.[/green]")
         print(f"[green]Location:[/green] [cyan]{self.base_path}/{filename}[/cyan]")
@@ -216,8 +222,8 @@ Detector info.
 
     def main(self):
         if not CONFIG_FILE_PATH.exists():
-            imo = Imo()
-            self.imo_version = "vPTEP"
+            imo = Imo(flatfile_location="json file location")
+            self.imo_version = "imo version"
         else:
             IMO_ROOT_PATH = self.extract_location_from_toml(CONFIG_FILE_PATH)
             imo = Imo(flatfile_location=os.path.join(IMO_ROOT_PATH, "schema.json"))
@@ -232,23 +238,7 @@ Detector info.
 
         sim = Simulation(random_seed=None, imo=imo)
 
-        print(
-            "[green]Input telescope's number:[/green] [cyan]['(1). LFT', '(2). MFT', '(3). HFT'][/cyan]"
-        )
-        telescope_id = input()
-
-        if telescope_id == "1":
-            self.telescope = "LFT"
-        elif telescope_id == "2":
-            self.telescope = "MFT"
-        elif telescope_id == "3":
-            self.telescope = "HFT"
-        else:
-            raise ValueError("Invalid telescope number. Please input 1, 2 or 3.")
-
-        inst_info = sim.imo.query(
-            f"/releases/{self.imo_version}/satellite/{self.telescope}/instrument_info"
-        )
+        inst_info = sim.imo.query(f"/releases/{self.imo_version}/LMHFT/instrument_info")
         channel_list = inst_info.metadata["channel_names"]
         # add index to the channel list
         channel_list_with_idx = [
@@ -280,12 +270,12 @@ Detector info.
         for ch in channel_list:
             channel_info = FreqChannelInfo.from_imo(
                 imo=imo,
-                url=f"/releases/{self.imo_version}/satellite/{self.telescope}/{ch}/channel_info",
+                url=f"/releases/{self.imo_version}/LMHFT/{ch}/channel_info",
             )
             for detector_name in channel_info.detector_names:
                 det = DetectorInfo.from_imo(
                     imo=imo,
-                    url=f"/releases/{self.imo_version}/satellite/{self.telescope}/{ch}/{detector_name}/detector_info",
+                    url=f"/releases/{self.imo_version}/LMHFT/{ch}/{detector_name}/detector_info",
                 )
                 if self.channel == ch:
                     self.channel_dets_list.append(det)
@@ -336,10 +326,12 @@ Detector info.
         self.fig.canvas.mpl_connect("button_press_event", self.on_plot_click)
         plt.tight_layout()
         plt.show()
+        plt.savefig("testfp.png")
 
         # Save the detector list file.
         if ans == "y":
-            filename = "detectors_" + self.telescope + "_" + self.channel + "_T+B.txt"
+            filename = "detectors_LMHFT" + "_" + self.channel + "_T+B.txt"
+            print(self.selected_detector_list)
             self.selected_detector_list = sorted(
                 self.selected_detector_list, key=lambda detector: detector.name
             )
