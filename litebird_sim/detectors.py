@@ -154,8 +154,8 @@ class DetectorInfo:
              and ψ (colatitude, longitude, and orientation) of the pointing direction,
              expressed in degrees.
 
-        - pointing_u_v (Union[None, np.ndarray]): The (u,v) coordinates of the pointing 
-            direction in the sky, with (0, 0) being the direction of the main axis of 
+        - pointing_u_v (Union[None, np.ndarray]): The (u,v) coordinates of the pointing
+            direction in the sky, with (0, 0) being the direction of the main axis of
             the focal plane
     """
 
