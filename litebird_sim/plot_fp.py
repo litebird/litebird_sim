@@ -7,14 +7,14 @@ import os
 from pathlib import Path
 import toml
 from rich import print
-from litebird_sim.quaternions import (
+from .quaternions import (
     quat_left_multiply,
     quat_right_multiply,
     quat_rotation_z,
 )
-from litebird_sim.simulations import Simulation
-from litebird_sim.imo import Imo
-from litebird_sim.detectors import DetectorInfo, FreqChannelInfo
+from .simulations import Simulation
+from .imo import Imo
+from .detectors import DetectorInfo, FreqChannelInfo
 
 CONFIG_FILE_PATH = Path.home() / ".config" / "litebird_imo" / "imo.toml"
 
