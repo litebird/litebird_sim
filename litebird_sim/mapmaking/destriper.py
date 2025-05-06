@@ -1,32 +1,22 @@
 # -*- encoding: utf-8 -*-
+import gc
 import logging
 import time
-
-# The implementation of the destriping algorithm provided here is based on the paper
-# «Destriping CMB temperature and polarization maps» by Kurki-Suonio et al. 2009,
-# A&A 506, 1511–1539 (2009), https://dx.doi.org/10.1051/0004-6361/200912361
-#
-# It is important to have that paper at hand while reading this code, as many
-# functions and variable defined here use the same letters and symbols of that
-# paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
-
 from dataclasses import dataclass
-import gc
 from pathlib import Path
+from typing import Callable, Union, List, Optional, Tuple, Any, Dict
 
+import healpy as hp
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
-import healpy as hp
 
-from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
-from typing import Callable, Union, List, Optional, Tuple, Any, Dict
+from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
 from litebird_sim.hwp import HWP
+from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from litebird_sim.observations import Observation
 from litebird_sim.pointings import get_hwp_angle
-from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
-
 from .common import (
     _compute_pixel_indices,
     _normalize_observations_and_pointings,
@@ -38,6 +28,14 @@ from .common import (
     _build_mask_detector_split,
     _build_mask_time_split,
 )
+
+# The implementation of the destriping algorithm provided here is based on the paper
+# «Destriping CMB temperature and polarization maps» by Kurki-Suonio et al. 2009,
+# A&A 506, 1511–1539 (2009), https://dx.doi.org/10.1051/0004-6361/200912361
+#
+# It is important to have that paper at hand while reading this code, as many
+# functions and variable defined here use the same letters and symbols of that
+# paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
 if MPI_ENABLED:
     import mpi4py.MPI
@@ -501,7 +499,7 @@ def _build_nobs_matrix(
         )
 
     # Now we must accumulate the result of every MPI process
-    if MPI_ENABLED and MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
+    if MPI_ENABLED and MPI_COMM_GRID.is_this_process_in_grid():
         MPI_COMM_GRID.COMM_OBS_GRID.Allreduce(
             mpi4py.MPI.IN_PLACE, nobs_matrix, op=mpi4py.MPI.SUM
         )
@@ -750,7 +748,7 @@ def _compute_binned_map(
                 baseline_lengths=cur_baseline_lengths,
             )
 
-    if MPI_ENABLED:
+    if MPI_ENABLED and MPI_COMM_GRID.is_this_process_in_grid():
         MPI_COMM_GRID.COMM_OBS_GRID.Allreduce(
             mpi4py.MPI.IN_PLACE, output_sky_map, op=mpi4py.MPI.SUM
         )
@@ -995,7 +993,7 @@ def _mpi_dot(a: List[npt.ArrayLike], b: List[npt.ArrayLike]) -> float:
     # we call “flatten” to make them 1D and produce *one* scalar out of
     # the dot product
     local_result = sum([np.dot(x1.flatten(), x2.flatten()) for (x1, x2) in zip(a, b)])
-    if MPI_ENABLED:
+    if MPI_ENABLED and MPI_COMM_GRID.is_this_process_in_grid():
         return MPI_COMM_GRID.COMM_OBS_GRID.allreduce(local_result, op=mpi4py.MPI.SUM)
     else:
         return local_result
@@ -1574,6 +1572,9 @@ def make_destriped_map(
        containing the destriped map and other useful information
     """
     elapsed_time_s = time.monotonic()
+
+    if not MPI_COMM_GRID.is_this_process_in_grid():
+        return None
 
     if not components:
         components = ["tod"]
