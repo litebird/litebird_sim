@@ -23,7 +23,6 @@ from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
 from litebird_sim.healpix import nside_to_npix
 
-import logging
 
 from .common import (
     _compute_pixel_indices,
