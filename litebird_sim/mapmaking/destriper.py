@@ -24,12 +24,11 @@ from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from typing import Callable, Union, List, Optional, Tuple, Any, Dict
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
-from litebird_sim.pointings import get_hwp_angle
+from litebird_sim.pointings import get_hwp_angle, _normalize_observations_and_pointings
 from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
 
 from .common import (
     _compute_pixel_indices,
-    _normalize_observations_and_pointings,
     COND_THRESHOLD,
     get_map_making_weights,
     cholesky,
@@ -451,18 +450,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         cur_obs.destriper_weights = get_map_making_weights(cur_obs, check=True)
 
-        if hwp is None:
-            if hasattr(cur_obs, "hwp_angle"):
-                hwp_angle = cur_obs.hwp_angle
-            else:
-                hwp_angle = None
-        else:
-            if type(cur_ptg) is np.ndarray:
-                hwp_angle = get_hwp_angle(cur_obs, hwp)
-            else:
-                logging.warning(
-                    "For using an external HWP object also pass a pre-calculated pointing"
-                )
+        hwp_angle = get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         (
             cur_obs.destriper_pixel_idx,

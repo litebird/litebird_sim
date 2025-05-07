@@ -102,13 +102,7 @@ def add_2f_to_observations(
         if optical_power_k is None:
             optical_power_k = cur_obs.optical_power_k
 
-        if hwp is None:
-            if hasattr(cur_obs, "hwp_angle"):
-                hwp_angle = cur_obs.hwp_angle
-            else:
-                hwp_angle = None
-        else:
-            hwp_angle = get_hwp_angle(cur_obs, hwp)
+        hwp_angle = get_hwp_angle(obs=cur_obs, hwp=hwp)
 
         add_2f(
             tod=getattr(cur_obs, component),

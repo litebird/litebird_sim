@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional, Union
+from typing import Optional, Union, List, Tuple
 
 import astropy.time
 import numpy as np
@@ -11,6 +11,8 @@ from .scanning import (
     all_compute_pointing_and_orientation,
     RotQuaternion,
 )
+
+from .observations import Observation
 
 
 def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
@@ -35,24 +37,93 @@ def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     )
 
 
-def get_hwp_angle(observations, hwp: HWP):
+def get_hwp_angle(obs: Observation, hwp: Union[HWP, None], pointing_dtype=np.float64):
     """Obtain the hwp angle for an observation"""
 
-    start_time = observations.start_time - observations.start_time_global
-    if isinstance(start_time, astropy.time.TimeDelta):
-        start_time_s = start_time.to("s").value
+    if hwp is None:
+        if obs.has_hwp:
+            if hasattr(obs, "hwp_angle"):
+                hwp_angle = obs.hwp_angle
+            else:
+                hwp_angle = obs.get_pointings(pointings_dtype=pointing_dtype)[1]
+        else:
+            if hasattr(obs, "mueller_hwp"):
+                assert all(m is None for m in obs.mueller_hwp), (
+                    "Detectors have been initialized with a mueller_hwp,"
+                    "but no HWP is either passed or initilized in the pointing"
+                )
+            hwp_angle = None
     else:
-        start_time_s = start_time
+        start_time = obs.start_time - obs.start_time_global
+        if isinstance(start_time, astropy.time.TimeDelta):
+            start_time_s = start_time.to("s").value
+        else:
+            start_time_s = start_time
 
-    angle = np.empty(observations.n_samples)
+        hwp_angle = np.empty(obs.n_samples)
 
-    hwp.get_hwp_angle(
-        angle,
-        start_time_s,
-        1.0 / observations.sampling_rate_hz,
-    )
+        hwp.get_hwp_angle(
+            hwp_angle,
+            start_time_s,
+            1.0 / obs.sampling_rate_hz,
+        )
 
-    return angle
+    return hwp_angle
+
+
+def _normalize_observations_and_pointings(
+    observations: Union[Observation, List[Observation]],
+    pointings: Union[np.ndarray, List[np.ndarray], None],
+) -> Tuple[List[Observation], List[npt.NDArray], List[npt.NDArray]]:
+    # In map-making routines, we always rely on two local variables:
+    #
+    # - obs_list contains a list of the observations to be used in the
+    #   map-making process by the current MPI process. Unlike the `observations`
+    #   parameters used in functions like `make_binned_map`, this is
+    #   *always* a list, i.e., even if there is just one observation
+    #
+    # - ptg_list: a list of pointing matrices, one per each observation,
+    #   each belonging to the current MPI process
+    #
+    # This function builds the tuple (obs_list, ptg_list, psi_list) and
+    # returns it.
+
+    if pointings is None:
+        if isinstance(observations, Observation):
+            obs_list = [observations]
+            if hasattr(observations, "pointing_matrix"):
+                ptg_list = [observations.pointing_matrix]
+            else:
+                ptg_list = [observations.get_pointings]
+        else:
+            obs_list = observations
+            ptg_list = []
+            for ob in observations:
+                if hasattr(ob, "pointing_matrix"):
+                    ptg_list.append(ob.pointing_matrix)
+                else:
+                    ptg_list.append(ob.get_pointings)
+    else:
+        if isinstance(observations, Observation):
+            assert isinstance(pointings, np.ndarray), (
+                "You must pass a list of observations *and* a list "
+                + "of pointing matrices to scan_map_in_observations"
+            )
+            obs_list = [observations]
+            ptg_list = [pointings]
+        else:
+            assert isinstance(pointings, list), (
+                "When you pass a list of observations to scan_map_in_observations, "
+                + "you must do the same for `pointings`"
+            )
+            assert len(observations) == len(pointings), (
+                f"The list of observations has {len(observations)} elements, but "
+                + f"the list of pointings has {len(pointings)} elements"
+            )
+            obs_list = observations
+            ptg_list = pointings
+
+    return obs_list, ptg_list
 
 
 class PointingProvider:
