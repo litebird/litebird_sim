@@ -109,19 +109,6 @@ def jones_complex_to_polar(j0, j1, j2, integrate_in_band):
         )
 
 
-def extract_deltas(j0f, j2f, j4f, integrate_in_band):
-    if integrate_in_band:
-        for key in [j0f, j2f, j4f]:
-            key[:, 0, 0] -= 1
-            key[:, 1, 1] += 1
-    else:
-        for key in [j0f, j2f, j4f]:
-            key[0, 0] -= 1
-            key[1, 1] += 1
-
-    return j0f, j2f, j4f
-
-
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
@@ -588,10 +575,7 @@ class HwpSys:
                         j0f = cur_det.jones_hwp["0f"]
                         j2f = cur_det.jones_hwp["2f"]
                         j4f = cur_det.jones_hwp["4f"]
-
-                        j0f, j2f, j4f = extract_deltas(
-                            j0f, j2f, j4f, self.integrate_in_band
-                        )
+                        
                         j0f, j2f, j4f = jones_complex_to_polar(
                             j0f, j2f, j4f, self.integrate_in_band
                         )
