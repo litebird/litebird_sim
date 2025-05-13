@@ -197,7 +197,7 @@ def test_hwp_sys():
         hwp_angle=[hwp_angle_0, hwp_angle_45],
     )
 
-    output_maps = hwp_sys.make_map([obs])
+    output_maps = hwp_sys.make_map([obs, new_obs])
     np.testing.assert_almost_equal(input_maps, output_maps, decimal=9, verbose=True)
 
 
