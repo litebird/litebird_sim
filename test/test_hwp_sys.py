@@ -126,6 +126,7 @@ def test_hwp_sys():
     hwp_sys.fill_tod(
         observations=[obs],
         input_map_in_galactic=False,
+        save_tod=True,
     )
 
     output_maps = hwp_sys.make_map([obs])
@@ -195,6 +196,7 @@ def test_hwp_sys():
         input_map_in_galactic=False,
         pointings=[point_0, point_45],
         hwp_angle=[hwp_angle_0, hwp_angle_45],
+        save_tod=True,
     )
 
     output_maps = hwp_sys.make_map([obs])
@@ -318,6 +320,7 @@ def test_hwp_sys_angles():
     hwp_sys.fill_tod(
         observations=[obs_hwpsys],
         input_map_in_galactic=False,
+        save_tod=True,
     )
 
     np.testing.assert_equal(obs_scan.tod, obs_hwpsys.tod, verbose=True)
