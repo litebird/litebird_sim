@@ -199,7 +199,7 @@ def test_hwp_sys():
         save_tod=True,
     )
 
-    output_maps = hwp_sys.make_map([obs])
+    output_maps = hwp_sys.make_map([obs, new_obs])
     np.testing.assert_almost_equal(input_maps, output_maps, decimal=9, verbose=True)
 
 
