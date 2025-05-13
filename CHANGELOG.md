@@ -1,5 +1,7 @@
 # HEAD
 
+-   Function for nullifying tods in the class `Simulation` [#389](https://github.com/litebird/litebird_sim/pull/389). 
+
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
 -   Module for performing the 4π beam convolution [#338](https://github.com/litebird/litebird_sim/pull/338)
