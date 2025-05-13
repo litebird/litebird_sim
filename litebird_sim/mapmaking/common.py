@@ -7,9 +7,11 @@ import astropy.time
 
 from ducc0.healpix import Healpix_Base
 
-from litebird_sim.coordinates import CoordinateSystem, rotate_coordinates_e2g
+from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.observations import Observation
 from litebird_sim.mpi import MPI_COMM_GRID
+
+from litebird_sim.pointings import _get_pointings_array, _get_pol_angle
 
 
 # The threshold on the conditioning number used to determine if a pixel
@@ -152,22 +154,20 @@ def _compute_pixel_indices(
     polang_all = np.empty((num_of_detectors, num_of_samples), dtype=np.float64)
 
     for idet in range(num_of_detectors):
-        if type(pointings) is np.ndarray:
-            curr_pointings_det = pointings[idet, :, :]
-        else:
-            curr_pointings_det, hwp_angle = pointings(
-                idet, pointings_dtype=pointings_dtype
-            )
+        curr_pointings_det, hwp_angle = _get_pointings_array(
+            detector_idx=idet,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
+            output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
+        )
 
-        if output_coordinate_system == CoordinateSystem.Galactic:
-            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
-
-        if hwp_angle is None:
-            polang_all[idet] = pol_angle_detectors[idet] + curr_pointings_det[:, 2]
-        else:
-            polang_all[idet] = (
-                2 * hwp_angle - pol_angle_detectors[idet] + curr_pointings_det[:, 2]
-            )
+        polang_all[idet] = _get_pol_angle(
+            detector_idx=idet,
+            curr_pointings_det=curr_pointings_det,
+            hwp_angle=hwp_angle,
+            pol_angle_detectors=pol_angle_detectors,
+        )
 
         pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
 

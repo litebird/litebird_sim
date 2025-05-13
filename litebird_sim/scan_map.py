@@ -7,8 +7,12 @@ from ducc0.healpix import Healpix_Base
 from typing import Union, List, Dict, Optional
 from .observations import Observation
 from .hwp import HWP, mueller_ideal_hwp
-from .pointings import get_hwp_angle, _normalize_observations_and_pointings
-from .coordinates import rotate_coordinates_e2g, CoordinateSystem
+from .pointings import (
+    _get_hwp_angle,
+    _get_pointings_array,
+    _normalize_observations_and_pointings,
+)
+from .coordinates import CoordinateSystem
 from .healpix import npix_to_nside
 import logging
 import healpy as hp
@@ -200,14 +204,16 @@ def scan_map(
         pol_eff_detectors = np.ones(n_detectors)
 
     for detector_idx in range(n_detectors):
-        if type(pointings) is np.ndarray:
-            curr_pointings_det = pointings[detector_idx, :, :]
-        else:
-            curr_pointings_det, hwp_angle = pointings(
-                detector_idx, pointings_dtype=pointings_dtype
-            )
         if input_map_in_galactic:
-            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+            output_coordinate_system = CoordinateSystem.Galactic
+
+        curr_pointings_det, hwp_angle = _get_pointings_array(
+            detector_idx=detector_idx,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
+            output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
+        )
 
         if input_names is None:
             maps_det = maps
@@ -414,7 +420,7 @@ def scan_map_in_observations(
             )
             input_names = None
 
-        hwp_angle = get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         scan_map(
             tod=getattr(cur_obs, component),

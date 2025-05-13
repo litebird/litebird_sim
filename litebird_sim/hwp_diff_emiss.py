@@ -8,7 +8,7 @@ from numbers import Number
 
 from .observations import Observation
 from .hwp import HWP
-from .pointings import get_hwp_angle
+from .pointings import _get_hwp_angle
 
 
 """def convert_pW_to_K(power_pW, NET, NEP):
@@ -102,7 +102,7 @@ def add_2f_to_observations(
         if optical_power_k is None:
             optical_power_k = cur_obs.optical_power_k
 
-        hwp_angle = get_hwp_angle(obs=cur_obs, hwp=hwp)
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp)
 
         add_2f(
             tod=getattr(cur_obs, component),

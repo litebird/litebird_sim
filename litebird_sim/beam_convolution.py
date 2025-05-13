@@ -13,7 +13,7 @@ from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 from .hwp import HWP
 from .mueller_convolver import MuellerConvolver
 from .observations import Observation
-from .pointings import get_hwp_angle, _normalize_observations_and_pointings
+from .pointings import _get_hwp_angle, _normalize_observations_and_pointings
 from .spherical_harmonics import SphericalHarmonics
 
 # Name of the environment variable used in the convolution
@@ -414,7 +414,7 @@ def add_convolved_sky_to_observations(
             input_beam_names = None
 
         # Handle HWP angles
-        hwp_angle = get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         # Set number of threads
         if nthreads is None:

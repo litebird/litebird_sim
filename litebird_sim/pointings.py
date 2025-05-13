@@ -12,6 +12,8 @@ from .scanning import (
     RotQuaternion,
 )
 
+from .coordinates import CoordinateSystem, rotate_coordinates_e2g
+
 from .observations import Observation
 
 
@@ -37,7 +39,43 @@ def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     )
 
 
-def get_hwp_angle(obs: Observation, hwp: Union[HWP, None], pointing_dtype=np.float64):
+def _get_pointings_array(
+    detector_idx,  # local pointing idx
+    pointings,
+    hwp_angle,
+    output_coordinate_system,
+    pointings_dtype=np.float64,
+):
+    if type(pointings) is np.ndarray:
+        curr_pointings_det = pointings[detector_idx, :, :]
+    else:
+        curr_pointings_det, hwp_angle = pointings(
+            detector_idx, pointings_dtype=pointings_dtype
+        )
+
+    if output_coordinate_system == CoordinateSystem.Galactic:
+        curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+
+    return curr_pointings_det, hwp_angle
+
+
+def _get_pol_angle(
+    detector_idx,
+    curr_pointings_det,
+    hwp_angle,
+    pol_angle_detectors,
+):
+    if hwp_angle is None:
+        pol_angle = pol_angle_detectors[detector_idx] + curr_pointings_det[:, 2]
+    else:
+        pol_angle = (
+            2 * hwp_angle - pol_angle_detectors[detector_idx] + curr_pointings_det[:,]
+        )
+
+    return pol_angle
+
+
+def _get_hwp_angle(obs: Observation, hwp: Union[HWP, None], pointing_dtype=np.float64):
     """Obtain the hwp angle for an observation"""
 
     if hwp is None:
