@@ -847,25 +847,29 @@ class HwpSys:
                     phi=phi,
                 )
 
-            if self.build_map_on_the_fly:
-                compute_ata_atd_for_one_detector(
-                    ata=self.ata,
-                    atd=self.atd,
-                    tod=tod,
-                    m0f_solver=cur_det.mueller_hwp_solver["0f"],
-                    m2f_solver=cur_det.mueller_hwp_solver["2f"],
-                    m4f_solver=cur_det.mueller_hwp_solver["4f"],
-                    pixel_ind=pix,
-                    theta=np.array(cur_hwp_angle, dtype=np.float64),
-                    psi=np.array(psi, dtype=np.float64),
-                    phi=phi,
-                    cos2Xi2Phi=cos2Xi2Phi,
-                    sin2Xi2Phi=sin2Xi2Phi,
-                )
+                cur_obs.tod[idet] = tod
 
-        del (pix, self.maps)
+                if self.build_map_on_the_fly:
+                    compute_ata_atd_for_one_detector(
+                        ata=self.ata,
+                        atd=self.atd,
+                        tod=tod,
+                        m0f_solver=cur_det.mueller_hwp_solver["0f"],
+                        m2f_solver=cur_det.mueller_hwp_solver["2f"],
+                        m4f_solver=cur_det.mueller_hwp_solver["4f"],
+                        pixel_ind=pix,
+                        theta=np.array(cur_hwp_angle, dtype=np.float64),
+                        psi=np.array(psi, dtype=np.float64),
+                        phi=phi,
+                        cos2Xi2Phi=cos2Xi2Phi,
+                        sin2Xi2Phi=sin2Xi2Phi,
+                    )
+
+        del (pix, self.maps, tod)
         if not save_tod:
-            del tod
+            del cur_obs.tod
+        else:
+            np.save("tod", cur_obs.tod)
 
         return
 
