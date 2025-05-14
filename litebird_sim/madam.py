@@ -226,6 +226,16 @@ def save_simulation_for_madam(
     a common trick is to create soft links to them in the output directory where the
     ``.par`` and ``.sim`` files are saved.
 
+    `pointings` and `hwp` are the optional parameters. External pointing
+    information, if not included in the observations, must be passed through
+    the `pointings` parameter. It is assumed that the pointing information is available in ecliptic coordinates. The pointings are therefore as such. To
+    save pointings in other coordinates, the parameter `output_coordinate_system`
+    can be used. The HWP object should be passed to `hwp` parameter in order
+    to compute the HWP angles.
+
+    When pointings are computed on the fly, they are computed in double
+    precision. It can be modified with the argument `pointing_dtype`.
+
     The return value is either a dictionary containing all the parameters used to
     fill Madam files (the parameter file and the simulation file) or ``None``;
     the dictionary is only returned for the MPI process with rank #0.

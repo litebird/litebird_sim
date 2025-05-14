@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional, Union, List, Tuple
+from typing import Optional, Union, List, Tuple, Callable
 
 import astropy.time
 import numpy as np
@@ -39,45 +39,27 @@ def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     )
 
 
-def _get_pointings_array(
-    detector_idx,  # local pointing idx
-    pointings,
-    hwp_angle,
-    output_coordinate_system,
-    pointings_dtype=np.float64,
-):
-    if type(pointings) is np.ndarray:
-        curr_pointings_det = pointings[detector_idx, :, :]
-    else:
-        curr_pointings_det, hwp_angle = pointings(
-            detector_idx, pointings_dtype=pointings_dtype
-        )
+def _get_hwp_angle(
+    obs: Observation,
+    hwp: Union[HWP, None] = None,
+    pointing_dtype=np.float64,
+) -> Union[np.ndarray, None]:
+    """Obtains the hwp angle for an observation
 
-    if output_coordinate_system == CoordinateSystem.Galactic:
-        curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+    Parameters
+    ----------
+    obs : Observation
+        An instance of the :class:`.Observation` class
+    hwp : Union[HWP, None], optional
+        An instance of the :class:`.HWP` class (optional)
+    pointing_dtype : dtype, optional
+        The dtype for the computed hwp angle, by default `np.float64`
 
-    return curr_pointings_det, hwp_angle
-
-
-def _get_pol_angle(
-    detector_idx,
-    curr_pointings_det,
-    hwp_angle,
-    pol_angle_detectors,
-):
-    if hwp_angle is None:
-        pol_angle = pol_angle_detectors[detector_idx] + curr_pointings_det[:, 2]
-    else:
-        pol_angle = (
-            2 * hwp_angle - pol_angle_detectors[detector_idx] + curr_pointings_det[:, 2]
-        )
-
-    return pol_angle
-
-
-def _get_hwp_angle(obs: Observation, hwp: Union[HWP, None], pointing_dtype=np.float64):
-    """Obtain the hwp angle for an observation"""
-
+    Returns
+    -------
+    Union[np.ndarray, None]
+        An array containing the HWP angles or `None`
+    """
     if hwp is None:
         if obs.has_hwp:
             if hasattr(obs, "hwp_angle"):
@@ -107,6 +89,75 @@ def _get_hwp_angle(obs: Observation, hwp: Union[HWP, None], pointing_dtype=np.fl
         )
 
     return hwp_angle
+
+
+def _get_pol_angle(
+    curr_pointings_det: np.ndarray,
+    hwp_angle: Union[np.ndarray, None],
+    pol_angle_detectors: float,
+) -> np.ndarray:
+    """Computes the polarization angle of the detector
+
+    Parameters
+    ----------
+    curr_pointings_det : np.ndarray
+        Pointing information of the detector
+    hwp_angle : Union[np.ndarray, None]
+        An array containing the HWP angle or `None`
+    pol_angle_detectors : float
+        Polarization angle of the detector
+
+    Returns
+    -------
+    np.ndarray
+        An array containing the polarization angle of the detector
+    """
+    if hwp_angle is None:
+        pol_angle = pol_angle_detectors + curr_pointings_det[:, 2]
+    else:
+        pol_angle = 2 * hwp_angle - pol_angle_detectors + curr_pointings_det[:, 2]
+
+    return pol_angle
+
+
+def _get_pointings_array(
+    detector_idx: int,
+    pointings: Union[npt.ArrayLike, Callable],
+    hwp_angle: Union[np.ndarray, None],
+    output_coordinate_system: CoordinateSystem,
+    pointings_dtype=np.float64,
+) -> Tuple[np.ndarray, Union[np.ndarray], None]:
+    """Computes the pointings (θ and φ) and HWP angle
+
+    Parameters
+    ----------
+    detector_idx : int
+        Detector index, local to an :class:`.Observation`
+    pointings : Union[npt.ArrayLike, Callable]
+        Pointing information of the detectors stored in an :class:`.Observation`
+    hwp_angle : Union[np.ndarray, None]
+        An array containing the HWP angle of the telescope
+    output_coordinate_system : CoordinateSystem
+        Coordinate system of the output pointings
+    pointing_dtype : dtype, optional
+        The dtype for the computed hwp angle, by default `np.float64`
+
+    Returns
+    -------
+    Tuple[np.ndarray, Union[np.ndarray], None]
+        A tuple containing the pointing array and HWP angle
+    """
+    if type(pointings) is np.ndarray:
+        curr_pointings_det = pointings[detector_idx, :, :]
+    else:
+        curr_pointings_det, hwp_angle = pointings(
+            detector_idx, pointings_dtype=pointings_dtype
+        )
+
+    if output_coordinate_system == CoordinateSystem.Galactic:
+        curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+
+    return curr_pointings_det, hwp_angle
 
 
 def _normalize_observations_and_pointings(
@@ -165,13 +216,38 @@ def _normalize_observations_and_pointings(
 
 
 def _get_pointings_and_pol_angles_det(
-    obs,
-    det_idx,
+    obs: Observation,
+    det_idx: int,
     hwp: Optional[HWP] = None,
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     pointing_dtype=np.float64,
-):
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Computes the pointings (θ and φ) and polarization angle of a detector
+
+    Parameters
+    ----------
+    obs : Observation
+        An instance of :class:`.Observation` class
+    det_idx : int
+        Detector index, local to an :class:`.Observation`
+    hwp : Union[HWP, None], optional
+        An instance of the :class:`.HWP` class (optional)
+    pointings : Union[np.ndarray, List[np.ndarray], None], optional
+        An array of pointings or a list containing the array of pointings,
+        by default `None`
+    output_coordinate_system : CoordinateSystem, optional
+        Coordinate system of the output pointings, by default
+        `CoordinateSystem.Galactic`
+    pointing_dtype : dtype, optional
+        The dtype for the computed hwp angle, by default `np.float64`
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        A tuple containing the pointings and polarization angle of the detector
+    """
+
     hwp_angle = _get_hwp_angle(
         obs=obs,
         hwp=hwp,
@@ -191,10 +267,9 @@ def _get_pointings_and_pol_angles_det(
     )
 
     pol_angle = _get_pol_angle(
-        detector_idx=det_idx,
         curr_pointings_det=pointings_det,
         hwp_angle=hwp_angle,
-        pol_angle_detectors=obs.pol_angle_rad,
+        pol_angle_detectors=obs.pol_angle_rad[det_idx],
     )
 
     return pointings_det, pol_angle

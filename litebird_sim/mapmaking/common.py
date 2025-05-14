@@ -163,10 +163,9 @@ def _compute_pixel_indices(
         )
 
         polang_all[idet] = _get_pol_angle(
-            detector_idx=idet,
             curr_pointings_det=curr_pointings_det,
             hwp_angle=hwp_angle,
-            pol_angle_detectors=pol_angle_detectors,
+            pol_angle_detectors=pol_angle_detectors[idet],
         )
 
         pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
