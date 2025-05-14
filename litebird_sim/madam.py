@@ -49,7 +49,7 @@ def _save_pointings_to_fits(
     pointings: Union[np.ndarray, List[np.ndarray], None],
     output_coordinate_system,
     file_name: Union[str, Path],
-    pointings_dtype=np.float64,
+    pointing_dtype=np.float64,
 ):
     ensure_parent_dir_exists(file_name)
 
@@ -59,7 +59,7 @@ def _save_pointings_to_fits(
         hwp=hwp,
         pointings=pointings,
         output_coordinate_system=output_coordinate_system,
-        pointing_dtype=pointings_dtype,
+        pointing_dtype=pointing_dtype,
     )
 
     theta_col = fits.Column(name="THETA", array=pointings_det[:, 0], format="E")
@@ -392,7 +392,7 @@ def save_simulation_for_madam(
 
             if save_pointings:
                 _save_pointings_to_fits(
-                    observations=cur_obs,
+                    observation=cur_obs,
                     det_idx=cur_local_det_idx,
                     hwp=hwp,
                     pointings=pointings,

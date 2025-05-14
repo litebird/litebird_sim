@@ -69,7 +69,7 @@ def _get_pol_angle(
         pol_angle = pol_angle_detectors[detector_idx] + curr_pointings_det[:, 2]
     else:
         pol_angle = (
-            2 * hwp_angle - pol_angle_detectors[detector_idx] + curr_pointings_det[:,]
+            2 * hwp_angle - pol_angle_detectors[detector_idx] + curr_pointings_det[:, 2]
         )
 
     return pol_angle
@@ -178,9 +178,14 @@ def _get_pointings_and_pol_angles_det(
         pointing_dtype=pointing_dtype,
     )
 
+    __, pointings = _normalize_observations_and_pointings(
+        observations=obs, pointings=pointings
+    )
+
     pointings_det, hwp_angle = _get_pointings_array(
         detector_idx=det_idx,
-        pointings=pointings,
+        pointings=pointings[0],
+        hwp_angle=hwp_angle,
         output_coordinate_system=output_coordinate_system,
         pointings_dtype=pointing_dtype,
     )

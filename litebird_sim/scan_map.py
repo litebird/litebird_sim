@@ -206,6 +206,8 @@ def scan_map(
     for detector_idx in range(n_detectors):
         if input_map_in_galactic:
             output_coordinate_system = CoordinateSystem.Galactic
+        else:
+            output_coordinate_system = CoordinateSystem.Ecliptic
 
         curr_pointings_det, hwp_angle = _get_pointings_array(
             detector_idx=detector_idx,
