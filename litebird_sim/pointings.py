@@ -163,19 +163,28 @@ def _get_pointings_array(
 def _normalize_observations_and_pointings(
     observations: Union[Observation, List[Observation]],
     pointings: Union[np.ndarray, List[np.ndarray], None],
-) -> Tuple[List[Observation], List[npt.NDArray], List[npt.NDArray]]:
-    # In map-making routines, we always rely on two local variables:
-    #
-    # - obs_list contains a list of the observations to be used in the
-    #   map-making process by the current MPI process. Unlike the `observations`
-    #   parameters used in functions like `make_binned_map`, this is
-    #   *always* a list, i.e., even if there is just one observation
-    #
-    # - ptg_list: a list of pointing matrices, one per each observation,
-    #   each belonging to the current MPI process
-    #
-    # This function builds the tuple (obs_list, ptg_list, psi_list) and
-    # returns it.
+) -> Tuple[List[Observation], List[npt.NDArray]]:
+    """This function builds the tuple (`obs_list`, `ptg_list`) and returns it.
+
+    - `obs_list` contains a list of the observations to be used by current MPI
+      process. This is *always* a list, even if just one observation is
+      provided in the input.
+    - `ptg_list` contains a list of pointing matrices, either as numpy arrays
+      or callable functions, one per each observation, each belonging to the
+      current MPI process.
+
+    Parameters
+    ----------
+    observations : Union[Observation, List[Observation]]
+        An observation or a list of observations
+    pointings : Union[np.ndarray, List[np.ndarray], None]
+        External pointing information, if not already included in the observation
+
+    Returns
+    -------
+    Tuple[List[Observation], List[npt.NDArray]]
+        The tuple of the list of observations and list of pointings
+    """
 
     if pointings is None:
         if isinstance(observations, Observation):
