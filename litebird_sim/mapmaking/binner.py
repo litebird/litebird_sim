@@ -293,6 +293,7 @@ def make_binned_map(
         nside (int): HEALPix nside of the output map
         pointings (array or list of arrays): optional, external pointing
             information, if not included in the observations
+        hwp (HWP, optional): An instance of the :class:`.HWP` class (optional)
         output_coordinate_system (:class:`.CoordinateSystem`): the coordinates
             to use for the output map
         components (list[str]): list of components to include in the map-making.

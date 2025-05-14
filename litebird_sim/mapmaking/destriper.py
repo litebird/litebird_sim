@@ -1532,6 +1532,7 @@ def make_destriped_map(
        θ,φ,ψ angles (in radians), or a list if `observations` was a
        list. If no pointings are specified, they will be
        taken from `observations` (the most common situation)
+    :param hwp: An instance of the :class:`.HWP` class (optional)
     :param params: an instance of the :class:`.DestriperParameters` class
     :param components: a list of components to extract from
        the TOD and sum together. The default is to use `observations.tod`.
