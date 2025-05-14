@@ -164,6 +164,37 @@ def _normalize_observations_and_pointings(
     return obs_list, ptg_list
 
 
+def _get_pointings_and_pol_angles_det(
+    obs,
+    det_idx,
+    hwp: Optional[HWP] = None,
+    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+    pointing_dtype=np.float64,
+):
+    hwp_angle = _get_hwp_angle(
+        obs=obs,
+        hwp=hwp,
+        pointing_dtype=pointing_dtype,
+    )
+
+    pointings_det, hwp_angle = _get_pointings_array(
+        detector_idx=det_idx,
+        pointings=pointings,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointing_dtype,
+    )
+
+    pol_angle = _get_pol_angle(
+        detector_idx=det_idx,
+        curr_pointings_det=pointings_det,
+        hwp_angle=hwp_angle,
+        pol_angle_detectors=obs.pol_angle_rad,
+    )
+
+    return pointings_det, pol_angle
+
+
 class PointingProvider:
     def __init__(
         self,
