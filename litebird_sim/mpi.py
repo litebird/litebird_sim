@@ -56,6 +56,15 @@ class _GridCommClass:
     def _set_null_comm(self, comm_null):
         self._MPI_COMM_NULL = comm_null
 
+    def is_this_process_in_grid(self) -> bool:
+        """
+        Return ``True`` if the current MPI process is in the MPI grid.
+
+        If the function returns ``False``, then the current MPI process is not handling
+        any TOD sample.
+        """
+        return self._MPI_COMM_OBS_GRID != self._MPI_COMM_NULL
+
 
 #: Global variable equal either to `mpi4py.MPI.COMM_WORLD` or a object
 #: that defines the member variables `rank = 0` and `size = 1`.

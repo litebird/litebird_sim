@@ -1112,7 +1112,11 @@ class Simulation:
         numba_num_of_threads_all = []  # type: list[int]
 
         for obs in self.observations:
-            cur_det_names = list(obs.name)
+            try:
+                cur_det_names = list(obs.name)
+            except TypeError:
+                # This observation has no `.name` field, so it is empty
+                cur_det_names = ["<empty>"]
 
             shapes = [
                 tuple(getattr(obs, cur_tod.name).shape) for cur_tod in self.tod_list
@@ -1789,36 +1793,36 @@ class Simulation:
             )
         if write_to_disk:
             filenames = []
-            for ds in detector_splits:
-                for ts in time_splits:
-                    result = make_binned_map(
-                        nside=nside,
-                        observations=self.observations,
-                        output_coordinate_system=output_coordinate_system,
-                        components=components,
-                        detector_split=ds,
-                        time_split=ts,
-                        pointings_dtype=pointings_dtype,
-                    )
-                    file = f"binned_map_DET{ds}_TIME{ts}.fits"
-                    names = ["I", "Q", "U"]
-                    result = list(result.__dict__.items())
-                    mapp = result.pop(0)[1]
-                    inv_cov = result.pop(0)[1]
-                    coords = result.pop(0)[1].name
-                    del result
-                    inv_cov = inv_cov.T[np.tril_indices(3)]
-                    inv_cov[[2, 3]] = inv_cov[[3, 2]]
-                    inv_cov = list(inv_cov)
-                    if include_inv_covariance:
-                        names.extend(["II", "IQ", "IU", "QQ", "QU", "UU"])
-                        for _ in range(6):
-                            mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
-                    filenames.append(
-                        self.write_healpix_map(
-                            file, mapp, column_names=names, coord=coords
+            if MPI_COMM_GRID.is_this_process_in_grid():
+                for ds in detector_splits:
+                    for ts in time_splits:
+                        result = make_binned_map(
+                            nside=nside,
+                            observations=self.observations,
+                            output_coordinate_system=output_coordinate_system,
+                            components=components,
+                            detector_split=ds,
+                            time_split=ts,
                         )
-                    )
+                        file = f"binned_map_DET{ds}_TIME{ts}.fits"
+                        names = ["I", "Q", "U"]
+                        result = list(result.__dict__.items())
+                        mapp = result.pop(0)[1]
+                        inv_cov = result.pop(0)[1]
+                        coords = result.pop(0)[1].name
+                        del result
+                        inv_cov = inv_cov.T[np.tril_indices(3)]
+                        inv_cov[[2, 3]] = inv_cov[[3, 2]]
+                        inv_cov = list(inv_cov)
+                        if include_inv_covariance:
+                            names.extend(["II", "IQ", "IU", "QQ", "QU", "UU"])
+                            for _ in range(6):
+                                mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
+                        filenames.append(
+                            self.write_healpix_map(
+                                file, mapp, column_names=names, coord=coords
+                            )
+                        )
             return filenames
         else:
             binned_maps = {}
@@ -1957,7 +1961,7 @@ class Simulation:
                         baselines = result.baselines
                         recycled_convergence = result.converged
 
-                    if append_to_report:
+                    if append_to_report and MPI_COMM_GRID.is_this_process_in_grid():
                         self._build_and_append_destriped_report(
                             "report_destriper_splits.md", ts, ds, result
                         )
@@ -1966,12 +1970,14 @@ class Simulation:
                     base_file = (
                         f"DET{ds}_TIME{ts}_baselines_mpi{MPI_COMM_WORLD.rank:04d}.fits"
                     )
-                    save_destriper_results(
-                        result,
-                        output_folder=self.base_path,
-                        custom_dest_file=dest_file,
-                        custom_base_file=base_file,
-                    )
+
+                    if MPI_COMM_GRID.is_this_process_in_grid():
+                        save_destriper_results(
+                            result,
+                            output_folder=self.base_path,
+                            custom_dest_file=dest_file,
+                            custom_base_file=base_file,
+                        )
                     filenames.append((dest_file, base_file))
             del baselines
             return filenames
@@ -2002,7 +2008,7 @@ class Simulation:
                         baselines = destriped_maps[f"{ds}_{ts}"].baselines
                         recycled_convergence = destriped_maps[f"{ds}_{ts}"].converged
 
-                    if append_to_report:
+                    if append_to_report and MPI_COMM_GRID.is_this_process_in_grid():
                         self._build_and_append_destriped_report(
                             "report_destriper_splits.md",
                             ts,
@@ -2057,7 +2063,7 @@ class Simulation:
             pointings_dtype=pointings_dtype,
         )
 
-        if append_to_report:
+        if append_to_report and MPI_COMM_GRID.is_this_process_in_grid():
             self._build_and_append_destriped_report(
                 "report_destriper.md", detector_split, time_split, results
             )
