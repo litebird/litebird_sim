@@ -502,6 +502,7 @@ def test_simulation_random():
     elif comm_world.rank == 3:
         assert state3["state"]["state"] != state4["state"]["state"]
 
+
 def test_nullify_mpi(tmp_path):
     start_time = 0
     time_span_s = 2
@@ -526,7 +527,7 @@ def test_nullify_mpi(tmp_path):
 
     # Assert TOD is initially non-zero and specific to rank
     for obs in sim.observations:
-        obs.tod[:,:] = lbs.MPI_COMM_WORLD.rank + 1
+        obs.tod[:, :] = lbs.MPI_COMM_WORLD.rank + 1
         print(obs.tod)
 
     sim.nullify_tod()
@@ -534,6 +535,7 @@ def test_nullify_mpi(tmp_path):
     # Assert TOD is now zero
     for obs in sim.observations:
         assert np.all(obs.tod == 0)
+
 
 if __name__ == "__main__":
     test_observation_time()
@@ -569,5 +571,3 @@ if __name__ == "__main__":
 
         if tmp_dir:
             tmp_dir.cleanup()
-
-

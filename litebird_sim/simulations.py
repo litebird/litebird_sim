@@ -1190,7 +1190,9 @@ class Simulation:
             try:
                 tod = getattr(cur_obs, component)
             except AttributeError:
-                raise AttributeError(f"Observation {i} does not have attribute '{component}'")
+                raise AttributeError(
+                    f"Observation {i} does not have attribute '{component}'"
+                )
 
             if tod is not None:
                 tod[:, :] = 0
