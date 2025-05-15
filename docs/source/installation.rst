@@ -117,3 +117,43 @@ If you have created a virtual environment to work with
 That's it: the next time you run a script that uses ``litebird_sim``,
 MPI functions will be automatically enabled in the framework. See the
 chapter :ref:`using_mpi` for more details.
+
+
+Maximize the performance
+------------------------
+
+For some of the most CPU-intensive tasks, LBS relies on the `ducc
+<https://gitlab.mpcdf.mpg.de/mtr/ducc>`_ library, which is written in
+C++. When you run ``pip install litebird_sim``, you are downloading a
+prebuilt binary of the library which is portable among many
+architectures but might not exploit the CPU you are using to its
+maximum potential.
+
+If you plan to use CPU-intensive tasks like beam convolution (see
+chapter :ref:`Convolve Alms with a Beam to fill a TOD`), you will
+surely take advantage of a natively compiled binary. To do this, you
+must have a valid C++ compiler, as it is specified in `ducc’s README
+<https://gitlab.mpcdf.mpg.de/mtr/ducc>`_.
+
+To use a natively-compiled binary for ``ducc``, create a virtual
+environment and install ``litebird_sim`` as usual, then *uninstall*
+``ducc`` and re-install it again, this time telling ``pip`` to compile
+it from source.
+
+.. code-block:: text
+
+   mkdir -p ~/litebird && cd ~/litebird
+   python3 -m venv lbs_env
+   . lbs_env/bin/activate
+   pip install litebird_sim
+
+   # Remove the version downloaded by default
+   pip uninstall ducc0
+
+   # Re-install ducc0 forcing to skip the download of the binary
+   pip3 install --no-binary ducc0 ducc0
+
+If you experience problems with the last command because of
+compilation errors, please open an issue on the `ducc repository page
+<https://gitlab.mpcdf.mpg.de/mtr/ducc/-/issues>`_.
+
