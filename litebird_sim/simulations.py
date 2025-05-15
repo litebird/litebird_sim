@@ -1187,12 +1187,10 @@ class Simulation:
             If an observation does not have the specified component.
         """
         for i, cur_obs in enumerate(self.observations):
-            if not hasattr(cur_obs, component):
-                raise AttributeError(
-                    f"Observation {i} does not have attribute '{component}'"
-                )
-
-            tod = getattr(cur_obs, component)
+            try:
+                tod = getattr(cur_obs, component)
+            except AttributeError:
+                raise AttributeError(f"Observation {i} does not have attribute '{component}'")
 
             if tod is not None:
                 tod[:, :] = 0

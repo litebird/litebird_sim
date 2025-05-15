@@ -502,6 +502,38 @@ def test_simulation_random():
     elif comm_world.rank == 3:
         assert state3["state"]["state"] != state4["state"]["state"]
 
+def test_nullify_mpi(tmp_path):
+    start_time = 0
+    time_span_s = 2
+    sampling_hz = 12
+
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=start_time,
+        duration_s=time_span_s,
+        random_seed=12345,
+    )
+
+    det = lbs.DetectorInfo(
+        name="Dummy detector",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    num_of_obs = 12
+    sim.create_observations(detectors=[det], num_of_obs_per_detector=num_of_obs)
+
+    # Assert TOD is initially non-zero and specific to rank
+    for obs in sim.observations:
+        obs.tod[:,:] = lbs.MPI_COMM_WORLD.rank + 1
+        print(obs.tod)
+
+    sim.nullify_tod()
+
+    # Assert TOD is now zero
+    for obs in sim.observations:
+        assert np.all(obs.tod == 0)
 
 if __name__ == "__main__":
     test_observation_time()
@@ -527,6 +559,7 @@ if __name__ == "__main__":
 
     try:
         test_write_hdf5_mpi(tmp_path)
+        test_nullify_mpi(tmp_path)
     finally:
         # Now we can remove the temporary directory, but first make
         # sure that there are no other MPI processes still waiting to
@@ -536,3 +569,5 @@ if __name__ == "__main__":
 
         if tmp_dir:
             tmp_dir.cleanup()
+
+
