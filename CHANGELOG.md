@@ -8,7 +8,7 @@
 
 -   Make `@_profile` preserve docstrings [#371](https://github.com/litebird/litebird_sim/pull/371)
 
--   Downgrade Ducc0 to 0.34.0 [#383](https://github.com/litebird/litebird_sim/pull/383)
+-   Upgrade Ducc0 to 0.37.1 and clarify how to compile Ducc0 from sources [#383](https://github.com/litebird/litebird_sim/pull/383), [#390](https://github.com/litebird/litebird_sim/pull/390)
 
 # Version 0.14.0
 
