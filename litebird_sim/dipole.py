@@ -199,8 +199,7 @@ def add_dipole(
     dipole_type: DipoleType,
     pointings_dtype=np.float64,
 ):
-    """
-    Add the CMB dipole contribution to time-ordered data (TOD).
+    """Add the CMB dipole contribution to time-ordered data (TOD).
 
     Use `dipole_type` to specify which kind of approximation to use
     for the dipole component. The `pointings` argument must be a N×3 matrix containing
@@ -214,16 +213,16 @@ def add_dipole(
     Parameters
     ----------
     tod : np.ndarray
-        A 2D array representing the time-ordered data, with shape `(N_detectors, N_samples)`,
-        where `N_detectors` is the number of detectors and `N_samples` is the number
-        of time samples.
+        A 2D array representing the time-ordered data, with shape `(Ndetectors, Nsamples)`.
 
     pointings : np.ndarray or callable
         The pointing matrix, which can be:
-        - A numpy array of shape `(N_detectors, N_samples, 2)`, containing the pointing
-          angles `(theta, phi)` for each detector and time sample.
-        - A callable function that returns the pointing information when called with
-          `(detector_idx, pointings_dtype)`.
+
+        -   A numpy array of shape `(N_detectors, N_samples, 2)`, containing the pointing
+            angles `(theta, phi)` for each detector and time sample.
+
+        -   A callable function that returns the pointing information when called with
+            `(detector_idx, pointings_dtype)`.
 
     velocity : np.ndarray
         A 2D array of shape `(N_samples, 3)`, representing the spacecraft velocity in
@@ -253,16 +252,18 @@ def add_dipole(
 
     Example
     -------
-    ```python
-    add_dipole(
-        tod=my_tod,
-        pointings=my_pointings,
-        velocity=my_velocity,
-        t_cmb_k=2.725,
-        frequency_ghz=np.array([30, 40, 70]),  # Example frequencies in GHz
-        dipole_type=DipoleType.TOTAL_FROM_LIN_T,
-    )
-    ```
+
+    Here is an example::
+
+        add_dipole(
+            tod=my_tod,
+            pointings=my_pointings,
+            velocity=my_velocity,
+            t_cmb_k=2.725,
+            frequency_ghz=np.array([30, 40, 70]),  # Example frequencies in GHz
+            dipole_type=DipoleType.TOTAL_FROM_LIN_T,
+        )
+
     """
 
     if type(pointings) is np.ndarray:
@@ -310,74 +311,76 @@ def add_dipole_to_observations(
     component: str = "tod",
     pointings_dtype=np.float64,
 ):
-    """
-    Add the CMB dipole signal to the time-ordered data (TOD) stored in one or more
-    `Observation` objects.
+    """Add the CMB dipole signal to the time-ordered data (TOD) stored
+    in one or more `Observation` objects.
 
-    This function acts as a wrapper around :func:`.add_dipole`, ensuring that the dipole
-    signal is correctly computed and added to the TOD associated with `observations`.
+    This function acts as a wrapper around :func:`.add_dipole`,
+    ensuring that the dipole signal is correctly computed and added to
+    the TOD associated with `observations`.
 
-    By default, the TOD is added to ``Observation.tod``. If you want to add it to some
-    other field of the :class:`.Observation` class, use `component`::
+    By default, the TOD is added to ``Observation.tod``. If you want
+    to add it to some other field of the :class:`.Observation` class,
+    use `component`.
 
-    Parameters
-    ----------
-    observations : Union[Observation, List[Observation]]
-        A single `Observation` instance or a list of `Observation` objects whose TOD
-        will be modified by adding the CMB dipole signal.
+    Args:
+        observations (Union[Observation, List[Observation]]): A single
+            :class:`Observation` instance or a list of `Observation` objects,
+            whose TOD will be modified by adding the CMB dipole
+            signal.
 
-    pos_and_vel : SpacecraftPositionAndVelocity
-        An object providing spacecraft position and velocity information, which is
-        necessary to compute the dipole contribution.
+        pos_and_vel (:class:`.SpacecraftPositionAndVelocity`): An
+            object providing spacecraft position and velocity
+            information, which is necessary to compute the dipole
+            contribution.
 
-    pointings : Union[np.ndarray, List[np.ndarray], None], optional
-        If provided, this should be an array (or list of arrays) containing the pointing
-        matrices for the observations. If `None`, the function will extract pointing
-        matrices from the `Observation` objects.
+        pointings (Union[np.ndarray, List[np.ndarray], None]): If
+            provided, this should be an array (or list of arrays)
+            containing the pointing matrices for the observations. If
+            `None`, the function will extract pointing matrices from
+            the `Observation` objects.
 
-    t_cmb_k : float, optional
-        The temperature of the cosmic microwave background (CMB) in Kelvin. Default
-        is `c.T_CMB_K`.
+        t_cmb_k (Optional[float]): The temperature of the cosmic
+            microwave background (CMB) in Kelvin. Default is
+            `c.T_CMB_K`.
 
-    dipole_type : DipoleType, optional
-        Specifies the type of dipole to be added. Default is `DipoleType.TOTAL_FROM_LIN_T`.
+        dipole_type (Optional[DipoleType]): The type of dipole to
+            be added. Default is `DipoleType.TOTAL_FROM_LIN_T`.
 
-    frequency_ghz : Union[np.ndarray, None], optional
-        The observation frequency in GHz. If `None`, the function will use the
-        `bandcenter_ghz` attribute from each `Observation`.
+        frequency_ghz (Optional[np.ndarray]): The observation
+            frequency in GHz. If `None`, the function will use the
+            `bandcenter_ghz` attribute from each `Observation`.
 
-    component : str, optional
-        The name of the attribute in `Observation` where the dipole signal should be
-        stored. Default is `"tod"`, but a different field (e.g., `"dipole_tod"`) can
-        be specified.
+        component (Optional[str]): The name of the attribute in
+            :class:`Observation` where the dipole signal should be
+            stored. Default is ``"tod"``, but a different field (e.g.,
+            ``"dipole_tod"``) can be specified.
 
-    pointings_dtype : dtype, optional
-        Data type for pointings generated on the fly. If the pointing is passed or
-        already precomputed this parameter is ineffective. Default is `np.float64`.
+        pointings_dtype (Optional[dtype]): Data type for pointings
+            generated on the fly. If the pointing is passed or already
+            precomputed this parameter is ineffective. Default is
+            ``np.float64``.
 
-    Notes
-    -----
-    - If `pointings` is not provided, the function will extract pointing matrices from
-      the `Observation` objects. If the pointing is generated on the fly pointings_dtype
-      specifies its type.
-    - The spacecraft velocity is interpolated over the timestamps of each observation.
+    Note:
+        If `pointings` is not provided, the function will extract
+        pointing matrices from the `Observation` objects. If the
+        pointing is generated on the fly, `pointings_dtype` specifies
+        its type.
 
-    Example
-    -------
-    To add the dipole to the default TOD field:
+        The spacecraft velocity is interpolated over the timestamps of
+        each observation.
 
-    ```python
-    add_dipole_to_observations(sim.observations, pos_and_vel)
-    ```
+    To add the dipole to the default TOD field::
 
-    To store the dipole in a separate component:
+        add_dipole_to_observations(sim.observations, pos_and_vel)
 
-    ```python
-    for obs in sim.observations:
-        obs.dipole_tod = np.zeros_like(obs.tod)
 
-    add_dipole_to_observations(sim.observations, pos_and_vel, component="dipole_tod")
-    ```
+    To store the dipole in a separate component::
+
+        for obs in sim.observations:
+            obs.dipole_tod = np.zeros_like(obs.tod)
+
+        add_dipole_to_observations(sim.observations, pos_and_vel, component="dipole_tod")
+
     """
 
     if pointings is None:

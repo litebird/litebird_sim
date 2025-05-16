@@ -7,8 +7,12 @@ from ducc0.healpix import Healpix_Base
 from typing import Union, List, Dict, Optional
 from .observations import Observation
 from .hwp import HWP, mueller_ideal_hwp
-from .pointings import get_hwp_angle
-from .coordinates import rotate_coordinates_e2g, CoordinateSystem
+from .pointings import (
+    _get_hwp_angle,
+    _get_pointings_array,
+    _normalize_observations_and_pointings,
+)
+from .coordinates import CoordinateSystem
 from .healpix import npix_to_nside
 import logging
 import healpy as hp
@@ -200,14 +204,18 @@ def scan_map(
         pol_eff_detectors = np.ones(n_detectors)
 
     for detector_idx in range(n_detectors):
-        if type(pointings) is np.ndarray:
-            curr_pointings_det = pointings[detector_idx, :, :]
-        else:
-            curr_pointings_det, hwp_angle = pointings(
-                detector_idx, pointings_dtype=pointings_dtype
-            )
         if input_map_in_galactic:
-            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+            output_coordinate_system = CoordinateSystem.Galactic
+        else:
+            output_coordinate_system = CoordinateSystem.Ecliptic
+
+        curr_pointings_det, hwp_angle = _get_pointings_array(
+            detector_idx=detector_idx,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
+            output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
+        )
 
         if input_names is None:
             maps_det = maps
@@ -382,40 +390,9 @@ def scan_map_in_observations(
       handling each one separately.
     """
 
-    if pointings is None:
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix]
-            else:
-                ptg_list = [observations.get_pointings]
-        else:
-            obs_list = observations
-            ptg_list = []
-            for ob in observations:
-                if hasattr(ob, "pointing_matrix"):
-                    ptg_list.append(ob.pointing_matrix)
-                else:
-                    ptg_list.append(ob.get_pointings)
-    else:
-        if isinstance(observations, Observation):
-            assert isinstance(pointings, np.ndarray), (
-                "You must pass a list of observations *and* a list "
-                + "of pointing matrices to scan_map_in_observations"
-            )
-            obs_list = [observations]
-            ptg_list = [pointings]
-        else:
-            assert isinstance(pointings, list), (
-                "When you pass a list of observations to scan_map_in_observations, "
-                + "you must do the same for `pointings`"
-            )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
-            )
-            obs_list = observations
-            ptg_list = pointings
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=observations, pointings=pointings
+    )
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         if isinstance(maps, dict):
@@ -445,25 +422,7 @@ def scan_map_in_observations(
             )
             input_names = None
 
-        if hwp is None:
-            if cur_obs.has_hwp:
-                if hasattr(cur_obs, "hwp_angle"):
-                    hwp_angle = cur_obs.hwp_angle
-                else:
-                    hwp_angle = cur_obs.get_pointings(pointings_dtype=pointings_dtype)[
-                        1
-                    ]
-            else:
-                assert all(m is None for m in cur_obs.mueller_hwp), (
-                    "Detectors have been initialized with a mueller_hwp,"
-                    "but no HWP is either passed or initilized in the pointing"
-                )
-                hwp_angle = None
-        else:
-            if isinstance(cur_ptg, np.ndarray):
-                hwp_angle = get_hwp_angle(cur_obs, hwp)
-            else:
-                logging.warning("HWP provided, but no precomputed pointings passed.")
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         scan_map(
             tod=getattr(cur_obs, component),
