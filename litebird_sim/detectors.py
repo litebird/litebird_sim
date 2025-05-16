@@ -149,6 +149,14 @@ class DetectorInfo:
         - mueller_hwp_solver (Union[None, np.ndarray]): mueller matrix of the HWP
              for the mapmaking. It allows to have a non-ideal HWP in the solver.
              The default is None (i.e. no HWP)
+
+        - pointing_theta_phi_psi_deg (Union[None, np.ndarray]): The angles θ, φ,
+             and ψ (colatitude, longitude, and orientation) of the pointing direction,
+             expressed in degrees.
+
+        - pointing_u_v (Union[None, np.ndarray]): The (u,v) coordinates of the pointing
+            direction in the sky, with (0, 0) being the direction of the main axis of
+            the focal plane
     """
 
     name: str = ""
@@ -177,6 +185,8 @@ class DetectorInfo:
     pol_efficiency: float = 1.0
     mueller_hwp: Union[None, np.ndarray] = None
     mueller_hwp_solver: Union[None, np.ndarray] = None
+    pointing_theta_phi_psi_deg: Union[None, np.ndarray] = None
+    pointing_u_v: Union[None, np.ndarray] = None
 
     def __post_init__(self):
         if self.quat is None:
