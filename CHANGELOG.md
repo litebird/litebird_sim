@@ -1,8 +1,10 @@
 # HEAD
 
--   Common interface to compute pointings and detector polarization angle [#378](https://github.com/litebird/litebird_sim/pull/378)
-
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
+
+-   Fix the formatting of a few docstrings [#391](https://github.com/litebird/litebird_sim/pull/391)
+
+-   Common interface to compute pointings and detector polarization angle [#378](https://github.com/litebird/litebird_sim/pull/378)
 
 -   Module for performing the 4π beam convolution [#338](https://github.com/litebird/litebird_sim/pull/338)
 
