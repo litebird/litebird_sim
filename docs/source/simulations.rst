@@ -516,9 +516,28 @@ straightforward::
     sim.write_observations(...)
     sim.read_observations(...)
 
+Dedicated functions can also take care of the input generation and of the beam
+convolution::
+
+    Mbsparams = lbs.MbsParameters(...)
+    alms = sim.get_sky(parameters=Mbsparams)
+
+    blms = sim.get_gauss_beam_alms(...)
+
+    Convparams = lbs.BeamConvolutionParameters(...)
+    sim.convolve_sky(sky_alms=alms,
+                     beam_alms=grasp_beam,
+                     convolution_params=Convparams,
+                     ...,
+                     )
+
+TODs of the simulations can be also zeroed easly with::
+
+    sim.nullify_tod()
+
 See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
-:ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`mapmaking` for 
-details of the single functions.
+:ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`mapmaking`,
+:ref:`beamconvolution` for details of the single functions.
 
 
 Data splits
