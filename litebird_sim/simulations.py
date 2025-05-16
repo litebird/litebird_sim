@@ -1436,7 +1436,8 @@ class Simulation:
         """
         Fills the tod with dipole.
 
-        It is a wrapper for the function :function:`.add_dipole_to_observations`
+        This is a wrapper for the function :func:`.add_dipole_to_observations`.
+
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.create_observations`, and the pointing
@@ -1483,15 +1484,16 @@ class Simulation:
         pointings_dtype=np.float64,
         append_to_report: bool = True,
     ):
-        """
-        Fills the Time-Ordered Data (TOD) by scanning a given sky map.
+        """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
-        It is a wrapper for the function :function:`.scan_map_in_observations`
-        This method must be called after having set the scanning strategy, the
-        instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.create_observations`, and the method
-        :meth:`.prepare_pointings`. maps is assumed to be produced by :class:`.Mbs`
-        or through :meth:`.get_sky`.
+        This is a wrapper to the function :func:`.scan_map_in_observations`.
+
+        This method must be called after having set the scanning
+        strategy, the instrument, the list of detectors to simulate
+        through calls to :meth:`.set_instrument` and
+        :meth:`.create_observations`, and the method
+        :meth:`.prepare_pointings`. maps is assumed to be produced by
+        :class:`.Mbs` or through :meth:`.get_sky`.
 
         """
 
@@ -1606,11 +1608,16 @@ class Simulation:
     ):
         """Fills the TODs, convolving a set of alms.
 
-        It is a wrapper for the function :function:`.add_convolved_sky_to_observations`
-        This method must be called after having set the scanning strategy, the
-        instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, and the method
-        :meth:`.prepare_pointings`. alms are assumed to be produced by :class:`.Mbs`
+        This is a wrapper to the function
+        :func:`.add_convolved_sky_to_observations`.
+
+        This method must be called after having set the scanning
+        strategy, the instrument, the list of detectors to simulate
+        through calls to :meth:`.set_instrument` and
+        :meth:`.add_detector`, and the method
+        :meth:`.prepare_pointings`. alms are assumed to be produced by
+        :class:`.Mbs`
+
         """
 
         if nthreads is None:

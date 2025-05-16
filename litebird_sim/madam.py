@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Union, Optional, List, Dict, Any
+import numpy as np
 
 import jinja2
 from astropy.io import fits
@@ -14,6 +15,10 @@ from .coordinates import CoordinateSystem
 from .mapmaking import ExternalDestriperParameters
 from .observations import Observation
 from .simulations import Simulation, MpiDistributionDescr
+from .hwp import HWP
+from .pointings import (
+    _get_pointings_and_pol_angles_det,
+)
 
 
 def _read_templates():
@@ -38,27 +43,38 @@ def _format_time_for_fits(time: Union[float, AstroTime]) -> Union[float, str]:
 
 
 def _save_pointings_to_fits(
-    observations: Observation,
+    observation: Observation,
     det_idx: int,
+    hwp: Optional[HWP],
+    pointings: Union[np.ndarray, List[np.ndarray], None],
+    output_coordinate_system,
     file_name: Union[str, Path],
+    pointing_dtype=np.float64,
 ):
     ensure_parent_dir_exists(file_name)
 
-    theta_col = fits.Column(
-        name="THETA", array=observations.pointing_matrix[det_idx, :, 0], format="E"
-    )
-    phi_col = fits.Column(
-        name="PHI", array=observations.pointing_matrix[det_idx, :, 1], format="E"
-    )
-    psi_col = fits.Column(
-        name="PSI", array=observations.pointing_matrix[det_idx, :, 2], format="E"
+    pointings_det, pol_angle = _get_pointings_and_pol_angles_det(
+        obs=observation,
+        det_idx=det_idx,
+        hwp=hwp,
+        pointings=pointings,
+        output_coordinate_system=output_coordinate_system,
+        pointing_dtype=pointing_dtype,
     )
 
+    theta_col = fits.Column(name="THETA", array=pointings_det[:, 0], format="E")
+    phi_col = fits.Column(name="PHI", array=pointings_det[:, 1], format="E")
+    psi_col = fits.Column(name="PSI", array=pol_angle, format="E")
+
     primary_hdu = fits.PrimaryHDU()
-    primary_hdu.header["DET_NAME"] = observations.name[det_idx]
+    primary_hdu.header["DET_NAME"] = observation.name[det_idx]
     primary_hdu.header["DET_IDX"] = det_idx
-    primary_hdu.header["COORD"] = "ECLIPTIC"
-    primary_hdu.header["TIME0"] = _format_time_for_fits(observations.start_time)
+    primary_hdu.header["COORD"] = (
+        "ECLIPTIC"
+        if output_coordinate_system == CoordinateSystem.Ecliptic
+        else "GALACTIC"
+    )
+    primary_hdu.header["TIME0"] = _format_time_for_fits(observation.start_time)
     primary_hdu.header["MPI_RANK"] = litebird_sim.MPI_COMM_WORLD.rank
     primary_hdu.header["MPI_SIZE"] = litebird_sim.MPI_COMM_WORLD.size
 
@@ -153,12 +169,16 @@ def save_simulation_for_madam(
     sim: Simulation,
     params: ExternalDestriperParameters,
     detectors: Optional[List[DetectorInfo]] = None,
+    hwp: Optional[HWP] = None,
+    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     use_gzip: bool = False,
     output_path: Optional[Union[str, Path]] = None,
     absolute_paths: bool = True,
     madam_subfolder_name: str = "madam",
     components: List[str] = ["tod"],
     components_to_bin: Optional[List[str]] = None,
+    pointing_dtype=np.float64,
+    output_coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic,
     save_pointings: bool = True,
     save_tods: bool = True,
 ) -> Optional[Dict[str, Any]]:
@@ -205,6 +225,16 @@ def save_simulation_for_madam(
     reuse files from some other call to ``save_simulation_for_madam``; in this case,
     a common trick is to create soft links to them in the output directory where the
     ``.par`` and ``.sim`` files are saved.
+
+    `pointings` and `hwp` are the optional parameters. External pointing
+    information, if not included in the observations, must be passed through
+    the `pointings` parameter. It is assumed that the pointing information is available in ecliptic coordinates. The pointings are therefore as such. To
+    save pointings in other coordinates, the parameter `output_coordinate_system`
+    can be used. The HWP object should be passed to `hwp` parameter in order
+    to compute the HWP angles.
+
+    When pointings are computed on the fly, they are computed in double
+    precision. It can be modified with the argument `pointing_dtype`.
 
     The return value is either a dictionary containing all the parameters used to
     fill Madam files (the parameter file and the simulation file) or ``None``;
@@ -372,9 +402,13 @@ def save_simulation_for_madam(
 
             if save_pointings:
                 _save_pointings_to_fits(
-                    observations=cur_obs,
+                    observation=cur_obs,
                     det_idx=cur_local_det_idx,
+                    hwp=hwp,
+                    pointings=pointings,
+                    output_coordinate_system=output_coordinate_system,
                     file_name=pointing_file_name,
+                    pointing_dtype=pointing_dtype,
                 )
 
             pointing_files.append(

@@ -162,11 +162,11 @@ def test_construction_from_detectors():
         assert np.all(obs.quat[0] == np.ones(4))
         assert np.isnan(obs.alpha[0])
     else:
-        assert obs.name is None
-        assert obs.wafer is None
-        assert obs.pixel is None
-        assert obs.pixtype is None
-        assert obs.quat is None
+        assert obs.name == [None]
+        assert obs.wafer == [None]
+        assert obs.pixel == [None]
+        assert obs.pixtype == [None]
+        assert obs.quat == [None]
         # On the processes, that does not own any detector (and TOD), the numerical
         # attributes of `DetectorInfo()` are assigned to zero
         assert obs.ellipticity == 0

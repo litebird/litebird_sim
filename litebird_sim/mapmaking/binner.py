@@ -17,17 +17,15 @@ import healpy as hp
 from typing import Union, List, Any, Optional, Callable
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
-from litebird_sim.pointings import get_hwp_angle
+from litebird_sim.pointings import _get_hwp_angle, _normalize_observations_and_pointings
 from litebird_sim.hwp import HWP
 from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
 from litebird_sim.healpix import nside_to_npix
 
-import logging
 
 from .common import (
     _compute_pixel_indices,
-    _normalize_observations_and_pointings,
     COND_THRESHOLD,
     get_map_making_weights,
     _build_mask_detector_split,
@@ -209,18 +207,7 @@ def _build_nobs_matrix(
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
 
-        if hwp is None:
-            if hasattr(cur_obs, "hwp_angle"):
-                hwp_angle = cur_obs.hwp_angle
-            else:
-                hwp_angle = None
-        else:
-            if type(cur_ptg) is np.ndarray:
-                hwp_angle = get_hwp_angle(cur_obs, hwp)
-            else:
-                logging.warning(
-                    "For using an external HWP object also pass a pre-calculated pointing"
-                )
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         pixidx_all, polang_all = _compute_pixel_indices(
             hpx=hpx,
@@ -306,6 +293,7 @@ def make_binned_map(
         nside (int): HEALPix nside of the output map
         pointings (array or list of arrays): optional, external pointing
             information, if not included in the observations
+        hwp (HWP, optional): An instance of the :class:`.HWP` class (optional)
         output_coordinate_system (:class:`.CoordinateSystem`): the coordinates
             to use for the output map
         components (list[str]): list of components to include in the map-making.
