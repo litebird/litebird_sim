@@ -43,6 +43,10 @@ A similar procedure can be used with conda:
    # Finally install litebird_sim with pip
    pip install litebird_sim
 
+If you plan to use any of the facilities provided by ``ducc``, you are
+advised to compile it from source, follow the instructions in
+:ref:`maximize-performance`.
+
 
 Hacking LBS
 -----------
@@ -118,6 +122,7 @@ That's it: the next time you run a script that uses ``litebird_sim``,
 MPI functions will be automatically enabled in the framework. See the
 chapter :ref:`using_mpi` for more details.
 
+.. _maximize-performance:
 
 Maximize the performance
 ------------------------
@@ -130,7 +135,7 @@ architectures but might not exploit the CPU you are using to its
 maximum potential.
 
 If you plan to use CPU-intensive tasks like beam convolution (see
-chapter :ref:`Convolve Alms with a Beam to fill a TOD`), you will
+chapter :ref:`beamconvolution`), you will
 surely take advantage of a natively compiled binary. To do this, you
 must have a valid C++ compiler, as it is specified in `ducc’s README
 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_.
