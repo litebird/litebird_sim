@@ -13,7 +13,7 @@ from .coordinates import rotate_coordinates_e2g, CoordinateSystem
 from .hwp import HWP
 from .mueller_convolver import MuellerConvolver
 from .observations import Observation
-from .pointings import get_hwp_angle
+from .pointings import _get_hwp_angle, _normalize_observations_and_pointings
 from .spherical_harmonics import SphericalHarmonics
 
 # Name of the environment variable used in the convolution
@@ -362,40 +362,9 @@ def add_convolved_sky_to_observations(
     - Calls `add_convolved_sky` to process the TOD for all detectors.
     """
 
-    if pointings is None:
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix]
-            else:
-                ptg_list = [observations.get_pointings]
-        else:
-            obs_list = observations
-            ptg_list = []
-            for ob in observations:
-                if hasattr(ob, "pointing_matrix"):
-                    ptg_list.append(ob.pointing_matrix)
-                else:
-                    ptg_list.append(ob.get_pointings)
-    else:
-        if isinstance(observations, Observation):
-            assert isinstance(pointings, np.ndarray), (
-                "You must pass a list of observations *and* a list "
-                "of pointing matrices to add_convolved_sky_to_observations"
-            )
-            obs_list = [observations]
-            ptg_list = [pointings]
-        else:
-            assert isinstance(pointings, list), (
-                "When you pass a list of observations to add_convolved_sky_to_observations, "
-                "you must do the same for `pointings`"
-            )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
-            )
-            obs_list = observations
-            ptg_list = pointings
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=observations, pointings=pointings
+    )
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         # Determine input sky names
@@ -445,23 +414,7 @@ def add_convolved_sky_to_observations(
             input_beam_names = None
 
         # Handle HWP angles
-        if hwp is None:
-            if cur_obs.has_hwp:
-                hwp_angle = getattr(
-                    cur_obs,
-                    "hwp_angle",
-                    cur_obs.get_pointings(pointings_dtype=pointings_dtype)[1],
-                )
-            else:
-                assert all(
-                    m is None for m in cur_obs.mueller_hwp
-                ), "Detectors have mueller_hwp, but no HWP provided."
-                hwp_angle = None
-        else:
-            if isinstance(cur_ptg, np.ndarray):
-                hwp_angle = get_hwp_angle(cur_obs, hwp)
-            else:
-                logging.warning("HWP provided, but no precomputed pointings passed.")
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         # Set number of threads
         if nthreads is None:
