@@ -52,7 +52,6 @@ markdown-katex = {version = "^202406.1035"}
 matplotlib = "^3.8"
 healpy = "^1.16.2"
 pyyaml = "^6.0"
-pybind11 = "~2.6.0"
 jplephem = "^2.18"
 PyGithub = "^2.1"
 requests = "^2.31.0"
