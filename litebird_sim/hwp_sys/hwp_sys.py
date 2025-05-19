@@ -454,12 +454,12 @@ class HwpSys:
         self,
         nside: Union[int, None] = None,
         Mbsparams: Union[MbsParameters, None] = None,
-        integrate_in_band: Union[bool, None] = None,
-        build_map_on_the_fly: Union[bool, None] = None,
-        integrate_in_band_solver: Union[bool, None] = None,
-        apply_non_linearity: Union[bool, None] = None,
-        add_orbital_dipole: Union[bool, None] = None,
-        add_2f_hwpss: Union[bool, None] = None,
+        integrate_in_band: Union[bool, None] = False,
+        build_map_on_the_fly: Union[bool, None] = False,
+        integrate_in_band_solver: Union[bool, None] = False,
+        apply_non_linearity: Union[bool, None] = False,
+        add_orbital_dipole: Union[bool, None] = False,
+        add_2f_hwpss: Union[bool, None] = False,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
@@ -880,6 +880,10 @@ class HwpSys:
                 if self.add_orbital_dipole:
                     for tt in range(len(tod)):
                         self.maps[0, pix[tt]] += tod[tt]
+
+                if not self.add_2f_hwpss:
+                    cur_det.amplitude_2f_k = 0.0
+                    cur_det.optical_power_k = 0.0
 
                 compute_signal_for_one_detector(
                     tod_det=tod,
