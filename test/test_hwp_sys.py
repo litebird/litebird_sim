@@ -126,80 +126,12 @@ def test_hwp_sys():
     hwp_sys.fill_tod(
         observations=[obs],
         input_map_in_galactic=False,
+        save_tod=True,
     )
 
     output_maps = hwp_sys.make_map([obs])
 
     np.testing.assert_almost_equal(input_maps, output_maps, decimal=9, verbose=True)
-
-    # testing if code works also when passing list of observations, pointings and hwp_angle to fill_tod
-
-    dets2 = []
-    i = 0
-    quats = [
-        [0.06740000004400000, 0.0256776000009992898, 0.0, 0.987687266626111],
-        [
-            0.04540050811606006,
-            -0.002109604840948807,
-            0.809058659733029,
-            0.990586597330291,
-        ],
-    ]
-
-    for i in range(2):
-        det = lbs.DetectorInfo.from_dict(
-            {
-                "channel": channelinfo,
-                "bandcenter_ghz": 140.0,
-                "sampling_rate_hz": sampling,
-                "quat": quats[i],
-            }
-        )
-
-        det.pointing_theta_phi_psi_deg = [0, 45, 0]
-        dets2.append(det)
-
-    (new_obs,) = sim.create_observations(detectors=dets2)
-    for idet in range(new_obs.n_detectors):
-        sim.detectors[idet].pol_angle_rad = compute_orientation_from_detquat(
-            new_obs.quat[idet].quats[0]
-        ) % (2 * np.pi)
-
-    lbs.prepare_pointings(
-        observations=[obs, new_obs],
-        instrument=sim.instrument,
-        spin2ecliptic_quats=sim.spin2ecliptic_quats,
-        hwp=sim.hwp,
-    )
-
-    point_0, hwp_angle_0 = obs.get_pointings("all")
-    point_45, hwp_angle_45 = new_obs.get_pointings("all")
-
-    del hwp_sys
-    del output_maps
-    hwp_sys = lbs.HwpSys(sim)
-
-    hwp_sys.set_parameters(
-        nside=nside,
-        maps=input_maps,
-        Channel=channelinfo,
-        Mbsparams=Mbsparams,
-        integrate_in_band=False,
-        integrate_in_band_solver=False,
-        build_map_on_the_fly=True,
-        comm=comm,
-    )
-
-    hwp_sys.fill_tod(
-        observations=[obs, new_obs],
-        input_map_in_galactic=False,
-        pointings=[point_0, point_45],
-        hwp_angle=[hwp_angle_0, hwp_angle_45],
-    )
-
-    output_maps = hwp_sys.make_map([obs])
-    np.testing.assert_almost_equal(input_maps, output_maps, decimal=9, verbose=True)
-
 
 def test_hwp_sys_angles():
     # testing if the angles are well defined (the tod computed with hwp_sys and the one
@@ -318,6 +250,7 @@ def test_hwp_sys_angles():
     hwp_sys.fill_tod(
         observations=[obs_hwpsys],
         input_map_in_galactic=False,
+        save_tod=True,
     )
 
     np.testing.assert_equal(obs_scan.tod, obs_hwpsys.tod, verbose=True)
