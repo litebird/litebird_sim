@@ -133,6 +133,7 @@ def test_hwp_sys():
 
     np.testing.assert_almost_equal(input_maps, output_maps, decimal=9, verbose=True)
 
+
 def test_hwp_sys_angles():
     # testing if the angles are well defined (the tod computed with hwp_sys and the one
     # computed with scan_map must be the same)
