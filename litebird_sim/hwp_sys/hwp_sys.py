@@ -14,6 +14,7 @@ from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
+from ..non_linearity import apply_quadratic_nonlin_for_one_detector
 
 COND_THRESHOLD = 1e10
 
@@ -271,7 +272,20 @@ def compute_signal_for_one_sample(
 
 @njit(parallel=False)
 def compute_signal_for_one_detector(
-    tod_det, pixel_ind, m0f, m2f, m4f, theta, psi, maps, cos2Xi2Phi, sin2Xi2Phi, phi
+    tod_det,
+    pixel_ind,
+    m0f,
+    m2f,
+    m4f,
+    theta,
+    psi,
+    maps,
+    cos2Xi2Phi,
+    sin2Xi2Phi,
+    phi,
+    add_2f_hwpss,
+    amplitude_2f_k,
+    optical_power_k,
 ):
     """
     Single-frequency case: compute the signal for a single detector,
@@ -317,6 +331,8 @@ def compute_signal_for_one_detector(
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
         )
+        if add_2f_hwpss:
+            tod_det[i] += amplitude_2f_k * np.cos(2 * theta[i]) + optical_power_k
 
 
 @njit(parallel=False)
@@ -376,7 +392,6 @@ def compute_ata_atd_for_one_detector(
     for i in prange(len(tod)):
         FourRho = 4 * (theta[i] - phi)
         TwoRho = 2 * (theta[i] - phi)
-        # psi_i = 2*np.arctan2(np.sqrt(quats_rot[i][0]**2 + quats_rot[i][1]**2 + quats_rot[i][2]**2),quats_rot[i][3])
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=m0f_solver[0, 0]
             + m2f_solver[0, 0] * np.cos(TwoRho - 2.32)
@@ -442,6 +457,9 @@ class HwpSys:
         integrate_in_band: Union[bool, None] = None,
         build_map_on_the_fly: Union[bool, None] = None,
         integrate_in_band_solver: Union[bool, None] = None,
+        apply_non_linearity: Union[bool, None] = None,
+        add_orbital_dipole: Union[bool, None] = None,
+        add_2f_hwpss: Union[bool, None] = None,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
@@ -457,6 +475,11 @@ class HwpSys:
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
           integrate_in_band_solver (bool): performs the band integration for the
                                            map-making solver
+          apply_non_linearity (bool): applies the coupling of the non-linearity
+              systematics with hwp_sys
+          add_orbital_dipole (bool): adds the orbital dipole (computed previously
+              and stored in obs.tod) to the input maps
+          add_2f_hwpss (bool): adds the 2f hwpss signal to the TOD
           Channel (:class:`.FreqChannelInfo`): an instance of the
                                                 :class:`.FreqChannelInfo` class
           maps (float): input maps (3, npix) coherent with nside provided,
@@ -539,6 +562,22 @@ class HwpSys:
         if not hasattr(self, "integrate_in_band_solver"):
             if integrate_in_band_solver is not None:
                 self.integrate_in_band_solver = integrate_in_band_solver
+
+        if not hasattr(self, "apply_non_linearity"):
+            if apply_non_linearity is not None:
+                self.apply_non_linearity = apply_non_linearity
+
+        if not hasattr(self, "add_orbital_dipole"):
+            if add_orbital_dipole is not None:
+                self.add_orbital_dipole = add_orbital_dipole
+
+        if not hasattr(self, "add_2f_hwpss"):
+            if add_2f_hwpss is not None:
+                self.add_2f_hwpss = add_2f_hwpss
+
+        if not hasattr(self, "comm"):
+            if comm is not None:
+                self.comm = comm
 
         if Mbsparams is None and np.any(maps) is None:
             Mbsparams = lbs.MbsParameters(
@@ -636,8 +675,6 @@ class HwpSys:
             self.atd = np.zeros((self.npix, 3), dtype=np.float64)
             self.ata = np.zeros((self.npix, 3, 3), dtype=np.float64)
 
-        self.comm = comm
-
     def fill_tod(
         self,
         observations: Union[Observation, List[Observation]] = None,
@@ -646,7 +683,6 @@ class HwpSys:
         input_map_in_galactic: bool = True,
         save_tod: bool = False,
         dtype_pointings=np.float32,
-        apply_non_linearity=False,
     ):
         r"""Fill a TOD and/or :math:`A^T A` and :math:`A^T d` for the
         "on-the-fly" map production
@@ -807,7 +843,7 @@ class HwpSys:
                         ),
                     }
 
-                tod = np.float64(cur_obs.tod[idet, :])
+                tod = cur_obs.tod[idet, :]
 
                 if pointings is None:
                     if (not ptg_list) or (not hwp_angle_list):
@@ -840,6 +876,11 @@ class HwpSys:
                 cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
                 sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
 
+                # if orbital dipole: I_p = d_t
+                if self.add_orbital_dipole:
+                    for tt in range(len(tod)):
+                        self.maps[0, pix[tt]] += tod[tt]
+
                 compute_signal_for_one_detector(
                     tod_det=tod,
                     pixel_ind=pix,
@@ -852,9 +893,13 @@ class HwpSys:
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
+                    add_2f_hwpss=self.add_2f_hwpss,
+                    amplitude_2f_k=cur_det.amplitude_2f_k,
+                    optical_power_k=cur_det.optical_power_k,
                 )
 
-                cur_obs.tod[idet] = tod
+                if self.apply_non_linearity:
+                    apply_quadratic_nonlin_for_one_detector(tod, cur_det.g_one_over_k)
 
                 if self.build_map_on_the_fly:
                     compute_ata_atd_for_one_detector(
@@ -872,13 +917,15 @@ class HwpSys:
                         sin2Xi2Phi=sin2Xi2Phi,
                     )
 
-        del (pix, self.maps, tod)
+                cur_obs.tod[idet] = tod
+
+        del pix
         if not save_tod:
             del cur_obs.tod
         else:
             np.save("tod", cur_obs.tod)
 
-        return
+        return self.maps
 
     def make_map(self, observations):
         """It generates "on the fly" map. This option is only availabe if
