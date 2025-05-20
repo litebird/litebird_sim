@@ -616,16 +616,16 @@ def __run_test_in_same_folder(test_fn: Callable) -> None:
     local_success = 1
     try:
         test_fn(tmp_path)
-    except Exception as e:
+    except Exception:
         local_success = 0
 
         from traceback import format_exc
 
         print(
-            "MPI process #{rank} failed with exception: ".format(
-                rank=lbs.MPI_COMM_WORLD.rank
+            "MPI process #{rank} failed with exception: {exc}".format(
+                rank=lbs.MPI_COMM_WORLD.rank,
+                exc=format_exc(),
             ),
-            format_exc(e),
             file=stderr,
         )
 
