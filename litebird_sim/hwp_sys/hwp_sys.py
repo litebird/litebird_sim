@@ -891,7 +891,7 @@ class HwpSys:
                     m4f=cur_det.mueller_hwp["4f"],
                     theta=np.array(cur_hwp_angle, dtype=np.float64),
                     psi=np.array(psi, dtype=np.float64),
-                    maps=np.array(self.maps, dtype=np.float64),
+                    maps=self.maps,
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
