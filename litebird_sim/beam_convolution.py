@@ -176,7 +176,9 @@ def add_convolved_sky_to_one_detector(
         tod_det += inter.interpol(
             pointings_det.astype(real_type, copy=False)
             if nside_centering is None
-            else _get_centered_pointings(pointings_det.astype(real_type, copy=False))
+            else _get_centered_pointings(
+                pointings_det.astype(real_type, copy=False), nside_centering
+            )
         )[0]
     else:
         fullconv = MuellerConvolver(
@@ -193,7 +195,7 @@ def add_convolved_sky_to_one_detector(
             ptg=(
                 pointings_det
                 if nside_centering is None
-                else _get_centered_pointings(pointings_det)
+                else _get_centered_pointings(pointings_det, nside_centering)
             ),
             alpha=hwp_angle,
             strict_typing=convolution_params.strict_typing,
