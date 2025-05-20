@@ -65,7 +65,7 @@ def _get_hwp_angle(
             if hasattr(obs, "hwp_angle"):
                 hwp_angle = obs.hwp_angle
             else:
-                hwp_angle = obs.get_pointings(pointings_dtype=pointing_dtype)[1]
+                hwp_angle = obs.get_hwp_angle(pointings_dtype=pointing_dtype)
         else:
             if hasattr(obs, "mueller_hwp"):
                 assert all(m is None for m in obs.mueller_hwp), (
@@ -144,20 +144,23 @@ def _get_pointings_array(
 
     Returns
     -------
-    Tuple[np.ndarray, Union[np.ndarray], None]
-        A tuple containing the pointing array and HWP angle
+    Tuple[np.ndarray, Union[np.ndarray, None]]
+        A tuple (pointings, hwp_angle), where `pointings` is an array of shape [n_samples, 2]
+        and `hwp_angle` is either the input array (if `hwp_angle` is an array) or the value
+        returned by the callable.
     """
     if type(pointings) is np.ndarray:
         curr_pointings_det = pointings[detector_idx, :, :]
+        angle = None
     else:
-        curr_pointings_det, hwp_angle = pointings(
+        curr_pointings_det, angle = pointings(
             detector_idx, pointings_dtype=pointings_dtype
         )
 
     if output_coordinate_system == CoordinateSystem.Galactic:
         curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
-    return curr_pointings_det, hwp_angle
+    return curr_pointings_det, hwp_angle if type(hwp_angle) is np.ndarray else angle
 
 
 def _normalize_observations_and_pointings(

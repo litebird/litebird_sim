@@ -927,6 +927,39 @@ class Observation:
 
         return pointing_buffer, hwp_buffer
 
+    def get_hwp_angle(
+        self,
+        hwp_buffer: Optional[npt.NDArray] = None,
+        pointings_dtype=np.float64,
+    ) -> Union[npt.NDArray, None]:
+        """
+        Compute the hwp angle in this observation
+
+        This method triggers the computation of the hwp angle for the given observation
+        The HWP angle is always a vector with shape ``(N_samples,)``. This is the typical
+        call:
+
+        hwp_angle = cur_obs.get_hwp_angle()
+        """
+        assert (
+            self.pointing_provider is not None
+        ), "You must initialize pointing_provider; use Simulation.prepare_pointings()"
+
+        expected_shape = (self.n_samples,)
+        if self.pointing_provider.has_hwp():
+            if hwp_buffer is not None:
+                assert (
+                    hwp_buffer.shape == expected_shape
+                ), "hwp_buffer has a wrong shape, it is {actual} but should be {expected}".format(
+                    actual=hwp_buffer.shape, expected=expected_shape
+                )
+            else:
+                hwp_buffer = np.empty(expected_shape, dtype=pointings_dtype)
+        else:
+            hwp_buffer = None
+
+        return hwp_buffer
+
     def _set_mpi_subcommunicators(self):
         """
         This function splits the global MPI communicator into three kinds of
