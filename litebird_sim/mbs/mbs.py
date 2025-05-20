@@ -621,7 +621,7 @@ class Mbs:
                 )
             sky = pysm3.Sky(
                 nside=nside,
-                component_objects=[pysm3.CMBMap(nside, map_IQU=cmb_temp)],
+                component_objects=[pysm3.CMBMap(nside, map_IQU=cmb_temp * u.uK_CMB)],
             )
 
             for Nchnl, chnl in enumerate(channels):
