@@ -10,7 +10,6 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
     start_time = astroTime("2026-01-01T00:00:00.000", format="isot")
     time_span_s = 365 * 24 * 3600
     nside = 128
-    sampling = 19
     hwp_radpsec = lbs.IdealHWP(
         4.6 * 2 * np.pi / 60,
     ).ang_speed_radpsec
