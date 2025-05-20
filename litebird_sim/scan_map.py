@@ -10,6 +10,7 @@ from .hwp import HWP, mueller_ideal_hwp
 from .pointings import (
     _get_hwp_angle,
     _get_pointings_array,
+    _get_pol_angle,
     _normalize_observations_and_pointings,
 )
 from .coordinates import CoordinateSystem
@@ -263,12 +264,8 @@ def scan_map(
                 input_T=input_T,
                 input_Q=input_Q,
                 input_U=input_U,
-                pol_angle_det=(
-                    pol_angle_detectors[detector_idx] + curr_pointings_det[:, 2]
-                    if hwp_angle is None
-                    else 2 * hwp_angle
-                    - pol_angle_detectors[detector_idx]
-                    + curr_pointings_det[:, 2]
+                pol_angle_det=_get_pol_angle(
+                    curr_pointings_det, hwp_angle, pol_angle_detectors[detector_idx]
                 ),
                 pol_eff_det=pol_eff_detectors[detector_idx],
             )
