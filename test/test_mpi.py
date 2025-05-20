@@ -1,11 +1,15 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
-
+from pathlib import Path
+from sys import stderr
 from tempfile import TemporaryDirectory
+from typing import Callable
 
-import numpy as np
 import astropy.time as astrotime
+import numpy as np
+
 import litebird_sim as lbs
+from litebird_sim import MPI_COMM_WORLD
 
 
 def test_observation_time():
@@ -503,36 +507,162 @@ def test_simulation_random():
         assert state3["state"]["state"] != state4["state"]["state"]
 
 
-if __name__ == "__main__":
-    test_observation_time()
-    test_construction_from_detectors()
-    test_observation_tod_single_block()
-    test_observation_tod_two_block_time()
-    test_observation_tod_two_block_det()
-    test_observation_tod_set_blocks()
-    test_simulation_random()
+def test_issue314(tmp_path):
+    """Check if issue 314 is solved
+
+    See https://github.com/litebird/litebird_sim/issues/314
+    """
+    if MPI_COMM_WORLD.size != 2:
+        # This test is meant to be executed with 2 MPI tasks, as
+        # `__write_complex_observation` creates 2 observations
+        return
+
+    tmp_path = Path(tmp_path)
+
+    start_time = 0
+    time_span_s = 60
+    sampling_hz = 10
+
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=start_time,
+        duration_s=time_span_s,
+        random_seed=12345,
+        imo=lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION),
+        mpi_comm=lbs.MPI_COMM_WORLD,
+    )
+
+    sim.set_scanning_strategy(
+        scanning_strategy=lbs.SpinningScanningStrategy.from_imo(
+            sim.imo, "/releases/vPTEP/satellite/scanning_parameters"
+        ),
+        delta_time_s=1.0,
+    )
+
+    sim.set_instrument(
+        lbs.InstrumentInfo.from_imo(
+            sim.imo, "/releases/vPTEP/satellite/LFT/instrument_info"
+        )
+    )
+
+    hwp = lbs.IdealHWP(
+        ang_speed_radpsec=1.0,
+        start_angle_rad=2.0,
+    )
+    sim.set_hwp(hwp)
+
+    det1 = lbs.DetectorInfo(
+        name="Dummy detector # 1",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    det2 = lbs.DetectorInfo(
+        name="Dummy detector # 1",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    print(
+        "MPI process #{} is going to call create_observations()".format(
+            lbs.MPI_COMM_WORLD.rank
+        )
+    )
+    sim.create_observations(
+        detectors=[det1, det2],
+        n_blocks_det=2,
+        split_list_over_processes=False,
+    )
+    sim.prepare_pointings(append_to_report=False)
+
+    obs = sim.observations[0]
+    obs.tod[:] = np.random.random(obs.tod.shape)
+
+    sim.write_observations(
+        subdir_name="",
+        gzip_compression=False,
+        write_full_pointings=False,
+    )
+
+    observations = lbs.read_list_of_observations(
+        file_name_list=tmp_path.glob("*.h5"),
+    )
+    assert len(observations) == 1
+
+    obs = observations[0]
+    print(
+        "MPI process #{} has obs.det_idx = {}".format(
+            lbs.MPI_COMM_WORLD.rank, obs.det_idx
+        )
+    )
+
+
+def __run_test_in_same_folder(test_fn: Callable) -> None:
+    if not lbs.MPI_ENABLED:
+        return
+
+    from mpi4py import MPI
 
     # It's critical that all MPI processes use the same output directory
-    if lbs.MPI_ENABLED:
-        if lbs.MPI_COMM_WORLD.rank == 0:
-            tmp_dir = TemporaryDirectory()
-            tmp_path = tmp_dir.name
-            lbs.MPI_COMM_WORLD.bcast(tmp_path, root=0)
-        else:
-            tmp_dir = None
-            tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
-    else:
+    if lbs.MPI_COMM_WORLD.rank == 0:
         tmp_dir = TemporaryDirectory()
         tmp_path = tmp_dir.name
+        lbs.MPI_COMM_WORLD.bcast(tmp_path, root=0)
+    else:
+        tmp_dir = None
+        tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
 
+    local_success = 1
     try:
-        test_write_hdf5_mpi(tmp_path)
-    finally:
-        # Now we can remove the temporary directory, but first make
-        # sure that there are no other MPI processes still waiting to
-        # finish
-        if lbs.MPI_ENABLED:
-            lbs.MPI_COMM_WORLD.barrier()
+        test_fn(tmp_path)
+    except Exception as e:
+        local_success = 0
 
-        if tmp_dir:
-            tmp_dir.cleanup()
+        from traceback import format_exc
+
+        print(
+            "MPI process #{rank} failed with exception: ".format(
+                rank=lbs.MPI_COMM_WORLD.rank
+            ),
+            format_exc(e),
+            file=stderr,
+        )
+
+    global_success = lbs.MPI_COMM_WORLD.allreduce(local_success, op=MPI.MIN)
+
+    if tmp_dir:
+        tmp_dir.cleanup()
+
+    lbs.MPI_COMM_WORLD.barrier()
+    if global_success == 0:
+        if lbs.MPI_COMM_WORLD.rank == 0:
+            print("Failure", file=stderr)
+
+
+if __name__ == "__main__":
+    test_functions = [
+        test_observation_time,
+        test_construction_from_detectors,
+        test_observation_tod_single_block,
+        test_observation_tod_two_block_time,
+        test_observation_tod_two_block_det,
+        test_observation_tod_set_blocks,
+        test_simulation_random,
+    ]
+
+    for cur_test_fn in test_functions:
+        if MPI_COMM_WORLD.rank == 0:
+            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
+        cur_test_fn()
+
+    same_folder_test_functions = [
+        test_write_hdf5_mpi,
+        test_issue314,
+    ]
+
+    for cur_test_fn in same_folder_test_functions:
+        if MPI_COMM_WORLD.rank == 0:
+            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
+        __run_test_in_same_folder(cur_test_fn)
