@@ -89,7 +89,7 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
             make_cmb=True,
             seed_cmb=1234,
             make_noise=False,
-            make_dipole=not(orbital_dipole),
+            make_dipole=not (orbital_dipole),
             make_fg=True,
             fg_models=["pysm_synch_0", "pysm_dust_0", "pysm_freefree_1"],
             gaussian_smooth=True,
