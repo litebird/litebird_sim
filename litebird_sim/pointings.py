@@ -138,7 +138,8 @@ def _get_pointings_array(
     pointings : Union[npt.ArrayLike, Callable]
         Pointing information of the detectors stored in an :class:`.Observation`
     hwp_angle : Union[np.ndarray, None]
-        An array containing the HWP angle of the telescope
+        An array containing the HWP angle of the telescope. If empty this information
+        is taken from the Callable pointings.
     output_coordinate_system : CoordinateSystem
         Coordinate system of the output pointings
     pointing_dtype : dtype, optional

@@ -419,6 +419,7 @@ def scan_map_in_observations(
             )
             input_names = None
 
+        # If you pass an external HWP, get hwp_angle here, otherwise this is handled in scan_map
         if hwp is None:
             hwp_angle = None
         else:

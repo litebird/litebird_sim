@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.totalconvolve import Interpolator, Interpolator_f
 
-from .coordinates import rotate_coordinates_e2g, CoordinateSystem
+from .coordinates import CoordinateSystem
 from .hwp import HWP
 from .mueller_convolver import MuellerConvolver
 from .observations import Observation
@@ -17,6 +17,7 @@ from .pointings import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
     _get_centered_pointings,
+    _get_pointings_array,
 )
 from .spherical_harmonics import SphericalHarmonics
 
@@ -286,15 +287,18 @@ def add_convolved_sky(
         assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(n_detectors):
-        if type(pointings) is np.ndarray:
-            curr_pointings_det = pointings[detector_idx, :, :]
-        else:
-            curr_pointings_det, hwp_angle = pointings(
-                detector_idx, pointings_dtype=pointings_dtype
-            )
-
         if input_sky_alms_in_galactic:
-            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+            output_coordinate_system = CoordinateSystem.Galactic
+        else:
+            output_coordinate_system = CoordinateSystem.Ecliptic
+
+        curr_pointings_det, hwp_angle = _get_pointings_array(
+            detector_idx=detector_idx,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
+            output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
+        )
 
         # FIXME: Fix this at some point, ducc wants phi 0 -> 2pi
         curr_pointings_det[:, 1] = np.mod(curr_pointings_det[:, 1], 2 * np.pi)
@@ -440,8 +444,13 @@ def add_convolved_sky_to_observations(
             ), "Invalid beam_alms format."
             input_beam_names = None
 
-        # Handle HWP angles
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        # If you pass an external HWP, get hwp_angle here, otherwise this is handled in add_convolved_sky
+        if hwp is None:
+            hwp_angle = None
+        else:
+            hwp_angle = _get_hwp_angle(
+                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
+            )
 
         # Set number of threads
         if nthreads is None:
