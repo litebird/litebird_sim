@@ -6,6 +6,8 @@ import astropy.time
 import numpy as np
 import numpy.typing as npt
 
+from ducc0.healpix import Healpix_Base
+
 from .hwp import HWP
 from .scanning import (
     all_compute_pointing_and_orientation,
@@ -161,6 +163,39 @@ def _get_pointings_array(
         curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
     return curr_pointings_det, hwp_angle if type(hwp_angle) is np.ndarray else angle
+
+
+def _get_centered_pointings(
+    input_pointings: npt.ArrayLike,
+    nside_centering: int,
+) -> np.ndarray:
+    """Returns a copy of the input pointings aligned to the center of the HEALPix
+    pixel they belong to.
+
+    Parameters
+    ----------
+    input_pointings : npt.ArrayLike
+        Pointing information of the detector
+    nside_centering : int
+        HEALPix NSIDE parameter used to determine the pixel centers.
+
+    Returns
+    -------
+    np.ndarray
+        An array with the same dimensions of input_pointings alligned with the center of the
+        belonging healpix pixel
+    """
+    hpx = Healpix_Base(nside_centering, "RING")
+    output_pointings = np.empty_like(input_pointings)
+
+    # Apply centering on the first two columns (θ, φ)
+    output_pointings[:, 0:2] = hpx.pix2ang(hpx.ang2pix(input_pointings[:, 0:2]))
+
+    # Copy any additional columns (e.g., polarization angles) without change
+    if input_pointings.shape[1] > 2:
+        output_pointings[:, 2:] = input_pointings[:, 2:]
+
+    return output_pointings
 
 
 def _normalize_observations_and_pointings(
