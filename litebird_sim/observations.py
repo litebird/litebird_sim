@@ -12,8 +12,11 @@ from collections import defaultdict
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly, distribute_detector_blocks
-from .detectors import DetectorInfo
-from .pointings_in_obs import precompute_pointings
+from .detectors import DetectorInfo, InstrumentInfo
+from .hwp import HWP
+from .pointings import PointingProvider
+from .scanning import RotQuaternion
+from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 
 
@@ -788,6 +791,27 @@ class Observation:
             t0 = self.start_time
 
         return t0 + np.arange(self.n_samples) / self.sampling_rate_hz
+
+    def prepare_pointings(
+        self,
+        instrument: InstrumentInfo,
+        spin2ecliptic_quats: RotQuaternion,
+        hwp: Optional[HWP] = None,
+        ) -> None:
+
+        """Store the quaternions needed to compute pointings in the current observation
+
+        This function computes the quaternions that convert the boresight direction
+        of `instrument` into the Ecliptic reference frame. The `spin2ecliptic_quats`
+        object must be an instance of the :class:`.RotQuaternion` class and can
+        be created using the method :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+        """
+        prepare_pointings(
+            observations = self,
+            instrument = instrument,
+            spin2ecliptic_quats = spin2ecliptic_quats,
+            hwp = hwp,
+        )
 
     def get_pointings(
         self,
