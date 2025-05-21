@@ -427,7 +427,8 @@ Obtain pointings
 The pointing information for one or more detectors in an observation are 
 accessible through the :func:`.get_pointings` which returns a tuple containing
 the pointing matrix of the detectors and the HWP angle. This call must be prepared 
-calling either :func:`.prepare_pointings` or :meth:`.Simulation.prepare_pointings`.
+calling either the method :meth:`.Observation.prepare_pointings` of this class or 
+:meth:`.Simulation.prepare_pointings`, or the function :func:`litebird_sim.prepare_pointings`
 
 The structure of the pointing matrix returned depends on the parameter `detector_idx` 
 that specifies which detectors should be included in the computation. 
@@ -460,10 +461,10 @@ the list of detectors.
 
 The method :func:`.get_hwp_angle` allows to obtain only the HWP angle.
 
-The function :func:`.precompute_pointings()` precomputes all the pointings 
+The function :func:`litebird_sim.precompute_pointings()` precomputes all the pointings 
 for a set of observations storing them in ``Observation.pointing_matrix`` and
-``Observation.hwp_angle``. See above for more details.
-
+``Observation.hwp_angle``. See above for more details. The same result is achieved 
+calling the method :meth:`.Observation.precompute_pointings()`.
 
 Reading/writing observations to disk
 ------------------------------------

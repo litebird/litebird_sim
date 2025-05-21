@@ -14,7 +14,6 @@ from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly, distribute_detector_blocks
 from .detectors import DetectorInfo, InstrumentInfo
 from .hwp import HWP
-from .pointings import PointingProvider
 from .scanning import RotQuaternion
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
@@ -797,8 +796,7 @@ class Observation:
         instrument: InstrumentInfo,
         spin2ecliptic_quats: RotQuaternion,
         hwp: Optional[HWP] = None,
-        ) -> None:
-
+    ) -> None:
         """Store the quaternions needed to compute pointings in the current observation
 
         This function computes the quaternions that convert the boresight direction
@@ -807,10 +805,10 @@ class Observation:
         be created using the method :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
         """
         prepare_pointings(
-            observations = self,
-            instrument = instrument,
-            spin2ecliptic_quats = spin2ecliptic_quats,
-            hwp = hwp,
+            observations=self,
+            instrument=instrument,
+            spin2ecliptic_quats=spin2ecliptic_quats,
+            hwp=hwp,
         )
 
     def get_pointings(
@@ -988,7 +986,7 @@ class Observation:
     def precompute_pointings(
         self,
         pointings_dtype=np.float64,
-        ) -> None:
+    ) -> None:
         """Precompute all the pointings for the current observation
 
         Compute the full pointing matrix and the HWP angle the current observation and
@@ -996,16 +994,7 @@ class Observation:
         The datatype for the pointings is specified by `pointings_dtype`.
         """
 
-        assert (
-            self.pointing_provider is not None
-        ), "You must initialize pointing_provider; use Simulation.prepare_pointings()"
-        
-        pointing_matrix, hwp_angle = self.get_pointings(
-            detector_idx="all", pointings_dtype=pointings_dtype
-        )
-        cur_obs.pointing_matrix = pointing_matrix
-        cur_obs.hwp_angle = hwp_angle
-
+        precompute_pointings(observations=self, pointings_dtype=pointings_dtype)
 
     def _set_mpi_subcommunicators(self):
         """
