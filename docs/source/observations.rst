@@ -422,6 +422,49 @@ key.
   obs.name == np.array(["A", "B"])  # True
 
 
+Obtain pointings
+----------------
+The pointing information for one or more detectors in an observation are 
+accessible through the :func:`.get_pointings` which returns a tuple containing
+the pointing matrix of the detectors and the HWP angle. This call must be prepared 
+calling either :func:`.prepare_pointings` or :meth:`.Simulation.prepare_pointings`.
+
+The structure of the pointing matrix returned depends on the parameter `detector_idx` 
+that specifies which detectors should be included in the computation. 
+The following calls are all legitimate.
+
+::
+
+  # All the detectors are included
+  pointings, hwp_angle = cur_obs.get_pointings("all")
+  # This returns ``(N_det, N_samples, 3)`` array
+
+  # Only the first two detectors are included
+  pointings, hwp_angle = cur_obs.get_pointings([0, 1])
+  # This returns ``(2, N_samples, 3)`` array
+
+  # Only the first detector is used
+  pointings, hwp_angle = cur_obs.get_pointings(0)
+  # This returns ``(N_samples, 3)`` array
+
+  # NB if a list of indices is passed an array of dimension ``(N_det, N_samples, 3)``
+  # is always returned
+  # For example this
+  pointings, hwp_angle = cur_obs.get_pointings([0])
+  # returns ``(1, N_samples, 3)`` array
+
+The last dimension spans the three angles θ (colatitude, in radians), φ (longitude, in 
+radians), and ψ (orientation angle, in radians). 
+The HWP angle is always a vector with shape ``(N_samples,)``, as it does not depend on 
+the list of detectors.
+
+The method :func:`.get_hwp_angle` allows to obtain only the HWP angle.
+
+The function :func:`.precompute_pointings()` precomputes all the pointings 
+for a set of observations storing them in ``Observation.pointing_matrix`` and
+``Observation.hwp_angle``. See above for more details.
+
+
 Reading/writing observations to disk
 ------------------------------------
 
