@@ -13,6 +13,7 @@ from collections import defaultdict
 from .coordinates import DEFAULT_TIME_SCALE
 from .distribute import distribute_evenly, distribute_detector_blocks
 from .detectors import DetectorInfo
+from .pointings_in_obs import precompute_pointings
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 
 
@@ -959,6 +960,28 @@ class Observation:
             hwp_buffer = None
 
         return hwp_buffer
+
+    def precompute_pointings(
+        self,
+        pointings_dtype=np.float64,
+        ) -> None:
+        """Precompute all the pointings for the current observation
+
+        Compute the full pointing matrix and the HWP angle the current observation and
+        store them in the fields ``pointing_matrix`` and ``hwp_angle``.
+        The datatype for the pointings is specified by `pointings_dtype`.
+        """
+
+        assert (
+            self.pointing_provider is not None
+        ), "You must initialize pointing_provider; use Simulation.prepare_pointings()"
+        
+        pointing_matrix, hwp_angle = self.get_pointings(
+            detector_idx="all", pointings_dtype=pointings_dtype
+        )
+        cur_obs.pointing_matrix = pointing_matrix
+        cur_obs.hwp_angle = hwp_angle
+
 
     def _set_mpi_subcommunicators(self):
         """
