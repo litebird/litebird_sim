@@ -1,5 +1,7 @@
 # HEAD
 
+-   Option for centering the pointing in the beam convolution plus some reworking of the pointing API (new methods added to the class Observation) [#397](https://github.com/litebird/litebird_sim/pull/397)
+
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
 -   Fix the formatting of a few docstrings [#391](https://github.com/litebird/litebird_sim/pull/391)
