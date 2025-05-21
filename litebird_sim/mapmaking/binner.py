@@ -17,7 +17,10 @@ import healpy as hp
 from typing import Union, List, Any, Optional, Callable
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
-from litebird_sim.pointings import _get_hwp_angle, _normalize_observations_and_pointings
+from litebird_sim.pointings_in_obs import (
+    _get_hwp_angle,
+    _normalize_observations_and_pointings,
+)
 from litebird_sim.hwp import HWP
 from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base

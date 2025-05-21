@@ -15,7 +15,7 @@ from .distribute import distribute_evenly, distribute_detector_blocks
 from .detectors import DetectorInfo, InstrumentInfo
 from .hwp import HWP
 from .scanning import RotQuaternion
-from .pointings_in_obs import prepare_pointings, precompute_pointings
+from .pointings import PointingProvider
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 
 
@@ -804,12 +804,27 @@ class Observation:
         object must be an instance of the :class:`.RotQuaternion` class and can
         be created using the method :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
         """
-        prepare_pointings(
-            observations=self,
-            instrument=instrument,
-            spin2ecliptic_quats=spin2ecliptic_quats,
+
+        bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
+        pointing_provider = PointingProvider(
+            bore2ecliptic_quats=bore2ecliptic_quats,
             hwp=hwp,
         )
+
+        self.pointing_provider = pointing_provider
+
+        # If the hwp object is passed and is not initialised in the observations, it gets applied to all detectors
+        if hwp is None:
+            assert all(m is None for m in self.mueller_hwp), (
+                "Some detectors have been initialized with a mueller_hwp,"
+                "but no HWP object has been passed to prepare_pointings."
+            )
+            self.has_hwp = False
+        else:
+            for idet in self.det_idx:
+                if self.mueller_hwp[idet] is None:
+                    self.mueller_hwp[idet] = hwp.mueller
+            self.has_hwp = True
 
     def get_pointings(
         self,
@@ -994,7 +1009,16 @@ class Observation:
         The datatype for the pointings is specified by `pointings_dtype`.
         """
 
-        precompute_pointings(observations=self, pointings_dtype=pointings_dtype)
+        assert "pointing_provider" in dir(self), (
+            "you must call prepare_pointings() on a set of observations "
+            "before calling precompute_pointings()"
+        )
+
+        pointing_matrix, hwp_angle = self.get_pointings(
+            detector_idx="all", pointings_dtype=pointings_dtype
+        )
+        self.pointing_matrix = pointing_matrix
+        self.hwp_angle = hwp_angle
 
     def _set_mpi_subcommunicators(self):
         """

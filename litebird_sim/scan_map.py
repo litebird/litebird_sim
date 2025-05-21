@@ -7,7 +7,7 @@ from ducc0.healpix import Healpix_Base
 from typing import Union, List, Dict, Optional
 from .observations import Observation
 from .hwp import HWP, mueller_ideal_hwp
-from .pointings import (
+from .pointings_in_obs import (
     _get_hwp_angle,
     _get_pointings_array,
     _get_pol_angle,

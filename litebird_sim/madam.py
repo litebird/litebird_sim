@@ -16,7 +16,7 @@ from .mapmaking import ExternalDestriperParameters
 from .observations import Observation
 from .simulations import Simulation, MpiDistributionDescr
 from .hwp import HWP
-from .pointings import (
+from .pointings_in_obs import (
     _get_pointings_and_pol_angles_det,
 )
 

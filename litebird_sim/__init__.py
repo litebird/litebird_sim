@@ -100,12 +100,12 @@ from .pointing_sys import (
     PointingSys,
 )
 from .pointings import (
-    apply_hwp_to_obs,
     PointingProvider,
 )
 from .pointings_in_obs import (
     prepare_pointings,
     precompute_pointings,
+    apply_hwp_to_obs,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
@@ -285,11 +285,11 @@ __all__ = [
     "get_det2ecl_quaternions",
     "get_ecl2det_quaternions",
     # pointings.py
-    "apply_hwp_to_obs",
     "PointingProvider",
     # pointings_in_obs.py
     "prepare_pointings",
     "precompute_pointings",
+    "apply_hwp_to_obs",
     # mapmaking
     "make_binned_map",
     "check_valid_splits",
