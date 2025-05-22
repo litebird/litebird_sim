@@ -24,7 +24,10 @@ from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from typing import Callable, Union, List, Optional, Tuple, Any, Dict
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
-from litebird_sim.pointings import _get_hwp_angle, _normalize_observations_and_pointings
+from litebird_sim.pointings_in_obs import (
+    _get_hwp_angle,
+    _normalize_observations_and_pointings,
+)
 from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
 
 from .common import (
@@ -450,7 +453,12 @@ def _store_pixel_idx_and_pol_angle_in_obs(
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         cur_obs.destriper_weights = get_map_making_weights(cur_obs, check=True)
 
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        if hwp is None:
+            hwp_angle = None
+        else:
+            hwp_angle = _get_hwp_angle(
+                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
+            )
 
         (
             cur_obs.destriper_pixel_idx,

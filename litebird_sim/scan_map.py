@@ -7,9 +7,10 @@ from ducc0.healpix import Healpix_Base
 from typing import Union, List, Dict, Optional
 from .observations import Observation
 from .hwp import HWP, mueller_ideal_hwp
-from .pointings import (
+from .pointings_in_obs import (
     _get_hwp_angle,
     _get_pointings_array,
+    _get_pol_angle,
     _normalize_observations_and_pointings,
 )
 from .coordinates import CoordinateSystem
@@ -154,8 +155,8 @@ def scan_map(
         Polarization efficiency of detectors. If None, all detectors have unit efficiency.
 
     hwp_angle : np.ndarray or None, default=None
-        Half-wave plate (HWP) angles for each detector in radians. If None, HWP effects are
-        ignored.
+        Half-wave plate (HWP) angles of an external HWP object. If None, the HWP information
+        is taken from the Observation.
 
     mueller_hwp : np.ndarray or None, default=None
         Mueller matrices for the HWP. If None, a standard polarization response is used.
@@ -263,12 +264,8 @@ def scan_map(
                 input_T=input_T,
                 input_Q=input_Q,
                 input_U=input_U,
-                pol_angle_det=(
-                    pol_angle_detectors[detector_idx] + curr_pointings_det[:, 2]
-                    if mueller_hwp[detector_idx] is None
-                    else 2 * hwp_angle
-                    - pol_angle_detectors[detector_idx]
-                    + curr_pointings_det[:, 2]
+                pol_angle_det=_get_pol_angle(
+                    curr_pointings_det, hwp_angle, pol_angle_detectors[detector_idx]
                 ),
                 pol_eff_det=pol_eff_detectors[detector_idx],
             )
@@ -422,7 +419,13 @@ def scan_map_in_observations(
             )
             input_names = None
 
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        # If you pass an external HWP, get hwp_angle here, otherwise this is handled in scan_map
+        if hwp is None:
+            hwp_angle = None
+        else:
+            hwp_angle = _get_hwp_angle(
+                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
+            )
 
         scan_map(
             tod=getattr(cur_obs, component),

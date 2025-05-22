@@ -417,6 +417,12 @@ can be done either with the low level functions ::
     lbs.prepare_pointings(obs,sim.instrument,sim.spin2ecliptic_quats)
     lbs.precompute_pointings(obs, pointings_dtype=np.float64)
 
+directly in the :class:`.Observation`::
+
+    obs = sim.create_observations(detectors=[det])[0]
+    obs.prepare_pointings(sim.instrument,sim.spin2ecliptic_quats)
+    obs.precompute_pointings(pointings_dtype=np.float64)
+
 or with the methods of the :class:`.Simulation`::
 
     sim.create_observations(detectors=[det])
