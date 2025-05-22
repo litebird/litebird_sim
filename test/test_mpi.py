@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
+import sys
 from pathlib import Path
 from sys import stderr
 from tempfile import TemporaryDirectory
@@ -577,6 +578,13 @@ def test_issue314(tmp_path):
     obs = sim.observations[0]
     obs.tod[:] = np.random.random(obs.tod.shape)
 
+    if rank == 0:
+        assert obs.det_idx == [0]
+    elif rank == 1:
+        assert obs.det_idx == [1]
+    else:
+        assert False, "This should not happen!"
+
     sim.write_observations(
         subdir_name="",
         gzip_compression=False,
@@ -628,6 +636,7 @@ def __run_test_in_same_folder(test_fn: Callable) -> None:
             ),
             file=stderr,
         )
+        sys.exit(1)
 
     global_success = lbs.MPI_COMM_WORLD.allreduce(local_success, op=MPI.MIN)
 
