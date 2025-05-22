@@ -5,18 +5,22 @@ from typing import Optional, Union, List, Tuple, Callable
 import astropy.time
 import numpy as np
 import numpy.typing as npt
+from deprecated import deprecated
 
+from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 from .hwp import HWP
+from .observations import Observation
 from .scanning import (
     all_compute_pointing_and_orientation,
     RotQuaternion,
 )
 
-from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 
-from .observations import Observation
-
-
+@deprecated(
+    version="0.15.0",
+    reason="This function adds the HWP angle to the orientation, but this is logically wrong "
+    "now that LBS keeps track of ψ, the polarization angle, and the HWP angle in separate places.",
+)
 def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     """Modify a pointing matrix to consider the effect of a HWP
 

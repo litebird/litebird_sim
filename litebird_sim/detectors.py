@@ -143,12 +143,14 @@ class DetectorInfo:
         - pol_efficiency (float): polarization efficiency of the detector,
              defined as γ of eq. 15 of astro-ph/0606606. The default is 1.
 
-        - mueller_hwp (Union[None, np.ndarray]): mueller matrix of the HWP.
-             The default is None (i.e. no HWP)
+        - mueller_hwp (Union[None, dict]): Mueller matrix of the HWP, expanded
+             into three matrices, corresponding to the harmonics of the HWP
+             rotation frequency. The default is None (i.e. no HWP)
 
-        - mueller_hwp_solver (Union[None, np.ndarray]): mueller matrix of the HWP
-             for the mapmaking. It allows to have a non-ideal HWP in the solver.
-             The default is None (i.e. no HWP)
+        - mueller_hwp_solver (Union[None, dict]): mueller matrix of the HWP
+             for the mapmaking, expanded into three matrices, corresponding
+             to the harmonics of the HWP rotation frequency. It allows to
+             have a non-ideal HWP in the solver. The default is None (i.e. no HWP)
 
         - pointing_theta_phi_psi_deg (Union[None, np.ndarray]): The angles θ, φ,
              and ψ (colatitude, longitude, and orientation) of the pointing direction,
@@ -183,8 +185,8 @@ class DetectorInfo:
     quat: Any = None
     pol_angle_rad: float = 0.0
     pol_efficiency: float = 1.0
-    mueller_hwp: Union[None, np.ndarray] = None
-    mueller_hwp_solver: Union[None, np.ndarray] = None
+    mueller_hwp: Union[None, dict] = None
+    mueller_hwp_solver: Union[None, dict] = None
     pointing_theta_phi_psi_deg: Union[None, np.ndarray] = None
     pointing_u_v: Union[None, np.ndarray] = None
 
