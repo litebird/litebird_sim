@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Union, Optional
 import astropy.time
 import h5py
 import numpy as np
-from deprecation import deprecated
 
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
@@ -20,7 +19,6 @@ from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
-from .version import __version__ as litebird_sim_version
 
 __NUMPY_INT_TYPES = [
     np.int8,
@@ -522,27 +520,6 @@ def write_list_of_observations(
         file_list.append(file_name)
 
     return file_list
-
-
-@deprecated(
-    deprecated_in="0.11",
-    current_version=litebird_sim_version,
-    details="Use Simulation.write_observations",
-)
-def write_observations(
-    sim,
-    subdir_name: Union[None, str] = "tod",
-    include_in_report: bool = True,
-    *args,
-    **kwargs,
-) -> List[Path]:
-    # Here we call the method moved inside Simulation
-    return sim.write_observations(
-        subdir_name,
-        include_in_report,
-        *args,
-        **kwargs,
-    )
 
 
 def __find_flags(inpf, expected_num_of_dets: int, expected_num_of_samples: int):

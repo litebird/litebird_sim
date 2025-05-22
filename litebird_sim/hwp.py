@@ -4,6 +4,7 @@ from typing import Optional
 import h5py
 import numpy as np
 import numpy.typing as npt
+from deprecated import deprecated
 from numba import njit
 
 mueller_ideal_hwp = np.diag([1.0, 1.0, -1.0, -1.0])
@@ -40,6 +41,11 @@ class HWP:
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
 
+    @deprecated(
+        version="0.15.0",
+        reason="This function adds the HWP angle to the orientation, but this is logically wrong "
+        "now that LBS keeps track of ψ, the polarization angle, and the HWP angle in separate places.",
+    )
     def add_hwp_angle(
         self, pointing_buffer, start_time_s: float, delta_time_s: float
     ) -> None:

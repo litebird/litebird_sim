@@ -22,11 +22,15 @@ import matplotlib.pylab as plt
 import numba
 import numpy as np
 import tomlkit
-from deprecation import deprecated
 from markdown_katex import KatexExtension
 
 from litebird_sim import constants
 from . import HWP
+from .beam_convolution import (
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
+from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
 from .detectors import DetectorInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
@@ -46,6 +50,7 @@ from .mapmaking import (
     DestriperResult,
     destriper_log_callback,
 )
+from .mbs import Mbs, MbsParameters
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import apply_quadratic_nonlin_to_observations
@@ -53,15 +58,9 @@ from .observations import Observation, TodDescription
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
-from .beam_convolution import (
-    add_convolved_sky_to_observations,
-    BeamConvolutionParameters,
-)
-from .spherical_harmonics import SphericalHarmonics
-from .beam_synthesis import generate_gauss_beam_alms
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .mbs import Mbs, MbsParameters
+from .spherical_harmonics import SphericalHarmonics
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -1246,25 +1245,6 @@ class Simulation:
                 delta_time_s=delta_time_s,
                 quat_memory_size_bytes=quat_memory_size_bytes,
             )
-
-    @deprecated(
-        deprecated_in="0.9",
-        current_version=litebird_sim_version,
-        details="Use set_scanning_strategy",
-    )
-    def generate_spin2ecl_quaternions(
-        self,
-        scanning_strategy: Union[None, ScanningStrategy] = None,
-        imo_url: Union[None, str] = None,
-        delta_time_s: float = 60.0,
-        append_to_report=True,
-    ):
-        self.set_scanning_strategy(
-            scanning_strategy=scanning_strategy,
-            imo_url=imo_url,
-            delta_time_s=delta_time_s,
-            append_to_report=append_to_report,
-        )
 
     def set_instrument(self, instrument: InstrumentInfo):
         """Set the instrument to be used in the simulation.
