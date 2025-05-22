@@ -118,8 +118,6 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
         maps=input_maps,
         Channel=channelinfo,
         Mbsparams=Mbsparams,
-        integrate_in_band=False,
-        integrate_in_band_solver=False,
         build_map_on_the_fly=True,
         apply_non_linearity=non_linearity,
         add_orbital_dipole=orbital_dipole,
