@@ -108,15 +108,30 @@ def test_GLS_mapmaking():
 
     inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)
 
-    gls_params = brahmap.LBSimGLSParameters(
-        solver_type=brahmap.SolverType.IQU,  # default value
-    )
+    gls_params = brahmap.LBSimGLSParameters(solver_type=brahmap.SolverType.IQU)
 
-    _ = brahmap.LBSim_compute_GLS_maps(
+    gls_results = brahmap.LBSim_compute_GLS_maps(
         nside=nside,
         observations=sim.observations,
         component="tod",
         inv_noise_cov_operator=inv_cov,
         dtype_float=dtype_float,
         LBSim_gls_parameters=gls_params,
+    )
+
+    interface_gls_results = sim.make_brahmap_gls_map(nside=nside)
+
+    assert np.allclose(
+        gls_results.GLS_maps[0],
+        interface_gls_results.GLS_maps[0],
+    )
+
+    assert np.allclose(
+        gls_results.GLS_maps[1],
+        interface_gls_results.GLS_maps[1],
+    )
+
+    assert np.allclose(
+        gls_results.GLS_maps[2],
+        interface_gls_results.GLS_maps[2],
     )
