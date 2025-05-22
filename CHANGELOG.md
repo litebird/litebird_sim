@@ -2,6 +2,8 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   Fix docstrings and type hints for `mueller_hwp` [#381](https://github.com/litebird/litebird_sim/pull/381)
+
 -   Module for performing the 4π beam convolution [#338](https://github.com/litebird/litebird_sim/pull/338)
 
 -   Make `@_profile` preserve docstrings [#371](https://github.com/litebird/litebird_sim/pull/371)
