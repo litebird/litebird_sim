@@ -117,8 +117,6 @@ def test_hwp_sys():
         maps=input_maps,
         Channel=channelinfo,
         Mbsparams=Mbsparams,
-        integrate_in_band=False,
-        integrate_in_band_solver=False,
         build_map_on_the_fly=True,
         comm=comm,
     )
@@ -235,8 +233,6 @@ def test_hwp_sys_angles():
         maps=input_maps,
         Channel=channelinfo,
         Mbsparams=Mbsparams,
-        integrate_in_band=False,
-        integrate_in_band_solver=False,
         build_map_on_the_fly=True,
         comm=comm,
     )
