@@ -2,6 +2,8 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   Fix docstrings and type hints for `mueller_hwp` [#381](https://github.com/litebird/litebird_sim/pull/381)
+
 -   Fix the formatting of a few docstrings [#391](https://github.com/litebird/litebird_sim/pull/391)
 
 -   Common interface to compute pointings and detector polarization angle [#378](https://github.com/litebird/litebird_sim/pull/378)
