@@ -517,6 +517,8 @@ def test_issue314(tmp_path):
         # `__write_complex_observation` creates 2 observations
         return
 
+    rank = lbs.MPI_COMM_WORLD.rank
+
     tmp_path = Path(tmp_path)
 
     start_time = 0
@@ -565,11 +567,6 @@ def test_issue314(tmp_path):
         quat=[0.0, 0.0, 0.0, 1.0],
     )
 
-    print(
-        "MPI process #{} is going to call create_observations()".format(
-            lbs.MPI_COMM_WORLD.rank
-        )
-    )
     sim.create_observations(
         detectors=[det1, det2],
         n_blocks_det=2,
@@ -592,11 +589,13 @@ def test_issue314(tmp_path):
     assert len(observations) == 1
 
     obs = observations[0]
-    print(
-        "MPI process #{} has obs.det_idx = {}".format(
-            lbs.MPI_COMM_WORLD.rank, obs.det_idx
-        )
-    )
+
+    if rank == 0:
+        assert obs.det_idx == [0]
+    elif rank == 1:
+        assert obs.det_idx == [1]
+    else:
+        assert False, "This should not happen!"
 
 
 def __run_test_in_same_folder(test_fn: Callable) -> None:
@@ -617,16 +616,16 @@ def __run_test_in_same_folder(test_fn: Callable) -> None:
     local_success = 1
     try:
         test_fn(tmp_path)
-    except Exception as e:
+    except Exception:
         local_success = 0
 
         from traceback import format_exc
 
         print(
-            "MPI process #{rank} failed with exception: ".format(
-                rank=lbs.MPI_COMM_WORLD.rank
+            "MPI process #{rank} failed with exception: {exc}".format(
+                rank=lbs.MPI_COMM_WORLD.rank,
+                exc=format_exc(),
             ),
-            format_exc(e),
             file=stderr,
         )
 

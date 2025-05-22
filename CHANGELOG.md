@@ -4,6 +4,12 @@
 
 -   Bug in `Simulation.get_sky()` fixed [#398](https://github.com/litebird/litebird_sim/pull/398)
 
+-   Fix a bug in `prepare_pointings` [#396](https://github.com/litebird/litebird_sim/pull/396)
+
+-   Deprecate `apply_hwp_to_obs()` and `HWP.add_hwp_angle()`, remove deprecated functions `Simulation.generate_spin2ecl_quaternions()` and `write_observations()`
+
+-   Fix docstrings and type hints for `mueller_hwp` [#381](https://github.com/litebird/litebird_sim/pull/381)
+
 -   Fix the formatting of a few docstrings [#391](https://github.com/litebird/litebird_sim/pull/391)
 
 -   Common interface to compute pointings and detector polarization angle [#378](https://github.com/litebird/litebird_sim/pull/378)
