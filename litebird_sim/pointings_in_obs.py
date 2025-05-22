@@ -40,7 +40,6 @@ def prepare_pointings(
             instrument=instrument, spin2ecliptic_quats=spin2ecliptic_quats, hwp=hwp
         )
 
-
 def precompute_pointings(
     observations: Union[Observation, List[Observation]],
     pointings_dtype=np.float64,
@@ -60,7 +59,11 @@ def precompute_pointings(
     for cur_obs in obs_list:
         cur_obs.precompute_pointings(pointings_dtype=pointings_dtype)
 
-
+@deprecated(
+    version="0.15.0",
+    reason="This function adds the HWP angle to the orientation, but this is logically wrong "
+    "now that LBS keeps track of ψ, the polarization angle, and the HWP angle in separate places.",
+)
 def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     """Modify a pointing matrix to consider the effect of a HWP
 
