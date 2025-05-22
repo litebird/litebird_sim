@@ -1166,6 +1166,38 @@ class Simulation:
             mpi_processes=mpi_processes,
         )
 
+    @_profile
+    def nullify_tod(self, component: str = "tod") -> None:
+        """
+        Set the specified component (default: "tod") of all observations to zero.
+
+        This is typically used to zero out Time-Ordered Data (TOD) in-place across
+        all observations.
+
+        Parameters
+        ----------
+        component : str, optional
+            The attribute name of the data to nullify in each observation.
+            Defaults to "tod".
+
+        Raises
+        ------
+        AttributeError
+            If an observation does not have the specified component.
+        """
+        for i, cur_obs in enumerate(self.observations):
+            try:
+                tod = getattr(cur_obs, component)
+            except AttributeError:
+                raise AttributeError(
+                    f"Observation {i} does not have attribute '{component}'"
+                )
+
+            if tod is not None:
+                tod[:, :] = 0
+            else:
+                pass
+
     def set_scanning_strategy(
         self,
         scanning_strategy: Union[None, ScanningStrategy] = None,
