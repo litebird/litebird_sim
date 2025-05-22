@@ -44,7 +44,7 @@ def _dBodTth(nu):
     )
 
 
-@njit(parallel=False)
+@njit
 def compute_orientation_from_detquat(quat):
     if quat[2] == 0:
         polang = 0
@@ -163,7 +163,7 @@ def get_mueller_from_jones(h1, h2, z1, z2, beta):
     return mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU
 
 
-@njit(parallel=False)
+@njit
 def mueller_interpolation(Theta, harmonic, i, j):
     mueller0deg = {
         "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
@@ -208,14 +208,14 @@ def mueller_interpolation(Theta, harmonic, i, j):
     )
 
 
-@njit(parallel=False)
+@njit
 def compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi):
     Tterm = mII + mQI * cos2Xi2Phi + mUI * sin2Xi2Phi
 
     return Tterm
 
 
-@njit(parallel=False)
+@njit
 def compute_Qterm_for_one_sample_for_tod(
     mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
 ):
@@ -226,7 +226,7 @@ def compute_Qterm_for_one_sample_for_tod(
     return Qterm
 
 
-@njit(parallel=False)
+@njit
 def compute_Uterm_for_one_sample_for_tod(
     mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
 ):
@@ -237,7 +237,7 @@ def compute_Uterm_for_one_sample_for_tod(
     return Uterm
 
 
-@njit(parallel=False)
+@njit
 def compute_signal_for_one_sample(
     T,
     Q,
@@ -270,7 +270,7 @@ def compute_signal_for_one_sample(
     return d
 
 
-@njit(parallel=False)
+@njit(parallel=True)
 def compute_signal_for_one_detector(
     tod_det,
     pixel_ind,
@@ -338,7 +338,7 @@ def compute_signal_for_one_detector(
             tod_det[i] += amplitude_2f_k * np.cos(2 * theta[i]) + optical_power_k
 
 
-@njit(parallel=False)
+@njit
 def compute_TQUsolver_for_one_sample(
     mIIs,
     mQIs,
@@ -372,7 +372,7 @@ def compute_TQUsolver_for_one_sample(
     return Tterm, Qterm, Uterm
 
 
-@njit(parallel=False)
+@njit
 def compute_ata_atd_for_one_detector(
     ata,
     atd,
