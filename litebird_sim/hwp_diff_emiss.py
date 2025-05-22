@@ -8,7 +8,7 @@ from numbers import Number
 
 from .observations import Observation
 from .hwp import HWP
-from .pointings import _get_hwp_angle
+from .pointings_in_obs import _get_hwp_angle
 
 
 """def convert_pW_to_K(power_pW, NET, NEP):

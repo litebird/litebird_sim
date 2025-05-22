@@ -135,6 +135,10 @@ The HWP effect can be incorporated via pointing data (see :ref:`scanning-strateg
 or by using the `hwp` argument. The polarization angles of 
 detectors are derived from the observation attributes.
 
+The option `nside_centering=NSIDE` shifts the detector pointings to the centers of the 
+corresponding HEALPix pixels at the given `NSIDE` resolution. This option is useful for 
+debugging and for reducing sub-pixel effects.  
+
 Convolution Parameters
 ----------------------
 

@@ -1551,6 +1551,7 @@ class Simulation:
         convolution_params: Optional[BeamConvolutionParameters] = None,
         component: str = "tod",
         pointings_dtype=np.float64,
+        nside_centering: Union[int, None] = None,
         append_to_report: bool = True,
         nthreads: Union[int, None] = None,
     ):
@@ -1579,6 +1580,7 @@ class Simulation:
             component=component,
             convolution_params=convolution_params,
             pointings_dtype=pointings_dtype,
+            nside_centering=nside_centering,
             nthreads=nthreads,
         )
 
