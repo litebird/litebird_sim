@@ -1000,24 +1000,24 @@ used in map-making. Hence, communicator used by
 function with `litebird_sim` data:
 `brahmap.MPI_UTILS.update_communicator(comm=lbs.MPI_COMM_WORLD)`
 
-```python
-# Creating the inverse white noise covariance operator
-inv_cov = brahmap.InvNoiseCovLO_Uncorrelated(
-    diag=[...],       # Diagonal elements of the inverse of white noise covariance
-                      # matrix
+.. code-block:: python
 
-    dtype=np.float64, # Numerical precision of the operator
-)
+  # Creating the inverse white noise covariance operator
+  inv_cov = brahmap.InvNoiseCovLO_Uncorrelated(
+      diag=[...],       # Diagonal elements of the inverse of white noise covariance
+                        # matrix
 
-# Performing the GLS map-making
-gls_result = brahmap.LBSim_compute_GLS_maps(
-    nside=nside,                    # Nside parameter for the output healpix map
-    observations=sim.observations,  # List of observations from litebird_sim
-    component="tod",                # TOD component to be used in map-making
-    inv_noise_cov_operator=inv_cov, # Inverse noise covariance operator
-    dtype_float=np.float64,         # Numerical precision to be used in map-making
-)
-```
+      dtype=np.float64, # Numerical precision of the operator
+  )
+
+  # Performing the GLS map-making
+  gls_result = brahmap.LBSim_compute_GLS_maps(
+      nside=nside,                    # Nside parameter for the output healpix map
+      observations=sim.observations,  # List of observations from litebird_sim
+      component="tod",                # TOD component to be used in map-making
+      inv_noise_cov_operator=inv_cov, # Inverse noise covariance operator
+      dtype_float=np.float64,         # Numerical precision to be used in map-making
+  )
 
 `gls_result` obtained above is an instance of the class `LBSimGLSResult`. The
 output maps can be accessed from this object with `gls_result.GLS_maps`.
