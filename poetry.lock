@@ -1016,37 +1016,37 @@ files = [
 
 [[package]]
 name = "ducc0"
-version = "0.37.1"
+version = "0.38.0"
 description = "Distinctly useful code collection: contains efficient algorithms for Fast Fourier (and related) transforms, spherical harmonic transforms involving very general spherical grids, gridding/degridding tools for radio interferometry, 4pi spherical convolution operators and much more."
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "ducc0-0.37.1-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:14d1510964e19b390b3fb31505af29eb1209fb8c2595f0e5ca3b8bd63bf4c386"},
-    {file = "ducc0-0.37.1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:6ee68e703669a187414758c95d51effa9d3f19d754c2fdf51e11b255d70307c4"},
-    {file = "ducc0-0.37.1-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:755d3324e7af9d8032bddd42d2bfa1f8ad7f46989c71f813f84c0805cd9e91c8"},
-    {file = "ducc0-0.37.1-cp310-cp310-win_amd64.whl", hash = "sha256:d374fb6c5d66bca667bd187a5e7b40f7c4c2e6b925e5f4b56edcbbbdac6f5548"},
-    {file = "ducc0-0.37.1-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:1d988d9aaf26f949da85707a613f98eca53010e87c15e5b0c95e3ff3267719dd"},
-    {file = "ducc0-0.37.1-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:dfa30b8665f0e9b6bd1202ddd401ef26adb804bc54c83f34dc6f4c025826062d"},
-    {file = "ducc0-0.37.1-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:e71de98a0329fc7937e0d330def75676716a5434aa0566462c15f8575c4d0854"},
-    {file = "ducc0-0.37.1-cp311-cp311-win_amd64.whl", hash = "sha256:94f7112f38ad124adb044d42328541fdff743f65f88f43ae3cb09c516a08dacb"},
-    {file = "ducc0-0.37.1-cp312-cp312-macosx_10_14_x86_64.whl", hash = "sha256:fe3e06b9ccddee8e0720989ab54dad3e994fe673f53ae4056bfa5fd3f598ead1"},
-    {file = "ducc0-0.37.1-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:b5cd09f1b8d02a55d361b1853bbc2bc6b08176f90cc73116fce7853e51e8f426"},
-    {file = "ducc0-0.37.1-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:2a72ddcede0ad35a4920bb3227207de1c19e27c6df050292892fd129916cb2ae"},
-    {file = "ducc0-0.37.1-cp312-cp312-win_amd64.whl", hash = "sha256:2ea132de1e65e8caa02afce711a22089961a7a9857a5c7d2afa8e2ee0ad6e704"},
-    {file = "ducc0-0.37.1-cp313-cp313-macosx_10_14_x86_64.whl", hash = "sha256:4efc8e16809de6df323906166b4415724938fe88d1ffb5b1c3ee41043ebff122"},
-    {file = "ducc0-0.37.1-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:a100d4df4d3bbb4291f5f36aa8fc5da4f84e2c3334a587ebaea428f9815c0ef8"},
-    {file = "ducc0-0.37.1-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:79f2e5b71d4491eb94148ffd7391847ff0e5bc240ef1b5123a732d9324dfdbad"},
-    {file = "ducc0-0.37.1-cp313-cp313-win_amd64.whl", hash = "sha256:cb8247c15875f2f41df8a9e7a594d079b94910b284d09a32225dbdc08070be2a"},
-    {file = "ducc0-0.37.1-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:3bffaee27be661c6d446cc0c6d18992fc30fa1efd5356212b5906b45fa9d5e82"},
-    {file = "ducc0-0.37.1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:7df8817b202983d0c6048e9b3f07adceaa8229c8b50f542815f76f8214d71e74"},
-    {file = "ducc0-0.37.1-cp38-cp38-manylinux_2_28_x86_64.whl", hash = "sha256:bc3a946666e29e9311bea341a03f239a918e3bc84f8dd941a8c193d77adcd2d3"},
-    {file = "ducc0-0.37.1-cp38-cp38-win_amd64.whl", hash = "sha256:8bd2c9a12897e963f9a890997c53f956604b366397c840b31ba6fda566e80170"},
-    {file = "ducc0-0.37.1-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:5ac63058377df5fef984760d8534127a332b71de13601c08f86afc954cecb48d"},
-    {file = "ducc0-0.37.1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:783dea7b3a2347758d75dd19f213346a2b8e6d061fc6058a072c44d55ea0bb45"},
-    {file = "ducc0-0.37.1-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:b230ede2451ae2e32dfa8969938cee96d20447a0b8d8d36bdbb6be07ed11f0a0"},
-    {file = "ducc0-0.37.1-cp39-cp39-win_amd64.whl", hash = "sha256:7aeba5751dd0e1b0e8a98734c0fcebae1564cb0686a17fa3be4924cd4970478d"},
-    {file = "ducc0-0.37.1.tar.gz", hash = "sha256:bdcf53ecd3112e8079ff1783783df92aaba19fe271385d5157736d85335a46d1"},
+    {file = "ducc0-0.38.0-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:515e5661d37a3ffbe39c71703ec24b435dd1d1ce81a8a5b4bb372f80cee7c6b9"},
+    {file = "ducc0-0.38.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:990a88940039fc1d998734cf27a770ddd0a38d65cfbd35c7d7fbbf797a33b726"},
+    {file = "ducc0-0.38.0-cp310-cp310-manylinux_2_28_x86_64.whl", hash = "sha256:1da4d33db99448149c71334475d2cead2f9720eb155b3c1282b5d380cf48e898"},
+    {file = "ducc0-0.38.0-cp310-cp310-win_amd64.whl", hash = "sha256:69f004423aea87341d2bd7109dc5219308248c66880f1eecb311d1f0b997c7b0"},
+    {file = "ducc0-0.38.0-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:4a7f57de44bc242c4786ba8f6cff3d219e6c609c1e8b1959498eff14b37ff5da"},
+    {file = "ducc0-0.38.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:4f58c6b971c8cb60b1ceb233906b9c0594bbb0bb025c7bb7ab764a01b4047591"},
+    {file = "ducc0-0.38.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:62017a2f60019d01f391ae7658a732866c836198928f87bc57f1b58c66af78ff"},
+    {file = "ducc0-0.38.0-cp311-cp311-win_amd64.whl", hash = "sha256:9852f7a51c7ce57dab65eb01c511e83c018feb9459c0764fc72af97e192cf831"},
+    {file = "ducc0-0.38.0-cp312-cp312-macosx_10_14_x86_64.whl", hash = "sha256:8f15b927f149a2ed32fa02a5e9bd6755e5752e7ffb2f7466ab9fcddeb376d982"},
+    {file = "ducc0-0.38.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:e70084f830c1c4dfd5c31e6489837d24488f1de86a22a509c7eb1c63b92809f5"},
+    {file = "ducc0-0.38.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:1c3009ef3cfc67c1aece8d28b672d406eef9d19780432ddf38b86cab9c42c4bc"},
+    {file = "ducc0-0.38.0-cp312-cp312-win_amd64.whl", hash = "sha256:5391759f4fcf6a0fb76a65f3ab8296a5a3ebe87a6c66d8d2467abd7c68fd451f"},
+    {file = "ducc0-0.38.0-cp313-cp313-macosx_10_14_x86_64.whl", hash = "sha256:4bef1185f9113133fa5067600d5967a6a2013c13a9531f7f3c049e7eae39e91d"},
+    {file = "ducc0-0.38.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:cb5105c72f10656f44aac8f7f58821ee5469c7194cc12b42f2bcb408d9266536"},
+    {file = "ducc0-0.38.0-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:8dc0c24980d9ae1d901d06f8c75773a63d8eeb4574d1fb12367bb5a2dcc109e5"},
+    {file = "ducc0-0.38.0-cp313-cp313-win_amd64.whl", hash = "sha256:b7d721f0c42913d2d17aa8db72b4039fdeb7ee2e99d6fa0875bce3ee1b506f4f"},
+    {file = "ducc0-0.38.0-cp38-cp38-macosx_10_14_x86_64.whl", hash = "sha256:409a339e302c288a07d4a6f099e3ea97f26166deeb22563c95d8fbb9d6d170e2"},
+    {file = "ducc0-0.38.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:9c7f3d3279dac5e738f03215b9fa83799a4dbf480165c286fdd3749609c7dfd2"},
+    {file = "ducc0-0.38.0-cp38-cp38-manylinux_2_28_x86_64.whl", hash = "sha256:9da6abc6bb88c65903dd457bd5891d6e222275c124782d0e70643015812fcdc7"},
+    {file = "ducc0-0.38.0-cp38-cp38-win_amd64.whl", hash = "sha256:9bb51117870a9dac72cea5b732ef89a66b54c4c8f9f81393e24146829a6e1889"},
+    {file = "ducc0-0.38.0-cp39-cp39-macosx_10_14_x86_64.whl", hash = "sha256:22492045b8e72755dde406012e23e16c6801bd01538ea7f706c39b564f3d0d51"},
+    {file = "ducc0-0.38.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:bb900194519b8d228a9472fb215815f64427915419228e05ce5e007357101888"},
+    {file = "ducc0-0.38.0-cp39-cp39-manylinux_2_28_x86_64.whl", hash = "sha256:6f38c2495f1f1344bb63cfe051fdba835678a175992e5b9bd230399e3cf7acd5"},
+    {file = "ducc0-0.38.0-cp39-cp39-win_amd64.whl", hash = "sha256:d2653347f95ab528457a96aef253e688a00451e4a5d410949de8b9a3ab395612"},
+    {file = "ducc0-0.38.0.tar.gz", hash = "sha256:a27a6f2cdb816cc0be543a91e9f8ac8e19793e314fa519efa127db411fae589f"},
 ]
 
 [package.dependencies]
@@ -3343,14 +3343,14 @@ virtualenv = ">=20.10.0"
 
 [[package]]
 name = "prometheus-client"
-version = "0.21.1"
+version = "0.22.0"
 description = "Python client for the Prometheus monitoring system."
 optional = true
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "prometheus_client-0.21.1-py3-none-any.whl", hash = "sha256:594b45c410d6f4f8888940fe80b5cc2521b305a1fafe1c58609ef715a001f301"},
-    {file = "prometheus_client-0.21.1.tar.gz", hash = "sha256:252505a722ac04b0456be05c05f75f45d760c2911ffc45f2a06bcaed9f3ae3fb"},
+    {file = "prometheus_client-0.22.0-py3-none-any.whl", hash = "sha256:c8951bbe64e62b96cd8e8f5d917279d1b9b91ab766793f33d4dce6c228558713"},
+    {file = "prometheus_client-0.22.0.tar.gz", hash = "sha256:18da1d2241ac2d10c8d2110f13eedcd5c7c0c8af18c926e8731f04fc10cd575c"},
 ]
 
 [package.extras]
@@ -5447,4 +5447,4 @@ mpi = ["mpi4py"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<3.13"
-content-hash = "a7d8be5b6cb0d77ab8b950ca4594153af6718fb90d43f93bf9df13176d88cea2"
+content-hash = "edc1eac185a3e34e523d3f3b78aa99139e213638991be118b75c0914583b2cfb"

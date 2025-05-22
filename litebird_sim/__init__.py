@@ -79,7 +79,6 @@ from .imo import (
 )
 from .io import (
     write_list_of_observations,
-    write_observations,
     read_list_of_observations,
 )
 from .madam import save_simulation_for_madam
