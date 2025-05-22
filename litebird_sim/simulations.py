@@ -13,6 +13,8 @@ from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
 from typing import List, Tuple, Union, Dict, Any, Optional
 from uuid import uuid4
+from importlib.util import find_spec
+import types
 
 import astropy.time
 import astropy.units
@@ -479,6 +481,47 @@ class Simulation:
         # Initialize self.random. The user is free to
         # call self.init_random() again later
         self.init_random(self.random_seed)
+
+        if find_spec("brahmap") is not None:
+            import brahmap  # noqa: E402
+
+            def _make_brahmap_gls_map(
+                self,
+                nside,
+                component: Optional[List[str]] = None,
+                inv_noise_cov_operator=None,
+                threshold: float = 1.0e-5,
+                pointings_dtype=np.float64,
+                gls_params: brahmap.LBSimProcessTimeSamples = None,
+            ):
+                if gls_params is None:
+                    gls_params = brahmap.LBSimGLSParameters()
+
+                gls_results = brahmap.LBSim_compute_GLS_maps(
+                    nside=nside,
+                    observations=self.observations,
+                    component=component,
+                    pointings_flag=None,
+                    inv_noise_cov_operator=inv_noise_cov_operator,
+                    threshold=threshold,
+                    dtype_float=pointings_dtype,
+                    LBSim_gls_parameters=gls_params,
+                )
+
+                return gls_results
+
+        else:
+
+            def _make_brahmap_gls_map(self, **args):
+                raise ImportError(
+                    "Could not import `BrahMap`. Make sure that "
+                    "the package `BrahMap` is installed in the same environment "
+                    "as `litebird_sim`. Refer to "
+                    "https://anand-avinash.github.io/BrahMap/overview/installation/ "
+                    "for the installation instruction"
+                )
+
+        self.make_brahmap_gls_map = types.MethodType(_make_brahmap_gls_map, self)
 
     def init_random(self, random_seed):
         """
