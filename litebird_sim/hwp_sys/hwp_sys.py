@@ -9,7 +9,6 @@ from astropy.cosmology import Planck18 as cosmo
 from numba import njit, prange
 import litebird_sim as lbs
 from litebird_sim import mpi
-from .bandpass_template_module import bandpass_profile
 from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
 from ..mbs.mbs import MbsParameters
@@ -457,9 +456,7 @@ class HwpSys:
         self,
         nside: Union[int, None] = None,
         Mbsparams: Union[MbsParameters, None] = None,
-        integrate_in_band: Union[bool, None] = False,
         build_map_on_the_fly: Union[bool, None] = False,
-        integrate_in_band_solver: Union[bool, None] = False,
         apply_non_linearity: Union[bool, None] = False,
         add_orbital_dipole: Union[bool, None] = False,
         add_2f_hwpss: Union[bool, None] = False,
@@ -474,10 +471,7 @@ class HwpSys:
           nside (integer): nside used in the analysis
           Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
               Input maps needs to be in galactic (mbs default)
-          integrate_in_band (bool): performs the band integration for tod generation
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
-          integrate_in_band_solver (bool): performs the band integration for the
-                                           map-making solver
           apply_non_linearity (bool): applies the coupling of the non-linearity
               systematics with hwp_sys
           add_orbital_dipole (bool): adds the orbital dipole (computed previously
@@ -492,7 +486,6 @@ class HwpSys:
           comm (SerialMpiCommunicator): MPI communicator
         """
 
-        # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
         hwp_sys_Mbs_make_fg = True
         hwp_sys_Mbs_fg_models = ["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"]
@@ -506,20 +499,7 @@ class HwpSys:
 
             self.nside = paramdict.get("nside", False)
 
-            self.integrate_in_band = paramdict.get("integrate_in_band", False)
             self.build_map_on_the_fly = paramdict.get("build_map_on_the_fly", False)
-            self.integrate_in_band_solver = paramdict.get(
-                "integrate_in_band_solver", False
-            )
-
-            self.bandpass = paramdict.get("bandpass", False)
-            self.bandpass_solver = paramdict.get("bandpass_solver", False)
-            self.include_beam_throughput = paramdict.get(
-                "include_beam_throughput", False
-            )
-
-            self.band_filename = paramdict.get("band_filename", False)
-            self.band_filename_solver = paramdict.get("band_filename_solver", False)
 
             # here we set the values for Mbs used in the code if present
             # in paramdict, otherwise defaults
@@ -533,7 +513,6 @@ class HwpSys:
                 "hwp_sys_Mbs_gaussian_smooth", True
             )
         # This part sets from input_parameters()
-        # if not self.nside:
         if nside is None:
             self.nside = 512
         else:
@@ -554,17 +533,9 @@ class HwpSys:
                             )
                         )
 
-        if not hasattr(self, "integrate_in_band"):
-            if integrate_in_band is not None:
-                self.integrate_in_band = integrate_in_band
-
         if not hasattr(self, "build_map_on_the_fly"):
             if build_map_on_the_fly is not None:
                 self.build_map_on_the_fly = build_map_on_the_fly
-
-        if not hasattr(self, "integrate_in_band_solver"):
-            if integrate_in_band_solver is not None:
-                self.integrate_in_band_solver = integrate_in_band_solver
 
         if not hasattr(self, "apply_non_linearity"):
             if apply_non_linearity is not None:
@@ -601,78 +572,17 @@ class HwpSys:
         if Channel is None:
             Channel = lbs.FreqChannelInfo(bandcenter_ghz=140)
 
-        if self.integrate_in_band:
-            if not self.bandpass:
-                self.cmb2bb = _dBodTth(self.freqs)
-
-            elif self.bandpass:
-                self.freqs, self.bandpass_profile = bandpass_profile(
-                    self.freqs, self.bandpass, self.include_beam_throughput
-                )
-
-                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
-
-            # Normalize the band
-            self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
-
-            rank = comm.rank
-
-            if np.any(maps) is None:
-                if rank == 0:
-                    myinstr = {}
-                    for ifreq in range(self.nfreqs):
-                        myinstr["ch" + str(ifreq)] = {
-                            "bandcenter_ghz": self.freqs[ifreq],
-                            "bandwidth_ghz": 0,
-                            "fwhm_arcmin": Channel.fwhm_arcmin,
-                            "p_sens_ukarcmin": 0.0,
-                            "band": None,
-                        }
-
-                    mbs = lbs.Mbs(
-                        simulation=self.sim, parameters=Mbsparams, instrument=myinstr
-                    )
-
-                    maps = mbs.run_all()[0]
-                    self.maps = np.empty((self.nfreqs, 3, self.npix))
-                    for ifreq in range(self.nfreqs):
-                        self.maps[ifreq] = maps["ch" + str(ifreq)]
-                else:
-                    self.maps = None
-                if comm is not None:
-                    self.maps = comm.bcast(self.maps, root=0)
-            else:
-                self.maps = maps
-            del maps
-
+        if np.any(maps) is None:
+            mbs = lbs.Mbs(
+                simulation=self.sim, parameters=Mbsparams, channel_list=Channel
+            )
+            self.maps = mbs.run_all()[0][
+                f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"
+            ]
         else:
-            if np.any(maps) is None:
-                mbs = lbs.Mbs(
-                    simulation=self.sim, parameters=Mbsparams, channel_list=Channel
-                )
-                self.maps = mbs.run_all()[0][
-                    f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"
-                ]
-            else:
-                self.maps = maps
+            self.maps = maps
 
-                del maps
-
-        if self.integrate_in_band_solver:
-            if not self.bandpass_solver:
-                self.cmb2bb_solver = _dBodTth(self.freqs_solver)
-
-            elif self.bandpass_solver:
-                self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
-                    self.freqs_solver,
-                    self.bandpass_solver,
-                    self.include_beam_throughput,
-                )
-                self.cmb2bb_solver = (
-                    _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
-                )
-
-            self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
+            del maps
 
         if self.build_map_on_the_fly:
             self.atd = np.zeros((self.npix, 3), dtype=np.float64)
@@ -722,12 +632,13 @@ class HwpSys:
                 ecliptic to galactic and output map will also be in
                 galactic.
 
-            save_tod (bool): if True, ``tod`` is saved in
-                ``observations.tod``; if False, ``tod`` gets deleted.
+            save_tod (bool): if True, ``obs.tod`` is saved in
+                ``observations.tod`` and locally as a .npy file;
+                if False, ``obs.tod`` gets deleted.
 
             dtype_pointings: if ``pointings`` is None and is computed
                 within ``fill_tod``, this is the dtype for
-                pointings and tod (default: np.float64).
+                pointings and tod (default: np.float32).
 
         """
 
