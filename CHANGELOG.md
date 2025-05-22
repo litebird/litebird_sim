@@ -2,6 +2,8 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   Fix a bug in `prepare_pointings` [#396](https://github.com/litebird/litebird_sim/pull/396)
+
 -   Deprecate `apply_hwp_to_obs()` and `HWP.add_hwp_angle()`, remove deprecated functions `Simulation.generate_spin2ecl_quaternions()` and `write_observations()`
 
 -   Fix docstrings and type hints for `mueller_hwp` [#381](https://github.com/litebird/litebird_sim/pull/381)
