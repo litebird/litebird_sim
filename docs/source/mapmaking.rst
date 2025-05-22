@@ -35,6 +35,11 @@ The framework provides the following solutions:
    and pointing information to disk and then manually call the `Madam
    map-maker <https://arxiv.org/abs/astro-ph/0412517>`_.
 
+5. An interface to use the
+   `BrahMap <https://github.com/anand-avinash/BrahMap>` GLS mapmaker.
+   (To use this, you must ensure that the package is installed, thus
+   see `BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.)
+
 In this chapter, we assume you have already created the timelines
 to be used as input to the destriper. Here is a sample code
 that creates a simple timeline containing white noise for two
@@ -976,6 +981,48 @@ information needed to do this programmatically:
 You can include this snippet of code in the script that calls
 :func:`.save_simulation_for_madam`, so that the procedure will
 be 100% automated.
+
+
+BrahMap GLS mapmaker
+--------------------
+
+If you have installed the `BrahMap <https://github.com/anand-avinash/BrahMap>`_, you
+can use it seemlessly within the LiteBIRD Simulation Framework through
+:func:`.make_brahmap_gls_map`. This provides a high-level interface with BrahMap to
+perform optimal mapmaking with different noise covariance operators. These operators
+can be defined using BrahMap and can be used in the interface directly.
+
+The MPI communicator used in map-making must be the one that contains
+exclusively all the data needed for map-making. In case of `litebird_sim`, the
+communicator `lbs.MPI_COMM_WORLD`. Therefore, it is a suitable communicator to be
+used in map-making. Hence, communicator used by
+`BrahMap` must be updated as following before using any other `BrahMap`
+function with `litebird_sim` data:
+`brahmap.MPI_UTILS.update_communicator(comm=lbs.MPI_COMM_WORLD)`
+
+```python
+# Creating the inverse white noise covariance operator
+inv_cov = brahmap.InvNoiseCovLO_Uncorrelated(
+    diag=[...],       # Diagonal elements of the inverse of white noise covariance
+                      # matrix
+
+    dtype=np.float64, # Numerical precision of the operator
+)
+
+# Performing the GLS map-making
+gls_result = brahmap.LBSim_compute_GLS_maps(
+    nside=nside,                    # Nside parameter for the output healpix map
+    observations=sim.observations,  # List of observations from litebird_sim
+    component="tod",                # TOD component to be used in map-making
+    inv_noise_cov_operator=inv_cov, # Inverse noise covariance operator
+    dtype_float=np.float64,         # Numerical precision to be used in map-making
+)
+```
+
+`gls_result` obtained above is an instance of the class `LBSimGLSResult`. The
+output maps can be accessed from this object with `gls_result.GLS_maps`.
+For further details refer to
+`BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.
 
 
 API reference
