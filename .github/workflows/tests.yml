@@ -58,8 +58,7 @@ jobs:
           if [ "${{ matrix.mpi }}" != "none" ]; then
             EXTRAS="$EXTRAS -E mpi"
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-              git clone --recursive https://github.com/anand-avinash/BrahMap.git ~/brahmap
-              pip install ~/brahmap
+              EXTRAS="$EXTRAS -E brahmap"
             fi
           fi
           poetry export --without-hashes $EXTRAS -o requirements.txt

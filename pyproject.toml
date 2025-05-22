@@ -47,6 +47,7 @@ astropy = "5.3.4"
 tomlkit = "^0.12.1"
 
 mpi4py = {version = "^3.1", optional = true}
+brahmap = {git="https://github.com/anand-avinash/BrahMap.git", optional = true}
 
 sphinx = "^7.4"
 sphinxcontrib-bibtex = "^2.5.0"
@@ -80,6 +81,7 @@ pydata-sphinx-theme = "^0.16.0"
 poetry-plugin-export = "^1.8.0"
 
 [tool.poetry.extras]
+brahmap = ["brahmap"]
 mpi = ["mpi4py"]
 jupyter = ["jupyter"]
 
