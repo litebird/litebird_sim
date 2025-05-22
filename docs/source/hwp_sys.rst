@@ -71,16 +71,7 @@ of the HWP systematics. It defines three methods:
 *  :meth:`.hwp_sys.HwpSys.fill_tod` which fills the tod in a given Observation. The ``pointings``
    angles passed have to include no rotating HWP, since the effect of the rotating HWP to the
    polarization angle is included in the TOD computation.
-   The TOD is computed performing this operation:
-
-   .. math::
-
-      d_{\text{obs}}\left(t_{i}\right)\,=\,\frac{\int d\nu\,\frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}\,\tau\left(\nu\right)\,M_{i}^{TX}(\nu)\left(m_{\text{CMB}}+m_{\text{FG}}\left(\nu\right)\right)}{\int d\nu \frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}\,\tau \left(\nu\right)},
-
-   where :math:`\tau(\nu)` is the bandpass,
-   :math:`\frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}` converts from CMB thermodynamic temperature
-   to differential source intensity (see eq.8 of https://arxiv.org/abs/1303.5070) and
-   :math:`M_{i}^{TX}(\nu)` is the Mueller matrix element including the non-ideal HWP.
+   The TOD is computed by the **equation 5.2** in `Patanchon et al. 2023 <https://arxiv.org/pdf/2308.00967>`_
 
    If ``built_map_on_the_fly = True``, the code computes also
 
@@ -88,19 +79,11 @@ of the HWP systematics. It defines three methods:
 
       m_{\text{out}} = {\,\left(\sum_{i} B_{i}^{T} B_{i} \right)^{-1} \left( \sum_{i} B_{i}^{T} d_{\text{obs}}(t_{i}) \right)},
 
-   where the map-making matrix is
-
-   .. math::
-
-      B^X = \left(\frac{\int d\nu \,\frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}\,\tau_{s}\left(\nu\right)\,M_{i,s}^{TX}(\nu)}{\int d\nu \frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}\,\tau_{s}\left(\nu\right)}\,\right).
-
-   :math:`\tau_s(\nu)` and :math:`M_{i,s}^{TX}(\nu)` are the estimate of
-   the bandpass and Mueller matrix elements used in the map-making.
+   where the map-making matrix is given by the user for each detector in the mueller_hwp_solver attribute of the DetectorInfo class.
 
 *  :meth:`.hwp_sys.HwpSys.make_map` which can bin the observations in a map. This is available only
    if ``built_map_on_the_fly`` variable is set to ``True``. With this method, it is possible to
-   include non-ideal HWP knowledge in the map-making procedure, so use that instead of the general
-   ``litebird_sim`` binner if you want to do so.
+   include non-ideal HWP knowledge in the map-making procedure.
 
 
 Examples
@@ -110,8 +93,34 @@ The examples below skip the simulation and observation creation for brevity. If 
 
 .. code-block:: python
 
-   (... creating simulation, observation, etc...)
-   (... DON'T FORGET to add hwp to the simulation with sim.set_hwp...)
+   (... importing modules, creating simulation, seetting scanning strategy, instrument etc...)
+
+   sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
+
+   # creating the detectors (DetectorInfo objects - only one in this example)
+   det = lbs.DetectorInfo.from_imo(...)
+
+   # defining the mueller matrices for the HWP for this detector.
+   # In this example, we set non-idealities in the IP leakage terms.
+   det.mueller_hwp = {
+            "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]]),
+            "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
+            "4f": np.array([[4*1e-4, 0, 0], [3*1e-4, 1, 1], [0, 1, 1]]),
+        }
+
+   # defining the mueller matrices for the mapmaking (pointing matrix) for this detector
+   # In this example, we consider an ideal pointing matrix. This could be left empty as it is the default case.
+   det.mueller_hwp_solver = {
+            "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]]),
+            "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
+            "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]]),
+        }
+
+   (obs,) = sim.create_observations(
+      detectors=dets,
+   )
+
+   sim.prepare_pointings()
 
    # creating the HwpSys object 
    hwp_sys = lbs.HwpSys(sim)
@@ -137,10 +146,14 @@ To couple detector non-linearity with HWP systematics, three attributes must be 
 
 .. code-block:: python
 
-   (... creating simulation, observation, etc...)
-   (... DON'T FORGET to add hwp to the simulation with sim.set_hwp...)
+   (... importing modules, creating simulation, seetting scanning strategy, instrument etc...)
+
+   sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
 
    det = lbs.DetectorInfo.from_imo(...)
+
+   det.mueller_hwp = {...}
+   det.mueller_hwp_solver = {...}
 
    det.g_one_over_k = -0.144
    det.amplitude_2f_k = 2.0
@@ -150,7 +163,7 @@ To couple detector non-linearity with HWP systematics, three attributes must be 
       detectors=dets,
    )
 
-   (...)
+   sim.prepare_pointings()
 
    # creating the HwpSys object 
    hwp_sys = lbs.HwpSys(sim)
