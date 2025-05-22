@@ -6,6 +6,8 @@ import numpy as np
 import numpy.typing as npt
 import astropy.time
 
+from deprecated import deprecated
+
 from ducc0.healpix import Healpix_Base
 
 from .detectors import InstrumentInfo
@@ -40,6 +42,7 @@ def prepare_pointings(
             instrument=instrument, spin2ecliptic_quats=spin2ecliptic_quats, hwp=hwp
         )
 
+
 def precompute_pointings(
     observations: Union[Observation, List[Observation]],
     pointings_dtype=np.float64,
@@ -58,6 +61,7 @@ def precompute_pointings(
 
     for cur_obs in obs_list:
         cur_obs.precompute_pointings(pointings_dtype=pointings_dtype)
+
 
 @deprecated(
     version="0.15.0",

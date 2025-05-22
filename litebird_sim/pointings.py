@@ -5,11 +5,8 @@ from typing import Optional, Union
 import astropy.time
 import numpy as np
 import numpy.typing as npt
-from deprecated import deprecated
 
-from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 from .hwp import HWP
-from .observations import Observation
 from .scanning import (
     all_compute_pointing_and_orientation,
     RotQuaternion,
