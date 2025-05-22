@@ -1,6 +1,18 @@
 # HEAD
 
+-   Function for nullifying tods in the class `Simulation` [#389](https://github.com/litebird/litebird_sim/pull/389). 
+
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
+
+-   Option for centering the pointing in the beam convolution plus some reworking of the pointing API (new methods added to the class Observation) [#397](https://github.com/litebird/litebird_sim/pull/397)
+
+-   Bug in `Simulation.get_sky()` fixed [#398](https://github.com/litebird/litebird_sim/pull/398)
+
+-   Fix a bug in `prepare_pointings` [#396](https://github.com/litebird/litebird_sim/pull/396)
+
+-   Deprecate `apply_hwp_to_obs()` and `HWP.add_hwp_angle()`, remove deprecated functions `Simulation.generate_spin2ecl_quaternions()` and `write_observations()`
+
+-   Fix docstrings and type hints for `mueller_hwp` [#381](https://github.com/litebird/litebird_sim/pull/381)
 
 -   Fix the formatting of a few docstrings [#391](https://github.com/litebird/litebird_sim/pull/391)
 

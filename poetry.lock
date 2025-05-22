@@ -3986,15 +3986,13 @@ files = [
 
 [[package]]
 name = "pysm3"
-version = "3.4.1"
+version = "3.4.2.dev7+gf220a4e"
 description = "PySM generates full-sky simulations of Galactic emissions in intensity and polarization"
 optional = false
 python-versions = ">=3.7"
 groups = ["main"]
-files = [
-    {file = "pysm3-3.4.1-py3-none-any.whl", hash = "sha256:6943de065fc50d3a3ee3d434cbcfa436b4ae687e0b0cedce56775a24fc2ff476"},
-    {file = "pysm3-3.4.1.tar.gz", hash = "sha256:4938ffdf845ddc1cb892782c42b401b6bd1d54b740913777be580e017bfa6ab8"},
-]
+files = []
+develop = false
 
 [package.dependencies]
 astropy = "*"
@@ -4009,6 +4007,12 @@ toml = "*"
 docs = ["ipykernel", "nbsphinx", "pandoc", "sphinx-astropy", "sphinx-math-dollar", "sphinx-pyproject"]
 mpi = ["mpi4py"]
 test = ["ipykernel", "nbval", "netcdf4", "pixell (==0.26.0)", "psutil", "pytest", "pytest-astropy", "tox", "xarray"]
+
+[package.source]
+type = "git"
+url = "https://github.com/galsci/pysm.git"
+reference = "f220a4e"
+resolved_reference = "f220a4e7afdf4b15e944e6c329b322c757ffbbc8"
 
 [[package]]
 name = "pytest"
@@ -5835,4 +5839,4 @@ mpi = ["mpi4py"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<3.13"
-content-hash = "25b6cde3051265c7433174c0befe06aca8f1ec5e32e4a2af3253d27da4899e67"
+content-hash = "e9c2758148befca5614dfac9858c985f078eda67a20f367039386fff13152377"

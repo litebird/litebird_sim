@@ -24,11 +24,15 @@ import matplotlib.pylab as plt
 import numba
 import numpy as np
 import tomlkit
-from deprecation import deprecated
 from markdown_katex import KatexExtension
 
 from litebird_sim import constants
 from . import HWP
+from .beam_convolution import (
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
+from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
 from .detectors import DetectorInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
@@ -48,6 +52,7 @@ from .mapmaking import (
     DestriperResult,
     destriper_log_callback,
 )
+from .mbs import Mbs, MbsParameters
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import apply_quadratic_nonlin_to_observations
@@ -55,15 +60,9 @@ from .observations import Observation, TodDescription
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
-from .beam_convolution import (
-    add_convolved_sky_to_observations,
-    BeamConvolutionParameters,
-)
-from .spherical_harmonics import SphericalHarmonics
-from .beam_synthesis import generate_gauss_beam_alms
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .mbs import Mbs, MbsParameters
+from .spherical_harmonics import SphericalHarmonics
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -1210,6 +1209,38 @@ class Simulation:
             mpi_processes=mpi_processes,
         )
 
+    @_profile
+    def nullify_tod(self, component: str = "tod") -> None:
+        """
+        Set the specified component (default: "tod") of all observations to zero.
+
+        This is typically used to zero out Time-Ordered Data (TOD) in-place across
+        all observations.
+
+        Parameters
+        ----------
+        component : str, optional
+            The attribute name of the data to nullify in each observation.
+            Defaults to "tod".
+
+        Raises
+        ------
+        AttributeError
+            If an observation does not have the specified component.
+        """
+        for i, cur_obs in enumerate(self.observations):
+            try:
+                tod = getattr(cur_obs, component)
+            except AttributeError:
+                raise AttributeError(
+                    f"Observation {i} does not have attribute '{component}'"
+                )
+
+            if tod is not None:
+                tod[:, :] = 0
+            else:
+                pass
+
     def set_scanning_strategy(
         self,
         scanning_strategy: Union[None, ScanningStrategy] = None,
@@ -1289,25 +1320,6 @@ class Simulation:
                 delta_time_s=delta_time_s,
                 quat_memory_size_bytes=quat_memory_size_bytes,
             )
-
-    @deprecated(
-        deprecated_in="0.9",
-        current_version=litebird_sim_version,
-        details="Use set_scanning_strategy",
-    )
-    def generate_spin2ecl_quaternions(
-        self,
-        scanning_strategy: Union[None, ScanningStrategy] = None,
-        imo_url: Union[None, str] = None,
-        delta_time_s: float = 60.0,
-        append_to_report=True,
-    ):
-        self.set_scanning_strategy(
-            scanning_strategy=scanning_strategy,
-            imo_url=imo_url,
-            delta_time_s=delta_time_s,
-            append_to_report=append_to_report,
-        )
 
     def set_instrument(self, instrument: InstrumentInfo):
         """Set the instrument to be used in the simulation.
@@ -1614,6 +1626,7 @@ class Simulation:
         convolution_params: Optional[BeamConvolutionParameters] = None,
         component: str = "tod",
         pointings_dtype=np.float64,
+        nside_centering: Union[int, None] = None,
         append_to_report: bool = True,
         nthreads: Union[int, None] = None,
     ):
@@ -1642,6 +1655,7 @@ class Simulation:
             component=component,
             convolution_params=convolution_params,
             pointings_dtype=pointings_dtype,
+            nside_centering=nside_centering,
             nthreads=nthreads,
         )
 

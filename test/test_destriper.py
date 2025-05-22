@@ -371,7 +371,7 @@ def setup_simulation(
 
 
 def test_map_maker_parts():
-    from litebird_sim.pointings import _normalize_observations_and_pointings
+    from litebird_sim.pointings_in_obs import _normalize_observations_and_pointings
     from litebird_sim.mapmaking.destriper import (
         _store_pixel_idx_and_pol_angle_in_obs,
         _build_mask_detector_split,

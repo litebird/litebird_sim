@@ -82,9 +82,6 @@ def test_observation_time():
 def test_construction_from_detectors():
     comm_world = lbs.MPI_COMM_WORLD
 
-    if comm_world.rank == 0:
-        print(f"MPI configuration: {lbs.MPI_CONFIGURATION}")
-
     det1 = dict(
         name="pol01",
         wafer="mywafer",
@@ -517,6 +514,8 @@ def test_issue314(tmp_path):
         # `__write_complex_observation` creates 2 observations
         return
 
+    rank = lbs.MPI_COMM_WORLD.rank
+
     tmp_path = Path(tmp_path)
 
     start_time = 0
@@ -565,11 +564,6 @@ def test_issue314(tmp_path):
         quat=[0.0, 0.0, 0.0, 1.0],
     )
 
-    print(
-        "MPI process #{} is going to call create_observations()".format(
-            lbs.MPI_COMM_WORLD.rank
-        )
-    )
     sim.create_observations(
         detectors=[det1, det2],
         n_blocks_det=2,
@@ -592,11 +586,13 @@ def test_issue314(tmp_path):
     assert len(observations) == 1
 
     obs = observations[0]
-    print(
-        "MPI process #{} has obs.det_idx = {}".format(
-            lbs.MPI_COMM_WORLD.rank, obs.det_idx
-        )
-    )
+
+    if rank == 0:
+        assert obs.det_idx == [0]
+    elif rank == 1:
+        assert obs.det_idx == [1]
+    else:
+        assert False, "This should not happen!"
 
 
 def __run_test_in_same_folder(test_fn: Callable) -> None:
@@ -617,16 +613,16 @@ def __run_test_in_same_folder(test_fn: Callable) -> None:
     local_success = 1
     try:
         test_fn(tmp_path)
-    except Exception as e:
+    except Exception:
         local_success = 0
 
         from traceback import format_exc
 
         print(
-            "MPI process #{rank} failed with exception: ".format(
-                rank=lbs.MPI_COMM_WORLD.rank
+            "MPI process #{rank} failed with exception: {exc}".format(
+                rank=lbs.MPI_COMM_WORLD.rank,
+                exc=format_exc(),
             ),
-            format_exc(e),
             file=stderr,
         )
 
@@ -639,6 +635,39 @@ def __run_test_in_same_folder(test_fn: Callable) -> None:
     if global_success == 0:
         if lbs.MPI_COMM_WORLD.rank == 0:
             print("Failure", file=stderr)
+
+
+def test_nullify_mpi(tmp_path):
+    start_time = 0
+    time_span_s = 2
+    sampling_hz = 12
+
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=start_time,
+        duration_s=time_span_s,
+        random_seed=12345,
+    )
+
+    det = lbs.DetectorInfo(
+        name="Dummy detector",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    num_of_obs = 12
+    sim.create_observations(detectors=[det], num_of_obs_per_detector=num_of_obs)
+
+    # Assert TOD is initially non-zero and specific to rank
+    for obs in sim.observations:
+        obs.tod[:, :] = lbs.MPI_COMM_WORLD.rank + 1
+
+    sim.nullify_tod()
+
+    # Assert TOD is now zero
+    for obs in sim.observations:
+        assert np.all(obs.tod == 0)
 
 
 if __name__ == "__main__":
@@ -660,6 +689,7 @@ if __name__ == "__main__":
     same_folder_test_functions = [
         test_write_hdf5_mpi,
         test_issue314,
+        test_nullify_mpi,
     ]
 
     for cur_test_fn in same_folder_test_functions:

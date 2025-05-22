@@ -255,7 +255,6 @@ def test_scan_map_linear_interpolation():
     # Just check that the code does not crash
     lbs.scan_map_in_observations(
         observations=obs1,
-        pointings=pointings,
         maps=in_map,
         input_map_in_galactic=False,
         interpolation="linear",
