@@ -470,7 +470,6 @@ class HwpSys:
         Args:
           nside (integer): nside used in the analysis
           Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
-              Input maps needs to be in galactic (mbs default)
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
           apply_non_linearity (bool): applies the coupling of the non-linearity
               systematics with hwp_sys
