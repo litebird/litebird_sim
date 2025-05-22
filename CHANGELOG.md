@@ -2,6 +2,8 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   Bug in `Simulation.get_sky()` fixed [#398](https://github.com/litebird/litebird_sim/pull/398)
+
 -   Fix the formatting of a few docstrings [#391](https://github.com/litebird/litebird_sim/pull/391)
 
 -   Common interface to compute pointings and detector polarization angle [#378](https://github.com/litebird/litebird_sim/pull/378)
