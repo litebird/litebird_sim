@@ -488,7 +488,7 @@ class Simulation:
             def _make_brahmap_gls_map(
                 self,
                 nside,
-                component: Optional[List[str]] = None,
+                component: Optional[List[str]] = "tod",
                 inv_noise_cov_operator=None,
                 threshold: float = 1.0e-5,
                 pointings_dtype=np.float64,
