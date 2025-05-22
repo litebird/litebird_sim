@@ -7,9 +7,11 @@ import astropy.time
 
 from ducc0.healpix import Healpix_Base
 
-from litebird_sim.coordinates import CoordinateSystem, rotate_coordinates_e2g
+from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.observations import Observation
 from litebird_sim.mpi import MPI_COMM_GRID
+
+from litebird_sim.pointings import _get_pointings_array, _get_pol_angle
 
 
 # The threshold on the conditioning number used to determine if a pixel
@@ -122,61 +124,6 @@ def get_map_making_weights(
     return weights
 
 
-def _normalize_observations_and_pointings(
-    observations: Union[Observation, List[Observation]],
-    pointings: Union[np.ndarray, List[np.ndarray], None],
-) -> Tuple[List[Observation], List[npt.NDArray], List[npt.NDArray]]:
-    # In map-making routines, we always rely on two local variables:
-    #
-    # - obs_list contains a list of the observations to be used in the
-    #   map-making process by the current MPI process. Unlike the `observations`
-    #   parameters used in functions like `make_binned_map`, this is
-    #   *always* a list, i.e., even if there is just one observation
-    #
-    # - ptg_list: a list of pointing matrices, one per each observation,
-    #   each belonging to the current MPI process
-    #
-    # This function builds the tuple (obs_list, ptg_list, psi_list) and
-    # returns it.
-
-    if pointings is None:
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix]
-            else:
-                ptg_list = [observations.get_pointings]
-        else:
-            obs_list = observations
-            ptg_list = []
-            for ob in observations:
-                if hasattr(ob, "pointing_matrix"):
-                    ptg_list.append(ob.pointing_matrix)
-                else:
-                    ptg_list.append(ob.get_pointings)
-    else:
-        if isinstance(observations, Observation):
-            assert isinstance(pointings, np.ndarray), (
-                "You must pass a list of observations *and* a list "
-                + "of pointing matrices to scan_map_in_observations"
-            )
-            obs_list = [observations]
-            ptg_list = [pointings]
-        else:
-            assert isinstance(pointings, list), (
-                "When you pass a list of observations to scan_map_in_observations, "
-                + "you must do the same for `pointings`"
-            )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
-            )
-            obs_list = observations
-            ptg_list = pointings
-
-    return obs_list, ptg_list
-
-
 def _compute_pixel_indices(
     hpx: Healpix_Base,
     pointings: Union[npt.ArrayLike, Callable],
@@ -207,22 +154,19 @@ def _compute_pixel_indices(
     polang_all = np.empty((num_of_detectors, num_of_samples), dtype=np.float64)
 
     for idet in range(num_of_detectors):
-        if type(pointings) is np.ndarray:
-            curr_pointings_det = pointings[idet, :, :]
-        else:
-            curr_pointings_det, hwp_angle = pointings(
-                idet, pointings_dtype=pointings_dtype
-            )
+        curr_pointings_det, hwp_angle = _get_pointings_array(
+            detector_idx=idet,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
+            output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
+        )
 
-        if output_coordinate_system == CoordinateSystem.Galactic:
-            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
-
-        if hwp_angle is None:
-            polang_all[idet] = pol_angle_detectors[idet] + curr_pointings_det[:, 2]
-        else:
-            polang_all[idet] = (
-                2 * hwp_angle - pol_angle_detectors[idet] + curr_pointings_det[:, 2]
-            )
+        polang_all[idet] = _get_pol_angle(
+            curr_pointings_det=curr_pointings_det,
+            hwp_angle=hwp_angle,
+            pol_angle_detectors=pol_angle_detectors[idet],
+        )
 
         pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
 

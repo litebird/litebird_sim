@@ -4,9 +4,15 @@
 
 -   Fix docstrings and type hints for `mueller_hwp` [#381](https://github.com/litebird/litebird_sim/pull/381)
 
+-   Fix the formatting of a few docstrings [#391](https://github.com/litebird/litebird_sim/pull/391)
+
+-   Common interface to compute pointings and detector polarization angle [#378](https://github.com/litebird/litebird_sim/pull/378)
+
 -   Module for performing the 4π beam convolution [#338](https://github.com/litebird/litebird_sim/pull/338)
 
 -   Make `@_profile` preserve docstrings [#371](https://github.com/litebird/litebird_sim/pull/371)
+
+-   Upgrade Ducc0 to 0.38.0 and clarify how to compile Ducc0 from sources [#383](https://github.com/litebird/litebird_sim/pull/383), [#390](https://github.com/litebird/litebird_sim/pull/390), [#394](https://github.com/litebird/litebird_sim/pull/394)
 
 # Version 0.14.0
 

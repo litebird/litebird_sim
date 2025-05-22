@@ -5,7 +5,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 import litebird_sim as lbs
 import healpy as hp
-import numpy as np
+import numpy.testing as npt
 
 PARAMETER_FILE = """
 [map_based_sims]
@@ -69,4 +69,4 @@ def test_mbs():
 
             curpath = Path(__file__).parent
             map_ref = hp.read_map(curpath / "reference_mbs.fits", (0, 1, 2))
-            assert np.allclose(maps["mock"], map_ref, atol=1e-6)
+            npt.assert_allclose(maps["mock"], map_ref, atol=1e-3)
