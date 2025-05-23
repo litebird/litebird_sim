@@ -1,22 +1,21 @@
 # -*- encoding: utf-8 -*-
 
+import numbers
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Union, List, Any, Optional
-import numbers
 
 import astropy.time
 import numpy as np
 import numpy.typing as npt
 
-from collections import defaultdict
-
 from .coordinates import DEFAULT_TIME_SCALE
-from .distribute import distribute_evenly, distribute_detector_blocks
 from .detectors import DetectorInfo, InstrumentInfo
+from .distribute import distribute_evenly, distribute_detector_blocks
 from .hwp import HWP
-from .scanning import RotQuaternion
-from .pointings import PointingProvider
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
+from .pointings import PointingProvider
+from .scanning import RotQuaternion
 
 
 @dataclass
@@ -821,7 +820,7 @@ class Observation:
             )
             self.has_hwp = False
         else:
-            for idet in self.det_idx:
+            for idet in range(self.n_detectors):
                 if self.mueller_hwp[idet] is None:
                     self.mueller_hwp[idet] = hwp.mueller
             self.has_hwp = True
