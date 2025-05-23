@@ -782,6 +782,9 @@ class HwpSys:
                 cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
                 sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
 
+                if not self.apply_non_linearity:
+                    cur_det.g_one_over_k = 0.0
+                    
                 if not self.add_2f_hwpss:
                     cur_det.amplitude_2f_k = 0.0
 
