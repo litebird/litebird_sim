@@ -276,7 +276,7 @@ def compute_signal_for_one_detector(
     m0f,
     m2f,
     m4f,
-    theta,
+    rho,
     psi,
     maps,
     cos2Xi2Phi,
@@ -293,39 +293,39 @@ def compute_signal_for_one_detector(
     """
 
     for i in prange(len(tod_det)):
-        FourRho = 4 * (theta[i] - phi)
-        TwoRho = 2 * (theta[i] - phi)
+        Four_rho_phi = 4 * (rho[i] - phi)
+        Two_rho_phi = 2 * (rho[i] - phi)
         tod_det[i] += compute_signal_for_one_sample(
             T=maps[0, pixel_ind[i]],
             Q=maps[1, pixel_ind[i]],
             U=maps[2, pixel_ind[i]],
             mII=m0f[0, 0]
-            + m2f[0, 0] * np.cos(TwoRho - 2.32)
-            + m4f[0, 0] * np.cos(FourRho - 0.84),
+            + m2f[0, 0] * np.cos(Two_rho_phi - 2.32)
+            + m4f[0, 0] * np.cos(Four_rho_phi - 0.84),
             mQI=m0f[1, 0]
-            + m2f[1, 0] * np.cos(TwoRho + 2.86)
-            + m4f[1, 0] * np.cos(FourRho + 0.14),
+            + m2f[1, 0] * np.cos(Two_rho_phi + 2.86)
+            + m4f[1, 0] * np.cos(Four_rho_phi + 0.14),
             mUI=m0f[2, 0]
-            + m2f[2, 0] * np.cos(TwoRho + 1.29)
-            + m4f[2, 0] * np.cos(FourRho - 1.43),
+            + m2f[2, 0] * np.cos(Two_rho_phi + 1.29)
+            + m4f[2, 0] * np.cos(Four_rho_phi - 1.43),
             mIQ=m0f[0, 1]
-            + m2f[0, 1] * np.cos(TwoRho - 0.49)
-            + m4f[0, 1] * np.cos(FourRho - 0.04),
+            + m2f[0, 1] * np.cos(Two_rho_phi - 0.49)
+            + m4f[0, 1] * np.cos(Four_rho_phi - 0.04),
             mIU=m0f[0, 2]
-            + m2f[0, 2] * np.cos(TwoRho - 2.06)
-            + m4f[0, 2] * np.cos(FourRho - 1.61),
+            + m2f[0, 2] * np.cos(Two_rho_phi - 2.06)
+            + m4f[0, 2] * np.cos(Four_rho_phi - 1.61),
             mQQ=m0f[1, 1]
-            + m2f[1, 1] * np.cos(TwoRho - 0.25)
-            + m4f[1, 1] * np.cos(FourRho - 0.00061),
+            + m2f[1, 1] * np.cos(Two_rho_phi - 0.25)
+            + m4f[1, 1] * np.cos(Four_rho_phi - 0.00061),
             mUU=m0f[2, 2]
-            + m2f[2, 2] * np.cos(TwoRho + 2.54)
-            + m4f[2, 2] * np.cos(FourRho + np.pi - 0.00065),
+            + m2f[2, 2] * np.cos(Two_rho_phi + 2.54)
+            + m4f[2, 2] * np.cos(Four_rho_phi + np.pi - 0.00065),
             mUQ=m0f[2, 1]
-            + m2f[2, 1] * np.cos(TwoRho - 2.01)
-            + m4f[2, 1] * np.cos(FourRho - 0.00070 - np.pi / 2),
+            + m2f[2, 1] * np.cos(Two_rho_phi - 2.01)
+            + m4f[2, 1] * np.cos(Four_rho_phi - 0.00070 - np.pi / 2),
             mQU=m0f[1, 2]
-            + m2f[1, 2] * np.cos(TwoRho - 2.00)
-            + m4f[1, 2] * np.cos(FourRho - 0.00056 - np.pi / 2),
+            + m2f[1, 2] * np.cos(Two_rho_phi - 2.00)
+            + m4f[1, 2] * np.cos(Four_rho_phi - 0.00056 - np.pi / 2),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -334,7 +334,7 @@ def compute_signal_for_one_detector(
         if apply_non_linearity:
             tod_det[i] = apply_quadratic_nonlin_for_one_sample(tod_det[i], g_one_over_k)
         if add_2f_hwpss:
-            tod_det[i] += amplitude_2f_k * np.cos(2 * theta[i])
+            tod_det[i] += amplitude_2f_k * np.cos(2 * rho[i])
 
 
 @njit
@@ -380,7 +380,7 @@ def compute_ata_atd_for_one_detector(
     m2f_solver,
     m4f_solver,
     pixel_ind,
-    theta,
+    rho,
     psi,
     phi,
     cos2Xi2Phi,
@@ -392,36 +392,36 @@ def compute_ata_atd_for_one_detector(
     """
 
     for i in prange(len(tod)):
-        FourRho = 4 * (theta[i] - phi)
-        TwoRho = 2 * (theta[i] - phi)
+        Four_rho_phi = 4 * (rho[i] - phi)
+        Two_rho_phi = 2 * (rho[i] - phi)
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=m0f_solver[0, 0]
-            + m2f_solver[0, 0] * np.cos(TwoRho - 2.32)
-            + m4f_solver[0, 0] * np.cos(FourRho - 0.84),
+            + m2f_solver[0, 0] * np.cos(Two_rho_phi - 2.32)
+            + m4f_solver[0, 0] * np.cos(Four_rho_phi - 0.84),
             mQIs=m0f_solver[1, 0]
-            + m2f_solver[1, 0] * np.cos(TwoRho + 2.86)
-            + m4f_solver[1, 0] * np.cos(FourRho + 0.14),
+            + m2f_solver[1, 0] * np.cos(Two_rho_phi + 2.86)
+            + m4f_solver[1, 0] * np.cos(Four_rho_phi + 0.14),
             mUIs=m0f_solver[2, 0]
-            + m2f_solver[2, 0] * np.cos(TwoRho + 1.29)
-            + m4f_solver[2, 0] * np.cos(FourRho - 1.43),
+            + m2f_solver[2, 0] * np.cos(Two_rho_phi + 1.29)
+            + m4f_solver[2, 0] * np.cos(Four_rho_phi - 1.43),
             mIQs=m0f_solver[0, 1]
-            + m2f_solver[0, 1] * np.cos(TwoRho - 0.49)
-            + m4f_solver[0, 1] * np.cos(FourRho - 0.04),
+            + m2f_solver[0, 1] * np.cos(Two_rho_phi - 0.49)
+            + m4f_solver[0, 1] * np.cos(Four_rho_phi - 0.04),
             mIUs=m0f_solver[0, 2]
-            + m2f_solver[0, 2] * np.cos(TwoRho - 2.06)
-            + m4f_solver[0, 2] * np.cos(FourRho - 1.61),
+            + m2f_solver[0, 2] * np.cos(Two_rho_phi - 2.06)
+            + m4f_solver[0, 2] * np.cos(Four_rho_phi - 1.61),
             mQQs=m0f_solver[1, 1]
-            + m2f_solver[1, 1] * np.cos(TwoRho - 0.25)
-            + m4f_solver[1, 1] * np.cos(FourRho - 0.00061),
+            + m2f_solver[1, 1] * np.cos(Two_rho_phi - 0.25)
+            + m4f_solver[1, 1] * np.cos(Four_rho_phi - 0.00061),
             mUUs=m0f_solver[2, 2]
-            + m2f_solver[2, 2] * np.cos(TwoRho + 2.54)
-            + m4f_solver[2, 2] * np.cos(FourRho + np.pi - 0.00065),
+            + m2f_solver[2, 2] * np.cos(Two_rho_phi + 2.54)
+            + m4f_solver[2, 2] * np.cos(Four_rho_phi + np.pi - 0.00065),
             mUQs=m0f_solver[2, 1]
-            + m2f_solver[2, 1] * np.cos(TwoRho - 2.01)
-            + m4f_solver[2, 1] * np.cos(FourRho - 0.00070 - np.pi / 2),
+            + m2f_solver[2, 1] * np.cos(Two_rho_phi - 2.01)
+            + m4f_solver[2, 1] * np.cos(Four_rho_phi - 0.00070 - np.pi / 2),
             mQUs=m0f_solver[1, 2]
-            + m2f_solver[1, 2] * np.cos(TwoRho - 2.00)
-            + m4f_solver[1, 2] * np.cos(FourRho - 0.00056 - np.pi / 2),
+            + m2f_solver[1, 2] * np.cos(Two_rho_phi - 2.00)
+            + m4f_solver[1, 2] * np.cos(Four_rho_phi - 0.00056 - np.pi / 2),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -794,7 +794,7 @@ class HwpSys:
                     m0f=cur_det.mueller_hwp["0f"],
                     m2f=cur_det.mueller_hwp["2f"],
                     m4f=cur_det.mueller_hwp["4f"],
-                    theta=np.array(cur_hwp_angle, dtype=np.float64),
+                    rho=np.array(cur_hwp_angle, dtype=np.float64),
                     psi=np.array(psi, dtype=np.float64),
                     maps=self.maps,
                     cos2Xi2Phi=cos2Xi2Phi,
@@ -815,7 +815,7 @@ class HwpSys:
                         m2f_solver=cur_det.mueller_hwp_solver["2f"],
                         m4f_solver=cur_det.mueller_hwp_solver["4f"],
                         pixel_ind=pix,
-                        theta=np.array(cur_hwp_angle, dtype=np.float64),
+                        rho=np.array(cur_hwp_angle, dtype=np.float64),
                         psi=np.array(psi, dtype=np.float64),
                         phi=phi,
                         cos2Xi2Phi=cos2Xi2Phi,
