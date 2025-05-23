@@ -1541,7 +1541,12 @@ class Simulation:
                 )
 
     @_profile
-    def get_gauss_beam_alms(self, lmax: int, mmax: Optional[int] = None):
+    def get_gauss_beam_alms(
+        self,
+        lmax: int,
+        mmax: Optional[int] = None,
+        store_in_observation: Optional[bool] = False,
+    ):
         """
         Compute Gaussian beam spherical harmonic coefficients.
 
@@ -1554,23 +1559,29 @@ class Simulation:
             Maximum multipole moment.
         mmax : Optional[int], default=None
             Maximum azimuthal multipole moment. Defaults to `lmax` if None.
+        store_in_observation : bool, optional
+            If True, the computed blms will be stored in the `blms` attribute of
+            the observation object.
 
         Returns:
         --------
         Dictionary
-            A dictionary containing beam `a_lm` values per detector.
+            A dictionary containing beam `a_lm` values per detector
         """
 
         if not self.observations:
             raise ValueError("No observations available to generate sky maps.")
 
-        return generate_gauss_beam_alms(self.observations[0], lmax, mmax)
+        return generate_gauss_beam_alms(
+            self.observations[0], lmax, mmax, store_in_observation=store_in_observation
+        )
 
     @_profile
     def get_sky(
         self,
         parameters: MbsParameters,
         channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
+        store_in_observation: Optional[bool] = False,
     ):
         """
         Generates sky maps for the observations using the provided parameters.
@@ -1585,6 +1596,9 @@ class Simulation:
         channels : FreqChannelInfo or list of FreqChannelInfo, optional
             Frequency channels to use in the simulation. If None, it uses the detectors
             from the current observations.
+        store_in_observation : bool, optional
+            If True, the computed sky will be stored in the `sky` attribute of
+            the observation object.
 
         Returns
         -------
@@ -1631,7 +1645,13 @@ class Simulation:
                 channel_list=channel_list,
             )
 
-        return mbs.run_all()[0]
+        sky = mbs.run_all()[0]
+
+        if store_in_observation:
+            for obs in self.observations:
+                obs.sky = sky
+
+        return sky
 
     @_profile
     def convolve_sky(

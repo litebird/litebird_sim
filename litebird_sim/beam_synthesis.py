@@ -202,10 +202,16 @@ def generate_gauss_beam_alms(
     observation: Observation,
     lmax: int,
     mmax: Optional[int] = None,
+    store_in_observation: Optional[bool] = False,
 ):
     """
     Generate Gaussian beam spherical harmonics coefficients for each detector in
     the given Observation
+
+    This function computes the blms for a 2D Gaussian beam, accounting for
+    detector-specific parameters such as beam width (FWHM), ellipticity,
+    and polarization orientation. Optionally, the results can be stored
+    directly in the `Observation` object.
 
     Parameters
     ----------
@@ -215,6 +221,9 @@ def generate_gauss_beam_alms(
         Maximum spherical harmonic degree ℓ_max.
     mmax : int, optional
         Maximum spherical harmonic order m_max. If None, it defaults to `lmax`.
+    store_in_observation : bool, optional
+        If True, the computed blms will be stored in the `blms` attribute of
+        the observation object.
 
     Returns
     -------
@@ -236,5 +245,7 @@ def generate_gauss_beam_alms(
             psi_pol_rad=observation.pol_angle_rad[detector_idx],
             cross_polar_leakage=0,
         )
+    if store_in_observation:
+        observation.blms = blms
 
     return blms
