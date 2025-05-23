@@ -1,3 +1,5 @@
+.. _non_linearity:
+
 Non-linearity injection
 =======================
 
