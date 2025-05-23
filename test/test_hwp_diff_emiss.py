@@ -3,7 +3,6 @@ import litebird_sim as lbs
 from astropy.time import Time
 from litebird_sim.pointings_in_obs import _get_hwp_angle
 
-
 def test_add_2f():
     # Test function to check consistency of wrappers and low level functions
     telescope = "LFT"
