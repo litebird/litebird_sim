@@ -284,8 +284,6 @@ def compute_signal_for_one_detector(
     phi,
     add_2f_hwpss,
     amplitude_2f_k,
-    optical_power_k,
-    add_orbital_dipole,
 ):
     """
     Single-frequency case: compute the signal for a single detector,
@@ -295,8 +293,6 @@ def compute_signal_for_one_detector(
     for i in prange(len(tod_det)):
         FourRho = 4 * (theta[i] - phi)
         TwoRho = 2 * (theta[i] - phi)
-        if add_orbital_dipole:
-            maps[0, pixel_ind[i]] += tod_det[i]
         tod_det[i] += compute_signal_for_one_sample(
             T=maps[0, pixel_ind[i]],
             Q=maps[1, pixel_ind[i]],
@@ -334,7 +330,7 @@ def compute_signal_for_one_detector(
             sin2Xi2Phi=sin2Xi2Phi,
         )
         if add_2f_hwpss:
-            tod_det[i] += amplitude_2f_k * np.cos(2 * theta[i]) + optical_power_k
+            tod_det[i] += amplitude_2f_k * np.cos(2 * theta[i])
 
 
 @njit
@@ -458,7 +454,6 @@ class HwpSys:
         Mbsparams: Union[MbsParameters, None] = None,
         build_map_on_the_fly: Union[bool, None] = False,
         apply_non_linearity: Union[bool, None] = False,
-        add_orbital_dipole: Union[bool, None] = False,
         add_2f_hwpss: Union[bool, None] = False,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
@@ -473,8 +468,6 @@ class HwpSys:
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
           apply_non_linearity (bool): applies the coupling of the non-linearity
               systematics with hwp_sys
-          add_orbital_dipole (bool): adds the orbital dipole (computed previously
-              and stored in obs.tod) to the input maps
           add_2f_hwpss (bool): adds the 2f hwpss signal to the TOD
           Channel (:class:`.FreqChannelInfo`): an instance of the
                                                 :class:`.FreqChannelInfo` class
@@ -539,10 +532,6 @@ class HwpSys:
         if not hasattr(self, "apply_non_linearity"):
             if apply_non_linearity is not None:
                 self.apply_non_linearity = apply_non_linearity
-
-        if not hasattr(self, "add_orbital_dipole"):
-            if add_orbital_dipole is not None:
-                self.add_orbital_dipole = add_orbital_dipole
 
         if not hasattr(self, "add_2f_hwpss"):
             if add_2f_hwpss is not None:
@@ -791,7 +780,6 @@ class HwpSys:
 
                 if not self.add_2f_hwpss:
                     cur_det.amplitude_2f_k = 0.0
-                    cur_det.optical_power_k = 0.0
 
                 compute_signal_for_one_detector(
                     tod_det=tod,
@@ -807,8 +795,6 @@ class HwpSys:
                     phi=phi,
                     add_2f_hwpss=self.add_2f_hwpss,
                     amplitude_2f_k=cur_det.amplitude_2f_k,
-                    optical_power_k=cur_det.optical_power_k,
-                    add_orbital_dipole=self.add_orbital_dipole,
                 )
 
                 if self.apply_non_linearity:
