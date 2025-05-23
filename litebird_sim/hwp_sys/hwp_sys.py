@@ -332,10 +332,11 @@ def compute_signal_for_one_detector(
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
         )
-        if apply_non_linearity:
-            tod_det[i] = apply_quadratic_nonlin_for_one_sample(tod_det[i], g_one_over_k)
         if add_2f_hwpss:
             tod_det[i] += compute_2f_for_one_sample(rho[i], amplitude_2f_k)
+        if apply_non_linearity:
+            tod_det[i] = apply_quadratic_nonlin_for_one_sample(tod_det[i], g_one_over_k)
+
 
 
 @njit
