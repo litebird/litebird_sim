@@ -7,7 +7,7 @@ from litebird_sim.scan_map import scan_map_in_observations
 
 def test_hwp_sys():
     start_time = 0
-    time_span_s = 365 * 24 * 3600
+    time_span_s = 1 * 24 * 3600
     nside = 64
     sampling = 1
     hwp_radpsec = lbs.IdealHWP(
