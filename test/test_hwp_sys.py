@@ -138,4 +138,6 @@ def test_hwp_sys():
 
     # The decimal=3 in here has a reson, explained in PR 395.
     # This should be changed in the future
-    np.testing.assert_almost_equal(list_of_obs[0].tod, list_of_obs[1].tod, decimal=3, verbose=True)
+    np.testing.assert_almost_equal(
+        list_of_obs[0].tod, list_of_obs[1].tod, decimal=3, verbose=True
+    )
