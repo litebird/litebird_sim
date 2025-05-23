@@ -608,19 +608,20 @@ class Mbs:
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
             cmb_temp = hp.synfast(cl_cmb, nside, new=True)
-            file_name = f"cmb_{nmc_str}_{file_str}.fits"
-            cur_map_path = nmc_output_directory / file_name
-            lbs.write_healpix_map_to_file(
-                cur_map_path, cmb_temp, column_units=col_units
-            )
-            saved_maps.append(
-                MbsSavedMapInfo(path=cur_map_path, component="cmb", mc_num=nmc)
-            )
+            if self.params.save:
+                file_name = f"cmb_{nmc_str}_{file_str}.fits"
+                cur_map_path = nmc_output_directory / file_name
+                lbs.write_healpix_map_to_file(
+                    cur_map_path,
+                    cmb_temp,
+                    column_units=col_units,
+                )
+                saved_maps.append(
+                    MbsSavedMapInfo(path=cur_map_path, component="cmb", mc_num=nmc)
+                )
             sky = pysm3.Sky(
                 nside=nside,
-                component_objects=[
-                    pysm3.CMBMap(nside, map_IQU=str((Path(cur_map_path)).absolute()))
-                ],
+                component_objects=[pysm3.CMBMap(nside, map_IQU=cmb_temp * u.uK_CMB)],
             )
 
             for Nchnl, chnl in enumerate(channels):

@@ -22,11 +22,15 @@ import matplotlib.pylab as plt
 import numba
 import numpy as np
 import tomlkit
-from deprecation import deprecated
 from markdown_katex import KatexExtension
 
 from litebird_sim import constants
 from . import HWP
+from .beam_convolution import (
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
+from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
 from .detectors import DetectorInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
@@ -46,6 +50,7 @@ from .mapmaking import (
     DestriperResult,
     destriper_log_callback,
 )
+from .mbs import Mbs, MbsParameters
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import apply_quadratic_nonlin_to_observations
@@ -53,15 +58,9 @@ from .observations import Observation, TodDescription
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
-from .beam_convolution import (
-    add_convolved_sky_to_observations,
-    BeamConvolutionParameters,
-)
-from .spherical_harmonics import SphericalHarmonics
-from .beam_synthesis import generate_gauss_beam_alms
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .mbs import Mbs, MbsParameters
+from .spherical_harmonics import SphericalHarmonics
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -470,6 +469,28 @@ class Simulation:
             random_seed=self.random_seed,
         )
 
+        # Add a header to the report
+        if MPI_COMM_WORLD.size > 1:
+            import mpi4py
+            from mpi4py import MPI
+
+            template_file_path = get_template_file_path("report_mpi.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            mpi_version = MPI.Get_version()
+            warning_mpi_version = None
+            if mpi_version[0] < 4:
+                warning_mpi_version = True
+
+            self.append_to_report(
+                markdown_template,
+                mpi4py_version=mpi4py.__version__,
+                mpi_version=".".join([str(x) for x in mpi_version]),
+                mpi_implementation=str(MPI.Get_library_version()).strip(),
+                warning_mpi_version=warning_mpi_version,
+            )
+
         # Check that random_seed has been set
         assert self.random_seed != "", (
             "you must set random_seed (int for reproducible results, "
@@ -824,37 +845,7 @@ class Simulation:
             json.dump(profile_list_to_speedscope(self.profile_data), out_file)
         log.info('Profile data saved to file "%s"', str(output_file_path.absolute()))
 
-    def flush(
-        self,
-        include_git_diff=True,
-        base_imo_url: str = DEFAULT_BASE_IMO_URL,
-        profile_file_name: Optional[str] = None,
-    ):
-        """Terminate a simulation.
-
-        This function must be called when a simulation is complete. It
-        will save pending data to the output directory.
-
-        It returns a `Path` object pointing to the HTML file that has
-        been saved in the directory pointed by ``self.base_path``.
-
-        """
-
-        if not profile_file_name:
-            profile_file_name = f"profile_mpi{self.mpi_comm.rank:05d}.json"
-        self._generate_profile_file(file_name=profile_file_name)
-
-        dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-        self._fill_dictionary_with_imo_information(
-            dictionary, base_imo_url=base_imo_url
-        )
-        self._fill_dictionary_with_code_status(dictionary, include_git_diff)
-
-        template_file_path = get_template_file_path("report_appendix.md")
-        with template_file_path.open("rt") as inpf:
-            markdown_template = "".join(inpf.readlines())
-        self.append_to_report(markdown_template, **dictionary)
-
+    def _generate_html_report(self):
         # Expand the markdown text using Jinja2
         with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
             outf.write(self.report)
@@ -893,6 +884,40 @@ class Simulation:
             outf.write(html_full_report)
 
         return html_report_path
+
+    def flush(
+        self,
+        include_git_diff=True,
+        base_imo_url: str = DEFAULT_BASE_IMO_URL,
+        profile_file_name: Optional[str] = None,
+    ) -> Optional[Path]:
+        """Terminate a simulation.
+
+        This function must be called when a simulation is complete. It
+        will save pending data to the output directory.
+
+        It returns a `Path` object pointing to the HTML file that has
+        been saved in the directory pointed by ``self.base_path``, or ``None``
+        if this is not the MPI root process.
+
+        """
+
+        if not profile_file_name:
+            profile_file_name = f"profile_mpi{self.mpi_comm.rank:05d}.json"
+        self._generate_profile_file(file_name=profile_file_name)
+
+        dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        self._fill_dictionary_with_imo_information(
+            dictionary, base_imo_url=base_imo_url
+        )
+        self._fill_dictionary_with_code_status(dictionary, include_git_diff)
+
+        template_file_path = get_template_file_path("report_appendix.md")
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+        self.append_to_report(markdown_template, **dictionary)
+
+        return self._generate_html_report() if MPI_COMM_WORLD.rank == 0 else None
 
     @_profile
     def create_observations(
@@ -1167,6 +1192,38 @@ class Simulation:
             mpi_processes=mpi_processes,
         )
 
+    @_profile
+    def nullify_tod(self, component: str = "tod") -> None:
+        """
+        Set the specified component (default: "tod") of all observations to zero.
+
+        This is typically used to zero out Time-Ordered Data (TOD) in-place across
+        all observations.
+
+        Parameters
+        ----------
+        component : str, optional
+            The attribute name of the data to nullify in each observation.
+            Defaults to "tod".
+
+        Raises
+        ------
+        AttributeError
+            If an observation does not have the specified component.
+        """
+        for i, cur_obs in enumerate(self.observations):
+            try:
+                tod = getattr(cur_obs, component)
+            except AttributeError:
+                raise AttributeError(
+                    f"Observation {i} does not have attribute '{component}'"
+                )
+
+            if tod is not None:
+                tod[:, :] = 0
+            else:
+                pass
+
     def set_scanning_strategy(
         self,
         scanning_strategy: Union[None, ScanningStrategy] = None,
@@ -1246,25 +1303,6 @@ class Simulation:
                 delta_time_s=delta_time_s,
                 quat_memory_size_bytes=quat_memory_size_bytes,
             )
-
-    @deprecated(
-        deprecated_in="0.9",
-        current_version=litebird_sim_version,
-        details="Use set_scanning_strategy",
-    )
-    def generate_spin2ecl_quaternions(
-        self,
-        scanning_strategy: Union[None, ScanningStrategy] = None,
-        imo_url: Union[None, str] = None,
-        delta_time_s: float = 60.0,
-        append_to_report=True,
-    ):
-        self.set_scanning_strategy(
-            scanning_strategy=scanning_strategy,
-            imo_url=imo_url,
-            delta_time_s=delta_time_s,
-            append_to_report=append_to_report,
-        )
 
     def set_instrument(self, instrument: InstrumentInfo):
         """Set the instrument to be used in the simulation.
@@ -1571,6 +1609,7 @@ class Simulation:
         convolution_params: Optional[BeamConvolutionParameters] = None,
         component: str = "tod",
         pointings_dtype=np.float64,
+        nside_centering: Union[int, None] = None,
         append_to_report: bool = True,
         nthreads: Union[int, None] = None,
     ):
@@ -1599,6 +1638,7 @@ class Simulation:
             component=component,
             convolution_params=convolution_params,
             pointings_dtype=pointings_dtype,
+            nside_centering=nside_centering,
             nthreads=nthreads,
         )
 
@@ -2118,6 +2158,115 @@ class Simulation:
                 results=results,
                 bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
             )
+
+    @_profile
+    def make_brahmap_gls_map(
+        self,
+        nside: int,
+        component: str = "tod",
+        pointing_flag: np.ndarray = None,
+        inv_noise_cov_operator=None,
+        threshold: float = 1.0e-5,
+        pointings_dtype=np.float64,
+        gls_params: "brahmap.LBSimProcessTimeSamples" = None,  # noqa
+    ) -> Union[
+        "brahmap.LBSimGLSResult",  # noqa
+        tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],  # noqa
+    ]:
+        """Wrapper to the GLS map-maker of BrahMap.
+
+        This function allows the users to do the optimal map-making with
+        BrahMap. Since BrahMap is seemlessly interfaced with LBS, it allows
+        the map-making without storing the TODs on the disk. The function
+        needs an inverse noise covariance operator and an object containing
+        the GLS parameters as arguments.
+
+        BrahMap offers a variety of noise covariance opeartors, all
+        compatible with LBS. Noise covariance operator for white noise, for
+        example, can be defined as::
+
+            inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(
+                obs = ...,
+                inverse_noise_variance = ...,
+                dtype = ...,
+            )
+
+        The parameters used for GLS can be defined as::
+
+            gls_params = brahmap.LBSimGLSParameters(
+                output_coordinate_system = lbs.CoordinateSystem.Galactic,
+                return_processed_samples = False,
+                solver_type = brahmap.SolverType.IQU,
+                use_preconditioner = True,
+                preconditioner_threshold = 1.0e-25,
+                preconditioner_max_iterations = 100,
+                return_hit_map = False,
+            )
+
+        For the complete list of available noise covariance operators and
+        advance usage, please refer to the BrahMap documentation:
+        https://anand-avinash.github.io/BrahMap/
+
+        Parameters
+        ----------
+        nside : int
+            Nside of the output map
+        component : str, optional
+            The TOD component to be used for map-making, by default "tod"
+        inv_noise_cov_operator : optional
+            Inverse noise covariance operator, by default None
+        threshold : float, optional
+            Threshold parameter to determine the poorly observed pixels, by
+            default 1.0e-5
+        pointings_dtype : dtype, optional
+            dtype to be used for computing pointings on the fly. The
+            `pointing_dtype` must be same as the dtype of the TOD; by default
+            `np.float64`
+        gls_params : LBSimProcessTimeSamples, optional
+            An object that encapsulates the parameter of the GLS, including
+            PCG threshold and max iteration; by default None
+
+        Returns
+        -------
+        Union[LBSimGLSResult, tuple[LBSimProcessTimeSamples, LBSimGLSResult]]
+            Returns an `LBSimGLSResult` object when
+            `gls_params.return_processed_samples = False`. `LBSimGLSResult`
+            object encapsulates the output of GLS including the output maps
+            and PCG convergence status. The function returns the tuple object
+            `(LBSimProcessTimeSamples, LBSimGLSResult)` when
+            `gls_params.return_processed_samples = True`.
+
+        Raises
+        ------
+        ImportError
+            Raises `ImportError` when the brahmap package couldn't be imported
+        """
+        try:
+            import brahmap
+        except ImportError:
+            raise ImportError(
+                "Could not import `BrahMap`. Make sure that the package "
+                "`BrahMap` is installed in the same environment "
+                "as `litebird_sim`. Refer to "
+                "https://anand-avinash.github.io/BrahMap/overview/installation/ "
+                "for the installation instruction"
+            )
+
+        if gls_params is None:
+            gls_params = brahmap.LBSimGLSParameters()
+
+        gls_result = brahmap.LBSim_compute_GLS_maps(
+            nside=nside,
+            observations=self.observations,
+            component=component,
+            pointings_flag=pointing_flag,
+            inv_noise_cov_operator=inv_noise_cov_operator,
+            threshold=threshold,
+            dtype_float=pointings_dtype,
+            LBSim_gls_parameters=gls_params,
+        )
+
+        return gls_result
 
     @_profile
     def write_observations(

@@ -1,19 +1,21 @@
 # -*- encoding: utf-8 -*-
 
+import numbers
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Union, List, Any, Optional
-import numbers
 
 import astropy.time
 import numpy as np
 import numpy.typing as npt
 
-from collections import defaultdict
-
 from .coordinates import DEFAULT_TIME_SCALE
+from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_detector_blocks
-from .detectors import DetectorInfo
+from .hwp import HWP
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
+from .pointings import PointingProvider
+from .scanning import RotQuaternion
 
 
 @dataclass
@@ -788,6 +790,41 @@ class Observation:
 
         return t0 + np.arange(self.n_samples) / self.sampling_rate_hz
 
+    def prepare_pointings(
+        self,
+        instrument: InstrumentInfo,
+        spin2ecliptic_quats: RotQuaternion,
+        hwp: Optional[HWP] = None,
+    ) -> None:
+        """Store the quaternions needed to compute pointings in the current observation
+
+        This function computes the quaternions that convert the boresight direction
+        of `instrument` into the Ecliptic reference frame. The `spin2ecliptic_quats`
+        object must be an instance of the :class:`.RotQuaternion` class and can
+        be created using the method :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+        """
+
+        bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
+        pointing_provider = PointingProvider(
+            bore2ecliptic_quats=bore2ecliptic_quats,
+            hwp=hwp,
+        )
+
+        self.pointing_provider = pointing_provider
+
+        # If the hwp object is passed and is not initialised in the observations, it gets applied to all detectors
+        if hwp is None:
+            assert all(m is None for m in self.mueller_hwp), (
+                "Some detectors have been initialized with a mueller_hwp,"
+                "but no HWP object has been passed to prepare_pointings."
+            )
+            self.has_hwp = False
+        else:
+            for idet in range(self.n_detectors):
+                if self.mueller_hwp[idet] is None:
+                    self.mueller_hwp[idet] = hwp.mueller
+            self.has_hwp = True
+
     def get_pointings(
         self,
         detector_idx: Union[int, List[int], str] = "all",
@@ -926,6 +963,61 @@ class Observation:
             )
 
         return pointing_buffer, hwp_buffer
+
+    def get_hwp_angle(
+        self,
+        hwp_buffer: Optional[npt.NDArray] = None,
+        pointings_dtype=np.float64,
+    ) -> Union[npt.NDArray, None]:
+        """
+        Compute the hwp angle in this observation
+
+        This method triggers the computation of the hwp angle for the given observation
+        The HWP angle is always a vector with shape ``(N_samples,)``. This is the typical
+        call:
+
+        hwp_angle = cur_obs.get_hwp_angle()
+        """
+        assert (
+            self.pointing_provider is not None
+        ), "You must initialize pointing_provider; use Simulation.prepare_pointings()"
+
+        expected_shape = (self.n_samples,)
+        if self.pointing_provider.has_hwp():
+            if hwp_buffer is not None:
+                assert (
+                    hwp_buffer.shape == expected_shape
+                ), "hwp_buffer has a wrong shape, it is {actual} but should be {expected}".format(
+                    actual=hwp_buffer.shape, expected=expected_shape
+                )
+            else:
+                hwp_buffer = np.empty(expected_shape, dtype=pointings_dtype)
+        else:
+            hwp_buffer = None
+
+        return hwp_buffer
+
+    def precompute_pointings(
+        self,
+        pointings_dtype=np.float64,
+    ) -> None:
+        """Precompute all the pointings for the current observation
+
+        Compute the full pointing matrix and the HWP angle the current observation and
+        store them in the fields ``pointing_matrix`` and ``hwp_angle``.
+        The datatype for the pointings is specified by `pointings_dtype`.
+        """
+
+        assert "pointing_provider" in dir(self), (
+            "you must call prepare_pointings() on a set of observations "
+            "before calling precompute_pointings()"
+        )
+
+        pointing_matrix, hwp_angle = self.get_pointings(
+            detector_idx="all", pointings_dtype=pointings_dtype
+        )
+        self.pointing_matrix = pointing_matrix
+        self.hwp_angle = hwp_angle
 
     def _set_mpi_subcommunicators(self):
         """

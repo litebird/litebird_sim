@@ -2,6 +2,26 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   Make MPI tests more robusts and produce a “MPI” section in the output report [#405](https://github.com/litebird/litebird_sim/pull/405/)
+
+-   Add interface to BrahMap GLS mapmaker and relative tests [#400](https://github.com/litebird/litebird_sim/pull/400).
+
+-   Replace allreduce with Allreduce in binning.py [#407](https://github.com/litebird/litebird_sim/pull/407).
+
+-   Function for nullifying tods in the class `Simulation` [#389](https://github.com/litebird/litebird_sim/pull/389). 
+
+-   Save `det_idx` in HDF5 files and make MPI test fail properly [#402](https://github.com/litebird/litebird_sim/pull/402)
+
+-   Option for centering the pointing in the beam convolution plus some reworking of the pointing API (new methods added to the class Observation) [#397](https://github.com/litebird/litebird_sim/pull/397)
+
+-   Bug in `Simulation.get_sky()` fixed [#398](https://github.com/litebird/litebird_sim/pull/398)
+
+-   Fix a bug in `prepare_pointings` [#396](https://github.com/litebird/litebird_sim/pull/396)
+
+-   Deprecate `apply_hwp_to_obs()` and `HWP.add_hwp_angle()`, remove deprecated functions `Simulation.generate_spin2ecl_quaternions()` and `write_observations()`
+
+-   Fix docstrings and type hints for `mueller_hwp` [#381](https://github.com/litebird/litebird_sim/pull/381)
+
 -   Fix the formatting of a few docstrings [#391](https://github.com/litebird/litebird_sim/pull/391)
 
 -   Common interface to compute pointings and detector polarization angle [#378](https://github.com/litebird/litebird_sim/pull/378)
@@ -10,7 +30,7 @@
 
 -   Make `@_profile` preserve docstrings [#371](https://github.com/litebird/litebird_sim/pull/371)
 
--   Upgrade Ducc0 to 0.37.1 and clarify how to compile Ducc0 from sources [#383](https://github.com/litebird/litebird_sim/pull/383), [#390](https://github.com/litebird/litebird_sim/pull/390)
+-   Upgrade Ducc0 to 0.38.0 and clarify how to compile Ducc0 from sources [#383](https://github.com/litebird/litebird_sim/pull/383), [#390](https://github.com/litebird/litebird_sim/pull/390), [#394](https://github.com/litebird/litebird_sim/pull/394)
 
 # Version 0.14.0
 

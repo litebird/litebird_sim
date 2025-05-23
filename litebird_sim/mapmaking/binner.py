@@ -17,7 +17,10 @@ import healpy as hp
 from typing import Union, List, Any, Optional, Callable
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
-from litebird_sim.pointings import _get_hwp_angle, _normalize_observations_and_pointings
+from litebird_sim.pointings_in_obs import (
+    _get_hwp_angle,
+    _normalize_observations_and_pointings,
+)
 from litebird_sim.hwp import HWP
 from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
@@ -207,7 +210,12 @@ def _build_nobs_matrix(
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
 
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        if hwp is None:
+            hwp_angle = None
+        else:
+            hwp_angle = _get_hwp_angle(
+                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
+            )
 
         pixidx_all, polang_all = _compute_pixel_indices(
             hpx=hpx,
@@ -250,7 +258,8 @@ def _build_nobs_matrix(
             for i in range(len(obs_list) - 1)
         ]
     ):
-        nobs_matrix = obs_list[0].comm.allreduce(nobs_matrix, mpi.MPI.SUM)
+        obs_list[0].comm.Allreduce(mpi.MPI.IN_PLACE, nobs_matrix, mpi.MPI.SUM)
+
     else:
         raise NotImplementedError(
             "All observations must be distributed over the same MPI groups"
