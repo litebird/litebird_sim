@@ -469,6 +469,28 @@ class Simulation:
             random_seed=self.random_seed,
         )
 
+        # Add a header to the report
+        if MPI_COMM_WORLD.size > 1:
+            import mpi4py
+            from mpi4py import MPI
+
+            template_file_path = get_template_file_path("report_mpi.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            mpi_version = MPI.Get_version()
+            warning_mpi_version = None
+            if mpi_version[0] < 4:
+                warning_mpi_version = True
+
+            self.append_to_report(
+                markdown_template,
+                mpi4py_version=mpi4py.__version__,
+                mpi_version=".".join([str(x) for x in mpi_version]),
+                mpi_implementation=str(MPI.Get_library_version()).strip(),
+                warning_mpi_version=warning_mpi_version,
+            )
+
         # Check that random_seed has been set
         assert self.random_seed != "", (
             "you must set random_seed (int for reproducible results, "
