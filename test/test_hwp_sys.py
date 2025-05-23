@@ -3,7 +3,7 @@ import numpy as np
 from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
 from litebird_sim import mpi
 from litebird_sim.scan_map import scan_map_in_observations
-import copy
+import pickle
 
 
 def test_hwp_sys():
@@ -108,7 +108,7 @@ def test_hwp_sys():
         comm=comm,
     )
 
-    obs_hwpsys = copy.deepcopy(obs_scan)
+    obs_hwpsys = pickle.loads(pickle.dumps(obs_scan))
 
     np.testing.assert_equal(obs_scan.tod, obs_hwpsys.tod, verbose=True)
 
