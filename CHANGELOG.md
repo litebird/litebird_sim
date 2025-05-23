@@ -2,6 +2,8 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   Replace allreduce with Allreduce in binning.py [#407](https://github.com/litebird/litebird_sim/pull/407).
+
 -   Function for nullifying tods in the class `Simulation` [#389](https://github.com/litebird/litebird_sim/pull/389). 
 
 -   Save `det_idx` in HDF5 files and make MPI test fail properly [#402](https://github.com/litebird/litebird_sim/pull/402)
