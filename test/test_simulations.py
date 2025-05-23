@@ -400,9 +400,9 @@ def _configure_simulation_for_pointings(
         "/releases/vPTEP/satellite/LFT/L1-040/000_000_004_QB_040_T/detector_info",
         "/releases/vPTEP/satellite/LFT/L1-040/000_000_004_QB_040_B/detector_info",
     ]
-    assert num_of_detectors <= len(
-        detector_paths
-    ), "num_of_detectors must be ≤ {}".format(len(detector_paths))
+    assert num_of_detectors <= len(detector_paths), (
+        "num_of_detectors must be ≤ {}".format(len(detector_paths))
+    )
 
     sim = lbs.Simulation(
         base_path=tmp_path / "simulation_dir",

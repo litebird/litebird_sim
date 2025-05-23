@@ -355,9 +355,9 @@ def compute_start_and_span_for_obs(
 
     start_time, end_time = None, None
     for cur_obs in obs_list:
-        assert isinstance(
-            cur_obs.start_time, astropy.time.Time
-        ), "You must use astropy.time.Time in Observation objects"
+        assert isinstance(cur_obs.start_time, astropy.time.Time), (
+            "You must use astropy.time.Time in Observation objects"
+        )
 
         cur_start_time = cur_obs.start_time
         if (start_time is None) or (cur_start_time < start_time):
@@ -397,9 +397,9 @@ def spacecraft_pos_and_vel(
     If SpacecraftOrbit.solar_velocity_km_s > 0 also the Sun velocity in the rest
     frame of the CMB is added to the total velocity of the spacecraft.
     """
-    assert observations or (
-        start_time and time_span_s
-    ), "You must either provide a Observation or start_time/time_span_s"
+    assert observations or (start_time and time_span_s), (
+        "You must either provide a Observation or start_time/time_span_s"
+    )
 
     if observations:
         # The caller either provided an observation or a list of observations.

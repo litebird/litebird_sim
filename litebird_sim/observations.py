@@ -582,9 +582,9 @@ class Observation:
                 recv_counts = np.zeros(comm_row.size, dtype=np.int32)
                 i_block = comm_row.rank - first_recver
                 if 0 <= i_block < n_blocks_time:
-                    recv_counts[
-                        first_sender : first_sender + self.n_blocks_time
-                    ] = counts[:, i_block]
+                    recv_counts[first_sender : first_sender + self.n_blocks_time] = (
+                        counts[:, i_block]
+                    )
 
                 recv_disp = np.zeros_like(recv_counts)
                 np.cumsum(recv_counts[:-1], out=recv_disp[1:])
@@ -758,9 +758,9 @@ class Observation:
            allowed operation
         """
         if normalize:
-            assert (
-                not astropy_times
-            ), "you cannot pass astropy_times=True *and* normalize=True"
+            assert not astropy_times, (
+                "you cannot pass astropy_times=True *and* normalize=True"
+            )
 
             return (
                 np.arange(self.n_samples) + self.start_sample
@@ -881,15 +881,15 @@ class Observation:
         `hwp_buffer` parameters. In this case, the return value will be *always*
         equal to ``(pointing_buffer, hwp_buffer)``.
         """
-        assert (
-            self.pointing_provider is not None
-        ), "You must initialize pointing_provider; use Simulation.prepare_pointings()"
+        assert self.pointing_provider is not None, (
+            "You must initialize pointing_provider; use Simulation.prepare_pointings()"
+        )
 
         # Simplest case: we need just one detector
         if isinstance(detector_idx, int):
-            assert (
-                (detector_idx >= 0) and (detector_idx < self.n_detectors)
-            ), f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+            assert (detector_idx >= 0) and (detector_idx < self.n_detectors), (
+                f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+            )
 
             return self.pointing_provider.get_pointings(
                 detector_quat=self.quat[detector_idx],
@@ -919,10 +919,10 @@ class Observation:
 
         expected_shape = (len(detector_idx), self.n_samples, 3)
         if pointing_buffer is not None:
-            assert (
-                pointing_buffer.shape == expected_shape
-            ), "pointing_buffer has a wrong shape, it is {actual} but should be {expected}".format(
-                actual=pointing_buffer.shape, expected=expected_shape
+            assert pointing_buffer.shape == expected_shape, (
+                "pointing_buffer has a wrong shape, it is {actual} but should be {expected}".format(
+                    actual=pointing_buffer.shape, expected=expected_shape
+                )
             )
         else:
             pointing_buffer = np.empty(expected_shape, dtype=pointings_dtype)
@@ -930,10 +930,10 @@ class Observation:
         expected_shape = (self.n_samples,)
         if self.pointing_provider.has_hwp():
             if hwp_buffer is not None:
-                assert (
-                    hwp_buffer.shape == expected_shape
-                ), "hwp_buffer has a wrong shape, it is {actual} but should be {expected}".format(
-                    actual=hwp_buffer.shape, expected=expected_shape
+                assert hwp_buffer.shape == expected_shape, (
+                    "hwp_buffer has a wrong shape, it is {actual} but should be {expected}".format(
+                        actual=hwp_buffer.shape, expected=expected_shape
+                    )
                 )
             else:
                 hwp_buffer = np.empty(expected_shape, dtype=pointings_dtype)
@@ -978,17 +978,17 @@ class Observation:
 
         hwp_angle = cur_obs.get_hwp_angle()
         """
-        assert (
-            self.pointing_provider is not None
-        ), "You must initialize pointing_provider; use Simulation.prepare_pointings()"
+        assert self.pointing_provider is not None, (
+            "You must initialize pointing_provider; use Simulation.prepare_pointings()"
+        )
 
         expected_shape = (self.n_samples,)
         if self.pointing_provider.has_hwp():
             if hwp_buffer is not None:
-                assert (
-                    hwp_buffer.shape == expected_shape
-                ), "hwp_buffer has a wrong shape, it is {actual} but should be {expected}".format(
-                    actual=hwp_buffer.shape, expected=expected_shape
+                assert hwp_buffer.shape == expected_shape, (
+                    "hwp_buffer has a wrong shape, it is {actual} but should be {expected}".format(
+                        actual=hwp_buffer.shape, expected=expected_shape
+                    )
                 )
             else:
                 hwp_buffer = np.empty(expected_shape, dtype=pointings_dtype)

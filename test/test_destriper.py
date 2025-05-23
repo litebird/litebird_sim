@@ -183,9 +183,9 @@ def create_analytical_solution(
     add_baselines: bool = True,
 ) -> AnalyticalSolution:
     # We assume that we have *two* baselines!
-    assert (
-        len(baseline_runs) == 2
-    ), "The test code requires that *two* baselines be provided"
+    assert len(baseline_runs) == 2, (
+        "The test code requires that *two* baselines be provided"
+    )
 
     # Beware, the `*` and `+` operators used here work on Python arrays, not
     # on NumPy objects! Their semantics differ! Here we just want
@@ -419,9 +419,9 @@ def test_map_maker_parts():
         tm_list=time_mask_list,
     )
 
-    assert (
-        expected_solution.M.shape[0] % 3 == 0
-    ), "Matrix M must have size (3n_pix, 3n_pix)"
+    assert expected_solution.M.shape[0] % 3 == 0, (
+        "Matrix M must have size (3n_pix, 3n_pix)"
+    )
 
     number_of_pixels = expected_solution.M.shape[0] // 3
 
@@ -619,9 +619,9 @@ def _make_zero_mean(x: npt.ArrayLike) -> npt.NDArray:
 
 def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
     if not use_destriper:
-        assert (
-            not use_preconditioner
-        ), "Impossible to use a preconditioner with the binner!"
+        assert not use_preconditioner, (
+            "Impossible to use a preconditioner with the binner!"
+        )
 
     if lbs.MPI_COMM_WORLD.size > 2:
         # This test can work only with 1 or 2 MPI processes, no more
@@ -866,9 +866,9 @@ def _assert_dataclasses_equal(actual, desired, params_to_check: List[str]) -> No
     for param in params_to_check:
         actual_value = getattr(actual, param)
         desired_value = getattr(desired, param)
-        assert (
-            actual_value == desired_value
-        ), f"Parameter {param} is different: {actual_value=} ≠ {desired_value=}"
+        assert actual_value == desired_value, (
+            f"Parameter {param} is different: {actual_value=} ≠ {desired_value=}"
+        )
 
 
 def _test_destriper_results_io(tmp_path, use_destriper: bool):

@@ -272,9 +272,9 @@ def read_hwp_from_hdf5(input_file: h5py.File, field_name: str) -> HWP:
         )
     else:
         # If new derived classes from HWP are implemented, add them here with an `elif`
-        assert (
-            False
-        ), f"read_hwp_from_hdf5() does not support a HWP of type {class_name}"
+        assert False, (
+            f"read_hwp_from_hdf5() does not support a HWP of type {class_name}"
+        )
 
     result.read_from_hdf5(input_dataset=dataset)
     return result

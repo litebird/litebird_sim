@@ -249,9 +249,9 @@ class FocalplaneCoord:
 
         if isinstance(offset_rad, Iterable):
             # Detector by detecgtor
-            assert len(offset_rad) == len(
-                self.detectors
-            ), "The length of the offset_rad must be equal to the number of detectors."
+            assert len(offset_rad) == len(self.detectors), (
+                "The length of the offset_rad must be equal to the number of detectors."
+            )
             for idx in self.obs.det_idx:
                 syst_quat = RotQuaternion(
                     quats=np.array(rotation_func(offset_rad[idx]))
@@ -313,9 +313,9 @@ class FocalplaneCoord:
                 )
         else:
             # Detector by detecgtor
-            assert (
-                noise_rad_matrix.shape[0] == len(self.detectors)
-            ), "The number of detectors must be equal to the number of rows in noise_rad_matrix."
+            assert noise_rad_matrix.shape[0] == len(self.detectors), (
+                "The number of detectors must be equal to the number of rows in noise_rad_matrix."
+            )
             for idx in self.obs.det_idx:
                 syst_quat = RotQuaternion(
                     start_time=self.start_time,
@@ -535,22 +535,22 @@ class PointingSys:
         self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
     ):
         for detector in detectors:
-            assert (
-                detector.sampling_rate_hz == detectors[0].sampling_rate_hz
-            ), "Not all detectors have the same `.sampling_rate_hz`"
+            assert detector.sampling_rate_hz == detectors[0].sampling_rate_hz, (
+                "Not all detectors have the same `.sampling_rate_hz`"
+            )
 
         if isinstance(
             sim.spin2ecliptic_quats.start_time, astropy.time.Time
         ) and isinstance(obs.start_time, astropy.time.Time):
-            assert (
-                sim.spin2ecliptic_quats.start_time == obs.start_time
-            ), "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same `astropy.time.Time`."
+            assert sim.spin2ecliptic_quats.start_time == obs.start_time, (
+                "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same `astropy.time.Time`."
+            )
         elif isinstance(sim.spin2ecliptic_quats.start_time, np.float64) and isinstance(
             obs.start_time, np.float64
         ):
-            assert np.isclose(
-                sim.spin2ecliptic_quats.start_time, obs.start_time
-            ), "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same value."
+            assert np.isclose(sim.spin2ecliptic_quats.start_time, obs.start_time), (
+                "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same value."
+            )
         else:
             if np.isclose(sim.spin2ecliptic_quats.start_time, obs.start_time):
                 # call warning
