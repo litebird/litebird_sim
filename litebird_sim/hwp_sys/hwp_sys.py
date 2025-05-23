@@ -338,7 +338,6 @@ def compute_signal_for_one_detector(
             tod_det[i] = apply_quadratic_nonlin_for_one_sample(tod_det[i], g_one_over_k)
 
 
-
 @njit
 def compute_TQUsolver_for_one_sample(
     mIIs,
