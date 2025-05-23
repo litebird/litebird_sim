@@ -13,7 +13,7 @@ from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
-from ..non_linearity import apply_quadratic_nonlin_for_one_detector
+from ..non_linearity import apply_quadratic_nonlin_for_one_sample
 
 COND_THRESHOLD = 1e10
 
@@ -282,6 +282,8 @@ def compute_signal_for_one_detector(
     cos2Xi2Phi,
     sin2Xi2Phi,
     phi,
+    apply_non_linearity,
+    g_one_over_k,
     add_2f_hwpss,
     amplitude_2f_k,
 ):
@@ -329,6 +331,8 @@ def compute_signal_for_one_detector(
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
         )
+        if apply_non_linearity:
+            tod_det[i] = apply_quadratic_nonlin_for_one_sample(tod_det[i], g_one_over_k)
         if add_2f_hwpss:
             tod_det[i] += amplitude_2f_k * np.cos(2 * theta[i])
 
@@ -793,12 +797,11 @@ class HwpSys:
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
+                    apply_non_linearity=self.apply_non_linearity,
+                    g_one_over_k=cur_det.g_one_over_k,
                     add_2f_hwpss=self.add_2f_hwpss,
                     amplitude_2f_k=cur_det.amplitude_2f_k,
                 )
-
-                if self.apply_non_linearity:
-                    apply_quadratic_nonlin_for_one_detector(tod, cur_det.g_one_over_k)
 
                 if self.build_map_on_the_fly:
                     compute_ata_atd_for_one_detector(
