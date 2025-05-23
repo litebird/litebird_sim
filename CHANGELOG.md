@@ -1,8 +1,8 @@
 # HEAD
 
--   Add interface to BrahMap GLS mapmaker and relative tests [[#400](https://github.com/litebird/litebird_sim/pull/400)]
-
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
+
+-   Add interface to BrahMap GLS mapmaker and relative tests [#400](https://github.com/litebird/litebird_sim/pull/400).
 
 -   Replace allreduce with Allreduce in binning.py [#407](https://github.com/litebird/litebird_sim/pull/407).
 
