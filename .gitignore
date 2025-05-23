@@ -2,7 +2,7 @@
 .tool-versions
 
 # PyCharm-related stuff
-.idea
+.idea/
 
 *~
 
