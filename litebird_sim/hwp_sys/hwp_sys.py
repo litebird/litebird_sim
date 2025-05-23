@@ -784,7 +784,7 @@ class HwpSys:
 
                 if not self.apply_non_linearity:
                     cur_det.g_one_over_k = 0.0
-                    
+
                 if not self.add_2f_hwpss:
                     cur_det.amplitude_2f_k = 0.0
 
