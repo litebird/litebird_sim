@@ -18,7 +18,7 @@ where:
 
 *  :math:`\Phi` is the angle describing the azimuthal position of the detector in the focal plane;
 
-*  :math:`\rho` is the HWP rotation angle in **focal plane coordinates** (please note that this is not the case in Patanchon et al. 2023) .
+*  :math:`\rho` is the HWP rotation angle in **focal plane coordinates** (please note that this is not the case in `Patanchon et al. 2023 <https://arxiv.org/pdf/2308.00967>`_.) .
 
 
 The :math:`\Theta` dependence is included in the input matrices, which are then multiplied at each sample by the trigonometric term depending harmonically on :math:`\rho` and :math:`\Phi`, such that:
@@ -66,12 +66,12 @@ of the HWP systematics. It defines three methods:
   possibility of passing precomputed input maps (as a NumPy array)
   through the ``maps`` argument. Otherwise, the code computes input
   maps through the module Mbs (see :ref:`Mbs`). If ``built_map_on_the_fly = True``, the
-  map-making can be performed internally on-the-fly;  There are three boolean arguments related to the coupling of non-linearity effects with hwp systematic effects: ``if apply_non_linearity``, ``add_orbital_dipole`` and ``add_2f_hwpss``. 
+  map-making can be performed internally on-the-fly;  There are two boolean arguments related to the coupling of non-linearity effects with hwp systematic effects: ``if apply_non_linearity`` and ``add_2f_hwpss``. Applying the non-linearities inside the hwp_sys module is useful when one wants to use the mapmaking on the fly. To know more about detector non-linearity and HWPSS, see `this section <https://litebird-sim.readthedocs.io/en/master/non_linearity.html>`_.
 
 *  :meth:`.hwp_sys.HwpSys.fill_tod` which fills the tod in a given Observation. The ``pointings``
    angles passed have to include no rotating HWP, since the effect of the rotating HWP to the
    polarization angle is included in the TOD computation.
-   The TOD is computed by the **equation 5.2** in `Patanchon et al. 2023 <https://arxiv.org/pdf/2308.00967>`_
+   The TOD is computed by the **equation 5.2** in `Patanchon et al. 2023 <https://arxiv.org/pdf/2308.00967>`_.
 
    If ``built_map_on_the_fly = True``, the code computes also
 
