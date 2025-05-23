@@ -437,6 +437,8 @@ def test_write_hdf5_mpi(tmp_path):
         cur_tod = tod_path / f"litebird_tod{idx:04d}.h5"
         assert cur_tod.is_file(), f"File {cur_tod} was expected but not found"
 
+    sim.flush()
+
 
 def test_simulation_random():
     comm_world = lbs.MPI_COMM_WORLD
@@ -602,6 +604,8 @@ def test_issue314(tmp_path):
     else:
         assert False, "This should not happen!"
 
+    sim.flush()
+
 
 def __run_test_in_same_folder(test_fn: Callable) -> None:
     if not lbs.MPI_ENABLED:
@@ -670,6 +674,8 @@ def test_nullify_mpi(tmp_path):
     # Assert TOD is now zero
     for obs in sim.observations:
         assert np.all(obs.tod == 0)
+
+    sim.flush()
 
 
 if __name__ == "__main__":
