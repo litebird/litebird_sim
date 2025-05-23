@@ -537,7 +537,7 @@ TODs of the simulations can be also zeroed easly with::
 
 See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
 :ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`mapmaking`,
-:ref:`beamconvolution` for details of the single functions.
+:ref:`beamconvolution`, :ref:`Mbs`, for details of the single functions.
 
 
 Data splits
