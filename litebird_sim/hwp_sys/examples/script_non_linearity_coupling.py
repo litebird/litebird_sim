@@ -11,7 +11,7 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
     time_span_s = 365 * 24 * 3600
     nside = 128
     hwp_radpsec = lbs.IdealHWP(
-        4.6 * 2 * np.pi / 60,
+        46 * 2 * np.pi / 60,
     ).ang_speed_radpsec
 
     lbs.PTEP_IMO_LOCATION = "schema.json"
@@ -44,7 +44,7 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
     sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
 
     dets = []
-    for detidx in range(2):
+    for detidx in range(1):
         print(channelinfo.detector_names[detidx])
         det = lbs.DetectorInfo.from_imo(
             url=f"/releases/{imo_version}/LMHFT/{channel}/{channelinfo.detector_names[detidx]}/detector_info",
@@ -68,7 +68,6 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
 
         det.g_one_over_k = -0.144
         det.amplitude_2f_k = 2.0
-        det.optical_power_k = 1.5
         dets.append(det)
 
     # print(type(det.mueller_hwp))
@@ -78,10 +77,6 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
     )
 
     sim.prepare_pointings(append_to_report=False)
-
-    if orbital_dipole:
-        sim.compute_pos_and_vel()
-        sim.add_dipole()
 
     if comm.rank == 0:
         Mbsparams = lbs.MbsParameters(
@@ -111,6 +106,18 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
     if monopole:
         input_maps[0] += 2.7255
 
+    if orbital_dipole:
+        sim.precompute_pointings()
+        sim.compute_pos_and_vel()
+        sim.add_dipole()
+
+        for idet in range(obs.n_detectors):
+            pix = hp.ang2pix(
+                nside, obs.pointing_matrix[idet, :, 0], obs.pointing_matrix[idet, :, 1]
+            )
+            for i_tod in range(len(obs.tod)):
+                input_maps[pix[i_tod]] += obs.tod[idet, i_tod]
+
     hwp_sys = lbs.HwpSys(sim)
 
     hwp_sys.set_parameters(
@@ -120,7 +127,6 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
         Mbsparams=Mbsparams,
         build_map_on_the_fly=True,
         apply_non_linearity=non_linearity,
-        add_orbital_dipole=orbital_dipole,
         add_2f_hwpss=hwpss,
         comm=comm,
     )
@@ -153,7 +159,7 @@ def main(orbital_dipole, monopole, non_linearity, case, hwpss):
 
 if __name__ == "__main__":
     main(
-        orbital_dipole=True,
+        orbital_dipole=False,
         monopole=False,
         non_linearity=True,
         case="_Case1_",
