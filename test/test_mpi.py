@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
-import sys
 from pathlib import Path
 from sys import stderr
 from tempfile import TemporaryDirectory
@@ -438,6 +437,8 @@ def test_write_hdf5_mpi(tmp_path):
         cur_tod = tod_path / f"litebird_tod{idx:04d}.h5"
         assert cur_tod.is_file(), f"File {cur_tod} was expected but not found"
 
+    sim.flush()
+
 
 def test_simulation_random():
     comm_world = lbs.MPI_COMM_WORLD
@@ -602,12 +603,12 @@ def test_issue314(tmp_path):
     else:
         assert False, "This should not happen!"
 
+    sim.flush()
+
 
 def __run_test_in_same_folder(test_fn: Callable) -> None:
     if not lbs.MPI_ENABLED:
         return
-
-    from mpi4py import MPI
 
     # It's critical that all MPI processes use the same output directory
     if lbs.MPI_COMM_WORLD.rank == 0:
@@ -618,11 +619,11 @@ def __run_test_in_same_folder(test_fn: Callable) -> None:
         tmp_dir = None
         tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
 
-    local_success = 1
+    failure = False
     try:
         test_fn(tmp_path)
     except Exception:
-        local_success = 0
+        failure = True
 
         from traceback import format_exc
 
@@ -633,17 +634,12 @@ def __run_test_in_same_folder(test_fn: Callable) -> None:
             ),
             file=stderr,
         )
-        sys.exit(1)
-
-    global_success = lbs.MPI_COMM_WORLD.allreduce(local_success, op=MPI.MIN)
 
     if tmp_dir:
         tmp_dir.cleanup()
 
-    lbs.MPI_COMM_WORLD.barrier()
-    if global_success == 0:
-        if lbs.MPI_COMM_WORLD.rank == 0:
-            print("Failure", file=stderr)
+    if failure:
+        lbs.MPI_COMM_WORLD.Abort(1)
 
 
 def test_nullify_mpi(tmp_path):
@@ -677,6 +673,8 @@ def test_nullify_mpi(tmp_path):
     # Assert TOD is now zero
     for obs in sim.observations:
         assert np.all(obs.tod == 0)
+
+    sim.flush()
 
 
 if __name__ == "__main__":
