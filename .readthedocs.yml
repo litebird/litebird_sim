@@ -5,8 +5,13 @@
 version: 2
 
 build:
-   os: "ubuntu-24.04"
-   tools: {python: "3.12"}
+  os: "ubuntu-24.04"
+  tools: 
+    python: "3.12"
+  jobs:
+    pre_install:
+      - pip install poetry poetry-plugin-export
+      - poetry export -f requirements.txt --without-hashes --output requirements.txt
 
 python:
   install:
@@ -14,12 +19,6 @@ python:
       path: .
 
   system_packages: true
-
-build:
-  jobs:
-    pre_install:
-      - pip install poetry poetry-plugin-export
-      - poetry export -f requirements.txt --without-hashes --output requirements.txt
 
 sphinx:
   configuration: docs/source/conf.py
