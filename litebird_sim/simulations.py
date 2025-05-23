@@ -32,7 +32,7 @@ from .beam_convolution import (
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
-from .detectors import DetectorInfo, InstrumentInfo
+from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
@@ -1570,15 +1570,32 @@ class Simulation:
     def get_sky(
         self,
         parameters: MbsParameters,
+        channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
     ):
         """
         Generates sky maps for the observations using the provided parameters.
+        If `channels` is not provided, it automatically infers the detectors
+        used in the current observations and constructs the Mbs instance accordingly.
+        otherwise a map per channel provided is returned
 
-        Args:
-            parameters (MbsParameters): Configuration parameters for the Mbs simulation.
+        Parameters
+        ----------
+        parameters : MbsParameters
+            Configuration parameters for the Mbs simulation.
+        channels : FreqChannelInfo or list of FreqChannelInfo, optional
+            Frequency channels to use in the simulation. If None, it uses the detectors
+            from the current observations.
 
-        Returns:
-            Dict: A dictionary containing sky maps values per detector.
+        Returns
+        -------
+        Dict
+            A dictionary containing the simulated sky maps for each detector or channel
+
+        Raises
+        ------
+        ValueError
+            If no observations are available to generate sky maps.
+
         """
 
         if parameters.seed_cmb is None:
@@ -1589,14 +1606,30 @@ class Simulation:
         if not self.observations:
             raise ValueError("No observations available to generate sky maps.")
 
-        detector_names = set(self.observations[0].name)
-        detector_list = [det for det in self.detectors if det.name in detector_names]
+        if channels is None:
+            # Use detectors from observations
+            detector_names = set(self.observations[0].name)
+            detector_list = [
+                det for det in self.detectors if det.name in detector_names
+            ]
 
-        mbs = Mbs(
-            simulation=self,
-            parameters=parameters,
-            detector_list=detector_list,
-        )
+            mbs = Mbs(
+                simulation=self,
+                parameters=parameters,
+                detector_list=detector_list,
+            )
+
+        else:
+            # Use explicitly provided frequency channels
+            channel_list = (
+                [channels] if isinstance(channels, FreqChannelInfo) else channels
+            )
+
+            mbs = Mbs(
+                simulation=self,
+                parameters=parameters,
+                channel_list=channel_list,
+            )
 
         return mbs.run_all()[0]
 
