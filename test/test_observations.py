@@ -36,7 +36,7 @@ def test_observation_time():
     assert isinstance(obs_mjd_astropy.get_times(astropy_times=True), astrotime.Time)
     nptest.assert_allclose(
         (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
-        np.array([0.0, 2.31481681e-06, 4.62962635e-06, 6.94444316e-06, 9.25925997e-06]),
+        np.array([0.0, 2.314815e-06, 4.629630e-06, 6.944444e-06, 9.259259e-06]),
     )
     nptest.assert_allclose(
         obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
