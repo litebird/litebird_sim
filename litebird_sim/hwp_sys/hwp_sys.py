@@ -850,8 +850,8 @@ class HwpSys:
                 for i in range(len(observations) - 1)
             ]
         ):
-            self.atd = self.comm.allreduce(self.atd, mpi.MPI.SUM)
-            self.ata = self.comm.allreduce(self.ata, mpi.MPI.SUM)
+            self.atd = self.comm.Allreduce(mpi.MPI.IN_PLACE, self.atd, mpi.MPI.SUM)
+            self.ata = self.comm.Allreduce(mpi.MPI.IN_PLACE, self.ata, mpi.MPI.SUM)
         else:
             raise NotImplementedError(
                 "All observations must be distributed over the same MPI groups"
