@@ -125,17 +125,17 @@ def test_hwp_sys():
     # and check that they are the same
 
     scan_map_in_observations(
-        observations=obs[0],
+        observations=list_of_obs[0],
         input_map_in_galactic=False,
         maps=input_maps,
     )
 
     hwp_sys.fill_tod(
-        observations=obs[1],
+        observations=list_of_obs[1],
         input_map_in_galactic=False,
         save_tod=True,
     )
 
     # The decimal=3 in here has a reson, explained in PR 395.
     # This should be changed in the future
-    np.testing.assert_almost_equal(obs[0].tod, obs[1].tod, decimal=3, verbose=True)
+    np.testing.assert_almost_equal(list_of_obs[0].tod, list_of_obs[1].tod, decimal=3, verbose=True)
