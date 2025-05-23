@@ -258,7 +258,8 @@ def _build_nobs_matrix(
             for i in range(len(obs_list) - 1)
         ]
     ):
-        nobs_matrix = obs_list[0].comm.allreduce(nobs_matrix, mpi.MPI.SUM)
+        obs_list[0].comm.Allreduce(mpi.MPI.IN_PLACE, nobs_matrix, mpi.MPI.SUM)
+
     else:
         raise NotImplementedError(
             "All observations must be distributed over the same MPI groups"
