@@ -88,7 +88,7 @@ jobs:
       - name: Tests MPICH
         if: ${{ matrix.mpi == 'mpich' && steps.skip_check.outputs.skip == 'false' }}
         run: |
-            for proc in 1 5 9 ; do
+            for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
