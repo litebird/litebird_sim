@@ -17,6 +17,7 @@ from typing import Any, Tuple, List
 
 import astropy.time
 import numpy as np
+import numpy.testing as nptest
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
@@ -659,7 +660,7 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
 
     if use_destriper:
         for cur_baseline_errors in result.baseline_errors:
-            assert np.alltrue(cur_baseline_errors > 0)
+            assert np.all(cur_baseline_errors > 0)
 
         # Check that remove_destriper_baselines_from_tod works. We use a trick here:
         # we create a new null TOD and ask to remove the baselines from it, so that
@@ -859,7 +860,7 @@ def test_full_destriper(tmp_path):
 
     # Check that all the errors on the baseline values are non-negative
     for cur_baseline_errors in destriper_result.baseline_errors:
-        assert np.alltrue(cur_baseline_errors >= 0.0)
+        assert np.all(cur_baseline_errors >= 0.0)
 
 
 def _assert_dataclasses_equal(actual, desired, params_to_check: List[str]) -> None:
@@ -1029,7 +1030,7 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
         for cur_actual, cur_desired in zip(
             actual_results.baseline_lengths, desired_results.baseline_lengths
         ):
-            assert np.alltrue(cur_actual == cur_desired)
+            nptest.assert_equal(cur_actual, cur_desired)
 
 
 def test_destriper_io(tmp_path):
