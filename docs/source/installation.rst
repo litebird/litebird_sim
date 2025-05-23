@@ -47,6 +47,16 @@ If you plan to use any of the facilities provided by ``ducc``, you are
 advised to compile it from source, follow the instructions in
 :ref:`maximize-performance`.
 
+Optional dependencies can be installed along with LBS as following:
+
+.. code-block:: text
+
+   pip install litebird_sim[<dependency_name>]
+
+where you can substitute the ``<dependency_name>`` with one of the
+dependencies (or comma-separated list of the dependencies) listed in
+:ref:`install-dependencies`
+
 
 Hacking LBS
 -----------
@@ -74,12 +84,15 @@ for this.
    pip install poetry-plugin-export
 
    # Generate requirements.txt and install all the dependencies
-   poetry export --without-hashes $EXTRAS -o requirements.txt
+   poetry export --without-hashes -o requirements.txt
    pip install --upgrade pip
 
    # Install litebird_sim in the environment
    pip install -e .
 
+To install LBS with optional dependencies, one can add the option
+``-E <dependency_name>`` while calling ``poetry export``. See the section on
+:ref:`install-dependencies` for more details.
 
 Run code validators
 ~~~~~~~~~~~~~~~~~~~
@@ -103,24 +116,46 @@ basic checks on your code before actually committing it. These checks
 are the same that are run by GitHub once you push your changes in a
 pull request, so they can save you several back-and-forth iterations.
 
+.. _install-dependencies:
 
-Development with MPI
-~~~~~~~~~~~~~~~~~~~~
+Installing LBS with optional dependencies
+-----------------------------------------
 
-As explained in the chapter :ref:`using_mpi`, the LiteBIRD Simulation
-Framework supports MPI. To use it, you must ensure that `mpi4py
-<https://mpi4py.readthedocs.io/en/stable/>`_ is installed.
+The LiteBIRD Simulation Framework offers additional functionalities that can
+be enabled optionally. These optional functionalities are supported via
+optional dependencies that can be installed by the users as required.
 
-If you have created a virtual environment to work with
-``litebird_sim`` (as you should have), just install it using ``pip``:
+LBS offers 3 optional dependencies:
 
-.. code-block:: text
+1. ``mpi``  
 
-    pip install mpi4py
+   As explained in the chapter :ref:`using_mpi`, the LiteBIRD Simulation
+   Framework supports MPI. To use it, you must ensure that `mpi4py
+   <https://mpi4py.readthedocs.io/en/stable/>`_ is installed.
 
-That's it: the next time you run a script that uses ``litebird_sim``,
-MPI functions will be automatically enabled in the framework. See the
-chapter :ref:`using_mpi` for more details.
+   If you have created a virtual environment to work with
+   ``litebird_sim`` (as you should have), just install it using ``pip``:
+
+   .. code-block:: text
+
+       pip install mpi4py
+
+   That's it: the next time you run a script that uses ``litebird_sim``,
+   MPI functions will be automatically enabled in the framework. See the
+   chapter :ref:`using_mpi` for more details.
+
+2. ``jupyter``  
+
+   This dependency installs the packages that can be used to work with LBS in a
+   jupyter notebook.
+
+3. ``brahmap``  
+
+   BrahMap is an external map-making framework and it supports optimal map-making
+   with LBS simulations. LBS in turn, offers a high level interface to call
+   BrahMap. The additional packages needed to use BrahMap can be installed with
+   ``brahmap`` dependency. See the section on :ref:`mapmaking` for details on using
+   BrahMap with LBS.
 
 .. _maximize-performance:
 

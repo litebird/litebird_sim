@@ -821,7 +821,7 @@ class Observation:
             )
             self.has_hwp = False
         else:
-            for idet in self.det_idx:
+            for idet in range(self.n_detectors):
                 if self.mueller_hwp[idet] is None:
                     self.mueller_hwp[idet] = hwp.mueller
             self.has_hwp = True
