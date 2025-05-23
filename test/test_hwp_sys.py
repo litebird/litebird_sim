@@ -3,7 +3,6 @@ import numpy as np
 from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
 from litebird_sim import mpi
 from litebird_sim.scan_map import scan_map_in_observations
-import pickle
 
 
 def test_hwp_sys():
@@ -65,6 +64,12 @@ def test_hwp_sys():
         split_list_over_processes=False,
     )
 
+    (obs_hwpsys,) = sim.create_observations(
+        detectors=[det],
+        n_blocks_det=comm.size,
+        split_list_over_processes=False,
+    )
+
     for idet in range(obs_scan.n_detectors):
         sim.detectors[idet].pol_angle_rad = compute_orientation_from_detquat(
             obs_scan.quat[idet].quats[0]
@@ -107,10 +112,6 @@ def test_hwp_sys():
         build_map_on_the_fly=True,
         comm=comm,
     )
-
-    obs_hwpsys = pickle.loads(pickle.dumps(obs_scan))
-
-    np.testing.assert_equal(obs_scan.tod, obs_hwpsys.tod, verbose=True)
 
     # we have two similar observations, now we will compute the TOD
     # using both scan_map_in_observations and hwp_sys.fill_tod
