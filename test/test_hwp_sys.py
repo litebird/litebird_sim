@@ -128,7 +128,7 @@ def test_hwp_sys():
         save_tod=True,
     )
 
-    # The decimal=3 in here has a reson, explained in PR 395. 
+    # The decimal=3 in here has a reson, explained in PR 395.
     # This should be changed in the future
     np.testing.assert_almost_equal(
         obs_scan.tod, obs_hwpsys.tod, decimal=3, verbose=True
