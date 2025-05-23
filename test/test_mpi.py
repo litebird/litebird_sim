@@ -571,7 +571,6 @@ def test_issue314(tmp_path):
         n_blocks_det=2,
         split_list_over_processes=False,
     )
-    print(f"MPI rank #{lbs.MPI_COMM_WORLD.rank} has {sim.observations[0].det_idx=}")
     sim.prepare_pointings(append_to_report=False)
 
     obs = sim.observations[0]
