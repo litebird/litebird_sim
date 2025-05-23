@@ -845,37 +845,7 @@ class Simulation:
             json.dump(profile_list_to_speedscope(self.profile_data), out_file)
         log.info('Profile data saved to file "%s"', str(output_file_path.absolute()))
 
-    def flush(
-        self,
-        include_git_diff=True,
-        base_imo_url: str = DEFAULT_BASE_IMO_URL,
-        profile_file_name: Optional[str] = None,
-    ):
-        """Terminate a simulation.
-
-        This function must be called when a simulation is complete. It
-        will save pending data to the output directory.
-
-        It returns a `Path` object pointing to the HTML file that has
-        been saved in the directory pointed by ``self.base_path``.
-
-        """
-
-        if not profile_file_name:
-            profile_file_name = f"profile_mpi{self.mpi_comm.rank:05d}.json"
-        self._generate_profile_file(file_name=profile_file_name)
-
-        dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-        self._fill_dictionary_with_imo_information(
-            dictionary, base_imo_url=base_imo_url
-        )
-        self._fill_dictionary_with_code_status(dictionary, include_git_diff)
-
-        template_file_path = get_template_file_path("report_appendix.md")
-        with template_file_path.open("rt") as inpf:
-            markdown_template = "".join(inpf.readlines())
-        self.append_to_report(markdown_template, **dictionary)
-
+    def _generate_html_report(self):
         # Expand the markdown text using Jinja2
         with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
             outf.write(self.report)
@@ -914,6 +884,40 @@ class Simulation:
             outf.write(html_full_report)
 
         return html_report_path
+
+    def flush(
+        self,
+        include_git_diff=True,
+        base_imo_url: str = DEFAULT_BASE_IMO_URL,
+        profile_file_name: Optional[str] = None,
+    ) -> Optional[Path]:
+        """Terminate a simulation.
+
+        This function must be called when a simulation is complete. It
+        will save pending data to the output directory.
+
+        It returns a `Path` object pointing to the HTML file that has
+        been saved in the directory pointed by ``self.base_path``, or ``None``
+        if this is not the MPI root process.
+
+        """
+
+        if not profile_file_name:
+            profile_file_name = f"profile_mpi{self.mpi_comm.rank:05d}.json"
+        self._generate_profile_file(file_name=profile_file_name)
+
+        dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        self._fill_dictionary_with_imo_information(
+            dictionary, base_imo_url=base_imo_url
+        )
+        self._fill_dictionary_with_code_status(dictionary, include_git_diff)
+
+        template_file_path = get_template_file_path("report_appendix.md")
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+        self.append_to_report(markdown_template, **dictionary)
+
+        return self._generate_html_report() if MPI_COMM_WORLD.rank == 0 else None
 
     @_profile
     def create_observations(
