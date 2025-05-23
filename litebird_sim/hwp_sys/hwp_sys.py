@@ -14,6 +14,7 @@ from ..detectors import FreqChannelInfo
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
 from ..non_linearity import apply_quadratic_nonlin_for_one_sample
+from ..hwp_diff_emiss import compute_2f_for_one_sample
 
 COND_THRESHOLD = 1e10
 
@@ -334,7 +335,7 @@ def compute_signal_for_one_detector(
         if apply_non_linearity:
             tod_det[i] = apply_quadratic_nonlin_for_one_sample(tod_det[i], g_one_over_k)
         if add_2f_hwpss:
-            tod_det[i] += amplitude_2f_k * np.cos(2 * rho[i])
+            tod_det[i] += compute_2f_for_one_sample(rho[i], amplitude_2f_k)
 
 
 @njit
