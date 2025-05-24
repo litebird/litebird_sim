@@ -53,7 +53,7 @@ from .mapmaking import (
 from .mbs import Mbs, MbsParameters
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
-from .non_linearity import apply_quadratic_nonlin_to_observations
+from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
@@ -1709,27 +1709,38 @@ class Simulation:
     @_profile
     def apply_quadratic_nonlin(
         self,
+        nl_params: NonLinParams = None,
+        user_seed: int=12345,
         component: str = "tod",
-        g_one_over_k: Union[float, None] = None,
         append_to_report: bool = False,
     ):
+        
+        """A method to apply non-linearity to the observation.
+        
+        This is a wrapper around
+        :func:`.apply_quadratic_nonlin_to_observations()` that 
+        applies non-linearity to a list of :class:`.Observation` instance.         """
+        if nl_params is None:
+            nl_params = NonLinParams()
+    
         apply_quadratic_nonlin_to_observations(
             observations=self.observations,
+            nl_params=nl_params,
+            user_seed=user_seed,
             component=component,
-            g_one_over_k=g_one_over_k,
         )
-
+        
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_quad_nonlin.md")
-
+    
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
-
-            if g_one_over_k is None:
+    
+            if nl_params is None:
                 g = "Detector non-linearity factor taken from IMo"
             else:
-                g = g_one_over_k
-
+                g = nl_params
+    
             self.append_to_report(
                 markdown_template,
                 g=g,
