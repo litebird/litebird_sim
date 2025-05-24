@@ -56,20 +56,28 @@ def _hash_function(
 
 def apply_quadratic_nonlin_for_one_sample(
     data,
-    det_name: str,
+    det_name: str = None,
     nl_params: NonLinParams = None,
     user_seed: int = 12345,
+    g_one_over_k: float = None,
 ):
     if nl_params is None:
         nl_params = NonLinParams()
 
-    assert isinstance(det_name, str), "The parameter `det_name` must be a string"
-    rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
+    # If g_one_over_k is not provided, we must use det_name to generate it
+    # Having a non-random g_one_over_k is useful to avoid over-complications in the hwp_sys module
+    if g_one_over_k is None:
+        if det_name is None:
+            raise ValueError("Either `g_one_over_k` or `det_name` must be provided.")
 
-    g_one_over_k = rng.normal(
-        loc=nl_params.sampling_gaussian_loc,
-        scale=nl_params.sampling_gaussian_scale,
-    )
+        if not isinstance(det_name, str):
+            raise TypeError("`det_name` must be a string when `g_one_over_k` is not provided.")
+
+        rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
+        g_one_over_k = rng.normal(
+            loc=nl_params.sampling_gaussian_loc,
+            scale=nl_params.sampling_gaussian_scale,
+        )
 
     return data + g_one_over_k * data**2
 
