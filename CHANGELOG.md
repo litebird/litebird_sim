@@ -6,6 +6,8 @@
 
 -   Make actual use of `[skipci]` and `skip ci]` in commit messages [#410](https://github.com/litebird/litebird_sim/pull/410)
 
+-   New option in `Simulation.get_sky()` for generating maps per channel [#408](https://github.com/litebird/litebird_sim/pull/408)
+
 -   Make MPI tests more robusts and produce a “MPI” section in the output report [#405](https://github.com/litebird/litebird_sim/pull/405/)
 
 -   Add interface to BrahMap GLS mapmaker and relative tests [#400](https://github.com/litebird/litebird_sim/pull/400).

@@ -1016,6 +1016,11 @@ class Mbs:
                 else:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Galactic
 
+                if self.params.store_alms:
+                    tot_dict["type"] = "alms"
+                else:
+                    tot_dict["type"] = "maps"
+
                 tot_dict["Mbs_parameters"] = self.params
 
                 return (tot_dict, saved_maps)

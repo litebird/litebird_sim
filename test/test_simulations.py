@@ -677,3 +677,103 @@ def test_smart_pointings_for_all_detectors(dtype, tmp_path):
                 desired=cur_pointings[:, :],
                 rtol=1e-6,
             )
+
+
+def test_get_sky(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=True, num_of_detectors=4
+    )
+
+    Mbsparams = lbs.MbsParameters(
+        make_cmb=True,
+        make_fg=True,
+        make_noise=False,  # This is detector-dependent
+        seed_cmb=1234,
+        fg_models=["pysm_dust_0"],
+        gaussian_smooth=False,  # This is detector-dependent
+        bandpass_int=False,  # This is detector-dependent
+        nside=16,
+        units="uK_CMB",
+        maps_in_ecliptic=False,
+    )
+
+    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    maps = np.array([maps[det] for det in set(sim.observations[0].name)])
+    obs_maps = sim.observations[0].sky
+    obs_maps = np.array([obs_maps[det] for det in set(sim.observations[0].name)])
+
+    np.testing.assert_allclose(maps, obs_maps)
+
+    ChanInfo = lbs.FreqChannelInfo(bandcenter_ghz=40)
+    same_ch_map = sim.get_sky(parameters=Mbsparams, channels=ChanInfo)[
+        ChanInfo.channel.replace(" ", "_")
+    ]
+
+    for idx_det in range(4):
+        np.testing.assert_allclose(maps[idx_det], same_ch_map)
+
+    # Introduce a difference
+    Mbsparams.make_noise = True
+
+    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    maps = np.array([maps[det] for det in set(sim.observations[0].name)])
+
+    for idx_det in range(4):
+        np.testing.assert_raises(
+            AssertionError,
+            np.testing.assert_allclose,
+            maps[idx_det],
+            same_ch_map,
+        )
+
+
+def test_convolve_and_filltods_from_obs(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=True, num_of_detectors=4
+    )
+
+    Mbsparams = lbs.MbsParameters(
+        make_cmb=True,
+        make_fg=True,
+        make_noise=False,
+        seed_cmb=1234,
+        fg_models=["pysm_dust_0"],
+        gaussian_smooth=False,
+        bandpass_int=False,
+        nside=16,
+        units="uK_CMB",
+        maps_in_ecliptic=False,
+        store_alms=True,  # This will produce alms
+    )
+
+    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    assert maps["type"] == "alms"
+
+    sim.observations[0].ellipticity = [1, 1, 1, 1]
+    _ = sim.get_gauss_beam_alms(Mbsparams.lmax_alms, store_in_observation=True)
+
+    sim.convolve_sky()
+    tod = sim.observations[0].tod[0]
+
+    sim.nullify_tod()
+
+    Mbsparams = lbs.MbsParameters(
+        make_cmb=True,
+        make_fg=True,
+        make_noise=False,
+        seed_cmb=1234,
+        fg_models=["pysm_dust_0"],
+        gaussian_smooth=True,
+        bandpass_int=False,
+        nside=16,
+        units="uK_CMB",
+        maps_in_ecliptic=False,
+        store_alms=False,  # This will produce maps
+    )
+
+    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    sim.fill_tods()
+
+    tod_2 = sim.observations[0].tod[0]
+
+    np.testing.assert_allclose(tod, tod_2)
