@@ -10,7 +10,7 @@ import litebird_sim as lbs
 brahmap = pytest.importorskip(
     modname="brahmap", reason="Couldn't import 'brahmap' module"
 )
-import brahmap  # noqa: E402
+import brahmap  # noqa: E402 F811
 
 
 def test_GLS_mapmaking():

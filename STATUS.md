@@ -12,7 +12,7 @@ Simulation Team plans to implement in `litebird_sim`.
 | Synthetic sky map generation     | Complete |          | Based on PySM3                  | [#76](https://github.com/litebird/litebird_sim/pull/76)                                                              |
 | Binning map-maker                | Complete |          |                                 | [#73](https://github.com/litebird/litebird_sim/pull/76)                                                              |
 | Destriping+calibration map-maker | Complete |          | Internal destriper +            | [#260](https://github.com/litebird/litebird_sim/pull/260)                                                            |
-|                                  |          |          | interface with TOAST and Madam  | [#86](https://github.com/litebird/litebird_sim/pull/86)                                                              |
+|                                  |          |          | interface with Madam            | [#86](https://github.com/litebird/litebird_sim/pull/86)                                                              |
 |                                  |          |          |                                 | [#186](https://github.com/litebird/litebird_sim/pull/186)                                                            |
 | Splits in map-makers             | Complete |          |                                 | [#291](https://github.com/litebird/litebird_sim/pull/291)                                                            |
 | Spacecraft simulator             | Complete |          |                                 | [#122](https://github.com/litebird/litebird_sim/pull/122)                                                            |

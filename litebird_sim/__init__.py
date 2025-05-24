@@ -1,5 +1,4 @@
 # -*- encoding: utf-8 -*-
-import importlib
 from pathlib import Path
 
 import numba
@@ -163,18 +162,6 @@ from .spherical_harmonics import (
 )
 from .version import __author__, __version__
 
-# Check if the TOAST2 mapmaker is available
-TOAST_ENABLED = importlib.util.find_spec("OpMapMaker", "toast.todmap") is not None
-if not TOAST_ENABLED:
-
-    def destripe_with_toast2(*args, **kwargs):
-        raise ImportError(
-            "Install the toast package using `pip` to use destripe_with_toast2"
-        )
-
-    TOAST_ENABLED = False
-
-
 # Privilege TBB over OpenPM and the internal Numba implementation of a
 # work queue
 numba.config.THREADING_LAYER_CONFIG = ["tbb", "omp", "workqueue"]
@@ -297,9 +284,6 @@ __all__ = [
     "DestriperParameters",
     "DestriperResult",
     "ExternalDestriperParameters",
-    # toast_destriper.py
-    "TOAST_ENABLED",
-    "destripe_with_toast2",
     # simulations.py
     "NUMBA_NUM_THREADS_ENVVAR",
     "Simulation",

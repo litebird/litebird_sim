@@ -439,9 +439,9 @@ def add_convolved_sky_to_observations(
                     "Beam a_lm dictionary keys do not match detector/channel names."
                 )
         else:
-            assert isinstance(
-                beam_alms, SphericalHarmonics
-            ), "Invalid beam_alms format."
+            assert isinstance(beam_alms, SphericalHarmonics), (
+                "Invalid beam_alms format."
+            )
             input_beam_names = None
 
         # If you pass an external HWP, get hwp_angle here, otherwise this is handled in add_convolved_sky

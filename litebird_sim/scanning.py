@@ -451,12 +451,12 @@ class RotQuaternion:
             self.quats = quats.reshape(-1, 4)
 
             if self.quats.shape[0] > 1:
-                assert (
-                    start_time is not None
-                ), "You must specify start_time if the quaternion is not constant"
-                assert (
-                    sampling_rate_hz is not None
-                ), "You must specify sampling_rate_hz if the quaternion is not constant"
+                assert start_time is not None, (
+                    "You must specify start_time if the quaternion is not constant"
+                )
+                assert sampling_rate_hz is not None, (
+                    "You must specify sampling_rate_hz if the quaternion is not constant"
+                )
 
             self.start_time = start_time
             self.sampling_rate_hz = sampling_rate_hz
@@ -480,23 +480,23 @@ class RotQuaternion:
             # Both time-dependent quaternions are actual lists, so we must
             # first ensure that they have the same starting time and the
             # same sampling frequency
-            assert (
-                self.quats.shape == other.quats.shape
-            ), f"quaternions have different shapes: {self.quats.shape} vs {other.quats.shape}"
-            assert isinstance(
-                self.start_time, type(other.start_time)
-            ), f"start_time must have the same type: {type(self.start_time)} vs {type(other.start_time)}"
+            assert self.quats.shape == other.quats.shape, (
+                f"quaternions have different shapes: {self.quats.shape} vs {other.quats.shape}"
+            )
+            assert isinstance(self.start_time, type(other.start_time)), (
+                f"start_time must have the same type: {type(self.start_time)} vs {type(other.start_time)}"
+            )
             if isinstance(self.start_time, float):
-                assert np.isclose(
-                    self.start_time, other.start_time
-                ), f"start_time must be the same value: {self.start_time} vs {other.start_time}"
+                assert np.isclose(self.start_time, other.start_time), (
+                    f"start_time must be the same value: {self.start_time} vs {other.start_time}"
+                )
             else:
-                assert (
-                    self.start_time == other.start_time
-                ), f"start_time must be the same value: {self.start_time} vs {other.start_time}"
-            assert np.isclose(
-                self.sampling_rate_hz, other.sampling_rate_hz
-            ), f"sampling_rate_hz must be the same value: {self.sampling_rate_hz} vs {other.sampling_rate_hz}"
+                assert self.start_time == other.start_time, (
+                    f"start_time must be the same value: {self.start_time} vs {other.start_time}"
+                )
+            assert np.isclose(self.sampling_rate_hz, other.sampling_rate_hz), (
+                f"sampling_rate_hz must be the same value: {self.sampling_rate_hz} vs {other.sampling_rate_hz}"
+            )
 
             result_start_time = self.start_time
             result_sampling_freq_hz = self.sampling_rate_hz
@@ -586,9 +586,9 @@ class RotQuaternion:
         must match that of `self.start_time`.
 
         """
-        assert (
-            self.quats.shape[0] > 1
-        ), "having only one quaternion is still unsupported"
+        assert self.quats.shape[0] > 1, (
+            "having only one quaternion is still unsupported"
+        )
 
         if isinstance(self.start_time, astropy.time.Time):
             assert isinstance(start_time, astropy.time.Time), (
@@ -973,9 +973,9 @@ def get_det2ecl_quaternions(
     if quaternion_buffer is None:
         quaternion_buffer = np.empty(bufshape, dtype=dtype)
     else:
-        assert (
-            quaternion_buffer.shape == bufshape
-        ), f"error, wrong buffer size: {quaternion_buffer.size} != {bufshape}"
+        assert quaternion_buffer.shape == bufshape, (
+            f"error, wrong buffer size: {quaternion_buffer.size} != {bufshape}"
+        )
 
     for idx, detector_quat in enumerate(detector_quats):
         complete_quaternion = spin2ecliptic_quats * bore2spin_quat * detector_quat

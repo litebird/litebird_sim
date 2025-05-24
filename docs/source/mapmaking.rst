@@ -26,16 +26,11 @@ The framework provides the following solutions:
    contribution and remove it from the timelines; then, a classical
    *binner* is run over the cleaned timelines.
 
-3. A wrapper that enables you to use the
-   `TOAST2 <https://github.com/hpc4cmb/toast>`_ destriper. (To use
-   this, you must ensure that the package
-   `toast <https://pypi.org/project/toast/>`_ is installed.)
-
-4. You can also use :func:`.save_simulation_for_madam` to save TODs
+3. You can also use :func:`.save_simulation_for_madam` to save TODs
    and pointing information to disk and then manually call the `Madam
    map-maker <https://arxiv.org/abs/astro-ph/0412517>`_.
 
-5. An interface to use the
+4. An interface to use the
    `BrahMap <https://github.com/anand-avinash/BrahMap>` GLS mapmaker.
    (To use this, you must ensure that the package is installed, thus
    see `BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.)
@@ -80,7 +75,7 @@ detectors::
                 name="0B", sampling_rate_hz=10, quat=lbs.quat_rotation_z(np.pi / 2)
             ),
         ],
-        tod_dtype=np.float64,  # Needed if you use the TOAST destriper
+        tod_dtype=np.float64,
         n_blocks_time=lbs.MPI_COMM_WORLD.size,
         split_list_over_processes=False,
     )
@@ -695,70 +690,6 @@ details.
 The difference is that each split is applied to the TOD before the
 destriper runs. Therefore, the destriper will only use the samples
 within the split to compute the baselines.
-
-TOAST2 Destriper
-----------------
-
-If you install the `toast <https://pypi.org/project/toast/>`_ using ``pip``,
-you can use the `TOAST2 <https://github.com/hpc4cmb/toast>`_ destriper within
-the LiteBIRD Simulation Framework. As TOAST is an optional dependency, you
-should check if the Framework was able to detect its presence::
-
-    import litebird_sim as lbs
-
-    if lbs.TOAST_ENABLED:
-        # It's ok to use TOAST
-        ...
-    else:
-        # TOAST is not present, do something else
-        ...
-
-The procedure to use the TOAST2 destriper is similar to the steps required to
-call the internal destriper: you must create a
-:class:`.ExternalDestriperParameters` object that specifies which input
-parameters (apart from the timelines) should be used::
-
-    params = lbs.ExternalDestriperParameters(
-        nside=16,
-        return_hit_map=True,
-        return_binned_map=True,
-        return_destriped_map=True,
-    )
-
-The parameters we use here are the resolution of the output map
-(``nside=16``), and the kind of results that must be returned:
-specifically, we are looking here for the *hit map* (i.e., a map that
-specifies how many samples were observed while the detector was
-looking at a specific pixel), the *binned map* (the same map that
-would be produced by the *binner*, see above), and the *destriped map*.
-
-.. note::
-
-   The TOAST destriper only works with timelines containing 64-bit
-   floating point numbers. As the default data type for timelines
-   created by ``sim.create_observations`` is a 32-bit float, if you
-   plan to run the destriper you should pass the flag
-   ``tod_dtype=np.float64`` to ``sim.create_observations`` (see the
-   code above), otherwise ``destripe`` will create an internal copy of
-   the TOD converted in 64-bit floating-point numbers, which is
-   usually a waste of space.
-
-To run the TOAST2 destriper, you simply call
-:func:`.destripe_with_toast2`::
-
-  result = lbs.destripe_with_toast2(sim, params)
-
-The result is an instance of the class :class:`.Toast2DestriperResult` and
-contains the three maps we have asked above (hit map, binned map,
-destriped map).
-
-.. note::
-
-   Unlike the internal destriper, TOAST2 does not return information
-   about the convergence of the CG algorithm, and it is *not* granted
-   that the norm used to estimate the stopping factor is the same
-   as the one calculated by the internal destriper. Therefore, please
-   avoid comparing the stopping factors of the two destripers!
 
 
 Saving files for Madam
