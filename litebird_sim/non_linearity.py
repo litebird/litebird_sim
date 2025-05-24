@@ -54,6 +54,26 @@ def _hash_function(
     return int.from_bytes(bytes=digest, byteorder="little")
 
 
+def apply_quadratic_nonlin_for_one_sample(
+    data,
+    det_name: str,
+    nl_params: NonLinParams = None,
+    user_seed: int = 12345,
+):
+    if nl_params is None:
+        nl_params = NonLinParams()
+
+    assert isinstance(det_name, str), "The parameter `det_name` must be a string"
+    rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
+
+    g_one_over_k = rng.normal(
+        loc=nl_params.sampling_gaussian_loc,
+        scale=nl_params.sampling_gaussian_scale,
+    )
+
+    return data + g_one_over_k * data**2
+
+
 def apply_quadratic_nonlin_for_one_detector(
     tod_det,
     det_name: str,
