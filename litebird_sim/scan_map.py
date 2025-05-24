@@ -391,6 +391,16 @@ def scan_map_in_observations(
         observations=observations, pointings=pointings
     )
 
+    if maps is None:
+        try:
+            maps = observations.sky
+        except AttributeError:
+            msg = "'maps' is None and nothing is found in the observation. You should either pass the maps here, or store them in the observations if 'mbs' is used."
+            raise AttributeError(msg)
+        assert maps["type"] == "maps", (
+            "'maps' should be of type 'maps'. Disable 'store_alms' in 'MbsParameters' to make it so."
+        )
+
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         if isinstance(maps, dict):
             if all(item in maps.keys() for item in cur_obs.name):

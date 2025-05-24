@@ -1503,16 +1503,6 @@ class Simulation:
 
         """
 
-        if maps is None:
-            try:
-                maps = self.observations[0].sky
-            except AttributeError:
-                msg = "'maps' is None and nothing is found in the observation. You should either pass the maps here, or store them in the observations if 'mbs' is used."
-                raise AttributeError(msg)
-            assert maps["type"] == "maps", (
-                "'maps' should be of type 'maps'. Disable 'store_alms' in 'MbsParameters' to make it so."
-            )
-
         scan_map_in_observations(
             observations=self.observations,
             maps=maps,
@@ -1696,23 +1686,6 @@ class Simulation:
 
         if nthreads is None:
             nthreads = self.numba_threads
-
-        if sky_alms is None:
-            try:
-                sky_alms = self.observations[0].sky
-            except AttributeError:
-                msg = "'sky_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics, or store them in the observations if 'mbs' is used."
-                raise AttributeError(msg)
-            assert sky_alms["type"] == "alms", (
-                "'sky_alms' should be of type 'alms'. Use 'store_alms' of 'MbsParameters' to make it so."
-            )
-
-        if beam_alms is None:
-            try:
-                beam_alms = self.observations[0].blms
-            except AttributeError:
-                msg = "'beam_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics of the beam, or store them in the observations if 'get_gauss_beam_alms' is used."
-                raise AttributeError(msg)
 
         add_convolved_sky_to_observations(
             observations=self.observations,
