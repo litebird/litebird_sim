@@ -1483,7 +1483,7 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: Union[np.ndarray, Dict[str, np.ndarray]],
+        maps: Optional[Union[np.ndarray, Dict[str, np.ndarray]]] = None,
         input_map_in_galactic: bool = True,
         component: str = "tod",
         interpolation: Union[str, None] = "",
@@ -1502,6 +1502,16 @@ class Simulation:
         :class:`.Mbs` or through :meth:`.get_sky`.
 
         """
+
+        if maps is None:
+            try:
+                maps = self.observations[0].sky
+            except AttributeError:
+                msg = "'maps' is None and nothing is found in the observation. You should either pass the maps here, or store them in the observations if 'mbs' is used."
+                raise AttributeError(msg)
+            assert maps["type"] == "maps", (
+                "'maps' should be of type 'maps'. Disable 'store_alms' in 'MbsParameters' to make it so."
+            )
 
         scan_map_in_observations(
             observations=self.observations,
