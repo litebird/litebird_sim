@@ -90,6 +90,11 @@ from .noise import (
     add_noise,
     add_noise_to_observations,
 )
+from .non_linearity import (
+    NonLinParams,
+    apply_quadratic_nonlin_for_one_detector,
+    apply_quadratic_nonlin_to_observations,
+)
 from .observations import Observation, TodDescription
 from .pointing_sys import (
     get_detector_orientation,
