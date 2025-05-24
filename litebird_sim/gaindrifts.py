@@ -271,9 +271,9 @@ def _noise_timestream(
     norm = sampling_freq_hz * fftlen / 2.0
 
     freq = np.fft.rfftfreq(fftlen, 1.0 / sampling_freq_hz)
-    assert (
-        freq.size == npsd
-    ), f"The size of frequency array is {freq.size} that is not same as the expected"
+    assert freq.size == npsd, (
+        f"The size of frequency array is {freq.size} that is not same as the expected"
+    )
     " value {npsd}"
 
     psd = np.zeros_like(freq)
@@ -406,9 +406,9 @@ def apply_gaindrift_for_one_detector(
             )
 
         if noise_timestream is None:
-            assert isinstance(
-                focalplane_attr, str
-            ), "The parameter `focalplane_attr` must be a string"
+            assert isinstance(focalplane_attr, str), (
+                "The parameter `focalplane_attr` must be a string"
+            )
 
             noise_timestream = _noise_timestream(
                 tod_size=tod_size,
