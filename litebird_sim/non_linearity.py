@@ -2,11 +2,11 @@
 
 import numpy as np
 import hashlib
-from enum import IntEnum
 from typing import Union, List
 from dataclasses import dataclass
 
 from .observations import Observation
+
 
 @dataclass
 class NonLinParams:
@@ -53,6 +53,7 @@ def _hash_function(
 
     return int.from_bytes(bytes=digest, byteorder="little")
 
+
 def apply_quadratic_nonlin_for_one_detector(
     tod_det,
     det_name: str,
@@ -81,7 +82,6 @@ def apply_quadratic_nonlin_for_one_detector(
     if nl_params is None:
         nl_params = NonLinParams()
 
-
     assert isinstance(det_name, str), "The parameter `det_name` must be a string"
     rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
 
@@ -89,7 +89,7 @@ def apply_quadratic_nonlin_for_one_detector(
         loc=nl_params.sampling_gaussian_loc,
         scale=nl_params.sampling_gaussian_scale,
     )
-           
+
     for i in range(len(tod_det)):
         tod_det[i] += g_one_over_k * tod_det[i] ** 2
 
@@ -100,23 +100,20 @@ def apply_quadratic_nonlin(
     nl_params: NonLinParams = None,
     user_seed: int = 12345,
 ):
-    
     """Apply a quadratic nonlinearity to some time-ordered data
 
     This functions modifies the values in `tod` by adding a parabolic function of the TOD itself.
-    """ 
+    """
 
     assert len(tod.shape) == 2
-    num_of_dets = tod.shape[0]
 
     for detector_idx in range(tod.shape[0]):
         apply_quadratic_nonlin_for_one_detector(
-            det_name=det_name[detector_idx], # --> questo poi lo definisco nella obs
+            det_name=det_name[detector_idx],  # --> questo poi lo definisco nella obs
             tod_det=tod[detector_idx],
-            nl_params=nl_params, # --> questo dovrebbe essere una realiz diversa per ogni det automaticamente
-            user_seed=user_seed,   
+            nl_params=nl_params,  # --> questo dovrebbe essere una realiz diversa per ogni det automaticamente
+            user_seed=user_seed,
         )
-
 
 
 def apply_quadratic_nonlin_to_observations(
@@ -158,7 +155,6 @@ def apply_quadratic_nonlin_to_observations(
     for cur_obs in obs_list:
         tod = getattr(cur_obs, component)
         det_name = cur_obs.name
-        
 
         apply_quadratic_nonlin(
             tod=tod,
@@ -166,3 +162,4 @@ def apply_quadratic_nonlin_to_observations(
             nl_params=nl_params,
             user_seed=user_seed,
         )
+
