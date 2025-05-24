@@ -16,6 +16,11 @@ jobs:
             mpi: mpich
             python: "3.10"
 
+    # Only run tests if there is no [skipci] or [skip ci] in the commit message
+    if: |
+      !startsWith(github.event.head_commit.message, '[skip ci]') &&
+      !startsWith(github.event.head_commit.message, '[skipci]')
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -67,26 +72,11 @@ jobs:
         env:
           DUCC0_OPTIMIZATION: none
 
-      - name: Get commit message
-        id: commit
-        run: echo "msg=$(git log -1 --pretty=%B)" >> "$GITHUB_OUTPUT"
-
-      - name: Check for skip keyword
-        id: skip_check
-        run: |
-          echo "Commit message: '${{ steps.commit.outputs.msg }}'"
-          if echo "${{ steps.commit.outputs.msg }}" | grep -Eiq '^\[skip ci\]|\[skipci\]'; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Tests
-        if: steps.skip_check.outputs.skip == 'false'
         run: bash ./bin/run_tests.sh
 
       - name: Tests MPICH
-        if: ${{ matrix.mpi == 'mpich' && steps.skip_check.outputs.skip == 'false' }}
+        if: ${{ matrix.mpi == 'mpich' }}
         run: |
             for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
@@ -95,7 +85,7 @@ jobs:
             done
 
       - name: Tests OpenMPI
-        if: ${{ matrix.mpi == 'openmpi' && steps.skip_check.outputs.skip == 'false' }}
+        if: ${{ matrix.mpi == 'openmpi' }}
         run: |
             for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
