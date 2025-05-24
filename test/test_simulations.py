@@ -725,3 +725,55 @@ def test_get_sky(tmp_path):
             maps[idx_det],
             same_ch_map,
         )
+
+
+def test_convolve_and_filltods_from_obs(tmp_path):
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=True, num_of_detectors=4
+    )
+
+    Mbsparams = lbs.MbsParameters(
+        make_cmb=True,
+        make_fg=True,
+        make_noise=False,
+        seed_cmb=1234,
+        fg_models=["pysm_dust_0"],
+        gaussian_smooth=False,
+        bandpass_int=False,
+        nside=16,
+        units="uK_CMB",
+        maps_in_ecliptic=False,
+        store_alms=True,  # This will produce alms
+    )
+
+    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    assert maps["type"] == "alms"
+
+    sim.observations[0].ellipticity = [1, 1, 1, 1]
+    _ = sim.get_gauss_beam_alms(Mbsparams.lmax_alms, store_in_observation=True)
+
+    sim.convolve_sky()
+    tod = sim.observations[0].tod[0]
+
+    sim.nullify_tod()
+
+    Mbsparams = lbs.MbsParameters(
+        make_cmb=True,
+        make_fg=True,
+        make_noise=False,
+        seed_cmb=1234,
+        fg_models=["pysm_dust_0"],
+        gaussian_smooth=True,
+        bandpass_int=False,
+        nside=16,
+        units="uK_CMB",
+        maps_in_ecliptic=False,
+        store_alms=False,  # This will produce maps
+    )
+
+    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    sim.fill_tods()
+
+    tod_2 = sim.observations[0].tod[0]
+
+    np.testing.assert_allclose(tod, tod_2)
