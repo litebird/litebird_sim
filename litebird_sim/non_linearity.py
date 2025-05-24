@@ -162,4 +162,3 @@ def apply_quadratic_nonlin_to_observations(
             nl_params=nl_params,
             user_seed=user_seed,
         )
-
