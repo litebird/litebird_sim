@@ -3,86 +3,75 @@
 HWP systematics
 ===============
 
-This module implements HWP non-idealities both using Jones’ formalism
-(as described in `Giardiello et al. 2021
-<https://arxiv.org/abs/2106.08031>`_) and Mueller’s. In Jones’
-formalism, a non-ideal HWP is described by
+This module implements HWP non-idealities using Mueller’ formalism
+(as described in `Patanchon et al. 2023
+<https://arxiv.org/pdf/2308.00967>`_). The Mueller matrix describing the effect of a HWP in the signal received by a detector can be expanded into the harmonics of the HWP rotation frequency f, from which we pick the 0th, 2nd and 4th terms.
 
 .. math::
-   :label: non_ideal_hwp_jones
+   :label: expansion_into_harmonics
 
-   J_{\text{HWP}} = \begin{pmatrix} 1+h_{1} & \zeta_{1} e^{i \chi_1}\\ \zeta_{2} e^{i \chi_2}& -(1+h_{2}) e^{i \beta} \\ \end{pmatrix}
+   M^{\text{HWP}}_{ij} = M^{0f}_{ij}(\Theta) + M^{2f}_{ij}(\Theta, \Phi, 2\rho) + M^{2f}_{ij}(\Theta, \Phi, 4\rho)
 
 where:
 
-*  :math:`h_1` and :math:`h_2` are the efficiencies, describing the deviation from the unitary
-   transmission of light components :math:`E_x`, :math:`E_y`. In the ideal case,
-   :math:`h_1 = h_2 = 0`;
+*  :math:`\Theta` is the incidence angle between the center of the HWP and the detector position;
 
-*  :math:`\beta=\phi-\pi`, where :math:`\phi` is the phase shift between the two
-   directions. It accounts for variations of the phase difference between :math:`E_x`
-   and :math:`E_y` with respect to the nominal value of :math:`\pi` for an ideal HWP.
-   In the ideal case, :math:`\beta=0`;
+*  :math:`\Phi` is the angle describing the azimuthal position of the detector in the focal plane;
 
-*  :math:`\zeta_{1,2}` and :math:`\chi_{1,2}` are amplitudes and phases of the
-   off-diagonal terms, coupling :math:`E_x` and :math:`E_y`. In practice, if the
-   incoming wave is fully polarized along x(y), a spurious y(x) component would
-   show up in the outgoing wave. In the ideal case, :math:`\zeta_{1,2}=\chi_{1,2}=0`.
+*  :math:`\rho` is the HWP rotation angle in **focal plane coordinates** (please note that this is not the case in `Patanchon et al. 2023 <https://arxiv.org/pdf/2308.00967>`_.) .
 
-In the Mueller formalism, we have a general matrix
+
+The :math:`\Theta` dependence is included in the input matrices, which are then multiplied at each sample by the trigonometric term depending harmonically on :math:`\rho` and :math:`\Phi`, such that:
+
+.. math::
+   :label: cosine_terms
+
+   M^{0f}_{ij} = M_{input_{ij}}^{0f}
+
+   M^{2f}_{ij} = M_{input_{ij}}^{2f} \cos{2\rho - 2\Phi - \phi_{ij}^{2f}}
+
+   M^{4f}_{ij} = M_{input_{ij}}^{4f} \cos{4\rho - 4\Phi - \phi_{ij}^{4f}}
+
+
+where :math:`\phi_{ij}` are harmonic and element dependent phases obtained trough EM simulations.   Because the Mueller matrix for an ideal HWP (for a detector at azimuthal angle :math:`\Phi = 0`) is given by:
 
 .. math::
    :label: non_ideal_hwp_mueller
 
-   J_{\text{HWP}} = \begin{pmatrix} M^{TT} & M^{TQ} & M^{TU} \\ M^{QT} & M^{QQ} & M^{QU} \\ M^{UT} & M^{UQ} & M^{UU} \\ \end{pmatrix}
+   M_{\text{IdealHWP}} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & \cos{4\rho} & \sin{4\rho} \\ 0 & \sin{4\rho} & -\cos{4\rho} \end{pmatrix}
 
-which, in the ideal case, would be
+which, in the HWP reference frame (:math:`\rho = 0`) yields the usual matrix for an ideal HWP (diagonal 1, 1 -1 terms), we can now see that an ideal HWP is obtained by setting:
+
 
 .. math::
-   :label: ideal_hwp_mueller
+   :label: non_ideal_hwp_mueller
 
-   J_{\text{HWP}} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & -1 \\ \end{pmatrix}
+   M^{0f}_{input_{ideal}} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix}
 
-In the most general case, the Jones non-ideal parameters and the Mueller matrix elements can vary inside a bandpass.
+   M^{2f}_{input_{ideal}} = \begin{pmatrix} 0 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix}
+
+   M^{4f}_{input_{ideal}} = \begin{pmatrix} 0 & 0 & 0 \\ 0 & 1 & 1 \\ 0 & 1 & 1 \end{pmatrix}
+
+
+The expected sin and negative cosine terms are accounted for by the phases :math:`\phi` in the expressions shown above, which is (in an ideal case) :math:`\pi` for the 4f UU element, and to :math:`\frac{\pi}{2}` for IU and UQ (sin terms).
+
+Changing one of the values in the matrices above represents a non-ideality in the hwp.
+
 
 The class :class:`.hwp_sys.HwpSys` is a container for the parameters
 of the HWP systematics. It defines three methods:
 
 * :meth:`.hwp_sys.HwpSys.set_parameters`, which sets the defaults and
-  handles the interface with the parameter file of the simulation. The
-  relevant section is tagged by ``[hwp_sys]``. The HWP parameters can
-  be passed both in the Jones' and Mueller's formalism. This choice is
-  regulated by the flag ``mueller_or_jones``, which can have the
-  values ``"mueller"`` or ``"jones"``. In case the Jones formalism is
-  chosen, it is converted automatically into the Mueller one through
-  the function ``.hwp_sys.JonesToMueller``. There is also the
+  handles the interface with the parameter file of the simulation.There is also the
   possibility of passing precomputed input maps (as a NumPy array)
   through the ``maps`` argument. Otherwise, the code computes input
-  maps through the module Mbs (see :ref:`Mbs`). The argument
-  ``integrate_in_band`` sets whether to perform band integration in
-  the TOD computation; if ``built_map_on_the_fly = True``, the
-  map-making can be performed internally (instead of using the
-  litebird_sim binner); ``correct_in_solver`` sets whether non-ideal
-  parameters can be used in the map-making (map-making assuming a
-  non-ideal HWP, generally using different HWP non-ideal parameters
-  than the one used in the TOD, representing our estimate of their
-  true value); ``integrate_in_band_solver`` regulates whether band
-  integration is performed in the map-making (to compute the
-  :math:`B^T B` and :math:`B^T d` terms, see below).
+  maps through the module Mbs (see :ref:`Mbs`). If ``built_map_on_the_fly = True``, the
+  map-making can be performed internally on-the-fly;  There are two boolean arguments related to the coupling of non-linearity effects with hwp systematic effects: ``if apply_non_linearity`` and ``add_2f_hwpss``. Applying the non-linearities inside the hwp_sys module is useful when one wants to use the mapmaking on the fly. To know more about detector non-linearity and HWPSS, see `this section <https://litebird-sim.readthedocs.io/en/master/non_linearity.html>`_.
 
 *  :meth:`.hwp_sys.HwpSys.fill_tod` which fills the tod in a given Observation. The ``pointings``
    angles passed have to include no rotating HWP, since the effect of the rotating HWP to the
    polarization angle is included in the TOD computation.
-   The TOD is computed performing this operation:
-
-   .. math::
-
-      d_{\text{obs}}\left(t_{i}\right)\,=\,\frac{\int d\nu\,\frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}\,\tau\left(\nu\right)\,M_{i}^{TX}(\nu)\left(m_{\text{CMB}}+m_{\text{FG}}\left(\nu\right)\right)}{\int d\nu \frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}\,\tau \left(\nu\right)},
-
-   where :math:`\tau(\nu)` is the bandpass,
-   :math:`\frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}` converts from CMB thermodynamic temperature
-   to differential source intensity (see eq.8 of https://arxiv.org/abs/1303.5070) and
-   :math:`M_{i}^{TX}(\nu)` is the Mueller matrix element including the non-ideal HWP.
+   The TOD is computed by the **equation 5.2** in `Patanchon et al. 2023 <https://arxiv.org/pdf/2308.00967>`_.
 
    If ``built_map_on_the_fly = True``, the code computes also
 
@@ -90,82 +79,114 @@ of the HWP systematics. It defines three methods:
 
       m_{\text{out}} = {\,\left(\sum_{i} B_{i}^{T} B_{i} \right)^{-1} \left( \sum_{i} B_{i}^{T} d_{\text{obs}}(t_{i}) \right)},
 
-   where the map-making matrix is
-
-   .. math::
-
-      B^X = \left(\frac{\int d\nu \,\frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}\,\tau_{s}\left(\nu\right)\,M_{i,s}^{TX}(\nu)}{\int d\nu \frac{\partial BB(\nu,T)}{\partial T_{\text{CMB}}}\,\tau_{s}\left(\nu\right)}\,\right).
-
-   :math:`\tau_s(\nu)` and :math:`M_{i,s}^{TX}(\nu)` are the estimate of
-   the bandpass and Mueller matrix elements used in the map-making.
+   where the map-making matrix is given by the user for each detector in the mueller_hwp_solver attribute of the DetectorInfo class.
 
 *  :meth:`.hwp_sys.HwpSys.make_map` which can bin the observations in a map. This is available only
    if ``built_map_on_the_fly`` variable is set to ``True``. With this method, it is possible to
-   include non-ideal HWP knowledge in the map-making procedure, so use that instead of the general
-   ``litebird_sim`` binner if you want to do so.
+   include non-ideal HWP knowledge in the map-making procedure.
 
-Defining a bandpass profile in ``hwp_sys``
-------------------------------------------
 
-It is possible to define more complex bandpass profiles than a top-hat when using ``hwp_sys``.
-This can be done both for the TOD computation (:math:`\tau`) and the map-making procedure
-(:math:`\tau_s`). All you have to do is create a dictionary with key "hwp_sys" in the parameter
-file (a toml file) assigned to the simulation:
+Examples
+-------------
+
+The examples below skip the simulation and observation creation for brevity. If needed, the implementation for those parts are explained in other sections of the docs.
 
 .. code-block:: python
 
-  sim = lbs.Simulation(
-      parameter_file=toml_filename,
-      random_seed=0,
+   (... importing modules, creating simulation, seetting scanning strategy, instrument etc...)
+
+   sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
+
+   # creating the detectors (DetectorInfo objects - only one in this example)
+   det = lbs.DetectorInfo.from_imo(...)
+
+   # defining the mueller matrices for the HWP for this detector.
+   # In this example, we set non-idealities in the IP leakage terms.
+   det.mueller_hwp = {
+            "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]]),
+            "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
+            "4f": np.array([[4*1e-4, 0, 0], [3*1e-4, 1, 1], [0, 1, 1]]),
+        }
+
+   # defining the mueller matrices for the mapmaking (pointing matrix) for this detector
+   # In this example, we consider an ideal pointing matrix. This could be left empty as it is the default case.
+   det.mueller_hwp_solver = {
+            "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]]),
+            "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
+            "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]]),
+        }
+
+   (obs,) = sim.create_observations(
+      detectors=dets,
    )
 
-The dictionary under the key "hwp_sys" will also contain the paths to the files from which the HWP
-parameters are read in the multifrequency case (under the keys "band_filename/band_filename_solver"), or their values in the single frequency one. See the notebook ``hwp_sys/examples/simple_scan``
-for more details.
-To define the bandpasses to use, you need to have a dictionary with key "bandpass"
-(for :math:`\tau`) or "bandpass_solver" (for :math:`\tau_s`) under "hwp_sys":
+   sim.prepare_pointings()
+
+   # creating the HwpSys object 
+   hwp_sys = lbs.HwpSys(sim)
+
+   # setting HwpSys parameters
+   hwp_sys.set_parameters(
+        nside=nside,
+        maps=input_maps,
+        Channel=channelinfo,
+        Mbsparams=Mbsparams,
+        build_map_on_the_fly=True, #if one wants to perform the mapmaking on-the-fly
+        comm=sim.mpi_comm,
+    )
+
+    hwp_sys.fill_tod(
+        observations=[obs],
+        input_map_in_galactic=False,
+    )
+
+    output_maps = hwp_sys.make_map([obs])
+
+To couple detector non-linearity with HWP systematics, three attributes must be defined when creating the DetectorInfo objects, and the respective booleans set to True in set_parameters, as in the example below:
 
 .. code-block:: python
 
-  paramdict = {...
-                "hwp_sys": {...
-                   "band_filename": path_to_HWP_param_file,
-                   "band_filename_solver": path_to_HWP_solver_param_file,
-                   "bandpass": {"band_type": "cheby",
-                                "band_low_edge": band_low_edge,
-                                "band_high_edge": band_high_edge,
-                                "bandcenter_ghz": bandcenter_ghz,
-                                "band_ripple_dB": ripple_dB_tod,
-                                "band_order": args.order_tod},
-                   "bandpass_solver": {...},
-                 ...}}
+   (... importing modules, creating simulation, seetting scanning strategy, instrument etc...)
 
-The above example is for a bandpass with Chebyshev filter, but there are other parameters to define
-different bandpass profile. It is important to define the "band_type", which can be "top-hat",
-"top-hat-exp", "top-hat-cosine" and "cheby" (see the ``bandpass`` module for more details)
-and the band edges, which define the frequency range over which the bandpass transmission
-is close or equal to 1. If not assigned, the "band_type" is automatically set to "top-hat"
-and the band edges will correspond to the limits of the frequency array used (which, in the
-``hwp_sys`` module, is read from the HWP parameter files). There are default values also for
-the parameters defining the specific bandpass profiles (see the
-``hwp_sys/hwp_sys/bandpass_template_module`` code).
+   sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
 
-There is also the possibility to read the bandpass profile from an external file, which has to be
-a .txt file with two columns, the frequency and the bandpass transmission. It is important that the
-frequency array used for "bandpass/bandpass_solver" coincides with the ones passed in the
-"band_filename/band_filename_solver" file. Here is how to pass the bandpass file:
+   det = lbs.DetectorInfo.from_imo(...)
 
-.. code-block:: python
+   det.mueller_hwp = {...}
+   det.mueller_hwp_solver = {...}
 
-  paramdict = {...
-                "hwp_sys": {...
-                   "band_filename": path_to_HWP_param_file,
-                   "band_filename_solver": path_to_HWP_solver_param_file,
-                   "bandpass": {"bandpass_file": path_to_bandpass_file },
-                   "bandpass_solver": {"bandpass_file": path_to_bandpass_solver_file},
-                 ...}}
+   det.g_one_over_k = -0.144
+   det.amplitude_2f_k = 2.0
+   det.optical_power_k = 1.5
 
-You can find more examples for the bandpass construction in the ``hwp_sys/examples/simple_scan`` notebook.
+   (obs,) = sim.create_observations(
+      detectors=dets,
+   )
+
+   sim.prepare_pointings()
+
+   # creating the HwpSys object 
+   hwp_sys = lbs.HwpSys(sim)
+
+   # setting HwpSys parameters
+   hwp_sys.set_parameters(
+        nside=nside,
+        maps=input_maps,
+        Channel=channelinfo,
+        Mbsparams=Mbsparams,
+        build_map_on_the_fly=True, #if one wants to perform the mapmaking on-the-fly
+        apply_non_linearity=True,
+        add_orbital_dipole=True,
+        add_2f_hwpss=True,
+        comm=sim.mpi_comm,
+    )
+
+    hwp_sys.fill_tod(
+        observations=[obs],
+        input_map_in_galactic=False,
+    )
+
+    output_maps = hwp_sys.make_map([obs])
 
 API reference
 -------------
@@ -174,15 +195,6 @@ HWP_sys
 ~~~~~~~
 
 .. automodule:: litebird_sim.hwp_sys.hwp_sys
-    :members:
-    :show-inheritance:
-    :private-members:
-    :member-order: bysource
-
-Bandpass template
-~~~~~~~~~~~~~~~~~
-
-.. automodule:: litebird_sim.hwp_sys.bandpass_template_module
     :members:
     :show-inheritance:
     :private-members:
