@@ -330,6 +330,10 @@ __all__ = [
     "apply_gaindrift_for_one_detector",
     "apply_gaindrift_to_tod",
     "apply_gaindrift_to_observations",
+    # non_linearity.py
+    "NonLinParams",
+    "apply_quadratic_nonlin_for_one_detector",
+    "apply_quadratic_nonlin_to_observations",
     # pointing_sys.py
     "get_detector_orientation",
     "left_multiply_offset2det",
