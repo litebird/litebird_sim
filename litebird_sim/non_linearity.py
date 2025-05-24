@@ -71,7 +71,9 @@ def apply_quadratic_nonlin_for_one_sample(
             raise ValueError("Either `g_one_over_k` or `det_name` must be provided.")
 
         if not isinstance(det_name, str):
-            raise TypeError("`det_name` must be a string when `g_one_over_k` is not provided.")
+            raise TypeError(
+                "`det_name` must be a string when `g_one_over_k` is not provided."
+            )
 
         rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
         g_one_over_k = rng.normal(
