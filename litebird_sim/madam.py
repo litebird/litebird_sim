@@ -361,9 +361,9 @@ def save_simulation_for_madam(
         for idx, val in enumerate(distribution.mpi_processes)
         if val.mpi_rank == rank
     ]
-    assert (
-        len(this_process_idx) == 1
-    ), "more than one MPI rank matches Simulation.describe_mpi_distribution()"
+    assert len(this_process_idx) == 1, (
+        "more than one MPI rank matches Simulation.describe_mpi_distribution()"
+    )
     this_process_idx = this_process_idx[0]
 
     pointing_files = []
@@ -388,10 +388,10 @@ def save_simulation_for_madam(
                 for x in sorted_obs_per_det[cur_global_det_idx]
                 if x.obs_local_idx == cur_obs_idx
             ]
-            assert (
-                len(matching_obs) == 1
-            ), "There is a bug in _sort_obs_per_det(), {} ≠ 1 observations".format(
-                len(matching_obs)
+            assert len(matching_obs) == 1, (
+                "There is a bug in _sort_obs_per_det(), {} ≠ 1 observations".format(
+                    len(matching_obs)
+                )
             )
             file_idx = matching_obs[0].obs_global_idx
 

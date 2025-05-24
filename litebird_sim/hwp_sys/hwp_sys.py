@@ -694,9 +694,9 @@ class HwpSys:
 
         rank = self.comm.rank
 
-        assert (
-            observations is not None
-        ), "You need to pass at least one observation to fill_tod."
+        assert observations is not None, (
+            "You need to pass at least one observation to fill_tod."
+        )
 
         if pointings is None:
             if hwp_angle:
@@ -889,9 +889,9 @@ class HwpSys:
             map (float): rebinned T,Q,U maps
         """
 
-        assert (
-            self.build_map_on_the_fly
-        ), "make_map available only with build_map_on_the_fly option activated"
+        assert self.build_map_on_the_fly, (
+            "make_map available only with build_map_on_the_fly option activated"
+        )
         # from mapping.py
         if all([obs.comm is None for obs in observations]) or not mpi.MPI_ENABLED:
             # Serial call

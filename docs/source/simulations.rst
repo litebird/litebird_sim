@@ -379,10 +379,13 @@ Monitoring MPI processes
 ------------------------
 
 When using MPI, the method :meth:`.Simulation.create_observations`
-distributes detectors and time spans over all the available
-MPI processes. The :class:`.Simulation` class provides a method
-that enables the user to inspect how the TOD has been split
-among the many MPI processes: :meth:`.Simulation.describe_mpi_distribution`.
+distributes detectors and time spans over all the available MPI
+processes, using the container object :class:`.Observation` to keep
+detectors, times, and pointing information in the same place. (See
+:ref:`observations` for more information.) The :class:`.Simulation`
+class provides a method that enables the user to inspect how the TOD
+has been split among the many MPI processes:
+:meth:`.Simulation.describe_mpi_distribution`.
 
 The method must be called at the same time on *all* the MPI
 processess, once you have successfully called
@@ -516,8 +519,8 @@ straightforward::
     sim.write_observations(...)
     sim.read_observations(...)
 
-Dedicated functions can also take care of the input generation and of the beam
-convolution::
+Dedicated functions can also take care of the input generation and of
+the beam convolution::
 
     Mbsparams = lbs.MbsParameters(...)
     alms = sim.get_sky(parameters=Mbsparams)
@@ -539,6 +542,8 @@ See the documentation in :ref:`observations`, :ref:`scanning-strategy`
 :ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`mapmaking`,
 :ref:`beamconvolution`, :ref:`Mbs`, for details of the single functions.
 
+The difference between the high-level and low-level interfaces is
+explained in :ref:`high-level-vs-low-level-interfaces`.
 
 Data splits
 ^^^^^^^^^^^
@@ -604,6 +609,56 @@ called, each MPI process creates its own JSON file containing the methods that
 have been measured during the execution of the simulation. These files are
 stored in the output directory and have names like ``profile_mpi00000.json``,
 ``profile_mpi00001.json``, etc.
+
+
+.. _high-level-vs-low-level-interfaces:
+
+Appendix: why are there high- and low-level functions in LBS?
+-------------------------------------------------------------
+
+At the end of this chapter, it is useful to provide an explanation to
+the reason why :class:`.Simulation` provides methods that wrap
+functions, like :meth:`.Simulation.add_dipole` and :func:`.add_dipole`.
+
+LBS is organized in a modular and hierarchical way because this
+facilitates flexibility and reuse. Functions like :func:`.add_dipole`
+are meant to be used as low-level functions that perform the main
+computation. Often, there is a further split between the function that
+operates on one detector, like :func:`.add_dipole_for_one_detector`,
+and the function that operates on many detectors at once, like
+:func:`.add_dipole`; in this case, the former is usually implemented
+using Numba, while the latter is a plain ``for`` loop that wraps the
+former.
+
+These low-level function usually require several parameters, but when
+they are called within large pipelines it is often the case that the
+same values would appear again and again as parameters to the many
+low-level functions needed in the simulation. For this reason, the
+constructor to :class:`.Simulation` asks for several parameters that
+are likely to be re-used, and it uses functions like
+:meth:`.Simulation.set_instrument` to inizialize member variables that
+are used by these high-level wrappers. In this way, the risk to
+mistakenly use two different values for the same parameter in the same
+simulation is minimized.
+
+When implementing new modules, you should try to follow the same approach:
+
+1. Implement a low-level function working on just one detector, if
+   this is feasible for your purpose, and make it as efficient as
+   possible. (Numba is a good choice here.)
+
+2. Provide a function that iterates over many detectors and calls the
+   function you just implemented. (Again, do this only if it makes
+   sense.)
+
+3. Implement a method in :class:`.Simulation` that wraps your
+   function.
+
+In a few cases, we choose to implement a new layer between point 2.
+and 3., where we wrap the low-level function in a method of the
+:class:`.Observation` class. In this case, the method in
+:class:`.Simulation` just iterates over ``Simulation.observations``
+and calls it.
 
 
 API reference

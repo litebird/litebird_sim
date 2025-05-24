@@ -293,9 +293,9 @@ def write_healpix_map_to_hdu(
             len(pixels), ["COLUMN_%d" % n for n in range(1, len(pixels) + 1)]
         )
     else:
-        assert len(column_names) == len(
-            pixels
-        ), f"{len(column_names)=} != {len(pixels)=}"
+        assert len(column_names) == len(pixels), (
+            f"{len(column_names)=} != {len(pixels)=}"
+        )
 
     if column_units is None or isinstance(column_units, str):
         column_units = [column_units] * len(pixels)

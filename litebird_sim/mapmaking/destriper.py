@@ -1,35 +1,25 @@
 # -*- encoding: utf-8 -*-
+import gc
 import logging
 import time
-
-# The implementation of the destriping algorithm provided here is based on the paper
-# «Destriping CMB temperature and polarization maps» by Kurki-Suonio et al. 2009,
-# A&A 506, 1511–1539 (2009), https://dx.doi.org/10.1051/0004-6361/200912361
-#
-# It is important to have that paper at hand while reading this code, as many
-# functions and variable defined here use the same letters and symbols of that
-# paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
-
 from dataclasses import dataclass
-import gc
 from pathlib import Path
+from typing import Callable, Union, List, Optional, Tuple, Any, Dict
 
+import healpy as hp
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
-import healpy as hp
 
-from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
-from typing import Callable, Union, List, Optional, Tuple, Any, Dict
+from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
 from litebird_sim.hwp import HWP
+from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
-from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
-
 from .common import (
     _compute_pixel_indices,
     COND_THRESHOLD,
@@ -40,6 +30,14 @@ from .common import (
     _build_mask_detector_split,
     _build_mask_time_split,
 )
+
+# The implementation of the destriping algorithm provided here is based on the paper
+# «Destriping CMB temperature and polarization maps» by Kurki-Suonio et al. 2009,
+# A&A 506, 1511–1539 (2009), https://dx.doi.org/10.1051/0004-6361/200912361
+#
+# It is important to have that paper at hand while reading this code, as many
+# functions and variable defined here use the same letters and symbols of that
+# paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
 if MPI_ENABLED:
     import mpi4py.MPI
@@ -53,7 +51,7 @@ def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
     """Divide a quantity `length` into chunks, each roughly of the same length
 
     This low-level function is used to determine how many samples in a TOD should be
-    collected by the toast_destriper within the same baseline.
+    collected by a destriper within the same baseline.
 
     .. testsetup::
 
@@ -70,9 +68,9 @@ def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
         [2 3 2 3]
     """
     assert num_of_segments > 0, f"num_of_segments={num_of_segments} is not positive"
-    assert (
-        n >= num_of_segments
-    ), f"n={n} is smaller than num_of_segments={num_of_segments}"
+    assert n >= num_of_segments, (
+        f"n={n} is smaller than num_of_segments={num_of_segments}"
+    )
 
     start_positions = np.array(
         [int(i * n / num_of_segments) for i in range(num_of_segments + 1)],

@@ -1015,13 +1015,13 @@ class Simulation:
             # - sim.noise_tod
         """
 
-        assert (
-            self.start_time is not None
-        ), "you must set start_time when creating the Simulation object"
+        assert self.start_time is not None, (
+            "you must set start_time when creating the Simulation object"
+        )
 
-        assert isinstance(
-            self.duration_s, (float, int)
-        ), "you must set duration_s when creating the Simulation object"
+        assert isinstance(self.duration_s, (float, int)), (
+            "you must set duration_s when creating the Simulation object"
+        )
 
         if not detectors:
             detectors = self.detectors
@@ -2447,9 +2447,9 @@ class Simulation:
             if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
                 dictionary["drift_type"] = "Linear"
                 dictionary["linear_drift"] = True
-                dictionary[
-                    "calibration_period_sec"
-                ] = drift_params.calibration_period_sec
+                dictionary["calibration_period_sec"] = (
+                    drift_params.calibration_period_sec
+                )
 
             elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
                 dictionary["drift_type"] = "Thermal"

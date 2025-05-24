@@ -1,18 +1,16 @@
 from dataclasses import dataclass
 from typing import Union, List, Tuple, Callable
+
+import astropy.time
 import numpy as np
 import numpy.typing as npt
-from numba import njit
-import astropy.time
-
 from ducc0.healpix import Healpix_Base
+from numba import njit
 
 from litebird_sim.coordinates import CoordinateSystem
-from litebird_sim.observations import Observation
 from litebird_sim.mpi import MPI_COMM_GRID
-
+from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import _get_pointings_array, _get_pol_angle
-
 
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not
@@ -30,7 +28,7 @@ hft_wafers = ["H00", "H01", "H02"]
 
 @dataclass
 class ExternalDestriperParameters:
-    """Parameters used by the TOAST/Madam mapmakers to produce a map.
+    """Parameters used by the Madam mapmakers to produce a map.
 
     The list of fields in this dataclass is the following:
 
@@ -114,12 +112,12 @@ def get_map_making_weights(
     if check and MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
         if check:
             # Check that there are no weird weights
-            assert np.all(
-                np.isfinite(weights)
-            ), f"Not all the detectors' weights are finite numbers: {weights}"
-            assert np.all(
-                weights > 0.0
-            ), f"Not all the detectors' weights are positive: {weights}"
+            assert np.all(np.isfinite(weights)), (
+                f"Not all the detectors' weights are finite numbers: {weights}"
+            )
+            assert np.all(weights > 0.0), (
+                f"Not all the detectors' weights are positive: {weights}"
+            )
 
     return weights
 

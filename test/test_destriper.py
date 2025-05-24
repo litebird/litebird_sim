@@ -17,6 +17,7 @@ from typing import Any, Tuple, List
 
 import astropy.time
 import numpy as np
+import numpy.testing as nptest
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
@@ -183,9 +184,9 @@ def create_analytical_solution(
     add_baselines: bool = True,
 ) -> AnalyticalSolution:
     # We assume that we have *two* baselines!
-    assert (
-        len(baseline_runs) == 2
-    ), "The test code requires that *two* baselines be provided"
+    assert len(baseline_runs) == 2, (
+        "The test code requires that *two* baselines be provided"
+    )
 
     # Beware, the `*` and `+` operators used here work on Python arrays, not
     # on NumPy objects! Their semantics differ! Here we just want
@@ -419,9 +420,9 @@ def test_map_maker_parts():
         tm_list=time_mask_list,
     )
 
-    assert (
-        expected_solution.M.shape[0] % 3 == 0
-    ), "Matrix M must have size (3n_pix, 3n_pix)"
+    assert expected_solution.M.shape[0] % 3 == 0, (
+        "Matrix M must have size (3n_pix, 3n_pix)"
+    )
 
     number_of_pixels = expected_solution.M.shape[0] // 3
 
@@ -619,9 +620,9 @@ def _make_zero_mean(x: npt.ArrayLike) -> npt.NDArray:
 
 def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
     if not use_destriper:
-        assert (
-            not use_preconditioner
-        ), "Impossible to use a preconditioner with the binner!"
+        assert not use_preconditioner, (
+            "Impossible to use a preconditioner with the binner!"
+        )
 
     if lbs.MPI_COMM_WORLD.size > 2:
         # This test can work only with 1 or 2 MPI processes, no more
@@ -659,7 +660,7 @@ def _test_map_maker(use_destriper: bool, use_preconditioner: bool):
 
     if use_destriper:
         for cur_baseline_errors in result.baseline_errors:
-            assert np.alltrue(cur_baseline_errors > 0)
+            assert np.all(cur_baseline_errors > 0)
 
         # Check that remove_destriper_baselines_from_tod works. We use a trick here:
         # we create a new null TOD and ask to remove the baselines from it, so that
@@ -859,16 +860,16 @@ def test_full_destriper(tmp_path):
 
     # Check that all the errors on the baseline values are non-negative
     for cur_baseline_errors in destriper_result.baseline_errors:
-        assert np.alltrue(cur_baseline_errors >= 0.0)
+        assert np.all(cur_baseline_errors >= 0.0)
 
 
 def _assert_dataclasses_equal(actual, desired, params_to_check: List[str]) -> None:
     for param in params_to_check:
         actual_value = getattr(actual, param)
         desired_value = getattr(desired, param)
-        assert (
-            actual_value == desired_value
-        ), f"Parameter {param} is different: {actual_value=} ≠ {desired_value=}"
+        assert actual_value == desired_value, (
+            f"Parameter {param} is different: {actual_value=} ≠ {desired_value=}"
+        )
 
 
 def _test_destriper_results_io(tmp_path, use_destriper: bool):
@@ -1029,7 +1030,7 @@ def _test_destriper_results_io(tmp_path, use_destriper: bool):
         for cur_actual, cur_desired in zip(
             actual_results.baseline_lengths, desired_results.baseline_lengths
         ):
-            assert np.alltrue(cur_actual == cur_desired)
+            nptest.assert_equal(cur_actual, cur_desired)
 
 
 def test_destriper_io(tmp_path):

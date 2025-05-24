@@ -608,9 +608,9 @@ def read_one_observation(
             else:
                 cur_field_name = cur_field
 
-            assert (
-                cur_field_name in inpf
-            ), f"Field {cur_field_name} not found in HDF5 file {path}"
+            assert cur_field_name in inpf, (
+                f"Field {cur_field_name} not found in HDF5 file {path}"
+            )
             hdf5_tod = inpf[cur_field_name]
 
             if hdf5_tod.attrs["mjd_time"]:

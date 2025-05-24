@@ -511,7 +511,7 @@ class Mbs:
                         noise_map_split = np.random.randn(3, npix) * split_rms
                         noise_map += noise_map_split
                         file_name = (
-                            f"{chnl}_noise_SPLIT_{hm+1:04d}of{n_split:04d}"
+                            f"{chnl}_noise_SPLIT_{hm + 1:04d}of{n_split:04d}"
                             + f"_{nmc_str}_{file_str}.fits"
                         )
                         cur_map_path = nmc_output_directory / file_name
