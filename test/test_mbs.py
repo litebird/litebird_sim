@@ -74,7 +74,7 @@ def test_mbs():
             npt.assert_allclose(maps["mock"], map_ref, atol=1e-3)
 
 
-def test_map_rotation(tmp_path):
+def test_map_rotation():
     telescope = "LFT"
     channel = "L4-140"
     detlist = ["000_001_017_QB_140_T"]
