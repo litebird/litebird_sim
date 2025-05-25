@@ -675,10 +675,6 @@ class Mbs:
                     )
                 else:
                     cmb_map_smt = cmb_map
-                if self.rotator is not None:
-                    cmb_map_smt = self.rotator.rotate_map_alms(
-                        cmb_map_smt, lmax=self.params.lmax_alms
-                    )
                 if self.params.save:
                     file_name = f"{chnl}_cmb_{nmc_str}_{file_str}.fits"
                     cur_map_path = nmc_output_directory / file_name
