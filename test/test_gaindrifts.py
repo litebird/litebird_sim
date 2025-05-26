@@ -1,25 +1,8 @@
 import numpy as np
-import hashlib
 import litebird_sim as lbs
 from astropy.time import Time
 
-
-def _hash_function(
-    input_str: str,
-    user_seed: int = 12345,
-) -> int:
-    """This functions generates a unique and reproducible hash for a given pair of
-    `input_str` and `user_seed`. A copy of the function with the same name
-    defined in `litebird_sim/gaindrifts.py`.
-    """
-
-    bytesobj = (str(input_str) + str(user_seed)).encode("utf-8")
-
-    hashobj = hashlib.md5()
-    hashobj.update(bytesobj)
-    digest = hashobj.digest()
-
-    return int.from_bytes(bytes=digest, byteorder="little")
+from litebird_sim.gaindrifts import _hash_function
 
 
 class Test_wrappers_gain_drift:
@@ -123,12 +106,13 @@ class Test_wrappers_gain_drift:
         """This function test if the high level wrappers produce same
         results as the low level function for the thermal gain drift.
         """
+        random_seed = 12345
 
         sim1 = lbs.Simulation(
             base_path=tmp_path / "gd_wrapper_test",
             start_time=self.start_time,
             duration_s=self.duration_s,
-            random_seed=12345,
+            random_seed=random_seed,
         )
 
         sim1.create_observations(
@@ -150,12 +134,15 @@ class Test_wrappers_gain_drift:
             component="gain_2_self",
         )
 
+        sim1.init_random(random_seed)
         lbs.apply_gaindrift_to_observations(
             observations=sim1.observations,
             drift_params=self.drift_params,
             component="gain_2_obs",
+            random=sim1.random,
         )
 
+        sim1.init_random(random_seed)
         lbs.apply_gaindrift_to_tod(
             tod=sim1.observations[0].gain_2_tod,
             sampling_freq_hz=self.sampling_freq_Hz,
@@ -164,8 +151,10 @@ class Test_wrappers_gain_drift:
             focalplane_attr=getattr(
                 sim1.observations[0], self.drift_params.focalplane_group
             ),
+            random=sim1.random,
         )
 
+        sim1.init_random(random_seed)
         for idx, tod in enumerate(sim1.observations[0].gain_2_det):
             lbs.apply_gaindrift_for_one_detector(
                 det_tod=tod,
@@ -175,6 +164,7 @@ class Test_wrappers_gain_drift:
                 focalplane_attr=getattr(
                     sim1.observations[0], self.drift_params.focalplane_group
                 )[idx],
+                random=sim1.random,
             )
 
         # Testing if the four gain drift tods are same
