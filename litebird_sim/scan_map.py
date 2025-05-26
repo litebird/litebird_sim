@@ -393,7 +393,7 @@ def scan_map_in_observations(
 
     if maps is None:
         try:
-            maps = observations.sky
+            maps = observations[0].sky
         except AttributeError:
             msg = "'maps' is None and nothing is found in the observation. You should either pass the maps here, or store them in the observations if 'mbs' is used."
             raise AttributeError(msg)

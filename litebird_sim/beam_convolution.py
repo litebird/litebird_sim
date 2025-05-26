@@ -399,7 +399,7 @@ def add_convolved_sky_to_observations(
 
     if sky_alms is None:
         try:
-            sky_alms = observations.sky
+            sky_alms = observations[0].sky
         except AttributeError:
             msg = "'sky_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics, or store them in the observations if 'mbs' is used."
             raise AttributeError(msg)
@@ -409,7 +409,7 @@ def add_convolved_sky_to_observations(
 
     if beam_alms is None:
         try:
-            beam_alms = observations.blms
+            beam_alms = observations[0].blms
         except AttributeError:
             msg = "'beam_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics of the beam, or store them in the observations if 'get_gauss_beam_alms' is used."
             raise AttributeError(msg)
