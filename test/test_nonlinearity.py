@@ -2,6 +2,7 @@ import numpy as np
 import litebird_sim as lbs
 from astropy.time import Time
 
+
 def test_add_quadratic_nonlinearity():
     # Test function to check consistency of wrappers and low level functions
     start_time = Time("2025-02-02T00:00:00")
@@ -67,7 +68,9 @@ def test_add_quadratic_nonlinearity():
     sim.observations[0].tod_origin = np.ones_like(sim.observations[0].tod)
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
         det_name = sim.observations[0].name[idx]
-        rng = np.random.default_rng(seed=lbs.non_linearity._hash_function(det_name, user_seed=12345))
+        rng = np.random.default_rng(
+            seed=lbs.non_linearity._hash_function(det_name, user_seed=12345)
+        )
 
         g_one_over_k = rng.normal(
             loc=nl_params.sampling_gaussian_loc,
