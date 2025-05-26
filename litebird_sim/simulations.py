@@ -1727,7 +1727,7 @@ class Simulation:
             nl_params=nl_params,
             user_seed=user_seed,
             component=component,
-            random=None if user_seed is None else self.random,
+            random=self.random if user_seed is None else None,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2387,7 +2387,7 @@ class Simulation:
             drift_params=drift_params,
             user_seed=user_seed,
             component=component,
-            random=None if user_seed is None else self.random,
+            random=self.random if user_seed is None else None,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
