@@ -253,8 +253,11 @@ def _noise_timestream(
         drift_params (GainDriftParams, optional): The class object for
           gain drift simulation parameters. Defaults to None.
 
-        user_seed (int, optional): The user provided seed for random number
-          generation. Defaults to 12345.
+        user_seed (int, optional): A seed provided by the user. Defaults
+          to None.
+
+        random (np.random.Generator, optional): A random number generator.
+          Defaults to None.
 
     Returns:
 
@@ -360,7 +363,10 @@ def apply_gaindrift_for_one_detector(
           stream. Defaults to None.
 
         user_seed (int, optional): A seed provided by the user. Defaults
-          to 12345.
+          to None.
+
+        random (np.random.Generator, optional): A random number generator.
+          Defaults to None.
     """
 
     if user_seed is not None and random is not None:
@@ -493,7 +499,10 @@ def apply_gaindrift_to_tod(
           wafer. Defaults to None.
 
         user_seed (int, optional): A seed provided by the user. Defaults
-          to 12345.
+          to None.
+
+        random (np.random.Generator, optional): A random number generator.
+          Defaults to None.
     """
 
     if drift_params is None:
@@ -583,11 +592,14 @@ def apply_gaindrift_to_observations(
         drift_params (:class:`.GainDriftParams`, optional): The gain drift
           injection parameters object. Defaults to None.
 
-        user_seed (int, optional): A seed provided by the user. Defaults
-          to 12345.
-
         component (str, optional): The name of the TOD on which the gain
           drift has to be injected. Defaults to "tod".
+
+        user_seed (int, optional): A seed provided by the user. Defaults
+          to None.
+
+        random (np.random.Generator, optional): A random number generator.
+          Defaults to None.
     """
 
     if drift_params is None:

@@ -38,7 +38,7 @@ def _hash_function(
 
         input_str (str): A string, for example, the detector name.
 
-        user_seed (int, optional): A seed provided by the user. Defaults to 12345.
+        user_seed (int): A seed provided by the user. Defaults to 12345.
 
     Returns:
 
@@ -101,8 +101,8 @@ def apply_quadratic_nonlin_for_one_detector(
     user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
 ):
-    """This function applies the quadratic non-linearity on the TOD corresponding to only one
-    detector.
+    """This function applies the quadratic non-linearity on the TOD corresponding to
+    only one detector.
 
     Args:
 
@@ -114,11 +114,14 @@ def apply_quadratic_nonlin_for_one_detector(
           set random slope in case of linear drift, and randomized detector mismatch
           in case of thermal gain drift.
 
-       nl_params (:class:`.NonLinParams`, optional): The non-linearity
+        nl_params (:class:`.NonLinParams`, optional): The non-linearity
           injection parameters object. Defaults to None.
 
         user_seed (int, optional): A seed provided by the user. Defaults
-          to 12345.
+          to None.
+
+        random (np.random.Generator, optional): A random number generator.
+          Defaults to None.
     """
     if user_seed is not None and random is not None:
         raise ValueError(
