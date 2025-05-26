@@ -56,7 +56,6 @@ def test_add_quadratic_nonlinearity():
             tod_det=tod,
             det_name=sim.observations[0].name[idx],
             nl_params=nl_params,
-            user_seed=12345,
             random=sim.random,
         )
 
