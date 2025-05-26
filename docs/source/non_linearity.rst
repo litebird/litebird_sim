@@ -1,3 +1,5 @@
+.. _non_linearity:
+
 Non-linearity injection
 =======================
 
@@ -97,7 +99,10 @@ described in `Micheli+2024 <https://arxiv.org/pdf/2407.15294>`_, a
 typical case is the coupling with HWP synchronous signal (HWPSS)
 appearing at twice the rotation frequency of the HWP. This kind of
 signal can be produced by non-idealities of the HWP, such as its
-differential transmission and emission.
+differential transmission and emission. 
+Note that it is important to include in the TODs the contribution
+of the CMB monopole and the orbital dipole _before_ applying non-linearity,
+to properly account for the total signal hitting the detectors. 
 
 In that case, the usual TOD :math:`d(t)` will contain an additional
 term, and can be written as:
@@ -118,9 +123,7 @@ low-level functions: :func:`.add_2f_to_observations()`,
 :func:`.add_2f_for_one_detector()`.
 
 If the 2f amplitude is not read from the IMo, one has to specify
-:math:`A_2` using the ``amplitude_2f_k`` argument. The argument
-``optical_power_k`` enables the inclusion of the integrated nominal
-optical power expected for each channel. See the following example:
+:math:`A_2` using the ``amplitude_2f_k`` argument. See the following example:
 
 .. code-block:: python
 
@@ -183,7 +186,6 @@ optical power expected for each channel. See the following example:
 
     # Define differential emission parameters for the detectors.
     sim.observations[0].amplitude_2f_k = np.array([0.1, 0.1])
-    sim.observations[0].optical_power_k = np.array([1.0, 1.0])
 
     # Adding 2f signal from HWP differential emission using the `Simulation` class method
     sim.add_2f(component="tod_2f")
