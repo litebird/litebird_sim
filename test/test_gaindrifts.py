@@ -53,12 +53,13 @@ class Test_wrappers_gain_drift:
         """This function test if the high level wrappers produce same
         results as the low level function for linear gain drift.
         """
+        random_seed = 12345
 
         sim1 = lbs.Simulation(
             base_path=tmp_path / "gd_wrapper_test",
             start_time=self.start_time,
             duration_s=self.duration_s,
-            random_seed=12345,
+            random_seed=random_seed,
         )
 
         sim1.create_observations(
@@ -78,25 +79,31 @@ class Test_wrappers_gain_drift:
             component="gain_2_self",
         )
 
+        sim1.init_random(random_seed)
         lbs.apply_gaindrift_to_observations(
             observations=sim1.observations,
             drift_params=self.drift_params,
             component="gain_2_obs",
+            random=sim1.random,
         )
 
+        sim1.init_random(random_seed)
         lbs.apply_gaindrift_to_tod(
             tod=sim1.observations[0].gain_2_tod,
             sampling_freq_hz=self.sampling_freq_Hz,
             det_name=sim1.observations[0].name,
             drift_params=self.drift_params,
+            random=sim1.random,
         )
 
+        sim1.init_random(random_seed)
         for idx, tod in enumerate(sim1.observations[0].gain_2_det):
             lbs.apply_gaindrift_for_one_detector(
                 det_tod=tod,
                 sampling_freq_hz=self.sampling_freq_Hz,
                 det_name=sim1.observations[0].name[idx],
                 drift_params=self.drift_params,
+                random=sim1.random,
             )
 
         # Testing if the four gain drift tods are same
