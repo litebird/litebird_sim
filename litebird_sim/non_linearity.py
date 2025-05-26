@@ -60,6 +60,7 @@ def apply_quadratic_nonlin_for_one_sample(
     nl_params: NonLinParams = None,
     user_seed: int = 12345,
     g_one_over_k: float = None,
+    random: Union[np.random.Generator, None] = None,
 ):
     if nl_params is None:
         nl_params = NonLinParams()
@@ -75,8 +76,12 @@ def apply_quadratic_nonlin_for_one_sample(
                 "`det_name` must be a string when `g_one_over_k` is not provided."
             )
 
-        rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
-        g_one_over_k = rng.normal(
+        if random is None:
+            assert user_seed is not None, (
+                "You should either pass a random generator that that implements the 'normal' method, or an integer seed, none are provided."
+            )
+            random = np.random.default_rng(seed=_hash_function(det_name, user_seed))
+        g_one_over_k = random.normal(
             loc=nl_params.sampling_gaussian_loc,
             scale=nl_params.sampling_gaussian_scale,
         )
@@ -89,6 +94,7 @@ def apply_quadratic_nonlin_for_one_detector(
     det_name: str,
     nl_params: NonLinParams = None,
     user_seed: int = 12345,
+    random: Union[np.random.Generator, None] = None,
 ):
     """This function applies the quadratic non-linearity on the TOD corresponding to only one
     detector.
@@ -112,10 +118,14 @@ def apply_quadratic_nonlin_for_one_detector(
     if nl_params is None:
         nl_params = NonLinParams()
 
-    assert isinstance(det_name, str), "The parameter `det_name` must be a string"
-    rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
+    if random is None:
+        assert user_seed is not None, (
+            "You should either pass a random generator that that implements the 'normal' method, or an integer seed, none are provided."
+        )
+        assert isinstance(det_name, str), "The parameter `det_name` must be a string"
+        random = np.random.default_rng(seed=_hash_function(det_name, user_seed))
 
-    g_one_over_k = rng.normal(
+    g_one_over_k = random.normal(
         loc=nl_params.sampling_gaussian_loc,
         scale=nl_params.sampling_gaussian_scale,
     )
@@ -129,6 +139,7 @@ def apply_quadratic_nonlin(
     det_name: Union[List, np.ndarray],
     nl_params: NonLinParams = None,
     user_seed: int = 12345,
+    random: Union[np.random.Generator, None] = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -143,6 +154,7 @@ def apply_quadratic_nonlin(
             tod_det=tod[detector_idx],
             nl_params=nl_params,  # --> questo dovrebbe essere una realiz diversa per ogni det automaticamente
             user_seed=user_seed,
+            random=random,
         )
 
 
@@ -151,6 +163,7 @@ def apply_quadratic_nonlin_to_observations(
     nl_params: NonLinParams = None,
     user_seed: int = 12345,
     component: str = "tod",
+    random: Union[np.random.Generator, None] = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -191,4 +204,5 @@ def apply_quadratic_nonlin_to_observations(
             det_name=det_name,
             nl_params=nl_params,
             user_seed=user_seed,
+            random=random,
         )
