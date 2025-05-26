@@ -1516,6 +1516,8 @@ class Simulation:
             template_file_path = get_template_file_path("report_scan_map.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
+            if maps is None:
+                maps = self.observations[0].sky
             if isinstance(maps, dict):
                 if "Mbs_parameters" in maps.keys():
                     if maps["Mbs_parameters"].make_fg:
@@ -1703,6 +1705,8 @@ class Simulation:
             template_file_path = get_template_file_path("report_convolve_sky.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
+            if sky_alms is None:
+                sky_alms = self.observations[0].sky
             if isinstance(sky_alms, dict):
                 if "Mbs_parameters" in sky_alms.keys():
                     if sky_alms["Mbs_parameters"].make_fg:
