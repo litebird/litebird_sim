@@ -1710,7 +1710,7 @@ class Simulation:
     def apply_quadratic_nonlin(
         self,
         nl_params: NonLinParams = None,
-        user_seed: int = 12345,
+        user_seed: Union[int, None] = None,
         component: str = "tod",
         append_to_report: bool = False,
     ):
@@ -2356,7 +2356,7 @@ class Simulation:
     def apply_gaindrift(
         self,
         drift_params: GainDriftParams = None,
-        user_seed: int = 12345,
+        user_seed: Union[int, None] = None,
         component: str = "tod",
         append_to_report: bool = True,
     ):

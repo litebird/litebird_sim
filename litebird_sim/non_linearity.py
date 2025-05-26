@@ -58,10 +58,15 @@ def apply_quadratic_nonlin_for_one_sample(
     data,
     det_name: str = None,
     nl_params: NonLinParams = None,
-    user_seed: int = 12345,
+    user_seed: Union[int, None] = None,
     g_one_over_k: float = None,
     random: Union[np.random.Generator, None] = None,
 ):
+    if user_seed is not None and random is not None:
+        raise ValueError(
+            "You should pass only one between 'user_seed' and 'random', not both."
+        )
+
     if nl_params is None:
         nl_params = NonLinParams()
 
@@ -93,7 +98,7 @@ def apply_quadratic_nonlin_for_one_detector(
     tod_det,
     det_name: str,
     nl_params: NonLinParams = None,
-    user_seed: int = 12345,
+    user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
 ):
     """This function applies the quadratic non-linearity on the TOD corresponding to only one
@@ -115,6 +120,11 @@ def apply_quadratic_nonlin_for_one_detector(
         user_seed (int, optional): A seed provided by the user. Defaults
           to 12345.
     """
+    if user_seed is not None and random is not None:
+        raise ValueError(
+            "You should pass only one between 'user_seed' and 'random', not both."
+        )
+
     if nl_params is None:
         nl_params = NonLinParams()
 
@@ -138,7 +148,7 @@ def apply_quadratic_nonlin(
     tod: np.ndarray,
     det_name: Union[List, np.ndarray],
     nl_params: NonLinParams = None,
-    user_seed: int = 12345,
+    user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
@@ -161,7 +171,7 @@ def apply_quadratic_nonlin(
 def apply_quadratic_nonlin_to_observations(
     observations: Union[Observation, List[Observation]],
     nl_params: NonLinParams = None,
-    user_seed: int = 12345,
+    user_seed: Union[int, None] = None,
     component: str = "tod",
     random: Union[np.random.Generator, None] = None,
 ):

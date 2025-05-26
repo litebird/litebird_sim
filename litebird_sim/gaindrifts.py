@@ -234,7 +234,7 @@ def _noise_timestream(
     sampling_freq_hz: float,
     focalplane_attr: str,
     drift_params: GainDriftParams = None,
-    user_seed: int = 12345,
+    user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
 ) -> np.ndarray:
     """The function to generate the thermal noise time stream with
@@ -313,7 +313,7 @@ def apply_gaindrift_for_one_detector(
     drift_params: GainDriftParams = None,
     focalplane_attr: str = None,
     noise_timestream: np.ndarray = None,
-    user_seed: int = 12345,
+    user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
 ):
     """This function applies the gain drift on the TOD corresponding to only one
@@ -362,6 +362,11 @@ def apply_gaindrift_for_one_detector(
         user_seed (int, optional): A seed provided by the user. Defaults
           to 12345.
     """
+
+    if user_seed is not None and random is not None:
+        raise ValueError(
+            "You should pass only one between 'user_seed' and 'random', not both."
+        )
 
     if drift_params is None:
         drift_params = GainDriftParams()
@@ -452,7 +457,7 @@ def apply_gaindrift_to_tod(
     det_name: Union[List, np.ndarray],
     drift_params: GainDriftParams = None,
     focalplane_attr: Union[List, np.ndarray] = None,
-    user_seed: int = 12345,
+    user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
 ):
     """The function to apply the gain drift to all the detectors of a given TOD object.
@@ -553,13 +558,14 @@ def apply_gaindrift_to_tod(
                 ],  # array[mask] returns an array of shape (1, len(array)).
                 # Therefore [0] indexing is necessary
                 user_seed=user_seed,
+                random=random,
             )
 
 
 def apply_gaindrift_to_observations(
     observations: Union[Observation, List[Observation]],
     drift_params: GainDriftParams = None,
-    user_seed: int = 12345,
+    user_seed: Union[int, None] = None,
     component: str = "tod",
     random: Union[np.random.Generator, None] = None,
 ):
