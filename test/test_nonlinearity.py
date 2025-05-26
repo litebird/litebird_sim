@@ -1,37 +1,6 @@
 import numpy as np
-import hashlib
 import litebird_sim as lbs
 from astropy.time import Time
-
-
-def _hash_function(
-    input_str: str,
-    user_seed: int = 12345,
-) -> int:
-    """This functions generates a unique and reproducible hash for a given pair of
-    `input_str` and `user_seed`. This hash is used to generate the common noise time
-    stream for a group of detectors, and to introduce randomness in the noise time
-    streams.
-
-    Args:
-
-        input_str (str): A string, for example, the detector name.
-
-        user_seed (int, optional): A seed provided by the user. Defaults to 12345.
-
-    Returns:
-
-        int: An `md5` hash from generated from `input_str` and `user_seed`
-    """
-
-    bytesobj = (str(input_str) + str(user_seed)).encode("utf-8")
-
-    hashobj = hashlib.md5()
-    hashobj.update(bytesobj)
-    digest = hashobj.digest()
-
-    return int.from_bytes(bytes=digest, byteorder="little")
-
 
 def test_add_quadratic_nonlinearity():
     # Test function to check consistency of wrappers and low level functions
@@ -98,7 +67,7 @@ def test_add_quadratic_nonlinearity():
     sim.observations[0].tod_origin = np.ones_like(sim.observations[0].tod)
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
         det_name = sim.observations[0].name[idx]
-        rng = np.random.default_rng(seed=_hash_function(det_name, user_seed=12345))
+        rng = np.random.default_rng(seed=lbs.non_linearity._hash_function(det_name, user_seed=12345))
 
         g_one_over_k = rng.normal(
             loc=nl_params.sampling_gaussian_loc,
