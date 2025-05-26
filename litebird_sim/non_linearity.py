@@ -28,6 +28,8 @@ class NonLinParams:
 def _hash_function(
     input_str: str,
     user_seed: int = 12345,
+    rank: int = 0,
+    _seed_type: str = "non-linear",
 ) -> int:
     """This functions generates a unique and reproducible hash for a given pair of
     `input_str` and `user_seed`. This hash is used to generate the common noise time
@@ -44,8 +46,9 @@ def _hash_function(
 
         int: An `md5` hash from generated from `input_str` and `user_seed`
     """
+    assert isinstance(input_str, str), "The parameter `input_str` must be a string!"
 
-    bytesobj = (str(input_str) + str(user_seed)).encode("utf-8")
+    bytesobj = (input_str + str(user_seed) + _seed_type + str(rank)).encode("utf-8")
 
     hashobj = hashlib.md5()
     hashobj.update(bytesobj)
@@ -100,6 +103,7 @@ def apply_quadratic_nonlin_for_one_detector(
     nl_params: NonLinParams = None,
     user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
+    rank: int = 0,
 ):
     """This function applies the quadratic non-linearity on the TOD corresponding to
     only one detector.
@@ -136,7 +140,7 @@ def apply_quadratic_nonlin_for_one_detector(
             "You should either pass a random generator that that implements the 'normal' method, or an integer seed, none are provided."
         )
         assert isinstance(det_name, str), "The parameter `det_name` must be a string"
-        random = np.random.default_rng(seed=_hash_function(det_name, user_seed))
+        random = np.random.default_rng(seed=_hash_function(det_name, user_seed, rank))
 
     g_one_over_k = random.normal(
         loc=nl_params.sampling_gaussian_loc,
@@ -153,6 +157,7 @@ def apply_quadratic_nonlin(
     nl_params: NonLinParams = None,
     user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
+    rank: int = 0,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -168,6 +173,7 @@ def apply_quadratic_nonlin(
             nl_params=nl_params,  # --> questo dovrebbe essere una realiz diversa per ogni det automaticamente
             user_seed=user_seed,
             random=random,
+            rank=rank,
         )
 
 
@@ -218,4 +224,5 @@ def apply_quadratic_nonlin_to_observations(
             nl_params=nl_params,
             user_seed=user_seed,
             random=random,
+            rank=cur_obs.comm.rank,
         )

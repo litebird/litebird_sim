@@ -171,6 +171,8 @@ def _responsivity_function(dT):
 def _hash_function(
     input_str: str,
     user_seed: int = 12345,
+    rank: int = 0,
+    _seed_type: str = "gain",
 ) -> int:
     """This functions generates a unique and reproducible hash for a given pair of
     `input_str` and `user_seed`. This hash is used to generate the common noise time
@@ -187,8 +189,9 @@ def _hash_function(
 
         int: An `md5` hash from generated from `input_str` and `user_seed`
     """
+    assert isinstance(input_str, str), "The parameter `input_str` must be a string!"
 
-    bytesobj = (str(input_str) + str(user_seed)).encode("utf-8")
+    bytesobj = (input_str + str(user_seed) + _seed_type + str(rank)).encode("utf-8")
 
     hashobj = hashlib.md5()
     hashobj.update(bytesobj)
@@ -236,6 +239,7 @@ def _noise_timestream(
     drift_params: GainDriftParams = None,
     user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
+    rank: int = 0,
 ) -> np.ndarray:
     """The function to generate the thermal noise time stream with
     :math:`1/f` power spectral density.
@@ -291,7 +295,9 @@ def _noise_timestream(
     )
 
     if random is None:
-        random = np.random.default_rng(seed=_hash_function(focalplane_attr, user_seed))
+        random = np.random.default_rng(
+            seed=_hash_function(focalplane_attr, user_seed, rank)
+        )
 
     randarr = random.standard_normal(size=fftlen)
 
@@ -318,6 +324,7 @@ def apply_gaindrift_for_one_detector(
     noise_timestream: np.ndarray = None,
     user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
+    rank: int = 0,
 ):
     """This function applies the gain drift on the TOD corresponding to only one
     detector.
@@ -385,8 +392,7 @@ def apply_gaindrift_for_one_detector(
         assert user_seed is not None, (
             "You should either pass a random generator that that implements the 'normal' method, or an integer seed, none are provided."
         )
-        assert isinstance(det_name, str), "The parameter `det_name` must be a string"
-        random = np.random.default_rng(seed=_hash_function(det_name, user_seed))
+        random = np.random.default_rng(seed=_hash_function(det_name, user_seed, rank))
 
     if drift_params.sampling_dist == SamplingDist.UNIFORM:
         rand = random.uniform(
@@ -435,6 +441,7 @@ def apply_gaindrift_for_one_detector(
                 drift_params=drift_params,
                 user_seed=user_seed,
                 random=random,
+                rank=rank,
             )
 
         thermal_factor = drift_params.thermal_fluctuation_amplitude_K
@@ -465,6 +472,7 @@ def apply_gaindrift_to_tod(
     focalplane_attr: Union[List, np.ndarray] = None,
     user_seed: Union[int, None] = None,
     random: Union[np.random.Generator, None] = None,
+    rank: int = 0,
 ):
     """The function to apply the gain drift to all the detectors of a given TOD object.
 
@@ -526,6 +534,7 @@ def apply_gaindrift_to_tod(
                 noise_timestream=None,
                 user_seed=user_seed,
                 random=random,
+                rank=rank,
             )
 
     elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
@@ -553,6 +562,7 @@ def apply_gaindrift_to_tod(
                 drift_params=drift_params,
                 user_seed=user_seed,
                 random=random,
+                rank=rank,
             )
 
         for detidx in np.arange(tod.shape[0]):
@@ -568,6 +578,7 @@ def apply_gaindrift_to_tod(
                 # Therefore [0] indexing is necessary
                 user_seed=user_seed,
                 random=random,
+                rank=rank,
             )
 
 
@@ -628,4 +639,5 @@ def apply_gaindrift_to_observations(
             focalplane_attr=focalplane_attr,
             user_seed=user_seed,
             random=random,
+            rank=cur_obs.comm.rank,
         )
