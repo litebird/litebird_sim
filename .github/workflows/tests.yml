@@ -94,12 +94,7 @@ jobs:
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
             done
 
-      - name: Upload coverage report
-        uses: romeovs/coverage-badge-action@v1
+      - name: Coverage comment
+        uses: py-cov-action/python-coverage-comment-action@v3
         with:
-          output: ./coverage.svg
-
-      - name: Comment PR with coverage
-        uses: MishaKav/coverage-comment-action@v1
-        with:
-          coverage-file: coverage.xml
+          GITHUB_TOKEN: ${{ github.token }}
