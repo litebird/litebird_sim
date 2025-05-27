@@ -1728,12 +1728,15 @@ class Simulation:
         user_seed: Union[int, None] = None,
         component: str = "tod",
         append_to_report: bool = False,
+        rng_hierarchy: Union[RNGHierarchy, None] = None,
     ):
         """A method to apply non-linearity to the observation.
 
         This is a wrapper around
         :func:`.apply_quadratic_nonlin_to_observations()` that
         applies non-linearity to a list of :class:`.Observation` instance."""
+        if rng_hierarchy is None:
+            rng_hierarchy = self.rng_hierarchy
         if nl_params is None:
             nl_params = NonLinParams()
 
@@ -1765,6 +1768,7 @@ class Simulation:
     def add_noise(
         self,
         random: Union[np.random.Generator, None] = None,
+        rng_hierarchy: Union[RNGHierarchy, None] = None,
         noise_type: str = "one_over_f",
         component: str = "tod",
         append_to_report: bool = True,
@@ -1781,6 +1785,8 @@ class Simulation:
 
         if random is None:
             random = self.random
+        if rng_hierarchy is None:
+            rng_hierarchy = self.rng_hierarchy
 
         add_noise_to_observations(
             observations=self.observations,
@@ -2374,6 +2380,7 @@ class Simulation:
         user_seed: Union[int, None] = None,
         component: str = "tod",
         append_to_report: bool = True,
+        rng_hierarchy: Union[RNGHierarchy, None] = None,
     ):
         """A method to apply the gain drift to the observation.
 
@@ -2393,7 +2400,8 @@ class Simulation:
 
             append_to_report (bool, optional): Defaults to True.
         """
-
+        if rng_hierarchy is None:
+            rng_hierarchy = self.rng_hierarchy
         if drift_params is None:
             drift_params = GainDriftParams()
 
