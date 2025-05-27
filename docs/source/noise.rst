@@ -44,16 +44,16 @@ Here is a short example that shows how to add noise:
 
 .. testoutput::
 
-    5.65263e-04
-    -1.54522e-04
-    3.42276e-04
-    -1.42274e-04
-    -1.71110e-04
-    8.72188e-05
-    -1.23400e-04
-    -6.99311e-05
-    6.58389e-05
-    5.51306e-04
+    -1.37982e-04
+    3.65642e-04
+    2.47778e-04
+    1.78779e-04
+    -5.03410e-05
+    4.21404e-04
+    5.90033e-04
+    5.07347e-04
+    -9.98478e-05
+    -5.19765e-05
 
 
 Note that we pass ``sim.random`` as the number generator to use.
@@ -248,11 +248,11 @@ the interface is simplified.
 
 .. testoutput::
 
-    2.83998e-04
-    -7.58942e-05
-    1.72505e-04
-    -6.97704e-05
-    -8.41885e-05
+    -6.90763e-05
+    1.82736e-04
+    1.23804e-04
+    8.93039e-05
+    -2.52559e-05
 
 API reference
 -------------
