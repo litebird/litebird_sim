@@ -6,6 +6,7 @@ from typing import Union, List
 from dataclasses import dataclass
 
 from .observations import Observation
+from .seeding import RNGHierarchy
 
 
 class GainDriftType(IntEnum):
@@ -624,6 +625,20 @@ def apply_gaindrift_to_observations(
         raise TypeError(
             "The parameter `observations` must be an `Observation` or a list of `Observation`."
         )
+    num_detectors = getattr(obs_list[0], component).shape[0]
+    if user_seed is not None:
+        RNG_hierarchy = RNGHierarchy(user_seed, num_detectors, len(obs_list[0].name))
+        dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(
+            rank=obs_list[0].comm.rank
+        )
+    if user_seed is None and dets_random is None:
+        raise ValueError("You should pass either `user_seed` or `dets_random`.")
+    assert len(dets_random) == num_detectors, (
+        "The number of random generators must match the number of detectors"
+    )
+    assert len(dets_random) == getattr(obs_list[0], component).shape[0], (
+        "The number of random generators must match the number of detectors"
+    )
 
     for cur_obs in obs_list:
         tod = getattr(cur_obs, component)
