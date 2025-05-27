@@ -1,7 +1,6 @@
 # -*- encoding: utf-8 -*-
 
 import numpy as np
-import hashlib
 from typing import Union, List
 from dataclasses import dataclass
 
@@ -26,50 +25,16 @@ class NonLinParams:
     sampling_gaussian_scale: float = 0.1
 
 
-def _hash_function(
-    input_str: str,
-    user_seed: int = 12345,
-    rank: int = 0,
-    _seed_type: str = "non-linear",
-) -> int:
-    """This functions generates a unique and reproducible hash for a given pair of
-    `input_str` and `user_seed`. This hash is used to generate the common noise time
-    stream for a group of detectors, and to introduce randomness in the noise time
-    streams.
-
-    Args:
-
-        input_str (str): A string, for example, the detector name.
-
-        user_seed (int): A seed provided by the user. Defaults to 12345.
-
-    Returns:
-
-        int: An `md5` hash from generated from `input_str` and `user_seed`
-    """
-    assert isinstance(input_str, str), "The parameter `input_str` must be a string!"
-
-    bytesobj = (input_str + str(user_seed) + _seed_type + str(rank)).encode("utf-8")
-
-    hashobj = hashlib.md5()
-    hashobj.update(bytesobj)
-    digest = hashobj.digest()
-
-    return int.from_bytes(bytes=digest, byteorder="little")
-
-
 def apply_quadratic_nonlin_for_one_sample(
     data,
     det_name: str = None,
     nl_params: NonLinParams = None,
-    user_seed: Union[int, None] = None,
     g_one_over_k: float = None,
-    random: Union[np.random.Generator, None] = None,
+    random: np.random.Generator = None,
 ):
-    if user_seed is not None and random is not None:
-        raise ValueError(
-            "You should pass only one between 'user_seed' and 'random', not both."
-        )
+    assert random is not None, (
+        "You should pass a random number generator which implements the `normal` method."
+    )
 
     if nl_params is None:
         nl_params = NonLinParams()
@@ -85,11 +50,6 @@ def apply_quadratic_nonlin_for_one_sample(
                 "`det_name` must be a string when `g_one_over_k` is not provided."
             )
 
-        if random is None:
-            assert user_seed is not None, (
-                "You should either pass a random generator that that implements the 'normal' method, or an integer seed, none are provided."
-            )
-            random = np.random.default_rng(seed=_hash_function(det_name, user_seed))
         g_one_over_k = random.normal(
             loc=nl_params.sampling_gaussian_loc,
             scale=nl_params.sampling_gaussian_scale,
@@ -100,11 +60,8 @@ def apply_quadratic_nonlin_for_one_sample(
 
 def apply_quadratic_nonlin_for_one_detector(
     tod_det,
-    det_name: str,
     nl_params: NonLinParams = None,
-    user_seed: Union[int, None] = None,
-    random: Union[np.random.Generator, None] = None,
-    rank: int = 0,
+    random: np.random.Generator = None,
 ):
     """This function applies the quadratic non-linearity on the TOD corresponding to
     only one detector.
@@ -128,20 +85,11 @@ def apply_quadratic_nonlin_for_one_detector(
         random (np.random.Generator, optional): A random number generator.
           Defaults to None.
     """
-    if user_seed is not None and random is not None:
-        raise ValueError(
-            "You should pass only one between 'user_seed' and 'random', not both."
-        )
-
+    assert random is not None, (
+        "You should pass a random number generator which implements the `normal` method."
+    )
     if nl_params is None:
         nl_params = NonLinParams()
-
-    if random is None:
-        assert user_seed is not None, (
-            "You should either pass a random generator that that implements the 'normal' method, or an integer seed, none are provided."
-        )
-        assert isinstance(det_name, str), "The parameter `det_name` must be a string"
-        random = np.random.default_rng(seed=_hash_function(det_name, user_seed, rank))
 
     g_one_over_k = random.normal(
         loc=nl_params.sampling_gaussian_loc,
@@ -154,10 +102,7 @@ def apply_quadratic_nonlin_for_one_detector(
 
 def apply_quadratic_nonlin(
     tod: np.ndarray,
-    det_name: Union[List, np.ndarray],
     nl_params: NonLinParams = None,
-    user_seed: Union[int, None] = None,
-    rank: int = 0,
     dets_random: Union[np.random.Generator, None] = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
@@ -169,11 +114,8 @@ def apply_quadratic_nonlin(
 
     for detector_idx in range(tod.shape[0]):
         apply_quadratic_nonlin_for_one_detector(
-            det_name=det_name[detector_idx],  # --> questo poi lo definisco nella obs
             tod_det=tod[detector_idx],
-            nl_params=nl_params,  # --> questo dovrebbe essere una realiz diversa per ogni det automaticamente
-            user_seed=user_seed,
-            rank=rank,
+            nl_params=nl_params,
             random=dets_random[detector_idx],
         )
 
@@ -228,13 +170,9 @@ def apply_quadratic_nonlin_to_observations(
     # iterate through each observation
     for cur_obs in obs_list:
         tod = getattr(cur_obs, component)
-        det_name = cur_obs.name
 
         apply_quadratic_nonlin(
             tod=tod,
-            det_name=det_name,
             nl_params=nl_params,
-            user_seed=user_seed,
-            rank=cur_obs.comm.rank,
             dets_random=dets_random,
         )
