@@ -59,6 +59,7 @@ from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
+from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .spherical_harmonics import SphericalHarmonics
 from .version import (
@@ -497,13 +498,13 @@ class Simulation:
             + "None for non reproducible results)"
         )
 
-        # Initialize self.random. The user is free to
+        # Initialize self.RNG_hierarchy. The user is free to
         # call self.init_random() again later
-        self.init_random(self.random_seed)
+        self.init_rng_hierarchy(self.random_seed)
 
-    def init_random(self, random_seed):
+    def init_rng_hierarchy(self, random_seed):
         """
-        Initialize a random number generator in the `random` field
+        Initialize a random number generator hierarchy in the `RNG_hierarchy` field
 
         This function creates a random number generator and saves it in the
         field `random`. It should be used whenever a random number generator
@@ -523,17 +524,29 @@ class Simulation:
         called again as many times as required. The typical case is when
         one wants to use a seed that has been read from a parameter file.
         """
-        from numpy.random import Generator, PCG64, SeedSequence
-
         # We need to assign a different random number generator to each MPI
         # process, otherwise noise will be correlated. The following code
-        # works even if MPI is not used or if `random_seed` has been set to `None`
+        # works even if MPI is not used or if `random_seed` has been set to `None`.
 
-        # Create a list of N seeds, one per each MPI process
-        seed_seq = SeedSequence(random_seed).spawn(self.mpi_comm.size)
+        # Also, we generate a different number geenrator for each detector,
+        # building a hierarchy of generators.
 
-        # Pick the seed for this process
-        self.random = Generator(PCG64(seed_seq[self.mpi_comm.rank]))
+        self.rng_hierarchy = RNGHierarchy(random_seed)
+        self.rng_hierarchy.build_mpi_layer(self.mpi_comm.size)
+
+        # Store the generator of this MPI task
+        self.random = self.rng_hierarchy.get_generator(self.mpi_comm.rank)
+
+    def init_detectors_random(self, num_detectors: int):
+        self.rng_hierarchy.build_detector_layer(num_detectors)
+
+        self.dets_random = self.rng_hierarchy.get_detector_level_generators_on_rank(
+            self.mpi_comm.rank
+        )
+
+    def init_random(self, random_seed, num_detectors: int):
+        self.init_rng_hierarchy(random_seed)
+        self.init_detectors_random(num_detectors)
 
     def _init_missing_params(self):
         """Initialize empty parameters using self.parameters
@@ -1029,6 +1042,8 @@ class Simulation:
         # if a single detector is passed, make it a list
         if isinstance(detectors, DetectorInfo):
             detectors = [detectors]
+
+        self.init_detectors_random(len(detectors))
 
         observations = []
 
