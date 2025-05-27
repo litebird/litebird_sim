@@ -1737,6 +1737,9 @@ class Simulation:
         applies non-linearity to a list of :class:`.Observation` instance."""
         if rng_hierarchy is None:
             rng_hierarchy = self.rng_hierarchy
+        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
+            self.mpi_comm.rank
+        )
         if nl_params is None:
             nl_params = NonLinParams()
 
@@ -1745,7 +1748,7 @@ class Simulation:
             nl_params=nl_params,
             user_seed=user_seed,
             component=component,
-            random=self.random if user_seed is None else None,
+            dets_random=dets_random,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1767,7 +1770,6 @@ class Simulation:
     @_profile
     def add_noise(
         self,
-        random: Union[np.random.Generator, None] = None,
         rng_hierarchy: Union[RNGHierarchy, None] = None,
         noise_type: str = "one_over_f",
         component: str = "tod",
@@ -1783,15 +1785,16 @@ class Simulation:
         the `random` field of a :class:`.Simulation` object for this.
         """
 
-        if random is None:
-            random = self.random
         if rng_hierarchy is None:
             rng_hierarchy = self.rng_hierarchy
+        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
+            self.mpi_comm.rank
+        )
 
         add_noise_to_observations(
             observations=self.observations,
             noise_type=noise_type,
-            random=random,
+            dets_random=dets_random,
             component=component,
         )
 
@@ -2402,6 +2405,9 @@ class Simulation:
         """
         if rng_hierarchy is None:
             rng_hierarchy = self.rng_hierarchy
+        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
+            self.mpi_comm.rank
+        )
         if drift_params is None:
             drift_params = GainDriftParams()
 
@@ -2410,7 +2416,7 @@ class Simulation:
             drift_params=drift_params,
             user_seed=user_seed,
             component=component,
-            random=self.random if user_seed is None else None,
+            dets_random=dets_random,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
