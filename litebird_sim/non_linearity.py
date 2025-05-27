@@ -156,8 +156,8 @@ def apply_quadratic_nonlin(
     det_name: Union[List, np.ndarray],
     nl_params: NonLinParams = None,
     user_seed: Union[int, None] = None,
-    random: Union[np.random.Generator, None] = None,
     rank: int = 0,
+    dets_random: Union[np.random.Generator, None] = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -172,17 +172,17 @@ def apply_quadratic_nonlin(
             tod_det=tod[detector_idx],
             nl_params=nl_params,  # --> questo dovrebbe essere una realiz diversa per ogni det automaticamente
             user_seed=user_seed,
-            random=random,
             rank=rank,
+            random=dets_random[detector_idx],
         )
 
 
 def apply_quadratic_nonlin_to_observations(
     observations: Union[Observation, List[Observation]],
     nl_params: NonLinParams = None,
-    user_seed: Union[int, None] = None,
     component: str = "tod",
-    random: Union[np.random.Generator, None] = None,
+    user_seed: Union[int, None] = None,
+    dets_random: Union[List[np.random.Generator]] = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -223,6 +223,6 @@ def apply_quadratic_nonlin_to_observations(
             det_name=det_name,
             nl_params=nl_params,
             user_seed=user_seed,
-            random=random,
             rank=cur_obs.comm.rank,
+            dets_random=dets_random,
         )

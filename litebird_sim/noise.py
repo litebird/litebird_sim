@@ -115,7 +115,7 @@ def add_noise(
     fknee_mhz,
     fmin_hz,
     alpha,
-    random,
+    dets_random,
     scale=1.0,
 ):
     """
@@ -176,7 +176,7 @@ def add_noise(
                     sampling_rate_hz=sampling_rate_hz,
                     scale=scale[i],
                 ),
-                random=random,
+                random=dets_random[i],
             )
         elif noise_type == "one_over_f":
             add_one_over_f_noise(
@@ -190,14 +190,14 @@ def add_noise(
                     scale=scale[i],
                 ),
                 sampling_rate_hz=sampling_rate_hz,
-                random=random,
+                random=dets_random[i],
             )
 
 
 def add_noise_to_observations(
     observations: Union[Observation, List[Observation]],
     noise_type: str,
-    random: np.random.Generator,
+    dets_random: List[np.random.Generator],
     scale: float = 1.0,
     component: str = "tod",
 ):
@@ -234,6 +234,10 @@ def add_noise_to_observations(
     else:
         obs_list = observations
 
+    assert len(dets_random) == getattr(obs_list[0], component).shape[0], (
+        "The number of random generators must match the number of detectors"
+    )
+
     # iterate through each observation
     for cur_obs in obs_list:
         add_noise(
@@ -245,5 +249,5 @@ def add_noise_to_observations(
             fmin_hz=cur_obs.fmin_hz,
             alpha=cur_obs.alpha,
             scale=scale,
-            random=random,
+            dets_random=dets_random,
         )

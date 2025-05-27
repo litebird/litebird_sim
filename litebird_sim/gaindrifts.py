@@ -471,8 +471,8 @@ def apply_gaindrift_to_tod(
     drift_params: GainDriftParams = None,
     focalplane_attr: Union[List, np.ndarray] = None,
     user_seed: Union[int, None] = None,
-    random: Union[np.random.Generator, None] = None,
     rank: int = 0,
+    dets_random: Union[np.random.Generator, None] = None,
 ):
     """The function to apply the gain drift to all the detectors of a given TOD object.
 
@@ -533,8 +533,8 @@ def apply_gaindrift_to_tod(
                 drift_params=drift_params,
                 noise_timestream=None,
                 user_seed=user_seed,
-                random=random,
                 rank=rank,
+                random=dets_random[detidx],
             )
 
     elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
@@ -561,8 +561,8 @@ def apply_gaindrift_to_tod(
                 focalplane_attr=det_elem,
                 drift_params=drift_params,
                 user_seed=user_seed,
-                random=random,
                 rank=rank,
+                random=dets_random[detidx],
             )
 
         for detidx in np.arange(tod.shape[0]):
@@ -577,8 +577,8 @@ def apply_gaindrift_to_tod(
                 ],  # array[mask] returns an array of shape (1, len(array)).
                 # Therefore [0] indexing is necessary
                 user_seed=user_seed,
-                random=random,
                 rank=rank,
+                random=dets_random[detidx],
             )
 
 
@@ -587,7 +587,7 @@ def apply_gaindrift_to_observations(
     drift_params: GainDriftParams = None,
     user_seed: Union[int, None] = None,
     component: str = "tod",
-    random: Union[np.random.Generator, None] = None,
+    dets_random: Union[List[np.random.Generator]] = None,
 ):
     """The function to apply gain drift to the TOD of a :class:`.Observation`
     instance or a list of observations.
@@ -638,6 +638,6 @@ def apply_gaindrift_to_observations(
             drift_params=drift_params,
             focalplane_attr=focalplane_attr,
             user_seed=user_seed,
-            random=random,
             rank=cur_obs.comm.rank,
+            dets_random=dets_random,
         )
