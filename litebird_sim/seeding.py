@@ -8,6 +8,8 @@ from typing import List, Optional, Union
 import numpy as np
 from numpy.random import PCG64, Generator, SeedSequence
 
+from .observations import Observation
+
 
 def get_derived_random_generators(
     source_sequence: Union[SeedSequence, List[SeedSequence]], num_to_spawn: int
@@ -88,6 +90,30 @@ def get_detector_level_generators_from_hierarchy(
     children = rank_node.get("children", {})
 
     return [child["generator"] for child in children.values()]
+
+
+def regenerate_or_check_detector_generators(
+    observations: List[Observation],
+    user_seed: Union[int, None] = None,
+    dets_random: List[Generator] = None,
+):
+    comm = observations[0].comm
+    if comm is not None:
+        rank = comm.rank
+        num_ranks = comm.size
+    else:
+        rank = 0
+        num_ranks = 1
+
+    if user_seed is not None:
+        RNG_hierarchy = RNGHierarchy(user_seed, num_ranks, observations[0].n_detectors)
+        dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(rank=rank)
+    if user_seed is None and dets_random is None:
+        raise ValueError("You should pass either `user_seed` or `dets_random`.")
+    assert len(dets_random) == observations[0].n_detectors, (
+        "The number of random generators must match the number of detectors"
+    )
+    return dets_random
 
 
 class RNGHierarchy:
