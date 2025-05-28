@@ -135,7 +135,7 @@ class DetectorInfoViewer:
     ):
         """Generate a text file with the selected detector list.
         The NET on detector is scaled by the`scaling_factor`:
-        :math:`\sqrt{\frac{duration_yr}{3} \times \frac{N_{\rm dets}^{\rm e2e}}{N_{\rm dets}^{\rm ch}}}`
+        :math:`\\sqrt{\\frac{duration_yr}{3} \\times \\frac{N_{\\rm dets}^{\\rm e2e}}{N_{\\rm dets}^{\\rm ch}}}`
 
         Args:
             filename (str): The name of the file to be created.
