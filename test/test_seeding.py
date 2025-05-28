@@ -61,7 +61,48 @@ def test_detector_generators():
                 )
 
 
-def test_save_load_hierarchy_and_reproducibility(tmp_path):
+def test_hierarchies_with_same_seed():
+    master_seed = 12345
+
+    RNG_hierarchy = lbs.RNGHierarchy(master_seed)
+    num_fake_mpi_tasks = 2
+    RNG_hierarchy.build_mpi_layer(num_fake_mpi_tasks)
+    num_fake_detectors = 3
+    RNG_hierarchy.build_detector_layer(num_fake_detectors)
+
+    identical_RNG_hierarchy = lbs.RNGHierarchy(master_seed)
+    num_fake_mpi_tasks = 2
+    identical_RNG_hierarchy.build_mpi_layer(num_fake_mpi_tasks)
+    num_fake_detectors = 3
+    identical_RNG_hierarchy.build_detector_layer(num_fake_detectors)
+
+    generators = [
+        RNG_hierarchy.get_detector_level_generators_on_rank(idx)
+        for idx in range(num_fake_mpi_tasks)
+    ]
+    ref_realizations = np.empty((num_fake_mpi_tasks, num_fake_detectors, 1000))
+    for mpi_idx in range(num_fake_mpi_tasks):
+        for detector_idx in range(num_fake_detectors):
+            real = generators[mpi_idx][detector_idx].normal(loc=0, scale=1, size=1000)
+            ref_realizations[mpi_idx, detector_idx] = real
+
+    generators = [
+        identical_RNG_hierarchy.get_detector_level_generators_on_rank(idx)
+        for idx in range(num_fake_mpi_tasks)
+    ]
+    same_realizations = np.empty((num_fake_mpi_tasks, num_fake_detectors, 1000))
+    for mpi_idx in range(num_fake_mpi_tasks):
+        for detector_idx in range(num_fake_detectors):
+            real = generators[mpi_idx][detector_idx].normal(loc=0, scale=1, size=1000)
+            same_realizations[mpi_idx, detector_idx] = real
+
+    np.testing.assert_array_equal(
+        ref_realizations,
+        same_realizations,
+    )
+
+
+def test_save_load_hierarchy(tmp_path):
     master_seed = 12345
     RNG_hierarchy = lbs.RNGHierarchy(master_seed)
 
