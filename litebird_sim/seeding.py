@@ -91,6 +91,7 @@ def get_detector_level_generators_from_hierarchy(
 
 
 class RNGHierarchy:
+    # If breaking changes are introduced, this ensures compatibility.
     SAVE_FORMAT_VERSION = 1
 
     def __init__(
@@ -227,6 +228,12 @@ class RNGHierarchy:
             pickle.dump(self, f)
 
     @classmethod
-    def from_saved_hierarchy(cls, filename):
+    def from_saved_hierarchy(cls, filename) -> "RNGHierarchy":
         with open(filename, "rb") as f:
-            return pickle.load(f)
+            rng_hierarchy = pickle.load(f)
+
+        if rng_hierarchy.SAVE_FORMAT_VERSION != cls.SAVE_FORMAT_VERSION:
+            msg = "The loaded `RNGHierarchy` is incompatible with the current implementation."
+            raise ValueError(msg)
+
+        return rng_hierarchy

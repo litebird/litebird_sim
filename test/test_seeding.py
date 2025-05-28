@@ -115,3 +115,22 @@ def test_save_load_hierarchy_and_reproducibility(tmp_path):
         loaded_realizations,
         err_msg="Realizations from original and loaded hierarchies do not match.",
     )
+
+
+def test_compatibility_error(tmp_path):
+    master_seed = 12345
+    RNG_hierarchy = lbs.RNGHierarchy(master_seed)
+
+    num_fake_mpi_tasks = 2
+    RNG_hierarchy.build_mpi_layer(num_fake_mpi_tasks)
+
+    num_fake_detectors = 3
+    RNG_hierarchy.build_detector_layer(num_fake_detectors)
+
+    # Fake breaking-change in implementation
+    RNG_hierarchy.SAVE_FORMAT_VERSION = 2
+
+    RNG_hierarchy.save(tmp_path / "hierarchy.pkl")  # Save immediately
+
+    with pytest.raises(ValueError):
+        _ = lbs.RNGHierarchy.from_saved_hierarchy(tmp_path / "hierarchy.pkl")
