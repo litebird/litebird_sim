@@ -223,88 +223,10 @@ class RNGHierarchy:
         return get_detector_level_generators_from_hierarchy(self.hierarchy, rank)
 
     def save(self, filename):
-        # Flatten the hierarchy to save seed sequences and generator states
-        flat_states = {}
-
-        def recurse(node, key_path):
-            seed_seq = node["seed_seq"]
-            gen = node["generator"]
-            key = "-".join(map(str, key_path))
-            flat_states[key] = {
-                "entropy": seed_seq.entropy,
-                "spawn_key": seed_seq.spawn_key,
-                "rng_state": gen.bit_generator.state,
-            }
-            for child_idx, child_node in node.get("children", {}).items():
-                recurse(child_node, key_path + [child_idx])
-
-        for rank, rank_node in self.hierarchy.items():
-            recurse(rank_node, [rank])
-
-        data = {
-            "metadata": {
-                "base_seed": self.base_seed,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "save_format_version": self.SAVE_FORMAT_VERSION,
-            },
-            "states": flat_states,
-        }
-
         with open(filename, "wb") as f:
-            pickle.dump(data, f)
+            pickle.dump(self, f)
 
     @classmethod
-    def from_hierarchy(cls, hierarchy: dict, base_seed: int):
-        obj = cls.__new__(cls)
-        obj.base_seed = base_seed
-        obj.hierarchy = hierarchy
-
-        return obj
-
-    @classmethod
-    def from_saved_hierarchy(cls, filename: str) -> "RNGHierarchy":
+    def from_saved_hierarchy(cls, filename):
         with open(filename, "rb") as f:
-            data = pickle.load(f)
-
-        save_format_version = data.get("metadata", {}).get("save_format_version", 0)
-        if save_format_version != cls.SAVE_FORMAT_VERSION:
-            raise ValueError(f"Unsupported save file version {save_format_version}")
-
-        base_seed = data["metadata"]["base_seed"]
-        hierarchy = {}
-
-        # Rebuild hierarchy from flat states
-        flat_states = data["states"]
-
-        # Helper to recursively build nodes
-        def recurse_build(keys):
-            node_key = "-".join(str(k) for k in keys)
-            state = flat_states[node_key]
-            seq = SeedSequence(
-                entropy=state["entropy"], spawn_key=tuple(state["spawn_key"])
-            )
-            gen = Generator(PCG64())
-            gen.bit_generator.state = state["rng_state"]
-            children = {}
-            # Find children keys by looking for longer keys starting with current node_key + '-'
-            prefix = node_key + "-"
-            child_keys = [
-                k for k in flat_states if k.startswith(prefix) and k != node_key
-            ]
-            immediate_children_indices = set(
-                int(k.split("-")[len(keys)])
-                for k in child_keys
-                if len(k.split("-")) == len(keys) + 1
-            )
-            for child_idx in immediate_children_indices:
-                children[child_idx] = recurse_build(keys + [child_idx])
-            return {"seed_seq": seq, "generator": gen, "children": children}
-
-        # Find top-level keys (length 1)
-        top_keys = sorted(
-            set(int(k.split("-")[0]) for k in flat_states if len(k.split("-")) == 1)
-        )
-        for tk in top_keys:
-            hierarchy[tk] = recurse_build([tk])
-
-        return cls.from_hierarchy(hierarchy, base_seed)
+            return pickle.load(f)
