@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import litebird_sim as lbs
+from astropy.time import Time
 
 
 def test_mpi_generators():
@@ -134,3 +135,64 @@ def test_compatibility_error(tmp_path):
 
     with pytest.raises(ValueError):
         _ = lbs.RNGHierarchy.from_saved_hierarchy(tmp_path / "hierarchy.pkl")
+
+
+def test_detector_generators_regeneration(tmp_path):
+    start_time = Time("2034-05-02")
+    duration_s = 2 * 24 * 3600
+    sampling_freq_Hz = 3
+
+    dets = [
+        lbs.DetectorInfo(
+            name="det_A_wafer_1", sampling_rate_hz=sampling_freq_Hz, wafer="wafer_1"
+        ),
+        lbs.DetectorInfo(
+            name="det_B_wafer_1", sampling_rate_hz=sampling_freq_Hz, wafer="wafer_1"
+        ),
+        lbs.DetectorInfo(
+            name="det_C_wafer_2", sampling_rate_hz=sampling_freq_Hz, wafer="wafer_2"
+        ),
+    ]
+
+    sim = lbs.Simulation(
+        base_path=tmp_path / "gd_lineargain_test",
+        start_time=start_time,
+        duration_s=duration_s,
+        random_seed=12345,
+    )
+
+    sim.create_observations(
+        detectors=dets,
+        split_list_over_processes=False,
+        num_of_obs_per_detector=1,
+    )
+
+    with pytest.raises(ValueError):
+        _ = lbs.regenerate_or_check_detector_generators(
+            observations=sim.observations,
+            user_seed=None,
+            dets_random=None,
+        )
+    with pytest.raises(AssertionError):
+        _ = lbs.regenerate_or_check_detector_generators(
+            observations=sim.observations,
+            user_seed=None,
+            dets_random=[sim.dets_random[0], sim.dets_random[1]],
+        )
+    # `user_seed` takes priority over the generators of the `Simulation``
+    regenerated_dets_random = lbs.regenerate_or_check_detector_generators(
+        observations=sim.observations,
+        user_seed=987654321,
+        dets_random=sim.dets_random,
+    )
+
+    rng_hierarchy = lbs.RNGHierarchy(
+        987654321, num_ranks=1, num_detectors_per_rank=sim.observations[0].n_detectors
+    )
+    fresh_dets_random = rng_hierarchy.get_detector_level_generators_on_rank(0)
+
+    for idx in range(len(dets)):
+        assert (
+            fresh_dets_random[idx].bit_generator.state
+            == regenerated_dets_random[idx].bit_generator.state
+        ), f"Generators at index {idx} are not the same."
