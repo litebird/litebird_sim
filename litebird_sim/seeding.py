@@ -97,6 +97,10 @@ class RNGHierarchy:
     ):
         self.base_seed = base_seed
         self.root_seq = SeedSequence(base_seed)
+        self.metadata = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "save_format_version": self.SAVE_FORMAT_VERSION,
+        }
         self.hierarchy = {}
         if num_ranks is not None:
             self.build_mpi_layer(num_ranks)
