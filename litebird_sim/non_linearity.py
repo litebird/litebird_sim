@@ -127,11 +127,14 @@ def apply_quadratic_nonlin_to_observations(
     user_seed: Union[int, None] = None,
     dets_random: Union[List[np.random.Generator]] = None,
 ):
-    """Apply a quadratic nonlinearity to some time-ordered data
+    """
+    Apply a quadratic nonlinearity to some time-ordered data
 
     This is a wrapper around the :func:`.apply_quadratic_nonlin` function that applies to the TOD
     stored in `observations`, which can either be one :class:`.Observation` instance
-    or a list of observations.
+    or a list of observations. It ensures proper setup of per-detector
+    random number generators using either a user-provided seed or a list of
+    pre-initialized RNGs.
 
     By default, the modified TOD is ``Observation.tod``. If you want to modify some
     other field of the :class:`.Observation` class, use `component`::
@@ -143,6 +146,33 @@ def apply_quadratic_nonlin_to_observations(
         # Ask `apply_quadratic_nonlin_to_observations` to store the nonlinear TOD
         # in `observations.nl_tod`
         apply_quadratic_nonlin_to_observations(sim.observations, component="nl_tod")
+
+    Parameters
+    ----------
+    observations : Observation or list of Observation
+        A single `Observation` instance or a list of them.
+    nl_params : NonLinParams, optional
+        Parameters defining the quadratic non-linearity model. If not
+        provided, a default configuration is used.
+    component : str, optional
+        Name of the TOD attribute to modify. Defaults to `"tod"`.
+    user_seed : int, optional
+        Base seed to build the RNG hierarchy and generate detector-level RNGs
+        that overwrite any eventual `dets_random`. Required if `dets_random`
+        is not provided.
+    dets_random : list of np.random.Generator, optional
+        List of per-detector random number generators. If not provided, and
+        `user_seed` is given, generators are created internally. One of
+        `user_seed` or `dets_random` must be provided.
+
+    Raises
+    ------
+    TypeError
+        If `observations` is neither an `Observation` nor a list of them.
+    ValueError
+        If neither `user_seed` nor `dets_random` is provided.
+    AssertionError
+        If the number of random generators does not match the number of detectors.
     """
     if nl_params is None:
         nl_params = NonLinParams()

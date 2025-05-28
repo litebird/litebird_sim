@@ -32,8 +32,7 @@ def add_white_noise(data, sigma: float, random):
                   but **not** the white noise per sample.
 
         `random` : a random number generator that implements the ``normal`` method.
-                   You should typically use the `random` field of a :class:`.Simulation`
-                   object for this. It must be specified
+                   This is typically obtained from the RNGHierarchy of the `Simulation` class. It must be specified
     """
     data += random.normal(0, sigma, data.shape)
 
@@ -82,8 +81,7 @@ def add_one_over_f_noise(
         `sampling_rate_hz` : the sampling frequency of the data
 
         `random` : a random number generator that implements the ``normal`` method.
-                   You should typically use the `random` field of a :class:`.Simulation`
-                   object for this. It must be specified
+                   This is typically obtained from the RNGHierarchy of the `Simulation` class. It must be specified
     """
 
     noiselen = nearest_pow2(data)
@@ -135,9 +133,8 @@ def add_noise(
     The parameter `scale` can be used to introduce measurement unit conversions when
     appropriate. Default units: [K].
 
-    The parameter `random` must be specified and must be a random number generator that
-    implements the ``normal`` method. You should typically use the `random` field
-    of a :class:`.Simulation` object for this.
+    The parameter `dets_random` must be specified and must be a list random number generators that
+    implement the ``normal`` method. This is typically obtained from the RNGHierarchy of the `Simulation` class.
 
     The parameters `net_ukrts`, `fknee_mhz`, `fmin_hz`, `alpha`, and `scale` can
     either be scalars or arrays; in the latter case, their size must be the same as
@@ -208,9 +205,8 @@ def add_noise_to_observations(
     or a list of observations, which are typically taken from the field
     `observations` of a :class:`.Simulation` object. Unlike :func:`.add_noise`,
     it is not needed to pass the noise parameters here, as they are taken from the
-    characteristics of the detectors saved in `observations`. The parameter `random`
-    must be specified and must be a random number generator that implements the
-    ``normal`` method. You should typically use the `random` field of a
+    characteristics of the detectors saved in `observations`. The random number generators must be explicitly
+    provided. You should typically use the `dets_random` field of a
     :class:`.Simulation` object for this.
 
     By default, the noise is added to ``Observation.tod``. If you want to add it to some
@@ -225,6 +221,28 @@ def add_noise_to_observations(
         add_noise_to_observations(sim.observations, …, component="noise_tod")
 
     See :func:`.add_noise` for more information.
+
+    Parameters
+    ----------
+    observations : Observation or list of Observation
+        A single `Observation` instance or a list of them, to which noise
+        should be added.
+    noise_type : str
+        Type of noise to inject. Must be one of `"white"` or `"one_over_f"`.
+    dets_random : list of np.random.Generator
+        List of per-detector random number generators. Must match the number
+        of detectors in the observations.
+    scale : float, optional
+        A scaling factor applied to the noise. Defaults to 1.0.
+    component : str, optional
+        Name of the TOD attribute to modify. Defaults to `"tod"`.
+
+    Raises
+    ------
+    ValueError
+        If `noise_type` is not one of `"white"` or `"one_over_f"`.
+    AssertionError
+        If the number of RNGs does not match the number of detectors.
     """
     if noise_type not in ["white", "one_over_f"]:
         raise ValueError("Unknown noise type " + noise_type)
