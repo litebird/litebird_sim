@@ -504,40 +504,49 @@ class Simulation:
 
     def init_rng_hierarchy(self, random_seed):
         """
-        Initialize a random number generator hierarchy in the `RNG_hierarchy` field
+        Initialize the RNGHierarchy for this Simulation.
 
-        This function creates a random number generator and saves it in the
-        field `random`. It should be used whenever a random number generator
-        is needed in the simulation.
-        In the case `random_seed` has not been set to `None`, it ensures that
-        different MPI processes have their own different seed, which stems
-        from the parameter `random_seed`, and the results will be reproducible.
-        The generator is PCG64, and it is ensured that the sequences in each MPI
-        process are independent. If `init_random` is called with the same seed
-        but a different number of MPI ranks, the sequence of random numbers
-        will be different.
-        In the case `random_seed` has been set to `None`, no seed will be
-        used and the results obtained with the random number generator will
-        not be reproducible.
+        This method initialize the instance of `RNGHierarchy` constructs the first level of RNG hierarchy using the given
+        `random_seed`. It creates one generator per MPI rank (first layer)
+        and stores the hierarchy in `self.rng_hierarchy`. It also extracts
+        and stores the generator for the current MPI rank in `self.random`.
 
-        This method is automatically called in the constructor, but it can be
-        called again as many times as required. The typical case is when
-        one wants to use a seed that has been read from a parameter file.
+        Parameters
+        ----------
+        random_seed : int or None
+            Base seed for reproducible RNG streams. If `None`, the generators
+            will be non-deterministic.
+
+        Notes
+        -----
+        - This method is called automatically in the constructor using
+          the user-provided `random_seed`, but can be invoked again to
+          reseed the simulation at any point.
         """
-        # We need to assign a different random number generator to each MPI
-        # process, otherwise noise will be correlated. The following code
-        # works even if MPI is not used or if `random_seed` has been set to `None`.
-
-        # Also, we generate a different number geenrator for each detector,
-        # building a hierarchy of generators.
-
         self.rng_hierarchy = RNGHierarchy(random_seed)
         self.rng_hierarchy.build_mpi_layer(self.mpi_comm.size)
 
-        # Store the generator of this MPI task
         self.random = self.rng_hierarchy.get_generator(self.mpi_comm.rank)
 
     def init_detectors_random(self, num_detectors: int):
+        """
+        Extend the RNGHierarchy to include detector-level generators.
+
+        After the MPI-level layer has been built, this method spawns one
+        RNG generator per detector on each MPI rank. The list of
+        detector-level generators for the current rank is stored in
+        `self.dets_random`.
+
+        Parameters
+        ----------
+        num_detectors : int
+            Number of detectors per MPI rank to generate RNGs for.
+
+        Raises
+        ------
+        RuntimeError
+            If `self.rng_hierarchy` has not been initialized.
+        """
         self.rng_hierarchy.build_detector_layer(num_detectors)
 
         self.dets_random = self.rng_hierarchy.get_detector_level_generators_on_rank(
@@ -545,6 +554,33 @@ class Simulation:
         )
 
     def init_random(self, random_seed, num_detectors: int):
+        """
+        Convenience method to initialize both MPI and detector RNGs.
+
+        This method combines `init_rng_hierarchy` and `init_detectors_random`,
+        setting up a full two-layer RNG structure in one call:
+        1. Builds the MPI-level hierarchy from `random_seed`.
+        2. Builds the detector-level layer for `num_detectors` per rank.
+
+        After execution, the following attributes are set:
+        - `self.random`: RNG for this MPI rank.
+        - `self.dets_random`: List of RNGs for each detector on this rank.
+
+        This is useful if the user want to trigger the construction of the complete hierachy after initialization.
+
+        Parameters
+        ----------
+        random_seed : int or None
+            Base seed for reproducible RNG streams. If `None`, RNGs will be
+            non-deterministic.
+        num_detectors : int
+            Number of detectors per MPI rank.
+
+        Raises
+        ------
+        RuntimeError
+            If the MPI communicator (`self.mpi_comm`) is not set before calling.
+        """
         self.init_rng_hierarchy(random_seed)
         self.init_detectors_random(num_detectors)
 
@@ -1734,7 +1770,9 @@ class Simulation:
 
         This is a wrapper around
         :func:`.apply_quadratic_nonlin_to_observations()` that
-        applies non-linearity to a list of :class:`.Observation` instance."""
+        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained from the detector-level layer. As default it uses
+        the `dets_random` field of a :class:`.Simulation` object for this.
+        """
         if rng_hierarchy is None:
             rng_hierarchy = self.rng_hierarchy
         dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
@@ -1780,9 +1818,8 @@ class Simulation:
         This method must be called after having set the instrument,
         the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`.
-        The parameter `random` can be specified as a random number
-        generator that implements the ``normal`` method. As default it uses
-        the `random` field of a :class:`.Simulation` object for this.
+        Random number generators are obtained from the detector-level layer. As default it uses
+        the `dets_random` field of a :class:`.Simulation` object for this.
         """
 
         if rng_hierarchy is None:
@@ -2385,23 +2422,36 @@ class Simulation:
         append_to_report: bool = True,
         rng_hierarchy: Union[RNGHierarchy, None] = None,
     ):
-        """A method to apply the gain drift to the observation.
+        """
+        Apply gain drift to all observations.
 
-        This is a wrapper around :func:`.apply_gaindrift_to_observations()` that
-        injects gain drift to a list of :class:`.Observation` instance.
+        This method injects gain drift effects into the time-ordered data (TOD)
+        of each detector in each observation. The drift model can be either linear
+        or thermal, with parameters specified through a `GainDriftParams` object.
+        Random number generators are obtained from the detector-level layer. As default it uses
+        the `dets_random` field of a :class:`.Simulation` object for this.
 
-        Args:
+        Parameters
+        ----------
+        drift_params : GainDriftParams, optional
+            Parameters defining the drift behavior (linear or thermal). If not
+            provided, default values are used.
+        user_seed : int, optional
+            Optional seed for random generation of drift parameters. If None,
+            a default seed may be used.
+        component : str
+            Name of the TOD component to which gain drift is applied.
+        append_to_report : bool
+            Whether to include a detailed gain drift configuration summary in
+            the final report.
+        rng_hierarchy : RNGHierarchy, optional
+            RNG hierarchy used to generate per-detector drift noise. If not
+            provided, defaults to `self.rng_hierarchy`.
 
-            drift_params (:class:`.GainDriftParams`, optional): The gain
-                drift injection parameters object. Defaults to None.
-
-            user_seed (int, optional): A seed provided by the user.
-                Defaults to 12345.
-
-            component (str, optional): The name of the TOD on which the
-                gain drift has to be injected. Defaults to "tod".
-
-            append_to_report (bool, optional): Defaults to True.
+        Raises
+        ------
+        RuntimeError
+            If no observations are defined or instrument is not properly configured.
         """
         if rng_hierarchy is None:
             rng_hierarchy = self.rng_hierarchy

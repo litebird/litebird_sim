@@ -441,8 +441,9 @@ def apply_gaindrift_to_tod(
         user_seed (int, optional): A seed provided by the user. Defaults
           to None.
 
-        random (np.random.Generator, optional): A random number generator.
-          Defaults to None.
+        dets_random : list of np.random.Generator
+          List of per-detector random number generators. Must match the number
+          of detectors. Typically obtained from an `RNGHierarchy`.
     """
 
     if drift_params is None:
@@ -506,28 +507,40 @@ def apply_gaindrift_to_observations(
     component: str = "tod",
     dets_random: Union[List[np.random.Generator]] = None,
 ):
-    """The function to apply gain drift to the TOD of a :class:`.Observation`
-    instance or a list of observations.
+    """
+    Apply gain drift to one or more observations.
 
-    This function is a wrapper around :func:`.apply_gaindrift_to_tod()`
-    that injects gain drift to the TOD object.
+    This function injects gain drift into the time-ordered data (TOD) of one
+    or more `Observation` instances. It wraps
+    :func:`apply_gaindrift_to_tod`, and ensures proper setup of per-detector
+    random number generators using either a user-provided seed or a list of
+    pre-initialized RNGs.
 
-    Args:
+    Parameters
+    ----------
+    observations : Observation or list of Observation
+        A single `Observation` instance or a list of them.
+    drift_params : GainDriftParams, optional
+        Parameters defining the gain drift injection (e.g., linear or thermal).
+        If not provided, a default configuration is used.
+    user_seed : int, optional
+        Base seed to build the RNG hierarchy and generate detector-level RNGs that overwrite any eventual `dets_random`.
+        Required if `dets_random` is not provided.
+    component : str, optional
+        Name of the TOD attribute to modify. Defaults to `"tod"`.
+    dets_random : list of np.random.Generator, optional
+        List of per-detector random number generators. If not provided, and
+        `user_seed` is given, generators are created internally. One of
+        `user_seed` or `dets_random` must be provided.
 
-        observations (Union[Observation, List[Observation]]): An instance or a list
-          of instances of :class:`.Observation`.
-
-        drift_params (:class:`.GainDriftParams`, optional): The gain drift
-          injection parameters object. Defaults to None.
-
-        component (str, optional): The name of the TOD on which the gain
-          drift has to be injected. Defaults to "tod".
-
-        user_seed (int, optional): A seed provided by the user. Defaults
-          to None.
-
-        random (np.random.Generator, optional): A random number generator.
-          Defaults to None.
+    Raises
+    ------
+    TypeError
+        If `observations` is neither an `Observation` nor a list of them.
+    ValueError
+        If neither `user_seed` nor `dets_random` is provided.
+    AssertionError
+        If the number of random generators does not match the number of detectors.
     """
 
     if drift_params is None:
