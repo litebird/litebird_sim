@@ -8,10 +8,12 @@ Usage:
     python gen_mock_focalplane.py
 """
 
-import litebird_sim as lbs
+from pathlib import Path
+
 import numpy as np
 import tomlkit
-from pathlib import Path
+
+import litebird_sim as lbs
 
 
 def gen_mock_detector(name, theta_rad, phi_rad):
@@ -117,7 +119,12 @@ def save_to_toml(filename, telescope, orients, handiness, theta, phi):
         append_to_toml_file_with_hierarchy(data, filename, telescope, f"det_{i:03}")
 
 
-filename = Path(__file__).parent / "mock_focalplane.toml"
+filename = (
+    Path(__file__).parent.parent
+    / "test"
+    / "pointing_sys_reference"
+    / "mock_focalplane.toml"
+)
 telescope = "LFT"
 orients = ["Q", "Q", "Q", "Q", "U", "U", "U", "U", "Q", "Q"]
 handiness = ["A", "A", "A", "A", "B", "B", "B", "B", "A", "A"]
