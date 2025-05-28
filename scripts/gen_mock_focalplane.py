@@ -117,6 +117,9 @@ def save_to_toml(filename, telescope, orients, handiness, theta, phi):
             name = f"001_000_00{i}_{orients[i]}{handiness[i]}_100_{pol}"
         elif telescope == "HFT":
             name = f"002_000_00{i}_{orients[i]}_400_{pol}"
+        else:
+            raise ValueError(f"Unknown telescope {telescope}")
+
         det, data = gen_mock_detector(name, np.deg2rad(theta[i]), np.deg2rad(phi[i]))
         append_to_toml_file_with_hierarchy(data, filename, telescope, f"det_{i:03}")
 
