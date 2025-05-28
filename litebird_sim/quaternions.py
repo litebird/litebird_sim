@@ -10,7 +10,7 @@ z = np.array([0.0, 0.0, 1.0])
 
 
 @njit
-def quat_rotation_x(theta_rad):
+def quat_rotation_x(theta_rad):  # pragma: no cover
     """Return a quaternion representing a rotation around the x axis
 
     Prototype::
@@ -31,7 +31,7 @@ def quat_rotation_x(theta_rad):
 
 
 @njit
-def quat_rotation_y(theta_rad):
+def quat_rotation_y(theta_rad):  # pragma: no cover
     """Return a quaternion representing a rotation around the y axis
 
     Prototype::
@@ -44,7 +44,7 @@ def quat_rotation_y(theta_rad):
 
 
 @njit
-def quat_rotation_z(theta_rad):
+def quat_rotation_z(theta_rad):  # pragma: no cover
     """Return a quaternion representing a rotation around the y axis
 
     Prototype::
@@ -57,7 +57,9 @@ def quat_rotation_z(theta_rad):
 
 
 @njit
-def quat_right_multiply(result, other_v1, other_v2, other_v3, other_w):
+def quat_right_multiply(
+    result, other_v1, other_v2, other_v3, other_w
+):  # pragma: no cover
     """Perform a multiplication between two quaternions
 
     Prototype::
@@ -124,7 +126,9 @@ def quat_right_multiply(result, other_v1, other_v2, other_v3, other_w):
 
 
 @njit
-def quat_left_multiply(result, other_v1, other_v2, other_v3, other_w):
+def quat_left_multiply(
+    result, other_v1, other_v2, other_v3, other_w
+):  # pragma: no cover
     """Perform a multiplication between two quaternions
 
     Prototype::
@@ -183,14 +187,14 @@ def quat_left_multiply(result, other_v1, other_v2, other_v3, other_w):
 
 
 @njit
-def _cross(result, v0, v1, v2, w0, w1, w2):
+def _cross(result, v0, v1, v2, w0, w1, w2):  # pragma: no cover
     result[0] = v1 * w2 - v2 * w1
     result[1] = v2 * w0 - v0 * w2
     result[2] = v0 * w1 - v1 * w0
 
 
 @njit
-def rotate_vector(result, vx, vy, vz, w, vect):
+def rotate_vector(result, vx, vy, vz, w, vect):  # pragma: no cover
     """Rotate a vector using a quaternion
 
     Prototype::
@@ -234,7 +238,7 @@ def rotate_vector(result, vx, vy, vz, w, vect):
 
 
 @njit
-def rotate_x_vector(result, vx, vy, vz, w):
+def rotate_x_vector(result, vx, vy, vz, w):  # pragma: no cover
     """Rotate the x vector using the quaternion (vx, vy, vz, w)
 
     Prototype::
@@ -258,7 +262,7 @@ def rotate_x_vector(result, vx, vy, vz, w):
 
 
 @njit
-def rotate_y_vector(result, vx, vy, vz, w):
+def rotate_y_vector(result, vx, vy, vz, w):  # pragma: no cover
     """Rotate the x vector using the quaternion (vx, vy, vz, w)
 
     Prototype::
@@ -282,7 +286,7 @@ def rotate_y_vector(result, vx, vy, vz, w):
 
 
 @njit
-def rotate_z_vector(result, vx, vy, vz, w):
+def rotate_z_vector(result, vx, vy, vz, w):  # pragma: no cover
     """Rotate the x vector using the quaternion (vx, vy, vz, w)
 
     Prototype::
@@ -306,7 +310,7 @@ def rotate_z_vector(result, vx, vy, vz, w):
 
 
 @njit
-def all_rotate_vectors(result_matrix, quat_matrix, vec_matrix):
+def all_rotate_vectors(result_matrix, quat_matrix, vec_matrix):  # pragma: no cover
     """Rotate a set of vectors using quaternions
 
     Prototype::
@@ -328,7 +332,7 @@ def all_rotate_vectors(result_matrix, quat_matrix, vec_matrix):
 
 
 @njit
-def all_rotate_x_vectors(result_matrix, quat_matrix):
+def all_rotate_x_vectors(result_matrix, quat_matrix):  # pragma: no cover
     """Rotate the vector ``[1, 0, 0]`` using quaternions
 
     Prototype::
@@ -354,7 +358,7 @@ def all_rotate_x_vectors(result_matrix, quat_matrix):
 
 
 @njit
-def all_rotate_y_vectors(result_matrix, quat_matrix):
+def all_rotate_y_vectors(result_matrix, quat_matrix):  # pragma: no cover
     """Rotate the vector ``[0, 1, 0]`` using quaternions
 
     Prototype::
@@ -380,7 +384,7 @@ def all_rotate_y_vectors(result_matrix, quat_matrix):
 
 
 @njit
-def all_rotate_z_vectors(result_matrix, quat_matrix):
+def all_rotate_z_vectors(result_matrix, quat_matrix):  # pragma: no cover
     """Rotate the vector ``[0, 0, 1]`` using quaternions
 
     Prototype::
@@ -409,7 +413,7 @@ def all_rotate_z_vectors(result_matrix, quat_matrix):
 @njit(parallel=True)
 def multiply_quaternions_list_x_list(
     array_a: npt.NDArray, array_b: npt.NDArray, result: npt.NDArray
-) -> None:
+) -> None:  # pragma: no cover
     """Multiply two sets of quaternions together
 
     All the matrices must have the same shape ``(N, 4)``. The result of ``a × b`` is saved
@@ -428,7 +432,7 @@ def multiply_quaternions_list_x_list(
 @njit(parallel=True)
 def multiply_quaternions_list_x_one(
     array_a: npt.NDArray, single_b: npt.NDArray, result: npt.NDArray
-) -> None:
+) -> None:  # pragma: no cover
     """Multiply a matrix of quaternions by one quaternion: `array_a × single_b`.
 
     The result of ``a × b`` is saved into `result`."""
@@ -446,7 +450,7 @@ def multiply_quaternions_list_x_one(
 @njit(parallel=True)
 def multiply_quaternions_one_x_list(
     single_a: npt.NDArray, array_b: npt.NDArray, result: npt.NDArray
-) -> None:
+) -> None:  # pragma: no cover
     """Multiply one quaternion by a matrix of quaternions: `single_a × array_b`.
 
     The result of ``a × b`` is saved into `result`."""
@@ -462,7 +466,7 @@ def multiply_quaternions_one_x_list(
 
 
 @njit(parallel=True)
-def normalize_quaternions(quat_matrix: npt.NDArray) -> None:
+def normalize_quaternions(quat_matrix: npt.NDArray) -> None:  # pragma: no cover
     """Normalize all the quaternions in a matrix with shape (N, 4)
 
     All the quaternions are normalized in place.
@@ -478,7 +482,7 @@ def normalize_quaternions(quat_matrix: npt.NDArray) -> None:
 
 
 @njit
-def quat_rotation(theta_rad, x, y, z):
+def quat_rotation(theta_rad, x, y, z):  # pragma: no cover
     """This function rotates a quaternion by theta_rad about a specific axis.
     Args:
         theta_rad (float): The angle to rotate the quaternion by in radians.

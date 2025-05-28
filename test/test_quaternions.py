@@ -263,8 +263,8 @@ def test_quat_rotations():
     )
     nptest.assert_allclose(quat_matrix, expected_quat)
 
-    quat_matrix = lbs.quat_rotation_y_brdcast(theta_rad_array)
+    quat_matrix = lbs.quat_rotation_z_brdcast(theta_rad_array)
     expected_quat = np.array(
-        [np.array(lbs.quat_rotation_y(theta)) for theta in theta_rad_array]
+        [np.array(lbs.quat_rotation_z(theta)) for theta in theta_rad_array]
     )
     nptest.assert_allclose(quat_matrix, expected_quat)

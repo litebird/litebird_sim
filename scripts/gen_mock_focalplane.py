@@ -8,26 +8,30 @@ Usage:
     python gen_mock_focalplane.py
 """
 
-import litebird_sim as lbs
+from pathlib import Path
+
 import numpy as np
 import tomlkit
-from pathlib import Path
+
+import litebird_sim as lbs
 
 
 def gen_mock_detector(name, theta_rad, phi_rad):
     telescope, wafer, pix, orient_hand, freq, pol = name.split("_")
     if telescope == "000":
         telescope = "LFT"
-        orient, hand = orient_hand[0], orient_hand[1]
+        orient = orient_hand[0]
+        # hand = orient_hand[1]
     elif telescope == "001":
         telescope = "MFT"
-        orient, hand = orient_hand[:2], orient_hand[-1]
+        orient = orient_hand[:2]
+        # hand = orient_hand[-1]
         orient = str(orient)
     elif telescope == "002":
         telescope = "HFT"
         orient = orient_hand
-
-    print(hand)
+    else:
+        raise ValueError(f"Unknown telescope {telescope}")
 
     wafer = telescope[0] + wafer[-2:]
 
@@ -113,11 +117,19 @@ def save_to_toml(filename, telescope, orients, handiness, theta, phi):
             name = f"001_000_00{i}_{orients[i]}{handiness[i]}_100_{pol}"
         elif telescope == "HFT":
             name = f"002_000_00{i}_{orients[i]}_400_{pol}"
+        else:
+            raise ValueError(f"Unknown telescope {telescope}")
+
         det, data = gen_mock_detector(name, np.deg2rad(theta[i]), np.deg2rad(phi[i]))
         append_to_toml_file_with_hierarchy(data, filename, telescope, f"det_{i:03}")
 
 
-filename = Path(__file__).parent / "mock_focalplane.toml"
+filename = (
+    Path(__file__).parent.parent
+    / "test"
+    / "pointing_sys_reference"
+    / "mock_focalplane.toml"
+)
 telescope = "LFT"
 orients = ["Q", "Q", "Q", "Q", "U", "U", "U", "U", "Q", "Q"]
 handiness = ["A", "A", "A", "A", "B", "B", "B", "B", "A", "A"]

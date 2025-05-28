@@ -1,10 +1,12 @@
 # HEAD
 
--   Move map rotation from galactic to ecliptic at generation in `mbs` and test [#413](https://github.com/litebird/litebird_sim/pull/413)
-
 -   **Breaking change**: Drop support for Python 3.9, add support for 3.13. Note that this implies that we do no longer support TOAST2, as it does not work with Python 3.10 [#409](https://github.com/litebird/litebird_sim/pull/409)
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
+
+-   Measure code coverage in PRs [#415](https://github.com/litebird/litebird_sim/pull/415)
+
+-   Move map rotation from galactic to ecliptic at generation in `mbs` and test [#413](https://github.com/litebird/litebird_sim/pull/413)
 
 -   Make actual use of `[skipci]` and `skip ci]` in commit messages [#410](https://github.com/litebird/litebird_sim/pull/410)
 
