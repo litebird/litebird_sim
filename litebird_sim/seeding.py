@@ -5,6 +5,7 @@ import pickle
 from datetime import datetime, timezone
 from typing import List, Optional, Union
 
+import numpy as np
 from numpy.random import PCG64, Generator, SeedSequence
 
 
@@ -109,6 +110,66 @@ class RNGHierarchy:
 
     def __repr__(self):
         return f"RNGHierarchy(base_seed={self.base_seed})"
+
+    def __eq__(self, other):
+        if not isinstance(other, RNGHierarchy):
+            return False
+
+        if self.base_seed != other.base_seed:
+            return False
+
+        return self._compare_hierarchy(self.hierarchy, other.hierarchy)
+
+    @staticmethod
+    def _compare_hierarchy(h1, h2):
+        if set(h1.keys()) != set(h2.keys()):
+            return False
+
+        for key in h1:
+            node1 = h1[key]
+            node2 = h2[key]
+
+            # Check seed_seq state
+            if "seed_seq" in node1 or "seed_seq" in node2:
+                if type(node1.get("seed_seq")) is not type(node2.get("seed_seq")):
+                    return False
+                if node1["seed_seq"].state != node2["seed_seq"].state:
+                    return False
+
+            # Check generator state
+            if "generator" in node1 or "generator" in node2:
+                gen1 = node1.get("generator")
+                gen2 = node2.get("generator")
+                if type(gen1) is not type(gen2):
+                    return False
+
+                state1 = gen1.bit_generator.state
+                state2 = gen2.bit_generator.state
+
+                if state1["bit_generator"] != state2["bit_generator"]:
+                    return False
+
+                if set(state1["state"].keys()) != set(state2["state"].keys()):
+                    return False
+
+                for k in state1["state"]:
+                    v1 = state1["state"][k]
+                    v2 = state2["state"][k]
+
+                    if isinstance(v1, np.ndarray):
+                        if not np.array_equal(v1, v2):
+                            return False
+                    else:
+                        if v1 != v2:
+                            return False
+
+            # Recurse into children
+            children1 = node1.get("children", {})
+            children2 = node2.get("children", {})
+            if not RNGHierarchy._compare_hierarchy(children1, children2):
+                return False
+
+        return True
 
     def build_mpi_layer(self, num_ranks: int):
         # Spawn MPI rank seed sequences and generators from root
