@@ -114,7 +114,7 @@ def test_save_load_hierarchy(tmp_path):
 
     RNG_hierarchy.save(tmp_path / "hierarchy.pkl")  # Save immediately
 
-    loaded_RNG_hierarchy: lbs.RNGHierarchy = lbs.RNGHierarchy.from_saved_hierarchy(
+    loaded_RNG_hierarchy: lbs.RNGHierarchy = lbs.RNGHierarchy.load(
         tmp_path / "hierarchy.pkl"
     )
 
@@ -175,7 +175,7 @@ def test_compatibility_error(tmp_path):
     RNG_hierarchy.save(tmp_path / "hierarchy.pkl")  # Save immediately
 
     with pytest.raises(ValueError):
-        _ = lbs.RNGHierarchy.from_saved_hierarchy(tmp_path / "hierarchy.pkl")
+        _ = lbs.RNGHierarchy.load(tmp_path / "hierarchy.pkl")
 
 
 def test_detector_generators_regeneration(tmp_path):

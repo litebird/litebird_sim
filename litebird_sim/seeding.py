@@ -254,8 +254,8 @@ class RNGHierarchy:
             pickle.dump(self, f)
 
     @classmethod
-    def from_saved_hierarchy(cls, filename) -> "RNGHierarchy":
-        with open(filename, "rb") as f:
+    def load(cls, path: str) -> "RNGHierarchy":
+        with open(path, "rb") as f:
             rng_hierarchy = pickle.load(f)
 
         if rng_hierarchy.SAVE_FORMAT_VERSION != cls.SAVE_FORMAT_VERSION:
