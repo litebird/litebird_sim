@@ -60,7 +60,7 @@ def test_detector_generators():
                 )
 
 
-def test_save_load_hierarchy(tmp_path):
+def test_save_load_hierarchy_and_reproducibility(tmp_path):
     master_seed = 12345
     RNG_hierarchy = lbs.RNGHierarchy(master_seed)
 
