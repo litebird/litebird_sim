@@ -20,16 +20,18 @@ def gen_mock_detector(name, theta_rad, phi_rad):
     telescope, wafer, pix, orient_hand, freq, pol = name.split("_")
     if telescope == "000":
         telescope = "LFT"
-        orient, hand = orient_hand[0], orient_hand[1]
+        orient = orient_hand[0]
+        # hand = orient_hand[1]
     elif telescope == "001":
         telescope = "MFT"
-        orient, hand = orient_hand[:2], orient_hand[-1]
+        orient = orient_hand[:2]
+        # hand = orient_hand[-1]
         orient = str(orient)
     elif telescope == "002":
         telescope = "HFT"
         orient = orient_hand
-
-    print(hand)
+    else:
+        raise ValueError(f"Unknown telescope {telescope}")
 
     wafer = telescope[0] + wafer[-2:]
 
