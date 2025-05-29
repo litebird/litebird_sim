@@ -86,10 +86,17 @@ def get_generator_from_hierarchy(
         if isinstance(idx, int):
             idx = f"rank{idx}" if depth == 0 else f"det{idx}"
 
-        try:
-            node = node[idx] if depth == 0 else node["children"][idx]
-        except KeyError:
-            raise KeyError(f"Index '{idx}' not found in hierarchy at depth {depth}")
+        if depth == 0:
+            # First layer: directly in hierarchy
+            if idx not in node:
+                raise KeyError(f"Index '{idx}' not found at top level.")
+            node = node[idx]
+        else:
+            # Subsequent layers: inside children
+            children = node.get("children", {})
+            if idx not in children:
+                raise KeyError(f"Index '{idx}' not found in hierarchy at depth {depth}")
+            node = children[idx]
 
     if "generator" in node:
         return node["generator"]
