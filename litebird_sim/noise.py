@@ -8,6 +8,7 @@ import scipy as sp
 from numba import njit
 
 from .observations import Observation
+from .seeding import regenerate_or_check_detector_generators
 
 
 def nearest_pow2(data):
@@ -195,6 +196,7 @@ def add_noise_to_observations(
     observations: Union[Observation, List[Observation]],
     noise_type: str,
     dets_random: List[np.random.Generator],
+    user_seed: Union[int, None] = None,
     scale: float = 1.0,
     component: str = "tod",
 ):
@@ -229,9 +231,13 @@ def add_noise_to_observations(
         should be added.
     noise_type : str
         Type of noise to inject. Must be one of `"white"` or `"one_over_f"`.
-    dets_random : list of np.random.Generator
-        List of per-detector random number generators. Must match the number
-        of detectors in the observations.
+    dets_random : list of np.random.Generator, optional
+        List of per-detector random number generators. If not provided, and
+        `user_seed` is given, generators are created internally. One of
+        `user_seed` or `dets_random` must be provided.
+    user_seed : int, optional
+        Base seed to build the RNG hierarchy and generate detector-level RNGs that overwrite any eventual `dets_random`.
+        Required if `dets_random` is not provided.
     scale : float, optional
         A scaling factor applied to the noise. Defaults to 1.0.
     component : str, optional
@@ -241,6 +247,8 @@ def add_noise_to_observations(
     ------
     ValueError
         If `noise_type` is not one of `"white"` or `"one_over_f"`.
+    ValueError
+        If neither `user_seed` nor `dets_random` is provided.
     AssertionError
         If the number of RNGs does not match the number of detectors.
     """
@@ -252,8 +260,10 @@ def add_noise_to_observations(
     else:
         obs_list = observations
 
-    assert len(dets_random) == getattr(obs_list[0], component).shape[0], (
-        "The number of random generators must match the number of detectors"
+    dets_random = regenerate_or_check_detector_generators(
+        observations=obs_list,
+        user_seed=user_seed,
+        dets_random=dets_random,
     )
 
     # iterate through each observation

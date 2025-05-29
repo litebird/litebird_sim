@@ -1809,6 +1809,7 @@ class Simulation:
     def add_noise(
         self,
         rng_hierarchy: Union[RNGHierarchy, None] = None,
+        user_seed: Union[int, None] = None,
         noise_type: str = "one_over_f",
         component: str = "tod",
         append_to_report: bool = True,
@@ -1832,6 +1833,7 @@ class Simulation:
             observations=self.observations,
             noise_type=noise_type,
             dets_random=dets_random,
+            user_seed=user_seed,
             component=component,
         )
 
