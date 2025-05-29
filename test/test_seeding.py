@@ -62,6 +62,26 @@ def test_detector_generators():
                 )
 
 
+def test_add_new_layer():
+    master_seed = 12345
+    RNG_hierarchy = lbs.RNGHierarchy(master_seed)
+
+    num_fake_mpi_tasks = 2
+    RNG_hierarchy.build_mpi_layer(num_fake_mpi_tasks)
+
+    num_fake_detectors = 3
+    RNG_hierarchy.build_detector_layer(num_fake_detectors)
+
+    RNG_hierarchy.add_extra_layer(4, layer_name="mylayer")
+
+    _ = RNG_hierarchy.get_generator("rank0", "det2", "mylayer3")
+
+    RNG_hierarchy.add_extra_layer(5)
+
+    # Automatic naming is 'L{depth}_{index}'
+    _ = RNG_hierarchy.get_generator("rank0", "det2", "mylayer3", "L3_3")
+
+
 def test_hierarchies_with_same_seed():
     master_seed = 12345
 

@@ -335,19 +335,26 @@ class RNGHierarchy:
         """
 
         def recurse_add(node, layer_depth):
-            children = node["children"]
-            for _, child_node in children.items():
-                spawned = child_node["seed_seq"].spawn(num_children)
-                new_children = {}
-                for i, seq in enumerate(spawned):
-                    label = f"{layer_name or f'L{layer_depth}'}_{i}"
-                    new_children[label] = {
+            children = node.get("children", {})
+            if not children:
+                # We are at a leaf node — add new layer here
+                spawned = node["seed_seq"].spawn(num_children)
+                if layer_name is not None:
+                    names = [f"{layer_name}{i}" for i in range(num_children)]
+                else:
+                    names = [f"L{layer_depth}_{i}" for i in range(num_children)]
+                node["children"] = {
+                    name: {
                         "seed_seq": seq,
                         "generator": Generator(PCG64(seq)),
                         "children": {},
                     }
-                child_node["children"] = new_children
-                recurse_add(child_node, layer_depth + 1)
+                    for name, seq in zip(names, spawned)
+                }
+            else:
+                # Recurse only into existing children
+                for child in children.values():
+                    recurse_add(child, layer_depth + 1)
 
         for rank_node in self.hierarchy.values():
             recurse_add(rank_node, 1)
