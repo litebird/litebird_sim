@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 import pytest
 import litebird_sim as lbs
@@ -75,6 +76,10 @@ def test_hierarchies_with_same_seed():
     identical_RNG_hierarchy.build_mpi_layer(num_fake_mpi_tasks)
     num_fake_detectors = 3
     identical_RNG_hierarchy.build_detector_layer(num_fake_detectors)
+
+    single_rng = deepcopy(RNG_hierarchy.get_generator(0, 2))
+    identical_single_rng = deepcopy(RNG_hierarchy.get_generator(0, 2))
+    assert single_rng.bit_generator.state == identical_single_rng.bit_generator.state
 
     generators = [
         RNG_hierarchy.get_detector_level_generators_on_rank(idx)

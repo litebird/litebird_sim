@@ -86,10 +86,10 @@ def get_generator_from_hierarchy(
         if isinstance(idx, int):
             idx = f"rank{idx}" if depth == 0 else f"det{idx}"
 
-        if idx not in node:
+        try:
+            node = node[idx] if depth == 0 else node["children"][idx]
+        except KeyError:
             raise KeyError(f"Index '{idx}' not found in hierarchy at depth {depth}")
-
-        node = node[idx]
 
     if "generator" in node:
         return node["generator"]
@@ -362,7 +362,7 @@ class RNGHierarchy:
 
         self.build_detector_layer(num_detectors_per_rank=detectors_per_rank)
 
-    def get_generator(self, *indices: Union[int, str, tuple]) -> Generator:
+    def get_generator(self, *indices: Union[int, str]) -> Generator:
         """
         Retrieve a generator from the hierarchy using a sequence of indices.
 
