@@ -194,9 +194,9 @@ def regenerate_or_check_detector_generators(
         dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(rank=rank)
     if user_seed is None and dets_random is None:
         raise ValueError("You should pass either `user_seed` or `dets_random`.")
-    assert len(dets_random) == observations[0].n_detectors, (
-        "The number of random generators must match the number of detectors"
-    )
+    assert (
+        len(dets_random) == observations[0].n_detectors
+    ), "The number of random generators must match the number of detectors"
     return dets_random
 
 
@@ -329,7 +329,7 @@ class RNGHierarchy:
             raise RuntimeError(
                 "Must call 'build_mpi_layer'(comm_size) before building detector layer."
             )
-        
+
         if self.num_detectors_per_rank is not None:
             log.warning(
                 "Detector layer is already initialized. Reinitializing the entire RNG hierarchy."
@@ -338,7 +338,7 @@ class RNGHierarchy:
         comm_size = self.comm_size
         self.comm_size = None
         self.build_mpi_layer(comm_size)
-        
+
         self.num_detectors_per_rank = num_detectors_per_rank
 
         for _, rank_node in self.hierarchy.items():
