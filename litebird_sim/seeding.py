@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import logging as log
 import pickle
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -200,16 +201,18 @@ class RNGHierarchy:
         self, base_seed: int, comm_size: int = None, num_detectors_per_rank: int = None
     ):
         self.base_seed = base_seed
+        self.comm_size = comm_size
+        self.num_detectors_per_rank = num_detectors_per_rank
         self.root_seq = SeedSequence(base_seed)
         self.metadata = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "save_format_version": self.SAVE_FORMAT_VERSION,
         }
         self.hierarchy = {}
-        if comm_size is not None:
-            self.build_mpi_layer(comm_size)
-            if num_detectors_per_rank is not None:
-                self.build_detector_layer(num_detectors_per_rank)
+        if self.comm_size is not None:
+            self.build_mpi_layer(self.comm_size)
+            if self.num_detectors_per_rank is not None:
+                self.build_detector_layer(self.num_detectors_per_rank)
 
     def __repr__(self):
         return f"RNGHierarchy(base_seed={self.base_seed})"
@@ -276,7 +279,7 @@ class RNGHierarchy:
 
     def build_mpi_layer(self, comm_size: int):
         """
-        Construct the MPI rank layer of the RNG hierarchy.
+        Construct (or reconstruct) the MPI rank layer of the RNG hierarchy.
 
         This method spawns a seed and corresponding RNG generator for each MPI rank, starting from
         the root seed sequence. Each rank node includes an empty 'children' field for downstream levels.
@@ -286,7 +289,15 @@ class RNGHierarchy:
         comm_size : int
             The number of MPI ranks to include in the hierarchy.
         """
-        spawned = self.root_seq.spawn(comm_size)
+        if self.comm_size is not None:
+            log.warning(
+                "MPI layer is already initialized. Reinitializing the entire RNG hierarchy."
+            )
+        self.comm_size = comm_size
+
+        self.root_seq = SeedSequence(self.base_seed)
+        self.hierarchy = {}  # Reset hierarchy entirely
+        spawned = self.root_seq.spawn(self.comm_size)
         for rank, seq in enumerate(spawned):
             self.hierarchy[f"rank{rank}"] = {
                 "seed_seq": seq,
@@ -296,7 +307,7 @@ class RNGHierarchy:
 
     def build_detector_layer(self, num_detectors_per_rank: int):
         """
-        Build the detector layer beneath each MPI rank in the RNG hierarchy.
+        Build (or rebuild) the RNG hierarchy down to the detector layer beneath each MPI rank.
 
         Each MPI rank node spawns a fixed number of detector-level seed sequences and generators.
         These are added under the "children" dictionary of each rank node.
@@ -306,8 +317,19 @@ class RNGHierarchy:
         num_detectors_per_rank : int
             Number of detectors (i.e., child nodes) to create under each MPI rank.
         """
+        if self.comm_size is None:
+            raise RuntimeError(
+                "Must call 'build_mpi_layer'(comm_size) before building detector layer."
+            )
+
+        self.num_detectors_per_rank = num_detectors_per_rank
+        self.root_seq = SeedSequence(self.base_seed)
+
+        self.build_mpi_layer(self.comm_size)
+
         for _, rank_node in self.hierarchy.items():
-            spawned = rank_node["seed_seq"].spawn(num_detectors_per_rank)
+            spawned = rank_node["seed_seq"].spawn(self.num_detectors_per_rank)
+            rank_node["children"] = {}  # Clear previous children
             for det, seq in enumerate(spawned):
                 rank_node["children"][f"det{det}"] = {
                     "seed_seq": seq,
@@ -361,7 +383,7 @@ class RNGHierarchy:
 
     def build_hierarchy(self, comm_size: int, detectors_per_rank: int):
         """
-        Convenience function to construct a two-level hierarchy with ranks and detectors.
+        Convenience function to construct a two-level hierarchy with ranks and detectors: root → MPI rank → detectors.
 
         Equivalent to calling `build_mpi_layer` followed by `build_detector_layer`.
 
@@ -372,6 +394,10 @@ class RNGHierarchy:
         detectors_per_rank : int
             Number of detectors per MPI rank.
         """
+        if self.comm_size is not None or self.num_detectors_per_rank is not None:
+            log.warning(
+                "RNG hierarchy is already initialized. Reinitializing the full hierarchy."
+            )
         self.build_mpi_layer(comm_size=comm_size)
 
         self.build_detector_layer(num_detectors_per_rank=detectors_per_rank)
