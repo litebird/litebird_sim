@@ -72,14 +72,20 @@ def test_add_new_layer():
     num_fake_detectors = 3
     RNG_hierarchy.build_detector_layer(num_fake_detectors)
 
-    RNG_hierarchy.add_extra_layer(4, layer_name="mylayer")
-
-    _ = RNG_hierarchy.get_generator("rank0", "det2", "mylayer3")
-
-    RNG_hierarchy.add_extra_layer(5)
+    RNG_hierarchy.add_extra_layer(4)
 
     # Automatic naming is 'L{depth}_{index}'
-    _ = RNG_hierarchy.get_generator("rank0", "det2", "mylayer3", "L3_3")
+    _ = RNG_hierarchy.get_generator("rank1", "det2", "L2_3")
+    # integer indeces
+    _ = RNG_hierarchy.get_generator(1, 2, 3)
+
+    # Custom naming
+    RNG_hierarchy.add_extra_layer(5, layer_name="mylayer")
+
+    _ = RNG_hierarchy.get_generator("rank1", "det2", "L2_3", "mylayer4")
+
+    with pytest.raises(KeyError):
+        _ = RNG_hierarchy.get_generator(1, 2, 3, 4)
 
 
 def test_hierarchies_with_same_seed():

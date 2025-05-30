@@ -85,7 +85,12 @@ def get_generator_from_hierarchy(
     node = deepcopy(hierarchy)
     for depth, idx in enumerate(indices):
         if isinstance(idx, int):
-            idx = f"rank{idx}" if depth == 0 else f"det{idx}"
+            if depth == 0:
+                idx = f"rank{idx}"
+            elif depth == 1:
+                idx = f"det{idx}"
+            else:
+                idx = f"L{depth}_{idx}"
 
         if depth == 0:
             # First layer: directly in hierarchy
@@ -96,7 +101,9 @@ def get_generator_from_hierarchy(
             # Subsequent layers: inside children
             children = node.get("children", {})
             if idx not in children:
-                raise KeyError(f"Index '{idx}' not found in hierarchy at depth {depth}")
+                raise KeyError(
+                    f"Index '{idx}' not found in hierarchy at depth {depth}. Be aware that only automatic naming is supported beyond the second layer (see `RNGHierarchy.add_extra_layer`)."
+                )
             node = children[idx]
 
     if "generator" in node:
