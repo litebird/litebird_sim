@@ -203,6 +203,53 @@ def test_compatibility_error(tmp_path):
         _ = lbs.RNGHierarchy.load(tmp_path / "hierarchy.pkl")
 
 
+def test_multiple_calls_initialization():
+    master_seed = 12345
+
+    ref_hierarchy = lbs.RNGHierarchy(master_seed)
+    num_fake_mpi_tasks = 2
+    ref_hierarchy.build_mpi_layer(num_fake_mpi_tasks)
+    ref_mpi_hierarchy = deepcopy(ref_hierarchy)
+
+    num_fake_detectors = 3
+    ref_hierarchy.build_detector_layer(num_fake_detectors)
+    ref_dets_hierarchy = deepcopy(ref_hierarchy)
+
+    my_hierarchy = lbs.RNGHierarchy(master_seed)
+    my_hierarchy.build_mpi_layer(num_fake_mpi_tasks)
+    my_hierarchy.build_detector_layer(num_fake_detectors)
+
+    assert ref_hierarchy == my_hierarchy, f"{ref_hierarchy} != {my_hierarchy}"
+
+    # Re-trigger MPI layer
+    my_hierarchy.build_mpi_layer(num_fake_mpi_tasks)
+
+    assert ref_mpi_hierarchy == my_hierarchy, (
+        f"After MPI layer build, {ref_hierarchy} != {my_hierarchy}"
+    )
+
+    # Re-trigger detector layer
+    my_hierarchy.build_detector_layer(num_fake_detectors)
+
+    assert ref_dets_hierarchy == my_hierarchy, (
+        f"After detector layer build, {ref_hierarchy} != {my_hierarchy}"
+    )
+
+    # Multiple re-initializations
+    for _ in range(3):
+        my_hierarchy.build_detector_layer(num_fake_detectors)
+        assert ref_dets_hierarchy == my_hierarchy, (
+            f"After detector layer build, {ref_hierarchy} != {my_hierarchy}"
+        )
+
+    # Trigger full-reinitialization
+    ref_hierarchy.build_hierarchy(num_fake_mpi_tasks, num_fake_detectors)
+
+    assert ref_hierarchy == my_hierarchy, (
+        f"After full build, {ref_hierarchy} != {my_hierarchy}"
+    )
+
+
 def test_detector_generators_regeneration(tmp_path):
     start_time = Time("2034-05-02")
     duration_s = 2 * 24 * 3600
