@@ -208,18 +208,18 @@ class RNGHierarchy:
         self, base_seed: int, comm_size: int = None, num_detectors_per_rank: int = None
     ):
         self.base_seed = base_seed
-        self.comm_size = comm_size
-        self.num_detectors_per_rank = num_detectors_per_rank
-        self.root_seq = SeedSequence(base_seed)
+        self.comm_size = None
+        self.num_detectors_per_rank = None
+        # self.root_seq = SeedSequence(base_seed)
         self.metadata = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "save_format_version": self.SAVE_FORMAT_VERSION,
         }
         self.hierarchy = {}
-        if self.comm_size is not None:
-            self.build_mpi_layer(self.comm_size)
-            if self.num_detectors_per_rank is not None:
-                self.build_detector_layer(self.num_detectors_per_rank)
+        if comm_size is not None:
+            self.build_mpi_layer(comm_size)
+            if num_detectors_per_rank is not None:
+                self.build_detector_layer(num_detectors_per_rank)
 
     def __repr__(self):
         return f"RNGHierarchy(base_seed={self.base_seed})"
@@ -301,6 +301,7 @@ class RNGHierarchy:
                 "MPI layer is already initialized. Reinitializing the entire RNG hierarchy."
             )
         self.comm_size = comm_size
+        self.num_detectors_per_rank = None
 
         self.root_seq = SeedSequence(self.base_seed)
         self.hierarchy = {}  # Reset hierarchy entirely
@@ -328,11 +329,17 @@ class RNGHierarchy:
             raise RuntimeError(
                 "Must call 'build_mpi_layer'(comm_size) before building detector layer."
             )
+        
+        if self.num_detectors_per_rank is not None:
+            log.warning(
+                "Detector layer is already initialized. Reinitializing the entire RNG hierarchy."
+            )
 
+        comm_size = self.comm_size
+        self.comm_size = None
+        self.build_mpi_layer(comm_size)
+        
         self.num_detectors_per_rank = num_detectors_per_rank
-        self.root_seq = SeedSequence(self.base_seed)
-
-        self.build_mpi_layer(self.comm_size)
 
         for _, rank_node in self.hierarchy.items():
             spawned = rank_node["seed_seq"].spawn(self.num_detectors_per_rank)
