@@ -37,23 +37,23 @@ Here is a short example that shows how to add noise:
    # by `sim`, which is initialized with the
    # seed we passed to the Simulation constructor
    # to ensure repeatability.
-   lbs.noise.add_noise_to_observations(obs, 'white', random=sim.random)
+   lbs.noise.add_noise_to_observations(obs, 'white', dets_random=sim.dets_random)
 
    for i in range(10):
        print(f"{obs[0].tod[0][i]:.5e}")
 
 .. testoutput::
 
-    5.65263e-04
-    -1.54522e-04
-    3.42276e-04
-    -1.42274e-04
-    -1.71110e-04
-    8.72188e-05
-    -1.23400e-04
-    -6.99311e-05
-    6.58389e-05
-    5.51306e-04
+    -1.37982e-04
+    3.65642e-04
+    2.47778e-04
+    1.78779e-04
+    -5.03410e-05
+    4.21404e-04
+    5.90033e-04
+    5.07347e-04
+    -9.98478e-05
+    -5.19765e-05
 
 
 Note that we pass ``sim.random`` as the number generator to use.
@@ -87,7 +87,7 @@ call the low level function directly:
    obs = sim.create_observations(detectors=[det])
 
    custom_sigma_uk = 1234
-   lbs.noise.add_white_noise(obs[0].tod[0], custom_sigma_uk, random=sim.random)
+   lbs.noise.add_white_noise(obs[0].tod[0], custom_sigma_uk, random=sim.dets_random[0])
 
 We can also add 1/f noise using a very similar call to the above:
 
@@ -113,7 +113,7 @@ We can also add 1/f noise using a very similar call to the above:
 
    # Here we add 1/f noise using the detector noise
    # parameters from the detector object
-   lbs.noise.add_noise_to_observations(obs, 'one_over_f', random=sim.random)
+   lbs.noise.add_noise_to_observations(obs, 'one_over_f', dets_random=sim.dets_random)
 
 Again, to generate noise with custom parameters, we can either use the low-level function or edit the :class:`.Observation` object to contain the desired noise parameters.
 
@@ -152,7 +152,7 @@ Again, to generate noise with custom parameters, we can either use the low-level
        custom_alpha,
        custom_sigma_uk,
        obs[0].sampling_rate_hz,
-       sim.random,
+       sim.dets_random[0],
    )
 
    # Option 2: we change the values in `obs`
@@ -163,7 +163,7 @@ Again, to generate noise with custom parameters, we can either use the low-level
        custom_sigma_uk / np.sqrt(obs[0].sampling_rate_hz)
    )
 
-   lbs.noise.add_noise_to_observations(obs, 'one_over_f', random=sim.random)
+   lbs.noise.add_noise_to_observations(obs, 'one_over_f', dets_random=sim.dets_random)
 
 
 .. warning::
@@ -248,11 +248,11 @@ the interface is simplified.
 
 .. testoutput::
 
-    2.83998e-04
-    -7.58942e-05
-    1.72505e-04
-    -6.97704e-05
-    -8.41885e-05
+    -6.90763e-05
+    1.82736e-04
+    1.23804e-04
+    8.93039e-05
+    -2.52559e-05
 
 API reference
 -------------

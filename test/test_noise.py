@@ -29,11 +29,12 @@ def test_add_noise_to_observations():
         fknee_mhz=2e3,
     )
 
+    sim.init_rng_hierarchy(random_seed=12_345)
     sim.create_observations(detectors=[det1, det2])
 
-    sim.init_random(random_seed=12_345)
-
-    lbs.noise.add_noise_to_observations(sim.observations, "white", random=sim.random)
+    lbs.noise.add_noise_to_observations(
+        sim.observations, "white", dets_random=sim.dets_random
+    )
 
     assert len(sim.observations) == 1
 
@@ -42,13 +43,7 @@ def test_add_noise_to_observations():
 
     # fmt: off
     reference = np.array([
-        [+1.7875197e-06, -4.8864092e-07, +1.0823729e-06, -4.4991100e-07,
-         -5.4109887e-07, +2.7580990e-07, -3.9022507e-07, -2.2114153e-07,
-         +2.0820102e-07, +1.7433838e-06],
-        [+1.0560724e-05, -1.1145157e-05, +8.1773060e-06, +4.4965477e-06,
-         +4.2855218e-06, +9.2935315e-06, -7.5876560e-06, +3.3198667e-06,
-         +5.1126663e-06, -9.2129788e-08],
-    ])
+        [-4.3633665e-07,  1.1562618e-06,  7.8354390e-07,  5.6534816e-07,        -1.5919208e-07,  1.3325960e-06,  1.8658482e-06,  1.6043715e-06,        -3.1574638e-07, -1.6436400e-07],       [ 2.5071698e-05, -6.3309367e-06,  1.1325796e-05, -7.9862139e-07,         4.4909466e-06, -6.1964606e-06, -2.4171566e-06,  6.3236403e-06,        -1.1995277e-05,  4.1830776e-06]])
     # fmt: on
 
     assert np.allclose(tod, reference)
@@ -84,10 +79,13 @@ def test_add_noise_to_observations_in_other_field():
     for cur_obs in sim.observations:
         cur_obs.noise_tod = np.zeros_like(cur_obs.tod)
 
-    sim.init_random(random_seed=12_345)
+    sim.init_rng_hierarchy(random_seed=12_345)
 
     lbs.noise.add_noise_to_observations(
-        sim.observations, "one_over_f", random=sim.random, component="noise_tod"
+        sim.observations,
+        "one_over_f",
+        dets_random=sim.dets_random,
+        component="noise_tod",
     )
 
     assert len(sim.observations) == 1

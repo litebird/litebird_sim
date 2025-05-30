@@ -180,7 +180,7 @@ def test_PointingSys_add_uncommon_disturb_to_FP(
     nquats = obs.n_samples + 1
     noise_rad_matrix = np.zeros([len(dets), nquats])
     sigmas = np.linspace(0, np.deg2rad(1), len(dets))
-    sim.init_random(random_seed=12_345)
+    sim.init_random(random_seed=12_345, num_detectors=len(dets))
     for i in range(len(dets)):
         lbs.add_white_noise(
             noise_rad_matrix[i, :], sigma=np.deg2rad(sigmas[i]), random=sim.random
@@ -225,7 +225,7 @@ def test_PointingSys_add_common_disturb_to_FP(
     nquats = obs.n_samples + 1
     noise_rad_1d_array = np.zeros(nquats)
 
-    sim.init_random(random_seed=12_345)
+    sim.init_random(random_seed=12_345, num_detectors=len(dets))
     lbs.add_white_noise(noise_rad_1d_array, sigma=np.deg2rad(1), random=sim.random)
 
     pointing_sys = lbs.PointingSys(sim, obs, dets)
@@ -306,7 +306,7 @@ def test_PointingSys_add_common_disturb_to_spacecraft(
     nquats = obs.n_samples + 1
 
     noise_rad_1d_array = np.zeros(nquats)
-    sim.init_random(random_seed=12_345)
+    sim.init_random(random_seed=12_345, num_detectors=len(dets))
     lbs.add_white_noise(noise_rad_1d_array, sigma=np.deg2rad(1), random=sim.random)
 
     pointing_sys = lbs.PointingSys(sim, obs, dets)
@@ -345,7 +345,7 @@ def test_PointingSys_add_hwp_rot_disturb(
     func = test_PointingSys_add_hwp_rot_disturb
     sim, dets = gen_simulation_and_dets(telescope)
     (obs,) = sim.create_observations(detectors=dets)
-    sim.init_random(random_seed=12_345)
+    sim.init_random(random_seed=12_345, num_detectors=len(dets))
 
     pointing_sys = lbs.PointingSys(sim, obs, dets)
     ang_speed_radpsec = sim.instrument.hwp_rpm * 2 * np.pi / 60

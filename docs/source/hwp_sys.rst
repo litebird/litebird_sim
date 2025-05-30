@@ -44,7 +44,7 @@ which, in the HWP reference frame (:math:`\rho = 0`) yields the usual matrix for
 
 
 .. math::
-   :label: non_ideal_hwp_mueller
+   :label: non_ideal_hwp_mueller_2
 
    M^{0f}_{input_{ideal}} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix}
 

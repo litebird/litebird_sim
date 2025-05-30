@@ -105,7 +105,7 @@ The next interesting stuff happens when we instantiate a
 
 Creating a :class:`.Simulation` object makes a lot of complicated
 things happen behind the scenes. For example, the mandatory parameter
-``random_seed`` is used to build a random number generator useful for
+``random_seed`` is used to build a hierarchy of random number generators useful for
 generating noise. In this short example, the important things are
 the following:
 
@@ -442,7 +442,7 @@ number generator provided by the :class:`.Simulation` and seeded with
 
   sim.add_dipole()
 
-  sim.add_noise(sim.random)
+  sim.add_noise()
 
   sim.fill_tods(maps=maps)
 

@@ -1,11 +1,11 @@
 import numpy as np
 
-import hashlib
 from enum import IntEnum
 from typing import Union, List
 from dataclasses import dataclass
 
 from .observations import Observation
+from .seeding import regenerate_or_check_detector_generators
 
 
 class GainDriftType(IntEnum):
@@ -168,35 +168,6 @@ def _responsivity_function(dT):
     return dT
 
 
-def _hash_function(
-    input_str: str,
-    user_seed: int = 12345,
-) -> int:
-    """This functions generates a unique and reproducible hash for a given pair of
-    `input_str` and `user_seed`. This hash is used to generate the common noise time
-    stream for a group of detectors, and to introduce randomness in the noise time
-    streams.
-
-    Args:
-
-        input_str (str): A string, for example, the detector name.
-
-        user_seed (int, optional): A seed provided by the user. Defaults to 12345.
-
-    Returns:
-
-        int: An `md5` hash from generated from `input_str` and `user_seed`
-    """
-
-    bytesobj = (str(input_str) + str(user_seed)).encode("utf-8")
-
-    hashobj = hashlib.md5()
-    hashobj.update(bytesobj)
-    digest = hashobj.digest()
-
-    return int.from_bytes(bytes=digest, byteorder="little")
-
-
 def _get_psd(
     freq: np.ndarray,
     sigma_drift: float = GainDriftParams.sigma_drift,
@@ -232,9 +203,8 @@ def _get_psd(
 def _noise_timestream(
     tod_size: int,
     sampling_freq_hz: float,
-    focalplane_attr: str,
     drift_params: GainDriftParams = None,
-    user_seed: int = 12345,
+    random: np.random.Generator = None,
 ) -> np.ndarray:
     """The function to generate the thermal noise time stream with
     :math:`1/f` power spectral density.
@@ -252,14 +222,19 @@ def _noise_timestream(
         drift_params (GainDriftParams, optional): The class object for
           gain drift simulation parameters. Defaults to None.
 
-        user_seed (int, optional): The user provided seed for random number
-          generation. Defaults to 12345.
+        user_seed (int, optional): A seed provided by the user. Defaults
+          to None.
+
+        random (np.random.Generator, optional): A random number generator.
+          Defaults to None.
 
     Returns:
 
         np.ndarray: Thermal noise time stream with :math:`1/f` PSD.
     """
-
+    assert random is not None, (
+        "You should pass a random number generator which implements the `standard_normal` method."
+    )
     if drift_params is None:
         drift_params = GainDriftParams()
 
@@ -286,9 +261,7 @@ def _noise_timestream(
         drift_params.alpha_drift,
     )
 
-    rng = np.random.default_rng(seed=_hash_function(focalplane_attr, user_seed))
-
-    randarr = rng.standard_normal(size=fftlen)
+    randarr = random.standard_normal(size=fftlen)
 
     fnoise_stream = np.zeros(npsd, dtype=np.complex128)
     fnoise_stream[1:-1] = randarr[1 : npsd - 1] + 1j * randarr[-1 : npsd - 1 : -1]
@@ -307,11 +280,9 @@ def _noise_timestream(
 def apply_gaindrift_for_one_detector(
     det_tod: np.ndarray,
     sampling_freq_hz: float,
-    det_name: str,
     drift_params: GainDriftParams = None,
-    focalplane_attr: str = None,
     noise_timestream: np.ndarray = None,
-    user_seed: int = 12345,
+    random: np.random.Generator = None,
 ):
     """This function applies the gain drift on the TOD corresponding to only one
     detector.
@@ -357,9 +328,14 @@ def apply_gaindrift_for_one_detector(
           stream. Defaults to None.
 
         user_seed (int, optional): A seed provided by the user. Defaults
-          to 12345.
-    """
+          to None.
 
+        random (np.random.Generator, optional): A random number generator.
+          Defaults to None.
+    """
+    assert random is not None, (
+        "You should pass a random number generator which implements the `uniform` and `normal` methods."
+    )
     if drift_params is None:
         drift_params = GainDriftParams()
 
@@ -367,16 +343,13 @@ def apply_gaindrift_for_one_detector(
         det_tod
     )  # must be equal to sampling_freq_hz * mission_duration_seconds
 
-    assert isinstance(det_name, str), "The parameter `det_name` must be a string"
-    rng = np.random.default_rng(seed=_hash_function(det_name, user_seed))
-
     if drift_params.sampling_dist == SamplingDist.UNIFORM:
-        rand = rng.uniform(
+        rand = random.uniform(
             low=drift_params.sampling_uniform_low,
             high=drift_params.sampling_uniform_high,
         )
     elif drift_params.sampling_dist == SamplingDist.GAUSSIAN:
-        rand = rng.normal(
+        rand = random.normal(
             loc=drift_params.sampling_gaussian_loc,
             scale=drift_params.sampling_gaussian_scale,
         )
@@ -398,24 +371,12 @@ def apply_gaindrift_for_one_detector(
         det_tod[div * gain_arr_size :] *= gain_arr[:mod]
 
     elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
-        if focalplane_attr is not None and noise_timestream is not None:
-            raise ValueError(
-                "`focalplane_attr` and `noise_timestream` cannot be used at the same"
-                " time. Internally, `focalplane_attr` is hashed, and it is used to"
-                " generate the `noise_timestream`."
-            )
-
         if noise_timestream is None:
-            assert isinstance(focalplane_attr, str), (
-                "The parameter `focalplane_attr` must be a string"
-            )
-
             noise_timestream = _noise_timestream(
                 tod_size=tod_size,
                 sampling_freq_hz=sampling_freq_hz,
-                focalplane_attr=focalplane_attr,
                 drift_params=drift_params,
-                user_seed=user_seed,
+                random=random,
             )
 
         thermal_factor = drift_params.thermal_fluctuation_amplitude_K
@@ -441,10 +402,9 @@ def apply_gaindrift_for_one_detector(
 def apply_gaindrift_to_tod(
     tod: np.ndarray,
     sampling_freq_hz: float,
-    det_name: Union[List, np.ndarray],
     drift_params: GainDriftParams = None,
     focalplane_attr: Union[List, np.ndarray] = None,
-    user_seed: int = 12345,
+    dets_random: Union[np.random.Generator, None] = None,
 ):
     """The function to apply the gain drift to all the detectors of a given TOD object.
 
@@ -479,17 +439,15 @@ def apply_gaindrift_to_tod(
           wafer. Defaults to None.
 
         user_seed (int, optional): A seed provided by the user. Defaults
-          to 12345.
+          to None.
+
+        dets_random : list of np.random.Generator
+          List of per-detector random number generators. Must match the number
+          of detectors. Typically obtained from an `RNGHierarchy`.
     """
 
     if drift_params is None:
         drift_params = GainDriftParams()
-
-    if tod.shape[0] != len(det_name):
-        raise AssertionError(
-            "The number of elements in `det_name` must be same as the number of"
-            " detectors included in tod object"
-        )
 
     tod_size = len(tod[0])
 
@@ -498,10 +456,9 @@ def apply_gaindrift_to_tod(
             apply_gaindrift_for_one_detector(
                 det_tod=tod[detidx],
                 sampling_freq_hz=sampling_freq_hz,
-                det_name=det_name[detidx],
                 drift_params=drift_params,
                 noise_timestream=None,
-                user_seed=user_seed,
+                random=dets_random[detidx],
             )
 
     elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
@@ -521,13 +478,12 @@ def apply_gaindrift_to_tod(
 
         noise_timestream = np.zeros((len(det_group), tod_size))
 
-        for detidx, det_elem in enumerate(det_group):
+        for detidx, _ in enumerate(det_group):
             noise_timestream[detidx][:] = _noise_timestream(
                 tod_size=tod_size,
                 sampling_freq_hz=sampling_freq_hz,
-                focalplane_attr=det_elem,
                 drift_params=drift_params,
-                user_seed=user_seed,
+                random=dets_random[detidx],
             )
 
         for detidx in np.arange(tod.shape[0]):
@@ -535,41 +491,56 @@ def apply_gaindrift_to_tod(
             apply_gaindrift_for_one_detector(
                 det_tod=tod[detidx],
                 sampling_freq_hz=sampling_freq_hz,
-                det_name=det_name[detidx],
                 drift_params=drift_params,
                 noise_timestream=noise_timestream[det_mask][
                     0
                 ],  # array[mask] returns an array of shape (1, len(array)).
                 # Therefore [0] indexing is necessary
-                user_seed=user_seed,
+                random=dets_random[detidx],
             )
 
 
 def apply_gaindrift_to_observations(
     observations: Union[Observation, List[Observation]],
     drift_params: GainDriftParams = None,
-    user_seed: int = 12345,
+    user_seed: Union[int, None] = None,
     component: str = "tod",
+    dets_random: Union[List[np.random.Generator]] = None,
 ):
-    """The function to apply gain drift to the TOD of a :class:`.Observation`
-    instance or a list of observations.
+    """
+    Apply gain drift to one or more observations.
 
-    This function is a wrapper around :func:`.apply_gaindrift_to_tod()`
-    that injects gain drift to the TOD object.
+    This function injects gain drift into the time-ordered data (TOD) of one
+    or more `Observation` instances. It wraps
+    :func:`apply_gaindrift_to_tod`, and ensures proper setup of per-detector
+    random number generators using either a user-provided seed or a list of
+    pre-initialized RNGs.
 
-    Args:
+    Parameters
+    ----------
+    observations : Observation or list of Observation
+        A single `Observation` instance or a list of them.
+    drift_params : GainDriftParams, optional
+        Parameters defining the gain drift injection (e.g., linear or thermal).
+        If not provided, a default configuration is used.
+    user_seed : int, optional
+        Base seed to build the RNG hierarchy and generate detector-level RNGs that overwrite any eventual `dets_random`.
+        Required if `dets_random` is not provided.
+    component : str, optional
+        Name of the TOD attribute to modify. Defaults to `"tod"`.
+    dets_random : list of np.random.Generator, optional
+        List of per-detector random number generators. If not provided, and
+        `user_seed` is given, generators are created internally. One of
+        `user_seed` or `dets_random` must be provided.
 
-        observations (Union[Observation, List[Observation]]): An instance or a list
-          of instances of :class:`.Observation`.
-
-        drift_params (:class:`.GainDriftParams`, optional): The gain drift
-          injection parameters object. Defaults to None.
-
-        user_seed (int, optional): A seed provided by the user. Defaults
-          to 12345.
-
-        component (str, optional): The name of the TOD on which the gain
-          drift has to be injected. Defaults to "tod".
+    Raises
+    ------
+    TypeError
+        If `observations` is neither an `Observation` nor a list of them.
+    ValueError
+        If neither `user_seed` nor `dets_random` is provided.
+    AssertionError
+        If the number of random generators does not match the number of detectors.
     """
 
     if drift_params is None:
@@ -583,18 +554,21 @@ def apply_gaindrift_to_observations(
         raise TypeError(
             "The parameter `observations` must be an `Observation` or a list of `Observation`."
         )
+    dets_random = regenerate_or_check_detector_generators(
+        observations=obs_list,
+        user_seed=user_seed,
+        dets_random=dets_random,
+    )
 
     for cur_obs in obs_list:
         tod = getattr(cur_obs, component)
-        det_name = cur_obs.name
         sampling_freq_hz = cur_obs.sampling_rate_hz
         focalplane_attr = getattr(cur_obs, drift_params.focalplane_group)
 
         apply_gaindrift_to_tod(
             tod=tod,
             sampling_freq_hz=sampling_freq_hz,
-            det_name=det_name,
             drift_params=drift_params,
             focalplane_attr=focalplane_attr,
-            user_seed=user_seed,
+            dets_random=dets_random,
         )

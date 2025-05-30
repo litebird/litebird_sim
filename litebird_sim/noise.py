@@ -8,6 +8,7 @@ import scipy as sp
 from numba import njit
 
 from .observations import Observation
+from .seeding import regenerate_or_check_detector_generators
 
 
 def nearest_pow2(data):
@@ -32,8 +33,7 @@ def add_white_noise(data, sigma: float, random):
                   but **not** the white noise per sample.
 
         `random` : a random number generator that implements the ``normal`` method.
-                   You should typically use the `random` field of a :class:`.Simulation`
-                   object for this. It must be specified
+                   This is typically obtained from the RNGHierarchy of the `Simulation` class. It must be specified
     """
     data += random.normal(0, sigma, data.shape)
 
@@ -82,8 +82,7 @@ def add_one_over_f_noise(
         `sampling_rate_hz` : the sampling frequency of the data
 
         `random` : a random number generator that implements the ``normal`` method.
-                   You should typically use the `random` field of a :class:`.Simulation`
-                   object for this. It must be specified
+                   This is typically obtained from the RNGHierarchy of the `Simulation` class. It must be specified
     """
 
     noiselen = nearest_pow2(data)
@@ -115,7 +114,7 @@ def add_noise(
     fknee_mhz,
     fmin_hz,
     alpha,
-    random,
+    dets_random,
     scale=1.0,
 ):
     """
@@ -135,9 +134,8 @@ def add_noise(
     The parameter `scale` can be used to introduce measurement unit conversions when
     appropriate. Default units: [K].
 
-    The parameter `random` must be specified and must be a random number generator that
-    implements the ``normal`` method. You should typically use the `random` field
-    of a :class:`.Simulation` object for this.
+    The parameter `dets_random` must be specified and must be a list random number generators that
+    implement the ``normal`` method. This is typically obtained from the RNGHierarchy of the `Simulation` class.
 
     The parameters `net_ukrts`, `fknee_mhz`, `fmin_hz`, `alpha`, and `scale` can
     either be scalars or arrays; in the latter case, their size must be the same as
@@ -176,7 +174,7 @@ def add_noise(
                     sampling_rate_hz=sampling_rate_hz,
                     scale=scale[i],
                 ),
-                random=random,
+                random=dets_random[i],
             )
         elif noise_type == "one_over_f":
             add_one_over_f_noise(
@@ -190,14 +188,15 @@ def add_noise(
                     scale=scale[i],
                 ),
                 sampling_rate_hz=sampling_rate_hz,
-                random=random,
+                random=dets_random[i],
             )
 
 
 def add_noise_to_observations(
     observations: Union[Observation, List[Observation]],
     noise_type: str,
-    random: np.random.Generator,
+    dets_random: List[np.random.Generator],
+    user_seed: Union[int, None] = None,
     scale: float = 1.0,
     component: str = "tod",
 ):
@@ -208,9 +207,8 @@ def add_noise_to_observations(
     or a list of observations, which are typically taken from the field
     `observations` of a :class:`.Simulation` object. Unlike :func:`.add_noise`,
     it is not needed to pass the noise parameters here, as they are taken from the
-    characteristics of the detectors saved in `observations`. The parameter `random`
-    must be specified and must be a random number generator that implements the
-    ``normal`` method. You should typically use the `random` field of a
+    characteristics of the detectors saved in `observations`. The random number generators must be explicitly
+    provided. You should typically use the `dets_random` field of a
     :class:`.Simulation` object for this.
 
     By default, the noise is added to ``Observation.tod``. If you want to add it to some
@@ -225,6 +223,34 @@ def add_noise_to_observations(
         add_noise_to_observations(sim.observations, …, component="noise_tod")
 
     See :func:`.add_noise` for more information.
+
+    Parameters
+    ----------
+    observations : Observation or list of Observation
+        A single `Observation` instance or a list of them, to which noise
+        should be added.
+    noise_type : str
+        Type of noise to inject. Must be one of `"white"` or `"one_over_f"`.
+    dets_random : list of np.random.Generator, optional
+        List of per-detector random number generators. If not provided, and
+        `user_seed` is given, generators are created internally. One of
+        `user_seed` or `dets_random` must be provided.
+    user_seed : int, optional
+        Base seed to build the RNG hierarchy and generate detector-level RNGs that overwrite any eventual `dets_random`.
+        Required if `dets_random` is not provided.
+    scale : float, optional
+        A scaling factor applied to the noise. Defaults to 1.0.
+    component : str, optional
+        Name of the TOD attribute to modify. Defaults to `"tod"`.
+
+    Raises
+    ------
+    ValueError
+        If `noise_type` is not one of `"white"` or `"one_over_f"`.
+    ValueError
+        If neither `user_seed` nor `dets_random` is provided.
+    AssertionError
+        If the number of RNGs does not match the number of detectors.
     """
     if noise_type not in ["white", "one_over_f"]:
         raise ValueError("Unknown noise type " + noise_type)
@@ -233,6 +259,12 @@ def add_noise_to_observations(
         obs_list = [observations]
     else:
         obs_list = observations
+
+    dets_random = regenerate_or_check_detector_generators(
+        observations=obs_list,
+        user_seed=user_seed,
+        dets_random=dets_random,
+    )
 
     # iterate through each observation
     for cur_obs in obs_list:
@@ -245,5 +277,5 @@ def add_noise_to_observations(
             fmin_hz=cur_obs.fmin_hz,
             alpha=cur_obs.alpha,
             scale=scale,
-            random=random,
+            dets_random=dets_random,
         )

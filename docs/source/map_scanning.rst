@@ -217,11 +217,11 @@ transparent:
 
 .. testoutput::
 
-    4.14241e-04
-    5.46700e-05
-    3.03378e-04
-    6.13975e-05
-    4.72613e-05
+    6.26181e-05
+    3.14752e-04
+    2.56129e-04
+    2.21924e-04
+    1.07646e-04
 
 
 The input sky can be generated using the function :func:`.Simulation.get_sky` 
