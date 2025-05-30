@@ -176,13 +176,13 @@ def regenerate_or_check_detector_generators(
     comm = observations[0].comm
     if comm is not None:
         rank = comm.rank
-        num_ranks = comm.size
+        comm_size = comm.size
     else:
         rank = 0
-        num_ranks = 1
+        comm_size = 1
 
     if user_seed is not None:
-        RNG_hierarchy = RNGHierarchy(user_seed, num_ranks, observations[0].n_detectors)
+        RNG_hierarchy = RNGHierarchy(user_seed, comm_size, observations[0].n_detectors)
         dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(rank=rank)
     if user_seed is None and dets_random is None:
         raise ValueError("You should pass either `user_seed` or `dets_random`.")
@@ -197,7 +197,7 @@ class RNGHierarchy:
     SAVE_FORMAT_VERSION = 1
 
     def __init__(
-        self, base_seed: int, num_ranks: int = None, num_detectors_per_rank: int = None
+        self, base_seed: int, comm_size: int = None, num_detectors_per_rank: int = None
     ):
         self.base_seed = base_seed
         self.root_seq = SeedSequence(base_seed)
@@ -206,8 +206,8 @@ class RNGHierarchy:
             "save_format_version": self.SAVE_FORMAT_VERSION,
         }
         self.hierarchy = {}
-        if num_ranks is not None:
-            self.build_mpi_layer(num_ranks)
+        if comm_size is not None:
+            self.build_mpi_layer(comm_size)
             if num_detectors_per_rank is not None:
                 self.build_detector_layer(num_detectors_per_rank)
 
@@ -274,7 +274,7 @@ class RNGHierarchy:
 
         return True
 
-    def build_mpi_layer(self, num_ranks: int):
+    def build_mpi_layer(self, comm_size: int):
         """
         Construct the MPI rank layer of the RNG hierarchy.
 
@@ -283,10 +283,10 @@ class RNGHierarchy:
 
         Parameters
         ----------
-        num_ranks : int
+        comm_size : int
             The number of MPI ranks to include in the hierarchy.
         """
-        spawned = self.root_seq.spawn(num_ranks)
+        spawned = self.root_seq.spawn(comm_size)
         for rank, seq in enumerate(spawned):
             self.hierarchy[f"rank{rank}"] = {
                 "seed_seq": seq,
@@ -359,7 +359,7 @@ class RNGHierarchy:
         for rank_node in self.hierarchy.values():
             recurse_add(rank_node, 1)
 
-    def build_hierarchy(self, ranks: int, detectors_per_rank: int):
+    def build_hierarchy(self, comm_size: int, detectors_per_rank: int):
         """
         Convenience function to construct a two-level hierarchy with ranks and detectors.
 
@@ -367,12 +367,12 @@ class RNGHierarchy:
 
         Parameters
         ----------
-        ranks : int
+        comm_size : int
             Number of MPI ranks.
         detectors_per_rank : int
             Number of detectors per MPI rank.
         """
-        self.build_mpi_layer(num_ranks=ranks)
+        self.build_mpi_layer(comm_size=comm_size)
 
         self.build_detector_layer(num_detectors_per_rank=detectors_per_rank)
 

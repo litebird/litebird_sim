@@ -5,7 +5,7 @@ from astropy.time import Time
 
 def get_RNG_hierarchy(seed, num_of_dets):
     rng_hierarchy = lbs.RNGHierarchy(
-        seed, num_ranks=1, num_detectors_per_rank=num_of_dets
+        seed, comm_size=1, num_detectors_per_rank=num_of_dets
     )
     return rng_hierarchy
 

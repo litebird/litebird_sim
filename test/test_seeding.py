@@ -253,7 +253,7 @@ def test_detector_generators_regeneration(tmp_path):
     )
 
     rng_hierarchy = lbs.RNGHierarchy(
-        987654321, num_ranks=1, num_detectors_per_rank=sim.observations[0].n_detectors
+        987654321, comm_size=1, num_detectors_per_rank=sim.observations[0].n_detectors
     )
     fresh_dets_random = rng_hierarchy.get_detector_level_generators_on_rank(0)
 

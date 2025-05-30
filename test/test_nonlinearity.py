@@ -43,7 +43,7 @@ def test_add_quadratic_nonlinearity():
 
     # Applying non-linearity on the given TOD component of an `Observation` object
     RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, num_ranks=1, num_detectors_per_rank=len(dets)
+        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
     )
     dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     lbs.apply_quadratic_nonlin_to_observations(
@@ -55,7 +55,7 @@ def test_add_quadratic_nonlinearity():
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
     RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, num_ranks=1, num_detectors_per_rank=len(dets)
+        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
     )
     dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
@@ -76,7 +76,7 @@ def test_add_quadratic_nonlinearity():
 
     # Check if non-linearity is applied correctly
     RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, num_ranks=1, num_detectors_per_rank=len(dets)
+        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
     )
     dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     sim.observations[0].tod_origin = np.ones_like(sim.observations[0].tod)
