@@ -14,6 +14,8 @@ def test_add_quadratic_nonlinearity():
         lbs.DetectorInfo(name="det_B", sampling_rate_hz=sampling_hz),
     ]
 
+    nl_params = lbs.NonLinParams(sampling_gaussian_loc=0.0, sampling_gaussian_scale=0.1)
+
     sim = lbs.Simulation(
         base_path="nonlin_example",
         start_time=start_time,
@@ -31,25 +33,26 @@ def test_add_quadratic_nonlinearity():
     sim.observations[0].nl_2_obs = np.ones_like(sim.observations[0].tod)
     sim.observations[0].nl_2_det = np.ones_like(sim.observations[0].tod)
 
-    # Define non-linear parameters for the detectors.
-    sim.observations[0].g_one_over_k = np.ones(len(dets)) * 1e-3
-
     # Applying non-linearity using the `Simulation` class method
     sim.apply_quadratic_nonlin(
+        nl_params=nl_params,
         component="nl_2_self",
     )
 
     # Applying non-linearity on the given TOD component of an `Observation` object
-    lbs.non_linearity.apply_quadratic_nonlin_to_observations(
+    lbs.apply_quadratic_nonlin_to_observations(
         observations=sim.observations,
+        nl_params=nl_params,
         component="nl_2_obs",
     )
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
-        lbs.non_linearity.apply_quadratic_nonlin_for_one_detector(
+        lbs.apply_quadratic_nonlin_for_one_detector(
             tod_det=tod,
-            g_one_over_k=sim.observations[0].g_one_over_k[idx],
+            det_name=sim.observations[0].name[idx],
+            nl_params=nl_params,
+            user_seed=12345,
         )
 
     # Check if the three non-linear tods are equal
@@ -63,8 +66,19 @@ def test_add_quadratic_nonlinearity():
 
     # Check if non-linearity is applied correctly
     sim.observations[0].tod_origin = np.ones_like(sim.observations[0].tod)
-    np.testing.assert_array_equal(
-        sim.observations[0].nl_2_self[0],
-        sim.observations[0].tod_origin[0]
-        * (1 + sim.observations[0].g_one_over_k[0] * sim.observations[0].tod_origin[0]),
-    )
+    for idx, tod in enumerate(sim.observations[0].nl_2_det):
+        det_name = sim.observations[0].name[idx]
+        rng = np.random.default_rng(
+            seed=lbs.non_linearity._hash_function(det_name, user_seed=12345)
+        )
+
+        g_one_over_k = rng.normal(
+            loc=nl_params.sampling_gaussian_loc,
+            scale=nl_params.sampling_gaussian_scale,
+        )
+
+        np.testing.assert_array_equal(
+            sim.observations[0].nl_2_self[idx],
+            sim.observations[0].tod_origin[idx]
+            * (1 + g_one_over_k * sim.observations[0].tod_origin[idx]),
+        )
