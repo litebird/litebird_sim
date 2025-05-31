@@ -32,6 +32,7 @@ framework to generate a CMB map::
         make_fg=True,
         fg_models=["pysm_synch_0", "pysm_freefree_1"],
         nside=nside,
+        lmax_alms=1024,
     )
     mbs = lbs.Mbs(
         simulation=sim,
@@ -59,9 +60,9 @@ In the dictionary containing the maps, Mbs returns also two variables:
 
 If ``store_alms`` in :class:`.MbsParameters` is True, ``run_all``
 returns alms instead of pixel space maps. The user can set the maximum
-multipole of these alms with ``lmax_alms``, the default value is
-:math:`4\times N_{side}`. If ``gaussian_smooth`` is False, Mbs returns
-the umbeamed maps or alms.
+multipole used for generating the CMB map and of the returned alms with 
+``lmax_alms``, the default value is :math:`3\times N_{side}-1`. 
+If ``gaussian_smooth`` is False, Mbs returns the umbeamed maps or alms.
 
 
 Interface in the Simulation class

@@ -195,8 +195,9 @@ class MbsParameters:
       The coefficients are computed through the Healpy routine `map2alm`,
       assuming `iter=0`. If you want unbeamed alms set ``gaussian_smooth=False``.
 
-    - ``lmax_alms`` (defuaul: ``4 x nside``): ℓ_max assumed in the a_ℓm computation
-      and in the rotation to ecliptic coordinates performed by `rotate_map_alms`
+    - ``lmax_alms`` (default: ``3 x nside - 1``): ℓ_max assumed in the a_ℓm
+      computation, in the generation of the CMB maps and in the rotation to
+      ecliptic coordinates performed by `rotate_map_alms`
 
     """
 
@@ -607,7 +608,7 @@ class Mbs:
             nmc_output_directory = output_directory / nmc_str
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
-            cmb_temp = hp.synfast(cl_cmb, nside, new=True)
+            cmb_temp = hp.synfast(cl_cmb, nside, new=True, lmax=self.params.lmax_alms)
             if self.params.save:
                 file_name = f"cmb_{nmc_str}_{file_str}.fits"
                 cur_map_path = nmc_output_directory / file_name

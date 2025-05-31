@@ -6,7 +6,7 @@
 
 -   Make actual use of `[skipci]` and `skip ci]` in commit messages [#410](https://github.com/litebird/litebird_sim/pull/410)
 
--   New option in `Simulation.get_sky()` for generating maps per channel [#408](https://github.com/litebird/litebird_sim/pull/408)
+-   New option in `Simulation.get_sky()` for generating maps per channel, option for storing sky and beam alms in the observations [#408](https://github.com/litebird/litebird_sim/pull/408)
 
 -   Make MPI tests more robusts and produce a “MPI” section in the output report [#405](https://github.com/litebird/litebird_sim/pull/405/)
 

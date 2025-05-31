@@ -19,6 +19,7 @@ PARAMETER_FILE = """
   coadd = true
   units = "uK_CMB"
   maps_in_ecliptic = false
+  lmax_alms = 47
 
   [map_based_sims.noise]
   make_noise = true
@@ -64,6 +65,7 @@ def test_mbs():
                 "p_sens_ukarcmin": 6.39,
                 "band": None,
             }
+
             mbs = lbs.Mbs(sim, sim.parameters["map_based_sims"], instrument=myinst)
             (maps, saved_maps) = mbs.run_all()
 
