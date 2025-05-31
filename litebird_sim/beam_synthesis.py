@@ -74,6 +74,8 @@ def gauss_beam_to_alm(
 ) -> SphericalHarmonics:
     """
     Compute spherical harmonics coefficients a_ℓm representing a Gaussian beam.
+    The code is taken from Planck LevelS, see
+    https://github.com/zonca/planck-levelS/blob/master/Beam/gaussbeampol_main.f90
 
     Parameters
     ----------
@@ -82,13 +84,13 @@ def gauss_beam_to_alm(
     mmax : int
         Maximum spherical harmonic order m_max.
     fwhm_rad : float
-        Full width at half maximum (FWHM) of the beam in radians.
+        Full width at half maximum (FWHM) of the beam in radians. Defined as fwhm = sqrt(fwhm_max*fwhm_min)
     ellipticity : float, optional, default=1.0
-        Beam ellipticity (major axis / minor axis). Default is 1 (circular beam).
+        Beam ellipticity. Defined as fwhm_max/fwhm_min Default is 1 (circular beam).
     psi_ell_rad : float, optional, default=0.0
-        Orientation of the beam's major axis (radians).
+        Orientation of the beam's major axis wrt the x-axis(radians).
     psi_pol_rad : float, optional, default=0.0
-        Polarization angle of the beam. If None, only the intensity (I) is computed.
+        Polarization angle of the beam wrt the x-axis. If None, only the intensity (I) is computed.
     cross_polar_leakage : float, optional, default=0.0
         Cross-polar leakage factor (pure number).
 
