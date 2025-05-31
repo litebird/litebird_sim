@@ -336,6 +336,10 @@ class Mbs:
         self.ch_list = channel_list
         self.pysm_units = u.Unit(self.params.units)
 
+        self.rotator = None
+        if self.params.maps_in_ecliptic:
+            self.rotator = hp.Rotator(coord=["G", "E"])
+
     def _parse_instrument_from_det_list(self):
         self.instrument = {}
         try:
@@ -516,6 +520,10 @@ class Mbs:
                             + f"_{nmc_str}_{file_str}.fits"
                         )
                         cur_map_path = nmc_output_directory / file_name
+                        if self.rotator is not None:
+                            noise_map_split = self.rotator.rotate_map_alms(
+                                noise_map_split, lmax=self.params.lmax_alms
+                            )
                         lbs.write_healpix_map_to_file(
                             cur_map_path, noise_map_split, column_units=col_units
                         )
@@ -530,6 +538,10 @@ class Mbs:
                     noise_map = noise_map / n_split
                 else:
                     noise_map = np.random.randn(3, npix) * tot_rms
+                if self.rotator is not None:
+                    noise_map = self.rotator.rotate_map_alms(
+                        noise_map, lmax=self.params.lmax_alms
+                    )
                 if self.params.save:
                     file_name = f"{chnl}_noise_FULL_{nmc_str}_{file_str}.fits"
                     cur_map_path = nmc_output_directory / file_name
@@ -609,6 +621,10 @@ class Mbs:
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
             cmb_temp = hp.synfast(cl_cmb, nside, new=True, lmax=self.params.lmax_alms)
+            if self.rotator is not None:
+                cmb_temp = self.rotator.rotate_map_alms(
+                    cmb_temp, lmax=self.params.lmax_alms
+                )
             if self.params.save:
                 file_name = f"cmb_{nmc_str}_{file_str}.fits"
                 cur_map_path = nmc_output_directory / file_name
@@ -760,6 +776,10 @@ class Mbs:
                     )
                 else:
                     sky_extrap_smt = sky_extrap
+                if self.rotator is not None:
+                    sky_extrap_smt = self.rotator.rotate_map_alms(
+                        sky_extrap_smt, lmax=self.params.lmax_alms
+                    )
                 if self.params.save:
                     file_name = f"{chnl}_{cmp}_{file_str}.fits"
                     cur_map_path = cmp_dir / file_name
@@ -840,7 +860,10 @@ class Mbs:
             sky_dipole = dipole.to(
                 self.pysm_units, equivalencies=u.cmb_equivalencies(freq * u.GHz)
             )
-
+            if self.rotator is not None:
+                sky_dipole = self.rotator.rotate_map_alms(
+                    sky_dipole, lmax=self.params.lmax_alms
+                )
             if self.params.save:
                 file_name = f"{chnl}_dipole_{file_str}.fits"
                 cur_map_path = output_directory / file_name
@@ -989,9 +1012,6 @@ class Mbs:
             if not self.params.save:
                 tot[:, 0, :] += dipole
 
-        if self.params.maps_in_ecliptic:
-            r = hp.Rotator(coord=["G", "E"])
-
         if rank == 0:
             if self.params.save and self.params.coadd:
                 log.info("saving coadded signal maps")
@@ -999,10 +1019,6 @@ class Mbs:
             if not self.params.save:
                 tot_dict = {}
                 for nch, chnl in enumerate(channels):
-                    if self.params.maps_in_ecliptic:
-                        tot[nch] = r.rotate_map_alms(
-                            tot[nch], lmax=self.params.lmax_alms
-                        )
                     if self.params.store_alms:
                         alms = hp.map2alm(tot[nch], lmax=self.params.lmax_alms, iter=0)
                         tot_dict[chnl] = lbs.SphericalHarmonics(

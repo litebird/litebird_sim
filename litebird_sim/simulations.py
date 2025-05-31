@@ -1733,7 +1733,6 @@ class Simulation:
         self,
         component: str = "tod",
         amplitude_2f_k: Union[float, None] = None,
-        optical_power_k: Union[float, None] = None,
         append_to_report: bool = False,
     ):
         """Add the HWP differential emission to all the observations of this
@@ -1750,7 +1749,6 @@ class Simulation:
             hwp=self.hwp,
             component=component,
             amplitude_2f_k=amplitude_2f_k,
-            optical_power_k=optical_power_k,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1764,15 +1762,9 @@ class Simulation:
             else:
                 amp = amplitude_2f_k
 
-            if optical_power_k is None:
-                op = "Optical power taken from IMo"
-            else:
-                op = optical_power_k
-
             self.append_to_report(
                 markdown_template,
                 amplitude_2f=amp,
-                optical_power=op,
             )
 
     @_profile

@@ -4,6 +4,10 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   Measure code coverage in PRs [#415](https://github.com/litebird/litebird_sim/pull/415)
+
+-   Move map rotation from galactic to ecliptic at generation in `mbs` and test [#413](https://github.com/litebird/litebird_sim/pull/413)
+
 -   Make actual use of `[skipci]` and `skip ci]` in commit messages [#410](https://github.com/litebird/litebird_sim/pull/410)
 
 -   New option in `Simulation.get_sky()` for generating maps per channel, option for storing sky and beam alms in the observations [#408](https://github.com/litebird/litebird_sim/pull/408)
@@ -37,6 +41,8 @@
 -   Make `@_profile` preserve docstrings [#371](https://github.com/litebird/litebird_sim/pull/371)
 
 -   Upgrade Ducc0 to 0.38.0 and clarify how to compile Ducc0 from sources [#383](https://github.com/litebird/litebird_sim/pull/383), [#390](https://github.com/litebird/litebird_sim/pull/390), [#394](https://github.com/litebird/litebird_sim/pull/394)
+
+-   Update documentation for hwp_sys and non_linearity modules [#404](https://github.com/litebird/litebird_sim/pull/404)
 
 # Version 0.14.0
 
