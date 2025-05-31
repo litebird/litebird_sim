@@ -209,6 +209,45 @@ Example usage:
     3.24894
 
 
+Elliptical Gaussian Beam Spherical Harmonics
+--------------------------------------------
+
+The framework provides a function :func:`.gauss_beam_to_alm`, which analytically computes the 
+spherical harmonic coefficients (a_ℓm) representing a 2D elliptical Gaussian beam, with optional 
+polarization and cross-polar leakage.
+The parameters are:
+
+- `lmax`: Maximum spherical harmonic degree.
+- `mmax`: Maximum harmonic order.
+- `fwhm_rad`: Full width at half maximum of the beam, defined as fwhm = sqrt(fwhm_max*fwhm_min) (in radians).
+- `ellipticity`: Ellipticity of the beam defined as fwhm_max/fwhm_min (1.0 for circular).
+- `psi_ell_rad`: Orientation of the beam’s major axis with respect to the x-axis (radians).
+- `psi_pol_rad`: Polarization reference angle with respect to the x-axis (radians). If None, only intensity is computed.
+- `cross_polar_leakage`: Cross-polarization leakage factor.
+
+The function returns a :class:`SphericalHarmonics` object with the intensity and (if requested) polarized 
+components of the beam in harmonic space.
+
+The function :func:`.generate_gauss_beam_alms` provides a convenient way to compute Gaussian beam harmonics for all 
+detectors in an :class:`.Observation`. It wraps around :func:`.gauss_beam_to_alm` and automatically pulls relevant 
+beam parameters from the Observation object. 
+The parameters are:
+
+- `observation`: An :class:`.Observation` object containing per-detector syntetic beam properties.
+- `lmax`: Maximum spherical harmonic degree.
+- `mmax`: Maximum harmonic order. Defaults to lmax.
+- `store_in_observation`: If True, the result is stored in the observation.blms attribute. Default False
+
+It returns a dictionary mapping each detector name to its corresponding :class:`SphericalHarmonics` object.
+This is simple example of usage::
+
+  blms = lbs.generate_gauss_beam_alms(
+      observation=my_obs,
+      lmax=512,
+      store_in_observation=True
+  )
+
+
 Methods of the Simulation class
 -------------------------------
 
@@ -322,4 +361,7 @@ API reference
     :show-inheritance:
 
 .. automodule:: litebird_sim.spherical_harmonics
+    :members:
+
+.. automodule:: litebird_sim.beam_synthesis
     :members:
