@@ -540,7 +540,7 @@ TODs of the simulations can be also zeroed easly with::
 
 See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
 :ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`mapmaking`,
-:ref:`beamconvolution` for details of the single functions.
+:ref:`beamconvolution`, :ref:`Mbs`, for details of the single functions.
 
 The difference between the high-level and low-level interfaces is
 explained in :ref:`high-level-vs-low-level-interfaces`.

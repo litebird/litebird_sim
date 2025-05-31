@@ -32,7 +32,7 @@ from .beam_convolution import (
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
-from .detectors import DetectorInfo, InstrumentInfo
+from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
@@ -1483,7 +1483,7 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: Union[np.ndarray, Dict[str, np.ndarray]],
+        maps: Optional[Union[np.ndarray, Dict[str, np.ndarray]]] = None,
         input_map_in_galactic: bool = True,
         component: str = "tod",
         interpolation: Union[str, None] = "",
@@ -1516,6 +1516,8 @@ class Simulation:
             template_file_path = get_template_file_path("report_scan_map.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
+            if maps is None:
+                maps = self.observations[0].sky
             if isinstance(maps, dict):
                 if "Mbs_parameters" in maps.keys():
                     if maps["Mbs_parameters"].make_fg:
@@ -1541,7 +1543,12 @@ class Simulation:
                 )
 
     @_profile
-    def get_gauss_beam_alms(self, lmax: int, mmax: Optional[int] = None):
+    def get_gauss_beam_alms(
+        self,
+        lmax: int,
+        mmax: Optional[int] = None,
+        store_in_observation: Optional[bool] = False,
+    ):
         """
         Compute Gaussian beam spherical harmonic coefficients.
 
@@ -1554,31 +1561,57 @@ class Simulation:
             Maximum multipole moment.
         mmax : Optional[int], default=None
             Maximum azimuthal multipole moment. Defaults to `lmax` if None.
+        store_in_observation : bool, optional
+            If True, the computed blms will be stored in the `blms` attribute of
+            the observation object.
 
         Returns:
         --------
         Dictionary
-            A dictionary containing beam `a_lm` values per detector.
+            A dictionary containing beam `a_lm` values per detector
         """
 
         if not self.observations:
             raise ValueError("No observations available to generate sky maps.")
 
-        return generate_gauss_beam_alms(self.observations[0], lmax, mmax)
+        return generate_gauss_beam_alms(
+            self.observations[0], lmax, mmax, store_in_observation=store_in_observation
+        )
 
     @_profile
     def get_sky(
         self,
         parameters: MbsParameters,
+        channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
+        store_in_observation: Optional[bool] = False,
     ):
         """
         Generates sky maps for the observations using the provided parameters.
+        If `channels` is not provided, it automatically infers the detectors
+        used in the current observations and constructs the Mbs instance accordingly.
+        otherwise a map per channel provided is returned
 
-        Args:
-            parameters (MbsParameters): Configuration parameters for the Mbs simulation.
+        Parameters
+        ----------
+        parameters : MbsParameters
+            Configuration parameters for the Mbs simulation.
+        channels : FreqChannelInfo or list of FreqChannelInfo, optional
+            Frequency channels to use in the simulation. If None, it uses the detectors
+            from the current observations.
+        store_in_observation : bool, optional
+            If True, the computed sky will be stored in the `sky` attribute of
+            the observation object.
 
-        Returns:
-            Dict: A dictionary containing sky maps values per detector.
+        Returns
+        -------
+        Dict
+            A dictionary containing the simulated sky maps for each detector or channel
+
+        Raises
+        ------
+        ValueError
+            If no observations are available to generate sky maps.
+
         """
 
         if parameters.seed_cmb is None:
@@ -1589,22 +1622,48 @@ class Simulation:
         if not self.observations:
             raise ValueError("No observations available to generate sky maps.")
 
-        detector_names = set(self.observations[0].name)
-        detector_list = [det for det in self.detectors if det.name in detector_names]
+        if channels is None:
+            # Use detectors from observations
+            detector_names = set(self.observations[0].name)
+            detector_list = [
+                det for det in self.detectors if det.name in detector_names
+            ]
 
-        mbs = Mbs(
-            simulation=self,
-            parameters=parameters,
-            detector_list=detector_list,
-        )
+            mbs = Mbs(
+                simulation=self,
+                parameters=parameters,
+                detector_list=detector_list,
+            )
 
-        return mbs.run_all()[0]
+        else:
+            # Use explicitly provided frequency channels
+            channel_list = (
+                [channels] if isinstance(channels, FreqChannelInfo) else channels
+            )
+
+            mbs = Mbs(
+                simulation=self,
+                parameters=parameters,
+                channel_list=channel_list,
+            )
+
+        sky = mbs.run_all()[0]
+
+        if store_in_observation:
+            for obs in self.observations:
+                obs.sky = sky
+
+        return sky
 
     @_profile
     def convolve_sky(
         self,
-        sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
-        beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
+        sky_alms: Optional[
+            Union[SphericalHarmonics, Dict[str, SphericalHarmonics]]
+        ] = None,
+        beam_alms: Optional[
+            Union[SphericalHarmonics, Dict[str, SphericalHarmonics]]
+        ] = None,
         input_sky_alms_in_galactic: bool = True,
         convolution_params: Optional[BeamConvolutionParameters] = None,
         component: str = "tod",
@@ -1646,6 +1705,8 @@ class Simulation:
             template_file_path = get_template_file_path("report_convolve_sky.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
+            if sky_alms is None:
+                sky_alms = self.observations[0].sky
             if isinstance(sky_alms, dict):
                 if "Mbs_parameters" in sky_alms.keys():
                     if sky_alms["Mbs_parameters"].make_fg:
