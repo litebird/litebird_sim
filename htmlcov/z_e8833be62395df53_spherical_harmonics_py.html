@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/spherical_harmonics.py: 63%</title>
+    <title>Coverage for litebird_sim/spherical_harmonics.py: 89%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_8e611ae1.css" type="text/css">
     <script src="coverage_html_cb_6fb7b396.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim/spherical_harmonics.py</b>:
-            <span class="pc_cov">63%</span>
+            <span class="pc_cov">89%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">54 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">34<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">20<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">48<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">6<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_version_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.8.1">coverage.py v7.8.1</a>,
-            created at 2025-05-28 16:53 +0000
+            created at 2025-05-31 07:59 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -272,33 +272,33 @@
     <p class="pln"><span class="n"><a id="t190" href="#t190">190</a></span><span class="t"><span class="str">          https://github.com/healpy/healpy/blob/a57770262788bb72281d48fdfe427d1098898d53/lib/healpy/sphtfunc.py#L1436</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t191" href="#t191">191</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t192" href="#t192">192</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t193" href="#t193">193</a></span><span class="t">        <span class="nam">lmax_in</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">lmax</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t194" href="#t194">194</a></span><span class="t">        <span class="nam">mmax_in</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">mmax</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t193" href="#t193">193</a></span><span class="t">        <span class="nam">lmax_in</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">lmax</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t194" href="#t194">194</a></span><span class="t">        <span class="nam">mmax_in</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">mmax</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t195" href="#t195">195</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t196" href="#t196">196</a></span><span class="t">        <span class="key">if</span> <span class="nam">mmax_out</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t196" href="#t196">196</a></span><span class="t">        <span class="key">if</span> <span class="nam">mmax_out</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t197" href="#t197">197</a></span><span class="t">            <span class="nam">mmax_out</span> <span class="op">=</span> <span class="nam">lmax_out</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t198" href="#t198">198</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t199" href="#t199">199</a></span><span class="t">        <span class="nam">res</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">zeros</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t199" href="#t199">199</a></span><span class="t">        <span class="nam">res</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">zeros</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t200" href="#t200">200</a></span><span class="t">            <span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">nstokes</span><span class="op">,</span> <span class="nam">SphericalHarmonics</span><span class="op">.</span><span class="nam">num_of_alm_from_lmax</span><span class="op">(</span><span class="nam">lmax_out</span><span class="op">,</span> <span class="nam">mmax_out</span><span class="op">)</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t201" href="#t201">201</a></span><span class="t">            <span class="nam">dtype</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">values</span><span class="op">.</span><span class="nam">dtype</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t202" href="#t202">202</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t203" href="#t203">203</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t204" href="#t204">204</a></span><span class="t">        <span class="nam">lmaxmin</span> <span class="op">=</span> <span class="nam">min</span><span class="op">(</span><span class="nam">lmax_in</span><span class="op">,</span> <span class="nam">lmax_out</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t205" href="#t205">205</a></span><span class="t">        <span class="nam">mmaxmin</span> <span class="op">=</span> <span class="nam">min</span><span class="op">(</span><span class="nam">mmax_in</span><span class="op">,</span> <span class="nam">mmax_out</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t204" href="#t204">204</a></span><span class="t">        <span class="nam">lmaxmin</span> <span class="op">=</span> <span class="nam">min</span><span class="op">(</span><span class="nam">lmax_in</span><span class="op">,</span> <span class="nam">lmax_out</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t205" href="#t205">205</a></span><span class="t">        <span class="nam">mmaxmin</span> <span class="op">=</span> <span class="nam">min</span><span class="op">(</span><span class="nam">mmax_in</span><span class="op">,</span> <span class="nam">mmax_out</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t206" href="#t206">206</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t207" href="#t207">207</a></span><span class="t">        <span class="nam">ofs_i</span><span class="op">,</span> <span class="nam">ofs_o</span> <span class="op">=</span> <span class="num">0</span><span class="op">,</span> <span class="num">0</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t208" href="#t208">208</a></span><span class="t">        <span class="key">for</span> <span class="nam">m</span> <span class="key">in</span> <span class="nam">range</span><span class="op">(</span><span class="num">0</span><span class="op">,</span> <span class="nam">mmaxmin</span> <span class="op">+</span> <span class="num">1</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t209" href="#t209">209</a></span><span class="t">            <span class="nam">nval</span> <span class="op">=</span> <span class="nam">lmaxmin</span> <span class="op">-</span> <span class="nam">m</span> <span class="op">+</span> <span class="num">1</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t210" href="#t210">210</a></span><span class="t">            <span class="nam">res</span><span class="op">[</span><span class="op">:</span><span class="op">,</span> <span class="nam">ofs_o</span> <span class="op">:</span> <span class="nam">ofs_o</span> <span class="op">+</span> <span class="nam">nval</span><span class="op">]</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">values</span><span class="op">[</span><span class="op">:</span><span class="op">,</span> <span class="nam">ofs_i</span> <span class="op">:</span> <span class="nam">ofs_i</span> <span class="op">+</span> <span class="nam">nval</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t211" href="#t211">211</a></span><span class="t">            <span class="nam">ofs_i</span> <span class="op">+=</span> <span class="nam">lmax_in</span> <span class="op">-</span> <span class="nam">m</span> <span class="op">+</span> <span class="num">1</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t212" href="#t212">212</a></span><span class="t">            <span class="nam">ofs_o</span> <span class="op">+=</span> <span class="nam">lmax_out</span> <span class="op">-</span> <span class="nam">m</span> <span class="op">+</span> <span class="num">1</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t207" href="#t207">207</a></span><span class="t">        <span class="nam">ofs_i</span><span class="op">,</span> <span class="nam">ofs_o</span> <span class="op">=</span> <span class="num">0</span><span class="op">,</span> <span class="num">0</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t208" href="#t208">208</a></span><span class="t">        <span class="key">for</span> <span class="nam">m</span> <span class="key">in</span> <span class="nam">range</span><span class="op">(</span><span class="num">0</span><span class="op">,</span> <span class="nam">mmaxmin</span> <span class="op">+</span> <span class="num">1</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t209" href="#t209">209</a></span><span class="t">            <span class="nam">nval</span> <span class="op">=</span> <span class="nam">lmaxmin</span> <span class="op">-</span> <span class="nam">m</span> <span class="op">+</span> <span class="num">1</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t210" href="#t210">210</a></span><span class="t">            <span class="nam">res</span><span class="op">[</span><span class="op">:</span><span class="op">,</span> <span class="nam">ofs_o</span> <span class="op">:</span> <span class="nam">ofs_o</span> <span class="op">+</span> <span class="nam">nval</span><span class="op">]</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">values</span><span class="op">[</span><span class="op">:</span><span class="op">,</span> <span class="nam">ofs_i</span> <span class="op">:</span> <span class="nam">ofs_i</span> <span class="op">+</span> <span class="nam">nval</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t211" href="#t211">211</a></span><span class="t">            <span class="nam">ofs_i</span> <span class="op">+=</span> <span class="nam">lmax_in</span> <span class="op">-</span> <span class="nam">m</span> <span class="op">+</span> <span class="num">1</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t212" href="#t212">212</a></span><span class="t">            <span class="nam">ofs_o</span> <span class="op">+=</span> <span class="nam">lmax_out</span> <span class="op">-</span> <span class="nam">m</span> <span class="op">+</span> <span class="num">1</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t213" href="#t213">213</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t214" href="#t214">214</a></span><span class="t">        <span class="key">if</span> <span class="nam">inplace</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t214" href="#t214">214</a></span><span class="t">        <span class="key">if</span> <span class="nam">inplace</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t215" href="#t215">215</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">values</span> <span class="op">=</span> <span class="nam">res</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t216" href="#t216">216</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">lmax</span> <span class="op">=</span> <span class="nam">lmax_out</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t217" href="#t217">217</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">mmax</span> <span class="op">=</span> <span class="nam">mmax_out</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t218" href="#t218">218</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t219" href="#t219">219</a></span><span class="t">            <span class="key">return</span> <span class="nam">SphericalHarmonics</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t219" href="#t219">219</a></span><span class="t">            <span class="key">return</span> <span class="nam">SphericalHarmonics</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t220" href="#t220">220</a></span><span class="t">                <span class="nam">values</span><span class="op">=</span><span class="nam">res</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t221" href="#t221">221</a></span><span class="t">                <span class="nam">lmax</span><span class="op">=</span><span class="nam">lmax_out</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t222" href="#t222">222</a></span><span class="t">                <span class="nam">mmax</span><span class="op">=</span><span class="nam">mmax_out</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -312,7 +312,7 @@
             <a class="nav" href="z_e8833be62395df53_version_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.8.1">coverage.py v7.8.1</a>,
-            created at 2025-05-28 16:53 +0000
+            created at 2025-05-31 07:59 +0000
         </p>
     </div>
 </footer>
