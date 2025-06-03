@@ -634,8 +634,6 @@ class HwpSys:
 
         """
 
-        rank = self.comm.rank
-
         assert observations is not None, (
             "You need to pass at least one observation to fill_tod."
         )
@@ -721,10 +719,10 @@ class HwpSys:
                     )
 
             for idet in range(cur_obs.n_detectors):
-                cur_det = self.sim.detectors[idet * rank + idet]
+                # cur_det = cur_obs.detectors_global[idet]
 
-                if cur_det.mueller_hwp is None:
-                    cur_det.mueller_hwp = {
+                if cur_obs.mueller_hwp[idet] is None:
+                    cur_obs.mueller_hwp[idet] = {
                         "0f": np.array(
                             [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                         ),
@@ -736,8 +734,8 @@ class HwpSys:
                         ),
                     }
 
-                if cur_det.mueller_hwp_solver is None:
-                    cur_det.mueller_hwp_solver = {
+                if cur_obs.mueller_hwp_solver[idet] is None:
+                    cur_obs.mueller_hwp_solver[idet] = {
                         "0f": np.array(
                             [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                         ),
@@ -774,26 +772,26 @@ class HwpSys:
                 # separating polarization angle xi from cur_point[:, 2] = psi + xi
                 # xi: polarization angle, i.e. detector dependent
                 # psi: instrument angle, i.e. boresight direction from focal plane POV
-                xi = cur_det.pol_angle_rad
+                xi = cur_obs.pol_angle_rad[idet]
                 psi = cur_point[:, 2]
 
-                phi = np.deg2rad(cur_det.pointing_theta_phi_psi_deg[1])
+                phi = np.deg2rad(cur_obs.pointing_theta_phi_psi_deg[idet][1])
 
                 cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
                 sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
 
                 if not self.apply_non_linearity:
-                    cur_det.g_one_over_k = 0.0
+                    cur_obs.g_one_over_k[idet] = 0.0
 
                 if not self.add_2f_hwpss:
-                    cur_det.amplitude_2f_k = 0.0
+                    cur_obs.amplitude_2f_k[idet] = 0.0
 
                 compute_signal_for_one_detector(
                     tod_det=tod,
                     pixel_ind=pix,
-                    m0f=cur_det.mueller_hwp["0f"],
-                    m2f=cur_det.mueller_hwp["2f"],
-                    m4f=cur_det.mueller_hwp["4f"],
+                    m0f=cur_obs.mueller_hwp[idet]["0f"],
+                    m2f=cur_obs.mueller_hwp[idet]["2f"],
+                    m4f=cur_obs.mueller_hwp[idet]["4f"],
                     rho=np.array(cur_hwp_angle, dtype=np.float64),
                     psi=np.array(psi, dtype=np.float64),
                     maps=self.maps,
@@ -801,9 +799,9 @@ class HwpSys:
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
                     apply_non_linearity=self.apply_non_linearity,
-                    g_one_over_k=cur_det.g_one_over_k,
+                    g_one_over_k=cur_obs.g_one_over_k[idet],
                     add_2f_hwpss=self.add_2f_hwpss,
-                    amplitude_2f_k=cur_det.amplitude_2f_k,
+                    amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
                 )
 
                 if self.build_map_on_the_fly:
@@ -811,9 +809,9 @@ class HwpSys:
                         ata=self.ata,
                         atd=self.atd,
                         tod=tod,
-                        m0f_solver=cur_det.mueller_hwp_solver["0f"],
-                        m2f_solver=cur_det.mueller_hwp_solver["2f"],
-                        m4f_solver=cur_det.mueller_hwp_solver["4f"],
+                        m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
+                        m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
+                        m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
                         pixel_ind=pix,
                         rho=np.array(cur_hwp_angle, dtype=np.float64),
                         psi=np.array(psi, dtype=np.float64),

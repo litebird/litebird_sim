@@ -189,6 +189,8 @@ class DetectorInfo:
     mueller_hwp_solver: Union[None, dict] = None
     pointing_theta_phi_psi_deg: Union[None, np.ndarray] = None
     pointing_u_v: Union[None, np.ndarray] = None
+    g_one_over_k: float = 0.0
+    amplitude_2f_k: float = 0.0
 
     def __post_init__(self):
         if self.quat is None:
