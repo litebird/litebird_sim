@@ -82,6 +82,8 @@ jobs:
               echo "Running MPI test ($MPI) with $proc processes"
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
+            echo "Running MPI test ($MPI) with 4 processes"
+            PYTHONPATH=. mpiexec -n 4 python3 ./test/test_hwp_sys_mpi.py
             done
 
       - name: Tests OpenMPI
@@ -91,4 +93,6 @@ jobs:
               echo "Running MPI test ($MPI) with $proc processes"
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
+            echo "Running MPI test ($MPI) with 4 processes"
+            PYTHONPATH=. mpiexec -n 4 python3 ./test/test_hwp_sys_mpi.py
             done
