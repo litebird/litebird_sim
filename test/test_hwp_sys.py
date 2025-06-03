@@ -45,6 +45,7 @@ def test_hwp_sys():
                     0.0,
                     0.9985177324254199,
                 ],
+                "pointing_theta_phi_psi_deg": [0, 0, 0],
             }
         )
 
@@ -77,7 +78,6 @@ def test_hwp_sys():
             sim.detectors[idet].pol_angle_rad = compute_orientation_from_detquat(
                 obs.quat[idet].quats[0]
             ) % (2 * np.pi)
-            sim.detectors[idet].pointing_theta_phi_psi_deg = [0, 0, 0]
 
         sim.prepare_pointings(append_to_report=False)
 

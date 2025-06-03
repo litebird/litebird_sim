@@ -719,9 +719,9 @@ class HwpSys:
                     )
 
             for idet in range(cur_obs.n_detectors):
-                # cur_det = cur_obs.detectors_global[idet]
-
-                if cur_obs.mueller_hwp[idet] is None:
+                # if no mueller_hwp has been set, it will be the ideal one from hwp.py,
+                # we must turn it into the rotation harmonics one (for the ideal case)
+                if (cur_obs.mueller_hwp[idet] == np.diag([1.0, 1.0, -1.0, -1.0])).all():
                     cur_obs.mueller_hwp[idet] = {
                         "0f": np.array(
                             [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
