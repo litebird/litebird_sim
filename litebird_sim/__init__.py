@@ -148,6 +148,13 @@ from .scanning import (
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
 )
+from .seeding import (
+    get_derived_random_generators,
+    get_detector_level_generators_from_hierarchy,
+    get_generator_from_hierarchy,
+    regenerate_or_check_detector_generators,
+    RNGHierarchy,
+)
 from .simulations import (
     NUMBA_NUM_THREADS_ENVVAR,
     Simulation,
@@ -275,6 +282,12 @@ __all__ = [
     "SpinningScanningStrategy",
     "get_det2ecl_quaternions",
     "get_ecl2det_quaternions",
+    # seeding.py
+    "get_derived_random_generators",
+    "get_detector_level_generators_from_hierarchy",
+    "get_generator_from_hierarchy",
+    "regenerate_or_check_detector_generators",
+    "RNGHierarchy",
     # pointings.py
     "PointingProvider",
     # pointings_in_obs.py
