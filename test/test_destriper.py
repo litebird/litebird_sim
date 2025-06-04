@@ -837,7 +837,7 @@ def test_full_destriper(tmp_path):
         observations=sim.observations,
         noise_type="one_over_f",
         scale=1,
-        random=sim.random,
+        dets_random=sim.dets_random,
     )
 
     destriper_params_noise = lbs.DestriperParameters(
@@ -1106,7 +1106,7 @@ def test_save_baselines_for_many_detectors(tmp_path):
         observations=sim.observations,
         noise_type="one_over_f",
         scale=1,
-        random=sim.random,
+        dets_random=sim.dets_random,
     )
 
     destriper_params_noise = lbs.DestriperParameters(
