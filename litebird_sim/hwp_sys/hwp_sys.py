@@ -819,8 +819,6 @@ class HwpSys:
         del pix
         if not save_tod:
             del cur_obs.tod
-        else:
-            np.save("tod", cur_obs.tod)
 
     def make_map(self, observations):
         """It generates "on the fly" map. This option is only availabe if
