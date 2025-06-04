@@ -53,6 +53,8 @@
 -   Update test_hwp_diff_emiss.py [#395](https://github.com/litebird/litebird_sim/pull/395)
 
 -   Add option to pass a seed to generate a random g_1 term in the non-linearity module [#395](https://github.com/litebird/litebird_sim/pull/395)
+  
+-   Fix a bug in using MPI parallelization in hwp_sys [#395](https://github.com/litebird/litebird_sim/pull/395)
  
 # Version 0.14.0
 
