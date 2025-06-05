@@ -620,7 +620,6 @@ class Mbs:
             nmc_output_directory = output_directory / nmc_str
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
-
             cmb_temp = hp.synfast(cl_cmb, nside, new=True, lmax=self.params.lmax_alms)
             if self.rotator is not None:
                 cmb_temp = self.rotator.rotate_map_alms(
