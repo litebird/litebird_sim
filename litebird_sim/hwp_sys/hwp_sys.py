@@ -272,7 +272,6 @@ def compute_signal_for_one_sample(
 @njit(parallel=True)
 def compute_signal_for_one_detector(
     tod_det,
-    pixel_ind,
     m0f,
     m2f,
     m4f,
@@ -296,9 +295,9 @@ def compute_signal_for_one_detector(
         Four_rho_phi = 4 * (rho[i] - phi)
         Two_rho_phi = 2 * (rho[i] - phi)
         tod_det[i] += compute_signal_for_one_sample(
-            T=maps[0, pixel_ind[i]],
-            Q=maps[1, pixel_ind[i]],
-            U=maps[2, pixel_ind[i]],
+            T=maps[0][i],
+            Q=maps[1][i],
+            U=maps[2][i],
             mII=m0f[0, 0]
             + m2f[0, 0] * np.cos(Two_rho_phi - 2.32)
             + m4f[0, 0] * np.cos(Four_rho_phi - 0.84),
@@ -459,6 +458,7 @@ class HwpSys:
         build_map_on_the_fly: Union[bool, None] = False,
         apply_non_linearity: Union[bool, None] = False,
         add_2f_hwpss: Union[bool, None] = False,
+        interpolation: Union[str, None] = "",
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
@@ -560,6 +560,8 @@ class HwpSys:
             Mbsparams.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
+
+        self.interpolation = interpolation
 
         if Channel is None:
             Channel = lbs.FreqChannelInfo(bandcenter_ghz=140)
@@ -768,7 +770,37 @@ class HwpSys:
 
                 # all observed pixels over time (for each sample),
                 # i.e. len(pix)==len(times)
-                pix = hp.ang2pix(self.nside, cur_point[:, 0], cur_point[:, 1])
+                if self.interpolation in ["", None] or self.build_map_on_the_fly:
+                    pix = hp.ang2pix(self.nside, cur_point[:, 0], cur_point[:, 1])
+
+                if self.interpolation in ["", None]:
+                    input_T = self.maps[0, pix]
+                    input_Q = self.maps[1, pix]
+                    input_U = self.maps[2, pix]
+
+                elif self.interpolation == "linear":
+                    input_T = hp.get_interp_val(
+                        self.maps[0, :],
+                        cur_point[:, 0],
+                        cur_point[:, 1],
+                    )
+                    input_Q = hp.get_interp_val(
+                        self.maps[1, :],
+                        cur_point[:, 0],
+                        cur_point[:, 1],
+                    )
+                    input_U = hp.get_interp_val(
+                        self.maps[2, :],
+                        cur_point[:, 0],
+                        cur_point[:, 1],
+                    )
+                else:
+                    raise ValueError(
+                        "Wrong value for interpolation. It should be one of the following:\n"
+                        + '- "" for no interpolation\n'
+                        + '- "linear" for linear interpolation\n'
+                    )
+
                 # separating polarization angle xi from cur_point[:, 2] = psi + xi
                 # xi: polarization angle, i.e. detector dependent
                 # psi: instrument angle, i.e. boresight direction from focal plane POV
@@ -782,13 +814,12 @@ class HwpSys:
 
                 compute_signal_for_one_detector(
                     tod_det=tod,
-                    pixel_ind=pix,
                     m0f=cur_obs.mueller_hwp[idet]["0f"],
                     m2f=cur_obs.mueller_hwp[idet]["2f"],
                     m4f=cur_obs.mueller_hwp[idet]["4f"],
                     rho=np.array(cur_hwp_angle, dtype=np.float64),
                     psi=np.array(psi, dtype=np.float64),
-                    maps=self.maps,
+                    maps=[input_T, input_Q, input_U],
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
@@ -816,7 +847,9 @@ class HwpSys:
 
                 cur_obs.tod[idet] = tod
 
-        del pix
+        if self.interpolation in ["", None]:
+            del pix
+        del input_T, input_Q, input_U
         if not save_tod:
             del cur_obs.tod
 
