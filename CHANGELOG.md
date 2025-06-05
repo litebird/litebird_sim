@@ -6,6 +6,8 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   Change default ellipticity in IMo vPTEP [#419](https://github.com/litebird/litebird_sim/pull/419) and improved documentation for beam synthesis [#416](https://github.com/litebird/litebird_sim/pull/416)
+
 -   Measure code coverage in PRs [#415](https://github.com/litebird/litebird_sim/pull/415)
 
 -   Move map rotation from galactic to ecliptic at generation in `mbs` and test [#413](https://github.com/litebird/litebird_sim/pull/413)
