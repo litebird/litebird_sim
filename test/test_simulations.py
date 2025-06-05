@@ -749,7 +749,6 @@ def test_convolve_and_filltods_from_obs(tmp_path):
     maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
     assert maps["type"] == "alms"
 
-    sim.observations[0].ellipticity = [1, 1, 1, 1]
     _ = sim.get_gauss_beam_alms(Mbsparams.lmax_alms, store_in_observation=True)
 
     sim.convolve_sky()
