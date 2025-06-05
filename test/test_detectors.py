@@ -270,7 +270,7 @@ def test_det_list_from_imo():
     assert det_list[0].bandcenter_ghz == 40.0
     assert det_list[0].bandwidth_ghz == 12.0
     assert det_list[0].channel == "L1-040"
-    assert det_list[0].ellipticity == 0.0
+    assert det_list[0].ellipticity == 1.0
     assert det_list[0].fknee_mhz == 20.0
 
     # The second and third detectors should have been created from a
