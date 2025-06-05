@@ -10,7 +10,7 @@ This module implements HWP non-idealities using Mueller’ formalism
 .. math::
    :label: expansion_into_harmonics
 
-   M^{\text{HWP}}_{ij} = M^{0f}_{ij}(\Theta) + M^{2f}_{ij}(\Theta, \Phi, 2\rho) + M^{2f}_{ij}(\Theta, \Phi, 4\rho)
+   M^{\text{HWP}}_{ij} = M^{0f}_{ij}(\Theta) + M^{2f}_{ij}(\Theta, \Phi, 2\rho) + M^{4f}_{ij}(\Theta, \Phi, 4\rho)
 
 where:
 
@@ -28,9 +28,9 @@ The :math:`\Theta` dependence is included in the input matrices, which are then 
 
    M^{0f}_{ij} = M_{input_{ij}}^{0f}
 
-   M^{2f}_{ij} = M_{input_{ij}}^{2f} \cos{2\rho - 2\Phi - \phi_{ij}^{2f}}
+   M^{2f}_{ij} = M_{input_{ij}}^{2f} \cos(2\rho - 2\Phi - \phi_{ij}^{2f})
 
-   M^{4f}_{ij} = M_{input_{ij}}^{4f} \cos{4\rho - 4\Phi - \phi_{ij}^{4f}}
+   M^{4f}_{ij} = M_{input_{ij}}^{4f} \cos(4\rho - 4\Phi - \phi_{ij}^{4f})
 
 
 where :math:`\phi_{ij}` are harmonic and element dependent phases obtained trough EM simulations.   Because the Mueller matrix for an ideal HWP (for a detector at azimuthal angle :math:`\Phi = 0`) is given by:
@@ -44,7 +44,7 @@ which, in the HWP reference frame (:math:`\rho = 0`) yields the usual matrix for
 
 
 .. math::
-   :label: non_ideal_hwp_mueller
+   :label: non_ideal_hwp_mueller_2
 
    M^{0f}_{input_{ideal}} = \begin{pmatrix} 1 & 0 & 0 \\ 0 & 0 & 0 \\ 0 & 0 & 0 \end{pmatrix}
 

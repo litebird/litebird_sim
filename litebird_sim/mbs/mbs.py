@@ -195,8 +195,9 @@ class MbsParameters:
       The coefficients are computed through the Healpy routine `map2alm`,
       assuming `iter=0`. If you want unbeamed alms set ``gaussian_smooth=False``.
 
-    - ``lmax_alms`` (defuaul: ``4 x nside``): ℓ_max assumed in the a_ℓm computation
-      and in the rotation to ecliptic coordinates performed by `rotate_map_alms`
+    - ``lmax_alms`` (default: ``3 x nside - 1``): ℓ_max assumed in the a_ℓm
+      computation, in the generation of the CMB maps and in the rotation to
+      ecliptic coordinates performed by `rotate_map_alms`
 
     """
 
@@ -619,7 +620,8 @@ class Mbs:
             nmc_output_directory = output_directory / nmc_str
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
-            cmb_temp = hp.synfast(cl_cmb, nside, new=True)
+
+            cmb_temp = hp.synfast(cl_cmb, nside, new=True, lmax=self.params.lmax_alms)
             if self.rotator is not None:
                 cmb_temp = self.rotator.rotate_map_alms(
                     cmb_temp, lmax=self.params.lmax_alms
@@ -1031,6 +1033,11 @@ class Mbs:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
                 else:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Galactic
+
+                if self.params.store_alms:
+                    tot_dict["type"] = "alms"
+                else:
+                    tot_dict["type"] = "maps"
 
                 tot_dict["Mbs_parameters"] = self.params
 

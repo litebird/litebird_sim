@@ -90,6 +90,11 @@ from .noise import (
     add_noise,
     add_noise_to_observations,
 )
+from .non_linearity import (
+    NonLinParams,
+    apply_quadratic_nonlin_for_one_detector,
+    apply_quadratic_nonlin_to_observations,
+)
 from .observations import Observation, TodDescription
 from .pointing_sys import (
     get_detector_orientation,
@@ -142,6 +147,13 @@ from .scanning import (
     SpinningScanningStrategy,
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
+)
+from .seeding import (
+    get_derived_random_generators,
+    get_detector_level_generators_from_hierarchy,
+    get_generator_from_hierarchy,
+    regenerate_or_check_detector_generators,
+    RNGHierarchy,
 )
 from .simulations import (
     NUMBA_NUM_THREADS_ENVVAR,
@@ -270,6 +282,12 @@ __all__ = [
     "SpinningScanningStrategy",
     "get_det2ecl_quaternions",
     "get_ecl2det_quaternions",
+    # seeding.py
+    "get_derived_random_generators",
+    "get_detector_level_generators_from_hierarchy",
+    "get_generator_from_hierarchy",
+    "regenerate_or_check_detector_generators",
+    "RNGHierarchy",
     # pointings.py
     "PointingProvider",
     # pointings_in_obs.py
@@ -325,6 +343,10 @@ __all__ = [
     "apply_gaindrift_for_one_detector",
     "apply_gaindrift_to_tod",
     "apply_gaindrift_to_observations",
+    # non_linearity.py
+    "NonLinParams",
+    "apply_quadratic_nonlin_for_one_detector",
+    "apply_quadratic_nonlin_to_observations",
     # pointing_sys.py
     "get_detector_orientation",
     "left_multiply_offset2det",

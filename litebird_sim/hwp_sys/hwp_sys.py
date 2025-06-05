@@ -9,11 +9,11 @@ from astropy.cosmology import Planck18 as cosmo
 from numba import njit, prange
 import litebird_sim as lbs
 from litebird_sim import mpi
-from .bandpass_template_module import bandpass_profile
 from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
+from ..hwp_diff_emiss import compute_2f_for_one_sample
 
 COND_THRESHOLD = 1e10
 
@@ -43,7 +43,7 @@ def _dBodTth(nu):
     )
 
 
-@njit(parallel=False)
+@njit
 def compute_orientation_from_detquat(quat):
     if quat[2] == 0:
         polang = 0
@@ -162,7 +162,7 @@ def get_mueller_from_jones(h1, h2, z1, z2, beta):
     return mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU
 
 
-@njit(parallel=False)
+@njit
 def mueller_interpolation(Theta, harmonic, i, j):
     mueller0deg = {
         "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
@@ -207,14 +207,14 @@ def mueller_interpolation(Theta, harmonic, i, j):
     )
 
 
-@njit(parallel=False)
+@njit
 def compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi):
     Tterm = mII + mQI * cos2Xi2Phi + mUI * sin2Xi2Phi
 
     return Tterm
 
 
-@njit(parallel=False)
+@njit
 def compute_Qterm_for_one_sample_for_tod(
     mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
 ):
@@ -225,7 +225,7 @@ def compute_Qterm_for_one_sample_for_tod(
     return Qterm
 
 
-@njit(parallel=False)
+@njit
 def compute_Uterm_for_one_sample_for_tod(
     mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
 ):
@@ -236,7 +236,7 @@ def compute_Uterm_for_one_sample_for_tod(
     return Uterm
 
 
-@njit(parallel=False)
+@njit
 def compute_signal_for_one_sample(
     T,
     Q,
@@ -269,9 +269,23 @@ def compute_signal_for_one_sample(
     return d
 
 
-@njit(parallel=False)
+@njit(parallel=True)
 def compute_signal_for_one_detector(
-    tod_det, pixel_ind, m0f, m2f, m4f, theta, psi, maps, cos2Xi2Phi, sin2Xi2Phi, phi
+    tod_det,
+    pixel_ind,
+    m0f,
+    m2f,
+    m4f,
+    rho,
+    psi,
+    maps,
+    cos2Xi2Phi,
+    sin2Xi2Phi,
+    phi,
+    apply_non_linearity,
+    g_one_over_k,
+    add_2f_hwpss,
+    amplitude_2f_k,
 ):
     """
     Single-frequency case: compute the signal for a single detector,
@@ -279,47 +293,51 @@ def compute_signal_for_one_detector(
     """
 
     for i in prange(len(tod_det)):
-        FourRho = 4 * (theta[i] - phi)
-        TwoRho = 2 * (theta[i] - phi)
+        Four_rho_phi = 4 * (rho[i] - phi)
+        Two_rho_phi = 2 * (rho[i] - phi)
         tod_det[i] += compute_signal_for_one_sample(
             T=maps[0, pixel_ind[i]],
             Q=maps[1, pixel_ind[i]],
             U=maps[2, pixel_ind[i]],
             mII=m0f[0, 0]
-            + m2f[0, 0] * np.cos(TwoRho - 2.32)
-            + m4f[0, 0] * np.cos(FourRho - 0.84),
+            + m2f[0, 0] * np.cos(Two_rho_phi - 2.32)
+            + m4f[0, 0] * np.cos(Four_rho_phi - 0.84),
             mQI=m0f[1, 0]
-            + m2f[1, 0] * np.cos(TwoRho + 2.86)
-            + m4f[1, 0] * np.cos(FourRho + 0.14),
+            + m2f[1, 0] * np.cos(Two_rho_phi + 2.86)
+            + m4f[1, 0] * np.cos(Four_rho_phi + 0.14),
             mUI=m0f[2, 0]
-            + m2f[2, 0] * np.cos(TwoRho + 1.29)
-            + m4f[2, 0] * np.cos(FourRho - 1.43),
+            + m2f[2, 0] * np.cos(Two_rho_phi + 1.29)
+            + m4f[2, 0] * np.cos(Four_rho_phi - 1.43),
             mIQ=m0f[0, 1]
-            + m2f[0, 1] * np.cos(TwoRho - 0.49)
-            + m4f[0, 1] * np.cos(FourRho - 0.04),
+            + m2f[0, 1] * np.cos(Two_rho_phi - 0.49)
+            + m4f[0, 1] * np.cos(Four_rho_phi - 0.04),
             mIU=m0f[0, 2]
-            + m2f[0, 2] * np.cos(TwoRho - 2.06)
-            + m4f[0, 2] * np.cos(FourRho - 1.61),
+            + m2f[0, 2] * np.cos(Two_rho_phi - 2.06)
+            + m4f[0, 2] * np.cos(Four_rho_phi - 1.61),
             mQQ=m0f[1, 1]
-            + m2f[1, 1] * np.cos(TwoRho - 0.25)
-            + m4f[1, 1] * np.cos(FourRho - 0.00061),
+            + m2f[1, 1] * np.cos(Two_rho_phi - 0.25)
+            + m4f[1, 1] * np.cos(Four_rho_phi - 0.00061),
             mUU=m0f[2, 2]
-            + m2f[2, 2] * np.cos(TwoRho + 2.54)
-            + m4f[2, 2] * np.cos(FourRho + np.pi - 0.00065),
+            + m2f[2, 2] * np.cos(Two_rho_phi + 2.54)
+            + m4f[2, 2] * np.cos(Four_rho_phi + np.pi - 0.00065),
             mUQ=m0f[2, 1]
-            + m2f[2, 1] * np.cos(TwoRho - 2.01)
-            + m4f[2, 1] * np.cos(FourRho - 0.00070 - np.pi / 2),
+            + m2f[2, 1] * np.cos(Two_rho_phi - 2.01)
+            + m4f[2, 1] * np.cos(Four_rho_phi - 0.00070 - np.pi / 2),
             mQU=m0f[1, 2]
-            + m2f[1, 2] * np.cos(TwoRho - 2.00)
-            + m4f[1, 2] * np.cos(FourRho - 0.00056 - np.pi / 2),
+            + m2f[1, 2] * np.cos(Two_rho_phi - 2.00)
+            + m4f[1, 2] * np.cos(Four_rho_phi - 0.00056 - np.pi / 2),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
         )
+        if add_2f_hwpss:
+            tod_det[i] += compute_2f_for_one_sample(rho[i], amplitude_2f_k)
+        if apply_non_linearity:
+            tod_det[i] += g_one_over_k * tod_det[i] ** 2
 
 
-@njit(parallel=False)
+@njit
 def compute_TQUsolver_for_one_sample(
     mIIs,
     mQIs,
@@ -353,7 +371,7 @@ def compute_TQUsolver_for_one_sample(
     return Tterm, Qterm, Uterm
 
 
-@njit(parallel=False)
+@njit
 def compute_ata_atd_for_one_detector(
     ata,
     atd,
@@ -362,7 +380,7 @@ def compute_ata_atd_for_one_detector(
     m2f_solver,
     m4f_solver,
     pixel_ind,
-    theta,
+    rho,
     psi,
     phi,
     cos2Xi2Phi,
@@ -374,37 +392,36 @@ def compute_ata_atd_for_one_detector(
     """
 
     for i in prange(len(tod)):
-        FourRho = 4 * (theta[i] - phi)
-        TwoRho = 2 * (theta[i] - phi)
-        # psi_i = 2*np.arctan2(np.sqrt(quats_rot[i][0]**2 + quats_rot[i][1]**2 + quats_rot[i][2]**2),quats_rot[i][3])
+        Four_rho_phi = 4 * (rho[i] - phi)
+        Two_rho_phi = 2 * (rho[i] - phi)
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=m0f_solver[0, 0]
-            + m2f_solver[0, 0] * np.cos(TwoRho - 2.32)
-            + m4f_solver[0, 0] * np.cos(FourRho - 0.84),
+            + m2f_solver[0, 0] * np.cos(Two_rho_phi - 2.32)
+            + m4f_solver[0, 0] * np.cos(Four_rho_phi - 0.84),
             mQIs=m0f_solver[1, 0]
-            + m2f_solver[1, 0] * np.cos(TwoRho + 2.86)
-            + m4f_solver[1, 0] * np.cos(FourRho + 0.14),
+            + m2f_solver[1, 0] * np.cos(Two_rho_phi + 2.86)
+            + m4f_solver[1, 0] * np.cos(Four_rho_phi + 0.14),
             mUIs=m0f_solver[2, 0]
-            + m2f_solver[2, 0] * np.cos(TwoRho + 1.29)
-            + m4f_solver[2, 0] * np.cos(FourRho - 1.43),
+            + m2f_solver[2, 0] * np.cos(Two_rho_phi + 1.29)
+            + m4f_solver[2, 0] * np.cos(Four_rho_phi - 1.43),
             mIQs=m0f_solver[0, 1]
-            + m2f_solver[0, 1] * np.cos(TwoRho - 0.49)
-            + m4f_solver[0, 1] * np.cos(FourRho - 0.04),
+            + m2f_solver[0, 1] * np.cos(Two_rho_phi - 0.49)
+            + m4f_solver[0, 1] * np.cos(Four_rho_phi - 0.04),
             mIUs=m0f_solver[0, 2]
-            + m2f_solver[0, 2] * np.cos(TwoRho - 2.06)
-            + m4f_solver[0, 2] * np.cos(FourRho - 1.61),
+            + m2f_solver[0, 2] * np.cos(Two_rho_phi - 2.06)
+            + m4f_solver[0, 2] * np.cos(Four_rho_phi - 1.61),
             mQQs=m0f_solver[1, 1]
-            + m2f_solver[1, 1] * np.cos(TwoRho - 0.25)
-            + m4f_solver[1, 1] * np.cos(FourRho - 0.00061),
+            + m2f_solver[1, 1] * np.cos(Two_rho_phi - 0.25)
+            + m4f_solver[1, 1] * np.cos(Four_rho_phi - 0.00061),
             mUUs=m0f_solver[2, 2]
-            + m2f_solver[2, 2] * np.cos(TwoRho + 2.54)
-            + m4f_solver[2, 2] * np.cos(FourRho + np.pi - 0.00065),
+            + m2f_solver[2, 2] * np.cos(Two_rho_phi + 2.54)
+            + m4f_solver[2, 2] * np.cos(Four_rho_phi + np.pi - 0.00065),
             mUQs=m0f_solver[2, 1]
-            + m2f_solver[2, 1] * np.cos(TwoRho - 2.01)
-            + m4f_solver[2, 1] * np.cos(FourRho - 0.00070 - np.pi / 2),
+            + m2f_solver[2, 1] * np.cos(Two_rho_phi - 2.01)
+            + m4f_solver[2, 1] * np.cos(Four_rho_phi - 0.00070 - np.pi / 2),
             mQUs=m0f_solver[1, 2]
-            + m2f_solver[1, 2] * np.cos(TwoRho - 2.00)
-            + m4f_solver[1, 2] * np.cos(FourRho - 0.00056 - np.pi / 2),
+            + m2f_solver[1, 2] * np.cos(Two_rho_phi - 2.00)
+            + m4f_solver[1, 2] * np.cos(Four_rho_phi - 0.00056 - np.pi / 2),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -439,9 +456,9 @@ class HwpSys:
         self,
         nside: Union[int, None] = None,
         Mbsparams: Union[MbsParameters, None] = None,
-        integrate_in_band: Union[bool, None] = None,
-        build_map_on_the_fly: Union[bool, None] = None,
-        integrate_in_band_solver: Union[bool, None] = None,
+        build_map_on_the_fly: Union[bool, None] = False,
+        apply_non_linearity: Union[bool, None] = False,
+        add_2f_hwpss: Union[bool, None] = False,
         Channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
@@ -452,11 +469,10 @@ class HwpSys:
         Args:
           nside (integer): nside used in the analysis
           Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
-              Input maps needs to be in galactic (mbs default)
-          integrate_in_band (bool): performs the band integration for tod generation
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
-          integrate_in_band_solver (bool): performs the band integration for the
-                                           map-making solver
+          apply_non_linearity (bool): applies the coupling of the non-linearity
+              systematics with hwp_sys
+          add_2f_hwpss (bool): adds the 2f hwpss signal to the TOD
           Channel (:class:`.FreqChannelInfo`): an instance of the
                                                 :class:`.FreqChannelInfo` class
           maps (float): input maps (3, npix) coherent with nside provided,
@@ -466,7 +482,6 @@ class HwpSys:
           comm (SerialMpiCommunicator): MPI communicator
         """
 
-        # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
         hwp_sys_Mbs_make_fg = True
         hwp_sys_Mbs_fg_models = ["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"]
@@ -480,20 +495,7 @@ class HwpSys:
 
             self.nside = paramdict.get("nside", False)
 
-            self.integrate_in_band = paramdict.get("integrate_in_band", False)
             self.build_map_on_the_fly = paramdict.get("build_map_on_the_fly", False)
-            self.integrate_in_band_solver = paramdict.get(
-                "integrate_in_band_solver", False
-            )
-
-            self.bandpass = paramdict.get("bandpass", False)
-            self.bandpass_solver = paramdict.get("bandpass_solver", False)
-            self.include_beam_throughput = paramdict.get(
-                "include_beam_throughput", False
-            )
-
-            self.band_filename = paramdict.get("band_filename", False)
-            self.band_filename_solver = paramdict.get("band_filename_solver", False)
 
             # here we set the values for Mbs used in the code if present
             # in paramdict, otherwise defaults
@@ -507,7 +509,6 @@ class HwpSys:
                 "hwp_sys_Mbs_gaussian_smooth", True
             )
         # This part sets from input_parameters()
-        # if not self.nside:
         if nside is None:
             self.nside = 512
         else:
@@ -528,17 +529,21 @@ class HwpSys:
                             )
                         )
 
-        if not hasattr(self, "integrate_in_band"):
-            if integrate_in_band is not None:
-                self.integrate_in_band = integrate_in_band
-
         if not hasattr(self, "build_map_on_the_fly"):
             if build_map_on_the_fly is not None:
                 self.build_map_on_the_fly = build_map_on_the_fly
 
-        if not hasattr(self, "integrate_in_band_solver"):
-            if integrate_in_band_solver is not None:
-                self.integrate_in_band_solver = integrate_in_band_solver
+        if not hasattr(self, "apply_non_linearity"):
+            if apply_non_linearity is not None:
+                self.apply_non_linearity = apply_non_linearity
+
+        if not hasattr(self, "add_2f_hwpss"):
+            if add_2f_hwpss is not None:
+                self.add_2f_hwpss = add_2f_hwpss
+
+        if not hasattr(self, "comm"):
+            if comm is not None:
+                self.comm = comm
 
         if Mbsparams is None and np.any(maps) is None:
             Mbsparams = lbs.MbsParameters(
@@ -559,84 +564,21 @@ class HwpSys:
         if Channel is None:
             Channel = lbs.FreqChannelInfo(bandcenter_ghz=140)
 
-        if self.integrate_in_band:
-            if not self.bandpass:
-                self.cmb2bb = _dBodTth(self.freqs)
-
-            elif self.bandpass:
-                self.freqs, self.bandpass_profile = bandpass_profile(
-                    self.freqs, self.bandpass, self.include_beam_throughput
-                )
-
-                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
-
-            # Normalize the band
-            self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
-
-            rank = comm.rank
-
-            if np.any(maps) is None:
-                if rank == 0:
-                    myinstr = {}
-                    for ifreq in range(self.nfreqs):
-                        myinstr["ch" + str(ifreq)] = {
-                            "bandcenter_ghz": self.freqs[ifreq],
-                            "bandwidth_ghz": 0,
-                            "fwhm_arcmin": Channel.fwhm_arcmin,
-                            "p_sens_ukarcmin": 0.0,
-                            "band": None,
-                        }
-
-                    mbs = lbs.Mbs(
-                        simulation=self.sim, parameters=Mbsparams, instrument=myinstr
-                    )
-
-                    maps = mbs.run_all()[0]
-                    self.maps = np.empty((self.nfreqs, 3, self.npix))
-                    for ifreq in range(self.nfreqs):
-                        self.maps[ifreq] = maps["ch" + str(ifreq)]
-                else:
-                    self.maps = None
-                if comm is not None:
-                    self.maps = comm.bcast(self.maps, root=0)
-            else:
-                self.maps = maps
-            del maps
-
+        if np.any(maps) is None:
+            mbs = lbs.Mbs(
+                simulation=self.sim, parameters=Mbsparams, channel_list=Channel
+            )
+            self.maps = mbs.run_all()[0][
+                f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"
+            ]
         else:
-            if np.any(maps) is None:
-                mbs = lbs.Mbs(
-                    simulation=self.sim, parameters=Mbsparams, channel_list=Channel
-                )
-                self.maps = mbs.run_all()[0][
-                    f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"
-                ]
-            else:
-                self.maps = maps
+            self.maps = maps
 
-                del maps
-
-        if self.integrate_in_band_solver:
-            if not self.bandpass_solver:
-                self.cmb2bb_solver = _dBodTth(self.freqs_solver)
-
-            elif self.bandpass_solver:
-                self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
-                    self.freqs_solver,
-                    self.bandpass_solver,
-                    self.include_beam_throughput,
-                )
-                self.cmb2bb_solver = (
-                    _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
-                )
-
-            self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
+            del maps
 
         if self.build_map_on_the_fly:
             self.atd = np.zeros((self.npix, 3), dtype=np.float64)
             self.ata = np.zeros((self.npix, 3, 3), dtype=np.float64)
-
-        self.comm = comm
 
     def fill_tod(
         self,
@@ -646,7 +588,6 @@ class HwpSys:
         input_map_in_galactic: bool = True,
         save_tod: bool = False,
         dtype_pointings=np.float32,
-        apply_non_linearity=False,
     ):
         r"""Fill a TOD and/or :math:`A^T A` and :math:`A^T d` for the
         "on-the-fly" map production
@@ -683,16 +624,15 @@ class HwpSys:
                 ecliptic to galactic and output map will also be in
                 galactic.
 
-            save_tod (bool): if True, ``tod`` is saved in
-                ``observations.tod``; if False, ``tod`` gets deleted.
+            save_tod (bool): if True, ``obs.tod`` is saved in
+                ``observations.tod`` and locally as a .npy file;
+                if False, ``obs.tod`` gets deleted.
 
             dtype_pointings: if ``pointings`` is None and is computed
                 within ``fill_tod``, this is the dtype for
-                pointings and tod (default: np.float64).
+                pointings and tod (default: np.float32).
 
         """
-
-        rank = self.comm.rank
 
         assert observations is not None, (
             "You need to pass at least one observation to fill_tod."
@@ -779,10 +719,10 @@ class HwpSys:
                     )
 
             for idet in range(cur_obs.n_detectors):
-                cur_det = self.sim.detectors[idet * rank + idet]
-
-                if cur_det.mueller_hwp is None:
-                    cur_det.mueller_hwp = {
+                # if no mueller_hwp has been set, it will be the ideal one from hwp.py,
+                # we must turn it into the rotation harmonics one (for the ideal case)
+                if (cur_obs.mueller_hwp[idet] == np.diag([1.0, 1.0, -1.0, -1.0])).all():
+                    cur_obs.mueller_hwp[idet] = {
                         "0f": np.array(
                             [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                         ),
@@ -794,8 +734,8 @@ class HwpSys:
                         ),
                     }
 
-                if cur_det.mueller_hwp_solver is None:
-                    cur_det.mueller_hwp_solver = {
+                if cur_obs.mueller_hwp_solver[idet] is None:
+                    cur_obs.mueller_hwp_solver[idet] = {
                         "0f": np.array(
                             [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                         ),
@@ -807,7 +747,7 @@ class HwpSys:
                         ),
                     }
 
-                tod = np.float64(cur_obs.tod[idet, :])
+                tod = cur_obs.tod[idet, :]
 
                 if pointings is None:
                     if (not ptg_list) or (not hwp_angle_list):
@@ -832,10 +772,10 @@ class HwpSys:
                 # separating polarization angle xi from cur_point[:, 2] = psi + xi
                 # xi: polarization angle, i.e. detector dependent
                 # psi: instrument angle, i.e. boresight direction from focal plane POV
-                xi = cur_det.pol_angle_rad
+                xi = cur_obs.pol_angle_rad[idet]
                 psi = cur_point[:, 2]
 
-                phi = np.deg2rad(cur_det.pointing_theta_phi_psi_deg[1])
+                phi = np.deg2rad(cur_obs.pointing_theta_phi_psi_deg[idet][1])
 
                 cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
                 sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
@@ -843,38 +783,42 @@ class HwpSys:
                 compute_signal_for_one_detector(
                     tod_det=tod,
                     pixel_ind=pix,
-                    m0f=cur_det.mueller_hwp["0f"],
-                    m2f=cur_det.mueller_hwp["2f"],
-                    m4f=cur_det.mueller_hwp["4f"],
-                    theta=np.array(cur_hwp_angle, dtype=np.float64),
+                    m0f=cur_obs.mueller_hwp[idet]["0f"],
+                    m2f=cur_obs.mueller_hwp[idet]["2f"],
+                    m4f=cur_obs.mueller_hwp[idet]["4f"],
+                    rho=np.array(cur_hwp_angle, dtype=np.float64),
                     psi=np.array(psi, dtype=np.float64),
-                    maps=np.array(self.maps, dtype=np.float64),
+                    maps=self.maps,
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
+                    apply_non_linearity=self.apply_non_linearity,
+                    g_one_over_k=cur_obs.g_one_over_k[idet],
+                    add_2f_hwpss=self.add_2f_hwpss,
+                    amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
                 )
 
-            if self.build_map_on_the_fly:
-                compute_ata_atd_for_one_detector(
-                    ata=self.ata,
-                    atd=self.atd,
-                    tod=tod,
-                    m0f_solver=cur_det.mueller_hwp_solver["0f"],
-                    m2f_solver=cur_det.mueller_hwp_solver["2f"],
-                    m4f_solver=cur_det.mueller_hwp_solver["4f"],
-                    pixel_ind=pix,
-                    theta=np.array(cur_hwp_angle, dtype=np.float64),
-                    psi=np.array(psi, dtype=np.float64),
-                    phi=phi,
-                    cos2Xi2Phi=cos2Xi2Phi,
-                    sin2Xi2Phi=sin2Xi2Phi,
-                )
+                if self.build_map_on_the_fly:
+                    compute_ata_atd_for_one_detector(
+                        ata=self.ata,
+                        atd=self.atd,
+                        tod=tod,
+                        m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
+                        m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
+                        m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
+                        pixel_ind=pix,
+                        rho=np.array(cur_hwp_angle, dtype=np.float64),
+                        psi=np.array(psi, dtype=np.float64),
+                        phi=phi,
+                        cos2Xi2Phi=cos2Xi2Phi,
+                        sin2Xi2Phi=sin2Xi2Phi,
+                    )
 
-        del (pix, self.maps)
+                cur_obs.tod[idet] = tod
+
+        del pix
         if not save_tod:
-            del tod
-
-        return
+            del cur_obs.tod
 
     def make_map(self, observations):
         """It generates "on the fly" map. This option is only availabe if
@@ -902,8 +846,8 @@ class HwpSys:
                 for i in range(len(observations) - 1)
             ]
         ):
-            self.atd = self.comm.allreduce(self.atd, mpi.MPI.SUM)
-            self.ata = self.comm.allreduce(self.ata, mpi.MPI.SUM)
+            self.comm.Allreduce(mpi.MPI.IN_PLACE, self.atd, mpi.MPI.SUM)
+            self.comm.Allreduce(mpi.MPI.IN_PLACE, self.ata, mpi.MPI.SUM)
         else:
             raise NotImplementedError(
                 "All observations must be distributed over the same MPI groups"
