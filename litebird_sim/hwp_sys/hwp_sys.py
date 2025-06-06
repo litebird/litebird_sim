@@ -476,6 +476,9 @@ class HwpSys:
           apply_non_linearity (bool): applies the coupling of the non-linearity
               systematics with hwp_sys
           add_2f_hwpss (bool): adds the 2f hwpss signal to the TOD
+          interpolation (str): if it is ``""`` (the default), pixels in the map
+              won’t be interpolated. If it is ``linear``, a linear interpolation
+              will be used
           Channel (:class:`.FreqChannelInfo`): an instance of the
                                                 :class:`.FreqChannelInfo` class
           maps (float): input maps (3, npix) coherent with nside provided,
