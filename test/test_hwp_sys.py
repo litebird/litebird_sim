@@ -84,7 +84,7 @@ def test_hwp_sys(interpolation):
 
         sim.prepare_pointings(append_to_report=False)
 
-        Mbsparams = lbs.MbsParameters(
+        mbs_params = lbs.MbsParameters(
             make_cmb=True,
             seed_cmb=1234,
             make_noise=False,
@@ -100,7 +100,7 @@ def test_hwp_sys(interpolation):
 
         if rank == 0:
             mbs = lbs.Mbs(
-                simulation=sim, parameters=Mbsparams, channel_list=[channelinfo]
+                simulation=sim, parameters=mbs_params, channel_list=[channelinfo]
             )
 
             input_maps = mbs.run_all()[0]["L4-140"]
@@ -115,9 +115,9 @@ def test_hwp_sys(interpolation):
         hwp_sys.set_parameters(
             nside=nside,
             maps=input_maps,
-            Channel=channelinfo,
+            channel=channelinfo,
             interpolation=interpolation,
-            mbs_params=Mbsparams,
+            mbs_params=mbs_params,
             build_map_on_the_fly=True,
             comm=comm,
         )

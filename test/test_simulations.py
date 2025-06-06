@@ -684,7 +684,7 @@ def test_get_sky(tmp_path):
         tmp_path, include_hwp=True, store_full_pointings=True, num_of_detectors=4
     )
 
-    Mbsparams = lbs.MbsParameters(
+    mbs_params = lbs.MbsParameters(
         make_cmb=True,
         make_fg=True,
         make_noise=False,  # This is detector-dependent
@@ -697,7 +697,7 @@ def test_get_sky(tmp_path):
         maps_in_ecliptic=False,
     )
 
-    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    maps = sim.get_sky(parameters=mbs_params, store_in_observation=True)
     maps = np.array([maps[det] for det in set(sim.observations[0].name)])
     obs_maps = sim.observations[0].sky
     obs_maps = np.array([obs_maps[det] for det in set(sim.observations[0].name)])
@@ -705,7 +705,7 @@ def test_get_sky(tmp_path):
     np.testing.assert_allclose(maps, obs_maps)
 
     ChanInfo = lbs.FreqChannelInfo(bandcenter_ghz=40)
-    same_ch_map = sim.get_sky(parameters=Mbsparams, channels=ChanInfo)[
+    same_ch_map = sim.get_sky(parameters=mbs_params, channels=ChanInfo)[
         ChanInfo.channel.replace(" ", "_")
     ]
 
@@ -713,9 +713,9 @@ def test_get_sky(tmp_path):
         np.testing.assert_allclose(maps[idx_det], same_ch_map)
 
     # Introduce a difference
-    Mbsparams.make_noise = True
+    mbs_params.make_noise = True
 
-    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    maps = sim.get_sky(parameters=mbs_params, store_in_observation=True)
     maps = np.array([maps[det] for det in set(sim.observations[0].name)])
 
     for idx_det in range(4):
@@ -732,7 +732,7 @@ def test_convolve_and_filltods_from_obs(tmp_path):
         tmp_path, include_hwp=True, store_full_pointings=True, num_of_detectors=4
     )
 
-    Mbsparams = lbs.MbsParameters(
+    mbs_params = lbs.MbsParameters(
         make_cmb=True,
         make_fg=True,
         make_noise=False,
@@ -746,17 +746,17 @@ def test_convolve_and_filltods_from_obs(tmp_path):
         store_alms=True,  # This will produce alms
     )
 
-    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    maps = sim.get_sky(parameters=mbs_params, store_in_observation=True)
     assert maps["type"] == "alms"
 
-    _ = sim.get_gauss_beam_alms(Mbsparams.lmax_alms, store_in_observation=True)
+    _ = sim.get_gauss_beam_alms(mbs_params.lmax_alms, store_in_observation=True)
 
     sim.convolve_sky()
     tod = sim.observations[0].tod[0]
 
     sim.nullify_tod()
 
-    Mbsparams = lbs.MbsParameters(
+    mbs_params = lbs.MbsParameters(
         make_cmb=True,
         make_fg=True,
         make_noise=False,
@@ -770,7 +770,7 @@ def test_convolve_and_filltods_from_obs(tmp_path):
         store_alms=False,  # This will produce maps
     )
 
-    maps = sim.get_sky(parameters=Mbsparams, store_in_observation=True)
+    maps = sim.get_sky(parameters=mbs_params, store_in_observation=True)
     sim.fill_tods()
 
     tod_2 = sim.observations[0].tod[0]
