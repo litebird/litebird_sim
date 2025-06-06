@@ -59,17 +59,17 @@ jobs:
 
       - name: Install litebird_sim dependencies
         run: |
-          EXTRAS=""
-          if [ "${{ matrix.mpi }}" != "none" ]; then
-            EXTRAS="$EXTRAS -E mpi"
-            if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-              EXTRAS="$EXTRAS -E brahmap"
-            fi
-          fi
-          poetry export --without-hashes $EXTRAS -o requirements.txt
+          poetry export --without-hashes -o requirements.txt
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest-cov
+          if [ "${{ matrix.mpi }}" != "none" ]; then
+            pip install mpi4py
+            if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+              git clone --recursive https://github.com/anand-avinash/BrahMap.git
+              (cd BrahMap && pip install .)
+            fi
+          fi
         env:
           DUCC0_OPTIMIZATION: none
 
