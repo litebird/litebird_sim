@@ -130,7 +130,7 @@ The examples below skip the simulation and observation creation for brevity. If 
         nside=nside,
         maps=input_maps,
         Channel=channelinfo,
-        Mbsparams=Mbsparams,
+        mbs_params=mbs_params,
         build_map_on_the_fly=True, #if one wants to perform the mapmaking on-the-fly
         comm=sim.mpi_comm,
     )
@@ -173,7 +173,7 @@ To couple detector non-linearity with HWP systematics, three attributes must be 
         nside=nside,
         maps=input_maps,
         Channel=channelinfo,
-        Mbsparams=Mbsparams,
+        mbs_params=mbs_params,
         build_map_on_the_fly=True, #if one wants to perform the mapmaking on-the-fly
         apply_non_linearity=True,
         add_orbital_dipole=True,

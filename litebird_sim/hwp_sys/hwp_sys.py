@@ -457,7 +457,7 @@ class HwpSys:
     def set_parameters(
         self,
         nside: Union[int, None] = None,
-        Mbsparams: Union[MbsParameters, None] = None,
+        mbs_params: Union[MbsParameters, None] = None,
         build_map_on_the_fly: Union[bool, None] = False,
         apply_non_linearity: Union[bool, None] = False,
         add_2f_hwpss: Union[bool, None] = False,
@@ -471,7 +471,7 @@ class HwpSys:
 
         Args:
           nside (integer): nside used in the analysis
-          Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
+          mbs_params (:class:`.Mbs`): an instance of the :class:`.Mbs` class
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
           apply_non_linearity (bool): applies the coupling of the non-linearity
               systematics with hwp_sys
@@ -551,8 +551,8 @@ class HwpSys:
             if comm is not None:
                 self.comm = comm
 
-        if Mbsparams is None and np.any(maps) is None:
-            Mbsparams = lbs.MbsParameters(
+        if mbs_params is None and np.any(maps) is None:
+            mbs_params = lbs.MbsParameters(
                 make_cmb=hwp_sys_Mbs_make_cmb,
                 make_fg=hwp_sys_Mbs_make_fg,
                 fg_models=hwp_sys_Mbs_fg_models,
@@ -563,7 +563,7 @@ class HwpSys:
             )
 
         if np.any(maps) is None:
-            Mbsparams.nside = self.nside
+            mbs_params.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
 
@@ -574,7 +574,7 @@ class HwpSys:
 
         if np.any(maps) is None:
             mbs = lbs.Mbs(
-                simulation=self.sim, parameters=Mbsparams, channel_list=Channel
+                simulation=self.sim, parameters=mbs_params, channel_list=Channel
             )
             self.maps = mbs.run_all()[0][
                 f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"

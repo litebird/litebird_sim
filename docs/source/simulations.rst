@@ -522,8 +522,8 @@ straightforward::
 Dedicated functions can also take care of the input generation and of
 the beam convolution::
 
-    Mbsparams = lbs.MbsParameters(...)
-    alms = sim.get_sky(parameters=Mbsparams)
+    mbs_params = lbs.MbsParameters(...)
+    alms = sim.get_sky(parameters=mbs_params)
 
     blms = sim.get_gauss_beam_alms(...)
 

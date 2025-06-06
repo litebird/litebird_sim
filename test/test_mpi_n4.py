@@ -1,5 +1,6 @@
-import litebird_sim as lbs
 import numpy as np
+
+import litebird_sim as lbs
 from litebird_sim import mpi
 from litebird_sim.hwp_sys.hwp_sys import mueller_interpolation
 
@@ -134,7 +135,7 @@ def test_hwp_sys_mpi():
         nside=nside,
         maps=input_maps,
         Channel=channelinfo,
-        Mbsparams=Mbsparams,
+        mbs_params=Mbsparams,
         build_map_on_the_fly=False,
         comm=comm,
     )

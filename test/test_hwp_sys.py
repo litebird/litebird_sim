@@ -117,7 +117,7 @@ def test_hwp_sys(interpolation):
             maps=input_maps,
             Channel=channelinfo,
             interpolation=interpolation,
-            Mbsparams=Mbsparams,
+            mbs_params=Mbsparams,
             build_map_on_the_fly=True,
             comm=comm,
         )
