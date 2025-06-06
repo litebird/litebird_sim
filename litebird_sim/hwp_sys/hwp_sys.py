@@ -7,13 +7,14 @@ import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from numba import njit, prange
+
 import litebird_sim as lbs
 from litebird_sim import mpi
 from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
+from ..hwp_diff_emiss import compute_2f_for_one_sample
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
-from ..hwp_diff_emiss import compute_2f_for_one_sample
 
 COND_THRESHOLD = 1e10
 
@@ -277,7 +278,9 @@ def compute_signal_for_one_detector(
     m4f,
     rho,
     psi,
-    maps,
+    mapT,
+    mapQ,
+    mapU,
     cos2Xi2Phi,
     sin2Xi2Phi,
     phi,
@@ -295,9 +298,9 @@ def compute_signal_for_one_detector(
         Four_rho_phi = 4 * (rho[i] - phi)
         Two_rho_phi = 2 * (rho[i] - phi)
         tod_det[i] += compute_signal_for_one_sample(
-            T=maps[0][i],
-            Q=maps[1][i],
-            U=maps[2][i],
+            T=mapT[i],
+            Q=mapQ[i],
+            U=mapU[i],
             mII=m0f[0, 0]
             + m2f[0, 0] * np.cos(Two_rho_phi - 2.32)
             + m4f[0, 0] * np.cos(Four_rho_phi - 0.84),
@@ -819,7 +822,9 @@ class HwpSys:
                     m4f=cur_obs.mueller_hwp[idet]["4f"],
                     rho=np.array(cur_hwp_angle, dtype=np.float64),
                     psi=np.array(psi, dtype=np.float64),
-                    maps=[input_T, input_Q, input_U],
+                    mapT=input_T,
+                    mapQ=input_Q,
+                    mapU=input_U,
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
