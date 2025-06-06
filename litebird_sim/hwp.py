@@ -139,8 +139,7 @@ def _get_ideal_hwp_angle(
         angle = (
             start_angle_rad
             + (start_time_s + delta_time_s * sample_idx) * ang_speed_radpsec
-        ) % (2 * np.pi)
-
+        )
         output_buffer[sample_idx] = angle
 
 
