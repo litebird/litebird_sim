@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/io.py: 90%</title>
+    <title>Coverage for litebird_sim/io.py: 89%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_8e611ae1.css" type="text/css">
     <script src="coverage_html_cb_6fb7b396.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim/io.py</b>:
-            <span class="pc_cov">90%</span>
+            <span class="pc_cov">89%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">241 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">218<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">23<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">214<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">27<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_madam_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.8.2">coverage.py v7.8.2</a>,
-            created at 2025-06-06 14:59 +0000
+            created at 2025-06-06 15:01 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -445,8 +445,8 @@
     <p class="run"><span class="n"><a id="t363" href="#t363">363</a></span><span class="t">    <span class="key">if</span> <span class="nam">MPI_ENABLED</span> <span class="key">and</span> <span class="nam">collective_mpi_call</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t364" href="#t364">364</a></span><span class="t">        <span class="com"># Count how many observations are kept in the MPI processes with lower rank</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t365" href="#t365">365</a></span><span class="t">        <span class="com"># than this one.</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t366" href="#t366">366</a></span><span class="t">        <span class="nam">num_of_obs</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">asarray</span><span class="op">(</span><span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">allgather</span><span class="op">(</span><span class="nam">num_of_obs</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t367" href="#t367">367</a></span><span class="t">        <span class="nam">global_start_index</span> <span class="op">+=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">sum</span><span class="op">(</span><span class="nam">num_of_obs</span><span class="op">[</span><span class="num">0</span> <span class="op">:</span> <span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">rank</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t366" href="#t366">366</a></span><span class="t">        <span class="nam">num_of_obs</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">asarray</span><span class="op">(</span><span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">allgather</span><span class="op">(</span><span class="nam">num_of_obs</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t367" href="#t367">367</a></span><span class="t">        <span class="nam">global_start_index</span> <span class="op">+=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">sum</span><span class="op">(</span><span class="nam">num_of_obs</span><span class="op">[</span><span class="num">0</span> <span class="op">:</span> <span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">rank</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t368" href="#t368">368</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t369" href="#t369">369</a></span><span class="t">    <span class="key">return</span> <span class="nam">global_start_index</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t370" href="#t370">370</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -830,18 +830,18 @@
     <p class="pln"><span class="n"><a id="t748" href="#t748">748</a></span><span class="t">    <span class="com"># When running several MPI processes, make just one of them read the HDF5 metadata,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t749" href="#t749">749</a></span><span class="t">    <span class="com"># otherwise we put too much burden on the storage filesystem</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t750" href="#t750">750</a></span><span class="t">    <span class="key">if</span> <span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t751" href="#t751">751</a></span><span class="t">        <span class="nam">file_entries</span> <span class="op">=</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t751" href="#t751">751</a></span><span class="t">        <span class="nam">file_entries</span> <span class="op">=</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t752" href="#t752">752</a></span><span class="t">            <span class="nam">_build_file_entry_table</span><span class="op">(</span><span class="nam">file_name_list</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t753" href="#t753">753</a></span><span class="t">            <span class="key">if</span> <span class="op">(</span><span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">rank</span> <span class="op">==</span> <span class="num">0</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t754" href="#t754">754</a></span><span class="t">            <span class="key">else</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t755" href="#t755">755</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t756" href="#t756">756</a></span><span class="t">        <span class="nam">file_entries</span> <span class="op">=</span> <span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">bcast</span><span class="op">(</span><span class="nam">file_entries</span><span class="op">,</span> <span class="nam">root</span><span class="op">=</span><span class="num">0</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t756" href="#t756">756</a></span><span class="t">        <span class="nam">file_entries</span> <span class="op">=</span> <span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">bcast</span><span class="op">(</span><span class="nam">file_entries</span><span class="op">,</span> <span class="nam">root</span><span class="op">=</span><span class="num">0</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t757" href="#t757">757</a></span><span class="t">    <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t758" href="#t758">758</a></span><span class="t">        <span class="nam">file_entries</span> <span class="op">=</span> <span class="nam">_build_file_entry_table</span><span class="op">(</span><span class="nam">file_name_list</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t758" href="#t758">758</a></span><span class="t">        <span class="nam">file_entries</span> <span class="op">=</span> <span class="nam">_build_file_entry_table</span><span class="op">(</span><span class="nam">file_name_list</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t759" href="#t759">759</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t760" href="#t760">760</a></span><span class="t">    <span class="com"># Decide which files should be read by this process</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t761" href="#t761">761</a></span><span class="t">    <span class="key">if</span> <span class="nam">limit_mpi_rank</span> <span class="key">and</span> <span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t762" href="#t762">762</a></span><span class="t">        <span class="nam">file_entries</span> <span class="op">=</span> <span class="op">[</span><span class="nam">x</span> <span class="key">for</span> <span class="nam">x</span> <span class="key">in</span> <span class="nam">file_entries</span> <span class="key">if</span> <span class="nam">x</span><span class="op">.</span><span class="nam">mpi_rank</span> <span class="op">==</span> <span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">rank</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t762" href="#t762">762</a></span><span class="t">        <span class="nam">file_entries</span> <span class="op">=</span> <span class="op">[</span><span class="nam">x</span> <span class="key">for</span> <span class="nam">x</span> <span class="key">in</span> <span class="nam">file_entries</span> <span class="key">if</span> <span class="nam">x</span><span class="op">.</span><span class="nam">mpi_rank</span> <span class="op">==</span> <span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">rank</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t763" href="#t763">763</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t764" href="#t764">764</a></span><span class="t">    <span class="key">for</span> <span class="nam">cur_file_entry</span> <span class="key">in</span> <span class="nam">file_entries</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t765" href="#t765">765</a></span><span class="t">        <span class="nam">observations</span><span class="op">.</span><span class="nam">append</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
@@ -863,7 +863,7 @@
             <a class="nav" href="z_e8833be62395df53_madam_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.8.2">coverage.py v7.8.2</a>,
-            created at 2025-06-06 14:59 +0000
+            created at 2025-06-06 15:01 +0000
         </p>
     </div>
 </footer>
