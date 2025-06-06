@@ -68,6 +68,7 @@ jobs:
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
               git clone --recursive https://github.com/anand-avinash/BrahMap.git
               (cd BrahMap && pip install .)
+              rm -rf BrahMap
             fi
           fi
         env:
