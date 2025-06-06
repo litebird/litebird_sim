@@ -6,6 +6,8 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   **Breaking change**: The two parameters `Channel` and `Mbsparams` used in `HwpSys.set_parameters()` have been renamed to `channel` and `mbs_params` [#422](https://github.com/litebird/litebird_sim/pull/422)
+
 -   Add interpolation to `hwp_sys` [#420](https://github.com/litebird/litebird_sim/pull/420)
 
 -   Change default ellipticity in IMo vPTEP [#419](https://github.com/litebird/litebird_sim/pull/419) and improved documentation for beam synthesis [#416](https://github.com/litebird/litebird_sim/pull/416)
