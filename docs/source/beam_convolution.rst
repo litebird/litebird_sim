@@ -323,7 +323,7 @@ For a single-task execution, refer to the following example:
     blms = sim.get_gauss_beam_alms(lmax=lmax)
 
     # Create the alms to convolve
-    Mbsparams = lbs.MbsParameters(
+    mbs_params = lbs.MbsParameters(
         make_cmb=True,
         make_fg=False,
         nside=nside,
@@ -335,7 +335,7 @@ For a single-task execution, refer to the following example:
         seed_cmb=12345,
     )
 
-    alms = sim.get_sky(parameters = Mbsparams)
+    alms = sim.get_sky(parameters = mbs_params)
 
     Convparams = lbs.BeamConvolutionParameters(
         lmax = lmax,

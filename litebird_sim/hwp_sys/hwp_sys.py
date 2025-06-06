@@ -457,12 +457,12 @@ class HwpSys:
     def set_parameters(
         self,
         nside: Union[int, None] = None,
-        Mbsparams: Union[MbsParameters, None] = None,
+        mbs_params: Union[MbsParameters, None] = None,
         build_map_on_the_fly: Union[bool, None] = False,
         apply_non_linearity: Union[bool, None] = False,
         add_2f_hwpss: Union[bool, None] = False,
         interpolation: Union[str, None] = "",
-        Channel: Union[FreqChannelInfo, None] = None,
+        channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
     ):
@@ -471,7 +471,7 @@ class HwpSys:
 
         Args:
           nside (integer): nside used in the analysis
-          Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
+          mbs_params (:class:`.Mbs`): an instance of the :class:`.Mbs` class
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
           apply_non_linearity (bool): applies the coupling of the non-linearity
               systematics with hwp_sys
@@ -479,11 +479,11 @@ class HwpSys:
           interpolation (str): if it is ``""`` (the default), pixels in the map
               won’t be interpolated. If it is ``linear``, a linear interpolation
               will be used
-          Channel (:class:`.FreqChannelInfo`): an instance of the
+          channel (:class:`.FreqChannelInfo`): an instance of the
                                                 :class:`.FreqChannelInfo` class
           maps (float): input maps (3, npix) coherent with nside provided,
               Input maps needs to be in galactic (mbs default)
-              if `maps` is not None, `Mbsparams` is ignored
+              if `maps` is not None, `mbs_params` is ignored
               (i.e. input maps are not generated)
           comm (SerialMpiCommunicator): MPI communicator
         """
@@ -551,8 +551,8 @@ class HwpSys:
             if comm is not None:
                 self.comm = comm
 
-        if Mbsparams is None and np.any(maps) is None:
-            Mbsparams = lbs.MbsParameters(
+        if mbs_params is None and np.any(maps) is None:
+            mbs_params = lbs.MbsParameters(
                 make_cmb=hwp_sys_Mbs_make_cmb,
                 make_fg=hwp_sys_Mbs_make_fg,
                 fg_models=hwp_sys_Mbs_fg_models,
@@ -563,21 +563,21 @@ class HwpSys:
             )
 
         if np.any(maps) is None:
-            Mbsparams.nside = self.nside
+            mbs_params.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
 
         self.interpolation = interpolation
 
-        if Channel is None:
-            Channel = lbs.FreqChannelInfo(bandcenter_ghz=140)
+        if channel is None:
+            channel = lbs.FreqChannelInfo(bandcenter_ghz=140)
 
         if np.any(maps) is None:
             mbs = lbs.Mbs(
-                simulation=self.sim, parameters=Mbsparams, channel_list=Channel
+                simulation=self.sim, parameters=mbs_params, channel_list=channel
             )
             self.maps = mbs.run_all()[0][
-                f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"
+                f"{channel.channel.split()[0]}_{channel.channel.split()[1]}"
             ]
         else:
             self.maps = maps

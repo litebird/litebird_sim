@@ -420,7 +420,7 @@ number generator provided by the :class:`.Simulation` and seeded with
       alpha=1.0,
   )
 
-  Mbsparams = lbs.MbsParameters(
+  mbs_params = lbs.MbsParameters(
       nside=128,
       make_cmb=True,
       make_fg=True,
@@ -429,7 +429,7 @@ number generator provided by the :class:`.Simulation` and seeded with
 
   mbs = lbs.Mbs(
       simulation=sim,
-      parameters=Mbsparams,
+      parameters=mbs_params,
       detector_list=detector
   )
   maps = mbs.run_all()[0]
@@ -518,7 +518,7 @@ dust, and white noise. The we bin the timeline in a map. ::
       net_ukrts = 50.0,
   )
 
-  Mbsparams = lbs.MbsParameters(
+  mbs_params = lbs.MbsParameters(
       nside=nside,
       make_cmb=True,
       make_fg=True,
@@ -527,7 +527,7 @@ dust, and white noise. The we bin the timeline in a map. ::
 
   mbs = lbs.Mbs(
       simulation=sim,
-      parameters=Mbsparams,
+      parameters=mbs_params,
       detector_list=detector
   )
   maps = mbs.run_all()[0]
