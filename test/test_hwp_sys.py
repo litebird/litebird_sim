@@ -1,11 +1,14 @@
-import litebird_sim as lbs
 import numpy as np
-from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
+import pytest
+
+import litebird_sim as lbs
 from litebird_sim import mpi
+from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
 
-def test_hwp_sys():
+@pytest.mark.parametrize("interpolation", ["", "linear"])
+def test_hwp_sys(interpolation):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -113,6 +116,7 @@ def test_hwp_sys():
             nside=nside,
             maps=input_maps,
             Channel=channelinfo,
+            interpolation=interpolation,
             Mbsparams=Mbsparams,
             build_map_on_the_fly=True,
             comm=comm,
@@ -128,6 +132,7 @@ def test_hwp_sys():
         observations=list_of_obs[0],
         input_map_in_galactic=False,
         maps=input_maps,
+        interpolation=interpolation,
     )
 
     hwp_sys.fill_tod(
@@ -136,7 +141,7 @@ def test_hwp_sys():
         save_tod=True,
     )
 
-    # The decimal=3 in here has a reson, explained in PR 395.
+    # The decimal=3 in here has a reason, explained in PR 395.
     # This should be changed in the future
     np.testing.assert_almost_equal(
         list_of_obs[0].tod, list_of_obs[1].tod, decimal=3, verbose=True

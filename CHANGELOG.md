@@ -6,6 +6,8 @@
 
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
+-   Add interpolation to `hwp_sys` [#420](https://github.com/litebird/litebird_sim/pull/420)
+
 -   Change default ellipticity in IMo vPTEP [#419](https://github.com/litebird/litebird_sim/pull/419) and improved documentation for beam synthesis [#416](https://github.com/litebird/litebird_sim/pull/416)
 
 -   Measure code coverage in PRs [#415](https://github.com/litebird/litebird_sim/pull/415)
