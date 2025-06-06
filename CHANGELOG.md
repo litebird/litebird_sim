@@ -1,5 +1,7 @@
 # HEAD
 
+# Version 0.15.0
+
 -   **Breaking change**: New improved seeding strategy using `RNGHierarchy` [#414](https://github.com/litebird/litebird_sim/pull/414)
 
 -   **Breaking change**: Drop support for Python 3.9, add support for 3.13. Note that this implies that we do no longer support TOAST2, as it does not work with Python 3.10 [#409](https://github.com/litebird/litebird_sim/pull/409)
@@ -7,6 +9,8 @@
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
 
 -   **Breaking change**: The two parameters `Channel` and `Mbsparams` used in `HwpSys.set_parameters()` have been renamed to `channel` and `mbs_params` [#422](https://github.com/litebird/litebird_sim/pull/422)
+
+-   Remove extra dependencies from `pyproject.toml` [#423](https://github.com/litebird/litebird_sim/pull/423)
 
 -   Add interpolation to `hwp_sys` [#420](https://github.com/litebird/litebird_sim/pull/420)
 
