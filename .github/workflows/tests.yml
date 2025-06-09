@@ -63,8 +63,6 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest-cov
-<<<<<<< HEAD
-=======
           if [ "${{ matrix.mpi }}" != "none" ]; then
             pip install mpi4py
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
@@ -73,7 +71,6 @@ jobs:
               rm -rf BrahMap
             fi
           fi
->>>>>>> master
         env:
           DUCC0_OPTIMIZATION: none
 
