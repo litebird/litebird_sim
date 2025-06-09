@@ -137,7 +137,7 @@ def test_map_rotation():
     )
     ch_info.append(n_ch_info)
 
-    Mbsparams = lbs.MbsParameters(
+    mbs_params = lbs.MbsParameters(
         make_cmb=True,  # True to check its rotation
         make_fg=True,  # True to check its rotation
         seed_cmb=1234,
@@ -158,12 +158,12 @@ def test_map_rotation():
 
     mbs = lbs.Mbs(
         simulation=sim,
-        parameters=Mbsparams,
+        parameters=mbs_params,
         channel_list=ch_info,
     )
     maps = mbs.run_all()[0]
 
-    rot_Mbsparams = lbs.MbsParameters(
+    rot_mbs_params = lbs.MbsParameters(
         make_cmb=True,  # True to check its rotation
         make_fg=True,  # True to check its rotation
         seed_cmb=1234,
@@ -184,11 +184,11 @@ def test_map_rotation():
 
     rot_mbs = lbs.Mbs(
         simulation=sim,
-        parameters=rot_Mbsparams,
+        parameters=rot_mbs_params,
         channel_list=ch_info,
     )
     rot_maps = rot_mbs.run_all()[0]
 
-    ref_maps = rot_mbs.rotator.rotate_map_alms(maps["L4-140"], Mbsparams.lmax_alms)
+    ref_maps = rot_mbs.rotator.rotate_map_alms(maps["L4-140"], mbs_params.lmax_alms)
 
     np.testing.assert_allclose(ref_maps, rot_maps["L4-140"], atol=1e-3)

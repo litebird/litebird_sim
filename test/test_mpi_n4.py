@@ -1,5 +1,6 @@
-import litebird_sim as lbs
 import numpy as np
+
+import litebird_sim as lbs
 from litebird_sim import mpi
 from litebird_sim.hwp_sys.hwp_sys import mueller_interpolation
 
@@ -103,7 +104,7 @@ def test_hwp_sys_mpi():
 
     sim.prepare_pointings(append_to_report=False)
 
-    Mbsparams = lbs.MbsParameters(
+    mbs_params = lbs.MbsParameters(
         make_cmb=True,
         seed_cmb=1234,
         make_noise=False,
@@ -118,7 +119,7 @@ def test_hwp_sys_mpi():
     )
 
     if comm.rank == 0:
-        mbs = lbs.Mbs(simulation=sim, parameters=Mbsparams, channel_list=[channelinfo])
+        mbs = lbs.Mbs(simulation=sim, parameters=mbs_params, channel_list=[channelinfo])
 
         input_maps = mbs.run_all()[0]["MF1_140"]
 
@@ -133,8 +134,8 @@ def test_hwp_sys_mpi():
     hwp_sys.set_parameters(
         nside=nside,
         maps=input_maps,
-        Channel=channelinfo,
-        Mbsparams=Mbsparams,
+        channel=channelinfo,
+        mbs_params=mbs_params,
         build_map_on_the_fly=False,
         comm=comm,
     )

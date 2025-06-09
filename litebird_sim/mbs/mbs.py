@@ -16,6 +16,7 @@ import toml
 import litebird_sim as lbs
 from litebird_sim import constants as c
 
+
 @dataclass
 class _InstrumentFreq:
     bandcenter_ghz: float = 0.0  # bandcenter_ghz
@@ -619,10 +620,7 @@ class Mbs:
             nmc_output_directory = output_directory / nmc_str
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
-
-            cmb_temp = hp.synfast(
-                cl_cmb, nside=nside, lmax=self.params.lmax_alms, new=True
-            )
+            cmb_temp = hp.synfast(cl_cmb, nside, new=True, lmax=self.params.lmax_alms)
             if self.rotator is not None:
                 cmb_temp = self.rotator.rotate_map_alms(
                     cmb_temp, lmax=self.params.lmax_alms

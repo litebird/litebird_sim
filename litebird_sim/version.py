@@ -1,4 +1,4 @@
 # -*- encoding: utf-8 -*-
 
 __author__ = "The LiteBIRD simulation team"
-__version__ = "0.14.0"
+__version__ = "0.15.0"
