@@ -132,31 +132,15 @@ def test_mpi_subcommunicators(dets=dets):
         det_blocks_attributes=det_blocks_attribute,
     )
 
-    if lbs.MPI_COMM_GRID.COMM_OBS_GRID != lbs.MPI_COMM_GRID.COMM_NULL:
-        # since unused MPI processes stay at the end of global,
-        # communicator, the rank of the used processes in
-        # `MPI_COMM_GRID.COMM_OBS_GRID` must be same as their rank in
-        # global communicator
-        np.testing.assert_equal(lbs.MPI_COMM_GRID.COMM_OBS_GRID.rank, comm.rank)
-
-        for obs in sim.observations:
-            # comm_det_block.rank + comm_time_block.rank * n_block_time
-            # must be equal to the global communicator rank for the
-            # used processes. It follows from the way split colors
-            # were defined.
-            np.testing.assert_equal(
-                obs.comm_det_block.rank + obs.comm_time_block.rank * obs.n_blocks_time,
-                comm.rank,
-            )
-    else:
-        for obs in sim.observations:
-            # the global rank of the unused MPI processes must be larger than the number of used processes.
-            assert comm.rank > (obs.n_blocks_det * obs.n_blocks_time - 1)
-
-            # The block communicators on the unused MPI processes must
-            # be the NULL communicators
-            np.testing.assert_equal(obs.comm_det_block, lbs.MPI_COMM_GRID.COMM_NULL)
-            np.testing.assert_equal(obs.comm_time_block, lbs.MPI_COMM_GRID.COMM_NULL)
+    for obs in sim.observations:
+        # comm_det_block.rank + comm_time_block.rank * n_block_time
+        # must be equal to the global communicator rank for the
+        # used processes. It follows from the way split colors
+        # were defined.
+        np.testing.assert_equal(
+            obs.comm_det_block.rank + obs.comm_time_block.rank * obs.n_blocks_time,
+            comm.rank,
+        )
 
 
 if __name__ == "__main__":

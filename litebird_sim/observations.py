@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-import numbers
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Union, List, Any, Optional, Dict
@@ -10,10 +9,10 @@ import numpy as np
 import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
-from .detectors import DetectorInfo, InstrumentInfo
+from .detectors import InstrumentInfo
 from .distribute import distribute_evenly, distribute_detector_blocks
 from .hwp import HWP
-from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
+from .mpi import _SerialMpiCommunicator
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
 
@@ -695,19 +694,10 @@ class Observation:
             setattr(self, name, info)
             return
 
-        if (
-            MPI_COMM_GRID.COMM_OBS_GRID == MPI_COMM_GRID.COMM_NULL
-        ):  # The process does not own any detector (and TOD)
-            null_det = DetectorInfo()
-            attribute = getattr(null_det, name, None)
-            value = np.array([0]) if isinstance(attribute, numbers.Number) else [None]
-            setattr(self, name, value)
-            return
-
-        my_col = MPI_COMM_GRID.COMM_OBS_GRID.rank % self._n_blocks_time
+        my_col = self.comm.rank % self._n_blocks_time
         root_col = root // self._n_blocks_det
         if my_col == root_col:
-            if MPI_COMM_GRID.COMM_OBS_GRID.rank == root:
+            if self.comm.rank == root:
                 starts, nums, _, _ = self._get_start_and_num(
                     self._n_blocks_det, self._n_blocks_time
                 )
@@ -1037,18 +1027,14 @@ class Observation:
 
     def _set_mpi_subcommunicators(self):
         """
-        This function splits the global MPI communicator into three kinds of
+        This function splits the global MPI communicator into two kinds of
         sub-communicators:
 
-        1. A sub-communicator containing all the processes with global rank less than
-        `n_blocks_det * n_blocks_time`. Outside of this global rank, the
-        sub-communicator is NULL.
-
-        2. A sub-communicator for each block of detectors, that contains all the
+        1. A sub-communicator for each block of detectors, that contains all the
         processes corresponding to that detector block. This sub-communicator
         is an attribute of the :class:`.Observation` class.
 
-        3. A sub-communicator for each block of time that contains all the processes
+        2. A sub-communicator for each block of time that contains all the processes
         corresponding to that time block.  This sub-communicator
         is an attribute of the :class:`.Observation` class.
         """
@@ -1059,30 +1045,7 @@ class Observation:
         self.comm_time_block = _SerialMpiCommunicator()
 
         if self.comm and self.comm.size > 1:
-            if self.comm.rank < self.n_blocks_det * self.n_blocks_time:
-                matrix_color = 1
-            else:
-                from .mpi import MPI
-
-                matrix_color = MPI.UNDEFINED
-
-            # Case1: For `0 < rank < n_blocks_det * n_blocks_time`,
-            # `comm_obs_grid` is a sub-communicator that includes processes
-            # from rank 0 to `n_blocks_det * n_blocks_time - 1`.
-            # Case 2: For `n_blocks_det * n_blocks_time <= rank < comm.size`,
-            # `comm_obs_grid = MPI.COMM_NULL`
-            comm_obs_grid = self.comm.Split(matrix_color, self.comm.rank)
-            MPI_COMM_GRID._set_comm_obs_grid(comm_obs_grid=comm_obs_grid)
-
-            # If the `MPI_COMM_GRID.COMM_OBS_GRID` is not NULL, we split it in
-            # communicators corresponding to each detector and time block
-            # If `MPI_COMM_GRID.COMM_OBS_GRID` is NULL, we set the communicators
-            # corresponding to detector and time blocks to NULL.
-            if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
-                det_color = MPI_COMM_GRID.COMM_OBS_GRID.rank // self.n_blocks_time
-                time_color = MPI_COMM_GRID.COMM_OBS_GRID.rank % self.n_blocks_time
-                self.comm_det_block = MPI_COMM_GRID.COMM_OBS_GRID.Split(det_color)
-                self.comm_time_block = MPI_COMM_GRID.COMM_OBS_GRID.Split(time_color)
-            else:
-                self.comm_det_block = MPI_COMM_GRID.COMM_NULL
-                self.comm_time_block = MPI_COMM_GRID.COMM_NULL
+            det_color = self.comm.rank // self.n_blocks_time
+            time_color = self.comm.rank % self.n_blocks_time
+            self.comm_det_block = self.comm.Split(det_color)
+            self.comm_time_block = self.comm.Split(time_color)
