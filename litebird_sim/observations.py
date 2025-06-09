@@ -3,7 +3,7 @@
 import numbers
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Union, List, Any, Optional
+from typing import Union, List, Any, Optional, Dict
 
 import astropy.time
 import numpy as np
@@ -243,40 +243,52 @@ class Observation:
 
         return self.start_time_global + start * delta, start, num
 
-    def _set_attributes_from_list_of_dict(self, list_of_dict, root):
+    def _set_attributes_from_list_of_dict(
+        self,
+        list_of_dict: List[Dict[str, str]],
+        root: int,
+    ) -> None:
+        """
+        Take a list of dictionaries describing each detector and propagate them
+        """
         np.testing.assert_equal(len(list_of_dict), self.n_detectors_global)
 
         # Turn list of dict into dict of arrays
         if not self.comm or self.comm.rank == root:
             # Build a list of all the keys in the dictionaries contained within
-            # `list_of_dict` (which is a *list* of dictionaries)
+            # `list_of_dict` (which is a *list* of dictionaries). `keys` is a list of
+            # strings like `name`, `net_ukrts`, `fknee_mhz`, etc.
             keys = list(set().union(*list_of_dict) - set(dir(self)))
 
             # This will be the dictionary associating each key with the
-            # *array* of value for that dictionary
-            dict_of_array = {k: [] for k in keys}
+            # *array* of values for that dictionary
+            dict_of_array = {cur_key: [] for cur_key in keys}
 
             # This array associates either np.nan or None to each type;
             # the former indicates that the value is a NumPy array, while
             # None is used for everything else
             nan_or_none = {}
-            for k in keys:
-                for d in list_of_dict:
-                    if k in d:
+            for cur_key in keys:
+                for cur_det_dict in list_of_dict:
+                    if cur_key in cur_det_dict:
                         try:
-                            nan_or_none[k] = np.nan * d[k]
+                            nan_or_none[cur_key] = np.nan * cur_det_dict[cur_key]
                         except TypeError:
-                            nan_or_none[k] = None
+                            nan_or_none[cur_key] = None
                     break
 
             # Finally, build `dict_of_array`
-            for d in list_of_dict:
-                for k in keys:
-                    dict_of_array[k].append(d.get(k, nan_or_none[k]))
+            for cur_det_dict in list_of_dict:
+                for cur_key in keys:
+                    dict_of_array[cur_key].append(
+                        cur_det_dict.get(cur_key, nan_or_none[cur_key])
+                    )
 
-            # Why should this code iterate over `keys`?!?
-            for k in keys:
-                dict_of_array = {k: np.array(dict_of_array[k]) for k in keys}
+            # So far, dict_of_array entries are plain lists. This converts them into
+            # NumPy arrays
+            dict_of_array = {
+                cur_key: np.array(dict_of_array[cur_key]) for cur_key in keys
+            }
         else:
             keys = None
             dict_of_array = {}
@@ -285,8 +297,8 @@ class Observation:
         if self.comm and self.comm.size > 1:
             keys = self.comm.bcast(keys)
 
-        for k in keys:
-            self.setattr_det_global(k, dict_of_array.get(k), root)
+        for cur_key in keys:
+            self.setattr_det_global(cur_key, dict_of_array.get(cur_key), root)
 
     @property
     def n_samples_global(self):
@@ -814,7 +826,7 @@ class Observation:
 
         # If the hwp object is passed and is not initialised in the observations, it gets applied to all detectors
         if hwp is None:
-            assert all(m is None for m in self.mueller_hwp), (
+            assert self.no_mueller_hwp(), (
                 "Some detectors have been initialized with a mueller_hwp,"
                 "but no HWP object has been passed to prepare_pointings."
             )
@@ -1018,6 +1030,10 @@ class Observation:
         )
         self.pointing_matrix = pointing_matrix
         self.hwp_angle = hwp_angle
+
+    def no_mueller_hwp(self) -> bool:
+        "Return True if no detectors have defined a Mueller matrix for the HWP"
+        return (self.mueller_hwp is None) or all(m is None for m in self.mueller_hwp)
 
     def _set_mpi_subcommunicators(self):
         """
