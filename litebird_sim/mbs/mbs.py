@@ -15,10 +15,6 @@ import toml
 
 import litebird_sim as lbs
 from litebird_sim import constants as c
-from litebird_sim.coordinates import GAL_TO_ECL_EULER
-
-from ducc0.sht import rotate_alm
-
 
 @dataclass
 class _InstrumentFreq:

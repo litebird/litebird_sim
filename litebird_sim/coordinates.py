@@ -7,8 +7,6 @@ from astropy.coordinates import BarycentricMeanEcliptic
 from astropy.coordinates import SkyCoord
 from numba import njit
 
-from healpy.rotator import coordsys2euler_zyz
-
 """The coordinate system used by the framework"""
 DEFAULT_COORDINATE_SYSTEM = BarycentricMeanEcliptic()
 
