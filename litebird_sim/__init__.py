@@ -33,6 +33,9 @@ from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,
     ECL_TO_GAL_ROT_MATRIX,
+    GAL_TO_ECL_ROT_MATRIX,
+    ECL_TO_GAL_EULER,
+    GAL_TO_ECL_EULER,
     CoordinateSystem,
     coord_sys_to_healpix_string,
 )

@@ -15,6 +15,9 @@ import toml
 
 import litebird_sim as lbs
 from litebird_sim import constants as c
+from litebird_sim.coordinates import GAL_TO_ECL_EULER
+
+from ducc0.sht import rotate_alm
 
 
 @dataclass
@@ -621,7 +624,9 @@ class Mbs:
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
 
-            alm_cmb_temp = hp.synalm(cl_cmb, lmax=self.params.lmax_alms, new=True)
+            cmb_temp = hp.synfast(
+                cl_cmb, nside=nside, lmax=self.params.lmax_alms, new=True
+            )
             if self.rotator is not None:
                 cmb_temp = self.rotator.rotate_map_alms(
                     cmb_temp, lmax=self.params.lmax_alms
