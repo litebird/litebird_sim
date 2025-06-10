@@ -415,11 +415,11 @@ class Observation:
                 "You can not have more time blocks than time samples "
                 f"({n_blocks_time} > {self.n_blocks_time})"
             )
-        elif self.comm.size < n_blocks_det * n_blocks_time:
+        elif self.comm.size != n_blocks_det * n_blocks_time:
             raise ValueError(
-                "Too many blocks: n_blocks_det x n_blocks_time = "
-                f"{n_blocks_det * n_blocks_time} but the number "
-                f"processes is {self.comm.size}"
+                "Number of blocks requested: n_blocks_det x n_blocks_time = "
+                f"{n_blocks_det * n_blocks_time} is not equal to the number "
+                f"of available MPI processes: comm.size = {self.comm.size}"
             )
 
     def _get_start_and_num(self, n_blocks_det, n_blocks_time):
