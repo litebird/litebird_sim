@@ -906,5 +906,5 @@ class HwpSys:
         cond = np.linalg.cond(self.ata)
         res = np.full_like(self.atd, hp.UNSEEN)
         mask = cond < COND_THRESHOLD
-        res[mask] = np.linalg.solve(self.ata, self.atd)
+        res[mask] = np.linalg.solve(self.ata[mask], self.atd[mask])
         return res.T
