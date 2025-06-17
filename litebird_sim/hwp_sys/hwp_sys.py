@@ -457,6 +457,7 @@ class HwpSys:
     def set_parameters(
         self,
         nside: Union[int, None] = None,
+        nside_out: Union[int, None] = None,
         mbs_params: Union[MbsParameters, None] = None,
         build_map_on_the_fly: Union[bool, None] = False,
         apply_non_linearity: Union[bool, None] = False,
@@ -471,6 +472,7 @@ class HwpSys:
 
         Args:
           nside (integer): nside used in the analysis
+          nside_out (integer): nside for the output maps. If not provided, same as nside
           mbs_params (:class:`.Mbs`): an instance of the :class:`.Mbs` class
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
           apply_non_linearity (bool): applies the coupling of the non-linearity
@@ -500,6 +502,7 @@ class HwpSys:
             paramdict = self.sim.parameters["hwp_sys"]
 
             self.nside = paramdict.get("nside", False)
+            self.nside_out = paramdict.get("nside_out", False)
 
             self.build_map_on_the_fly = paramdict.get("build_map_on_the_fly", False)
 
@@ -519,6 +522,11 @@ class HwpSys:
             self.nside = 512
         else:
             self.nside = nside
+
+        if nside_out is None:
+            self.nside_out = self.nside
+        else:
+            self.nside_out = nside_out
 
         if (self.sim.parameters is not None) and (
             "hwp_sys" in self.sim.parameters.keys()
@@ -566,6 +574,7 @@ class HwpSys:
             mbs_params.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
+        self.npix_out = hp.nside2npix(self.nside_out)
 
         self.interpolation = interpolation
 
@@ -585,8 +594,8 @@ class HwpSys:
             del maps
 
         if self.build_map_on_the_fly:
-            self.atd = np.zeros((self.npix, 3), dtype=np.float64)
-            self.ata = np.zeros((self.npix, 3, 3), dtype=np.float64)
+            self.atd = np.zeros((self.npix_out, 3), dtype=np.float64)
+            self.ata = np.zeros((self.npix_out, 3, 3), dtype=np.float64)
 
     def fill_tod(
         self,
@@ -781,8 +790,11 @@ class HwpSys:
 
                 # all observed pixels over time (for each sample),
                 # i.e. len(pix)==len(times)
-                if self.interpolation in ["", None] or self.build_map_on_the_fly:
+                if self.interpolation in ["", None]:
                     pix = hp.ang2pix(self.nside, cur_point[:, 0], cur_point[:, 1])
+
+                if self.build_map_on_the_fly:
+                    pix_out = hp.ang2pix(self.nside_out, cur_point[:, 0], cur_point[:, 1])
 
                 if self.interpolation in ["", None]:
                     input_T = self.maps[0, pix]
@@ -850,7 +862,7 @@ class HwpSys:
                         m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
                         m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
                         m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
-                        pixel_ind=pix,
+                        pixel_ind=pix_out,
                         rho=np.array(cur_hwp_angle, dtype=np.float64),
                         psi=np.array(psi, dtype=np.float64),
                         phi=phi,
