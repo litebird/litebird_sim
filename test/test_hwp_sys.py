@@ -7,8 +7,15 @@ from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
 
-@pytest.mark.parametrize("interpolation", ["", "linear"])
-def test_hwp_sys(interpolation):
+@pytest.mark.parametrize(
+    "interpolation,nside_out",
+    [
+        ("", None),
+        ("", 32),
+        ("linear", None),
+    ],
+)
+def test_hwp_sys(interpolation, nside_out):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -114,6 +121,7 @@ def test_hwp_sys(interpolation):
 
         hwp_sys.set_parameters(
             nside=nside,
+            nside_out=nside_out,
             maps=input_maps,
             channel=channelinfo,
             interpolation=interpolation,
