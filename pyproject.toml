@@ -63,7 +63,7 @@ PyGithub = "^2.6.1"
 requests = "^2.32.0"
 rich = "^14.0.0"
 ducc0 = "^0.38.0"
-pysm3 = {git  = "https://github.com/galsci/pysm.git", rev = "f220a4e"}
+pysm3 = "^3.4.2"
 asciimatics = "^1.15.0"
 pyperclip = "^1.9.0"
 pre-commit = "^4.2.0"
