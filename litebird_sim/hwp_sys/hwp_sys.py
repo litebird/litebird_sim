@@ -505,7 +505,7 @@ class HwpSys:
             self.nside_out = paramdict.get("nside_out", False)
 
             assert self.nside_out <= self.nside, (
-                "Error, nside_out cannot be larger than nside"
+                f"Error, {self.nside_out=} cannot be larger than {self.nside=}"
             )
 
             self.build_map_on_the_fly = paramdict.get("build_map_on_the_fly", False)
