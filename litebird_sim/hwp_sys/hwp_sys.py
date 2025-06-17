@@ -794,7 +794,9 @@ class HwpSys:
                     pix = hp.ang2pix(self.nside, cur_point[:, 0], cur_point[:, 1])
 
                 if self.build_map_on_the_fly:
-                    pix_out = hp.ang2pix(self.nside_out, cur_point[:, 0], cur_point[:, 1])
+                    pix_out = hp.ang2pix(
+                        self.nside_out, cur_point[:, 0], cur_point[:, 1]
+                    )
 
                 if self.interpolation in ["", None]:
                     input_T = self.maps[0, pix]
