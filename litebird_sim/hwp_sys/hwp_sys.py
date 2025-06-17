@@ -595,7 +595,7 @@ class HwpSys:
         hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
         input_map_in_galactic: bool = True,
         save_tod: bool = False,
-        dtype_pointings=np.float32,
+        dtype_pointings=np.float64,
     ):
         r"""Fill a TOD and/or :math:`A^T A` and :math:`A^T d` for the
         "on-the-fly" map production
@@ -652,19 +652,28 @@ class HwpSys:
                     "You passed hwp_angle, but you did not pass pointings, "
                     + "so hwp_angle will be ignored and re-computed on the fly."
                 )
-            hwp_angle_list = []
+
             if isinstance(observations, Observation):
                 obs_list = [observations]
                 if hasattr(observations, "pointing_matrix"):
                     ptg_list = [observations.pointing_matrix]
                 else:
                     ptg_list = []
+                if hasattr(observations, "hwp_angle"):
+                    hwp_angle_list = [observations.hwp_angle]
+                else:
+                    hwp_angle_list = []
+
             else:
                 obs_list = observations
                 ptg_list = []
+                hwp_angle_list = []
                 for ob in observations:
                     if hasattr(ob, "pointing_matrix"):
                         ptg_list.append(ob.pointing_matrix)
+                    if hasattr(ob, "hwp_angle"):
+                        hwp_angle_list.append(ob.hwp_angle)
+
         else:
             if isinstance(observations, Observation):
                 assert isinstance(pointings, np.ndarray), (
@@ -757,15 +766,11 @@ class HwpSys:
 
                 tod = cur_obs.tod[idet, :]
 
-                if pointings is None:
-                    if (not ptg_list) or (not hwp_angle_list):
-                        cur_point, cur_hwp_angle = cur_obs.get_pointings(
-                            detector_idx=idet, pointings_dtype=dtype_pointings
-                        )
-                        cur_point = cur_point.reshape(-1, 3)
-                    else:
-                        cur_point = ptg_list[idx_obs][idet, :, :]
-                        cur_hwp_angle = hwp_angle_list[idx_obs]
+                if pointings is None and ((not ptg_list) or (not hwp_angle_list)):
+                    cur_point, cur_hwp_angle = cur_obs.get_pointings(
+                        detector_idx=idet, pointings_dtype=dtype_pointings
+                    )
+                    cur_point = cur_point.reshape(-1, 3)
                 else:
                     cur_point = ptg_list[idx_obs][idet, :, :]
                     cur_hwp_angle = hwp_angle_list[idx_obs]

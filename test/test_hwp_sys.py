@@ -141,6 +141,11 @@ def test_hwp_sys(interpolation):
         save_tod=True,
     )
 
+    # Check that we are using 64-bit floating-point numbers for pointings. See
+    # https://github.com/litebird/litebird_sim/pull/429
+    pointings, _ = list_of_obs[1].get_pointings()
+    assert pointings.dtype == np.float64
+
     # The decimal=3 in here has a reason, explained in PR 395.
     # This should be changed in the future
     np.testing.assert_almost_equal(
