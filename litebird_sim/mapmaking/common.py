@@ -8,7 +8,6 @@ from ducc0.healpix import Healpix_Base
 from numba import njit
 
 from litebird_sim.coordinates import CoordinateSystem
-from litebird_sim.mpi import MPI_COMM_GRID
 from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import _get_pointings_array, _get_pol_angle
 
@@ -109,15 +108,14 @@ def get_map_making_weights(
     except AttributeError:
         weights = np.ones(observations.n_detectors)
 
-    if check and MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
-        if check:
-            # Check that there are no weird weights
-            assert np.all(np.isfinite(weights)), (
-                f"Not all the detectors' weights are finite numbers: {weights}"
-            )
-            assert np.all(weights > 0.0), (
-                f"Not all the detectors' weights are positive: {weights}"
-            )
+    if check:
+        # Check that there are no weird weights
+        assert np.all(np.isfinite(weights)), (
+            f"Not all the detectors' weights are finite numbers: {weights}"
+        )
+        assert np.all(weights > 0.0), (
+            f"Not all the detectors' weights are positive: {weights}"
+        )
 
     return weights
 
