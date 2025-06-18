@@ -143,6 +143,7 @@ def _get_ideal_hwp_angle(
 
     for sample_idx in range(1, output_buffer.size):
         complex *= delta
+        complex /= np.sqrt(complex.real**2 + complex.imag**2)
         angle = np.angle(complex)
 
         output_buffer[sample_idx] = angle
