@@ -1,5 +1,9 @@
 # HEAD
 
+-   Fix bug in the computation of pointings for the HWP_sys module [#429](https://github.com/litebird/litebird_sim/pull/429)
+
+-   Upgrade PySM to 3.4.2 [#431](https://github.com/litebird/litebird_sim/pull/431)
+
 # Version 0.15.0
 
 -   **Breaking change**: New improved seeding strategy using `RNGHierarchy` [#414](https://github.com/litebird/litebird_sim/pull/414)
