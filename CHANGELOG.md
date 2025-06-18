@@ -1,5 +1,7 @@
 # HEAD
 
+-   Make the HWP_sys module able to deal with missing pixels, let the output maps to use a different NSIDE than the one of the inputs [#432](https://github.com/litebird/litebird_sim/pull/432)
+
 -   Fix bug in the computation of pointings for the HWP_sys module [#429](https://github.com/litebird/litebird_sim/pull/429)
 
 -   Upgrade PySM to 3.4.2 [#431](https://github.com/litebird/litebird_sim/pull/431)
