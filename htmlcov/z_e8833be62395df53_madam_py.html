@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/madam.py: 93%</title>
+    <title>Coverage for litebird_sim/madam.py: 90%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_81f8c14c.css" type="text/css">
     <script src="coverage_html_cb_6fb7b396.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim/madam.py</b>:
-            <span class="pc_cov">93%</span>
+            <span class="pc_cov">90%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">149 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">138<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">11<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">134<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">15<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_d9830e070b4f4eba___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.9.1">coverage.py v7.9.1</a>,
-            created at 2025-06-18 08:48 +0000
+            created at 2025-06-20 16:23 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -241,7 +241,7 @@
     <p class="pln"><span class="n"><a id="t159" href="#t159">159</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t160" href="#t160">160</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t161" href="#t161">161</a></span><span class="t"><span class="key">def</span> <span class="nam">_combine_file_dictionaries</span><span class="op">(</span><span class="nam">file_dictionaries</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t162" href="#t162">162</a></span><span class="t">    <span class="key">return</span> <span class="nam">sorted</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t162" href="#t162">162</a></span><span class="t">    <span class="key">return</span> <span class="nam">sorted</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t163" href="#t163">163</a></span><span class="t">        <span class="op">[</span><span class="nam">item</span> <span class="key">for</span> <span class="nam">sublist</span> <span class="key">in</span> <span class="nam">file_dictionaries</span> <span class="key">for</span> <span class="nam">item</span> <span class="key">in</span> <span class="nam">sublist</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t164" href="#t164">164</a></span><span class="t">        <span class="nam">key</span><span class="op">=</span><span class="key">lambda</span> <span class="nam">x</span><span class="op">:</span> <span class="nam">x</span><span class="op">[</span><span class="str">"file_name"</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t165" href="#t165">165</a></span><span class="t">    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -534,11 +534,11 @@
     <p class="pln"><span class="n"><a id="t452" href="#t452">452</a></span><span class="t">        <span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t453" href="#t453">453</a></span><span class="t">    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t454" href="#t454">454</a></span><span class="t">    <span class="key">if</span> <span class="nam">sim</span><span class="op">.</span><span class="nam">mpi_comm</span> <span class="key">and</span> <span class="nam">litebird_sim</span><span class="op">.</span><span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t455" href="#t455">455</a></span><span class="t">        <span class="nam">number_of_files</span> <span class="op">=</span> <span class="nam">litebird_sim</span><span class="op">.</span><span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span><span class="nam">number_of_files</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t456" href="#t456">456</a></span><span class="t">        <span class="nam">pointing_files</span> <span class="op">=</span> <span class="nam">_combine_file_dictionaries</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t455" href="#t455">455</a></span><span class="t">        <span class="nam">number_of_files</span> <span class="op">=</span> <span class="nam">litebird_sim</span><span class="op">.</span><span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span><span class="nam">number_of_files</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t456" href="#t456">456</a></span><span class="t">        <span class="nam">pointing_files</span> <span class="op">=</span> <span class="nam">_combine_file_dictionaries</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t457" href="#t457">457</a></span><span class="t">            <span class="nam">litebird_sim</span><span class="op">.</span><span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">allgather</span><span class="op">(</span><span class="nam">pointing_files</span><span class="op">)</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t458" href="#t458">458</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t459" href="#t459">459</a></span><span class="t">        <span class="nam">tod_files</span> <span class="op">=</span> <span class="nam">_combine_file_dictionaries</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t459" href="#t459">459</a></span><span class="t">        <span class="nam">tod_files</span> <span class="op">=</span> <span class="nam">_combine_file_dictionaries</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t460" href="#t460">460</a></span><span class="t">            <span class="nam">litebird_sim</span><span class="op">.</span><span class="nam">MPI_COMM_WORLD</span><span class="op">.</span><span class="nam">allgather</span><span class="op">(</span><span class="nam">tod_files</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t461" href="#t461">461</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t462" href="#t462">462</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -592,7 +592,7 @@
             <a class="nav" href="z_d9830e070b4f4eba___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.9.1">coverage.py v7.9.1</a>,
-            created at 2025-06-18 08:48 +0000
+            created at 2025-06-20 16:23 +0000
         </p>
     </div>
 </footer>
