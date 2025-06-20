@@ -19,6 +19,7 @@ Template taken from https://github.com/othneildrew/Best-README-Template
 [![Build Status](https://ci.appveyor.com/api/projects/status/github/litebird/litebird-sim?svg=true)](https://ci.appveyor.com/project/litebird/litebird-sim)
 [![Issues][issues-shield]][issues-url]
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/litebird/litebird_sim/main?filepath=notebooks/litebird_sim_example.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/litebird/litebird_sim/blob/main/notebooks/litebird_sim_example.ipynb)
 [![GPL3 License][license-shield]][license-url]
 
 
