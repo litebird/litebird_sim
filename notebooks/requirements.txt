@@ -1,0 +1,3 @@
+litebird_sim
+jupyter
+rich
