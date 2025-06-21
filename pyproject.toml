@@ -32,11 +32,11 @@ readme = "README.md"
 license = "GPL3"
 include = [
     "images/logo.png",
-    "static/report_template.html",
-    "static/sakura.css",
-    "default_imo/schema.json.gz",
-    "templates/*.md",
-    "templates/*.txt",
+    "litebird_sim/static/report_template.html",
+    "litebird_sim/static/sakura.css",
+    "litebird_sim/default_imo/schema.json.gz",
+    "litebird_sim/templates/*.md",
+    "litebird_sim/templates/*.txt",
 ]
 
 [tool.poetry.dependencies]
@@ -74,6 +74,11 @@ ruff = "^0.11.11"
 libinsdb = "^0.8.0"
 pydata-sphinx-theme = "^0.16.1"
 poetry-plugin-export = "^1.9.0"
+
+[tool.setuptools.package-data]
+"litebird_sim.default_imo" = ["*"]
+"litebird_sim.static" = ["*"]
+"litebird_sim.templates" = ["*.md", "*.txt"]
 
 [tool.ruff]
 lint.extend-select = []

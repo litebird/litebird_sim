@@ -2,6 +2,7 @@
 
 import codecs
 import functools
+import importlib.resources
 import json
 import logging as log
 import os
@@ -132,7 +133,7 @@ def get_template_file_path(filename: Union[str, Path]) -> Path:
     returns a full, absolute path to the file within the ``templates``
     folder of the ``litebird_sim`` source code.
     """
-    return Path(__file__).parent / ".." / "templates" / filename
+    return importlib.resources.files("litebird_sim.templates") / filename
 
 
 @dataclass
@@ -912,7 +913,7 @@ class Simulation:
         ]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
-        static_path = Path(__file__).parent / ".." / "static"
+        static_path = importlib.resources.files("litebird_sim.static")
         with codecs.open(static_path / "report_template.html") as inpf:
             html_full_report = jinja2.Template(inpf.read()).render(
                 name=self.name, html=html

@@ -1,5 +1,7 @@
 # HEAD
 
+-   Make sure that the PTEP IMo, the Madam templates, and the static files required to create the HTML reports are installed properly by `pip` and enable Binder/Google Colab [#436](https://github.com/litebird/litebird_sim/pull/436)
+
 -   Make the HWP_sys module able to deal with missing pixels, let the output maps to use a different NSIDE than the one of the inputs [#432](https://github.com/litebird/litebird_sim/pull/432)
 
 -   Fix bug in the computation of pointings for the HWP_sys module [#429](https://github.com/litebird/litebird_sim/pull/429)

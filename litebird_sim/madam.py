@@ -3,27 +3,26 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Union, Optional, List, Dict, Any
-import numpy as np
 
 import jinja2
+import numpy as np
 from astropy.io import fits
 from astropy.time import Time as AstroTime
 
 import litebird_sim
 from . import DetectorInfo
 from .coordinates import CoordinateSystem
+from .hwp import HWP
 from .mapmaking import ExternalDestriperParameters
 from .observations import Observation
-from .simulations import Simulation, MpiDistributionDescr
-from .hwp import HWP
 from .pointings_in_obs import (
     _get_pointings_and_pol_angles_det,
 )
+from .simulations import Simulation, MpiDistributionDescr
 
 
 def _read_templates():
-    basepath = (Path(__file__).parent.parent / "templates").absolute()
-    template_loader = jinja2.FileSystemLoader(searchpath=basepath)
+    template_loader = jinja2.PackageLoader("litebird_sim", "templates")
     template_env = jinja2.Environment(
         loader=template_loader, trim_blocks=True, lstrip_blocks=True
     )

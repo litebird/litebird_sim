@@ -1,9 +1,11 @@
 # -*- encoding: utf-8 -*-
 
-from .imo import Imo
 from libinsdb import FormatSpecification, Entity, Quantity, Release
 
+from .imo import PTEP_IMO_LOCATION, Imo
+
 __all__ = [
+    "PTEP_IMO_LOCATION",
     "Imo",
     "FormatSpecification",
     "Entity",
