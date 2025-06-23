@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "litebird_sim"
-version = "0.15.0"
+version = "0.15.1"
 description = "Simulation tools for the LiteBIRD experiment"
 authors = [
     "Tomasi Maurizio <maurizio.tomasi@unimi.it>",
