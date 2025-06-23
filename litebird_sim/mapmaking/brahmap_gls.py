@@ -23,8 +23,8 @@ def make_brahmap_gls_map(
     pointings_dtype=np.float64,
     gls_params: Optional["brahmap.LBSimGLSParameters"] = None,
 ) -> Union[
-    "brahmap.LBSimGLSResult",  # noqa
-    tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],  # noqa
+    "brahmap.LBSimGLSResult",
+    tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],
 ]:
     """
     GLS Map-maker using Brahmap.
