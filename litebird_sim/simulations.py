@@ -2301,7 +2301,7 @@ class Simulation:
     ):
         """Wrapper to the GLS map-maker of BrahMap.
 
-        For details, see the low-level interface in :meth:`litebird_sim.mapmaking.brahmap_gls`.
+        For details, see the low-level interface in :func:`litebird_sim.mapmaking.brahmap_gls`.
         """
         return make_brahmap_gls_map(
             nside=nside,
