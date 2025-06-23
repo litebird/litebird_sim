@@ -470,7 +470,7 @@ def write_list_of_observations(
         observations = [observations]
     except IndexError:
         # Empty list
-        # We do not want to return here, as we still need to participate to
+        # We do not want to return here, as we still need to participate in
         # the call to _compute_global_start_index below
         observations = []  # type: List[Observation]
 

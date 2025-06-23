@@ -1,19 +1,18 @@
 # -*- encoding: utf-8 -*-
 
-import numbers
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Union, List, Any, Optional
+from typing import Union, List, Any, Optional, Dict
 
 import astropy.time
 import numpy as np
 import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
-from .detectors import DetectorInfo, InstrumentInfo
+from .detectors import InstrumentInfo
 from .distribute import distribute_evenly, distribute_detector_blocks
 from .hwp import HWP
-from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
+from .mpi import _SerialMpiCommunicator
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
 
@@ -243,40 +242,52 @@ class Observation:
 
         return self.start_time_global + start * delta, start, num
 
-    def _set_attributes_from_list_of_dict(self, list_of_dict, root):
+    def _set_attributes_from_list_of_dict(
+        self,
+        list_of_dict: List[Dict[str, str]],
+        root: int,
+    ) -> None:
+        """
+        Take a list of dictionaries describing each detector and propagate them
+        """
         np.testing.assert_equal(len(list_of_dict), self.n_detectors_global)
 
         # Turn list of dict into dict of arrays
         if not self.comm or self.comm.rank == root:
             # Build a list of all the keys in the dictionaries contained within
-            # `list_of_dict` (which is a *list* of dictionaries)
+            # `list_of_dict` (which is a *list* of dictionaries). `keys` is a list of
+            # strings like `name`, `net_ukrts`, `fknee_mhz`, etc.
             keys = list(set().union(*list_of_dict) - set(dir(self)))
 
             # This will be the dictionary associating each key with the
-            # *array* of value for that dictionary
-            dict_of_array = {k: [] for k in keys}
+            # *array* of values for that dictionary
+            dict_of_array = {cur_key: [] for cur_key in keys}
 
             # This array associates either np.nan or None to each type;
             # the former indicates that the value is a NumPy array, while
             # None is used for everything else
             nan_or_none = {}
-            for k in keys:
-                for d in list_of_dict:
-                    if k in d:
+            for cur_key in keys:
+                for cur_det_dict in list_of_dict:
+                    if cur_key in cur_det_dict:
                         try:
-                            nan_or_none[k] = np.nan * d[k]
+                            nan_or_none[cur_key] = np.nan * cur_det_dict[cur_key]
                         except TypeError:
-                            nan_or_none[k] = None
+                            nan_or_none[cur_key] = None
                     break
 
             # Finally, build `dict_of_array`
-            for d in list_of_dict:
-                for k in keys:
-                    dict_of_array[k].append(d.get(k, nan_or_none[k]))
+            for cur_det_dict in list_of_dict:
+                for cur_key in keys:
+                    dict_of_array[cur_key].append(
+                        cur_det_dict.get(cur_key, nan_or_none[cur_key])
+                    )
 
-            # Why should this code iterate over `keys`?!?
-            for k in keys:
-                dict_of_array = {k: np.array(dict_of_array[k]) for k in keys}
+            # So far, dict_of_array entries are plain lists. This converts them into
+            # NumPy arrays
+            dict_of_array = {
+                cur_key: np.array(dict_of_array[cur_key]) for cur_key in keys
+            }
         else:
             keys = None
             dict_of_array = {}
@@ -285,8 +296,8 @@ class Observation:
         if self.comm and self.comm.size > 1:
             keys = self.comm.bcast(keys)
 
-        for k in keys:
-            self.setattr_det_global(k, dict_of_array.get(k), root)
+        for cur_key in keys:
+            self.setattr_det_global(cur_key, dict_of_array.get(cur_key), root)
 
     @property
     def n_samples_global(self):
@@ -404,11 +415,11 @@ class Observation:
                 "You can not have more time blocks than time samples "
                 f"({n_blocks_time} > {self.n_blocks_time})"
             )
-        elif self.comm.size < n_blocks_det * n_blocks_time:
+        elif self.comm.size != n_blocks_det * n_blocks_time:
             raise ValueError(
-                "Too many blocks: n_blocks_det x n_blocks_time = "
-                f"{n_blocks_det * n_blocks_time} but the number "
-                f"processes is {self.comm.size}"
+                "Number of blocks requested: n_blocks_det x n_blocks_time = "
+                f"{n_blocks_det * n_blocks_time} is not equal to the number "
+                f"of available MPI processes: comm.size = {self.comm.size}"
             )
 
     def _get_start_and_num(self, n_blocks_det, n_blocks_time):
@@ -683,19 +694,10 @@ class Observation:
             setattr(self, name, info)
             return
 
-        if (
-            MPI_COMM_GRID.COMM_OBS_GRID == MPI_COMM_GRID.COMM_NULL
-        ):  # The process does not own any detector (and TOD)
-            null_det = DetectorInfo()
-            attribute = getattr(null_det, name, None)
-            value = np.array([0]) if isinstance(attribute, numbers.Number) else [None]
-            setattr(self, name, value)
-            return
-
-        my_col = MPI_COMM_GRID.COMM_OBS_GRID.rank % self._n_blocks_time
+        my_col = self.comm.rank % self._n_blocks_time
         root_col = root // self._n_blocks_det
         if my_col == root_col:
-            if MPI_COMM_GRID.COMM_OBS_GRID.rank == root:
+            if self.comm.rank == root:
                 starts, nums, _, _ = self._get_start_and_num(
                     self._n_blocks_det, self._n_blocks_time
                 )
@@ -814,7 +816,7 @@ class Observation:
 
         # If the hwp object is passed and is not initialised in the observations, it gets applied to all detectors
         if hwp is None:
-            assert all(m is None for m in self.mueller_hwp), (
+            assert self.no_mueller_hwp(), (
                 "Some detectors have been initialized with a mueller_hwp,"
                 "but no HWP object has been passed to prepare_pointings."
             )
@@ -1019,20 +1021,20 @@ class Observation:
         self.pointing_matrix = pointing_matrix
         self.hwp_angle = hwp_angle
 
+    def no_mueller_hwp(self) -> bool:
+        "Return True if no detectors have defined a Mueller matrix for the HWP"
+        return (self.mueller_hwp is None) or all(m is None for m in self.mueller_hwp)
+
     def _set_mpi_subcommunicators(self):
         """
-        This function splits the global MPI communicator into three kinds of
+        This function splits the global MPI communicator into two kinds of
         sub-communicators:
 
-        1. A sub-communicator containing all the processes with global rank less than
-        `n_blocks_det * n_blocks_time`. Outside of this global rank, the
-        sub-communicator is NULL.
-
-        2. A sub-communicator for each block of detectors, that contains all the
+        1. A sub-communicator for each block of detectors, that contains all the
         processes corresponding to that detector block. This sub-communicator
         is an attribute of the :class:`.Observation` class.
 
-        3. A sub-communicator for each block of time that contains all the processes
+        2. A sub-communicator for each block of time that contains all the processes
         corresponding to that time block.  This sub-communicator
         is an attribute of the :class:`.Observation` class.
         """
@@ -1043,30 +1045,7 @@ class Observation:
         self.comm_time_block = _SerialMpiCommunicator()
 
         if self.comm and self.comm.size > 1:
-            if self.comm.rank < self.n_blocks_det * self.n_blocks_time:
-                matrix_color = 1
-            else:
-                from .mpi import MPI
-
-                matrix_color = MPI.UNDEFINED
-
-            # Case1: For `0 < rank < n_blocks_det * n_blocks_time`,
-            # `comm_obs_grid` is a sub-communicator that includes processes
-            # from rank 0 to `n_blocks_det * n_blocks_time - 1`.
-            # Case 2: For `n_blocks_det * n_blocks_time <= rank < comm.size`,
-            # `comm_obs_grid = MPI.COMM_NULL`
-            comm_obs_grid = self.comm.Split(matrix_color, self.comm.rank)
-            MPI_COMM_GRID._set_comm_obs_grid(comm_obs_grid=comm_obs_grid)
-
-            # If the `MPI_COMM_GRID.COMM_OBS_GRID` is not NULL, we split it in
-            # communicators corresponding to each detector and time block
-            # If `MPI_COMM_GRID.COMM_OBS_GRID` is NULL, we set the communicators
-            # corresponding to detector and time blocks to NULL.
-            if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
-                det_color = MPI_COMM_GRID.COMM_OBS_GRID.rank // self.n_blocks_time
-                time_color = MPI_COMM_GRID.COMM_OBS_GRID.rank % self.n_blocks_time
-                self.comm_det_block = MPI_COMM_GRID.COMM_OBS_GRID.Split(det_color)
-                self.comm_time_block = MPI_COMM_GRID.COMM_OBS_GRID.Split(time_color)
-            else:
-                self.comm_det_block = MPI_COMM_GRID.COMM_NULL
-                self.comm_time_block = MPI_COMM_GRID.COMM_NULL
+            det_color = self.comm.rank // self.n_blocks_time
+            time_color = self.comm.rank % self.n_blocks_time
+            self.comm_det_block = self.comm.Split(det_color)
+            self.comm_time_block = self.comm.Split(time_color)

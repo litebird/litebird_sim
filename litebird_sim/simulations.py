@@ -52,7 +52,7 @@ from .mapmaking import (
     destriper_log_callback,
 )
 from .mbs import Mbs, MbsParameters
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
+from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
@@ -1341,8 +1341,7 @@ class Simulation:
 
         num_of_obs = len(self.observations)
         if append_to_report and MPI_ENABLED:
-            if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
-                num_of_obs = MPI_COMM_GRID.COMM_OBS_GRID.allreduce(num_of_obs)
+            num_of_obs = self.mpi_comm.allreduce(num_of_obs)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_quaternions.md")
@@ -1420,11 +1419,8 @@ class Simulation:
         memory_occupation = pointing_provider.bore2ecliptic_quats.quats.nbytes
         num_of_obs = len(self.observations)
         if append_to_report and MPI_ENABLED:
-            if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
-                memory_occupation = MPI_COMM_GRID.COMM_OBS_GRID.allreduce(
-                    memory_occupation
-                )
-                num_of_obs = MPI_COMM_GRID.COMM_OBS_GRID.allreduce(num_of_obs)
+            memory_occupation = self.mpi_comm.allreduce(memory_occupation)
+            num_of_obs = self.mpi_comm.allreduce(num_of_obs)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_pointings.md")
