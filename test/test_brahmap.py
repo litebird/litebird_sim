@@ -121,6 +121,13 @@ def test_GLS_mapmaking():
 
     interface_gls_results = sim.make_brahmap_gls_map(nside=nside)
 
+    lowlev_interface_gls_results = lbs.make_brahmap_gls_map(
+        nside=nside,
+        observations=sim.observations,
+        inv_noise_cov_operator=inv_cov,
+        gls_params=gls_params,
+    )
+
     assert np.allclose(
         gls_results.GLS_maps[0],
         interface_gls_results.GLS_maps[0],
@@ -134,4 +141,19 @@ def test_GLS_mapmaking():
     assert np.allclose(
         gls_results.GLS_maps[2],
         interface_gls_results.GLS_maps[2],
+    )
+
+    assert np.allclose(
+        gls_results.GLS_maps[0],
+        lowlev_interface_gls_results.GLS_maps[0],
+    )
+
+    assert np.allclose(
+        gls_results.GLS_maps[1],
+        lowlev_interface_gls_results.GLS_maps[1],
+    )
+
+    assert np.allclose(
+        gls_results.GLS_maps[2],
+        lowlev_interface_gls_results.GLS_maps[2],
     )
