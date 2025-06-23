@@ -1,11 +1,14 @@
 """
-GLS Map-maker using Brahmap for Litebird_sim
+GLS Map-maker using BrahMap for Litebird_sim
 This function provides a consistent interface with other mapmaking routines.
 """
 
-from typing import Any, Optional, Union, TYPE_CHECKING
+from typing import Any, Optional, Union, List, TYPE_CHECKING
 
 import numpy as np
+import numpy.typing as npt
+
+from litebird_sim.hwp import HWP
 
 
 if TYPE_CHECKING:
@@ -16,6 +19,8 @@ if TYPE_CHECKING:
 def make_brahmap_gls_map(
     nside: int,
     observations: Union[list, Any],
+    pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]] = None,
+    hwp: Optional[HWP] = None,
     component: str = "tod",
     pointings_flag: Optional[np.ndarray] = None,
     inv_noise_cov_operator: Union["brahmap.LBSim_InvNoiseCovLO_UnCorr", None] = None,
@@ -51,9 +56,9 @@ def make_brahmap_gls_map(
             output_coordinate_system = lbs.CoordinateSystem.Galactic,
             return_processed_samples = False,
             solver_type = brahmap.SolverType.IQU,
-            use_preconditioner = True,
-            preconditioner_threshold = 1.0e-25,
-            preconditioner_max_iterations = 100,
+            use_iterative_solver = True,
+            isolver_threshold = 1.0e-25,
+            isolver_max_iterations = 100,
             return_hit_map = False,
         )
 
@@ -65,8 +70,21 @@ def make_brahmap_gls_map(
     ----------
     nside : int
         Nside of the output map
+    observations: Observation
+        An instance of :class:`.Observation` class, or a list of objects of
+        this kind
+    pointings: np.ndarray, optional
+        A 3×N array containing the values of the θ,φ,ψ angles (in radians), or
+        a list if `observations` was a list. If no pointings are specified,
+        they will be taken from `observations` (the most common situation)
+    hwp: HWP, optional
+        An instance of ``HWP`` class
     component : str, optional
         The TOD component to be used for map-making, by default "tod"
+    pointings_flag: np.ndarray, optional
+        An array of flags to include or exclude the individual pointing
+        sample, by default None. A ``False`` flag excludes the pointing sample
+        whereas a ``True`` flag includes it
     inv_noise_cov_operator : optional
         Inverse noise covariance operator, by default None
     threshold : float, optional
@@ -112,6 +130,8 @@ def make_brahmap_gls_map(
     gls_result = brahmap.LBSim_compute_GLS_maps(
         nside=nside,
         observations=observations,
+        pointings=pointings,
+        hwp=hwp,
         component=component,
         pointings_flag=pointings_flag,
         inv_noise_cov_operator=inv_noise_cov_operator,
