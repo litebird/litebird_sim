@@ -2297,6 +2297,7 @@ class Simulation:
         threshold: float = 1.0e-5,
         pointings_dtype=np.float64,
         gls_params: "brahmap.LBSimProcessTimeSamples" = None,  # noqa
+        append_to_report: bool = True,
     ) -> Union[
         "brahmap.LBSimGLSResult",  # noqa
         tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],  # noqa
@@ -2325,9 +2326,9 @@ class Simulation:
                 output_coordinate_system = lbs.CoordinateSystem.Galactic,
                 return_processed_samples = False,
                 solver_type = brahmap.SolverType.IQU,
-                use_preconditioner = True,
-                preconditioner_threshold = 1.0e-25,
-                preconditioner_max_iterations = 100,
+                use_iterative_solver = True,
+                isolver_threshold = 1.0e-25,
+                isolver_max_iterations = 100,
                 return_hit_map = False,
             )
 
@@ -2393,6 +2394,20 @@ class Simulation:
             dtype_float=pointings_dtype,
             LBSim_gls_parameters=gls_params,
         )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_brahmap.md")
+            brahmap_version = getattr(brahmap, "__version__", "unknown")
+            brahmap_hash = getattr(brahmap, "__git_hash__", "unknown")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_text=markdown_template,
+                brahmap_version=brahmap_version,
+                brahmap_hash=brahmap_hash,
+                gls_params=gls_params,
+                gls_result=gls_result,
+            )
 
         return gls_result
 
