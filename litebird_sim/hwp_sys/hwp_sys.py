@@ -288,6 +288,8 @@ def compute_signal_for_one_detector(
     g_one_over_k,
     add_2f_hwpss,
     amplitude_2f_k,
+    phases_2f,
+    phases_4f,
 ):
     """
     Single-frequency case: compute the signal for a single detector,
@@ -302,32 +304,32 @@ def compute_signal_for_one_detector(
             Q=mapQ[i],
             U=mapU[i],
             mII=m0f[0, 0]
-            + m2f[0, 0] * np.cos(Two_rho_phi - 2.32)
-            + m4f[0, 0] * np.cos(Four_rho_phi - 0.84),
+            + m2f[0, 0] * np.cos(Two_rho_phi + phases_2f[0, 0])
+            + m4f[0, 0] * np.cos(Four_rho_phi + phases_4f[0, 0]),
             mQI=m0f[1, 0]
-            + m2f[1, 0] * np.cos(Two_rho_phi + 2.86)
-            + m4f[1, 0] * np.cos(Four_rho_phi + 0.14),
+            + m2f[1, 0] * np.cos(Two_rho_phi + phases_2f[1, 0])
+            + m4f[1, 0] * np.cos(Four_rho_phi + phases_4f[1, 0]),
             mUI=m0f[2, 0]
-            + m2f[2, 0] * np.cos(Two_rho_phi + 1.29)
-            + m4f[2, 0] * np.cos(Four_rho_phi - 1.43),
+            + m2f[2, 0] * np.cos(Two_rho_phi + phases_2f[2, 0])
+            + m4f[2, 0] * np.cos(Four_rho_phi + phases_4f[2, 0]),
             mIQ=m0f[0, 1]
-            + m2f[0, 1] * np.cos(Two_rho_phi - 0.49)
-            + m4f[0, 1] * np.cos(Four_rho_phi - 0.04),
+            + m2f[0, 1] * np.cos(Two_rho_phi + phases_2f[0, 1])
+            + m4f[0, 1] * np.cos(Four_rho_phi + phases_4f[0, 1]),
             mIU=m0f[0, 2]
-            + m2f[0, 2] * np.cos(Two_rho_phi - 2.06)
-            + m4f[0, 2] * np.cos(Four_rho_phi - 1.61),
+            + m2f[0, 2] * np.cos(Two_rho_phi + phases_2f[0, 2])
+            + m4f[0, 2] * np.cos(Four_rho_phi + phases_4f[0, 2]),
             mQQ=m0f[1, 1]
-            + m2f[1, 1] * np.cos(Two_rho_phi - 0.25)
-            + m4f[1, 1] * np.cos(Four_rho_phi - 0.00061),
+            + m2f[1, 1] * np.cos(Two_rho_phi + phases_2f[1, 1])
+            + m4f[1, 1] * np.cos(Four_rho_phi + phases_4f[1, 1]),
             mUU=m0f[2, 2]
-            + m2f[2, 2] * np.cos(Two_rho_phi + 2.54)
-            + m4f[2, 2] * np.cos(Four_rho_phi + np.pi - 0.00065),
+            + m2f[2, 2] * np.cos(Two_rho_phi + phases_2f[2, 2])
+            + m4f[2, 2] * np.cos(Four_rho_phi + phases_4f[2, 2]),
             mUQ=m0f[2, 1]
-            + m2f[2, 1] * np.cos(Two_rho_phi - 2.01)
-            + m4f[2, 1] * np.cos(Four_rho_phi - 0.00070 - np.pi / 2),
+            + m2f[2, 1] * np.cos(Two_rho_phi + phases_2f[2, 1])
+            + m4f[2, 1] * np.cos(Four_rho_phi + phases_4f[2, 1]),
             mQU=m0f[1, 2]
-            + m2f[1, 2] * np.cos(Two_rho_phi - 2.00)
-            + m4f[1, 2] * np.cos(Four_rho_phi - 0.00056 - np.pi / 2),
+            + m2f[1, 2] * np.cos(Two_rho_phi + phases_2f[1, 2])
+            + m4f[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -387,6 +389,8 @@ def compute_ata_atd_for_one_detector(
     phi,
     cos2Xi2Phi,
     sin2Xi2Phi,
+    phases_2f,
+    phases_4f,
 ):
     r"""
     Single-frequency case: compute :math:`A^T A` and :math:`A^T d`
@@ -398,32 +402,32 @@ def compute_ata_atd_for_one_detector(
         Two_rho_phi = 2 * (rho[i] - phi)
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=m0f_solver[0, 0]
-            + m2f_solver[0, 0] * np.cos(Two_rho_phi - 2.32)
-            + m4f_solver[0, 0] * np.cos(Four_rho_phi - 0.84),
+            + m2f_solver[0, 0] * np.cos(Two_rho_phi + phases_2f[0, 0])
+            + m4f_solver[0, 0] * np.cos(Four_rho_phi + phases_4f[0, 0]),
             mQIs=m0f_solver[1, 0]
-            + m2f_solver[1, 0] * np.cos(Two_rho_phi + 2.86)
-            + m4f_solver[1, 0] * np.cos(Four_rho_phi + 0.14),
+            + m2f_solver[1, 0] * np.cos(Two_rho_phi + phases_2f[1, 0])
+            + m4f_solver[1, 0] * np.cos(Four_rho_phi + phases_4f[1, 0]),
             mUIs=m0f_solver[2, 0]
-            + m2f_solver[2, 0] * np.cos(Two_rho_phi + 1.29)
-            + m4f_solver[2, 0] * np.cos(Four_rho_phi - 1.43),
+            + m2f_solver[2, 0] * np.cos(Two_rho_phi + phases_2f[2, 0])
+            + m4f_solver[2, 0] * np.cos(Four_rho_phi + phases_4f[2, 0]),
             mIQs=m0f_solver[0, 1]
-            + m2f_solver[0, 1] * np.cos(Two_rho_phi - 0.49)
-            + m4f_solver[0, 1] * np.cos(Four_rho_phi - 0.04),
+            + m2f_solver[0, 1] * np.cos(Two_rho_phi + phases_2f[0, 1])
+            + m4f_solver[0, 1] * np.cos(Four_rho_phi + phases_4f[0, 1]),
             mIUs=m0f_solver[0, 2]
-            + m2f_solver[0, 2] * np.cos(Two_rho_phi - 2.06)
-            + m4f_solver[0, 2] * np.cos(Four_rho_phi - 1.61),
+            + m2f_solver[0, 2] * np.cos(Two_rho_phi + phases_2f[0, 2])
+            + m4f_solver[0, 2] * np.cos(Four_rho_phi + phases_4f[0, 2]),
             mQQs=m0f_solver[1, 1]
-            + m2f_solver[1, 1] * np.cos(Two_rho_phi - 0.25)
-            + m4f_solver[1, 1] * np.cos(Four_rho_phi - 0.00061),
+            + m2f_solver[1, 1] * np.cos(Two_rho_phi + phases_2f[1, 1])
+            + m4f_solver[1, 1] * np.cos(Four_rho_phi + phases_4f[1, 1]),
             mUUs=m0f_solver[2, 2]
-            + m2f_solver[2, 2] * np.cos(Two_rho_phi + 2.54)
-            + m4f_solver[2, 2] * np.cos(Four_rho_phi + np.pi - 0.00065),
+            + m2f_solver[2, 2] * np.cos(Two_rho_phi + phases_2f[2, 2])
+            + m4f_solver[2, 2] * np.cos(Four_rho_phi + phases_4f[2, 2]),
             mUQs=m0f_solver[2, 1]
-            + m2f_solver[2, 1] * np.cos(Two_rho_phi - 2.01)
-            + m4f_solver[2, 1] * np.cos(Four_rho_phi - 0.00070 - np.pi / 2),
+            + m2f_solver[2, 1] * np.cos(Two_rho_phi + phases_2f[2, 1])
+            + m4f_solver[2, 1] * np.cos(Four_rho_phi + phases_4f[2, 1]),
             mQUs=m0f_solver[1, 2]
-            + m2f_solver[1, 2] * np.cos(Two_rho_phi - 2.00)
-            + m4f_solver[1, 2] * np.cos(Four_rho_phi - 0.00056 - np.pi / 2),
+            + m2f_solver[1, 2] * np.cos(Two_rho_phi + phases_2f[1, 2])
+            + m4f_solver[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -466,6 +470,7 @@ class HwpSys:
         channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
+        mueller_phases: Union[dict, None] = None,
     ):
         r"""It sets the input paramters reading a dictionary `sim.parameters`
         with key "hwp_sys" and the following input arguments
@@ -600,6 +605,25 @@ class HwpSys:
         if self.build_map_on_the_fly:
             self.atd = np.zeros((self.npix_out, 3), dtype=np.float64)
             self.ata = np.zeros((self.npix_out, 3, 3), dtype=np.float64)
+
+        if mueller_phases is not None:
+            self.mueller_phases = mueller_phases
+        else:
+            # (temporary solution) using phases from Patanchon et al 2021 as the default.
+            self.mueller_phases = {
+                "2f": np.array(
+                    [[-2.32, -0.49, -2.06], [2.86, -0.25, -2.00], [1.29, -2.01, 2.54]],
+                    dtype=np.float64,
+                ),
+                "4f": np.array(
+                    [
+                        [-0.84, -0.04, -1.61],
+                        [0.14, -0.00061, -0.00056 - np.pi / 2],
+                        [-1.43, -0.00070 - np.pi / 2, np.pi - 0.00065],
+                    ],
+                    dtype=np.float64,
+                ),
+            }
 
     def fill_tod(
         self,
@@ -858,6 +882,8 @@ class HwpSys:
                     g_one_over_k=cur_obs.g_one_over_k[idet],
                     add_2f_hwpss=self.add_2f_hwpss,
                     amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
+                    phases_2f=self.mueller_phases["2f"],
+                    phases_4f=self.mueller_phases["4f"],
                 )
 
                 if self.build_map_on_the_fly:
@@ -874,6 +900,8 @@ class HwpSys:
                         phi=phi,
                         cos2Xi2Phi=cos2Xi2Phi,
                         sin2Xi2Phi=sin2Xi2Phi,
+                        phases_2f=self.mueller_phases["2f"],
+                        phases_4f=self.mueller_phases["4f"],
                     )
 
                 cur_obs.tod[idet] = tod
