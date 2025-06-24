@@ -52,7 +52,7 @@ def prepare_sim():
         base_path=tmp_dir.name,
         name="brahmap_example",
         start_time=start_time,
-        duration_s=70,
+        duration_s=70,  # TODO! This breaks the tests
         imo=imo,
     )
 
