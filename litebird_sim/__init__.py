@@ -4,6 +4,7 @@ import numba
 
 from litebird_sim.mapmaking import (
     make_binned_map,
+    make_brahmap_gls_map,
     check_valid_splits,
     BinnerResult,
     make_destriped_map,
@@ -294,6 +295,7 @@ __all__ = [
     "apply_hwp_to_obs",
     # mapmaking
     "make_binned_map",
+    "make_brahmap_gls_map",
     "check_valid_splits",
     "BinnerResult",
     "make_destriped_map",

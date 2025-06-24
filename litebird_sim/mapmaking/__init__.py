@@ -2,6 +2,7 @@
 
 from .common import ExternalDestriperParameters
 from .binner import make_binned_map, check_valid_splits, BinnerResult
+from .brahmap_gls import make_brahmap_gls_map
 from .destriper import (
     make_destriped_map,
     DestriperParameters,
@@ -20,6 +21,8 @@ __all__ = [
     "BinnerResult",
     "make_binned_map",
     "check_valid_splits",
+    # brahmap_gls
+    "make_brahmap_gls_map",
     # destriper.py
     "DestriperParameters",
     "DestriperResult",
