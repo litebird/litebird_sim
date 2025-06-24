@@ -11,7 +11,7 @@ import numpy.typing as npt
 from litebird_sim.hwp import HWP
 
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     # Only imported for type checking, not at runtime
     import brahmap
 

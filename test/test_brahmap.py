@@ -1,6 +1,7 @@
 """Test GLS mapmaking with BrahMap"""
 
 import tempfile
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -11,6 +12,19 @@ brahmap = pytest.importorskip(
     modname="brahmap", reason="Couldn't import 'brahmap' module"
 )
 import brahmap  # noqa: E402 F811
+
+
+def test_import_error():
+    msg = "Could not import `BrahMap`. Make sure that the package "
+    "`BrahMap` is installed in the same environment "
+    "as `litebird_sim`. Refer to "
+    "https://anand-avinash.github.io/BrahMap/overview/installation/ "
+    "for the installation instruction"
+    with mock.patch.dict("sys.modules", {"brahmap": None}):
+        with pytest.raises(ImportError, match=msg):
+            lbs.mapmaking.make_brahmap_gls_map(
+                nside=1, observations=[], pointings_dtype=np.float64
+            )
 
 
 def test_GLS_mapmaking():
