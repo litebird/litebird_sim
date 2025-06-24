@@ -267,6 +267,9 @@ def test_circulant_operator(sim: lbs.Simulation, nside, dtype_float):
 def test_teoplitz_operator(sim: lbs.Simulation, nside, dtype_float):
     covariance = sim.dets_random[0].random(size=sim.observations[0].n_samples)
 
+    # Making the operator positive definite for faster convergence
+    covariance[0] = 10
+
     extended_covariance = np.concatenate([covariance, covariance[1:-1][::-1]])
     power_spec = np.fft.fft(extended_covariance).real
 
@@ -274,13 +277,13 @@ def test_teoplitz_operator(sim: lbs.Simulation, nside, dtype_float):
         obs=sim.observations,
         input=covariance,
         input_type="covariance",
-    ).get_inverse()
+    )
 
     inv_cov_2 = brahmap.LBSim_InvNoiseCovLO_Toeplitz(
         obs=sim.observations,
         input=power_spec,
         input_type="power_spectrum",
-    ).get_inverse()
+    )
 
     gls_params = brahmap.LBSimGLSParameters(solver_type=brahmap.SolverType.IQU)
 
