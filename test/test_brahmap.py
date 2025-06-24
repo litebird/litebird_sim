@@ -27,7 +27,7 @@ def test_import_error():
             )
 
 
-def test_GLS_mapmaking():
+def prepare_sim():
     telescope = "MFT"
     channel = "M1-195"
     detectors = [
@@ -37,7 +37,7 @@ def test_GLS_mapmaking():
         "001_002_047_00A_195_B",
     ]
     start_time = 51
-    mission_time_days = 30
+    # mission_time_days = 30
     detector_sampling_freq = 1
 
     nside = 128
@@ -52,7 +52,7 @@ def test_GLS_mapmaking():
         base_path=tmp_dir.name,
         name="brahmap_example",
         start_time=start_time,
-        duration_s=mission_time_days * 24 * 60 * 60.0,
+        duration_s=70,
         imo=imo,
     )
 
@@ -120,6 +120,17 @@ def test_GLS_mapmaking():
         maps=input_maps[0][channel],
     )
 
+    return sim, nside, dtype_float
+
+
+sim, nside, dtype_float = prepare_sim()
+
+
+@pytest.mark.parametrize(
+    "sim, nside, dtype_float",
+    [(sim, nside, dtype_float)],
+)
+def test_high_level_interface(sim, nside, dtype_float):
     inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)
 
     gls_params = brahmap.LBSimGLSParameters(solver_type=brahmap.SolverType.IQU)
@@ -134,13 +145,6 @@ def test_GLS_mapmaking():
     )
 
     interface_gls_results = sim.make_brahmap_gls_map(nside=nside)
-
-    lowlev_interface_gls_results = lbs.make_brahmap_gls_map(
-        nside=nside,
-        observations=sim.observations,
-        inv_noise_cov_operator=inv_cov,
-        gls_params=gls_params,
-    )
 
     assert np.allclose(
         gls_results.GLS_maps[0],
@@ -157,6 +161,32 @@ def test_GLS_mapmaking():
         interface_gls_results.GLS_maps[2],
     )
 
+
+@pytest.mark.parametrize(
+    "sim, nside, dtype_float",
+    [(sim, nside, dtype_float)],
+)
+def test_low_level_interface(sim, nside, dtype_float):
+    inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)
+
+    gls_params = brahmap.LBSimGLSParameters(solver_type=brahmap.SolverType.IQU)
+
+    gls_results = brahmap.LBSim_compute_GLS_maps(
+        nside=nside,
+        observations=sim.observations,
+        component="tod",
+        inv_noise_cov_operator=inv_cov,
+        dtype_float=dtype_float,
+        LBSim_gls_parameters=gls_params,
+    )
+
+    lowlev_interface_gls_results = lbs.make_brahmap_gls_map(
+        nside=nside,
+        observations=sim.observations,
+        inv_noise_cov_operator=inv_cov,
+        gls_params=gls_params,
+    )
+
     assert np.allclose(
         gls_results.GLS_maps[0],
         lowlev_interface_gls_results.GLS_maps[0],
@@ -170,4 +200,117 @@ def test_GLS_mapmaking():
     assert np.allclose(
         gls_results.GLS_maps[2],
         lowlev_interface_gls_results.GLS_maps[2],
+    )
+
+
+@pytest.mark.parametrize(
+    "sim, nside, dtype_float",
+    [(sim, nside, dtype_float)],
+)
+def test_circulant_operator(sim: lbs.Simulation, nside, dtype_float):
+    covariance = sim.dets_random[0].random(size=sim.observations[0].n_samples)
+    power_spec = np.fft.fft(covariance).real
+
+    covariance = np.fft.ifft(power_spec).real
+    power_spec = np.fft.fft(covariance).real
+
+    inv_cov_1 = brahmap.LBSim_InvNoiseCovLO_Circulant(
+        obs=sim.observations,
+        input=covariance,
+        input_type="covariance",
+    )
+
+    inv_cov_2 = brahmap.LBSim_InvNoiseCovLO_Circulant(
+        obs=sim.observations,
+        input=power_spec,
+        input_type="power_spectrum",
+    )
+
+    gls_params = brahmap.LBSimGLSParameters(solver_type=brahmap.SolverType.IQU)
+
+    gls_results_1 = brahmap.LBSim_compute_GLS_maps(
+        nside=nside,
+        observations=sim.observations,
+        component="tod",
+        inv_noise_cov_operator=inv_cov_1,
+        dtype_float=dtype_float,
+        LBSim_gls_parameters=gls_params,
+    )
+
+    gls_results_2 = lbs.make_brahmap_gls_map(
+        nside=nside,
+        observations=sim.observations,
+        inv_noise_cov_operator=inv_cov_2,
+        gls_params=gls_params,
+    )
+
+    assert np.allclose(
+        gls_results_1.GLS_maps[0],
+        gls_results_2.GLS_maps[0],
+    )
+
+    assert np.allclose(
+        gls_results_1.GLS_maps[1],
+        gls_results_2.GLS_maps[1],
+    )
+
+    assert np.allclose(
+        gls_results_1.GLS_maps[2],
+        gls_results_2.GLS_maps[2],
+    )
+
+
+@pytest.mark.parametrize(
+    "sim, nside, dtype_float",
+    [(sim, nside, dtype_float)],
+)
+def test_teoplitz_operator(sim: lbs.Simulation, nside, dtype_float):
+    covariance = sim.dets_random[0].random(size=sim.observations[0].n_samples)
+
+    extended_covariance = np.concatenate([covariance, covariance[1:-1][::-1]])
+    power_spec = np.fft.fft(extended_covariance).real
+
+    inv_cov_1 = brahmap.LBSim_InvNoiseCovLO_Toeplitz(
+        obs=sim.observations,
+        input=covariance,
+        input_type="covariance",
+    ).get_inverse()
+
+    inv_cov_2 = brahmap.LBSim_InvNoiseCovLO_Toeplitz(
+        obs=sim.observations,
+        input=power_spec,
+        input_type="power_spectrum",
+    ).get_inverse()
+
+    gls_params = brahmap.LBSimGLSParameters(solver_type=brahmap.SolverType.IQU)
+
+    gls_results_1 = brahmap.LBSim_compute_GLS_maps(
+        nside=nside,
+        observations=sim.observations,
+        component="tod",
+        inv_noise_cov_operator=inv_cov_1,
+        dtype_float=dtype_float,
+        LBSim_gls_parameters=gls_params,
+    )
+
+    gls_results_2 = lbs.make_brahmap_gls_map(
+        nside=nside,
+        observations=sim.observations,
+        inv_noise_cov_operator=inv_cov_2,
+        gls_params=gls_params,
+    )
+
+    assert np.allclose(
+        gls_results_1.GLS_maps[0],
+        gls_results_2.GLS_maps[0],
+    )
+
+    assert np.allclose(
+        gls_results_1.GLS_maps[1],
+        gls_results_2.GLS_maps[1],
+    )
+
+    assert np.allclose(
+        gls_results_1.GLS_maps[2],
+        gls_results_2.GLS_maps[2],
     )
