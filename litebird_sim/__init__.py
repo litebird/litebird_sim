@@ -34,6 +34,7 @@ from .coordinates import (
     ECL_TO_GAL_ROT_MATRIX,
     CoordinateSystem,
     coord_sys_to_healpix_string,
+    rotate_coordinates_e2g,
 )
 from .detectors import (
     DetectorInfo,
@@ -324,6 +325,7 @@ __all__ = [
     "ECL_TO_GAL_ROT_MATRIX",
     "CoordinateSystem",
     "coord_sys_to_healpix_string",
+    "rotate_coordinates_e2g",
     # spacecraft.py
     "compute_l2_pos_and_vel",
     "compute_lissajous_pos_and_vel",
