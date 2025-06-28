@@ -82,7 +82,7 @@ from .io import (
     read_list_of_observations,
 )
 from .madam import save_simulation_for_madam
-from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
+from .mbs.mbs import FG_MODELS, Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
 from .mueller_convolver import MuellerConvolver
 from .noise import (
@@ -231,6 +231,7 @@ __all__ = [
     # madam.py
     "save_simulation_for_madam",
     # mbs.py
+    "FG_MODELS",
     "Mbs",
     "MbsParameters",
     "MbsSavedMapInfo",

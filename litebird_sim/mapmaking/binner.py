@@ -210,12 +210,7 @@ def _build_nobs_matrix(
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
 
-        if hwp is None:
-            hwp_angle = None
-        else:
-            hwp_angle = _get_hwp_angle(
-                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
-            )
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         pixidx_all, polang_all = _compute_pixel_indices(
             hpx=hpx,
