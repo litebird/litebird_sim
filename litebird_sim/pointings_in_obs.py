@@ -139,6 +139,7 @@ def _get_hwp_angle(
             start_time_s,
             1.0 / obs.sampling_rate_hz,
         )
+        obs.has_hwp = True
 
     return hwp_angle
 

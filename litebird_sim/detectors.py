@@ -201,11 +201,6 @@ class DetectorInfo:
         if isinstance(self.band_freqs_ghz, np.ndarray):
             assert len(self.band_freqs_ghz) == len(self.band_weights)
 
-        if self.mueller_hwp is None:
-            self.has_hwp = False
-        else:
-            self.has_hwp = True
-
     @staticmethod
     def from_dict(dictionary: Dict[str, Any]):
         """Create a detector from the contents of a dictionary

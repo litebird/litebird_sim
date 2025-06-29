@@ -27,7 +27,7 @@ def test_scan_map_no_interpolation():
     # activated correctly handles internaly the coordinate rotation
 
     start_time = 0
-    time_span_s = 30 * 24 * 3600
+    time_span_s = 60 * 24 * 3600
     nside = 256
     sampling_hz = 1
     net = 50.0
