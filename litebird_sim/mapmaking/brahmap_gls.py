@@ -21,7 +21,7 @@ def make_brahmap_gls_map(
     observations: Union[list, Any],
     pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]] = None,
     hwp: Optional[HWP] = None,
-    component: str = "tod",
+    components: Union[str, List[str]] = "tod",
     pointings_flag: Optional[np.ndarray] = None,
     inv_noise_cov_operator: Union["brahmap.LBSim_InvNoiseCovLO_UnCorr", None] = None,
     threshold: float = 1.0e-5,
@@ -79,8 +79,8 @@ def make_brahmap_gls_map(
         they will be taken from `observations` (the most common situation)
     hwp: HWP, optional
         An instance of ``HWP`` class
-    component : str, optional
-        The TOD component to be used for map-making, by default "tod"
+    components : str or list[str], optional
+        The components to be summed for map-making, by default "tod"
     pointings_flag: np.ndarray, optional
         An array of flags to include or exclude the individual pointing
         sample, by default None. A ``False`` flag excludes the pointing sample
@@ -132,7 +132,7 @@ def make_brahmap_gls_map(
         observations=observations,
         pointings=pointings,
         hwp=hwp,
-        component=component,
+        components=components,
         pointings_flag=pointings_flag,
         inv_noise_cov_operator=inv_noise_cov_operator,
         threshold=threshold,
