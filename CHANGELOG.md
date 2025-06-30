@@ -1,5 +1,9 @@
 # HEAD
 
+# Version 0.15.2
+
+-   Add more tutorials [#443](https://github.com/litebird/litebird_sim/pull/443)
+
 # Version 0.15.1
 
 -   Fixed s4,s5,d9,d10 and added s7 in Mbs [#437](https://github.com/litebird/litebird_sim/pull/437)
