@@ -206,6 +206,7 @@ def generate_gauss_beam_alms(
     observation: Observation,
     lmax: int,
     mmax: Optional[int] = None,
+    channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
     store_in_observation: Optional[bool] = False,
 ):
     """
@@ -216,79 +217,6 @@ def generate_gauss_beam_alms(
     detector-specific parameters such as beam width (FWHM), ellipticity,
     and polarization orientation. Optionally, the results can be stored
     directly in the `Observation` object.
-
-    Parameters
-    ----------
-    observation : Observation
-        Observation object containing detector parameters.
-    lmax : int
-        Maximum spherical harmonic degree ℓ_max.
-    mmax : int, optional
-        Maximum spherical harmonic order m_max. If None, it defaults to `lmax`.
-    store_in_observation : bool, optional
-        If True, the computed blms will be stored in the `blms` attribute of
-        the observation object.
-
-    Returns
-    -------
-    dict
-        Dictionary mapping detector names to SphericalHarmonics objects.
-    """
-    mmax_val = mmax or lmax  # Use mmax if provided, else default to lmax
-
-    blms = {}
-
-    if channels is None:
-        # Use detectors from observations
-        for detector_idx, det_name in enumerate(observation.name):
-            fwhm_rad = observation.fwhm_arcmin[detector_idx] * ARCMIN_TO_RAD
-
-            blms[det_name] = gauss_beam_to_alm(
-                lmax=lmax,
-                mmax=mmax_val,
-                fwhm_rad=fwhm_rad,
-                ellipticity=observation.ellipticity[detector_idx],
-                psi_ell_rad=observation.psi_rad[detector_idx],
-                psi_pol_rad=observation.pol_angle_rad[detector_idx],
-                cross_polar_leakage=0,
-            )
-    else:
-        # Use explicitly provided frequency channels
-        channel_list = (
-            [channels] if isinstance(channels, FreqChannelInfo) else channels
-        )
-
-        for channel in channel_list:
-            fwhm_rad = channel.fwhm_arcmin * ARCMIN_TO_RAD
-            blms[channel.channel] = gauss_beam_to_alm(
-                lmax=lmax,
-                mmax=mmax_val,
-                fwhm_rad=fwhm_rad,
-                ellipticity=channel.ellipticity,
-                psi_ell_rad=0,
-                psi_pol_rad=0,
-                cross_polar_leakage=0,
-            )
-
-    if store_in_observation:
-        observation.blms = blms
-
-    return blms
-
-
-def generate_grasp_beam_alms(
-    observation: Observation,
-    lmax: int,
-    mmax: Optional[int] = None,
-    channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
-    store_in_observation: Optional[bool] = False,
-):
-    """
-    Generate grasp beam spherical harmonics coefficients for each detector in
-    the given Observation
-
-    This function computes the blms using grasp2alm package. Optionally, the 
-    results can be stored directly in the `Observation` object.
 
     Parameters
     ----------
@@ -330,9 +258,7 @@ def generate_grasp_beam_alms(
             )
     else:
         # Use explicitly provided frequency channels
-        channel_list = (
-            [channels] if isinstance(channels, FreqChannelInfo) else channels
-        )
+        channel_list = [channels] if isinstance(channels, FreqChannelInfo) else channels
 
         for channel in channel_list:
             fwhm_rad = channel.fwhm_arcmin * ARCMIN_TO_RAD
@@ -350,4 +276,3 @@ def generate_grasp_beam_alms(
         observation.blms = blms
 
     return blms
-

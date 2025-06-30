@@ -1618,7 +1618,7 @@ class Simulation:
             Maximum azimuthal multipole moment. Defaults to `lmax` if None.
         channels : FreqChannelInfo or list of FreqChannelInfo, optional
             Frequency channels to use in the simulation. If None, it uses the detectors
-            from the current observations.
+            from the observations.
         store_in_observation : bool, optional
             If True, the computed blms will be stored in the `blms` attribute of
             the observation object.
