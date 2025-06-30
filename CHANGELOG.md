@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fix the computation of HWP angles [#444](https://github.com/litebird/litebird_sim/pull/444)
+
 -   Add low-level interface to `BrahMap` [#440](https://github.com/litebird/litebird_sim/pull/440)
 
 # Version 0.15.2
