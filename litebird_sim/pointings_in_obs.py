@@ -115,33 +115,35 @@ def _get_hwp_angle(
     if hwp is None:
         if obs.has_hwp:
             if hasattr(obs, "hwp_angle"):
-                hwp_angle = obs.hwp_angle
+                return obs.hwp_angle
             else:
-                hwp_angle = obs.get_hwp_angle(pointings_dtype=pointing_dtype)
+                return obs.get_hwp_angle(pointings_dtype=pointing_dtype)
         else:
             if hasattr(obs, "mueller_hwp"):
-                assert all(m is None for m in obs.mueller_hwp), (
-                    "Detectors have been initialized with a mueller_hwp,"
-                    "but no HWP is either passed or initilized in the pointing"
-                )
-            hwp_angle = None
+                if any(m is not None for m in obs.mueller_hwp):
+                    raise AssertionError(
+                        "Detectors have been initialized with a mueller_hwp, "
+                        "but no HWP is either passed or initialized in the pointing."
+                    )
+            return None
     else:
+        # Compute HWP angle from HWP object
         start_time = obs.start_time - obs.start_time_global
-        if isinstance(start_time, astropy.time.TimeDelta):
-            start_time_s = start_time.to("s").value
-        else:
-            start_time_s = start_time
+        start_time_s = (
+            start_time.to("s").value
+            if isinstance(start_time, astropy.time.TimeDelta)
+            else start_time
+        )
 
-        hwp_angle = np.empty(obs.n_samples)
-
+        hwp_angle = np.empty(obs.n_samples, dtype=pointing_dtype)
         hwp.get_hwp_angle(
             hwp_angle,
             start_time_s,
             1.0 / obs.sampling_rate_hz,
         )
-        obs.has_hwp = True
 
-    return hwp_angle
+        obs.has_hwp = True
+        return hwp_angle
 
 
 def _get_pol_angle(
@@ -180,41 +182,44 @@ def _get_pointings_array(
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
 ) -> Tuple[np.ndarray, Union[np.ndarray], None]:
-    """Computes the pointings (θ and φ) and HWP angle
+    """
+    Compute the pointings (θ, φ) and HWP angle for a given detector.
 
     Parameters
     ----------
     detector_idx : int
-        Detector index, local to an :class:`.Observation`
+        Index of the detector, local to an :class:`Observation`.
     pointings : Union[npt.ArrayLike, Callable]
-        Pointing information of the detectors stored in an :class:`.Observation`
-    hwp_angle : Union[np.ndarray, None]
-        An array containing the HWP angle of the telescope. If empty this information
-        is taken from the Callable pointings.
+        Pointing information, either a precomputed array or a callable returning
+        (pointings, hwp_angle) for the specified detector.
+    hwp_angle : Optional[np.ndarray]
+        Array of HWP angles. If None, the angle is assumed to be provided by the `pointings` callable.
     output_coordinate_system : CoordinateSystem
-        Coordinate system of the output pointings
-    pointing_dtype : dtype, optional
-        The dtype for the computed hwp angle, by default `np.float64`
+        Desired coordinate system for the output pointings.
+    pointings_dtype : np.dtype, optional
+        Data type for computed pointings and angles. Default is `np.float64`.
 
     Returns
     -------
-    Tuple[np.ndarray, Union[np.ndarray, None]]
-        A tuple (pointings, hwp_angle), where `pointings` is an array of shape [n_samples, 2]
-        and `hwp_angle` is either the input array (if `hwp_angle` is an array) or the value
-        returned by the callable.
+    Tuple[np.ndarray, Optional[np.ndarray]]
+        A tuple `(pointings, hwp_angle)`, where:
+          - `pointings` is an array of shape (n_samples, 2) with [θ, φ].
+          - `hwp_angle` is either the provided array or the one computed by the callable.
     """
-    if type(pointings) is np.ndarray:
+    if isinstance(pointings, np.ndarray):
         curr_pointings_det = pointings[detector_idx, :, :]
-        angle = None
+        computed_hwp_angle = None
     else:
-        curr_pointings_det, angle = pointings(
+        curr_pointings_det, computed_hwp_angle = pointings(
             detector_idx, pointings_dtype=pointings_dtype
         )
 
     if output_coordinate_system == CoordinateSystem.Galactic:
         curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
-    return curr_pointings_det, hwp_angle if type(hwp_angle) is np.ndarray else angle
+    return curr_pointings_det, hwp_angle if isinstance(
+        hwp_angle, np.ndarray
+    ) else computed_hwp_angle
 
 
 def _get_centered_pointings(
