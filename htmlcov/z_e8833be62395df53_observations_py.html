@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/observations.py: 58%</title>
+    <title>Coverage for litebird_sim/observations.py: 60%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_81f8c14c.css" type="text/css">
     <script src="coverage_html_cb_6fb7b396.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim/observations.py</b>:
-            <span class="pc_cov">58%</span>
+            <span class="pc_cov">60%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">347 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">201<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">146<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">207<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">140<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_plot_fp_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.9.1">coverage.py v7.9.1</a>,
-            created at 2025-06-23 11:26 +0000
+            created at 2025-06-30 04:53 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -1060,24 +1060,24 @@
     <p class="pln"><span class="n"><a id="t978" href="#t978">978</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t979" href="#t979">979</a></span><span class="t"><span class="str">        hwp_angle = cur_obs.get_hwp_angle()</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t980" href="#t980">980</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t981" href="#t981">981</a></span><span class="t">        <span class="key">assert</span> <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t981" href="#t981">981</a></span><span class="t">        <span class="key">assert</span> <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t982" href="#t982">982</a></span><span class="t">            <span class="str">"You must initialize pointing_provider; use Simulation.prepare_pointings()"</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t983" href="#t983">983</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t984" href="#t984">984</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t985" href="#t985">985</a></span><span class="t">        <span class="nam">expected_shape</span> <span class="op">=</span> <span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">n_samples</span><span class="op">,</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t986" href="#t986">986</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span><span class="op">.</span><span class="nam">has_hwp</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t987" href="#t987">987</a></span><span class="t">            <span class="key">if</span> <span class="nam">hwp_buffer</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t985" href="#t985">985</a></span><span class="t">        <span class="nam">expected_shape</span> <span class="op">=</span> <span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">n_samples</span><span class="op">,</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t986" href="#t986">986</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span><span class="op">.</span><span class="nam">has_hwp</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t987" href="#t987">987</a></span><span class="t">            <span class="key">if</span> <span class="nam">hwp_buffer</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t988" href="#t988">988</a></span><span class="t">                <span class="key">assert</span> <span class="nam">hwp_buffer</span><span class="op">.</span><span class="nam">shape</span> <span class="op">==</span> <span class="nam">expected_shape</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t989" href="#t989">989</a></span><span class="t">                    <span class="str">"hwp_buffer has a wrong shape, it is {actual} but should be {expected}"</span><span class="op">.</span><span class="nam">format</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t990" href="#t990">990</a></span><span class="t">                        <span class="nam">actual</span><span class="op">=</span><span class="nam">hwp_buffer</span><span class="op">.</span><span class="nam">shape</span><span class="op">,</span> <span class="nam">expected</span><span class="op">=</span><span class="nam">expected_shape</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t991" href="#t991">991</a></span><span class="t">                    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t992" href="#t992">992</a></span><span class="t">                <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t993" href="#t993">993</a></span><span class="t">            <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t994" href="#t994">994</a></span><span class="t">                <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">empty</span><span class="op">(</span><span class="nam">expected_shape</span><span class="op">,</span> <span class="nam">dtype</span><span class="op">=</span><span class="nam">pointings_dtype</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t994" href="#t994">994</a></span><span class="t">                <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">empty</span><span class="op">(</span><span class="nam">expected_shape</span><span class="op">,</span> <span class="nam">dtype</span><span class="op">=</span><span class="nam">pointings_dtype</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t995" href="#t995">995</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t996" href="#t996">996</a></span><span class="t">            <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t997" href="#t997">997</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t998" href="#t998">998</a></span><span class="t">        <span class="key">return</span> <span class="nam">hwp_buffer</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t998" href="#t998">998</a></span><span class="t">        <span class="key">return</span> <span class="nam">hwp_buffer</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t999" href="#t999">999</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1000" href="#t1000">1000</a></span><span class="t">    <span class="key">def</span> <span class="nam">precompute_pointings</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1001" href="#t1001">1001</a></span><span class="t">        <span class="nam">self</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -1161,7 +1161,7 @@
             <a class="nav" href="z_e8833be62395df53_plot_fp_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.9.1">coverage.py v7.9.1</a>,
-            created at 2025-06-23 11:26 +0000
+            created at 2025-06-30 04:53 +0000
         </p>
     </div>
 </footer>
