@@ -1246,17 +1246,17 @@ class Simulation:
         )
 
     @_profile
-    def nullify_tod(self, component: str = "tod") -> None:
+    def nullify_tod(self, components: Union[str, List[str]] = "tod") -> None:
         """
-        Set the specified component (default: "tod") of all observations to zero.
+        Set the specified component(s) (default: "tod") of all observations to zero.
 
         This is typically used to zero out Time-Ordered Data (TOD) in-place across
         all observations.
 
         Parameters
         ----------
-        component : str, optional
-            The attribute name of the data to nullify in each observation.
+        components : str or list of str, optional
+            The attribute name(s) of the data to nullify in each observation.
             Defaults to "tod".
 
         Raises
@@ -1264,18 +1264,20 @@ class Simulation:
         AttributeError
             If an observation does not have the specified component.
         """
-        for i, cur_obs in enumerate(self.observations):
-            try:
-                tod = getattr(cur_obs, component)
-            except AttributeError:
-                raise AttributeError(
-                    f"Observation {i} does not have attribute '{component}'"
-                )
+        if isinstance(components, str):
+            components = [components]
 
-            if tod is not None:
-                tod[:, :] = 0
-            else:
-                pass
+        for i, cur_obs in enumerate(self.observations):
+            for comp in components:
+                try:
+                    tod = getattr(cur_obs, comp)
+                except AttributeError:
+                    raise AttributeError(
+                        f"Observation {i} does not have attribute '{comp}'"
+                    )
+
+                if tod is not None:
+                    tod[:, :] = 0
 
     def set_scanning_strategy(
         self,
@@ -1600,6 +1602,7 @@ class Simulation:
         self,
         lmax: int,
         mmax: Optional[int] = None,
+        channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
         store_in_observation: Optional[bool] = False,
     ):
         """
@@ -1614,6 +1617,9 @@ class Simulation:
             Maximum multipole moment.
         mmax : Optional[int], default=None
             Maximum azimuthal multipole moment. Defaults to `lmax` if None.
+        channels : FreqChannelInfo or list of FreqChannelInfo, optional
+            Frequency channels to use in the simulation. If None, it uses the detectors
+            from the observations.
         store_in_observation : bool, optional
             If True, the computed blms will be stored in the `blms` attribute of
             the observation object.
@@ -1628,7 +1634,11 @@ class Simulation:
             raise ValueError("No observations available to generate sky maps.")
 
         return generate_gauss_beam_alms(
-            self.observations[0], lmax, mmax, store_in_observation=store_in_observation
+            self.observations[0],
+            lmax,
+            mmax,
+            channels=channels,
+            store_in_observation=store_in_observation,
         )
 
     @_profile
@@ -1928,7 +1938,7 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_splits: Union[str, List[str]] = "full",
         time_splits: Union[str, List[str]] = "full",
         write_to_disk: bool = True,
@@ -1945,6 +1955,9 @@ class Simulation:
         return a dictionary with the results, where the keys are the strings obtained by joining
         the detector and time splits with an underscore.
         """
+
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -2016,7 +2029,7 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         pointings_dtype=np.float64,
@@ -2027,6 +2040,8 @@ class Simulation:
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
 
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = "You must use 'make_binned_map_splits' if you want lists of splits!"
             raise ValueError(msg)
@@ -2074,7 +2089,7 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_splits: Union[str, List[str]] = "full",
         time_splits: Union[str, List[str]] = "full",
         keep_weights: bool = False,
@@ -2096,6 +2111,9 @@ class Simulation:
         with the results, where the keys are the strings obtained by joining the detector and time
         splits with an underscore.
         """
+
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -2193,7 +2211,7 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         keep_weights: bool = False,
@@ -2208,6 +2226,9 @@ class Simulation:
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
+
+        if isinstance(components, str):
+            components = [components]
 
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = (
@@ -2292,7 +2313,7 @@ class Simulation:
     def make_brahmap_gls_map(
         self,
         nside: int,
-        component: str = "tod",
+        components: Union[str, List[str]] = "tod",
         pointing_flag: np.ndarray = None,
         inv_noise_cov_operator=None,
         threshold: float = 1.0e-5,
@@ -2306,7 +2327,7 @@ class Simulation:
         return make_brahmap_gls_map(
             nside=nside,
             observations=self.observations,
-            component=component,
+            components=components,
             pointings_flag=pointing_flag,
             inv_noise_cov_operator=inv_noise_cov_operator,
             threshold=threshold,

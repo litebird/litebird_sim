@@ -1457,7 +1457,7 @@ def make_destriped_map(
     pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]] = None,
     hwp: Optional[HWP] = None,
     params: DestriperParameters = DestriperParameters(),
-    components: Optional[List[str]] = None,
+    components: Union[str, List[str]] = "tod",
     keep_weights: bool = False,
     keep_pixel_idx: bool = False,
     keep_pol_angle_rad: bool = False,
@@ -1540,7 +1540,7 @@ def make_destriped_map(
        taken from `observations` (the most common situation)
     :param hwp: An instance of the :class:`.HWP` class (optional)
     :param params: an instance of the :class:`.DestriperParameters` class
-    :param components: a list of components to extract from
+    :param components: components to extract from
        the TOD and sum together. The default is to use `observations.tod`.
     :param keep_weights: the destriper adds a `destriper_weights`
        field to each :class:`.Observation` object in `observations`, and
@@ -1570,8 +1570,8 @@ def make_destriped_map(
     """
     elapsed_time_s = time.monotonic()
 
-    if not components:
-        components = ["tod"]
+    if isinstance(components, str):
+        components = [components]
 
     do_destriping = params.samples_per_baseline is not None
 
