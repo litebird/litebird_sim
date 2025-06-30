@@ -429,8 +429,13 @@ def scan_map_in_observations(
             )
             input_names = None
 
-        # If you pass an external HWP, get hwp_angle here, otherwise this is handled in scan_map
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        if hwp is None:
+            hwp_angle = None
+        else:
+            # If you pass an external HWP, get hwp_angle here, otherwise this is handled in scan_map
+            hwp_angle = _get_hwp_angle(
+                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
+            )
 
         scan_map(
             tod=getattr(cur_obs, component),
