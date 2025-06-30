@@ -1245,17 +1245,17 @@ class Simulation:
         )
 
     @_profile
-    def nullify_tod(self, component: str = "tod") -> None:
+    def nullify_tod(self, components: Union[str, List[str]] = "tod") -> None:
         """
-        Set the specified component (default: "tod") of all observations to zero.
+        Set the specified component(s) (default: "tod") of all observations to zero.
 
         This is typically used to zero out Time-Ordered Data (TOD) in-place across
         all observations.
 
         Parameters
         ----------
-        component : str, optional
-            The attribute name of the data to nullify in each observation.
+        components : str or list of str, optional
+            The attribute name(s) of the data to nullify in each observation.
             Defaults to "tod".
 
         Raises
@@ -1263,18 +1263,20 @@ class Simulation:
         AttributeError
             If an observation does not have the specified component.
         """
-        for i, cur_obs in enumerate(self.observations):
-            try:
-                tod = getattr(cur_obs, component)
-            except AttributeError:
-                raise AttributeError(
-                    f"Observation {i} does not have attribute '{component}'"
-                )
+        if isinstance(components, str):
+            components = [components]
 
-            if tod is not None:
-                tod[:, :] = 0
-            else:
-                pass
+        for i, cur_obs in enumerate(self.observations):
+            for comp in components:
+                try:
+                    tod = getattr(cur_obs, comp)
+                except AttributeError:
+                    raise AttributeError(
+                        f"Observation {i} does not have attribute '{comp}'"
+                    )
+
+                if tod is not None:
+                    tod[:, :] = 0
 
     def set_scanning_strategy(
         self,
@@ -1927,7 +1929,7 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_splits: Union[str, List[str]] = "full",
         time_splits: Union[str, List[str]] = "full",
         write_to_disk: bool = True,
@@ -1944,6 +1946,9 @@ class Simulation:
         return a dictionary with the results, where the keys are the strings obtained by joining
         the detector and time splits with an underscore.
         """
+
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -2015,7 +2020,7 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         pointings_dtype=np.float64,
@@ -2026,6 +2031,8 @@ class Simulation:
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
 
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = "You must use 'make_binned_map_splits' if you want lists of splits!"
             raise ValueError(msg)
@@ -2073,7 +2080,7 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_splits: Union[str, List[str]] = "full",
         time_splits: Union[str, List[str]] = "full",
         keep_weights: bool = False,
@@ -2095,6 +2102,9 @@ class Simulation:
         with the results, where the keys are the strings obtained by joining the detector and time
         splits with an underscore.
         """
+
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -2192,7 +2202,7 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         keep_weights: bool = False,
@@ -2207,6 +2217,9 @@ class Simulation:
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
+
+        if isinstance(components, str):
+            components = [components]
 
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = (

@@ -269,7 +269,7 @@ def make_binned_map(
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     hwp: Optional[HWP] = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    components: List[str] = None,
+    components: Union[str, List[str]] = "tod",
     detector_split: str = "full",
     time_split: str = "full",
     pointings_dtype=np.float64,
@@ -300,7 +300,7 @@ def make_binned_map(
         hwp (HWP, optional): An instance of the :class:`.HWP` class (optional)
         output_coordinate_system (:class:`.CoordinateSystem`): the coordinates
             to use for the output map
-        components (list[str]): list of components to include in the map-making.
+        components (list[str] or str): components to include in the map-making.
             The default is just to use the field ``tod`` of each
             :class:`.Observation` object
         detector_split (str): select the detector split to use in the map-making
@@ -314,8 +314,8 @@ def make_binned_map(
             distributed over MPI Processes, all of them get a copy of the same object.
     """
 
-    if not components:
-        components = ["tod"]
+    if isinstance(components, str):
+        components = [components]
 
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
