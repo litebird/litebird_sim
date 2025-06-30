@@ -66,7 +66,8 @@ def precompute_pointings(
 @deprecated(
     version="0.15.0",
     reason="This function adds the HWP angle to the orientation, but this is logically wrong "
-    "now that LBS keeps track of ψ, the polarization angle, and the HWP angle in separate places.",
+    "now that LBS keeps track of ψ the orientation of the telescope, the polarization angle θ, "
+    "and the HWP angle in separate places.",
 )
 def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     """Modify a pointing matrix to consider the effect of a HWP
@@ -138,6 +139,7 @@ def _get_hwp_angle(
             start_time_s,
             1.0 / obs.sampling_rate_hz,
         )
+        obs.has_hwp = True
 
     return hwp_angle
 
@@ -152,7 +154,7 @@ def _get_pol_angle(
     Parameters
     ----------
     curr_pointings_det : np.ndarray
-        Pointing information of the detector
+        Pointing information of the detector, here we take just the orientation
     hwp_angle : Union[np.ndarray, None]
         An array containing the HWP angle or `None`
     pol_angle_detectors : float
