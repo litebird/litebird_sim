@@ -1,5 +1,7 @@
 # HEAD
 
+-   Add low-level interface to `BrahMap` [#440](https://github.com/litebird/litebird_sim/pull/440)
+
 # Version 0.15.2
 
 -   Add more tutorials [#443](https://github.com/litebird/litebird_sim/pull/443)
