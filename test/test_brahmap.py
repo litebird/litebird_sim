@@ -113,7 +113,7 @@ def test_GLS_mapmaking():
     gls_results = brahmap.LBSim_compute_GLS_maps(
         nside=nside,
         observations=sim.observations,
-        component="tod",
+        components="tod",
         inv_noise_cov_operator=inv_cov,
         dtype_float=dtype_float,
         LBSim_gls_parameters=gls_params,

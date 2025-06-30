@@ -1633,7 +1633,11 @@ class Simulation:
             raise ValueError("No observations available to generate sky maps.")
 
         return generate_gauss_beam_alms(
-            self.observations[0], lmax, mmax, channels=channels, store_in_observation=store_in_observation
+            self.observations[0],
+            lmax,
+            mmax,
+            channels=channels,
+            store_in_observation=store_in_observation,
         )
 
     @_profile
@@ -2308,7 +2312,7 @@ class Simulation:
     def make_brahmap_gls_map(
         self,
         nside: int,
-        component: str = "tod",
+        components: Union[str, List[str]] = "tod",
         pointing_flag: np.ndarray = None,
         inv_noise_cov_operator=None,
         threshold: float = 1.0e-5,
@@ -2356,7 +2360,7 @@ class Simulation:
         ----------
         nside : int
             Nside of the output map
-        component : str, optional
+        components : str | List[str], optional
             The TOD component to be used for map-making, by default "tod"
         inv_noise_cov_operator : optional
             Inverse noise covariance operator, by default None
@@ -2403,7 +2407,7 @@ class Simulation:
         gls_result = brahmap.LBSim_compute_GLS_maps(
             nside=nside,
             observations=self.observations,
-            component=component,
+            components=components,
             pointings_flag=pointing_flag,
             inv_noise_cov_operator=inv_noise_cov_operator,
             threshold=threshold,
