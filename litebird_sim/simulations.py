@@ -1601,6 +1601,7 @@ class Simulation:
         self,
         lmax: int,
         mmax: Optional[int] = None,
+        channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
         store_in_observation: Optional[bool] = False,
     ):
         """
@@ -1615,6 +1616,9 @@ class Simulation:
             Maximum multipole moment.
         mmax : Optional[int], default=None
             Maximum azimuthal multipole moment. Defaults to `lmax` if None.
+        channels : FreqChannelInfo or list of FreqChannelInfo, optional
+            Frequency channels to use in the simulation. If None, it uses the detectors
+            from the current observations.
         store_in_observation : bool, optional
             If True, the computed blms will be stored in the `blms` attribute of
             the observation object.
@@ -1629,7 +1633,7 @@ class Simulation:
             raise ValueError("No observations available to generate sky maps.")
 
         return generate_gauss_beam_alms(
-            self.observations[0], lmax, mmax, store_in_observation=store_in_observation
+            self.observations[0], lmax, mmax, channels=channels, store_in_observation=store_in_observation
         )
 
     @_profile

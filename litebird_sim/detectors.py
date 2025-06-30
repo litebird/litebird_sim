@@ -312,6 +312,7 @@ class FreqChannelInfo:
     pol_sensitivity_channel_ukarcmin: float = 0.0
     sampling_rate_hz: float = 0.0
     fwhm_arcmin: float = 0.0
+    ellipticity: float = 1.0
     fknee_mhz: float = 0.0
     fmin_hz: float = 1e-5
     alpha: float = 1.0
@@ -398,6 +399,7 @@ class FreqChannelInfo:
             name=name,
             channel=self.channel,
             fwhm_arcmin=self.fwhm_arcmin,
+            ellipticity=self.ellipticity,
             net_ukrts=self.net_detector_ukrts,
             fknee_mhz=self.fknee_mhz,
             fmin_hz=self.fmin_hz,
