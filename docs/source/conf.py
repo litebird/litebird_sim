@@ -22,7 +22,7 @@ copyright = "2020, The LiteBIRD Simulation Team"
 author = "The LiteBIRD Simulation Team"
 
 # The full version, including alpha/beta/rc tags
-release = "0.15.2"
+release = "0.15.3"
 
 
 # -- General configuration ---------------------------------------------------
