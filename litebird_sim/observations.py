@@ -992,6 +992,15 @@ class Observation:
                 )
             else:
                 hwp_buffer = np.empty(expected_shape, dtype=pointings_dtype)
+
+            self.pointing_provider.get_hwp_angle(
+                start_time=self.start_time,
+                start_time_global=self.start_time_global,
+                sampling_rate_hz=self.sampling_rate_hz,
+                nsamples=self.n_samples,
+                hwp_buffer=hwp_buffer,
+                pointings_dtype=pointings_dtype,
+            )
         else:
             hwp_buffer = None
 
