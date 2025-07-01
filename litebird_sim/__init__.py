@@ -4,6 +4,7 @@ import numba
 
 from litebird_sim.mapmaking import (
     make_binned_map,
+    make_brahmap_gls_map,
     check_valid_splits,
     BinnerResult,
     make_destriped_map,
@@ -34,6 +35,7 @@ from .coordinates import (
     ECL_TO_GAL_ROT_MATRIX,
     CoordinateSystem,
     coord_sys_to_healpix_string,
+    rotate_coordinates_e2g,
 )
 from .detectors import (
     DetectorInfo,
@@ -81,7 +83,7 @@ from .io import (
     read_list_of_observations,
 )
 from .madam import save_simulation_for_madam
-from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
+from .mbs.mbs import FG_MODELS, Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
 from .mueller_convolver import MuellerConvolver
 from .noise import (
@@ -230,6 +232,7 @@ __all__ = [
     # madam.py
     "save_simulation_for_madam",
     # mbs.py
+    "FG_MODELS",
     "Mbs",
     "MbsParameters",
     "MbsSavedMapInfo",
@@ -294,6 +297,7 @@ __all__ = [
     "apply_hwp_to_obs",
     # mapmaking
     "make_binned_map",
+    "make_brahmap_gls_map",
     "check_valid_splits",
     "BinnerResult",
     "make_destriped_map",
@@ -324,6 +328,7 @@ __all__ = [
     "ECL_TO_GAL_ROT_MATRIX",
     "CoordinateSystem",
     "coord_sys_to_healpix_string",
+    "rotate_coordinates_e2g",
     # spacecraft.py
     "compute_l2_pos_and_vel",
     "compute_lissajous_pos_and_vel",

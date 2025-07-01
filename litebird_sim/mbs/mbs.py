@@ -16,6 +16,37 @@ import toml
 import litebird_sim as lbs
 from litebird_sim import constants as c
 
+# Available foreground models
+FG_MODELS = [
+    "pysm_freefree_1",
+    "pysm_ame_1",
+    "pysm_ame_2",
+    "pysm_co_1",
+    "pysm_co_2",
+    "pysm_co_3",
+    "pysm_dust_0",
+    "pysm_dust_1",
+    "pysm_dust_2",
+    "pysm_dust_3",
+    "pysm_dust_4",
+    "pysm_dust_5",
+    "pysm_dust_6",
+    "pysm_dust_7",
+    "pysm_dust_8",
+    "pysm_dust_9",
+    "pysm_dust_10",
+    "pysm_dust_11",
+    "pysm_dust_12",
+    "pysm_synch_0",
+    "pysm_synch_1",
+    "pysm_synch_2",
+    "pysm_synch_3",
+    "pysm_synch_4",
+    "pysm_synch_5",
+    "pysm_synch_6",
+    "pysm_synch_7",
+]
+
 
 @dataclass
 class _InstrumentFreq:

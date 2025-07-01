@@ -1,6 +1,7 @@
 """Test GLS mapmaking with BrahMap"""
 
 import tempfile
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -11,6 +12,19 @@ brahmap = pytest.importorskip(
     modname="brahmap", reason="Couldn't import 'brahmap' module"
 )
 import brahmap  # noqa: E402 F811
+
+
+def test_import_error():
+    msg = "Could not import `BrahMap`. Make sure that the package "
+    "`BrahMap` is installed in the same environment "
+    "as `litebird_sim`. Refer to "
+    "https://anand-avinash.github.io/BrahMap/overview/installation/ "
+    "for the installation instruction"
+    with mock.patch.dict("sys.modules", {"brahmap": None}):
+        with pytest.raises(ImportError, match=msg):
+            lbs.mapmaking.make_brahmap_gls_map(
+                nside=1, observations=[], pointings_dtype=np.float64
+            )
 
 
 def test_GLS_mapmaking():
@@ -113,13 +127,20 @@ def test_GLS_mapmaking():
     gls_results = brahmap.LBSim_compute_GLS_maps(
         nside=nside,
         observations=sim.observations,
-        component="tod",
+        components="tod",
         inv_noise_cov_operator=inv_cov,
         dtype_float=dtype_float,
         LBSim_gls_parameters=gls_params,
     )
 
     interface_gls_results = sim.make_brahmap_gls_map(nside=nside)
+
+    lowlev_interface_gls_results = lbs.make_brahmap_gls_map(
+        nside=nside,
+        observations=sim.observations,
+        inv_noise_cov_operator=inv_cov,
+        gls_params=gls_params,
+    )
 
     assert np.allclose(
         gls_results.GLS_maps[0],
@@ -134,4 +155,19 @@ def test_GLS_mapmaking():
     assert np.allclose(
         gls_results.GLS_maps[2],
         interface_gls_results.GLS_maps[2],
+    )
+
+    assert np.allclose(
+        gls_results.GLS_maps[0],
+        lowlev_interface_gls_results.GLS_maps[0],
+    )
+
+    assert np.allclose(
+        gls_results.GLS_maps[1],
+        lowlev_interface_gls_results.GLS_maps[1],
+    )
+
+    assert np.allclose(
+        gls_results.GLS_maps[2],
+        lowlev_interface_gls_results.GLS_maps[2],
     )
