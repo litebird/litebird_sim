@@ -6,6 +6,8 @@
 
 -   Add low-level interface to `BrahMap` [#440](https://github.com/litebird/litebird_sim/pull/440)
 
+-   Set Mueller matrix phases in Hwp_sys module as class attributes, instead of being hardcoded [#442](https://github.com/litebird/litebird_sim/pull/442)
+
 # Version 0.15.2
 
 -   Add more tutorials [#443](https://github.com/litebird/litebird_sim/pull/443)
