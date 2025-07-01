@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/pointings.py: 100%</title>
+    <title>Coverage for litebird_sim/pointings.py: 74%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_81f8c14c.css" type="text/css">
     <script src="coverage_html_cb_6fb7b396.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim/pointings.py</b>:
-            <span class="pc_cov">100%</span>
+            <span class="pc_cov">74%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -54,9 +54,9 @@
             </div>
         </aside>
         <h2>
-            <span class="text">27 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">27<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">0<span class="text"> missing</span></button>
+            <span class="text">38 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">28<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">10<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_pointings_in_obs_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.9.1">coverage.py v7.9.1</a>,
-            created at 2025-06-30 04:59 +0000
+            created at 2025-07-01 02:23 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -169,24 +169,78 @@
     <p class="run"><span class="n"><a id="t87" href="#t87">87</a></span><span class="t">            <span class="key">if</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">start_time_s</span><span class="op">,</span> <span class="nam">astropy</span><span class="op">.</span><span class="nam">time</span><span class="op">.</span><span class="nam">TimeDelta</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">                <span class="nam">start_time_s</span> <span class="op">=</span> <span class="nam">start_time_s</span><span class="op">.</span><span class="nam">to</span><span class="op">(</span><span class="str">"s"</span><span class="op">)</span><span class="op">.</span><span class="nam">value</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t89" href="#t89">89</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t90" href="#t90">90</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">hwp</span><span class="op">.</span><span class="nam">apply_hwp_to_pointings</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t91" href="#t91">91</a></span><span class="t">                <span class="nam">start_time_s</span><span class="op">=</span><span class="nam">start_time_s</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t92" href="#t92">92</a></span><span class="t">                <span class="nam">delta_time_s</span><span class="op">=</span><span class="num">1.0</span> <span class="op">/</span> <span class="nam">sampling_rate_hz</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t93" href="#t93">93</a></span><span class="t">                <span class="nam">bore2ecl_quaternions_inout</span><span class="op">=</span><span class="nam">full_quaternions</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t94" href="#t94">94</a></span><span class="t">                <span class="nam">hwp_angle_out</span><span class="op">=</span><span class="nam">hwp_buffer</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t95" href="#t95">95</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t96" href="#t96">96</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t97" href="#t97">97</a></span><span class="t">            <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t98" href="#t98">98</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t">        <span class="key">if</span> <span class="nam">pointing_buffer</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t">            <span class="nam">pointing_buffer</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">empty</span><span class="op">(</span><span class="nam">shape</span><span class="op">=</span><span class="op">(</span><span class="nam">nsamples</span><span class="op">,</span> <span class="num">3</span><span class="op">)</span><span class="op">,</span> <span class="nam">dtype</span><span class="op">=</span><span class="nam">pointings_dtype</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t101" href="#t101">101</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t">        <span class="nam">all_compute_pointing_and_orientation</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t103" href="#t103">103</a></span><span class="t">            <span class="nam">result_matrix</span><span class="op">=</span><span class="nam">pointing_buffer</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t104" href="#t104">104</a></span><span class="t">            <span class="nam">quat_matrix</span><span class="op">=</span><span class="nam">full_quaternions</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t105" href="#t105">105</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t106" href="#t106">106</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t107" href="#t107">107</a></span><span class="t">        <span class="key">return</span> <span class="nam">pointing_buffer</span><span class="op">,</span> <span class="nam">hwp_buffer</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t90" href="#t90">90</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">hwp</span><span class="op">.</span><span class="nam">get_hwp_angle</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t91" href="#t91">91</a></span><span class="t">                <span class="nam">output_buffer</span><span class="op">=</span><span class="nam">hwp_buffer</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t92" href="#t92">92</a></span><span class="t">                <span class="nam">start_time_s</span><span class="op">=</span><span class="nam">start_time_s</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t93" href="#t93">93</a></span><span class="t">                <span class="nam">delta_time_s</span><span class="op">=</span><span class="num">1.0</span> <span class="op">/</span> <span class="nam">sampling_rate_hz</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t94" href="#t94">94</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t95" href="#t95">95</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t96" href="#t96">96</a></span><span class="t">            <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t97" href="#t97">97</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t98" href="#t98">98</a></span><span class="t">        <span class="key">if</span> <span class="nam">pointing_buffer</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t">            <span class="nam">pointing_buffer</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">empty</span><span class="op">(</span><span class="nam">shape</span><span class="op">=</span><span class="op">(</span><span class="nam">nsamples</span><span class="op">,</span> <span class="num">3</span><span class="op">)</span><span class="op">,</span> <span class="nam">dtype</span><span class="op">=</span><span class="nam">pointings_dtype</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t101" href="#t101">101</a></span><span class="t">        <span class="nam">all_compute_pointing_and_orientation</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t">            <span class="nam">result_matrix</span><span class="op">=</span><span class="nam">pointing_buffer</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t103" href="#t103">103</a></span><span class="t">            <span class="nam">quat_matrix</span><span class="op">=</span><span class="nam">full_quaternions</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t104" href="#t104">104</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t105" href="#t105">105</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t106" href="#t106">106</a></span><span class="t">        <span class="key">return</span> <span class="nam">pointing_buffer</span><span class="op">,</span> <span class="nam">hwp_buffer</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t107" href="#t107">107</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t108" href="#t108">108</a></span><span class="t">    <span class="key">def</span> <span class="nam">get_hwp_angle</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t109" href="#t109">109</a></span><span class="t">        <span class="nam">self</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t110" href="#t110">110</a></span><span class="t">        <span class="nam">start_time</span><span class="op">:</span> <span class="nam">Union</span><span class="op">[</span><span class="nam">float</span><span class="op">,</span> <span class="nam">astropy</span><span class="op">.</span><span class="nam">time</span><span class="op">.</span><span class="nam">Time</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t111" href="#t111">111</a></span><span class="t">        <span class="nam">start_time_global</span><span class="op">:</span> <span class="nam">Union</span><span class="op">[</span><span class="nam">float</span><span class="op">,</span> <span class="nam">astropy</span><span class="op">.</span><span class="nam">time</span><span class="op">.</span><span class="nam">Time</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t112" href="#t112">112</a></span><span class="t">        <span class="nam">sampling_rate_hz</span><span class="op">:</span> <span class="nam">float</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t113" href="#t113">113</a></span><span class="t">        <span class="nam">nsamples</span><span class="op">:</span> <span class="nam">int</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t114" href="#t114">114</a></span><span class="t">        <span class="nam">hwp_buffer</span><span class="op">:</span> <span class="nam">Optional</span><span class="op">[</span><span class="nam">npt</span><span class="op">.</span><span class="nam">NDArray</span><span class="op">]</span> <span class="op">=</span> <span class="key">None</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t115" href="#t115">115</a></span><span class="t">        <span class="nam">pointings_dtype</span><span class="op">=</span><span class="nam">np</span><span class="op">.</span><span class="nam">float64</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t116" href="#t116">116</a></span><span class="t">    <span class="op">)</span> <span class="op">-></span> <span class="nam">npt</span><span class="op">.</span><span class="nam">NDArray</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t117" href="#t117">117</a></span><span class="t">        <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t118" href="#t118">118</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t119" href="#t119">119</a></span><span class="t"><span class="str">        :param start_time: The time of the first sample for which pointings are needed.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t120" href="#t120">120</a></span><span class="t"><span class="str">            It can either be a floating-point number or a ``astropy.time.Time`` object.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t121" href="#t121">121</a></span><span class="t"><span class="str">        :param start_time_global: The time of the first sample in the *simulation*.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t122" href="#t122">122</a></span><span class="t"><span class="str">            It *must* be of the same type as `start_time`.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t123" href="#t123">123</a></span><span class="t"><span class="str">        :param sampling_rate_hz: The nominal sampling rate of the pointings</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t124" href="#t124">124</a></span><span class="t"><span class="str">        :param nsamples: The number of pointings to compute for this detector</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t125" href="#t125">125</a></span><span class="t"><span class="str">        :param hwp_buffer: A NumPy array with shape ``(nsamples,)`` that will be filled</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t126" href="#t126">126</a></span><span class="t"><span class="str">            with the angles of the HWP. If ``None``, a new NumPy array will be allocated,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t127" href="#t127">127</a></span><span class="t"><span class="str">            unless this :class:`.PointingProvider` object has no HWP associated, i.e.,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t128" href="#t128">128</a></span><span class="t"><span class="str">            the parameter ``hwp`` to the constructor ``__init__()`` was set to ``None``:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t129" href="#t129">129</a></span><span class="t"><span class="str">            in this case, no buffer will be allocated.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t130" href="#t130">130</a></span><span class="t"><span class="str">        :param pointings_dtype: The type to use for the arrays `pointing_buffer` and</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t131" href="#t131">131</a></span><span class="t"><span class="str">            `hwp_buffer`, if they have not been provided. (If `pointing_buffer` and</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t132" href="#t132">132</a></span><span class="t"><span class="str">            `hwp_buffer` are not ``None``, the original datatype will be kept unchanged.)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t133" href="#t133">133</a></span><span class="t"><span class="str">        :return: hwp_buffer</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t134" href="#t134">134</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t135" href="#t135">135</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t136" href="#t136">136</a></span><span class="t">        <span class="key">assert</span> <span class="op">(</span><span class="nam">np</span><span class="op">.</span><span class="nam">isscalar</span><span class="op">(</span><span class="nam">start_time</span><span class="op">)</span> <span class="key">and</span> <span class="nam">np</span><span class="op">.</span><span class="nam">isscalar</span><span class="op">(</span><span class="nam">start_time_global</span><span class="op">)</span><span class="op">)</span> <span class="key">or</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t137" href="#t137">137</a></span><span class="t">            <span class="nam">isinstance</span><span class="op">(</span><span class="nam">start_time_global</span><span class="op">,</span> <span class="nam">astropy</span><span class="op">.</span><span class="nam">time</span><span class="op">.</span><span class="nam">Time</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t138" href="#t138">138</a></span><span class="t">            <span class="key">and</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">start_time</span><span class="op">,</span> <span class="nam">astropy</span><span class="op">.</span><span class="nam">time</span><span class="op">.</span><span class="nam">Time</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t139" href="#t139">139</a></span><span class="t">        <span class="op">)</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t140" href="#t140">140</a></span><span class="t">            <span class="str">"The parameters start_time= and start_time_global= must be of the same "</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t141" href="#t141">141</a></span><span class="t">            <span class="str">"type (either floats or astropy.time.Time objects), but they are "</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t142" href="#t142">142</a></span><span class="t">            <span class="str">"{type1} (start_time) and {type2} (start_time_global)"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t143" href="#t143">143</a></span><span class="t">        <span class="op">)</span><span class="op">.</span><span class="nam">format</span><span class="op">(</span><span class="nam">type1</span><span class="op">=</span><span class="nam">str</span><span class="op">(</span><span class="nam">type</span><span class="op">(</span><span class="nam">start_time</span><span class="op">)</span><span class="op">)</span><span class="op">,</span> <span class="nam">type2</span><span class="op">=</span><span class="nam">str</span><span class="op">(</span><span class="nam">type</span><span class="op">(</span><span class="nam">start_time_global</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t144" href="#t144">144</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t145" href="#t145">145</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">hwp</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t146" href="#t146">146</a></span><span class="t">            <span class="key">if</span> <span class="nam">hwp_buffer</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t147" href="#t147">147</a></span><span class="t">                <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">empty</span><span class="op">(</span><span class="nam">nsamples</span><span class="op">,</span> <span class="nam">dtype</span><span class="op">=</span><span class="nam">pointings_dtype</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t148" href="#t148">148</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t149" href="#t149">149</a></span><span class="t">            <span class="nam">start_time_s</span> <span class="op">=</span> <span class="nam">start_time</span> <span class="op">-</span> <span class="nam">start_time_global</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t150" href="#t150">150</a></span><span class="t">            <span class="key">if</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">start_time_s</span><span class="op">,</span> <span class="nam">astropy</span><span class="op">.</span><span class="nam">time</span><span class="op">.</span><span class="nam">TimeDelta</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t151" href="#t151">151</a></span><span class="t">                <span class="nam">start_time_s</span> <span class="op">=</span> <span class="nam">start_time_s</span><span class="op">.</span><span class="nam">to</span><span class="op">(</span><span class="str">"s"</span><span class="op">)</span><span class="op">.</span><span class="nam">value</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t152" href="#t152">152</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t153" href="#t153">153</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">hwp</span><span class="op">.</span><span class="nam">get_hwp_angle</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t154" href="#t154">154</a></span><span class="t">                <span class="nam">output_buffer</span><span class="op">=</span><span class="nam">hwp_buffer</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t155" href="#t155">155</a></span><span class="t">                <span class="nam">start_time_s</span><span class="op">=</span><span class="nam">start_time_s</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t156" href="#t156">156</a></span><span class="t">                <span class="nam">delta_time_s</span><span class="op">=</span><span class="num">1.0</span> <span class="op">/</span> <span class="nam">sampling_rate_hz</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t157" href="#t157">157</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t158" href="#t158">158</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t159" href="#t159">159</a></span><span class="t">            <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t160" href="#t160">160</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t161" href="#t161">161</a></span><span class="t">        <span class="key">return</span> <span class="nam">hwp_buffer</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -196,7 +250,7 @@
             <a class="nav" href="z_e8833be62395df53_pointings_in_obs_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.9.1">coverage.py v7.9.1</a>,
-            created at 2025-06-30 04:59 +0000
+            created at 2025-07-01 02:23 +0000
         </p>
     </div>
 </footer>
