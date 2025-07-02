@@ -6,15 +6,15 @@ import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from numba import njit
+
 import litebird_sim as lbs
 from litebird_sim import mpi
-from .bandpass_template_module import bandpass_profile
 from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
-import mueller_methods
-import jones_methods
+from . import mueller_methods
+from . import jones_methods
 
 COND_THRESHOLD = 1e10
 
@@ -44,7 +44,21 @@ def _dBodTth(nu):
     )
 
 
-@njit(parallel=False)
+@njit
+def compute_orientation_from_detquat(quat):
+    if quat[2] == 0:
+        polang = 0
+    else:
+        polang = 2 * np.arctan2(
+            np.sqrt(quat[0] ** 2 + quat[1] ** 2 + quat[2] ** 2), quat[3]
+        )
+        if quat[2] < 0:
+            polang = -polang
+
+    return polang
+
+
+@njit
 def mueller_interpolation(Theta, harmonic, i, j):
     mueller0deg = {
         "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
@@ -89,26 +103,6 @@ def mueller_interpolation(Theta, harmonic, i, j):
     )
 
 
-def jones_complex_to_polar(j0, j1, j2, integrate_in_band):
-    if integrate_in_band:
-        return tuple(
-            [
-                [
-                    [[(np.abs(val), np.angle(val)) for val in row] for row in matrix]
-                    for matrix in arr
-                ]
-                for arr in [j0, j1, j2]
-            ]
-        )
-    else:
-        return tuple(
-            [
-                [[(np.abs(val), np.angle(val)) for val in row] for row in matrix]
-                for matrix in [j0, j1, j2]
-            ]
-        )
-
-
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
@@ -124,36 +118,43 @@ class HwpSys:
     def set_parameters(
         self,
         nside: Union[int, None] = None,
-        Mbsparams: Union[MbsParameters, None] = None,
-        mueller_or_jones: Union[str, None] = None,
-        integrate_in_band: Union[bool, None] = None,
-        build_map_on_the_fly: Union[bool, None] = None,
-        integrate_in_band_solver: Union[bool, None] = None,
-        Channel: Union[FreqChannelInfo, None] = None,
+        nside_out: Union[int, None] = None,
+        mbs_params: Union[MbsParameters, None] = None,
+        build_map_on_the_fly: Union[bool, None] = False,
+        apply_non_linearity: Union[bool, None] = False,
+        add_2f_hwpss: Union[bool, None] = False,
+        interpolation: Union[str, None] = "",
+        channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
+        mueller_phases: Union[dict, None] = None,
+        mueller_or_jones: Union[str, None] = None,
+        integrate_in_band: Union[bool, None] = False,
+        integrate_in_band_solver: Union[bool, None] = False,
     ):
         r"""It sets the input paramters reading a dictionary `sim.parameters`
         with key "hwp_sys" and the following input arguments
 
         Args:
           nside (integer): nside used in the analysis
-          Mbsparams (:class:`.Mbs`): an instance of the :class:`.Mbs` class
-              Input maps needs to be in galactic (mbs default)
-          integrate_in_band (bool): performs the band integration for tod generation
+          nside_out (integer): nside for the output maps. If not provided, same as nside
+          mbs_params (:class:`.Mbs`): an instance of the :class:`.Mbs` class
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
-          integrate_in_band_solver (bool): performs the band integration for the
-                                           map-making solver
-          Channel (:class:`.FreqChannelInfo`): an instance of the
+          apply_non_linearity (bool): applies the coupling of the non-linearity
+              systematics with hwp_sys
+          add_2f_hwpss (bool): adds the 2f hwpss signal to the TOD
+          interpolation (str): if it is ``""`` (the default), pixels in the map
+              won’t be interpolated. If it is ``linear``, a linear interpolation
+              will be used
+          channel (:class:`.FreqChannelInfo`): an instance of the
                                                 :class:`.FreqChannelInfo` class
           maps (float): input maps (3, npix) coherent with nside provided,
               Input maps needs to be in galactic (mbs default)
-              if `maps` is not None, `Mbsparams` is ignored
+              if `maps` is not None, `mbs_params` is ignored
               (i.e. input maps are not generated)
           comm (SerialMpiCommunicator): MPI communicator
         """
 
-        # set defaults for band integration
         hwp_sys_Mbs_make_cmb = True
         hwp_sys_Mbs_make_fg = True
         hwp_sys_Mbs_fg_models = ["pysm_synch_0", "pysm_freefree_1", "pysm_dust_0"]
@@ -166,21 +167,13 @@ class HwpSys:
             paramdict = self.sim.parameters["hwp_sys"]
 
             self.nside = paramdict.get("nside", False)
+            self.nside_out = paramdict.get("nside_out", False)
 
-            self.integrate_in_band = paramdict.get("integrate_in_band", False)
+            assert self.nside_out <= self.nside, (
+                f"Error, {self.nside_out=} cannot be larger than {self.nside=}"
+            )
+
             self.build_map_on_the_fly = paramdict.get("build_map_on_the_fly", False)
-            self.integrate_in_band_solver = paramdict.get(
-                "integrate_in_band_solver", False
-            )
-
-            self.bandpass = paramdict.get("bandpass", False)
-            self.bandpass_solver = paramdict.get("bandpass_solver", False)
-            self.include_beam_throughput = paramdict.get(
-                "include_beam_throughput", False
-            )
-
-            self.band_filename = paramdict.get("band_filename", False)
-            self.band_filename_solver = paramdict.get("band_filename_solver", False)
 
             # here we set the values for Mbs used in the code if present
             # in paramdict, otherwise defaults
@@ -194,11 +187,15 @@ class HwpSys:
                 "hwp_sys_Mbs_gaussian_smooth", True
             )
         # This part sets from input_parameters()
-        # if not self.nside:
         if nside is None:
             self.nside = 512
         else:
             self.nside = nside
+
+        if nside_out is None:
+            self.nside_out = self.nside
+        else:
+            self.nside_out = nside_out
 
         if (self.sim.parameters is not None) and (
             "hwp_sys" in self.sim.parameters.keys()
@@ -215,20 +212,32 @@ class HwpSys:
                             )
                         )
 
-        if not hasattr(self, "integrate_in_band"):
-            if integrate_in_band is not None:
-                self.integrate_in_band = integrate_in_band
-
         if not hasattr(self, "build_map_on_the_fly"):
             if build_map_on_the_fly is not None:
                 self.build_map_on_the_fly = build_map_on_the_fly
+
+        if not hasattr(self, "apply_non_linearity"):
+            if apply_non_linearity is not None:
+                self.apply_non_linearity = apply_non_linearity
+
+        if not hasattr(self, "add_2f_hwpss"):
+            if add_2f_hwpss is not None:
+                self.add_2f_hwpss = add_2f_hwpss
+
+        if not hasattr(self, "integrate_in_band"):
+            if integrate_in_band is not None:
+                self.integrate_in_band = integrate_in_band
 
         if not hasattr(self, "integrate_in_band_solver"):
             if integrate_in_band_solver is not None:
                 self.integrate_in_band_solver = integrate_in_band_solver
 
-        if Mbsparams is None and np.any(maps) is None:
-            Mbsparams = lbs.MbsParameters(
+        if not hasattr(self, "comm"):
+            if comm is not None:
+                self.comm = comm
+
+        if mbs_params is None and np.any(maps) is None:
+            mbs_params = lbs.MbsParameters(
                 make_cmb=hwp_sys_Mbs_make_cmb,
                 make_fg=hwp_sys_Mbs_make_fg,
                 fg_models=hwp_sys_Mbs_fg_models,
@@ -239,93 +248,54 @@ class HwpSys:
             )
 
         if np.any(maps) is None:
-            Mbsparams.nside = self.nside
+            mbs_params.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
+        self.npix_out = hp.nside2npix(self.nside_out)
 
-        if Channel is None:
-            Channel = lbs.FreqChannelInfo(bandcenter_ghz=140)
+        self.interpolation = interpolation
 
-        if self.integrate_in_band:
-            if not self.bandpass:
-                self.cmb2bb = _dBodTth(self.freqs)
+        if channel is None:
+            channel = lbs.FreqChannelInfo(bandcenter_ghz=140)
 
-            elif self.bandpass:
-                self.freqs, self.bandpass_profile = bandpass_profile(
-                    self.freqs, self.bandpass, self.include_beam_throughput
-                )
+        if np.any(maps) is None:
+            mbs = lbs.Mbs(
+                simulation=self.sim, parameters=mbs_params, channel_list=channel
+            )
+            self.maps = mbs.run_all()[0][
+                f"{channel.channel.split()[0]}_{channel.channel.split()[1]}"
+            ]
+        else:
+            self.maps = maps
 
-                self.cmb2bb = _dBodTth(self.freqs) * self.bandpass_profile
-
-            # Normalize the band
-            self.cmb2bb /= np.trapz(self.cmb2bb, self.freqs)
-
-            rank = comm.rank
-
-            if np.any(maps) is None:
-                if rank == 0:
-                    myinstr = {}
-                    for ifreq in range(self.nfreqs):
-                        myinstr["ch" + str(ifreq)] = {
-                            "bandcenter_ghz": self.freqs[ifreq],
-                            "bandwidth_ghz": 0,
-                            "fwhm_arcmin": Channel.fwhm_arcmin,
-                            "p_sens_ukarcmin": 0.0,
-                            "band": None,
-                        }
-
-                    mbs = lbs.Mbs(
-                        simulation=self.sim, parameters=Mbsparams, instrument=myinstr
-                    )
-
-                    maps = mbs.run_all()[0]
-                    self.maps = np.empty((self.nfreqs, 3, self.npix))
-                    for ifreq in range(self.nfreqs):
-                        self.maps[ifreq] = maps["ch" + str(ifreq)]
-                else:
-                    self.maps = None
-                if comm is not None:
-                    self.maps = comm.bcast(self.maps, root=0)
-            else:
-                self.maps = maps
             del maps
 
-        else:
-            if np.any(maps) is None:
-                mbs = lbs.Mbs(
-                    simulation=self.sim, parameters=Mbsparams, channel_list=Channel
-                )
-                self.maps = mbs.run_all()[0][
-                    f"{Channel.channel.split()[0]}_{Channel.channel.split()[1]}"
-                ]
-            else:
-                self.maps = maps
-
-                del maps
-
-        if self.integrate_in_band_solver:
-            if not self.bandpass_solver:
-                self.cmb2bb_solver = _dBodTth(self.freqs_solver)
-
-            elif self.bandpass_solver:
-                self.freqs_solver, self.bandpass_profile_solver = bandpass_profile(
-                    self.freqs_solver,
-                    self.bandpass_solver,
-                    self.include_beam_throughput,
-                )
-                self.cmb2bb_solver = (
-                    _dBodTth(self.freqs_solver) * self.bandpass_profile_solver
-                )
-
-            self.cmb2bb_solver /= np.trapz(self.cmb2bb_solver, self.freqs_solver)
-
         if self.build_map_on_the_fly:
-            self.atd = np.zeros((self.npix, 3), dtype=np.float64)
-            self.ata = np.zeros((self.npix, 3, 3), dtype=np.float64)
+            self.atd = np.zeros((self.npix_out, 3), dtype=np.float64)
+            self.ata = np.zeros((self.npix_out, 3, 3), dtype=np.float64)
 
         self.mueller_or_jones = mueller_or_jones
 
-        self.comm = comm
+        if mueller_phases is not None:
+            self.mueller_phases = mueller_phases
+        else:
+            # (temporary solution) using phases from Patanchon et al 2021 as the default.
+            self.mueller_phases = {
+                "2f": np.array(
+                    [[-2.32, -0.49, -2.06], [2.86, -0.25, -2.00], [1.29, -2.01, 2.54]],
+                    dtype=np.float64,
+                ),
+                "4f": np.array(
+                    [
+                        [-0.84, -0.04, -1.61],
+                        [0.14, -0.00061, -0.00056 - np.pi / 2],
+                        [-1.43, -0.00070 - np.pi / 2, np.pi - 0.00065],
+                    ],
+                    dtype=np.float64,
+                ),
+            }
+
+        # self.comm = comm
 
     def fill_tod(
         self,
@@ -334,51 +304,56 @@ class HwpSys:
         hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
         input_map_in_galactic: bool = True,
         save_tod: bool = False,
-        dtype_pointings=np.float32,
-        apply_non_linearity=False,
+        dtype_pointings=np.float64,
     ):
-        r"""It fills tod and/or :math:`A^T A` and :math:`A^T d` for the
-        "on the fly" map production
+        r"""Fill a TOD and/or :math:`A^T A` and :math:`A^T d` for the
+        "on-the-fly" map production
 
         Args:
+            observations (:class:`Observation`): container for the
+                TOD. If the TOD is not required, you can avoid
+                allocating ``observations.tod`` by setting
+                ``allocate_tod=False`` in :class:`.Observation`.
 
-        observations (:class:`Observation`): container for tod. If the tod is
-                 not required, you can avoid allocating ``observations.tod``
-                 i.e. in ``lbs.Observation`` use ``allocate_tod=False``.
+            pointings (optional): if not present, it is either computed
+                on the fly (generated by :func:`lbs.get_pointings` per
+                detector), or read from
+                ``observations.pointing_matrix`` (if present).
 
-        pointings (optional): if not passed, it is either computed on the fly
-                (generated by :func:`lbs.get_pointings` per detector),
-                or read from ``observations.pointing_matrix`` (if present).
+                If ``observations`` is not a list, ``pointings`` must
+                be a np.array of shape ``(N_det, N_samples, 3)``. If
+                ``observations`` is a list, ``pointings`` must be a
+                list of same length.
 
-                If ``observations`` is not a list, ``pointings`` must be a np.array
-                    of dimensions (N_det, N_samples, 3).
-                If ``observations`` is a list, ``pointings`` must be a list of same length.
+            hwp_angle (optional): `2ωt`, hwp rotation angles
+                (radians). If ``pointings`` is passed, ``hwp_angle``
+                must be passed as well, otherwise both must be
+                ``None``. If not passed, it is computed on the fly
+                (generated by :func:`lbs.get_pointings` per detector).
+                If ``observations`` is not a list, ``hwp_angle`` must
+                be a np.array of dimensions (N_samples).
 
+                If ``observations`` is a list, ``hwp_angle`` must be a
+                list of same length.
 
-        hwp_angle (optional): `2ωt`, hwp rotation angles (radians). If ``pointings`` is passed,
-                ``hwp_angle`` must be passed as well, otherwise both must be ``None``.
-                If not passed, it is computed on the fly (generated by :func:`lbs.get_pointings`
-                per detector).
-                If ``observations`` is not a list, ``hwp_angle`` must be a np.array
-                    of dimensions (N_samples).
+            input_map_in_galactic (bool): if True, the input map is in
+                galactic coordinates, pointings are rotated from
+                ecliptic to galactic and output map will also be in
+                galactic.
 
-                If ``observations`` is a list, ``hwp_angle`` must be a list of same length.
+            save_tod (bool): if True, ``obs.tod`` is saved in
+                ``observations.tod`` and locally as a .npy file;
+                if False, ``obs.tod`` gets deleted.
 
-        input_map_in_galactic (bool): if True, the input map is in galactic coordinates, pointings
-                are rotated from ecliptic to galactic and output map will also be in galactic.
+            dtype_pointings: if ``pointings`` is None and is computed
+                within ``fill_tod``, this is the dtype for
+                pointings and tod (default: np.float32).
 
-        save_tod (bool): if True, ``tod`` is saved in ``observations.tod``; if False,
-                 ``tod`` gets deleted.
-
-        dtype_pointings: if ``pointings`` is None and is computed within ``fill_tod``, this
-                         is the dtype for pointings and tod (default: np.float64).
         """
 
-        rank = self.comm.rank
-
-        assert (
-            observations is not None
-        ), "You need to pass at least one observation to fill_tod."
+        assert observations is not None, (
+            "You need to pass at least one observation to fill_tod."
+        )
 
         if pointings is None:
             if hwp_angle:
@@ -386,19 +361,28 @@ class HwpSys:
                     "You passed hwp_angle, but you did not pass pointings, "
                     + "so hwp_angle will be ignored and re-computed on the fly."
                 )
-            hwp_angle_list = []
+
             if isinstance(observations, Observation):
                 obs_list = [observations]
                 if hasattr(observations, "pointing_matrix"):
                     ptg_list = [observations.pointing_matrix]
                 else:
                     ptg_list = []
+                if hasattr(observations, "hwp_angle"):
+                    hwp_angle_list = [observations.hwp_angle]
+                else:
+                    hwp_angle_list = []
+
             else:
                 obs_list = observations
                 ptg_list = []
+                hwp_angle_list = []
                 for ob in observations:
                     if hasattr(ob, "pointing_matrix"):
                         ptg_list.append(ob.pointing_matrix)
+                    if hasattr(ob, "hwp_angle"):
+                        hwp_angle_list.append(ob.hwp_angle)
+
         else:
             if isinstance(observations, Observation):
                 assert isinstance(pointings, np.ndarray), (
@@ -461,11 +445,12 @@ class HwpSys:
                     )
 
             for idet in range(cur_obs.n_detectors):
-                cur_det = self.sim.detectors[idet * rank + idet]
-
                 if self.mueller_or_jones == "mueller":
-                    if cur_det.mueller_hwp is None:
-                        cur_det.mueller_hwp = {
+                    if np.all(
+                        cur_obs.mueller_hwp[idet]
+                        == [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, -1, 0], [0, 0, 0, -1]]
+                    ):
+                        cur_obs.mueller_hwp[idet] = {
                             "0f": np.array(
                                 [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                             ),
@@ -477,8 +462,8 @@ class HwpSys:
                             ),
                         }
 
-                    if cur_det.mueller_hwp_solver is None:
-                        cur_det.mueller_hwp_solver = {
+                    if cur_obs.mueller_hwp_solver[idet] is None:
+                        cur_obs.mueller_hwp_solver[idet] = {
                             "0f": np.array(
                                 [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
                             ),
@@ -491,31 +476,25 @@ class HwpSys:
                         }
 
                 elif self.mueller_or_jones == "jones":
-                    if cur_det.jones_hwp is None:
-                        cur_det.jones_hwp = {
-                            "0f": np.array([[1, 0], [0, -1]], dtype=np.float64),
-                            "2f": np.array([[1, 0], [0, -1]], dtype=np.float64),
-                            "4f": np.array([[1, 0], [0, -1]], dtype=np.float64),
+                    if cur_obs.jones_hwp[idet] is None:
+                        cur_obs.jones_hwp[idet] = {
+                            "0f": np.array([[0, 0], [0, 0]], dtype=np.float64),
+                            "2f": np.array([[0, 0], [0, 0]], dtype=np.float64),
                         }
 
-                    if cur_det.jones_hwp_solver is None:
-                        cur_det.jones_hwp_solver = {
-                            "0f": np.array([[1, 0], [0, -1]], dtype=np.float64),
-                            "2f": np.array([[1, 0], [0, -1]], dtype=np.float64),
-                            "4f": np.array([[1, 0], [0, -1]], dtype=np.float64),
+                    if cur_obs.jones_hwp_solver[idet] is None:
+                        cur_obs.jones_hwp_solver[idet] = {
+                            "0f": np.array([[0, 0], [0, 0]], dtype=np.float64),
+                            "2f": np.array([[0, 0], [0, 0]], dtype=np.float64),
                         }
 
-                tod = np.float64(cur_obs.tod[idet, :])
+                tod = cur_obs.tod[idet, :]
 
-                if pointings is None:
-                    if (not ptg_list) or (not hwp_angle_list):
-                        cur_point, cur_hwp_angle = cur_obs.get_pointings(
-                            detector_idx=idet, pointings_dtype=dtype_pointings
-                        )
-                        cur_point = cur_point.reshape(-1, 3)
-                    else:
-                        cur_point = ptg_list[idx_obs][idet, :, :]
-                        cur_hwp_angle = hwp_angle_list[idx_obs]
+                if pointings is None and ((not ptg_list) or (not hwp_angle_list)):
+                    cur_point, cur_hwp_angle = cur_obs.get_pointings(
+                        detector_idx=idet, pointings_dtype=dtype_pointings
+                    )
+                    cur_point = cur_point.reshape(-1, 3)
                 else:
                     cur_point = ptg_list[idx_obs][idet, :, :]
                     cur_hwp_angle = hwp_angle_list[idx_obs]
@@ -526,17 +505,46 @@ class HwpSys:
 
                 # all observed pixels over time (for each sample),
                 # i.e. len(pix)==len(times)
-                pix = hp.ang2pix(self.nside, cur_point[:, 0], cur_point[:, 1])
-                # separating polarization angle xi from cur_point[:, 2] = psi + xi
-                # xi: polarization angle, i.e. detector dependent
-                # psi: instrument angle, i.e. boresight direction from focal plane POV
-                # xi = compute_polang_from_detquat(cur_obs.quat[idet].quats[0]) % (
-                #    2 * np.pi
-                # )
+                if self.interpolation in ["", None]:
+                    pix = hp.ang2pix(self.nside, cur_point[:, 0], cur_point[:, 1])
 
-                xi = cur_det.pol_angle_rad
+                if self.build_map_on_the_fly:
+                    pix_out = hp.ang2pix(
+                        self.nside_out, cur_point[:, 0], cur_point[:, 1]
+                    )
+
+                if self.interpolation in ["", None]:
+                    input_T = self.maps[0, pix]
+                    input_Q = self.maps[1, pix]
+                    input_U = self.maps[2, pix]
+
+                elif self.interpolation == "linear":
+                    input_T = hp.get_interp_val(
+                        self.maps[0, :],
+                        cur_point[:, 0],
+                        cur_point[:, 1],
+                    )
+                    input_Q = hp.get_interp_val(
+                        self.maps[1, :],
+                        cur_point[:, 0],
+                        cur_point[:, 1],
+                    )
+                    input_U = hp.get_interp_val(
+                        self.maps[2, :],
+                        cur_point[:, 0],
+                        cur_point[:, 1],
+                    )
+                else:
+                    raise ValueError(
+                        "Wrong value for interpolation. It should be one of the following:\n"
+                        + '- "" for no interpolation\n'
+                        + '- "linear" for linear interpolation\n'
+                    )
+
+                xi = cur_obs.pol_angle_rad[idet]
                 psi = cur_point[:, 2]
-                phi = np.deg2rad(cur_det.pointing_theta_phi_psi_deg[1])
+
+                phi = np.deg2rad(cur_obs.pointing_theta_phi_psi_deg[idet][1])
 
                 cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
                 sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
@@ -544,142 +552,152 @@ class HwpSys:
                 if self.integrate_in_band:
                     if self.mueller_or_jones == "mueller":
                         assert (
-                            len(cur_det.mueller_hwp["0f"]) == 1
-                            or len(cur_det.mueller_hwp["2f"]) == 1
-                            or len(cur_det.mueller_hwp["4f"]) == 1
-                        ), "integrate_in_band is set to true but at least one of the harmonics has only one matrix"
+                            len(cur_obs.mueller_hwp[idet]["0f"]) == 1
+                            or len(cur_obs.mueller_hwp[idet]["2f"]) == 1
+                            or len(cur_obs.mueller_hwp[idet]["4f"]) == 1
+                        ), (
+                            "integrate_in_band is set to true but at least one of the harmonics has only one matrix"
+                        )
 
                         mueller_methods.integrate_inband_signal_for_one_detector(
                             tod_det=tod,
                             freqs=self.freqs,
                             band=self.cmb2bb,
-                            m0f=cur_det.mueller_hwp["0f"],
-                            m2f=cur_det.mueller_hwp["2f"],
-                            m4f=cur_det.mueller_hwp["4f"],
-                            pixel_ind=pix,
-                            theta=np.array(cur_hwp_angle, dtype=np.float64),
+                            m0f=cur_obs.mueller_hwp[idet]["0f"],
+                            m2f=cur_obs.mueller_hwp[idet]["2f"],
+                            m4f=cur_obs.mueller_hwp[idet]["4f"],
+                            rho=np.array(cur_hwp_angle, dtype=np.float64),
                             psi=np.array(psi, dtype=np.float64),
-                            maps=np.array(self.maps, dtype=np.float64),
-                            phi=phi,
+                            mapT=input_T,
+                            mapQ=input_Q,
+                            mapU=input_U,
                             cos2Xi2Phi=cos2Xi2Phi,
                             sin2Xi2Phi=sin2Xi2Phi,
+                            phi=phi,
+                            apply_non_linearity=self.apply_non_linearity,
+                            g_one_over_k=cur_obs.g_one_over_k[idet],
+                            add_2f_hwpss=self.add_2f_hwpss,
+                            amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
+                            phases_2f=self.mueller_phases["2f"],
+                            phases_4f=self.mueller_phases["4f"],
                         )
 
                     elif self.mueller_or_jones == "jones":
                         assert (
-                            len(cur_det.jones_hwp["0f"]) == 1
-                            or len(cur_det.jones_hwp["2f"]) == 1
-                            or len(cur_det.jones_hwp["4f"]) == 1
-                        ), "integrate_in_band is set to true but at least one of the harmonics has only one matrix"
-
-                        j0f = cur_det.jones_hwp["0f"]
-                        j2f = cur_det.jones_hwp["2f"]
-                        j4f = cur_det.jones_hwp["4f"]
-                        
-                        j0f, j2f, j4f = jones_complex_to_polar(
-                            j0f, j2f, j4f, self.integrate_in_band
+                            len(cur_obs.jones_hwp[idet]["0f"]) == 1
+                            or len(cur_obs.jones_hwp[idet]["2f"]) == 1
+                            or len(cur_obs.jones_hwp[idet]["4f"]) == 1
+                        ), (
+                            "integrate_in_band is set to true but at least one of the harmonics has only one matrix"
                         )
 
-                        mueller_methods.integrate_inband_signal_for_one_detector(
+                        j0f = cur_obs.jones_hwp[idet]["0f"]
+                        j2f = cur_obs.jones_hwp[idet]["2f"]
+
+                        jones_methods.integrate_inband_signal_for_one_detector(
                             tod_det=tod,
                             freqs=self.freqs_solver,
                             band=self.cmb2bb_solver,
                             j0f=j0f,
                             j2f=j2f,
-                            j4f=j4f,
-                            pixel_ind=pix,
-                            theta=np.array(cur_hwp_angle, dtype=np.float64),
+                            rho=np.array(cur_hwp_angle, dtype=np.float64),
                             psi=np.array(psi, dtype=np.float64),
-                            maps=np.array(self.maps, dtype=np.float64),
-                            phi=phi,
+                            mapT=input_T,
+                            mapQ=input_Q,
+                            mapU=input_U,
                             cos2Xi2Phi=cos2Xi2Phi,
                             sin2Xi2Phi=sin2Xi2Phi,
+                            phi=phi,
+                            apply_non_linearity=self.apply_non_linearity,
+                            g_one_over_k=cur_obs.g_one_over_k[idet],
+                            add_2f_hwpss=self.add_2f_hwpss,
+                            amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
                         )
 
                 else:
                     if self.mueller_or_jones == "mueller":
                         mueller_methods.compute_signal_for_one_detector(
                             tod_det=tod,
-                            pixel_ind=pix,
-                            m0f=cur_det.mueller_hwp["0f"],
-                            m2f=cur_det.mueller_hwp["2f"],
-                            m4f=cur_det.mueller_hwp["4f"],
-                            theta=np.array(cur_hwp_angle, dtype=np.float64),
+                            m0f=cur_obs.mueller_hwp[idet]["0f"],
+                            m2f=cur_obs.mueller_hwp[idet]["2f"],
+                            m4f=cur_obs.mueller_hwp[idet]["4f"],
+                            rho=np.array(cur_hwp_angle, dtype=np.float64),
                             psi=np.array(psi, dtype=np.float64),
-                            maps=np.array(self.maps, dtype=np.float64),
+                            mapT=input_T,
+                            mapQ=input_Q,
+                            mapU=input_U,
                             cos2Xi2Phi=cos2Xi2Phi,
                             sin2Xi2Phi=sin2Xi2Phi,
                             phi=phi,
+                            apply_non_linearity=self.apply_non_linearity,
+                            g_one_over_k=cur_obs.g_one_over_k[idet],
+                            add_2f_hwpss=self.add_2f_hwpss,
+                            amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
+                            phases_2f=self.mueller_phases["2f"],
+                            phases_4f=self.mueller_phases["4f"],
                         )
 
                     elif self.mueller_or_jones == "jones":
-                        j0f = cur_det.jones_hwp["0f"]
-                        j2f = cur_det.jones_hwp["2f"]
-                        j4f = cur_det.jones_hwp["4f"]
-
-                        j0f, j2f, j4f = extract_deltas(
-                            j0f, j2f, j4f, self.integrate_in_band
-                        )
-                        j0f, j2f, j4f = jones_complex_to_polar(
-                            j0f, j2f, j4f, self.integrate_in_band
-                        )
+                        j0f = cur_obs.jones_hwp[idet]["0f"]
+                        j2f = cur_obs.jones_hwp[idet]["2f"]
 
                         jones_methods.compute_signal_for_one_detector(
                             tod_det=tod,
-                            pixel_ind=pix,
                             j0f=j0f,
                             j2f=j2f,
-                            j4f=j4f,
-                            theta=np.array(cur_hwp_angle, dtype=np.float64),
+                            rho=np.array(cur_hwp_angle, dtype=np.float64),
                             psi=np.array(psi, dtype=np.float64),
-                            maps=np.array(self.maps, dtype=np.float64),
+                            mapT=input_T,
+                            mapQ=input_Q,
+                            mapU=input_U,
                             cos2Xi2Phi=cos2Xi2Phi,
                             sin2Xi2Phi=sin2Xi2Phi,
                             phi=phi,
+                            apply_non_linearity=self.apply_non_linearity,
+                            g_one_over_k=cur_obs.g_one_over_k[idet],
+                            add_2f_hwpss=self.add_2f_hwpss,
+                            amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
                         )
 
                 if self.build_map_on_the_fly:
                     if self.integrate_in_band_solver:
                         if self.mueller_or_jones == "mueller":
                             assert (
-                                len(cur_det.mueller_hwp_solver["0f"]) == 1
-                                or len(cur_det.mueller_hwp_solver["2f"]) == 1
-                                or len(cur_det.mueller_hwp_solver["4f"]) == 1
-                            ), "integrate_in_band is set to true but at least one of the harmonics has only one solver matrix"
+                                len(cur_obs.mueller_hwp_solver[idet]["0f"]) == 1
+                                or len(cur_obs.mueller_hwp_solver[idet]["2f"]) == 1
+                                or len(cur_obs.mueller_hwp_solver[idet]["4f"]) == 1
+                            ), (
+                                "integrate_in_band is set to true but at least one of the harmonics has only one solver matrix"
+                            )
                             mueller_methods.integrate_inband_atd_ata_for_one_detector(
                                 ata=self.ata,
                                 atd=self.atd,
                                 tod=tod,
                                 freqs=self.freqs,
                                 band=self.cmb2bb,
-                                m0f_solver=cur_det.mueller_hwp_solver["0f"],
-                                m2f_solver=cur_det.mueller_hwp_solver["2f"],
-                                m4f_solver=cur_det.mueller_hwp_solver["4f"],
-                                pixel_ind=pix,
-                                theta=np.array(cur_hwp_angle, dtype=np.float64),
+                                m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
+                                m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
+                                m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
+                                pixel_ind=pix_out,
+                                rho=np.array(cur_hwp_angle, dtype=np.float64),
                                 psi=np.array(psi, dtype=np.float64),
                                 phi=phi,
                                 cos2Xi2Phi=cos2Xi2Phi,
                                 sin2Xi2Phi=sin2Xi2Phi,
+                                phases_2f=self.mueller_phases["2f"],
+                                phases_4f=self.mueller_phases["4f"],
                             )
 
                         elif self.mueller_or_jones == "jones":
                             assert (
-                                len(cur_det.jones_hwp_solver["0f"]) == 1
-                                or len(cur_det.jones_hwp_solver["2f"]) == 1
-                                or len(cur_det.jones_hwp_solver["4f"]) == 1
-                            ), "integrate_in_band is set to true but at least one of the harmonics has only one solver matrix"
-
-                            j0fs = cur_det.jones_hwp_solver["0f"]
-                            j2fs = cur_det.jones_hwp_solver["2f"]
-                            j4fs = cur_det.jones_hwp_solver["4f"]
-
-                            j0fs, j2fs, j4fs = extract_deltas(
-                                j0fs, j2fs, j4fs, self.integrate_in_band_solver
+                                len(cur_obs.jones_hwp_solver[idet]["0f"]) == 1
+                                or len(cur_obs.jones_hwp_solver[idet]["2f"]) == 1
+                            ), (
+                                "integrate_in_band is set to true but at least one of the harmonics has only one solver matrix"
                             )
-                            j0fs, j2fs, j4fs = jones_complex_to_polar(
-                                j0fs, j2fs, j4fs, self.integrate_in_band_solver
-                            )
+
+                            j0fs = cur_obs.jones_hwp_solver[idet]["0f"]
+                            j2fs = cur_obs.jones_hwp_solver[idet]["2f"]
 
                             jones_methods.integrate_inband_atd_ata_for_one_detector(
                                 ata=self.ata,
@@ -689,9 +707,8 @@ class HwpSys:
                                 band=self.cmb2bb,
                                 j0f_solver=j0fs,
                                 j2f_solver=j2fs,
-                                j4f_solver=j4fs,
-                                pixel_ind=pix,
-                                theta=np.array(cur_hwp_angle, dtype=np.float64),
+                                pixel_ind=pix_out,
+                                rho=np.array(cur_hwp_angle, dtype=np.float64),
                                 psi=np.array(psi, dtype=np.float64),
                                 phi=phi,
                                 cos2Xi2Phi=cos2Xi2Phi,
@@ -704,30 +721,22 @@ class HwpSys:
                                 ata=self.ata,
                                 atd=self.atd,
                                 tod=tod,
-                                m0f_solver=cur_det.mueller_hwp_solver["0f"],
-                                m2f_solver=cur_det.mueller_hwp_solver["2f"],
-                                m4f_solver=cur_det.mueller_hwp_solver["4f"],
-                                pixel_ind=pix,
-                                theta=np.array(cur_hwp_angle, dtype=np.float64),
+                                m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
+                                m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
+                                m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
+                                pixel_ind=pix_out,
+                                rho=np.array(cur_hwp_angle, dtype=np.float64),
                                 psi=np.array(psi, dtype=np.float64),
                                 phi=phi,
                                 cos2Xi2Phi=cos2Xi2Phi,
                                 sin2Xi2Phi=sin2Xi2Phi,
+                                phases_2f=self.mueller_phases["2f"],
+                                phases_4f=self.mueller_phases["4f"],
                             )
 
                         elif self.mueller_or_jones == "jones":
-                            j0fs = cur_det.jones_hwp_solver["0f"]
-                            j2fs = cur_det.jones_hwp_solver["2f"]
-                            j4fs = cur_det.jones_hwp_solver["4f"]
-
-                            # print(cur_det.jones_hwp)
-
-                            j0fs, j2fs, j4fs = extract_deltas(
-                                j0fs, j2fs, j4fs, self.integrate_in_band_solver
-                            )
-                            j0fs, j2fs, j4fs = jones_complex_to_polar(
-                                j0fs, j2fs, j4fs, self.integrate_in_band_solver
-                            )
+                            j0fs = cur_obs.jones_hwp_solver[idet]["0f"]
+                            j2fs = cur_obs.jones_hwp_solver[idet]["2f"]
 
                             jones_methods.compute_ata_atd_for_one_detector(
                                 ata=self.ata,
@@ -735,20 +744,21 @@ class HwpSys:
                                 tod=tod,
                                 j0f_solver=j0fs,
                                 j2f_solver=j2fs,
-                                j4f_solver=j4fs,
-                                pixel_ind=pix,
-                                theta=np.array(cur_hwp_angle, dtype=np.float64),
+                                pixel_ind=pix_out,
+                                rho=np.array(cur_hwp_angle, dtype=np.float64),
                                 psi=np.array(psi, dtype=np.float64),
                                 phi=phi,
                                 cos2Xi2Phi=cos2Xi2Phi,
                                 sin2Xi2Phi=sin2Xi2Phi,
                             )
 
-        del (pix, self.maps)
-        if not save_tod:
-            del tod
+                cur_obs.tod[idet] = tod
 
-        return
+        if self.interpolation in ["", None]:
+            del pix
+        del input_T, input_Q, input_U
+        if not save_tod:
+            del cur_obs.tod
 
     def make_map(self, observations):
         """It generates "on the fly" map. This option is only availabe if
@@ -763,9 +773,9 @@ class HwpSys:
             map (float): rebinned T,Q,U maps
         """
 
-        assert (
-            self.build_map_on_the_fly
-        ), "make_map available only with build_map_on_the_fly option activated"
+        assert self.build_map_on_the_fly, (
+            "make_map available only with build_map_on_the_fly option activated"
+        )
         # from mapping.py
         if all([obs.comm is None for obs in observations]) or not mpi.MPI_ENABLED:
             # Serial call
@@ -776,8 +786,8 @@ class HwpSys:
                 for i in range(len(observations) - 1)
             ]
         ):
-            self.atd = self.comm.allreduce(self.atd, mpi.MPI.SUM)
-            self.ata = self.comm.allreduce(self.ata, mpi.MPI.SUM)
+            self.comm.Allreduce(mpi.MPI.IN_PLACE, self.atd, mpi.MPI.SUM)
+            self.comm.Allreduce(mpi.MPI.IN_PLACE, self.ata, mpi.MPI.SUM)
         else:
             raise NotImplementedError(
                 "All observations must be distributed over the same MPI groups"
@@ -790,5 +800,5 @@ class HwpSys:
         cond = np.linalg.cond(self.ata)
         res = np.full_like(self.atd, hp.UNSEEN)
         mask = cond < COND_THRESHOLD
-        res[mask] = np.linalg.solve(self.ata, self.atd)
+        res[mask] = np.linalg.solve(self.ata[mask], self.atd[mask])
         return res.T

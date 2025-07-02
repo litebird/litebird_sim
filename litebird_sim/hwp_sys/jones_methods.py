@@ -1,12 +1,13 @@
 # -*- encoding: utf-8 -*-
 import numpy as np
 from numba import njit, prange
-from common import (
+from .common import (
     compute_signal_for_one_sample,
     compute_TQUsolver_for_one_sample,
     integrate_inband_TQUsolver_for_one_sample,
     integrate_inband_signal_for_one_sample,
 )
+from ..hwp_diff_emiss import compute_2f_for_one_sample
 
 
 ################################################################
@@ -14,62 +15,97 @@ from common import (
 ################################################################
 
 
-@njit(parallel=False)
+@njit(parallel=True)
 def compute_signal_for_one_detector(
-    tod_det, pixel_ind, j0f, j2f, j4f, theta, psi, maps, cos2Xi2Phi, sin2Xi2Phi, phi
+    tod_det,
+    j0f,
+    j2f,
+    rho,
+    psi,
+    mapT,
+    mapQ,
+    mapU,
+    cos2Xi2Phi,
+    sin2Xi2Phi,
+    phi,
+    apply_non_linearity,
+    g_one_over_k,
+    add_2f_hwpss,
+    amplitude_2f_k,
 ):
     """
     Single-frequency case: compute the signal for a single detector,
     looping over (time) samples.
     """
     for i in prange(len(tod_det)):
-        alpha = theta[i] - psi[i] - phi
-        deltas = np.zeros((2, 2), dtype=np.float64)
+        alpha = rho[i] - phi
+        deltas = np.zeros((2, 2))
         for x in range(2):
             for y in range(2):
-                deltas[x, y] = (
-                    j0f[x][y][0]
-                    + j2f[x][y][0] * np.cos(2 * alpha + 2 * j2f[x][y][1])
-                    + j4f[x][y][0] * np.cos(4 * alpha + 4 * j4f[x][y][1])
+                deltas[x, y] = np.abs(j0f[x, y]) + np.abs(j2f[x, y]) * np.cos(
+                    2 * alpha + 2 * np.angle(j2f[x, y])
                 )
 
-        delta_11, delta_12, delta_21, delta_22 = (
-            deltas[0, 0],
-            deltas[0, 1],
-            deltas[1, 0],
-            deltas[1, 1],
-        )
+        mII_hwp = deltas[0, 0] - deltas[1, 1] + 1
+        mQI_hwp = deltas[0, 0] + deltas[0, 1]
+        mUI_hwp = deltas[1, 0] - deltas[0, 1]
+        mIQ_hwp = deltas[0, 0] + deltas[0, 1]
+        mIU_hwp = deltas[0, 1] - deltas[1, 0]
+        mQQ_hwp = deltas[0, 1] - deltas[1, 1] + 1
+        mUU_hwp = deltas[1, 1] + deltas[0, 0] - 1
+        mUQ_hwp = deltas[0, 1] + deltas[1, 0]
+        mQU_hwp = deltas[0, 1] + deltas[1, 0]
 
         tod_det[i] += compute_signal_for_one_sample(
-            T=maps[0, pixel_ind[i]],
-            Q=maps[1, pixel_ind[i]],
-            U=maps[2, pixel_ind[i]],
-            mII=delta_11 - delta_22 + 1,
-            mQI=delta_11 + delta_12,
-            mUI=delta_21 - delta_12,
-            mIQ=delta_11 + delta_12,
-            mIU=delta_12 - delta_21,
-            mQQ=delta_12 - delta_22 + 1,
-            mUU=delta_22 + delta_11 - 1,
-            mUQ=delta_12 + delta_21,
-            mQU=delta_12 + delta_21,
+            T=mapT[i],
+            Q=mapQ[i],
+            U=mapU[i],
+            mII=mII_hwp,
+            mIQ=mIQ_hwp * np.cos(2 * alpha) + mIU_hwp * np.sin(2 * alpha),
+            mIU=mIU_hwp * np.cos(2 * alpha) - mIQ_hwp * np.sin(2 * alpha),
+            mQI=mQI_hwp * np.cos(2 * alpha) + mUI_hwp * np.sin(2 * alpha),
+            mQQ=np.cos(2 * alpha)
+            * (mQQ_hwp * np.cos(2 * alpha) + mUQ_hwp * np.sin(2 * alpha))
+            + np.sin(2 * alpha)
+            * (mQU_hwp * np.cos(2 * alpha) + mUU_hwp * np.sin(2 * alpha)),
+            mQU=-(
+                np.cos(2 * alpha)
+                * (mQU_hwp * np.cos(2 * alpha) + mUU_hwp * np.sin(2 * alpha))
+                - np.sin(2 * alpha)
+                * (mQQ_hwp * np.cos(2 * alpha) + mUQ_hwp * np.sin(2 * alpha))
+            ),
+            mUI=mUI_hwp * np.cos(2 * alpha) - mQI_hwp * np.sin(2 * alpha),
+            mUQ=-(
+                np.cos(2 * alpha)
+                * (mUQ_hwp * np.cos(2 * alpha) - mQQ_hwp * np.sin(2 * alpha))
+                + np.sin(2 * alpha)
+                * (mUU_hwp * np.cos(2 * alpha) - mQU_hwp * np.sin(2 * alpha))
+            ),
+            mUU=np.cos(2 * alpha)
+            * (mUU_hwp * np.cos(2 * alpha) - mQU_hwp * np.sin(2 * alpha))
+            - np.sin(2 * alpha)
+            * (mUQ_hwp * np.cos(2 * alpha) - mQQ_hwp * np.sin(2 * alpha)),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
         )
 
+        if add_2f_hwpss:
+            tod_det[i] += compute_2f_for_one_sample(rho[i], amplitude_2f_k)
+        if apply_non_linearity:
+            tod_det[i] += g_one_over_k * tod_det[i] ** 2
 
-@njit(parallel=False)
+
+@njit
 def compute_ata_atd_for_one_detector(
     ata,
     atd,
     tod,
     j0f_solver,
     j2f_solver,
-    j4f_solver,
     pixel_ind,
-    theta,
+    rho,
     psi,
     phi,
     cos2Xi2Phi,
@@ -81,33 +117,50 @@ def compute_ata_atd_for_one_detector(
     """
 
     for i in prange(len(tod)):
-        alpha = theta[i] - psi[i] - phi
-        deltas = np.zeros((2, 2), dtype=np.float64)
+        alpha = rho[i] - phi
+        deltas = np.zeros((2, 2))
         for x in range(2):
             for y in range(2):
-                deltas[x, y] = (
-                    j0f_solver[x][y][0]
-                    + j2f_solver[x][y][0] * np.cos(2 * alpha + 2 * j2f_solver[x][y][1])
-                    + j4f_solver[x][y][0] * np.cos(4 * alpha + 4 * j4f_solver[x][y][1])
-                )
+                deltas[x, y] = np.abs(j0f_solver[x, y]) + np.abs(
+                    j2f_solver[x, y]
+                ) * np.cos(2 * alpha + 2 * np.angle(j2f_solver[x, y]))
 
-        delta_11, delta_12, delta_21, delta_22 = (
-            deltas[0, 0],
-            deltas[0, 1],
-            deltas[1, 0],
-            deltas[1, 1],
-        )
+        mIIs_hwp = deltas[0, 0] - deltas[1, 1] + 1
+        mQIs_hwp = deltas[0, 0] + deltas[0, 1]
+        mUIs_hwp = deltas[1, 0] - deltas[0, 1]
+        mIQs_hwp = deltas[0, 0] + deltas[0, 1]
+        mIUs_hwp = deltas[0, 1] - deltas[1, 0]
+        mQQs_hwp = deltas[0, 1] - deltas[1, 1] + 1
+        mUUs_hwp = deltas[1, 1] + deltas[0, 0] - 1
+        mUQs_hwp = deltas[0, 1] + deltas[1, 0]
+        mQUs_hwp = deltas[0, 1] + deltas[1, 0]
 
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
-            mIIs=delta_11 - delta_22 + 1,
-            mQIs=delta_11 + delta_12,
-            mUIs=delta_21 - delta_12,
-            mIQs=delta_11 + delta_12,
-            mIUs=delta_12 - delta_21,
-            mQQs=delta_12 - delta_22 + 1,
-            mUUs=delta_22 + delta_11 - 1,
-            mUQs=delta_12 + delta_21,
-            mQUs=delta_12 + delta_21,
+            mIIs=mIIs_hwp,
+            mIQs=mIQs_hwp * np.cos(2 * alpha) + mIUs_hwp * np.sin(2 * alpha),
+            mIUs=mIUs_hwp * np.cos(2 * alpha) - mIQs_hwp * np.sin(2 * alpha),
+            mQIs=mQIs_hwp * np.cos(2 * alpha) + mUIs_hwp * np.sin(2 * alpha),
+            mQQs=np.cos(2 * alpha)
+            * (mQQs_hwp * np.cos(2 * alpha) + mUQs_hwp * np.sin(2 * alpha))
+            + np.sin(2 * alpha)
+            * (mQUs_hwp * np.cos(2 * alpha) + mUUs_hwp * np.sin(2 * alpha)),
+            mQUs=-(
+                np.cos(2 * alpha)
+                * (mQUs_hwp * np.cos(2 * alpha) + mUUs_hwp * np.sin(2 * alpha))
+                - np.sin(2 * alpha)
+                * (mQQs_hwp * np.cos(2 * alpha) + mUQs_hwp * np.sin(2 * alpha))
+            ),
+            mUIs=mUIs_hwp * np.cos(2 * alpha) - mQIs_hwp * np.sin(2 * alpha),
+            mUQs=-(
+                np.cos(2 * alpha)
+                * (mUQs_hwp * np.cos(2 * alpha) - mQQs_hwp * np.sin(2 * alpha))
+                + np.sin(2 * alpha)
+                * (mUUs_hwp * np.cos(2 * alpha) - mQUs_hwp * np.sin(2 * alpha))
+            ),
+            mUUs=np.cos(2 * alpha)
+            * (mUUs_hwp * np.cos(2 * alpha) - mQUs_hwp * np.sin(2 * alpha))
+            - np.sin(2 * alpha)
+            * (mUQs_hwp * np.cos(2 * alpha) - mQQs_hwp * np.sin(2 * alpha)),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -131,16 +184,15 @@ def compute_ata_atd_for_one_detector(
 ################################################################
 
 
-@njit(parallel=False)
+@njit
 def integrate_inband_signal_for_one_detector(
     tod_det,
     freqs,
     band,
     j0f,
     j2f,
-    j4f,
     pixel_ind,
-    theta,
+    rho,
     psi,
     maps,
     phi,
@@ -152,14 +204,12 @@ def integrate_inband_signal_for_one_detector(
     looping over (time) samples.
     """
     for i in range(len(tod_det)):
-        alpha = theta[i] - psi[i] - phi
+        alpha = rho[i] - phi
         deltas = np.zeros((2, 2), dtype=np.float64)
         for x in range(2):
             for y in range(2):
-                deltas[x, y] = (
-                    j0f[:][x][y][0]
-                    + j2f[:][x][y][0] * np.cos(2 * alpha + 2 * j2f[:][x][y][1])
-                    + j4f[:][x][y][0] * np.cos(4 * alpha + 4 * j4f[:][x][y][1])
+                deltas[x, y] = j0f[:][x][y][0] + j2f[:][x][y][0] * np.cos(
+                    2 * alpha + 2 * j2f[:][x][y][1]
                 )
 
         delta_11, delta_12, delta_21, delta_22 = (
@@ -189,7 +239,7 @@ def integrate_inband_signal_for_one_detector(
         )
 
 
-@njit(parallel=False)
+@njit
 def integrate_inband_atd_ata_for_one_detector(
     atd,
     ata,
@@ -198,9 +248,8 @@ def integrate_inband_atd_ata_for_one_detector(
     band,
     j0f_solver,
     j2f_solver,
-    j4f_solver,
     pixel_ind,
-    theta,
+    rho,
     psi,
     phi,
     cos2Xi2Phi,
@@ -212,16 +261,12 @@ def integrate_inband_atd_ata_for_one_detector(
     """
 
     for i in range(len(tod)):
-        alpha = theta[i] - psi[i] - phi
+        alpha = rho[i] - phi
         deltas = np.zeros((2, 2), dtype=np.float64)
         for x in range(2):
             for y in range(2):
-                deltas[x, y] = (
-                    j0f_solver[:][x][y][0]
-                    + j2f_solver[:][x][y][0]
-                    * np.cos(2 * alpha + 2 * j2f_solver[:][x][y][1])
-                    + j4f_solver[:][x][y][0]
-                    * np.cos(4 * alpha + 4 * j4f_solver[:][x][y][1])
+                deltas[x, y] = j0f_solver[:][x][y][0] + j2f_solver[:][x][y][0] * np.cos(
+                    2 * alpha + 2 * j2f_solver[:][x][y][1]
                 )
 
         delta_11, delta_12, delta_21, delta_22 = (
