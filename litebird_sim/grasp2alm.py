@@ -210,10 +210,10 @@ class BeamPolar:
 
     def to_map(
         self,
-        nside,
-        nstokes=3,
-        outOftheta_val=UNSEEN_PIXEL_VALUE,
-        interp_method="linear",
+        nside: int,
+        nstokes: int = 3,
+        outOftheta_val: float = UNSEEN_PIXEL_VALUE,
+        interp_method: str = "linear",
     ) -> BeamHealpixMap:
         """Convert the :class:`.BeamPolar` to a :class:`.BeamMap`.
 
@@ -654,7 +654,7 @@ class BeamCut:
                         self.amp[1, i, cnt] = complex(tmp3, tmp4)
                     cnt += 1
 
-    def to_polar(self, copol_axis="x") -> BeamPolar:
+    def to_polar(self, copol_axis: str = "x") -> BeamPolar:
         """Converts beam in "cut" format to Stokes parameters
         on a polar grid.  Assumes that cuts are evenly spaced
         in theta. The value of copol specifies the alignment
@@ -726,7 +726,7 @@ def grasp2alm(
     mmax: int | None = None,
     epsilon: float = 1e-8,
     max_num_of_iterations: int = 20,
-):
+) -> np.ndarray:
     """Convert a GRASP file to a spherical harmonic coefficients of beam map.
 
     Args:
