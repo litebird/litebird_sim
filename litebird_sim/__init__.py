@@ -53,6 +53,13 @@ from .gaindrifts import (
     apply_gaindrift_to_tod,
     apply_gaindrift_to_observations,
 )
+from .grasp2alm import (
+    BeamCut,
+    BeamGrid,
+    BeamHealpixMap,
+    BeamPolar,
+    grasp2alm,
+)
 from .healpix import (
     UNSEEN_PIXEL_VALUE,
     nside_to_npix,
@@ -227,6 +234,12 @@ __all__ = [
     "FreqChannelInfo",
     "InstrumentInfo",
     "detector_list_from_parameters",
+    # grasp2alm.py
+    "BeamCut",
+    "BeamGrid",
+    "BeamHealpixMap",
+    "BeamPolar",
+    "grasp2alm",
     # hwp.py
     "HWP",
     "IdealHWP",
