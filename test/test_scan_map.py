@@ -65,6 +65,7 @@ def test_scan_map_no_interpolation():
         net_ukrts=net,
         bandcenter_ghz=100.0,
         quat=[0.0, 0.0, 0.0, 1.0],
+        pol_angle_rad=0.0,
     )
 
     detB = lbs.DetectorInfo(
@@ -72,7 +73,8 @@ def test_scan_map_no_interpolation():
         sampling_rate_hz=sampling_hz,
         net_ukrts=net,
         bandcenter_ghz=100.0,
-        quat=[0.0, 0.0, 1.0 / np.sqrt(2.0), 1.0 / np.sqrt(2.0)],
+        quat=[0.0, 0.0, 0.0, 1.0],
+        pol_angle_rad=np.pi / 2.0,
     )
 
     np.random.seed(seed=123_456_789)
@@ -114,10 +116,11 @@ def test_scan_map_no_interpolation():
 
     for idet in range(obs2.n_detectors):
         pixind = hpx.ang2pix(pointings[idet, :, 0:2])
+        angle = 2 * pointings[idet, :, 2] - 2 * obs2.pol_angle_rad[idet] + 4 * hwp_angle
         obs2.tod[idet, :] = (
             maps[0, pixind]
-            + np.cos(2 * pointings[idet, :, 2] + 4 * hwp_angle) * maps[1, pixind]
-            + np.sin(2 * pointings[idet, :, 2] + 4 * hwp_angle) * maps[2, pixind]
+            + np.cos(angle) * maps[1, pixind]
+            + np.sin(angle) * maps[2, pixind]
         )
 
     out_map2 = lbs.make_binned_map(
@@ -165,7 +168,7 @@ def test_scan_map_no_interpolation():
     lbs.scan_map_in_observations(
         observations=obs1,
         maps=in_map_G,
-        input_map_in_galactic=False,
+        input_map_in_galactic=True,
     )
 
     out_map1 = lbs.make_binned_map(nside=nside, observations=obs1)
@@ -255,7 +258,6 @@ def test_scan_map_linear_interpolation():
     # Just check that the code does not crash
     lbs.scan_map_in_observations(
         observations=obs1,
-        pointings=pointings,
         maps=in_map,
         input_map_in_galactic=False,
         interpolation="linear",

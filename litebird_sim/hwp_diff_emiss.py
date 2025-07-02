@@ -8,26 +8,21 @@ from numbers import Number
 
 from .observations import Observation
 from .hwp import HWP
-from .pointings import get_hwp_angle
-
-
-"""def convert_pW_to_K(power_pW, NET, NEP):
-    temperature_K = power_pW * NET*1e-6/NEP*1e-18/sqrt(2) 
-    return(temperature_K)"""  # we could use this if we prefer having IMo quantities in pW
+from .pointings_in_obs import _get_hwp_angle
 
 
 # We calculate the additive signal coming from hwp harmonics.
 # here we calculate 2f directly.
 @njit
-def compute_2f_for_one_sample(angle_rad, amplitude_k, monopole_k):
-    return amplitude_k * np.cos(2 * angle_rad) + monopole_k
+def compute_2f_for_one_sample(angle_rad, amplitude_k):
+    return amplitude_k * np.cos(2 * angle_rad)
 
 
 @njit(parallel=True)
-def add_2f_for_one_detector(tod_det, angle_det_rad, amplitude_k, monopole_k):
+def add_2f_for_one_detector(tod_det, angle_det_rad, amplitude_k):
     for i in prange(len(tod_det)):
         tod_det[i] += compute_2f_for_one_sample(
-            angle_rad=angle_det_rad[i], amplitude_k=amplitude_k, monopole_k=monopole_k
+            angle_rad=angle_det_rad[i], amplitude_k=amplitude_k
         )
 
 
@@ -35,14 +30,12 @@ def add_2f(
     tod,
     hwp_angle,
     amplitude_2f_k: float,
-    optical_power_k: float,
 ):
     """Add the HWP differential emission to some time-ordered data
 
     This functions modifies the values in `tod` by adding the contribution of the HWP
     synchronous signal coming from differential emission. The `amplitude_2f_k` argument must be
-    a N_dets array containing the amplitude of the HWPSS. The `optical_power_k` argument must have
-    the same size and contain the value of the nominal optical power for the considered frequency channel."""
+    a N_dets array containing the amplitude of the HWPSS."""
 
     assert len(tod.shape) == 2
     num_of_dets = tod.shape[0]
@@ -50,18 +43,13 @@ def add_2f(
     if isinstance(amplitude_2f_k, Number):
         amplitude_2f_k = np.array([amplitude_2f_k] * num_of_dets)
 
-    if isinstance(optical_power_k, Number):
-        optical_power_k = np.array([optical_power_k] * num_of_dets)
-
     assert len(amplitude_2f_k) == num_of_dets
-    assert len(optical_power_k) == num_of_dets
 
     for detector_idx in range(tod.shape[0]):
         add_2f_for_one_detector(
             tod_det=tod[detector_idx],
             angle_det_rad=hwp_angle,
             amplitude_k=amplitude_2f_k[detector_idx],
-            monopole_k=optical_power_k[detector_idx],
         )
 
 
@@ -70,7 +58,6 @@ def add_2f_to_observations(
     hwp: Optional[HWP] = None,
     component: str = "tod",
     amplitude_2f_k: Union[float, None] = None,
-    optical_power_k: Union[float, None] = None,
 ):
     """Add the HWP differential emission to some time-ordered data
 
@@ -99,20 +86,10 @@ def add_2f_to_observations(
         if amplitude_2f_k is None:
             amplitude_2f_k = cur_obs.amplitude_2f_k
 
-        if optical_power_k is None:
-            optical_power_k = cur_obs.optical_power_k
-
-        if hwp is None:
-            if hasattr(cur_obs, "hwp_angle"):
-                hwp_angle = cur_obs.hwp_angle
-            else:
-                hwp_angle = None
-        else:
-            hwp_angle = get_hwp_angle(cur_obs, hwp)
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp)
 
         add_2f(
             tod=getattr(cur_obs, component),
             hwp_angle=hwp_angle,
             amplitude_2f_k=amplitude_2f_k,
-            optical_power_k=optical_power_k,
         )

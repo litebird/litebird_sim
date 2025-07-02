@@ -10,11 +10,16 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-13]
         mpi: ["none", openmpi] # mpich
-        python: [3.9, 3.12]
+        python: ["3.10", "3.13"]
         exclude:
           - os: macos-latest
             mpi: mpich
-            python: 3.9
+            python: "3.10"
+
+    # Only run tests if there is no [skipci] or [skip ci] in the commit message
+    if: |
+      !startsWith(github.event.head_commit.message, '[skip ci]') &&
+      !startsWith(github.event.head_commit.message, '[skipci]')
 
     steps:
       - name: Checkout
@@ -48,35 +53,26 @@ jobs:
       - name: Install basic dependencies (MPI, FFTW, poetry, IMO)
         run: |
           ./bin/install-deps.sh ${{ matrix.mpi }}
-          pip install poetry==1.8.5
+          pip install poetry==2.1 poetry-plugin-export
           mkdir -p $HOME/.config/litebird_imo
           echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
       - name: Install litebird_sim dependencies
         run: |
-          EXTRAS=""
-          if [ "${{ matrix.mpi }}" != "none" ]; then
-            EXTRAS="$EXTRAS -E mpi"
-          fi
-          poetry export --without-hashes $EXTRAS -o requirements.txt
+          poetry export --without-hashes -o requirements.txt
           pip install --upgrade pip
           pip install -r requirements.txt
+          pip install pytest-cov
+          if [ "${{ matrix.mpi }}" != "none" ]; then
+            pip install mpi4py
+            if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+              git clone --recursive https://github.com/anand-avinash/BrahMap.git
+              (cd BrahMap && pip install .)
+              rm -rf BrahMap
+            fi
+          fi
         env:
           DUCC0_OPTIMIZATION: none
-
-      - name: Install TOAST2
-        run: |
-          if [ ${{ matrix.python }} == 3.9 ]; then
-            pip install toast
-          fi
-
-      - name: Enable rich traceback
-        continue-on-error: true
-        run: |
-          export DESTPATH="$(poetry env info -p)/lib/python${{ matrix.python }}/site-packages/sitecustomize.py"
-          echo -e "from rich.traceback import install\ninstall(show_locals=True)\n" > "$DESTPATH"
-          echo "$DESTPATH"
-          cat "$DESTPATH"
 
       - name: Tests
         run: bash ./bin/run_tests.sh
@@ -84,10 +80,12 @@ jobs:
       - name: Tests MPICH
         if: ${{ matrix.mpi == 'mpich' }}
         run: |
-            for proc in 1 5 9 ; do
+            for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
+            echo "Running MPI test ($MPI) with 4 processes"
+            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 python3 ./test/test_mpi_n4.py
             done
 
       - name: Tests OpenMPI
@@ -97,4 +95,12 @@ jobs:
               echo "Running MPI test ($MPI) with $proc processes"
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
+            echo "Running MPI test ($MPI) with 4 processes"
+            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 python3 ./test/test_mpi_n4.py
             done
+
+      - name: Coverage comment
+        uses: py-cov-action/python-coverage-comment-action@v3
+        if: runner.os == 'Linux'
+        with:
+          GITHUB_TOKEN: ${{ github.token }}

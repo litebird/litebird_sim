@@ -59,7 +59,7 @@ def test_hwp_sys(interpolation, nside_out):
                 "pointing_theta_phi_psi_deg": [0, 0, 0],
             }
         )
-
+        
         scan_strat = lbs.SpinningScanningStrategy(
             spin_sun_angle_rad=np.deg2rad(45.0),
             precession_rate_hz=1.0 / (60.0 * 192.348),
@@ -105,7 +105,7 @@ def test_hwp_sys(interpolation, nside_out):
             nside=nside,
             units="K_CMB",
         )
-
+        
         if rank == 0:
             mbs = lbs.Mbs(
                 simulation=sim, parameters=mbs_params, channel_list=[channelinfo]

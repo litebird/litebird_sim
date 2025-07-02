@@ -135,7 +135,7 @@ class DetectorInfoViewer:
     ):
         """Generate a text file with the selected detector list.
         The NET on detector is scaled by the`scaling_factor`:
-        :math:`\sqrt{\frac{duration_yr}{3} \times \frac{N_{\rm dets}^{\rm e2e}}{N_{\rm dets}^{\rm ch}}}`
+        :math:`\\sqrt{\\frac{duration_yr}{3} \\times \\frac{N_{\\rm dets}^{\\rm e2e}}{N_{\\rm dets}^{\\rm ch}}}`
 
         Args:
             filename (str): The name of the file to be created.
@@ -228,7 +228,7 @@ class DetectorInfoViewer:
             IMO_ROOT_PATH = self.extract_location_from_toml(CONFIG_FILE_PATH)
             imo = Imo(flatfile_location=os.path.join(IMO_ROOT_PATH, "schema.json"))
             versions = list(imo.imoobject.releases.keys())
-            versions_with_idx = [f"({i+1}). {ver}" for i, ver in enumerate(versions)]
+            versions_with_idx = [f"({i + 1}). {ver}" for i, ver in enumerate(versions)]
             print(
                 f"[green]Available IMO versions:[/green] [cyan]{versions_with_idx}[/cyan]"
             )
@@ -242,7 +242,7 @@ class DetectorInfoViewer:
         channel_list = inst_info.metadata["channel_names"]
         # add index to the channel list
         channel_list_with_idx = [
-            f"({i+1}). {channel}" for i, channel in enumerate(channel_list)
+            f"({i + 1}). {channel}" for i, channel in enumerate(channel_list)
         ]
 
         print(

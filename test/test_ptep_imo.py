@@ -33,7 +33,7 @@ def test_detector_in_mock_imo():
     assert detector.pixtype == "HP3"
     assert detector.channel == "H3-402"
     assert detector.fwhm_arcmin == 17.9
-    assert detector.ellipticity == 0.0
+    assert detector.ellipticity == 1.0
     assert detector.bandcenter_ghz == 402.0
     assert detector.bandwidth_ghz == 92.0
     assert detector.sampling_rate_hz == 31.0

@@ -1,14 +1,19 @@
 # -*- encoding: utf-8 -*-
 
+import importlib
 import logging as log
 from pathlib import Path
-from uuid import UUID
 from typing import Union, List
-from libinsdb import LocalInsDb, RemoteInsDb, Entity, Quantity, DataFile
-import tomlkit
+from uuid import UUID
 
+import tomlkit
+from libinsdb import LocalInsDb, RemoteInsDb, Entity, Quantity, DataFile
 
 CONFIG_FILE_PATH = Path.home() / ".config" / "litebird_imo" / "imo.toml"
+
+PTEP_IMO_LOCATION = (
+    importlib.resources.files("litebird_sim.default_imo") / "schema.json.gz"
+)
 
 
 class Imo:
@@ -28,9 +33,7 @@ class Imo:
                 with CONFIG_FILE_PATH.open("rt") as inpf:
                     config = tomlkit.loads("".join(inpf.readlines()))
 
-                self.imoobject = LocalInsDb(
-                    Path(__file__).parent.parent.parent / "default_imo"
-                )
+                self.imoobject = LocalInsDb(PTEP_IMO_LOCATION)
 
                 if load_defaults:
                     for cur_imo_definition in config["repositories"]:

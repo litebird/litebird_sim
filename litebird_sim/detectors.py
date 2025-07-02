@@ -143,12 +143,14 @@ class DetectorInfo:
         - pol_efficiency (float): polarization efficiency of the detector,
              defined as γ of eq. 15 of astro-ph/0606606. The default is 1.
 
-        - mueller_hwp (Union[None, np.ndarray]): mueller matrix of the HWP.
-             The default is None (i.e. no HWP)
+        - mueller_hwp (Union[None, dict]): Mueller matrix of the HWP, expanded
+             into three matrices, corresponding to the harmonics of the HWP
+             rotation frequency. The default is None (i.e. no HWP)
 
-        - mueller_hwp_solver (Union[None, np.ndarray]): mueller matrix of the HWP
-             for the mapmaking. It allows to have a non-ideal HWP in the solver.
-             The default is None (i.e. no HWP)
+        - mueller_hwp_solver (Union[None, dict]): mueller matrix of the HWP
+             for the mapmaking, expanded into three matrices, corresponding
+             to the harmonics of the HWP rotation frequency. It allows to
+             have a non-ideal HWP in the solver. The default is None (i.e. no HWP)
 
         - pointing_theta_phi_psi_deg (Union[None, np.ndarray]): The angles θ, φ,
              and ψ (colatitude, longitude, and orientation) of the pointing direction,
@@ -183,10 +185,12 @@ class DetectorInfo:
     quat: Any = None
     pol_angle_rad: float = 0.0
     pol_efficiency: float = 1.0
-    mueller_hwp: Union[None, np.ndarray] = None
-    mueller_hwp_solver: Union[None, np.ndarray] = None
+    mueller_hwp: Union[None, dict] = None
+    mueller_hwp_solver: Union[None, dict] = None
     pointing_theta_phi_psi_deg: Union[None, np.ndarray] = None
     pointing_u_v: Union[None, np.ndarray] = None
+    g_one_over_k: float = 0.0
+    amplitude_2f_k: float = 0.0
 
     def __post_init__(self):
         if self.quat is None:
@@ -196,11 +200,6 @@ class DetectorInfo:
 
         if isinstance(self.band_freqs_ghz, np.ndarray):
             assert len(self.band_freqs_ghz) == len(self.band_weights)
-
-        if self.mueller_hwp is None:
-            self.has_hwp = False
-        else:
-            self.has_hwp = True
 
     @staticmethod
     def from_dict(dictionary: Dict[str, Any]):
@@ -313,6 +312,7 @@ class FreqChannelInfo:
     pol_sensitivity_channel_ukarcmin: float = 0.0
     sampling_rate_hz: float = 0.0
     fwhm_arcmin: float = 0.0
+    ellipticity: float = 1.0
     fknee_mhz: float = 0.0
     fmin_hz: float = 1e-5
     alpha: float = 1.0
@@ -399,6 +399,7 @@ class FreqChannelInfo:
             name=name,
             channel=self.channel,
             fwhm_arcmin=self.fwhm_arcmin,
+            ellipticity=self.ellipticity,
             net_ukrts=self.net_detector_ukrts,
             fknee_mhz=self.fknee_mhz,
             fmin_hz=self.fmin_hz,

@@ -1,6 +1,8 @@
 # -*- encoding: utf-8 -*-
 
 import numpy as np
+import numpy.testing as nptest
+
 import litebird_sim as lbs
 
 x = np.array([1.0, 0.0, 0.0])
@@ -12,44 +14,44 @@ def test_rotation_handedness():
     result = np.empty(3)
 
     lbs.rotate_vector(result, *lbs.quat_rotation_x(np.pi / 2), y)
-    assert np.allclose(result, z)
+    nptest.assert_allclose(result, z, atol=1e-15)
     lbs.rotate_vector(result, *lbs.quat_rotation_x(np.pi / 2), z)
-    assert np.allclose(result, -y)
+    nptest.assert_allclose(result, -y, atol=1e-15)
     lbs.rotate_vector(result, *lbs.quat_rotation_y(np.pi / 2), x)
-    assert np.allclose(result, -z)
+    nptest.assert_allclose(result, -z, atol=1e-15)
     lbs.rotate_vector(result, *lbs.quat_rotation_y(np.pi / 2), z)
-    assert np.allclose(result, x)
+    nptest.assert_allclose(result, x, atol=1e-15)
     lbs.rotate_vector(result, *lbs.quat_rotation_z(np.pi / 2), x)
-    assert np.allclose(result, y)
+    nptest.assert_allclose(result, y, atol=1e-15)
     lbs.rotate_vector(result, *lbs.quat_rotation_z(np.pi / 2), y)
-    assert np.allclose(result, -x)
+    nptest.assert_allclose(result, -x, atol=1e-15)
 
 
 def test_quat_multiply_and_rotations():
     # Simple composition of rotations
     quat = np.array(lbs.quat_rotation_x(np.pi / 3))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_x(2 * np.pi / 3)))
+    nptest.assert_allclose(quat, np.array(lbs.quat_rotation_x(2 * np.pi / 3)))
 
     quat = np.array(lbs.quat_rotation_y(np.pi / 3))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_y(2 * np.pi / 3)))
+    nptest.assert_allclose(quat, np.array(lbs.quat_rotation_y(2 * np.pi / 3)))
 
     quat = np.array(lbs.quat_rotation_z(np.pi / 3))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_z(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_z(2 * np.pi / 3)))
+    nptest.assert_allclose(quat, np.array(lbs.quat_rotation_z(2 * np.pi / 3)))
 
     quat = np.array(lbs.quat_rotation_x(np.pi / 3))
     lbs.quat_left_multiply(quat, *lbs.quat_rotation_x(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_x(2 * np.pi / 3)))
+    nptest.assert_allclose(quat, np.array(lbs.quat_rotation_x(2 * np.pi / 3)))
 
     quat = np.array(lbs.quat_rotation_y(np.pi / 3))
     lbs.quat_left_multiply(quat, *lbs.quat_rotation_y(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_y(2 * np.pi / 3)))
+    nptest.assert_allclose(quat, np.array(lbs.quat_rotation_y(2 * np.pi / 3)))
 
     quat = np.array(lbs.quat_rotation_z(np.pi / 3))
     lbs.quat_left_multiply(quat, *lbs.quat_rotation_z(np.pi / 3))
-    assert np.allclose(quat, np.array(lbs.quat_rotation_z(2 * np.pi / 3)))
+    nptest.assert_allclose(quat, np.array(lbs.quat_rotation_z(2 * np.pi / 3)))
 
     # Now we test more complex compositions
 
@@ -59,33 +61,33 @@ def test_quat_multiply_and_rotations():
     quat = np.array(lbs.quat_rotation_y(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
     lbs.rotate_vector(vec, *quat, y)
-    assert np.allclose(vec, x)
+    nptest.assert_allclose(vec, x, atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_z(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
     lbs.rotate_vector(vec, *quat, z)
-    assert np.allclose(vec, y)
+    nptest.assert_allclose(vec, y, atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_x(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
     lbs.rotate_vector(vec, *quat, x)
-    assert np.allclose(vec, y)
+    nptest.assert_allclose(vec, y, atol=1e-15)
 
     # Left multiplication
     quat = np.array(lbs.quat_rotation_y(np.pi / 2))
     lbs.quat_left_multiply(quat, *lbs.quat_rotation_z(np.pi / 2))
     lbs.rotate_vector(vec, *quat, z)
-    assert np.allclose(vec, y)
+    nptest.assert_allclose(vec, y, atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_z(np.pi / 2))
     lbs.quat_left_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
     lbs.rotate_vector(vec, *quat, y)
-    assert np.allclose(vec, z)
+    nptest.assert_allclose(vec, z, atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_z(np.pi / 2))
     lbs.quat_left_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
     lbs.rotate_vector(vec, *quat, x)
-    assert np.allclose(vec, z)
+    nptest.assert_allclose(vec, z, atol=1e-15)
 
 
 def test_quick_rotations():
@@ -94,17 +96,17 @@ def test_quick_rotations():
     quat = np.array(lbs.quat_rotation_z(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
     lbs.rotate_z_vector(vec, *quat)
-    assert np.allclose(vec, y)
+    nptest.assert_allclose(vec, y, atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_x(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
     lbs.rotate_x_vector(vec, *quat)
-    assert np.allclose(vec, y)
+    nptest.assert_allclose(vec, y, atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_y(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
     lbs.rotate_y_vector(vec, *quat)
-    assert np.allclose(vec, x)
+    nptest.assert_allclose(vec, x, atol=1e-15)
 
 
 def test_collective_rotations():
@@ -113,17 +115,17 @@ def test_collective_rotations():
     quat = np.array(lbs.quat_rotation_y(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
     lbs.all_rotate_vectors(vec, quat.reshape(1, 4), y.reshape(1, 3))
-    assert np.allclose(vec, x)
+    nptest.assert_allclose(vec, [x], atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_z(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
     lbs.all_rotate_vectors(vec, quat.reshape(1, 4), z.reshape(1, 3))
-    assert np.allclose(vec, y)
+    nptest.assert_allclose(vec, [y], atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_x(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
     lbs.all_rotate_vectors(vec, quat.reshape(1, 4), x.reshape(1, 3))
-    assert np.allclose(vec, y)
+    nptest.assert_allclose(vec, [y], atol=1e-15)
 
 
 def test_collective_quick_rotations():
@@ -132,17 +134,17 @@ def test_collective_quick_rotations():
     quat = np.array(lbs.quat_rotation_z(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
     lbs.all_rotate_z_vectors(vec, quat.reshape(1, 4))
-    assert np.allclose(vec, y)
+    nptest.assert_allclose(vec, [y], atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_x(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_y(np.pi / 2))
     lbs.all_rotate_x_vectors(vec, quat.reshape(1, 4))
-    assert np.allclose(vec, y)
+    nptest.assert_allclose(vec, [y], atol=1e-15)
 
     quat = np.array(lbs.quat_rotation_y(np.pi / 2))
     lbs.quat_right_multiply(quat, *lbs.quat_rotation_x(np.pi / 2))
     lbs.all_rotate_y_vectors(vec, quat.reshape(1, 4))
-    assert np.allclose(vec, x)
+    nptest.assert_allclose(vec, [x], atol=1e-15)
 
 
 def test_multiply_many_quaternions():
@@ -237,7 +239,7 @@ def test_quat_rotations():
     theta_rad_array = np.array([0.0, np.pi / 2, np.pi / 3])
 
     quat = lbs.quat_rotation(theta_rad, *z)
-    assert np.allclose(quat, np.array(lbs.quat_rotation_z(theta_rad)))
+    nptest.assert_allclose(quat, np.array(lbs.quat_rotation_z(theta_rad)))
 
     quat_matrix = lbs.quat_rotation_brdcast(theta_rad, vec_matrix)
     expected_quat = np.array(
@@ -247,22 +249,22 @@ def test_quat_rotations():
             np.array(lbs.quat_rotation_z(theta_rad)),
         ]
     )
-    assert np.allclose(quat_matrix, expected_quat)
+    nptest.assert_allclose(quat_matrix, expected_quat)
 
     quat_matrix = lbs.quat_rotation_x_brdcast(theta_rad_array)
     expected_quat = np.array(
         [np.array(lbs.quat_rotation_x(theta)) for theta in theta_rad_array]
     )
-    assert np.allclose(quat_matrix, expected_quat)
+    nptest.assert_allclose(quat_matrix, expected_quat)
 
     quat_matrix = lbs.quat_rotation_y_brdcast(theta_rad_array)
     expected_quat = np.array(
         [np.array(lbs.quat_rotation_y(theta)) for theta in theta_rad_array]
     )
-    assert np.allclose(quat_matrix, expected_quat)
+    nptest.assert_allclose(quat_matrix, expected_quat)
 
-    quat_matrix = lbs.quat_rotation_y_brdcast(theta_rad_array)
+    quat_matrix = lbs.quat_rotation_z_brdcast(theta_rad_array)
     expected_quat = np.array(
-        [np.array(lbs.quat_rotation_y(theta)) for theta in theta_rad_array]
+        [np.array(lbs.quat_rotation_z(theta)) for theta in theta_rad_array]
     )
-    assert np.allclose(quat_matrix, expected_quat)
+    nptest.assert_allclose(quat_matrix, expected_quat)

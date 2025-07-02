@@ -16,6 +16,37 @@ import toml
 import litebird_sim as lbs
 from litebird_sim import constants as c
 
+# Available foreground models
+FG_MODELS = [
+    "pysm_freefree_1",
+    "pysm_ame_1",
+    "pysm_ame_2",
+    "pysm_co_1",
+    "pysm_co_2",
+    "pysm_co_3",
+    "pysm_dust_0",
+    "pysm_dust_1",
+    "pysm_dust_2",
+    "pysm_dust_3",
+    "pysm_dust_4",
+    "pysm_dust_5",
+    "pysm_dust_6",
+    "pysm_dust_7",
+    "pysm_dust_8",
+    "pysm_dust_9",
+    "pysm_dust_10",
+    "pysm_dust_11",
+    "pysm_dust_12",
+    "pysm_synch_0",
+    "pysm_synch_1",
+    "pysm_synch_2",
+    "pysm_synch_3",
+    "pysm_synch_4",
+    "pysm_synch_5",
+    "pysm_synch_6",
+    "pysm_synch_7",
+]
+
 
 @dataclass
 class _InstrumentFreq:
@@ -195,8 +226,9 @@ class MbsParameters:
       The coefficients are computed through the Healpy routine `map2alm`,
       assuming `iter=0`. If you want unbeamed alms set ``gaussian_smooth=False``.
 
-    - ``lmax_alms`` (defuaul: ``4 x nside``): ℓ_max assumed in the a_ℓm computation
-      and in the rotation to ecliptic coordinates performed by `rotate_map_alms`
+    - ``lmax_alms`` (default: ``3 x nside - 1``): ℓ_max assumed in the a_ℓm
+      computation, in the generation of the CMB maps and in the rotation to
+      ecliptic coordinates performed by `rotate_map_alms`
 
     """
 
@@ -334,6 +366,10 @@ class Mbs:
         self.det_list = detector_list
         self.ch_list = channel_list
         self.pysm_units = u.Unit(self.params.units)
+
+        self.rotator = None
+        if self.params.maps_in_ecliptic:
+            self.rotator = hp.Rotator(coord=["G", "E"])
 
     def _parse_instrument_from_det_list(self):
         self.instrument = {}
@@ -511,10 +547,14 @@ class Mbs:
                         noise_map_split = np.random.randn(3, npix) * split_rms
                         noise_map += noise_map_split
                         file_name = (
-                            f"{chnl}_noise_SPLIT_{hm+1:04d}of{n_split:04d}"
+                            f"{chnl}_noise_SPLIT_{hm + 1:04d}of{n_split:04d}"
                             + f"_{nmc_str}_{file_str}.fits"
                         )
                         cur_map_path = nmc_output_directory / file_name
+                        if self.rotator is not None:
+                            noise_map_split = self.rotator.rotate_map_alms(
+                                noise_map_split, lmax=self.params.lmax_alms
+                            )
                         lbs.write_healpix_map_to_file(
                             cur_map_path, noise_map_split, column_units=col_units
                         )
@@ -529,6 +569,10 @@ class Mbs:
                     noise_map = noise_map / n_split
                 else:
                     noise_map = np.random.randn(3, npix) * tot_rms
+                if self.rotator is not None:
+                    noise_map = self.rotator.rotate_map_alms(
+                        noise_map, lmax=self.params.lmax_alms
+                    )
                 if self.params.save:
                     file_name = f"{chnl}_noise_FULL_{nmc_str}_{file_str}.fits"
                     cur_map_path = nmc_output_directory / file_name
@@ -607,20 +651,25 @@ class Mbs:
             nmc_output_directory = output_directory / nmc_str
             if rank == 0:
                 nmc_output_directory.mkdir(parents=True, exist_ok=True)
-            cmb_temp = hp.synfast(cl_cmb, nside, new=True)
-            file_name = f"cmb_{nmc_str}_{file_str}.fits"
-            cur_map_path = nmc_output_directory / file_name
-            lbs.write_healpix_map_to_file(
-                cur_map_path, cmb_temp, column_units=col_units
-            )
-            saved_maps.append(
-                MbsSavedMapInfo(path=cur_map_path, component="cmb", mc_num=nmc)
-            )
+            cmb_temp = hp.synfast(cl_cmb, nside, new=True, lmax=self.params.lmax_alms)
+            if self.rotator is not None:
+                cmb_temp = self.rotator.rotate_map_alms(
+                    cmb_temp, lmax=self.params.lmax_alms
+                )
+            if self.params.save:
+                file_name = f"cmb_{nmc_str}_{file_str}.fits"
+                cur_map_path = nmc_output_directory / file_name
+                lbs.write_healpix_map_to_file(
+                    cur_map_path,
+                    cmb_temp,
+                    column_units=col_units,
+                )
+                saved_maps.append(
+                    MbsSavedMapInfo(path=cur_map_path, component="cmb", mc_num=nmc)
+                )
             sky = pysm3.Sky(
                 nside=nside,
-                component_objects=[
-                    pysm3.CMBMap(nside, map_IQU=str((Path(cur_map_path)).absolute()))
-                ],
+                component_objects=[pysm3.CMBMap(nside, map_IQU=cmb_temp * u.uK_CMB)],
             )
 
             for Nchnl, chnl in enumerate(channels):
@@ -758,6 +807,10 @@ class Mbs:
                     )
                 else:
                     sky_extrap_smt = sky_extrap
+                if self.rotator is not None:
+                    sky_extrap_smt = self.rotator.rotate_map_alms(
+                        sky_extrap_smt, lmax=self.params.lmax_alms
+                    )
                 if self.params.save:
                     file_name = f"{chnl}_{cmp}_{file_str}.fits"
                     cur_map_path = cmp_dir / file_name
@@ -838,7 +891,10 @@ class Mbs:
             sky_dipole = dipole.to(
                 self.pysm_units, equivalencies=u.cmb_equivalencies(freq * u.GHz)
             )
-
+            if self.rotator is not None:
+                sky_dipole = self.rotator.rotate_map_alms(
+                    sky_dipole, lmax=self.params.lmax_alms
+                )
             if self.params.save:
                 file_name = f"{chnl}_dipole_{file_str}.fits"
                 cur_map_path = output_directory / file_name
@@ -987,9 +1043,6 @@ class Mbs:
             if not self.params.save:
                 tot[:, 0, :] += dipole
 
-        if self.params.maps_in_ecliptic:
-            r = hp.Rotator(coord=["G", "E"])
-
         if rank == 0:
             if self.params.save and self.params.coadd:
                 log.info("saving coadded signal maps")
@@ -997,10 +1050,6 @@ class Mbs:
             if not self.params.save:
                 tot_dict = {}
                 for nch, chnl in enumerate(channels):
-                    if self.params.maps_in_ecliptic:
-                        tot[nch] = r.rotate_map_alms(
-                            tot[nch], lmax=self.params.lmax_alms
-                        )
                     if self.params.store_alms:
                         alms = hp.map2alm(tot[nch], lmax=self.params.lmax_alms, iter=0)
                         tot_dict[chnl] = lbs.SphericalHarmonics(
@@ -1014,6 +1063,11 @@ class Mbs:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
                 else:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Galactic
+
+                if self.params.store_alms:
+                    tot_dict["type"] = "alms"
+                else:
+                    tot_dict["type"] = "maps"
 
                 tot_dict["Mbs_parameters"] = self.params
 

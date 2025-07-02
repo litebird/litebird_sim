@@ -4,6 +4,7 @@ from typing import Optional
 import h5py
 import numpy as np
 import numpy.typing as npt
+from deprecated import deprecated
 from numba import njit
 
 mueller_ideal_hwp = np.diag([1.0, 1.0, -1.0, -1.0])
@@ -40,6 +41,11 @@ class HWP:
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
 
+    @deprecated(
+        version="0.15.0",
+        reason="This function adds the HWP angle to the orientation, but this is logically wrong "
+        "now that LBS keeps track of ψ, the polarization angle, and the HWP angle in separate places.",
+    )
     def add_hwp_angle(
         self, pointing_buffer, start_time_s: float, delta_time_s: float
     ) -> None:
@@ -208,21 +214,6 @@ class IdealHWP(HWP):
             ang_speed_radpsec=self.ang_speed_radpsec,
         )
 
-    def apply_hwp_to_pointings(
-        self,
-        start_time_s: float,
-        delta_time_s: float,  # This will be 1/(19 Hz) in most cases
-        bore2ecl_quaternions_inout: npt.NDArray,  # Boresight→Ecliptic quaternions at 19 Hz
-        hwp_angle_out: npt.NDArray,
-    ) -> None:
-        # We do not touch `bore2ecl_quaternions_input`, as an ideal HWP does not
-        # alter the (θ, φ) direction of the boresight nor the orientation ψ
-        self.get_hwp_angle(
-            output_buffer=hwp_angle_out,
-            start_time_s=start_time_s,
-            delta_time_s=delta_time_s,
-        )
-
     def write_to_hdf5(
         self, output_file: h5py.File, field_name: str, compression: Optional[str] = None
     ) -> h5py.Dataset:
@@ -266,9 +257,9 @@ def read_hwp_from_hdf5(input_file: h5py.File, field_name: str) -> HWP:
         )
     else:
         # If new derived classes from HWP are implemented, add them here with an `elif`
-        assert (
-            False
-        ), f"read_hwp_from_hdf5() does not support a HWP of type {class_name}"
+        assert False, (
+            f"read_hwp_from_hdf5() does not support a HWP of type {class_name}"
+        )
 
     result.read_from_hdf5(input_dataset=dataset)
     return result

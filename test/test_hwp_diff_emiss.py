@@ -1,7 +1,7 @@
 import numpy as np
 import litebird_sim as lbs
 from astropy.time import Time
-from litebird_sim.pointings import get_hwp_angle
+from litebird_sim.pointings_in_obs import _get_hwp_angle
 
 
 def test_add_2f():
@@ -65,7 +65,6 @@ def test_add_2f():
 
     # Define differential emission parameters for the detectors.
     sim.observations[0].amplitude_2f_k = np.array([0.1, 0.1])
-    sim.observations[0].optical_power_k = np.array([0.0, 0.0])
 
     # Adding 2f signal from HWP differential emission using the `Simulation` class method
     sim.add_2f(
@@ -83,9 +82,8 @@ def test_add_2f():
     for idx, tod in enumerate(sim.observations[0].tod2f_2_det):
         lbs.hwp_diff_emiss.add_2f_for_one_detector(
             tod_det=tod,
-            angle_det_rad=get_hwp_angle(sim.observations[0], sim.hwp),
+            angle_det_rad=_get_hwp_angle(sim.observations[0], sim.hwp),
             amplitude_k=sim.observations[0].amplitude_2f_k[idx],
-            monopole_k=sim.observations[0].optical_power_k[idx],
         )
 
     # Check if the three tods are equal after adding 2f signal from HWP differential emission

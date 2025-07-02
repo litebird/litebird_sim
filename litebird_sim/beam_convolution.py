@@ -9,11 +9,16 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.totalconvolve import Interpolator, Interpolator_f
 
-from .coordinates import rotate_coordinates_e2g, CoordinateSystem
+from .coordinates import CoordinateSystem
 from .hwp import HWP
 from .mueller_convolver import MuellerConvolver
 from .observations import Observation
-from .pointings import get_hwp_angle
+from .pointings_in_obs import (
+    _get_hwp_angle,
+    _normalize_observations_and_pointings,
+    _get_centered_pointings,
+    _get_pointings_array,
+)
 from .spherical_harmonics import SphericalHarmonics
 
 # Name of the environment variable used in the convolution
@@ -53,6 +58,7 @@ def add_convolved_sky_to_one_detector(
     mueller_matrix,
     hwp_angle,
     convolution_params: Optional[BeamConvolutionParameters] = None,
+    nside_centering: Union[int, None] = None,
     nthreads: int = 0,
 ):
     """
@@ -76,6 +82,9 @@ def add_convolved_sky_to_one_detector(
     convolution_params : BeamConvolutionParameters, optional
         Parameters controlling the convolution, such as resolution and precision. If None,
         reasonable defaults are chosen based on the sky and beam properties.
+    nside_centering : int, default=None
+        If set, shifts the detector pointings to the centers of the corresponding HEALPix pixels
+        at the given NSIDE resolution. If None, no centering is applied.
     nthreads : int, default=0
         Number of threads to use for convolution. If set to 0, all available CPU cores
         will be used.
@@ -165,7 +174,13 @@ def add_convolved_sky_to_one_detector(
                     pointings_det.dtype, real_type
                 )
             )
-        tod_det += inter.interpol(pointings_det.astype(real_type, copy=False))[0]
+        tod_det += inter.interpol(
+            pointings_det.astype(real_type, copy=False)
+            if nside_centering is None
+            else _get_centered_pointings(
+                pointings_det.astype(real_type, copy=False), nside_centering
+            )
+        )[0]
     else:
         fullconv = MuellerConvolver(
             slm=_slm,
@@ -178,7 +193,11 @@ def add_convolved_sky_to_one_detector(
             nthreads=nthreads,
         )
         tod_det += fullconv.signal(
-            ptg=pointings_det,
+            ptg=(
+                pointings_det
+                if nside_centering is None
+                else _get_centered_pointings(pointings_det, nside_centering)
+            ),
             alpha=hwp_angle,
             strict_typing=convolution_params.strict_typing,
         )
@@ -196,6 +215,7 @@ def add_convolved_sky(
     convolution_params: Optional[BeamConvolutionParameters] = None,
     input_sky_alms_in_galactic: bool = True,
     pointings_dtype=np.float64,
+    nside_centering: Union[int, None] = None,
     nthreads: int = 0,
 ):
     """
@@ -235,6 +255,9 @@ def add_convolved_sky(
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
         already precomputed this parameter is ineffective. Default is `np.float64`.
+    nside_centering : int, default=None
+        If set, shifts the detector pointings to the centers of the corresponding HEALPix pixels
+        at the given NSIDE resolution. If None, no centering is applied.
     nthreads : int, default=0
         Number of threads to use for convolution. If set to 0, all available CPU cores
         will be used.
@@ -264,15 +287,18 @@ def add_convolved_sky(
         assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(n_detectors):
-        if type(pointings) is np.ndarray:
-            curr_pointings_det = pointings[detector_idx, :, :]
-        else:
-            curr_pointings_det, hwp_angle = pointings(
-                detector_idx, pointings_dtype=pointings_dtype
-            )
-
         if input_sky_alms_in_galactic:
-            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
+            output_coordinate_system = CoordinateSystem.Galactic
+        else:
+            output_coordinate_system = CoordinateSystem.Ecliptic
+
+        curr_pointings_det, hwp_angle = _get_pointings_array(
+            detector_idx=detector_idx,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
+            output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
+        )
 
         # FIXME: Fix this at some point, ducc wants phi 0 -> 2pi
         curr_pointings_det[:, 1] = np.mod(curr_pointings_det[:, 1], 2 * np.pi)
@@ -300,6 +326,7 @@ def add_convolved_sky(
             mueller_matrix=mueller_matrix,
             hwp_angle=hwp_angle,
             convolution_params=convolution_params,
+            nside_centering=nside_centering,
             nthreads=nthreads,
         )
 
@@ -318,6 +345,7 @@ def add_convolved_sky_to_observations(
     convolution_params: Optional[BeamConvolutionParameters] = None,
     component: str = "tod",
     pointings_dtype=np.float64,
+    nside_centering: Union[int, None] = None,
     nthreads: Union[int, None] = None,
 ):
     """
@@ -350,6 +378,9 @@ def add_convolved_sky_to_observations(
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
         already precomputed this parameter is ineffective. Default is `np.float64`.
+    nside_centering : int, default=None
+        If set, shifts the detector pointings to the centers of the corresponding HEALPix pixels
+        at the given NSIDE resolution. If None, no centering is applied.
     nthreads : int, default=None
         Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
         environment variable.
@@ -362,40 +393,26 @@ def add_convolved_sky_to_observations(
     - Calls `add_convolved_sky` to process the TOD for all detectors.
     """
 
-    if pointings is None:
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix]
-            else:
-                ptg_list = [observations.get_pointings]
-        else:
-            obs_list = observations
-            ptg_list = []
-            for ob in observations:
-                if hasattr(ob, "pointing_matrix"):
-                    ptg_list.append(ob.pointing_matrix)
-                else:
-                    ptg_list.append(ob.get_pointings)
-    else:
-        if isinstance(observations, Observation):
-            assert isinstance(pointings, np.ndarray), (
-                "You must pass a list of observations *and* a list "
-                "of pointing matrices to add_convolved_sky_to_observations"
-            )
-            obs_list = [observations]
-            ptg_list = [pointings]
-        else:
-            assert isinstance(pointings, list), (
-                "When you pass a list of observations to add_convolved_sky_to_observations, "
-                "you must do the same for `pointings`"
-            )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
-            )
-            obs_list = observations
-            ptg_list = pointings
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+        observations=observations, pointings=pointings
+    )
+
+    if sky_alms is None:
+        try:
+            sky_alms = observations[0].sky
+        except AttributeError:
+            msg = "'sky_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics, or store them in the observations if 'mbs' is used."
+            raise AttributeError(msg)
+        assert sky_alms["type"] == "alms", (
+            "'sky_alms' should be of type 'alms'. Use 'store_alms' of 'MbsParameters' to make it so."
+        )
+
+    if beam_alms is None:
+        try:
+            beam_alms = observations[0].blms
+        except AttributeError:
+            msg = "'beam_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics of the beam, or store them in the observations if 'get_gauss_beam_alms' is used."
+            raise AttributeError(msg)
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         # Determine input sky names
@@ -439,29 +456,18 @@ def add_convolved_sky_to_observations(
                     "Beam a_lm dictionary keys do not match detector/channel names."
                 )
         else:
-            assert isinstance(
-                beam_alms, SphericalHarmonics
-            ), "Invalid beam_alms format."
+            assert isinstance(beam_alms, SphericalHarmonics), (
+                "Invalid beam_alms format."
+            )
             input_beam_names = None
 
-        # Handle HWP angles
+        # If you pass an external HWP, get hwp_angle here, otherwise this is handled in add_convolved_sky
         if hwp is None:
-            if cur_obs.has_hwp:
-                hwp_angle = getattr(
-                    cur_obs,
-                    "hwp_angle",
-                    cur_obs.get_pointings(pointings_dtype=pointings_dtype)[1],
-                )
-            else:
-                assert all(
-                    m is None for m in cur_obs.mueller_hwp
-                ), "Detectors have mueller_hwp, but no HWP provided."
-                hwp_angle = None
+            hwp_angle = None
         else:
-            if isinstance(cur_ptg, np.ndarray):
-                hwp_angle = get_hwp_angle(cur_obs, hwp)
-            else:
-                logging.warning("HWP provided, but no precomputed pointings passed.")
+            hwp_angle = _get_hwp_angle(
+                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
+            )
 
         # Set number of threads
         if nthreads is None:
@@ -480,5 +486,6 @@ def add_convolved_sky_to_observations(
             convolution_params=convolution_params,
             input_sky_alms_in_galactic=input_sky_alms_in_galactic,
             pointings_dtype=pointings_dtype,
+            nside_centering=nside_centering,
             nthreads=nthreads,
         )

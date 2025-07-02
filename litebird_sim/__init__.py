@@ -1,11 +1,10 @@
 # -*- encoding: utf-8 -*-
-import importlib
-from pathlib import Path
 
 import numba
 
 from litebird_sim.mapmaking import (
     make_binned_map,
+    make_brahmap_gls_map,
     check_valid_splits,
     BinnerResult,
     make_destriped_map,
@@ -36,6 +35,7 @@ from .coordinates import (
     ECL_TO_GAL_ROT_MATRIX,
     CoordinateSystem,
     coord_sys_to_healpix_string,
+    rotate_coordinates_e2g,
 )
 from .detectors import (
     DetectorInfo,
@@ -71,6 +71,7 @@ from .hwp_sys.hwp_sys import (
     HwpSys,
 )
 from .imo import (
+    PTEP_IMO_LOCATION,
     Imo,
     FormatSpecification,
     Entity,
@@ -79,11 +80,10 @@ from .imo import (
 )
 from .io import (
     write_list_of_observations,
-    write_observations,
     read_list_of_observations,
 )
 from .madam import save_simulation_for_madam
-from .mbs.mbs import Mbs, MbsParameters, MbsSavedMapInfo
+from .mbs.mbs import FG_MODELS, Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
 from .mueller_convolver import MuellerConvolver
 from .noise import (
@@ -91,6 +91,11 @@ from .noise import (
     add_one_over_f_noise,
     add_noise,
     add_noise_to_observations,
+)
+from .non_linearity import (
+    NonLinParams,
+    apply_quadratic_nonlin_for_one_detector,
+    apply_quadratic_nonlin_to_observations,
 )
 from .observations import Observation, TodDescription
 from .pointing_sys import (
@@ -100,12 +105,12 @@ from .pointing_sys import (
     PointingSys,
 )
 from .pointings import (
-    apply_hwp_to_obs,
     PointingProvider,
 )
 from .pointings_in_obs import (
     prepare_pointings,
     precompute_pointings,
+    apply_hwp_to_obs,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
@@ -145,6 +150,13 @@ from .scanning import (
     get_det2ecl_quaternions,
     get_ecl2det_quaternions,
 )
+from .seeding import (
+    get_derived_random_generators,
+    get_detector_level_generators_from_hierarchy,
+    get_generator_from_hierarchy,
+    regenerate_or_check_detector_generators,
+    RNGHierarchy,
+)
 from .simulations import (
     NUMBA_NUM_THREADS_ENVVAR,
     Simulation,
@@ -164,23 +176,9 @@ from .spherical_harmonics import (
 )
 from .version import __author__, __version__
 
-# Check if the TOAST2 mapmaker is available
-TOAST_ENABLED = importlib.util.find_spec("OpMapMaker", "toast.todmap") is not None
-if not TOAST_ENABLED:
-
-    def destripe_with_toast2(*args, **kwargs):
-        raise ImportError(
-            "Install the toast package using `pip` to use destripe_with_toast2"
-        )
-
-    TOAST_ENABLED = False
-
-
 # Privilege TBB over OpenPM and the internal Numba implementation of a
 # work queue
 numba.config.THREADING_LAYER_CONFIG = ["tbb", "omp", "workqueue"]
-
-PTEP_IMO_LOCATION = Path(__file__).parent.parent / "default_imo"
 
 
 __all__ = [
@@ -234,6 +232,7 @@ __all__ = [
     # madam.py
     "save_simulation_for_madam",
     # mbs.py
+    "FG_MODELS",
     "Mbs",
     "MbsParameters",
     "MbsSavedMapInfo",
@@ -284,23 +283,27 @@ __all__ = [
     "SpinningScanningStrategy",
     "get_det2ecl_quaternions",
     "get_ecl2det_quaternions",
+    # seeding.py
+    "get_derived_random_generators",
+    "get_detector_level_generators_from_hierarchy",
+    "get_generator_from_hierarchy",
+    "regenerate_or_check_detector_generators",
+    "RNGHierarchy",
     # pointings.py
-    "apply_hwp_to_obs",
     "PointingProvider",
     # pointings_in_obs.py
     "prepare_pointings",
     "precompute_pointings",
+    "apply_hwp_to_obs",
     # mapmaking
     "make_binned_map",
+    "make_brahmap_gls_map",
     "check_valid_splits",
     "BinnerResult",
     "make_destriped_map",
     "DestriperParameters",
     "DestriperResult",
     "ExternalDestriperParameters",
-    # toast_destriper.py
-    "TOAST_ENABLED",
-    "destripe_with_toast2",
     # simulations.py
     "NUMBA_NUM_THREADS_ENVVAR",
     "Simulation",
@@ -325,6 +328,7 @@ __all__ = [
     "ECL_TO_GAL_ROT_MATRIX",
     "CoordinateSystem",
     "coord_sys_to_healpix_string",
+    "rotate_coordinates_e2g",
     # spacecraft.py
     "compute_l2_pos_and_vel",
     "compute_lissajous_pos_and_vel",
@@ -342,6 +346,10 @@ __all__ = [
     "apply_gaindrift_for_one_detector",
     "apply_gaindrift_to_tod",
     "apply_gaindrift_to_observations",
+    # non_linearity.py
+    "NonLinParams",
+    "apply_quadratic_nonlin_for_one_detector",
+    "apply_quadratic_nonlin_to_observations",
     # pointing_sys.py
     "get_detector_orientation",
     "left_multiply_offset2det",

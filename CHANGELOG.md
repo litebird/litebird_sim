@@ -1,13 +1,101 @@
 # HEAD
 
+# Version 0.15.3
+
+-   Fix the computation of HWP angles [#444](https://github.com/litebird/litebird_sim/pull/444)
+
+-   Add low-level interface to `BrahMap` [#440](https://github.com/litebird/litebird_sim/pull/440)
+
+-   Set Mueller matrix phases in Hwp_sys module as class attributes, instead of being hardcoded [#442](https://github.com/litebird/litebird_sim/pull/442)
+
+# Version 0.15.2
+
+-   Add more tutorials [#443](https://github.com/litebird/litebird_sim/pull/443)
+
+# Version 0.15.1
+
+-   Fixed s4,s5,d9,d10 and added s7 in Mbs [#437](https://github.com/litebird/litebird_sim/pull/437)
+
+-   Make sure that the PTEP IMo, the Madam templates, and the static files required to create the HTML reports are installed properly by `pip` and enable Binder/Google Colab [#436](https://github.com/litebird/litebird_sim/pull/436)
+
+-   Make the HWP_sys module able to deal with missing pixels, let the output maps to use a different NSIDE than the one of the inputs [#432](https://github.com/litebird/litebird_sim/pull/432)
+
+-   Fix bug in the computation of pointings for the HWP_sys module [#429](https://github.com/litebird/litebird_sim/pull/429)
+
+-   Upgrade PySM to 3.4.2 [#431](https://github.com/litebird/litebird_sim/pull/431)
+
+# Version 0.15.0
+
+-   **Breaking change**: New improved seeding strategy using `RNGHierarchy` [#414](https://github.com/litebird/litebird_sim/pull/414)
+
+-   **Breaking change**: Drop support for Python 3.9, add support for 3.13. Note that this implies that we do no longer support TOAST2, as it does not work with Python 3.10 [#409](https://github.com/litebird/litebird_sim/pull/409)
+
 -   **Breaking change**: The HWP and ψ angles in the HWP Systematics module have been redefined to be consistent [#377](https://github.com/litebird/litebird_sim/pull/377)
+
+-   **Breaking change**: The two parameters `Channel` and `Mbsparams` used in `HwpSys.set_parameters()` have been renamed to `channel` and `mbs_params` [#422](https://github.com/litebird/litebird_sim/pull/422)
+
+-   Remove extra dependencies from `pyproject.toml` [#423](https://github.com/litebird/litebird_sim/pull/423)
+
+-   Add interpolation to `hwp_sys` [#420](https://github.com/litebird/litebird_sim/pull/420)
+
+-   Change default ellipticity in IMo vPTEP [#419](https://github.com/litebird/litebird_sim/pull/419) and improved documentation for beam synthesis [#416](https://github.com/litebird/litebird_sim/pull/416)
+
+-   Measure code coverage in PRs [#415](https://github.com/litebird/litebird_sim/pull/415)
+
+-   Move map rotation from galactic to ecliptic at generation in `mbs` and test [#413](https://github.com/litebird/litebird_sim/pull/413)
+
+-   Make actual use of `[skipci]` and `skip ci]` in commit messages [#410](https://github.com/litebird/litebird_sim/pull/410)
+
+-   New option in `Simulation.get_sky()` for generating maps per channel, option for storing sky and beam alms in the observations [#408](https://github.com/litebird/litebird_sim/pull/408)
+
+-   Make MPI tests more robusts and produce a “MPI” section in the output report [#405](https://github.com/litebird/litebird_sim/pull/405/)
+
+-   Add interface to BrahMap GLS mapmaker and relative tests [#400](https://github.com/litebird/litebird_sim/pull/400).
+
+-   Replace allreduce with Allreduce in binning.py [#407](https://github.com/litebird/litebird_sim/pull/407).
+
+-   Function for nullifying tods in the class `Simulation` [#389](https://github.com/litebird/litebird_sim/pull/389). 
+
+-   Save `det_idx` in HDF5 files and make MPI test fail properly [#402](https://github.com/litebird/litebird_sim/pull/402)
+
+-   Option for centering the pointing in the beam convolution plus some reworking of the pointing API (new methods added to the class Observation) [#397](https://github.com/litebird/litebird_sim/pull/397)
+
+-   Bug in `Simulation.get_sky()` fixed [#398](https://github.com/litebird/litebird_sim/pull/398)
+
+-   Fix a bug in `prepare_pointings` [#396](https://github.com/litebird/litebird_sim/pull/396)
+
+-   Deprecate `apply_hwp_to_obs()` and `HWP.add_hwp_angle()`, remove deprecated functions `Simulation.generate_spin2ecl_quaternions()` and `write_observations()`
+
+-   Fix docstrings and type hints for `mueller_hwp` [#381](https://github.com/litebird/litebird_sim/pull/381)
+
+-   Fix the formatting of a few docstrings [#391](https://github.com/litebird/litebird_sim/pull/391)
+
+-   Common interface to compute pointings and detector polarization angle [#378](https://github.com/litebird/litebird_sim/pull/378)
 
 -   Module for performing the 4π beam convolution [#338](https://github.com/litebird/litebird_sim/pull/338)
 
 -   Make `@_profile` preserve docstrings [#371](https://github.com/litebird/litebird_sim/pull/371)
 
--   Downgrade Ducc0 to 0.34.0 [#383](https://github.com/litebird/litebird_sim/pull/383)
+-   Upgrade Ducc0 to 0.38.0 and clarify how to compile Ducc0 from sources [#383](https://github.com/litebird/litebird_sim/pull/383), [#390](https://github.com/litebird/litebird_sim/pull/390), [#394](https://github.com/litebird/litebird_sim/pull/394)
 
+-   Update documentation for hwp_sys and non_linearity modules [#404](https://github.com/litebird/litebird_sim/pull/404)
+
+-   Add non-linearity coupling with hwp systematic effects [#395](https://github.com/litebird/litebird_sim/pull/395)
+
+-   Set numba parallelization (only) in compute_signal_for_one_detector in hwp_sys [#395](https://github.com/litebird/litebird_sim/pull/395)
+
+-   Update test_hwp_sys.py [#395](https://github.com/litebird/litebird_sim/pull/395)
+
+-   Change hwp angle variable name in hwp_sys.py so it is cohererent with documentation [#395](https://github.com/litebird/litebird_sim/pull/395)
+
+-   Remove the optical optical power argument from the 2f hwpss code [#395](https://github.com/litebird/litebird_sim/pull/395 )
+
+-   Update test_hwp_diff_emiss.py [#395](https://github.com/litebird/litebird_sim/pull/395)
+
+-   Add option to pass a seed to generate a random g_1 term in the non-linearity module [#395](https://github.com/litebird/litebird_sim/pull/395)
+  
+-   Fix a bug in using MPI parallelization in hwp_sys [#395](https://github.com/litebird/litebird_sim/pull/395)
+ 
 # Version 0.14.0
 
 -   **Breaking change**: Bug in the 1/f noise generation has been corrected. Previously, the frequency array was miscalculated due to an incorrect factor of 2 in the sample spacing passed to the SciPy function fft.rfftfreq. [#362](https://github.com/litebird/litebird_sim/pull/362). 

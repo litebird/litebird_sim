@@ -1,3 +1,5 @@
+.. _non_linearity:
+
 Non-linearity injection
 =======================
 
@@ -65,30 +67,36 @@ example shows the typical usage of the method and low-level functions:
     sim.observations[0].nl_2_det = np.ones_like(sim.observations[0].tod)
 
 If the non-linearity parameter is not read from the IMo, one has to
-specify :math:`g_1` using the ``g_one_over_k`` argument as in the
+specify :math:`g_1` using the ``nl_params`` argument as in the
 following example:
 
 .. code-block:: python
 
-    # Define non-linear parameters for the detectors. We choose the same
-    # value for both detectors in this example, but it is not necessary.
-    sim.observations[0].g_one_over_k = np.ones(len(dets)) * 1e-3
+    # Define non-linear parameters for the detectors. We consider the non-linearity to be 
+    # distributed as a gaussian around ``sampling_gaussian_loc``, with :math:`\sigma^2` = ``sampling_gaussian_scale``. 
+    
+    nl_params = lbs.NonLinParams(sampling_gaussian_loc=0.0, sampling_gaussian_scale=0.1)
 
     # Applying non-linearity using the `Simulation` class method
-    sim.apply_quadratic_nonlin(component = "nl_2_self",)
+    sim.apply_quadratic_nonlin(
+        nl_params=nl_params,
+        component="nl_2_self",
+    )
 
-    # Applying non-linearity on the given TOD component of an `Observation`
-    # object
-    lbs.non_linearity.apply_quadratic_nonlin_to_observations(
+    # Applying non-linearity on the given TOD component of an `Observation` object
+    lbs.apply_quadratic_nonlin_to_observations(
         observations=sim.observations,
+        nl_params=nl_params,
         component="nl_2_obs",
     )
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
-        lbs.non_linearity.apply_quadratic_nonlin_for_one_detector(
+        lbs.apply_quadratic_nonlin_for_one_detector(
             tod_det=tod,
-            g_one_over_k=sim.observations[0].g_one_over_k[idx],
+            det_name=sim.observations[0].name[idx],
+            nl_params=nl_params,
+            user_seed=12345,
         )
 
 In particular, the effect of detector non-linearity must be included
@@ -97,7 +105,10 @@ described in `Micheli+2024 <https://arxiv.org/pdf/2407.15294>`_, a
 typical case is the coupling with HWP synchronous signal (HWPSS)
 appearing at twice the rotation frequency of the HWP. This kind of
 signal can be produced by non-idealities of the HWP, such as its
-differential transmission and emission.
+differential transmission and emission. 
+Note that it is important to include in the TODs the contribution
+of the CMB monopole and the orbital dipole _before_ applying non-linearity,
+to properly account for the total signal hitting the detectors. 
 
 In that case, the usual TOD :math:`d(t)` will contain an additional
 term, and can be written as:
@@ -118,9 +129,7 @@ low-level functions: :func:`.add_2f_to_observations()`,
 :func:`.add_2f_for_one_detector()`.
 
 If the 2f amplitude is not read from the IMo, one has to specify
-:math:`A_2` using the ``amplitude_2f_k`` argument. The argument
-``optical_power_k`` enables the inclusion of the integrated nominal
-optical power expected for each channel. See the following example:
+:math:`A_2` using the ``amplitude_2f_k`` argument. See the following example:
 
 .. code-block:: python
 
@@ -183,7 +192,6 @@ optical power expected for each channel. See the following example:
 
     # Define differential emission parameters for the detectors.
     sim.observations[0].amplitude_2f_k = np.array([0.1, 0.1])
-    sim.observations[0].optical_power_k = np.array([1.0, 1.0])
 
     # Adding 2f signal from HWP differential emission using the `Simulation` class method
     sim.add_2f(component="tod_2f")

@@ -2,6 +2,7 @@
 
 import codecs
 import functools
+import importlib.resources
 import json
 import logging as log
 import os
@@ -22,13 +23,17 @@ import matplotlib.pylab as plt
 import numba
 import numpy as np
 import tomlkit
-from deprecation import deprecated
 from markdown_katex import KatexExtension
 
 from litebird_sim import constants
 from . import HWP
+from .beam_convolution import (
+    add_convolved_sky_to_observations,
+    BeamConvolutionParameters,
+)
+from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
-from .detectors import DetectorInfo, InstrumentInfo
+from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
@@ -38,6 +43,7 @@ from .imo.imo import Imo
 from .io import write_list_of_observations, read_list_of_observations
 from .mapmaking import (
     make_binned_map,
+    make_brahmap_gls_map,
     check_valid_splits,
     BinnerResult,
     make_destriped_map,
@@ -46,22 +52,18 @@ from .mapmaking import (
     DestriperResult,
     destriper_log_callback,
 )
+from .mbs import Mbs, MbsParameters
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
-from .non_linearity import apply_quadratic_nonlin_to_observations
+from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
-from .beam_convolution import (
-    add_convolved_sky_to_observations,
-    BeamConvolutionParameters,
-)
-from .spherical_harmonics import SphericalHarmonics
-from .beam_synthesis import generate_gauss_beam_alms
 from .scanning import ScanningStrategy, SpinningScanningStrategy
+from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .mbs import Mbs, MbsParameters
+from .spherical_harmonics import SphericalHarmonics
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -132,7 +134,7 @@ def get_template_file_path(filename: Union[str, Path]) -> Path:
     returns a full, absolute path to the file within the ``templates``
     folder of the ``litebird_sim`` source code.
     """
-    return Path(__file__).parent / ".." / "templates" / filename
+    return importlib.resources.files("litebird_sim.templates") / filename
 
 
 @dataclass
@@ -470,49 +472,119 @@ class Simulation:
             random_seed=self.random_seed,
         )
 
+        # Add a header to the report
+        if MPI_COMM_WORLD.size > 1:
+            import mpi4py
+            from mpi4py import MPI
+
+            template_file_path = get_template_file_path("report_mpi.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+
+            mpi_version = MPI.Get_version()
+            warning_mpi_version = None
+            if mpi_version[0] < 4:
+                warning_mpi_version = True
+
+            self.append_to_report(
+                markdown_template,
+                mpi4py_version=mpi4py.__version__,
+                mpi_version=".".join([str(x) for x in mpi_version]),
+                mpi_implementation=str(MPI.Get_library_version()).strip(),
+                warning_mpi_version=warning_mpi_version,
+            )
+
         # Check that random_seed has been set
         assert self.random_seed != "", (
             "you must set random_seed (int for reproducible results, "
             + "None for non reproducible results)"
         )
 
-        # Initialize self.random. The user is free to
+        # Initialize self.RNG_hierarchy. The user is free to
         # call self.init_random() again later
-        self.init_random(self.random_seed)
+        self.init_rng_hierarchy(self.random_seed)
 
-    def init_random(self, random_seed):
+    def init_rng_hierarchy(self, random_seed):
         """
-        Initialize a random number generator in the `random` field
+        Initialize the RNGHierarchy for this Simulation.
 
-        This function creates a random number generator and saves it in the
-        field `random`. It should be used whenever a random number generator
-        is needed in the simulation.
-        In the case `random_seed` has not been set to `None`, it ensures that
-        different MPI processes have their own different seed, which stems
-        from the parameter `random_seed`, and the results will be reproducible.
-        The generator is PCG64, and it is ensured that the sequences in each MPI
-        process are independent. If `init_random` is called with the same seed
-        but a different number of MPI ranks, the sequence of random numbers
-        will be different.
-        In the case `random_seed` has been set to `None`, no seed will be
-        used and the results obtained with the random number generator will
-        not be reproducible.
+        This method initialize the instance of `RNGHierarchy` constructs the first level of RNG hierarchy using the given
+        `random_seed`. It creates one generator per MPI rank (first layer)
+        and stores the hierarchy in `self.rng_hierarchy`. It also extracts
+        and stores the generator for the current MPI rank in `self.random`.
 
-        This method is automatically called in the constructor, but it can be
-        called again as many times as required. The typical case is when
-        one wants to use a seed that has been read from a parameter file.
+        Parameters
+        ----------
+        random_seed : int or None
+            Base seed for reproducible RNG streams. If `None`, the generators
+            will be non-deterministic.
+
+        Notes
+        -----
+        - This method is called automatically in the constructor using
+          the user-provided `random_seed`, but can be invoked again to
+          reseed the simulation at any point.
         """
-        from numpy.random import Generator, PCG64, SeedSequence
+        self.rng_hierarchy = RNGHierarchy(random_seed)
+        self.rng_hierarchy.build_mpi_layer(self.mpi_comm.size)
 
-        # We need to assign a different random number generator to each MPI
-        # process, otherwise noise will be correlated. The following code
-        # works even if MPI is not used or if `random_seed` has been set to `None`
+        self.random = self.rng_hierarchy.get_generator(self.mpi_comm.rank)
 
-        # Create a list of N seeds, one per each MPI process
-        seed_seq = SeedSequence(random_seed).spawn(self.mpi_comm.size)
+    def init_detectors_random(self, num_detectors: int):
+        """
+        Extend the RNGHierarchy to include detector-level generators.
 
-        # Pick the seed for this process
-        self.random = Generator(PCG64(seed_seq[self.mpi_comm.rank]))
+        After the MPI-level layer has been built, this method spawns one
+        RNG generator per detector on each MPI rank. The list of
+        detector-level generators for the current rank is stored in
+        `self.dets_random`.
+
+        Parameters
+        ----------
+        num_detectors : int
+            Number of detectors per MPI rank to generate RNGs for.
+
+        Raises
+        ------
+        RuntimeError
+            If `self.rng_hierarchy` has not been initialized.
+        """
+        self.rng_hierarchy.build_detector_layer(num_detectors)
+
+        self.dets_random = self.rng_hierarchy.get_detector_level_generators_on_rank(
+            self.mpi_comm.rank
+        )
+
+    def init_random(self, random_seed, num_detectors: int):
+        """
+        Convenience method to initialize both MPI and detector RNGs.
+
+        This method combines `init_rng_hierarchy` and `init_detectors_random`,
+        setting up a full two-layer RNG structure in one call:
+        1. Builds the MPI-level hierarchy from `random_seed`.
+        2. Builds the detector-level layer for `num_detectors` per rank.
+
+        After execution, the following attributes are set:
+        - `self.random`: RNG for this MPI rank.
+        - `self.dets_random`: List of RNGs for each detector on this rank.
+
+        This is useful if the user want to trigger the construction of the complete hierachy after initialization.
+
+        Parameters
+        ----------
+        random_seed : int or None
+            Base seed for reproducible RNG streams. If `None`, RNGs will be
+            non-deterministic.
+        num_detectors : int
+            Number of detectors per MPI rank.
+
+        Raises
+        ------
+        RuntimeError
+            If the MPI communicator (`self.mpi_comm`) is not set before calling.
+        """
+        self.init_rng_hierarchy(random_seed)
+        self.init_detectors_random(num_detectors)
 
     def _init_missing_params(self):
         """Initialize empty parameters using self.parameters
@@ -824,37 +896,7 @@ class Simulation:
             json.dump(profile_list_to_speedscope(self.profile_data), out_file)
         log.info('Profile data saved to file "%s"', str(output_file_path.absolute()))
 
-    def flush(
-        self,
-        include_git_diff=True,
-        base_imo_url: str = DEFAULT_BASE_IMO_URL,
-        profile_file_name: Optional[str] = None,
-    ):
-        """Terminate a simulation.
-
-        This function must be called when a simulation is complete. It
-        will save pending data to the output directory.
-
-        It returns a `Path` object pointing to the HTML file that has
-        been saved in the directory pointed by ``self.base_path``.
-
-        """
-
-        if not profile_file_name:
-            profile_file_name = f"profile_mpi{self.mpi_comm.rank:05d}.json"
-        self._generate_profile_file(file_name=profile_file_name)
-
-        dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-        self._fill_dictionary_with_imo_information(
-            dictionary, base_imo_url=base_imo_url
-        )
-        self._fill_dictionary_with_code_status(dictionary, include_git_diff)
-
-        template_file_path = get_template_file_path("report_appendix.md")
-        with template_file_path.open("rt") as inpf:
-            markdown_template = "".join(inpf.readlines())
-        self.append_to_report(markdown_template, **dictionary)
-
+    def _generate_html_report(self):
         # Expand the markdown text using Jinja2
         with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
             outf.write(self.report)
@@ -872,7 +914,7 @@ class Simulation:
         ]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
-        static_path = Path(__file__).parent / ".." / "static"
+        static_path = importlib.resources.files("litebird_sim.static")
         with codecs.open(static_path / "report_template.html") as inpf:
             html_full_report = jinja2.Template(inpf.read()).render(
                 name=self.name, html=html
@@ -893,6 +935,40 @@ class Simulation:
             outf.write(html_full_report)
 
         return html_report_path
+
+    def flush(
+        self,
+        include_git_diff=True,
+        base_imo_url: str = DEFAULT_BASE_IMO_URL,
+        profile_file_name: Optional[str] = None,
+    ) -> Optional[Path]:
+        """Terminate a simulation.
+
+        This function must be called when a simulation is complete. It
+        will save pending data to the output directory.
+
+        It returns a `Path` object pointing to the HTML file that has
+        been saved in the directory pointed by ``self.base_path``, or ``None``
+        if this is not the MPI root process.
+
+        """
+
+        if not profile_file_name:
+            profile_file_name = f"profile_mpi{self.mpi_comm.rank:05d}.json"
+        self._generate_profile_file(file_name=profile_file_name)
+
+        dictionary = {"datetime": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        self._fill_dictionary_with_imo_information(
+            dictionary, base_imo_url=base_imo_url
+        )
+        self._fill_dictionary_with_code_status(dictionary, include_git_diff)
+
+        template_file_path = get_template_file_path("report_appendix.md")
+        with template_file_path.open("rt") as inpf:
+            markdown_template = "".join(inpf.readlines())
+        self.append_to_report(markdown_template, **dictionary)
+
+        return self._generate_html_report() if MPI_COMM_WORLD.rank == 0 else None
 
     @_profile
     def create_observations(
@@ -990,13 +1066,13 @@ class Simulation:
             # - sim.noise_tod
         """
 
-        assert (
-            self.start_time is not None
-        ), "you must set start_time when creating the Simulation object"
+        assert self.start_time is not None, (
+            "you must set start_time when creating the Simulation object"
+        )
 
-        assert isinstance(
-            self.duration_s, (float, int)
-        ), "you must set duration_s when creating the Simulation object"
+        assert isinstance(self.duration_s, (float, int)), (
+            "you must set duration_s when creating the Simulation object"
+        )
 
         if not detectors:
             detectors = self.detectors
@@ -1004,6 +1080,8 @@ class Simulation:
         # if a single detector is passed, make it a list
         if isinstance(detectors, DetectorInfo):
             detectors = [detectors]
+
+        self.init_detectors_random(len(detectors))
 
         observations = []
 
@@ -1167,6 +1245,40 @@ class Simulation:
             mpi_processes=mpi_processes,
         )
 
+    @_profile
+    def nullify_tod(self, components: Union[str, List[str]] = "tod") -> None:
+        """
+        Set the specified component(s) (default: "tod") of all observations to zero.
+
+        This is typically used to zero out Time-Ordered Data (TOD) in-place across
+        all observations.
+
+        Parameters
+        ----------
+        components : str or list of str, optional
+            The attribute name(s) of the data to nullify in each observation.
+            Defaults to "tod".
+
+        Raises
+        ------
+        AttributeError
+            If an observation does not have the specified component.
+        """
+        if isinstance(components, str):
+            components = [components]
+
+        for i, cur_obs in enumerate(self.observations):
+            for comp in components:
+                try:
+                    tod = getattr(cur_obs, comp)
+                except AttributeError:
+                    raise AttributeError(
+                        f"Observation {i} does not have attribute '{comp}'"
+                    )
+
+                if tod is not None:
+                    tod[:, :] = 0
+
     def set_scanning_strategy(
         self,
         scanning_strategy: Union[None, ScanningStrategy] = None,
@@ -1246,25 +1358,6 @@ class Simulation:
                 delta_time_s=delta_time_s,
                 quat_memory_size_bytes=quat_memory_size_bytes,
             )
-
-    @deprecated(
-        deprecated_in="0.9",
-        current_version=litebird_sim_version,
-        details="Use set_scanning_strategy",
-    )
-    def generate_spin2ecl_quaternions(
-        self,
-        scanning_strategy: Union[None, ScanningStrategy] = None,
-        imo_url: Union[None, str] = None,
-        delta_time_s: float = 60.0,
-        append_to_report=True,
-    ):
-        self.set_scanning_strategy(
-            scanning_strategy=scanning_strategy,
-            imo_url=imo_url,
-            delta_time_s=delta_time_s,
-            append_to_report=append_to_report,
-        )
 
     def set_instrument(self, instrument: InstrumentInfo):
         """Set the instrument to be used in the simulation.
@@ -1404,7 +1497,8 @@ class Simulation:
         """
         Fills the tod with dipole.
 
-        It is a wrapper for the function :function:`.add_dipole_to_observations`
+        This is a wrapper for the function :func:`.add_dipole_to_observations`.
+
         This method must be called after having set the scanning strategy, the
         instrument, the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.create_observations`, and the pointing
@@ -1444,22 +1538,23 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: Union[np.ndarray, Dict[str, np.ndarray]],
+        maps: Optional[Union[np.ndarray, Dict[str, np.ndarray]]] = None,
         input_map_in_galactic: bool = True,
         component: str = "tod",
         interpolation: Union[str, None] = "",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
     ):
-        """
-        Fills the Time-Ordered Data (TOD) by scanning a given sky map.
+        """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
-        It is a wrapper for the function :function:`.scan_map_in_observations`
-        This method must be called after having set the scanning strategy, the
-        instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.create_observations`, and the method
-        :meth:`.prepare_pointings`. maps is assumed to be produced by :class:`.Mbs`
-        or through :meth:`.get_sky`.
+        This is a wrapper to the function :func:`.scan_map_in_observations`.
+
+        This method must be called after having set the scanning
+        strategy, the instrument, the list of detectors to simulate
+        through calls to :meth:`.set_instrument` and
+        :meth:`.create_observations`, and the method
+        :meth:`.prepare_pointings`. maps is assumed to be produced by
+        :class:`.Mbs` or through :meth:`.get_sky`.
 
         """
 
@@ -1476,6 +1571,8 @@ class Simulation:
             template_file_path = get_template_file_path("report_scan_map.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
+            if maps is None:
+                maps = self.observations[0].sky
             if isinstance(maps, dict):
                 if "Mbs_parameters" in maps.keys():
                     if maps["Mbs_parameters"].make_fg:
@@ -1501,7 +1598,13 @@ class Simulation:
                 )
 
     @_profile
-    def get_gauss_beam_alms(self, lmax: int, mmax: Optional[int] = None):
+    def get_gauss_beam_alms(
+        self,
+        lmax: int,
+        mmax: Optional[int] = None,
+        channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
+        store_in_observation: Optional[bool] = False,
+    ):
         """
         Compute Gaussian beam spherical harmonic coefficients.
 
@@ -1514,31 +1617,64 @@ class Simulation:
             Maximum multipole moment.
         mmax : Optional[int], default=None
             Maximum azimuthal multipole moment. Defaults to `lmax` if None.
+        channels : FreqChannelInfo or list of FreqChannelInfo, optional
+            Frequency channels to use in the simulation. If None, it uses the detectors
+            from the observations.
+        store_in_observation : bool, optional
+            If True, the computed blms will be stored in the `blms` attribute of
+            the observation object.
 
         Returns:
         --------
         Dictionary
-            A dictionary containing beam `a_lm` values per detector.
+            A dictionary containing beam `a_lm` values per detector
         """
 
         if not self.observations:
             raise ValueError("No observations available to generate sky maps.")
 
-        return generate_gauss_beam_alms(self.observations[0], lmax, mmax)
+        return generate_gauss_beam_alms(
+            self.observations[0],
+            lmax,
+            mmax,
+            channels=channels,
+            store_in_observation=store_in_observation,
+        )
 
     @_profile
     def get_sky(
         self,
         parameters: MbsParameters,
+        channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
+        store_in_observation: Optional[bool] = False,
     ):
         """
         Generates sky maps for the observations using the provided parameters.
+        If `channels` is not provided, it automatically infers the detectors
+        used in the current observations and constructs the Mbs instance accordingly.
+        otherwise a map per channel provided is returned
 
-        Args:
-            parameters (MbsParameters): Configuration parameters for the Mbs simulation.
+        Parameters
+        ----------
+        parameters : MbsParameters
+            Configuration parameters for the Mbs simulation.
+        channels : FreqChannelInfo or list of FreqChannelInfo, optional
+            Frequency channels to use in the simulation. If None, it uses the detectors
+            from the current observations.
+        store_in_observation : bool, optional
+            If True, the computed sky will be stored in the `sky` attribute of
+            the observation object.
 
-        Returns:
-            Dict: A dictionary containing sky maps values per detector.
+        Returns
+        -------
+        Dict
+            A dictionary containing the simulated sky maps for each detector or channel
+
+        Raises
+        ------
+        ValueError
+            If no observations are available to generate sky maps.
+
         """
 
         if parameters.seed_cmb is None:
@@ -1549,36 +1685,68 @@ class Simulation:
         if not self.observations:
             raise ValueError("No observations available to generate sky maps.")
 
-        detector_names = set(self.observations[0].name)
-        detector_list = [det for det in self.detectors if det.name in detector_names]
+        if channels is None:
+            # Use detectors from observations
+            detector_names = set(self.observations[0].name)
+            detector_list = [
+                det for det in self.detectors if det.name in detector_names
+            ]
 
-        mbs = Mbs(
-            simulation=self,
-            parameters=parameters,
-            detector_list=detector_list,
-        )
+            mbs = Mbs(
+                simulation=self,
+                parameters=parameters,
+                detector_list=detector_list,
+            )
 
-        return mbs.run_all()[0]
+        else:
+            # Use explicitly provided frequency channels
+            channel_list = (
+                [channels] if isinstance(channels, FreqChannelInfo) else channels
+            )
+
+            mbs = Mbs(
+                simulation=self,
+                parameters=parameters,
+                channel_list=channel_list,
+            )
+
+        sky = mbs.run_all()[0]
+
+        if store_in_observation:
+            for obs in self.observations:
+                obs.sky = sky
+
+        return sky
 
     @_profile
     def convolve_sky(
         self,
-        sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
-        beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
+        sky_alms: Optional[
+            Union[SphericalHarmonics, Dict[str, SphericalHarmonics]]
+        ] = None,
+        beam_alms: Optional[
+            Union[SphericalHarmonics, Dict[str, SphericalHarmonics]]
+        ] = None,
         input_sky_alms_in_galactic: bool = True,
         convolution_params: Optional[BeamConvolutionParameters] = None,
         component: str = "tod",
         pointings_dtype=np.float64,
+        nside_centering: Union[int, None] = None,
         append_to_report: bool = True,
         nthreads: Union[int, None] = None,
     ):
         """Fills the TODs, convolving a set of alms.
 
-        It is a wrapper for the function :function:`.add_convolved_sky_to_observations`
-        This method must be called after having set the scanning strategy, the
-        instrument, the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`, and the method
-        :meth:`.prepare_pointings`. alms are assumed to be produced by :class:`.Mbs`
+        This is a wrapper to the function
+        :func:`.add_convolved_sky_to_observations`.
+
+        This method must be called after having set the scanning
+        strategy, the instrument, the list of detectors to simulate
+        through calls to :meth:`.set_instrument` and
+        :meth:`.add_detector`, and the method
+        :meth:`.prepare_pointings`. alms are assumed to be produced by
+        :class:`.Mbs`
+
         """
 
         if nthreads is None:
@@ -1592,6 +1760,7 @@ class Simulation:
             component=component,
             convolution_params=convolution_params,
             pointings_dtype=pointings_dtype,
+            nside_centering=nside_centering,
             nthreads=nthreads,
         )
 
@@ -1599,6 +1768,8 @@ class Simulation:
             template_file_path = get_template_file_path("report_convolve_sky.md")
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
+            if sky_alms is None:
+                sky_alms = self.observations[0].sky
             if isinstance(sky_alms, dict):
                 if "Mbs_parameters" in sky_alms.keys():
                     if sky_alms["Mbs_parameters"].make_fg:
@@ -1625,7 +1796,6 @@ class Simulation:
         self,
         component: str = "tod",
         amplitude_2f_k: Union[float, None] = None,
-        optical_power_k: Union[float, None] = None,
         append_to_report: bool = False,
     ):
         """Add the HWP differential emission to all the observations of this
@@ -1642,7 +1812,6 @@ class Simulation:
             hwp=self.hwp,
             component=component,
             amplitude_2f_k=amplitude_2f_k,
-            optical_power_k=optical_power_k,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1656,28 +1825,41 @@ class Simulation:
             else:
                 amp = amplitude_2f_k
 
-            if optical_power_k is None:
-                op = "Optical power taken from IMo"
-            else:
-                op = optical_power_k
-
             self.append_to_report(
                 markdown_template,
                 amplitude_2f=amp,
-                optical_power=op,
             )
 
     @_profile
     def apply_quadratic_nonlin(
         self,
+        nl_params: NonLinParams = None,
+        user_seed: Union[int, None] = None,
         component: str = "tod",
-        g_one_over_k: Union[float, None] = None,
         append_to_report: bool = False,
+        rng_hierarchy: Union[RNGHierarchy, None] = None,
     ):
+        """A method to apply non-linearity to the observation.
+
+        This is a wrapper around
+        :func:`.apply_quadratic_nonlin_to_observations()` that
+        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained from the detector-level layer. As default it uses
+        the `dets_random` field of a :class:`.Simulation` object for this.
+        """
+        if rng_hierarchy is None:
+            rng_hierarchy = self.rng_hierarchy
+        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
+            self.mpi_comm.rank
+        )
+        if nl_params is None:
+            nl_params = NonLinParams()
+
         apply_quadratic_nonlin_to_observations(
             observations=self.observations,
+            nl_params=nl_params,
+            user_seed=user_seed,
             component=component,
-            g_one_over_k=g_one_over_k,
+            dets_random=dets_random,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1686,10 +1868,10 @@ class Simulation:
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
 
-            if g_one_over_k is None:
+            if nl_params is None:
                 g = "Detector non-linearity factor taken from IMo"
             else:
-                g = g_one_over_k
+                g = nl_params
 
             self.append_to_report(
                 markdown_template,
@@ -1699,7 +1881,8 @@ class Simulation:
     @_profile
     def add_noise(
         self,
-        random: Union[np.random.Generator, None] = None,
+        rng_hierarchy: Union[RNGHierarchy, None] = None,
+        user_seed: Union[int, None] = None,
         noise_type: str = "one_over_f",
         component: str = "tod",
         append_to_report: bool = True,
@@ -1709,18 +1892,21 @@ class Simulation:
         This method must be called after having set the instrument,
         the list of detectors to simulate through calls to
         :meth:`.set_instrument` and :meth:`.add_detector`.
-        The parameter `random` can be specified as a random number
-        generator that implements the ``normal`` method. As default it uses
-        the `random` field of a :class:`.Simulation` object for this.
+        Random number generators are obtained from the detector-level layer. As default it uses
+        the `dets_random` field of a :class:`.Simulation` object for this.
         """
 
-        if random is None:
-            random = self.random
+        if rng_hierarchy is None:
+            rng_hierarchy = self.rng_hierarchy
+        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
+            self.mpi_comm.rank
+        )
 
         add_noise_to_observations(
             observations=self.observations,
             noise_type=noise_type,
-            random=random,
+            dets_random=dets_random,
+            user_seed=user_seed,
             component=component,
         )
 
@@ -1752,7 +1938,7 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_splits: Union[str, List[str]] = "full",
         time_splits: Union[str, List[str]] = "full",
         write_to_disk: bool = True,
@@ -1769,6 +1955,9 @@ class Simulation:
         return a dictionary with the results, where the keys are the strings obtained by joining
         the detector and time splits with an underscore.
         """
+
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -1840,7 +2029,7 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         pointings_dtype=np.float64,
@@ -1851,6 +2040,8 @@ class Simulation:
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
 
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = "You must use 'make_binned_map_splits' if you want lists of splits!"
             raise ValueError(msg)
@@ -1898,7 +2089,7 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_splits: Union[str, List[str]] = "full",
         time_splits: Union[str, List[str]] = "full",
         keep_weights: bool = False,
@@ -1920,6 +2111,9 @@ class Simulation:
         with the results, where the keys are the strings obtained by joining the detector and time
         splits with an underscore.
         """
+
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -2017,7 +2211,7 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         keep_weights: bool = False,
@@ -2032,6 +2226,9 @@ class Simulation:
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
+
+        if isinstance(components, str):
+            components = [components]
 
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = (
@@ -2111,6 +2308,32 @@ class Simulation:
                 results=results,
                 bytes_in_cholesky_matrices=results.nobs_matrix_cholesky.nbytes,
             )
+
+    @_profile
+    def make_brahmap_gls_map(
+        self,
+        nside: int,
+        components: Union[str, List[str]] = "tod",
+        pointing_flag: np.ndarray = None,
+        inv_noise_cov_operator=None,
+        threshold: float = 1.0e-5,
+        pointings_dtype=np.float64,
+        gls_params=None,
+    ):
+        """Wrapper to the GLS map-maker of BrahMap.
+
+        For details, see the low-level interface in :func:`litebird_sim.mapmaking.brahmap_gls`.
+        """
+        return make_brahmap_gls_map(
+            nside=nside,
+            observations=self.observations,
+            components=components,
+            pointings_flag=pointing_flag,
+            inv_noise_cov_operator=inv_noise_cov_operator,
+            threshold=threshold,
+            pointings_dtype=pointings_dtype,
+            gls_params=gls_params,
+        )
 
     @_profile
     def write_observations(
@@ -2197,29 +2420,47 @@ class Simulation:
     def apply_gaindrift(
         self,
         drift_params: GainDriftParams = None,
-        user_seed: int = 12345,
+        user_seed: Union[int, None] = None,
         component: str = "tod",
         append_to_report: bool = True,
+        rng_hierarchy: Union[RNGHierarchy, None] = None,
     ):
-        """A method to apply the gain drift to the observation.
-
-        This is a wrapper around :func:`.apply_gaindrift_to_observations()` that
-        injects gain drift to a list of :class:`.Observation` instance.
-
-        Args:
-
-            drift_params (:class:`.GainDriftParams`, optional): The gain
-                drift injection parameters object. Defaults to None.
-
-            user_seed (int, optional): A seed provided by the user.
-                Defaults to 12345.
-
-            component (str, optional): The name of the TOD on which the
-                gain drift has to be injected. Defaults to "tod".
-
-            append_to_report (bool, optional): Defaults to True.
         """
+        Apply gain drift to all observations.
 
+        This method injects gain drift effects into the time-ordered data (TOD)
+        of each detector in each observation. The drift model can be either linear
+        or thermal, with parameters specified through a `GainDriftParams` object.
+        Random number generators are obtained from the detector-level layer. As default it uses
+        the `dets_random` field of a :class:`.Simulation` object for this.
+
+        Parameters
+        ----------
+        drift_params : GainDriftParams, optional
+            Parameters defining the drift behavior (linear or thermal). If not
+            provided, default values are used.
+        user_seed : int, optional
+            Optional seed for random generation of drift parameters. If None,
+            a default seed may be used.
+        component : str
+            Name of the TOD component to which gain drift is applied.
+        append_to_report : bool
+            Whether to include a detailed gain drift configuration summary in
+            the final report.
+        rng_hierarchy : RNGHierarchy, optional
+            RNG hierarchy used to generate per-detector drift noise. If not
+            provided, defaults to `self.rng_hierarchy`.
+
+        Raises
+        ------
+        RuntimeError
+            If no observations are defined or instrument is not properly configured.
+        """
+        if rng_hierarchy is None:
+            rng_hierarchy = self.rng_hierarchy
+        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
+            self.mpi_comm.rank
+        )
         if drift_params is None:
             drift_params = GainDriftParams()
 
@@ -2228,6 +2469,7 @@ class Simulation:
             drift_params=drift_params,
             user_seed=user_seed,
             component=component,
+            dets_random=dets_random,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2238,9 +2480,9 @@ class Simulation:
             if drift_params.drift_type == GainDriftType.LINEAR_GAIN:
                 dictionary["drift_type"] = "Linear"
                 dictionary["linear_drift"] = True
-                dictionary[
-                    "calibration_period_sec"
-                ] = drift_params.calibration_period_sec
+                dictionary["calibration_period_sec"] = (
+                    drift_params.calibration_period_sec
+                )
 
             elif drift_params.drift_type == GainDriftType.THERMAL_GAIN:
                 dictionary["drift_type"] = "Thermal"

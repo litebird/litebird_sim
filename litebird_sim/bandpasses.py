@@ -308,7 +308,7 @@ class BandPassInfo:
         """
 
         if model is not None:
-            logging.info(f"Bandpass sampler from {model.name }")
+            logging.info(f"Bandpass sampler from {model.name}")
             sampler = model.Sampler
         else:
             try:

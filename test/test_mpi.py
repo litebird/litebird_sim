@@ -1,11 +1,15 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
-
+from pathlib import Path
+from sys import stderr
 from tempfile import TemporaryDirectory
+from typing import Callable
 
-import numpy as np
 import astropy.time as astrotime
+import numpy as np
+
 import litebird_sim as lbs
+from litebird_sim import MPI_COMM_WORLD
 
 
 def test_observation_time():
@@ -77,9 +81,6 @@ def test_observation_time():
 
 def test_construction_from_detectors():
     comm_world = lbs.MPI_COMM_WORLD
-
-    if comm_world.rank == 0:
-        print(f"MPI configuration: {lbs.MPI_CONFIGURATION}")
 
     det1 = dict(
         name="pol01",
@@ -162,11 +163,11 @@ def test_construction_from_detectors():
         assert np.all(obs.quat[0] == np.ones(4))
         assert np.isnan(obs.alpha[0])
     else:
-        assert obs.name is None
-        assert obs.wafer is None
-        assert obs.pixel is None
-        assert obs.pixtype is None
-        assert obs.quat is None
+        assert obs.name == [None]
+        assert obs.wafer == [None]
+        assert obs.pixel == [None]
+        assert obs.pixtype == [None]
+        assert obs.quat == [None]
         # On the processes, that does not own any detector (and TOD), the numerical
         # attributes of `DetectorInfo()` are assigned to zero
         assert obs.ellipticity == 0
@@ -436,6 +437,8 @@ def test_write_hdf5_mpi(tmp_path):
         cur_tod = tod_path / f"litebird_tod{idx:04d}.h5"
         assert cur_tod.is_file(), f"File {cur_tod} was expected but not found"
 
+    sim.flush()
+
 
 def test_simulation_random():
     comm_world = lbs.MPI_COMM_WORLD
@@ -503,36 +506,200 @@ def test_simulation_random():
         assert state3["state"]["state"] != state4["state"]["state"]
 
 
-if __name__ == "__main__":
-    test_observation_time()
-    test_construction_from_detectors()
-    test_observation_tod_single_block()
-    test_observation_tod_two_block_time()
-    test_observation_tod_two_block_det()
-    test_observation_tod_set_blocks()
-    test_simulation_random()
+def test_issue314(tmp_path):
+    """Check if issue 314 is solved
+
+    See https://github.com/litebird/litebird_sim/issues/314
+    """
+    if MPI_COMM_WORLD.size != 2:
+        # This test is meant to be executed with 2 MPI tasks, as
+        # `__write_complex_observation` creates 2 observations
+        return
+
+    rank = lbs.MPI_COMM_WORLD.rank
+
+    tmp_path = Path(tmp_path)
+
+    start_time = 0
+    time_span_s = 60
+    sampling_hz = 10
+
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=start_time,
+        duration_s=time_span_s,
+        random_seed=12345,
+        imo=lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION),
+        mpi_comm=lbs.MPI_COMM_WORLD,
+    )
+
+    sim.set_scanning_strategy(
+        scanning_strategy=lbs.SpinningScanningStrategy.from_imo(
+            sim.imo, "/releases/vPTEP/satellite/scanning_parameters"
+        ),
+        delta_time_s=1.0,
+    )
+
+    sim.set_instrument(
+        lbs.InstrumentInfo.from_imo(
+            sim.imo, "/releases/vPTEP/satellite/LFT/instrument_info"
+        )
+    )
+
+    hwp = lbs.IdealHWP(
+        ang_speed_radpsec=1.0,
+        start_angle_rad=2.0,
+    )
+    sim.set_hwp(hwp)
+
+    det1 = lbs.DetectorInfo(
+        name="Dummy detector # 1",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    det2 = lbs.DetectorInfo(
+        name="Dummy detector # 1",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    sim.create_observations(
+        detectors=[det1, det2],
+        n_blocks_det=2,
+        split_list_over_processes=False,
+    )
+    sim.prepare_pointings(append_to_report=False)
+
+    obs = sim.observations[0]
+    obs.tod[:] = np.random.random(obs.tod.shape)
+
+    if rank == 0:
+        assert obs.det_idx == [0]
+    elif rank == 1:
+        assert obs.det_idx == [1]
+    else:
+        assert False, "This should not happen!"
+
+    sim.write_observations(
+        subdir_name="",
+        gzip_compression=False,
+        write_full_pointings=False,
+    )
+
+    observations = lbs.read_list_of_observations(
+        file_name_list=tmp_path.glob("*.h5"),
+    )
+    assert len(observations) == 1
+
+    obs = observations[0]
+
+    if rank == 0:
+        assert obs.det_idx == [0]
+    elif rank == 1:
+        assert obs.det_idx == [1]
+    else:
+        assert False, "This should not happen!"
+
+    sim.flush()
+
+
+def __run_test_in_same_folder(test_fn: Callable) -> None:
+    if not lbs.MPI_ENABLED:
+        return
 
     # It's critical that all MPI processes use the same output directory
-    if lbs.MPI_ENABLED:
-        if lbs.MPI_COMM_WORLD.rank == 0:
-            tmp_dir = TemporaryDirectory()
-            tmp_path = tmp_dir.name
-            lbs.MPI_COMM_WORLD.bcast(tmp_path, root=0)
-        else:
-            tmp_dir = None
-            tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
-    else:
+    if lbs.MPI_COMM_WORLD.rank == 0:
         tmp_dir = TemporaryDirectory()
         tmp_path = tmp_dir.name
+        lbs.MPI_COMM_WORLD.bcast(tmp_path, root=0)
+    else:
+        tmp_dir = None
+        tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
 
+    failure = False
     try:
-        test_write_hdf5_mpi(tmp_path)
-    finally:
-        # Now we can remove the temporary directory, but first make
-        # sure that there are no other MPI processes still waiting to
-        # finish
-        if lbs.MPI_ENABLED:
-            lbs.MPI_COMM_WORLD.barrier()
+        test_fn(tmp_path)
+    except Exception:
+        failure = True
 
-        if tmp_dir:
-            tmp_dir.cleanup()
+        from traceback import format_exc
+
+        print(
+            "MPI process #{rank} failed with exception: {exc}".format(
+                rank=lbs.MPI_COMM_WORLD.rank,
+                exc=format_exc(),
+            ),
+            file=stderr,
+        )
+
+    if tmp_dir:
+        tmp_dir.cleanup()
+
+    if failure:
+        lbs.MPI_COMM_WORLD.Abort(1)
+
+
+def test_nullify_mpi(tmp_path):
+    start_time = 0
+    time_span_s = 2
+    sampling_hz = 12
+
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=start_time,
+        duration_s=time_span_s,
+        random_seed=12345,
+    )
+
+    det = lbs.DetectorInfo(
+        name="Dummy detector",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    num_of_obs = 12
+    sim.create_observations(detectors=[det], num_of_obs_per_detector=num_of_obs)
+
+    # Assert TOD is initially non-zero and specific to rank
+    for obs in sim.observations:
+        obs.tod[:, :] = lbs.MPI_COMM_WORLD.rank + 1
+
+    sim.nullify_tod()
+
+    # Assert TOD is now zero
+    for obs in sim.observations:
+        assert np.all(obs.tod == 0)
+
+    sim.flush()
+
+
+if __name__ == "__main__":
+    test_functions = [
+        test_observation_time,
+        test_construction_from_detectors,
+        test_observation_tod_single_block,
+        test_observation_tod_two_block_time,
+        test_observation_tod_two_block_det,
+        test_observation_tod_set_blocks,
+        test_simulation_random,
+    ]
+
+    for cur_test_fn in test_functions:
+        if MPI_COMM_WORLD.rank == 0:
+            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
+        cur_test_fn()
+
+    same_folder_test_functions = [
+        test_write_hdf5_mpi,
+        test_issue314,
+        test_nullify_mpi,
+    ]
+
+    for cur_test_fn in same_folder_test_functions:
+        if MPI_COMM_WORLD.rank == 0:
+            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
+        __run_test_in_same_folder(cur_test_fn)

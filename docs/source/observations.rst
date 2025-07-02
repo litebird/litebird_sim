@@ -6,7 +6,7 @@ Observations
 The :class:`.Observation` class is the container for the data acquired by the
 telescope during a scanning period (and the relevant information about it).
 
-Serial applications 
+Serial applications
 -------------------
 
 In a serial code :class:`.Observation` is equivalent to an empty class in which you
@@ -93,7 +93,7 @@ With this memory layout, typical operations look like this::
   obs.tod += (np.random.normal(size=obs.tod.shape)
               * obs.wn_levels[:, None])
 
-                
+
 Parallel applications
 ---------------------
 
@@ -105,7 +105,7 @@ can be achieved in two different ways:
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 With ``n_blocks_det`` and ``n_blocks_time`` arguments of :class:`.Observation` class,
-the ``obs.tod`` is evenly distributed over a 
+the ``obs.tod`` is evenly distributed over a
 ``n_blocks_det`` by ``n_blocks_time`` grid of MPI ranks. The blocks can be
 changed at run-time.
 
@@ -134,10 +134,10 @@ The price to pay is that you have to set detector properties with special method
       comm=comm  # across the processes of this communicator
   )
 
-  # Add detector properties either with a global array that contains 
+  # Add detector properties either with a global array that contains
   # all the detectors (which will be scattered across the processor grid)
   obs.setattr_det_global('calibration_factors', np.array([1.1, 1.2]))
-  
+
   # Or with the local array, if somehow you have it already
   if comm.rank == 0:
       wn_level_local = np.array([2.1])
@@ -146,7 +146,7 @@ The price to pay is that you have to set detector properties with special method
   else:
       wn_level_local = np.array([])
   obs.setattr_det('wn_levels', wn_level_local)
-  
+
   # Operate on the local portion of the data just like in serial code
 
   # Apply to each detector its own calibration factor
@@ -366,9 +366,9 @@ global ranks:
   ``MPI_COMM_GRID.COMM_OBS_GRID`` against ``MPI_COMM_GRID.COMM_NULL``:
 
   ::
-    
+
     if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
-        # proceed with the following computations when 
+        # proceed with the following computations when
         # MPI_COMM_GRID.COMM_OBS_GRID is not null
         ...
 
@@ -410,7 +410,7 @@ key.
 
   import litebird_sim as lbs
   from astropy.time import Time
-  
+
   # Second case: use MJD to track the time
   obs_mjd = lbs.Observation(
       detectors=[{"name": "A"}, {"name": "B"}]
@@ -421,6 +421,50 @@ key.
 
   obs.name == np.array(["A", "B"])  # True
 
+
+Obtain pointings
+----------------
+The pointing information for one or more detectors in an observation are
+accessible through the :func:`.get_pointings` which returns a tuple containing
+the pointing matrix of the detectors and the HWP angle. This call must be prepared
+calling either the method :meth:`.Observation.prepare_pointings` of this class or
+:meth:`.Simulation.prepare_pointings`, or the function :func:`litebird_sim.prepare_pointings`
+
+The structure of the pointing matrix returned depends on the parameter `detector_idx`
+that specifies which detectors should be included in the computation.
+The following calls are all legitimate.
+
+::
+
+  # All the detectors are included
+  pointings, hwp_angle = cur_obs.get_pointings("all")
+  # This returns ``(N_det, N_samples, 3)`` array
+
+  # Only the first two detectors are included
+  pointings, hwp_angle = cur_obs.get_pointings([0, 1])
+  # This returns ``(2, N_samples, 3)`` array
+
+  # Only the first detector is used
+  pointings, hwp_angle = cur_obs.get_pointings(0)
+  # This returns ``(N_samples, 3)`` array
+
+  # NB if a list of indices is passed an array of dimension ``(N_det, N_samples, 3)``
+  # is always returned
+  # For example this
+  pointings, hwp_angle = cur_obs.get_pointings([0])
+  # returns ``(1, N_samples, 3)`` array
+
+The last dimension spans the three angles θ (colatitude, in radians), φ (longitude, in
+radians), and ψ (orientation angle, in radians).
+The HWP angle is always a vector with shape ``(N_samples,)``, as it does not depend on
+the list of detectors.
+
+The method :func:`.get_hwp_angle` allows to obtain only the HWP angle.
+
+The function :func:`litebird_sim.precompute_pointings()` precomputes all the pointings
+for a set of observations storing them in ``Observation.pointing_matrix`` and
+``Observation.hwp_angle``. See above for more details. The same result is achieved
+calling the method :meth:`.Observation.precompute_pointings()`.
 
 Reading/writing observations to disk
 ------------------------------------
@@ -490,7 +534,7 @@ file contains the following datasets:
   ``pointing_provider_rot_quaternion`` (see above), and there are as many datasets of
   this kind as the number of detectors in this :class:`.Observation` object.
 
-  
+
 Flags
 -----
 

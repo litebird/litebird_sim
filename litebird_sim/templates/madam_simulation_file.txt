@@ -1,0 +1,38 @@
+# Simulation file for Madam
+# Created by litebird_sim on {{ current_date }}
+
+fsample = {{ sampling_rate_hz }}
+nofiles = {{ number_of_files }}
+
+{% for cur_component in components_to_save %}
+tod_info = {{ loop.index }} 1.0 {{ cur_component }}
+{% endfor %}
+
+#
+# Detectors
+
+{% for det in detectors %}
+detector_info = {{ "%5d" | format(loop.index) }} 0.0 T {{ det.net_ukrts }} {{ det.slope }} {{ det.fknee_hz }} {{ det.fmin_hz }} {{ loop.index }} {{ det.name }}
+{% endfor %}
+
+#
+# Pointings
+
+path_point = {{ pointings_path }}
+
+{% for pnt in pointing_files %}
+file_point = {{ pnt.det_id }} {{ pnt.file_name }}[1]
+{% endfor %}
+
+#
+# TOD
+
+{% for cur_component in components_to_save %}
+path_tod = {{ loop.index }} {{ tod_path }}
+
+{% set outer_index = loop.index %}
+{% for tod in tod_files %}
+file_tod = {{ outer_index }} {{ tod.det_id }} {{ tod.file_name }}[{{ outer_index }}]
+{% endfor %}
+
+{% endfor %}

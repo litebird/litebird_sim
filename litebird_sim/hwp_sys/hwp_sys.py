@@ -11,6 +11,7 @@ import litebird_sim as lbs
 from litebird_sim import mpi
 from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
+from ..hwp_diff_emiss import compute_2f_for_one_sample
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
 from . import mueller_methods
@@ -57,7 +58,6 @@ def compute_orientation_from_detquat(quat):
 
     return polang
 
-
 @njit
 def mueller_interpolation(Theta, harmonic, i, j):
     mueller0deg = {
@@ -101,7 +101,6 @@ def mueller_interpolation(Theta, harmonic, i, j):
         mueller0deg[harmonic][i, j]
         + (mueller10deg[harmonic][i, j] - mueller0deg[harmonic][i, j]) * f_factor
     )
-
 
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
@@ -223,7 +222,7 @@ class HwpSys:
         if not hasattr(self, "add_2f_hwpss"):
             if add_2f_hwpss is not None:
                 self.add_2f_hwpss = add_2f_hwpss
-
+                
         if not hasattr(self, "integrate_in_band"):
             if integrate_in_band is not None:
                 self.integrate_in_band = integrate_in_band
@@ -294,8 +293,6 @@ class HwpSys:
                     dtype=np.float64,
                 ),
             }
-
-        # self.comm = comm
 
     def fill_tod(
         self,
@@ -448,7 +445,7 @@ class HwpSys:
                 if self.mueller_or_jones == "mueller":
                     if np.all(
                         cur_obs.mueller_hwp[idet]
-                        == [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, -1, 0], [0, 0, 0, -1]]
+                        == np.diag([1.0, 1.0, -1.0, -1.0])
                     ):
                         cur_obs.mueller_hwp[idet] = {
                             "0f": np.array(
@@ -753,7 +750,7 @@ class HwpSys:
                             )
 
                 cur_obs.tod[idet] = tod
-
+                
         if self.interpolation in ["", None]:
             del pix
         del input_T, input_Q, input_U

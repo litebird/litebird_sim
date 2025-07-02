@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Union, Optional
 import astropy.time
 import h5py
 import numpy as np
-from deprecation import deprecated
 
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
@@ -20,7 +19,6 @@ from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
-from .version import __version__ as litebird_sim_version
 
 __NUMPY_INT_TYPES = [
     np.int8,
@@ -168,7 +166,7 @@ def read_pointing_provider_from_hdf5(
 
 def write_one_observation(
     output_file: h5py.File,
-    observations: Observation,
+    obs: Observation,
     tod_dtype,
     pointings_dtype,
     global_index: int,
@@ -202,11 +200,11 @@ def write_one_observation(
 
     compression = "gzip" if gzip_compression else None
 
-    if observations.pointing_provider is not None:
+    if obs.pointing_provider is not None:
         write_pointing_provider_to_hdf5(
             output_file=output_file,
             field_name="pointing_provider",
-            pointing_provider=observations.pointing_provider,
+            pointing_provider=obs.pointing_provider,
             compression=compression,
         )
 
@@ -220,12 +218,12 @@ def write_one_observation(
     # We must use this ugly hack because Observation does not store DetectorInfo
     # classes but «spreads» their fields in the namespace of the class Observation.
     detector_info_fields = [x.name for x in fields(DetectorInfo())]
-    for det_idx in range(observations.n_detectors):
+    for det_idx in range(obs.n_detectors):
         new_detector = {}
 
         for attribute in detector_info_fields:
             try:
-                attr_value = observations.__getattribute__(attribute)
+                attr_value = obs.__getattribute__(attribute)
             except AttributeError:
                 continue
 
@@ -257,7 +255,7 @@ def write_one_observation(
         write_rot_quaternion_to_hdf5(
             output_file=output_file,
             field_name=f"rot_quaternion_{det_idx:04d}",
-            rot_matrix=observations.quat[det_idx],
+            rot_matrix=obs.quat[det_idx],
             compression=compression,
         )
 
@@ -265,48 +263,48 @@ def write_one_observation(
     detectors_json = json.dumps(det_info, cls=DetectorJSONEncoder)
 
     if not tod_fields:
-        tod_fields = observations.tod_list
+        tod_fields = obs.tod_list
 
     # Write all the TOD timelines in the HDF5 file, in separate datasets
     for cur_field in tod_fields:
         if not isinstance(cur_field, TodDescription):
             try:
-                cur_field = [x for x in observations.tod_list if x.name == cur_field][0]
+                cur_field = [x for x in obs.tod_list if x.name == cur_field][0]
             except IndexError:
                 raise KeyError(f'TOD with name "{cur_field}" not found in observation')
 
         cur_dataset = output_file.create_dataset(
             cur_field.name,
-            data=observations.__getattribute__(cur_field.name),
+            data=obs.__getattribute__(cur_field.name),
             dtype=tod_dtype if tod_dtype else cur_field.dtype,
             compression=compression,
         )
-        if isinstance(observations.start_time, astropy.time.Time):
-            cur_dataset.attrs["start_time"] = observations.start_time.to_value(
+        if isinstance(obs.start_time, astropy.time.Time):
+            cur_dataset.attrs["start_time"] = obs.start_time.to_value(
                 format="mjd", subfmt="bytes"
             )
             cur_dataset.attrs["mjd_time"] = True
         else:
-            cur_dataset.attrs["start_time"] = observations.start_time
+            cur_dataset.attrs["start_time"] = obs.start_time
             cur_dataset.attrs["mjd_time"] = False
 
-        cur_dataset.attrs["sampling_rate_hz"] = observations.sampling_rate_hz
+        cur_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
         cur_dataset.attrs["detectors"] = detectors_json
         cur_dataset.attrs["description"] = cur_field.description
 
     # Save pointing information only if it is available
-    if observations.pointing_provider and write_full_pointings:
-        n_detectors = observations.n_detectors
-        n_samples = observations.n_samples
+    if obs.pointing_provider and write_full_pointings:
+        n_detectors = obs.n_detectors
+        n_samples = obs.n_samples
 
         pointing_matrix = np.empty(shape=(n_detectors, n_samples, 3))
 
         hwp_angle = None
-        if observations.pointing_provider.has_hwp():
+        if obs.pointing_provider.has_hwp():
             hwp_angle = np.empty(shape=(n_samples,))
 
         for det_idx in range(n_detectors):
-            observations.get_pointings(
+            obs.get_pointings(
                 det_idx,
                 pointing_buffer=pointing_matrix[det_idx, :, :],
                 hwp_buffer=hwp_angle,
@@ -330,7 +328,7 @@ def write_one_observation(
     try:
         output_file.create_dataset(
             "global_flags",
-            data=rle_compress(observations.__getattribute__("global_flags")),
+            data=rle_compress(obs.__getattribute__("global_flags")),
             compression=compression,
         )
     except (AttributeError, TypeError):
@@ -339,8 +337,8 @@ def write_one_observation(
     try:
         # We must separate the flags belonging to different detectors because they
         # might have different shapes
-        for det_idx in range(observations.local_flags.shape[0]):
-            flags = observations.__getattribute__("local_flags")
+        for det_idx in range(obs.local_flags.shape[0]):
+            flags = obs.__getattribute__("local_flags")
             compressed_flags = rle_compress(flags[det_idx, :])
             output_file.create_dataset(
                 f"flags_{det_idx:04d}",
@@ -355,6 +353,7 @@ def write_one_observation(
     output_file.attrs["mpi_size"] = MPI_COMM_WORLD.size
     output_file.attrs["global_index"] = global_index
     output_file.attrs["local_index"] = local_index
+    output_file.attrs["det_idx"] = json.dumps([int(x) for x in obs.det_idx])
 
 
 def _compute_global_start_index(
@@ -509,7 +508,7 @@ def write_list_of_observations(
         with h5py.File(file_name, "w") as output_file:
             write_one_observation(
                 output_file=output_file,
-                observations=cur_obs,
+                obs=cur_obs,
                 tod_dtype=tod_dtype,
                 pointings_dtype=pointings_dtype,
                 global_index=params["global_index"],
@@ -522,27 +521,6 @@ def write_list_of_observations(
         file_list.append(file_name)
 
     return file_list
-
-
-@deprecated(
-    deprecated_in="0.11",
-    current_version=litebird_sim_version,
-    details="Use Simulation.write_observations",
-)
-def write_observations(
-    sim,
-    subdir_name: Union[None, str] = "tod",
-    include_in_report: bool = True,
-    *args,
-    **kwargs,
-) -> List[Path]:
-    # Here we call the method moved inside Simulation
-    return sim.write_observations(
-        subdir_name,
-        include_in_report,
-        *args,
-        **kwargs,
-    )
 
 
 def __find_flags(inpf, expected_num_of_dets: int, expected_num_of_samples: int):
@@ -630,9 +608,9 @@ def read_one_observation(
             else:
                 cur_field_name = cur_field
 
-            assert (
-                cur_field_name in inpf
-            ), f"Field {cur_field_name} not found in HDF5 file {path}"
+            assert cur_field_name in inpf, (
+                f"Field {cur_field_name} not found in HDF5 file {path}"
+            )
             hdf5_tod = inpf[cur_field_name]
 
             if hdf5_tod.attrs["mjd_time"]:
@@ -670,6 +648,7 @@ def read_one_observation(
                     comm=None if limit_mpi_rank else MPI_COMM_WORLD,
                     tods=tod_full_fields,
                 )
+                result.det_idx = np.array(json.loads(inpf.attrs["det_idx"]))
                 # Copy the TOD in the newly created observation
                 result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])
             else:
