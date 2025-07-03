@@ -158,20 +158,27 @@ If convolution parameters are omitted, defaults are inferred from sky and beam a
 Container for Spherical Harmonics
 ---------------------------------
 
-The :class:`SphericalHarmonics` class stores spherical harmonic coefficients. 
-In libraries like HealPy, alms are stored in NumPy arrays, but their ℓ_max and
-m_max values cannot be uniquely determined from array size (except when ℓ_max = m_max). 
-This class ensures proper handling, enforcing `mmax ≤ lmax` and consistently 
-using shape `(nstokes, ncoeff)`.
+The :class:`SphericalHarmonics` class stores spherical harmonic coefficients
+(a_{ℓm}) together with their associated metadata, such as `lmax`, `mmax`, and
+the number of Stokes parameters (`nstokes`).
 
-The class :class:`SphericalHarmonics` serves a container for the spherical harmonics 
-coefficients. The convention used in libraries like HealPy is to keep the a_ℓm coefficients
-of a spherical harmonic expansion in a plain NumPy array. However, this is
-ambiguous because it is not possible to uniquely determine the value of
-ℓ_max and m_max from the size of the array (unless you assume that ℓ_max == m_max)
-This class allows to store any set of alms with the only restriction that `m_max≤l_max`
-The shape of alms stored is *always* ``(nstokes, ncoeff)``, even if ``nstokes == 1``
-It also provides :func:`.resize_alm`, allowing alms to be resized via zero-padding or truncation. 
+In libraries like HealPy, the a_{ℓm} coefficients are stored in plain NumPy arrays.
+However, this representation is ambiguous: the values of `lmax` and `mmax` cannot
+be uniquely inferred from the array size unless one assumes `lmax == mmax`.
+
+This class provides an explicit and robust interface to spherical harmonic data,
+allowing `mmax ≤ lmax` and supporting polarized (3-Stokes) and intensity-only
+(1-Stokes) cases. Internally, the coefficients are stored in a NumPy array
+of shape ``(nstokes, ncoeff)`` — this shape is always enforced, even for scalar
+(intensity-only) data.
+
+It supports:
+- Shape validation against `lmax` and `mmax`
+- Safe algebraic operations (addition, scaling, convolution)
+- Resizing via zero-padding or truncation
+- I/O through Healpy-compatible FITS files
+
+ 
 Example usage:
 
 .. testcode::
