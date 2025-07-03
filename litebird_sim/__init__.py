@@ -58,7 +58,8 @@ from .grasp2alm import (
     BeamGrid,
     BeamHealpixMap,
     BeamPolar,
-    grasp2alm,
+    ticra_cut_to_alm,
+    ticra_grid_to_alm,
 )
 from .healpix import (
     UNSEEN_PIXEL_VALUE,
@@ -239,7 +240,8 @@ __all__ = [
     "BeamGrid",
     "BeamHealpixMap",
     "BeamPolar",
-    "grasp2alm",
+    "ticra_cut_to_alm",
+    "ticra_grid_to_alm",
     # hwp.py
     "HWP",
     "IdealHWP",

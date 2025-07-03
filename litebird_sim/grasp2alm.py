@@ -11,6 +11,7 @@ from your work.
 """
 
 import copy
+import typing
 import warnings
 from dataclasses import dataclass
 
@@ -19,7 +20,7 @@ import ducc0.sht
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-from .healpix import UNSEEN_PIXEL_VALUE, npix_to_nside, nside_to_npix, num_of_alms
+from .healpix import npix_to_nside, nside_to_npix, num_of_alms
 
 REASON_DESCRIPTION = {
     1: "Approximate solution found",
@@ -80,7 +81,7 @@ class BeamHealpixMap:
             )
 
         if not lmax:
-            lmax = 5 * self.nside - 1
+            lmax = 3 * self.nside // 2
 
         geom = self.base.sht_info()
 
@@ -143,7 +144,6 @@ class BeamPolar:
         theta_rad_max (`float`): Maximum :math:`\theta` value in radians.
         stokes (`numpy.ndarray`): Array of shape (4, ``nphi``, ``ntheta``) containing the four Stokes
             parameters (:math:`I`,:math:`Q`,:math:`U`,:math:`V`).
-        filename (`str`): Name of the file.
         polar_basis (`bool`): If ``True``, the :math:`Q` and :math:`U` parameters have been rotated
             so that they are expressed in a polar basis. This is suitable if you are going to
             compute the harmonic coefficients on them. By default this is ``False``, because typically
@@ -157,7 +157,6 @@ class BeamPolar:
         ntheta: int,
         theta_rad_min: float,
         theta_rad_max: float,
-        filename: str,
         polar_basis: bool = False,
     ):
         self.nphi = nphi
@@ -165,7 +164,6 @@ class BeamPolar:
         self.theta_rad_min = theta_rad_min
         self.theta_rad_max = theta_rad_max
         self.stokes = np.zeros((4, nphi, ntheta), dtype=float)
-        self.filename = filename
         self.polar_basis = polar_basis
 
     def convert_to_polar_basis(self) -> "BeamPolar":
@@ -212,7 +210,7 @@ class BeamPolar:
         self,
         nside: int,
         nstokes: int = 3,
-        outOftheta_val: float = UNSEEN_PIXEL_VALUE,
+        unseen_pixel_value: float = 0.0,
         interp_method: str = "linear",
     ) -> BeamHealpixMap:
         """Convert the :class:`.BeamPolar` to a :class:`.BeamMap`.
@@ -220,7 +218,7 @@ class BeamPolar:
         Args:
             nside (`int`): The nside parameter for the HEALPix map.
             nstokes (`int`): Number of Stokes parameters.
-            outOftheta_val (`float`): Value to fill outside the valid theta range.
+            unseen_pixel_value (`float`): Value to fill outside the valid theta range.
             interp_method (`str`): Interpolation method to use. Default is 'linear'.
                 Supported are 'linear', 'nearest', 'slinear', 'cubic', 'quintic' and 'pchip'.
 
@@ -240,7 +238,7 @@ class BeamPolar:
         theta = theta[theta <= self.theta_rad_max]
         phi = phi[: len(theta)]
 
-        beam_map = np.full((nstokes, npix), outOftheta_val, dtype=float)
+        beam_map = np.full((nstokes, npix), unseen_pixel_value, dtype=float)
         for s in range(nstokes):
             beam_map[s, : len(theta)] = beam_polar._get_interp_val(
                 theta, phi, s, interp_method
@@ -328,12 +326,10 @@ def _get_interp_val_from_polar_original(
     return value
 
 
-@dataclass
 class BeamGrid:
     """Class to hold the data loaded from a TICRA GRASP beam grid file
 
     Args:
-        header (`str`): Record with identification text.
         ktype (`int`): Specifies type of file format.
         nset (`int`): Number of field sets or beams.
         klimit (`int`): Specification of limits in a 2D grid.
@@ -350,115 +346,103 @@ class BeamGrid:
         ny (`int`): Number of rows.
         freq (`float`): Frequency.
         frequnit (`str`): Frequency unit.
-        amp (`numpy.ndarray`): Array of complex amplitudes [:math:`\theta`, :math:`\phi`].
+        amp (`numpy.ndarray` | None): Array of complex amplitudes [:math:`\theta`, :math:`\phi`].
     """
 
-    header: str = ""
-    ktype: int = 0
-    nset: int = 0
-    klimit: int = 0
-    icomp: int = 0
-    ncomp: int = 0
-    igrid: int = 0
-    ix: int = 0
-    iy: int = 0
-    xs: float = 0.0
-    ys: float = 0.0
-    xe: float = 0.0
-    ye: float = 0.0
-    nx: int = 0
-    ny: int = 0
-    frequency: float = 0.0
-    frequency_unit: str = ""
-    amp: np.ndarray = None
-
-    def __init__(self, filepath):
+    def __init__(self, file_obj: typing.TextIO):
         """Initialize the BeamGrid object."""
 
-        super().__init__()
-        self.file_path = filepath
-        self.file_name = filepath.split("/")[-1]
-        self.__post_init__()
+        self.ktype = 0
+        self.nset = 0
+        self.klimit = 0
+        self.icomp = 0
+        self.ncomp = 0
+        self.igrid = 0
+        self.ix = 0
+        self.iy = 0
+        self.xs = 0.0
+        self.ys = 0.0
+        self.xe = 0.0
+        self.ye = 0.0
+        self.nx = 0
+        self.ny = 0
+        self.frequency = 0.0
+        self.frequency_unit = ""
+        self.amp = None
+        self._parse_file(file_obj)
 
-    def __post_init__(self):
+    def _parse_file(self, fi: typing.TextIO) -> None:
         """Read and parse the beam grid file."""
 
-        if not self.file_path.endswith(".grd"):
-            raise ValueError(
-                "Error in BeamGrid.__post_init__: The file is not a GRASP grid file."
+        while True:
+            line = fi.readline()
+            if line[0:4] == "++++":
+                break
+            elif "FREQUENCIES [" in line:
+                self.frequency_unit = line.split("[")[1].split("]")[0]
+                self.frequency = float(fi.readline().strip())
+
+        self.ktype = int(fi.readline())
+        if not self.ktype == 1:
+            raise ValueError("Unknown Grasp grid format, ktype != 1")
+
+        line = fi.readline().split()
+        self.nset = int(line[0])
+        self.icomp = int(line[1])
+        self.ncomp = int(line[2])
+        self.igrid = int(line[3])
+
+        if self.nset > 1:
+            warnings.warn("Warning: nset > 1, only reading first beam in file")
+
+        line = fi.readline().split()
+        self.ix = int(line[0])
+        self.iy = int(line[1])
+        i = 2
+        while i <= self.nset:
+            fi.readline()
+            i += 1
+
+        line = fi.readline().split()
+        self.xs = float(line[0])
+        self.ys = float(line[1])
+        self.xe = float(line[2])
+        self.ye = float(line[3])
+
+        beam_solid_angle_rad = (
+            np.cos(np.deg2rad(self.ys)) - np.cos(np.deg2rad(self.ye))
+        ) * (np.deg2rad(self.xe) - np.deg2rad(self.xs))
+        if not np.isclose(beam_solid_angle_rad, 2.0 * np.pi) and not np.isclose(
+            beam_solid_angle_rad, 4.0 * np.pi
+        ):
+            warnings.warn(
+                f"Warning: beam solid angle is not 2pi or 4pi because BeamGrid has xs={self.xs}, xe={self.xe}, ys={self.ys} and ye={self.ye}. The header should be checked."
             )
-        with open(self.file_path, "r") as fi:
-            while True:
-                line = fi.readline()
-                if line[0:4] == "++++":
-                    break
-                elif "FREQUENCIES [" in line:
-                    self.frequency_unit = line.split("[")[1].split("]")[0]
-                    self.frequency = float(fi.readline().strip())
-                else:
-                    self.header += line[:-1] + "\n"
 
-            self.ktype = int(fi.readline())
-            if not self.ktype == 1:
-                raise ValueError("Unknown Grasp grid format, ktype != 1")
+        line = fi.readline().split()
+        self.nx = int(line[0])
+        self.ny = int(line[1])
+        self.klimit = int(line[2])
+        self.amp = np.zeros((self.ncomp, self.nx, self.ny), dtype=complex)
 
-            line = fi.readline().split()
-            self.nset = int(line[0])
-            self.icomp = int(line[1])
-            self.ncomp = int(line[2])
-            self.igrid = int(line[3])
+        is_val, in_val = 0, 0
+        for j in range(self.ny):
+            if self.klimit == 1:
+                line = fi.readline().split()
+                in_val = int(line[1])
+                is_val = int(line[0])
+            else:
+                is_val = 1
+                in_val = self.nx
 
-            if self.nset > 1:
-                warnings.warn("Warning: nset > 1, only reading first beam in file")
-
-            line = fi.readline().split()
-            self.ix = int(line[0])
-            self.iy = int(line[1])
-            i = 2
-            while i <= self.nset:
-                fi.readline()
-                i += 1
-
-            line = fi.readline().split()
-            self.xs = float(line[0])
-            self.ys = float(line[1])
-            self.xe = float(line[2])
-            self.ye = float(line[3])
-
-            beam_solid_angle_rad = (
-                np.cos(np.deg2rad(self.ys)) - np.cos(np.deg2rad(self.ye))
-            ) * (np.deg2rad(self.xe) - np.deg2rad(self.xs))
-            if not np.isclose(beam_solid_angle_rad, 2.0 * np.pi) and not np.isclose(
-                beam_solid_angle_rad, 4.0 * np.pi
-            ):
-                warnings.warn(
-                    f"Warning: beam solid angle is not 2pi or 4pi because BeamGrid has xs={self.xs}, xe={self.xe}, ys={self.ys} and ye={self.ye}. The header should be checked."
-                )
-
-            line = fi.readline().split()
-            self.nx = int(line[0])
-            self.ny = int(line[1])
-            self.klimit = int(line[2])
-            self.amp = np.zeros((self.ncomp, self.nx, self.ny), dtype=complex)
-
-            is_val, in_val = 0, 0
-            for j in range(self.ny):
-                if self.klimit == 1:
-                    line = fi.readline().split()
-                    in_val = int(line[1])
-                    is_val = int(line[0])
-                else:
-                    is_val = 1
-                    in_val = self.nx
-
-                for i in range(is_val, in_val + 1):
-                    line = fi.readline().split()
-                    if any(np.isnan(list(map(float, line)))):
-                        raise ValueError(
-                            "Encountered a NaN value in Amplitude. Please check your input."
-                        )
-                    self.amp[0, i - 1, j] = float(line[0]) + float(line[1]) * 1j
-                    self.amp[1, i - 1, j] = float(line[2]) + float(line[3]) * 1j
+            for i in range(is_val, in_val + 1):
+                line = fi.readline().split()
+                if any(np.isnan(list(map(float, line)))):
+                    raise ValueError(
+                        "Encountered a NaN value in Amplitude. Please check your input."
+                    )
+                self.amp[0, i - 1, j] = float(line[0]) + float(line[1]) * 1j
+                self.amp[1, i - 1, j] = float(line[2]) + float(line[3]) * 1j
 
     def to_polar(self, copol_axis="x") -> BeamPolar:
         """Converts beam in polar grid format into Stokes
@@ -507,7 +491,10 @@ class BeamGrid:
             theta_rad_max = np.deg2rad(self.ys)
 
         beam_polar = BeamPolar(
-            nphi, ntheta, theta_rad_min, theta_rad_max, self.file_name
+            nphi,
+            ntheta,
+            theta_rad_min,
+            theta_rad_max,
         )
 
         if self.icomp == 3:
@@ -544,12 +531,10 @@ class BeamGrid:
         return beam_polar
 
 
-@dataclass
 class BeamCut:
     """Class to hold the data from a beam cut file of GRASP.
 
     Args:
-        header (`str`): Record with identification text.
         vini (`float`): Initial value.
         vinc (`float`): Increment.
         vnum (`int`): Number of values in cut.
@@ -558,101 +543,92 @@ class BeamCut:
         icut (`int`): Control parameter of cut.
         ncomp (`int`): Number of field components.
         ncut (`int`): Number of cuts.
-        amp (`numpy.ndarray`): Amplitude.
+        amp (`numpy.ndarray` | None): Amplitude.
     """
 
-    header: str = ""
-    vini: float = 0.0
-    vinc: float = 0.0
-    vnum: int = 0
-    c = np.array([])
-
-    icomp: int = 0
-    icut: int = 0
-    ncomp: int = 0
-    ncut: int = 0
-    amp: np.ndarray = None
-
-    def __init__(self, filepath):
+    def __init__(self, file_obj: typing.TextIO):
         """
         Initializes a BeamCut object.
 
         Args:
             filepath (`str`): The path to the GRASP cut file.
         """
-        super().__init__()
-        self.filepath = filepath
-        self.filename = filepath.split("/")[-1]
-        self.__post_init__()
+        self.vini = 0.0
+        self.vinc = 0.0
+        self.vnum = 0
+        self.c = np.array([])
+        self.icomp = 0
+        self.icut = 0
+        self.ncomp = 0
+        self.ncut = 0
+        self.amp = None
+        self._parse_file(file_obj)
 
-    def __post_init__(self):
-        """Performs post-initialization tasks."""
+    def _parse_file(self, file_obj: typing.TextIO) -> None:
+        "Parse the .cut file"
 
-        if not self.filepath.endswith(".cut"):
-            raise ValueError(
-                "Error in BeamCut.__post_init__: The file is not a GRASP cut file."
-            )
-        with open(self.filepath, "r") as fi:
-            self.header = fi.readline().strip()
-            while True:
-                line = fi.readline()
-                if not line:
-                    break
-                data = line.split()
-                if len(data) == 7:
-                    (
-                        self.vini,
-                        self.vinc,
-                        self.vnum,
-                        c,
-                        self.icomp,
-                        self.icut,
-                        self.ncomp,
-                    ) = map(float, data)
-                    self.vnum, self.icomp, self.icut, self.ncomp = map(
-                        int, (self.vnum, self.icomp, self.icut, self.ncomp)
-                    )
-                    self.c = np.append(self.c, c)
-                    self.ncut += 1
-                if self.ncomp > 2:
-                    raise ValueError(
-                        "Three field components present. Beam package can only handle two field components."
-                    )
-                if self.vnum % 2 == 0:
-                    raise ValueError("The number of pixels in a cut must be odd.")
+        # Read the header line and throw it away
+        _ = file_obj.readline().strip()
 
-            self.amp = np.zeros((self.ncomp, self.vnum, self.ncut), dtype=complex)
-            fi.seek(0)
-            cnt = 0
-            while True:
-                line = fi.readline()
-                if not line:
-                    break
-                data = line.split()
-                if len(data) == 7:
-                    (
-                        self.vini,
-                        self.vinc,
-                        self.vnum,
-                        _,
-                        self.icomp,
-                        self.icut,
-                        self.ncomp,
-                    ) = map(float, data)
-                    self.vnum, self.icomp, self.icut, self.ncomp = map(
-                        int, (self.vnum, self.icomp, self.icut, self.ncomp)
-                    )
-                    for i in range(self.vnum):
-                        line = fi.readline()
-                        data = line.split()
-                        tmp1, tmp2, tmp3, tmp4 = map(float, data)
-                        if any(np.isnan([tmp1, tmp2, tmp3, tmp4])):
-                            raise ValueError(
-                                "Encountered a NaN value in Amplitude. Please check your input."
-                            )
-                        self.amp[0, i, cnt] = complex(tmp1, tmp2)
-                        self.amp[1, i, cnt] = complex(tmp3, tmp4)
-                    cnt += 1
+        while True:
+            line = file_obj.readline()
+            if not line:
+                break
+            data = line.split()
+            if len(data) == 7:
+                (
+                    self.vini,
+                    self.vinc,
+                    self.vnum,
+                    c,
+                    self.icomp,
+                    self.icut,
+                    self.ncomp,
+                ) = map(float, data)
+                self.vnum, self.icomp, self.icut, self.ncomp = map(
+                    int, (self.vnum, self.icomp, self.icut, self.ncomp)
+                )
+                self.c = np.append(self.c, c)
+                self.ncut += 1
+            if self.ncomp > 2:
+                raise ValueError(
+                    "Three field components present. Beam package can only handle two field components."
+                )
+            if self.vnum % 2 == 0:
+                raise ValueError("The number of pixels in a cut must be odd.")
+
+        self.amp = np.zeros((self.ncomp, self.vnum, self.ncut), dtype=complex)
+        file_obj.seek(0)
+        cnt = 0
+        while True:
+            line = file_obj.readline()
+            if not line:
+                break
+            data = line.split()
+            if len(data) == 7:
+                (
+                    self.vini,
+                    self.vinc,
+                    self.vnum,
+                    _,
+                    self.icomp,
+                    self.icut,
+                    self.ncomp,
+                ) = map(float, data)
+                self.vnum, self.icomp, self.icut, self.ncomp = map(
+                    int, (self.vnum, self.icomp, self.icut, self.ncomp)
+                )
+                for i in range(self.vnum):
+                    line = file_obj.readline()
+                    data = line.split()
+                    tmp1, tmp2, tmp3, tmp4 = map(float, data)
+                    if any(np.isnan([tmp1, tmp2, tmp3, tmp4])):
+                        raise ValueError(
+                            "Encountered a NaN value in Amplitude. Please check your input."
+                        )
+                    self.amp[0, i, cnt] = complex(tmp1, tmp2)
+                    self.amp[1, i, cnt] = complex(tmp3, tmp4)
+                cnt += 1
 
     def to_polar(self, copol_axis: str = "x") -> BeamPolar:
         """Converts beam in "cut" format to Stokes parameters
@@ -689,7 +665,10 @@ class BeamCut:
         theta_rad_min = 0.0
         theta_rad_max = np.deg2rad(np.abs(self.vini))
         beam_polar = BeamPolar(
-            nphi, ntheta, theta_rad_min, theta_rad_max, self.filename
+            nphi,
+            ntheta,
+            theta_rad_min,
+            theta_rad_max,
         )
         amp_tmp = np.zeros((2, nphi, ntheta), dtype=complex)
 
@@ -701,6 +680,8 @@ class BeamCut:
             sign = -1
         elif copol_axis == "y":
             sign = 1
+        else:
+            raise ValueError(f"{copol_axis=} can only be 'x' or 'y'")
 
         c = amp_tmp[0, :, :]
         x = amp_tmp[1, :, :]
@@ -716,10 +697,11 @@ class BeamCut:
         return beam_polar
 
 
-def grasp2alm(
-    file_path: str,
+def _grasp2alm(
+    file_obj: typing.TextIO,
+    beam_class: typing.Type[BeamCut] | typing.Type[BeamGrid],
     nside: int,
-    outOftheta_val: float = UNSEEN_PIXEL_VALUE,
+    unseen_pixel_value: float = 0.0,
     interp_method: str = "linear",
     copol_axis: str = "x",
     lmax: int | None = None,
@@ -727,10 +709,59 @@ def grasp2alm(
     epsilon: float = 1e-8,
     max_num_of_iterations: int = 20,
 ) -> np.ndarray:
-    """Convert a GRASP file to a spherical harmonic coefficients of beam map.
+    beam = beam_class(file_obj)
+    beam_polar = beam.to_polar(copol_axis)
+    beam_map = beam_polar.to_map(
+        nside, unseen_pixel_value=unseen_pixel_value, interp_method=interp_method
+    )
+    alm = beam_map.to_alm(
+        lmax=lmax,
+        mmax=mmax,
+        epsilon=epsilon,
+        max_num_of_iterations=max_num_of_iterations,
+    )
+    return alm
+
+
+def ticra_cut_to_alm(*args, **kwargs) -> np.ndarray:
+    """Convert a GRASP ``.cut`` file to a spherical harmonic coefficients of beam map.
 
     Args:
-        filepath (`str`): Path to the GRASP file.
+        file_obj (`file`): File object to read
+        nside (`int`): Resolution parameter for the output beam map.
+        lmax (`int`): The desired lmax parameters for the analysis.
+        mmax (`int`): The desired mmax parameters for the analysis.
+        unseen_pixel_value (`float`): Value to assign to pixels outside
+            the valid theta range.
+        interp_method (`str`): Interpolation method to use. Default is 'linear'.
+                Supported are 'linear', 'nearest', 'slinear', 'cubic', 'quintic' and 'pchip'.
+        copol_axis (`str`, `optional`): Axis of the co-polarization
+            component. Defaults to 'x'.
+        lmax (`int`, optional): Maximum value for ℓ
+        mmax (`int`, optional): Maximum value for m
+        epsilon (`float`, optional): Target precision
+        max_num_of_iterations (`int`, optional): Maximum number of iterations
+
+    Returns:
+        alm (`numpy.ndarray`): Spherical harmonic coefficients of the beam map.
+
+    Raises:
+        ValueError: If the file format is unknown.
+
+    """
+    kwargs.pop("beam_class", None)
+    return _grasp2alm(
+        *args,
+        **kwargs,
+        beam_class=BeamCut,
+    )
+
+
+def ticra_grid_to_alm(*args, **kwargs) -> np.ndarray:
+    """Convert a GRASP ``.grd`` file to a spherical harmonic coefficients of beam map.
+
+    Args:
+        file_obj (`file`): File object to read
         nside (`int`): Resolution parameter for the output beam map.
         lmax (`int`): The desired lmax parameters for the analysis.
         mmax (`int`): The desired mmax parameters for the analysis.
@@ -740,24 +771,10 @@ def grasp2alm(
                 Supported are 'linear', 'nearest', 'slinear', 'cubic', 'quintic' and 'pchip'.
         copol_axis (`str`, `optional`): Axis of the co-polarization
             component. Defaults to 'x'.
-        iter : `int`, `scalar`, `optional`
-            Number of iteration (default: 3)
-        pol : `bool`, `optional`
-            If `True`, assumes input maps are TQU. Output will be TEB alm's.
-            (input must be 1 or 3 maps)
-            If False, apply spin 0 harmonic transform to each map.
-            (input can be any number of maps)
-            If there is only one input map, it has no effect. Default: `True`.
-        use_weights : `bool`, `scalar`, `optional`
-            If `True`, use the ring weighting. Default: False.
-        datapath : `None` or `str`, `optional`
-            If given, the directory where to find the pixel weights.
-            See in the docstring above details on how to set it up.
-        gal_cut : `float` [degrees]
-            pixels at latitude in [-gal_cut;+gal_cut] are not taken into account
-        use_pixel_weights: `bool`, `optional`
-            If `True`, use pixel by pixel weighting, healpy will automatically download the weights, if needed
-
+        lmax (`int`, optional): Maximum value for ℓ
+        mmax (`int`, optional): Maximum value for m
+        epsilon (`float`, optional): Target precision
+        max_num_of_iterations (`int`, optional): Maximum number of iterations
     Returns:
         alm (`numpy.ndarray`): Spherical harmonic coefficients of the beam map.
 
@@ -765,20 +782,9 @@ def grasp2alm(
         ValueError: If the file format is unknown.
 
     """
-    if file_path.endswith(".grd"):
-        beam = BeamGrid(file_path)
-    elif file_path.endswith(".cut"):
-        beam = BeamCut(file_path)
-    else:
-        raise ValueError("Error in grasp2alm: unknown file format")
-    beam_polar = beam.to_polar(copol_axis)
-    beam_map = beam_polar.to_map(
-        nside, outOftheta_val=outOftheta_val, interp_method=interp_method
+    kwargs.pop("beam_class", None)
+    return _grasp2alm(
+        *args,
+        **kwargs,
+        beam_class=BeamGrid,
     )
-    alm = beam_map.to_alm(
-        lmax=lmax,
-        mmax=mmax,
-        epsilon=epsilon,
-        max_num_of_iterations=max_num_of_iterations,
-    )
-    return alm
