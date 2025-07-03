@@ -1,5 +1,7 @@
 # HEAD
 
+-   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
+
 # Version 0.15.3
 
 -   Fix the computation of HWP angles [#444](https://github.com/litebird/litebird_sim/pull/444)
