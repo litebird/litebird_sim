@@ -42,6 +42,8 @@
 
 -   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)
 
+-   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
+
 
 # Version 0.16.0
 
@@ -56,6 +58,7 @@
 -   Improve the documentation [#450](https://github.com/litebird/litebird_sim/pull/450)
 
 -   Import Yusuke Takase's grasp2alm code [#447](https://github.com/litebird/litebird_sim/pull/447)
+
 
 # Version 0.15.3
 
