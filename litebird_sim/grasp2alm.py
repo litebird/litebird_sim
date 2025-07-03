@@ -20,6 +20,7 @@ import ducc0.sht
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
+from .beam_convolution import SphericalHarmonics
 from .healpix import npix_to_nside, nside_to_npix, num_of_alms
 
 REASON_DESCRIPTION = {
@@ -52,18 +53,16 @@ class BeamHealpixMap:
 
     def to_alm(
         self,
-        lmax: int | None = None,
-        mmax: int | None = None,
+        lmax: int,
+        mmax: int,
         epsilon=1e-8,
         max_num_of_iterations=20,
     ) -> np.ndarray:
         """Converts the beam map to spherical harmonic coefficients.
 
         Args:
-            lmax (`int`): Maximum l value for the spherical harmonic expansion. If it is not provided,
-                the default ``5NSIDE - 1`` will be used.
-            mmax (`int`): Maximum m value for the spherical harmonic expansion. If not provided,
-                it will be assumed that ``lmax == mmax``.
+            lmax (`int`): Maximum l value for the spherical harmonic expansion.
+            mmax (`int`): Maximum m value for the spherical harmonic expansion.
             epsilon (`float`): Precision of the result
             max_num_of_iterations (`int`): Maximum number of iterations
 
@@ -79,9 +78,6 @@ class BeamHealpixMap:
             raise ValueError(
                 "Error in BeamMap.to_alm: map has more than 3 Stokes parameters"
             )
-
-        if not lmax:
-            lmax = 3 * self.nside // 2
 
         geom = self.base.sht_info()
 
@@ -329,24 +325,29 @@ def _get_interp_val_from_polar_original(
 class BeamGrid:
     """Class to hold the data loaded from a TICRA GRASP beam grid file
 
+    This class only supports polar spherical grids in the far field region.
+
     Args:
-        ktype (`int`): Specifies type of file format.
-        nset (`int`): Number of field sets or beams.
+        ktype (`int`): The file format (always 1)
+        nset (`int`): Number of field sets or beams (this class only
+            supports *one* field)
         klimit (`int`): Specification of limits in a 2D grid.
-        icomp (`int`): Control parameter of field components.
-        ncomp (`int`): Number of field components.
-        igrid (`int`): Control parameter of field grid type.
+        icomp (`int`): Control parameter of field components. Only types
+            3 (copolar-crosspolar) and 9 (total power and
+            :math:`\\sqrt(\\text{RHC}/\\text{LHC}` are supported)
+        ncomp (`int`): Number of field components (only ``ncomp==2`` is supported)
+        igrid (`int`): Control parameter of field grid type (only ``igrid==7`` is supported)
         ix (`int`): Centre of set or beam No. :math:`i`.
         iy (`int`): Centre of set or beam No. :math:`i`.
         xs (`float`): Start x-coordinate of the grid.
         ys (`float`): Start y-coordinate of the grid.
         xe (`float`): End x-coordinate of the grid.
         ye (`float`): End y-coordinate of the grid.
-        nx (`int`): Number of columns.
-        ny (`int`): Number of rows.
-        freq (`float`): Frequency.
-        frequnit (`str`): Frequency unit.
-        amp (`numpy.ndarray` | None): Array of complex amplitudes [:math:`\theta`, :math:`\phi`].
+        nx (`int`): Number of steps for the x-coordinate
+        ny (`int`): Number of steps for the y-coordinate
+        frequency (`float`): Value of the frequency.
+        frequency_unit (`str`): Measurement unit for ``frequency``.
+        amp (`numpy.ndarray` | None): 2D array of complex amplitudes [:math:`\theta`, :math:`\phi`].
     """
 
     def __init__(self, file_obj: typing.TextIO):
@@ -534,6 +535,8 @@ class BeamGrid:
 class BeamCut:
     """Class to hold the data from a beam cut file of GRASP.
 
+    This class only supports polar spherical cuts in the far field region.
+
     Args:
         vini (`float`): Initial value.
         vinc (`float`): Increment.
@@ -708,7 +711,12 @@ def _grasp2alm(
     mmax: int | None = None,
     epsilon: float = 1e-8,
     max_num_of_iterations: int = 20,
-) -> np.ndarray:
+) -> SphericalHarmonics:
+    if not lmax:
+        lmax = 3 * nside // 2
+    if not mmax:
+        mmax = lmax
+
     beam = beam_class(file_obj)
     beam_polar = beam.to_polar(copol_axis)
     beam_map = beam_polar.to_map(
@@ -720,10 +728,10 @@ def _grasp2alm(
         epsilon=epsilon,
         max_num_of_iterations=max_num_of_iterations,
     )
-    return alm
+    return SphericalHarmonics(values=alm, lmax=lmax, mmax=mmax)
 
 
-def ticra_cut_to_alm(*args, **kwargs) -> np.ndarray:
+def ticra_cut_to_alm(*args, **kwargs) -> SphericalHarmonics:
     """Convert a GRASP ``.cut`` file to a spherical harmonic coefficients of beam map.
 
     Args:
@@ -757,7 +765,7 @@ def ticra_cut_to_alm(*args, **kwargs) -> np.ndarray:
     )
 
 
-def ticra_grid_to_alm(*args, **kwargs) -> np.ndarray:
+def ticra_grid_to_alm(*args, **kwargs) -> SphericalHarmonics:
     """Convert a GRASP ``.grd`` file to a spherical harmonic coefficients of beam map.
 
     Args:

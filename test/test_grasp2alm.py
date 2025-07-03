@@ -4,9 +4,9 @@ from pathlib import Path
 import unittest
 
 import numpy as np
-import numpy.testing as npt
 import pytest
 
+from litebird_sim.beam_convolution import SphericalHarmonics
 from litebird_sim.grasp2alm import (
     BeamGrid,
     BeamCut,
@@ -279,20 +279,17 @@ def test_grasp_to_alm(param, regenerate_grasp_alm):
         grasp2alm_result = function_to_test(
             grasp_file,
             nside=nside,
-        )
+        )  # type: SphericalHarmonics
 
     reference_file = REFERENCE_BEAM_FILES_PATH / alm_file_name
     if regenerate_grasp_alm:
-        np.save(REFERENCE_BEAM_FILES_PATH / reference_file, grasp2alm_result)
+        grasp2alm_result.write_fits(
+            REFERENCE_BEAM_FILES_PATH / reference_file, overwrite=True
+        )
         pytest.skip("Regenerated reference file.")
     else:
-        expected_result = np.load(reference_file)
+        expected_result = SphericalHarmonics.read_fits(reference_file)
 
         # Since a_ℓm coefficients are complex but npt.assert_allclose only supports reals,
         # we must compare their real and imaginary parts separately
-        npt.assert_allclose(
-            actual=np.real(grasp2alm_result), desired=np.real(expected_result)
-        )
-        npt.assert_allclose(
-            actual=np.imag(grasp2alm_result), desired=np.imag(expected_result)
-        )
+        grasp2alm_result.allclose(expected_result)
