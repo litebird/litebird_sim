@@ -58,6 +58,65 @@ The expected sin and negative cosine terms are accounted for by the phases :math
 Changing one of the values in the matrices above represents a non-ideality in the hwp.
 
 
+Jones Formalism
+----------------
+
+
+In the Jones formalism, a non-ideal static HWP can be described by perturbations :math:`\delta_{ij}` to each ij element of the ideal HWP Jones Matrix, i.e.:
+
+.. math::
+   J = \begin{pmatrix} 1+\delta_{11} & \delta_{11} \\ \delta_{21}  & -1 + \delta_{22}\end{pmatrix}
+
+
+These perturbations can be related to the Mueller matrix elements through the relation:
+
+.. math::
+   M_{ij} = \frac{1}{2} Tr(\sigma_i J \sigma_j J^{\dagger})
+
+that is, for each element of the matrix:
+
+.. math::
+   M_{II} = Re(\delta_{11} - \delta_{22} + 1)
+
+   M_{QI}=Re(\delta_{11} + \delta_{12})
+
+   M_{UI}=Re(\delta_{21} - \delta_{12})
+
+   M_{IQ}=Re(\delta_{11} + \delta_{12})
+
+   M_{IU}=Re(\delta_{12} - \delta_{21})
+
+   M_{QQ}=Re(\delta_{12} - \delta_{22} + 1)
+
+   M_{UU}=Re(\delta_{22} + \delta_{11} - 1)
+
+   M_{UQ}=Re(\delta_{12} + \delta_{21})
+
+   M_{QU}=Re(\delta_{12} + \delta_{21})
+
+
+We expand each of the perturbations $\delta_{pq}$ into harmonics of the rotation frequency as:
+
+.. math::
+    \delta_{pq} = \sum_n \gamma_{pq}^{n_{f}} exp(in\alpha)
+
+
+where :math:`p`, :math:`q` are the matrix indexes, :math:`n_{f} = 0,2,4` are the harmonics and :math:`\alpha` is the HWP angle in focal plane coordinates (assuming for simplicity that the azimuthal angle of the detector is set to 0, and ignoring the dependence on the incidence angle). If our input matrices have the :math:`\gamma` values as complex numbers :math:`A e^{i \phi}`, for each harmonic, we get:
+
+.. math::
+    \delta_{pq}^{n_{f}}( n_{f} \alpha) = \sum_{n_{f}} A_{pq}^{n_{f}} e^{i\phi} e^{in\alpha} 
+
+
+Developing this and taking only the real part we get to:
+
+.. math::
+    \delta_{pq}^{n_{f}}(n_{f} \alpha) = \sum_{n_{f}} A_{pq}^{n_{f}} \  cos(n\alpha + n\phi_{ij}^{n_{f}})
+
+In terms of implementation on lbs, this is done in 3 steps:
+
+Then, the obtain matrix is rotated from the hwp frame to the focal plane frame, in order to apply the mueller formalism explained above. In an ideal case, the jones perturbation matrices will be composed of only zero values and the transformation will yield the ideal hwp mueller matrix.
+
+
 The class :class:`.hwp_sys.HwpSys` is a container for the parameters
 of the HWP systematics. It defines three methods:
 
@@ -65,8 +124,7 @@ of the HWP systematics. It defines three methods:
   handles the interface with the parameter file of the simulation.There is also the
   possibility of passing precomputed input maps (as a NumPy array)
   through the ``maps`` argument. Otherwise, the code computes input
-  maps through the module Mbs (see :ref:`Mbs`). If ``built_map_on_the_fly = True``, the
-  map-making can be performed internally on-the-fly;  There are two boolean arguments related to the coupling of non-linearity effects with hwp systematic effects: ``if apply_non_linearity`` and ``add_2f_hwpss``. Applying the non-linearities inside the hwp_sys module is useful when one wants to use the mapmaking on the fly. To know more about detector non-linearity and HWPSS, see `this section <https://litebird-sim.readthedocs.io/en/master/non_linearity.html>`_.
+  maps through the module Mbs (see :ref:`Mbs`). ``mueller_or_jones`` sets the operations to be performed internally depending on the type of input matrices representing the hwp. If ``built_map_on_the_fly = True``, the map-making can be performed internally on-the-fly;  There are two boolean arguments related to the coupling of non-linearity effects with hwp systematic effects: ``if apply_non_linearity`` and ``add_2f_hwpss``. Applying the non-linearities inside the hwp_sys module is useful when one wants to use the mapmaking on the fly. To know more about detector non-linearity and HWPSS, see `this section <https://litebird-sim.readthedocs.io/en/master/non_linearity.html>`_.
 
 *  :meth:`.hwp_sys.HwpSys.fill_tod` which fills the tod in a given Observation. The ``pointings``
    angles passed have to include no rotating HWP, since the effect of the rotating HWP to the
@@ -133,6 +191,7 @@ The examples below skip the simulation and observation creation for brevity. If 
         mbs_params=mbs_params,
         build_map_on_the_fly=True, #if one wants to perform the mapmaking on-the-fly
         comm=sim.mpi_comm,
+        mueller_or_jones="mueller",
     )
 
     hwp_sys.fill_tod(
@@ -141,6 +200,9 @@ The examples below skip the simulation and observation creation for brevity. If 
     )
 
     output_maps = hwp_sys.make_map([obs])
+
+
+We can also give perturbation jones matrices as inputs, and set mueller_or_jones to "mueller", and the conversion to the Mueller matrices will be done internally.
 
 To couple detector non-linearity with HWP systematics, three attributes must be defined when creating the DetectorInfo objects, and the respective booleans set to True in set_parameters, as in the example below:
 

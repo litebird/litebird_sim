@@ -24,8 +24,9 @@ def test_hwp_sys(interpolation, nside_out):
         46 * 2 * np.pi / 60,
     ).ang_speed_radpsec
 
+    mueller_or_jones = [None, "mueller", "jones"]
     list_of_obs = []
-    for i in range(2):
+    for i in range(3):
         sim = lbs.Simulation(
             start_time=start_time, duration_s=time_span_s, random_seed=0
         )
@@ -119,6 +120,21 @@ def test_hwp_sys(interpolation, nside_out):
 
         hwp_sys = lbs.HwpSys(sim)
 
+        mueller_phases = {
+            "2f": np.array(
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                dtype=np.float64,
+            ),
+            "4f": np.array(
+                [
+                    [0, 0, 0],
+                    [0, 0, -np.pi / 2],
+                    [0, -np.pi / 2, np.pi],
+                ],
+                dtype=np.float64,
+            ),
+        }
+
         hwp_sys.set_parameters(
             nside=nside,
             nside_out=nside_out,
@@ -128,6 +144,8 @@ def test_hwp_sys(interpolation, nside_out):
             mbs_params=mbs_params,
             build_map_on_the_fly=True,
             comm=comm,
+            mueller_or_jones=mueller_or_jones[i],
+            mueller_phases=mueller_phases,
         )
 
         list_of_obs.append(obs)
@@ -149,13 +167,23 @@ def test_hwp_sys(interpolation, nside_out):
         save_tod=True,
     )
 
+    hwp_sys.fill_tod(
+        observations=list_of_obs[2],
+        input_map_in_galactic=False,
+        save_tod=True,
+    )
+
     # Check that we are using 64-bit floating-point numbers for pointings. See
     # https://github.com/litebird/litebird_sim/pull/429
     pointings, _ = list_of_obs[1].get_pointings()
     assert pointings.dtype == np.float64
 
-    # The decimal=3 in here has a reason, explained in PR 395.
-    # This should be changed in the future
+    # testing mueller formalism
     np.testing.assert_almost_equal(
-        list_of_obs[0].tod, list_of_obs[1].tod, decimal=3, verbose=True
+        list_of_obs[0].tod, list_of_obs[1].tod, decimal=10, verbose=True
+    )
+
+    # testing jones formalism
+    np.testing.assert_almost_equal(
+        list_of_obs[0].tod, list_of_obs[2].tod, decimal=10, verbose=True
     )
