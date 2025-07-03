@@ -321,15 +321,19 @@ class SphericalHarmonics:
     # Algebraic Operations
     # ============================================================
 
+    def is_consistent(self, other: "SphericalHarmonics") -> bool:
+        """Check if two SphericalHarmonics objects are compatible for algebraic operations."""
+        return (
+            self.lmax == other.lmax
+            and self.mmax == other.mmax
+            and self.nstokes == other.nstokes
+        )
+
     def __add__(self, other):
         if not isinstance(other, SphericalHarmonics):
             raise TypeError("Can only add another SphericalHarmonics object")
 
-        if (
-            self.lmax != other.lmax
-            or self.mmax != other.mmax
-            or self.nstokes != other.nstokes
-        ):
+        if not self.is_consistent(other):
             raise ValueError(
                 "SphericalHarmonics objects must have matching lmax, mmax, and nstokes"
             )
@@ -342,11 +346,7 @@ class SphericalHarmonics:
         if not isinstance(other, SphericalHarmonics):
             raise TypeError("Can only add another SphericalHarmonics object")
 
-        if (
-            self.lmax != other.lmax
-            or self.mmax != other.mmax
-            or self.nstokes != other.nstokes
-        ):
+        if not self.is_consistent(other):
             raise ValueError(
                 "SphericalHarmonics objects must have matching lmax, mmax, and nstokes"
             )
@@ -421,11 +421,7 @@ class SphericalHarmonics:
     def __sub__(self, other):
         if not isinstance(other, SphericalHarmonics):
             raise TypeError("Subtraction requires another SphericalHarmonics object")
-        if (
-            self.lmax != other.lmax
-            or self.mmax != other.mmax
-            or self.nstokes != other.nstokes
-        ):
+        if not self.is_consistent(other):
             raise ValueError(
                 "SphericalHarmonics objects must have matching lmax, mmax, and nstokes"
             )
@@ -436,11 +432,7 @@ class SphericalHarmonics:
     def __isub__(self, other):
         if not isinstance(other, SphericalHarmonics):
             raise TypeError("Subtraction requires another SphericalHarmonics object")
-        if (
-            self.lmax != other.lmax
-            or self.mmax != other.mmax
-            or self.nstokes != other.nstokes
-        ):
+        if not self.is_consistent(other):
             raise ValueError(
                 "SphericalHarmonics objects must have matching lmax, mmax, and nstokes"
             )
@@ -449,23 +441,15 @@ class SphericalHarmonics:
 
     def __eq__(self, other):
         if not isinstance(other, SphericalHarmonics):
-            return False
-        return (
-            self.lmax == other.lmax
-            and self.mmax == other.mmax
-            and self.nstokes == other.nstokes
-            and np.array_equal(self.values, other.values)
-        )
+            raise ValueError("Can only compare with another SphericalHarmonics object.")
+        return self.is_consistent(other) and np.array_equal(self.values, other.values)
 
     def allclose(self, other, rtol=1e-5, atol=1e-8):
         """Compares SH values with tolerance."""
         if not isinstance(other, SphericalHarmonics):
-            return False
-        return (
-            self.lmax == other.lmax
-            and self.mmax == other.mmax
-            and self.nstokes == other.nstokes
-            and np.allclose(self.values, other.values, rtol=rtol, atol=atol)
+            raise ValueError("Can only compare with another SphericalHarmonics object.")
+        return self.is_consistent(other) and np.allclose(
+            self.values, other.values, rtol=rtol, atol=atol
         )
 
     def write_fits(self, filename: str, overwrite: bool = True):
