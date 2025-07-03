@@ -126,7 +126,7 @@ class BeamPolar:
     """Representation of a beam as a set of Stokes parameters sampled over a sphere
 
     This class stores the four Stokes parameters ($I$, $Q$, $U$, and $V$) for a beam on a spherical
-    polar grid parameterized by (:math:`\theta`,:math:`\phi`). This type is used as input to the
+    polar grid parameterized by (:math:`\\theta`,:math:`\\phi`). This type is used as input to the
     spherical harmonic transform. Internally, this package uses the third Ludwig's definition for the
     polarization basis with the co-polar direction (positive :math:`Q`) aligned with the y-axis.
 
@@ -134,10 +134,10 @@ class BeamPolar:
     no ``phi_rad_min``/``phi_rad_max`` parameters.
 
     Args:
-        nphi (`int`): Number of :math:`\phi` values.
+        nphi (`int`): Number of :math:`\\phi` values.
         ntheta (`int`): Number of :math:`\theta` values.
-        theta_rad_min (`float`): Minimum :math:`\theta` value in radians.
-        theta_rad_max (`float`): Maximum :math:`\theta` value in radians.
+        theta_rad_min (`float`): Minimum :math:`\\theta` value in radians.
+        theta_rad_max (`float`): Maximum :math:`\\theta` value in radians.
         stokes (`numpy.ndarray`): Array of shape (4, ``nphi``, ``ntheta``) containing the four Stokes
             parameters (:math:`I`,:math:`Q`,:math:`U`,:math:`V`).
         polar_basis (`bool`): If ``True``, the :math:`Q` and :math:`U` parameters have been rotated
