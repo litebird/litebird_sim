@@ -201,11 +201,6 @@ class DetectorInfo:
         if isinstance(self.band_freqs_ghz, np.ndarray):
             assert len(self.band_freqs_ghz) == len(self.band_weights)
 
-        if self.mueller_hwp is None:
-            self.has_hwp = False
-        else:
-            self.has_hwp = True
-
     @staticmethod
     def from_dict(dictionary: Dict[str, Any]):
         """Create a detector from the contents of a dictionary
@@ -317,6 +312,7 @@ class FreqChannelInfo:
     pol_sensitivity_channel_ukarcmin: float = 0.0
     sampling_rate_hz: float = 0.0
     fwhm_arcmin: float = 0.0
+    ellipticity: float = 1.0
     fknee_mhz: float = 0.0
     fmin_hz: float = 1e-5
     alpha: float = 1.0
@@ -403,6 +399,7 @@ class FreqChannelInfo:
             name=name,
             channel=self.channel,
             fwhm_arcmin=self.fwhm_arcmin,
+            ellipticity=self.ellipticity,
             net_ukrts=self.net_detector_ukrts,
             fknee_mhz=self.fknee_mhz,
             fmin_hz=self.fmin_hz,
