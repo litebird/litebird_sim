@@ -7,8 +7,15 @@ from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
 
-@pytest.mark.parametrize("interpolation", ["", "linear"])
-def test_hwp_sys(interpolation):
+@pytest.mark.parametrize(
+    "interpolation,nside_out",
+    [
+        ("", None),
+        ("", 32),
+        ("linear", None),
+    ],
+)
+def test_hwp_sys(interpolation, nside_out):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -114,6 +121,7 @@ def test_hwp_sys(interpolation):
 
         hwp_sys.set_parameters(
             nside=nside,
+            nside_out=nside_out,
             maps=input_maps,
             channel=channelinfo,
             interpolation=interpolation,
@@ -140,6 +148,11 @@ def test_hwp_sys(interpolation):
         input_map_in_galactic=False,
         save_tod=True,
     )
+
+    # Check that we are using 64-bit floating-point numbers for pointings. See
+    # https://github.com/litebird/litebird_sim/pull/429
+    pointings, _ = list_of_obs[1].get_pointings()
+    assert pointings.dtype == np.float64
 
     # The decimal=3 in here has a reason, explained in PR 395.
     # This should be changed in the future

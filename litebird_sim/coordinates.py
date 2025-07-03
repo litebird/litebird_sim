@@ -200,7 +200,7 @@ def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> Tuple[float, flo
 
 
 @njit
-def _rotate_coordinates_and_pol_e2g_for_one_sample(
+def _rotate_coordinates_and_orientation_e2g_for_one_sample(
     theta_ecl_rad: float, phi_ecl_rad: float, psi_ecl_rad: float
 ) -> Tuple[float, float, float]:
     """Rotate the angles theta,phi and psi from ecliptic to galactic coordinates
@@ -238,7 +238,7 @@ def _rotate_coordinates_and_pol_e2g_for_one_sample(
 
 
 @njit
-def _rotate_coordinates_and_pol_e2g_for_all(
+def _rotate_coordinates_and_orientation_e2g_for_all(
     input_pointings_ecl_rad: np.ndarray,
     output_pointings_gal_rad: np.ndarray,
 ) -> None:
@@ -264,7 +264,7 @@ def _rotate_coordinates_and_pol_e2g_for_all(
             cur_theta_gal_rad,
             cur_phi_gal_rad,
             cur_psi_gal_rad,
-        ) = _rotate_coordinates_and_pol_e2g_for_one_sample(
+        ) = _rotate_coordinates_and_orientation_e2g_for_one_sample(
             cur_theta_ecl_rad,
             cur_phi_ecl_rad,
             cur_psi_ecl_rad,
@@ -281,14 +281,14 @@ def rotate_coordinates_e2g(pointings_ecl_rad: np.ndarray) -> np.ndarray:
     Parameters
     ----------
     pointings_ecl_rad : array
-      ``(N × 3)`` array containing the colatitude and the longitude in ecliptic
-      coordinates
+      ``(N × 3)`` array containing the colatitude, the longitude and the orientation
+      in ecliptic coordinates
 
     Returns
     -------
     pointings_gal_rad : array
-      ``(N × 3)`` array containing the colatitude and the longitude in galactic
-      coordinates
+      ``(N × 3)`` array containing the colatitude, the longitude and the orientation
+      in galactic coordinates
 
     See Also
     --------
@@ -299,7 +299,7 @@ def rotate_coordinates_e2g(pointings_ecl_rad: np.ndarray) -> np.ndarray:
 
     pointings_gal_rad = np.empty_like(pointings_ecl_rad)
 
-    _rotate_coordinates_and_pol_e2g_for_all(
+    _rotate_coordinates_and_orientation_e2g_for_all(
         input_pointings_ecl_rad=pointings_ecl_rad,
         output_pointings_gal_rad=pointings_gal_rad,
     )

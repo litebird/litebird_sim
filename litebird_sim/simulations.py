@@ -2,6 +2,7 @@
 
 import codecs
 import functools
+import importlib.resources
 import json
 import logging as log
 import os
@@ -42,6 +43,7 @@ from .imo.imo import Imo
 from .io import write_list_of_observations, read_list_of_observations
 from .mapmaking import (
     make_binned_map,
+    make_brahmap_gls_map,
     check_valid_splits,
     BinnerResult,
     make_destriped_map,
@@ -132,7 +134,7 @@ def get_template_file_path(filename: Union[str, Path]) -> Path:
     returns a full, absolute path to the file within the ``templates``
     folder of the ``litebird_sim`` source code.
     """
-    return Path(__file__).parent / ".." / "templates" / filename
+    return importlib.resources.files("litebird_sim.templates") / filename
 
 
 @dataclass
@@ -912,7 +914,7 @@ class Simulation:
         ]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
-        static_path = Path(__file__).parent / ".." / "static"
+        static_path = importlib.resources.files("litebird_sim.static")
         with codecs.open(static_path / "report_template.html") as inpf:
             html_full_report = jinja2.Template(inpf.read()).render(
                 name=self.name, html=html
@@ -1244,17 +1246,17 @@ class Simulation:
         )
 
     @_profile
-    def nullify_tod(self, component: str = "tod") -> None:
+    def nullify_tod(self, components: Union[str, List[str]] = "tod") -> None:
         """
-        Set the specified component (default: "tod") of all observations to zero.
+        Set the specified component(s) (default: "tod") of all observations to zero.
 
         This is typically used to zero out Time-Ordered Data (TOD) in-place across
         all observations.
 
         Parameters
         ----------
-        component : str, optional
-            The attribute name of the data to nullify in each observation.
+        components : str or list of str, optional
+            The attribute name(s) of the data to nullify in each observation.
             Defaults to "tod".
 
         Raises
@@ -1262,18 +1264,20 @@ class Simulation:
         AttributeError
             If an observation does not have the specified component.
         """
-        for i, cur_obs in enumerate(self.observations):
-            try:
-                tod = getattr(cur_obs, component)
-            except AttributeError:
-                raise AttributeError(
-                    f"Observation {i} does not have attribute '{component}'"
-                )
+        if isinstance(components, str):
+            components = [components]
 
-            if tod is not None:
-                tod[:, :] = 0
-            else:
-                pass
+        for i, cur_obs in enumerate(self.observations):
+            for comp in components:
+                try:
+                    tod = getattr(cur_obs, comp)
+                except AttributeError:
+                    raise AttributeError(
+                        f"Observation {i} does not have attribute '{comp}'"
+                    )
+
+                if tod is not None:
+                    tod[:, :] = 0
 
     def set_scanning_strategy(
         self,
@@ -1598,6 +1602,7 @@ class Simulation:
         self,
         lmax: int,
         mmax: Optional[int] = None,
+        channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
         store_in_observation: Optional[bool] = False,
     ):
         """
@@ -1612,6 +1617,9 @@ class Simulation:
             Maximum multipole moment.
         mmax : Optional[int], default=None
             Maximum azimuthal multipole moment. Defaults to `lmax` if None.
+        channels : FreqChannelInfo or list of FreqChannelInfo, optional
+            Frequency channels to use in the simulation. If None, it uses the detectors
+            from the observations.
         store_in_observation : bool, optional
             If True, the computed blms will be stored in the `blms` attribute of
             the observation object.
@@ -1626,7 +1634,11 @@ class Simulation:
             raise ValueError("No observations available to generate sky maps.")
 
         return generate_gauss_beam_alms(
-            self.observations[0], lmax, mmax, store_in_observation=store_in_observation
+            self.observations[0],
+            lmax,
+            mmax,
+            channels=channels,
+            store_in_observation=store_in_observation,
         )
 
     @_profile
@@ -1926,7 +1938,7 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_splits: Union[str, List[str]] = "full",
         time_splits: Union[str, List[str]] = "full",
         write_to_disk: bool = True,
@@ -1943,6 +1955,9 @@ class Simulation:
         return a dictionary with the results, where the keys are the strings obtained by joining
         the detector and time splits with an underscore.
         """
+
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -2014,7 +2029,7 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         pointings_dtype=np.float64,
@@ -2025,6 +2040,8 @@ class Simulation:
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
 
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = "You must use 'make_binned_map_splits' if you want lists of splits!"
             raise ValueError(msg)
@@ -2072,7 +2089,7 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_splits: Union[str, List[str]] = "full",
         time_splits: Union[str, List[str]] = "full",
         keep_weights: bool = False,
@@ -2094,6 +2111,9 @@ class Simulation:
         with the results, where the keys are the strings obtained by joining the detector and time
         splits with an underscore.
         """
+
+        if isinstance(components, str):
+            components = [components]
         if isinstance(detector_splits, str):
             detector_splits = [detector_splits]
         if isinstance(time_splits, str):
@@ -2191,7 +2211,7 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Optional[List[str]] = None,
+        components: Union[str, List[str]] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         keep_weights: bool = False,
@@ -2206,6 +2226,9 @@ class Simulation:
         Bins the tods of `sim.observations` into maps.
         The syntax mimics the one of :meth:`litebird_sim.make_binned_map`
         """
+
+        if isinstance(components, str):
+            components = [components]
 
         if isinstance(detector_split, list) or isinstance(time_split, list):
             msg = (
@@ -2290,110 +2313,27 @@ class Simulation:
     def make_brahmap_gls_map(
         self,
         nside: int,
-        component: str = "tod",
+        components: Union[str, List[str]] = "tod",
         pointing_flag: np.ndarray = None,
         inv_noise_cov_operator=None,
         threshold: float = 1.0e-5,
         pointings_dtype=np.float64,
-        gls_params: "brahmap.LBSimProcessTimeSamples" = None,  # noqa
-    ) -> Union[
-        "brahmap.LBSimGLSResult",  # noqa
-        tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],  # noqa
-    ]:
+        gls_params=None,
+    ):
         """Wrapper to the GLS map-maker of BrahMap.
 
-        This function allows the users to do the optimal map-making with
-        BrahMap. Since BrahMap is seemlessly interfaced with LBS, it allows
-        the map-making without storing the TODs on the disk. The function
-        needs an inverse noise covariance operator and an object containing
-        the GLS parameters as arguments.
-
-        BrahMap offers a variety of noise covariance opeartors, all
-        compatible with LBS. Noise covariance operator for white noise, for
-        example, can be defined as::
-
-            inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(
-                obs = ...,
-                inverse_noise_variance = ...,
-                dtype = ...,
-            )
-
-        The parameters used for GLS can be defined as::
-
-            gls_params = brahmap.LBSimGLSParameters(
-                output_coordinate_system = lbs.CoordinateSystem.Galactic,
-                return_processed_samples = False,
-                solver_type = brahmap.SolverType.IQU,
-                use_preconditioner = True,
-                preconditioner_threshold = 1.0e-25,
-                preconditioner_max_iterations = 100,
-                return_hit_map = False,
-            )
-
-        For the complete list of available noise covariance operators and
-        advance usage, please refer to the BrahMap documentation:
-        https://anand-avinash.github.io/BrahMap/
-
-        Parameters
-        ----------
-        nside : int
-            Nside of the output map
-        component : str, optional
-            The TOD component to be used for map-making, by default "tod"
-        inv_noise_cov_operator : optional
-            Inverse noise covariance operator, by default None
-        threshold : float, optional
-            Threshold parameter to determine the poorly observed pixels, by
-            default 1.0e-5
-        pointings_dtype : dtype, optional
-            dtype to be used for computing pointings on the fly. The
-            `pointing_dtype` must be same as the dtype of the TOD; by default
-            `np.float64`
-        gls_params : LBSimProcessTimeSamples, optional
-            An object that encapsulates the parameter of the GLS, including
-            PCG threshold and max iteration; by default None
-
-        Returns
-        -------
-        Union[LBSimGLSResult, tuple[LBSimProcessTimeSamples, LBSimGLSResult]]
-            Returns an `LBSimGLSResult` object when
-            `gls_params.return_processed_samples = False`. `LBSimGLSResult`
-            object encapsulates the output of GLS including the output maps
-            and PCG convergence status. The function returns the tuple object
-            `(LBSimProcessTimeSamples, LBSimGLSResult)` when
-            `gls_params.return_processed_samples = True`.
-
-        Raises
-        ------
-        ImportError
-            Raises `ImportError` when the brahmap package couldn't be imported
+        For details, see the low-level interface in :func:`litebird_sim.mapmaking.brahmap_gls`.
         """
-        try:
-            import brahmap
-        except ImportError:
-            raise ImportError(
-                "Could not import `BrahMap`. Make sure that the package "
-                "`BrahMap` is installed in the same environment "
-                "as `litebird_sim`. Refer to "
-                "https://anand-avinash.github.io/BrahMap/overview/installation/ "
-                "for the installation instruction"
-            )
-
-        if gls_params is None:
-            gls_params = brahmap.LBSimGLSParameters()
-
-        gls_result = brahmap.LBSim_compute_GLS_maps(
+        return make_brahmap_gls_map(
             nside=nside,
             observations=self.observations,
-            component=component,
+            components=components,
             pointings_flag=pointing_flag,
             inv_noise_cov_operator=inv_noise_cov_operator,
             threshold=threshold,
-            dtype_float=pointings_dtype,
-            LBSim_gls_parameters=gls_params,
+            pointings_dtype=pointings_dtype,
+            gls_params=gls_params,
         )
-
-        return gls_result
 
     @_profile
     def write_observations(

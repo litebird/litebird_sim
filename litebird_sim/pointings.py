@@ -87,11 +87,10 @@ class PointingProvider:
             if isinstance(start_time_s, astropy.time.TimeDelta):
                 start_time_s = start_time_s.to("s").value
 
-            self.hwp.apply_hwp_to_pointings(
+            self.hwp.get_hwp_angle(
+                output_buffer=hwp_buffer,
                 start_time_s=start_time_s,
                 delta_time_s=1.0 / sampling_rate_hz,
-                bore2ecl_quaternions_inout=full_quaternions,
-                hwp_angle_out=hwp_buffer,
             )
         else:
             hwp_buffer = None
@@ -105,3 +104,58 @@ class PointingProvider:
         )
 
         return pointing_buffer, hwp_buffer
+
+    def get_hwp_angle(
+        self,
+        start_time: Union[float, astropy.time.Time],
+        start_time_global: Union[float, astropy.time.Time],
+        sampling_rate_hz: float,
+        nsamples: int,
+        hwp_buffer: Optional[npt.NDArray] = None,
+        pointings_dtype=np.float64,
+    ) -> npt.NDArray:
+        """
+
+        :param start_time: The time of the first sample for which pointings are needed.
+            It can either be a floating-point number or a ``astropy.time.Time`` object.
+        :param start_time_global: The time of the first sample in the *simulation*.
+            It *must* be of the same type as `start_time`.
+        :param sampling_rate_hz: The nominal sampling rate of the pointings
+        :param nsamples: The number of pointings to compute for this detector
+        :param hwp_buffer: A NumPy array with shape ``(nsamples,)`` that will be filled
+            with the angles of the HWP. If ``None``, a new NumPy array will be allocated,
+            unless this :class:`.PointingProvider` object has no HWP associated, i.e.,
+            the parameter ``hwp`` to the constructor ``__init__()`` was set to ``None``:
+            in this case, no buffer will be allocated.
+        :param pointings_dtype: The type to use for the arrays `pointing_buffer` and
+            `hwp_buffer`, if they have not been provided. (If `pointing_buffer` and
+            `hwp_buffer` are not ``None``, the original datatype will be kept unchanged.)
+        :return: hwp_buffer
+        """
+
+        assert (np.isscalar(start_time) and np.isscalar(start_time_global)) or (
+            isinstance(start_time_global, astropy.time.Time)
+            and isinstance(start_time, astropy.time.Time)
+        ), (
+            "The parameters start_time= and start_time_global= must be of the same "
+            "type (either floats or astropy.time.Time objects), but they are "
+            "{type1} (start_time) and {type2} (start_time_global)"
+        ).format(type1=str(type(start_time)), type2=str(type(start_time_global)))
+
+        if self.hwp is not None:
+            if hwp_buffer is None:
+                hwp_buffer = np.empty(nsamples, dtype=pointings_dtype)
+
+            start_time_s = start_time - start_time_global
+            if isinstance(start_time_s, astropy.time.TimeDelta):
+                start_time_s = start_time_s.to("s").value
+
+            self.hwp.get_hwp_angle(
+                output_buffer=hwp_buffer,
+                start_time_s=start_time_s,
+                delta_time_s=1.0 / sampling_rate_hz,
+            )
+        else:
+            hwp_buffer = None
+
+        return hwp_buffer

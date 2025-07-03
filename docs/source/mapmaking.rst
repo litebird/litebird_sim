@@ -945,7 +945,7 @@ function with `litebird_sim` data:
   gls_result = brahmap.LBSim_compute_GLS_maps(
       nside=nside,                    # Nside parameter for the output healpix map
       observations=sim.observations,  # List of observations from litebird_sim
-      component="tod",                # TOD component to be used in map-making
+      components="tod",                # TOD components to be used in map-making
       inv_noise_cov_operator=inv_cov, # Inverse noise covariance operator
       dtype_float=np.float64,         # Numerical precision to be used in map-making
   )

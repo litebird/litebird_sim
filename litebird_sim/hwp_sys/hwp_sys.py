@@ -288,6 +288,8 @@ def compute_signal_for_one_detector(
     g_one_over_k,
     add_2f_hwpss,
     amplitude_2f_k,
+    phases_2f,
+    phases_4f,
 ):
     """
     Single-frequency case: compute the signal for a single detector,
@@ -302,32 +304,32 @@ def compute_signal_for_one_detector(
             Q=mapQ[i],
             U=mapU[i],
             mII=m0f[0, 0]
-            + m2f[0, 0] * np.cos(Two_rho_phi - 2.32)
-            + m4f[0, 0] * np.cos(Four_rho_phi - 0.84),
+            + m2f[0, 0] * np.cos(Two_rho_phi + phases_2f[0, 0])
+            + m4f[0, 0] * np.cos(Four_rho_phi + phases_4f[0, 0]),
             mQI=m0f[1, 0]
-            + m2f[1, 0] * np.cos(Two_rho_phi + 2.86)
-            + m4f[1, 0] * np.cos(Four_rho_phi + 0.14),
+            + m2f[1, 0] * np.cos(Two_rho_phi + phases_2f[1, 0])
+            + m4f[1, 0] * np.cos(Four_rho_phi + phases_4f[1, 0]),
             mUI=m0f[2, 0]
-            + m2f[2, 0] * np.cos(Two_rho_phi + 1.29)
-            + m4f[2, 0] * np.cos(Four_rho_phi - 1.43),
+            + m2f[2, 0] * np.cos(Two_rho_phi + phases_2f[2, 0])
+            + m4f[2, 0] * np.cos(Four_rho_phi + phases_4f[2, 0]),
             mIQ=m0f[0, 1]
-            + m2f[0, 1] * np.cos(Two_rho_phi - 0.49)
-            + m4f[0, 1] * np.cos(Four_rho_phi - 0.04),
+            + m2f[0, 1] * np.cos(Two_rho_phi + phases_2f[0, 1])
+            + m4f[0, 1] * np.cos(Four_rho_phi + phases_4f[0, 1]),
             mIU=m0f[0, 2]
-            + m2f[0, 2] * np.cos(Two_rho_phi - 2.06)
-            + m4f[0, 2] * np.cos(Four_rho_phi - 1.61),
+            + m2f[0, 2] * np.cos(Two_rho_phi + phases_2f[0, 2])
+            + m4f[0, 2] * np.cos(Four_rho_phi + phases_4f[0, 2]),
             mQQ=m0f[1, 1]
-            + m2f[1, 1] * np.cos(Two_rho_phi - 0.25)
-            + m4f[1, 1] * np.cos(Four_rho_phi - 0.00061),
+            + m2f[1, 1] * np.cos(Two_rho_phi + phases_2f[1, 1])
+            + m4f[1, 1] * np.cos(Four_rho_phi + phases_4f[1, 1]),
             mUU=m0f[2, 2]
-            + m2f[2, 2] * np.cos(Two_rho_phi + 2.54)
-            + m4f[2, 2] * np.cos(Four_rho_phi + np.pi - 0.00065),
+            + m2f[2, 2] * np.cos(Two_rho_phi + phases_2f[2, 2])
+            + m4f[2, 2] * np.cos(Four_rho_phi + phases_4f[2, 2]),
             mUQ=m0f[2, 1]
-            + m2f[2, 1] * np.cos(Two_rho_phi - 2.01)
-            + m4f[2, 1] * np.cos(Four_rho_phi - 0.00070 - np.pi / 2),
+            + m2f[2, 1] * np.cos(Two_rho_phi + phases_2f[2, 1])
+            + m4f[2, 1] * np.cos(Four_rho_phi + phases_4f[2, 1]),
             mQU=m0f[1, 2]
-            + m2f[1, 2] * np.cos(Two_rho_phi - 2.00)
-            + m4f[1, 2] * np.cos(Four_rho_phi - 0.00056 - np.pi / 2),
+            + m2f[1, 2] * np.cos(Two_rho_phi + phases_2f[1, 2])
+            + m4f[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -387,6 +389,8 @@ def compute_ata_atd_for_one_detector(
     phi,
     cos2Xi2Phi,
     sin2Xi2Phi,
+    phases_2f,
+    phases_4f,
 ):
     r"""
     Single-frequency case: compute :math:`A^T A` and :math:`A^T d`
@@ -398,32 +402,32 @@ def compute_ata_atd_for_one_detector(
         Two_rho_phi = 2 * (rho[i] - phi)
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
             mIIs=m0f_solver[0, 0]
-            + m2f_solver[0, 0] * np.cos(Two_rho_phi - 2.32)
-            + m4f_solver[0, 0] * np.cos(Four_rho_phi - 0.84),
+            + m2f_solver[0, 0] * np.cos(Two_rho_phi + phases_2f[0, 0])
+            + m4f_solver[0, 0] * np.cos(Four_rho_phi + phases_4f[0, 0]),
             mQIs=m0f_solver[1, 0]
-            + m2f_solver[1, 0] * np.cos(Two_rho_phi + 2.86)
-            + m4f_solver[1, 0] * np.cos(Four_rho_phi + 0.14),
+            + m2f_solver[1, 0] * np.cos(Two_rho_phi + phases_2f[1, 0])
+            + m4f_solver[1, 0] * np.cos(Four_rho_phi + phases_4f[1, 0]),
             mUIs=m0f_solver[2, 0]
-            + m2f_solver[2, 0] * np.cos(Two_rho_phi + 1.29)
-            + m4f_solver[2, 0] * np.cos(Four_rho_phi - 1.43),
+            + m2f_solver[2, 0] * np.cos(Two_rho_phi + phases_2f[2, 0])
+            + m4f_solver[2, 0] * np.cos(Four_rho_phi + phases_4f[2, 0]),
             mIQs=m0f_solver[0, 1]
-            + m2f_solver[0, 1] * np.cos(Two_rho_phi - 0.49)
-            + m4f_solver[0, 1] * np.cos(Four_rho_phi - 0.04),
+            + m2f_solver[0, 1] * np.cos(Two_rho_phi + phases_2f[0, 1])
+            + m4f_solver[0, 1] * np.cos(Four_rho_phi + phases_4f[0, 1]),
             mIUs=m0f_solver[0, 2]
-            + m2f_solver[0, 2] * np.cos(Two_rho_phi - 2.06)
-            + m4f_solver[0, 2] * np.cos(Four_rho_phi - 1.61),
+            + m2f_solver[0, 2] * np.cos(Two_rho_phi + phases_2f[0, 2])
+            + m4f_solver[0, 2] * np.cos(Four_rho_phi + phases_4f[0, 2]),
             mQQs=m0f_solver[1, 1]
-            + m2f_solver[1, 1] * np.cos(Two_rho_phi - 0.25)
-            + m4f_solver[1, 1] * np.cos(Four_rho_phi - 0.00061),
+            + m2f_solver[1, 1] * np.cos(Two_rho_phi + phases_2f[1, 1])
+            + m4f_solver[1, 1] * np.cos(Four_rho_phi + phases_4f[1, 1]),
             mUUs=m0f_solver[2, 2]
-            + m2f_solver[2, 2] * np.cos(Two_rho_phi + 2.54)
-            + m4f_solver[2, 2] * np.cos(Four_rho_phi + np.pi - 0.00065),
+            + m2f_solver[2, 2] * np.cos(Two_rho_phi + phases_2f[2, 2])
+            + m4f_solver[2, 2] * np.cos(Four_rho_phi + phases_4f[2, 2]),
             mUQs=m0f_solver[2, 1]
-            + m2f_solver[2, 1] * np.cos(Two_rho_phi - 2.01)
-            + m4f_solver[2, 1] * np.cos(Four_rho_phi - 0.00070 - np.pi / 2),
+            + m2f_solver[2, 1] * np.cos(Two_rho_phi + phases_2f[2, 1])
+            + m4f_solver[2, 1] * np.cos(Four_rho_phi + phases_4f[2, 1]),
             mQUs=m0f_solver[1, 2]
-            + m2f_solver[1, 2] * np.cos(Two_rho_phi - 2.00)
-            + m4f_solver[1, 2] * np.cos(Four_rho_phi - 0.00056 - np.pi / 2),
+            + m2f_solver[1, 2] * np.cos(Two_rho_phi + phases_2f[1, 2])
+            + m4f_solver[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
@@ -457,6 +461,7 @@ class HwpSys:
     def set_parameters(
         self,
         nside: Union[int, None] = None,
+        nside_out: Union[int, None] = None,
         mbs_params: Union[MbsParameters, None] = None,
         build_map_on_the_fly: Union[bool, None] = False,
         apply_non_linearity: Union[bool, None] = False,
@@ -465,12 +470,14 @@ class HwpSys:
         channel: Union[FreqChannelInfo, None] = None,
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
+        mueller_phases: Union[dict, None] = None,
     ):
         r"""It sets the input paramters reading a dictionary `sim.parameters`
         with key "hwp_sys" and the following input arguments
 
         Args:
           nside (integer): nside used in the analysis
+          nside_out (integer): nside for the output maps. If not provided, same as nside
           mbs_params (:class:`.Mbs`): an instance of the :class:`.Mbs` class
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
           apply_non_linearity (bool): applies the coupling of the non-linearity
@@ -500,6 +507,11 @@ class HwpSys:
             paramdict = self.sim.parameters["hwp_sys"]
 
             self.nside = paramdict.get("nside", False)
+            self.nside_out = paramdict.get("nside_out", False)
+
+            assert self.nside_out <= self.nside, (
+                f"Error, {self.nside_out=} cannot be larger than {self.nside=}"
+            )
 
             self.build_map_on_the_fly = paramdict.get("build_map_on_the_fly", False)
 
@@ -519,6 +531,11 @@ class HwpSys:
             self.nside = 512
         else:
             self.nside = nside
+
+        if nside_out is None:
+            self.nside_out = self.nside
+        else:
+            self.nside_out = nside_out
 
         if (self.sim.parameters is not None) and (
             "hwp_sys" in self.sim.parameters.keys()
@@ -566,6 +583,7 @@ class HwpSys:
             mbs_params.nside = self.nside
 
         self.npix = hp.nside2npix(self.nside)
+        self.npix_out = hp.nside2npix(self.nside_out)
 
         self.interpolation = interpolation
 
@@ -585,8 +603,27 @@ class HwpSys:
             del maps
 
         if self.build_map_on_the_fly:
-            self.atd = np.zeros((self.npix, 3), dtype=np.float64)
-            self.ata = np.zeros((self.npix, 3, 3), dtype=np.float64)
+            self.atd = np.zeros((self.npix_out, 3), dtype=np.float64)
+            self.ata = np.zeros((self.npix_out, 3, 3), dtype=np.float64)
+
+        if mueller_phases is not None:
+            self.mueller_phases = mueller_phases
+        else:
+            # (temporary solution) using phases from Patanchon et al 2021 as the default.
+            self.mueller_phases = {
+                "2f": np.array(
+                    [[-2.32, -0.49, -2.06], [2.86, -0.25, -2.00], [1.29, -2.01, 2.54]],
+                    dtype=np.float64,
+                ),
+                "4f": np.array(
+                    [
+                        [-0.84, -0.04, -1.61],
+                        [0.14, -0.00061, -0.00056 - np.pi / 2],
+                        [-1.43, -0.00070 - np.pi / 2, np.pi - 0.00065],
+                    ],
+                    dtype=np.float64,
+                ),
+            }
 
     def fill_tod(
         self,
@@ -595,7 +632,7 @@ class HwpSys:
         hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
         input_map_in_galactic: bool = True,
         save_tod: bool = False,
-        dtype_pointings=np.float32,
+        dtype_pointings=np.float64,
     ):
         r"""Fill a TOD and/or :math:`A^T A` and :math:`A^T d` for the
         "on-the-fly" map production
@@ -652,19 +689,28 @@ class HwpSys:
                     "You passed hwp_angle, but you did not pass pointings, "
                     + "so hwp_angle will be ignored and re-computed on the fly."
                 )
-            hwp_angle_list = []
+
             if isinstance(observations, Observation):
                 obs_list = [observations]
                 if hasattr(observations, "pointing_matrix"):
                     ptg_list = [observations.pointing_matrix]
                 else:
                     ptg_list = []
+                if hasattr(observations, "hwp_angle"):
+                    hwp_angle_list = [observations.hwp_angle]
+                else:
+                    hwp_angle_list = []
+
             else:
                 obs_list = observations
                 ptg_list = []
+                hwp_angle_list = []
                 for ob in observations:
                     if hasattr(ob, "pointing_matrix"):
                         ptg_list.append(ob.pointing_matrix)
+                    if hasattr(ob, "hwp_angle"):
+                        hwp_angle_list.append(ob.hwp_angle)
+
         else:
             if isinstance(observations, Observation):
                 assert isinstance(pointings, np.ndarray), (
@@ -757,15 +803,11 @@ class HwpSys:
 
                 tod = cur_obs.tod[idet, :]
 
-                if pointings is None:
-                    if (not ptg_list) or (not hwp_angle_list):
-                        cur_point, cur_hwp_angle = cur_obs.get_pointings(
-                            detector_idx=idet, pointings_dtype=dtype_pointings
-                        )
-                        cur_point = cur_point.reshape(-1, 3)
-                    else:
-                        cur_point = ptg_list[idx_obs][idet, :, :]
-                        cur_hwp_angle = hwp_angle_list[idx_obs]
+                if pointings is None and ((not ptg_list) or (not hwp_angle_list)):
+                    cur_point, cur_hwp_angle = cur_obs.get_pointings(
+                        detector_idx=idet, pointings_dtype=dtype_pointings
+                    )
+                    cur_point = cur_point.reshape(-1, 3)
                 else:
                     cur_point = ptg_list[idx_obs][idet, :, :]
                     cur_hwp_angle = hwp_angle_list[idx_obs]
@@ -776,8 +818,13 @@ class HwpSys:
 
                 # all observed pixels over time (for each sample),
                 # i.e. len(pix)==len(times)
-                if self.interpolation in ["", None] or self.build_map_on_the_fly:
+                if self.interpolation in ["", None]:
                     pix = hp.ang2pix(self.nside, cur_point[:, 0], cur_point[:, 1])
+
+                if self.build_map_on_the_fly:
+                    pix_out = hp.ang2pix(
+                        self.nside_out, cur_point[:, 0], cur_point[:, 1]
+                    )
 
                 if self.interpolation in ["", None]:
                     input_T = self.maps[0, pix]
@@ -835,6 +882,8 @@ class HwpSys:
                     g_one_over_k=cur_obs.g_one_over_k[idet],
                     add_2f_hwpss=self.add_2f_hwpss,
                     amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
+                    phases_2f=self.mueller_phases["2f"],
+                    phases_4f=self.mueller_phases["4f"],
                 )
 
                 if self.build_map_on_the_fly:
@@ -845,12 +894,14 @@ class HwpSys:
                         m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
                         m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
                         m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
-                        pixel_ind=pix,
+                        pixel_ind=pix_out,
                         rho=np.array(cur_hwp_angle, dtype=np.float64),
                         psi=np.array(psi, dtype=np.float64),
                         phi=phi,
                         cos2Xi2Phi=cos2Xi2Phi,
                         sin2Xi2Phi=sin2Xi2Phi,
+                        phases_2f=self.mueller_phases["2f"],
+                        phases_4f=self.mueller_phases["4f"],
                     )
 
                 cur_obs.tod[idet] = tod
@@ -901,5 +952,5 @@ class HwpSys:
         cond = np.linalg.cond(self.ata)
         res = np.full_like(self.atd, hp.UNSEEN)
         mask = cond < COND_THRESHOLD
-        res[mask] = np.linalg.solve(self.ata, self.atd)
+        res[mask] = np.linalg.solve(self.ata[mask], self.atd[mask])
         return res.T

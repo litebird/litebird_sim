@@ -1,5 +1,31 @@
 # HEAD
 
+-   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
+
+# Version 0.15.3
+
+-   Fix the computation of HWP angles [#444](https://github.com/litebird/litebird_sim/pull/444)
+
+-   Add low-level interface to `BrahMap` [#440](https://github.com/litebird/litebird_sim/pull/440)
+
+-   Set Mueller matrix phases in Hwp_sys module as class attributes, instead of being hardcoded [#442](https://github.com/litebird/litebird_sim/pull/442)
+
+# Version 0.15.2
+
+-   Add more tutorials [#443](https://github.com/litebird/litebird_sim/pull/443)
+
+# Version 0.15.1
+
+-   Fixed s4,s5,d9,d10 and added s7 in Mbs [#437](https://github.com/litebird/litebird_sim/pull/437)
+
+-   Make sure that the PTEP IMo, the Madam templates, and the static files required to create the HTML reports are installed properly by `pip` and enable Binder/Google Colab [#436](https://github.com/litebird/litebird_sim/pull/436)
+
+-   Make the HWP_sys module able to deal with missing pixels, let the output maps to use a different NSIDE than the one of the inputs [#432](https://github.com/litebird/litebird_sim/pull/432)
+
+-   Fix bug in the computation of pointings for the HWP_sys module [#429](https://github.com/litebird/litebird_sim/pull/429)
+
+-   Upgrade PySM to 3.4.2 [#431](https://github.com/litebird/litebird_sim/pull/431)
+
 # Version 0.15.0
 
 -   **Breaking change**: New improved seeding strategy using `RNGHierarchy` [#414](https://github.com/litebird/litebird_sim/pull/414)
