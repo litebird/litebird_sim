@@ -11,7 +11,6 @@ import litebird_sim as lbs
 from litebird_sim import mpi
 from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
-from ..hwp_diff_emiss import compute_2f_for_one_sample
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
 from . import mueller_methods
@@ -58,6 +57,7 @@ def compute_orientation_from_detquat(quat):
 
     return polang
 
+
 @njit
 def mueller_interpolation(Theta, harmonic, i, j):
     mueller0deg = {
@@ -102,6 +102,7 @@ def mueller_interpolation(Theta, harmonic, i, j):
         + (mueller10deg[harmonic][i, j] - mueller0deg[harmonic][i, j]) * f_factor
     )
 
+
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
@@ -120,6 +121,8 @@ class HwpSys:
         nside_out: Union[int, None] = None,
         mbs_params: Union[MbsParameters, None] = None,
         build_map_on_the_fly: Union[bool, None] = False,
+        integrate_in_band: Union[bool, None] = False,
+        integrate_in_band_solver: Union[bool, None] = False,
         apply_non_linearity: Union[bool, None] = False,
         add_2f_hwpss: Union[bool, None] = False,
         interpolation: Union[str, None] = "",
@@ -127,9 +130,7 @@ class HwpSys:
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
         mueller_phases: Union[dict, None] = None,
-        mueller_or_jones: Union[str, None] = None,
-        integrate_in_band: Union[bool, None] = False,
-        integrate_in_band_solver: Union[bool, None] = False,
+        mueller_or_jones: Union[str, None] = "mueller",
     ):
         r"""It sets the input paramters reading a dictionary `sim.parameters`
         with key "hwp_sys" and the following input arguments
@@ -139,6 +140,9 @@ class HwpSys:
           nside_out (integer): nside for the output maps. If not provided, same as nside
           mbs_params (:class:`.Mbs`): an instance of the :class:`.Mbs` class
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
+          integrate_in_band (bool): performs the band integration for tod generation
+          integrate_in_band_solver (bool): performs the band integration for the
+                                              map-making solver
           apply_non_linearity (bool): applies the coupling of the non-linearity
               systematics with hwp_sys
           add_2f_hwpss (bool): adds the 2f hwpss signal to the TOD
@@ -152,6 +156,10 @@ class HwpSys:
               if `maps` is not None, `mbs_params` is ignored
               (i.e. input maps are not generated)
           comm (SerialMpiCommunicator): MPI communicator
+          mueller_phases (dict): Phases for the HWP Mueller matrices
+          mueller_or_jones (str): if "mueller", the Mueller formalism is applied to the
+                HWP computations. If "jones", the jones formalism is applied. Default is "mueller"
+
         """
 
         hwp_sys_Mbs_make_cmb = True
@@ -222,7 +230,7 @@ class HwpSys:
         if not hasattr(self, "add_2f_hwpss"):
             if add_2f_hwpss is not None:
                 self.add_2f_hwpss = add_2f_hwpss
-                
+
         if not hasattr(self, "integrate_in_band"):
             if integrate_in_band is not None:
                 self.integrate_in_band = integrate_in_band
@@ -444,8 +452,7 @@ class HwpSys:
             for idet in range(cur_obs.n_detectors):
                 if self.mueller_or_jones == "mueller":
                     if np.all(
-                        cur_obs.mueller_hwp[idet]
-                        == np.diag([1.0, 1.0, -1.0, -1.0])
+                        cur_obs.mueller_hwp[idet] == np.diag([1.0, 1.0, -1.0, -1.0])
                     ):
                         cur_obs.mueller_hwp[idet] = {
                             "0f": np.array(
@@ -750,7 +757,7 @@ class HwpSys:
                             )
 
                 cur_obs.tod[idet] = tod
-                
+
         if self.interpolation in ["", None]:
             del pix
         del input_T, input_Q, input_U

@@ -56,35 +56,21 @@ def compute_signal_for_one_detector(
         mUQ_hwp = deltas[0, 1] + deltas[1, 0]
         mQU_hwp = deltas[0, 1] + deltas[1, 0]
 
+        c2 = np.cos(2 * alpha)
+        s2 = np.sin(2 * alpha)
         tod_det[i] += compute_signal_for_one_sample(
             T=mapT[i],
             Q=mapQ[i],
             U=mapU[i],
             mII=mII_hwp,
-            mIQ=mIQ_hwp * np.cos(2 * alpha) + mIU_hwp * np.sin(2 * alpha),
-            mIU=mIU_hwp * np.cos(2 * alpha) - mIQ_hwp * np.sin(2 * alpha),
-            mQI=mQI_hwp * np.cos(2 * alpha) + mUI_hwp * np.sin(2 * alpha),
-            mQQ=np.cos(2 * alpha)
-            * (mQQ_hwp * np.cos(2 * alpha) + mUQ_hwp * np.sin(2 * alpha))
-            + np.sin(2 * alpha)
-            * (mQU_hwp * np.cos(2 * alpha) + mUU_hwp * np.sin(2 * alpha)),
-            mQU=-(
-                np.cos(2 * alpha)
-                * (mQU_hwp * np.cos(2 * alpha) + mUU_hwp * np.sin(2 * alpha))
-                - np.sin(2 * alpha)
-                * (mQQ_hwp * np.cos(2 * alpha) + mUQ_hwp * np.sin(2 * alpha))
-            ),
-            mUI=mUI_hwp * np.cos(2 * alpha) - mQI_hwp * np.sin(2 * alpha),
-            mUQ=-(
-                np.cos(2 * alpha)
-                * (mUQ_hwp * np.cos(2 * alpha) - mQQ_hwp * np.sin(2 * alpha))
-                + np.sin(2 * alpha)
-                * (mUU_hwp * np.cos(2 * alpha) - mQU_hwp * np.sin(2 * alpha))
-            ),
-            mUU=np.cos(2 * alpha)
-            * (mUU_hwp * np.cos(2 * alpha) - mQU_hwp * np.sin(2 * alpha))
-            - np.sin(2 * alpha)
-            * (mUQ_hwp * np.cos(2 * alpha) - mQQ_hwp * np.sin(2 * alpha)),
+            mIQ=mIQ_hwp * c2 - mIU_hwp * s2,
+            mIU=mIQ_hwp * s2 - mIU_hwp * c2,
+            mQI=mQI_hwp * c2 - mUI_hwp * s2,
+            mQQ=c2 * (mQQ_hwp * c2 - mUQ_hwp * s2) - s2 * (mQU_hwp * c2 - mUU_hwp * s2),
+            mQU=s2 * (mQQ_hwp * c2 - mUQ_hwp * s2) + c2 * (mQU_hwp * c2 - mUU_hwp * s2),
+            mUI=mQI_hwp * s2 + mUI_hwp * c2,
+            mUQ=c2 * (mQQ_hwp * s2 + mUQ_hwp * c2) - s2 * (mQU_hwp * s2 + mUU_hwp * c2),
+            mUU=s2 * (mQQ_hwp * s2 + mUQ_hwp * c2) + c2 * (mQU_hwp * s2 + mUU_hwp * c2),
             psi=psi[i],
             phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,

@@ -152,6 +152,15 @@ class DetectorInfo:
              to the harmonics of the HWP rotation frequency. It allows to
              have a non-ideal HWP in the solver. The default is None (i.e. no HWP)
 
+        - jones_hwp (Union[None, dict]): Jones matrix of the HWP, expanded
+             into two matrices, corresponding to the harmonics of the HWP
+             rotation frequency. The default is None (i.e. no HWP)
+
+        - jones_hwp_solver (Union[None, dict]): Jones matrix of the HWP
+             for the mapmaking, expanded into two matrices, corresponding
+             to the harmonics of the HWP rotation frequency. It allows to
+             have a non-ideal HWP in the solver. The default is None (i.e. no HWP)
+
         - pointing_theta_phi_psi_deg (Union[None, np.ndarray]): The angles θ, φ,
              and ψ (colatitude, longitude, and orientation) of the pointing direction,
              expressed in degrees.
@@ -187,6 +196,8 @@ class DetectorInfo:
     pol_efficiency: float = 1.0
     mueller_hwp: Union[None, dict] = None
     mueller_hwp_solver: Union[None, dict] = None
+    jones_hwp: Union[None, dict] = None
+    jones_hwp_solver: Union[None, dict] = None
     pointing_theta_phi_psi_deg: Union[None, np.ndarray] = None
     pointing_u_v: Union[None, np.ndarray] = None
     g_one_over_k: float = 0.0
