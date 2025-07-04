@@ -496,91 +496,132 @@ class BeamCut:
         Args:
             file_obj (`file`): A file object containing the GRASP cut file
         """
-        self.vini = 0.0
-        self.vinc = 0.0
-        self.vnum = 0
-        self.c = np.array([])
-        self.icomp = 0
-        self.icut = 0
-        self.ncomp = 0
-        self.ncut = 0
-        self.amp = None
-        self._parse_file(file_obj)
 
-    def _parse_file(self, file_obj: typing.TextIO) -> None:
-        "Parse the .cut file"
-
-        # Read the header line and throw it away
-        _ = file_obj.readline().strip()
-
+        # First pass: go through the file and count how many cuts it contains. Update
+        # the list of values for φ in `phi_values`
+        phi_values = []
+        self.ncomp = None  # type: int | None
+        self.theta0_deg = None  # type: float | None
+        self.delta_theta_deg = None  # type: float | None
+        self.n_theta = None  # type: int | None
+        self.num_of_phi_cuts = 0
         while True:
-            line = file_obj.readline()
+            # Read the header line and throw it away
+            line = file_obj.readline().strip()
             if not line:
                 break
+
+            # Read the line containing the metadata for this cut
+            line = file_obj.readline()
             data = line.split()
-            if len(data) == 7:
-                (
-                    self.vini,
-                    self.vinc,
-                    self.vnum,
-                    c,
-                    self.icomp,
-                    self.icut,
-                    self.ncomp,
-                ) = map(float, data)
-                self.vnum, self.icomp, self.icut, self.ncomp = map(
-                    int, (self.vnum, self.icomp, self.icut, self.ncomp)
-                )
-                self.c = np.append(self.c, c)
-                self.ncut += 1
-            if self.ncomp > 2:
+            assert len(data) == 7
+            cur_vini = float(data[0])
+            cur_vinc = float(data[1])
+            cur_vnum = int(data[2])
+            cur_phi = float(data[3])
+            cur_icomp = int(data[4])
+            cur_icut = int(data[5])
+            cur_ncomp = int(data[6])
+
+            if cur_icomp != 3:
                 raise ValueError(
-                    "Three field components present. Beam package can only handle two field components."
+                    "Only GRASP cuts with ICOMP=3 (E_co/E_cx) are accepted"
                 )
-            if self.vnum % 2 == 0:
-                raise ValueError("The number of pixels in a cut must be odd.")
 
-        self.amp = np.zeros((self.ncomp, self.vnum, self.ncut), dtype=complex)
-        file_obj.seek(0)
-        cnt = 0
-        while True:
-            line = file_obj.readline()
-            if not line:
-                break
-            data = line.split()
-            if len(data) == 7:
-                (
-                    self.vini,
-                    self.vinc,
-                    self.vnum,
-                    _,
-                    self.icomp,
-                    self.icut,
-                    self.ncomp,
-                ) = map(float, data)
-                self.vnum, self.icomp, self.icut, self.ncomp = map(
-                    int, (self.vnum, self.icomp, self.icut, self.ncomp)
+            if cur_icut != 1:
+                raise ValueError(
+                    "Only GRASP cuts with ICUT=1 (θ varies faster than φ) are accepted"
                 )
-                for i in range(self.vnum):
-                    line = file_obj.readline()
-                    data = line.split()
-                    tmp1, tmp2, tmp3, tmp4 = map(float, data)
-                    if any(np.isnan([tmp1, tmp2, tmp3, tmp4])):
-                        raise ValueError(
-                            "Encountered a NaN value in Amplitude. Please check your input."
-                        )
-                    self.amp[0, i, cnt] = complex(tmp1, tmp2)
-                    self.amp[1, i, cnt] = complex(tmp3, tmp4)
-                cnt += 1
+
+            if cur_ncomp != 2:
+                raise ValueError(
+                    "Only GRASP cuts containing far field components are accepted"
+                )
+
+            if self.theta0_deg is None:
+                self.theta0_deg = cur_vini
+            else:
+                if self.theta0_deg != cur_vini:
+                    raise ValueError(
+                        "The initial θ value (VINI) is not the same across cuts"
+                    )
+
+            if self.delta_theta_deg is None:
+                self.delta_theta_deg = cur_vinc
+            else:
+                if self.delta_theta_deg != cur_vinc:
+                    raise ValueError(
+                        "The value of Δθ (VINC) is not the same across cuts"
+                    )
+
+            if self.n_theta is None:
+                self.n_theta = cur_vnum
+            else:
+                if self.n_theta != cur_vnum:
+                    raise ValueError(
+                        "The value of n_θ (VNUM) is not the same across cuts"
+                    )
+
+            if self.ncomp is None:
+                self.ncomp = cur_ncomp
+            else:
+                if self.ncomp != cur_ncomp:
+                    raise ValueError(
+                        "The value of NCOMP (either 2 or 3) is not the same across cuts"
+                    )
+
+            phi_values.append(cur_phi)
+            self.num_of_phi_cuts += 1
+
+            # Skip all the lines containing the field, for the moment:
+            # we will read them back during the second pass
+            for theta_idx in range(self.n_theta):
+                _ = file_obj.readline()
+
+        if self.n_theta % 2 == 0:
+            raise ValueError("The number of pixels in a cut (VNUM) must be odd.")
+
+        self.phi_values_rad = np.deg2rad(phi_values)
+        self.theta_values_rad = np.deg2rad(
+            self.theta0_deg + self.delta_theta_deg * np.arange(self.n_theta)
+        )
+
+        # Allocate a 3D grid for the data from all the cuts, with this shape:
+        # (2, θ_steps, φ_steps)
+        self.amp = np.empty(
+            shape=(self.ncomp, self.num_of_phi_cuts, self.n_theta), dtype=np.complex128
+        )
+
+        # Go back to the beginning of the file and fill `self.amp`
+        file_obj.seek(0)
+        for phi_idx in range(len(self.phi_values_rad)):
+            _ = file_obj.readline()  # Throw away the header and the metadata
+            _ = file_obj.readline()
+
+            for theta_idx in range(self.n_theta):
+                line = file_obj.readline()
+                data = line.split()
+                tmp1, tmp2, tmp3, tmp4 = map(float, data)
+                if any(np.isnan([tmp1, tmp2, tmp3, tmp4])):
+                    raise ValueError(
+                        "Encountered a NaN value in Amplitude. Please check your input."
+                    )
+
+                self.amp[0, phi_idx, theta_idx] = complex(
+                    tmp1, tmp2
+                )  # E field (complex)
+                self.amp[1, phi_idx, theta_idx] = complex(
+                    tmp3, tmp4
+                )  # H field (complex)
 
     def to_polar(self, copol_axis: str = "x") -> BeamPolar:
         """Converts beam in "cut" format to Stokes parameters
         on a polar grid.  Assumes that cuts are evenly spaced
-        in theta. The value of copol specifies the alignment
+        in theta. The value of `copol_axis` specifies the alignment
         of the co-polar basis ('x' or 'y') of the input GRASP file.
 
         Args:
-            copol_axis (`str`): The axis of copolarization. Must be either 'x' or 'y'.
+            copol_axis (`str`): The axis of co-polarization. Must be either 'x' or 'y'.
 
         Returns:
             BeamPolar: The beam in polar coordinates.
@@ -590,34 +631,10 @@ class BeamCut:
         """
         copol_axis = copol_axis.lower()
 
-        if self.icomp != 3:
+        if copol_axis not in ("x", "y"):
             raise ValueError(
-                "Error in BeamCut.to_polar: beam is not in linear 'co' and 'cx' components"
+                f"Error in BeamCut.to_polar: copol_axis must be 'x' or 'y', not '{copol_axis}'"
             )
-        if self.icut != 1:
-            raise ValueError("Error in BeamCut.to_polar: beam is not in phi cuts")
-        if self.ncomp != 2:
-            raise ValueError(
-                "Error in BeamCut.to_polar: beam has the wrong number of components"
-            )
-        if copol_axis not in ["x", "y"]:
-            raise ValueError("Error in BeamCut.to_polar: copol_axis must be 'x' or 'y'")
-
-        nphi = int(2 * self.ncut)
-        ntheta = int(self.vnum // 2) + 1
-        theta_rad_min = 0.0
-        theta_rad_max = np.deg2rad(np.abs(self.vini))
-        beam_polar = BeamPolar(
-            nphi,
-            ntheta,
-            theta_rad_min,
-            theta_rad_max,
-        )
-        amp_tmp = np.zeros((2, nphi, ntheta), dtype=complex)
-
-        for i in range(self.ncut):
-            amp_tmp[:, i, :] = self.amp[:, ntheta - 1 : self.vnum + 1, i]
-            amp_tmp[:, self.ncut + i, :] = self.amp[:, ntheta - 1 :: -1, i]
 
         if copol_axis == "x":
             sign = -1
@@ -626,17 +643,23 @@ class BeamCut:
         else:
             raise ValueError(f"{copol_axis=} can only be 'x' or 'y'")
 
-        c = amp_tmp[0, :, :]
-        x = amp_tmp[1, :, :]
+        co = self.amp[0, :, :]
+        cx = self.amp[1, :, :]
 
-        modc2 = np.abs(c) ** 2
-        modx2 = np.abs(x) ** 2
-        acaxs = c * np.conj(x)
+        mod_co_squared = np.abs(co) ** 2
+        mod_cx_squared = np.abs(cx) ** 2
+        cross = co * np.conj(cx)
 
-        beam_polar.stokes[0, :, :] = modc2 + modx2
-        beam_polar.stokes[1, :, :] = sign * (modc2 - modx2)
-        beam_polar.stokes[2, :, :] = sign * 2.0 * np.real(acaxs)
-        beam_polar.stokes[3, :, :] = 2.0 * np.imag(acaxs)
+        beam_polar = BeamPolar(
+            nphi=len(self.phi_values_rad),
+            ntheta=len(self.theta_values_rad),
+            theta_rad_min=self.theta_values_rad[0],
+            theta_rad_max=self.theta_values_rad[-1],
+        )
+        beam_polar.stokes[0, :, :] = mod_co_squared + mod_cx_squared
+        beam_polar.stokes[1, :, :] = sign * (mod_co_squared - mod_cx_squared)
+        beam_polar.stokes[2, :, :] = sign * 2.0 * np.real(cross)
+        beam_polar.stokes[3, :, :] = 2.0 * np.imag(cross)
         return beam_polar
 
 
