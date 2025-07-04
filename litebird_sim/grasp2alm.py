@@ -235,91 +235,29 @@ class BeamPolar:
         phi = phi[: len(theta)]
 
         beam_map = np.full((nstokes, npix), unseen_pixel_value, dtype=float)
-        for s in range(nstokes):
-            beam_map[s, : len(theta)] = beam_polar._get_interp_val(
-                theta, phi, s, interp_method
-            )
-        return BeamHealpixMap(beam_map)
 
-    def _get_interp_val(
-        self, theta: np.ndarray, phi: np.ndarray, s: int, interp_method="linear"
-    ):
-        """Calculate the value of the beam at a given :math:`\theta`, :math:`\phi`, and Stokes parameter.
-        The value is interpolated from `BeamPolar` by a given :math:`\theta` and :math:`\phi`.
-
-        Args:
-            theta (`float` or `array-like`): The :math:`\theta` value(s) at which to evaluate the beam.
-            phi (`float` or `array-like`): The :math:`\phi` value(s) at which to evaluate the beam.
-            s (`int`): The Stokes parameter index.
-            interp_method (`str`): Interpolation method to use. Default is 'linear'.
-                Supported are 'linear', 'nearest', 'slinear', 'cubic', 'quintic' and 'pchip'.
-        Returns:
-            value (`float` or `array-like`): The value(s) of the beam at the given :math:`\theta`, :math:`\phi`, and Stokes parameter.
-
-        """
         # Create a grid of theta and phi values
         theta_grid = np.linspace(self.theta_rad_min, self.theta_rad_max, self.ntheta)
+
         # To make a periodicity in phi, we add the first phi value to the end
         phi_grid = np.linspace(0.0, 2.0 * np.pi, self.nphi + 1)
-        # To make a periodicity in stokes, we add the first stokes value to the end
-        stokes_extended = np.concatenate(
-            [self.stokes[s], self.stokes[s][:1, :]], axis=0
-        )
 
-        # Create a 2D interpolator for the beam stokes values
-        interpolator = RegularGridInterpolator(
-            (phi_grid, theta_grid), stokes_extended, method=interp_method
-        )
+        for stokes_idx in range(nstokes):
+            # To make a periodicity in stokes, we add the first stokes value to the end
+            stokes_extended = np.concatenate(
+                [beam_polar.stokes[stokes_idx], beam_polar.stokes[stokes_idx][:1, :]],
+                axis=0,
+            )
 
-        # Use the interpolator to get the beam values at the given theta and phi
-        value = interpolator(np.array([phi, theta]).T)
+            # Create a 2D interpolator for the beam stokes values
+            interpolator = RegularGridInterpolator(
+                (phi_grid, theta_grid), stokes_extended, method=interp_method
+            )
 
-        return value
+            # Use the interpolator to get the beam values at the given theta and phi
+            beam_map[stokes_idx, : len(theta)] = interpolator(np.array([phi, theta]).T)
 
-
-def _get_interp_val_from_polar_original(
-    beam: BeamPolar, theta: np.ndarray, phi: np.ndarray, s: int
-):
-    """Calculate the value of the beam at a given :math:`\theta`, :math:`\phi`, and Stokes parameter.
-    The value is interpolated from :class:`.BeamPolar` by a given :math:`\theta` and :math:`\phi`.
-
-    Args:
-        beam (:class:`.BeamPolar`): The polar beam object.
-        theta (`float` or `array-like`): The :math:`\theta` value(s) at which to evaluate the beam.
-        phi (`float` or `array-like`): The :math:`\phi` value(s) at which to evaluate the beam.
-        s (`int`): The Stokes parameter index.
-
-    Returns:
-        value (`float` or `array-like`): The value(s) of the beam at the given :math:`\theta`, :math:`\phi` and Stokes parameter.
-
-    """
-    # TODO replace this function by scipy interpolation
-    theta_step = (beam.theta_rad_max - beam.theta_rad_min) / (beam.ntheta - 1)
-    phi_step = 2.0 * np.pi / beam.nphi
-    theta = np.asarray(theta)
-    phi = np.asarray(phi)
-
-    ith1 = (theta / theta_step).astype(int)
-    ith1 = np.maximum(0, np.minimum(beam.ntheta - 2, ith1))
-    ith2 = ith1 + 1
-
-    iph1 = (phi / phi_step).astype(int)
-    iph1 = np.maximum(0, np.minimum(beam.nphi - 1, iph1))
-    iph2 = iph1 + 1
-    iph2[iph2 >= beam.nphi] = 0
-
-    th1 = beam.theta_rad_min + ith1 * theta_step
-    wth = 1.0 - (theta - th1) / theta_step
-
-    ph1 = iph1 * phi_step
-    wph = 1.0 - (phi - ph1) / phi_step
-
-    value = wth * (
-        wph * beam.stokes[s, iph1, ith1] + (1.0 - wph) * beam.stokes[s, iph2, ith1]
-    ) + (1.0 - wth) * (
-        wph * beam.stokes[s, iph1, ith2] + (1.0 - wph) * beam.stokes[s, iph2, ith2]
-    )
-    return value
+        return BeamHealpixMap(beam_map)
 
 
 class BeamGrid:
