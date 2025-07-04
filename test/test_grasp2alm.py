@@ -271,7 +271,7 @@ FREQUENCIES [GHz]:
         (BeamCut, ticra_cut_to_alm, "test.cut", "test-cut-alm.npy"),
     ],
 )
-def test_grasp_to_alm(param, regenerate_grasp_alm):
+def test_grasp_to_alm(param, regenerate_grasp_alm: bool):
     beam_class, function_to_test, grasp_file_name, alm_file_name = param
 
     nside = 128
