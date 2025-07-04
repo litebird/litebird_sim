@@ -99,14 +99,14 @@ class TestBeamCut(unittest.TestCase):
                 [[3.0 + 4.0j], [-3.0 - 4.0j], [1.0 + 1.0j]],
             ]
         )
-        self.assertTrue(test_cut.vini == -180.0)
-        self.assertTrue(test_cut.vinc == 90.0)
-        self.assertTrue(test_cut.vnum == 3)
-        self.assertTrue(test_cut.c == np.array([0.0]))
+        self.assertTrue(test_cut.theta0_deg == -180.0)
+        self.assertTrue(test_cut.delta_theta_deg == 90.0)
+        self.assertTrue(test_cut.n_theta == 3)
+        self.assertTrue(test_cut.phi_values == np.array([0.0]))
         self.assertTrue(test_cut.icomp == 3)
         self.assertTrue(test_cut.icut == 1)
         self.assertTrue(test_cut.ncomp == 2)
-        self.assertTrue(test_cut.ncut == 1)
+        self.assertTrue(test_cut.num_of_phi_cuts == 1)
         self.assertTrue(np.array_equal(test_cut.amp, expected_amp))
 
 
