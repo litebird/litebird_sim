@@ -279,6 +279,7 @@ data_files:
     fwhm_deg: 1.0
   quantity: "01eeffe6-ac90-4a55-8b72-8d49e5dbe7ad"
   spec_version: "0.2"
+  file_name: "data_files/37bb70e4-29b2-4657-ba0b-4ccefbc5ae36_horn01_synth.json"
   dependencies:
   - "a6dd07ee-9721-4453-abb1-e58aa53a9c01"
 - uuid: "ff087ba3-d973-4dc3-b72b-b68abb979a90"
