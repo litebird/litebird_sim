@@ -226,8 +226,8 @@ class BeamPolar:
         npix = nside_to_npix(nside)
 
         thetaphi = base.pix2ang(pix=np.arange(npix))
-        theta = thetaphi[0, :]
-        phi = thetaphi[1, :]
+        theta = thetaphi[:, 0]
+        phi = thetaphi[:, 1]
 
         beam_polar = self.convert_to_polar_basis()
 
