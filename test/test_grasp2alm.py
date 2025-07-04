@@ -2,8 +2,10 @@
 from io import StringIO
 from pathlib import Path
 import unittest
+from typing import Type
 
 import numpy as np
+import numpy.testing as npt
 import pytest
 
 from litebird_sim.beam_convolution import SphericalHarmonics
@@ -17,11 +19,11 @@ from litebird_sim.grasp2alm import (
 REFERENCE_BEAM_FILES_PATH = Path(__file__).parent / "grasp2alm_reference"
 
 
-def _test_value_error(text: str) -> None:
+def _test_value_error(text: str, beam_class: Type[BeamCut] | Type[BeamGrid]) -> None:
     txt_with_error = StringIO(text)
     txt_with_error.seek(0)
     with pytest.raises(ValueError):
-        BeamCut(txt_with_error)
+        beam_class(txt_with_error)
 
 
 class TestBeamCut(unittest.TestCase):
@@ -38,12 +40,15 @@ class TestBeamCut(unittest.TestCase):
         Asserts:
             Raises ValueError when the number of components (ncomp) is incorrect.
         """
-        _test_value_error("""Test header
+        _test_value_error(
+            """Test header
             -180 90 3 0 3 1 100
             1 2 3 4
             -1.0 -2.0 -3.0 -4.0
             1 1 1 1
-        """)
+        """,
+            BeamCut,
+        )
 
     def test_vnum_exception(self):
         """
@@ -53,12 +58,15 @@ class TestBeamCut(unittest.TestCase):
         Asserts:
             Raises ValueError when the number of data points (vnum) is incorrect.
         """
-        _test_value_error("""Test header
+        _test_value_error(
+            """Test header
             -180 90 10 0 3 1 2
             1 2 3 4
             -1.0 -2.0 -3.0 -4.0
             1 1 1 1
-        """)
+        """,
+            BeamCut,
+        )
 
     def test_nan_exception(self):
         """
@@ -68,12 +76,15 @@ class TestBeamCut(unittest.TestCase):
         Asserts:
             Raises ValueError when the cut file contains NaN values.
         """
-        _test_value_error("""Test header
+        _test_value_error(
+            """Test header
             -180 90 3 0 3 1 2
             1 2 3 4
             -1.0 nan -3.0 -4.0
             1 1 1 1
-        """)
+        """,
+            BeamCut,
+        )
 
     def test_cut_reading(self):
         """
@@ -102,12 +113,10 @@ class TestBeamCut(unittest.TestCase):
         self.assertTrue(test_cut.theta0_deg == -180.0)
         self.assertTrue(test_cut.delta_theta_deg == 90.0)
         self.assertTrue(test_cut.n_theta == 3)
-        self.assertTrue(test_cut.phi_values == np.array([0.0]))
-        self.assertTrue(test_cut.icomp == 3)
-        self.assertTrue(test_cut.icut == 1)
+        self.assertTrue(test_cut.phi_values_rad == np.array([0.0]))
         self.assertTrue(test_cut.ncomp == 2)
         self.assertTrue(test_cut.num_of_phi_cuts == 1)
-        self.assertTrue(np.array_equal(test_cut.amp, expected_amp))
+        npt.assert_array_equal(test_cut.amp, expected_amp)
 
 
 class TestBeamGrid(unittest.TestCase):
@@ -123,7 +132,7 @@ class TestBeamGrid(unittest.TestCase):
         Asserts:
             Raises ValueError when the grid format (ktype) is not 1.
         """
-        _test_value_error("Test header\n++++\n2")
+        _test_value_error("Test header\n++++\n2", BeamGrid)
 
     def test_input_beams_number(self):
         """
@@ -132,7 +141,8 @@ class TestBeamGrid(unittest.TestCase):
         Asserts:
             Raises a Warning when the number of beams (nset) is not 1.
         """
-        _test_value_error("""
+        _test_value_error(
+            """
 "Test header
 +++
 
@@ -144,7 +154,9 @@ class TestBeamGrid(unittest.TestCase):
 1 1 1 
 1 1 1 
 1 1 1 1
-""")
+""",
+            BeamGrid,
+        )
 
     def test_input_beam_solid_angle(self):
         """
@@ -153,7 +165,8 @@ class TestBeamGrid(unittest.TestCase):
         Asserts:
             Raises a Warning if the beam solid angle is different from 2pi or 4pi
         """
-        _test_value_error("""
+        _test_value_error(
+            """
 Test header
 ++++
 1
@@ -165,7 +178,9 @@ Test header
 1 1 1 1
 1 1 1 1
 1 1 1 1
-""")
+""",
+            BeamGrid,
+        )
 
     def test_nan_exception(self):
         """
@@ -189,7 +204,8 @@ Test header
 1 Nan 1 1
 1 1 1 1
 1 1 1 1
-"""
+""",
+            BeamGrid,
         )
 
     def test_grid_reading(self):
