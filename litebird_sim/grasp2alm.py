@@ -484,7 +484,9 @@ class BeamCut:
         icut (`int`): Control parameter of cut.
         ncomp (`int`): Number of field components.
         ncut (`int`): Number of cuts.
-        amp (`numpy.ndarray` | None): Amplitude.
+        amp (`numpy.ndarray` | None): Amplitude, with a shape (2, num_of_phi_cuts, n_theta).
+            The two fields are the complex amplitudes of the E_co and E_cx components of the
+            electric field
     """
 
     def __init__(self, file_obj: typing.TextIO):
@@ -492,7 +494,7 @@ class BeamCut:
         Initializes a BeamCut object.
 
         Args:
-            filepath (`str`): The path to the GRASP cut file.
+            file_obj (`file`): A file object containing the GRASP cut file
         """
         self.vini = 0.0
         self.vinc = 0.0
