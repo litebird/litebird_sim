@@ -514,7 +514,7 @@ class BeamCut:
             # Read the line containing the metadata for this cut
             line = file_obj.readline()
             data = line.split()
-            assert len(data) == 7
+            assert len(data) == 7, f'Line "{line}" is not a valid header'
             cur_vini = float(data[0])
             cur_vinc = float(data[1])
             cur_vnum = int(data[2])
