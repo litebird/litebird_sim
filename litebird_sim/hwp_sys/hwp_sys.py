@@ -297,6 +297,8 @@ def compute_signal_for_one_detector(
     """
 
     for i in prange(len(tod_det)):
+        # TODO: GET THE SEVERAL COSINE TERMS DIRECTLY FROM THE
+        # COMPLEX COMPUTATION OF HWP_ANGLE in hwp._get_hwp_angle
         Four_rho_phi = 4 * (rho[i] - phi)
         Two_rho_phi = 2 * (rho[i] - phi)
         tod_det[i] += compute_signal_for_one_sample(
