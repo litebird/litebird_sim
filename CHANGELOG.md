@@ -32,6 +32,7 @@
 -   New method `Imo.open_data_file` [#449](https://github.com/litebird/litebird_sim/pull/449)
 
 -   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
+-   Change hwp_angle calculation to the complex domain [#433](https://github.com/litebird/litebird_sim/pull/433)
 
 -   Change hwp_angle calculation to the complex domain [#433](https://github.com/litebird/litebird_sim/pull/433)
 
