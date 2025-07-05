@@ -105,10 +105,7 @@ class TestBeamCut(unittest.TestCase):
         txt.seek(0)
         test_cut = BeamCut(txt)
         expected_amp = np.array(
-            [
-                [[1.0 + 2.0j], [-1.0 - 2.0j], [1.0 + 1.0j]],
-                [[3.0 + 4.0j], [-3.0 - 4.0j], [1.0 + 1.0j]],
-            ]
+            [[[(1 + 2j), (-1 - 2j), (1 + 1j)]], [[(3 + 4j), (-3 - 4j), (1 + 1j)]]]
         )
         self.assertTrue(test_cut.theta0_deg == -180.0)
         self.assertTrue(test_cut.delta_theta_deg == 90.0)
