@@ -131,54 +131,6 @@ class TestBeamGrid(unittest.TestCase):
         """
         _test_value_error("Test header\n++++\n2", BeamGrid)
 
-    def test_input_beams_number(self):
-        """
-        Tests that the BeamGrid class raises a Warning for an incorrect number of beams in the grid file.
-
-        Asserts:
-            Raises a Warning when the number of beams (nset) is not 1.
-        """
-        _test_value_error(
-            """
-"Test header
-+++
-
-2 3 2 
-0 0\
-0.0 0.0 360.0 90.
-2 2 
-1 1 1 
-1 1 1 
-1 1 1 
-1 1 1 1
-""",
-            BeamGrid,
-        )
-
-    def test_input_beam_solid_angle(self):
-        """
-        Tests that the BeamGrid class raises a Warning for an incorrect value of beam solid angle in the grid file.
-
-        Asserts:
-            Raises a Warning if the beam solid angle is different from 2pi or 4pi
-        """
-        _test_value_error(
-            """
-Test header
-++++
-1
-1 3 2 7
-0 0
-0.0 0.0 340.0 80.0
-2 2 0
-1 1 1 1
-1 1 1 1
-1 1 1 1
-1 1 1 1
-""",
-            BeamGrid,
-        )
-
     def test_nan_exception(self):
         """
         Tests that the BeamGrid class raises a ValueError

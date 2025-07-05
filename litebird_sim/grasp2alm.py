@@ -314,7 +314,7 @@ class BeamGrid:
         """Read and parse the beam grid file."""
 
         while True:
-            line = fi.readline()
+            line = fi.readline().strip()
             if line[0:4] == "++++":
                 break
             elif "FREQUENCIES [" in line:
