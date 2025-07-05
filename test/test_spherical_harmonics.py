@@ -150,7 +150,6 @@ def test_healpy_io(tmp_path):
             maps=np.random.rand(nstokes, healpy.nside2npix(nside)),
             lmax=lmax,
             mmax=mmax,
-            verbose=False,
         ),
         lmax=lmax,
         mmax=mmax,
