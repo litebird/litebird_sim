@@ -1,3 +1,5 @@
+.. _interface_hierarchy:
+
 Interface Hierarchy
 ====================
 
@@ -99,3 +101,4 @@ The three interface levels are consistently implemented across all major simulat
 - Input/output management, see here :ref:`simulations`.
 
 This uniform interface hierarchy allows users to write generic tools while also enabling low-level extensions for performance or custom needs.
+Further explanations are given in :ref:`high-level-vs-low-level-interfaces`
