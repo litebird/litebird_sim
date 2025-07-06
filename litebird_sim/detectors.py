@@ -98,10 +98,10 @@ class DetectorInfo:
         sampling_rate_hz (float): Sampling rate of the ADC associated with this detector, in Hz.
             Default is 0.0.
 
-        fwhm_arcmin (float): Full Width at Half Maximum of the beam in arcminutes. 
+        fwhm_arcmin (float): Full Width at Half Maximum of the beam in arcminutes.
             Defined as fwhm = sqrt(fwhm_max*fwhm_min). Default is 0.0.
 
-        ellipticity (float): Ellipticity of the beam (major/minor axis ratio). Defined as 
+        ellipticity (float): Ellipticity of the beam (major/minor axis ratio). Defined as
             fwhm_max/fwhm_min Default is 1 (circular beam). Default is 1.0.
 
         psi_rad (float): Orientation angle of the beam's major axis with respect to the x-axis,

@@ -1026,8 +1026,8 @@ class Observation:
                 expected shape.
 
         Example:
-            >>> hwp_angle = obs.get_hwp_angle()
-            >>> # hwp_angle.shape -> (obs.n_samples,)
+            hwp_angle = obs.get_hwp_angle()
+            hwp_angle.shape -> (obs.n_samples,)
         """
         assert self.pointing_provider is not None, (
             "You must initialize pointing_provider; use Simulation.prepare_pointings()"
@@ -1061,7 +1061,7 @@ class Observation:
         self,
         pointings_dtype=np.float64,
     ) -> None:
-       """Precompute and store the full pointing matrix and HWP angles for this observation.
+        """Precompute and store the full pointing matrix and HWP angles for this observation.
 
         This method computes the time-domain pointing angles (θ, φ, ψ) and, if applicable,
         HWP angles for all detectors in the current observation. The results are stored
@@ -1080,9 +1080,8 @@ class Observation:
                 i.e., if `self.pointing_provider` is not defined.
 
         Notes:
-            - This method must be called after `prepare_pointings()`.
+            This method must be called after `prepare_pointings()`.
         """
-
         assert "pointing_provider" in dir(self), (
             "you must call prepare_pointings() on a set of observations "
             "before calling precompute_pointings()"

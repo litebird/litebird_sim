@@ -55,7 +55,7 @@ def prepare_pointings(
 
     Notes:
         This function is typically used in preparation for generating time-domain pointings.
-        Once this setup is complete, calling `obs.get_pointings()` will produce properly 
+        Once this setup is complete, calling `obs.get_pointings()` will produce properly
         oriented (θ, φ, ψ) coordinates, and if applicable, HWP angles.
     """
 

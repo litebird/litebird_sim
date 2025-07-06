@@ -39,20 +39,9 @@ class PointingProvider:
         hwp (Optional[HWP]):
             Associated Half-Wave Plate model, if any.
 
-    Methods:
-        has_hwp():
-            Returns `True` if an HWP model is attached to the provider.
-
-        get_pointings(...):
-            Computes the time-dependent detector pointing angles (θ, φ, ψ) in radians,
-            and optionally the HWP angles, for a given detector quaternion and timeline.
-
-        get_hwp_angle(...):
-            Computes only the HWP angle for a timeline, independent of pointing.
-
     Example:
-        >>> provider = PointingProvider(bore2ecliptic_quats=q, hwp=hwp_model)
-        >>> pointings, hwp = provider.get_pointings(
+        provider = PointingProvider(bore2ecliptic_quats=q, hwp=hwp_model)
+        pointings, hwp = provider.get_pointings(
         ...     detector_quat=det_q,
         ...     start_time=0.0,
         ...     start_time_global=0.0,
