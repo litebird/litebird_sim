@@ -267,7 +267,7 @@ def generate_gauss_beam_alms(
                 mmax=mmax_val,
                 fwhm_rad=fwhm_rad,
                 ellipticity=channel.ellipticity,
-                psi_ell_rad=0,
+                psi_ell_rad=channel.psi_rad,
                 psi_pol_rad=0,
                 cross_polar_leakage=0,
             )

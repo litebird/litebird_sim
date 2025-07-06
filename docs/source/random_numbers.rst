@@ -3,6 +3,10 @@
 Random numbers
 ==============
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+
 The LiteBIRD Simulation Framework can be used to generate random numbers,
 used for example for producing noise timelines. In order to do so,
 a seed and a Hierarchy of Random Number Generators (RNGs) are used.

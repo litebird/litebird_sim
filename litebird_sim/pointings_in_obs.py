@@ -24,12 +24,39 @@ def prepare_pointings(
     spin2ecliptic_quats: RotQuaternion,
     hwp: Optional[HWP] = None,
 ) -> None:
-    """Store the quaternions needed to compute pointings into a list of :class:`.Observation` objects
+    """Initialize pointing and HWP information for one or more observations.
 
-    This function computes the quaternions that convert the boresight direction
-    of `instrument` into the Ecliptic reference frame. The `spin2ecliptic_quats`
-    object must be an instance of the :class:`.RotQuaternion` class and can
-    be created using the method :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+    This function computes the boresight-to-Ecliptic quaternions for the given instrument
+    and applies them to one or more :class:`.Observation` objects. It initializes the
+    :class:`.PointingProvider` for each observation, enabling future computation of
+    detector pointing angles and HWP angles.
+
+    The quaternion applied is the product of the global spin-to-Ecliptic rotation and the
+    instrument's internal boresight-to-spin rotation. Optionally, a Half-Wave Plate (HWP)
+    model can be passed and automatically propagated to the detectors in each observation.
+
+    Args:
+        observations (Observation or List[Observation]):
+            A single observation or a list of :class:`.Observation` objects to configure.
+
+        instrument (InstrumentInfo):
+            The instrument definition, including the internal rotation from boresight to spin axis.
+
+        spin2ecliptic_quats (RotQuaternion):
+            Time-dependent quaternion representing the rotation from the instrument spin frame
+            to the Ecliptic reference frame. Typically generated using
+            :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+
+        hwp (Optional[HWP]):
+            An optional Half-Wave Plate model to attach to the observations.
+
+    Returns:
+        None
+
+    Notes:
+        This function is typically used in preparation for generating time-domain pointings.
+        Once this setup is complete, calling `obs.get_pointings()` will produce properly
+        oriented (θ, φ, ψ) coordinates, and if applicable, HWP angles.
     """
 
     if isinstance(observations, Observation):
@@ -47,11 +74,35 @@ def precompute_pointings(
     observations: Union[Observation, List[Observation]],
     pointings_dtype=np.float64,
 ) -> None:
-    """Precompute all the pointings for a set of observations
+    """Precompute pointing angles and HWP angles for a set of observations.
 
-    Compute the full pointing matrix and the HWP angle for each :class:`.Observation`
-    object in `obs_list` and store them in the fields ``pointing_matrix`` and ``hwp_angle``.
-    The datatype for the pointings is specified by `pointings_dtype`.
+    This function triggers the computation of the full time-domain pointing matrix
+    and, if applicable, the HWP angle vector for one or more :class:`.Observation`
+    instances. The results are stored internally in each observation's
+    ``pointing_matrix`` and ``hwp_angle`` fields.
+
+    This is typically used to cache pointing-related data in advance, avoiding the
+    need for on-the-fly computation during scanning or map-making operations.
+
+    Args:
+        observations (Observation or List[Observation]):
+            A single observation or a list of observations for which pointings should be precomputed.
+
+        pointings_dtype (data-type, optional):
+            Data type to use when allocating the pointing and HWP arrays.
+            Defaults to `np.float64`.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError:
+            If any observation does not have a pointing provider initialized.
+            Make sure to call :func:`prepare_pointings()` beforehand.
+
+    Notes:
+        - This function must be called after pointing setup (i.e., after `prepare_pointings()`).
+        - Output arrays are stored in `Observation.pointing_matrix` and `Observation.hwp_angle`.
     """
 
     if isinstance(observations, Observation):
@@ -182,8 +233,7 @@ def _get_pointings_array(
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
 ) -> Tuple[np.ndarray, Union[np.ndarray], None]:
-    """
-    Compute the pointings (θ, φ) and HWP angle for a given detector.
+    """Compute the pointings (θ, φ) and HWP angle for a given detector.
 
     Parameters
     ----------
