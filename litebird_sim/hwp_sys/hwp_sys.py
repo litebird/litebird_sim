@@ -105,8 +105,8 @@ def mueller_interpolation(Theta, harmonic, i, j):
 
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
-    following the approach of Giardiello et al. 2021
-    https://arxiv.org/abs/2106.08031
+    following the approach of Patanchon et al. 2023
+    https://arxiv.org/pdf/2308.00967
     Args:
          simulation (:class:`.Simulation`): an instance of the class \
          :class:`.Simulation`
