@@ -49,7 +49,7 @@ def add_2f(
     for detector_idx in range(tod.shape[0]):
         add_2f_for_one_detector(
             tod_det=tod[detector_idx],
-            angle_det_rad=hwp_angle-pol_angle_rad[detector_idx],
+            angle_det_rad=hwp_angle - pol_angle_rad[detector_idx],
             amplitude_k=amplitude_2f_k[detector_idx],
         )
 
@@ -91,7 +91,7 @@ def add_2f_to_observations(
 
         add_2f(
             tod=getattr(cur_obs, component),
-            hwp_angle = hwp_angle,
+            hwp_angle=hwp_angle,
             pol_angle_rad=cur_obs.pol_angle_rad,
             amplitude_2f_k=amplitude_2f_k,
         )
