@@ -70,6 +70,9 @@ from .hwp import (
 from .hwp_sys.hwp_sys import (
     HwpSys,
 )
+from .hwp_sys.old_hwp_sys import (
+    OldHwpSys,
+)
 from .imo import (
     PTEP_IMO_LOCATION,
     Imo,
@@ -229,6 +232,8 @@ __all__ = [
     "read_hwp_from_hdf5",
     # hwp_sys/hwp_sys.py
     "HwpSys",
+    # hwp_sys/old_hwp_sys.py
+    "OldHwpSys",
     # madam.py
     "save_simulation_for_madam",
     # mbs.py
