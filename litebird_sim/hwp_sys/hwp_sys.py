@@ -1,20 +1,20 @@
 # -*- encoding: utf-8 -*-
-import logging
 from typing import Union, List
 
 import healpy as hp
 import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
-from numba import njit, prange
+from numba import njit
 
 import litebird_sim as lbs
 from litebird_sim import mpi
 from ..coordinates import rotate_coordinates_e2g
 from ..detectors import FreqChannelInfo
-from ..hwp_diff_emiss import compute_2f_for_one_sample
 from ..mbs.mbs import MbsParameters
 from ..observations import Observation
+from . import mueller_methods
+from . import jones_methods
 
 COND_THRESHOLD = 1e10
 
@@ -56,111 +56,6 @@ def compute_orientation_from_detquat(quat):
             polang = -polang
 
     return polang
-
-
-def JonesToMueller(jones):
-    """
-    Converts a Jones matrix to a Mueller matrix.
-    The Jones matrix is assumed to be a 2x2 complex matrix (np.array).
-    The Mueller matrix is a 4x4 real matrix.
-    Credits to Yuki Sakurai for the function.
-    """
-
-    # Pauli matrix basis
-    pauli_basis = np.array(
-        object=[
-            [[1, 0], [0, 1]],  # Identity matrix
-            [[1, 0], [0, -1]],  # Pauli matrix z
-            [[0, 1], [1, 0]],  # Pauli matrix x
-            [[0, -1j], [1j, 0]],  # Pauli matrix y
-        ],
-        dtype=complex,
-    )
-
-    # Mueller matrix is M_ij = 1/2 * Tr(pauli[i] * J * pauli[j] * J^dagger)
-    mueller = np.zeros((4, 4), dtype=float)
-
-    for i in range(4):
-        for j in range(4):
-            Mij = 0.5 * np.trace(
-                np.dot(
-                    pauli_basis[i],
-                    np.dot(jones, np.dot(pauli_basis[j], np.conjugate(jones).T)),
-                )
-            )
-            # Sanity check to ensure the formula operates correctly and
-            # does not yield any imaginary components.
-            # Mueller-matrix elements should be real.
-            if np.imag(Mij) > 1e-9:
-                logging.warning("Discarding the unnecessary imaginary part!")
-
-            mueller[i, j] += np.real(Mij)
-    return mueller
-
-
-def get_mueller_from_jones(h1, h2, z1, z2, beta):
-    r"""
-    Converts the (frequency-dependent) input Jones matrix to a Mueller matrix.
-    Returns Mueller matrix (3x3xNfreq), V-mode related terms are discarded,
-    given the assumption of vanishing circular polarization.
-
-    Inputs: :math:`h_1`, :math:`h_2`, :math:`\zeta_1`, :math:`\zeta_2`,
-    :math:`\beta` (i.e. systematics of the HWP, not the full Jones matrix)
-    Returns: :math:`M^{II}`, :math:`M^{QI}`, :math:`M^{UI}`, :math:`M^{IQ}`,
-    :math:`M^{IU}`, :math:`M^{QQ}`, :math:`M^{UU}`, :math:`M^{UQ}`, :math:`M^{QU}`
-    (single/multi-frequency Mueller matrix terms)
-    """
-
-    # Convert inputs to numpy arrays
-    h1, h2, z1, z2, beta = np.atleast_1d(h1, h2, z1, z2, beta)
-
-    # Check if input arrays are of the same length
-    # map returns an iterator that contains the length of each parameter
-    # The set() function creates a set from the iterator obtained in the previous step
-    # and remove eventual duplicates: if the length of the set is greater than 1,
-    # it means that the input arrays have different lengths.
-    if len(set(map(len, (h1, h2, z1, z2, beta)))) > 1:
-        raise ValueError("Input arrays must have the same length.")
-
-    if len(h1) == 1:
-        # Single frequency case
-        Mueller = np.zeros((4, 4))
-        jones_1d = np.array(
-            [[1 + h1[0], z1[0]], [z2[0], -(1 + h2[0]) * np.exp(1j * beta[0])]]
-        )
-        Mueller[:, :] += JonesToMueller(jones_1d)
-        mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU = (
-            Mueller[0, 0],
-            Mueller[1, 0],
-            Mueller[2, 0],
-            Mueller[0, 1],
-            Mueller[0, 2],
-            Mueller[1, 1],
-            Mueller[2, 2],
-            Mueller[2, 1],
-            Mueller[1, 2],
-        )
-    else:
-        # Frequency-dependent case
-        Mueller = np.zeros((4, 4, len(h1)))
-        for i in range(len(h1)):
-            jones_1d = np.array(
-                [[1 + h1[i], z1[i]], [z2[i], -(1 + h2[i]) * np.exp(1j * beta[i])]]
-            )
-            Mueller[:, :, i] += JonesToMueller(jones_1d)
-        mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU = (
-            Mueller[0, 0, :],
-            Mueller[1, 0, :],
-            Mueller[2, 0, :],
-            Mueller[0, 1, :],
-            Mueller[0, 2, :],
-            Mueller[1, 1, :],
-            Mueller[2, 2, :],
-            Mueller[2, 1, :],
-            Mueller[1, 2, :],
-        )
-
-    return mII, mQI, mUI, mIQ, mIU, mQQ, mUU, mUQ, mQU
 
 
 @njit
@@ -208,246 +103,6 @@ def mueller_interpolation(Theta, harmonic, i, j):
     )
 
 
-@njit
-def compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi):
-    Tterm = mII + mQI * cos2Xi2Phi + mUI * sin2Xi2Phi
-
-    return Tterm
-
-
-@njit
-def compute_Qterm_for_one_sample_for_tod(
-    mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
-):
-    Qterm = np.cos(2 * psi + 2 * phi) * (
-        mIQ + mQQ * cos2Xi2Phi + mUQ * sin2Xi2Phi
-    ) - np.sin(2 * psi + 2 * phi) * (mIU + mQU * cos2Xi2Phi + mUU * sin2Xi2Phi)
-
-    return Qterm
-
-
-@njit
-def compute_Uterm_for_one_sample_for_tod(
-    mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
-):
-    Uterm = np.sin(2 * psi + 2 * phi) * (
-        mIQ + mQQ * cos2Xi2Phi + mUQ * sin2Xi2Phi
-    ) + np.cos(2 * psi + 2 * phi) * (mIU + mQU * cos2Xi2Phi + mUU * sin2Xi2Phi)
-
-    return Uterm
-
-
-@njit
-def compute_signal_for_one_sample(
-    T,
-    Q,
-    U,
-    mII,
-    mQI,
-    mUI,
-    mIQ,
-    mIU,
-    mQQ,
-    mUU,
-    mUQ,
-    mQU,
-    psi,
-    phi,
-    cos2Xi2Phi,
-    sin2Xi2Phi,
-):
-    """Bolometric equation, tod filling for a single (time) sample"""
-    d = T * compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi)
-
-    d += Q * compute_Qterm_for_one_sample_for_tod(
-        mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
-    )
-
-    d += U * compute_Uterm_for_one_sample_for_tod(
-        mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
-    )
-
-    return d
-
-
-@njit(parallel=True)
-def compute_signal_for_one_detector(
-    tod_det,
-    m0f,
-    m2f,
-    m4f,
-    rho,
-    psi,
-    mapT,
-    mapQ,
-    mapU,
-    cos2Xi2Phi,
-    sin2Xi2Phi,
-    phi,
-    apply_non_linearity,
-    g_one_over_k,
-    add_2f_hwpss,
-    amplitude_2f_k,
-    phases_2f,
-    phases_4f,
-):
-    """
-    Single-frequency case: compute the signal for a single detector,
-    looping over (time) samples.
-    """
-
-    for i in prange(len(tod_det)):
-        # TODO: GET THE SEVERAL COSINE TERMS DIRECTLY FROM THE
-        # COMPLEX COMPUTATION OF HWP_ANGLE in hwp._get_hwp_angle
-        Four_rho_phi = 4 * (rho[i] - phi)
-        Two_rho_phi = 2 * (rho[i] - phi)
-        tod_det[i] += compute_signal_for_one_sample(
-            T=mapT[i],
-            Q=mapQ[i],
-            U=mapU[i],
-            mII=m0f[0, 0]
-            + m2f[0, 0] * np.cos(Two_rho_phi + phases_2f[0, 0])
-            + m4f[0, 0] * np.cos(Four_rho_phi + phases_4f[0, 0]),
-            mQI=m0f[1, 0]
-            + m2f[1, 0] * np.cos(Two_rho_phi + phases_2f[1, 0])
-            + m4f[1, 0] * np.cos(Four_rho_phi + phases_4f[1, 0]),
-            mUI=m0f[2, 0]
-            + m2f[2, 0] * np.cos(Two_rho_phi + phases_2f[2, 0])
-            + m4f[2, 0] * np.cos(Four_rho_phi + phases_4f[2, 0]),
-            mIQ=m0f[0, 1]
-            + m2f[0, 1] * np.cos(Two_rho_phi + phases_2f[0, 1])
-            + m4f[0, 1] * np.cos(Four_rho_phi + phases_4f[0, 1]),
-            mIU=m0f[0, 2]
-            + m2f[0, 2] * np.cos(Two_rho_phi + phases_2f[0, 2])
-            + m4f[0, 2] * np.cos(Four_rho_phi + phases_4f[0, 2]),
-            mQQ=m0f[1, 1]
-            + m2f[1, 1] * np.cos(Two_rho_phi + phases_2f[1, 1])
-            + m4f[1, 1] * np.cos(Four_rho_phi + phases_4f[1, 1]),
-            mUU=m0f[2, 2]
-            + m2f[2, 2] * np.cos(Two_rho_phi + phases_2f[2, 2])
-            + m4f[2, 2] * np.cos(Four_rho_phi + phases_4f[2, 2]),
-            mUQ=m0f[2, 1]
-            + m2f[2, 1] * np.cos(Two_rho_phi + phases_2f[2, 1])
-            + m4f[2, 1] * np.cos(Four_rho_phi + phases_4f[2, 1]),
-            mQU=m0f[1, 2]
-            + m2f[1, 2] * np.cos(Two_rho_phi + phases_2f[1, 2])
-            + m4f[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
-            psi=psi[i],
-            phi=phi,
-            cos2Xi2Phi=cos2Xi2Phi,
-            sin2Xi2Phi=sin2Xi2Phi,
-        )
-        if add_2f_hwpss:
-            tod_det[i] += compute_2f_for_one_sample(rho[i], amplitude_2f_k)
-        if apply_non_linearity:
-            tod_det[i] += g_one_over_k * tod_det[i] ** 2
-
-
-@njit
-def compute_TQUsolver_for_one_sample(
-    mIIs,
-    mQIs,
-    mUIs,
-    mIQs,
-    mIUs,
-    mQQs,
-    mUUs,
-    mUQs,
-    mQUs,
-    psi,
-    phi,
-    cos2Xi2Phi,
-    sin2Xi2Phi,
-):
-    r"""
-    Single-frequency case: computes :math:`A^T A` and :math:`A^T d`
-    for a single detector, for one (time) sample.
-    """
-    Tterm = compute_Tterm_for_one_sample_for_tod(
-        mIIs, mQIs, mUIs, cos2Xi2Phi, sin2Xi2Phi
-    )
-
-    Qterm = compute_Qterm_for_one_sample_for_tod(
-        mIQs, mQQs, mUUs, mIUs, mUQs, mQUs, psi, phi, cos2Xi2Phi, sin2Xi2Phi
-    )
-    Uterm = compute_Uterm_for_one_sample_for_tod(
-        mIUs, mQUs, mUQs, mIQs, mQQs, mUUs, psi, phi, cos2Xi2Phi, sin2Xi2Phi
-    )
-
-    return Tterm, Qterm, Uterm
-
-
-@njit
-def compute_ata_atd_for_one_detector(
-    ata,
-    atd,
-    tod,
-    m0f_solver,
-    m2f_solver,
-    m4f_solver,
-    pixel_ind,
-    rho,
-    psi,
-    phi,
-    cos2Xi2Phi,
-    sin2Xi2Phi,
-    phases_2f,
-    phases_4f,
-):
-    r"""
-    Single-frequency case: compute :math:`A^T A` and :math:`A^T d`
-    for a single detector, looping over (time) samples.
-    """
-
-    for i in prange(len(tod)):
-        Four_rho_phi = 4 * (rho[i] - phi)
-        Two_rho_phi = 2 * (rho[i] - phi)
-        Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
-            mIIs=m0f_solver[0, 0]
-            + m2f_solver[0, 0] * np.cos(Two_rho_phi + phases_2f[0, 0])
-            + m4f_solver[0, 0] * np.cos(Four_rho_phi + phases_4f[0, 0]),
-            mQIs=m0f_solver[1, 0]
-            + m2f_solver[1, 0] * np.cos(Two_rho_phi + phases_2f[1, 0])
-            + m4f_solver[1, 0] * np.cos(Four_rho_phi + phases_4f[1, 0]),
-            mUIs=m0f_solver[2, 0]
-            + m2f_solver[2, 0] * np.cos(Two_rho_phi + phases_2f[2, 0])
-            + m4f_solver[2, 0] * np.cos(Four_rho_phi + phases_4f[2, 0]),
-            mIQs=m0f_solver[0, 1]
-            + m2f_solver[0, 1] * np.cos(Two_rho_phi + phases_2f[0, 1])
-            + m4f_solver[0, 1] * np.cos(Four_rho_phi + phases_4f[0, 1]),
-            mIUs=m0f_solver[0, 2]
-            + m2f_solver[0, 2] * np.cos(Two_rho_phi + phases_2f[0, 2])
-            + m4f_solver[0, 2] * np.cos(Four_rho_phi + phases_4f[0, 2]),
-            mQQs=m0f_solver[1, 1]
-            + m2f_solver[1, 1] * np.cos(Two_rho_phi + phases_2f[1, 1])
-            + m4f_solver[1, 1] * np.cos(Four_rho_phi + phases_4f[1, 1]),
-            mUUs=m0f_solver[2, 2]
-            + m2f_solver[2, 2] * np.cos(Two_rho_phi + phases_2f[2, 2])
-            + m4f_solver[2, 2] * np.cos(Four_rho_phi + phases_4f[2, 2]),
-            mUQs=m0f_solver[2, 1]
-            + m2f_solver[2, 1] * np.cos(Two_rho_phi + phases_2f[2, 1])
-            + m4f_solver[2, 1] * np.cos(Four_rho_phi + phases_4f[2, 1]),
-            mQUs=m0f_solver[1, 2]
-            + m2f_solver[1, 2] * np.cos(Two_rho_phi + phases_2f[1, 2])
-            + m4f_solver[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
-            psi=psi[i],
-            phi=phi,
-            cos2Xi2Phi=cos2Xi2Phi,
-            sin2Xi2Phi=sin2Xi2Phi,
-        )
-
-        atd[pixel_ind[i], 0] += tod[i] * Tterm
-        atd[pixel_ind[i], 1] += tod[i] * Qterm
-        atd[pixel_ind[i], 2] += tod[i] * Uterm
-
-        ata[pixel_ind[i], 0, 0] += Tterm * Tterm
-        ata[pixel_ind[i], 1, 0] += Tterm * Qterm
-        ata[pixel_ind[i], 2, 0] += Tterm * Uterm
-        ata[pixel_ind[i], 1, 1] += Qterm * Qterm
-        ata[pixel_ind[i], 2, 1] += Qterm * Uterm
-        ata[pixel_ind[i], 2, 2] += Uterm * Uterm
-
-
 class HwpSys:
     """A container object for handling tod filling in presence of hwp non-idealities
     following the approach of Giardiello et al. 2021
@@ -466,6 +121,8 @@ class HwpSys:
         nside_out: Union[int, None] = None,
         mbs_params: Union[MbsParameters, None] = None,
         build_map_on_the_fly: Union[bool, None] = False,
+        integrate_in_band: Union[bool, None] = False,
+        integrate_in_band_solver: Union[bool, None] = False,
         apply_non_linearity: Union[bool, None] = False,
         add_2f_hwpss: Union[bool, None] = False,
         interpolation: Union[str, None] = "",
@@ -473,6 +130,7 @@ class HwpSys:
         maps: Union[np.ndarray, None] = None,
         comm: Union[bool, None] = None,
         mueller_phases: Union[dict, None] = None,
+        mueller_or_jones: Union[str, None] = "mueller",
     ):
         r"""It sets the input paramters reading a dictionary `sim.parameters`
         with key "hwp_sys" and the following input arguments
@@ -482,6 +140,9 @@ class HwpSys:
           nside_out (integer): nside for the output maps. If not provided, same as nside
           mbs_params (:class:`.Mbs`): an instance of the :class:`.Mbs` class
           build_map_on_the_fly (bool): fills :math:`A^T A` and :math:`A^T d`
+          integrate_in_band (bool): performs the band integration for tod generation
+          integrate_in_band_solver (bool): performs the band integration for the
+                                              map-making solver
           apply_non_linearity (bool): applies the coupling of the non-linearity
               systematics with hwp_sys
           add_2f_hwpss (bool): adds the 2f hwpss signal to the TOD
@@ -495,6 +156,10 @@ class HwpSys:
               if `maps` is not None, `mbs_params` is ignored
               (i.e. input maps are not generated)
           comm (SerialMpiCommunicator): MPI communicator
+          mueller_phases (dict): Phases for the HWP Mueller matrices
+          mueller_or_jones (str): if "mueller", the Mueller formalism is applied to the
+                HWP computations. If "jones", the jones formalism is applied. Default is "mueller"
+
         """
 
         hwp_sys_Mbs_make_cmb = True
@@ -566,6 +231,14 @@ class HwpSys:
             if add_2f_hwpss is not None:
                 self.add_2f_hwpss = add_2f_hwpss
 
+        if not hasattr(self, "integrate_in_band"):
+            if integrate_in_band is not None:
+                self.integrate_in_band = integrate_in_band
+
+        if not hasattr(self, "integrate_in_band_solver"):
+            if integrate_in_band_solver is not None:
+                self.integrate_in_band_solver = integrate_in_band_solver
+
         if not hasattr(self, "comm"):
             if comm is not None:
                 self.comm = comm
@@ -607,6 +280,8 @@ class HwpSys:
         if self.build_map_on_the_fly:
             self.atd = np.zeros((self.npix_out, 3), dtype=np.float64)
             self.ata = np.zeros((self.npix_out, 3, 3), dtype=np.float64)
+
+        self.mueller_or_jones = mueller_or_jones
 
         if mueller_phases is not None:
             self.mueller_phases = mueller_phases
@@ -775,33 +450,47 @@ class HwpSys:
                     )
 
             for idet in range(cur_obs.n_detectors):
-                # if no mueller_hwp has been set, it will be the ideal one from hwp.py,
-                # we must turn it into the rotation harmonics one (for the ideal case)
-                if (cur_obs.mueller_hwp[idet] == np.diag([1.0, 1.0, -1.0, -1.0])).all():
-                    cur_obs.mueller_hwp[idet] = {
-                        "0f": np.array(
-                            [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
-                        ),
-                        "2f": np.array(
-                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
-                        ),
-                        "4f": np.array(
-                            [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64
-                        ),
-                    }
+                if self.mueller_or_jones == "mueller":
+                    if np.all(
+                        cur_obs.mueller_hwp[idet] == np.diag([1.0, 1.0, -1.0, -1.0])
+                    ):
+                        cur_obs.mueller_hwp[idet] = {
+                            "0f": np.array(
+                                [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
+                            ),
+                            "2f": np.array(
+                                [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
+                            ),
+                            "4f": np.array(
+                                [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64
+                            ),
+                        }
 
-                if cur_obs.mueller_hwp_solver[idet] is None:
-                    cur_obs.mueller_hwp_solver[idet] = {
-                        "0f": np.array(
-                            [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
-                        ),
-                        "2f": np.array(
-                            [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
-                        ),
-                        "4f": np.array(
-                            [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64
-                        ),
-                    }
+                    if cur_obs.mueller_hwp_solver[idet] is None:
+                        cur_obs.mueller_hwp_solver[idet] = {
+                            "0f": np.array(
+                                [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
+                            ),
+                            "2f": np.array(
+                                [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
+                            ),
+                            "4f": np.array(
+                                [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64
+                            ),
+                        }
+
+                elif self.mueller_or_jones == "jones":
+                    if cur_obs.jones_hwp[idet] is None:
+                        cur_obs.jones_hwp[idet] = {
+                            "0f": np.array([[0, 0], [0, 0]], dtype=np.float64),
+                            "2f": np.array([[0, 0], [0, 0]], dtype=np.float64),
+                        }
+
+                    if cur_obs.jones_hwp_solver[idet] is None:
+                        cur_obs.jones_hwp_solver[idet] = {
+                            "0f": np.array([[0, 0], [0, 0]], dtype=np.float64),
+                            "2f": np.array([[0, 0], [0, 0]], dtype=np.float64),
+                        }
 
                 tod = cur_obs.tod[idet, :]
 
@@ -856,9 +545,6 @@ class HwpSys:
                         + '- "linear" for linear interpolation\n'
                     )
 
-                # separating polarization angle xi from cur_point[:, 2] = psi + xi
-                # xi: polarization angle, i.e. detector dependent
-                # psi: instrument angle, i.e. boresight direction from focal plane POV
                 xi = cur_obs.pol_angle_rad[idet]
                 psi = cur_point[:, 2]
 
@@ -867,44 +553,208 @@ class HwpSys:
                 cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
                 sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
 
-                compute_signal_for_one_detector(
-                    tod_det=tod,
-                    m0f=cur_obs.mueller_hwp[idet]["0f"],
-                    m2f=cur_obs.mueller_hwp[idet]["2f"],
-                    m4f=cur_obs.mueller_hwp[idet]["4f"],
-                    rho=np.array(cur_hwp_angle, dtype=np.float64),
-                    psi=np.array(psi, dtype=np.float64),
-                    mapT=input_T,
-                    mapQ=input_Q,
-                    mapU=input_U,
-                    cos2Xi2Phi=cos2Xi2Phi,
-                    sin2Xi2Phi=sin2Xi2Phi,
-                    phi=phi,
-                    apply_non_linearity=self.apply_non_linearity,
-                    g_one_over_k=cur_obs.g_one_over_k[idet],
-                    add_2f_hwpss=self.add_2f_hwpss,
-                    amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
-                    phases_2f=self.mueller_phases["2f"],
-                    phases_4f=self.mueller_phases["4f"],
-                )
+                if self.integrate_in_band:
+                    if self.mueller_or_jones == "mueller":
+                        assert (
+                            len(cur_obs.mueller_hwp[idet]["0f"]) == 1
+                            or len(cur_obs.mueller_hwp[idet]["2f"]) == 1
+                            or len(cur_obs.mueller_hwp[idet]["4f"]) == 1
+                        ), (
+                            "integrate_in_band is set to true but at least one of the harmonics has only one matrix"
+                        )
+
+                        mueller_methods.integrate_inband_signal_for_one_detector(
+                            tod_det=tod,
+                            freqs=self.freqs,
+                            band=self.cmb2bb,
+                            m0f=cur_obs.mueller_hwp[idet]["0f"],
+                            m2f=cur_obs.mueller_hwp[idet]["2f"],
+                            m4f=cur_obs.mueller_hwp[idet]["4f"],
+                            rho=np.array(cur_hwp_angle, dtype=np.float64),
+                            psi=np.array(psi, dtype=np.float64),
+                            mapT=input_T,
+                            mapQ=input_Q,
+                            mapU=input_U,
+                            cos2Xi2Phi=cos2Xi2Phi,
+                            sin2Xi2Phi=sin2Xi2Phi,
+                            phi=phi,
+                            apply_non_linearity=self.apply_non_linearity,
+                            g_one_over_k=cur_obs.g_one_over_k[idet],
+                            add_2f_hwpss=self.add_2f_hwpss,
+                            amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
+                            phases_2f=self.mueller_phases["2f"],
+                            phases_4f=self.mueller_phases["4f"],
+                        )
+
+                    elif self.mueller_or_jones == "jones":
+                        assert (
+                            len(cur_obs.jones_hwp[idet]["0f"]) == 1
+                            or len(cur_obs.jones_hwp[idet]["2f"]) == 1
+                            or len(cur_obs.jones_hwp[idet]["4f"]) == 1
+                        ), (
+                            "integrate_in_band is set to true but at least one of the harmonics has only one matrix"
+                        )
+
+                        j0f = cur_obs.jones_hwp[idet]["0f"]
+                        j2f = cur_obs.jones_hwp[idet]["2f"]
+
+                        jones_methods.integrate_inband_signal_for_one_detector(
+                            tod_det=tod,
+                            freqs=self.freqs_solver,
+                            band=self.cmb2bb_solver,
+                            j0f=j0f,
+                            j2f=j2f,
+                            rho=np.array(cur_hwp_angle, dtype=np.float64),
+                            psi=np.array(psi, dtype=np.float64),
+                            mapT=input_T,
+                            mapQ=input_Q,
+                            mapU=input_U,
+                            cos2Xi2Phi=cos2Xi2Phi,
+                            sin2Xi2Phi=sin2Xi2Phi,
+                            phi=phi,
+                            apply_non_linearity=self.apply_non_linearity,
+                            g_one_over_k=cur_obs.g_one_over_k[idet],
+                            add_2f_hwpss=self.add_2f_hwpss,
+                            amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
+                        )
+
+                else:
+                    if self.mueller_or_jones == "mueller":
+                        mueller_methods.compute_signal_for_one_detector(
+                            tod_det=tod,
+                            m0f=cur_obs.mueller_hwp[idet]["0f"],
+                            m2f=cur_obs.mueller_hwp[idet]["2f"],
+                            m4f=cur_obs.mueller_hwp[idet]["4f"],
+                            rho=np.array(cur_hwp_angle, dtype=np.float64),
+                            psi=np.array(psi, dtype=np.float64),
+                            mapT=input_T,
+                            mapQ=input_Q,
+                            mapU=input_U,
+                            cos2Xi2Phi=cos2Xi2Phi,
+                            sin2Xi2Phi=sin2Xi2Phi,
+                            phi=phi,
+                            apply_non_linearity=self.apply_non_linearity,
+                            g_one_over_k=cur_obs.g_one_over_k[idet],
+                            add_2f_hwpss=self.add_2f_hwpss,
+                            amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
+                            phases_2f=self.mueller_phases["2f"],
+                            phases_4f=self.mueller_phases["4f"],
+                        )
+
+                    elif self.mueller_or_jones == "jones":
+                        j0f = cur_obs.jones_hwp[idet]["0f"]
+                        j2f = cur_obs.jones_hwp[idet]["2f"]
+
+                        jones_methods.compute_signal_for_one_detector(
+                            tod_det=tod,
+                            j0f=j0f,
+                            j2f=j2f,
+                            rho=np.array(cur_hwp_angle, dtype=np.float64),
+                            psi=np.array(psi, dtype=np.float64),
+                            mapT=input_T,
+                            mapQ=input_Q,
+                            mapU=input_U,
+                            cos2Xi2Phi=cos2Xi2Phi,
+                            sin2Xi2Phi=sin2Xi2Phi,
+                            phi=phi,
+                            apply_non_linearity=self.apply_non_linearity,
+                            g_one_over_k=cur_obs.g_one_over_k[idet],
+                            add_2f_hwpss=self.add_2f_hwpss,
+                            amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
+                        )
 
                 if self.build_map_on_the_fly:
-                    compute_ata_atd_for_one_detector(
-                        ata=self.ata,
-                        atd=self.atd,
-                        tod=tod,
-                        m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
-                        m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
-                        m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
-                        pixel_ind=pix_out,
-                        rho=np.array(cur_hwp_angle, dtype=np.float64),
-                        psi=np.array(psi, dtype=np.float64),
-                        phi=phi,
-                        cos2Xi2Phi=cos2Xi2Phi,
-                        sin2Xi2Phi=sin2Xi2Phi,
-                        phases_2f=self.mueller_phases["2f"],
-                        phases_4f=self.mueller_phases["4f"],
-                    )
+                    if self.integrate_in_band_solver:
+                        if self.mueller_or_jones == "mueller":
+                            assert (
+                                len(cur_obs.mueller_hwp_solver[idet]["0f"]) == 1
+                                or len(cur_obs.mueller_hwp_solver[idet]["2f"]) == 1
+                                or len(cur_obs.mueller_hwp_solver[idet]["4f"]) == 1
+                            ), (
+                                "integrate_in_band is set to true but at least one of the harmonics has only one solver matrix"
+                            )
+                            mueller_methods.integrate_inband_atd_ata_for_one_detector(
+                                ata=self.ata,
+                                atd=self.atd,
+                                tod=tod,
+                                freqs=self.freqs,
+                                band=self.cmb2bb,
+                                m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
+                                m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
+                                m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
+                                pixel_ind=pix_out,
+                                rho=np.array(cur_hwp_angle, dtype=np.float64),
+                                psi=np.array(psi, dtype=np.float64),
+                                phi=phi,
+                                cos2Xi2Phi=cos2Xi2Phi,
+                                sin2Xi2Phi=sin2Xi2Phi,
+                                phases_2f=self.mueller_phases["2f"],
+                                phases_4f=self.mueller_phases["4f"],
+                            )
+
+                        elif self.mueller_or_jones == "jones":
+                            assert (
+                                len(cur_obs.jones_hwp_solver[idet]["0f"]) == 1
+                                or len(cur_obs.jones_hwp_solver[idet]["2f"]) == 1
+                            ), (
+                                "integrate_in_band is set to true but at least one of the harmonics has only one solver matrix"
+                            )
+
+                            j0fs = cur_obs.jones_hwp_solver[idet]["0f"]
+                            j2fs = cur_obs.jones_hwp_solver[idet]["2f"]
+
+                            jones_methods.integrate_inband_atd_ata_for_one_detector(
+                                ata=self.ata,
+                                atd=self.atd,
+                                tod=tod,
+                                freqs=self.freqs,
+                                band=self.cmb2bb,
+                                j0f_solver=j0fs,
+                                j2f_solver=j2fs,
+                                pixel_ind=pix_out,
+                                rho=np.array(cur_hwp_angle, dtype=np.float64),
+                                psi=np.array(psi, dtype=np.float64),
+                                phi=phi,
+                                cos2Xi2Phi=cos2Xi2Phi,
+                                sin2Xi2Phi=sin2Xi2Phi,
+                            )
+
+                    else:
+                        if self.mueller_or_jones == "mueller":
+                            mueller_methods.compute_ata_atd_for_one_detector(
+                                ata=self.ata,
+                                atd=self.atd,
+                                tod=tod,
+                                m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
+                                m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
+                                m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
+                                pixel_ind=pix_out,
+                                rho=np.array(cur_hwp_angle, dtype=np.float64),
+                                psi=np.array(psi, dtype=np.float64),
+                                phi=phi,
+                                cos2Xi2Phi=cos2Xi2Phi,
+                                sin2Xi2Phi=sin2Xi2Phi,
+                                phases_2f=self.mueller_phases["2f"],
+                                phases_4f=self.mueller_phases["4f"],
+                            )
+
+                        elif self.mueller_or_jones == "jones":
+                            j0fs = cur_obs.jones_hwp_solver[idet]["0f"]
+                            j2fs = cur_obs.jones_hwp_solver[idet]["2f"]
+
+                            jones_methods.compute_ata_atd_for_one_detector(
+                                ata=self.ata,
+                                atd=self.atd,
+                                tod=tod,
+                                j0f_solver=j0fs,
+                                j2f_solver=j2fs,
+                                pixel_ind=pix_out,
+                                rho=np.array(cur_hwp_angle, dtype=np.float64),
+                                psi=np.array(psi, dtype=np.float64),
+                                phi=phi,
+                                cos2Xi2Phi=cos2Xi2Phi,
+                                sin2Xi2Phi=sin2Xi2Phi,
+                            )
 
                 cur_obs.tod[idet] = tod
 
