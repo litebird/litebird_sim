@@ -1562,6 +1562,7 @@ class Simulation:
             observations=self.observations,
             maps=maps,
             input_map_in_galactic=input_map_in_galactic,
+            hwp=self.hwp if self.hwp else None,
             component=component,
             interpolation=interpolation,
             pointings_dtype=pointings_dtype,
