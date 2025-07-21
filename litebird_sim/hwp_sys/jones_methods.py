@@ -45,7 +45,7 @@ def JonesToMueller(jones):
             # does not yield any imaginary components.
             # Mueller-matrix elements should be real.
             if np.imag(Mij) > 1e-9:
-                print(np.real(Mij),np.imag(Mij))
+                print(np.real(Mij), np.imag(Mij))
                 print("Discarding the unnecessary imaginary part!")
 
             mueller[i, j] += np.real(Mij)
