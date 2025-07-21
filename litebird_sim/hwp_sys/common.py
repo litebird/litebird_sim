@@ -2,14 +2,14 @@
 from numba import njit
 
 
-@njit(parallel=False)
+@njit
 def compute_Tterm_for_one_sample(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi):
     Tterm = mII + mQI * cos2Xi2Phi + mUI * sin2Xi2Phi
 
     return Tterm
 
 
-@njit(parallel=False)
+@njit
 def compute_Qterm_for_one_sample(
     mIQ, mQQ, mUU, mIU, mUQ, mQU, cos2Xi2Phi, sin2Xi2Phi, cos2Psi2Phi, sin2Psi2Phi
 ):
@@ -20,7 +20,7 @@ def compute_Qterm_for_one_sample(
     return Qterm
 
 
-@njit(parallel=False)
+@njit
 def compute_Uterm_for_one_sample(
     mIU, mQU, mUQ, mIQ, mQQ, mUU, cos2Xi2Phi, sin2Xi2Phi, cos2Psi2Phi, sin2Psi2Phi
 ):
@@ -31,6 +31,7 @@ def compute_Uterm_for_one_sample(
     return Uterm
 
 
+@njit
 def compute_signal_for_one_sample(
     T,
     Q,
@@ -63,7 +64,7 @@ def compute_signal_for_one_sample(
     return d
 
 
-@njit(parallel=False)
+@njit
 def compute_TQUsolver_for_one_sample(
     mIIs,
     mQIs,
@@ -115,7 +116,7 @@ def compute_TQUsolver_for_one_sample(
     return Tterm, Qterm, Uterm
 
 
-@njit(parallel=False)
+@njit
 def integrate_inband_signal_for_one_sample(
     T,
     Q,
@@ -186,7 +187,7 @@ def integrate_inband_signal_for_one_sample(
     return tod
 
 
-@njit(parallel=False)
+@njit
 def integrate_inband_TQUsolver_for_one_sample(
     freqs,
     band,

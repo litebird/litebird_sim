@@ -10,6 +10,7 @@ from .common import (
 from ..hwp_diff_emiss import compute_2f_for_one_sample
 
 
+@njit
 def JonesToMueller(jones):
     """
     Converts a Jones matrix to a Mueller matrix.
@@ -21,10 +22,10 @@ def JonesToMueller(jones):
     # Pauli matrix basis
     pauli_basis = np.array(
         [
-            [[1, 0], [0, 1]],  # Identity matrix
-            [[1, 0], [0, -1]],  # Pauli matrix z
-            [[0, 1], [1, 0]],  # Pauli matrix x
-            [[0, -1j], [1j, 0]],
+            [[1 + 0j, 0 + 0j], [0 + 0j, 1 + 0j]],  # Identity matrix
+            [[1 + 0j, 0 + 0j], [0 + 0j, -1 + 0j]],  # Pauli matrix z
+            [[0 + 0j, 1 + 0j], [1 + 0j, 0 + 0j]],  # Pauli matrix x
+            [[0 + 0j, -1j + 0j], [1j + 0j, 0 + 0j]],
         ],  # Pauli matrix y
         dtype=np.complex64,
     )
@@ -43,13 +44,15 @@ def JonesToMueller(jones):
             # Sanity check to ensure the formula operates correctly and
             # does not yield any imaginary components.
             # Mueller-matrix elements should be real.
-            # if np.imag(Mij) > 1e-9:
-            #    logging.warning("Discarding the unnecessary imaginary part!")
+            if np.imag(Mij) > 1e-9:
+                print(np.real(Mij),np.imag(Mij))
+                print("Discarding the unnecessary imaginary part!")
 
             mueller[i, j] += np.real(Mij)
     return mueller
 
 
+@njit
 def hwp_to_fp_frame(alpha, mueller_hwp):
     c2 = np.cos(2 * alpha)
     s2 = np.sin(2 * alpha)
@@ -72,7 +75,7 @@ def hwp_to_fp_frame(alpha, mueller_hwp):
         mueller_hwp[1, 2] * s2 + mueller_hwp[2, 2] * c2
     ) * c2
 
-    return [mII, mIQ, mIU, mQI, mQQ, mQU, mUI, mUQ, mUU]
+    return np.array([mII, mIQ, mIU, mQI, mQQ, mQU, mUI, mUQ, mUU], dtype=np.float64)
 
 
 ################################################################
@@ -80,6 +83,7 @@ def hwp_to_fp_frame(alpha, mueller_hwp):
 ################################################################
 
 
+@njit
 def compute_signal_for_one_detector(
     tod_det,
     j0f,

@@ -79,10 +79,10 @@ def compute_signal_for_one_detector(
             mQU=m0f[1, 2]
             + m2f[1, 2] * np.cos(Two_rho_phi + phases_2f[1, 2])
             + m4f[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
-            psi=psi[i],
-            phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
+            cos2Psi2Phi=np.cos(2 * psi[i] + 2 * phi),
+            sin2Psi2Phi=np.sin(2 * psi[i] + 2 * phi),
         )
 
         if add_2f_hwpss:
@@ -144,10 +144,10 @@ def compute_ata_atd_for_one_detector(
             mQUs=m0f_solver[1, 2]
             + m2f_solver[1, 2] * np.cos(Two_rho_phi + phases_2f[1, 2])
             + m4f_solver[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
-            psi=psi[i],
-            phi=phi,
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
+            cos2Psi2Phi=np.cos(2 * psi[i] + 2 * phi),
+            sin2Psi2Phi=np.sin(2 * psi[i] + 2 * phi),
         )
 
         atd[pixel_ind[i], 0] += tod[i] * Tterm
