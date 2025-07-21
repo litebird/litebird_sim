@@ -17,8 +17,9 @@ from dataclasses import dataclass
 
 import ducc0.healpix
 import ducc0.sht
+from numba import njit
 import numpy as np
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import LinearNDInterpolator
 
 from .beam_convolution import SphericalHarmonics
 from .healpix import npix_to_nside, nside_to_npix, num_of_alms
@@ -121,48 +122,65 @@ class BeamHealpixMap:
         return alm
 
 
+@njit
+def _fill_points(phi_values, theta_values, points) -> None:
+    # This is equivalent to the combination of numpy.meshgrid() and
+    # numpy.stack(), but it uses far less memory and is much faster
+
+    nphi = len(phi_values)
+    ntheta = len(theta_values)
+    npoints = points.shape[0]
+
+    assert nphi * ntheta == npoints
+    assert points.shape[1] == 2
+
+    i = 0
+    for phi in phi_values:
+        for theta in theta_values:
+            points[i, 0] = phi
+            points[i, 1] = theta
+
+            i += 1
+
+
 @dataclass
-class BeamPolar:
-    """Representation of a beam as a set of Stokes parameters sampled over a sphere
+class BeamStokesPolar:
+    """Representation of a beam as a set of Stokes parameters sampled over a sphere using a θφ grid
 
     This class stores the four Stokes parameters ($I$, $Q$, $U$, and $V$) for a beam on a spherical
     polar grid parameterized by (:math:`\\theta`,:math:`\\phi`). This type is used as input to the
     spherical harmonic transform. Internally, this package uses the third Ludwig's definition for the
     polarization basis with the co-polar direction (positive :math:`Q`) aligned with the y-axis.
 
-    This class assumes that the :math:`\phi` angles spans 2π. This is the reason why there are
+    This class assumes that the :math:`\\phi` angles spans 2π. This is the reason why there are
     no ``phi_rad_min``/``phi_rad_max`` parameters.
 
     Args:
-        nphi (`int`): Number of :math:`\\phi` values.
-        ntheta (`int`): Number of :math:`\theta` values.
-        theta_rad_min (`float`): Minimum :math:`\\theta` value in radians.
-        theta_rad_max (`float`): Maximum :math:`\\theta` value in radians.
+        phi_values (`np.typing.ArrayLike`): List of :math:`\\phi` values.
+        theta_values (`.typing.ArrayLike`): List of :math:`\theta` values.
         stokes (`numpy.ndarray`): Array of shape (4, ``nphi``, ``ntheta``) containing the four Stokes
             parameters (:math:`I`,:math:`Q`,:math:`U`,:math:`V`).
-        polar_basis (`bool`): If ``True``, the :math:`Q` and :math:`U` parameters have been rotated
+        polar_basis_flag (`bool`): If ``True``, the :math:`Q` and :math:`U` parameters have been rotated
             so that they are expressed in a polar basis. This is suitable if you are going to
-            compute the harmonic coefficients on them. By default this is ``False``, because typically
+            compute the harmonic coefficients on them. By default, this is ``False``, because typically
             :class:`BeamPolar` instances are created out of TICRA GRASP files, which use Ludwig's third
             definition of the polarization.
     """
 
     def __init__(
         self,
-        nphi: int,
-        ntheta: int,
-        theta_rad_min: float,
-        theta_rad_max: float,
-        polar_basis: bool = False,
+        phi_values: np.typing.ArrayLike,
+        theta_values: np.typing.ArrayLike,
+        polar_basis_flag: bool = False,
     ):
-        self.nphi = nphi
-        self.ntheta = ntheta
-        self.theta_rad_min = theta_rad_min
-        self.theta_rad_max = theta_rad_max
-        self.stokes = np.zeros((4, nphi, ntheta), dtype=float)
-        self.polar_basis = polar_basis
+        self.phi_values = phi_values
+        self.theta_values = theta_values
+        self.stokes = np.zeros(
+            (4, len(self.phi_values), len(self.theta_values)), dtype=np.float64
+        )
+        self.polar_basis_flag = polar_basis_flag
 
-    def convert_to_polar_basis(self) -> "BeamPolar":
+    def convert_to_polar_basis(self) -> "BeamStokesPolar":
         """Rotates :math:`Q` and :math:`U` Stokes parameters from the co-cross basis to the polar basis.
 
         The :math:`Q` and :math:`U` Stokes parameters are usually represented in the
@@ -177,18 +195,11 @@ class BeamPolar:
 
         """
         beam_copy = copy.deepcopy(self)
-        phi_step = 2 * np.pi / self.nphi
-        theta_step = (self.theta_rad_max - self.theta_rad_min) / (self.ntheta - 1)
 
-        theta_indices = np.arange(self.ntheta)
-        theta_values = self.theta_rad_min + theta_indices * theta_step
-        valid_theta_indices = theta_values != 0.0
+        valid_theta_indices = self.theta_values != 0.0
 
-        phi_indices = np.arange(self.nphi)
-        phi_values = phi_indices * phi_step
-
-        cos2phi = np.cos(2.0 * phi_values)
-        sin2phi = np.sin(2.0 * phi_values)
+        cos2phi = np.cos(2.0 * self.phi_values)
+        sin2phi = np.sin(2.0 * self.phi_values)
 
         q = self.stokes[1, :, valid_theta_indices]
         u = self.stokes[2, :, valid_theta_indices]
@@ -199,7 +210,7 @@ class BeamPolar:
         beam_copy.stokes[2, :, valid_theta_indices] = (
             -q * sin2phi[None, :] + u * cos2phi[None, :]
         )
-        beam_copy.polar_basis = True
+        beam_copy.polar_basis_flag = True
         return beam_copy
 
     def to_map(
@@ -229,29 +240,25 @@ class BeamPolar:
         theta = thetaphi[:, 0]
         phi = thetaphi[:, 1]
 
-        beam_polar = self.convert_to_polar_basis()
-
-        theta = theta[theta <= self.theta_rad_max]
+        theta = theta[theta <= np.max(self.theta_values)]
         phi = phi[: len(theta)]
 
         beam_map = np.full((nstokes, npix), unseen_pixel_value, dtype=float)
 
-        # Create a grid of theta and phi values
-        theta_grid = np.linspace(self.theta_rad_min, self.theta_rad_max, self.ntheta)
+        beam_polar = self.convert_to_polar_basis()
+        _, ntheta, nphi = beam_polar.stokes.shape
+        num_of_points = ntheta * nphi
+        points = np.empty((num_of_points, 2), dtype=np.float64)
 
-        # To make a periodicity in phi, we add the first phi value to the end
-        phi_grid = np.linspace(0.0, 2.0 * np.pi, self.nphi + 1)
-
+        _fill_points(
+            phi_values=self.phi_values, theta_values=self.theta_values, points=points
+        )
         for stokes_idx in range(nstokes):
-            # To make a periodicity in stokes, we add the first stokes value to the end
-            stokes_extended = np.concatenate(
-                [beam_polar.stokes[stokes_idx], beam_polar.stokes[stokes_idx][:1, :]],
-                axis=0,
-            )
-
             # Create a 2D interpolator for the beam stokes values
-            interpolator = RegularGridInterpolator(
-                (phi_grid, theta_grid), stokes_extended, method=interp_method
+            interpolator = LinearNDInterpolator(
+                points=points,
+                values=beam_polar.stokes[stokes_idx, :, :].flatten(),
+                fill_value=0.0,
             )
 
             # Use the interpolator to get the beam values at the given theta and phi
@@ -266,15 +273,14 @@ class BeamGrid:
     This class only supports polar spherical grids in the far field region.
 
     Args:
-        ktype (`int`): The file format (always 1)
         nset (`int`): Number of field sets or beams (this class only
             supports *one* field)
         klimit (`int`): Specification of limits in a 2D grid.
         icomp (`int`): Control parameter of field components. Only types
             3 (copolar-crosspolar) and 9 (total power and
             :math:`\\sqrt(\\text{RHC}/\\text{LHC}` are supported)
-        ncomp (`int`): Number of field components (only ``ncomp==2`` is supported)
-        igrid (`int`): Control parameter of field grid type (only ``igrid==7`` is supported)
+        num_of_components (`int`): Number of field components (only ``ncomp==2`` is supported)
+        grid_type (`int`): Control parameter of field grid type (only ``igrid==7`` is supported)
         ix (`int`): Centre of set or beam No. :math:`i`.
         iy (`int`): Centre of set or beam No. :math:`i`.
         xs (`float`): Start x-coordinate of the grid.
@@ -285,18 +291,14 @@ class BeamGrid:
         ny (`int`): Number of steps for the y-coordinate
         frequency (`float`): Value of the frequency.
         frequency_unit (`str`): Measurement unit for ``frequency``.
-        amp (`numpy.ndarray` | None): 2D array of complex amplitudes [:math:`\theta`, :math:`\phi`].
+        amp (`numpy.ndarray` | None): 2D array of complex amplitudes [:math:`\\theta`, :math:`\\phi`].
     """
 
     def __init__(self, file_obj: typing.TextIO):
         """Initialize the BeamGrid object."""
 
-        self.ktype = 0
-        self.nset = 0
-        self.klimit = 0
-        self.icomp = 0
-        self.ncomp = 0
-        self.igrid = 0
+        self.num_of_components = 0
+        self.grid_type = 0
         self.ix = 0
         self.iy = 0
         self.xs = 0.0
@@ -308,82 +310,67 @@ class BeamGrid:
         self.frequency = 0.0
         self.frequency_unit = ""
         self.amp = None
-        self._parse_file(file_obj)
-
-    def _parse_file(self, fi: typing.TextIO) -> None:
-        """Read and parse the beam grid file."""
 
         while True:
-            line = fi.readline().strip()
+            line = file_obj.readline().strip()
             if line[0:4] == "++++":
                 break
             elif "FREQUENCIES [" in line:
                 self.frequency_unit = line.split("[")[1].split("]")[0]
-                self.frequency = float(fi.readline().strip())
+                self.frequency = float(file_obj.readline().strip())
 
-        self.ktype = int(fi.readline())
-        if not self.ktype == 1:
-            raise ValueError("Unknown Grasp grid format, ktype != 1")
+        file_type = int(file_obj.readline())
+        if not file_type == 1:
+            raise ValueError("Unknown Grasp grid format, KTYPE != 1")
 
-        line = fi.readline().split()
-        self.nset = int(line[0])
-        self.icomp = int(line[1])
-        self.ncomp = int(line[2])
-        self.igrid = int(line[3])
+        line = file_obj.readline().split()
+        number_of_field_sets = int(line[0])
+        self.field_component_type = int(line[1])
+        self.num_of_components = int(line[2])
+        self.grid_type = int(line[3])
 
-        if self.nset > 1:
-            warnings.warn("Warning: nset > 1, only reading first beam in file")
+        if number_of_field_sets > 1:
+            warnings.warn("Warning: NSET > 1, only reading first beam in file")
 
-        line = fi.readline().split()
+        line = file_obj.readline().split()
         self.ix = int(line[0])
         self.iy = int(line[1])
         i = 2
-        while i <= self.nset:
-            fi.readline()
+        while i <= number_of_field_sets:
+            file_obj.readline()
             i += 1
 
-        line = fi.readline().split()
+        line = file_obj.readline().split()
         self.xs = float(line[0])
         self.ys = float(line[1])
         self.xe = float(line[2])
         self.ye = float(line[3])
 
-        beam_solid_angle_rad = (
-            np.cos(np.deg2rad(self.ys)) - np.cos(np.deg2rad(self.ye))
-        ) * (np.deg2rad(self.xe) - np.deg2rad(self.xs))
-        if not np.isclose(beam_solid_angle_rad, 2.0 * np.pi) and not np.isclose(
-            beam_solid_angle_rad, 4.0 * np.pi
-        ):
-            warnings.warn(
-                f"Warning: beam solid angle is not 2pi or 4pi because BeamGrid has xs={self.xs}, xe={self.xe}, ys={self.ys} and ye={self.ye}. The header should be checked."
-            )
-
-        line = fi.readline().split()
+        line = file_obj.readline().split()
         self.nx = int(line[0])
         self.ny = int(line[1])
-        self.klimit = int(line[2])
-        self.amp = np.zeros((self.ncomp, self.nx, self.ny), dtype=complex)
+        klimit = int(line[2])
+        self.amp = np.zeros((self.num_of_components, self.nx, self.ny), dtype=complex)
 
-        is_val, in_val = 0, 0
         for j in range(self.ny):
-            if self.klimit == 1:
-                line = fi.readline().split()
-                in_val = int(line[1])
-                is_val = int(line[0])
+            if klimit == 1:
+                is_val, in_val = (int(x) for x in file_obj.readline().split())
             else:
-                is_val = 1
-                in_val = self.nx
+                is_val, in_val = 1, self.nx
 
             for i in range(is_val, in_val + 1):
-                line = fi.readline().split()
+                line = file_obj.readline().split()
+                if not line:
+                    raise ValueError("Unexpected end of file")
                 if any(np.isnan(list(map(float, line)))):
                     raise ValueError(
                         "Encountered a NaN value in Amplitude. Please check your input."
                     )
+
                 self.amp[0, i - 1, j] = float(line[0]) + float(line[1]) * 1j
                 self.amp[1, i - 1, j] = float(line[2]) + float(line[3]) * 1j
 
-    def to_polar(self, copol_axis="x") -> BeamPolar:
+    def to_polar(self, copol_axis="x") -> BeamStokesPolar:
         """Converts beam in polar grid format into Stokes
         parameters on a polar grid. The value of copol
         specifies the alignment of the co-polar basis
@@ -393,71 +380,78 @@ class BeamGrid:
             copol_axis (`str`): The copolarization axis. Must be 'x' or 'y'.
 
         Returns:
-            BeamPolar: The beam grid in polar coordinates.
+            BeamStokesPolar: The beam grid in polar coordinates.
 
         Raises:
             ValueError: If the beam is not in the supported GRASP grid format.
 
         """
         copol_axis = copol_axis.lower()
-        if not self.ncomp == 2:
+        if not self.num_of_components == 2:
             raise ValueError(
                 "Error in BeamGrid.to_polar: beam is not in linear 'co' and 'cx' components"
             )
-        if not self.igrid == 7:
-            raise ValueError(
-                "Error in BeamGrid.to_polar: beam is not on theta-phi grid"
-            )
-        if not abs(self.xs) <= 1e-5:
-            raise ValueError(
-                "Error in BeamGrid.to_polar: phi coordinates does not start at zero"
-            )
-        if not abs(self.xe - self.xs - 360.0) <= 1e-5:
-            raise ValueError("Error in BeamGrid.to_polar: phi range is not 360 degrees")
         if copol_axis not in ["x", "y"]:
             raise ValueError(
                 "Error in BeamGrid.to_polar: copol_axis must be 'x' or 'y'"
             )
 
-        nphi = self.nx - 1
-        ntheta = self.ny
-        theta_rad_min = np.deg2rad(self.ys)
-        theta_rad_max = np.deg2rad(self.ye)
-        swap_theta = theta_rad_min > theta_rad_max
-        if swap_theta:
-            warnings.warn("swapping theta direction")
-            theta_rad_min = np.deg2rad(self.ye)
-            theta_rad_max = np.deg2rad(self.ys)
+        if self.grid_type == 7:
+            nphi = self.nx - 1
+            ntheta = self.ny
+            theta_rad_min = np.deg2rad(self.ys)
+            theta_rad_max = np.deg2rad(self.ye)
+            swap_theta = theta_rad_min > theta_rad_max
+            if swap_theta:
+                warnings.warn("swapping theta direction")
+                theta_rad_min = np.deg2rad(self.ye)
+                theta_rad_max = np.deg2rad(self.ys)
 
-        beam_polar = BeamPolar(
-            nphi,
-            ntheta,
-            theta_rad_min,
-            theta_rad_max,
+            theta_values = np.linspace(theta_rad_min, theta_rad_max, ntheta)
+            phi_values = np.linspace(self.xs, self.xe, nphi)
+        elif self.grid_type == 5:
+            azimuth_values = np.linspace(
+                np.deg2rad(self.xs), np.deg2rad(self.xe), self.nx
+            )
+            elevation_values = np.linspace(
+                np.deg2rad(self.ys), np.deg2rad(self.ye), self.ny
+            )
+
+            theta_values = np.sqrt(azimuth_values**2 + elevation_values**2)
+            phi_values = np.arctan2(elevation_values, -azimuth_values)
+            swap_theta = False
+        else:
+            raise ValueError(
+                f"Error in BeamGrid.to_polar: beam is not on theta-phi grid ({self.grid_type=} ≠ 5, 7)"
+            )
+
+        beam_polar = BeamStokesPolar(
+            theta_values=theta_values,
+            phi_values=phi_values,
         )
 
-        if self.icomp == 3:
+        if self.field_component_type == 3:
             if copol_axis == "x":
                 sign = -1
             elif copol_axis == "y":
                 sign = 1
             else:
                 raise ValueError("Error in bm_grid2polar: unknown value for copol")
-            c = self.amp[0, :-1, :]
-            x = self.amp[1, :-1, :]
-            modc2 = np.abs(c) ** 2
-            modx2 = np.abs(x) ** 2
-            acaxs = c * np.conj(x)
-            beam_polar.stokes[0, :, :] = modc2 + modx2
-            beam_polar.stokes[1, :, :] = sign * (modc2 - modx2)
+            co = self.amp[0, :, :]
+            cx = self.amp[1, :, :]
+            mod_co_squared = np.abs(co) ** 2
+            mod_cx_squared = np.abs(cx) ** 2
+            acaxs = co * np.conj(cx)
+            beam_polar.stokes[0, :, :] = mod_co_squared + mod_cx_squared
+            beam_polar.stokes[1, :, :] = sign * (mod_co_squared - mod_cx_squared)
             beam_polar.stokes[2, :, :] = sign * 2.0 * np.real(acaxs)
             beam_polar.stokes[3, :, :] = 2.0 * np.imag(acaxs)
             if swap_theta:
                 beam_polar.stokes = beam_polar.stokes[:, :, ::-1]
-        elif self.icomp == 9:
-            c = self.amp[1, :-1, :]
-            modc2 = np.abs(c) ** 2
-            beam_polar.stokes[0, :, :] = modc2
+        elif self.field_component_type == 9:
+            co = self.amp[1, :-1, :]
+            mod_co_squared = np.abs(co) ** 2
+            beam_polar.stokes[0, :, :] = mod_co_squared
             beam_polar.stokes[1, :, :] = 0.0
             beam_polar.stokes[2, :, :] = 0.0
             beam_polar.stokes[3, :, :] = 0.0
@@ -614,7 +608,7 @@ class BeamCut:
                     tmp3, tmp4
                 )  # H field (complex)
 
-    def to_polar(self, copol_axis: str = "x") -> BeamPolar:
+    def to_polar(self, copol_axis: str = "x") -> BeamStokesPolar:
         """Converts beam in "cut" format to Stokes parameters
         on a polar grid.  Assumes that cuts are evenly spaced
         in theta. The value of `copol_axis` specifies the alignment
@@ -624,7 +618,7 @@ class BeamCut:
             copol_axis (`str`): The axis of co-polarization. Must be either 'x' or 'y'.
 
         Returns:
-            BeamPolar: The beam in polar coordinates.
+            BeamStokesPolar: The beam in polar coordinates.
 
         Raises:
             ValueError: If the beam is not in the expected format.
@@ -650,11 +644,9 @@ class BeamCut:
         mod_cx_squared = np.abs(cx) ** 2
         cross = co * np.conj(cx)
 
-        beam_polar = BeamPolar(
-            nphi=len(self.phi_values_rad),
-            ntheta=len(self.theta_values_rad),
-            theta_rad_min=self.theta_values_rad[0],
-            theta_rad_max=self.theta_values_rad[-1],
+        beam_polar = BeamStokesPolar(
+            theta_values=self.theta_values_rad,
+            phi_values=self.phi_values_rad,
         )
         beam_polar.stokes[0, :, :] = mod_co_squared + mod_cx_squared
         beam_polar.stokes[1, :, :] = sign * (mod_co_squared - mod_cx_squared)

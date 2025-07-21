@@ -57,7 +57,7 @@ from .grasp2alm import (
     BeamCut,
     BeamGrid,
     BeamHealpixMap,
-    BeamPolar,
+    BeamStokesPolar,
     ticra_cut_to_alm,
     ticra_grid_to_alm,
 )
@@ -239,7 +239,7 @@ __all__ = [
     "BeamCut",
     "BeamGrid",
     "BeamHealpixMap",
-    "BeamPolar",
+    "BeamStokesPolar",
     "ticra_cut_to_alm",
     "ticra_grid_to_alm",
     # hwp.py

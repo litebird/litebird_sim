@@ -157,7 +157,7 @@ Test header
             BeamGrid,
         )
 
-    def test_grid_reading(self):
+    def test_thetaphi_grid_reading(self):
         """
         Tests that the BeamGrid class correctly reads a
         properly formatted grid file and verifies the contents.
@@ -195,12 +195,9 @@ FREQUENCIES [GHz]:
 
         test_grid = BeamGrid(txt)
 
-        assert test_grid.ktype == 1
-        assert test_grid.nset == 1
-        assert test_grid.klimit == 0
-        assert test_grid.icomp == 3
-        assert test_grid.ncomp == 2
-        assert test_grid.igrid == 7
+        assert test_grid.field_component_type == 3
+        assert test_grid.num_of_components == 2
+        assert test_grid.grid_type == 7
         assert test_grid.ix == 0
         assert test_grid.iy == 0
         assert test_grid.xs == 0.0
@@ -227,6 +224,124 @@ FREQUENCIES [GHz]:
             ]
         )
         self.assertTrue(np.array_equal(test_grid.amp, expected_amp))
+
+    def test_altaz_grid_reading(self):
+        """
+        Tests that the BeamGrid class correctly reads a
+        properly formatted grid file and verifies the contents.
+
+        Asserts:
+            Asserts that the header, ktype, nset, klimit,
+            icomp, ncomp, igrid, ix, iy, xs, ys, xe,
+            ye, nx, ny, freq, frequnit
+            are correctly read from the grid file
+        """
+
+        # This file samples the “azimuth” angle at five values:
+        #     −90°, −45°, 0°, 45°, 90°
+        # and the “elevation” angle at three values:
+        #     −90°, 0°, 90°
+        #
+        # The values of the field are the following:
+        #
+        #  |   Az |   El | θ [rad]|     φ [rad] | Value (co, cx) | Value (E_θ, E_φ) |         (I, Q, U) in θ/φ |
+        #  |------|------|--------|-------------|----------------|------------------|--------------------------|
+        #  | −90° | −90° |   π/√2 |        −π/4 |         (1, 2) |    (−1/√2, 3/√2) |              (5, -4, -3) |
+        #  | −45° | −90° | √5 π/4 |    −atan(2) |         (3, 4) |       (-√5, 2√5) |           (25, -15, -20) |
+        #  |   0° | −90° |    π/2 |        −π/2 |         (5, 6) |          (−6, 5) |            (61, 11, -60) |
+        #  |  45° | −90° | √5 π/4 | atan(2) − π |         (7, 8) |   (−23/√5, 6/√5) |      (113, 493/5, 276/5) |
+        #  |  90° | −90° |   π/√2 |       −3π/4 |        (9, 10) |  (−19/√2, −1/√2) |           (181, 180, 19) |
+        #  | −90° |   0° |    π/2 |           0 |       (11, 12) |         (11, 12) |          (265, -23, 264) |
+        #  | −45° |   0° |    π/4 |           0 |       (13, 14) |         (13, 14) |          (365, -27, 364) |
+        #  |   0° |   0° |      0 |           0 |       (15, 16) |         (15, 16) |          (481, -31, 480) |
+        #  |  45° |   0° |    π/4 |           π |       (17, 18) |       (−17, −18) |          (613, -35, 612) |
+        #  |  90° |   0° |    π/2 |           π |       (19, 20) |       (−19, −20) |          (761, -39, 760) |
+        #  | −90° |  90° |   π/√2 |         π/4 |       (21, 22) |    (43/√2, 1/√2) |           (925, 924, 43) |
+        #  | −45° |  90° | √5 π/4 |     atan(2) |       (23, 24) |  (71/√5, −22/√5) |  (1105, 4557/5, -3124/5) |
+        #  |   0° |  90° |    π/2 |         π/2 |       (25, 26) |        (26, −25) |        (1301, 51, -1300) |
+        #  |  45° |  90° | √5 π/4 | π − atan(2) |       (27, 28) |  (29/√5, −82/√5) | (1513, -5883/5, -4756/5) |
+        #  |  90° |  90° |   π/√2 |        3π/4 |       (29, 30) |   (1/√2, −59/√2) |       (1741, -1740, -59) |
+        #
+        # To compute the value of E_θ, E_φ, apply a rotation by −φ to (E_co, E_cx), as explained in
+        # <https://ziotom78.github.io/electromagnetics/2025/07/17/ludwig-polarization-definition.html>
+        # (section “Converting back and forth between the spherical basis and Ludwig’s”)
+
+        txt = StringIO(
+            """
+Test header
+VERSION: TICRA-EM-FIELD-V0.1
+FREQUENCY_NAME: freq
+FREQUENCIES [GHz]:
+123.0
+++++
+1
+1 3 2 5
+0 0
+-90.0 -90.0 90.0 90.0
+5 3 0
+1 0 2 0
+3 0 4 0
+5 0 6 0
+7 0 8 0
+9 0 10 0
+11 0 12 0
+13 0 14 0
+15 0 16 0
+17 0 18 0
+19 0 20 0
+21 0 22 0
+23 0 24 0
+25 0 26 0
+27 0 28 0
+29 0 30 0
+"""
+        )
+
+        test_grid = BeamGrid(txt)
+
+        assert test_grid.field_component_type == 3
+        assert test_grid.num_of_components == 2
+        assert test_grid.grid_type == 5
+        assert test_grid.ix == 0
+        assert test_grid.iy == 0
+        assert test_grid.xs == -90.0
+        assert test_grid.ys == -90.0
+        assert test_grid.xe == 90.0
+        assert test_grid.ye == 90.0
+        assert test_grid.nx == 5
+        assert test_grid.ny == 3
+        assert test_grid.frequency == 123.0
+        assert test_grid.frequency_unit == "GHz"
+
+        expected_amp = np.array(
+            [
+                [
+                    # Each row contains E_co for each of the three elevations
+                    [1.0 + 0.0j, 11.0 + 0.0j, 21.0 + 0.0j],
+                    [3.0 + 0.0j, 13.0 + 0.0j, 23.0 + 0.0j],
+                    [5.0 + 0.0j, 15.0 + 0.0j, 25.0 + 0.0j],
+                    [7.0 + 0.0j, 17.0 + 0.0j, 27.0 + 0.0j],
+                    [9.0 + 0.0j, 19.0 + 0.0j, 29.0 + 0.0j],
+                ],
+                [
+                    # Each row contains E_cx for each of the three elevations
+                    [2.0 + 0.0j, 12.0 + 0.0j, 22.0 + 0.0j],
+                    [4.0 + 0.0j, 14.0 + 0.0j, 24.0 + 0.0j],
+                    [6.0 + 0.0j, 16.0 + 0.0j, 26.0 + 0.0j],
+                    [8.0 + 0.0j, 18.0 + 0.0j, 28.0 + 0.0j],
+                    [10.0 + 0.0j, 20.0 + 0.0j, 30.0 + 0.0j],
+                ],
+            ]
+        )
+        np.testing.assert_allclose(test_grid.amp, expected_amp)
+
+        polar_beam = test_grid.to_polar()
+        # TODO: This cannot work! The class BeamPolar must contain a *list* of 2-tuples (θ, φ) instead
+        #  of two linear vectors, otherwise it will NEVER work with IGRID≠7
+        np.testing.assert_allclose(polar_beam.theta_values, np.array([1.0, 2.0, 3.0]))
+        np.testing.assert_allclose(
+            polar_beam.phi_values, np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        )
 
 
 @pytest.mark.parametrize(
