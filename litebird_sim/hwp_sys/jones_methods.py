@@ -10,12 +10,76 @@ from .common import (
 from ..hwp_diff_emiss import compute_2f_for_one_sample
 
 
+def JonesToMueller(jones):
+    """
+    Converts a Jones matrix to a Mueller matrix.
+    The Jones matrix is assumed to be a 2x2 complex matrix (np.array).
+    The Mueller matrix is a 4x4 real matrix.
+    Credits to Yuki Sakurai for the function.
+    """
+
+    # Pauli matrix basis
+    pauli_basis = np.array(
+        [
+            [[1, 0], [0, 1]],  # Identity matrix
+            [[1, 0], [0, -1]],  # Pauli matrix z
+            [[0, 1], [1, 0]],  # Pauli matrix x
+            [[0, -1j], [1j, 0]],
+        ],  # Pauli matrix y
+        dtype=np.complex64,
+    )
+
+    # Mueller matrix is M_ij = 1/2 * Tr(pauli[i] * J * pauli[j] * J^dagger)
+    mueller = np.zeros((4, 4), dtype=np.float64)
+
+    for i in range(4):
+        for j in range(4):
+            Mij = 0.5 * np.trace(
+                np.dot(
+                    pauli_basis[i],
+                    np.dot(jones, np.dot(pauli_basis[j], np.conjugate(jones).T)),
+                )
+            )
+            # Sanity check to ensure the formula operates correctly and
+            # does not yield any imaginary components.
+            # Mueller-matrix elements should be real.
+            # if np.imag(Mij) > 1e-9:
+            #    logging.warning("Discarding the unnecessary imaginary part!")
+
+            mueller[i, j] += np.real(Mij)
+    return mueller
+
+
+def hwp_to_fp_frame(alpha, mueller_hwp):
+    c2 = np.cos(2 * alpha)
+    s2 = np.sin(2 * alpha)
+
+    mII = mueller_hwp[0, 0]
+    mIQ = mueller_hwp[0, 1] * c2 - mueller_hwp[0, 2] * s2
+    mIU = mueller_hwp[0, 1] * s2 + mueller_hwp[0, 2] * c2
+    mQI = mueller_hwp[1, 0] * c2 - mueller_hwp[2, 0] * s2
+    mQQ = (mueller_hwp[1, 1] * c2 - mueller_hwp[2, 1] * s2) * c2 - (
+        mueller_hwp[1, 2] * c2 - mueller_hwp[2, 2] * s2
+    ) * s2
+    mQU = (mueller_hwp[1, 1] * c2 - mueller_hwp[2, 1] * s2) * s2 + (
+        mueller_hwp[1, 2] * c2 - mueller_hwp[2, 2] * s2
+    ) * c2
+    mUI = mueller_hwp[1, 0] * s2 + mueller_hwp[2, 0] * c2
+    mUQ = (mueller_hwp[1, 1] * s2 + mueller_hwp[2, 1] * c2) * c2 - (
+        mueller_hwp[1, 2] * s2 + mueller_hwp[2, 2] * c2
+    ) * s2
+    mUU = (mueller_hwp[1, 1] * s2 + mueller_hwp[2, 1] * c2) * s2 + (
+        mueller_hwp[1, 2] * s2 + mueller_hwp[2, 2] * c2
+    ) * c2
+
+    return [mII, mIQ, mIU, mQI, mQQ, mQU, mUI, mUQ, mUU]
+
+
 ################################################################
 #################### SINGLE FREQUENCY ##########################
 ################################################################
 
 
-@njit(parallel=True)
 def compute_signal_for_one_detector(
     tod_det,
     j0f,
@@ -46,35 +110,34 @@ def compute_signal_for_one_detector(
                     2 * alpha + 2 * np.angle(j2f[x, y])
                 )
 
-        mII_hwp = deltas[0, 0] - deltas[1, 1] + 1
-        mQI_hwp = deltas[0, 0] + deltas[0, 1]
-        mUI_hwp = deltas[1, 0] - deltas[0, 1]
-        mIQ_hwp = deltas[0, 0] + deltas[0, 1]
-        mIU_hwp = deltas[0, 1] - deltas[1, 0]
-        mQQ_hwp = deltas[0, 1] - deltas[1, 1] + 1
-        mUU_hwp = deltas[1, 1] + deltas[0, 0] - 1
-        mUQ_hwp = deltas[0, 1] + deltas[1, 0]
-        mQU_hwp = deltas[0, 1] + deltas[1, 0]
+        jones = np.array(
+            [[1 - deltas[0, 0], deltas[0, 1]], [deltas[1, 0], -1 + deltas[1, 1]]],
+            dtype=np.complex64,
+        )
 
-        c2 = np.cos(2 * alpha)
-        s2 = np.sin(2 * alpha)
+        mueller_hwp = JonesToMueller(jones)
+
+        mII, mIQ, mIU, mQI, mQQ, mQU, mUI, mUQ, mUU = hwp_to_fp_frame(
+            alpha, mueller_hwp
+        )
+
         tod_det[i] += compute_signal_for_one_sample(
             T=mapT[i],
             Q=mapQ[i],
             U=mapU[i],
-            mII=mII_hwp,
-            mIQ=mIQ_hwp * c2 - mIU_hwp * s2,
-            mIU=mIQ_hwp * s2 - mIU_hwp * c2,
-            mQI=mQI_hwp * c2 - mUI_hwp * s2,
-            mQQ=c2 * (mQQ_hwp * c2 - mUQ_hwp * s2) - s2 * (mQU_hwp * c2 - mUU_hwp * s2),
-            mQU=s2 * (mQQ_hwp * c2 - mUQ_hwp * s2) + c2 * (mQU_hwp * c2 - mUU_hwp * s2),
-            mUI=mQI_hwp * s2 + mUI_hwp * c2,
-            mUQ=c2 * (mQQ_hwp * s2 + mUQ_hwp * c2) - s2 * (mQU_hwp * s2 + mUU_hwp * c2),
-            mUU=s2 * (mQQ_hwp * s2 + mUQ_hwp * c2) + c2 * (mQU_hwp * s2 + mUU_hwp * c2),
-            psi=psi[i],
-            phi=phi,
+            mII=mII,
+            mIQ=mIQ,
+            mIU=mIU,
+            mQI=mQI,
+            mQQ=mQQ,
+            mQU=mQU,
+            mUI=mUI,
+            mUQ=mUQ,
+            mUU=mUU,
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
+            cos2Psi2Phi=np.cos(2 * psi[i] + 2 * phi),
+            sin2Psi2Phi=np.sin(2 * psi[i] + 2 * phi),
         )
 
         if add_2f_hwpss:
@@ -111,46 +174,31 @@ def compute_ata_atd_for_one_detector(
                     j2f_solver[x, y]
                 ) * np.cos(2 * alpha + 2 * np.angle(j2f_solver[x, y]))
 
-        mIIs_hwp = deltas[0, 0] - deltas[1, 1] + 1
-        mQIs_hwp = deltas[0, 0] + deltas[0, 1]
-        mUIs_hwp = deltas[1, 0] - deltas[0, 1]
-        mIQs_hwp = deltas[0, 0] + deltas[0, 1]
-        mIUs_hwp = deltas[0, 1] - deltas[1, 0]
-        mQQs_hwp = deltas[0, 1] - deltas[1, 1] + 1
-        mUUs_hwp = deltas[1, 1] + deltas[0, 0] - 1
-        mUQs_hwp = deltas[0, 1] + deltas[1, 0]
-        mQUs_hwp = deltas[0, 1] + deltas[1, 0]
+        jones = np.array(
+            [[1 - deltas[0, 0], deltas[0, 1]], [deltas[1, 0], -1 + deltas[1, 1]]],
+            dtype=np.complex64,
+        )
+
+        mueller_hwp = JonesToMueller(jones)
+
+        mIIs, mIQs, mIUs, mQIs, mQQs, mQUs, mUIs, mUQs, mUUs = hwp_to_fp_frame(
+            alpha, mueller_hwp
+        )
 
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
-            mIIs=mIIs_hwp,
-            mIQs=mIQs_hwp * np.cos(2 * alpha) + mIUs_hwp * np.sin(2 * alpha),
-            mIUs=mIUs_hwp * np.cos(2 * alpha) - mIQs_hwp * np.sin(2 * alpha),
-            mQIs=mQIs_hwp * np.cos(2 * alpha) + mUIs_hwp * np.sin(2 * alpha),
-            mQQs=np.cos(2 * alpha)
-            * (mQQs_hwp * np.cos(2 * alpha) + mUQs_hwp * np.sin(2 * alpha))
-            + np.sin(2 * alpha)
-            * (mQUs_hwp * np.cos(2 * alpha) + mUUs_hwp * np.sin(2 * alpha)),
-            mQUs=-(
-                np.cos(2 * alpha)
-                * (mQUs_hwp * np.cos(2 * alpha) + mUUs_hwp * np.sin(2 * alpha))
-                - np.sin(2 * alpha)
-                * (mQQs_hwp * np.cos(2 * alpha) + mUQs_hwp * np.sin(2 * alpha))
-            ),
-            mUIs=mUIs_hwp * np.cos(2 * alpha) - mQIs_hwp * np.sin(2 * alpha),
-            mUQs=-(
-                np.cos(2 * alpha)
-                * (mUQs_hwp * np.cos(2 * alpha) - mQQs_hwp * np.sin(2 * alpha))
-                + np.sin(2 * alpha)
-                * (mUUs_hwp * np.cos(2 * alpha) - mQUs_hwp * np.sin(2 * alpha))
-            ),
-            mUUs=np.cos(2 * alpha)
-            * (mUUs_hwp * np.cos(2 * alpha) - mQUs_hwp * np.sin(2 * alpha))
-            - np.sin(2 * alpha)
-            * (mUQs_hwp * np.cos(2 * alpha) - mQQs_hwp * np.sin(2 * alpha)),
-            psi=psi[i],
-            phi=phi,
+            mIIs=mIIs,
+            mIQs=mIQs,
+            mIUs=mIUs,
+            mQIs=mQIs,
+            mQQs=mQQs,
+            mQUs=mQUs,
+            mUIs=mUIs,
+            mUQs=mUQs,
+            mUUs=mUUs,
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
+            cos2Psi2Phi=np.cos(2 * psi[i] + 2 * phi),
+            sin2Psi2Phi=np.sin(2 * psi[i] + 2 * phi),
         )
 
         atd[pixel_ind[i], 0] += tod[i] * Tterm

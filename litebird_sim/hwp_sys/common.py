@@ -1,38 +1,36 @@
 # -*- encoding: utf-8 -*-
-import numpy as np
 from numba import njit
 
 
 @njit(parallel=False)
-def compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi):
+def compute_Tterm_for_one_sample(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi):
     Tterm = mII + mQI * cos2Xi2Phi + mUI * sin2Xi2Phi
 
     return Tterm
 
 
 @njit(parallel=False)
-def compute_Qterm_for_one_sample_for_tod(
-    mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
+def compute_Qterm_for_one_sample(
+    mIQ, mQQ, mUU, mIU, mUQ, mQU, cos2Xi2Phi, sin2Xi2Phi, cos2Psi2Phi, sin2Psi2Phi
 ):
-    Qterm = np.cos(2 * psi + 2 * phi) * (
-        mIQ + mQQ * cos2Xi2Phi + mUQ * sin2Xi2Phi
-    ) - np.sin(2 * psi + 2 * phi) * (mIU + mQU * cos2Xi2Phi + mUU * sin2Xi2Phi)
+    Qterm = cos2Psi2Phi * (mIQ + mQQ * cos2Xi2Phi + mUQ * sin2Xi2Phi) - sin2Psi2Phi * (
+        mIU + mQU * cos2Xi2Phi + mUU * sin2Xi2Phi
+    )
 
     return Qterm
 
 
 @njit(parallel=False)
-def compute_Uterm_for_one_sample_for_tod(
-    mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
+def compute_Uterm_for_one_sample(
+    mIU, mQU, mUQ, mIQ, mQQ, mUU, cos2Xi2Phi, sin2Xi2Phi, cos2Psi2Phi, sin2Psi2Phi
 ):
-    Uterm = np.sin(2 * psi + 2 * phi) * (
-        mIQ + mQQ * cos2Xi2Phi + mUQ * sin2Xi2Phi
-    ) + np.cos(2 * psi + 2 * phi) * (mIU + mQU * cos2Xi2Phi + mUU * sin2Xi2Phi)
+    Uterm = sin2Psi2Phi * (mIQ + mQQ * cos2Xi2Phi + mUQ * sin2Xi2Phi) + cos2Psi2Phi * (
+        mIU + mQU * cos2Xi2Phi + mUU * sin2Xi2Phi
+    )
 
     return Uterm
 
 
-@njit(parallel=False)
 def compute_signal_for_one_sample(
     T,
     Q,
@@ -46,20 +44,20 @@ def compute_signal_for_one_sample(
     mUU,
     mUQ,
     mQU,
-    psi,
-    phi,
     cos2Xi2Phi,
     sin2Xi2Phi,
+    cos2Psi2Phi,
+    sin2Psi2Phi,
 ):
-    """Bolometric equation, tod filling for a single (time) sample"""
-    d = T * compute_Tterm_for_one_sample_for_tod(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi)
+    # Bolometric equation, tod filling for a single (time) sample
+    d = T * compute_Tterm_for_one_sample(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi)
 
-    d += Q * compute_Qterm_for_one_sample_for_tod(
-        mIQ, mQQ, mUU, mIU, mUQ, mQU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
+    d += Q * compute_Qterm_for_one_sample(
+        mIQ, mQQ, mUU, mIU, mUQ, mQU, cos2Xi2Phi, sin2Xi2Phi, cos2Psi2Phi, sin2Psi2Phi
     )
 
-    d += U * compute_Uterm_for_one_sample_for_tod(
-        mIU, mQU, mUQ, mIQ, mQQ, mUU, psi, phi, cos2Xi2Phi, sin2Xi2Phi
+    d += U * compute_Uterm_for_one_sample(
+        mIU, mQU, mUQ, mIQ, mQQ, mUU, cos2Xi2Phi, sin2Xi2Phi, cos2Psi2Phi, sin2Psi2Phi
     )
 
     return d
@@ -76,25 +74,42 @@ def compute_TQUsolver_for_one_sample(
     mUUs,
     mUQs,
     mQUs,
-    psi,
-    phi,
     cos2Xi2Phi,
     sin2Xi2Phi,
+    cos2Psi2Phi,
+    sin2Psi2Phi,
 ):
     r"""
     Single-frequency case: computes :math:`A^T A` and :math:`A^T d`
     for a single detector, for one (time) sample.
     """
 
-    Tterm = compute_Tterm_for_one_sample_for_tod(
-        mIIs, mQIs, mUIs, cos2Xi2Phi, sin2Xi2Phi
+    Tterm = compute_Tterm_for_one_sample(mIIs, mQIs, mUIs, cos2Xi2Phi, sin2Xi2Phi)
+
+    Qterm = compute_Qterm_for_one_sample(
+        mIQs,
+        mQQs,
+        mUUs,
+        mIUs,
+        mUQs,
+        mQUs,
+        cos2Xi2Phi,
+        sin2Xi2Phi,
+        cos2Psi2Phi,
+        sin2Psi2Phi,
     )
 
-    Qterm = compute_Qterm_for_one_sample_for_tod(
-        mIQs, mQQs, mUUs, mIUs, mUQs, mQUs, psi, phi, cos2Xi2Phi, sin2Xi2Phi
-    )
-    Uterm = compute_Uterm_for_one_sample_for_tod(
-        mIUs, mQUs, mUQs, mIQs, mQQs, mUUs, psi, phi, cos2Xi2Phi, sin2Xi2Phi
+    Uterm = compute_Uterm_for_one_sample(
+        mIUs,
+        mQUs,
+        mUQs,
+        mIQs,
+        mQQs,
+        mUUs,
+        cos2Xi2Phi,
+        sin2Xi2Phi,
+        cos2Psi2Phi,
+        sin2Psi2Phi,
     )
 
     return Tterm, Qterm, Uterm
