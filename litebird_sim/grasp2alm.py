@@ -407,6 +407,11 @@ def _build_thetaphi_values_for_az_el_coordinates(
             if cur_el != 0 or cur_az != 0:
                 result[i, 0] = np.sqrt(cur_az * cur_az + cur_el * cur_el)
                 result[i, 1] = np.arctan2(cur_el, -cur_az)
+
+                # This ensures that all φ angles are in [0, 2π)
+                # (it is required by some Ducc functions)
+                if result[i, 1] < 0.0:
+                    result[i, 1] += 2 * np.pi
             else:
                 result[i, 0] = 0
                 result[i, 1] = 0
