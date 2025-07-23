@@ -25,7 +25,7 @@ def test_hwp_sys(interpolation, nside_out):
     ).ang_speed_radpsec
 
     list_of_obs = []
-    for i in range(2):
+    for i in range(3):
         sim = lbs.Simulation(
             start_time=start_time, duration_s=time_span_s, random_seed=0
         )
@@ -149,6 +149,17 @@ def test_hwp_sys(interpolation, nside_out):
         save_tod=True,
     )
 
+    # the call below is equivalent to
+    # hwp_sys.fill_tod
+    scan_map_in_observations(
+        observations=list_of_obs[2],
+        input_map_in_galactic=False,
+        hwp_type="non_ideal_harmonics",
+        hwp_harmonics=hwp_sys,
+        maps=input_maps,
+        interpolation=interpolation,
+    )
+
     # Check that we are using 64-bit floating-point numbers for pointings. See
     # https://github.com/litebird/litebird_sim/pull/429
     pointings, _ = list_of_obs[1].get_pointings()
@@ -158,4 +169,10 @@ def test_hwp_sys(interpolation, nside_out):
     # This should be changed in the future
     np.testing.assert_almost_equal(
         list_of_obs[0].tod, list_of_obs[1].tod, decimal=3, verbose=True
+    )
+
+    # testing using scan map with "non_ideal_harmonics" parameter instead of
+    # hwp_sys.fill_tod directly
+    np.testing.assert_almost_equal(
+        list_of_obs[1].tod, list_of_obs[2].tod, decimal=3, verbose=True
     )
