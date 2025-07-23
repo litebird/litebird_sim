@@ -6,7 +6,8 @@ from numba import njit, prange
 from ducc0.healpix import Healpix_Base
 from typing import Union, List, Dict, Optional
 from .observations import Observation
-from .hwp import HWP, mueller_ideal_hwp
+from .hwp_sys.hwp_sys import HwpSys
+from .hwp import HWP
 from .pointings_in_obs import (
     _get_hwp_angle,
     _get_pointings_array,
@@ -118,6 +119,7 @@ def scan_map(
     input_map_in_galactic: bool = True,
     interpolation: Union[str, None] = "",
     pointings_dtype=np.float64,
+    hwp_type: Union[str, None] = None,
 ):
     """
     Scan a sky map and fill time-ordered data (TOD) based on detector observations.
@@ -248,9 +250,7 @@ def scan_map(
                 + '- "linear" for linear interpolation\n'
             )
 
-        if (mueller_hwp[detector_idx] is None) or (
-            (mueller_hwp[detector_idx] == mueller_ideal_hwp).all()
-        ):
+        if hwp_type in [None, "ideal"]:
             # With HWP implements:
             # (T + Q ρ Cos[2 (2 α - θ + ψ])] + U ρ Sin[2 (2 α - θ + ψ)])
             # without
@@ -269,9 +269,12 @@ def scan_map(
                 ),
                 pol_eff_det=pol_eff_detectors[detector_idx],
             )
-        else:
+        elif hwp_type == "non_ideal":
             # This implements:
             # (1,0,0,0) x Mpol(ρ) x Rpol(θ) x Rhwp(α)^T x Mhwp x Rhwp(α) x Rtel(ψ) x Stokes
+            assert all(m is None for m in mueller_hwp), (
+                "Non ideal hwp type was selected but not all detectors have a mueller matrix associated. Please set det.mueller_hwp attribute."
+            )
             scan_map_generic_hwp_for_one_detector(
                 tod_det=tod[detector_idx],
                 input_T=input_T,
@@ -294,6 +297,8 @@ def scan_map_in_observations(
     component: str = "tod",
     interpolation: Optional[str] = "",
     pointings_dtype=np.float64,
+    hwp_type: Union[str, None] = None,
+    hwp_harmonics: Union[HwpSys, None] = None,
 ):
     """
 
@@ -437,16 +442,32 @@ def scan_map_in_observations(
                 obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
             )
 
-        scan_map(
-            tod=getattr(cur_obs, component),
-            pointings=cur_ptg,
-            maps=maps,
-            pol_angle_detectors=cur_obs.pol_angle_rad,
-            pol_eff_detectors=cur_obs.pol_efficiency,
-            hwp_angle=hwp_angle,
-            mueller_hwp=cur_obs.mueller_hwp,
-            input_names=input_names,
-            input_map_in_galactic=input_map_in_galactic,
-            interpolation=interpolation,
-            pointings_dtype=pointings_dtype,
-        )
+        if hwp_type not in [None, "ideal", "non_ideal", "non_ideal_harmonics"]:
+            raise ValueError(
+                "hwp_type must be one of the following: None, 'ideal', 'non_ideal', 'non_ideal_harmonics'"
+            )
+
+        elif hwp_type == "non_ideal_harmonics":
+            hwp_harmonics.fill_tod(
+                observations=cur_obs,
+                pointings=cur_ptg,
+                hwp_angle=hwp_angle,
+                input_map_in_galactic=input_map_in_galactic,
+                pointings_dtype=pointings_dtype,
+            )
+
+        else:
+            scan_map(
+                tod=getattr(cur_obs, component),
+                pointings=cur_ptg,
+                maps=maps,
+                pol_angle_detectors=cur_obs.pol_angle_rad,
+                pol_eff_detectors=cur_obs.pol_efficiency,
+                hwp_angle=hwp_angle,
+                mueller_hwp=cur_obs.mueller_hwp,
+                input_names=input_names,
+                input_map_in_galactic=input_map_in_galactic,
+                interpolation=interpolation,
+                pointings_dtype=pointings_dtype,
+                hwp_type=hwp_type,
+            )

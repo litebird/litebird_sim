@@ -633,8 +633,8 @@ class HwpSys:
         pointings: Union[np.ndarray, List[np.ndarray], None] = None,
         hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
         input_map_in_galactic: bool = True,
-        save_tod: bool = False,
-        dtype_pointings=np.float64,
+        save_tod: bool = True,
+        pointings_dtype=np.float64,
     ):
         r"""Fill a TOD and/or :math:`A^T A` and :math:`A^T d` for the
         "on-the-fly" map production
@@ -675,7 +675,7 @@ class HwpSys:
                 ``observations.tod`` and locally as a .npy file;
                 if False, ``obs.tod`` gets deleted.
 
-            dtype_pointings: if ``pointings`` is None and is computed
+            pointings_dtype: if ``pointings`` is None and is computed
                 within ``fill_tod``, this is the dtype for
                 pointings and tod (default: np.float32).
 
@@ -686,7 +686,7 @@ class HwpSys:
         )
 
         if pointings is None:
-            if hwp_angle:
+            if hwp_angle is not None:
                 raise Warning(
                     "You passed hwp_angle, but you did not pass pointings, "
                     + "so hwp_angle will be ignored and re-computed on the fly."
@@ -714,6 +714,8 @@ class HwpSys:
                         hwp_angle_list.append(ob.hwp_angle)
 
         else:
+            if callable(pointings):
+                pointings, hwp_angle = pointings("all", pointings_dtype=pointings_dtype)
             if isinstance(observations, Observation):
                 assert isinstance(pointings, np.ndarray), (
                     "For one observation you need to pass a np.array "
@@ -729,7 +731,7 @@ class HwpSys:
                 )
                 obs_list = [observations]
                 ptg_list = [pointings]
-                if hwp_angle:
+                if hwp_angle is not None:
                     assert isinstance(hwp_angle, np.ndarray), (
                         "For one observation, hwp_angle must be passed "
                         + "as a np.array to fill_tod"
@@ -754,7 +756,7 @@ class HwpSys:
                 )
                 obs_list = observations
                 ptg_list = pointings
-                if hwp_angle:
+                if hwp_angle is not None:
                     assert len(observations) == len(hwp_angle), (
                         f"The list of observations has {len(observations)} elements, but "
                         + f"the list of hwp_angle has {len(hwp_angle)} elements"
@@ -771,13 +773,13 @@ class HwpSys:
                 if not hasattr(cur_obs, "pointing_matrix"):
                     cur_obs.pointing_matrix = np.empty(
                         (cur_obs.n_detectors, cur_obs.n_samples, 3),
-                        dtype=dtype_pointings,
+                        dtype=pointings_dtype,
                     )
 
             for idet in range(cur_obs.n_detectors):
                 # if no mueller_hwp has been set, it will be the ideal one from hwp.py,
                 # we must turn it into the rotation harmonics one (for the ideal case)
-                if (cur_obs.mueller_hwp[idet] == np.diag([1.0, 1.0, -1.0, -1.0])).all():
+                if cur_obs.mueller_hwp[idet] is None:
                     cur_obs.mueller_hwp[idet] = {
                         "0f": np.array(
                             [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
@@ -807,7 +809,7 @@ class HwpSys:
 
                 if pointings is None and ((not ptg_list) or (not hwp_angle_list)):
                     cur_point, cur_hwp_angle = cur_obs.get_pointings(
-                        detector_idx=idet, pointings_dtype=dtype_pointings
+                        detector_idx=idet, pointings_dtype=pointings_dtype
                     )
                     cur_point = cur_point.reshape(-1, 3)
                 else:
