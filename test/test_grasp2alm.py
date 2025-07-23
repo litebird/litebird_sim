@@ -18,6 +18,41 @@ from litebird_sim.grasp2alm import (
 
 REFERENCE_BEAM_FILES_PATH = Path(__file__).parent / "grasp2alm_reference"
 
+# fmt: off
+AZ_EL_GRID_TEST_DATA = [
+    (-90.0, -90.0, 2.22144, -0.785398, -4.5 - 2.25j, -6.0 - 3.0j, 70.3125, \
+     -19.6875, 67.5, 0.0, 70.3125, -67.5, -19.6875, 0.0),
+    (-45.0, -90.0, 1.7562, -1.10715, -2.25 - 2.25j, -3.0 - 3.0j, 28.125, \
+     -7.875, 27.0, 0.0, 28.125, -16.875, -22.5, 0.0),
+    (0.0, -90.0, 1.5708, -1.5708, 0.0 - 2.25j, 0.0 - 3.0j, 14.0625, \
+     -3.9375, 13.5, 0.0, 14.0625, 3.9375, -13.5, 0.0),
+    (45.0, -90.0, 1.7562, -2.03444, 2.25 - 2.25j, 3.0 - 3.0j, 28.125, \
+     -7.875, 27.0, 0.0, 28.125, 26.325, -9.9, 0.0),
+    (90.0, -90.0, 2.22144, -2.35619, 4.5 - 2.25j, 6.0 - 3.0j, 70.3125, \
+     -19.6875, 67.5, 0.0, 70.3125, 67.5, 19.6875, 0.0),
+    (-90.0, 0.0, 1.5708, 0.0, -4.5, -6.0, 56.25, -15.75, 54.0, 0.0, \
+     56.25, -15.75, 54.0, 0.0),
+    (-45.0, 0.0, 0.785398, 0.0, -2.25, -3.0, 14.0625, -3.9375, 13.5, 0.0, \
+     14.0625, -3.9375, 13.5, 0.0),
+    (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, \
+     0.0),
+    (45.0, 0.0, 0.785398, 3.14159, 2.25, 3.0, 14.0625, -3.9375, 13.5, \
+     0.0, 14.0625, -3.9375, 13.5, 0.0),
+    (90.0, 0.0, 1.5708, 3.14159, 4.5, 6.0, 56.25, -15.75, 54.0, 0.0, \
+     56.25, -15.75, 54.0, 0.0),
+    (-90.0, 90.0, 2.22144, 0.785398, -4.5 + 2.25j, -6.0 + 3.0j, 70.3125, \
+     -19.6875, 67.5, 0.0, 70.3125, 67.5, 19.6875, 0.0),
+    (-45.0, 90.0, 1.7562, 1.10715, -2.25 + 2.25j, -3.0 + 3.0j, 28.125, \
+     -7.875, 27.0, 0.0, 28.125, 26.325, -9.9, 0.0),
+    (0.0, 90.0, 1.5708, 1.5708, 0.0 + 2.25j, 0.0 + 3.0j, 14.0625, \
+     -3.9375, 13.5, 0.0, 14.0625, 3.9375, -13.5, 0.0),
+    (45.0, 90.0, 1.7562, 2.03444, 2.25 + 2.25j, 3.0 + 3.0j, 28.125, \
+     -7.875, 27.0, 0.0, 28.125, -16.875, -22.5, 0.0),
+    (90.0, 90.0, 2.22144, 2.35619, 4.5 + 2.25j, 6.0 + 3.0j, 70.3125, \
+     -19.6875, 67.5, 0.0, 70.3125, -67.5, -19.6875, 0.0),
+]
+# fmt: on
+
 
 def _test_value_error(text: str, beam_class: Type[BeamCut] | Type[BeamGrid]) -> None:
     txt_with_error = StringIO(text)
@@ -225,7 +260,7 @@ FREQUENCIES [GHz]:
         )
         self.assertTrue(np.array_equal(test_grid.amp, expected_amp))
 
-    def test_altaz_grid_reading(self):
+    def test_az_el_grid_reading(self):
         """
         Tests that the BeamGrid class correctly reads a
         properly formatted grid file and verifies the contents.
@@ -236,35 +271,6 @@ FREQUENCIES [GHz]:
             ye, nx, ny, freq, frequnit
             are correctly read from the grid file
         """
-
-        # This file samples the “azimuth” angle at five values:
-        #     −90°, −45°, 0°, 45°, 90°
-        # and the “elevation” angle at three values:
-        #     −90°, 0°, 90°
-        #
-        # The values of the field are the following:
-        #
-        #  |   Az |   El | θ [rad]|     φ [rad] | Value (co, cx) | Value (E_θ, E_φ) |         (I, Q, U) in θ/φ |
-        #  |------|------|--------|-------------|----------------|------------------|--------------------------|
-        #  | −90° | −90° |   π/√2 |        −π/4 |         (1, 2) |    (−1/√2, 3/√2) |              (5, -4, -3) |
-        #  | −45° | −90° | √5 π/4 |    −atan(2) |         (3, 4) |       (-√5, 2√5) |           (25, -15, -20) |
-        #  |   0° | −90° |    π/2 |        −π/2 |         (5, 6) |          (−6, 5) |            (61, 11, -60) |
-        #  |  45° | −90° | √5 π/4 | atan(2) − π |         (7, 8) |   (−23/√5, 6/√5) |      (113, 493/5, 276/5) |
-        #  |  90° | −90° |   π/√2 |       −3π/4 |        (9, 10) |  (−19/√2, −1/√2) |           (181, 180, 19) |
-        #  | −90° |   0° |    π/2 |           0 |       (11, 12) |         (11, 12) |          (265, -23, 264) |
-        #  | −45° |   0° |    π/4 |           0 |       (13, 14) |         (13, 14) |          (365, -27, 364) |
-        #  |   0° |   0° |      0 |           0 |       (15, 16) |         (15, 16) |          (481, -31, 480) |
-        #  |  45° |   0° |    π/4 |           π |       (17, 18) |       (−17, −18) |          (613, -35, 612) |
-        #  |  90° |   0° |    π/2 |           π |       (19, 20) |       (−19, −20) |          (761, -39, 760) |
-        #  | −90° |  90° |   π/√2 |         π/4 |       (21, 22) |    (43/√2, 1/√2) |           (925, 924, 43) |
-        #  | −45° |  90° | √5 π/4 |     atan(2) |       (23, 24) |  (71/√5, −22/√5) |  (1105, 4557/5, -3124/5) |
-        #  |   0° |  90° |    π/2 |         π/2 |       (25, 26) |        (26, −25) |        (1301, 51, -1300) |
-        #  |  45° |  90° | √5 π/4 | π − atan(2) |       (27, 28) |  (29/√5, −82/√5) | (1513, -5883/5, -4756/5) |
-        #  |  90° |  90° |   π/√2 |        3π/4 |       (29, 30) |   (1/√2, −59/√2) |       (1741, -1740, -59) |
-        #
-        # To compute the value of E_θ, E_φ, apply a rotation by −φ to (E_co, E_cx), as explained in
-        # <https://ziotom78.github.io/electromagnetics/2025/07/17/ludwig-polarization-definition.html>
-        # (section “Converting back and forth between the spherical basis and Ludwig’s”)
 
         txt = StringIO(
             """
@@ -279,25 +285,27 @@ FREQUENCIES [GHz]:
 0 0
 -90.0 -90.0 90.0 90.0
 5 3 0
-1 0 2 0
-3 0 4 0
-5 0 6 0
-7 0 8 0
-9 0 10 0
-11 0 12 0
-13 0 14 0
-15 0 16 0
-17 0 18 0
-19 0 20 0
-21 0 22 0
-23 0 24 0
-25 0 26 0
-27 0 28 0
-29 0 30 0
+-4.5   -2.25   -6 -3
+-2.25  -2.25   -3 -3
+ 0     -2.25    0 -3
+ 2.25  -2.25    3 -3
+ 4.5   -2.25    6 -3
+-4.5      0    -6  0
+-2.25     0    -3  0
+ 0        0     0  0
+ 2.25     0     3  0
+ 4.5      0     6  0
+-4.5      2.25 -6  3
+-2.25     2.25 -3  3
+ 0        2.25  0  3
+ 2.25     2.25  3  3
+ 4.5      2.25  6  3
 """
         )
 
         test_grid = BeamGrid(txt)
+        test_grid_polar = test_grid.to_polar(copol_axis="y")
+        test_grid_rotated = test_grid_polar.convert_to_polar_basis()
 
         assert test_grid.field_component_type == 3
         assert test_grid.num_of_components == 2
@@ -313,35 +321,44 @@ FREQUENCIES [GHz]:
         assert test_grid.frequency == 123.0
         assert test_grid.frequency_unit == "GHz"
 
-        expected_amp = np.array(
-            [
-                [
-                    # Each row contains E_co for each of the three elevations
-                    [1.0 + 0.0j, 11.0 + 0.0j, 21.0 + 0.0j],
-                    [3.0 + 0.0j, 13.0 + 0.0j, 23.0 + 0.0j],
-                    [5.0 + 0.0j, 15.0 + 0.0j, 25.0 + 0.0j],
-                    [7.0 + 0.0j, 17.0 + 0.0j, 27.0 + 0.0j],
-                    [9.0 + 0.0j, 19.0 + 0.0j, 29.0 + 0.0j],
-                ],
-                [
-                    # Each row contains E_cx for each of the three elevations
-                    [2.0 + 0.0j, 12.0 + 0.0j, 22.0 + 0.0j],
-                    [4.0 + 0.0j, 14.0 + 0.0j, 24.0 + 0.0j],
-                    [6.0 + 0.0j, 16.0 + 0.0j, 26.0 + 0.0j],
-                    [8.0 + 0.0j, 18.0 + 0.0j, 28.0 + 0.0j],
-                    [10.0 + 0.0j, 20.0 + 0.0j, 30.0 + 0.0j],
-                ],
-            ]
-        )
-        np.testing.assert_allclose(test_grid.amp, expected_amp)
+        cur_x = 0
+        cur_y = 0
+        cur_row = 0
+        for (
+            az_deg,
+            el_deg,
+            theta_rad,
+            phi_rad,
+            E_co,
+            E_cx,
+            stokes_I,
+            stokes_Q,
+            stokes_U,
+            stokes_V,
+            stokes_I_rotated,
+            stokes_Q_rotated,
+            stokes_U_rotated,
+            stokes_V_rotated,
+        ) in AZ_EL_GRID_TEST_DATA:
+            npt.assert_allclose(test_grid.amp[0, cur_x, cur_y], E_co)
+            npt.assert_allclose(test_grid.amp[1, cur_x, cur_y], E_cx)
 
-        polar_beam = test_grid.to_polar()
-        # TODO: This cannot work! The class BeamPolar must contain a *list* of 2-tuples (θ, φ) instead
-        #  of two linear vectors, otherwise it will NEVER work with IGRID≠7
-        np.testing.assert_allclose(polar_beam.theta_values, np.array([1.0, 2.0, 3.0]))
-        np.testing.assert_allclose(
-            polar_beam.phi_values, np.array([1.0, 2.0, 3.0, 4.0, 5.0])
-        )
+            npt.assert_allclose(test_grid_polar.stokes[0, cur_row], stokes_I)
+            npt.assert_allclose(test_grid_polar.stokes[1, cur_row], stokes_Q)
+            npt.assert_allclose(test_grid_polar.stokes[2, cur_row], stokes_U)
+            npt.assert_allclose(test_grid_polar.stokes[3, cur_row], stokes_V)
+
+            npt.assert_allclose(test_grid_rotated.stokes[0, cur_row], stokes_I_rotated)
+            npt.assert_allclose(test_grid_rotated.stokes[1, cur_row], stokes_Q_rotated)
+            npt.assert_allclose(test_grid_rotated.stokes[2, cur_row], stokes_U_rotated)
+            npt.assert_allclose(test_grid_rotated.stokes[3, cur_row], stokes_V_rotated)
+
+            cur_x += 1
+            if cur_x == test_grid.nx:
+                cur_x = 0
+                cur_y += 1
+
+            cur_row += 1
 
 
 @pytest.mark.parametrize(
