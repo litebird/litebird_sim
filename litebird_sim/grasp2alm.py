@@ -21,10 +21,9 @@ import ducc0.sht
 from numba import njit
 import numpy as np
 import numpy.typing as npt
-from scipy.interpolate import LinearNDInterpolator
 
 from .beam_convolution import SphericalHarmonics
-from .healpix import npix_to_nside, nside_to_npix, num_of_alms
+from .healpix import npix_to_nside, nside_to_npix, nside_to_resolution_rad, num_of_alms
 
 REASON_DESCRIPTION = {
     1: "Approximate solution found",
@@ -157,6 +156,42 @@ def _to_polar_basis(theta_phi_values_rad: npt.NDArray, stokes: npt.NDArray) -> N
         stokes[2, i] = rotated_u
 
 
+@njit
+def beam_mapmaker(
+    pixidx: npt.NDArray,
+    values: npt.NDArray,
+    output_map: npt.NDArray,
+    hit_map: npt.NDArray,
+) -> None:
+    "A simple binning map-maker for Stokes parameters"
+
+    assert len(pixidx) == len(values), (
+        "The number of samples and of pixel indices must match"
+    )
+    assert len(output_map) == len(hit_map), (
+        "The NSIDE values of the output map and the hit map must match"
+    )
+
+    # Set all the pixels in the two maps to zero
+    for i in range(len(hit_map)):
+        output_map[i] = 0
+        hit_map[i] = 0
+
+    # Do the binning
+    for i in range(len(pixidx)):
+        cur_pix = pixidx[i]
+        output_map[cur_pix] += values[i]
+        hit_map[cur_pix] += 1
+
+    # Normalize the output map. Note that we save NaN for unseen pixels;
+    # this will be fixed in the main code.
+    for i in range(len(hit_map)):
+        if hit_map[i] > 0:
+            output_map[i] /= hit_map[i]
+        else:
+            output_map[i] = np.NaN
+
+
 @dataclass
 class BeamStokesPolar:
     """Representation of a beam as a set of Stokes parameters sampled over a sphere using θφ coordinates
@@ -208,9 +243,73 @@ class BeamStokesPolar:
         """
         beam_copy = copy.deepcopy(self)
 
-        _to_polar_basis(self.theta_phi_values_rad, beam_copy.stokes)
-        beam_copy.polar_basis_flag = True
+        if not beam_copy.polar_basis_flag:
+            _to_polar_basis(self.theta_phi_values_rad, beam_copy.stokes)
+            beam_copy.polar_basis_flag = True
+
         return beam_copy
+
+    def minimum_angle_between_samples_rad(self) -> float:
+        """
+        Return the minimum angle between samples in the GRASP file
+
+        This information is useful if you plan to project the samples over a
+        Healpix map, as it provides a starting point for figuring out NSIDE.
+
+        See :meth:`.find_best_nside_for_resolution()`.
+
+        Returns:
+            The minimum separation between samples, in radians
+        """
+        from scipy.spatial import KDTree
+
+        theta = self.theta_phi_values_rad[:, 0]
+        phi = self.theta_phi_values_rad[:, 1]
+
+        x = np.sin(theta) * np.cos(phi)
+        y = np.sin(theta) * np.sin(phi)
+        z = np.cos(theta)
+        points = np.column_stack((x, y, z))  # shape (N, 3)
+
+        tree = KDTree(points)
+        dists, _ = tree.query(points, k=2)  # k=2 to exclude distance to self
+        min_dist = np.min(dists[:, 1])  # First column is zero (self-distance)
+
+        # Convert Euclidean to angular distance
+        cos_gamma = 1 - 0.5 * min_dist**2
+        min_angle = np.arccos(np.clip(cos_gamma, -1.0, 1.0))
+
+        return min_angle
+
+    def find_best_nside_for_resolution(self, resol_rad: float | None = None) -> int:
+        """Given a typical separation between two samples, estimate a good value for NSIDE
+
+        This function can be used to estimate which value of NSIDE to use for building
+        a Healpix map with the representation of the beam, given the minimal separation
+        between two samples in the GRASP file.
+
+        Note that this function should *not* be called for GRASP grids sampled using the
+        (θ, φ) grid scheme, as in this case the spacing between points varies a lot between
+        different co-latitude rings.
+
+        If the parameter `resol_rad` is not provided, the code will call the method
+        :meth:`.minimum_angle_between_samples_rad`.
+        """
+        actual_resol_rad = (
+            resol_rad if resol_rad else self.minimum_angle_between_samples_rad()
+        )
+
+        nside = 1
+        old_nside = 1
+
+        while nside_to_resolution_rad(nside) > actual_resol_rad:
+            old_nside = nside
+            nside *= 2
+
+        # We downgrade the resolution by two steps here (2²) because the value
+        # returned by `minimum_angle_between_samples_rad()` is a *minimum* angle,
+        # and it might be aligned unfavourably with respect to the Healpix grid.
+        return old_nside // 4 if old_nside > 4 else 1
 
     def to_map(
         self,
@@ -221,14 +320,16 @@ class BeamStokesPolar:
         """Convert the :class:`.BeamPolar` to a :class:`.BeamMap`.
 
         Args:
-            nside (`int`): The nside parameter for the HEALPix map.
+            nside (`int`): The nside parameter for the HEALPix map. If you are sampling the
+                sphere using a roughly uniform coverage (which means you are *not* using
+                the IGRID=7 theta/phi sampling!), you can estimate this value using
+                :meth:`.minimum_angle_between_samples_rad`.
             nstokes (`int`): Number of Stokes parameters to project. The default is 3, which means
                 that three maps are produced: I, Q, and U.
             unseen_pixel_value (`float`): Value to fill outside the valid theta range.
 
         Returns:
             :class:`.BeamMap`: A new instance of ``BeamMap`` representing the beam map.
-
         """
 
         assert nstokes <= 4, (
@@ -238,35 +339,33 @@ class BeamStokesPolar:
         base = ducc0.healpix.Healpix_Base(nside, "RING")
         npix = nside_to_npix(nside)
 
-        theta_phi_in_map = base.pix2ang(pix=np.arange(npix))
-        theta = theta_phi_in_map[:, 0]
-        phi = theta_phi_in_map[:, 1]
-
         # Convert Q and U from Ludwig’s third definition into θ/φ coordinates
-        beam_polar = self.convert_to_polar_basis()
+        if not self.polar_basis_flag:
+            beam_polar = self.convert_to_polar_basis()
+        else:
+            beam_polar = self
 
         # Build the Stokes maps
-        beam_map = np.full((nstokes, npix), unseen_pixel_value, dtype=float)
+        pixel_indexes = base.ang2pix(self.theta_phi_values_rad)
+        beam_map = np.empty((nstokes, npix), dtype=float)
+        hit_map = np.empty(npix, dtype=int)
         for stokes_idx in range(nstokes):
-            if np.any(np.isnan(self.theta_phi_values_rad)):
-                raise ValueError(
-                    f"NaN values in angles: {np.argwhere(np.isnan(self.theta_phi_values_rad))}"
-                )
-
             cur_stokes = beam_polar.stokes[stokes_idx, :]
             if np.any(np.isnan(cur_stokes)):
                 raise ValueError(
                     f"NaN values in Stokes parameters at {np.arange(cur_stokes.size)[np.isnan(cur_stokes)]=}"
                 )
-            # Create a 2D interpolator for the beam stokes values
-            interpolator = LinearNDInterpolator(
-                points=self.theta_phi_values_rad,
-                values=cur_stokes,
-                fill_value=unseen_pixel_value,
+            cur_map = beam_map[stokes_idx, :]
+            beam_mapmaker(
+                pixidx=pixel_indexes,
+                values=self.stokes[stokes_idx, :],
+                output_map=cur_map,
+                hit_map=hit_map,
             )
 
-            # Use the interpolator to get the beam values at the given theta and phi
-            beam_map[stokes_idx, :] = interpolator(np.array([theta, phi]).T)
+            # TODO: it would be nice to fill solitary NaN pixels with the average of their neighbours,
+            #       before filling everything with `unseen_pixel_value`…
+            cur_map[np.isnan(cur_map)] = unseen_pixel_value
 
         return BeamHealpixMap(beam_map)
 
