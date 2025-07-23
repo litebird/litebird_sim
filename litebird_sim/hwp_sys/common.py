@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-from numba import njit
+from numba import njit, prange
 
 
 @njit
@@ -134,6 +134,8 @@ def integrate_inband_signal_for_one_sample(
     mQU,
     cos2Xi2Phi,
     sin2Xi2Phi,
+    cos2Psi2Phi,
+    sin2Psi2Phi,
 ):
     r"""
     Multi-frequency case: band integration with trapezoidal rule,
@@ -141,7 +143,7 @@ def integrate_inband_signal_for_one_sample(
     for a single (time) sample.
     """
     tod = 0
-    for i in range(len(band) - 1):
+    for i in prange(len(band) - 1):
         dnu = freqs[i + 1] - freqs[i]
         tod += (
             (
@@ -161,6 +163,8 @@ def integrate_inband_signal_for_one_sample(
                     mQU=mQU[i],
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
+                    cos2Psi2Phi=cos2Psi2Phi,
+                    sin2Psi2Phi=sin2Psi2Phi,
                 )
                 + band[i + 1]
                 * compute_signal_for_one_sample(
@@ -178,6 +182,8 @@ def integrate_inband_signal_for_one_sample(
                     mQU=mQU[i + 1],
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
+                    cos2Psi2Phi=cos2Psi2Phi,
+                    sin2Psi2Phi=sin2Psi2Phi,
                 )
             )
             * dnu
@@ -202,6 +208,8 @@ def integrate_inband_TQUsolver_for_one_sample(
     mQUs,
     cos2Xi2Phi,
     sin2Xi2Phi,
+    cos2Psi2Phi,
+    sin2Psi2Phi,
 ):
     r"""
     Multi-frequency case: band integration with trapezoidal rule,
@@ -226,6 +234,8 @@ def integrate_inband_TQUsolver_for_one_sample(
             mQUs=mQUs[i],
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
+            cos2Psi2Phi=cos2Psi2Phi,
+            sin2Psi2Phi=sin2Psi2Phi,
         )
 
         Ttermp1, Qtermp1, Utermp1 = compute_TQUsolver_for_one_sample(
@@ -240,6 +250,8 @@ def integrate_inband_TQUsolver_for_one_sample(
             mQUs=mQUs[i + 1],
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
+            cos2Psi2Phi=cos2Psi2Phi,
+            sin2Psi2Phi=sin2Psi2Phi,
         )
 
         intTterm += (band[i] * Tterm + band[i + 1] * Ttermp1) * dnu / 2.0

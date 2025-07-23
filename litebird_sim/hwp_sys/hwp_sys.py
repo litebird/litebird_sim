@@ -24,7 +24,7 @@ def _dBodTrj(nu):
 
 
 def _dBodTth(nu):
-    x = const.h.value * nu * 1e9 / const.k_B.value / cosmo.Tcmb0.value
+    x = const.h.value * nu.astype(int) * 1e9 / const.k_B.value / cosmo.Tcmb0.value
     ex = np.exp(x)
     exm1 = ex - 1.0e0
     return (
@@ -131,6 +131,8 @@ class HwpSys:
         comm: Union[bool, None] = None,
         mueller_phases: Union[dict, None] = None,
         mueller_or_jones: Union[str, None] = "mueller",
+        band_filenames: Union[list, None] = "",
+        bandpass=None,
     ):
         r"""It sets the input paramters reading a dictionary `sim.parameters`
         with key "hwp_sys" and the following input arguments
@@ -243,6 +245,9 @@ class HwpSys:
             if comm is not None:
                 self.comm = comm
 
+        if not hasattr(self, "bandpass"):
+            self.bandpass = bandpass
+
         if mbs_params is None and np.any(maps) is None:
             mbs_params = lbs.MbsParameters(
                 make_cmb=hwp_sys_Mbs_make_cmb,
@@ -264,6 +269,9 @@ class HwpSys:
 
         if channel is None:
             channel = lbs.FreqChannelInfo(bandcenter_ghz=140)
+
+        if self.integrate_in_band:
+            self.band_filenames = band_filenames
 
         if np.any(maps) is None:
             mbs = lbs.Mbs(
@@ -301,6 +309,72 @@ class HwpSys:
                     dtype=np.float64,
                 ),
             }
+
+    def set_band_params_for_one_detector(self, idet):
+        if self.mueller_or_jones == "jones":
+            variables = [
+                "freqs",
+                "h1_0f",
+                "h2_0f",
+                "beta_0f",
+                "z1_0f",
+                "z2_0f",
+                "h1_2f",
+                "h2_2f",
+                "beta_2f",
+                "z1_2f",
+                "z2_2f",
+                "h1_0f_slv",
+                "h2_0f_slv",
+                "beta_0f_slv",
+                "z1_0f_slv",
+                "z2_0f_slv",
+                "h1_2f_slv",
+                "h2_2f_slv",
+                "beta_2f_slv",
+                "z1_2f_slv",
+                "z2_2f_slv",
+            ]
+
+            loaded_data = np.loadtxt(
+                self.band_filenames[idet],
+                delimiter=" ",
+                dtype=object,
+                unpack=True,
+                skiprows=1,
+                comments="#",
+            )
+
+            det_params = {}
+            for var, data in zip(variables, loaded_data):
+                if "beta" in var:
+                    det_params[var] = np.deg2rad(np.array(data, dtype=np.float64))
+                elif "freqs" in var:
+                    det_params[var] = np.array(data, dtype=np.float64)
+                else:
+                    det_params[var] = np.array(data, dtype=np.complex128)
+
+        else:  # TODO mueller_or_jones == "mueller"
+            raise NotImplementedError(
+                "band integration is only implemented for the Jones formalism."
+            )
+
+        # if not cur_det.bandpass:
+        cmb2bb = _dBodTth(det_params["freqs"])
+
+        # TODO: insert bandpass in detectorinfo so that we can apply the case where
+        # each detector has a bandpass
+        # elif self.bandpass:
+        #    cur_det_params['freqs'], self.bandpass_profile = bandpass_profile(
+        #        cur_det_params['freqs'], self.bandpass, self.include_beam_throughput
+        #    )
+        #
+        #    self.cmb2bb = _dBodTth(cur_det_params['freqs']) * self.bandpass_profile
+
+        # Normalize the band
+        cmb2bb /= np.trapz(cmb2bb, det_params["freqs"])
+
+        return [det_params, cmb2bb]
 
     def fill_tod(
         self,
@@ -554,64 +628,85 @@ class HwpSys:
                 sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
 
                 if self.integrate_in_band:
-                    if self.mueller_or_jones == "mueller":
-                        assert (
-                            len(cur_obs.mueller_hwp[idet]["0f"]) == 1
-                            or len(cur_obs.mueller_hwp[idet]["2f"]) == 1
-                            or len(cur_obs.mueller_hwp[idet]["4f"]) == 1
-                        ), (
-                            "integrate_in_band is set to true but at least one of the harmonics has only one matrix"
-                        )
+                    cur_det_params, cur_det_cmb2bb = (
+                        self.set_band_params_for_one_detector(idet)
+                    )
 
-                        mueller_methods.integrate_inband_signal_for_one_detector(
-                            tod_det=tod,
-                            freqs=self.freqs,
-                            band=self.cmb2bb,
-                            m0f=cur_obs.mueller_hwp[idet]["0f"],
-                            m2f=cur_obs.mueller_hwp[idet]["2f"],
-                            m4f=cur_obs.mueller_hwp[idet]["4f"],
-                            rho=np.array(cur_hwp_angle, dtype=np.float64),
-                            psi=np.array(psi, dtype=np.float64),
-                            mapT=input_T,
-                            mapQ=input_Q,
-                            mapU=input_U,
-                            cos2Xi2Phi=cos2Xi2Phi,
-                            sin2Xi2Phi=sin2Xi2Phi,
-                            phi=phi,
-                            apply_non_linearity=self.apply_non_linearity,
-                            g_one_over_k=cur_obs.g_one_over_k[idet],
-                            add_2f_hwpss=self.add_2f_hwpss,
-                            amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
-                            phases_2f=self.mueller_phases["2f"],
-                            phases_4f=self.mueller_phases["4f"],
+                    input_T = np.array(
+                        [input_T for i in range(len(cur_det_params["freqs"]))]
+                    ).T
+                    input_Q = np.array(
+                        [input_Q for i in range(len(cur_det_params["freqs"]))]
+                    ).T
+                    input_U = np.array(
+                        [input_U for i in range(len(cur_det_params["freqs"]))]
+                    ).T
+
+                    if self.mueller_or_jones == "mueller":
+                        raise NotImplementedError(
+                            "Band integration is only implemented for Jones Formalism"
                         )
 
                     elif self.mueller_or_jones == "jones":
-                        assert (
-                            len(cur_obs.jones_hwp[idet]["0f"]) == 1
-                            or len(cur_obs.jones_hwp[idet]["2f"]) == 1
-                            or len(cur_obs.jones_hwp[idet]["4f"]) == 1
-                        ), (
-                            "integrate_in_band is set to true but at least one of the harmonics has only one matrix"
+                        deltas_j0f = np.zeros(
+                            (len(cur_det_params["freqs"]), 2, 2), dtype=np.complex128
+                        )
+                        deltas_j2f = np.zeros(
+                            (len(cur_det_params["freqs"]), 2, 2), dtype=np.complex128
                         )
 
-                        j0f = cur_obs.jones_hwp[idet]["0f"]
-                        j2f = cur_obs.jones_hwp[idet]["2f"]
+                        for nu in range(len(cur_det_params["freqs"])):
+                            deltas_j0f[nu] = np.array(
+                                [
+                                    [
+                                        cur_det_params["h1_0f"][nu],
+                                        cur_det_params["z1_0f"][nu],
+                                    ],
+                                    [
+                                        cur_det_params["z2_0f"][nu],
+                                        1
+                                        - (1 + cur_det_params["h2_0f"][nu])
+                                        * np.cos(cur_det_params["beta_0f"][nu])
+                                        - (1 + cur_det_params["h2_0f"][nu])
+                                        * np.sin(cur_det_params["beta_0f"][nu])
+                                        * 1j,
+                                    ],
+                                ],
+                                dtype=np.complex128,
+                            )
+                            deltas_j2f[nu] = np.array(
+                                [
+                                    [
+                                        cur_det_params["h1_2f"][nu],
+                                        cur_det_params["z1_2f"][nu],
+                                    ],
+                                    [
+                                        cur_det_params["z2_2f"][nu],
+                                        1
+                                        - (1 + cur_det_params["h2_2f"][nu])
+                                        * np.cos(cur_det_params["beta_2f"][nu])
+                                        - (1 + cur_det_params["h2_2f"][nu])
+                                        * np.sin(cur_det_params["beta_2f"][nu])
+                                        * 1j,
+                                    ],
+                                ],
+                                dtype=np.complex128,
+                            )
 
                         jones_methods.integrate_inband_signal_for_one_detector(
                             tod_det=tod,
-                            freqs=self.freqs_solver,
-                            band=self.cmb2bb_solver,
-                            j0f=j0f,
-                            j2f=j2f,
-                            rho=np.array(cur_hwp_angle, dtype=np.float64),
-                            psi=np.array(psi, dtype=np.float64),
+                            freqs=cur_det_params["freqs"],
+                            band=cur_det_cmb2bb,
+                            deltas_j0f=deltas_j0f,
+                            deltas_j2f=deltas_j2f,
                             mapT=input_T,
                             mapQ=input_Q,
                             mapU=input_U,
+                            rho=np.array(cur_hwp_angle, dtype=np.float64),
+                            psi=np.array(psi, dtype=np.float64),
+                            phi=phi,
                             cos2Xi2Phi=cos2Xi2Phi,
                             sin2Xi2Phi=sin2Xi2Phi,
-                            phi=phi,
                             apply_non_linearity=self.apply_non_linearity,
                             g_one_over_k=cur_obs.g_one_over_k[idet],
                             add_2f_hwpss=self.add_2f_hwpss,
@@ -642,13 +737,13 @@ class HwpSys:
                         )
 
                     elif self.mueller_or_jones == "jones":
-                        j0f = cur_obs.jones_hwp[idet]["0f"]
-                        j2f = cur_obs.jones_hwp[idet]["2f"]
+                        deltas_j0f = cur_obs.jones_hwp[idet]["0f"]
+                        deltas_j2f = cur_obs.jones_hwp[idet]["2f"]
 
                         jones_methods.compute_signal_for_one_detector(
                             tod_det=tod,
-                            j0f=j0f,
-                            j2f=j2f,
+                            deltas_j0f=deltas_j0f,
+                            deltas_j2f=deltas_j2f,
                             rho=np.array(cur_hwp_angle, dtype=np.float64),
                             psi=np.array(psi, dtype=np.float64),
                             mapT=input_T,
@@ -666,51 +761,66 @@ class HwpSys:
                 if self.build_map_on_the_fly:
                     if self.integrate_in_band_solver:
                         if self.mueller_or_jones == "mueller":
-                            assert (
-                                len(cur_obs.mueller_hwp_solver[idet]["0f"]) == 1
-                                or len(cur_obs.mueller_hwp_solver[idet]["2f"]) == 1
-                                or len(cur_obs.mueller_hwp_solver[idet]["4f"]) == 1
-                            ), (
-                                "integrate_in_band is set to true but at least one of the harmonics has only one solver matrix"
-                            )
-                            mueller_methods.integrate_inband_atd_ata_for_one_detector(
-                                ata=self.ata,
-                                atd=self.atd,
-                                tod=tod,
-                                freqs=self.freqs,
-                                band=self.cmb2bb,
-                                m0f_solver=cur_obs.mueller_hwp_solver[idet]["0f"],
-                                m2f_solver=cur_obs.mueller_hwp_solver[idet]["2f"],
-                                m4f_solver=cur_obs.mueller_hwp_solver[idet]["4f"],
-                                pixel_ind=pix_out,
-                                rho=np.array(cur_hwp_angle, dtype=np.float64),
-                                psi=np.array(psi, dtype=np.float64),
-                                phi=phi,
-                                cos2Xi2Phi=cos2Xi2Phi,
-                                sin2Xi2Phi=sin2Xi2Phi,
-                                phases_2f=self.mueller_phases["2f"],
-                                phases_4f=self.mueller_phases["4f"],
+                            raise NotImplementedError(
+                                "Band integration is only implemented for Jones Formalism"
                             )
 
                         elif self.mueller_or_jones == "jones":
-                            assert (
-                                len(cur_obs.jones_hwp_solver[idet]["0f"]) == 1
-                                or len(cur_obs.jones_hwp_solver[idet]["2f"]) == 1
-                            ), (
-                                "integrate_in_band is set to true but at least one of the harmonics has only one solver matrix"
+                            deltas_j0f_solver = np.zeros(
+                                (len(cur_det_params["freqs"]), 2, 2),
+                                dtype=np.complex128,
+                            )
+                            deltas_j2f_solver = np.zeros(
+                                (len(cur_det_params["freqs"]), 2, 2),
+                                dtype=np.complex128,
                             )
 
-                            j0fs = cur_obs.jones_hwp_solver[idet]["0f"]
-                            j2fs = cur_obs.jones_hwp_solver[idet]["2f"]
+                            for nu in range(len(cur_det_params["freqs"])):
+                                deltas_j0f[nu] = np.array(
+                                    [
+                                        [
+                                            cur_det_params["h1_0f_slv"][nu],
+                                            cur_det_params["z1_0f_slv"][nu],
+                                        ],
+                                        [
+                                            cur_det_params["z2_0f_slv"][nu],
+                                            1
+                                            - (1 + cur_det_params["h2_0f_slv"][nu])
+                                            * np.cos(cur_det_params["beta_0f_slv"][nu])
+                                            - (1 + cur_det_params["h2_0f_slv"][nu])
+                                            * np.sin(cur_det_params["beta_0f_slv"][nu])
+                                            * 1j,
+                                        ],
+                                    ],
+                                    dtype=np.complex128,
+                                )
+                                deltas_j2f[nu] = np.array(
+                                    [
+                                        [
+                                            cur_det_params["h1_2f_slv"][nu],
+                                            cur_det_params["z1_2f_slv"][nu],
+                                        ],
+                                        [
+                                            cur_det_params["z2_2f_slv"][nu],
+                                            1
+                                            - (1 + cur_det_params["h2_2f_slv"][nu])
+                                            * np.cos(cur_det_params["beta_2f_slv"][nu])
+                                            - (1 + cur_det_params["h2_2f_slv"][nu])
+                                            * np.sin(cur_det_params["beta_2f_slv"][nu])
+                                            * 1j,
+                                        ],
+                                    ],
+                                    dtype=np.complex128,
+                                )
 
                             jones_methods.integrate_inband_atd_ata_for_one_detector(
                                 ata=self.ata,
                                 atd=self.atd,
                                 tod=tod,
-                                freqs=self.freqs,
-                                band=self.cmb2bb,
-                                j0f_solver=j0fs,
-                                j2f_solver=j2fs,
+                                freqs=cur_det_params["freqs"],
+                                band=cur_det_cmb2bb,
+                                deltas_j0f_solver=deltas_j0f_solver,
+                                deltas_j2f_solver=deltas_j2f_solver,
                                 pixel_ind=pix_out,
                                 rho=np.array(cur_hwp_angle, dtype=np.float64),
                                 psi=np.array(psi, dtype=np.float64),
@@ -739,15 +849,15 @@ class HwpSys:
                             )
 
                         elif self.mueller_or_jones == "jones":
-                            j0fs = cur_obs.jones_hwp_solver[idet]["0f"]
-                            j2fs = cur_obs.jones_hwp_solver[idet]["2f"]
+                            deltas_j0fs = cur_obs.jones_hwp_solver[idet]["0f"]
+                            deltas_j2fs = cur_obs.jones_hwp_solver[idet]["2f"]
 
                             jones_methods.compute_ata_atd_for_one_detector(
                                 ata=self.ata,
                                 atd=self.atd,
                                 tod=tod,
-                                j0f_solver=j0fs,
-                                j2f_solver=j2fs,
+                                deltas_j0f_solver=deltas_j0fs,
+                                deltas_j2f_solver=deltas_j2fs,
                                 pixel_ind=pix_out,
                                 rho=np.array(cur_hwp_angle, dtype=np.float64),
                                 psi=np.array(psi, dtype=np.float64),
