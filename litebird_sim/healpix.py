@@ -52,6 +52,27 @@ def npix_to_nside(num_of_pixels):
     return int(np.sqrt(num_of_pixels / 12))
 
 
+def nside_to_pixel_solid_angle_sterad(nside: int) -> float:
+    """Return the value of the solid angle of a pixel
+
+    The result is exact, as all pixels in a Healpix map have the same area.
+
+    The result is in steradians.
+    """
+    return 4 * np.pi / nside_to_npix(nside)
+
+
+def nside_to_resolution_rad(nside: int) -> float:
+    """Return an approximated resolution of a Healpix map, given its NSIDE
+
+    The value is the square root of the pixel area (which is measured in
+    steradians); see :func:`nside_to_pixel_area_sterad`.
+
+    The result is an angle in radians.
+    """
+    return np.sqrt(nside_to_pixel_solid_angle_sterad(nside))
+
+
 def is_npix_ok(num_of_pixels):
     """Return True or False whenever num_of_pixels is a valid number.
 
