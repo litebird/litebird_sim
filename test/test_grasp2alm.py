@@ -18,6 +18,97 @@ from litebird_sim.grasp2alm import (
 
 REFERENCE_BEAM_FILES_PATH = Path(__file__).parent / "grasp2alm_reference"
 
+# The GRASP grid file has been built by hand using the following Mathematica functions:
+#
+# toThetaPhi[az_, el_] := {Sqrt[az^2 + el^2], If[az != 0 \[Or] el != 0, ArcTan[-az, el], 0]};
+# rotStokes[\[Theta]_, \[CurlyPhi]_, {i_, q_, u_, v_}] :=
+#   If[\[Theta] != 0,
+#    {i, q Cos[2 \[CurlyPhi]] - u Sin[2 \[CurlyPhi]],
+#     q Sin[2 \[CurlyPhi]] + u Cos[2 \[CurlyPhi]], v},
+#    (* No transformation is needed at the North Pole*)
+#    {i, q, u, v}];
+# toStokes[{E\[Theta]_, E\[CurlyPhi]_}] := {
+#    Abs[E\[Theta]]^2 + Abs[E\[CurlyPhi]]^2,
+#    Abs[E\[Theta]]^2 - Abs[E\[CurlyPhi]]^2,
+#    2 Re[E\[Theta] * Conjugate[E\[CurlyPhi]]],
+#    -2 Im[E\[CurlyPhi] * Conjugate[E\[CurlyPhi]]]
+#    };
+# testField[az_, el_] := {az/(20 °) + el/(40 °) \[ImaginaryJ],
+#    az/(15 °) + el/(30 °) \[ImaginaryJ]};
+#
+# A few notes:
+#
+# - `toThetaPhi` converts an azimuth/elevation couple into a θ/φ pair;
+# - `rotStokes` rotates the Stokes parameters referring to the (θ, φ) point
+# - `toStokes` converts an electric vector into a Stokes vector (V is always zero)
+# - `testField` generates an electric field (E_co, E_cx) at a specific location on the
+#   far field sphere, using the azimuth/elevation coordinates
+#
+# The test field is computed on the following grid of values:
+#
+# | Azimuth | Elevation |
+# |---------|-----------|
+# |    −90° |      −90° |
+# |    −45° |      −90° |
+# |      0° |      −90° |
+# |     45° |      −90° |
+# |     90° |      −90° |
+# |    −90° |        0° |
+# |    −45° |        0° |
+# |      0° |        0° |
+# |     45° |        0° |
+# |     90° |        0° |
+# |    −90° |       90° |
+# |    −45° |       90° |
+# |      0° |       90° |
+# |     45° |       90° |
+# |     90° |       90° |
+
+AZ_EL_GRID_GRASP_FILE_CONTENTS = """
+Test header
+VERSION: TICRA-EM-FIELD-V0.1
+FREQUENCY_NAME: freq
+FREQUENCIES [GHz]:
+123.0
+++++
+1
+1 3 2 5
+0 0
+-90.0 -90.0 90.0 90.0
+5 3 0
+-4.5   -2.25   -6 -3
+-2.25  -2.25   -3 -3
+ 0     -2.25    0 -3
+ 2.25  -2.25    3 -3
+ 4.5   -2.25    6 -3
+-4.5      0    -6  0
+-2.25     0    -3  0
+ 0        0     0  0
+ 2.25     0     3  0
+ 4.5      0     6  0
+-4.5      2.25 -6  3
+-2.25     2.25 -3  3
+ 0        2.25  0  3
+ 2.25     2.25  3  3
+ 4.5      2.25  6  3
+"""
+
+# Each tuple in the list contains the following fields:
+#  1. Azimuth [deg],
+#  2. Elevation [deg],
+#  3. θ [rad],
+#  4. φ [rad],
+#  5. E_co,
+#  6. E_cx,
+#  7. I in Ludwig’s third convention reference frame,
+#  8. Q in Ludwig’s third convention reference frame,
+#  9. U in Ludwig’s third convention reference frame,
+# 10. V in Ludwig’s third convention reference frame,
+# 11. I in the θ/φ reference frame,
+# 12. Q in the θ/φ reference frame,
+# 13. U in the θ/φ reference frame,
+# 14. V in the θ/φ reference frame,
+
 # fmt: off
 AZ_EL_GRID_TEST_DATA = [
     (-90.0, -90.0, 2.22144, -0.785398, -4.5 - 2.25j, -6.0 - 3.0j, 70.3125, \
@@ -272,36 +363,7 @@ FREQUENCIES [GHz]:
             are correctly read from the grid file
         """
 
-        txt = StringIO(
-            """
-Test header
-VERSION: TICRA-EM-FIELD-V0.1
-FREQUENCY_NAME: freq
-FREQUENCIES [GHz]:
-123.0
-++++
-1
-1 3 2 5
-0 0
--90.0 -90.0 90.0 90.0
-5 3 0
--4.5   -2.25   -6 -3
--2.25  -2.25   -3 -3
- 0     -2.25    0 -3
- 2.25  -2.25    3 -3
- 4.5   -2.25    6 -3
--4.5      0    -6  0
--2.25     0    -3  0
- 0        0     0  0
- 2.25     0     3  0
- 4.5      0     6  0
--4.5      2.25 -6  3
--2.25     2.25 -3  3
- 0        2.25  0  3
- 2.25     2.25  3  3
- 4.5      2.25  6  3
-"""
-        )
+        txt = StringIO(AZ_EL_GRID_GRASP_FILE_CONTENTS)
 
         test_grid = BeamGrid(txt)
         test_grid_polar = test_grid.to_polar(copol_axis="y")
