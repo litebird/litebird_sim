@@ -245,7 +245,7 @@ The parameters are:
 - `mmax`: Maximum harmonic order. Defaults to lmax.
 - `store_in_observation`: If True, the result is stored in the observation.blms attribute. Default False
 
-It returns a dictionary mapping each detector name to its corresponding :class:`SphericalHarmonics` object.
+The function :func:`.generate_gauss_beam_alms` returns a dictionary mapping each detector name to its corresponding :class:`SphericalHarmonics` object.
 This is simple example of usage::
 
   blms = lbs.generate_gauss_beam_alms(
@@ -253,6 +253,19 @@ This is simple example of usage::
       lmax=512,
       store_in_observation=True
   )
+
+
+
+Loading TICRA GRASP files
+-------------------------
+
+LBS incorporates a patched version of the `grasp2alm <https://github.com/yusuke-takase/grasp2alm>`_ library by Yusuke Takase.
+This library lets to load `.grd` and `.cut` files created using TICRA GRASP, a simulation tool for reflector antennas, and convert them into spherical harmonics coefficients that can be passed to the 4π beam convolution module.
+The two core functionalities are provided by :func:`.ticra_grid_to_alm` and :func:`.ticra_cut_to_alm`, which convert a grid/cut file into a :class:`.SphericalHarmonics` object.
+Both functions require a `file`-like object as input::
+
+    with open("my_grasp_file.grd", "rt") as file_obj:
+        harmonics = lbs.ticra_grid_to_alm(file_obj)
 
 
 Methods of the Simulation class

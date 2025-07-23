@@ -53,14 +53,26 @@ from .gaindrifts import (
     apply_gaindrift_to_tod,
     apply_gaindrift_to_observations,
 )
+from .grasp2alm import (
+    BeamCut,
+    BeamGrid,
+    BeamHealpixMap,
+    BeamStokesPolar,
+    ticra_cut_to_alm,
+    ticra_grid_to_alm,
+)
 from .healpix import (
+    UNSEEN_PIXEL_VALUE,
     nside_to_npix,
     npix_to_nside,
+    nside_to_pixel_solid_angle_sterad,
+    nside_to_resolution_rad,
     is_npix_ok,
     map_type,
     get_pixel_format,
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
+    num_of_alms,
 )
 from .hwp import (
     HWP,
@@ -201,13 +213,17 @@ __all__ = [
     # bandpasses.py
     "BandPassInfo",
     # healpix.py
+    "UNSEEN_PIXEL_VALUE",
     "nside_to_npix",
     "npix_to_nside",
+    "nside_to_pixel_solid_angle_sterad",
+    "nside_to_resolution_rad",
     "is_npix_ok",
     "map_type",
     "get_pixel_format",
     "write_healpix_map_to_hdu",
     "write_healpix_map_to_file",
+    "num_of_alms",
     # distribute.py
     "distribute_evenly",
     "distribute_optimally",
@@ -223,6 +239,13 @@ __all__ = [
     "FreqChannelInfo",
     "InstrumentInfo",
     "detector_list_from_parameters",
+    # grasp2alm.py
+    "BeamCut",
+    "BeamGrid",
+    "BeamHealpixMap",
+    "BeamStokesPolar",
+    "ticra_cut_to_alm",
+    "ticra_grid_to_alm",
     # hwp.py
     "HWP",
     "IdealHWP",

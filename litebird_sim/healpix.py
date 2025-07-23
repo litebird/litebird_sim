@@ -16,6 +16,8 @@ STANDARD_COLUMN_NAMES = {
     6: ["II", "IQ", "IU", "QQ", "QU", "UU"],
 }
 
+UNSEEN_PIXEL_VALUE = -1.6375e30
+
 
 def nside_to_npix(nside):
     """Return the number of pixels in a Healpix map with the specified NSIDE.
@@ -48,6 +50,27 @@ def npix_to_nside(num_of_pixels):
 
     assert is_npix_ok(num_of_pixels), f"Invalid number of pixels: {num_of_pixels}"
     return int(np.sqrt(num_of_pixels / 12))
+
+
+def nside_to_pixel_solid_angle_sterad(nside: int) -> float:
+    """Return the value of the solid angle of a pixel
+
+    The result is exact, as all pixels in a Healpix map have the same area.
+
+    The result is in steradians.
+    """
+    return 4 * np.pi / nside_to_npix(nside)
+
+
+def nside_to_resolution_rad(nside: int) -> float:
+    """Return an approximated resolution of a Healpix map, given its NSIDE
+
+    The value is the square root of the pixel area (which is measured in
+    steradians); see :func:`nside_to_pixel_area_sterad`.
+
+    The result is an angle in radians.
+    """
+    return np.sqrt(nside_to_pixel_solid_angle_sterad(nside))
 
 
 def is_npix_ok(num_of_pixels):
@@ -392,3 +415,23 @@ def write_healpix_map_to_file(
         extra_header=extra_header,
     )
     hdu.writeto(filename, overwrite=overwrite)
+
+
+def num_of_alms(lmax: int, mmax: int | None = None) -> int:
+    """
+    Return the number of coefficients in an array of a_ℓm coefficients
+
+    This function can be used to determine the size of an array that must hold
+    a set of a_ℓm coefficients, given the maximum value for ℓ and m.
+
+    Args:
+        lmax: Maximum value for ℓ
+        mmax: Maximum value for m. If not provided, it will be assumed that ``lmax == mmax``.
+
+    Returns:
+        Number of elements in the array of a_ℓm coefficients
+    """
+    if mmax is None or mmax < 0 or mmax > lmax:
+        mmax = lmax
+
+    return ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
