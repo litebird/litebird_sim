@@ -382,7 +382,7 @@ class HwpSys:
         pointings: Union[np.ndarray, List[np.ndarray], None] = None,
         hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
         input_map_in_galactic: bool = True,
-        save_tod: bool = False,
+        save_tod: bool = True,
         dtype_pointings=np.float64,
     ):
         r"""Fill a TOD and/or :math:`A^T A` and :math:`A^T d` for the
@@ -421,8 +421,7 @@ class HwpSys:
                 galactic.
 
             save_tod (bool): if True, ``obs.tod`` is saved in
-                ``observations.tod`` and locally as a .npy file;
-                if False, ``obs.tod`` gets deleted.
+                ``observations.tod``. If False, ``obs.tod`` gets deleted.
 
             dtype_pointings: if ``pointings`` is None and is computed
                 within ``fill_tod``, this is the dtype for
@@ -666,10 +665,7 @@ class HwpSys:
                                         cur_det_params["z2_0f"][nu],
                                         1
                                         - (1 + cur_det_params["h2_0f"][nu])
-                                        * np.cos(cur_det_params["beta_0f"][nu])
-                                        - (1 + cur_det_params["h2_0f"][nu])
-                                        * np.sin(cur_det_params["beta_0f"][nu])
-                                        * 1j,
+                                        * np.exp(cur_det_params["beta_0f"][nu] * 1j),
                                     ],
                                 ],
                                 dtype=np.complex128,
@@ -684,10 +680,7 @@ class HwpSys:
                                         cur_det_params["z2_2f"][nu],
                                         1
                                         - (1 + cur_det_params["h2_2f"][nu])
-                                        * np.cos(cur_det_params["beta_2f"][nu])
-                                        - (1 + cur_det_params["h2_2f"][nu])
-                                        * np.sin(cur_det_params["beta_2f"][nu])
-                                        * 1j,
+                                        * np.exp(cur_det_params["beta_2f"][nu] * 1j),
                                     ],
                                 ],
                                 dtype=np.complex128,
@@ -786,10 +779,9 @@ class HwpSys:
                                             cur_det_params["z2_0f_slv"][nu],
                                             1
                                             - (1 + cur_det_params["h2_0f_slv"][nu])
-                                            * np.cos(cur_det_params["beta_0f_slv"][nu])
-                                            - (1 + cur_det_params["h2_0f_slv"][nu])
-                                            * np.sin(cur_det_params["beta_0f_slv"][nu])
-                                            * 1j,
+                                            * np.exp(
+                                                cur_det_params["beta_0f_slv"][nu] * 1j
+                                            ),
                                         ],
                                     ],
                                     dtype=np.complex128,
@@ -804,10 +796,9 @@ class HwpSys:
                                             cur_det_params["z2_2f_slv"][nu],
                                             1
                                             - (1 + cur_det_params["h2_2f_slv"][nu])
-                                            * np.cos(cur_det_params["beta_2f_slv"][nu])
-                                            - (1 + cur_det_params["h2_2f_slv"][nu])
-                                            * np.sin(cur_det_params["beta_2f_slv"][nu])
-                                            * 1j,
+                                            * np.exp(
+                                                cur_det_params["beta_2f_slv"][nu] * 1j
+                                            ),
                                         ],
                                     ],
                                     dtype=np.complex128,
@@ -900,6 +891,7 @@ class HwpSys:
                 for i in range(len(observations) - 1)
             ]
         ):
+            print("before reducing", self.ata)
             self.comm.Allreduce(mpi.MPI.IN_PLACE, self.atd, mpi.MPI.SUM)
             self.comm.Allreduce(mpi.MPI.IN_PLACE, self.ata, mpi.MPI.SUM)
         else:
@@ -907,6 +899,7 @@ class HwpSys:
                 "All observations must be distributed over the same MPI groups"
             )
 
+        print("after reducing", self.ata)
         self.ata[:, 0, 1] = self.ata[:, 1, 0]
         self.ata[:, 0, 2] = self.ata[:, 2, 0]
         self.ata[:, 1, 2] = self.ata[:, 2, 1]

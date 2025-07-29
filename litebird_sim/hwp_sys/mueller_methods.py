@@ -228,6 +228,8 @@ def integrate_inband_signal_for_one_detector(
             + m4f[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
+            cos2Psi2Phi=np.cos(2 * psi[i] + 2 * phi),
+            sin2Psi2Phi=np.sin(2 * psi[i] + 2 * phi),
         )
 
 
@@ -289,6 +291,8 @@ def integrate_inband_atd_ata_for_one_detector(
             + m4f_solver[1, 2] * np.cos(Four_rho_phi + phases_4f[1, 2]),
             cos2Xi2Phi=cos2Xi2Phi,
             sin2Xi2Phi=sin2Xi2Phi,
+            cos2Psi2Phi=np.cos(2 * psi[i] + 2 * phi),
+            sin2Psi2Phi=np.sin(2 * psi[i] + 2 * phi),
         )
         atd[pixel_ind[i], 0] += tod[i] * Tterm
         atd[pixel_ind[i], 1] += tod[i] * Qterm

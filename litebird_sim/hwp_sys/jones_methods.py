@@ -370,26 +370,25 @@ def integrate_inband_signal_for_one_detector(
     Multi-frequency case: band integration of the signal for a single detector,
     looping over (time) samples.
     """
-
     n_freqs = len(freqs)
 
     # Allocate buffers outside the loop
-    deltas = np.empty((n_freqs, 2, 2), dtype=np.float64)
-    jones_nu = np.empty((2, 2), dtype=np.complex64)
-
-    mII = np.empty(n_freqs, dtype=np.float64)
-    mIQ = np.empty(n_freqs, dtype=np.float64)
-    mIU = np.empty(n_freqs, dtype=np.float64)
-    mQI = np.empty(n_freqs, dtype=np.float64)
-    mQQ = np.empty(n_freqs, dtype=np.float64)
-    mQU = np.empty(n_freqs, dtype=np.float64)
-    mUI = np.empty(n_freqs, dtype=np.float64)
-    mUQ = np.empty(n_freqs, dtype=np.float64)
-    mUU = np.empty(n_freqs, dtype=np.float64)
 
     for i in prange(len(tod_det)):
         alpha = rho[i] - phi
 
+        deltas = np.empty((n_freqs, 2, 2), dtype=np.float64)
+        jones_nu = np.empty((2, 2), dtype=np.complex64)
+
+        mII = np.empty(n_freqs, dtype=np.float64)
+        mIQ = np.empty(n_freqs, dtype=np.float64)
+        mIU = np.empty(n_freqs, dtype=np.float64)
+        mQI = np.empty(n_freqs, dtype=np.float64)
+        mQQ = np.empty(n_freqs, dtype=np.float64)
+        mQU = np.empty(n_freqs, dtype=np.float64)
+        mUI = np.empty(n_freqs, dtype=np.float64)
+        mUQ = np.empty(n_freqs, dtype=np.float64)
+        mUU = np.empty(n_freqs, dtype=np.float64)
         # Compute deltas without allocating
         for x in range(2):
             for y in range(2):
@@ -541,8 +540,56 @@ def integrate_inband_atd_ata_for_one_detector(
     Multi-frequency case: band integration of :math:`A^T A` and :math:`A^T d`
     for a single detector, looping over (time) samples.
     """
+    n_freqs = len(freqs)
+
+    # Allocate buffers outside the loop
+    deltas = np.empty((n_freqs, 2, 2), dtype=np.float64)
+    jones_nu = np.empty((2, 2), dtype=np.complex64)
+
+    mIIs = np.empty(n_freqs, dtype=np.float64)
+    mIQs = np.empty(n_freqs, dtype=np.float64)
+    mIUs = np.empty(n_freqs, dtype=np.float64)
+    mQIs = np.empty(n_freqs, dtype=np.float64)
+    mQQs = np.empty(n_freqs, dtype=np.float64)
+    mQUs = np.empty(n_freqs, dtype=np.float64)
+    mUIs = np.empty(n_freqs, dtype=np.float64)
+    mUQs = np.empty(n_freqs, dtype=np.float64)
+    mUUs = np.empty(n_freqs, dtype=np.float64)
 
     for i in range(len(tod)):
+        alpha = rho[i] - phi
+
+        # Compute deltas without allocating
+        for x in range(2):
+            for y in range(2):
+                for nu in range(n_freqs):
+                    delta_j0 = np.abs(deltas_j0f_solver[nu, x, y])
+                    delta_j2 = np.abs(deltas_j2f_solver[nu, x, y])
+                    angle_j2 = np.angle(deltas_j2f_solver[nu, x, y])
+                    deltas[nu, x, y] = delta_j0 + delta_j2 * np.cos(
+                        2 * alpha + 2 * angle_j2
+                    )
+
+        for nu in range(n_freqs):
+            jones_nu[0, 0] = 1 - deltas[nu, 0, 0]
+            jones_nu[0, 1] = deltas[nu, 0, 1]
+            jones_nu[1, 0] = deltas[nu, 1, 0]
+            jones_nu[1, 1] = -1 + deltas[nu, 1, 1]
+
+            mueller_hwp_nu = JonesToMueller(jones_nu)
+            (
+                mIIs[nu],
+                mIQs[nu],
+                mIUs[nu],
+                mQIs[nu],
+                mQQs[nu],
+                mQUs[nu],
+                mUIs[nu],
+                mUQs[nu],
+                mUUs[nu],
+            ) = hwp_to_fp_frame(alpha, mueller_hwp_nu)
+
+        """for i in range(len(tod)):
         alpha = rho[i] - phi
         deltas = np.zeros((len(freqs), 2, 2), dtype=np.float64)
         for x in range(2):
@@ -575,6 +622,7 @@ def integrate_inband_atd_ata_for_one_detector(
                 mUQs[nu],
                 mUUs[nu],
             ) = hwp_to_fp_frame(alpha, mueller_hwp_nu)
+            """
 
         Tterm, Qterm, Uterm = integrate_inband_TQUsolver_for_one_sample(
             freqs=freqs,
