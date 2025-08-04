@@ -1797,6 +1797,7 @@ class Simulation:
         component: str = "tod",
         amplitude_2f_k: Union[float, None] = None,
         append_to_report: bool = False,
+        pointings_dtype=np.float64,
     ):
         """Add the HWP differential emission to all the observations of this
         simulation
@@ -1812,6 +1813,7 @@ class Simulation:
             hwp=self.hwp,
             component=component,
             amplitude_2f_k=amplitude_2f_k,
+            pointings_dtype=pointings_dtype,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
