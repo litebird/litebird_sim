@@ -196,14 +196,14 @@ def beam_mapmaker(
 class BeamStokesPolar:
     """Representation of a beam as a set of Stokes parameters sampled over a sphere using θφ coordinates
 
-    This class stores the four Stokes parameters ($I$, $Q$, $U$, and $V$) for a beam on a
-    possibly irregular spherical grid (:math:`\\theta`,:math:`\\phi`). This type is used as input to the
+    This class stores the four Stokes parameters (:math:`I`, :math:`Q`, :math:`U`, and :math:`V`) for a beam on a
+    possibly irregular spherical grid (:math:`\\theta`, :math:`\\varphi`). This type is used as input to the
     spherical harmonic transform. Internally, this package uses the third Ludwig's definition for the
     polarization basis with the co-polar direction (positive :math:`Q`) aligned with the y-axis.
 
     Args:
         theta_phi_values_rad (`npt.ArrayLike`): A 2D matrix of shape :math:`(N, 2)` containing the
-            values for :math:`\\theta` (in ``theta_phi_values_rad[:, 0]``) and for :math:`\\phi`
+            values for :math:`\\theta` (in ``theta_phi_values_rad[:, 0]``) and for :math:`\\varphi`
             (in ``theta_phi_values_rad[:, 1]``.
         stokes (`numpy.ndarray`): Array of shape :math:`(4, N)` containing the four Stokes
             parameters (:math:`I`, :math:`Q`, :math:`U`, :math:`V`, in this order).
