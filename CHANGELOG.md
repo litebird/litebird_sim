@@ -6,6 +6,8 @@
 
 -   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
 
+-   Import Yusuke Takase's grasp2alm code [#447](https://github.com/litebird/litebird_sim/pull/447)
+
 -   Change hwp_angle calculation to the complex domain [#433](https://github.com/litebird/litebird_sim/pull/433)
 
 # Version 0.15.3
