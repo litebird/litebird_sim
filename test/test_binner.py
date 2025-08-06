@@ -149,3 +149,101 @@ def test_make_binned_map_basic_mpi():
         output_coordinate_system=CoordinateSystem.Ecliptic,
     )
     assert np.allclose(res.binned_map, res_map)
+
+
+def test_hwp_offset_angle():
+    # In this test the mapmaking uses an external HWP with an offset angle
+    # the comparison is done at the power spectrum level computing analitically
+    # the rotate power spectrum
+    start_time = 0
+    time_span_s = 200 * 24 * 3600
+    nside = 64
+    sampling_hz = 1
+    net = 50.0
+    fwhm_arcmin = 120
+    hwp_radpsec = 4.084_070_449_666_731
+
+    offset_angle = np.pi / 20
+
+    npix = lbs.nside_to_npix(nside)
+
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=12345
+    )
+
+    scanning = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=0.785_398_163_397_448_3,
+        precession_rate_hz=8.664_850_513_998_931e-05,
+        spin_rate_hz=0.000_833_333_333_333_333_4,
+        start_time=start_time,
+    )
+
+    instr = lbs.InstrumentInfo(
+        boresight_rotangle_rad=0.0,
+        spin_boresight_angle_rad=0.872_664_625_997_164_8,
+        spin_rotangle_rad=3.141_592_653_589_793,
+    )
+
+    sim.set_scanning_strategy(scanning)
+
+    sim.set_instrument(instr)
+
+    detT = lbs.DetectorInfo(
+        name="Boresight_detector_T",
+        sampling_rate_hz=sampling_hz,
+        fwhm_arcmin=fwhm_arcmin,
+        net_ukrts=net,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+        pol_angle_rad=0.0,
+    )
+
+    detB = lbs.DetectorInfo(
+        name="Boresight_detector_B",
+        sampling_rate_hz=sampling_hz,
+        fwhm_arcmin=fwhm_arcmin,
+        net_ukrts=net,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+        pol_angle_rad=np.pi / 2.0,
+    )
+
+    hwp = lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec)
+    sim.set_hwp(hwp)
+
+    sim.create_observations(detectors=[detT, detB])
+
+    mbs_params = lbs.MbsParameters(
+        make_cmb=True,
+        make_fg=False,
+        seed_cmb=1,
+        gaussian_smooth=True,
+        bandpass_int=False,
+        nside=nside,
+        maps_in_ecliptic=False,
+        units="uK_CMB",
+    )
+
+    sky = sim.get_sky(parameters=mbs_params, store_in_observation=True)
+
+    sim.prepare_pointings()
+
+    sim.fill_tods()
+
+    hwp_offset = lbs.IdealHWP(
+        ang_speed_radpsec=hwp_radpsec, start_angle_rad=offset_angle
+    )
+
+    results = lbs.make_binned_map(nside, sim.observations, hwp=hwp_offset)
+
+    cl_in = hp.anafast(sky["Boresight_detector_T"], lmax=2 * nside)
+
+    cl_rot = hp.anafast(results.binned_map, lmax=2 * nside)
+
+    # form Eq. 1 of https://arxiv.org/pdf/0905.1651
+    cl_mod = (
+        cl_in[1] * np.cos(4 * offset_angle) ** 2
+        + cl_in[2] * np.sin(4 * offset_angle) ** 2
+    )
+
+    assert np.allclose(cl_mod, cl_rot[1], rtol=1e-8, atol=1e-4)
