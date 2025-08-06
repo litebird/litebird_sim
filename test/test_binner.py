@@ -165,8 +165,6 @@ def test_hwp_offset_angle():
 
     offset_angle = np.pi / 20
 
-    npix = lbs.nside_to_npix(nside)
-
     sim = lbs.Simulation(
         start_time=start_time, duration_s=time_span_s, random_seed=12345
     )
