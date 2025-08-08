@@ -36,6 +36,21 @@ The LiteBIRD Simulation Framework tracks these information using
 parameter files (in TOML format), accessing the LiteBIRD Instrument
 Model (IMO) through the unique identifiers provided by the Data Access
 Layer (DAL), and generating reports after the simulation completes.
+Here is an example:
+
+.. code-block:: toml
+
+   [general]
+   start_time = "2030-01-01T00:00:00"
+   duration_s = "720 days"
+
+   [detectors]
+   det_list = [
+       "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_T/detector_info",
+   ]
+
+This text file can be provided as input to a :class:`.Simulation` object, which will use the information to set up the simulation.
+
 
 .. _parameter_files:
 

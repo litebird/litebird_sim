@@ -3,52 +3,82 @@
 Interface Hierarchy
 ====================
 
-The ``litebird_sim`` framework provides a tiered interface architecture, designed to support workflows ranging from simple simulations to advanced custom pipelines. This modular design ensures that new users can quickly build simulations, while advanced users can customize or optimize nearly every detail.
+The ``litebird_sim``` framework, usually called LBS, is designed to be flexible and easy to use.
+You can start with simple simulations right away, or build more advanced and customized workflows as you gain experience.
+Its modular structure makes it easy for beginners to get started, while still giving advanced users full control over the details if they need it.
 
 Core Classes
 ------------
 
-At the heart of the framework are two primary classes:
+At the heart of LBS there are two fundamental data types:
 
-**Simulation**
+- :class:`.Simulation` acts as the global orchestrator of the simulation:
 
-    Acts as the global orchestrator of the simulation:
+  - Parses configuration files
 
-    - Parses configuration files
-    - Manages the instrument model (IMo)
-    - Tracks provenance and metadata
-    - Controls MPI parallelism
-    - Handles random number generators (RNGs)
-    - Creates and manages observations
+  - Manages the instrument model (IMo)
 
-**Observation**
+  - Tracks provenance and metadata
 
-    Represents a single observational unit:
+  - Controls MPI parallelism
 
-    - Manages TODs and pointing
-    - Stores detector-specific metadata
-    - Controls MPI distribution and I/O
-    - Acts as an interface to low-level computations
+  - Handles random number generators (RNGs)
+
+  - Creates and manages observations
+
+- :class:`.Observation` represents a single observational unit:
+
+  - Manages TOD (time-ordered data) and pointing matrices
+
+  - Stores detector-specific metadata
+
+  - Controls MPI distribution and I/O
+
+  - Acts as an interface to low-level computations
 
 Interface Levels
 ----------------
 
-::
+LBS provides thousands of functions and class methods to create and manipulate the data used in simulations. These functionalities can be grouped in a hierarchy:
 
-    High-Level Interface
-        ↓
-    Simulation class
-        ↓
-    Observation class
-        ↓
-    TODs / Pointing Arrays
-        ↓
-    Numba Core (Low-Level)
+1. Low-level functions are usually implemented in Numba. They are very fast but not versatile, as they often work on one single detector/observation and expect inputs to have specific types, and thus are rarely exported to the user.
 
-High-Level Interface
-~~~~~~~~~~~~~~~~~~~~
+2. LBS exports several array-oriented functions that wrap the low-level Numba routines. An example is :func:`.add_dipole`.
 
-Ideal for most users. Operates through the ``Simulation`` object and requires minimal configuration.
+3. Array-oriented functions often require the same parameters to be passed over and over again. For instance, a TOD matrix is required both by the functions that simulate the signal of the dipole (:func:`.add_dipole`) and by noise-generation modules (:func:`.add_noise`). Functions that match the pattern ``*_to_observations``, like :func:`.add_dipole_to_observations`, apply the same array-oriented functions to a list of observations.
+
+4. In an MPI environment, a :class:`.Simulation` class creates multiple :class:`.Observation` instances and wraps functions in methods that automatically pass most of the relevant parameters. For instance, :func:`.add_dipole_to_observations` is wrapped by :meth:`.Simulation.add_dipole`, which requires far fewer parameters.
+
+   Additionally, :class:`Simulation` offers ``set_*`` methods (e.g., :meth:`.Simulation.set_instrument`) that define shared parameters once and propagate them to subsequent function calls.
+
+The following diagram illustrates the hierarchy of interfaces from highest-level control to the underlying computational core:
+
+.. code-block:: text
+
+    ┌──────────────────────┐
+    │ High-Level Interface |
+    └──────────────────────┘
+            ↓
+    ┌───────────────────┐
+    │  Simulation class │
+    └───────────────────┘
+            ↓
+    ┌───────────────────┐
+    │ Observation class │
+    └───────────────────┘
+            ↓
+    ┌──────────────────────────┐
+    │ Array-oriented functions │
+    └──────────────────────────┘
+            ↓
+    ┌──────────────────────────────────────────────┐
+    │ Numba Core (Low-Level, usually not exported) │
+    └──────────────────────────────────────────────┘
+
+Simulation methods
+~~~~~~~~~~~~~~~~~~
+
+The high-level methods in the :class:`.Simulation` are ideal for most users, as they require minimal configuration. Here is an example:
 
 .. code-block:: python
 
@@ -57,13 +87,13 @@ Ideal for most users. Operates through the ``Simulation`` object and requires mi
     sim.prepare_pointing()
     sim.add_dipole()
 
-- Pointing and TODs are handled automatically.
-- Modules such as dipole generation, noise injection, and map-making can be invoked directly on the simulation.
+The simulation automatically takes care of TODs and pointing information.
+Common tasks such as dipole generation, noise injection, and map-making can be performed directly through the simulation object, making it easy to build complete workflows with just a few method calls.
 
-Intermediate-Level Interface
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Observation-oriented functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Provides finer control by operating on ``Observation`` instances directly.
+For users who need finer control, functions that follow the pattern ``*_to_observations`` enable working directly with individual :class:`.Observation` instances.
 
 .. code-block:: python
 
@@ -72,26 +102,25 @@ Provides finer control by operating on ``Observation`` instances directly.
     pointing_matrix, _ = obs.get_pointings()
     lbs.add_dipole_to_observations(obs, pointing=pointing_matrix)
 
-- Custom pointing and configuration possible.
-- Enables partial or staged execution of the simulation pipeline.
+This approach allows you to provide custom pointing data and configurations.
+It is particularly useful when you want to run only part of the simulation pipeline or when you need to execute different stages manually and independently.
 
-Low-Level Interface
-~~~~~~~~~~~~~~~~~~~
+Array-based functions
+~~~~~~~~~~~~~~~~~~~~~
 
-For expert users who need full control over TOD arrays and performance tuning.
+Expert users who require full control over TOD arrays and performance tuning but do not need the complication of handling :class:`.Observation` instances can work directly with array-based functions.
 
 .. code-block:: python
 
     pointing_matrix, _ = obs.get_pointings()
     lbs.add_dipole(obs.tod, pointing=pointing_matrix)
 
-- Direct access to arrays and low-level operations.
-- Useful for diagnostics, prototyping, or bypassing built-in abstractions.
+This level of access provides full control over array data and internal operations. It is especially useful for diagnostics, prototyping new features, or bypassing the built-in abstractions when needed.
 
 Consistency Across Modules
 --------------------------
 
-The three interface levels are consistently implemented across all major simulation modules:
+The interface levels presented in this section are consistently implemented across all major simulation modules:
 
 - Scanning of input maps, see here :ref:`mapscanning`,
 - Beam simulation and convolution, see here :ref:`beamconvolution`,
