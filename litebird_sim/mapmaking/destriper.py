@@ -451,12 +451,10 @@ def _store_pixel_idx_and_pol_angle_in_obs(
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         cur_obs.destriper_weights = get_map_making_weights(cur_obs, check=True)
 
-        if hwp is None:
-            hwp_angle = None
-        else:
-            hwp_angle = _get_hwp_angle(
-                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
-            )
+        # Determine the HWP angle to use:
+        # - If an external HWP object is provided, compute the angle from it
+        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         (
             cur_obs.destriper_pixel_idx,

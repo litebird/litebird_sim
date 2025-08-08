@@ -272,6 +272,17 @@ def scan_map(
         else:
             # This implements:
             # (1,0,0,0) x Mpol(ρ) x Rpol(θ) x Rhwp(α)^T x Mhwp x Rhwp(α) x Rtel(ψ) x Stokes
+
+            # Ensure mueller_hwp is a valid 4x4 numpy array for non-ideal HWP
+            if not (
+                isinstance(mueller_hwp[detector_idx], np.ndarray)
+                and mueller_hwp[detector_idx].shape == (4, 4)
+            ):
+                raise ValueError(
+                    "scan_map with non-ideal HWP works only if mueller_hwp is a 4x4 numpy array; "
+                    f"got type {type(mueller_hwp[detector_idx])} and shape {getattr(mueller_hwp[detector_idx], 'shape', None)}"
+                )
+
             scan_map_generic_hwp_for_one_detector(
                 tod_det=tod[detector_idx],
                 input_T=input_T,
@@ -429,13 +440,10 @@ def scan_map_in_observations(
             )
             input_names = None
 
-        if hwp is None:
-            hwp_angle = None
-        else:
-            # If you pass an external HWP, get hwp_angle here, otherwise this is handled in scan_map
-            hwp_angle = _get_hwp_angle(
-                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
-            )
+        # Determine the HWP angle to use:
+        # - If an external HWP object is provided, compute the angle from it
+        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         scan_map(
             tod=getattr(cur_obs, component),

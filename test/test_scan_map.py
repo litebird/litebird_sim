@@ -385,3 +385,192 @@ def test_scanning_list_of_obs_in_other_component(tmp_path):
     # Check that "fg_tod" has some non-zero data in it, as
     # all the pixels in the foreground map have nonzero pixels
     assert np.sum(np.abs(sim.observations[0].fg_tod)) > 0.0
+
+
+def test_scan_map_algebras():
+    start_time = 0
+    time_span_s = 30 * 24 * 3600
+    nside = 256
+    sampling_hz = 1
+    net = 50.0
+    hwp_radpsec = 4.084_070_449_666_731
+    tolerance = 1e-5
+
+    hpx = Healpix_Base(nside, "RING")
+
+    npix = lbs.nside_to_npix(nside)
+
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=12345
+    )
+
+    scanning = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=0.785_398_163_397_448_3,
+        precession_rate_hz=8.664_850_513_998_931e-05,
+        spin_rate_hz=0.000_833_333_333_333_333_4,
+        start_time=start_time,
+    )
+
+    instr = lbs.InstrumentInfo(
+        boresight_rotangle_rad=0.0,
+        spin_boresight_angle_rad=0.872_664_625_997_164_8,
+        spin_rotangle_rad=3.141_592_653_589_793,
+    )
+
+    sim.set_scanning_strategy(scanning)
+
+    sim.set_instrument(instr)
+
+    detT = lbs.DetectorInfo(
+        name="Boresight_detector_T",
+        sampling_rate_hz=sampling_hz,
+        net_ukrts=net,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+        pol_angle_rad=0.0,
+    )
+
+    detB = lbs.DetectorInfo(
+        name="Boresight_detector_B",
+        sampling_rate_hz=sampling_hz,
+        net_ukrts=net,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+        pol_angle_rad=np.pi / 2.0,
+    )
+
+    np.random.seed(seed=123_456_789)
+    maps = np.random.normal(0, 1, (3, npix))
+
+    # This part tests the ecliptic coordinates
+    in_map = {
+        "Boresight_detector_T": maps,
+        "Boresight_detector_B": maps,
+        "Coordinates": lbs.CoordinateSystem.Ecliptic,
+    }
+
+    (obs,) = sim.create_observations(detectors=[detT, detB])
+    tod = np.empty_like(obs.tod)
+
+    # standard computation with HWP:
+    # - set the HWP in the simulation
+    # - then fill_tods
+    hwp = lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec)
+
+    sim.set_hwp(hwp)
+
+    sim.prepare_pointings()
+
+    sim.fill_tods(in_map, input_map_in_galactic=False)
+
+    for idet in range(obs.n_detectors):
+        pointings, hwp_angle = obs.get_pointings(idet)
+        pixind = hpx.ang2pix(pointings[:, 0:2])
+        angle = 2 * pointings[:, 2] - 2 * obs.pol_angle_rad[idet] + 4 * hwp_angle
+        tod[idet, :] = (
+            maps[0, pixind]
+            + np.cos(angle) * maps[1, pixind]
+            + np.sin(angle) * maps[2, pixind]
+        )
+
+    np.testing.assert_allclose(
+        obs.tod,
+        tod,
+        rtol=tolerance,
+        atol=0.1,
+    )
+
+    sim.nullify_tod()
+
+    # here we use the low level function scan_map_in_observations
+    # passing an external HWP
+    # - so we initialize a new instance of the class HWP
+    # - then we call scan_map_in_observations
+    hwp_new = lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec * 0.5)
+
+    lbs.scan_map_in_observations(
+        observations=obs,
+        maps=in_map,
+        hwp=hwp_new,
+        input_map_in_galactic=False,
+        interpolation=None,
+    )
+
+    for idet in range(obs.n_detectors):
+        pointings, _ = obs.get_pointings(idet)
+        pixind = hpx.ang2pix(pointings[:, 0:2])
+        hwp_angle = lbs.pointings_in_obs._get_hwp_angle(obs, hwp_new)
+        angle = 2 * pointings[:, 2] - 2 * obs.pol_angle_rad[idet] + 4 * hwp_angle
+        tod[idet, :] = (
+            maps[0, pixind]
+            + np.cos(angle) * maps[1, pixind]
+            + np.sin(angle) * maps[2, pixind]
+        )
+
+    np.testing.assert_allclose(
+        obs.tod,
+        tod,
+        rtol=tolerance,
+        atol=0.1,
+    )
+
+    sim.nullify_tod()
+
+    # here same as before but precomputing the pointing information
+    obs.precompute_pointings()
+
+    lbs.scan_map_in_observations(
+        observations=obs,
+        maps=in_map,
+        hwp=hwp_new,
+        input_map_in_galactic=False,
+        interpolation=None,
+    )
+
+    for idet in range(obs.n_detectors):
+        pointings = obs.pointing_matrix[idet]
+        pixind = hpx.ang2pix(pointings[:, 0:2])
+        hwp_angle = lbs.pointings_in_obs._get_hwp_angle(obs, hwp_new)
+        angle = 2 * pointings[:, 2] - 2 * obs.pol_angle_rad[idet] + 4 * hwp_angle
+        tod[idet, :] = (
+            maps[0, pixind]
+            + np.cos(angle) * maps[1, pixind]
+            + np.sin(angle) * maps[2, pixind]
+        )
+
+    np.testing.assert_allclose(
+        obs.tod,
+        tod,
+        rtol=tolerance,
+        atol=0.1,
+    )
+
+    # here we test the algebra in absence of HWP
+    sim = lbs.Simulation(
+        start_time=start_time, duration_s=time_span_s, random_seed=12345
+    )
+    sim.set_scanning_strategy(scanning)
+    sim.set_instrument(instr)
+
+    (obs,) = sim.create_observations(detectors=[detT, detB])
+
+    sim.prepare_pointings()
+
+    sim.fill_tods(in_map, input_map_in_galactic=False)
+
+    for idet in range(obs.n_detectors):
+        pointings, _ = obs.get_pointings(idet)
+        pixind = hpx.ang2pix(pointings[:, 0:2])
+        angle = 2 * pointings[:, 2] + 2 * obs.pol_angle_rad[idet]
+        tod[idet, :] = (
+            maps[0, pixind]
+            + np.cos(angle) * maps[1, pixind]
+            + np.sin(angle) * maps[2, pixind]
+        )
+
+    np.testing.assert_allclose(
+        obs.tod,
+        tod,
+        rtol=tolerance,
+        atol=0.1,
+    )
