@@ -438,9 +438,7 @@ class Simulation:
             self.base_path = Path()
 
         self.base_path = Path(self.base_path)
-        # Create any parent folder, and don't complain if the folder
-        # already exists
-        self.base_path.mkdir(parents=True, exist_ok=True)
+        self._ensure_base_path_exists()
 
         if parameter_file:
             # Copy the parameter file to the output directory only if
@@ -503,6 +501,12 @@ class Simulation:
         # Initialize self.RNG_hierarchy. The user is free to
         # call self.init_random() again later
         self.init_rng_hierarchy(self.random_seed)
+
+    def _ensure_base_path_exists(self) -> None:
+        assert self.base_path is not None
+        # Create any parent folder, and don't complain if the folder
+        # already exists
+        self.base_path.mkdir(parents=True, exist_ok=True)
 
     def init_rng_hierarchy(self, random_seed):
         """
@@ -890,6 +894,8 @@ class Simulation:
     def _generate_profile_file(self, file_name: str):
         if not self.profile_time:
             return
+
+        self._ensure_base_path_exists()
 
         output_file_path = self.base_path / file_name
         with output_file_path.open("wt") as out_file:
