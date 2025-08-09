@@ -2363,6 +2363,8 @@ class Simulation:
                 else brahmap_result,
             )
 
+        return brahmap_result
+
     @_profile
     def write_observations(
         self,
