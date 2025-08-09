@@ -3,6 +3,10 @@
 Convolve Alms with a Beam to fill a TOD
 =======================================
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+
 The framework provides the function :func:`.add_convolved_sky`, which performs 
 harmonic-space convolution of sky and beam alms, filling the detector timestreams. 
 It supports both cases, with and without the HWP. The relevant mathematical details 
@@ -158,20 +162,27 @@ If convolution parameters are omitted, defaults are inferred from sky and beam a
 Container for Spherical Harmonics
 ---------------------------------
 
-The :class:`SphericalHarmonics` class stores spherical harmonic coefficients. 
-In libraries like HealPy, alms are stored in NumPy arrays, but their ℓ_max and
-m_max values cannot be uniquely determined from array size (except when ℓ_max = m_max). 
-This class ensures proper handling, enforcing `mmax ≤ lmax` and consistently 
-using shape `(nstokes, ncoeff)`.
+The :class:`SphericalHarmonics` class stores spherical harmonic coefficients
+(a_{ℓm}) together with their associated metadata, such as `lmax`, `mmax`, and
+the number of Stokes parameters (`nstokes`).
 
-The class :class:`SphericalHarmonics` serves a container for the spherical harmonics 
-coefficients. The convention used in libraries like HealPy is to keep the a_ℓm coefficients
-of a spherical harmonic expansion in a plain NumPy array. However, this is
-ambiguous because it is not possible to uniquely determine the value of
-ℓ_max and m_max from the size of the array (unless you assume that ℓ_max == m_max)
-This class allows to store any set of alms with the only restriction that `m_max≤l_max`
-The shape of alms stored is *always* ``(nstokes, ncoeff)``, even if ``nstokes == 1``
-It also provides :func:`.resize_alm`, allowing alms to be resized via zero-padding or truncation. 
+In libraries like HealPy, the a_{ℓm} coefficients are stored in plain NumPy arrays.
+However, this representation is ambiguous: the values of `lmax` and `mmax` cannot
+be uniquely inferred from the array size unless one assumes `lmax == mmax`.
+
+This class provides an explicit and robust interface to spherical harmonic data,
+allowing `mmax ≤ lmax` and supporting polarized (3-Stokes) and intensity-only
+(1-Stokes) cases. Internally, the coefficients are stored in a NumPy array
+of shape ``(nstokes, ncoeff)`` — this shape is always enforced, even for scalar
+(intensity-only) data.
+
+It supports:
+- Shape validation against `lmax` and `mmax`
+- Safe algebraic operations (addition, scaling, convolution)
+- Resizing via zero-padding or truncation
+- I/O through Healpy-compatible FITS files
+
+ 
 Example usage:
 
 .. testcode::
@@ -238,7 +249,7 @@ The parameters are:
 - `mmax`: Maximum harmonic order. Defaults to lmax.
 - `store_in_observation`: If True, the result is stored in the observation.blms attribute. Default False
 
-It returns a dictionary mapping each detector name to its corresponding :class:`SphericalHarmonics` object.
+The function :func:`.generate_gauss_beam_alms` returns a dictionary mapping each detector name to its corresponding :class:`SphericalHarmonics` object.
 This is simple example of usage::
 
   blms = lbs.generate_gauss_beam_alms(
@@ -247,6 +258,27 @@ This is simple example of usage::
       store_in_observation=True
   )
 
+
+
+Loading TICRA GRASP files
+-------------------------
+
+LBS incorporates a patched version of the `grasp2alm <https://github.com/yusuke-takase/grasp2alm>`_ library by Yusuke Takase, which is a Python port of the Fortran code found in `Planck Level-S <https://sourceforge.net/projects/planck-ls/>`_.
+This library lets to load `.grd` and `.cut` files created using TICRA GRASP, a simulation tool for reflector antennas, and convert them into spherical harmonics coefficients that can be passed to the 4π beam convolution module.
+The two core functionalities are provided by :func:`.ticra_grid_to_alm` and :func:`.ticra_cut_to_alm`, which convert a grid/cut file into a :class:`.SphericalHarmonics` object.
+Both functions require a `file`-like object as input::
+
+    with open("my_grasp_file.grd", "rt") as file_obj:
+        harmonics = lbs.ticra_grid_to_alm(file_obj)
+
+
+These functions rely on the following procedure:
+
+1. The GRASP file is loaded in memory, using either a :class:`.BeamCut` or a :class:`.BeamGrid` instance.
+2. The electric field E is converted into Stokes I/Q/U parameters and saved in a :class:`.BeamStokesPolar` object, which uses (θ, φ) coordinates to store the directions on the 4π sphere where the Stokes parameters have been calculated.
+3. The :class:`.BeamStokesPolar` object is converted into a Healpix map via the class :class:`.BeamHealpixMap`, which employs a simple binning procedure.
+4. The spherical harmonic coefficients are computed from the Healpix map using Ducc.
+   
 
 Methods of the Simulation class
 -------------------------------
@@ -364,4 +396,7 @@ API reference
     :members:
 
 .. automodule:: litebird_sim.beam_synthesis
+    :members:
+
+.. automodule:: litebird_sim.grasp2alm
     :members:

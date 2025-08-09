@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import numpy as np
 from numpy import sqrt, exp, sin, cos, log
@@ -8,6 +8,8 @@ from scipy.special import iv as bessel_i
 
 from .spherical_harmonics import SphericalHarmonics
 from .observations import Observation
+
+from .detectors import FreqChannelInfo
 
 from .constants import ARCMIN_TO_RAD
 
@@ -204,6 +206,7 @@ def generate_gauss_beam_alms(
     observation: Observation,
     lmax: int,
     mmax: Optional[int] = None,
+    channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
     store_in_observation: Optional[bool] = False,
 ):
     """
@@ -223,6 +226,9 @@ def generate_gauss_beam_alms(
         Maximum spherical harmonic degree ℓ_max.
     mmax : int, optional
         Maximum spherical harmonic order m_max. If None, it defaults to `lmax`.
+    channels : FreqChannelInfo or list of FreqChannelInfo, optional
+        Frequency channels to use in the simulation. If None, it uses the detectors
+        from the current observations.
     store_in_observation : bool, optional
         If True, the computed blms will be stored in the `blms` attribute of
         the observation object.
@@ -235,18 +241,37 @@ def generate_gauss_beam_alms(
     mmax_val = mmax or lmax  # Use mmax if provided, else default to lmax
 
     blms = {}
-    for detector_idx, det_name in enumerate(observation.name):
-        fwhm_rad = observation.fwhm_arcmin[detector_idx] * ARCMIN_TO_RAD
 
-        blms[det_name] = gauss_beam_to_alm(
-            lmax=lmax,
-            mmax=mmax_val,
-            fwhm_rad=fwhm_rad,
-            ellipticity=observation.ellipticity[detector_idx],
-            psi_ell_rad=observation.psi_rad[detector_idx],
-            psi_pol_rad=observation.pol_angle_rad[detector_idx],
-            cross_polar_leakage=0,
-        )
+    if channels is None:
+        # Use detectors from observations
+        for detector_idx, det_name in enumerate(observation.name):
+            fwhm_rad = observation.fwhm_arcmin[detector_idx] * ARCMIN_TO_RAD
+
+            blms[det_name] = gauss_beam_to_alm(
+                lmax=lmax,
+                mmax=mmax_val,
+                fwhm_rad=fwhm_rad,
+                ellipticity=observation.ellipticity[detector_idx],
+                psi_ell_rad=observation.psi_rad[detector_idx],
+                psi_pol_rad=observation.pol_angle_rad[detector_idx],
+                cross_polar_leakage=0,
+            )
+    else:
+        # Use explicitly provided frequency channels
+        channel_list = [channels] if isinstance(channels, FreqChannelInfo) else channels
+
+        for channel in channel_list:
+            fwhm_rad = channel.fwhm_arcmin * ARCMIN_TO_RAD
+            blms[channel.channel] = gauss_beam_to_alm(
+                lmax=lmax,
+                mmax=mmax_val,
+                fwhm_rad=fwhm_rad,
+                ellipticity=channel.ellipticity,
+                psi_ell_rad=channel.psi_rad,
+                psi_pol_rad=0,
+                cross_polar_leakage=0,
+            )
+
     if store_in_observation:
         observation.blms = blms
 

@@ -3,6 +3,10 @@
 Map-making
 ==========
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+
 The primary aim of the LiteBIRD Simulation Framework is to create
 synthetic timestreams as if the real LiteBIRD acquired them.
 The process of creating maps out of these timelines is
@@ -91,6 +95,7 @@ The paper :cite:`2009:kurkisuonio:destriping` explains
 the theory of binners and destripers. Our implementation
 closely follows the terminology used in the paper. In
 this chapter, we will refer to the paper as KS2009.
+
 
 .. _mapmaking-binner:
 
@@ -692,6 +697,106 @@ destriper runs. Therefore, the destriper will only use the samples
 within the split to compute the baselines.
 
 
+BrahMap GLS mapmaker
+--------------------
+
+If you have installed the `BrahMap <https://github.com/anand-avinash/BrahMap>`_, you
+can use it seemlessly within the LiteBIRD Simulation Framework through
+:func:`.make_brahmap_gls_map`. This provides a high-level interface with BrahMap to
+perform optimal mapmaking with different noise covariance operators. These operators
+can be defined using BrahMap and can be used in the interface directly.
+
+The MPI communicator used in map-making must be the one that contains
+exclusively all the data needed for map-making. In case of `litebird_sim`, the
+communicator `lbs.MPI_COMM_WORLD`. Therefore, it is a suitable communicator to be
+used in map-making. Hence, communicator used by
+`BrahMap` must be updated as following before using any other `BrahMap`
+function with `litebird_sim` data:
+`brahmap.MPI_UTILS.update_communicator(comm=lbs.MPI_COMM_WORLD)`
+
+.. code-block:: python
+
+  # Creating the inverse white noise covariance operator
+  inv_cov = brahmap.InvNoiseCovLO_Uncorrelated(
+      diag=[...],       # Diagonal elements of the inverse of white noise covariance
+                        # matrix
+
+      dtype=np.float64, # Numerical precision of the operator
+  )
+
+  # Performing the GLS map-making
+  gls_result = brahmap.LBSim_compute_GLS_maps(
+      nside=nside,                    # Nside parameter for the output healpix map
+      observations=sim.observations,  # List of observations from litebird_sim
+      components="tod",                # TOD components to be used in map-making
+      inv_noise_cov_operator=inv_cov, # Inverse noise covariance operator
+      dtype_float=np.float64,         # Numerical precision to be used in map-making
+  )
+
+`gls_result` obtained above is an instance of the class `LBSimGLSResult`. The
+output maps can be accessed from this object with `gls_result.GLS_maps`.
+For further details refer to
+`BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.
+
+
+High level interface and data-splits
+------------------------------------
+
+The functions :meth:`Simulation.make_binned_map`, :meth:`Simulation.make_destriped_map`,
+and :meth:`Simulation.make_brahmap_gls_map` provide high-level access to the main map-making pipelines
+offered in ``litebird_sim``. These interfaces simplify the process of generating maps from simulated data
+and are well-integrated into the overall simulation flow via the :class:`Simulation` class.
+
+In addition to single-map outputs, these methods support automatic splitting of the data along both
+time and detector axes, enabling efficient generation of subsets for validation, null tests, and systematics control.
+
+Since the class :class:`Simulation` is interfaced to
+:func:`litebird_sim.make_binned_map` and :func:`litebird_sim.make_destriped_map`,
+it is able to provide data splits both in time and detector space (see :ref:`mapmaking`
+for more details on the splitting and the available options).
+In addition, the class contains :meth:`Simulation.make_binned_map_splits`,
+which is a wrapper around :func:`litebird_sim.make_binned_map`,
+and :meth:`Simulation.make_destriped_map_splits`, which is a wrapper
+around :func:`litebird_sim.make_destriped_map`.
+These allow performing the mapmaking on multiple choices
+of splits at once (passed as a list of strings).
+Indeed, the functions will loop over the cartesian
+product of the time and detector splits. The default
+behavior is to perform the mapmaking in each combination
+and save the result to disk, to avoid memory issues.
+In particular, in the case of :meth:`Simulation.make_binned_map_splits`,
+only the binned maps are saved to disk, unless you set
+``include_inv_covariance`` to ``True``. This saves the elements of
+the inverse covariance as extra fields in the output FITS file.
+This default behavior can be changed by setting the ``write_to_disk`` parameter
+to ``False``. Then, the function returns a dictionary
+containing the full results of the mapmaking for each split.
+The keys are strings that describe the split in the
+format ``"{Dsplit}_{Tsplit}"``, such as ``"waferL00_year1"``.
+On the other hand, the default behavior of
+:meth:`Simulation.make_destriped_map_splits` is to save to disk
+the complete :class:`mapmaking.DestriperResult` class for each
+split as a FITS file. To avoid this and get a dictionary similar to the one returned
+by :meth:`Simulation.make_binned_map_splits`, you can set the
+``write_to_disk`` parameter to ``False``.
+
+The method :meth:`Simulation.make_destriped_map_splits` also offers the
+possibility to recycle the baseline computed from the largest split available.
+Indeed, if the flag ``recycle_baselines`` is set to ``True``, that method enforces
+the computation of the ``"full_full"`` split and then reuses the baselines
+computed for that split for all the other splits.
+
+Before performing the computation, the function :meth:`Simulation.check_valid_splits`
+will check whether the requested split is valid (see :ref:`mapmaking`).
+This is a wrapper around :func:`litebird_sim.check_valid_splits`. If the
+split is not valid, the function will raise a ``ValueError``. In addition, it
+will check whether the requested split is compatible with the duration of
+the observation and with the detector list. Thus, for example, if the
+observation lasts 1 year, the split ``"year2"`` will raise an ``AssertionError``. Similarly,
+if the observation is performed with some detector contained in the L00
+wafer, the split ``"waferL03"`` will also raise an ``AssertionError``.
+
+
 Saving files for Madam
 ----------------------
 
@@ -912,48 +1017,6 @@ information needed to do this programmatically:
 You can include this snippet of code in the script that calls
 :func:`.save_simulation_for_madam`, so that the procedure will
 be 100% automated.
-
-
-BrahMap GLS mapmaker
---------------------
-
-If you have installed the `BrahMap <https://github.com/anand-avinash/BrahMap>`_, you
-can use it seemlessly within the LiteBIRD Simulation Framework through
-:func:`.make_brahmap_gls_map`. This provides a high-level interface with BrahMap to
-perform optimal mapmaking with different noise covariance operators. These operators
-can be defined using BrahMap and can be used in the interface directly.
-
-The MPI communicator used in map-making must be the one that contains
-exclusively all the data needed for map-making. In case of `litebird_sim`, the
-communicator `lbs.MPI_COMM_WORLD`. Therefore, it is a suitable communicator to be
-used in map-making. Hence, communicator used by
-`BrahMap` must be updated as following before using any other `BrahMap`
-function with `litebird_sim` data:
-`brahmap.MPI_UTILS.update_communicator(comm=lbs.MPI_COMM_WORLD)`
-
-.. code-block:: python
-
-  # Creating the inverse white noise covariance operator
-  inv_cov = brahmap.InvNoiseCovLO_Uncorrelated(
-      diag=[...],       # Diagonal elements of the inverse of white noise covariance
-                        # matrix
-
-      dtype=np.float64, # Numerical precision of the operator
-  )
-
-  # Performing the GLS map-making
-  gls_result = brahmap.LBSim_compute_GLS_maps(
-      nside=nside,                    # Nside parameter for the output healpix map
-      observations=sim.observations,  # List of observations from litebird_sim
-      component="tod",                # TOD component to be used in map-making
-      inv_noise_cov_operator=inv_cov, # Inverse noise covariance operator
-      dtype_float=np.float64,         # Numerical precision to be used in map-making
-  )
-
-`gls_result` obtained above is an instance of the class `LBSimGLSResult`. The
-output maps can be accessed from this object with `gls_result.GLS_maps`.
-For further details refer to
-`BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.
 
 
 API reference

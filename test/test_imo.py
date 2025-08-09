@@ -111,3 +111,15 @@ def test_imo_entry_hierarchy():
     uuid = UUID("04c53542-e8a8-421f-aa3c-201abba1575d")
     child_entity = imo.query_entity(uuid)
     assert child_entity.parent == UUID("2180affe-f9c3-4048-a407-6bd4d3ad71e5")
+
+
+def test_open_data_file():
+    imo = load_test_imo()
+
+    data_file = imo.query_data_file(UUID("37bb70e4-29b2-4657-ba0b-4ccefbc5ae36"))
+    with imo.open_data_file(data_file) as f:
+        import json
+
+        data = json.load(f)
+        assert "test_field" in data
+        assert data["test_field"] == 10.0

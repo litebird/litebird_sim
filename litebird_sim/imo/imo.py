@@ -3,7 +3,7 @@
 import importlib
 import logging as log
 from pathlib import Path
-from typing import Union, List
+from typing import Union, List, IO
 from uuid import UUID
 
 import tomlkit
@@ -179,3 +179,7 @@ class Imo:
         """Return a list of the UUIDs of data files queried so far."""
 
         return [x[1] for x in self.queried_objects if x[0] == DataFile]
+
+    def open_data_file(self, data_file: DataFile) -> IO:
+        "Open the specified data file and return a context manager"
+        return data_file.open_data_file(self.imoobject)

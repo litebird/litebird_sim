@@ -24,12 +24,39 @@ def prepare_pointings(
     spin2ecliptic_quats: RotQuaternion,
     hwp: Optional[HWP] = None,
 ) -> None:
-    """Store the quaternions needed to compute pointings into a list of :class:`.Observation` objects
+    """Initialize pointing and HWP information for one or more observations.
 
-    This function computes the quaternions that convert the boresight direction
-    of `instrument` into the Ecliptic reference frame. The `spin2ecliptic_quats`
-    object must be an instance of the :class:`.RotQuaternion` class and can
-    be created using the method :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+    This function computes the boresight-to-Ecliptic quaternions for the given instrument
+    and applies them to one or more :class:`.Observation` objects. It initializes the
+    :class:`.PointingProvider` for each observation, enabling future computation of
+    detector pointing angles and HWP angles.
+
+    The quaternion applied is the product of the global spin-to-Ecliptic rotation and the
+    instrument's internal boresight-to-spin rotation. Optionally, a Half-Wave Plate (HWP)
+    model can be passed and automatically propagated to the detectors in each observation.
+
+    Args:
+        observations (Observation or List[Observation]):
+            A single observation or a list of :class:`.Observation` objects to configure.
+
+        instrument (InstrumentInfo):
+            The instrument definition, including the internal rotation from boresight to spin axis.
+
+        spin2ecliptic_quats (RotQuaternion):
+            Time-dependent quaternion representing the rotation from the instrument spin frame
+            to the Ecliptic reference frame. Typically generated using
+            :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+
+        hwp (Optional[HWP]):
+            An optional Half-Wave Plate model to attach to the observations.
+
+    Returns:
+        None
+
+    Notes:
+        This function is typically used in preparation for generating time-domain pointings.
+        Once this setup is complete, calling `obs.get_pointings()` will produce properly
+        oriented (θ, φ, ψ) coordinates, and if applicable, HWP angles.
     """
 
     if isinstance(observations, Observation):
@@ -47,11 +74,35 @@ def precompute_pointings(
     observations: Union[Observation, List[Observation]],
     pointings_dtype=np.float64,
 ) -> None:
-    """Precompute all the pointings for a set of observations
+    """Precompute pointing angles and HWP angles for a set of observations.
 
-    Compute the full pointing matrix and the HWP angle for each :class:`.Observation`
-    object in `obs_list` and store them in the fields ``pointing_matrix`` and ``hwp_angle``.
-    The datatype for the pointings is specified by `pointings_dtype`.
+    This function triggers the computation of the full time-domain pointing matrix
+    and, if applicable, the HWP angle vector for one or more :class:`.Observation`
+    instances. The results are stored internally in each observation's
+    ``pointing_matrix`` and ``hwp_angle`` fields.
+
+    This is typically used to cache pointing-related data in advance, avoiding the
+    need for on-the-fly computation during scanning or map-making operations.
+
+    Args:
+        observations (Observation or List[Observation]):
+            A single observation or a list of observations for which pointings should be precomputed.
+
+        pointings_dtype (data-type, optional):
+            Data type to use when allocating the pointing and HWP arrays.
+            Defaults to `np.float64`.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError:
+            If any observation does not have a pointing provider initialized.
+            Make sure to call :func:`prepare_pointings()` beforehand.
+
+    Notes:
+        - This function must be called after pointing setup (i.e., after `prepare_pointings()`).
+        - Output arrays are stored in `Observation.pointing_matrix` and `Observation.hwp_angle`.
     """
 
     if isinstance(observations, Observation):
@@ -66,7 +117,8 @@ def precompute_pointings(
 @deprecated(
     version="0.15.0",
     reason="This function adds the HWP angle to the orientation, but this is logically wrong "
-    "now that LBS keeps track of ψ, the polarization angle, and the HWP angle in separate places.",
+    "now that LBS keeps track of ψ the orientation of the telescope, the polarization angle θ, "
+    "and the HWP angle in separate places.",
 )
 def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
     """Modify a pointing matrix to consider the effect of a HWP
@@ -114,32 +166,35 @@ def _get_hwp_angle(
     if hwp is None:
         if obs.has_hwp:
             if hasattr(obs, "hwp_angle"):
-                hwp_angle = obs.hwp_angle
+                return obs.hwp_angle
             else:
-                hwp_angle = obs.get_hwp_angle(pointings_dtype=pointing_dtype)
+                return obs.get_hwp_angle(pointings_dtype=pointing_dtype)
         else:
             if hasattr(obs, "mueller_hwp"):
-                assert all(m is None for m in obs.mueller_hwp), (
-                    "Detectors have been initialized with a mueller_hwp,"
-                    "but no HWP is either passed or initilized in the pointing"
-                )
-            hwp_angle = None
+                if any(m is not None for m in obs.mueller_hwp):
+                    raise AssertionError(
+                        "Detectors have been initialized with a mueller_hwp, "
+                        "but no HWP is either passed or initialized in the pointing."
+                    )
+            return None
     else:
+        # Compute HWP angle from HWP object
         start_time = obs.start_time - obs.start_time_global
-        if isinstance(start_time, astropy.time.TimeDelta):
-            start_time_s = start_time.to("s").value
-        else:
-            start_time_s = start_time
+        start_time_s = (
+            start_time.to("s").value
+            if isinstance(start_time, astropy.time.TimeDelta)
+            else start_time
+        )
 
-        hwp_angle = np.empty(obs.n_samples)
-
+        hwp_angle = np.empty(obs.n_samples, dtype=pointing_dtype)
         hwp.get_hwp_angle(
             hwp_angle,
             start_time_s,
             1.0 / obs.sampling_rate_hz,
         )
 
-    return hwp_angle
+        obs.has_hwp = True
+        return hwp_angle
 
 
 def _get_pol_angle(
@@ -152,7 +207,7 @@ def _get_pol_angle(
     Parameters
     ----------
     curr_pointings_det : np.ndarray
-        Pointing information of the detector
+        Pointing information of the detector, here we take just the orientation
     hwp_angle : Union[np.ndarray, None]
         An array containing the HWP angle or `None`
     pol_angle_detectors : float
@@ -178,41 +233,43 @@ def _get_pointings_array(
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
 ) -> Tuple[np.ndarray, Union[np.ndarray], None]:
-    """Computes the pointings (θ and φ) and HWP angle
+    """Compute the pointings (θ, φ) and HWP angle for a given detector.
 
     Parameters
     ----------
     detector_idx : int
-        Detector index, local to an :class:`.Observation`
+        Index of the detector, local to an :class:`Observation`.
     pointings : Union[npt.ArrayLike, Callable]
-        Pointing information of the detectors stored in an :class:`.Observation`
-    hwp_angle : Union[np.ndarray, None]
-        An array containing the HWP angle of the telescope. If empty this information
-        is taken from the Callable pointings.
+        Pointing information, either a precomputed array or a callable returning
+        (pointings, hwp_angle) for the specified detector.
+    hwp_angle : Optional[np.ndarray]
+        Array of HWP angles. If None, the angle is assumed to be provided by the `pointings` callable.
     output_coordinate_system : CoordinateSystem
-        Coordinate system of the output pointings
-    pointing_dtype : dtype, optional
-        The dtype for the computed hwp angle, by default `np.float64`
+        Desired coordinate system for the output pointings.
+    pointings_dtype : np.dtype, optional
+        Data type for computed pointings and angles. Default is `np.float64`.
 
     Returns
     -------
-    Tuple[np.ndarray, Union[np.ndarray, None]]
-        A tuple (pointings, hwp_angle), where `pointings` is an array of shape [n_samples, 2]
-        and `hwp_angle` is either the input array (if `hwp_angle` is an array) or the value
-        returned by the callable.
+    Tuple[np.ndarray, Optional[np.ndarray]]
+        A tuple `(pointings, hwp_angle)`, where:
+          - `pointings` is an array of shape (n_samples, 2) with [θ, φ].
+          - `hwp_angle` is either the provided array or the one computed by the callable.
     """
-    if type(pointings) is np.ndarray:
+    if isinstance(pointings, np.ndarray):
         curr_pointings_det = pointings[detector_idx, :, :]
-        angle = None
+        computed_hwp_angle = None
     else:
-        curr_pointings_det, angle = pointings(
+        curr_pointings_det, computed_hwp_angle = pointings(
             detector_idx, pointings_dtype=pointings_dtype
         )
 
     if output_coordinate_system == CoordinateSystem.Galactic:
         curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
-    return curr_pointings_det, hwp_angle if type(hwp_angle) is np.ndarray else angle
+    return curr_pointings_det, hwp_angle if isinstance(
+        hwp_angle, np.ndarray
+    ) else computed_hwp_angle
 
 
 def _get_centered_pointings(
