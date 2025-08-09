@@ -2324,13 +2324,17 @@ class Simulation:
         inv_noise_cov_operator=None,
         threshold: float = 1.0e-5,
         pointings_dtype=np.float64,
-        gls_params=None,
-    ):
+        gls_params: Optional["brahmap.LBSimGLSParameters"] = None,  # noqa
+        append_to_report: bool = True,
+    ) -> Union[
+        "brahmap.LBSimGLSResult",  # noqa
+        tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],  # noqa
+    ]:
         """Wrapper to the GLS map-maker of BrahMap.
 
         For details, see the low-level interface in :func:`litebird_sim.mapmaking.brahmap_gls`.
         """
-        return make_brahmap_gls_map(
+        brahmap_result = make_brahmap_gls_map(
             nside=nside,
             observations=self.observations,
             components=components,
@@ -2340,6 +2344,26 @@ class Simulation:
             pointings_dtype=pointings_dtype,
             gls_params=gls_params,
         )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            import brahmap  # noqa
+
+            template_file_path = get_template_file_path("report_brahmap.md")
+            brahmap_version = getattr(brahmap, "__version__", "unknown")
+            brahmap_hash = getattr(brahmap, "__git_hash__", "unknown")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_text=markdown_template,
+                brahmap_version=brahmap_version,
+                brahmap_hash=brahmap_hash,
+                gls_params=gls_params,
+                gls_result=brahmap_result[1]
+                if isinstance(brahmap_result, tuple)
+                else brahmap_result,
+            )
+
+        return brahmap_result
 
     @_profile
     def write_observations(
