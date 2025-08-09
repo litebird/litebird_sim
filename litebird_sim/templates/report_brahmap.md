@@ -1,7 +1,7 @@
 ## BrahMap GLS
 
 - BrahMap version: `{{ brahmap_version }}`
-- BrahMap Git hash: [`{{ brahmap_hash }}`](https://github.com/anand-avinash/BrahMap/tree/{{ brahmap_hash }})
+- BrahMap Git hash: `{{ brahmap_hash }}`
 
 ### Input parameters
 
