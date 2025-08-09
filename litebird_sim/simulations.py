@@ -2346,7 +2346,8 @@ class Simulation:
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-            import brahmap # noqa
+            import brahmap  # noqa
+
             template_file_path = get_template_file_path("report_brahmap.md")
             brahmap_version = getattr(brahmap, "__version__", "unknown")
             brahmap_hash = getattr(brahmap, "__git_hash__", "unknown")
@@ -2357,7 +2358,9 @@ class Simulation:
                 brahmap_version=brahmap_version,
                 brahmap_hash=brahmap_hash,
                 gls_params=gls_params,
-                gls_result=brahmap_result[1] if isinstance(brahmap_result, tuple) else brahmap_result,
+                gls_result=brahmap_result[1]
+                if isinstance(brahmap_result, tuple)
+                else brahmap_result,
             )
 
     @_profile
