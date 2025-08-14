@@ -3,6 +3,10 @@
 Scanning strategy
 =================
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+   
 The LiteBIRD Simulation Framework provides a set of tools to simulate
 the orbit of the spacecraft and compute the directions where each
 detector is looking at the sky as a function of time. The time stream

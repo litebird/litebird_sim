@@ -3,6 +3,10 @@
 Convolve Alms with a Beam to fill a TOD
 =======================================
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+
 The framework provides the function :func:`.add_convolved_sky`, which performs 
 harmonic-space convolution of sky and beam alms, filling the detector timestreams. 
 It supports both cases, with and without the HWP. The relevant mathematical details 

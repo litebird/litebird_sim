@@ -3,6 +3,10 @@
 Dipole anisotropy
 =================
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+
 The LiteBIRD Simulation Framework provides tools to simulate the
 signal associated with the relative velocity between the rest frame of
 the spacecraft with respect to the CMB. The motion of the spacecraft

@@ -4,6 +4,7 @@ Structure of the framework
 .. toctree::
    :maxdepth: 1
 
+   interfaces.rst
    simulations.rst
    imo.rst
    detectors.rst

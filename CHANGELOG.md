@@ -4,6 +4,8 @@
 
 -   Fix incorrect handling of HWP with precomputed pointing [#456](https://github.com/litebird/litebird_sim/pull/456)
 
+-   Improve the documentation [#450](https://github.com/litebird/litebird_sim/pull/450)
+
 -   New method `Imo.open_data_file` [#449](https://github.com/litebird/litebird_sim/pull/449)
 
 -   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
