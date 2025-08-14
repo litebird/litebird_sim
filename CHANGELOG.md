@@ -2,6 +2,8 @@
 
 -   Fix issue [#457](https://github.com/litebird/litebird_sim/issues/457)
 
+-   Fix incorrect handling of HWP with precomputed pointing [#456](https://github.com/litebird/litebird_sim/pull/456)
+
 -   Improve the documentation [#450](https://github.com/litebird/litebird_sim/pull/450)
 
 -   New method `Imo.open_data_file` [#449](https://github.com/litebird/litebird_sim/pull/449)

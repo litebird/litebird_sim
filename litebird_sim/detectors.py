@@ -5,6 +5,7 @@ from typing import Any, Dict, Union, List
 
 from uuid import UUID
 import numpy as np
+import logging as log
 
 import astropy.time as astrotime
 from .imo import Imo
@@ -200,6 +201,17 @@ class DetectorInfo:
 
         if isinstance(self.band_freqs_ghz, np.ndarray):
             assert len(self.band_freqs_ghz) == len(self.band_weights)
+
+        # Warn if mueller_hwp is not a 4x4 numpy array
+        if self.mueller_hwp is not None:
+            if not (
+                isinstance(self.mueller_hwp, np.ndarray)
+                and self.mueller_hwp.shape == (4, 4)
+            ):
+                log.warning(
+                    f"Detector '{self.name}': mueller_hwp is not a 4x4 numpy array "
+                    f"(found type {type(self.mueller_hwp)}, shape {getattr(self.mueller_hwp, 'shape', None)})"
+                )
 
     @staticmethod
     def from_dict(dictionary: Dict[str, Any]):

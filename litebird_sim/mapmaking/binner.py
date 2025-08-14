@@ -210,13 +210,10 @@ def _build_nobs_matrix(
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
 
-        if hwp is None:
-            hwp_angle = None
-        else:
-            # If you pass an external HWP, get hwp_angle here, otherwise this is handled in scan_map
-            hwp_angle = _get_hwp_angle(
-                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
-            )
+        # Determine the HWP angle to use:
+        # - If an external HWP object is provided, compute the angle from it
+        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         pixidx_all, polang_all = _compute_pixel_indices(
             hpx=hpx,
