@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/observations.py: 58%</title>
+    <title>Coverage for litebird_sim/observations.py: 60%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_6b508a39.css" type="text/css">
     <script src="coverage_html_cb_6fb7b396.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim/observations.py</b>:
-            <span class="pc_cov">58%</span>
+            <span class="pc_cov">60%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">348 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">201<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">147<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">208<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">140<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_plot_fp_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.10.0">coverage.py v7.10.0</a>,
-            created at 2025-08-09 21:29 +0000
+            created at 2025-08-14 16:19 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -1111,33 +1111,33 @@
     <p class="pln"><span class="n"><a id="t1029" href="#t1029">1029</a></span><span class="t"><span class="str">            hwp_angle = obs.get_hwp_angle()</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1030" href="#t1030">1030</a></span><span class="t"><span class="str">            hwp_angle.shape -> (obs.n_samples,)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1031" href="#t1031">1031</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1032" href="#t1032">1032</a></span><span class="t">        <span class="key">assert</span> <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t1033" href="#t1033">1033</a></span><span class="t">            <span class="str">"You must initialize pointing_provider; use Simulation.prepare_pointings()"</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t1034" href="#t1034">1034</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1032" href="#t1032">1032</a></span><span class="t">        <span class="key">assert</span> <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1033" href="#t1033">1033</a></span><span class="t">            <span class="str">"You must initialize pointing_provider; use Simulation.prepare_pointings()"</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1034" href="#t1034">1034</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1035" href="#t1035">1035</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1036" href="#t1036">1036</a></span><span class="t">        <span class="nam">expected_shape</span> <span class="op">=</span> <span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">n_samples</span><span class="op">,</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1037" href="#t1037">1037</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span><span class="op">.</span><span class="nam">has_hwp</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1038" href="#t1038">1038</a></span><span class="t">            <span class="key">if</span> <span class="nam">hwp_buffer</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1036" href="#t1036">1036</a></span><span class="t">        <span class="nam">expected_shape</span> <span class="op">=</span> <span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">n_samples</span><span class="op">,</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1037" href="#t1037">1037</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span><span class="op">.</span><span class="nam">has_hwp</span><span class="op">(</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1038" href="#t1038">1038</a></span><span class="t">            <span class="key">if</span> <span class="nam">hwp_buffer</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1039" href="#t1039">1039</a></span><span class="t">                <span class="key">assert</span> <span class="nam">hwp_buffer</span><span class="op">.</span><span class="nam">shape</span> <span class="op">==</span> <span class="nam">expected_shape</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t1040" href="#t1040">1040</a></span><span class="t">                    <span class="str">"hwp_buffer has a wrong shape, it is {actual} but should be {expected}"</span><span class="op">.</span><span class="nam">format</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t1041" href="#t1041">1041</a></span><span class="t">                        <span class="nam">actual</span><span class="op">=</span><span class="nam">hwp_buffer</span><span class="op">.</span><span class="nam">shape</span><span class="op">,</span> <span class="nam">expected</span><span class="op">=</span><span class="nam">expected_shape</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t1042" href="#t1042">1042</a></span><span class="t">                    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t1043" href="#t1043">1043</a></span><span class="t">                <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1044" href="#t1044">1044</a></span><span class="t">            <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1045" href="#t1045">1045</a></span><span class="t">                <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">empty</span><span class="op">(</span><span class="nam">expected_shape</span><span class="op">,</span> <span class="nam">dtype</span><span class="op">=</span><span class="nam">pointings_dtype</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1045" href="#t1045">1045</a></span><span class="t">                <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">empty</span><span class="op">(</span><span class="nam">expected_shape</span><span class="op">,</span> <span class="nam">dtype</span><span class="op">=</span><span class="nam">pointings_dtype</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1046" href="#t1046">1046</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1047" href="#t1047">1047</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span><span class="op">.</span><span class="nam">get_hwp_angle</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t1048" href="#t1048">1048</a></span><span class="t">                <span class="nam">start_time</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">start_time</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t1049" href="#t1049">1049</a></span><span class="t">                <span class="nam">start_time_global</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">start_time_global</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t1050" href="#t1050">1050</a></span><span class="t">                <span class="nam">sampling_rate_hz</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">sampling_rate_hz</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t1051" href="#t1051">1051</a></span><span class="t">                <span class="nam">nsamples</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">n_samples</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t1052" href="#t1052">1052</a></span><span class="t">                <span class="nam">hwp_buffer</span><span class="op">=</span><span class="nam">hwp_buffer</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t1053" href="#t1053">1053</a></span><span class="t">                <span class="nam">pointings_dtype</span><span class="op">=</span><span class="nam">pointings_dtype</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t1054" href="#t1054">1054</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1047" href="#t1047">1047</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">pointing_provider</span><span class="op">.</span><span class="nam">get_hwp_angle</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1048" href="#t1048">1048</a></span><span class="t">                <span class="nam">start_time</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">start_time</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1049" href="#t1049">1049</a></span><span class="t">                <span class="nam">start_time_global</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">start_time_global</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1050" href="#t1050">1050</a></span><span class="t">                <span class="nam">sampling_rate_hz</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">sampling_rate_hz</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1051" href="#t1051">1051</a></span><span class="t">                <span class="nam">nsamples</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">n_samples</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1052" href="#t1052">1052</a></span><span class="t">                <span class="nam">hwp_buffer</span><span class="op">=</span><span class="nam">hwp_buffer</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1053" href="#t1053">1053</a></span><span class="t">                <span class="nam">pointings_dtype</span><span class="op">=</span><span class="nam">pointings_dtype</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t1054" href="#t1054">1054</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1055" href="#t1055">1055</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t1056" href="#t1056">1056</a></span><span class="t">            <span class="nam">hwp_buffer</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1057" href="#t1057">1057</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1058" href="#t1058">1058</a></span><span class="t">        <span class="key">return</span> <span class="nam">hwp_buffer</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1058" href="#t1058">1058</a></span><span class="t">        <span class="key">return</span> <span class="nam">hwp_buffer</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1059" href="#t1059">1059</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1060" href="#t1060">1060</a></span><span class="t">    <span class="key">def</span> <span class="nam">precompute_pointings</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t1061" href="#t1061">1061</a></span><span class="t">        <span class="nam">self</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -1234,7 +1234,7 @@
             <a class="nav" href="z_e8833be62395df53_plot_fp_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.10.0">coverage.py v7.10.0</a>,
-            created at 2025-08-09 21:29 +0000
+            created at 2025-08-14 16:19 +0000
         </p>
     </div>
 </footer>
