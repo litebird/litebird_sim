@@ -175,7 +175,6 @@ def _add_ideal_hwp_angle(
         for det_idx in range(detectors):
             pointing_buffer[det_idx, :] += 2 * hwp_angles
 
-
 class IdealHWP(HWP):
     r"""
     A ideal half-wave plate that spins regularly
@@ -248,17 +247,189 @@ class IdealHWP(HWP):
             f"and θ₀ = {self.start_angle_rad}"
         )
 
+##################################
+# Time-dependent HWP
+##################################
+
+@njit
+def _get_timedependent_hwp_angle(
+    output_buffer, start_time_s, delta_time_s, start_angle_rad, ang_speed_radpsec,
+    ang_speed_DIFF_amplitude_radpsec, ang_speed_DIFF_ang_speed_radpsec, ang_speed_DIFF_start_angle_rad
+):
+    # rho_t = phi_0 
+    #         + omega_0 * t_0
+    #         - amp_DIFF/omega_DIFF * sin(phi_DIFF)) 
+    #         + omega_0 * dt
+    #         + amp_DIFF/omega_DIFF * sin(phi_DIFF + omega_DIFF * t0 + omega_DIFF * dt))
+
+    # complex = e^(i*alpha), with alpha = phi_0 + omega_0 * t_0 - amp_DIFF/omega_DIFF * sin(phi_DIFF)) 
+    complex = np.exp(1j * start_angle_rad) 
+    complex *= np.exp(1j * start_time_s * ang_speed_radpsec)
+    complex *= np.exp(-1j * ang_speed_DIFF_amplitude_radpsec / ang_speed_DIFF_ang_speed_radpsec * np.sin(ang_speed_DIFF_start_angle_rad))
+    
+    # delta = e^(i*omega_0 * dt)
+    delta = np.exp(1j * delta_time_s * ang_speed_radpsec)
+
+    # complex_DIFF = e^(i*alpha), with alpha = phi_DIFF + omega_DIFF * t_0 
+    complex_DIFF = np.exp(1j * ang_speed_DIFF_start_angle_rad) 
+    complex_DIFF *= np.exp(1j * start_time_s * ang_speed_DIFF_ang_speed_radpsec)
+
+    # delta_DIFF = e^(i*omega_DIFF * dt)
+    delta_DIFF = np.exp(1j * delta_time_s * ang_speed_DIFF_ang_speed_radpsec)
+
+    output_buffer[0] = np.angle(complex)
+
+    for sample_idx in range(1, output_buffer.size):
+        complex_DIFF *= delta_DIFF
+        complex_DIFF /= np.sqrt(complex_DIFF.real**2 + complex_DIFF.imag**2)
+        angle_DIFF = np.angle(complex_DIFF)
+        
+        complex *= delta
+        
+        complex_temp = complex * np.exp(1j * ang_speed_DIFF_amplitude_radpsec / ang_speed_DIFF_ang_speed_radpsec * np.sin(angle_DIFF))
+        complex_temp /= np.sqrt(complex_temp.real**2 + complex_temp.imag**2)
+        angle = np.angle(complex_temp)
+
+        output_buffer[sample_idx] = angle
+
+
+def _add_timedependent_hwp_angle(
+    pointing_buffer, start_time_s, delta_time_s, start_angle_rad, ang_speed_radpsec,
+    ang_speed_DIFF_amplitude_radpsec, ang_speed_DIFF_ang_speed_radpsec, ang_speed_DIFF_start_angle_rad
+):
+    shape = pointing_buffer.shape
+    if len(shape) == 3:
+        detectors, samples, _ = shape
+    elif len(shape) == 2:
+        detectors, samples = shape
+    else:
+        ValueError("Wrong shape for the pointing_buffer")
+
+    hwp_angles = np.empty(samples, dtype=pointing_buffer.dtype)
+    _get_timedependent_hwp_angle(
+        output_buffer=hwp_angles,
+        start_time_s=start_time_s,
+        delta_time_s=delta_time_s,
+        start_angle_rad=start_angle_rad,
+        ang_speed_radpsec=ang_speed_radpsec,
+        ang_speed_DIFF_amplitude_radpsec=ang_speed_DIFF_amplitude_radpsec,
+        ang_speed_DIFF_ang_speed_radpsec=ang_speed_DIFF_ang_speed_radpsec,
+        ang_speed_DIFF_start_angle_rad=ang_speed_DIFF_start_angle_rad,
+    )
+    if len(shape) == 3:
+        for det_idx in range(detectors):
+            pointing_buffer[det_idx, :, 2] += 2 * hwp_angles
+    elif len(shape) == 2:
+        for det_idx in range(detectors):
+            pointing_buffer[det_idx, :] += 2 * hwp_angles
+
+
+class TimeDependentHWP(HWP):
+    r"""
+    A ideal half-wave plate that spins with time-dependent angular velocity.
+
+    This class represents a perfect HWP that spins with time-dependent angular velocity.
+    The constructor accepts the angular speed, expressed in rad/sec, and the
+    start angle (in radians). The latter should be referred to the first time
+    sample in the simulation, i.e., the earliest sample simulated in any of the
+    MPI processes used for the simulation. #FIXME: update this docstring to
+    reflect the fact that the angular speed is now time-dependent.
+
+    Given a polarization angle :math:`\psi`, this class turns it into
+    :math:`\psi + \psi_\text{hwp,0} + 2 \omega_\text{hwp} t`, where
+    :math:`\psi_\text{hwp,0}` is the start angle specified in the constructor
+    and :math:`\omega_\text{hwp}` is the angular speed of the HWP. #FIXME: update this docstring to
+    reflect the fact that the angular speed is now time-dependent.
+    """
+
+    def __init__(self, ang_speed_radpsec: float, ang_speed_DIFF_amplitude_radpsec, ang_speed_DIFF_ang_speed_radpsec, 
+                 start_angle_rad=0.0, ang_speed_DIFF_start_angle_rad = 0.0):
+        self.ang_speed_radpsec = ang_speed_radpsec
+        self.start_angle_rad = start_angle_rad
+        self.ang_speed_DIFF_amplitude_radpsec = ang_speed_DIFF_amplitude_radpsec
+        self.ang_speed_DIFF_ang_speed_radpsec = ang_speed_DIFF_ang_speed_radpsec
+        self.ang_speed_DIFF_start_angle_rad = ang_speed_DIFF_start_angle_rad
+        self.mueller = np.copy(mueller_ideal_hwp)
+
+    def get_hwp_angle(
+        self, output_buffer, start_time_s: float, delta_time_s: float
+    ) -> None:
+        _get_timedependent_hwp_angle(
+            output_buffer=output_buffer,
+            start_time_s=start_time_s,
+            delta_time_s=delta_time_s,
+            start_angle_rad=self.start_angle_rad,
+            ang_speed_radpsec=self.ang_speed_radpsec,
+            ang_speed_DIFF_amplitude_radpsec=self.ang_speed_DIFF_amplitude_radpsec,
+            ang_speed_DIFF_ang_speed_radpsec=self.ang_speed_DIFF_ang_speed_radpsec,
+            ang_speed_DIFF_start_angle_rad=self.ang_speed_DIFF_start_angle_rad,
+        )
+
+    def add_hwp_angle(
+        self, pointing_buffer, start_time_s: float, delta_time_s: float
+    ) -> None:
+        _add_timedependent_hwp_angle(
+            pointing_buffer=pointing_buffer,
+            start_time_s=start_time_s,
+            delta_time_s=delta_time_s,
+            start_angle_rad=self.start_angle_rad,
+            ang_speed_radpsec=self.ang_speed_radpsec,
+            ang_speed_DIFF_amplitude_radpsec=self.ang_speed_DIFF_amplitude_radpsec,
+            ang_speed_DIFF_ang_speed_radpsec=self.ang_speed_DIFF_ang_speed_radpsec,
+            ang_speed_DIFF_start_angle_rad=self.ang_speed_DIFF_start_angle_rad,
+        )
+
+    def write_to_hdf5(
+        self, output_file: h5py.File, field_name: str, compression: Optional[str] = None
+    ) -> h5py.Dataset:
+        # For an ideal HWP, we just save an empty dataset with a few attributes
+        # This means that we must *not* use the "compression" field here, otherwise
+        # h5py will complain that “empty datasets don't support chunks/filters”…
+        new_dataset = output_file.create_dataset(
+            name=field_name,
+            dtype=np.float64,
+        )
+
+        new_dataset.attrs["class_name"] = "TimeDependentHWP"
+        new_dataset.attrs["ang_speed_radpsec"] = self.ang_speed_radpsec
+        new_dataset.attrs["start_angle_rad"] = self.start_angle_rad
+        new_dataset.attrs["ang_speed_DIFF_amplitude_radpsec"] = self.ang_speed_DIFF_amplitude_radpsec
+        new_dataset.attrs["ang_speed_DIFF_ang_speed_radpsec"] = self.ang_speed_DIFF_ang_speed_radpsec
+        new_dataset.attrs["ang_speed_DIFF_start_angle_rad"] = self.ang_speed_DIFF_start_angle_rad
+
+        return new_dataset
+
+    def read_from_hdf5(self, input_dataset: h5py.Dataset) -> None:
+        assert input_dataset.attrs["class_name"] == "TimeDependentHWP"
+
+        self.ang_speed_radpsec = input_dataset.attrs["ang_speed_radpsec"]
+        self.start_angle_rad = input_dataset.attrs["start_angle_rad"]
+        self.ang_speed_DIFF_amplitude_radpsec = input_dataset.attrs["ang_speed_DIFF_amplitude_radpsec"]
+        self.ang_speed_DIFF_ang_speed_radpsec = input_dataset.attrs["ang_speed_DIFF_ang_speed_radpsec"]
+        self.ang_speed_DIFF_start_angle_rad = input_dataset.attrs["ang_speed_DIFF_start_angle_rad"]
+
+    def __str__(self):
+        return (
+            f"Ideal HWP, with rotating speed {self.ang_speed_radpsec} rad/sec " #FIXME: update this docstring
+            f"and time-dependent angular speed amplitude {self.ang_speed_DIFF_amplitude_radpsec} rad/sec, "
+            f"time-dependent angular speed {self.ang_speed_DIFF_ang_speed_radpsec} rad/sec, "
+            f"and θ₀ = {self.start_angle_rad}"
+        )
+
 
 def read_hwp_from_hdf5(input_file: h5py.File, field_name: str) -> HWP:
     dataset = input_file[field_name]
     class_name = dataset.attrs["class_name"]
 
-    if class_name == "IdealHWP":
+    if class_name == "TimeDependentHWP":
         # Let's pass dummy values to each field. They will be
         # fixed once the data are read from the file
-        result = IdealHWP(
+        result = TimeDependentHWP(
             ang_speed_radpsec=0.0,
             start_angle_rad=0.0,
+            ang_speed_DIFF_amplitude_radpsec=0.0,
+            ang_speed_DIFF_ang_speed_radpsec=0.0,
+            ang_speed_DIFF_start_angle_rad=0.0,
         )
     else:
         # If new derived classes from HWP are implemented, add them here with an `elif`

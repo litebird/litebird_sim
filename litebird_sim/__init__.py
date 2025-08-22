@@ -77,6 +77,7 @@ from .healpix import (
 from .hwp import (
     HWP,
     IdealHWP,
+    TimeDependentHWP,
     read_hwp_from_hdf5,
 )
 from .hwp_sys.hwp_sys import (
@@ -249,6 +250,7 @@ __all__ = [
     # hwp.py
     "HWP",
     "IdealHWP",
+    "TimeDependentHWP",
     "read_hwp_from_hdf5",
     # hwp_sys/hwp_sys.py
     "HwpSys",
