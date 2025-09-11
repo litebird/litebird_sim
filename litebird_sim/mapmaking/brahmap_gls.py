@@ -23,13 +23,13 @@ def make_brahmap_gls_map(
     hwp: HWP | None = None,
     components: str | list[str] = "tod",
     pointings_flag: np.ndarray | None = None,
-    inv_noise_cov_operator: "brahmap.LBSim_InvNoiseCovLO_UnCorr" | None = None,
+    inv_noise_cov_operator: brahmap.LBSim_InvNoiseCovLO_UnCorr | None = None,
     threshold: float = 1.0e-5,
     pointings_dtype=np.float64,
-    gls_params: "brahmap.LBSimGLSParameters" | None = None,
+    gls_params: brahmap.LBSimGLSParameters | None = None,
 ) -> (
-    "brahmap.LBSimGLSResult"
-    | tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"]
+    brahmap.LBSimGLSResult
+    | tuple[brahmap.LBSimProcessTimeSamples, brahmap.LBSimGLSResult]
 ):
     """
     GLS Map-maker using Brahmap.
