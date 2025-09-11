@@ -3,7 +3,7 @@ GLS Map-maker using BrahMap for Litebird_sim
 This function provides a consistent interface with other mapmaking routines.
 """
 
-from typing import Any
+from typing import Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -18,14 +18,14 @@ def make_brahmap_gls_map(
     hwp: HWP | None = None,
     components: str | list[str] = "tod",
     pointings_flag: np.ndarray | None = None,
-    inv_noise_cov_operator: "brahmap.LBSim_InvNoiseCovLO_UnCorr" | None = None,  # noqa
+    inv_noise_cov_operator: Optional["brahmap.LBSim_InvNoiseCovLO_UnCorr"] = None,  # noqa
     threshold: float = 1.0e-5,
     pointings_dtype=np.float64,
-    gls_params: "brahmap.LBSimGLSParameters" | None = None,  # noqa
-) -> (
-    "brahmap.LBSimGLSResult"  # noqa
-    | tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"]  # noqa
-):
+    gls_params: Optional["brahmap.LBSimGLSParameters"] = None,  # noqa
+) -> Union[
+    "brahmap.LBSimGLSResult",  # noqa
+    tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],  # noqa
+]:
     """
     GLS Map-maker using Brahmap.
 

@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from typing import Union
 from uuid import UUID
 
 from astropy.coordinates import ICRS, get_body_barycentric
@@ -417,7 +418,7 @@ class RotQuaternion:
 
     def __init__(
         self,
-        quats: npt.ArrayLike | "RotQuaternion" | None = None,
+        quats: Union[npt.ArrayLike, "RotQuaternion"] | None = None,
         start_time: float | astropy.time.Time | None = None,
         sampling_rate_hz: float | None = None,
     ):
