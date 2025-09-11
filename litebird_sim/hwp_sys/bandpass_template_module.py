@@ -106,7 +106,7 @@ def beam_throughtput(freqs):
 
 # Define bandpass profile
 def bandpass_profile(
-    freqs: np.array | None = None,
+    freqs: np.ndarray | None = None,
     bandpass: dict | None = None,
     include_beam_throughput: bool | None = None,
 ):
