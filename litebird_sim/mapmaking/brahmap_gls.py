@@ -3,17 +3,12 @@ GLS Map-maker using BrahMap for Litebird_sim
 This function provides a consistent interface with other mapmaking routines.
 """
 
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 
 from litebird_sim.hwp import HWP
-
-
-if TYPE_CHECKING:  # pragma: no cover
-    # Only imported for type checking, not at runtime
-    import brahmap
 
 
 def make_brahmap_gls_map(
@@ -23,13 +18,13 @@ def make_brahmap_gls_map(
     hwp: HWP | None = None,
     components: str | list[str] = "tod",
     pointings_flag: np.ndarray | None = None,
-    inv_noise_cov_operator: brahmap.LBSim_InvNoiseCovLO_UnCorr | None = None,
+    inv_noise_cov_operator: "brahmap.LBSim_InvNoiseCovLO_UnCorr" | None = None,  # noqa
     threshold: float = 1.0e-5,
     pointings_dtype=np.float64,
-    gls_params: brahmap.LBSimGLSParameters | None = None,
+    gls_params: "brahmap.LBSimGLSParameters" | None = None,  # noqa
 ) -> (
-    brahmap.LBSimGLSResult
-    | tuple[brahmap.LBSimProcessTimeSamples, brahmap.LBSimGLSResult]
+    "brahmap.LBSimGLSResult"  # noqa
+    | tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"]  # noqa
 ):
     """
     GLS Map-maker using Brahmap.
