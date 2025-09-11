@@ -194,8 +194,8 @@ def regenerate_or_check_detector_generators(
         dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(rank=rank)
     if user_seed is None and dets_random is None:
         raise ValueError("You should pass either `user_seed` or `dets_random`.")
-    assert len(dets_random) == observations[0].n_detectors, (
-        "The number of random generators must match the number of detectors"
+    assert len(dets_random) >= observations[0].n_detectors, (
+        f"The number of random generators ({len(dets_random)}) must be at least the number of detectors ({observations[0].n_detectors})."
     )
 
     return dets_random
