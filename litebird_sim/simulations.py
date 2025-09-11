@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import uuid4
 
 import astropy.time
@@ -66,10 +66,6 @@ from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
-
-if TYPE_CHECKING:  # pragma: no cover
-    # Only imported for type checking, not at runtime
-    import brahmap
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -2324,11 +2320,11 @@ class Simulation:
         inv_noise_cov_operator=None,
         threshold: float = 1.0e-5,
         pointings_dtype=np.float64,
-        gls_params: brahmap.LBSimGLSParameters | None = None,
+        gls_params: "brahmap.LBSimGLSParameters" | None = None,  # noqa
         append_to_report: bool = True,
     ) -> (
-        brahmap.LBSimGLSResult
-        | tuple[brahmap.LBSimProcessTimeSamples, brahmap.LBSimGLSResult]
+        "brahmap.LBSimGLSResult"  # noqa
+        | tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"]  # noqa
     ):
         """Wrapper to the GLS map-maker of BrahMap.
 
