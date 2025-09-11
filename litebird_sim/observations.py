@@ -201,7 +201,7 @@ class Observation:
             self.n_samples,
         ) = self._get_local_start_time_start_and_n_samples()
 
-        self.pointing_provider = None  # type: Optional["PointingProvider"]
+        self.pointing_provider = None  # type: PointingProvider | None
 
         # By default this is set to False, prepare_pointings() can change its value
         self.has_hwp = False
@@ -815,7 +815,7 @@ class Observation:
                 Time-dependent rotation from the spin frame to the Ecliptic frame.
                 Typically generated using :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
 
-            hwp (Optional[HWP]):
+            hwp (HWP | None):
                 Optional HWP model. If provided, it is stored and its Mueller matrix
                 applied to all detectors lacking one.
 

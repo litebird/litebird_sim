@@ -24,7 +24,7 @@ class PointingProvider:
             A time-dependent quaternion representing the rotation from the instrument
             boresight frame to the Ecliptic frame. Typically provided by the scanning simulation.
 
-        hwp (Optional[HWP]):
+        hwp (HWP | None):
             An instance of a Half-Wave Plate model. If provided, HWP angles will be
             computed as part of the pointing information.
 
@@ -32,7 +32,7 @@ class PointingProvider:
         bore2ecliptic_quats (RotQuaternion):
             Rotation from the instrument's boresight frame to the Ecliptic frame.
 
-        hwp (Optional[HWP]):
+        hwp (HWP | None):
             Associated Half-Wave Plate model, if any.
 
     Example:
@@ -112,7 +112,7 @@ class PointingProvider:
                 their data types are preserved.
 
         Returns:
-            Tuple[np.ndarray, Optional[np.ndarray]]:
+            Tuple[np.ndarray, np.ndarray | None]:
                 A pair `(pointing_buffer, hwp_buffer)`, containing the computed pointing
                 angles and (if applicable) HWP angles.
 

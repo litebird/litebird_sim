@@ -422,7 +422,7 @@ def apply_gaindrift_to_tod(
 
         sampling_freq_hz (float): The sampling frequency of the detector in Hz.
 
-        det_name (Union[List, np.ndarray]): The list of the name of the
+        det_name (list | np.ndarray): The list of the name of the
           detectors to which the TOD arrays correspond. The detector names
           are used to generate unique and reproducible random numbers for
           each detector.
@@ -430,7 +430,7 @@ def apply_gaindrift_to_tod(
         drift_params (:class:`.GainDriftParams`, optional): The gain drift
           injection parameters object. Defaults to None.
 
-        focalplane_attr (Union[List, np.ndarray], optional): This is the
+        focalplane_attr (list | np.ndarray | None): This is the
           parameter corresponding to the ``drift_params.focalplane_group``
           attribute. For example, if
           ``drift_params.focalplane_group = 'wafer'``, the

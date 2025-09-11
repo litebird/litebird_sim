@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
-from typing import Union, Any, Optional
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import astropy.time
@@ -66,6 +66,10 @@ from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
+
+if TYPE_CHECKING:  # pragma: no cover
+    # Only imported for type checking, not at runtime
+    import brahmap
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -377,14 +381,14 @@ class Simulation:
         self.base_path = base_path
         self.name = name
 
-        self.observations = []  # type: List[Observation]
+        self.observations = []  # type: list[Observation]
 
         self.start_time = start_time
         self.duration_s = duration_s
 
-        self.detectors = []  # type: List[DetectorInfo]
-        self.instrument = None  # type: Optional[InstrumentInfo]
-        self.hwp = None  # type: Optional[HWP]
+        self.detectors = []  # type: list[DetectorInfo]
+        self.instrument = None  # type: InstrumentInfo | None
+        self.hwp = None  # type: HWP | None
 
         self.spin2ecliptic_quats = None
 
@@ -392,7 +396,7 @@ class Simulation:
 
         self.random_seed = random_seed
 
-        self.tod_list = []  # type: List[TodDescription]
+        self.tod_list = []  # type: list[TodDescription]
 
         if imo:
             self.imo = imo
@@ -406,7 +410,7 @@ class Simulation:
         self.numba_threading_layer = numba_threading_layer
 
         self.profile_time = profile_time
-        self.profile_data = []  # type: List[TimeProfiler]
+        self.profile_data = []  # type: list[TimeProfiler]
 
         assert not (parameter_file and parameters), (
             "you cannot use parameter_file and parameters together "
@@ -449,7 +453,7 @@ class Simulation:
             except SameFileError:
                 pass
 
-        self.list_of_outputs = []  # type: List[OutputFileRecord]
+        self.list_of_outputs = []  # type: list[OutputFileRecord]
 
         self.report = ""
 
@@ -1190,7 +1194,7 @@ class Simulation:
         if not self.observations:
             return None
 
-        observation_descr = []  # type: List[MpiObservationDescr]
+        observation_descr = []  # type: list[MpiObservationDescr]
         numba_num_of_threads_all = []  # type: list[int]
 
         for obs in self.observations:
@@ -1233,7 +1237,7 @@ class Simulation:
             num_of_observations_all = [num_of_observations]
             numba_num_of_threads_all = [numba_num_of_threads]
 
-        mpi_processes = []  # type: List[MpiProcessDescr]
+        mpi_processes = []  # type: list[MpiProcessDescr]
         for i in range(MPI_COMM_WORLD.size):
             mpi_processes.append(
                 MpiProcessDescr(
@@ -1619,7 +1623,7 @@ class Simulation:
         -----------
         lmax : int
             Maximum multipole moment.
-        mmax : Optional[int], default=None
+        mmax : int | None, default=None
             Maximum azimuthal multipole moment. Defaults to `lmax` if None.
         channels : FreqChannelInfo or list of FreqChannelInfo, optional
             Frequency channels to use in the simulation. If None, it uses the detectors
@@ -2320,12 +2324,12 @@ class Simulation:
         inv_noise_cov_operator=None,
         threshold: float = 1.0e-5,
         pointings_dtype=np.float64,
-        gls_params: Optional["brahmap.LBSimGLSParameters"] = None,  # noqa
+        gls_params: brahmap.LBSimGLSParameters | None = None,
         append_to_report: bool = True,
-    ) -> Union[
-        "brahmap.LBSimGLSResult",  # noqa
-        tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],  # noqa
-    ]:
+    ) -> (
+        brahmap.LBSimGLSResult
+        | tuple[brahmap.LBSimProcessTimeSamples, brahmap.LBSimGLSResult]
+    ):
         """Wrapper to the GLS map-maker of BrahMap.
 
         For details, see the low-level interface in :func:`litebird_sim.mapmaking.brahmap_gls`.

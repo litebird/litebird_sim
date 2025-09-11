@@ -20,7 +20,7 @@ def get_derived_random_generators(
 
     Parameters
     ----------
-    source_sequence : Union[SeedSequence, List[SeedSequence]]
+    source_sequence :  SeedSequence | list[SeedSequence]
         The source seed sequence(s) from which to derive new sequences.
     num_to_spawn : int
         Number of new sequences to spawn from each source sequence.

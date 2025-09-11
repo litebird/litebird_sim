@@ -318,7 +318,7 @@ def add_dipole_to_observations(
     use `component`.
 
     Args:
-        observations (Union[Observation, List[Observation]]): A single
+        observations (Observation | list[Observation]): A single
             :class:`Observation` instance or a list of `Observation` objects,
             whose TOD will be modified by adding the CMB dipole
             signal.
@@ -328,29 +328,29 @@ def add_dipole_to_observations(
             information, which is necessary to compute the dipole
             contribution.
 
-        pointings (Union[np.ndarray, List[np.ndarray], None]): If
+        pointings (np.ndarray | list[np.ndarray] | None): If
             provided, this should be an array (or list of arrays)
             containing the pointing matrices for the observations. If
             `None`, the function will extract pointing matrices from
             the `Observation` objects.
 
-        t_cmb_k (Optional[float]): The temperature of the cosmic
+        t_cmb_k (float | None): The temperature of the cosmic
             microwave background (CMB) in Kelvin. Default is
             `c.T_CMB_K`.
 
-        dipole_type (Optional[DipoleType]): The type of dipole to
+        dipole_type (DipoleType | None): The type of dipole to
             be added. Default is `DipoleType.TOTAL_FROM_LIN_T`.
 
-        frequency_ghz (Optional[np.ndarray]): The observation
+        frequency_ghz (np.ndarray | None): The observation
             frequency in GHz. If `None`, the function will use the
             `bandcenter_ghz` attribute from each `Observation`.
 
-        component (Optional[str]): The name of the attribute in
+        component (str | None): The name of the attribute in
             :class:`Observation` where the dipole signal should be
             stored. Default is ``"tod"``, but a different field (e.g.,
             ``"dipole_tod"``) can be specified.
 
-        pointings_dtype (Optional[dtype]): Data type for pointings
+        pointings_dtype (dtype | None): Data type for pointings
             generated on the fly. If the pointing is passed or already
             precomputed this parameter is ineffective. Default is
             ``np.float64``.

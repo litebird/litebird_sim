@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-from typing import Any, List, Union
+from typing import Any
 
 import astropy
 from astropy.io import fits
@@ -118,7 +118,7 @@ def test_sort_obs_per_det():
     assert rank1_list[1].obs_global_idx == 3
 
 
-def is_sorted(x: List[Any], key=lambda x: x) -> bool:
+def is_sorted(x: list[Any], key=lambda x: x) -> bool:
     return all([key(x[i]) <= key(x[i + 1]) for i in range(len(x) - 1)])
 
 
@@ -143,7 +143,7 @@ def run_test_on_madam(
     tmp_path,
     n_blocks_det: int,
     n_blocks_time: int,
-    start_time: Union[float, astropy.time.Time],
+    start_time: float | astropy.time.Time,
 ):
     sim = lbs.Simulation(
         base_path=tmp_path / "destriper_output",

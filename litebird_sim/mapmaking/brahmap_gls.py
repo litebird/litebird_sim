@@ -3,7 +3,7 @@ GLS Map-maker using BrahMap for Litebird_sim
 This function provides a consistent interface with other mapmaking routines.
 """
 
-from typing import Any, Optional, Union, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -23,14 +23,14 @@ def make_brahmap_gls_map(
     hwp: HWP | None = None,
     components: str | list[str] = "tod",
     pointings_flag: np.ndarray | None = None,
-    inv_noise_cov_operator: Union["brahmap.LBSim_InvNoiseCovLO_UnCorr", None] = None,
+    inv_noise_cov_operator: brahmap.LBSim_InvNoiseCovLO_UnCorr | None = None,
     threshold: float = 1.0e-5,
     pointings_dtype=np.float64,
-    gls_params: Optional["brahmap.LBSimGLSParameters"] = None,
-) -> Union[
-    "brahmap.LBSimGLSResult",
-    tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],
-]:
+    gls_params: brahmap.LBSimGLSParameters | None = None,
+) -> (
+    brahmap.LBSimGLSResult
+    | tuple[brahmap.LBSimProcessTimeSamples, brahmap.LBSimGLSResult]
+):
     """
     GLS Map-maker using Brahmap.
 
@@ -100,7 +100,7 @@ def make_brahmap_gls_map(
 
     Returns
     -------
-    Union[LBSimGLSResult, tuple[LBSimProcessTimeSamples, LBSimGLSResult]]
+    LBSimGLSResult | tuple[LBSimProcessTimeSamples, LBSimGLSResult]
         Returns an `LBSimGLSResult` object when
         `gls_params.return_processed_samples = False`. `LBSimGLSResult`
         object encapsulates the output of GLS including the output maps

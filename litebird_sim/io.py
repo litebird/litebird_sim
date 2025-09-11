@@ -598,7 +598,7 @@ def read_one_observation(
 
         # Load the TOD(s)
         # We'll slowly build "result" while iterating over the TODs, one by one
-        result = None  # Optional[Observation]
+        result = None  # Observation | None
 
         for cur_field_idx, cur_field in enumerate(tod_fields):
             if isinstance(cur_field, TodDescription):

@@ -83,16 +83,16 @@ class DetectorInfo:
     Args:
         name (str): The name of the detector. Default is an empty string.
 
-        wafer (Union[str, None]): The name of the wafer hosting the detector
+        wafer (str | None): The name of the wafer hosting the detector
             (e.g., ``"H00"``, ``"L07"``, etc.). Default is None.
 
-        pixel (Union[int, None]): The index of the pixel within the wafer. Default is None.
+        pixel (int | None): The index of the pixel within the wafer. Default is None.
 
-        pixtype (Union[str, None]): The type of the pixel (e.g., ``"HP1"``, ``"LP3"``). Default is None.
+        pixtype (str | None): The type of the pixel (e.g., ``"HP1"``, ``"LP3"``). Default is None.
 
-        channel (Union[str, None]): The channel name. Default is None.
+        channel (str | None): The channel name. Default is None.
 
-        squid (Union[int, None]): The SQUID number associated with the detector. Default is None.
+        squid (int | None): The SQUID number associated with the detector. Default is None.
 
         sampling_rate_hz (float): Sampling rate of the ADC associated with this detector, in Hz.
             Default is 0.0.
@@ -117,10 +117,10 @@ class DetectorInfo:
 
         bandwidth_ghz (float): Bandwidth of the detector, in GHz. Default is 0.0.
 
-        band_freqs_ghz (Union[np.ndarray, None]): Array of sampled frequencies in the band (GHz).
+        band_freqs_ghz (np.ndarray | None): Array of sampled frequencies in the band (GHz).
             Default is None.
 
-        band_weights (Union[np.ndarray, None]): Corresponding normalized band weights. Default is None.
+        band_weights (np.ndarray | None): Corresponding normalized band weights. Default is None.
 
         fknee_mhz (float): 1/f noise knee frequency in mHz. Default is 0.0.
 
@@ -129,9 +129,9 @@ class DetectorInfo:
 
         alpha (float): Slope of the 1/f noise power spectrum. Default is 0.0.
 
-        pol (Union[str, None]): Polarization type (``"T"``, ``"B"``, etc.). Default is None.
+        pol (str | None): Polarization type (``"T"``, ``"B"``, etc.). Default is None.
 
-        orient (Union[str, None]): Polarization orientation (``"Q"``, ``"U"``, etc.). Default is None.
+        orient (str | None): Polarization orientation (``"Q"``, ``"U"``, etc.). Default is None.
 
         quat (:class:`.TimeDependentQuaternion`): Quaternion representing the rotation from
             the detector frame to the boresight frame. Default is identity (no rotation).
@@ -142,16 +142,16 @@ class DetectorInfo:
         pol_efficiency (float): Polarization efficiency (γ), as defined in Eq. 15 of astro-ph/0606606.
             Default is 1.0.
 
-        mueller_hwp (Union[None, dict]): Mueller matrix of the HWP, expanded into three harmonics
+        mueller_hwp (None | dict): Mueller matrix of the HWP, expanded into three harmonics
             of the HWP rotation frequency. Default is None (no HWP).
 
-        mueller_hwp_solver (Union[None, dict]): Mueller matrix used in the mapmaking solver to
+        mueller_hwp_solver (None | dict): Mueller matrix used in the mapmaking solver to
             model a non-ideal HWP. Also decomposed into three harmonics. Default is None (no HWP).
 
-        pointing_theta_phi_psi_deg (Union[None, np.ndarray]): Array of pointing angles (θ, φ, ψ)
+        pointing_theta_phi_psi_deg (None | np.ndarray): Array of pointing angles (θ, φ, ψ)
             in degrees: colatitude, longitude, and orientation. Default is None.
 
-        pointing_u_v (Union[None, np.ndarray]): Detector pointing in focal plane coordinates (u, v),
+        pointing_u_v (None | np.ndarray): Detector pointing in focal plane coordinates (u, v),
             with (0, 0) representing the central axis of the focal plane. Default is None.
 
         g_one_over_k (float): Gain conversion factor (1/K), used in calibration models. Default is 0.0.

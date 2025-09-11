@@ -45,7 +45,7 @@ def prepare_pointings(
             to the Ecliptic reference frame. Typically generated using
             :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
 
-        hwp (Optional[HWP]):
+        hwp (HWP | None):
             An optional Half-Wave Plate model to attach to the observations.
 
     Returns:
@@ -151,14 +151,14 @@ def _get_hwp_angle(
     ----------
     obs : Observation
         An instance of the :class:`.Observation` class
-    hwp : Union[HWP, None], optional
+    hwp : HWP | None, optional
         An instance of the :class:`.HWP` class (optional)
     pointing_dtype : dtype, optional
         The dtype for the computed hwp angle, by default `np.float64`
 
     Returns
     -------
-    Union[np.ndarray, None]
+    np.ndarray | None
         An array containing the HWP angles or `None`
     """
     if hwp is None:
@@ -206,7 +206,7 @@ def _get_pol_angle(
     ----------
     curr_pointings_det : np.ndarray
         Pointing information of the detector, here we take just the orientation
-    hwp_angle : Union[np.ndarray, None]
+    hwp_angle : np.ndarray | None
         An array containing the HWP angle or `None`
     pol_angle_detectors : float
         Polarization angle of the detector
@@ -237,10 +237,10 @@ def _get_pointings_array(
     ----------
     detector_idx : int
         Index of the detector, local to an :class:`Observation`.
-    pointings : Union[npt.ArrayLike, Callable]
+    pointings : npt.ArrayLike | Callable
         Pointing information, either a precomputed array or a callable returning
         (pointings, hwp_angle) for the specified detector.
-    hwp_angle : Optional[np.ndarray]
+    hwp_angle : np.ndarray | None
         Array of HWP angles. If None, the angle is assumed to be provided by the `pointings` callable.
     output_coordinate_system : CoordinateSystem
         Desired coordinate system for the output pointings.
@@ -249,7 +249,7 @@ def _get_pointings_array(
 
     Returns
     -------
-    Tuple[np.ndarray, Optional[np.ndarray]]
+    Tuple[np.ndarray, np.ndarray | None]
         A tuple `(pointings, hwp_angle)`, where:
           - `pointings` is an array of shape (n_samples, 2) with [θ, φ].
           - `hwp_angle` is either the provided array or the one computed by the callable.
@@ -318,9 +318,9 @@ def _normalize_observations_and_pointings(
 
     Parameters
     ----------
-    observations : Union[Observation, List[Observation]]
+    observations : Observation | list[Observation]
         An observation or a list of observations
-    pointings : Union[np.ndarray, List[np.ndarray], None]
+    pointings : np.ndarray | list[np.ndarray] | None
         External pointing information, if not already included in the observation
 
     Returns
@@ -383,9 +383,9 @@ def _get_pointings_and_pol_angles_det(
         An instance of :class:`.Observation` class
     det_idx : int
         Detector index, local to an :class:`.Observation`
-    hwp : Union[HWP, None], optional
+    hwp : HWP | None, optional
         An instance of the :class:`.HWP` class (optional)
-    pointings : Union[np.ndarray, List[np.ndarray], None], optional
+    pointings : np.ndarray | list[np.ndarray] | None, optional
         An array of pointings or a list containing the array of pointings,
         by default `None`
     output_coordinate_system : CoordinateSystem, optional

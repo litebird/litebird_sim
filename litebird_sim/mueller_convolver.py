@@ -31,7 +31,7 @@ class TruncatedBlm:
 
 def truncate_blm(inp, lmax: int, mmax: int, epsilon=1e-10) -> list[TruncatedBlm | None]:
     limit = epsilon * np.max(np.abs(inp))
-    out = []  # type:List[Optional[TruncatedBlm]]
+    out = []  # type: list[TruncatedBlm | None]
     for i in range(len(inp)):
         maxk = -1
         idx = 0

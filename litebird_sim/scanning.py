@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from astropy.coordinates import ICRS, get_body_barycentric
@@ -27,6 +27,9 @@ from .quaternions import (
     multiply_quaternions_one_x_list,
     normalize_quaternions,
 )
+
+if TYPE_CHECKING:  # pragma: no cover
+    from litebird_sim import RotQuaternion
 
 YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * u.year).to(u.s).value
 
@@ -418,7 +421,7 @@ class RotQuaternion:
 
     def __init__(
         self,
-        quats: Union[npt.ArrayLike, "RotQuaternion", None] = None,
+        quats: npt.ArrayLike | RotQuaternion | None = None,
         start_time: float | astropy.time.Time | None = None,
         sampling_rate_hz: float | None = None,
     ):
@@ -671,7 +674,7 @@ class ScanningStrategy(ABC):
 
         Args:
 
-            start_time (Union[float, astropy.time.Time]): start time
+            start_time (float | astropy.time.Time): start time
                 of the simulation. If it is a floating-point number,
                 it is arbitrary and can usually be set to 0.0;
                 otherwise, it must be a ``astropy.time.Time`` object,
