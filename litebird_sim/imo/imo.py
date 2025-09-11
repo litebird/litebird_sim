@@ -57,7 +57,7 @@ class Imo:
             else:
                 raise ValueError("You must either provide flatfile_location= or url=")
 
-        self.queried_objects = set()  # type: Set[Tuple[type, UUID]]
+        self.queried_objects = set()  # type: set[tuple[type, UUID]]
 
     def query_entity(self, identifier: UUID, track=True) -> Entity:
         """Return a :class:`.Entity` object from an UUID.

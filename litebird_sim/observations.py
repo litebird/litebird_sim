@@ -354,7 +354,7 @@ class Observation:
             and return `n_blocks_det = 3`
 
         Args:
-            detectors (List[dict]): List of detectors
+            detectors (list[dict]): List of detectors
 
             comm: The MPI communicator
 

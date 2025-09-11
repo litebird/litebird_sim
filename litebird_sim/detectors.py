@@ -401,10 +401,10 @@ class FreqChannelInfo:
         number_of_detectors (int): Number of detectors in the channel. If 0, inferred from
             `detector_names` or `detector_objs`. Default is 0.
 
-        detector_names (List[str]): List of detector names. If not provided, generated automatically.
+        detector_names (list[str]): List of detector names. If not provided, generated automatically.
             Default is an empty list.
 
-        detector_objs (List[UUID]): List of UUIDs (or strings convertible to UUIDs) identifying
+        detector_objs (list[UUID]): List of UUIDs (or strings convertible to UUIDs) identifying
             detector entries in the IMO. Default is an empty list.
     """
 
@@ -555,12 +555,12 @@ class InstrumentInfo:
 
         number_of_channels (int): Number of frequency channels in the instrument. Default is 0.
 
-        channel_names (List[str]): List of frequency channel names. Default is an empty list.
+        channel_names (list[str]): List of frequency channel names. Default is an empty list.
 
-        channel_objs (List[UUID]): List of references to channel definitions (UUIDs or convertible strings).
+        channel_objs (list[UUID]): List of references to channel definitions (UUIDs or convertible strings).
             Automatically converted to UUIDs. Default is an empty list.
 
-        wafer_names (List[str]): List of wafer names used in the instrument. Default is an empty list.
+        wafer_names (list[str]): List of wafer names used in the instrument. Default is an empty list.
 
         wafer_space_cm (float): Spacing between wafers, in centimeters. Default is 0.0.
 

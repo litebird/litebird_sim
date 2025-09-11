@@ -1313,7 +1313,7 @@ def _run_destriper(
 
     old_r_dot = _mpi_dot(z, r)
 
-    history_of_stopping_factors = [_get_stopping_factor(r)]  # type: List[float]
+    history_of_stopping_factors = [_get_stopping_factor(r)]  # type: list[float]
     if callback:
         callback(
             stopping_factor=history_of_stopping_factors[-1],

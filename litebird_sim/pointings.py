@@ -112,7 +112,7 @@ class PointingProvider:
                 their data types are preserved.
 
         Returns:
-            Tuple[np.ndarray, np.ndarray | None]:
+            tuple[np.ndarray, np.ndarray | None]:
                 A pair `(pointing_buffer, hwp_buffer)`, containing the computed pointing
                 angles and (if applicable) HWP angles.
 

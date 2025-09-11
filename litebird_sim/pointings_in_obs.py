@@ -34,7 +34,7 @@ def prepare_pointings(
     model can be passed and automatically propagated to the detectors in each observation.
 
     Args:
-        observations (Observation or List[Observation]):
+        observations (Observation or list[Observation]):
             A single observation or a list of :class:`.Observation` objects to configure.
 
         instrument (InstrumentInfo):
@@ -83,7 +83,7 @@ def precompute_pointings(
     need for on-the-fly computation during scanning or map-making operations.
 
     Args:
-        observations (Observation or List[Observation]):
+        observations (Observation or list[Observation]):
             A single observation or a list of observations for which pointings should be precomputed.
 
         pointings_dtype (data-type, optional):
@@ -249,7 +249,7 @@ def _get_pointings_array(
 
     Returns
     -------
-    Tuple[np.ndarray, np.ndarray | None]
+    tuple[np.ndarray, np.ndarray | None]
         A tuple `(pointings, hwp_angle)`, where:
           - `pointings` is an array of shape (n_samples, 2) with [θ, φ].
           - `hwp_angle` is either the provided array or the one computed by the callable.
@@ -325,7 +325,7 @@ def _normalize_observations_and_pointings(
 
     Returns
     -------
-    Tuple[List[Observation], List[npt.NDArray]]
+    tuple[list[Observation], list[npt.NDArray]]
         The tuple of the list of observations and list of pointings
     """
 
@@ -396,7 +396,7 @@ def _get_pointings_and_pol_angles_det(
 
     Returns
     -------
-    Tuple[np.ndarray, np.ndarray]
+    tuple[np.ndarray, np.ndarray]
         A tuple containing the pointings and polarization angle of the detector
     """
 

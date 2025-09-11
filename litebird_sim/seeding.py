@@ -27,7 +27,7 @@ def get_derived_random_generators(
 
     Returns
     -------
-    Tuple[List[SeedSequence], List[Generator]]
+    tuple[list[SeedSequence], list[Generator]]
         Returns a tuple where the first element is the list of newly spawned `SeedSequence`
         objects, and the second is the corresponding list of RNG generators.
 
@@ -122,7 +122,7 @@ def get_detector_level_generators_from_hierarchy(
 
     Returns
     -------
-    List[numpy.random.Generator]
+    list[numpy.random.Generator]
         A list of RNG generators corresponding to the detectors for that rank.
 
     Raises
@@ -157,16 +157,16 @@ def regenerate_or_check_detector_generators(
 
     Parameters
     ----------
-    observations : List[Observation]
+    observations : list[Observation]
         A list of observations, assumed to have consistent number of detectors and communicators.
     user_seed : int, optional
         Optional base seed used to regenerate the RNG hierarchy.
-    dets_random : List[Generator], optional
+    dets_random : list[Generator], optional
         List of pre-constructed RNGs to be validated.
 
     Returns
     -------
-    List[Generator]
+    list[Generator]
         A list of RNG generators, one for each detector.
 
     Raises
