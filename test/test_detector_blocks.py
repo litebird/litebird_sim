@@ -109,7 +109,7 @@ def test_detector_blocks(dets=dets, sampling_freq_Hz=sampling_freq_Hz):
 
 def test_rng_generators_with_detector_blocks():
     comm = lbs.MPI_COMM_WORLD
-    size = comm.Get_size()
+    size = comm.size
 
     ### Mission parameters
     telescope = "MFT"
