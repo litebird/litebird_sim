@@ -2,7 +2,6 @@
 # MR: This code is maintained externally, so I'm switching auto-formatting off
 # to make updating from outside sources easier.
 from dataclasses import dataclass
-from typing import List, Optional
 
 import ducc0
 import numpy as np
@@ -30,7 +29,7 @@ class TruncatedBlm:
     mmax: int
 
 
-def truncate_blm(inp, lmax: int, mmax: int, epsilon=1e-10) -> List[Optional[TruncatedBlm]]:
+def truncate_blm(inp, lmax: int, mmax: int, epsilon=1e-10) -> list[TruncatedBlm | None]:
     limit = epsilon * np.max(np.abs(inp))
     out = []  # type:List[Optional[TruncatedBlm]]
     for i in range(len(inp)):

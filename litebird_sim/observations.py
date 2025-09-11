@@ -1,9 +1,7 @@
-# -*- encoding: utf-8 -*-
-
 import numbers
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Union, List, Any, Optional
+from typing import Any
 
 import astropy.time
 import numpy as np
@@ -113,13 +111,13 @@ class Observation:
 
     def __init__(
         self,
-        detectors: Union[int, List[dict]],
+        detectors: int | list[dict],
         n_samples_global: int,
-        start_time_global: Union[float, astropy.time.Time],
+        start_time_global: float | astropy.time.Time,
         sampling_rate_hz: float,
         allocate_tod=True,
         tods=None,
-        det_blocks_attributes: Union[List[str], None] = None,
+        det_blocks_attributes: list[str] | None = None,
         n_blocks_det=1,
         n_blocks_time=1,
         comm=None,
@@ -709,7 +707,7 @@ class Observation:
         )
         setattr(self, name, info)
 
-    def get_delta_time(self) -> Union[float, astropy.time.TimeDelta]:
+    def get_delta_time(self) -> float | astropy.time.TimeDelta:
         """Return the time interval between two consecutive samples in this observation
 
         Depending whether the field ``start_time`` of the :class:`.Observation` object
@@ -723,7 +721,7 @@ class Observation:
 
         return delta
 
-    def get_time_span(self) -> Union[float, astropy.time.TimeDelta]:
+    def get_time_span(self) -> float | astropy.time.TimeDelta:
         """Return the temporal length of the current observation
 
         This method can either return a ``float`` (in seconds) or a
@@ -794,7 +792,7 @@ class Observation:
         self,
         instrument: InstrumentInfo,
         spin2ecliptic_quats: RotQuaternion,
-        hwp: Optional[HWP] = None,
+        hwp: HWP | None = None,
     ) -> None:
         """Prepare quaternion-based pointing and HWP information for this observation.
 
@@ -855,11 +853,11 @@ class Observation:
 
     def get_pointings(
         self,
-        detector_idx: Union[int, List[int], str] = "all",
-        pointing_buffer: Optional[npt.NDArray] = None,
-        hwp_buffer: Optional[npt.NDArray] = None,
+        detector_idx: int | list[int] | str = "all",
+        pointing_buffer: npt.NDArray | None = None,
+        hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-    ) -> tuple[npt.NDArray, Optional[npt.NDArray]]:
+    ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the pointings for one or more detectors in this observation
 
         This method triggers the computation of the matrix of pointings that indicate
@@ -993,9 +991,9 @@ class Observation:
 
     def get_hwp_angle(
         self,
-        hwp_buffer: Optional[npt.NDArray] = None,
+        hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-    ) -> Union[npt.NDArray, None]:
+    ) -> npt.NDArray | None:
         """Compute the Half-Wave Plate (HWP) angle for this observation.
 
         This method triggers the time-domain computation of the HWP angle using the

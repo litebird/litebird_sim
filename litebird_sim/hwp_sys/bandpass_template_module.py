@@ -1,5 +1,4 @@
 import numpy as np
-from typing import Union
 from scipy import signal
 from litebird_sim import BandPassInfo
 import logging
@@ -107,9 +106,9 @@ def beam_throughtput(freqs):
 
 # Define bandpass profile
 def bandpass_profile(
-    freqs: Union[np.array, None] = None,
-    bandpass: Union[dict, None] = None,
-    include_beam_throughput: Union[bool, None] = None,
+    freqs: np.array | None = None,
+    bandpass: dict | None = None,
+    include_beam_throughput: bool | None = None,
 ):
     r"""
     Returns the bandpass profile either reading it from a file or

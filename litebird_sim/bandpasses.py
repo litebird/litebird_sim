@@ -1,11 +1,8 @@
-# -*- encoding: utf-8 -*-
-
 from dataclasses import dataclass
 
 import numpy as np
 import scipy as sp
 import logging
-from typing import Optional, Union
 from uuid import UUID
 
 from .imo import Imo
@@ -81,8 +78,8 @@ class BandPassInfo:
 
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
-    bandlow_ghz: Union[float, None] = None
-    bandhigh_ghz: Union[float, None] = None
+    bandlow_ghz: float | None = None
+    bandhigh_ghz: float | None = None
     nsamples_inband: int = 128
     name: str = ""
     bandtype: str = "top-hat"
@@ -141,7 +138,7 @@ class BandPassInfo:
             self.bandcenter_ghz + self.bandwidth_ghz / 2,
         )
 
-    def _get_top_hat_bandpass(self, normalize=False, apodization: Optional[str] = None):
+    def _get_top_hat_bandpass(self, normalize=False, apodization: str | None = None):
         """
         Sample a top-hat bandpass, given the centroid and the bandwidth.
         If the `normalize` flag is set to ``True``, the transmission
@@ -244,7 +241,7 @@ class BandPassInfo:
             )
 
     @staticmethod
-    def from_imo(imo: Imo, url: Union[UUID, str]):
+    def from_imo(imo: Imo, url: UUID | str):
         """Create a `BandPassInfo` object from a definition in the IMO
         The `url` must either specify a UUID or a full URL to the
         object.

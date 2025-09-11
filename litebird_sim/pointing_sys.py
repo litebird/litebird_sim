@@ -1,6 +1,4 @@
-# -*- encoding: utf-8 -*-
-
-from typing import Iterable, List
+from collections.abc import Iterable
 import warnings
 
 import astropy.time
@@ -219,7 +217,7 @@ class FocalplaneCoord:
     """
 
     def __init__(
-        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+        self, sim: Simulation, obs: Observation, detectors: list[DetectorInfo]
     ):
         self.sim = sim
         self.obs = obs
@@ -345,7 +343,7 @@ class SpacecraftCoord:
     """
 
     def __init__(
-        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+        self, sim: Simulation, obs: Observation, detectors: list[DetectorInfo]
     ):
         self.sim = sim
         self.obs = obs
@@ -404,7 +402,7 @@ class HWPCoord:
     """
 
     def __init__(
-        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+        self, sim: Simulation, obs: Observation, detectors: list[DetectorInfo]
     ):
         """Initialize the HWPCoord class.
 
@@ -532,7 +530,7 @@ class PointingSys:
     """
 
     def __init__(
-        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+        self, sim: Simulation, obs: Observation, detectors: list[DetectorInfo]
     ):
         for detector in detectors:
             assert detector.sampling_rate_hz == detectors[0].sampling_rate_hz, (

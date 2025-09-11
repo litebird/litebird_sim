@@ -1,8 +1,7 @@
-# -*- encoding: utf-8 -*-
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Union, Optional, List, Dict, Any
+from typing import Any
 
 import jinja2
 import numpy as np
@@ -32,22 +31,22 @@ def _read_templates():
     return (sim_template, par_template)
 
 
-def ensure_parent_dir_exists(file_name: Union[str, Path]):
+def ensure_parent_dir_exists(file_name: str | Path):
     parent = Path(file_name).parent
     parent.mkdir(parents=True, exist_ok=True)
 
 
-def _format_time_for_fits(time: Union[float, AstroTime]) -> Union[float, str]:
+def _format_time_for_fits(time: float | AstroTime) -> float | str:
     return time if isinstance(time, float) else str(time)
 
 
 def _save_pointings_to_fits(
     observation: Observation,
     det_idx: int,
-    hwp: Optional[HWP],
-    pointings: Union[np.ndarray, List[np.ndarray], None],
+    hwp: HWP | None,
+    pointings: np.ndarray | list[np.ndarray] | None,
     output_coordinate_system,
-    file_name: Union[str, Path],
+    file_name: str | Path,
     pointing_dtype=np.float64,
 ):
     ensure_parent_dir_exists(file_name)
@@ -88,8 +87,8 @@ def _save_pointings_to_fits(
 def _save_tod_to_fits(
     observations: Observation,
     det_idx: int,
-    file_name: Union[str, Path],
-    components: List[str],
+    file_name: str | Path,
+    components: list[str],
 ):
     ensure_parent_dir_exists(file_name)
 
@@ -123,7 +122,7 @@ def _save_tod_to_fits(
 
 @dataclass
 class _ObsInMpiProcess:
-    start_time: Union[float, AstroTime]
+    start_time: float | AstroTime
     mpi_rank: int
     obs_local_idx: int  # Index of the observation within the MPI process
     obs_global_idx: int = 0  # Index of the FITS file containing this observation
@@ -133,7 +132,7 @@ def _sort_obs_per_det(
     distribution: MpiDistributionDescr,
     detector: str,
     mpi_rank: int,
-) -> List[_ObsInMpiProcess]:
+) -> list[_ObsInMpiProcess]:
     sorted_list = sorted(
         [
             _ObsInMpiProcess(
@@ -167,20 +166,20 @@ def _combine_file_dictionaries(file_dictionaries):
 def save_simulation_for_madam(
     sim: Simulation,
     params: ExternalDestriperParameters,
-    detectors: Optional[List[DetectorInfo]] = None,
-    hwp: Optional[HWP] = None,
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    detectors: list[DetectorInfo] | None = None,
+    hwp: HWP | None = None,
+    pointings: np.ndarray | list[np.ndarray] | None = None,
     use_gzip: bool = False,
-    output_path: Optional[Union[str, Path]] = None,
+    output_path: str | Path | None = None,
     absolute_paths: bool = True,
     madam_subfolder_name: str = "madam",
-    components: List[str] = ["tod"],
-    components_to_bin: Optional[List[str]] = None,
+    components: list[str] = ["tod"],
+    components_to_bin: list[str] | None = None,
     pointing_dtype=np.float64,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic,
     save_pointings: bool = True,
     save_tods: bool = True,
-) -> Optional[Dict[str, Any]]:
+) -> dict[str, Any] | None:
     """
     Save the TODs and pointings of a simulation to files suitable to be read by Madam
 
@@ -286,8 +285,7 @@ def save_simulation_for_madam(
         # Compute the intersection between the list of detectors passed as an argument
         # and the detectors that have been actually used in the simulation
         matching_names = list(
-            set((x.name for x in detectors))
-            & set((x.name for x in distribution.detectors))
+            {x.name for x in detectors} & {x.name for x in distribution.detectors}
         )
 
         # Filter out the mismatched detectors

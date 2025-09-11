@@ -1,12 +1,10 @@
-# -*- encoding: utf-8 -*-
-
 import json
 import logging as log
 import re
 from collections import namedtuple
 from dataclasses import fields, asdict
 from pathlib import Path
-from typing import Any, Dict, List, Union, Optional
+from typing import Any
 
 import astropy.time
 import h5py
@@ -75,7 +73,7 @@ def write_rot_quaternion_to_hdf5(
     output_file: h5py.File,
     rot_matrix: RotQuaternion,
     field_name: str,
-    compression: Optional[str],
+    compression: str | None,
 ) -> h5py.Dataset:
     new_dataset = output_file.create_dataset(
         field_name,
@@ -121,7 +119,7 @@ def write_pointing_provider_to_hdf5(
     output_file: h5py.File,
     field_name: str,
     pointing_provider: PointingProvider,
-    compression: Optional[str],
+    compression: str | None,
 ):
     rot_quaternion_field_name = f"{field_name}_rot_quaternion"
     write_rot_quaternion_to_hdf5(
@@ -171,7 +169,7 @@ def write_one_observation(
     pointings_dtype,
     global_index: int,
     local_index: int,
-    tod_fields: List[Union[str, TodDescription]] = None,
+    tod_fields: list[str | TodDescription] = None,
     gzip_compression: bool = False,
     write_full_pointings: bool = False,
 ):
@@ -370,18 +368,18 @@ def _compute_global_start_index(
 
 
 def write_list_of_observations(
-    observations: Union[Observation, List[Observation]],
-    path: Union[str, Path],
+    observations: Observation | list[Observation],
+    path: str | Path,
     tod_dtype=np.float32,
     pointings_dtype=np.float64,
     file_name_mask: str = __OBSERVATION_FILE_NAME_MASK,
-    custom_placeholders: Optional[List[Dict[str, Any]]] = None,
+    custom_placeholders: list[dict[str, Any]] | None = None,
     start_index: int = 0,
     collective_mpi_call: bool = True,
-    tod_fields: List[Union[str, TodDescription]] = [],
+    tod_fields: list[str | TodDescription] = [],
     gzip_compression: bool = False,
     write_full_pointings: bool = False,
-) -> List[Path]:
+) -> list[Path]:
     """
     Save a list of observations in a set of HDF5 files
 
@@ -550,14 +548,14 @@ def __find_flags(inpf, expected_num_of_dets: int, expected_num_of_samples: int):
 
 
 def read_one_observation(
-    path: Union[str, Path],
+    path: str | Path,
     limit_mpi_rank=True,
     tod_dtype=np.float32,
     read_quaternions_if_present=True,
     read_global_flags_if_present=True,
     read_local_flags_if_present=True,
-    tod_fields: List[str] = ["tod"],
-) -> Optional[Observation]:
+    tod_fields: list[str] = ["tod"],
+) -> Observation | None:
     """Read one :class:`.Observation` object from a HDF5 file.
 
     This is a low-level function that is wrapped by :func:`.read_list_of_observations`
@@ -696,7 +694,7 @@ _FileEntry = namedtuple(
 )
 
 
-def _build_file_entry_table(file_name_list: List[Union[str, Path]]) -> List[_FileEntry]:
+def _build_file_entry_table(file_name_list: list[str | Path]) -> list[_FileEntry]:
     file_entries = []  # type: List[_FileEntry]
     for cur_file_name in file_name_list:
         with h5py.File(cur_file_name, "r") as inpf:
@@ -717,11 +715,11 @@ def _build_file_entry_table(file_name_list: List[Union[str, Path]]) -> List[_Fil
 
 
 def read_list_of_observations(
-    file_name_list: List[Union[str, Path]],
+    file_name_list: list[str | Path],
     tod_dtype=np.float32,
     limit_mpi_rank: bool = True,
-    tod_fields: List[Union[str, TodDescription]] = ["tod"],
-) -> List[Observation]:
+    tod_fields: list[str | TodDescription] = ["tod"],
+) -> list[Observation]:
     """Read a list of HDF5 files containing TODs and return a list of observations
 
     The function reads all the HDF5 files listed in `file_name_list` (either a list of

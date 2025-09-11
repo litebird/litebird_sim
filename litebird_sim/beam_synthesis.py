@@ -1,7 +1,3 @@
-# -*- encoding: utf-8 -*-
-
-from typing import Optional, Union, List
-
 import numpy as np
 from numpy import sqrt, exp, sin, cos, log
 from scipy.special import iv as bessel_i
@@ -36,7 +32,7 @@ def alm_index(lmax: int, ell: int, m: int) -> int:
 
 
 def allocate_alm(
-    lmax: int, mmax: Optional[int] = None, nstokes: int = 3, dtype=np.complex128
+    lmax: int, mmax: int | None = None, nstokes: int = 3, dtype=np.complex128
 ) -> SphericalHarmonics:
     """
     Allocate an array to store spherical harmonics coefficients.
@@ -69,10 +65,10 @@ def gauss_beam_to_alm(
     lmax: int,
     mmax: int,
     fwhm_rad: float,
-    ellipticity: Optional[float] = 1.0,
-    psi_ell_rad: Optional[float] = 0.0,
-    psi_pol_rad: Union[float, None] = 0.0,
-    cross_polar_leakage: Optional[float] = 0.0,
+    ellipticity: float | None = 1.0,
+    psi_ell_rad: float | None = 0.0,
+    psi_pol_rad: float | None = 0.0,
+    cross_polar_leakage: float | None = 0.0,
 ) -> SphericalHarmonics:
     """
     Compute spherical harmonics coefficients a_ℓm representing a Gaussian beam.
@@ -205,9 +201,9 @@ def gauss_beam_to_alm(
 def generate_gauss_beam_alms(
     observation: Observation,
     lmax: int,
-    mmax: Optional[int] = None,
-    channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
-    store_in_observation: Optional[bool] = False,
+    mmax: int | None = None,
+    channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
+    store_in_observation: bool | None = False,
 ):
     """
     Generate Gaussian beam spherical harmonics coefficients for each detector in

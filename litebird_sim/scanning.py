@@ -1,7 +1,5 @@
-# -*- encoding: utf-8 -*-
-
 from abc import ABC, abstractmethod
-from typing import Union, List, Optional
+from typing import Union
 from uuid import UUID
 
 from astropy.coordinates import ICRS, get_body_barycentric
@@ -421,8 +419,8 @@ class RotQuaternion:
     def __init__(
         self,
         quats: Union[npt.ArrayLike, "RotQuaternion", None] = None,
-        start_time: Optional[Union[float, astropy.time.Time]] = None,
-        sampling_rate_hz: Optional[float] = None,
+        start_time: float | astropy.time.Time | None = None,
+        sampling_rate_hz: float | None = None,
     ):
         """
         Create a new instance of a time-dependent quaternion
@@ -552,7 +550,7 @@ class RotQuaternion:
 
     def slerp(
         self,
-        start_time: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
         sampling_rate_hz: float,
         nsamples: int,
     ):
@@ -649,7 +647,7 @@ class ScanningStrategy(ABC):
     @abstractmethod
     def generate_spin2ecl_quaternions(
         self,
-        start_time: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
         time_span_s: float,
         delta_time_s: float,
     ) -> RotQuaternion:
@@ -717,7 +715,7 @@ class ScanningStrategy(ABC):
 
     @staticmethod
     def get_times(
-        start_time: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
         delta_time_s: float,
         num_of_quaternions: int,
     ):
@@ -837,7 +835,7 @@ class SpinningScanningStrategy(ScanningStrategy):
         )
 
     @staticmethod
-    def from_imo(imo: Imo, url: Union[str, UUID]):
+    def from_imo(imo: Imo, url: str | UUID):
         """Read the definition of the scanning strategy from the IMO
 
         This function returns a :class:`.SpinningScanningStrategy`
@@ -874,7 +872,7 @@ class SpinningScanningStrategy(ScanningStrategy):
 
     def generate_spin2ecl_quaternions(
         self,
-        start_time: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
         time_span_s: float,
         delta_time_s: float,
     ) -> RotQuaternion:
@@ -936,7 +934,7 @@ def get_quaternion_buffer_shape(observations, num_of_detectors=None):
 def get_det2ecl_quaternions(
     observations,
     spin2ecliptic_quats: RotQuaternion,
-    detector_quats: List[RotQuaternion],
+    detector_quats: list[RotQuaternion],
     bore2spin_quat: RotQuaternion,
     quaternion_buffer=None,
     dtype=np.float64,

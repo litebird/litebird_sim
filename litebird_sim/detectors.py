@@ -1,7 +1,5 @@
-# -*- encoding: utf-8 -*-
-
 from dataclasses import dataclass, field, fields
-from typing import Any, Dict, Union, List
+from typing import Any
 
 from uuid import UUID
 import numpy as np
@@ -20,7 +18,7 @@ def url_to_uuid(url: str) -> UUID:
 
 
 def normalize_time_dependent_quaternion(
-    quat: Union[np.ndarray, RotQuaternion],
+    quat: np.ndarray | RotQuaternion,
 ) -> RotQuaternion:
     """Make sure that a quaternion is represented as a :class:`TimeDependentQuaternion` object"""
 
@@ -163,33 +161,33 @@ class DetectorInfo:
     """
 
     name: str = ""
-    wafer: Union[str, None] = None
-    pixel: Union[int, None] = None
-    pixtype: Union[str, None] = None
-    channel: Union[str, None] = None
-    squid: Union[int, None] = None
+    wafer: str | None = None
+    pixel: int | None = None
+    pixtype: str | None = None
+    channel: str | None = None
+    squid: int | None = None
     sampling_rate_hz: float = 0.0
     fwhm_arcmin: float = 0.0
     ellipticity: float = 1.0
     psi_rad: float = 0.0
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
-    band_freqs_ghz: Union[None, np.ndarray] = None
-    band_weights: Union[None, np.ndarray] = None
+    band_freqs_ghz: None | np.ndarray = None
+    band_weights: None | np.ndarray = None
     net_ukrts: float = 0.0
     pol_sensitivity_ukarcmin: float = 0.0
     fknee_mhz: float = 0.0
     fmin_hz: float = 0.0
     alpha: float = 0.0
-    pol: Union[str, None] = None
-    orient: Union[str, None] = None
+    pol: str | None = None
+    orient: str | None = None
     quat: Any = None
     pol_angle_rad: float = 0.0
     pol_efficiency: float = 1.0
-    mueller_hwp: Union[None, dict] = None
-    mueller_hwp_solver: Union[None, dict] = None
-    pointing_theta_phi_psi_deg: Union[None, np.ndarray] = None
-    pointing_u_v: Union[None, np.ndarray] = None
+    mueller_hwp: None | dict = None
+    mueller_hwp_solver: None | dict = None
+    pointing_theta_phi_psi_deg: None | np.ndarray = None
+    pointing_u_v: None | np.ndarray = None
     g_one_over_k: float = 0.0
     amplitude_2f_k: float = 0.0
 
@@ -214,7 +212,7 @@ class DetectorInfo:
                 )
 
     @staticmethod
-    def from_dict(dictionary: Dict[str, Any]):
+    def from_dict(dictionary: dict[str, Any]):
         """Create a detector from the contents of a dictionary
 
         The parameter `dictionary` must contain one key for each of
@@ -297,7 +295,7 @@ class DetectorInfo:
         return result
 
     @staticmethod
-    def from_imo(imo: Imo, url: Union[UUID, str]):
+    def from_imo(imo: Imo, url: UUID | str):
         """Create a `DetectorInfo` object from a definition in the IMO
 
         The `url` must either specify a UUID or a full URL to the
@@ -320,10 +318,10 @@ class DetectorInfo:
 @dataclass
 class FreqChannelInfo:
     bandcenter_ghz: float
-    channel: Union[str, None] = None
+    channel: str | None = None
     bandwidth_ghz: float = 0.0
-    band_freqs_ghz: Union[None, np.ndarray] = None
-    band_weights: Union[None, np.ndarray] = None
+    band_freqs_ghz: None | np.ndarray = None
+    band_weights: None | np.ndarray = None
     net_detector_ukrts: float = 0.0
     net_channel_ukrts: float = 0.0
     pol_sensitivity_channel_ukarcmin: float = 0.0
@@ -335,8 +333,8 @@ class FreqChannelInfo:
     fmin_hz: float = 1e-5
     alpha: float = 1.0
     number_of_detectors: int = 0
-    detector_names: List[str] = field(default_factory=list)
-    detector_objs: List[UUID] = field(default_factory=list)
+    detector_names: list[str] = field(default_factory=list)
+    detector_objs: list[UUID] = field(default_factory=list)
 
     """A data class representing the configuration of a frequency channel in LiteBIRD.
 
@@ -462,7 +460,7 @@ class FreqChannelInfo:
                 self.detector_objs[det_idx] = cur_uuid
 
     @staticmethod
-    def from_dict(dictionary: Dict[str, Any]):
+    def from_dict(dictionary: dict[str, Any]):
         result = FreqChannelInfo(bandcenter_ghz=0.0)
         for param in fields(FreqChannelInfo):
             if param.name in dictionary:
@@ -480,7 +478,7 @@ class FreqChannelInfo:
         return result
 
     @staticmethod
-    def from_imo(imo: Imo, url: Union[UUID, str]):
+    def from_imo(imo: Imo, url: UUID | str):
         obj = imo.query(url)
         return FreqChannelInfo.from_dict(obj.metadata)
 
@@ -510,9 +508,9 @@ class InstrumentInfo:
     bore2spin_quat = np.array([0.0, 0.0, 0.0, 1.0])
     hwp_rpm: float = 0.0
     number_of_channels: int = 0
-    channel_names: List[str] = field(default_factory=list)
-    channel_objs: List[UUID] = field(default_factory=list)
-    wafer_names: List[str] = field(default_factory=list)
+    channel_names: list[str] = field(default_factory=list)
+    channel_objs: list[UUID] = field(default_factory=list)
+    wafer_names: list[str] = field(default_factory=list)
     wafer_space_cm: float = 0.0
 
     """A data class representing a LiteBIRD instrument configuration.
@@ -595,7 +593,7 @@ class InstrumentInfo:
         return quat
 
     @staticmethod
-    def from_dict(dictionary: Dict[str, Any]):
+    def from_dict(dictionary: dict[str, Any]):
         name = dictionary.get("name", "mock-instrument")
         boresight_rotangle_rad = np.deg2rad(
             dictionary.get("boresight_rotangle_deg", 0.0)
@@ -624,7 +622,7 @@ class InstrumentInfo:
         )
 
     @staticmethod
-    def from_imo(imo: Imo, url: Union[UUID, str]):
+    def from_imo(imo: Imo, url: UUID | str):
         obj = imo.query(url)
         return InstrumentInfo.from_dict(obj.metadata)
 
@@ -633,8 +631,8 @@ class InstrumentInfo:
 
 
 def detector_list_from_parameters(
-    imo: Imo, definition_list: List[Any]
-) -> List[DetectorInfo]:
+    imo: Imo, definition_list: list[Any]
+) -> list[DetectorInfo]:
     result = []
 
     for det_def in definition_list:

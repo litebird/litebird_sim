@@ -14,7 +14,8 @@ import numpy.typing as npt
 from numba import njit
 import healpy as hp
 
-from typing import Union, List, Any, Optional, Callable
+from typing import Any
+from collections.abc import Callable
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.pointings_in_obs import (
@@ -62,7 +63,7 @@ class BinnerResult:
     binned_map: Any = None
     invnpp: Any = None
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
-    components: List = None
+    components: list = None
     detector_split: str = "full"
     time_split: str = "full"
 
@@ -191,13 +192,13 @@ def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
 
 def _build_nobs_matrix(
     nside: int,
-    obs_list: List[Observation],
-    ptg_list: Union[List[npt.ArrayLike], List[Callable]],
-    hwp: Union[HWP, None],
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
+    obs_list: list[Observation],
+    ptg_list: list[npt.ArrayLike] | list[Callable],
+    hwp: HWP | None,
+    dm_list: list[npt.ArrayLike],
+    tm_list: list[npt.ArrayLike],
     output_coordinate_system: CoordinateSystem,
-    components: List[str],
+    components: list[str],
     pointings_dtype=np.float64,
 ) -> npt.ArrayLike:
     hpx = Healpix_Base(nside, "RING")
@@ -268,11 +269,11 @@ def _build_nobs_matrix(
 
 def make_binned_map(
     nside: int,
-    observations: Union[Observation, List[Observation]],
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-    hwp: Optional[HWP] = None,
+    observations: Observation | list[Observation],
+    pointings: np.ndarray | list[np.ndarray] | None = None,
+    hwp: HWP | None = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    components: Union[str, List[str]] = "tod",
+    components: str | list[str] = "tod",
     detector_split: str = "full",
     time_split: str = "full",
     pointings_dtype=np.float64,
@@ -355,9 +356,9 @@ def make_binned_map(
 
 
 def check_valid_splits(
-    observations: Union[Observation, List[Observation]],
-    detector_splits: Union[str, List[str]] = "full",
-    time_splits: Union[str, List[str]] = "full",
+    observations: Observation | list[Observation],
+    detector_splits: str | list[str] = "full",
+    time_splits: str | list[str] = "full",
 ):
     """Check if the splits are valid
 

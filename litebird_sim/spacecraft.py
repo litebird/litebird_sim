@@ -1,7 +1,4 @@
-# -*- encoding: utf-8 -*-
-
 from dataclasses import dataclass
-from typing import Union, List, Tuple
 
 import astropy
 from astropy.coordinates import ICRS, get_body_barycentric_posvel, SkyCoord
@@ -303,8 +300,7 @@ class SpacecraftPositionAndVelocity:
 
     def __str__(self):
         return (
-            "SpacecraftPositionAndVelocity(start_time={0}, "
-            "time_span_s={1}, nsamples={2})"
+            "SpacecraftPositionAndVelocity(start_time={}, time_span_s={}, nsamples={})"
         ).format(self.start_time, self.time_span_s, len(self.positions_km))
 
     def __repr__(self):
@@ -339,8 +335,8 @@ class SpacecraftPositionAndVelocity:
 
 
 def compute_start_and_span_for_obs(
-    observations: Union[Observation, List[Observation]],
-) -> Tuple[astropy.time.Time, float]:
+    observations: Observation | list[Observation],
+) -> tuple[astropy.time.Time, float]:
     """
     Compute the start time and the overall duration in seconds of a set of observations.
 
@@ -374,9 +370,9 @@ def compute_start_and_span_for_obs(
 
 def spacecraft_pos_and_vel(
     orbit: SpacecraftOrbit,
-    observations: Union[Observation, List[Observation], None] = None,
-    start_time: Union[astropy.time.Time, None] = None,
-    time_span_s: Union[float, None] = None,
+    observations: Observation | list[Observation] | None = None,
+    start_time: astropy.time.Time | None = None,
+    time_span_s: float | None = None,
     delta_time_s: float = 86400.0,
 ) -> SpacecraftPositionAndVelocity:
     """Compute the position and velocity of the L2 point within some time span

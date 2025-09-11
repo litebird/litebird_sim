@@ -1,7 +1,4 @@
-# -*- encoding: utf-8 -*-
-
 from collections import namedtuple
-from typing import List
 
 Span = namedtuple("Span", ["start_idx", "num_of_elements"])
 """A sub-range in a sequence of elements.
@@ -178,7 +175,7 @@ def __identity_fn(x):
     return x
 
 
-def distribute_optimally(elements, num_of_groups, weight_fn=None) -> List[Span]:
+def distribute_optimally(elements, num_of_groups, weight_fn=None) -> list[Span]:
     """Evenly distribute a set of equal elements between groups.
 
     Assuming that we have a set of elements, each having its own

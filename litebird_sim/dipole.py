@@ -1,11 +1,8 @@
-# -*- encoding: utf-8 -*-
-
 from enum import IntEnum
 
 from numba import njit, prange
 import numpy as np
 
-from typing import Union, List
 
 from .observations import Observation
 from .spacecraft import SpacecraftPositionAndVelocity
@@ -300,14 +297,12 @@ def add_dipole(
 
 
 def add_dipole_to_observations(
-    observations: Union[Observation, List[Observation]],
+    observations: Observation | list[Observation],
     pos_and_vel: SpacecraftPositionAndVelocity,
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    pointings: np.ndarray | list[np.ndarray] | None = None,
     t_cmb_k: float = c.T_CMB_K,
     dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
-    frequency_ghz: Union[
-        np.ndarray, None
-    ] = None,  # e.g. central frequency of channel from
+    frequency_ghz: (np.ndarray | None) = None,  # e.g. central frequency of channel from
     component: str = "tod",
     pointings_dtype=np.float64,
 ):
