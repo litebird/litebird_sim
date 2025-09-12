@@ -274,7 +274,7 @@ def test_detector_generators_regeneration(tmp_path):
     ]
 
     sim = lbs.Simulation(
-        base_path=tmp_path / "gd_lineargain_test",
+        base_path=tmp_path / "seeding_test",
         start_time=start_time,
         duration_s=duration_s,
         random_seed=12345,
