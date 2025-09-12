@@ -2,6 +2,8 @@
 
 -   Add pre-commit hook to keep syntax compliant with `py3.10+` [#461](https://github.com/litebird/litebird_sim/pull/461)
 
+-   Fix issue [#459](https://github.com/litebird/litebird_sim/issues/459)
+
 -   Fix issue [#457](https://github.com/litebird/litebird_sim/issues/457)
 
 -   Fix incorrect handling of HWP with precomputed pointing [#456](https://github.com/litebird/litebird_sim/pull/456)
