@@ -1,6 +1,4 @@
-# -*- encoding: utf-8 -*-
 import logging
-from typing import Union, List
 
 import healpy as hp
 import numpy as np
@@ -462,17 +460,17 @@ class HwpSys:
 
     def set_parameters(
         self,
-        nside: Union[int, None] = None,
-        nside_out: Union[int, None] = None,
-        mbs_params: Union[MbsParameters, None] = None,
-        build_map_on_the_fly: Union[bool, None] = False,
-        apply_non_linearity: Union[bool, None] = False,
-        add_2f_hwpss: Union[bool, None] = False,
-        interpolation: Union[str, None] = "",
-        channel: Union[FreqChannelInfo, None] = None,
-        maps: Union[np.ndarray, None] = None,
-        comm: Union[bool, None] = None,
-        mueller_phases: Union[dict, None] = None,
+        nside: int | None = None,
+        nside_out: int | None = None,
+        mbs_params: MbsParameters | None = None,
+        build_map_on_the_fly: bool | None = False,
+        apply_non_linearity: bool | None = False,
+        add_2f_hwpss: bool | None = False,
+        interpolation: str | None = "",
+        channel: FreqChannelInfo | None = None,
+        maps: np.ndarray | None = None,
+        comm: bool | None = None,
+        mueller_phases: dict | None = None,
     ):
         r"""It sets the input paramters reading a dictionary `sim.parameters`
         with key "hwp_sys" and the following input arguments
@@ -629,9 +627,9 @@ class HwpSys:
 
     def fill_tod(
         self,
-        observations: Union[Observation, List[Observation]] = None,
-        pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-        hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
+        observations: Observation | list[Observation] = None,
+        pointings: np.ndarray | list[np.ndarray] | None = None,
+        hwp_angle: np.ndarray | list[np.ndarray] | None = None,
         input_map_in_galactic: bool = True,
         save_tod: bool = False,
         dtype_pointings=np.float64,

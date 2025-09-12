@@ -1,7 +1,5 @@
-# -*- encoding: utf-8 -*-
-
 from dataclasses import dataclass, field, fields
-from typing import Any, Dict, Union, List
+from typing import Any
 
 from uuid import UUID
 import numpy as np
@@ -20,7 +18,7 @@ def url_to_uuid(url: str) -> UUID:
 
 
 def normalize_time_dependent_quaternion(
-    quat: Union[np.ndarray, RotQuaternion],
+    quat: np.ndarray | RotQuaternion,
 ) -> RotQuaternion:
     """Make sure that a quaternion is represented as a :class:`TimeDependentQuaternion` object"""
 
@@ -85,16 +83,16 @@ class DetectorInfo:
     Args:
         name (str): The name of the detector. Default is an empty string.
 
-        wafer (Union[str, None]): The name of the wafer hosting the detector
+        wafer (str | None): The name of the wafer hosting the detector
             (e.g., ``"H00"``, ``"L07"``, etc.). Default is None.
 
-        pixel (Union[int, None]): The index of the pixel within the wafer. Default is None.
+        pixel (int | None): The index of the pixel within the wafer. Default is None.
 
-        pixtype (Union[str, None]): The type of the pixel (e.g., ``"HP1"``, ``"LP3"``). Default is None.
+        pixtype (str | None): The type of the pixel (e.g., ``"HP1"``, ``"LP3"``). Default is None.
 
-        channel (Union[str, None]): The channel name. Default is None.
+        channel (str | None): The channel name. Default is None.
 
-        squid (Union[int, None]): The SQUID number associated with the detector. Default is None.
+        squid (int | None): The SQUID number associated with the detector. Default is None.
 
         sampling_rate_hz (float): Sampling rate of the ADC associated with this detector, in Hz.
             Default is 0.0.
@@ -119,10 +117,10 @@ class DetectorInfo:
 
         bandwidth_ghz (float): Bandwidth of the detector, in GHz. Default is 0.0.
 
-        band_freqs_ghz (Union[np.ndarray, None]): Array of sampled frequencies in the band (GHz).
+        band_freqs_ghz (np.ndarray | None): Array of sampled frequencies in the band (GHz).
             Default is None.
 
-        band_weights (Union[np.ndarray, None]): Corresponding normalized band weights. Default is None.
+        band_weights (np.ndarray | None): Corresponding normalized band weights. Default is None.
 
         fknee_mhz (float): 1/f noise knee frequency in mHz. Default is 0.0.
 
@@ -131,9 +129,9 @@ class DetectorInfo:
 
         alpha (float): Slope of the 1/f noise power spectrum. Default is 0.0.
 
-        pol (Union[str, None]): Polarization type (``"T"``, ``"B"``, etc.). Default is None.
+        pol (str | None): Polarization type (``"T"``, ``"B"``, etc.). Default is None.
 
-        orient (Union[str, None]): Polarization orientation (``"Q"``, ``"U"``, etc.). Default is None.
+        orient (str | None): Polarization orientation (``"Q"``, ``"U"``, etc.). Default is None.
 
         quat (:class:`.TimeDependentQuaternion`): Quaternion representing the rotation from
             the detector frame to the boresight frame. Default is identity (no rotation).
@@ -144,16 +142,16 @@ class DetectorInfo:
         pol_efficiency (float): Polarization efficiency (γ), as defined in Eq. 15 of astro-ph/0606606.
             Default is 1.0.
 
-        mueller_hwp (Union[None, dict]): Mueller matrix of the HWP, expanded into three harmonics
+        mueller_hwp (None | dict): Mueller matrix of the HWP, expanded into three harmonics
             of the HWP rotation frequency. Default is None (no HWP).
 
-        mueller_hwp_solver (Union[None, dict]): Mueller matrix used in the mapmaking solver to
+        mueller_hwp_solver (None | dict): Mueller matrix used in the mapmaking solver to
             model a non-ideal HWP. Also decomposed into three harmonics. Default is None (no HWP).
 
-        pointing_theta_phi_psi_deg (Union[None, np.ndarray]): Array of pointing angles (θ, φ, ψ)
+        pointing_theta_phi_psi_deg (None | np.ndarray): Array of pointing angles (θ, φ, ψ)
             in degrees: colatitude, longitude, and orientation. Default is None.
 
-        pointing_u_v (Union[None, np.ndarray]): Detector pointing in focal plane coordinates (u, v),
+        pointing_u_v (None | np.ndarray): Detector pointing in focal plane coordinates (u, v),
             with (0, 0) representing the central axis of the focal plane. Default is None.
 
         g_one_over_k (float): Gain conversion factor (1/K), used in calibration models. Default is 0.0.
@@ -163,33 +161,33 @@ class DetectorInfo:
     """
 
     name: str = ""
-    wafer: Union[str, None] = None
-    pixel: Union[int, None] = None
-    pixtype: Union[str, None] = None
-    channel: Union[str, None] = None
-    squid: Union[int, None] = None
+    wafer: str | None = None
+    pixel: int | None = None
+    pixtype: str | None = None
+    channel: str | None = None
+    squid: int | None = None
     sampling_rate_hz: float = 0.0
     fwhm_arcmin: float = 0.0
     ellipticity: float = 1.0
     psi_rad: float = 0.0
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
-    band_freqs_ghz: Union[None, np.ndarray] = None
-    band_weights: Union[None, np.ndarray] = None
+    band_freqs_ghz: None | np.ndarray = None
+    band_weights: None | np.ndarray = None
     net_ukrts: float = 0.0
     pol_sensitivity_ukarcmin: float = 0.0
     fknee_mhz: float = 0.0
     fmin_hz: float = 0.0
     alpha: float = 0.0
-    pol: Union[str, None] = None
-    orient: Union[str, None] = None
+    pol: str | None = None
+    orient: str | None = None
     quat: Any = None
     pol_angle_rad: float = 0.0
     pol_efficiency: float = 1.0
-    mueller_hwp: Union[None, dict] = None
-    mueller_hwp_solver: Union[None, dict] = None
-    pointing_theta_phi_psi_deg: Union[None, np.ndarray] = None
-    pointing_u_v: Union[None, np.ndarray] = None
+    mueller_hwp: None | dict = None
+    mueller_hwp_solver: None | dict = None
+    pointing_theta_phi_psi_deg: None | np.ndarray = None
+    pointing_u_v: None | np.ndarray = None
     g_one_over_k: float = 0.0
     amplitude_2f_k: float = 0.0
 
@@ -214,7 +212,7 @@ class DetectorInfo:
                 )
 
     @staticmethod
-    def from_dict(dictionary: Dict[str, Any]):
+    def from_dict(dictionary: dict[str, Any]):
         """Create a detector from the contents of a dictionary
 
         The parameter `dictionary` must contain one key for each of
@@ -297,7 +295,7 @@ class DetectorInfo:
         return result
 
     @staticmethod
-    def from_imo(imo: Imo, url: Union[UUID, str]):
+    def from_imo(imo: Imo, url: UUID | str):
         """Create a `DetectorInfo` object from a definition in the IMO
 
         The `url` must either specify a UUID or a full URL to the
@@ -320,10 +318,10 @@ class DetectorInfo:
 @dataclass
 class FreqChannelInfo:
     bandcenter_ghz: float
-    channel: Union[str, None] = None
+    channel: str | None = None
     bandwidth_ghz: float = 0.0
-    band_freqs_ghz: Union[None, np.ndarray] = None
-    band_weights: Union[None, np.ndarray] = None
+    band_freqs_ghz: None | np.ndarray = None
+    band_weights: None | np.ndarray = None
     net_detector_ukrts: float = 0.0
     net_channel_ukrts: float = 0.0
     pol_sensitivity_channel_ukarcmin: float = 0.0
@@ -335,8 +333,8 @@ class FreqChannelInfo:
     fmin_hz: float = 1e-5
     alpha: float = 1.0
     number_of_detectors: int = 0
-    detector_names: List[str] = field(default_factory=list)
-    detector_objs: List[UUID] = field(default_factory=list)
+    detector_names: list[str] = field(default_factory=list)
+    detector_objs: list[UUID] = field(default_factory=list)
 
     """A data class representing the configuration of a frequency channel in LiteBIRD.
 
@@ -403,10 +401,10 @@ class FreqChannelInfo:
         number_of_detectors (int): Number of detectors in the channel. If 0, inferred from
             `detector_names` or `detector_objs`. Default is 0.
 
-        detector_names (List[str]): List of detector names. If not provided, generated automatically.
+        detector_names (list[str]): List of detector names. If not provided, generated automatically.
             Default is an empty list.
 
-        detector_objs (List[UUID]): List of UUIDs (or strings convertible to UUIDs) identifying
+        detector_objs (list[UUID]): List of UUIDs (or strings convertible to UUIDs) identifying
             detector entries in the IMO. Default is an empty list.
     """
 
@@ -462,7 +460,7 @@ class FreqChannelInfo:
                 self.detector_objs[det_idx] = cur_uuid
 
     @staticmethod
-    def from_dict(dictionary: Dict[str, Any]):
+    def from_dict(dictionary: dict[str, Any]):
         result = FreqChannelInfo(bandcenter_ghz=0.0)
         for param in fields(FreqChannelInfo):
             if param.name in dictionary:
@@ -480,7 +478,7 @@ class FreqChannelInfo:
         return result
 
     @staticmethod
-    def from_imo(imo: Imo, url: Union[UUID, str]):
+    def from_imo(imo: Imo, url: UUID | str):
         obj = imo.query(url)
         return FreqChannelInfo.from_dict(obj.metadata)
 
@@ -510,9 +508,9 @@ class InstrumentInfo:
     bore2spin_quat = np.array([0.0, 0.0, 0.0, 1.0])
     hwp_rpm: float = 0.0
     number_of_channels: int = 0
-    channel_names: List[str] = field(default_factory=list)
-    channel_objs: List[UUID] = field(default_factory=list)
-    wafer_names: List[str] = field(default_factory=list)
+    channel_names: list[str] = field(default_factory=list)
+    channel_objs: list[UUID] = field(default_factory=list)
+    wafer_names: list[str] = field(default_factory=list)
     wafer_space_cm: float = 0.0
 
     """A data class representing a LiteBIRD instrument configuration.
@@ -557,12 +555,12 @@ class InstrumentInfo:
 
         number_of_channels (int): Number of frequency channels in the instrument. Default is 0.
 
-        channel_names (List[str]): List of frequency channel names. Default is an empty list.
+        channel_names (list[str]): List of frequency channel names. Default is an empty list.
 
-        channel_objs (List[UUID]): List of references to channel definitions (UUIDs or convertible strings).
+        channel_objs (list[UUID]): List of references to channel definitions (UUIDs or convertible strings).
             Automatically converted to UUIDs. Default is an empty list.
 
-        wafer_names (List[str]): List of wafer names used in the instrument. Default is an empty list.
+        wafer_names (list[str]): List of wafer names used in the instrument. Default is an empty list.
 
         wafer_space_cm (float): Spacing between wafers, in centimeters. Default is 0.0.
 
@@ -595,7 +593,7 @@ class InstrumentInfo:
         return quat
 
     @staticmethod
-    def from_dict(dictionary: Dict[str, Any]):
+    def from_dict(dictionary: dict[str, Any]):
         name = dictionary.get("name", "mock-instrument")
         boresight_rotangle_rad = np.deg2rad(
             dictionary.get("boresight_rotangle_deg", 0.0)
@@ -624,7 +622,7 @@ class InstrumentInfo:
         )
 
     @staticmethod
-    def from_imo(imo: Imo, url: Union[UUID, str]):
+    def from_imo(imo: Imo, url: UUID | str):
         obj = imo.query(url)
         return InstrumentInfo.from_dict(obj.metadata)
 
@@ -633,8 +631,8 @@ class InstrumentInfo:
 
 
 def detector_list_from_parameters(
-    imo: Imo, definition_list: List[Any]
-) -> List[DetectorInfo]:
+    imo: Imo, definition_list: list[Any]
+) -> list[DetectorInfo]:
     result = []
 
     for det_def in definition_list:

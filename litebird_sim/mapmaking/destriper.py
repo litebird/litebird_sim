@@ -1,10 +1,10 @@
-# -*- encoding: utf-8 -*-
 import gc
 import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Union, List, Optional, Tuple, Any, Dict
+from typing import Any
+from collections.abc import Callable
 
 import healpy as hp
 import numpy as np
@@ -47,7 +47,7 @@ __DESTRIPER_RESULTS_FILE_NAME = "destriper_results.fits"
 __BASELINES_FILE_NAME = f"baselines_mpi{MPI_COMM_GRID.COMM_OBS_GRID.rank:04d}.fits"
 
 
-def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
+def _split_items_into_n_segments(n: int, num_of_segments: int) -> list[int]:
     """Divide a quantity `length` into chunks, each roughly of the same length
 
     This low-level function is used to determine how many samples in a TOD should be
@@ -79,7 +79,7 @@ def _split_items_into_n_segments(n: int, num_of_segments: int) -> List[int]:
     return start_positions[1:] - start_positions[0:-1]
 
 
-def split_items_evenly(n: int, sub_n: int) -> List[int]:
+def split_items_evenly(n: int, sub_n: int) -> list[int]:
     """Evenly split `n` items into groups, each with roughly `sub_n` elements
 
     .. testsetup::
@@ -97,8 +97,8 @@ def split_items_evenly(n: int, sub_n: int) -> List[int]:
         [3 3 4]
 
     """
-    assert sub_n > 0, "sub_n={0} is not positive".format(sub_n)
-    assert sub_n < n, "sub_n={0} is not smaller than n={1}".format(sub_n, n)
+    assert sub_n > 0, f"sub_n={sub_n} is not positive"
+    assert sub_n < n, f"sub_n={sub_n} is not smaller than n={n}"
 
     return _split_items_into_n_segments(n=n, num_of_segments=int(np.ceil(n / sub_n)))
 
@@ -255,7 +255,7 @@ class DestriperParameters:
     """
 
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic
-    samples_per_baseline: Optional[Union[int, List[npt.ArrayLike]]] = 100
+    samples_per_baseline: int | list[npt.ArrayLike] | None = 100
     iter_max: int = 100
     threshold: float = 1e-7
     use_preconditioner: bool = True
@@ -318,29 +318,29 @@ class DestriperResult:
 
     params: DestriperParameters
     nside: int
-    components: List[str]
+    components: list[str]
     hit_map: npt.ArrayLike
     binned_map: npt.ArrayLike
     nobs_matrix_cholesky: NobsMatrix
     coordinate_system: CoordinateSystem
     # The following fields are filled only if the CG algorithm was used
-    baselines: Optional[npt.ArrayLike]
-    baseline_errors: Optional[npt.ArrayLike]
-    baseline_lengths: Optional[npt.ArrayLike]
-    stopping_factor: Optional[float]
-    history_of_stopping_factors: Optional[List[float]]
-    destriped_map: Optional[npt.ArrayLike]
-    converged: Union[bool, str]
+    baselines: npt.ArrayLike | None
+    baseline_errors: npt.ArrayLike | None
+    baseline_lengths: npt.ArrayLike | None
+    stopping_factor: float | None
+    history_of_stopping_factors: list[float] | None
+    destriped_map: npt.ArrayLike | None
+    converged: bool | str
     elapsed_time_s: float
     bytes_in_temporary_buffers: int
-    detector_split: Optional[str] = "full"
-    time_split: Optional[str] = "full"
+    detector_split: str | None = "full"
+    time_split: str | None = "full"
 
 
 def _sum_components_into_obs(
-    obs_list: List[Observation],
+    obs_list: list[Observation],
     target: str,
-    other_components: List[str],
+    other_components: list[str],
     factor: float,
 ) -> None:
     """Sum all the TOD components into the first one
@@ -442,9 +442,9 @@ def _nobs_matrix_to_cholesky(
 
 def _store_pixel_idx_and_pol_angle_in_obs(
     hpx: Healpix_Base,
-    obs_list: List[Observation],
-    ptg_list: Union[List[npt.ArrayLike], List[Callable]],
-    hwp: Union[HWP, None],
+    obs_list: list[Observation],
+    ptg_list: list[npt.ArrayLike] | list[Callable],
+    hwp: HWP | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
 ):
@@ -473,9 +473,9 @@ def _store_pixel_idx_and_pol_angle_in_obs(
 
 def _build_nobs_matrix(
     hpx: Healpix_Base,
-    obs_list: List[Observation],
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
+    obs_list: list[Observation],
+    dm_list: list[npt.ArrayLike],
+    tm_list: list[npt.ArrayLike],
 ) -> NobsMatrix:
     # Instead of a shape like (Npix, 3, 3), i.e., one 3×3 matrix per each
     # pixel, we only store the lower triangular part in a 6-element array.
@@ -671,13 +671,13 @@ def _sum_map_to_binned_map(
 
 
 def _compute_binned_map(
-    obs_list: List[Observation],
+    obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
-    baselines_list: Optional[List[npt.ArrayLike]],
-    baseline_lengths_list: List[npt.ArrayLike],
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
-    component: Optional[str],
+    baselines_list: list[npt.ArrayLike] | None,
+    baseline_lengths_list: list[npt.ArrayLike],
+    dm_list: list[npt.ArrayLike],
+    tm_list: list[npt.ArrayLike],
+    component: str | None,
     output_hit_map: npt.ArrayLike,
     output_sky_map: npt.ArrayLike,
 ) -> None:
@@ -882,14 +882,14 @@ def _compute_baseline_sums_for_one_component(
 
 
 def _compute_baseline_sums(
-    obs_list: List[Observation],
+    obs_list: list[Observation],
     sky_map: npt.ArrayLike,
-    baselines_list: Optional[List[npt.ArrayLike]],
-    baseline_lengths_list: List[npt.ArrayLike],
-    component: Optional[str],
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
-    output_sums_list: List[npt.ArrayLike],
+    baselines_list: list[npt.ArrayLike] | None,
+    baseline_lengths_list: list[npt.ArrayLike],
+    component: str | None,
+    dm_list: list[npt.ArrayLike],
+    tm_list: list[npt.ArrayLike],
+    output_sums_list: list[npt.ArrayLike],
 ):
     """
     Compute F^t C_w⁻¹ Z either on the TOD Fa (baselines) or y (TOD)
@@ -971,7 +971,7 @@ def _compute_baseline_sums(
             )
 
 
-def _mpi_dot(a: List[npt.ArrayLike], b: List[npt.ArrayLike]) -> float:
+def _mpi_dot(a: list[npt.ArrayLike], b: list[npt.ArrayLike]) -> float:
     """Compute a dot product between lists of vectors using MPI
 
     This function is a glorified version of ``numpy.dot``. It assumes
@@ -993,7 +993,7 @@ def _mpi_dot(a: List[npt.ArrayLike], b: List[npt.ArrayLike]) -> float:
         return local_result
 
 
-def _get_stopping_factor(residual: List[npt.ArrayLike]) -> float:
+def _get_stopping_factor(residual: list[npt.ArrayLike]) -> float:
     """Given a list of baseline residuals, estimate the stopping factor
 
     Our assumption here is that the stopping factor is the maximum absolute
@@ -1011,16 +1011,16 @@ def _get_stopping_factor(residual: List[npt.ArrayLike]) -> float:
 
 
 def _compute_b_or_Ax(
-    obs_list: List[Observation],
+    obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
     sky_map: npt.ArrayLike,
     hit_map: npt.ArrayLike,
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
-    baselines_list: Optional[List[npt.ArrayLike]],
-    baseline_lengths_list: List[npt.ArrayLike],
-    component: Optional[str],
-    result: List[npt.ArrayLike],
+    dm_list: list[npt.ArrayLike],
+    tm_list: list[npt.ArrayLike],
+    baselines_list: list[npt.ArrayLike] | None,
+    baseline_lengths_list: list[npt.ArrayLike],
+    component: str | None,
+    result: list[npt.ArrayLike],
 ):
     """Either compute `Ax` or `b` in the map-making equation `Ax=b`
 
@@ -1054,15 +1054,15 @@ def _compute_b_or_Ax(
 
 
 def compute_b(
-    obs_list: List[Observation],
+    obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
     sky_map: npt.ArrayLike,
     hit_map: npt.ArrayLike,
-    baseline_lengths_list: List[npt.ArrayLike],
+    baseline_lengths_list: list[npt.ArrayLike],
     component: str,
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
-    result: List[npt.ArrayLike],
+    dm_list: list[npt.ArrayLike],
+    tm_list: list[npt.ArrayLike],
+    result: list[npt.ArrayLike],
 ) -> None:
     """
     Compute `F^t·C_w⁻¹·Z·y
@@ -1086,15 +1086,15 @@ def compute_b(
 
 
 def compute_Ax(
-    obs_list: List[Observation],
+    obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
     sky_map: npt.ArrayLike,
     hit_map: npt.ArrayLike,
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
-    baselines_list: List[npt.ArrayLike],
-    baseline_lengths_list: List[npt.ArrayLike],
-    result: List[npt.ArrayLike],
+    dm_list: list[npt.ArrayLike],
+    tm_list: list[npt.ArrayLike],
+    baselines_list: list[npt.ArrayLike],
+    baseline_lengths_list: list[npt.ArrayLike],
+    result: list[npt.ArrayLike],
 ) -> None:
     """
     Compute `F^t·C_w⁻¹·Z·F·a
@@ -1138,7 +1138,7 @@ def compute_weighted_baseline_length(
         result[baseline_idx] = 1.0 / result[baseline_idx]
 
 
-def _create_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLike]:
+def _create_preconditioner(obs_list, baseline_lengths_list) -> list[npt.ArrayLike]:
     """
     We just compute (F^T·C_w⁻¹·F)⁻¹, which is a diagonal matrix containing
     the number of elements in each baseline divided by σ². (Remember
@@ -1170,37 +1170,37 @@ def _create_preconditioner(obs_list, baseline_lengths_list) -> List[npt.ArrayLik
     return result
 
 
-def _apply_preconditioner(precond: List[npt.ArrayLike], z: List[npt.ArrayLike]) -> None:
+def _apply_preconditioner(precond: list[npt.ArrayLike], z: list[npt.ArrayLike]) -> None:
     for precond_k, z_k in zip(precond, z):
         z_k *= precond_k
 
 
-def _compute_num_of_bytes_in_list(x: List[npt.ArrayLike]) -> int:
+def _compute_num_of_bytes_in_list(x: list[npt.ArrayLike]) -> int:
     return sum([elem.nbytes for elem in x])
 
 
 def _run_destriper(
-    obs_list: List[Observation],
+    obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
     binned_map: npt.ArrayLike,
     destriped_map: npt.ArrayLike,
     hit_map: npt.ArrayLike,
-    baseline_lengths_list: List[npt.ArrayLike],
-    baselines_list_start: List[npt.ArrayLike],
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
+    baseline_lengths_list: list[npt.ArrayLike],
+    baselines_list_start: list[npt.ArrayLike],
+    dm_list: list[npt.ArrayLike],
+    tm_list: list[npt.ArrayLike],
     component: str,
     threshold: float,
     max_steps: int,
     use_preconditioner: bool,
     callback: Any,
-    callback_kwargs: Dict[Any, Any],
+    callback_kwargs: dict[Any, Any],
     recycled_convergence: bool,
-    recycle_baselines: Optional[bool] = False,
-) -> Tuple[
-    List[npt.ArrayLike],  # The solution, i.e., the list of baselines
-    List[npt.ArrayLike],  # The error bars of the baselines
-    List[float],  # The list of stopping factors
+    recycle_baselines: bool | None = False,
+) -> tuple[
+    list[npt.ArrayLike],  # The solution, i.e., the list of baselines
+    list[npt.ArrayLike],  # The error bars of the baselines
+    list[float],  # The list of stopping factors
     float,  # The best stopping factor found during the iterations
     bool,  # Has the destriper converged to a solution?
     int,  # Number of bytes used by temporary buffers
@@ -1313,7 +1313,7 @@ def _run_destriper(
 
     old_r_dot = _mpi_dot(z, r)
 
-    history_of_stopping_factors = [_get_stopping_factor(r)]  # type: List[float]
+    history_of_stopping_factors = [_get_stopping_factor(r)]  # type: list[float]
     if callback:
         callback(
             stopping_factor=history_of_stopping_factors[-1],
@@ -1451,20 +1451,20 @@ def destriper_log_callback(
 
 def make_destriped_map(
     nside: int,
-    observations: Union[Observation, List[Observation]],
-    pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]] = None,
-    hwp: Optional[HWP] = None,
+    observations: Observation | list[Observation],
+    pointings: npt.ArrayLike | list[npt.ArrayLike] | None = None,
+    hwp: HWP | None = None,
     params: DestriperParameters = DestriperParameters(),
-    components: Union[str, List[str]] = "tod",
+    components: str | list[str] = "tod",
     keep_weights: bool = False,
     keep_pixel_idx: bool = False,
     keep_pol_angle_rad: bool = False,
     detector_split: str = "full",
     time_split: str = "full",
-    baselines_list: Optional[List[npt.ArrayLike]] = None,
+    baselines_list: list[npt.ArrayLike] | None = None,
     recycled_convergence: bool = False,
     callback: Any = destriper_log_callback,
-    callback_kwargs: Optional[Dict[Any, Any]] = None,
+    callback_kwargs: dict[Any, Any] | None = None,
     pointings_dtype=np.float64,
 ) -> DestriperResult:
     """
@@ -1804,9 +1804,9 @@ def _remove_baselines(
 
 
 def remove_baselines_from_tod(
-    obs_list: List[Observation],
-    baselines: List[npt.ArrayLike],
-    baseline_lengths: List[npt.ArrayLike],
+    obs_list: list[Observation],
+    baselines: list[npt.ArrayLike],
+    baseline_lengths: list[npt.ArrayLike],
     component: str = "tod",
 ) -> None:
     """
@@ -1851,7 +1851,7 @@ def remove_baselines_from_tod(
 
 
 def remove_destriper_baselines_from_tod(
-    obs_list: List[Observation],
+    obs_list: list[Observation],
     destriper_result: DestriperResult,
     component: str = "tod",
 ):
@@ -1941,7 +1941,7 @@ def _save_rank0_destriper_results(results: DestriperResult, output_file: Path) -
             fits.Column(
                 name="COMPNAME",
                 array=np.array(results.components),
-                format="{}A".format(max([len(x) for x in results.components])),
+                format=f"{max([len(x) for x in results.components])}A",
             )
         ]
     )
@@ -2085,8 +2085,8 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
 def save_destriper_results(
     results: DestriperResult,
     output_folder: Path,
-    custom_dest_file: Optional[str] = None,
-    custom_base_file: Optional[str] = None,
+    custom_dest_file: str | None = None,
+    custom_base_file: str | None = None,
 ) -> None:
     """
     Save the results of a call to :func:`.make_destriped_map` to disk
@@ -2198,8 +2198,8 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
 
 def load_destriper_results(
     folder: Path,
-    custom_dest_file: Optional[str] = None,
-    custom_base_file: Optional[str] = None,
+    custom_dest_file: str | None = None,
+    custom_base_file: str | None = None,
 ) -> DestriperResult:
     """
     Load the results of a call to :func:`.make_destriped_map` from disk

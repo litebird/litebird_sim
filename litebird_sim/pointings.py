@@ -1,7 +1,3 @@
-# -*- encoding: utf-8 -*-
-
-from typing import Optional, Union
-
 import astropy.time
 import numpy as np
 import numpy.typing as npt
@@ -28,7 +24,7 @@ class PointingProvider:
             A time-dependent quaternion representing the rotation from the instrument
             boresight frame to the Ecliptic frame. Typically provided by the scanning simulation.
 
-        hwp (Optional[HWP]):
+        hwp (HWP | None):
             An instance of a Half-Wave Plate model. If provided, HWP angles will be
             computed as part of the pointing information.
 
@@ -36,7 +32,7 @@ class PointingProvider:
         bore2ecliptic_quats (RotQuaternion):
             Rotation from the instrument's boresight frame to the Ecliptic frame.
 
-        hwp (Optional[HWP]):
+        hwp (HWP | None):
             Associated Half-Wave Plate model, if any.
 
     Example:
@@ -54,7 +50,7 @@ class PointingProvider:
         self,
         # Note that we require here *boresight*→Ecliptic instead of *spin*→Ecliptic
         bore2ecliptic_quats: RotQuaternion,
-        hwp: Optional[HWP] = None,
+        hwp: HWP | None = None,
     ):
         self.bore2ecliptic_quats = bore2ecliptic_quats
         self.hwp = hwp
@@ -69,14 +65,14 @@ class PointingProvider:
     def get_pointings(
         self,
         detector_quat: RotQuaternion,
-        start_time: Union[float, astropy.time.Time],
-        start_time_global: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
+        start_time_global: float | astropy.time.Time,
         sampling_rate_hz: float,
         nsamples: int,
-        pointing_buffer: Optional[npt.NDArray] = None,
-        hwp_buffer: Optional[npt.NDArray] = None,
+        pointing_buffer: npt.NDArray | None = None,
+        hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-    ) -> Union[npt.NDArray, Optional[npt.NDArray]]:
+    ) -> npt.NDArray | npt.NDArray | None:
         """Compute the time-dependent pointing angles and (optionally) HWP angles for a detector.
 
         This method computes the pointing angles (θ, φ, ψ) in radians for a detector as a
@@ -116,7 +112,7 @@ class PointingProvider:
                 their data types are preserved.
 
         Returns:
-            Tuple[np.ndarray, Optional[np.ndarray]]:
+            tuple[np.ndarray, np.ndarray | None]:
                 A pair `(pointing_buffer, hwp_buffer)`, containing the computed pointing
                 angles and (if applicable) HWP angles.
 
@@ -169,11 +165,11 @@ class PointingProvider:
 
     def get_hwp_angle(
         self,
-        start_time: Union[float, astropy.time.Time],
-        start_time_global: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
+        start_time_global: float | astropy.time.Time,
         sampling_rate_hz: float,
         nsamples: int,
-        hwp_buffer: Optional[npt.NDArray] = None,
+        hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
     ) -> npt.NDArray:
         """Compute the Half-Wave Plate (HWP) angle as a function of time.

@@ -1,6 +1,4 @@
-# -*- encoding: utf-8 -*-
-
-from typing import List, Optional, Union, Tuple, Callable
+from collections.abc import Callable
 
 import numpy as np
 import numpy.typing as npt
@@ -19,10 +17,10 @@ from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 
 
 def prepare_pointings(
-    observations: Union[Observation, List[Observation]],
+    observations: Observation | list[Observation],
     instrument: InstrumentInfo,
     spin2ecliptic_quats: RotQuaternion,
-    hwp: Optional[HWP] = None,
+    hwp: HWP | None = None,
 ) -> None:
     """Initialize pointing and HWP information for one or more observations.
 
@@ -36,7 +34,7 @@ def prepare_pointings(
     model can be passed and automatically propagated to the detectors in each observation.
 
     Args:
-        observations (Observation or List[Observation]):
+        observations (Observation or list[Observation]):
             A single observation or a list of :class:`.Observation` objects to configure.
 
         instrument (InstrumentInfo):
@@ -47,7 +45,7 @@ def prepare_pointings(
             to the Ecliptic reference frame. Typically generated using
             :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
 
-        hwp (Optional[HWP]):
+        hwp (HWP | None):
             An optional Half-Wave Plate model to attach to the observations.
 
     Returns:
@@ -71,7 +69,7 @@ def prepare_pointings(
 
 
 def precompute_pointings(
-    observations: Union[Observation, List[Observation]],
+    observations: Observation | list[Observation],
     pointings_dtype=np.float64,
 ) -> None:
     """Precompute pointing angles and HWP angles for a set of observations.
@@ -85,7 +83,7 @@ def precompute_pointings(
     need for on-the-fly computation during scanning or map-making operations.
 
     Args:
-        observations (Observation or List[Observation]):
+        observations (Observation or list[Observation]):
             A single observation or a list of observations for which pointings should be precomputed.
 
         pointings_dtype (data-type, optional):
@@ -144,23 +142,23 @@ def apply_hwp_to_obs(observations, hwp: HWP, pointing_matrix):
 
 def _get_hwp_angle(
     obs: Observation,
-    hwp: Union[HWP, None] = None,
+    hwp: HWP | None = None,
     pointing_dtype=np.float64,
-) -> Union[np.ndarray, None]:
+) -> np.ndarray | None:
     """Obtains the hwp angle for an observation
 
     Parameters
     ----------
     obs : Observation
         An instance of the :class:`.Observation` class
-    hwp : Union[HWP, None], optional
+    hwp : HWP | None, optional
         An instance of the :class:`.HWP` class (optional)
     pointing_dtype : dtype, optional
         The dtype for the computed hwp angle, by default `np.float64`
 
     Returns
     -------
-    Union[np.ndarray, None]
+    np.ndarray | None
         An array containing the HWP angles or `None`
     """
     if hwp is None:
@@ -199,7 +197,7 @@ def _get_hwp_angle(
 
 def _get_pol_angle(
     curr_pointings_det: np.ndarray,
-    hwp_angle: Union[np.ndarray, None],
+    hwp_angle: np.ndarray | None,
     pol_angle_detectors: float,
 ) -> np.ndarray:
     """Computes the polarization angle of the detector
@@ -208,7 +206,7 @@ def _get_pol_angle(
     ----------
     curr_pointings_det : np.ndarray
         Pointing information of the detector, here we take just the orientation
-    hwp_angle : Union[np.ndarray, None]
+    hwp_angle : np.ndarray | None
         An array containing the HWP angle or `None`
     pol_angle_detectors : float
         Polarization angle of the detector
@@ -228,21 +226,21 @@ def _get_pol_angle(
 
 def _get_pointings_array(
     detector_idx: int,
-    pointings: Union[npt.ArrayLike, Callable],
-    hwp_angle: Union[np.ndarray, None],
+    pointings: npt.ArrayLike | Callable,
+    hwp_angle: np.ndarray | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
-) -> Tuple[np.ndarray, Union[np.ndarray], None]:
+) -> tuple[np.ndarray, np.ndarray, None]:
     """Compute the pointings (θ, φ) and HWP angle for a given detector.
 
     Parameters
     ----------
     detector_idx : int
         Index of the detector, local to an :class:`Observation`.
-    pointings : Union[npt.ArrayLike, Callable]
+    pointings : npt.ArrayLike | Callable
         Pointing information, either a precomputed array or a callable returning
         (pointings, hwp_angle) for the specified detector.
-    hwp_angle : Optional[np.ndarray]
+    hwp_angle : np.ndarray | None
         Array of HWP angles. If None, the angle is assumed to be provided by the `pointings` callable.
     output_coordinate_system : CoordinateSystem
         Desired coordinate system for the output pointings.
@@ -251,7 +249,7 @@ def _get_pointings_array(
 
     Returns
     -------
-    Tuple[np.ndarray, Optional[np.ndarray]]
+    tuple[np.ndarray, np.ndarray | None]
         A tuple `(pointings, hwp_angle)`, where:
           - `pointings` is an array of shape (n_samples, 2) with [θ, φ].
           - `hwp_angle` is either the provided array or the one computed by the callable.
@@ -306,9 +304,9 @@ def _get_centered_pointings(
 
 
 def _normalize_observations_and_pointings(
-    observations: Union[Observation, List[Observation]],
-    pointings: Union[np.ndarray, List[np.ndarray], None],
-) -> Tuple[List[Observation], List[npt.NDArray]]:
+    observations: Observation | list[Observation],
+    pointings: np.ndarray | list[np.ndarray] | None,
+) -> tuple[list[Observation], list[npt.NDArray]]:
     """This function builds the tuple (`obs_list`, `ptg_list`) and returns it.
 
     - `obs_list` contains a list of the observations to be used by current MPI
@@ -320,14 +318,14 @@ def _normalize_observations_and_pointings(
 
     Parameters
     ----------
-    observations : Union[Observation, List[Observation]]
+    observations : Observation | list[Observation]
         An observation or a list of observations
-    pointings : Union[np.ndarray, List[np.ndarray], None]
+    pointings : np.ndarray | list[np.ndarray] | None
         External pointing information, if not already included in the observation
 
     Returns
     -------
-    Tuple[List[Observation], List[npt.NDArray]]
+    tuple[list[Observation], list[npt.NDArray]]
         The tuple of the list of observations and list of pointings
     """
 
@@ -372,11 +370,11 @@ def _normalize_observations_and_pointings(
 def _get_pointings_and_pol_angles_det(
     obs: Observation,
     det_idx: int,
-    hwp: Optional[HWP] = None,
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
+    hwp: HWP | None = None,
+    pointings: np.ndarray | list[np.ndarray] | None = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     pointing_dtype=np.float64,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Computes the pointings (θ and φ) and polarization angle of a detector
 
     Parameters
@@ -385,9 +383,9 @@ def _get_pointings_and_pol_angles_det(
         An instance of :class:`.Observation` class
     det_idx : int
         Detector index, local to an :class:`.Observation`
-    hwp : Union[HWP, None], optional
+    hwp : HWP | None, optional
         An instance of the :class:`.HWP` class (optional)
-    pointings : Union[np.ndarray, List[np.ndarray], None], optional
+    pointings : np.ndarray | list[np.ndarray] | None, optional
         An array of pointings or a list containing the array of pointings,
         by default `None`
     output_coordinate_system : CoordinateSystem, optional
@@ -398,7 +396,7 @@ def _get_pointings_and_pol_angles_det(
 
     Returns
     -------
-    Tuple[np.ndarray, np.ndarray]
+    tuple[np.ndarray, np.ndarray]
         A tuple containing the pointings and polarization angle of the detector
     """
 

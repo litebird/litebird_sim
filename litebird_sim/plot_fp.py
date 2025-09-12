@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 import numpy as np
 import healpy as hp
 import matplotlib.pyplot as plt
@@ -215,7 +213,7 @@ class DetectorInfoViewer:
         Args:
             file_path (str): The path to the toml file.
         """
-        with open(file_path, "r") as file:
+        with open(file_path) as file:
             data = toml.load(file)
             loc = data["repositories"][0]["location"]
         return loc

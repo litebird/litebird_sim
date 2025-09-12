@@ -1,7 +1,4 @@
-# -*- encoding: utf-8 -*-
-
 import numpy as np
-from typing import Union, List
 from dataclasses import dataclass
 
 from .observations import Observation
@@ -103,7 +100,7 @@ def apply_quadratic_nonlin_for_one_detector(
 def apply_quadratic_nonlin(
     tod: np.ndarray,
     nl_params: NonLinParams = None,
-    dets_random: Union[np.random.Generator, None] = None,
+    dets_random: np.random.Generator | None = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -121,11 +118,11 @@ def apply_quadratic_nonlin(
 
 
 def apply_quadratic_nonlin_to_observations(
-    observations: Union[Observation, List[Observation]],
+    observations: Observation | list[Observation],
     nl_params: NonLinParams = None,
     component: str = "tod",
-    user_seed: Union[int, None] = None,
-    dets_random: Union[List[np.random.Generator]] = None,
+    user_seed: int | None = None,
+    dets_random: list[np.random.Generator] = None,
 ):
     """
     Apply a quadratic nonlinearity to some time-ordered data

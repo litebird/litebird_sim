@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 # WARNING: this file is a placeholder, meant to be used while we find
 # a way to make existing solutions (healpy, pyHealpix, etc.) run under
 # Windows. It is mostly a bunch of stuff copied-and-pasted from other

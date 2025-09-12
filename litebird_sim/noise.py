@@ -1,7 +1,4 @@
-# -*- encoding: utf-8 -*-
-
 from numbers import Number
-from typing import List, Union
 
 import numpy as np
 import scipy as sp
@@ -193,10 +190,10 @@ def add_noise(
 
 
 def add_noise_to_observations(
-    observations: Union[Observation, List[Observation]],
+    observations: Observation | list[Observation],
     noise_type: str,
-    dets_random: List[np.random.Generator],
-    user_seed: Union[int, None] = None,
+    dets_random: list[np.random.Generator],
+    user_seed: int | None = None,
     scale: float = 1.0,
     component: str = "tod",
 ):

@@ -1,9 +1,6 @@
-# -*- encoding: utf-8 -*-
-
 import logging
 import os
 from dataclasses import dataclass
-from typing import Union, List, Dict, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -57,8 +54,8 @@ def add_convolved_sky_to_one_detector(
     pointings_det,
     mueller_matrix,
     hwp_angle,
-    convolution_params: Optional[BeamConvolutionParameters] = None,
-    nside_centering: Union[int, None] = None,
+    convolution_params: BeamConvolutionParameters | None = None,
+    nside_centering: int | None = None,
     nthreads: int = 0,
 ):
     """
@@ -206,16 +203,16 @@ def add_convolved_sky_to_one_detector(
 def add_convolved_sky(
     tod,
     pointings,
-    sky_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
-    beam_alms: Union[SphericalHarmonics, Dict[str, SphericalHarmonics]],
-    hwp_angle: Union[np.ndarray, None] = None,
-    mueller_hwp: Union[np.ndarray, None] = None,
-    input_sky_names: Union[str, None] = None,
-    input_beam_names: Union[str, None] = None,
-    convolution_params: Optional[BeamConvolutionParameters] = None,
+    sky_alms: SphericalHarmonics | dict[str, SphericalHarmonics],
+    beam_alms: SphericalHarmonics | dict[str, SphericalHarmonics],
+    hwp_angle: np.ndarray | None = None,
+    mueller_hwp: np.ndarray | None = None,
+    input_sky_names: str | None = None,
+    input_beam_names: str | None = None,
+    convolution_params: BeamConvolutionParameters | None = None,
     input_sky_alms_in_galactic: bool = True,
     pointings_dtype=np.float64,
-    nside_centering: Union[int, None] = None,
+    nside_centering: int | None = None,
     nthreads: int = 0,
 ):
     """
@@ -230,10 +227,10 @@ def add_convolved_sky(
         Pointing information for each detector. If an array, it should have shape
         (n_detectors, n_samples, 3). If a callable, it should return pointing data when
         passed a detector index.
-    sky_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics]]
+    sky_alms : SphericalHarmonics | Dict[str, SphericalHarmonics]
         Spherical harmonic coefficients representing the sky maps. If a dictionary, keys should
         correspond to detector or channel names.
-    beam_alms : Union[SphericalHarmonics, Dict[str, SphericalHarmonics]]
+    beam_alms : SphericalHarmonics | Dict[str, SphericalHarmonics]
         Spherical harmonic coefficients representing the beam functions. If a dictionary,
         keys should correspond to detector or channel names.
     hwp_angle : np.ndarray or None, default=None
@@ -332,21 +329,21 @@ def add_convolved_sky(
 
 
 def add_convolved_sky_to_observations(
-    observations: Union[Observation, List[Observation]],
-    sky_alms: Union[
-        SphericalHarmonics, Dict[str, SphericalHarmonics]
-    ],  # at some point optional, taken from the obs
-    beam_alms: Union[
-        SphericalHarmonics, Dict[str, SphericalHarmonics]
-    ],  # at some point optional, taken from the obs
-    pointings: Union[npt.ArrayLike, List[npt.ArrayLike], None] = None,
-    hwp: Optional[HWP] = None,
+    observations: Observation | list[Observation],
+    sky_alms: (
+        SphericalHarmonics | dict[str, SphericalHarmonics]
+    ),  # at some point optional, taken from the obs
+    beam_alms: (
+        SphericalHarmonics | dict[str, SphericalHarmonics]
+    ),  # at some point optional, taken from the obs
+    pointings: npt.ArrayLike | list[npt.ArrayLike] | None = None,
+    hwp: HWP | None = None,
     input_sky_alms_in_galactic: bool = True,
-    convolution_params: Optional[BeamConvolutionParameters] = None,
+    convolution_params: BeamConvolutionParameters | None = None,
     component: str = "tod",
     pointings_dtype=np.float64,
-    nside_centering: Union[int, None] = None,
-    nthreads: Union[int, None] = None,
+    nside_centering: int | None = None,
+    nthreads: int | None = None,
 ):
     """
     Applies beam convolution to sky maps and adds the resulting signal to the TOD of one or more observations.
@@ -366,12 +363,12 @@ def add_convolved_sky_to_observations(
         keyed by detector/channel names.
     pointings : np.ndarray, list of np.ndarray, or None, default=None
         Detector pointing matrices. If None, the function extracts pointings from the `Observation` objects.
-    hwp : Optional[HWP], default=None
+    hwp : HWP | None, default=None
         Half-Wave Plate (HWP) parameters. If None, the function either assumes the information stored in the
         `Observation` objects, or, if they are absent, assumes no HWP.
     input_sky_alms_in_galactic : bool, default=True
         Whether the input sky alms are in Galactic coordinates.
-    convolution_params : Optional[BeamConvolutionParameters], default=None
+    convolution_params : BeamConvolutionParameters | None, default=None
         Parameters controlling the beam convolution, including resolution limits and numerical precision.
     component : str, default="tod"
         The name of the TOD component to which the computed data is added.

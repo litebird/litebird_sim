@@ -1,10 +1,7 @@
-# -*- encoding: utf-8 -*-
-
 import logging as log
 import pickle
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from numpy.random import PCG64, Generator, SeedSequence
@@ -13,8 +10,8 @@ from .observations import Observation
 
 
 def get_derived_random_generators(
-    source_sequence: Union[SeedSequence, List[SeedSequence]], num_to_spawn: int
-) -> Tuple[List[SeedSequence], List[Generator]]:
+    source_sequence: SeedSequence | list[SeedSequence], num_to_spawn: int
+) -> tuple[list[SeedSequence], list[Generator]]:
     """
     Generate multiple derived `SeedSequence` and corresponding RNGs from one or more sources.
 
@@ -23,14 +20,14 @@ def get_derived_random_generators(
 
     Parameters
     ----------
-    source_sequence : Union[SeedSequence, List[SeedSequence]]
+    source_sequence :  SeedSequence | list[SeedSequence]
         The source seed sequence(s) from which to derive new sequences.
     num_to_spawn : int
         Number of new sequences to spawn from each source sequence.
 
     Returns
     -------
-    Tuple[List[SeedSequence], List[Generator]]
+    tuple[list[SeedSequence], list[Generator]]
         Returns a tuple where the first element is the list of newly spawned `SeedSequence`
         objects, and the second is the corresponding list of RNG generators.
 
@@ -42,8 +39,8 @@ def get_derived_random_generators(
     if isinstance(source_sequence, SeedSequence):
         source_sequence = [source_sequence]
 
-    derived_sequences: List[SeedSequence] = []
-    derived_generators: List[Generator] = []
+    derived_sequences: list[SeedSequence] = []
+    derived_generators: list[Generator] = []
 
     for seq in source_sequence:
         if not isinstance(seq, SeedSequence):
@@ -56,9 +53,7 @@ def get_derived_random_generators(
     return derived_sequences, derived_generators
 
 
-def get_generator_from_hierarchy(
-    hierarchy: dict, *indices: Union[int, str]
-) -> Generator:
+def get_generator_from_hierarchy(hierarchy: dict, *indices: int | str) -> Generator:
     """
     Retrieve a specific RNG generator from a nested hierarchy using a path of indices.
 
@@ -113,8 +108,8 @@ def get_generator_from_hierarchy(
 
 
 def get_detector_level_generators_from_hierarchy(
-    hierarchy: dict, rank: Union[int, str]
-) -> List[Generator]:
+    hierarchy: dict, rank: int | str
+) -> list[Generator]:
     """
     Retrieve the list of detector-level RNGs under a given MPI rank node.
 
@@ -127,7 +122,7 @@ def get_detector_level_generators_from_hierarchy(
 
     Returns
     -------
-    List[numpy.random.Generator]
+    list[numpy.random.Generator]
         A list of RNG generators corresponding to the detectors for that rank.
 
     Raises
@@ -149,10 +144,10 @@ def get_detector_level_generators_from_hierarchy(
 
 
 def regenerate_or_check_detector_generators(
-    observations: List[Observation],
-    user_seed: Union[int, None] = None,
-    dets_random: List[Generator] = None,
-) -> List[Generator]:
+    observations: list[Observation],
+    user_seed: int | None = None,
+    dets_random: list[Generator] = None,
+) -> list[Generator]:
     """
     Check or regenerate detector-level RNGs for a given set of observations.
 
@@ -162,16 +157,16 @@ def regenerate_or_check_detector_generators(
 
     Parameters
     ----------
-    observations : List[Observation]
+    observations : list[Observation]
         A list of observations, assumed to have consistent number of detectors and communicators.
     user_seed : int, optional
         Optional base seed used to regenerate the RNG hierarchy.
-    dets_random : List[Generator], optional
+    dets_random : list[Generator], optional
         List of pre-constructed RNGs to be validated.
 
     Returns
     -------
-    List[Generator]
+    list[Generator]
         A list of RNG generators, one for each detector.
 
     Raises
@@ -352,7 +347,7 @@ class RNGHierarchy:
                     "children": {},
                 }
 
-    def add_extra_layer(self, num_children: int, layer_name: Optional[str] = None):
+    def add_extra_layer(self, num_children: int, layer_name: str | None = None):
         """
         Recursively add an additional layer to all leaves of the hierarchy.
 
@@ -417,7 +412,7 @@ class RNGHierarchy:
 
         self.build_detector_layer(num_detectors_per_rank=detectors_per_rank)
 
-    def get_generator(self, *indices: Union[int, str]) -> Generator:
+    def get_generator(self, *indices: int | str) -> Generator:
         """
         Retrieve a generator from the hierarchy using a sequence of indices.
 
@@ -425,9 +420,7 @@ class RNGHierarchy:
         """
         return get_generator_from_hierarchy(self.hierarchy, *indices)
 
-    def get_detector_level_generators_on_rank(
-        self, rank: Union[int, str]
-    ) -> List[Generator]:
+    def get_detector_level_generators_on_rank(self, rank: int | str) -> list[Generator]:
         """
         Retrieve the list of RNG generators for all detectors under a given MPI rank.
 

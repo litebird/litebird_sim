@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 """
 This file contains a port of the Grasp2alm repository <https://github.com/yusuke-takase/grasp2alm>,
 created by Yusuke Takase. We decided to incorporate it into LBS so that we can make the API more
@@ -832,7 +830,7 @@ class BeamCut:
 
 def _grasp2alm(
     file_obj: typing.TextIO,
-    beam_class: typing.Type[BeamCut] | typing.Type[BeamGrid],
+    beam_class: type[BeamCut] | type[BeamGrid],
     nside: int,
     unseen_pixel_value: float = 0.0,
     copol_axis: str = "x",
