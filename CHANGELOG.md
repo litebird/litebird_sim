@@ -1,5 +1,7 @@
 # HEAD
 
+# Version 0.16.0
+
 -   Add pre-commit hook to keep syntax compliant with `py3.10+` [#461](https://github.com/litebird/litebird_sim/pull/461)
 
 -   Fix issue [#459](https://github.com/litebird/litebird_sim/issues/459)
