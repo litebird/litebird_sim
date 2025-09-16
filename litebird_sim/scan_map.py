@@ -17,6 +17,7 @@ import logging
 import healpy as hp
 from typing import Union
 
+
 @njit
 def vec_stokes(stokes, T, Q, U):
     stokes[0] = T
