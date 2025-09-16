@@ -15,7 +15,7 @@ from .coordinates import CoordinateSystem
 from .healpix import npix_to_nside
 import logging
 import healpy as hp
-
+from typing import Union
 
 @njit
 def vec_stokes(stokes, T, Q, U):
