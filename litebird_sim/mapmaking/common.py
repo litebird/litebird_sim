@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Union, List, Tuple, Callable
+from collections.abc import Callable
 
 import astropy.time
 import numpy as np
@@ -124,14 +124,14 @@ def get_map_making_weights(
 
 def _compute_pixel_indices(
     hpx: Healpix_Base,
-    pointings: Union[npt.ArrayLike, Callable],
+    pointings: npt.ArrayLike | Callable,
     pol_angle_detectors: npt.ArrayLike,
     num_of_detectors: int,
     num_of_samples: int,
-    hwp_angle: Union[npt.ArrayLike, None],
+    hwp_angle: npt.ArrayLike | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
-) -> Tuple[npt.NDArray, npt.NDArray]:
+) -> tuple[npt.NDArray, npt.NDArray]:
     """Compute the index of each pixel and its attack angle
 
     The routine returns a pair of arrays whose size is ``(N_d, N_t)`` each: rows in
@@ -279,7 +279,7 @@ def cholesky(
 @njit
 def solve_cholesky(
     L: npt.ArrayLike, v0: float, v1: float, v2: float
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Solve Ax = b if A is a 3×3 symmetric positive definite matrix.
 
     Instead of providing the matrix A, the caller is expected to provide its
@@ -316,7 +316,7 @@ def estimate_cond_number(
     a20: float,
     a21: float,
     a22: float,
-) -> Tuple[float, bool]:
+) -> tuple[float, bool]:
     """Estimate the condition number for a symmetric 3×3 matrix A
 
     The result is a tuple containing the condition number and a Boolean flag
@@ -398,7 +398,7 @@ def estimate_cond_number(
 
 def _build_mask_time_split(
     time_split: str,
-    obs_list: List[Observation],
+    obs_list: list[Observation],
 ):
     time_mask = []
 
@@ -460,7 +460,7 @@ def _get_end_time(
 
 def _build_mask_detector_split(
     detector_split: str,
-    obs_list: List[Observation],
+    obs_list: list[Observation],
 ):
     detector_mask = []
 
@@ -475,9 +475,9 @@ def _build_mask_detector_split(
 
 
 def _check_valid_splits(
-    observations: Union[Observation, List[Observation]],
-    detector_splits: Union[str, List[str]] = "full",
-    time_splits: Union[str, List[str]] = "full",
+    observations: Observation | list[Observation],
+    detector_splits: str | list[str] = "full",
+    time_splits: str | list[str] = "full",
 ):
     valid_detector_splits = ["full"]
     valid_detector_splits.extend(

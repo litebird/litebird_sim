@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 import codecs
 import functools
 import importlib.resources
@@ -12,7 +10,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
-from typing import List, Tuple, Union, Dict, Any, Optional
+from typing import Any, Optional, Union
 from uuid import uuid4
 
 import astropy.time
@@ -123,7 +121,7 @@ def _tomlkit_to_popo(d):
     return result
 
 
-def get_template_file_path(filename: Union[str, Path]) -> Path:
+def get_template_file_path(filename: str | Path) -> Path:
     """Return a Path object pointing to the full path of a template file.
 
     Template files are used by the framework to produce automatic
@@ -163,12 +161,12 @@ class MpiObservationDescr:
       the length of the field `det_names` (see above)
     """
 
-    det_names: List[str]
-    tod_names: List[str]
-    tod_shape: Optional[Tuple[int, int]]
-    tod_dtype: List[str]
-    tod_description: List[str]
-    start_time: Union[float, astropy.time.Time]
+    det_names: list[str]
+    tod_names: list[str]
+    tod_shape: tuple[int, int] | None
+    tod_dtype: list[str]
+    tod_description: list[str]
+    start_time: float | astropy.time.Time
     duration_s: float
     num_of_samples: int
     num_of_detectors: int
@@ -191,7 +189,7 @@ class MpiProcessDescr:
 
     mpi_rank: int
     numba_num_of_threads: int
-    observations: List[MpiObservationDescr]
+    observations: list[MpiObservationDescr]
 
 
 @dataclass
@@ -211,8 +209,8 @@ class MpiDistributionDescr:
     object."""
 
     num_of_observations: int
-    detectors: List[DetectorInfo]
-    mpi_processes: List[MpiProcessDescr]
+    detectors: list[DetectorInfo]
+    mpi_processes: list[MpiProcessDescr]
 
     def __repr__(self):
         result = ""
@@ -379,14 +377,14 @@ class Simulation:
         self.base_path = base_path
         self.name = name
 
-        self.observations = []  # type: List[Observation]
+        self.observations = []  # type: list[Observation]
 
         self.start_time = start_time
         self.duration_s = duration_s
 
-        self.detectors = []  # type: List[DetectorInfo]
-        self.instrument = None  # type: Optional[InstrumentInfo]
-        self.hwp = None  # type: Optional[HWP]
+        self.detectors = []  # type: list[DetectorInfo]
+        self.instrument = None  # type: InstrumentInfo | None
+        self.hwp = None  # type: HWP | None
 
         self.spin2ecliptic_quats = None
 
@@ -394,7 +392,7 @@ class Simulation:
 
         self.random_seed = random_seed
 
-        self.tod_list = []  # type: List[TodDescription]
+        self.tod_list = []  # type: list[TodDescription]
 
         if imo:
             self.imo = imo
@@ -408,7 +406,7 @@ class Simulation:
         self.numba_threading_layer = numba_threading_layer
 
         self.profile_time = profile_time
-        self.profile_data = []  # type: List[TimeProfiler]
+        self.profile_data = []  # type: list[TimeProfiler]
 
         assert not (parameter_file and parameters), (
             "you cannot use parameter_file and parameters together "
@@ -438,9 +436,7 @@ class Simulation:
             self.base_path = Path()
 
         self.base_path = Path(self.base_path)
-        # Create any parent folder, and don't complain if the folder
-        # already exists
-        self.base_path.mkdir(parents=True, exist_ok=True)
+        self._ensure_base_path_exists()
 
         if parameter_file:
             # Copy the parameter file to the output directory only if
@@ -453,7 +449,7 @@ class Simulation:
             except SameFileError:
                 pass
 
-        self.list_of_outputs = []  # type: List[OutputFileRecord]
+        self.list_of_outputs = []  # type: list[OutputFileRecord]
 
         self.report = ""
 
@@ -503,6 +499,12 @@ class Simulation:
         # Initialize self.RNG_hierarchy. The user is free to
         # call self.init_random() again later
         self.init_rng_hierarchy(self.random_seed)
+
+    def _ensure_base_path_exists(self) -> None:
+        assert self.base_path is not None
+        # Create any parent folder, and don't complain if the folder
+        # already exists
+        self.base_path.mkdir(parents=True, exist_ok=True)
 
     def init_rng_hierarchy(self, random_seed):
         """
@@ -666,7 +668,7 @@ class Simulation:
     def _initialize_logging(self):
         if self.mpi_comm:
             mpi_rank = self.mpi_comm.rank
-            log_format = "[%(asctime)s %(levelname)s MPI#{0:04d}] %(message)s".format(
+            log_format = "[%(asctime)s %(levelname)s MPI#{:04d}] %(message)s".format(
                 mpi_rank
             )
         else:
@@ -729,7 +731,7 @@ class Simulation:
         self,
         markdown_text: str,
         append_newline=True,
-        figures: List[Tuple[Any, str]] = [],
+        figures: list[tuple[Any, str]] = [],
         **kwargs,
     ):
         """Append text and figures to the simulation report
@@ -791,7 +793,7 @@ class Simulation:
             )
 
     def _fill_dictionary_with_imo_information(
-        self, dictionary: Dict[str, Any], base_imo_url: str
+        self, dictionary: dict[str, Any], base_imo_url: str
     ):
         # Fill the variable "dictionary" with information about the
         # objects retrieved from the IMO. This is used when producing
@@ -891,6 +893,8 @@ class Simulation:
         if not self.profile_time:
             return
 
+        self._ensure_base_path_exists()
+
         output_file_path = self.base_path / file_name
         with output_file_path.open("wt") as out_file:
             json.dump(profile_list_to_speedscope(self.profile_data), out_file)
@@ -940,8 +944,8 @@ class Simulation:
         self,
         include_git_diff=True,
         base_imo_url: str = DEFAULT_BASE_IMO_URL,
-        profile_file_name: Optional[str] = None,
-    ) -> Optional[Path]:
+        profile_file_name: str | None = None,
+    ) -> Path | None:
         """Terminate a simulation.
 
         This function must be called when a simulation is complete. It
@@ -973,15 +977,15 @@ class Simulation:
     @_profile
     def create_observations(
         self,
-        detectors: List[DetectorInfo],
+        detectors: list[DetectorInfo],
         num_of_obs_per_detector: int = 1,
         split_list_over_processes=True,
-        det_blocks_attributes: Union[List[str], None] = None,
+        det_blocks_attributes: list[str] | None = None,
         n_blocks_det=1,
         n_blocks_time=1,
         root=0,
-        tod_dtype: Optional[Any] = None,
-        tods: List[TodDescription] = [
+        tod_dtype: Any | None = None,
+        tods: list[TodDescription] = [
             TodDescription(name="tod", dtype=np.float32, description="Signal")
         ],
     ):
@@ -1130,19 +1134,19 @@ class Simulation:
 
         return observations
 
-    def get_tod_names(self) -> List[str]:
+    def get_tod_names(self) -> list[str]:
         return [x.name for x in self.tod_list]
 
-    def get_tod_dtypes(self) -> List[Any]:
+    def get_tod_dtypes(self) -> list[Any]:
         return [x.dtype for x in self.tod_list]
 
-    def get_tod_descriptions(self) -> List[str]:
+    def get_tod_descriptions(self) -> list[str]:
         return [x.description for x in self.tod_list]
 
-    def get_list_of_tods(self) -> List[TodDescription]:
+    def get_list_of_tods(self) -> list[TodDescription]:
         return self.tod_list
 
-    def distribute_workload(self, observations: List[Observation]):
+    def distribute_workload(self, observations: list[Observation]):
         if self.mpi_comm.size == 1:
             self.observations = observations
             return
@@ -1158,7 +1162,7 @@ class Simulation:
             span.start_idx : (span.start_idx + span.num_of_elements)
         ]
 
-    def describe_mpi_distribution(self) -> Optional[MpiDistributionDescr]:
+    def describe_mpi_distribution(self) -> MpiDistributionDescr | None:
         """Return a :class:`.MpiDistributionDescr` object describing observations
 
         This method returns a :class:`.MpiDistributionDescr` that describes the data
@@ -1186,7 +1190,7 @@ class Simulation:
         if not self.observations:
             return None
 
-        observation_descr = []  # type: List[MpiObservationDescr]
+        observation_descr = []  # type: list[MpiObservationDescr]
         numba_num_of_threads_all = []  # type: list[int]
 
         for obs in self.observations:
@@ -1229,7 +1233,7 @@ class Simulation:
             num_of_observations_all = [num_of_observations]
             numba_num_of_threads_all = [numba_num_of_threads]
 
-        mpi_processes = []  # type: List[MpiProcessDescr]
+        mpi_processes = []  # type: list[MpiProcessDescr]
         for i in range(MPI_COMM_WORLD.size):
             mpi_processes.append(
                 MpiProcessDescr(
@@ -1246,7 +1250,7 @@ class Simulation:
         )
 
     @_profile
-    def nullify_tod(self, components: Union[str, List[str]] = "tod") -> None:
+    def nullify_tod(self, components: str | list[str] = "tod") -> None:
         """
         Set the specified component(s) (default: "tod") of all observations to zero.
 
@@ -1281,8 +1285,8 @@ class Simulation:
 
     def set_scanning_strategy(
         self,
-        scanning_strategy: Union[None, ScanningStrategy] = None,
-        imo_url: Union[None, str] = None,
+        scanning_strategy: None | ScanningStrategy = None,
+        imo_url: None | str = None,
         delta_time_s: float = 60.0,
         append_to_report: bool = True,
     ):
@@ -1538,10 +1542,10 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: Optional[Union[np.ndarray, Dict[str, np.ndarray]]] = None,
+        maps: np.ndarray | dict[str, np.ndarray] | None = None,
         input_map_in_galactic: bool = True,
         component: str = "tod",
-        interpolation: Union[str, None] = "",
+        interpolation: str | None = "",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
     ):
@@ -1601,9 +1605,9 @@ class Simulation:
     def get_gauss_beam_alms(
         self,
         lmax: int,
-        mmax: Optional[int] = None,
-        channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
-        store_in_observation: Optional[bool] = False,
+        mmax: int | None = None,
+        channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
+        store_in_observation: bool | None = False,
     ):
         """
         Compute Gaussian beam spherical harmonic coefficients.
@@ -1615,7 +1619,7 @@ class Simulation:
         -----------
         lmax : int
             Maximum multipole moment.
-        mmax : Optional[int], default=None
+        mmax : int | None, default=None
             Maximum azimuthal multipole moment. Defaults to `lmax` if None.
         channels : FreqChannelInfo or list of FreqChannelInfo, optional
             Frequency channels to use in the simulation. If None, it uses the detectors
@@ -1645,8 +1649,8 @@ class Simulation:
     def get_sky(
         self,
         parameters: MbsParameters,
-        channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
-        store_in_observation: Optional[bool] = False,
+        channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
+        store_in_observation: bool | None = False,
     ):
         """
         Generates sky maps for the observations using the provided parameters.
@@ -1721,19 +1725,15 @@ class Simulation:
     @_profile
     def convolve_sky(
         self,
-        sky_alms: Optional[
-            Union[SphericalHarmonics, Dict[str, SphericalHarmonics]]
-        ] = None,
-        beam_alms: Optional[
-            Union[SphericalHarmonics, Dict[str, SphericalHarmonics]]
-        ] = None,
+        sky_alms: None | (SphericalHarmonics | dict[str, SphericalHarmonics]) = None,
+        beam_alms: None | (SphericalHarmonics | dict[str, SphericalHarmonics]) = None,
         input_sky_alms_in_galactic: bool = True,
-        convolution_params: Optional[BeamConvolutionParameters] = None,
+        convolution_params: BeamConvolutionParameters | None = None,
         component: str = "tod",
         pointings_dtype=np.float64,
-        nside_centering: Union[int, None] = None,
+        nside_centering: int | None = None,
         append_to_report: bool = True,
-        nthreads: Union[int, None] = None,
+        nthreads: int | None = None,
     ):
         """Fills the TODs, convolving a set of alms.
 
@@ -1795,8 +1795,9 @@ class Simulation:
     def add_2f(
         self,
         component: str = "tod",
-        amplitude_2f_k: Union[float, None] = None,
+        amplitude_2f_k: float | None = None,
         append_to_report: bool = False,
+        pointings_dtype=np.float64,
     ):
         """Add the HWP differential emission to all the observations of this
         simulation
@@ -1812,6 +1813,7 @@ class Simulation:
             hwp=self.hwp,
             component=component,
             amplitude_2f_k=amplitude_2f_k,
+            pointings_dtype=pointings_dtype,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1834,10 +1836,10 @@ class Simulation:
     def apply_quadratic_nonlin(
         self,
         nl_params: NonLinParams = None,
-        user_seed: Union[int, None] = None,
+        user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
-        rng_hierarchy: Union[RNGHierarchy, None] = None,
+        rng_hierarchy: RNGHierarchy | None = None,
     ):
         """A method to apply non-linearity to the observation.
 
@@ -1881,8 +1883,8 @@ class Simulation:
     @_profile
     def add_noise(
         self,
-        rng_hierarchy: Union[RNGHierarchy, None] = None,
-        user_seed: Union[int, None] = None,
+        rng_hierarchy: RNGHierarchy | None = None,
+        user_seed: int | None = None,
         noise_type: str = "one_over_f",
         component: str = "tod",
         append_to_report: bool = True,
@@ -1938,14 +1940,14 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Union[str, List[str]] = "tod",
-        detector_splits: Union[str, List[str]] = "full",
-        time_splits: Union[str, List[str]] = "full",
+        components: str | list[str] = "tod",
+        detector_splits: str | list[str] = "full",
+        time_splits: str | list[str] = "full",
         write_to_disk: bool = True,
         include_inv_covariance: bool = False,
         pointings_dtype=np.float64,
         append_to_report: bool = True,
-    ) -> Union[List[str], dict[str, BinnerResult]]:
+    ) -> list[str] | dict[str, BinnerResult]:
         """
         Wrapper around :meth:`.make_binned_map` that allows to obtain all the splits from the
         cartesian product of the requested detector and time splits. Here, those can be
@@ -2029,7 +2031,7 @@ class Simulation:
         self,
         nside: int,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-        components: Union[str, List[str]] = "tod",
+        components: str | list[str] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         pointings_dtype=np.float64,
@@ -2089,19 +2091,19 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Union[str, List[str]] = "tod",
-        detector_splits: Union[str, List[str]] = "full",
-        time_splits: Union[str, List[str]] = "full",
+        components: str | list[str] = "tod",
+        detector_splits: str | list[str] = "full",
+        time_splits: str | list[str] = "full",
         keep_weights: bool = False,
         keep_pixel_idx: bool = False,
         keep_pol_angle_rad: bool = False,
         callback: Any = destriper_log_callback,
-        callback_kwargs: Optional[Dict[Any, Any]] = None,
+        callback_kwargs: dict[Any, Any] | None = None,
         write_to_disk: bool = True,
         recycle_baselines: bool = False,
         pointings_dtype=np.float64,
         append_to_report: bool = True,
-    ) -> Union[List[str], dict[str, DestriperResult]]:
+    ) -> list[str] | dict[str, DestriperResult]:
         """
         Wrapper around :meth:`.make_destriped_map` that allows to obtain all the splits from the
         cartesian product of the requested detector and time splits. Here, those can be either
@@ -2211,14 +2213,14 @@ class Simulation:
         self,
         nside: int,
         params: DestriperParameters = DestriperParameters(),
-        components: Union[str, List[str]] = "tod",
+        components: str | list[str] = "tod",
         detector_split: str = "full",
         time_split: str = "full",
         keep_weights: bool = False,
         keep_pixel_idx: bool = False,
         keep_pol_angle_rad: bool = False,
         callback: Any = destriper_log_callback,
-        callback_kwargs: Optional[Dict[Any, Any]] = None,
+        callback_kwargs: dict[Any, Any] | None = None,
         pointings_dtype=np.float64,
         append_to_report: bool = True,
     ) -> DestriperResult:
@@ -2313,18 +2315,22 @@ class Simulation:
     def make_brahmap_gls_map(
         self,
         nside: int,
-        components: Union[str, List[str]] = "tod",
+        components: str | list[str] = "tod",
         pointing_flag: np.ndarray = None,
         inv_noise_cov_operator=None,
         threshold: float = 1.0e-5,
         pointings_dtype=np.float64,
-        gls_params=None,
-    ):
+        gls_params: Optional["brahmap.LBSimGLSParameters"] = None,  # noqa
+        append_to_report: bool = True,
+    ) -> Union[
+        "brahmap.LBSimGLSResult",  # noqa
+        tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],  # noqa
+    ]:
         """Wrapper to the GLS map-maker of BrahMap.
 
         For details, see the low-level interface in :func:`litebird_sim.mapmaking.brahmap_gls`.
         """
-        return make_brahmap_gls_map(
+        brahmap_result = make_brahmap_gls_map(
             nside=nside,
             observations=self.observations,
             components=components,
@@ -2335,14 +2341,34 @@ class Simulation:
             gls_params=gls_params,
         )
 
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            import brahmap  # noqa
+
+            template_file_path = get_template_file_path("report_brahmap.md")
+            brahmap_version = getattr(brahmap, "__version__", "unknown")
+            brahmap_hash = getattr(brahmap, "__git_hash__", "unknown")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_text=markdown_template,
+                brahmap_version=brahmap_version,
+                brahmap_hash=brahmap_hash,
+                gls_params=gls_params,
+                gls_result=brahmap_result[1]
+                if isinstance(brahmap_result, tuple)
+                else brahmap_result,
+            )
+
+        return brahmap_result
+
     @_profile
     def write_observations(
         self,
-        subdir_name: Union[None, str] = "tod",
+        subdir_name: None | str = "tod",
         append_to_report: bool = True,
         *args,
         **kwargs,
-    ) -> List[Path]:
+    ) -> list[Path]:
         """Write a set of observations as HDF5
 
         This function is a wrapper to :func:`.write_list_of_observations` that saves
@@ -2392,8 +2418,8 @@ class Simulation:
     @_profile
     def read_observations(
         self,
-        path: Union[str, Path] = None,
-        subdir_name: Union[None, str] = "tod",
+        path: str | Path = None,
+        subdir_name: None | str = "tod",
         *args,
         **kwargs,
     ):
@@ -2420,10 +2446,10 @@ class Simulation:
     def apply_gaindrift(
         self,
         drift_params: GainDriftParams = None,
-        user_seed: Union[int, None] = None,
+        user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = True,
-        rng_hierarchy: Union[RNGHierarchy, None] = None,
+        rng_hierarchy: RNGHierarchy | None = None,
     ):
         """
         Apply gain drift to all observations.

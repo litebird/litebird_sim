@@ -14,7 +14,8 @@ import numpy.typing as npt
 from numba import njit
 import healpy as hp
 
-from typing import Union, List, Any, Optional, Callable
+from typing import Any
+from collections.abc import Callable
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.pointings_in_obs import (
@@ -62,7 +63,7 @@ class BinnerResult:
     binned_map: Any = None
     invnpp: Any = None
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
-    components: List = None
+    components: list = None
     detector_split: str = "full"
     time_split: str = "full"
 
@@ -191,13 +192,13 @@ def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
 
 def _build_nobs_matrix(
     nside: int,
-    obs_list: List[Observation],
-    ptg_list: Union[List[npt.ArrayLike], List[Callable]],
-    hwp: Union[HWP, None],
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
+    obs_list: list[Observation],
+    ptg_list: list[npt.ArrayLike] | list[Callable],
+    hwp: HWP | None,
+    dm_list: list[npt.ArrayLike],
+    tm_list: list[npt.ArrayLike],
     output_coordinate_system: CoordinateSystem,
-    components: List[str],
+    components: list[str],
     pointings_dtype=np.float64,
 ) -> npt.ArrayLike:
     hpx = Healpix_Base(nside, "RING")
@@ -210,13 +211,10 @@ def _build_nobs_matrix(
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
 
-        if hwp is None:
-            hwp_angle = None
-        else:
-            # If you pass an external HWP, get hwp_angle here, otherwise this is handled in scan_map
-            hwp_angle = _get_hwp_angle(
-                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
-            )
+        # Determine the HWP angle to use:
+        # - If an external HWP object is provided, compute the angle from it
+        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         pixidx_all, polang_all = _compute_pixel_indices(
             hpx=hpx,
@@ -271,11 +269,11 @@ def _build_nobs_matrix(
 
 def make_binned_map(
     nside: int,
-    observations: Union[Observation, List[Observation]],
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-    hwp: Optional[HWP] = None,
+    observations: Observation | list[Observation],
+    pointings: np.ndarray | list[np.ndarray] | None = None,
+    hwp: HWP | None = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    components: Union[str, List[str]] = "tod",
+    components: str | list[str] = "tod",
     detector_split: str = "full",
     time_split: str = "full",
     pointings_dtype=np.float64,
@@ -358,9 +356,9 @@ def make_binned_map(
 
 
 def check_valid_splits(
-    observations: Union[Observation, List[Observation]],
-    detector_splits: Union[str, List[str]] = "full",
-    time_splits: Union[str, List[str]] = "full",
+    observations: Observation | list[Observation],
+    detector_splits: str | list[str] = "full",
+    time_splits: str | list[str] = "full",
 ):
     """Check if the splits are valid
 
@@ -388,7 +386,7 @@ def check_valid_splits(
             If pointings and psi are not included in the observations, they can
             be provided through an array (or a list of arrays) of dimension
             (Ndetectors x Nsamples x 3), containing theta, phi and psi
-        detector_splits (Union[str, List[str]], optional): detector-domain splits
+        detector_splits (str | list[str], optional): detector-domain splits
             used to produce maps.
 
             * "full": every detector in the observation will be used;
@@ -399,7 +397,7 @@ def check_valid_splits(
                 for "XXX" are all the 3-digits strings corresponding to the wafers
                 in the LITEBIRD focal plane (e.g. L00, M01, H02).
 
-        time_splits (Union[str, List[str]], optional): time-domain splits
+        time_splits (str | list[str], optional): time-domain splits
             used to produce maps. This defaults to "full" indicating that every
             sample in the observation will be used. In addition, the user can specify
             a string, or a list of strings, to indicate a subsample of the observation

@@ -1,10 +1,7 @@
-# -*- encoding: utf-8 -*-
-
 import numpy as np
 from numba import njit, prange
 
 from ducc0.healpix import Healpix_Base
-from typing import Union, List, Dict, Optional
 from .observations import Observation
 from .hwp_sys.hwp_sys import HwpSys
 from .hwp import HWP
@@ -110,14 +107,14 @@ def scan_map_generic_hwp_for_one_detector(
 def scan_map(
     tod,
     pointings,
-    maps: Dict[str, np.ndarray],
-    pol_angle_detectors: Union[np.ndarray, None] = None,
-    pol_eff_detectors: Union[np.ndarray, None] = None,
-    hwp_angle: Union[np.ndarray, None] = None,
-    mueller_hwp: Union[np.ndarray, None] = None,
-    input_names: Union[str, None] = None,
+    maps: dict[str, np.ndarray],
+    pol_angle_detectors: np.ndarray | None = None,
+    pol_eff_detectors: np.ndarray | None = None,
+    hwp_angle: np.ndarray | None = None,
+    mueller_hwp: np.ndarray | None = None,
+    input_names: str | None = None,
     input_map_in_galactic: bool = True,
-    interpolation: Union[str, None] = "",
+    interpolation: str | None = "",
     pointings_dtype=np.float64,
     hwp_type: Union[str, None] = None,
 ):
@@ -289,13 +286,13 @@ def scan_map(
 
 
 def scan_map_in_observations(
-    observations: Union[Observation, List[Observation]],
-    maps: Union[np.ndarray, Dict[str, np.ndarray]],
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-    hwp: Optional[HWP] = None,
+    observations: Observation | list[Observation],
+    maps: np.ndarray | dict[str, np.ndarray],
+    pointings: np.ndarray | list[np.ndarray] | None = None,
+    hwp: HWP | None = None,
     input_map_in_galactic: bool = True,
     component: str = "tod",
-    interpolation: Optional[str] = "",
+    interpolation: str | None = "",
     pointings_dtype=np.float64,
     hwp_type: Union[str, None] = None,
     hwp_harmonics: Union[HwpSys, None] = None,
@@ -434,13 +431,10 @@ def scan_map_in_observations(
             )
             input_names = None
 
-        if hwp is None:
-            hwp_angle = None
-        else:
-            # If you pass an external HWP, get hwp_angle here, otherwise this is handled in scan_map
-            hwp_angle = _get_hwp_angle(
-                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
-            )
+        # Determine the HWP angle to use:
+        # - If an external HWP object is provided, compute the angle from it
+        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         if hwp_type not in [None, "ideal", "non_ideal", "non_ideal_harmonics"]:
             raise ValueError(

@@ -1,7 +1,6 @@
 import numpy as np
 
 from enum import IntEnum
-from typing import Union, List
 from dataclasses import dataclass
 
 from .observations import Observation
@@ -403,8 +402,8 @@ def apply_gaindrift_to_tod(
     tod: np.ndarray,
     sampling_freq_hz: float,
     drift_params: GainDriftParams = None,
-    focalplane_attr: Union[List, np.ndarray] = None,
-    dets_random: Union[np.random.Generator, None] = None,
+    focalplane_attr: list | np.ndarray = None,
+    dets_random: np.random.Generator | None = None,
 ):
     """The function to apply the gain drift to all the detectors of a given TOD object.
 
@@ -423,7 +422,7 @@ def apply_gaindrift_to_tod(
 
         sampling_freq_hz (float): The sampling frequency of the detector in Hz.
 
-        det_name (Union[List, np.ndarray]): The list of the name of the
+        det_name (list | np.ndarray): The list of the name of the
           detectors to which the TOD arrays correspond. The detector names
           are used to generate unique and reproducible random numbers for
           each detector.
@@ -431,7 +430,7 @@ def apply_gaindrift_to_tod(
         drift_params (:class:`.GainDriftParams`, optional): The gain drift
           injection parameters object. Defaults to None.
 
-        focalplane_attr (Union[List, np.ndarray], optional): This is the
+        focalplane_attr (list | np.ndarray | None): This is the
           parameter corresponding to the ``drift_params.focalplane_group``
           attribute. For example, if
           ``drift_params.focalplane_group = 'wafer'``, the
@@ -501,11 +500,11 @@ def apply_gaindrift_to_tod(
 
 
 def apply_gaindrift_to_observations(
-    observations: Union[Observation, List[Observation]],
+    observations: Observation | list[Observation],
     drift_params: GainDriftParams = None,
-    user_seed: Union[int, None] = None,
+    user_seed: int | None = None,
     component: str = "tod",
-    dets_random: Union[List[np.random.Generator]] = None,
+    dets_random: list[np.random.Generator] = None,
 ):
     """
     Apply gain drift to one or more observations.
