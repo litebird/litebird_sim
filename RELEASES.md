@@ -16,13 +16,13 @@
 -   Build the release:
 
     ```
-    poetry build
+    uv build
     ```
 
 -   Upload the package to PyPI:
 
     ```
-    poetry publish
+    uv publish
     ```
 
 -   Create a new tag and push it to GitHub:
