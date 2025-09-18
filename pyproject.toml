@@ -50,6 +50,11 @@ dependencies = [
     "deprecated>=1.2.18",
     "scipy>=1.14.0",
     "libinsdb>=0.9.0",
+    "markdown>=3.9",
+    "markdown-katex>=202406.1035",
+    "asciimatics>=1.15.0",
+    "PyGithub>=2.6.1",
+    "pyperclip>=1.9.0",
 ]
 
 [project.optional-dependencies]
@@ -59,15 +64,6 @@ docs = [
     "sphinxcontrib-contentui>=0.2.5",
     "sphinxcontrib-asciinema>=0.3.7",
     "pydata-sphinx-theme>=0.16.1",
-    "markdown>=3.8",
-    "markdown-katex>=202406.1035",
-]
-gui = [
-    "asciimatics>=1.15.0",
-    "pyperclip>=1.9.0",
-]
-github = [
-    "PyGithub>=2.6.1",
 ]
 mpi = [
     "mpi4py>=3.1.0",

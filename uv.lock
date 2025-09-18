@@ -881,6 +881,7 @@ name = "litebird-sim"
 version = "0.16.0"
 source = { editable = "." }
 dependencies = [
+    { name = "asciimatics" },
     { name = "astropy" },
     { name = "deprecated" },
     { name = "deprecation" },
@@ -890,9 +891,13 @@ dependencies = [
     { name = "jinja2" },
     { name = "jplephem" },
     { name = "libinsdb" },
+    { name = "markdown" },
+    { name = "markdown-katex" },
     { name = "matplotlib" },
     { name = "numba" },
     { name = "numpy" },
+    { name = "pygithub" },
+    { name = "pyperclip" },
     { name = "pysm3" },
     { name = "pyyaml" },
     { name = "requests" },
@@ -909,8 +914,6 @@ dev = [
     { name = "ruff" },
 ]
 docs = [
-    { name = "markdown" },
-    { name = "markdown-katex" },
     { name = "pydata-sphinx-theme" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "8.2.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -918,20 +921,13 @@ docs = [
     { name = "sphinxcontrib-bibtex" },
     { name = "sphinxcontrib-contentui" },
 ]
-github = [
-    { name = "pygithub" },
-]
-gui = [
-    { name = "asciimatics" },
-    { name = "pyperclip" },
-]
 mpi = [
     { name = "mpi4py" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "asciimatics", marker = "extra == 'gui'", specifier = ">=1.15.0" },
+    { name = "asciimatics", specifier = ">=1.15.0" },
     { name = "astropy", specifier = "==6.1.7" },
     { name = "deprecated", specifier = ">=1.2.18" },
     { name = "deprecation", specifier = ">=2.1.0" },
@@ -941,16 +937,16 @@ requires-dist = [
     { name = "jinja2", specifier = ">=3.1" },
     { name = "jplephem", specifier = ">=2.22" },
     { name = "libinsdb", specifier = ">=0.9.0" },
-    { name = "markdown", marker = "extra == 'docs'", specifier = ">=3.8" },
-    { name = "markdown-katex", marker = "extra == 'docs'", specifier = ">=202406.1035" },
+    { name = "markdown", specifier = ">=3.9" },
+    { name = "markdown-katex", specifier = ">=202406.1035" },
     { name = "matplotlib", specifier = ">=3.10.3" },
     { name = "mpi4py", marker = "extra == 'mpi'", specifier = ">=3.1.0" },
     { name = "numba", specifier = ">=0.61.2" },
     { name = "numpy", specifier = ">=1.26.4" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0" },
     { name = "pydata-sphinx-theme", marker = "extra == 'docs'", specifier = ">=0.16.1" },
-    { name = "pygithub", marker = "extra == 'github'", specifier = ">=2.6.1" },
-    { name = "pyperclip", marker = "extra == 'gui'", specifier = ">=1.9.0" },
+    { name = "pygithub", specifier = ">=2.6.1" },
+    { name = "pyperclip", specifier = ">=1.9.0" },
     { name = "pysm3", specifier = ">=3.4.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
@@ -965,7 +961,7 @@ requires-dist = [
     { name = "sphinxcontrib-contentui", marker = "extra == 'docs'", specifier = ">=0.2.5" },
     { name = "tomlkit", specifier = ">=0.12.1" },
 ]
-provides-extras = ["docs", "gui", "github", "mpi", "dev"]
+provides-extras = ["docs", "mpi", "dev"]
 
 [[package]]
 name = "llvmlite"
