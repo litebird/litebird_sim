@@ -1378,13 +1378,17 @@ class Simulation:
         """
         self.instrument = instrument
 
-    def set_hwp(self, hwp: HWP):
+    def set_hwp(
+        self, hwp: HWP, ideal_matrix: bool = True, harmonics_expansion: bool = False
+    ):
         """Set the HWP to be used in the simulation
 
         The argument must be a class derived from :class:`.HWP`, for instance
         :class:`.IdealHWP`.
         """
         self.hwp = hwp
+        for obs in self.observations:
+            obs.set_hwp(ideal_matrix, harmonics_expansion)
 
     @_profile
     def prepare_pointings(

@@ -848,6 +848,46 @@ class Observation:
         else:
             self.has_hwp = True
 
+    def set_hwp(self, ideal_matrix: bool = True, harmonics_expansion: bool = False):
+        if not ideal_matrix:
+            assert all(m is None for m in self.mueller_hwp), (
+                "Non ideal (detector-dependent) mueller matrices were selected, however not all detectors have a defined mueller matrix."
+            )
+        else:
+            # if the detectors don't have already a matrix
+            if all(m is None for m in self.mueller_hwp):
+                if harmonics_expansion:
+                    self.mueller_hwp = np.array(
+                        [
+                            {
+                                "0f": np.array(
+                                    [[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
+                                ),
+                                "2f": np.array(
+                                    [[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64
+                                ),
+                                "4f": np.array(
+                                    [[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64
+                                ),
+                            }
+                            for _ in range(self.n_detectors)
+                        ]
+                    )
+                else:
+                    self.mueller_hwp = np.array(
+                        [
+                            np.diag([1.0, 1.0, -1.0, -1.0])
+                            for _ in range(self.n_detectors)
+                        ]
+                    )
+            else:
+                # the case where matrices are already given for each detector
+                pass
+
+            # TODO add case where only some of the detectors have matrix
+
+            self.has_hwp = True
+
     def get_pointings(
         self,
         detector_idx: int | list[int] | str = "all",

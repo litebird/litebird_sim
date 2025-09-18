@@ -776,3 +776,6 @@ def test_convolve_and_filltods_from_obs(tmp_path):
     tod_2 = sim.observations[0].tod[0]
 
     np.testing.assert_allclose(tod, tod_2)
+
+
+test_convolve_and_filltods_from_obs(Path("test.txt"))
