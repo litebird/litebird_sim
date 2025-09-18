@@ -8,14 +8,14 @@ build:
   os: "ubuntu-24.04"
   tools: 
     python: "3.12"
+    uv: "latest"
   jobs:
     pre_install:
-      - pip install poetry poetry-plugin-export
-      - poetry export -f requirements.txt --without-hashes --output requirements.txt
+      - uv sync --all-extras
 
 python:
   install:
-    - method: pip
+    - method: uv
       path: .
 
 sphinx:
