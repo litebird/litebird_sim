@@ -64,8 +64,9 @@ jobs:
 
       - name: Install litebird_sim dependencies
         run: |
-          uv sync --all-extras
+          uv sync --extra dev
           if [ "${{ matrix.mpi }}" != "none" ]; then
+            uv sync --all-extras
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
               git clone --recursive https://github.com/anand-avinash/BrahMap.git
               (cd BrahMap && uv run pip install .)
