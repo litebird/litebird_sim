@@ -64,35 +64,31 @@ Hacking LBS
 If you plan to work on the source code of LBS, you should clone the
 repository and create a virtual environment for it. The virtual
 environment must be prepared by installing all the packages needed by
-LBS; we use `Poetry <https://python-poetry.org/docs/basic-usage/>`_
+LBS; we use `uv <https://docs.astral.sh/uv/>`_
 for this.
 
 .. code-block:: text
 
-   # Create a virtual environment with
-   virtualenv lbs_env
-   # or with
-   python3 -m venv lbs_env
-
-   # Activate the environment
-   . lbs_env/bin/activate
+   # Install uv (if not already installed)
+   pip install uv
 
    # Clone the code locally
    git clone https://github.com/litebird/litebird_sim litebird_sim
+   cd litebird_sim
 
-   # If you are running Poetry 2.0 or above, run this to install the `export` plugin
-   pip install poetry-plugin-export
+   # Install all dependencies and create virtual environment
+   uv sync
 
-   # Generate requirements.txt and install all the dependencies
-   poetry export --without-hashes -o requirements.txt
-   pip install --upgrade pip
+   # Activate the environment (optional, uv run will handle this automatically)
+   source .venv/bin/activate
 
-   # Install litebird_sim in the environment
-   pip install -e .
+   # Or simply run commands with uv run (recommended)
+   uv run python your_script.py
 
-To install LBS with optional dependencies, one can add the option
-``-E <dependency_name>`` while calling ``poetry export``. See the section on
-:ref:`install-dependencies` for more details.
+To install LBS with optional dependencies, you can use the ``--extra`` option
+with ``uv sync --extra <dependency_name>`` (e.g., ``--extra docs``, ``--extra mpi``, ``--extra gui``). 
+You can combine multiple extras: ``uv sync --extra docs --extra mpi``.
+See the section on :ref:`install-dependencies` for more details.
 
 Run code validators
 ~~~~~~~~~~~~~~~~~~~
@@ -133,8 +129,13 @@ LBS offers 3 optional dependencies:
    Framework supports MPI. To use it, you must ensure that `mpi4py
    <https://mpi4py.readthedocs.io/en/stable/>`_ is installed.
 
-   If you have created a virtual environment to work with
-   ``litebird_sim`` (as you should have), just install it using ``pip``:
+   If you are using uv (recommended), you can install the MPI optional dependency:
+
+   .. code-block:: text
+
+       uv sync --extra mpi
+
+   Alternatively, you can install mpi4py directly:
 
    .. code-block:: text
 
