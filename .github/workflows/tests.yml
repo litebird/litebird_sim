@@ -64,7 +64,7 @@ jobs:
 
       - name: Install litebird_sim dependencies
         run: |
-          uv sync --extra dev
+          uv sync --extra dev --extra docs
           if [ "${{ matrix.mpi }}" != "none" ]; then
             uv sync --all-extras
             if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
