@@ -9,7 +9,7 @@ from deprecated import deprecated
 from ducc0.healpix import Healpix_Base
 
 from .detectors import InstrumentInfo
-from .hwp import HWP
+from .hwp.hwp import HWP
 from .observations import Observation
 from .scanning import RotQuaternion
 

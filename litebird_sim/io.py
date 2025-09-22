@@ -12,7 +12,7 @@ import numpy as np
 
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
-from .hwp import read_hwp_from_hdf5
+from .hwp.hwp import read_hwp_from_hdf5
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
 from .pointings import PointingProvider
