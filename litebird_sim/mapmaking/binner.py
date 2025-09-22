@@ -22,7 +22,7 @@ from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
-from litebird_sim.hwp.hwp import HWP
+from litebird_sim.hwp import HWP
 from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
 from litebird_sim.healpix import nside_to_npix

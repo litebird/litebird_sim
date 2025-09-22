@@ -7,7 +7,7 @@ import numpy.typing as npt
 from ducc0.totalconvolve import Interpolator, Interpolator_f
 
 from .coordinates import CoordinateSystem
-from .hwp.hwp import HWP
+from .hwp import HWP
 from .mueller_convolver import MuellerConvolver
 from .observations import Observation
 from .pointings_in_obs import (

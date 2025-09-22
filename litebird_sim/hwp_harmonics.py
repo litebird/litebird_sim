@@ -7,9 +7,9 @@ from astropy.cosmology import Planck18 as cosmo
 from numba import njit, prange
 
 from litebird_sim import mpi
-from ..coordinates import rotate_coordinates_e2g
-from ..hwp_diff_emiss import compute_2f_for_one_sample
-from ..observations import Observation
+from .coordinates import rotate_coordinates_e2g
+from .hwp_diff_emiss import compute_2f_for_one_sample
+from .observations import Observation
 
 COND_THRESHOLD = 1e10
 

@@ -2,7 +2,7 @@ import numpy as np
 
 import litebird_sim as lbs
 from litebird_sim import mpi
-from litebird_sim.hwp.hwp_harmonics import mueller_interpolation
+from litebird_sim.hwp_harmonics import mueller_interpolation
 
 
 def test_hwp_sys_mpi():
@@ -46,8 +46,6 @@ def test_hwp_sys_mpi():
 
     sim.set_instrument(instr)
 
-    sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
-
     dets = []
 
     random_angles = [[40, 30, 45], [45, 34, 135], [33, 5, 45], [48, 23, 135]]
@@ -83,6 +81,14 @@ def test_hwp_sys_mpi():
                 dtype=np.float64,
             ),
         }
+
+        sim.set_hwp(
+            lbs.NonIdealHWP(
+                ang_speed_radpsec=hwp_radpsec,
+                harmonic_expansion=True,
+                formalism="mueller",
+            )
+        )
 
         det.sampling_rate_hz = sampling
 
@@ -129,18 +135,8 @@ def test_hwp_sys_mpi():
     if mpi.MPI_ENABLED:
         input_maps = comm.bcast(input_maps, root=0)
 
-    hwp_sys = lbs.HwpSys(sim)
-
-    hwp_sys.set_parameters(
-        nside=nside,
+    lbs.scan_map_in_observations(
         maps=input_maps,
-        channel=channelinfo,
-        mbs_params=mbs_params,
-        build_map_on_the_fly=False,
-        comm=comm,
-    )
-
-    hwp_sys.fill_tod(
         observations=[obs],
         input_map_in_galactic=False,
         save_tod=True,

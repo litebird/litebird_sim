@@ -72,13 +72,16 @@ from .healpix import (
     write_healpix_map_to_file,
     num_of_alms,
 )
-from .hwp.hwp import (
+from .hwp import (
     HWP,
     IdealHWP,
     NonIdealHWP,
     read_hwp_from_hdf5,
 )
-from .hwp.hwp_harmonics import fill_tod, make_map
+from .hwp_harmonics import (
+    fill_tod,
+    make_map,
+)
 from .imo import (
     PTEP_IMO_LOCATION,
     Imo,
@@ -248,7 +251,7 @@ __all__ = [
     "IdealHWP",
     "NonIdealHWP",
     "read_hwp_from_hdf5",
-    # hwp_sys/hwp_sys.py
+    # hwp_harmonics.py
     "fill_tod",
     "make_map",
     # madam.py

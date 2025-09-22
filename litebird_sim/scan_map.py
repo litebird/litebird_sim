@@ -3,8 +3,8 @@ from numba import njit, prange
 
 from ducc0.healpix import Healpix_Base
 from .observations import Observation
-from .hwp.hwp_harmonics import fill_tod
-from .hwp.hwp import HWP, IdealHWP, NonIdealHWP
+from .hwp_harmonics import fill_tod
+from .hwp import HWP, IdealHWP, NonIdealHWP
 from .pointings_in_obs import (
     _get_hwp_angle,
     _get_pointings_array,

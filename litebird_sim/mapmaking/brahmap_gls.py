@@ -8,7 +8,7 @@ from typing import Any, Optional, Union
 import numpy as np
 import numpy.typing as npt
 
-from litebird_sim.hwp.hwp import HWP
+from litebird_sim.hwp import HWP
 
 
 def make_brahmap_gls_map(

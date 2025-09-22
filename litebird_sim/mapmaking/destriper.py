@@ -13,7 +13,7 @@ from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
 from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
-from litebird_sim.hwp.hwp import HWP
+from litebird_sim.hwp import HWP
 from litebird_sim.mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import (

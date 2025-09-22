@@ -24,7 +24,7 @@ import tomlkit
 from markdown_katex import KatexExtension
 
 from litebird_sim import constants
-from .hwp.hwp import HWP
+from .hwp import HWP
 from .beam_convolution import (
     add_convolved_sky_to_observations,
     BeamConvolutionParameters,

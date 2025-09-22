@@ -3,7 +3,7 @@ import pytest
 
 import litebird_sim as lbs
 from litebird_sim import mpi
-from litebird_sim.hwp.hwp_harmonics import compute_orientation_from_detquat
+from litebird_sim.hwp_harmonics import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
 

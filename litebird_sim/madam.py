@@ -11,7 +11,7 @@ from astropy.time import Time as AstroTime
 import litebird_sim
 from . import DetectorInfo
 from .coordinates import CoordinateSystem
-from .hwp.hwp import HWP
+from .hwp import HWP
 from .mapmaking import ExternalDestriperParameters
 from .observations import Observation
 from .pointings_in_obs import (

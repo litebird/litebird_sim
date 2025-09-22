@@ -10,11 +10,10 @@ import numpy.typing as npt
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_detector_blocks
-from .hwp.hwp import HWP
+from .hwp import HWP, IdealHWP, NonIdealHWP
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
-from .hwp.hwp import IdealHWP, NonIdealHWP
 
 
 @dataclass
@@ -792,10 +791,9 @@ class Observation:
 
     def set_hwp(self, hwp):
         if isinstance(hwp, IdealHWP):
-            for obs in self.observations:
-                obs.mueller_hwp = np.array(
-                    [np.diag([1.0, 1.0, -1.0, -1.0]) for _ in obs.mueller_hwp]
-                )
+            self.mueller_hwp = np.array(
+                [np.diag([1.0, 1.0, -1.0, -1.0]) for _ in self.mueller_hwp]
+            )
 
         elif isinstance(hwp, NonIdealHWP):
             if not hwp.harmonic_expansion:

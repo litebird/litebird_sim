@@ -4,7 +4,7 @@ from numba import njit, prange
 from numbers import Number
 
 from .observations import Observation
-from .hwp.hwp import HWP
+from .hwp import HWP
 from .pointings_in_obs import _get_hwp_angle
 
 

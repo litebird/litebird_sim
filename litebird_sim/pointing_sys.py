@@ -5,7 +5,7 @@ import astropy.time
 import numpy as np
 
 from .detectors import DetectorInfo
-from .hwp.hwp import _get_ideal_hwp_angle
+from .hwp import _get_ideal_hwp_angle
 from .observations import Observation
 from .quaternions import (
     quat_rotation_brdcast,
