@@ -62,7 +62,7 @@ docs = [
     "sphinx>=8.1.3",
     "sphinxcontrib-bibtex>=2.6.3",
     "sphinxcontrib-contentui>=0.2.5",
-    "sphinxcontrib-asciinema>=0.3.7",
+    "sphinxcontrib-asciinema>=0.4.2",
     "pydata-sphinx-theme>=0.16.1",
 ]
 mpi = [
