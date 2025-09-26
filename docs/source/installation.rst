@@ -3,8 +3,11 @@
 Installation
 ============
 
+LBS can be used on Linux or Mac OS X machines. Windows is supported only through
+`Windows Subsystem for Linux <https://learn.microsoft.com/en-us/windows/wsl/>`_.
+
 The framework is `registered on PyPI <https://pypi.org/project/litebird-sim/>`_,
-it can be installed with the following procedure:
+so it can be installed using ``pip``:
 
 .. code-block:: text
 
@@ -116,6 +119,9 @@ enter the ``litebird_sim`` directory and run the following command:
    # Always remember to activate your virtual environment!
    . my_venv/bin/activate
 
+   # Install pre-commit using `uv`
+   uv tool install pre-commit --with pre-commit-uv
+
    # Install some useful hooks for git
    pre-commit install
 
@@ -177,8 +183,8 @@ LBS offers 3 optional dependencies:
 Maximize the performance
 ------------------------
 
-**This part is optional and mostly relevant only for power users
- running large simulations!**
+*This part is optional and mostly relevant only for power users
+running large simulations.*
 
 For some of the most CPU-intensive tasks, LBS relies on the `ducc
 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_ library, which is written in
