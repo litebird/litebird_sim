@@ -3,8 +3,10 @@
 Installation
 ============
 
-LBS can be used on Linux or Mac OS X machines. Windows is supported only through
-`Windows Subsystem for Linux <https://learn.microsoft.com/en-us/windows/wsl/>`_.
+LBS can be used on Linux or Mac OS X machines. Windows is supported
+only through `Windows Subsystem for Linux
+<https://learn.microsoft.com/en-us/windows/wsl/>`_. You must have
+Python 3.10 at least to use the framework.
 
 The framework is `registered on PyPI <https://pypi.org/project/litebird-sim/>`_,
 so it can be installed using ``pip``:
