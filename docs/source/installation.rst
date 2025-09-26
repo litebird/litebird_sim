@@ -13,8 +13,6 @@ it can be installed with the following procedure:
    mkdir -p ~/litebird && cd ~/litebird
 
    # Create a virtual environment with
-   virtualenv lbs_env
-   # or with
    python3 -m venv lbs_env
 
    # Activate the environment
@@ -28,7 +26,7 @@ the following command at the terminal prompt:
 
 .. code-block:: text
 
-   python -c "import litebird_sim"
+   python3 -c "import litebird_sim as lbs; print(lbs.__version__)"
 
 A similar procedure can be used with conda:
 
@@ -65,7 +63,8 @@ If you plan to work on the source code of LBS, you should clone the
 repository and create a virtual environment for it. The virtual
 environment must be prepared by installing all the packages needed by
 LBS; we use `uv <https://docs.astral.sh/uv/>`_
-for this.
+for this. Uv is a fast package manager and virtualenv tool, similar to
+a combination of ``pip`` and ``venv``.
 
 .. code-block:: text
 
@@ -77,17 +76,31 @@ for this.
    cd litebird_sim
 
    # Install all dependencies and create virtual environment
-   uv sync
+   uv sync --all-extras
 
-   # Activate the environment (optional, uv run will handle this automatically)
-   source .venv/bin/activate
+At this point, you will have two ways to run use LBS:
 
-   # Or simply run commands with uv run (recommended)
-   uv run python your_script.py
+- As ``uv`` created a virtual environment under ``.venv``, you can
+  activate it and forget about ``uv`` for the rest of the session:
+
+  .. code-block:: sh
+
+     # Activate the environment
+     source .venv/bin/activate
+
+- Otherwise, you add ``uv run`` before *any* command invoking
+  ``python`` or ``python3``:
+
+  .. code-block:: sh
+
+     # Or simply run commands with uv run (recommended)
+     uv run python3 your_script.py
 
 To install LBS with optional dependencies, you can use the ``--extra`` option
-with ``uv sync --extra <dependency_name>`` (e.g., ``--extra docs``, ``--extra mpi``, ``--extra gui``). 
-You can combine multiple extras: ``uv sync --extra docs --extra mpi``.
+with ``uv sync --extra <dependency_name>``; for instance::
+
+    uv sync --extra docs --extra mpi
+
 See the section on :ref:`install-dependencies` for more details.
 
 Run code validators
@@ -123,19 +136,21 @@ optional dependencies that can be installed by the users as required.
 
 LBS offers 3 optional dependencies:
 
-1. ``mpi``  
+1. ``mpi``
 
    As explained in the chapter :ref:`using_mpi`, the LiteBIRD Simulation
    Framework supports MPI. To use it, you must ensure that `mpi4py
    <https://mpi4py.readthedocs.io/en/stable/>`_ is installed.
 
-   If you are using uv (recommended), you can install the MPI optional dependency:
+   If you are using ``uv`` (recommended), you can install the MPI
+   optional dependency:
 
    .. code-block:: text
 
        uv sync --extra mpi
 
-   Alternatively, you can install mpi4py directly:
+   Alternatively, if you are within a virtual environment you can
+   install mpi4py directly:
 
    .. code-block:: text
 
@@ -145,12 +160,11 @@ LBS offers 3 optional dependencies:
    MPI functions will be automatically enabled in the framework. See the
    chapter :ref:`using_mpi` for more details.
 
-2. ``jupyter``  
+2. ``docs``
 
-   This dependency installs the packages that can be used to work with LBS in a
-   jupyter notebook.
+   This dependency installs the packages that are used to build the documentation.
 
-3. ``brahmap``  
+3. ``brahmap``
 
    BrahMap is an external map-making framework and it supports optimal map-making
    with LBS simulations. LBS in turn, offers a high level interface to call
@@ -163,6 +177,9 @@ LBS offers 3 optional dependencies:
 Maximize the performance
 ------------------------
 
+**This part is optional and mostly relevant only for power users
+ running large simulations!**
+
 For some of the most CPU-intensive tasks, LBS relies on the `ducc
 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_ library, which is written in
 C++. When you run ``pip install litebird_sim``, you are downloading a
@@ -171,15 +188,15 @@ architectures but might not exploit the CPU you are using to its
 maximum potential.
 
 If you plan to use CPU-intensive tasks like beam convolution (see
-chapter :ref:`beamconvolution`), you will
-surely take advantage of a natively compiled binary. To do this, you
-must have a valid C++ compiler, as it is specified in `ducc’s README
+chapter :ref:`beamconvolution`), you will surely take advantage of a
+natively compiled binary. To do this, you must have a valid C++
+compiler; check the most up-to-date requirements in `ducc’s README
 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_.
 
 To use a natively-compiled binary for ``ducc``, create a virtual
-environment and install ``litebird_sim`` as usual, then *uninstall*
-``ducc`` and re-install it again, this time telling ``pip`` to compile
-it from source.
+environment using the commands listed above and install
+``litebird_sim`` as usual, then *uninstall* ``ducc`` and re-install it
+again, this time telling ``pip`` to compile it from source.
 
 .. code-block:: text
 
@@ -192,7 +209,7 @@ it from source.
    pip uninstall ducc0
 
    # Re-install ducc0 forcing to skip the download of the binary
-   pip3 install --no-binary ducc0 ducc0
+   pip install --no-binary ducc0 ducc0
 
 If you experience problems with the last command because of
 compilation errors, please open an issue on the `ducc repository page
