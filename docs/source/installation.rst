@@ -6,7 +6,11 @@ Installation
 LBS can be used on Linux or Mac OS X machines. Windows is supported
 only through `Windows Subsystem for Linux
 <https://learn.microsoft.com/en-us/windows/wsl/>`_. You must have
-Python 3.10 at least to use the framework.
+Python 3.10 at least to use the framework; on some systems, you must
+ensure to have the Python development libraries, otherwise some
+package dependencies might not be installed correctly. (For instance,
+on Fedora Linux you must install the package ``python3-devel`` with
+the command ``sudo dnf install python3-devel``.)
 
 The framework is `registered on PyPI <https://pypi.org/project/litebird-sim/>`_,
 so it can be installed using ``pip``:
