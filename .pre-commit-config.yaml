@@ -1,7 +1,7 @@
 repos:
 - repo: https://github.com/astral-sh/uv-pre-commit
   # This makes sure that uv.lock is up to date when pyproject.toml
-  # was changed
+  # is changed
   rev: 0.8.22
   hooks:
     - id: uv-lock
