@@ -32,9 +32,12 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
+        env:
+          UV_CACHE_DIR: ~/pip-cache
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
+          prune-cache: false
           cache-dependency-glob: |
             pyproject.toml
             uv.lock
@@ -91,6 +94,7 @@ jobs:
         env:
           DUCC0_OPTIMIZATION: none
           PIP_CACHE_DIR: ~/pip-cache
+          UV_CACHE_DIR: ~/pip-cache
 
       - name: Tests
         run: uv run bash ./bin/run_tests.sh
