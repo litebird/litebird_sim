@@ -48,6 +48,9 @@ jobs:
           path: ~/pip-cache
           key: pip-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
+      - name: Ensure wheels cache path exists
+        run: mkdir -p ~/pip-wheels
+
       - name: Cache pip wheels
         uses: actions/cache@v4
         with:
