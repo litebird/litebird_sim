@@ -54,6 +54,12 @@ jobs:
           path: ~/pip-wheels
           key: pip-wheels-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
+      - name: Cache virtual environment
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
+
       # Unfortunately we must use different keys to store the same data,
       # otherwise GitHub will complain when multiple jobs are going to
       # store it
