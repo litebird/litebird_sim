@@ -38,6 +38,18 @@ jobs:
           cache-dependency-glob: |
             pyproject.toml
             uv.lock
+      
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
+
+      - name: Cache pip wheels
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip/wheels
+          key: pip-wheels-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
       # Unfortunately we must use different keys to store the same data,
       # otherwise GitHub will complain when multiple jobs are going to
@@ -48,7 +60,6 @@ jobs:
         with:
           path: ~/pysm3-data
           key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}
-
 
       - name: Register PySM3 data path
         run: |
@@ -79,6 +90,7 @@ jobs:
           fi
         env:
           DUCC0_OPTIMIZATION: none
+          PIP_CACHE_DIR: ${{ runner.home }}/.cache/pip
 
       - name: Tests
         run: uv run bash ./bin/run_tests.sh
