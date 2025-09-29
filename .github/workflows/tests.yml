@@ -68,7 +68,7 @@ jobs:
       - name: Download PySM3 data files
         if: steps.cache-pysm3.outputs.cache-hit != 'true'
         run: |
-          rm -rf "$PYSM_LOCAL_DATA" && git clone https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
+          git clone --depth 1 https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
 
       - name: Install basic dependencies (MPI, FFTW, IMO)
         run: |
