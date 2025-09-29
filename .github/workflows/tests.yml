@@ -42,13 +42,13 @@ jobs:
       - name: Cache pip
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
+          path: ~/pip-cache
           key: pip-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
       - name: Cache pip wheels
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip/wheels
+          path: ~/pip-wheels
           key: pip-wheels-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
       # Unfortunately we must use different keys to store the same data,
@@ -90,7 +90,7 @@ jobs:
           fi
         env:
           DUCC0_OPTIMIZATION: none
-          PIP_CACHE_DIR: ${{ runner.home }}/.cache/pip
+          PIP_CACHE_DIR: ~/pip-cache
 
       - name: Tests
         run: uv run bash ./bin/run_tests.sh
