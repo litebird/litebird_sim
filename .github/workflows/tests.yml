@@ -31,10 +31,13 @@ jobs:
           python-version: ${{ matrix.python }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v6
         with:
+          python-version: ${{ matrix.python }}
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
 
       # Unfortunately we must use different keys to store the same data,
       # otherwise GitHub will complain when multiple jobs are going to
