@@ -1,4 +1,4 @@
 #!/bin/sh
 
 # Re-generate the Sphinx documentation
-poetry run make -C docs html
+uv run make -C docs html

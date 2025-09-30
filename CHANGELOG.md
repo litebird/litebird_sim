@@ -1,5 +1,9 @@
 # HEAD
 
+-   Improve caching system of CI tests [#462](https://github.com/litebird/litebird_sim/pull/462)
+
+-   Use `uv` to manage dependencies, run and build the package [#462](https://github.com/litebird/litebird_sim/pull/462)
+
 # Version 0.16.0
 
 -   Add pre-commit hook to keep syntax compliant with `py3.10+` [#461](https://github.com/litebird/litebird_sim/pull/461)

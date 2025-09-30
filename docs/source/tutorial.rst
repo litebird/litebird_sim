@@ -42,20 +42,24 @@ calling ``pip``:
   pip install litebird_sim
 
 To ensure reproducibility of your results, it is good to keep track of
-the version numbers used by your program. We will immediately create a
-file ``requirements.txt``, which can be used by other people to ensure
-that they are using the very same version of the LiteBIRD Simulation
-Framework (as well as any other package you might want to install with
-``pip``) as ours:
+the version numbers used by your program. If you are developing with uv
+(recommended for LiteBIRD Simulation Framework development), uv automatically
+creates a ``uv.lock`` file that pins exact versions:
+
+.. code-block:: sh
+
+  # With uv (recommended for development)
+  uv sync  # This creates/updates uv.lock automatically
+
+Alternatively, if using pip, you can create a ``requirements.txt`` file:
 
 .. code-block:: sh
 
   pip freeze > requirements.txt
 
 (If you use a Version Control System like ``git``, it is a good idea
-to add ``requirements.txt`` to the repository.) Anybody will then be
-able to install the same versions of each package as you by using the
-command ``pip install -r requirements.txt``.
+to add ``uv.lock`` or ``requirements.txt`` to the repository.) Others will then be
+able to install the same versions by using ``uv sync`` or ``pip install -r requirements.txt``.
 
 If you got no errors, you are ready to write your first program! To
 follow an ancient tradition, we will write a «Hello world!» program.

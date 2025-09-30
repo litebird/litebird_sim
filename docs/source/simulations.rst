@@ -229,6 +229,10 @@ just to install `mpi4py <https://mpi4py.readthedocs.io/en/stable/>`_:
 
 .. code-block:: sh
 
+  # With uv (recommended)
+  $ uv sync --extra mpi
+
+  # With pip
   $ pip install mpi4py
 
   # Always do this after "pip install", it will record the
