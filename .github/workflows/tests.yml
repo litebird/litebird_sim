@@ -32,8 +32,6 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
-        env:
-          UV_CACHE_DIR: ~/pip-cache
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
@@ -42,20 +40,20 @@ jobs:
             pyproject.toml
             uv.lock
       
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/pip-cache
-          key: pip-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
+      # - name: Cache pip
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/pip-cache
+      #     key: pip-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
-      - name: Ensure wheels cache path exists
-        run: mkdir -p ~/pip-wheels
+      # - name: Ensure wheels cache path exists
+      #   run: mkdir -p ~/pip-wheels
 
-      - name: Cache pip wheels
-        uses: actions/cache@v4
-        with:
-          path: ~/pip-wheels
-          key: pip-wheels-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
+      # - name: Cache pip wheels
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: ~/pip-wheels
+      #     key: pip-wheels-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
       - name: Cache virtual environment
         uses: actions/cache@v4
@@ -97,13 +95,12 @@ jobs:
           uv sync $EXTRAS
           if [ "${{ matrix.mpi }}" != "none" ] && [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
             git clone --recursive https://github.com/anand-avinash/BrahMap.git
-            (cd BrahMap && uv run pip install .)
+            (cd BrahMap && uv pip install .)
             rm -rf BrahMap
           fi
         env:
           DUCC0_OPTIMIZATION: none
-          PIP_CACHE_DIR: ~/pip-cache
-          UV_CACHE_DIR: ~/pip-cache
+          PIP_CACHE_DIR: ${{ env.UV_CACHE_DIR }}
 
       - name: Tests
         run: uv run bash ./bin/run_tests.sh
