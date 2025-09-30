@@ -39,24 +39,10 @@ jobs:
           cache-dependency-glob: |
             pyproject.toml
             uv.lock
-      
-      # - name: Cache pip
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/pip-cache
-      #     key: pip-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
-
-      # - name: Ensure wheels cache path exists
-      #   run: mkdir -p ~/pip-wheels
-
-      # - name: Cache pip wheels
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: ~/pip-wheels
-      #     key: pip-wheels-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
       - name: Cache virtual environment
         uses: actions/cache@v4
+        id: cache-venv
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
@@ -93,11 +79,19 @@ jobs:
             EXTRAS="$EXTRAS --extra mpi"
           fi
           uv sync $EXTRAS
-          if [ "${{ matrix.mpi }}" != "none" ] && [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            git clone --recursive https://github.com/anand-avinash/BrahMap.git
-            (cd BrahMap && uv pip install .)
-            rm -rf BrahMap
-          fi
+        env:
+          DUCC0_OPTIMIZATION: none
+
+      - name: Install BrahMap
+        if: matrix.mpi != 'none' && matrix.os == 'ubuntu-latest'
+        # if: steps.cache-venv.outputs.cache-hit != 'true' && matrix.mpi != 'none' && matrix.os == 'ubuntu-latest'
+        run: |
+          git clone --recursive https://github.com/anand-avinash/BrahMap.git
+          cd BrahMap
+          uv pip install .
+          cd ..
+          rm -rf BrahMap
+          uv run python -c "import brahmap"
         env:
           DUCC0_OPTIMIZATION: none
           PIP_CACHE_DIR: ${{ env.UV_CACHE_DIR }}
