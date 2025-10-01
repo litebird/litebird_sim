@@ -97,7 +97,9 @@ jobs:
           PIP_CACHE_DIR: ${{ env.UV_CACHE_DIR }}
 
       - name: Tests
-        run: uv run bash ./bin/run_tests.sh
+        run: |
+          set -euo pipefail
+          uv run python -m pytest --cov=litebird_sim --cov-report=xml --cov-report=term --durations=5 -vv
 
       - name: Tests MPICH
         if: ${{ matrix.mpi == 'mpich' }}
