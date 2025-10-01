@@ -25,12 +25,18 @@ jobs:
             pyproject.toml
             uv.lock
 
+      - name: Install basic dependencies (MPI, FFTW, IMO)
+        run: |
+          ./bin/install-deps.sh ${{ matrix.mpi }}
+          mkdir -p $HOME/.config/litebird_imo
+          echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
+
       - name: Install dev and docs dependencies
         run: |
           EXTRAS="--extra dev --extra docs"
           uv sync --locked ${EXTRAS}
 
-      - name: Check code style with ruff
+      - name: Test code examples in the documentation
         run: |
           set -euo pipefail
           uv run make -C docs/ doctest
