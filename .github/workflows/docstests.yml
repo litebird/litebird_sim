@@ -1,0 +1,40 @@
+name: Docs Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.11'
+          enable-cache: true
+          prune-cache: false
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+
+      - name: Install dev and docs dependencies
+        run: |
+          EXTRAS="--extra dev --extra docs"
+          uv sync --locked ${EXTRAS}
+
+      - name: Check code style with ruff
+        run: |
+          set -euo pipefail
+          uv run make -C docs/ doctest
