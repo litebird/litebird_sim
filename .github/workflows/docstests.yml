@@ -3,7 +3,7 @@ name: Docs Tests
 on: [push]
 
 jobs:
-  ruff:
+  tests:
     runs-on: ubuntu-latest
 
     steps:
