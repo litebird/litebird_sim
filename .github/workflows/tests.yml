@@ -8,11 +8,11 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-14]
         mpi: ["none", openmpi] # mpich
         python: ["3.10", "3.13"]
         exclude:
-          - os: macos-latest
+          - os: macos-14
             mpi: mpich
             python: "3.10"
 
@@ -78,7 +78,7 @@ jobs:
           if [ "${{ matrix.mpi }}" != "none" ]; then
             EXTRAS="$EXTRAS --extra mpi"
           fi
-          uv sync $EXTRAS
+          uv sync $EXTRAS --locked
         env:
           DUCC0_OPTIMIZATION: none
 
