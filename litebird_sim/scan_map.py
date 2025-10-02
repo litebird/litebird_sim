@@ -299,8 +299,6 @@ def scan_map_in_observations(
     interpolation: str | None = "",
     pointings_dtype=np.float64,
     save_tod: bool = True,
-    build_map_on_the_fly: bool = False,
-    nside_out: int = None,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
     mueller_phases: np.ndarray = None,
@@ -374,12 +372,6 @@ def scan_map_in_observations(
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
         already precomputed this parameter is ineffective. Default is `np.float64`.
-
-    build_map_on_the_fly (bool) : (For the harmonics expansion case)
-         fills :math:`A^T A` and :math:`A^T d`.
-
-    nside_out (int) : (For the harmonics expansion case) sets a different nside to
-          the output map. Only used when build_map_on_the_fly is set to True.
 
     apply_non_linearity (bool) : (For the harmonics expansion case) applies the
           coupling of the non-linearity systematics with hwp_sys
@@ -475,9 +467,7 @@ def scan_map_in_observations(
                 input_map_in_galactic=input_map_in_galactic,
                 pointings_dtype=pointings_dtype,
                 save_tod=save_tod,
-                build_map_on_the_fly=build_map_on_the_fly,
                 interpolation=interpolation,
-                nside_out=nside_out,
                 maps=maps,
                 apply_non_linearity=apply_non_linearity,
                 add_2f_hwpss=add_2f_hwpss,

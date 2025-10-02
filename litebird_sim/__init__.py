@@ -80,7 +80,6 @@ from .hwp import (
 )
 from .hwp_harmonics import (
     fill_tod,
-    make_map,
 )
 from .imo import (
     PTEP_IMO_LOCATION,
@@ -253,7 +252,6 @@ __all__ = [
     "read_hwp_from_hdf5",
     # hwp_harmonics.py
     "fill_tod",
-    "make_map",
     # madam.py
     "save_simulation_for_madam",
     # mbs.py
