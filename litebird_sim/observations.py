@@ -812,7 +812,7 @@ class Observation:
 
             elif hwp.formalism == "mueller":
                 assert all(d is not None for d in self.mueller_hwp), (
-                    "Mueller formalism was selected but at least one detector does not have jones_hwp attribute."
+                    "Mueller formalism was selected but at least one detector does not have mueller_hwp attribute."
                 )
                 if hwp.harmonic_expansion:
                     assert all(len(d) >= 3 for d in self.mueller_hwp), (
