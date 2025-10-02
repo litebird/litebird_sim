@@ -8,11 +8,11 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-15-intel]
+        os: [ubuntu-latest, macos-latest]
         mpi: ["none", openmpi] # mpich
         python: ["3.10", "3.13"]
         exclude:
-          - os: macos-15-intel
+          - os: macos-latest
             mpi: mpich
             python: "3.10"
 
