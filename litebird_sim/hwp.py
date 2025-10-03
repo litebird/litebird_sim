@@ -3,6 +3,12 @@ import numpy as np
 import numpy.typing as npt
 from deprecated import deprecated
 from numba import njit
+from enum import Enum, auto
+
+
+class Calc(Enum):
+    JONES = auto()
+    MUELLER = auto()
 
 
 class HWP:
@@ -253,7 +259,7 @@ class NonIdealHWP(HWP):
     sample in the simulation, i.e., the earliest sample simulated in any of the
     MPI processes used for the simulation. The constructor also accepts two booleans:
     "harmonic_expansion", which indicates if the hwp matrices are expanded into harmonics
-    of the rotation frequency, and "formalism" which selects between jones or mueller formalism.
+    of the rotation frequency, and "calculus" which selects between jones or mueller calculus.
 
     Given a polarization angle :math:`\psi`, this class turns it into
     :math:`\psi + \psi_\text{hwp,0} + 2 \omega_\text{hwp} t`, where
@@ -265,13 +271,13 @@ class NonIdealHWP(HWP):
         self,
         ang_speed_radpsec: float,
         harmonic_expansion: bool,
-        formalism: str,
+        calculus: Calc,
         start_angle_rad=0.0,
     ):
         self.ang_speed_radpsec = ang_speed_radpsec
         self.start_angle_rad = start_angle_rad
         self.harmonic_expansion = harmonic_expansion
-        self.formalism = formalism
+        self.calculus = calculus
 
     def get_hwp_angle(
         self, output_buffer, start_time_s: float, delta_time_s: float
@@ -321,7 +327,7 @@ class NonIdealHWP(HWP):
     def __str__(self):
         return (
             f"Non Ideal HWP, with rotating speed {self.ang_speed_radpsec} rad/sec "
-            f", θ₀ = {self.start_angle_rad}, {self.formalism} formalism and harmonics expansion set to {self.harmonic_expansion}"
+            f", θ₀ = {self.start_angle_rad}, {self.calculus} calculus and harmonics expansion set to {self.harmonic_expansion}"
         )
 
 

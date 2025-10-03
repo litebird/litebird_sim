@@ -86,7 +86,7 @@ def test_hwp_sys_mpi():
             lbs.NonIdealHWP(
                 ang_speed_radpsec=hwp_radpsec,
                 harmonic_expansion=True,
-                formalism="mueller",
+                calculus=lbs.Calc.MUELLER,
             )
         )
 

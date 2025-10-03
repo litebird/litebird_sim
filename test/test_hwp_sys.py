@@ -116,7 +116,9 @@ def test_hwp_sys(interpolation, nside_out):
         list_of_sims.append(sim)
 
     nonideal_hwp = lbs.NonIdealHWP(
-        ang_speed_radpsec=hwp_radpsec, harmonic_expansion=True, formalism="mueller"
+        ang_speed_radpsec=hwp_radpsec,
+        harmonic_expansion=True,
+        calculus=lbs.Calc.MUELLER,
     )
     list_of_sims[1].observations[0].mueller_hwp[0] = {
         "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),

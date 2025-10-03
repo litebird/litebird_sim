@@ -14,6 +14,7 @@ from .hwp import HWP, IdealHWP, NonIdealHWP
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
+from .hwp import Calc
 
 
 @dataclass
@@ -801,7 +802,7 @@ class Observation:
                     "harmonic_expansion is set to False but more than one more matrix exists in at least one detector."
                 )
 
-            if hwp.formalism == "jones":
+            if hwp.calculus is Calc.JONES:
                 assert all(d.jones_hwp is not None for d in self.jones_hwp), (
                     "Jones formalism was selected but at least one detector does not have jones_hwp attribute."
                 )
@@ -810,7 +811,7 @@ class Observation:
                         "harmonic_expansion is set to True but at least one detector has less then 2 jones matrices."
                     )
 
-            elif hwp.formalism == "mueller":
+            elif hwp.calculus is Calc.MUELLER:
                 assert all(d is not None for d in self.mueller_hwp), (
                     "Mueller formalism was selected but at least one detector does not have mueller_hwp attribute."
                 )

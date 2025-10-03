@@ -77,6 +77,7 @@ from .hwp import (
     IdealHWP,
     NonIdealHWP,
     read_hwp_from_hdf5,
+    Calc,
 )
 from .hwp_harmonics import (
     fill_tod,
@@ -250,6 +251,7 @@ __all__ = [
     "IdealHWP",
     "NonIdealHWP",
     "read_hwp_from_hdf5",
+    "Calc",
     # hwp_harmonics.py
     "fill_tod",
     # madam.py
