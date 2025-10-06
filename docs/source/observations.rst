@@ -3,6 +3,10 @@
 Observations
 ============
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+
 The :class:`.Observation` class is the container for the data acquired by the
 telescope during a scanning period (and the relevant information about it).
 

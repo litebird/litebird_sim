@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 from .common import ExternalDestriperParameters
 from .binner import make_binned_map, check_valid_splits, BinnerResult
 from .brahmap_gls import make_brahmap_gls_map

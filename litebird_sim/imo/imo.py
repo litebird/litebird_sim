@@ -1,9 +1,7 @@
-# -*- encoding: utf-8 -*-
-
 import importlib
 import logging as log
 from pathlib import Path
-from typing import Union, List, IO
+from typing import IO
 from uuid import UUID
 
 import tomlkit
@@ -59,7 +57,7 @@ class Imo:
             else:
                 raise ValueError("You must either provide flatfile_location= or url=")
 
-        self.queried_objects = set()  # type: Set[Tuple[type, UUID]]
+        self.queried_objects = set()  # type: set[tuple[type, UUID]]
 
     def query_entity(self, identifier: UUID, track=True) -> Entity:
         """Return a :class:`.Entity` object from an UUID.
@@ -97,7 +95,7 @@ class Imo:
 
         return result
 
-    def query_data_file(self, identifier: Union[str, UUID], track=True) -> DataFile:
+    def query_data_file(self, identifier: str | UUID, track=True) -> DataFile:
         """Return a :class:`.DataFile` object from an UUID.
 
         If ``track`` is `True` (the default), then the UUID of the
@@ -114,7 +112,7 @@ class Imo:
 
         return result
 
-    def query(self, identifier: Union[str, UUID], track=True):
+    def query(self, identifier: str | UUID, track=True):
         """Query an object from the IMO
 
         The value of `identifier` can be one of the following:
@@ -148,7 +146,7 @@ class Imo:
             self.queried_objects.add((type(result), result.uuid))
         return result
 
-    def get_list_of_data_files(self, quantity_uuid: UUID, track=False) -> List[UUID]:
+    def get_list_of_data_files(self, quantity_uuid: UUID, track=False) -> list[UUID]:
         """Return a sorted list of the UUIDs of the data files belonging to a quantity.
 
         The result is sorted according to their upload date (oldest

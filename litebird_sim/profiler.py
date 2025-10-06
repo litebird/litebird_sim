@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 from .version import __version__
 from time import perf_counter
 from typing import Any
@@ -44,12 +42,10 @@ def profile_list_to_speedscope(profile_list: list[TimeProfiler]) -> dict[Any, An
     """
 
     # Generate a set of all the unique names in the list of profiles
-    frame_names = sorted(set([x.name for x in profile_list]))
+    frame_names = sorted({x.name for x in profile_list})
 
     # This dictionary associates a frame name to a unique index starting from zero
-    frame_name_to_index = dict(
-        (name, index) for (index, name) in enumerate(frame_names)
-    )
+    frame_name_to_index = {name: index for (index, name) in enumerate(frame_names)}
 
     try:
         start_time = min([prof.start for prof in profile_list if prof.valid()])

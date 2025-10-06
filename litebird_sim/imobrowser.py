@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- encoding: utf-8 -*-
 
 from __future__ import annotations
 from pathlib import Path
@@ -57,7 +56,7 @@ THEMES["custom"] = defaultdict(
 )
 
 
-class EntityBrowser(object):
+class EntityBrowser:
     def __init__(self, path: Path | None):
         if path:
             self._imo = Imo(flatfile_location=path)
@@ -178,7 +177,7 @@ class EntityBrowser(object):
 
 class EntityListView(Frame):
     def __init__(self, screen, model):
-        super(EntityListView, self).__init__(
+        super().__init__(
             screen,
             screen.height,
             screen.width,
@@ -264,7 +263,7 @@ class EntityListView(Frame):
 
 class QuantityDetailsView(Frame):
     def __init__(self, screen, model):
-        super(QuantityDetailsView, self).__init__(
+        super().__init__(
             screen,
             screen.height,
             screen.width,

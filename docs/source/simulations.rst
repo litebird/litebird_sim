@@ -3,6 +3,10 @@
 Simulations
 ===========
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+
 The LiteBIRD Simulation Framework is built on the :class:`.Simulation`
 class, which should be instantiated in any pipeline built using this
 framework. The class acts as a container for the many analysis modules
@@ -11,8 +15,9 @@ available to the user, and it offers the following features:
 1. Provenance model;
 2. Interface with the instrument database;
 3. System abstractions;
-4. Generation of reports;
-5. Printing status messages on the terminal (logging).
+4. High level interface for simulation modules;
+5. Generation of reports;
+6. Printing status messages on the terminal (logging).
 
 Provenance model
 ----------------
@@ -31,6 +36,21 @@ The LiteBIRD Simulation Framework tracks these information using
 parameter files (in TOML format), accessing the LiteBIRD Instrument
 Model (IMO) through the unique identifiers provided by the Data Access
 Layer (DAL), and generating reports after the simulation completes.
+Here is an example:
+
+.. code-block:: toml
+
+   [general]
+   start_time = "2030-01-01T00:00:00"
+   duration_s = "720 days"
+
+   [detectors]
+   det_list = [
+       "/releases/vPTEP/satellite/LFT/L1-040/000_000_003_QA_040_T/detector_info",
+   ]
+
+This text file can be provided as input to a :class:`.Simulation` object, which will use the information to set up the simulation.
+
 
 .. _parameter_files:
 
@@ -542,58 +562,9 @@ See the documentation in :ref:`observations`, :ref:`scanning-strategy`
 :ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`mapmaking`,
 :ref:`beamconvolution`, :ref:`Mbs`, for details of the single functions.
 
-The difference between the high-level and low-level interfaces is
-explained in :ref:`high-level-vs-low-level-interfaces`.
+The difference between the high-level and low-level interfaces is introduced in 
+:ref:`interface_hierarchy` and further explained in :ref:`high-level-vs-low-level-interfaces`.
 
-Data splits
-^^^^^^^^^^^
-
-Since the class :class:`.Simulation` is interfaced to
-:func:`litebird_sim.make_binned_map` and :func:`litebird_sim.make_destriped_map`,
-it is able to provide data splits
-both in time and detector space (see :ref:`mapmaking`
-for more details on the splitting and the available options).
-In addition, the class contains :meth:`.Simulation.make_binned_map_splits`,
-which is a wrapper around :func:`litebird_sim.make_binned_map`,
-and :meth:`.Simulation.make_destriped_map_splits`, which is a wrapper
-around :func:`litebird_sim.make_destriped_map`.
-These allows to perform the mapmaking on multiple choices
-of splits at once (passed as a list of strings).
-Indeed, the functions will loop over the cartesian
-product of the time and detector splits. The default
-behavior is to perform the mapmaking in each combination
-and save the result to disk, to avoid memory issues. 
-In particular, in the case of :meth:`.Simulation.make_binned_map_splits`,
-only the binned maps are saved to disk, unless you set
-`include_inv_covariance` to `True`. This saves the elements of
-the inverse covariance as extra fields in the output FITS file.
-This default behavior can be changed by setting the `write_to_disk` parameter
-to `False`. Then, the function returns a dictionary
-containing the full results of the mapmaking for each split.
-The keys are strings that describe the split in the
-format "{Dsplit}_{Tsplit}", such as "waferL00_year1". 
-On the other hand, the default behavior of
-:meth:`.Simulation.make_destriped_map_splits` is to save to disk
-the complete :class:`.mapmaking.DestriperResult` class for each
-split as a FITS file. To avoid this and get a dictionary similar to the one returned
-by :meth:`.Simulation.make_binned_map_splits`, you can set the
-`write_to_disk` parameter to `False`.
-
-The method :meth:`.Simulation.make_destriped_map_splits` also offers the
-possibility to recycle the baseline computed from the largest split available.
-Indeed, if the flag `recycle_baselines` is set to `True`, that method enforces
-the computation of the "full_full" split and then reuses the baselines
-computed for that split for all the other splits.
-
-Before performing the computation, the function :meth:`.Simulation.check_valid_splits`
-will check whether the requested split is valid (see :ref:`mapmaking`).
-This is a wrapper around :func:`litebird_sim.check_valid_splits`. If the
-split is not valid, the function will raise a ValueError. In addition, it
-will check whether the requested split is compatible with the duration of
-the observation and with the detector list. Thus, for example, if the
-observation lasts 1 year, the split "year2" will raise an AsserionError. Similarly,
-if the observation is performed with some detector contained in the L00
-wafer, the split "waferL03" will also raise an AsserionError.
 
 .. _simulation-profiling:
 

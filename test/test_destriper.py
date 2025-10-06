@@ -13,7 +13,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Tuple, List
+from typing import Any
 
 import astropy.time
 import numpy as np
@@ -265,7 +265,7 @@ def create_analytical_solution(
 
 def get_baseline_lengths_list(
     expected_solution: AnalyticalSolution,
-) -> List[npt.ArrayLike]:
+) -> list[npt.ArrayLike]:
     if MPI_COMM_WORLD.size == 2:
         return [
             np.array([expected_solution.baseline_runs[MPI_COMM_WORLD.rank]], dtype=int)
@@ -278,7 +278,7 @@ def get_baseline_lengths_list(
 
 def setup_simulation(
     sigma: float = 0.1, add_baselines: bool = True
-) -> Tuple[lbs.Simulation, AnalyticalSolution]:
+) -> tuple[lbs.Simulation, AnalyticalSolution]:
     """Create a Simulation object and a AnalyticSolution object that match
 
     The Simulation object contains the same data as in AnalyticSolution. It
@@ -863,7 +863,7 @@ def test_full_destriper(tmp_path):
         assert np.all(cur_baseline_errors >= 0.0)
 
 
-def _assert_dataclasses_equal(actual, desired, params_to_check: List[str]) -> None:
+def _assert_dataclasses_equal(actual, desired, params_to_check: list[str]) -> None:
     for param in params_to_check:
         actual_value = getattr(actual, param)
         desired_value = getattr(desired, param)
