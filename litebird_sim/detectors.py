@@ -142,11 +142,15 @@ class DetectorInfo:
         pol_efficiency (float): Polarization efficiency (γ), as defined in Eq. 15 of astro-ph/0606606.
             Default is 1.0.
 
-        mueller_hwp (None | dict): Mueller matrix of the HWP, expanded into three harmonics
-            of the HWP rotation frequency. Default is None (no HWP).
+        mueller_hwp (None | np.ndarray | dict): Mueller matrix of the HWP: None if no hwp, np.ndarray if a single matrix, dict if multiple matrices, in the case of rotation harmonics expansion. Default is None (no HWP).
 
         mueller_hwp_solver (None | dict): Mueller matrix used in the mapmaking solver to
-            model a non-ideal HWP. Also decomposed into three harmonics. Default is None (no HWP).
+            model a non-ideal HWP. Can be None, np.ndarray or dict, following the same reasoning as mueller_hwp. Default is None (no HWP).
+
+        jones_hwp (None | np.ndarray | dict): Jones matrix of the HWP: None if no hwp, np.ndarray if a single matrix, dict if multiple matrices, in the case of rotation harmonics expansion. Default is None (no HWP).
+
+        jones_hwp_solver (None | dict): Jones matrix used in the mapmaking solver to
+            model a non-ideal HWP. Can be None, np.ndarray or dict, following the same reasoning as mueller_hwp. Default is None (no HWP).
 
         pointing_theta_phi_psi_deg (None | np.ndarray): Array of pointing angles (θ, φ, ψ)
             in degrees: colatitude, longitude, and orientation. Default is None.
@@ -199,10 +203,19 @@ class DetectorInfo:
     quat: Any = None
     pol_angle_rad: float = 0.0
     pol_efficiency: float = 1.0
+<<<<<<< HEAD
     mueller_hwp: Union[None, dict] = None
     jones_hwp: Union[None, dict] = None
     pointing_theta_phi_psi_deg: Union[None, np.ndarray] = None
     pointing_u_v: Union[None, np.ndarray] = None
+=======
+    mueller_hwp: None | np.ndarray | dict[np.ndarray] = None
+    mueller_hwp_solver: None | np.ndarray | dict[np.ndarray] = None
+    jones_hwp: None | np.ndarray | dict[np.ndarray] = None
+    jones_hwp_solver: None | np.ndarray | dict[np.ndarray] = None
+    pointing_theta_phi_psi_deg: None | np.ndarray = None
+    pointing_u_v: None | np.ndarray = None
+>>>>>>> hwp_handling
     g_one_over_k: float = 0.0
     amplitude_2f_k: float = 0.0
 

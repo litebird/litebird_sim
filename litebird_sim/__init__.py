@@ -75,7 +75,9 @@ from .healpix import (
 from .hwp import (
     HWP,
     IdealHWP,
+    NonIdealHWP,
     read_hwp_from_hdf5,
+    Calc,
 )
 from .hwp_harmonics.hwp_harmonics import (
     fill_tod,
@@ -247,11 +249,11 @@ __all__ = [
     # hwp.py
     "HWP",
     "IdealHWP",
+    "NonIdealHWP",
     "read_hwp_from_hdf5",
-    # hwp_sys/hwp_sys.py
-    "HwpSys",
-    # hwp_sys/old_hwp_sys.py
-    "OldHwpSys",
+    "Calc",
+    # hwp_harmonics.py
+    "fill_tod",
     # madam.py
     "save_simulation_for_madam",
     # mbs.py

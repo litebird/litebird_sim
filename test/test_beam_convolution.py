@@ -218,3 +218,6 @@ def test_beam_convolution():
         rtol=tolerance,
         atol=0.1,
     )
+
+
+test_beam_convolution()
