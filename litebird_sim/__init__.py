@@ -67,11 +67,8 @@ from .hwp import (
     IdealHWP,
     read_hwp_from_hdf5,
 )
-from .hwp_sys.hwp_sys import (
-    HwpSys,
-)
-from .hwp_sys.old_hwp_sys import (
-    OldHwpSys,
+from .hwp_harmonics.hwp_harmonics import (
+    fill_tod,
 )
 from .imo import (
     PTEP_IMO_LOCATION,
