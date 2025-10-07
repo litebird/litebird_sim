@@ -3,7 +3,7 @@ GLS Map-maker using BrahMap for Litebird_sim
 This function provides a consistent interface with other mapmaking routines.
 """
 
-from typing import Any, Optional, Union, List, TYPE_CHECKING
+from typing import Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -11,25 +11,20 @@ import numpy.typing as npt
 from litebird_sim.hwp import HWP
 
 
-if TYPE_CHECKING:  # pragma: no cover
-    # Only imported for type checking, not at runtime
-    import brahmap
-
-
 def make_brahmap_gls_map(
     nside: int,
-    observations: Union[list, Any],
-    pointings: Optional[Union[npt.ArrayLike, List[npt.ArrayLike]]] = None,
-    hwp: Optional[HWP] = None,
-    components: Union[str, List[str]] = "tod",
-    pointings_flag: Optional[np.ndarray] = None,
-    inv_noise_cov_operator: Union["brahmap.LBSim_InvNoiseCovLO_UnCorr", None] = None,
+    observations: list | Any,
+    pointings: npt.ArrayLike | list[npt.ArrayLike] | None = None,
+    hwp: HWP | None = None,
+    components: str | list[str] = "tod",
+    pointings_flag: np.ndarray | None = None,
+    inv_noise_cov_operator: Optional["brahmap.LBSim_InvNoiseCovLO_UnCorr"] = None,  # noqa
     threshold: float = 1.0e-5,
     pointings_dtype=np.float64,
-    gls_params: Optional["brahmap.LBSimGLSParameters"] = None,
+    gls_params: Optional["brahmap.LBSimGLSParameters"] = None,  # noqa
 ) -> Union[
-    "brahmap.LBSimGLSResult",
-    tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],
+    "brahmap.LBSimGLSResult",  # noqa
+    tuple["brahmap.LBSimProcessTimeSamples", "brahmap.LBSimGLSResult"],  # noqa
 ]:
     """
     GLS Map-maker using Brahmap.
@@ -100,7 +95,7 @@ def make_brahmap_gls_map(
 
     Returns
     -------
-    Union[LBSimGLSResult, tuple[LBSimProcessTimeSamples, LBSimGLSResult]]
+    LBSimGLSResult | tuple[LBSimProcessTimeSamples, LBSimGLSResult]
         Returns an `LBSimGLSResult` object when
         `gls_params.return_processed_samples = False`. `LBSimGLSResult`
         object encapsulates the output of GLS including the output maps

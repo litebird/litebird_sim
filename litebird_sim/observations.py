@@ -1,9 +1,7 @@
-# -*- encoding: utf-8 -*-
-
 import numbers
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Union, List, Any, Optional
+from typing import Any
 
 import astropy.time
 import numpy as np
@@ -113,13 +111,13 @@ class Observation:
 
     def __init__(
         self,
-        detectors: Union[int, List[dict]],
+        detectors: int | list[dict],
         n_samples_global: int,
-        start_time_global: Union[float, astropy.time.Time],
+        start_time_global: float | astropy.time.Time,
         sampling_rate_hz: float,
         allocate_tod=True,
         tods=None,
-        det_blocks_attributes: Union[List[str], None] = None,
+        det_blocks_attributes: list[str] | None = None,
         n_blocks_det=1,
         n_blocks_time=1,
         comm=None,
@@ -203,7 +201,7 @@ class Observation:
             self.n_samples,
         ) = self._get_local_start_time_start_and_n_samples()
 
-        self.pointing_provider = None  # type: Optional["PointingProvider"]
+        self.pointing_provider = None  # type: PointingProvider | None
 
         # By default this is set to False, prepare_pointings() can change its value
         self.has_hwp = False
@@ -356,7 +354,7 @@ class Observation:
             and return `n_blocks_det = 3`
 
         Args:
-            detectors (List[dict]): List of detectors
+            detectors (list[dict]): List of detectors
 
             comm: The MPI communicator
 
@@ -709,7 +707,7 @@ class Observation:
         )
         setattr(self, name, info)
 
-    def get_delta_time(self) -> Union[float, astropy.time.TimeDelta]:
+    def get_delta_time(self) -> float | astropy.time.TimeDelta:
         """Return the time interval between two consecutive samples in this observation
 
         Depending whether the field ``start_time`` of the :class:`.Observation` object
@@ -723,7 +721,7 @@ class Observation:
 
         return delta
 
-    def get_time_span(self) -> Union[float, astropy.time.TimeDelta]:
+    def get_time_span(self) -> float | astropy.time.TimeDelta:
         """Return the temporal length of the current observation
 
         This method can either return a ``float`` (in seconds) or a
@@ -794,14 +792,42 @@ class Observation:
         self,
         instrument: InstrumentInfo,
         spin2ecliptic_quats: RotQuaternion,
-        hwp: Optional[HWP] = None,
+        hwp: HWP | None = None,
     ) -> None:
-        """Store the quaternions needed to compute pointings in the current observation
+        """Prepare quaternion-based pointing and HWP information for this observation.
 
-        This function computes the quaternions that convert the boresight direction
-        of `instrument` into the Ecliptic reference frame. The `spin2ecliptic_quats`
-        object must be an instance of the :class:`.RotQuaternion` class and can
-        be created using the method :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+        This method initializes the :class:`.PointingProvider` used to compute
+        time-dependent detector pointing angles (θ, φ, ψ) and, optionally, HWP angles.
+        It combines the global spin-to-Ecliptic quaternions with the instrument’s
+        internal boresight-to-spin rotation to produce a final boresight-to-Ecliptic
+        quaternion, which is stored internally.
+
+        If a Half-Wave Plate (HWP) model is provided, it is attached to the pointing
+        provider and its Mueller matrix is applied to all detectors that do not already
+        have one assigned. If no HWP is passed, all detectors must already define their
+        own Mueller matrices.
+
+        Args:
+            instrument (InstrumentInfo):
+                The instrument definition containing the boresight-to-spin rotation.
+
+            spin2ecliptic_quats (RotQuaternion):
+                Time-dependent rotation from the spin frame to the Ecliptic frame.
+                Typically generated using :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+
+            hwp (HWP | None):
+                Optional HWP model. If provided, it is stored and its Mueller matrix
+                applied to all detectors lacking one.
+
+        Raises:
+            AssertionError:
+                If `hwp` is not provided and one or more detectors do not have a
+                pre-assigned Mueller matrix.
+
+        Notes:
+            After calling this method, the observation becomes ready to compute pointings
+            via :meth:`.get_pointings()` or :meth:`.get_hwp_angle()` using its
+            internal :class:`.PointingProvider`.
         """
 
         bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
@@ -827,13 +853,12 @@ class Observation:
 
     def get_pointings(
         self,
-        detector_idx: Union[int, List[int], str] = "all",
-        pointing_buffer: Optional[npt.NDArray] = None,
-        hwp_buffer: Optional[npt.NDArray] = None,
+        detector_idx: int | list[int] | str = "all",
+        pointing_buffer: npt.NDArray | None = None,
+        hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-    ) -> tuple[npt.NDArray, Optional[npt.NDArray]]:
-        """
-        Compute the pointings for one or more detectors in this observation
+    ) -> tuple[npt.NDArray, npt.NDArray | None]:
+        """Compute the pointings for one or more detectors in this observation
 
         This method triggers the computation of the matrix of pointings that indicate
         the direction of the line of sight for each sample in the TOD of the current
@@ -966,17 +991,41 @@ class Observation:
 
     def get_hwp_angle(
         self,
-        hwp_buffer: Optional[npt.NDArray] = None,
+        hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-    ) -> Union[npt.NDArray, None]:
-        """
-        Compute the hwp angle in this observation
+    ) -> npt.NDArray | None:
+        """Compute the Half-Wave Plate (HWP) angle for this observation.
 
-        This method triggers the computation of the hwp angle for the given observation
-        The HWP angle is always a vector with shape ``(N_samples,)``. This is the typical
-        call:
+        This method triggers the time-domain computation of the HWP angle using the
+        internally stored :class:`.PointingProvider`. It returns a NumPy array of shape
+        `(n_samples,)` containing the HWP angle in radians for the entire duration
+        of the observation.
 
-        hwp_angle = cur_obs.get_hwp_angle()
+        If the observation does not include a Half-Wave Plate, the method returns `None`.
+
+        Args:
+            hwp_buffer (np.ndarray, optional):
+                Optional pre-allocated array of shape `(n_samples,)` in which to store the
+                HWP angle values. If not provided, a new buffer will be allocated.
+
+            pointings_dtype (data-type, optional):
+                Data type to use when allocating the HWP buffer, if needed.
+                Defaults to `np.float64`.
+
+        Returns:
+            np.ndarray or None:
+                The array containing the computed HWP angles (in radians),
+                or `None` if no HWP is configured for the observation.
+
+        Raises:
+            AssertionError:
+                If the `pointing_provider` has not been initialized (e.g., `prepare_pointings()`
+                has not been called), or if the provided `hwp_buffer` does not match the
+                expected shape.
+
+        Example:
+            hwp_angle = obs.get_hwp_angle()
+            hwp_angle.shape -> (obs.n_samples,)
         """
         assert self.pointing_provider is not None, (
             "You must initialize pointing_provider; use Simulation.prepare_pointings()"
@@ -1011,13 +1060,27 @@ class Observation:
         self,
         pointings_dtype=np.float64,
     ) -> None:
-        """Precompute all the pointings for the current observation
+        """Precompute and store the full pointing matrix and HWP angles for this observation.
 
-        Compute the full pointing matrix and the HWP angle the current observation and
-        store them in the fields ``pointing_matrix`` and ``hwp_angle``.
-        The datatype for the pointings is specified by `pointings_dtype`.
+        This method computes the time-domain pointing angles (θ, φ, ψ) and, if applicable,
+        HWP angles for all detectors in the current observation. The results are stored
+        in the fields `self.pointing_matrix` and `self.hwp_angle`.
+
+        This is typically used to cache the pointings when running in a mode that avoids
+        on-the-fly computation.
+
+        Args:
+            pointings_dtype (data-type, optional):
+                Data type to use for the computed arrays. Defaults to `np.float64`.
+
+        Raises:
+            AssertionError:
+                If `prepare_pointings()` has not been called prior to this method,
+                i.e., if `self.pointing_provider` is not defined.
+
+        Notes:
+            This method must be called after `prepare_pointings()`.
         """
-
         assert "pointing_provider" in dir(self), (
             "you must call prepare_pointings() on a set of observations "
             "before calling precompute_pointings()"
@@ -1030,8 +1093,7 @@ class Observation:
         self.hwp_angle = hwp_angle
 
     def _set_mpi_subcommunicators(self):
-        """
-        This function splits the global MPI communicator into three kinds of
+        """This function splits the global MPI communicator into three kinds of
         sub-communicators:
 
         1. A sub-communicator containing all the processes with global rank less than

@@ -3,6 +3,10 @@
 The IMo
 =======
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+
 To run a realistic simulation of an instrument, one needs to known its
 details: the noise level of the detectors, the angular resolution of
 the beams, etc. This kind of information is stored in an «Instrument

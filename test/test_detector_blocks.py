@@ -1,3 +1,4 @@
+import tempfile
 import numpy as np
 import pytest
 import litebird_sim as lbs
@@ -104,6 +105,87 @@ def test_detector_blocks(dets=dets, sampling_freq_Hz=sampling_freq_Hz):
         start_idx = (comm.rank % n_blocks_time) * nobs_per_det
         stop_idx = start_idx + nobs_per_det
         np.testing.assert_equal(sum(arr[start_idx:stop_idx]), tod_len_per_det_per_proc)
+
+
+def test_rng_generators_with_detector_blocks():
+    comm = lbs.MPI_COMM_WORLD
+    size = comm.size
+
+    ### Mission parameters
+    telescope = "MFT"
+    channel = "M1-195"
+    detectors = [
+        "001_002_030_00A_195_B",
+        "001_002_029_45B_195_B",
+        "001_002_015_15A_195_T",
+        "001_002_047_00A_195_B",
+    ]
+
+    if size == 1:
+        detectors = detectors[0:1]
+        n_chunks = 1
+    elif size == 2:
+        detectors = detectors[0:2]
+        n_chunks = 1
+    elif size == 4:
+        detectors = detectors[0:2]
+        n_chunks = 2
+
+    n_detectors = len(detectors)
+
+    start_time = 51
+
+    n_samples_pow = 2**13
+    detector_sampling_freq = 4.1
+    mission_time_days = n_samples_pow / detector_sampling_freq / 3600 / 24
+
+    ### Simulation parameters
+    random_seed = 45
+    imo_version = "vPTEP"
+    imo = lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION)
+    dtype_float = np.float64
+    tmp_dir = tempfile.TemporaryDirectory()
+
+    ### Detector list
+    detector_list = []
+    for n_det in detectors:
+        det = lbs.DetectorInfo.from_imo(
+            url=f"/releases/{imo_version}/satellite/{telescope}/{channel}/{n_det}/detector_info",
+            imo=imo,
+        )
+        det.sampling_rate_hz = detector_sampling_freq
+        det.fknee_mhz = 1e2
+        det.fmin_hz = 1e-7
+        det.alpha = 1.5
+        detector_list.append(det)
+
+    ### Initializing the simulation
+    sim = lbs.Simulation(
+        random_seed=random_seed,
+        base_path=tmp_dir.name,
+        name="brahmap_example",
+        mpi_comm=comm,
+        start_time=start_time,
+        duration_s=mission_time_days * 24 * 60 * 60.0,
+        imo=imo,
+    )
+
+    ### Create observations
+    sim.create_observations(
+        detectors=detector_list,
+        num_of_obs_per_detector=1,
+        n_blocks_det=n_detectors,  # FIXME: I want to split the dets too,
+        n_blocks_time=n_chunks,  # Non-zero number of time blocks for example, should be 16
+        split_list_over_processes=False,
+        tod_dtype=dtype_float,
+    )
+
+    ### Adding 1/f noise
+    lbs.noise.add_noise_to_observations(
+        sim.observations, "one_over_f", dets_random=sim.dets_random
+    )
+
+    sim.add_noise(noise_type="one_over_f")
 
 
 def test_mpi_subcommunicators(dets=dets):

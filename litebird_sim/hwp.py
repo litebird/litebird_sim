@@ -1,6 +1,3 @@
-# -*- encoding: utf-8 -*-
-from typing import Optional
-
 import h5py
 import numpy as np
 import numpy.typing as npt
@@ -109,7 +106,7 @@ class HWP:
         )
 
     def write_to_hdf5(
-        self, output_file: h5py.File, field_name: str, compression: Optional[str] = None
+        self, output_file: h5py.File, field_name: str, compression: str | None = None
     ) -> h5py.Dataset:
         """Write the definition of the HWP into a HDF5 file
 
@@ -220,7 +217,7 @@ class IdealHWP(HWP):
         )
 
     def write_to_hdf5(
-        self, output_file: h5py.File, field_name: str, compression: Optional[str] = None
+        self, output_file: h5py.File, field_name: str, compression: str | None = None
     ) -> h5py.Dataset:
         # For an ideal HWP, we just save an empty dataset with a few attributes
         # This means that we must *not* use the "compression" field here, otherwise

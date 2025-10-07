@@ -1,6 +1,4 @@
-# -*- encoding: utf-8 -*-
 from dataclasses import dataclass, field
-from typing import Optional, Union
 
 import numpy as np
 import healpy as hp
@@ -138,7 +136,7 @@ class SphericalHarmonics:
         return self.values.shape[1]
 
     @staticmethod
-    def num_of_alm_from_lmax(lmax: int, mmax: Optional[int] = None) -> int:
+    def num_of_alm_from_lmax(lmax: int, mmax: int | None = None) -> int:
         """
         Computes the number of a_ℓm coefficients for given ℓ_max and m_max.
         If `mmax` is not provided, it is set equal to `lmax`
@@ -169,7 +167,7 @@ class SphericalHarmonics:
         return mmax * (2 * lmax + 1 - mmax) // 2 + lmax + 1
 
     @staticmethod
-    def lmax_from_num_of_alm(nalm: int, mmax: Optional[int] = None) -> int:
+    def lmax_from_num_of_alm(nalm: int, mmax: int | None = None) -> int:
         """
         Returns the lmax corresponding to a given array size.
 
@@ -196,7 +194,7 @@ class SphericalHarmonics:
 
     @staticmethod
     def alm_array_size(
-        lmax: int, mmax: Optional[int] = None, nstokes: int = 3
+        lmax: int, mmax: int | None = None, nstokes: int = 3
     ) -> tuple[int, int]:
         """
         Computes the expected shape of the a_ℓm array.
@@ -218,7 +216,7 @@ class SphericalHarmonics:
         return nstokes, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)
 
     @staticmethod
-    def alm_l_array(lmax: int, mmax: Optional[int] = None) -> np.ndarray:
+    def alm_l_array(lmax: int, mmax: int | None = None) -> np.ndarray:
         """
         Return the ℓ values corresponding to each a_{ℓm} coefficient in Healpy's flattened alm format.
 
@@ -354,7 +352,7 @@ class SphericalHarmonics:
         self.values += other.values
         return self
 
-    def __mul__(self, other: Union[float, np.ndarray]):
+    def __mul__(self, other: float | np.ndarray):
         """
         Supports:
         - scalar multiplication: SH * A
@@ -373,12 +371,10 @@ class SphericalHarmonics:
 
         return SphericalHarmonics(values=new_values, lmax=self.lmax, mmax=self.mmax)
 
-    def __rmul__(self, other: Union[float, np.ndarray]):
+    def __rmul__(self, other: float | np.ndarray):
         return self.__mul__(other)
 
-    def convolve(
-        self, f_ell: Union[np.ndarray, list[np.ndarray]]
-    ) -> "SphericalHarmonics":
+    def convolve(self, f_ell: np.ndarray | list[np.ndarray]) -> "SphericalHarmonics":
         """
         Apply a beam or filter to the SH coefficients.
 

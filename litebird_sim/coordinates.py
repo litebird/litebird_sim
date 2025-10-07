@@ -1,6 +1,4 @@
-# -*- encoding: utf-8 -*-
 from enum import Enum
-from typing import Tuple
 
 import numpy as np
 from astropy.coordinates import BarycentricMeanEcliptic
@@ -105,7 +103,7 @@ def vec2ang(vx, vy, vz):
 @njit
 def _ang2galvec_one_sample(
     theta_rad: float, phi_rad: float
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Transform a direction (theta, phi) in Ecliptic coordinates to
     a unit vector in Galactic coordinates.
 
@@ -139,7 +137,7 @@ def _ang2galvec_one_sample(
 
 
 @njit
-def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> Tuple[float, float]:
+def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> tuple[float, float]:
     """Transform a vector to angle given by (θ,φ).
 
     Parameters
@@ -168,7 +166,7 @@ def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> Tuple[float, flo
 @njit
 def _rotate_coordinates_and_orientation_e2g_for_one_sample(
     theta_ecl_rad: float, phi_ecl_rad: float, psi_ecl_rad: float
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Rotate the angles theta,phi and psi from ecliptic to galactic coordinates
 
     Parameters

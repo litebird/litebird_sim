@@ -1,6 +1,4 @@
-# -*- encoding: utf-8 -*-
-
-from typing import Iterable, List
+from collections.abc import Iterable
 import warnings
 
 import astropy.time
@@ -208,18 +206,18 @@ def left_multiply_syst_quats(
 class FocalplaneCoord:
     """This class create an instance of focal plane to add offset and disturbance to the detectors.
 
-    Methods in this class multiply systematic quaternions to :attr:`.Observation.quat` (List[:class:`.RotQuaternion`]).
+    Methods in this class multiply systematic quaternions to :attr:`.Observation.quat` (list[:class:`.RotQuaternion`]).
 
     Args:
         sim (`Simulation`): :class:`.Simulation` instance.
 
         obs (`Observation`): :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
 
-        detectors (`List[DetectorInfo]`): List of :class:`.DetectorInfo` instances.
+        detectors (`list[DetectorInfo]`): List of :class:`.DetectorInfo` instances.
     """
 
     def __init__(
-        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+        self, sim: Simulation, obs: Observation, detectors: list[DetectorInfo]
     ):
         self.sim = sim
         self.obs = obs
@@ -230,7 +228,7 @@ class FocalplaneCoord:
     def add_offset(self, offset_rad, axis: str):
         """Add a rotational offset to the detectors in the focal plane by the specified axis.
 
-        This method multiplies systematic quaternions to :attr:`.Observation.quat` (List[:class:`.RotQuaternion`]).
+        This method multiplies systematic quaternions to :attr:`.Observation.quat` (list[:class:`.RotQuaternion`]).
 
         If the `offset_rad` is a scalar, it will be added to all the detectors in the focal plane.
         If the `offset_rad` is an array with same length of the list of detectors,
@@ -278,7 +276,7 @@ class FocalplaneCoord:
     def add_disturb(self, noise_rad_matrix: np.ndarray, axis: str):
         """Add a rotational disturbance to the detectors in the focal plane by the specified axis.
 
-        This method multiplies systematic quaternions to :attr:`.Observation.quat` (List[:class:`.RotQuaternion`]).
+        This method multiplies systematic quaternions to :attr:`.Observation.quat` (list[:class:`.RotQuaternion`]).
 
         If the `noise_rad_matrix` has the shape [`N`, `t`] where `N` is the number of detectors,
         `t` is the number of timestamps, the disturbance will be added to the detectors
@@ -341,11 +339,11 @@ class SpacecraftCoord:
 
         obs (`Observation`): :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
 
-        detectors (`List[DetectorInfo]`): List of :class:`.DetectorInfo` instances.
+        detectors (`list[DetectorInfo]`): List of :class:`.DetectorInfo` instances.
     """
 
     def __init__(
-        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+        self, sim: Simulation, obs: Observation, detectors: list[DetectorInfo]
     ):
         self.sim = sim
         self.obs = obs
@@ -400,11 +398,11 @@ class HWPCoord:
 
         obs (`Observation`): :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
 
-        detectors (`List[DetectorInfo]`): List of :class:`.DetectorInfo` instances.
+        detectors (`list[DetectorInfo]`): List of :class:`.DetectorInfo` instances.
     """
 
     def __init__(
-        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+        self, sim: Simulation, obs: Observation, detectors: list[DetectorInfo]
     ):
         """Initialize the HWPCoord class.
 
@@ -413,7 +411,7 @@ class HWPCoord:
 
             sampling_rate_hz (`float`): The sampling rate of the detectors.
 
-            detectors (`List[DetectorInfo]`): List of :class:`.DetectorInfo` to which offset and disturbance are to be added.
+            detectors (`list[DetectorInfo]`): List of :class:`.DetectorInfo` to which offset and disturbance are to be added.
 
             ang_speed_radpsec (`float`): The angular speed of the spinning HWP.
 
@@ -528,11 +526,11 @@ class PointingSys:
 
         obs (`Observation`): :class:`.Observation` instance whose :attr:`.Observation.quat` is injected with the systematics.
 
-        detectors (`List[Detector]`): List of :class:`.DetectorInfo`.
+        detectors (`list[Detector]`): List of :class:`.DetectorInfo`.
     """
 
     def __init__(
-        self, sim: Simulation, obs: Observation, detectors: List[DetectorInfo]
+        self, sim: Simulation, obs: Observation, detectors: list[DetectorInfo]
     ):
         for detector in detectors:
             assert detector.sampling_rate_hz == detectors[0].sampling_rate_hz, (

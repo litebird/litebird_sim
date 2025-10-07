@@ -80,17 +80,26 @@ jobs:
       - name: Tests MPICH
         if: ${{ matrix.mpi == 'mpich' }}
         run: |
+            # See issue #457: <https://github.com/litebird/litebird_sim/issues/457>
+            if [[ "$(uname)" == "Darwin" ]]; then
+              export HDF5_USE_FILE_LOCKING=FALSE
+            fi
             for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
+            done
             echo "Running MPI test ($MPI) with 4 processes"
             PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 python3 ./test/test_mpi_n4.py
-            done
+            PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
 
       - name: Tests OpenMPI
         if: ${{ matrix.mpi == 'openmpi' }}
         run: |
+            # See issue #457: <https://github.com/litebird/litebird_sim/issues/457>
+            if [[ "$(uname)" == "Darwin" ]]; then
+              export HDF5_USE_FILE_LOCKING=FALSE
+            fi
             for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
               PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py

@@ -1,4 +1,3 @@
-# -*- encoding: utf-8 -*-
 import numpy as np
 from astropy.constants import c as c_light
 from astropy.constants import h, k_B

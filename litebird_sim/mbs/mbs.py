@@ -1,11 +1,9 @@
-# -*- encoding: utf-8 -*-
-
 import logging as log
 import math
 from dataclasses import dataclass, fields
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any
 
 import healpy as hp
 import numpy as np
@@ -54,7 +52,7 @@ class _InstrumentFreq:
     bandwidth_ghz: float = 0.0  # d.bandwidth_ghz
     fwhm_arcmin: float = 0.0  # fwhm_arcmin
     p_sens_ukarcmin: float = 0.0  # pol_sensitivity_ukarcmin
-    band: Union[lbs.BandPassInfo, None] = None  # container for the band
+    band: lbs.BandPassInfo | None = None  # container for the band
 
     @staticmethod
     def from_dict(dictionary):
@@ -110,10 +108,10 @@ class MbsSavedMapInfo:
 
     """
 
-    path: Union[Path, None] = None
+    path: Path | None = None
     component: str = ""
-    channel: Union[str, None] = None
-    mc_num: Union[int, None] = None
+    channel: str | None = None
+    mc_num: int | None = None
 
 
 @dataclass
@@ -236,26 +234,26 @@ class MbsParameters:
     save: bool = False
     gaussian_smooth: bool = False
     bandpass_int: bool = False
-    coadd: Union[bool, None] = None
+    coadd: bool | None = None
     parallel_mc: bool = False
     make_noise: bool = False
     nmc_noise: int = 1
-    seed_noise: Union[int, None] = None
-    n_split: Union[int, bool] = False
+    seed_noise: int | None = None
+    n_split: int | bool = False
     make_cmb: bool = True
     cmb_ps_file: str = ""
     cmb_r: float = 0.0
     nmc_cmb: int = 1
-    seed_cmb: Union[int, None] = None
+    seed_cmb: int | None = None
     make_fg: bool = False
-    fg_models: Union[Dict[str, Any], None] = None
+    fg_models: dict[str, Any] | None = None
     make_dipole: bool = False
-    sun_velocity: Union[list, None] = None
-    output_string: Union[str, None] = None
+    sun_velocity: list | None = None
+    output_string: str | None = None
     units: str = "K_CMB"
     maps_in_ecliptic: bool = False
     store_alms: bool = False
-    lmax_alms: Union[int, None] = None
+    lmax_alms: int | None = None
 
     def __post_init__(self):
         if self.n_split == 1:
@@ -347,7 +345,7 @@ class Mbs:
     def __init__(
         self,
         simulation,
-        parameters: Union[Dict[str, Any], str, MbsParameters] = MbsParameters(),
+        parameters: dict[str, Any] | str | MbsParameters = MbsParameters(),
         instrument=None,
         detector_list=None,
         channel_list=None,

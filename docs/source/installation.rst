@@ -35,7 +35,7 @@ A similar procedure can be used with conda:
 .. code-block:: text
 
    # Create a conda environment
-   conda create -n lbs_env python=3.9
+   conda create -n lbs_env python=3.12
 
    # Activate the environment
    conda activate lbs_env
@@ -44,7 +44,7 @@ A similar procedure can be used with conda:
    pip install litebird_sim
 
 If you plan to use any of the facilities provided by ``ducc``, you are
-advised to compile it from source, follow the instructions in
+advised to compile it from source; follow the instructions in
 :ref:`maximize-performance`.
 
 Optional dependencies can be installed along with LBS as following:

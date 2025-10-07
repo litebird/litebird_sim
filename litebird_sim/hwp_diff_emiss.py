@@ -1,9 +1,6 @@
-# -*- encoding: utf-8 -*-
-
 import numpy as np
 from numba import njit, prange
 
-from typing import Union, List, Optional
 from numbers import Number
 
 from .observations import Observation
@@ -55,10 +52,11 @@ def add_2f(
 
 
 def add_2f_to_observations(
-    observations: Union[Observation, List[Observation]],
-    hwp: Optional[HWP] = None,
+    observations: Observation | list[Observation],
+    hwp: HWP | None = None,
     component: str = "tod",
-    amplitude_2f_k: Union[float, None] = None,
+    amplitude_2f_k: float | None = None,
+    pointings_dtype=np.float64,
 ):
     """Add the HWP differential emission to some time-ordered data
 
@@ -87,7 +85,10 @@ def add_2f_to_observations(
         if amplitude_2f_k is None:
             amplitude_2f_k = cur_obs.amplitude_2f_k
 
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp)
+        # Determine the HWP angle to use:
+        # - If an external HWP object is provided, compute the angle from it
+        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         add_2f(
             tod=getattr(cur_obs, component),

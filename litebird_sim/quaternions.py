@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 import numpy as np
 import numpy.typing as npt
 from numba import njit, prange
@@ -15,7 +13,7 @@ def quat_rotation_x(theta_rad):  # pragma: no cover
 
     Prototype::
 
-        quat_rotation_x(theta_rad: float) -> Tuple[float, float, float, float]
+        quat_rotation_x(theta_rad: float) -> tuple[float, float, float, float]
 
     The angle `theta_rad` must be expressed in radians. The return
     value is the quaternion, using the order ``(v_x, v_y, v_z, w)``;
@@ -36,7 +34,7 @@ def quat_rotation_y(theta_rad):  # pragma: no cover
 
     Prototype::
 
-        quat_rotation_y(theta_rad: float) -> Tuple[float, float, float, float]
+        quat_rotation_y(theta_rad: float) -> tuple[float, float, float, float]
 
     See also :func:`quat_rotation_x` and :func:`quat_rotation_z`
     """
@@ -49,7 +47,7 @@ def quat_rotation_z(theta_rad):  # pragma: no cover
 
     Prototype::
 
-        quat_rotation_z(theta_rad: float) -> Tuple[float, float, float, float]
+        quat_rotation_z(theta_rad: float) -> tuple[float, float, float, float]
 
     See also :func:`quat_rotation_x` and :func:`quat_rotation_y`
     """
