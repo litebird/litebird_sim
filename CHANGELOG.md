@@ -29,8 +29,6 @@
 
     4. Unify map scanning methods by making hwp_harmonics.fill_tod() a low-level method which is now executed by the high-level scan_map_in_observations.py.
 
--   Fix angle in hwp differential emission [#452](https://github.com/litebird/litebird_sim/pull/452)
-
 -   New method `Imo.open_data_file` [#449](https://github.com/litebird/litebird_sim/pull/449)
 
 -   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
@@ -39,6 +37,8 @@
 
 
 # Version 0.16.1
+
+-   Fix angle in hwp differential emission [#452](https://github.com/litebird/litebird_sim/pull/452)
 
 -   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)
 
@@ -55,13 +55,7 @@
 
 -   Improve the documentation [#450](https://github.com/litebird/litebird_sim/pull/450)
 
--   New method `Imo.open_data_file` [#449](https://github.com/litebird/litebird_sim/pull/449)
-
--   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
-
 -   Import Yusuke Takase's grasp2alm code [#447](https://github.com/litebird/litebird_sim/pull/447)
-
--   Change hwp_angle calculation to the complex domain [#433](https://github.com/litebird/litebird_sim/pull/433)
 
 # Version 0.15.3
 
