@@ -82,7 +82,8 @@ def test_add_2f():
     for idx, tod in enumerate(sim.observations[0].tod2f_2_det):
         lbs.hwp_diff_emiss.add_2f_for_one_detector(
             tod_det=tod,
-            angle_det_rad=_get_hwp_angle(sim.observations[0], sim.hwp),
+            angle_det_rad=_get_hwp_angle(sim.observations[0], sim.hwp)
+            - sim.observations[0].pol_angle_rad[idx],
             amplitude_k=sim.observations[0].amplitude_2f_k[idx],
         )
 
