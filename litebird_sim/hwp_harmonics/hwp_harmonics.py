@@ -174,7 +174,7 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
 def fill_tod(
     hwp: HWP,
     observation: Observation,
-    pointings: np.ndarray | callable,
+    pointings,
     hwp_angle: np.ndarray | None = None,
     input_map_in_galactic: bool = True,
     save_tod: bool = True,
