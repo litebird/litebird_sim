@@ -15,7 +15,7 @@ from litebird_sim.scan_map import scan_map_in_observations
         ("linear", None),
     ],
 )
-def test_hwp_sys(interpolation, nside_out):
+def test_hwp_harmonics(interpolation, nside_out):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -131,7 +131,7 @@ def test_hwp_sys(interpolation, nside_out):
     list_of_sims[1].prepare_pointings()
 
     # we have two similar observations, now we will compute the TOD
-    # using both scan_map_in_observations and hwp_sys.fill_tod
+    # using both scan_map_in_observations and hwp_harmonics.fill_tod
     # and check that they are the same
 
     scan_map_in_observations(
