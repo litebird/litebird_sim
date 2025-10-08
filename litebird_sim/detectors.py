@@ -144,38 +144,17 @@ class DetectorInfo:
 
         mueller_hwp (None | np.ndarray | dict): Mueller matrix of the HWP: None if no hwp, np.ndarray if a single matrix, dict if multiple matrices, in the case of rotation harmonics expansion. Default is None (no HWP).
 
-        mueller_hwp_solver (None | dict): Mueller matrix used in the mapmaking solver to
-            model a non-ideal HWP. Can be None, np.ndarray or dict, following the same reasoning as mueller_hwp. Default is None (no HWP).
-
         jones_hwp (None | np.ndarray | dict): Jones matrix of the HWP: None if no hwp, np.ndarray if a single matrix, dict if multiple matrices, in the case of rotation harmonics expansion. Default is None (no HWP).
-
-        jones_hwp_solver (None | dict): Jones matrix used in the mapmaking solver to
-            model a non-ideal HWP. Can be None, np.ndarray or dict, following the same reasoning as mueller_hwp. Default is None (no HWP).
 
         pointing_theta_phi_psi_deg (None | np.ndarray): Array of pointing angles (θ, φ, ψ)
             in degrees: colatitude, longitude, and orientation. Default is None.
 
-<<<<<<< HEAD
-        - jones_hwp (Union[None, dict]): Jones matrix of the HWP, expanded
-             into two matrices, corresponding to the harmonics of the HWP
-             rotation frequency. The default is None (i.e. no HWP)
-
-        - jones_hwp_solver (Union[None, dict]): Jones matrix of the HWP
-             for the mapmaking, expanded into two matrices, corresponding
-             to the harmonics of the HWP rotation frequency. It allows to
-             have a non-ideal HWP in the solver. The default is None (i.e. no HWP)
-
-        - pointing_theta_phi_psi_deg (Union[None, np.ndarray]): The angles θ, φ,
-             and ψ (colatitude, longitude, and orientation) of the pointing direction,
-             expressed in degrees.
-=======
         pointing_u_v (None | np.ndarray): Detector pointing in focal plane coordinates (u, v),
             with (0, 0) representing the central axis of the focal plane. Default is None.
 
         g_one_over_k (float): Gain conversion factor (1/K), used in calibration models. Default is 0.0.
 
         amplitude_2f_k (float): Amplitude of the 2f systematic signal component in Kelvin. Default is 0.0.
->>>>>>> master
 
     """
 
@@ -203,19 +182,10 @@ class DetectorInfo:
     quat: Any = None
     pol_angle_rad: float = 0.0
     pol_efficiency: float = 1.0
-<<<<<<< HEAD
-    mueller_hwp: Union[None, dict] = None
-    jones_hwp: Union[None, dict] = None
-    pointing_theta_phi_psi_deg: Union[None, np.ndarray] = None
-    pointing_u_v: Union[None, np.ndarray] = None
-=======
     mueller_hwp: None | np.ndarray | dict[np.ndarray] = None
-    mueller_hwp_solver: None | np.ndarray | dict[np.ndarray] = None
-    jones_hwp: None | np.ndarray | dict[np.ndarray] = None
-    jones_hwp_solver: None | np.ndarray | dict[np.ndarray] = None
+    jones_hwp: None | np.ndarray | dict[np.ndarray]  = None
     pointing_theta_phi_psi_deg: None | np.ndarray = None
-    pointing_u_v: None | np.ndarray = None
->>>>>>> hwp_handling
+    pointing_u_v: None | np.ndarray  = None
     g_one_over_k: float = 0.0
     amplitude_2f_k: float = 0.0
 

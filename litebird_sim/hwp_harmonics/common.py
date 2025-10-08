@@ -64,6 +64,7 @@ def compute_signal_for_one_sample(
 
     return d
 
+
 @njit
 def integrate_inband_signal_for_one_sample(
     T,

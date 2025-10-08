@@ -3,8 +3,6 @@ import numpy as np
 from numba import njit, prange
 from .common import (
     compute_signal_for_one_sample,
-    compute_TQUsolver_for_one_sample,
-    integrate_inband_TQUsolver_for_one_sample,
     integrate_inband_signal_for_one_sample,
 )
 from ..hwp_diff_emiss import compute_2f_for_one_sample

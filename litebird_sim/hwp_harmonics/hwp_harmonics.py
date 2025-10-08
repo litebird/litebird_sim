@@ -8,13 +8,14 @@ from astropy.cosmology import Planck18 as cosmo
 from numba import njit
 
 import litebird_sim as lbs
-from litebird_sim import mpi
-from ..coordinates import rotate_coordinates_e2g
-from ..detectors import FreqChannelInfo
-from ..mbs.mbs import MbsParameters
+from ..coordinates import CoordinateSystem
 from ..observations import Observation
 from . import mueller_methods
 from . import jones_methods
+from ..pointings_in_obs import (
+    _get_pointings_array,
+)
+from ..hwp import Calc
 
 COND_THRESHOLD = 1e10
 
@@ -103,9 +104,8 @@ def mueller_interpolation(Theta, harmonic, i, j):
     )
 
 
-
-def set_band_params_for_one_detector(hwp, idet):
-    if self.mueller_or_jones == "jones":
+def set_band_params_for_one_detector(hwp, band_filenames, idet):
+    if hwp.calc is Calc.JONES:
         variables = [
             "freqs",
             "h1_0f",
@@ -131,7 +131,7 @@ def set_band_params_for_one_detector(hwp, idet):
         ]
 
         loaded_data = np.loadtxt(
-            self.band_filenames[idet],
+            band_filenames[idet],
             delimiter=" ",
             dtype=object,
             unpack=True,
@@ -158,17 +158,18 @@ def set_band_params_for_one_detector(hwp, idet):
 
     # TODO: insert bandpass in detectorinfo so that we can apply the case where
     # each detector has a bandpass
-    # elif self.bandpass:
-    #    cur_det_params['freqs'], self.bandpass_profile = bandpass_profile(
-    #        cur_det_params['freqs'], self.bandpass, self.include_beam_throughput
+    # elif bandpass:
+    #    cur_det_params['freqs'], bandpass_profile = bandpass_profile(
+    #        cur_det_params['freqs'], bandpass, include_beam_throughput
     #    )
     #
-    #    self.cmb2bb = _dBodTth(cur_det_params['freqs']) * self.bandpass_profile
+    #    cmb2bb = _dBodTth(cur_det_params['freqs']) * bandpass_profile
 
     # Normalize the band
     cmb2bb /= np.trapz(cmb2bb, det_params["freqs"])
 
     return [det_params, cmb2bb]
+
 
 def fill_tod(
     hwp: lbs.HWP,
@@ -184,6 +185,7 @@ def fill_tod(
     add_2f_hwpss: bool = False,
     mueller_phases: dict | None = None,
     integrate_in_band: bool = False,
+    band_filenames: List[str] = None,
 ):
     r"""Fill a TOD and/or :math:`A^T A` and :math:`A^T d` for the
     "on-the-fly" map production
@@ -231,7 +233,7 @@ def fill_tod(
 
     if integrate_in_band:
         band_filenames = band_filenames
-        
+
     if mueller_phases is None:
         # (temporary solution) using phases from Patanchon et al 2021 as the default.
         mueller_phases = {
@@ -282,56 +284,58 @@ def fill_tod(
                     hwp_angle_list.append(ob.hwp_angle)
 
     else:
+        obs_list = [observations]
         if isinstance(observations, Observation):
-            assert isinstance(pointings, np.ndarray), (
-                "For one observation you need to pass a np.array "
-                + "of pointings to fill_tod"
-            )
-            assert (
-                observations.n_detectors == pointings.shape[0]
-                and observations.n_samples == pointings.shape[1]
-                and pointings.shape[2] == 3
-            ), (
-                "You need to pass a pointing np.array with shape"
-                + "(N_det, N_samples, 3) for the observation"
-            )
-            obs_list = [observations]
-            ptg_list = [pointings]
-            if hwp_angle:
-                assert isinstance(hwp_angle, np.ndarray), (
-                    "For one observation, hwp_angle must be passed "
-                    + "as a np.array to fill_tod"
+            if not callable(pointings):
+                assert isinstance(pointings, np.ndarray), (
+                    "For one observation you need to pass a np.array "
+                    + "of pointings to fill_tod"
                 )
-                assert observations.n_samples == hwp_angle.shape[0], (
-                    "You need to pass a hwp_angle np.array with shape"
-                    + "N_samples for the observation"
+                assert (
+                    observations.n_detectors == pointings.shape[0]
+                    and observations.n_samples == pointings.shape[1]
+                    and pointings.shape[2] == 3
+                ), (
+                    "You need to pass a pointing np.array with shape"
+                    + "(N_det, N_samples, 3) for the observation"
                 )
-                hwp_angle_list = [hwp_angle]
-            else:
-                raise ValueError(
-                    "If you pass pointings, you must also pass hwp_angle."
-                )
+                ptg_list = [pointings]
+                if hwp_angle:
+                    assert isinstance(hwp_angle, np.ndarray), (
+                        "For one observation, hwp_angle must be passed "
+                        + "as a np.array to fill_tod"
+                    )
+                    assert observations.n_samples == hwp_angle.shape[0], (
+                        "You need to pass a hwp_angle np.array with shape"
+                        + "N_samples for the observation"
+                    )
+                    hwp_angle_list = [hwp_angle]
+                else:
+                    raise ValueError(
+                        "If you pass pointings, you must also pass hwp_angle."
+                    )
         else:
-            assert isinstance(pointings, list), (
-                "When you pass a list of observations to fill_tod, "
-                + "you must a list of `pointings`"
-            )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
-            )
             obs_list = observations
-            ptg_list = pointings
-            if hwp_angle:
-                assert len(observations) == len(hwp_angle), (
+            if not callable(pointings):
+                assert isinstance(pointings, list), (
+                    "When you pass a list of observations to fill_tod, "
+                    + "you must a list of `pointings`"
+                )
+                assert len(observations) == len(pointings), (
                     f"The list of observations has {len(observations)} elements, but "
-                    + f"the list of hwp_angle has {len(hwp_angle)} elements"
+                    + f"the list of pointings has {len(pointings)} elements"
                 )
-                hwp_angle_list = hwp_angle
-            else:
-                raise ValueError(
-                    "If you pass pointings, you must also pass hwp_angle."
-                )
+                ptg_list = pointings
+                if hwp_angle:
+                    assert len(observations) == len(hwp_angle), (
+                        f"The list of observations has {len(observations)} elements, but "
+                        + f"the list of hwp_angle has {len(hwp_angle)} elements"
+                    )
+                    hwp_angle_list = hwp_angle
+                else:
+                    raise ValueError(
+                        "If you pass pointings, you must also pass hwp_angle."
+                    )
 
     for idx_obs, cur_obs in enumerate(obs_list):
         if not hasattr(cur_obs, "pointing_matrix"):
@@ -340,23 +344,21 @@ def fill_tod(
                 dtype=pointings_dtype,
             )
 
+        if input_map_in_galactic:
+            output_coordinate_system = CoordinateSystem.Galactic
+        else:
+            output_coordinate_system = CoordinateSystem.Ecliptic
+
         for idet in range(cur_obs.n_detectors):
+            cur_point, cur_hwp_angle = _get_pointings_array(
+                detector_idx=idet,
+                pointings=pointings,
+                hwp_angle=hwp_angle,
+                output_coordinate_system=output_coordinate_system,
+                pointings_dtype=pointings_dtype,
+            )
 
             tod = cur_obs.tod[idet, :]
-
-            if pointings is None and ((not ptg_list) or (not hwp_angle_list)):
-                cur_point, cur_hwp_angle = cur_obs.get_pointings(
-                    detector_idx=idet, pointings_dtype=pointings_dtype
-                )
-                cur_point = cur_point.reshape(-1, 3)
-            else:
-                cur_point = ptg_list[idx_obs][idet, :, :]
-                cur_hwp_angle = hwp_angle_list[idx_obs]
-
-            # rotating pointing from ecliptic to galactic as the input map
-            if input_map_in_galactic:
-                cur_point = rotate_coordinates_e2g(cur_point)
-
             nside = hp.npix2nside(maps.shape[1])
 
             # all observed pixels over time (for each sample),
@@ -405,9 +407,9 @@ def fill_tod(
                     raise NotImplementedError(
                         "Band integration is only implemented for Jones Formalism"
                     )
-                
-                cur_det_params, cur_det_cmb2bb = (
-                    set_band_params_for_one_detector(idet)
+
+                cur_det_params, cur_det_cmb2bb = set_band_params_for_one_detector(
+                    hwp, band_filenames, idet
                 )
 
                 input_T = np.array(
@@ -480,7 +482,7 @@ def fill_tod(
                     )
 
             else:
-                if  hwp.calculus is Calc.MUELLER:
+                if hwp.calculus is Calc.MUELLER:
                     mueller_methods.compute_signal_for_one_detector(
                         tod_det=tod,
                         m0f=cur_obs.mueller_hwp[idet]["0f"],

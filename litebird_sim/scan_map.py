@@ -3,7 +3,7 @@ from numba import njit, prange
 
 from ducc0.healpix import Healpix_Base
 from .observations import Observation
-from .hwp_harmonics import fill_tod
+from .hwp_harmonics.hwp_harmonics import fill_tod
 from .hwp import HWP, IdealHWP, NonIdealHWP
 from .pointings_in_obs import (
     _get_hwp_angle,
@@ -461,6 +461,7 @@ def scan_map_in_observations(
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
         if isinstance(hwp, NonIdealHWP) and hwp.harmonic_expansion:
             return fill_tod(
+                hwp=hwp,
                 observations=cur_obs,
                 pointings=cur_ptg,
                 hwp_angle=hwp_angle,
@@ -472,7 +473,6 @@ def scan_map_in_observations(
                 apply_non_linearity=apply_non_linearity,
                 add_2f_hwpss=add_2f_hwpss,
                 mueller_phases=mueller_phases,
-                comm=comm,
             )
         else:
             scan_map(
