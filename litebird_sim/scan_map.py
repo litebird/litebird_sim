@@ -462,7 +462,7 @@ def scan_map_in_observations(
         if isinstance(hwp, NonIdealHWP) and hwp.harmonic_expansion:
             return fill_tod(
                 hwp=hwp,
-                observations=cur_obs,
+                observation=cur_obs,
                 pointings=cur_ptg,
                 hwp_angle=hwp_angle,
                 input_map_in_galactic=input_map_in_galactic,

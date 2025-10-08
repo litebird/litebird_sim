@@ -173,7 +173,7 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
 
 def fill_tod(
     hwp: lbs.HWP,
-    observations: Union[Observation, List[Observation]] = None,
+    observation: Observation = None,
     pointings: Union[np.ndarray, List[np.ndarray], None] = None,
     hwp_angle: Union[np.ndarray, List[np.ndarray], None] = None,
     input_map_in_galactic: bool = True,
@@ -231,6 +231,9 @@ def fill_tod(
 
     """
 
+    if type(pointings) is np.ndarray:
+        assert observation.tod.shape == pointings.shape[0:2]
+
     if integrate_in_band:
         band_filenames = band_filenames
 
@@ -251,285 +254,188 @@ def fill_tod(
             ),
         }
 
-    assert observations is not None, (
-        "You need to pass at least one observation to fill_tod."
-    )
+    assert observation is not None, "You need to pass one observation to fill_tod."
 
-    if pointings is None:
-        if hwp_angle:
-            raise Warning(
-                "You passed hwp_angle, but you did not pass pointings, "
-                + "so hwp_angle will be ignored and re-computed on the fly."
-            )
-
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix]
-            else:
-                ptg_list = []
-            if hasattr(observations, "hwp_angle"):
-                hwp_angle_list = [observations.hwp_angle]
-            else:
-                hwp_angle_list = []
-
-        else:
-            obs_list = observations
-            ptg_list = []
-            hwp_angle_list = []
-            for ob in observations:
-                if hasattr(ob, "pointing_matrix"):
-                    ptg_list.append(ob.pointing_matrix)
-                if hasattr(ob, "hwp_angle"):
-                    hwp_angle_list.append(ob.hwp_angle)
-
+    if input_map_in_galactic:
+        output_coordinate_system = CoordinateSystem.Galactic
     else:
-        obs_list = [observations]
-        if isinstance(observations, Observation):
-            if not callable(pointings):
-                assert isinstance(pointings, np.ndarray), (
-                    "For one observation you need to pass a np.array "
-                    + "of pointings to fill_tod"
-                )
-                assert (
-                    observations.n_detectors == pointings.shape[0]
-                    and observations.n_samples == pointings.shape[1]
-                    and pointings.shape[2] == 3
-                ), (
-                    "You need to pass a pointing np.array with shape"
-                    + "(N_det, N_samples, 3) for the observation"
-                )
-                ptg_list = [pointings]
-                if hwp_angle:
-                    assert isinstance(hwp_angle, np.ndarray), (
-                        "For one observation, hwp_angle must be passed "
-                        + "as a np.array to fill_tod"
-                    )
-                    assert observations.n_samples == hwp_angle.shape[0], (
-                        "You need to pass a hwp_angle np.array with shape"
-                        + "N_samples for the observation"
-                    )
-                    hwp_angle_list = [hwp_angle]
-                else:
-                    raise ValueError(
-                        "If you pass pointings, you must also pass hwp_angle."
-                    )
-        else:
-            obs_list = observations
-            if not callable(pointings):
-                assert isinstance(pointings, list), (
-                    "When you pass a list of observations to fill_tod, "
-                    + "you must a list of `pointings`"
-                )
-                assert len(observations) == len(pointings), (
-                    f"The list of observations has {len(observations)} elements, but "
-                    + f"the list of pointings has {len(pointings)} elements"
-                )
-                ptg_list = pointings
-                if hwp_angle:
-                    assert len(observations) == len(hwp_angle), (
-                        f"The list of observations has {len(observations)} elements, but "
-                        + f"the list of hwp_angle has {len(hwp_angle)} elements"
-                    )
-                    hwp_angle_list = hwp_angle
-                else:
-                    raise ValueError(
-                        "If you pass pointings, you must also pass hwp_angle."
-                    )
+        output_coordinate_system = CoordinateSystem.Ecliptic
 
-    for idx_obs, cur_obs in enumerate(obs_list):
-        if not hasattr(cur_obs, "pointing_matrix"):
-            cur_obs.pointing_matrix = np.empty(
-                (cur_obs.n_detectors, cur_obs.n_samples, 3),
-                dtype=pointings_dtype,
+    for idet in range(observation.n_detectors):
+        cur_point, cur_hwp_angle = _get_pointings_array(
+            detector_idx=idet,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
+            output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
+        )
+
+        tod = observation.tod[idet, :]
+        nside = hp.npix2nside(maps.shape[1])
+
+        # all observed pixels over time (for each sample),
+        # i.e. len(pix)==len(times)
+        if interpolation in ["", None]:
+            pix = hp.ang2pix(nside, cur_point[:, 0], cur_point[:, 1])
+
+        if interpolation in ["", None]:
+            input_T = maps[0, pix]
+            input_Q = maps[1, pix]
+            input_U = maps[2, pix]
+
+        elif interpolation == "linear":
+            input_T = hp.get_interp_val(
+                maps[0, :],
+                cur_point[:, 0],
+                cur_point[:, 1],
+            )
+            input_Q = hp.get_interp_val(
+                maps[1, :],
+                cur_point[:, 0],
+                cur_point[:, 1],
+            )
+            input_U = hp.get_interp_val(
+                maps[2, :],
+                cur_point[:, 0],
+                cur_point[:, 1],
+            )
+        else:
+            raise ValueError(
+                "Wrong value for interpolation. It should be one of the following:\n"
+                + '- "" for no interpolation\n'
+                + '- "linear" for linear interpolation\n'
             )
 
-        if input_map_in_galactic:
-            output_coordinate_system = CoordinateSystem.Galactic
-        else:
-            output_coordinate_system = CoordinateSystem.Ecliptic
+        xi = observation.pol_angle_rad[idet]
+        psi = cur_point[:, 2]
 
-        for idet in range(cur_obs.n_detectors):
-            cur_point, cur_hwp_angle = _get_pointings_array(
-                detector_idx=idet,
-                pointings=pointings,
-                hwp_angle=hwp_angle,
-                output_coordinate_system=output_coordinate_system,
-                pointings_dtype=pointings_dtype,
+        phi = np.deg2rad(observation.pointing_theta_phi_psi_deg[idet][1])
+
+        cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
+        sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
+
+        if integrate_in_band:
+            if hwp.calculus is Calc.MUELLER:
+                raise NotImplementedError(
+                    "Band integration is only implemented for Jones Formalism"
+                )
+
+            cur_det_params, cur_det_cmb2bb = set_band_params_for_one_detector(
+                hwp, band_filenames, idet
             )
 
-            tod = cur_obs.tod[idet, :]
-            nside = hp.npix2nside(maps.shape[1])
+            input_T = np.array([input_T for i in range(len(cur_det_params["freqs"]))]).T
+            input_Q = np.array([input_Q for i in range(len(cur_det_params["freqs"]))]).T
+            input_U = np.array([input_U for i in range(len(cur_det_params["freqs"]))]).T
 
-            # all observed pixels over time (for each sample),
-            # i.e. len(pix)==len(times)
-            if interpolation in ["", None]:
-                pix = hp.ang2pix(nside, cur_point[:, 0], cur_point[:, 1])
+            deltas_j0f = np.zeros(
+                (len(cur_det_params["freqs"]), 2, 2), dtype=np.complex128
+            )
+            deltas_j2f = np.zeros(
+                (len(cur_det_params["freqs"]), 2, 2), dtype=np.complex128
+            )
 
-            if interpolation in ["", None]:
-                input_T = maps[0, pix]
-                input_Q = maps[1, pix]
-                input_U = maps[2, pix]
-
-            elif interpolation == "linear":
-                input_T = hp.get_interp_val(
-                    maps[0, :],
-                    cur_point[:, 0],
-                    cur_point[:, 1],
-                )
-                input_Q = hp.get_interp_val(
-                    maps[1, :],
-                    cur_point[:, 0],
-                    cur_point[:, 1],
-                )
-                input_U = hp.get_interp_val(
-                    maps[2, :],
-                    cur_point[:, 0],
-                    cur_point[:, 1],
-                )
-            else:
-                raise ValueError(
-                    "Wrong value for interpolation. It should be one of the following:\n"
-                    + '- "" for no interpolation\n'
-                    + '- "linear" for linear interpolation\n'
-                )
-
-            xi = cur_obs.pol_angle_rad[idet]
-            psi = cur_point[:, 2]
-
-            phi = np.deg2rad(cur_obs.pointing_theta_phi_psi_deg[idet][1])
-
-            cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
-            sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
-
-            if integrate_in_band:
-                if hwp.calculus is Calc.MUELLER:
-                    raise NotImplementedError(
-                        "Band integration is only implemented for Jones Formalism"
-                    )
-
-                cur_det_params, cur_det_cmb2bb = set_band_params_for_one_detector(
-                    hwp, band_filenames, idet
-                )
-
-                input_T = np.array(
-                    [input_T for i in range(len(cur_det_params["freqs"]))]
-                ).T
-                input_Q = np.array(
-                    [input_Q for i in range(len(cur_det_params["freqs"]))]
-                ).T
-                input_U = np.array(
-                    [input_U for i in range(len(cur_det_params["freqs"]))]
-                ).T
-
-                deltas_j0f = np.zeros(
-                    (len(cur_det_params["freqs"]), 2, 2), dtype=np.complex128
-                )
-                deltas_j2f = np.zeros(
-                    (len(cur_det_params["freqs"]), 2, 2), dtype=np.complex128
-                )
-
-                for nu in range(len(cur_det_params["freqs"])):
-                    deltas_j0f[nu] = np.array(
+            for nu in range(len(cur_det_params["freqs"])):
+                deltas_j0f[nu] = np.array(
+                    [
                         [
-                            [
-                                cur_det_params["h1_0f"][nu],
-                                cur_det_params["z1_0f"][nu],
-                            ],
-                            [
-                                cur_det_params["z2_0f"][nu],
-                                1
-                                - (1 + cur_det_params["h2_0f"][nu])
-                                * np.exp(cur_det_params["beta_0f"][nu] * 1j),
-                            ],
+                            cur_det_params["h1_0f"][nu],
+                            cur_det_params["z1_0f"][nu],
                         ],
-                        dtype=np.complex128,
-                    )
-                    deltas_j2f[nu] = np.array(
                         [
-                            [
-                                cur_det_params["h1_2f"][nu],
-                                cur_det_params["z1_2f"][nu],
-                            ],
-                            [
-                                cur_det_params["z2_2f"][nu],
-                                1
-                                - (1 + cur_det_params["h2_2f"][nu])
-                                * np.exp(cur_det_params["beta_2f"][nu] * 1j),
-                            ],
+                            cur_det_params["z2_0f"][nu],
+                            1
+                            - (1 + cur_det_params["h2_0f"][nu])
+                            * np.exp(cur_det_params["beta_0f"][nu] * 1j),
                         ],
-                        dtype=np.complex128,
-                    )
+                    ],
+                    dtype=np.complex128,
+                )
+                deltas_j2f[nu] = np.array(
+                    [
+                        [
+                            cur_det_params["h1_2f"][nu],
+                            cur_det_params["z1_2f"][nu],
+                        ],
+                        [
+                            cur_det_params["z2_2f"][nu],
+                            1
+                            - (1 + cur_det_params["h2_2f"][nu])
+                            * np.exp(cur_det_params["beta_2f"][nu] * 1j),
+                        ],
+                    ],
+                    dtype=np.complex128,
+                )
 
-                    jones_methods.integrate_inband_signal_for_one_detector(
-                        tod_det=tod,
-                        freqs=cur_det_params["freqs"],
-                        band=cur_det_cmb2bb,
-                        deltas_j0f=deltas_j0f,
-                        deltas_j2f=deltas_j2f,
-                        mapT=input_T,
-                        mapQ=input_Q,
-                        mapU=input_U,
-                        rho=np.array(cur_hwp_angle, dtype=np.float64),
-                        psi=np.array(psi, dtype=np.float64),
-                        phi=phi,
-                        cos2Xi2Phi=cos2Xi2Phi,
-                        sin2Xi2Phi=sin2Xi2Phi,
-                        apply_non_linearity=apply_non_linearity,
-                        g_one_over_k=cur_obs.g_one_over_k[idet],
-                        add_2f_hwpss=add_2f_hwpss,
-                        amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
-                    )
+                jones_methods.integrate_inband_signal_for_one_detector(
+                    tod_det=tod,
+                    freqs=cur_det_params["freqs"],
+                    band=cur_det_cmb2bb,
+                    deltas_j0f=deltas_j0f,
+                    deltas_j2f=deltas_j2f,
+                    mapT=input_T,
+                    mapQ=input_Q,
+                    mapU=input_U,
+                    rho=np.array(cur_hwp_angle, dtype=np.float64),
+                    psi=np.array(psi, dtype=np.float64),
+                    phi=phi,
+                    cos2Xi2Phi=cos2Xi2Phi,
+                    sin2Xi2Phi=sin2Xi2Phi,
+                    apply_non_linearity=apply_non_linearity,
+                    g_one_over_k=observation.g_one_over_k[idet],
+                    add_2f_hwpss=add_2f_hwpss,
+                    amplitude_2f_k=observation.amplitude_2f_k[idet],
+                )
 
-            else:
-                if hwp.calculus is Calc.MUELLER:
-                    mueller_methods.compute_signal_for_one_detector(
-                        tod_det=tod,
-                        m0f=cur_obs.mueller_hwp[idet]["0f"],
-                        m2f=cur_obs.mueller_hwp[idet]["2f"],
-                        m4f=cur_obs.mueller_hwp[idet]["4f"],
-                        rho=np.array(cur_hwp_angle, dtype=np.float64),
-                        psi=np.array(psi, dtype=np.float64),
-                        mapT=input_T,
-                        mapQ=input_Q,
-                        mapU=input_U,
-                        cos2Xi2Phi=cos2Xi2Phi,
-                        sin2Xi2Phi=sin2Xi2Phi,
-                        phi=phi,
-                        apply_non_linearity=apply_non_linearity,
-                        g_one_over_k=cur_obs.g_one_over_k[idet],
-                        add_2f_hwpss=add_2f_hwpss,
-                        amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
-                        phases_2f=mueller_phases["2f"],
-                        phases_4f=mueller_phases["4f"],
-                    )
+        else:
+            if hwp.calculus is Calc.MUELLER:
+                mueller_methods.compute_signal_for_one_detector(
+                    tod_det=tod,
+                    m0f=observation.mueller_hwp[idet]["0f"],
+                    m2f=observation.mueller_hwp[idet]["2f"],
+                    m4f=observation.mueller_hwp[idet]["4f"],
+                    rho=np.array(cur_hwp_angle, dtype=np.float64),
+                    psi=np.array(psi, dtype=np.float64),
+                    mapT=input_T,
+                    mapQ=input_Q,
+                    mapU=input_U,
+                    cos2Xi2Phi=cos2Xi2Phi,
+                    sin2Xi2Phi=sin2Xi2Phi,
+                    phi=phi,
+                    apply_non_linearity=apply_non_linearity,
+                    g_one_over_k=observation.g_one_over_k[idet],
+                    add_2f_hwpss=add_2f_hwpss,
+                    amplitude_2f_k=observation.amplitude_2f_k[idet],
+                    phases_2f=mueller_phases["2f"],
+                    phases_4f=mueller_phases["4f"],
+                )
 
-                elif hwp.calculus is Calc.JONES:
-                    deltas_j0f = cur_obs.jones_hwp[idet]["0f"]
-                    deltas_j2f = cur_obs.jones_hwp[idet]["2f"]
+            elif hwp.calculus is Calc.JONES:
+                deltas_j0f = observation.jones_hwp[idet]["0f"]
+                deltas_j2f = observation.jones_hwp[idet]["2f"]
 
-                    jones_methods.compute_signal_for_one_detector(
-                        tod_det=tod,
-                        deltas_j0f=deltas_j0f,
-                        deltas_j2f=deltas_j2f,
-                        rho=np.array(cur_hwp_angle, dtype=np.float64),
-                        psi=np.array(psi, dtype=np.float64),
-                        mapT=input_T,
-                        mapQ=input_Q,
-                        mapU=input_U,
-                        cos2Xi2Phi=cos2Xi2Phi,
-                        sin2Xi2Phi=sin2Xi2Phi,
-                        phi=phi,
-                        apply_non_linearity=apply_non_linearity,
-                        g_one_over_k=cur_obs.g_one_over_k[idet],
-                        add_2f_hwpss=add_2f_hwpss,
-                        amplitude_2f_k=cur_obs.amplitude_2f_k[idet],
-                    )
+                jones_methods.compute_signal_for_one_detector(
+                    tod_det=tod,
+                    deltas_j0f=deltas_j0f,
+                    deltas_j2f=deltas_j2f,
+                    rho=np.array(cur_hwp_angle, dtype=np.float64),
+                    psi=np.array(psi, dtype=np.float64),
+                    mapT=input_T,
+                    mapQ=input_Q,
+                    mapU=input_U,
+                    cos2Xi2Phi=cos2Xi2Phi,
+                    sin2Xi2Phi=sin2Xi2Phi,
+                    phi=phi,
+                    apply_non_linearity=apply_non_linearity,
+                    g_one_over_k=observation.g_one_over_k[idet],
+                    add_2f_hwpss=add_2f_hwpss,
+                    amplitude_2f_k=observation.amplitude_2f_k[idet],
+                )
 
-            cur_obs.tod[idet] = tod
+        observation.tod[idet] = tod
 
     if interpolation in ["", None]:
         del pix
     del input_T, input_Q, input_U
     if not save_tod:
-        del cur_obs.tod
+        del observation.tod
