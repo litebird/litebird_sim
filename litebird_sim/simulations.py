@@ -1572,7 +1572,6 @@ class Simulation:
             component=component,
             interpolation=interpolation,
             pointings_dtype=pointings_dtype,
-            hwp=self.hwp,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
