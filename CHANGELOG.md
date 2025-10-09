@@ -1,5 +1,15 @@
 # HEAD
 
+-   Refurbish HWP handling [#463](https://github.com/litebird/litebird_sim/pull/463), in detail:
+        
+    1. Create NonIdealHWP class.
+
+    2. Remove HwpSys class.
+
+    3. Rename hwp_sys.py to hwp_harmonics.py.
+
+    4. Unify map scanning methods by making hwp_harmonics.fill_tod() a low-level method which is now executed by the high-level scan_map_in_observations.py.
+
 -   Fix angle in hwp differential emission [#452](https://github.com/litebird/litebird_sim/pull/452)
 
 -   New method `Imo.open_data_file` [#449](https://github.com/litebird/litebird_sim/pull/449)

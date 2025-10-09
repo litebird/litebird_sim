@@ -3,7 +3,8 @@ from numba import njit, prange
 
 from ducc0.healpix import Healpix_Base
 from .observations import Observation
-from .hwp import HWP, mueller_ideal_hwp
+from .hwp_harmonics import fill_tod
+from .hwp import HWP, IdealHWP, NonIdealHWP
 from .pointings_in_obs import (
     _get_hwp_angle,
     _get_pointings_array,
@@ -109,6 +110,7 @@ def scan_map(
     maps: dict[str, np.ndarray],
     pol_angle_detectors: np.ndarray | None = None,
     pol_eff_detectors: np.ndarray | None = None,
+    hwp: HWP | None = None,
     hwp_angle: np.ndarray | None = None,
     mueller_hwp: np.ndarray | None = None,
     input_names: str | None = None,
@@ -150,6 +152,10 @@ def scan_map(
 
     pol_eff_detectors : np.ndarray or None, default=None
         Polarization efficiency of detectors. If None, all detectors have unit efficiency.
+
+    hwp : HWP, optional
+        Half-wave plate (HWP) model. If None, HWP effects are ignored unless
+        the `Observation` object contains HWP data.
 
     hwp_angle : np.ndarray or None, default=None
         Half-wave plate (HWP) angles of an external HWP object. If None, the HWP information
@@ -245,9 +251,7 @@ def scan_map(
                 + '- "linear" for linear interpolation\n'
             )
 
-        if (mueller_hwp[detector_idx] is None) or (
-            (mueller_hwp[detector_idx] == mueller_ideal_hwp).all()
-        ):
+        if hwp is None or isinstance(hwp, IdealHWP):
             # With HWP implements:
             # (T + Q ρ Cos[2 (2 α - θ + ψ])] + U ρ Sin[2 (2 α - θ + ψ)])
             # without
@@ -266,20 +270,12 @@ def scan_map(
                 ),
                 pol_eff_det=pol_eff_detectors[detector_idx],
             )
-        else:
+        elif isinstance(hwp, NonIdealHWP):
             # This implements:
             # (1,0,0,0) x Mpol(ρ) x Rpol(θ) x Rhwp(α)^T x Mhwp x Rhwp(α) x Rtel(ψ) x Stokes
-
-            # Ensure mueller_hwp is a valid 4x4 numpy array for non-ideal HWP
-            if not (
-                isinstance(mueller_hwp[detector_idx], np.ndarray)
-                and mueller_hwp[detector_idx].shape == (4, 4)
-            ):
-                raise ValueError(
-                    "scan_map with non-ideal HWP works only if mueller_hwp is a 4x4 numpy array; "
-                    f"got type {type(mueller_hwp[detector_idx])} and shape {getattr(mueller_hwp[detector_idx], 'shape', None)}"
-                )
-
+            assert all(m is None for m in mueller_hwp), (
+                "Non ideal hwp type was selected but not all detectors have a mueller matrix associated. Please set det.mueller_hwp attribute."
+            )
             scan_map_generic_hwp_for_one_detector(
                 tod_det=tod[detector_idx],
                 input_T=input_T,
@@ -302,6 +298,11 @@ def scan_map_in_observations(
     component: str = "tod",
     interpolation: str | None = "",
     pointings_dtype=np.float64,
+    save_tod: bool = True,
+    apply_non_linearity: bool = False,
+    add_2f_hwpss: bool = False,
+    mueller_phases: np.ndarray = None,
+    comm: bool | None = None,
 ):
     """
 
@@ -372,6 +373,18 @@ def scan_map_in_observations(
         Data type for pointings generated on the fly. If the pointing is passed or
         already precomputed this parameter is ineffective. Default is `np.float64`.
 
+    apply_non_linearity (bool) : (For the harmonics expansion case) applies the
+          coupling of the non-linearity systematics with hwp_sys
+
+    add_2f_hwpss (bool) : (For the harmonics expansion case) adds the 2f hwpss signal
+         to the TOD
+
+    mueller_phases (dict) : (For the harmonics expansion case) the non ideal phases
+          for the mueller matrix elements. When None is given, the temporary values
+          from Patanchon et al. [2021] are used.
+
+    comm (SerialMpiCommunicator) : (For the harmonics expansion case) MPI communicator.
+
     Raises
     ------
     ValueError
@@ -440,18 +453,39 @@ def scan_map_in_observations(
         # Determine the HWP angle to use:
         # - If an external HWP object is provided, compute the angle from it
         # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        if hwp is None:
+            hwp = cur_obs.hwp
 
-        scan_map(
-            tod=getattr(cur_obs, component),
-            pointings=cur_ptg,
-            maps=maps,
-            pol_angle_detectors=cur_obs.pol_angle_rad,
-            pol_eff_detectors=cur_obs.pol_efficiency,
-            hwp_angle=hwp_angle,
-            mueller_hwp=cur_obs.mueller_hwp,
-            input_names=input_names,
-            input_map_in_galactic=input_map_in_galactic,
-            interpolation=interpolation,
-            pointings_dtype=pointings_dtype,
-        )
+        # it can still be None after this line, it is just for the cases where
+        # we don't give hwp to scan_map_in_observations but there is in fact one
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        if isinstance(hwp, NonIdealHWP) and hwp.harmonic_expansion:
+            return fill_tod(
+                observations=cur_obs,
+                pointings=cur_ptg,
+                hwp_angle=hwp_angle,
+                input_map_in_galactic=input_map_in_galactic,
+                pointings_dtype=pointings_dtype,
+                save_tod=save_tod,
+                interpolation=interpolation,
+                maps=maps,
+                apply_non_linearity=apply_non_linearity,
+                add_2f_hwpss=add_2f_hwpss,
+                mueller_phases=mueller_phases,
+                comm=comm,
+            )
+        else:
+            scan_map(
+                tod=getattr(cur_obs, component),
+                pointings=cur_ptg,
+                maps=maps,
+                pol_angle_detectors=cur_obs.pol_angle_rad,
+                pol_eff_detectors=cur_obs.pol_efficiency,
+                hwp=hwp,
+                hwp_angle=hwp_angle,
+                mueller_hwp=cur_obs.mueller_hwp,
+                input_names=input_names,
+                input_map_in_galactic=input_map_in_galactic,
+                interpolation=interpolation,
+                pointings_dtype=pointings_dtype,
+            )
