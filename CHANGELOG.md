@@ -2,9 +2,9 @@
 
 -   Refurbish HWP handling [#463](https://github.com/litebird/litebird_sim/pull/463), in detail:
         
-    1. Create of NonIdealHWP class.
+    1. Create NonIdealHWP class.
 
-    2. Remove of HwpSys class.
+    2. Remove HwpSys class.
 
     3. Rename hwp_sys.py to hwp_harmonics.py.
 
