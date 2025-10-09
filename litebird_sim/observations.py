@@ -1084,6 +1084,7 @@ class Observation:
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
             )
+            self.has_hwp = True
         else:
             hwp_buffer = None
 
