@@ -24,7 +24,7 @@ import tomlkit
 from markdown_katex import KatexExtension
 
 from litebird_sim import constants
-from . import HWP
+from .hwp import HWP
 from .beam_convolution import (
     add_convolved_sky_to_observations,
     BeamConvolutionParameters,
@@ -1385,6 +1385,8 @@ class Simulation:
         :class:`.IdealHWP`.
         """
         self.hwp = hwp
+        for obs in self.observations:
+            obs.set_hwp(hwp)
 
     @_profile
     def prepare_pointings(
@@ -1566,6 +1568,7 @@ class Simulation:
             observations=self.observations,
             maps=maps,
             input_map_in_galactic=input_map_in_galactic,
+            hwp=self.hwp if self.hwp else None,
             component=component,
             interpolation=interpolation,
             pointings_dtype=pointings_dtype,

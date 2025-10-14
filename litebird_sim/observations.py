@@ -10,10 +10,11 @@ import numpy.typing as npt
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_detector_blocks
-from .hwp import HWP
+from .hwp import HWP, IdealHWP, NonIdealHWP
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
+from .hwp import Calc
 
 
 @dataclass
@@ -205,6 +206,7 @@ class Observation:
 
         # By default this is set to False, prepare_pointings() can change its value
         self.has_hwp = False
+        self.hwp = None
 
     @property
     def sampling_rate_hz(self):
@@ -788,6 +790,38 @@ class Observation:
 
         return t0 + np.arange(self.n_samples) / self.sampling_rate_hz
 
+    def set_hwp(self, hwp):
+        if isinstance(hwp, IdealHWP):
+            self.mueller_hwp = np.array(
+                [np.diag([1.0, 1.0, -1.0, -1.0]) for _ in self.mueller_hwp]
+            )
+
+        elif isinstance(hwp, NonIdealHWP):
+            if not hwp.harmonic_expansion:
+                assert all(len(d) == 1 for d in self.mueller_hwp), (
+                    "harmonic_expansion is set to False but more than one more matrix exists in at least one detector."
+                )
+
+            if hwp.calculus is Calc.JONES:
+                assert all(d.jones_hwp is not None for d in self.jones_hwp), (
+                    "Jones formalism was selected but at least one detector does not have jones_hwp attribute."
+                )
+                if hwp.harmonic_expansion:
+                    assert all(len(d) >= 2 for d in self.jones_hwp), (
+                        "harmonic_expansion is set to True but at least one detector has less then 2 jones matrices."
+                    )
+
+            elif hwp.calculus is Calc.MUELLER:
+                assert all(d is not None for d in self.mueller_hwp), (
+                    "Mueller formalism was selected but at least one detector does not have mueller_hwp attribute."
+                )
+                if hwp.harmonic_expansion:
+                    assert all(len(d) >= 3 for d in self.mueller_hwp), (
+                        "harmonic_expansion is set to True but at least one detector has less then 3 mueller matrices."
+                    )
+
+        self.hwp = hwp
+
     def prepare_pointings(
         self,
         instrument: InstrumentInfo,
@@ -840,15 +874,15 @@ class Observation:
 
         # If the hwp object is passed and is not initialised in the observations, it gets applied to all detectors
         if hwp is None:
-            assert all(m is None for m in self.mueller_hwp), (
-                "Some detectors have been initialized with a mueller_hwp,"
+            assert all(m is None for m in self.mueller_hwp) or all(
+                m is None for m in self.jones_hwp
+            ), (
+                "Some detectors have been initialized with a mueller_hwp or jones_hwp,"
                 "but no HWP object has been passed to prepare_pointings."
             )
             self.has_hwp = False
         else:
-            for idet in range(self.n_detectors):
-                if self.mueller_hwp[idet] is None:
-                    self.mueller_hwp[idet] = hwp.mueller
+            self.hwp = hwp
             self.has_hwp = True
 
     def get_pointings(
@@ -1050,6 +1084,7 @@ class Observation:
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
             )
+            self.has_hwp = True
         else:
             hwp_buffer = None
 

@@ -75,10 +75,12 @@ from .healpix import (
 from .hwp import (
     HWP,
     IdealHWP,
+    NonIdealHWP,
     read_hwp_from_hdf5,
+    Calc,
 )
-from .hwp_sys.hwp_sys import (
-    HwpSys,
+from .hwp_harmonics import (
+    fill_tod,
 )
 from .imo import (
     PTEP_IMO_LOCATION,
@@ -247,9 +249,11 @@ __all__ = [
     # hwp.py
     "HWP",
     "IdealHWP",
+    "NonIdealHWP",
     "read_hwp_from_hdf5",
-    # hwp_sys/hwp_sys.py
-    "HwpSys",
+    "Calc",
+    # hwp_harmonics.py
+    "fill_tod",
     # madam.py
     "save_simulation_for_madam",
     # mbs.py
