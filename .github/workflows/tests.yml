@@ -1,4 +1,4 @@
-name: Tests
+name: CI Tests
 
 on: [push]
 
@@ -8,7 +8,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-13]
+        os: [ubuntu-latest, macos-latest]
         mpi: ["none", openmpi] # mpich
         python: ["3.10", "3.13"]
         exclude:
@@ -23,12 +23,29 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+          prune-cache: false
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+
+      - name: Cache virtual environment
+        uses: actions/cache@v4
+        id: cache-venv
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
 
       # Unfortunately we must use different keys to store the same data,
       # otherwise GitHub will complain when multiple jobs are going to
@@ -40,42 +57,49 @@ jobs:
           path: ~/pysm3-data
           key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}
 
-
       - name: Register PySM3 data path
         run: |
           echo "PYSM_LOCAL_DATA=$HOME/pysm3-data" >> $GITHUB_ENV
 
       - name: Download PySM3 data files
-        if: steps.cache-pysm3.outputs.cache_hit != 'true'
+        if: steps.cache-pysm3.outputs.cache-hit != 'true'
         run: |
-          rm -rf "$PYSM_LOCAL_DATA" && git clone https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
+          git clone --depth 1 https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
 
-      - name: Install basic dependencies (MPI, FFTW, poetry, IMO)
+      - name: Install basic dependencies (MPI, FFTW, IMO)
         run: |
           ./bin/install-deps.sh ${{ matrix.mpi }}
-          pip install poetry==2.1 poetry-plugin-export
           mkdir -p $HOME/.config/litebird_imo
           echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
       - name: Install litebird_sim dependencies
         run: |
-          poetry export --without-hashes -o requirements.txt
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest-cov
+          EXTRAS="--extra dev --extra docs"
           if [ "${{ matrix.mpi }}" != "none" ]; then
-            pip install mpi4py
-            if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-              git clone --recursive https://github.com/anand-avinash/BrahMap.git
-              (cd BrahMap && pip install .)
-              rm -rf BrahMap
-            fi
+            EXTRAS="$EXTRAS --extra mpi"
           fi
+          uv sync $EXTRAS --locked
         env:
           DUCC0_OPTIMIZATION: none
 
+      - name: Install BrahMap
+        if: matrix.mpi != 'none' && matrix.os == 'ubuntu-latest'
+        # if: steps.cache-venv.outputs.cache-hit != 'true' && matrix.mpi != 'none' && matrix.os == 'ubuntu-latest'
+        run: |
+          git clone --recursive https://github.com/anand-avinash/BrahMap.git
+          cd BrahMap
+          uv pip install .
+          cd ..
+          rm -rf BrahMap
+          uv run python -c "import brahmap"
+        env:
+          DUCC0_OPTIMIZATION: none
+          PIP_CACHE_DIR: ${{ env.UV_CACHE_DIR }}
+
       - name: Tests
-        run: bash ./bin/run_tests.sh
+        run: |
+          set -euo pipefail
+          uv run python -m pytest --cov=litebird_sim --cov-report=xml --cov-report=term --durations=5 -vv
 
       - name: Tests MPICH
         if: ${{ matrix.mpi == 'mpich' }}
@@ -86,12 +110,12 @@ jobs:
             fi
             for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
-              PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
-              PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
+              PYTHONPATH=. mpiexec -n $proc uv run python ./test/test_mpi.py
+              PYTHONPATH=. mpiexec -n $proc uv run python ./test/test_detector_blocks.py
             done
             echo "Running MPI test ($MPI) with 4 processes"
-            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 python3 ./test/test_mpi_n4.py
-            PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
+            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 uv run python ./test/test_mpi_n4.py
+            PYTHONPATH=. mpiexec -n $proc uv run python ./test/test_detector_blocks.py
 
       - name: Tests OpenMPI
         if: ${{ matrix.mpi == 'openmpi' }}
@@ -102,11 +126,11 @@ jobs:
             fi
             for proc in 1 2 ; do
               echo "Running MPI test ($MPI) with $proc processes"
-              PYTHONPATH=. mpiexec -n $proc python3 ./test/test_mpi.py
-              PYTHONPATH=. mpiexec -n $proc python3 ./test/test_detector_blocks.py
-            echo "Running MPI test ($MPI) with 4 processes"
-            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 python3 ./test/test_mpi_n4.py
+              PYTHONPATH=. mpiexec -n $proc uv run python ./test/test_mpi.py
+              PYTHONPATH=. mpiexec -n $proc uv run python ./test/test_detector_blocks.py
             done
+            echo "Running MPI test ($MPI) with 4 processes"
+            PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 uv run python ./test/test_mpi_n4.py
 
       - name: Coverage comment
         uses: py-cov-action/python-coverage-comment-action@v3

@@ -1,0 +1,42 @@
+name: Code Style
+
+on: [push]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    # Only run tests if there is no [skipci] or [skip ci] in the commit message
+    if: |
+      !startsWith(github.event.head_commit.message, '[skip ci]') &&
+      !startsWith(github.event.head_commit.message, '[skipci]')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+          enable-cache: true
+          prune-cache: false
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+
+      - name: Install dev dependencies
+        run: |
+          EXTRAS="--extra dev"
+          uv sync --locked ${EXTRAS}
+
+      - name: Check code style with ruff
+        run: |
+          set -euo pipefail
+          uv run ruff check . --config ./pyproject.toml
+          uv run ruff format --diff . --config ./pyproject.toml

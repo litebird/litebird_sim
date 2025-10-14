@@ -1,5 +1,11 @@
 # HEAD
 
+-   Optimize actions and add automatic publishing [#465](https://github.com/litebird/litebird_sim/pull/465)
+
+-   Improve caching system of CI tests [#462](https://github.com/litebird/litebird_sim/pull/462)
+
+-   Use `uv` to manage dependencies, run and build the package [#462](https://github.com/litebird/litebird_sim/pull/462)
+
 -   Refurbish HWP handling [#463](https://github.com/litebird/litebird_sim/pull/463), in detail:
         
     1. Create NonIdealHWP class.

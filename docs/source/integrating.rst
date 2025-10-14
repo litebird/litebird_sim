@@ -44,7 +44,7 @@ How to integrate codes
 General-purpose libraries that are installable using ``pip`` should
 not be copied in the `litebird_sim` repository, unless there is some
 strong reason to do so; instead, the library should be added to the
-list of dependencies using the command ``poetry add LIBRARY_NAME``. If
+list of dependencies using the command ``uv add LIBRARY_NAME``. If
 the library is specific to LiteBIRD, it is probably better to import
 it into the repository https://github.com/litebird/litebird_sim.
 

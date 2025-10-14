@@ -12,13 +12,10 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-venv python3-dist
 
 python3 --version
 
-# Install Poetry
-sudo pip3 install poetry
-
-# Useful for debugging
-poetry debug
+# Install uv
+sudo pip3 install uv
 
 # Install the litebird_sim repository and test it
 git clone https://github.com/litebird/litebird_sim.git "$LITEBIRD_SIM_PATH"
 cd "$LITEBIRD_SIM_PATH"
-poetry install --extras=docs
+uv sync --extra=docs
