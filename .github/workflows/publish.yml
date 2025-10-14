@@ -1,0 +1,49 @@
+name: Upload to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: 📦 Publish to 'pypi'
+    runs-on: ubuntu-latest
+    environment:
+      name: 'pypi_publish'
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: '3.13'
+          enable-cache: true
+
+      - name: Build with uv
+        run: |
+          uv sync --locked
+          uv build
+
+      - name: Publish
+        run: |
+          uv publish --trusted-publishing always
+
+      - name: Generate release email
+        run: |
+          uv run python bin/prepare_release_email.py > release-email.txt
+
+      - name: Upload release email
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-email
+          path: release-email.txt
