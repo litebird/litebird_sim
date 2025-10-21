@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-from typing import Union, List
+from typing import List
 
 import healpy as hp
 import numpy as np
@@ -7,7 +7,6 @@ from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from numba import njit
 
-import litebird_sim as lbs
 from ..coordinates import CoordinateSystem
 from ..observations import Observation
 from . import mueller_methods
