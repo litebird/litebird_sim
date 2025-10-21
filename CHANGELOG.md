@@ -1,5 +1,29 @@
 # HEAD
 
+-   Optimize actions and add automatic publishing [#465](https://github.com/litebird/litebird_sim/pull/465)
+
+-   Improve caching system of CI tests [#462](https://github.com/litebird/litebird_sim/pull/462)
+
+-   Use `uv` to manage dependencies, run and build the package [#462](https://github.com/litebird/litebird_sim/pull/462)
+
+-   Refurbish HWP handling [#463](https://github.com/litebird/litebird_sim/pull/463), in detail:
+        
+    1. Create NonIdealHWP class.
+
+    2. Remove HwpSys class.
+
+    3. Rename hwp_sys.py to hwp_harmonics.py.
+
+    4. Unify map scanning methods by making hwp_harmonics.fill_tod() a low-level method which is now executed by the high-level scan_map_in_observations.py.
+
+-   Fix angle in hwp differential emission [#452](https://github.com/litebird/litebird_sim/pull/452)
+
+-   New method `Imo.open_data_file` [#449](https://github.com/litebird/litebird_sim/pull/449)
+
+-   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
+
+-   Change hwp_angle calculation to the complex domain [#433](https://github.com/litebird/litebird_sim/pull/433)
+
 # Version 0.16.0
 
 -   Add pre-commit hook to keep syntax compliant with `py3.10+` [#461](https://github.com/litebird/litebird_sim/pull/461)
@@ -12,13 +36,7 @@
 
 -   Improve the documentation [#450](https://github.com/litebird/litebird_sim/pull/450)
 
--   New method `Imo.open_data_file` [#449](https://github.com/litebird/litebird_sim/pull/449)
-
--   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
-
 -   Import Yusuke Takase's grasp2alm code [#447](https://github.com/litebird/litebird_sim/pull/447)
-
--   Change hwp_angle calculation to the complex domain [#433](https://github.com/litebird/litebird_sim/pull/433)
 
 # Version 0.15.3
 

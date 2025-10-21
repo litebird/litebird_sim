@@ -37,12 +37,12 @@ have the following tools:
   least.
 
 When you have installed those dependencies, run the following commands
-to install [Poetry](https://python-poetry.org/) and set up a number of
+to install [uv](https://docs.astral.sh/uv/) and set up a number of
 Git hooks:
 
 ```sh
-# Install Poetry
-curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+# Install uv
+pip install uv
 
 # Clone the litebird_sim repository
 git clone git@github.com:litebird/litebird_sim.git
@@ -51,8 +51,8 @@ cd litebird_sim
 # Install the dependencies and create a virtual environment.
 # You can skip some --extras if you do not need them, but
 # be sure to install "docs"
-poetry install --extras=jupyter --extras=docs --extras=mpi
-poetry build
+uv sync --all-extras
+uv build
 
 # Install Git hooks
 sh ./bin/git/init-hooks
@@ -152,7 +152,7 @@ modifications fulfill the following goals:
     Under Windows, run the following command:
     
     ```
-    poetry run docs\make.bat html
+    uv run docs\make.bat html
     ```
     
 -   Provide unit tests and possibly integration tests, adding scripts

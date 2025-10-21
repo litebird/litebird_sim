@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import requests
-from typing import Any, Dict
+from typing import Any
 
 
 def clean_tag_name(tag: str) -> str:
@@ -11,7 +11,7 @@ def clean_tag_name(tag: str) -> str:
 REL_URL = "https://api.github.com/repos/litebird/litebird_sim/releases"
 
 
-def print_email_text(release: Dict[str, Any]):
+def print_email_text(release: dict[str, Any]):
     print(
         """
 Dear all,

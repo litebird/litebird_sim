@@ -169,7 +169,7 @@ is accepted as well):
 - If the variable is set to the empty string or to ``1``, ``true``,
   ``on``, ``yes``, then ``mpi4py`` is imported, and an exception is
   raised if this cannot be done (e.g., because it was not installed
-  using the flag ``--extra=mpi`` when ``poetry install`` was called).
+  using the flag ``--extra mpi`` when ``uv sync`` was called).
 
 - If the variable is set to ``0``, ``false``, ``off`` or ``no``, then
   ``mpi4py`` is *not* imported, even if it is installed.

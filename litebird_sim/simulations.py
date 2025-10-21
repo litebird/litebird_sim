@@ -1568,10 +1568,10 @@ class Simulation:
             observations=self.observations,
             maps=maps,
             input_map_in_galactic=input_map_in_galactic,
+            hwp=self.hwp if self.hwp else None,
             component=component,
             interpolation=interpolation,
             pointings_dtype=pointings_dtype,
-            hwp=self.hwp,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
