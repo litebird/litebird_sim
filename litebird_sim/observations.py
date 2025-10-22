@@ -803,7 +803,7 @@ class Observation:
                 )
 
             if hwp.calculus is Calc.JONES:
-                assert all(d.jones_hwp is not None for d in self.jones_hwp), (
+                assert all(d is not None for d in self.jones_hwp), (
                     "Jones formalism was selected but at least one detector does not have jones_hwp attribute."
                 )
                 if hwp.harmonic_expansion:
