@@ -1387,9 +1387,9 @@ class Simulation:
         :class:`.IdealHWP` or :class:`.NonIdealHWP`.
         """
 
-        assert len(self.observations) > 0, (
-            "You must create the observation(s) before setting the hwp."
-        )
+        # TODO add warning that if this method is created before creating
+        # observations, then all observations will share the same HWP instance
+        # by default.
 
         self.hwp = hwp
 
