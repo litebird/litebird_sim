@@ -1378,13 +1378,21 @@ class Simulation:
         """
         self.instrument = instrument
 
-    def set_hwp(self, hwp: HWP):
-        """Set the HWP to be used in the simulation
+   def set_hwp(self, hwp: HWP):
+        """Set the HWP to be used in the simulation. This method should be used 
+        if the hwp is the same for all observations. Otherwise, Observation.set_hwp() 
+        should be used.
 
-        The argument must be a class derived from :class:`.HWP`, for instance
-        :class:`.IdealHWP`.
+        The argument must be an instance of a class derived from :class:`.HWP`, either
+        :class:`.IdealHWP` or :class:`.NonIdealHWP`.
         """
+
+        assert (len(self.observations) > 0),(
+            "You must create the observation(s) before setting the hwp."
+        )
+
         self.hwp = hwp
+
         for obs in self.observations:
             obs.set_hwp(hwp)
 
