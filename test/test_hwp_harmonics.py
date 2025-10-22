@@ -8,13 +8,14 @@ from litebird_sim.scan_map import scan_map_in_observations
 
 
 @pytest.mark.parametrize(
-    "interpolation",
+    "interpolation,calculus",
     [
-        (""),
-        ("linear"),
+        ("", lbs.Calc.MUELLER),
+        ("", lbs.Calc.JONES),
+        ("linear", lbs.Calc.MUELLER),
     ],
 )
-def test_hwp_harmonics(interpolation):
+def test_hwp_harmonics(interpolation, calculus):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -117,13 +118,20 @@ def test_hwp_harmonics(interpolation):
     nonideal_hwp = lbs.NonIdealHWP(
         ang_speed_radpsec=hwp_radpsec,
         harmonic_expansion=True,
-        calculus=lbs.Calc.MUELLER,
+        calculus=calculus,
     )
-    list_of_sims[1].observations[0].mueller_hwp[0] = {
-        "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
-        "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
-        "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64),
-    }
+    if calculus == lbs.Calc.MUELLER:
+        list_of_sims[1].observations[0].mueller_hwp[0] = {
+            "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
+            "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
+            "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64),
+        }
+    else:
+        list_of_sims[1].observations[0].jones_hwp[0] = {
+            "0f": np.array([[0, 0]], dtype=np.float64),
+            "2f": np.array([[0, 0]], dtype=np.float64),
+        }
+
     list_of_sims[1].set_hwp(nonideal_hwp)
 
     ideal_hwp = lbs.IdealHWP(
