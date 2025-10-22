@@ -8,14 +8,13 @@ from litebird_sim.scan_map import scan_map_in_observations
 
 
 @pytest.mark.parametrize(
-    "interpolation,nside_out",
+    "interpolation",
     [
-        ("", None),
-        ("", 32),
-        ("linear", None),
+        (""),
+        ("linear"),
     ],
 )
-def test_hwp_harmonics(interpolation, nside_out):
+def test_hwp_harmonics(interpolation):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -127,6 +126,11 @@ def test_hwp_harmonics(interpolation, nside_out):
     }
     list_of_sims[1].set_hwp(nonideal_hwp)
 
+    ideal_hwp = lbs.IdealHWP(
+        ang_speed_radpsec=hwp_radpsec,
+    )
+    list_of_sims[0].set_hwp(ideal_hwp)
+
     list_of_sims[0].prepare_pointings()
     list_of_sims[1].prepare_pointings()
 
@@ -165,12 +169,14 @@ def test_hwp_harmonics(interpolation, nside_out):
     # https://github.com/litebird/litebird_sim/pull/429
     pointings, _ = list_of_sims[1].observations[0].get_pointings()
     assert pointings.dtype == np.float64
+    pointings, _ = list_of_sims[0].observations[0].get_pointings()
+    assert pointings.dtype == np.float64
 
     # The decimal=3 in here has a reason, explained in PR 395.
     # This should be changed in the future
     np.testing.assert_almost_equal(
         list_of_sims[0].observations[0].tod,
         list_of_sims[1].observations[0].tod,
-        decimal=3,
+        decimal=12,
         verbose=True,
     )
