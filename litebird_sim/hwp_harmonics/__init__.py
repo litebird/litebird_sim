@@ -1,1 +1,1 @@
-from .hwp_harmonics import mueller_interpolation
+from .hwp_harmonics import mueller_interpolation as mueller_interpolation
