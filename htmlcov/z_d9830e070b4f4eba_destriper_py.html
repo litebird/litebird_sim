@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/mapmaking/destriper.py: 69%</title>
+    <title>Coverage for litebird_sim/mapmaking/destriper.py: 68%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
     <link rel="stylesheet" href="style_cb_8432e98f.css" type="text/css">
     <script src="coverage_html_cb_bcae5fc4.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim&#8201;/&#8201;mapmaking&#8201;/&#8201;destriper.py</b>:
-            <span class="pc_cov">69%</span>
+            <span class="pc_cov">68%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">556 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">384<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">172<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">378<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">178<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">1<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_30305a9738a19fa2___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.12.0">coverage.py v7.12.0</a>,
-            created at 2025-11-26 10:53 +0000
+            created at 2025-11-26 10:55 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -122,7 +122,7 @@
     <p class="pln"><span class="n"><a id="t40" href="#t40">40</a></span><span class="t"><span class="com"># paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t41" href="#t41">41</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t42" href="#t42">42</a></span><span class="t"><span class="key">if</span> <span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t43" href="#t43">43</a></span><span class="t">    <span class="key">import</span> <span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t43" href="#t43">43</a></span><span class="t">    <span class="key">import</span> <span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t44" href="#t44">44</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t45" href="#t45">45</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t46" href="#t46">46</a></span><span class="t"><span class="nam">__DESTRIPER_RESULTS_FILE_NAME</span> <span class="op">=</span> <span class="str">"destriper_results.fits"</span>&nbsp;</span><span class="r"></span></p>
@@ -576,9 +576,9 @@
     <p class="pln"><span class="n"><a id="t494" href="#t494">494</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t495" href="#t495">495</a></span><span class="t">    <span class="com"># Now we must accumulate the result of every MPI process</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t496" href="#t496">496</a></span><span class="t">    <span class="key">if</span> <span class="nam">MPI_ENABLED</span> <span class="key">and</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span> <span class="op">!=</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_NULL</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t497" href="#t497">497</a></span><span class="t">        <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">Allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t498" href="#t498">498</a></span><span class="t">            <span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">IN_PLACE</span><span class="op">,</span> <span class="nam">nobs_matrix</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t499" href="#t499">499</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t497" href="#t497">497</a></span><span class="t">        <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">Allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t498" href="#t498">498</a></span><span class="t">            <span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">IN_PLACE</span><span class="op">,</span> <span class="nam">nobs_matrix</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t499" href="#t499">499</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t500" href="#t500">500</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t501" href="#t501">501</a></span><span class="t">    <span class="com"># `nobs_matrix_cholesky` will *not* contain the M_i maps shown in</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t502" href="#t502">502</a></span><span class="t">    <span class="com"># Eq. 9 of KurkiSuonio2009, but its Cholesky decomposition, i.e.,</span>&nbsp;</span><span class="r"></span></p>
@@ -825,12 +825,12 @@
     <p class="run run2"><span class="n"><a id="t743" href="#t743">743</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t744" href="#t744">744</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t745" href="#t745">745</a></span><span class="t">    <span class="key">if</span> <span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t746" href="#t746">746</a></span><span class="t">        <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">Allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t747" href="#t747">747</a></span><span class="t">            <span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">IN_PLACE</span><span class="op">,</span> <span class="nam">output_sky_map</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t748" href="#t748">748</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t749" href="#t749">749</a></span><span class="t">        <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">Allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t750" href="#t750">750</a></span><span class="t">            <span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">IN_PLACE</span><span class="op">,</span> <span class="nam">output_hit_map</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t751" href="#t751">751</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t746" href="#t746">746</a></span><span class="t">        <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">Allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t747" href="#t747">747</a></span><span class="t">            <span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">IN_PLACE</span><span class="op">,</span> <span class="nam">output_sky_map</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t748" href="#t748">748</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t749" href="#t749">749</a></span><span class="t">        <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">Allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t750" href="#t750">750</a></span><span class="t">            <span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">IN_PLACE</span><span class="op">,</span> <span class="nam">output_hit_map</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t751" href="#t751">751</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t752" href="#t752">752</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t753" href="#t753">753</a></span><span class="t">    <span class="com"># Step 2: compute the &#8220;binned map&#8221; (Eq. 21)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t754" href="#t754">754</a></span><span class="t">    <span class="nam">_sum_map_to_binned_map</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
@@ -1070,9 +1070,9 @@
     <p class="pln"><span class="n"><a id="t988" href="#t988">988</a></span><span class="t">    <span class="com"># the dot product</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t989" href="#t989">989</a></span><span class="t">    <span class="nam">local_result</span> <span class="op">=</span> <span class="nam">sum</span><span class="op">(</span><span class="op">[</span><span class="nam">np</span><span class="op">.</span><span class="nam">dot</span><span class="op">(</span><span class="nam">x1</span><span class="op">.</span><span class="nam">flatten</span><span class="op">(</span><span class="op">)</span><span class="op">,</span> <span class="nam">x2</span><span class="op">.</span><span class="nam">flatten</span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="key">for</span> <span class="op">(</span><span class="nam">x1</span><span class="op">,</span> <span class="nam">x2</span><span class="op">)</span> <span class="key">in</span> <span class="nam">zip</span><span class="op">(</span><span class="nam">a</span><span class="op">,</span> <span class="nam">b</span><span class="op">)</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t990" href="#t990">990</a></span><span class="t">    <span class="key">if</span> <span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t991" href="#t991">991</a></span><span class="t">        <span class="key">return</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span><span class="nam">local_result</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t991" href="#t991">991</a></span><span class="t">        <span class="key">return</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span><span class="nam">local_result</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t992" href="#t992">992</a></span><span class="t">    <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t993" href="#t993">993</a></span><span class="t">        <span class="key">return</span> <span class="nam">local_result</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t993" href="#t993">993</a></span><span class="t">        <span class="key">return</span> <span class="nam">local_result</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t994" href="#t994">994</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t995" href="#t995">995</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t996" href="#t996">996</a></span><span class="t"><span class="key">def</span> <span class="nam">_get_stopping_factor</span><span class="op">(</span><span class="nam">residual</span><span class="op">:</span> <span class="nam">list</span><span class="op">[</span><span class="nam">npt</span><span class="op">.</span><span class="nam">ArrayLike</span><span class="op">]</span><span class="op">)</span> <span class="op">-></span> <span class="nam">float</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -1087,9 +1087,9 @@
     <p class="pln"><span class="n"><a id="t1005" href="#t1005">1005</a></span><span class="t"><span class="str">    """</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1006" href="#t1006">1006</a></span><span class="t">    <span class="nam">local_result</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">max</span><span class="op">(</span><span class="nam">np</span><span class="op">.</span><span class="nam">abs</span><span class="op">(</span><span class="nam">residual</span><span class="op">)</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1007" href="#t1007">1007</a></span><span class="t">    <span class="key">if</span> <span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1008" href="#t1008">1008</a></span><span class="t">        <span class="key">return</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span><span class="nam">local_result</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">MAX</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1008" href="#t1008">1008</a></span><span class="t">        <span class="key">return</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span><span class="nam">local_result</span><span class="op">,</span> <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">MAX</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1009" href="#t1009">1009</a></span><span class="t">    <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t1010" href="#t1010">1010</a></span><span class="t">        <span class="key">return</span> <span class="nam">local_result</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1010" href="#t1010">1010</a></span><span class="t">        <span class="key">return</span> <span class="nam">local_result</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1011" href="#t1011">1011</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1012" href="#t1012">1012</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1013" href="#t1013">1013</a></span><span class="t"><span class="key">def</span> <span class="nam">_compute_b_or_Ax</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
@@ -1501,10 +1501,10 @@
     <p class="run"><span class="n"><a id="t1419" href="#t1419">1419</a></span><span class="t">    <span class="nam">bytes_in_temporary_buffers</span> <span class="op">+=</span> <span class="nam">mask</span><span class="op">.</span><span class="nam">nbytes</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1420" href="#t1420">1420</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1421" href="#t1421">1421</a></span><span class="t">    <span class="key">if</span> <span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1422" href="#t1422">1422</a></span><span class="t">        <span class="nam">bytes_in_temporary_buffers</span> <span class="op">=</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t1423" href="#t1423">1423</a></span><span class="t">            <span class="nam">bytes_in_temporary_buffers</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t1424" href="#t1424">1424</a></span><span class="t">            <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t1425" href="#t1425">1425</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1422" href="#t1422">1422</a></span><span class="t">        <span class="nam">bytes_in_temporary_buffers</span> <span class="op">=</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t1423" href="#t1423">1423</a></span><span class="t">            <span class="nam">bytes_in_temporary_buffers</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t1424" href="#t1424">1424</a></span><span class="t">            <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t1425" href="#t1425">1425</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1426" href="#t1426">1426</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1427" href="#t1427">1427</a></span><span class="t">    <span class="key">return</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t1428" href="#t1428">1428</a></span><span class="t">        <span class="nam">best_x</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -1770,10 +1770,10 @@
     <p class="run run2"><span class="n"><a id="t1688" href="#t1688">1688</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1689" href="#t1689">1689</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1690" href="#t1690">1690</a></span><span class="t">            <span class="key">if</span> <span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1691" href="#t1691">1691</a></span><span class="t">                <span class="nam">bytes_in_temporary_buffers</span> <span class="op">=</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t1692" href="#t1692">1692</a></span><span class="t">                    <span class="nam">bytes_in_temporary_buffers</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t1693" href="#t1693">1693</a></span><span class="t">                    <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t1694" href="#t1694">1694</a></span><span class="t">                <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1691" href="#t1691">1691</a></span><span class="t">                <span class="nam">bytes_in_temporary_buffers</span> <span class="op">=</span> <span class="nam">MPI_COMM_GRID</span><span class="op">.</span><span class="nam">COMM_OBS_GRID</span><span class="op">.</span><span class="nam">allreduce</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t1692" href="#t1692">1692</a></span><span class="t">                    <span class="nam">bytes_in_temporary_buffers</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t1693" href="#t1693">1693</a></span><span class="t">                    <span class="nam">op</span><span class="op">=</span><span class="nam">mpi4py</span><span class="op">.</span><span class="nam">MPI</span><span class="op">.</span><span class="nam">SUM</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t1694" href="#t1694">1694</a></span><span class="t">                <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1695" href="#t1695">1695</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1696" href="#t1696">1696</a></span><span class="t">            <span class="com"># No need to run the destriping, just compute the binned map with</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1697" href="#t1697">1697</a></span><span class="t">            <span class="com"># one single baseline set to zero</span>&nbsp;</span><span class="r"></span></p>
@@ -2356,7 +2356,7 @@
             <a class="nav" href="z_30305a9738a19fa2___init___py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.12.0">coverage.py v7.12.0</a>,
-            created at 2025-11-26 10:53 +0000
+            created at 2025-11-26 10:55 +0000
         </p>
     </div>
 </footer>
