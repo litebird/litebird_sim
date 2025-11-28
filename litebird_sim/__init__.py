@@ -109,7 +109,7 @@ from .non_linearity import (
     apply_quadratic_nonlin_for_one_detector,
     apply_quadratic_nonlin_to_observations,
 )
-from .observations import Observation, TodDescription
+from .observations import Observation, TodDescription, TodUnits
 from .pointing_sys import (
     get_detector_orientation,
     FocalplaneCoord,
@@ -271,6 +271,7 @@ __all__ = [
     # observations.py
     "Observation",
     "TodDescription",
+    "TodUnits",
     # profiler.py
     "TimeProfiler",
     "profile_list_to_speedscope",

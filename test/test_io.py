@@ -88,8 +88,8 @@ def __write_complex_observation(
     sim.create_observations(
         detectors=[det],
         tods=[
-            lbs.TodDescription(name="tod1", description="First TOD", dtype=np.float64),
-            lbs.TodDescription(name="tod2", description="Second TOD", dtype=np.float32),
+            lbs.TodDescription(name="tod1", units=lbs.TodUnits.K_CMB, description="First TOD", dtype=np.float64),
+            lbs.TodDescription(name="tod2", units=lbs.TodUnits.K_CMB, description="Second TOD", dtype=np.float32),
         ],
     )
 

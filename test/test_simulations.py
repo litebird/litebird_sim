@@ -269,8 +269,8 @@ def test_distribute_observation_many_tods(tmp_path):
         detectors=[det],
         num_of_obs_per_detector=5,
         tods=[
-            lbs.TodDescription(name="tod1", dtype=np.float32, description="TOD 1"),
-            lbs.TodDescription(name="tod2", dtype=np.float64, description="TOD 2"),
+            lbs.TodDescription(name="tod1", units=lbs.TodUnits.K_CMB, dtype=np.float32, description="TOD 1"),
+            lbs.TodDescription(name="tod2", units=lbs.TodUnits.K_CMB, dtype=np.float64, description="TOD 2"),
         ],
     )
 
@@ -325,12 +325,12 @@ def test_describe_distribution(tmp_path):
         detectors=[det],
         num_of_obs_per_detector=4,
         tods=[
-            lbs.TodDescription(name="tod", dtype="float32", description="Signal"),
+            lbs.TodDescription(name="tod", units=lbs.TodUnits.K_CMB, dtype="float32", description="Signal"),
             lbs.TodDescription(
-                name="fg_tod", dtype="float64", description="Foregrounds"
+                name="fg_tod", units=lbs.TodUnits.K_CMB, dtype="float64", description="Foregrounds"
             ),
             lbs.TodDescription(
-                name="dipole_tod", dtype="float32", description="Dipole"
+                name="dipole_tod", units=lbs.TodUnits.K_CMB, dtype="float32", description="Dipole"
             ),
         ],
     )

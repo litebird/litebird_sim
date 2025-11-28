@@ -303,16 +303,19 @@ def setup_simulation(
         tods=[
             lbs.TodDescription(
                 name="sky_signal",
+                units=lbs.TodUnits.K_CMB,
                 dtype=np.float32,
                 description="The projected signal P·m (Eq. 2 in KurkiSuonio2009)",
             ),
             lbs.TodDescription(
                 name="baseline",
+                units=lbs.TodUnits.K_CMB,
                 dtype=np.float32,
                 description="The projected baselines F·a (Eq. 3 in KurkiSuonio2009)",
             ),
             lbs.TodDescription(
                 name="white_noise",
+                units=lbs.TodUnits.K_CMB,
                 dtype=np.float32,
                 description="The white-noise term `w` (Eq. 3 in KurkiSuonio2009)",
             ),

@@ -54,7 +54,7 @@ from .mbs import Mbs, MbsParameters
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
-from .observations import Observation, TodDescription
+from .observations import Observation, TodDescription, TodUnits
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
@@ -1167,11 +1167,17 @@ class Simulation:
         if not tod_dtype:
             self.tod_list = tods
         else:
+            # Preserve name, units, and description; override dtype only.
             self.tod_list = [
-                TodDescription(name=x.name, dtype=tod_dtype, description=x.description)
+                TodDescription(
+                    name=x.name,
+                    units=x.units,
+                    dtype=tod_dtype,
+                    description=x.description,
+                )
                 for x in tods
             ]
-
+        
         for cur_obs_idx in range(num_of_obs_per_detector):
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(

@@ -71,11 +71,8 @@ class Observation:
     After construction at least the following attributes are available
 
     - :py:meth:`.start_time`
-
     - :py:meth:`.n_detectors`
-
     - :py:meth:`.n_samples`
-
     - :py:meth:`.tod` 2D array (`n_detectors` by `n_samples)` stacking
       the times streams of the detectors.
 
@@ -85,53 +82,69 @@ class Observation:
       in the following:
 
     - :py:meth:`.start_time_global`
-
     - :py:meth:`.end_time_global`
-
     - :py:meth:`.n_detectors_global` `~ n_detectors * n_blocks_det`
-
     - :py:meth:`.n_samples_global` `~ n_samples * n_blocks_time`
 
     Following the same philosophy, :py:meth:`.get_times` returns the
     time stamps of the local time interval
 
-    Args:
-        detectors (int/list of dict): Either the number of detectors or
-            a list of dictionaries with one entry for each detector. The keys of
-            the dictionaries will become attributes of the observation. If a
-            detector is missing a key it will be set to ``nan``.
-            If an MPI communicator is passed to ``comm``, ``detectors`` is
-            relevant only for the ``root`` process
+    Parameters
+    ----------
+    detectors : int or list[dict]
+        Either the number of detectors or a list of dictionaries with
+        one entry for each detector. The keys of the dictionaries
+        become attributes of the observation. If a detector is missing
+        a key it will be set to ``nan``. If an MPI communicator is
+        passed to ``comm``, ``detectors`` is relevant only on the
+        ``root`` process.
+    n_samples_global : int
+        The total number of samples in this observation (global, before
+        any MPI splitting in time).
+    start_time_global : float or astropy.time.Time
+        Start time of the observation. It can either be an
+        :class:`astropy.time.Time` instance or a floating-point number.
+        In the latter case, it must be expressed in seconds.
+    sampling_rate_hz : float
+        Sampling frequency, in Hertz.
+    allocate_tod : bool, optional
+        If ``True`` (default), allocate the TOD arrays described by
+        ``tods``. If ``False``, the corresponding attributes are
+        created but set to ``None``. This can be useful for workflows
+        that only need pointing or metadata.
+    tods : list[TodDescription] or None, optional
+        List of TOD descriptors defining which TOD arrays should be
+        attached to the observation. Each :class:`.TodDescription`
+        specifies:
 
-        n_samples_global (int): The number of samples in this observation.
+        - ``name``: attribute name of the 2D array;
+        - ``units``: physical units as a :class:`TodUnits` item
+          (e.g. ``TodUnits.K_CMB``);
+        - ``dtype``: NumPy dtype (e.g. ``numpy.float32``);
+        - ``description``: human-readable description.
 
-        start_time_global: Start time of the observation. It can either be a
-            `astropy.time.Time` type or a floating-point number. In
-            the latter case, it must be expressed in seconds.
-
-        sampling_rate_hz (float): The sampling frequency, in Hertz.
-
-        det_blocks_attributes (list of strings): The list of detector
-            attributes that will be used to divide the detector axis of the
-            tod matrix and all its attributes. For example, with
-            ``det_blocks_attributes = ["wafer", "pixel"]``, the detectors will
-            be divided into blocks such that all detectors in a block will
-            have the same ``wafer`` and ``pixel`` attribute.
-
-        n_blocks_det (int): divide the detector axis of the tod (and all the
-            arrays of detector attributes) in `n_blocks_det` blocks. It will
-            be ignored if ``det_blocks_attributes`` is not `None`.
-
-        n_blocks_time (int): divide the time axis of the tod in
-            `n_blocks_time` blocks. It will be ignored
-            if ``det_blocks_attributes`` is not `None`.
-
-        comm: either `None` (do not use MPI) or a MPI communicator
-            object, like `mpi4py.MPI.COMM_WORLD`. Its size is required to be at
-            least `n_blocks_det` times `n_blocks_time`
-
-        root (int): rank of the process receiving the detector list, if
-            ``detectors`` is a list of dictionaries, otherwise it is ignored.
+        If ``None``, a single TOD named ``"tod"`` with units
+        ``TodUnits.K_CMB`` and dtype ``numpy.float32`` is created.
+    det_blocks_attributes : list[str] or None, optional
+        List of detector attributes used to divide the detector axis of
+        the TOD (and all detector-attribute arrays). For example, with
+        ``det_blocks_attributes = ["wafer", "pixel"]``, detectors are
+        divided into blocks such that all detectors in a block share
+        the same ``wafer`` and ``pixel`` attribute.
+    n_blocks_det : int, optional
+        Number of blocks used to divide the detector axis of the TOD
+        (and the arrays of detector attributes). Ignored if
+        ``det_blocks_attributes`` is not ``None``.
+    n_blocks_time : int, optional
+        Number of blocks used to divide the time axis of the TOD.
+        Ignored if ``det_blocks_attributes`` is not ``None``.
+    comm : MPI communicator or None, optional
+        Either ``None`` (do not use MPI) or an MPI communicator object,
+        such as ``mpi4py.MPI.COMM_WORLD``. Its size is required to be at
+        least ``n_blocks_det * n_blocks_time``.
+    root : int, optional
+        Rank of the process receiving the detector list when
+        ``detectors`` is a list of dictionaries; otherwise ignored.
 
     """
 
@@ -150,7 +163,14 @@ class Observation:
         root=0,
     ):
         if tods is None:
-            tods = [TodDescription(name="tod", dtype=np.float32, description="Signal")]
+            tods = [
+                TodDescription(
+                    name="tod",
+                    units=TodUnits.K_CMB,
+                    dtype=np.float32,
+                    description="Signal",
+                )
+            ]
 
         self.comm = comm
         self.start_time_global = start_time_global
