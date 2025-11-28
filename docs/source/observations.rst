@@ -63,6 +63,11 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
         print("Shape of 'tod': ", cur_obs.tod.shape)
         print("Shape of 'noise': ", cur_obs.noise.shape)
 
+   The parameter ``allocate_tod`` controls whether these TOD arrays are effectivelly
+   allocated or not. By default TODs are allocated, but in some special situations,
+   e.g. you need just to deal with pointing, you can set it to ``False`` and save 
+   memory.
+
 2. If you called :func:`.prepare_pointings()` and then
    :func:`.precompute_pointings()`, the field ``Observation.pointing_matrix``
    is a :math:`(n_d, N, 3)` matrix containing the pointing information in
