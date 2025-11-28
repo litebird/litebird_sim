@@ -1177,7 +1177,7 @@ class Simulation:
                 )
                 for x in tods
             ]
-        
+
         for cur_obs_idx in range(num_of_obs_per_detector):
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(
