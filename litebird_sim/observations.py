@@ -2,6 +2,7 @@ import numbers
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
+from enum import Enum
 
 import astropy.time
 import numpy as np
@@ -16,10 +17,22 @@ from .pointings import PointingProvider
 from .scanning import RotQuaternion
 from .hwp import Calc
 
+TodUnits = Enum(
+    "TodUnits",
+    [
+        "K_CMB",
+        "K_RJ",
+        "MJy/sr",
+        "ADU",
+        "None",  # when no physical unit applies
+    ],
+)
 
 @dataclass
 class TodDescription:
-    """A brief description of a TOD held in a :class:`.Observation` object
+    """
+    A compact descriptor for a Time-Ordered Data (TOD) field stored in an
+    :class:`.Observation` object.
 
     This field is used to pass information about one TOD in a :class:`.Observation`
     object. It is mainly used by the method :meth:`.Simulation.create_observation`
@@ -27,15 +40,27 @@ class TodDescription:
 
     The class contains three fields:
 
-    - `name` (a ``str``): the name of the field to be created within each
-      :class:`.Observation` object.
+    Parameters
+    ----------
+    name : str
+        Name of the attribute created inside each :class:`.Observation`
+        instance.
+    units : TodUnits
+        Physical units of the TOD, expressed as an item of :class:`TodUnits`.
+    dtype : Any
+        NumPy dtype used for allocating the underlying array, e.g., numpy.float32
+    description : str
+        Human-readable description of the TOD field.
 
-    - `dtype` (the NumPy type to use, e.g., ``numpy.float32``)
-
-    - `description` (a ``str``): human-readable description
+    Notes
+    -----
+    This class only *describes* the TOD. Actual memory allocation is performed
+    by :meth:`.Simulation.create_observations` based on the list of provided
+    descriptors.
     """
 
     name: str
+    units: TodUnits
     dtype: Any
     description: str
 

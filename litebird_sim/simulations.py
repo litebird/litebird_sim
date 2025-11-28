@@ -986,7 +986,12 @@ class Simulation:
         root=0,
         tod_dtype: Any | None = None,
         tods: list[TodDescription] = [
-            TodDescription(name="tod", dtype=np.float32, description="Signal")
+            TodDescription(
+                name="tod",
+                units=TodUnits.K_CMB,
+                dtype=np.float32,
+                description="Signal",
+            )
         ],
         allocate_tod=True,
     ):
@@ -1029,18 +1034,25 @@ class Simulation:
 
         The parameter `tods` specifies how many TOD arrays should be
         created. Each element should be an instance of
-        :class:`.TodDescription` and contain the fields ``name`` (the name
-        of the member variable that will be created), ``dtype`` (the
-        NumPy type to use, like ``numpy.float32``), and ``description``
-        (a free-form description). The default is ``numpy.float32``,
-        which should be adequate for LiteBIRD's purposes; if you
-        want greater accuracy at the expense of doubling memory
-        occupation, choose ``numpy.float64``.
+        :class:`.TodDescription` and contain the fields:
+
+        - ``name``: the name of the member variable that will be created;
+        - ``units``: an item of :class:`TodUnits` describing the physical units
+          of the TOD (e.g. ``TodUnits.K_CMB``);
+        - ``dtype``: the NumPy type to use, like ``numpy.float32``;
+        - ``description``: a free-form, human-readable description.
+
+        By default, a single TOD named ``"tod"`` is created with
+        ``units=TodUnits.K_CMB`` and ``dtype=numpy.float32``, which should be
+        adequate for LiteBIRD's purposes. If you want greater accuracy at the
+        expense of doubling memory occupation, choose ``numpy.float64``.
 
         If you specify `tod_dtype`, this will be used as the parameter
-        for each TOD specified in `tods`, overriding the value of `dtype`.
+        for each TOD specified in `tods`, **overriding only the `dtype` field**
+        while preserving each TOD's `name`, `units`, and `description`.
         This keyword is kept for legacy reasons but should be avoided
-        in newer code.
+        in newer code; prefer specifying `dtype` directly in the
+        :class:`.TodDescription` instances.
 
         Parameters
         ----------
@@ -1075,15 +1087,23 @@ class Simulation:
         tod_dtype : Any or None, optional
             Overrides the dtype specified in each `TodDescription`. Retained
             only for backwards compatibility; prefer setting the dtype directly
-            in `tods`.
+            in `tods`. When set, only the `dtype` field of each TOD is changed;
+            `name`, `units`, and `description` are left untouched.
 
         tods : list[TodDescription], optional
-            Descriptions of the TOD arrays to create.
+            Descriptions of the TOD arrays to create. The default is a single
+            TOD named ``"tod"`` with units ``TodUnits.K_CMB`` and dtype
+            ``numpy.float32``.
 
         allocate_tod : bool, optional
-            If ``True`` (default), allocate the TOD arrays immediately. If
-            ``False``, the `Observation` objects will be created empty.
+            If ``True`` (default), allocate the TOD arrays immediately when
+            constructing each :class:`.Observation`. If ``False``, the
+            :class:`.Observation` objects are created without allocating the
+            TOD arrays, which can be useful for low-memory workflows or
+            when TODs are filled on demand.
 
+        Examples
+        --------
         Here is an example that creates three TODs::
 
             sim.create_observations(
@@ -1091,21 +1111,25 @@ class Simulation:
                 tods=[
                     TodDescription(
                         name="fg_tod",
+                        units=TodUnits.K_CMB,
                         dtype=np.float32,
                         description="Foregrounds (computed by PySM)",
                     ),
                     TodDescription(
                         name="cmb_tod",
+                        units=TodUnits.K_CMB,
                         dtype=np.float32,
                         description="CMB realization following Planck (2018)",
                     ),
                     TodDescription(
                         name="noise_tod",
+                        units=TodUnits.K_CMB,
                         dtype=np.float32,
                         description="Noise TOD (only white noise, no 1/f)",
                     ),
                 ],
             )
+
 
             # Now you can access these fields:
             # - sim.fg_tod
