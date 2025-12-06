@@ -956,7 +956,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.11" },
     { name = "scipy", specifier = ">=1.14.0" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = ">=8.1.3" },
-    { name = "sphinxcontrib-asciinema", marker = "extra == 'docs'", specifier = ">=0.4.2" },
+    { name = "sphinxcontrib-asciinema", marker = "extra == 'docs'", specifier = ">=0.4.3" },
     { name = "sphinxcontrib-bibtex", marker = "extra == 'docs'", specifier = ">=2.6.3" },
     { name = "sphinxcontrib-contentui", marker = "extra == 'docs'", specifier = ">=0.2.5" },
     { name = "tomlkit", specifier = ">=0.12.1" },
@@ -1911,13 +1911,13 @@ wheels = [
 
 [[package]]
 name = "sphinxcontrib-asciinema"
-version = "0.4.2"
+version = "0.4.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "sphinx", version = "8.2.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c8/b8/a5e405c1c5eae37e466866ed4053613c5a4d75531819426941825a042228/sphinxcontrib.asciinema-0.4.2.tar.gz", hash = "sha256:ab38b3e376f335d3e87f445e3ecbd0524e61bab380760c54c32ee4d4a95c3a59", size = 76686, upload-time = "2024-05-11T03:01:32.368Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/23/61585345d0ad185acbd9d150d899a67d2f933c4e908c1df61a25f371e669/sphinxcontrib_asciinema-0.4.3.tar.gz", hash = "sha256:aeb480e33b3ac75edec76b8ad705487c4dff978e523a0143cc3962944dbd5d52", size = 74377, upload-time = "2025-11-04T18:28:17.483Z" }
 
 [[package]]
 name = "sphinxcontrib-bibtex"
