@@ -27,6 +27,17 @@ from .compress import (
     rle_compress,
     rle_decompress,
 )
+from .constants import (
+    ARCMIN_TO_RAD,
+    C_LIGHT_KM_S,
+    H_OVER_K_B,
+    T_CMB_K,
+    SOLAR_VELOCITY_KM_S,
+    SOLAR_VELOCITY_GAL_LAT_RAD,
+    SOLAR_VELOCITY_GAL_LON_RAD,
+    EARTH_L2_DISTANCE_KM,
+    Units,
+)
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,
@@ -109,7 +120,7 @@ from .non_linearity import (
     apply_quadratic_nonlin_for_one_detector,
     apply_quadratic_nonlin_to_observations,
 )
-from .observations import Observation, TodDescription, TodUnits
+from .observations import Observation, TodDescription
 from .pointing_sys import (
     get_detector_orientation,
     FocalplaneCoord,
@@ -207,6 +218,16 @@ __all__ = [
     "allocate_alm",
     "gauss_beam_to_alm",
     "generate_gauss_beam_alms",
+    # constants.py
+    "TodUnits",
+    "ARCMIN_TO_RAD",
+    "C_LIGHT_KM_S",
+    "H_OVER_K_B",
+    "T_CMB_K",
+    "SOLAR_VELOCITY_KM_S",
+    "SOLAR_VELOCITY_GAL_LAT_RAD",
+    "SOLAR_VELOCITY_GAL_LON_RAD",
+    "EARTH_L2_DISTANCE_KM",
     # compress.py
     "rle_compress",
     "rle_decompress",
@@ -271,7 +292,6 @@ __all__ = [
     # observations.py
     "Observation",
     "TodDescription",
-    "TodUnits",
     # profiler.py
     "TimeProfiler",
     "profile_list_to_speedscope",

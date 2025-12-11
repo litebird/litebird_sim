@@ -271,13 +271,13 @@ def test_distribute_observation_many_tods(tmp_path):
         tods=[
             lbs.TodDescription(
                 name="tod1",
-                units=lbs.TodUnits.K_CMB,
+                units=lbs.Units.K_CMB,
                 dtype=np.float32,
                 description="TOD 1",
             ),
             lbs.TodDescription(
                 name="tod2",
-                units=lbs.TodUnits.K_CMB,
+                units=lbs.Units.K_CMB,
                 dtype=np.float64,
                 description="TOD 2",
             ),
@@ -337,19 +337,19 @@ def test_describe_distribution(tmp_path):
         tods=[
             lbs.TodDescription(
                 name="tod",
-                units=lbs.TodUnits.K_CMB,
+                units=lbs.Units.K_CMB,
                 dtype="float32",
                 description="Signal",
             ),
             lbs.TodDescription(
                 name="fg_tod",
-                units=lbs.TodUnits.K_CMB,
+                units=lbs.Units.K_CMB,
                 dtype="float64",
                 description="Foregrounds",
             ),
             lbs.TodDescription(
                 name="dipole_tod",
-                units=lbs.TodUnits.K_CMB,
+                units=lbs.Units.K_CMB,
                 dtype="float32",
                 description="Dipole",
             ),

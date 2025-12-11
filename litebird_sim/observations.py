@@ -9,6 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
+from .constants import Units
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_detector_blocks
 from .hwp import HWP, IdealHWP, NonIdealHWP
@@ -16,17 +17,6 @@ from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
 from .hwp import Calc
-
-TodUnits = Enum(
-    "TodUnits",
-    [
-        "K_CMB",
-        "K_RJ",
-        "MJy/sr",
-        "ADU",
-        "None",  # when no physical unit applies
-    ],
-)
 
 
 @dataclass
@@ -46,8 +36,8 @@ class TodDescription:
     name : str
         Name of the attribute created inside each :class:`.Observation`
         instance.
-    units : TodUnits
-        Physical units of the TOD, expressed as an item of :class:`TodUnits`.
+    units : Units
+        Physical units of the TOD, expressed as an item of :class:`Units`.
     dtype : Any
         NumPy dtype used for allocating the underlying array, e.g., numpy.float32
     description : str
@@ -61,7 +51,7 @@ class TodDescription:
     """
 
     name: str
-    units: TodUnits
+    units: Units
     dtype: Any
     description: str
 
@@ -119,13 +109,13 @@ class Observation:
         specifies:
 
         - ``name``: attribute name of the 2D array;
-        - ``units``: physical units as a :class:`TodUnits` item
-          (e.g. ``TodUnits.K_CMB``);
+        - ``units``: physical units as a :class:`Units` item
+          (e.g. ``Units.K_CMB``);
         - ``dtype``: NumPy dtype (e.g. ``numpy.float32``);
         - ``description``: human-readable description.
 
         If ``None``, a single TOD named ``"tod"`` with units
-        ``TodUnits.K_CMB`` and dtype ``numpy.float32`` is created.
+        ``Units.K_CMB`` and dtype ``numpy.float32`` is created.
     det_blocks_attributes : list[str] or None, optional
         List of detector attributes used to divide the detector axis of
         the TOD (and all detector-attribute arrays). For example, with
@@ -167,7 +157,7 @@ class Observation:
             tods = [
                 TodDescription(
                     name="tod",
-                    units=TodUnits.K_CMB,
+                    units=Units.K_CMB,
                     dtype=np.float32,
                     description="Signal",
                 )

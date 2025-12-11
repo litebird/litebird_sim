@@ -90,13 +90,13 @@ def __write_complex_observation(
         tods=[
             lbs.TodDescription(
                 name="tod1",
-                units=lbs.TodUnits.K_CMB,
+                units=lbs.Units.K_CMB,
                 description="First TOD",
                 dtype=np.float64,
             ),
             lbs.TodDescription(
                 name="tod2",
-                units=lbs.TodUnits.K_CMB,
+                units=lbs.Units.K_CMB,
                 description="Second TOD",
                 dtype=np.float32,
             ),

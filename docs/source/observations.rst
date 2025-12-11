@@ -44,7 +44,7 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
    You can create other TOD-like arrays through the parameter ``tods``;
    it accepts a list of :class:`.TodDescription` objects that specify
    the name of the field used to store the 2D array, the physical units
-   of the TOD expressed as an item of :class:.TodUnits (e.g. TodUnits.K_CMB);
+   of the TOD expressed as an item of :class:.Units (e.g. Units.K_CMB);
    a textual description, and the value for ``dtype``. (By default, the ``tod``
    field uses 32-bit floating-point numbers.) Here is an example::
 
@@ -53,13 +53,13 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
         tods=[
             lbs.TodDescription(
                 name="tod",
-                units=TodUnits.K_CMB,
+                units=Units.K_CMB,
                 description="TOD",
                 dtype=np.float64,
             ),
             lbs.TodDescription(
                 name="noise", 
-                units=TodUnits.K_CMB,
+                units=Units.K_CMB,
                 description="1/f+white noise", 
                 dtype=np.float32
             ),
@@ -70,7 +70,7 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
         print("Shape of 'tod': ", cur_obs.tod.shape)
         print("Shape of 'noise': ", cur_obs.noise.shape)
 
-   The default TOD named "tod" uses units TodUnits.K_CMB and 32-bit
+   The default TOD named "tod" uses units Units.K_CMB and 32-bit
    floating-point numbers (numpy.float32), which are adequate for most
    LiteBIRD simulations.
 

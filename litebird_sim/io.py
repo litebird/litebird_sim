@@ -14,7 +14,8 @@ from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
 from .hwp import read_hwp_from_hdf5
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
-from .observations import Observation, TodDescription, TodUnits
+from .observations import Observation, TodDescription
+from .constants import Units
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
 
@@ -607,7 +608,7 @@ def read_one_observation(
             tod_full_fields.append(
                 TodDescription(
                     name=cur_field,
-                    units=TodUnits.K_CMB,
+                    units=Units.K_CMB,
                     dtype=tod_dtype,
                     description="",
                 )
@@ -656,7 +657,7 @@ def read_one_observation(
             if units_attr is not None:
                 try:
                     # Expecting the name of the enum member, e.g. "K_CMB"
-                    tod_full_fields[cur_field_idx].units = TodUnits[units_attr]
+                    tod_full_fields[cur_field_idx].units = Units[units_attr]
                 except KeyError:
                     # Unknown unit string, keep whatever is in the descriptor
                     log.warning(

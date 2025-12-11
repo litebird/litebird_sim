@@ -1,6 +1,7 @@
 import numpy as np
 from astropy.constants import c as c_light
 from astropy.constants import h, k_B
+from enum import Enum
 
 ARCMIN_TO_RAD = np.pi / 180 / 60
 
@@ -14,3 +15,15 @@ SOLAR_VELOCITY_GAL_LAT_RAD = 0.842_173_724
 SOLAR_VELOCITY_GAL_LON_RAD = 4.608_035_744_4
 
 EARTH_L2_DISTANCE_KM = 1_496_509.30522
+
+
+Units = Enum(
+    "Units",
+    [
+        "K_CMB",
+        "K_RJ",
+        "MJy/sr",
+        "ADU",
+        "None",  # when no physical unit applies
+    ],
+)

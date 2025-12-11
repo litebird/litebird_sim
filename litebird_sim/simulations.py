@@ -54,7 +54,8 @@ from .mbs import Mbs, MbsParameters
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
-from .observations import Observation, TodDescription, TodUnits
+from .observations import Observation, TodDescription
+from .constants import Units
 from .pointings_in_obs import prepare_pointings, precompute_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
@@ -988,7 +989,7 @@ class Simulation:
         tods: list[TodDescription] = [
             TodDescription(
                 name="tod",
-                units=TodUnits.K_CMB,
+                units=Units.K_CMB,
                 dtype=np.float32,
                 description="Signal",
             )
@@ -1037,13 +1038,13 @@ class Simulation:
         :class:`.TodDescription` and contain the fields:
 
         - ``name``: the name of the member variable that will be created;
-        - ``units``: an item of :class:`TodUnits` describing the physical units
-          of the TOD (e.g. ``TodUnits.K_CMB``);
+        - ``units``: an item of :class:`Units` describing the physical units
+          of the TOD (e.g. ``Units.K_CMB``);
         - ``dtype``: the NumPy type to use, like ``numpy.float32``;
         - ``description``: a free-form, human-readable description.
 
         By default, a single TOD named ``"tod"`` is created with
-        ``units=TodUnits.K_CMB`` and ``dtype=numpy.float32``, which should be
+        ``units=Units.K_CMB`` and ``dtype=numpy.float32``, which should be
         adequate for LiteBIRD's purposes. If you want greater accuracy at the
         expense of doubling memory occupation, choose ``numpy.float64``.
 
@@ -1092,7 +1093,7 @@ class Simulation:
 
         tods : list[TodDescription], optional
             Descriptions of the TOD arrays to create. The default is a single
-            TOD named ``"tod"`` with units ``TodUnits.K_CMB`` and dtype
+            TOD named ``"tod"`` with units ``Units.K_CMB`` and dtype
             ``numpy.float32``.
 
         allocate_tod : bool, optional
@@ -1111,19 +1112,19 @@ class Simulation:
                 tods=[
                     TodDescription(
                         name="fg_tod",
-                        units=TodUnits.K_CMB,
+                        units=Units.K_CMB,
                         dtype=np.float32,
                         description="Foregrounds (computed by PySM)",
                     ),
                     TodDescription(
                         name="cmb_tod",
-                        units=TodUnits.K_CMB,
+                        units=Units.K_CMB,
                         dtype=np.float32,
                         description="CMB realization following Planck (2018)",
                     ),
                     TodDescription(
                         name="noise_tod",
-                        units=TodUnits.K_CMB,
+                        units=Units.K_CMB,
                         dtype=np.float32,
                         description="Noise TOD (only white noise, no 1/f)",
                     ),
