@@ -5,9 +5,16 @@ import numpy as np
 import healpy as hp
 
 from .constants import Units
+from .coordinates import CoordinateSystem
 
 import ducc0.sht as sht
 import ducc0.healpix as dh
+
+
+# ======================================================================
+# SphericalHarmonics
+# ======================================================================
+
 
 @dataclass
 class SphericalHarmonics:
@@ -33,9 +40,12 @@ class SphericalHarmonics:
         The maximum degree ℓ_max of the expansion.
     mmax : int, optional
         The maximum order m_max of the expansion. If None, it is set equal to `lmax`.
-    unit : Units or None
-        Physical unit of the coefficients. If set to :data:`Units.None` or ``None``,
+    units : Units or None
+        Physical units of the coefficients. If set to :data:`Units.None` or ``None``,
         the object is treated as unitless / unspecified.
+    coordinates : CoordinateSystem or None
+        Sky coordinate system of these coefficients (e.g. Galactic or Ecliptic).
+        If ``None``, coordinates are unspecified.
     nstokes : int
         The number of Stokes parameters (1 for intensity-only, 3 for TEB).
 
@@ -43,18 +53,19 @@ class SphericalHarmonics:
     ----------
     The following operations are supported:
     - `+`, `-` between two SphericalHarmonics (same `lmax`, `mmax`, `nstokes`
-      and compatible units)
+      and compatible units / coordinates)
     - `*` with scalar or Stokes-vector (array of shape `(nstokes,)`)
-      with optional unit override: ``sh * a`` or ``sh.__mul__(a, unit=...)``
+      with optional units override: ``sh * a`` or ``sh.__mul__(a, units=...)``
     - `.convolve(f_ell)` applies a filter f_ell(ℓ) or f_ell^i(ℓ) per Stokes
-      (unit is preserved)
+      (units are preserved)
     """
 
     values: np.ndarray
     lmax: int
     mmax: int | None = None
-    unit: Units | None = Units.None
     nstokes: int = field(init=False)
+    units: Units | None = Units.None
+    coordinates: CoordinateSystem | None = None
 
     def __post_init__(self):
         """
@@ -65,14 +76,16 @@ class SphericalHarmonics:
         - Ensures `values` has shape `(nstokes, ncoeff)`, reshaping if necessary.
         - Validates that `nstokes` is either 1 or 3.
         - Checks that the shape of `values` matches the expected shape.
-        - Normalizes `unit` to either a :class:`Units` member or ``None``.
+        - Normalizes `units` to either a :class:`Units` member or ``None``.
+        - Normalizes `coordinates` to either a :class:`CoordinateSystem` member or ``None``.
 
         Raises
         ------
         ValueError
             If `nstokes` is not 1 or 3.
             If `values` does not have the expected shape.
-            If `unit` is not an instance of Units or None.
+            If `units` is not an instance of Units or None.
+            If `coordinates` is not an instance of CoordinateSystem or None.
         """
 
         if self.mmax is None:
@@ -85,10 +98,19 @@ class SphericalHarmonics:
         if self.values.ndim == 1:
             self.values = np.reshape(self.values, (1, self.values.size))
 
-        # Normalize unit
-        if self.unit is not None and not isinstance(self.unit, Units):
+        # Normalize units
+        if self.units is not None and not isinstance(self.units, Units):
             raise ValueError(
-                f"unit must be an instance of Units or None, got {type(self.unit)!r}"
+                f"units must be an instance of Units or None, got {type(self.units)!r}"
+            )
+
+        # Normalize coordinates
+        if self.coordinates is not None and not isinstance(
+            self.coordinates, CoordinateSystem
+        ):
+            raise ValueError(
+                "coordinates must be an instance of CoordinateSystem or None, "
+                f"got {type(self.coordinates)!r}"
             )
 
         self.nstokes = self.values.shape[0]
@@ -190,7 +212,7 @@ class SphericalHarmonics:
         """
         Resizes the spherical harmonics coefficients, either truncating or padding them with zeros.
 
-        Unit is preserved.
+        Units and coordinates are preserved.
         """
         lmax_in = self.lmax
         mmax_in = self.mmax
@@ -217,13 +239,14 @@ class SphericalHarmonics:
             self.values = res
             self.lmax = lmax_out
             self.mmax = mmax_out
-            # unit unchanged
+            # units and coordinates unchanged
         else:
             return SphericalHarmonics(
                 values=res,
                 lmax=lmax_out,
                 mmax=mmax_out,
-                unit=self.unit,
+                units=self.units,
+                coordinates=self.coordinates,
             )
 
     # ============================================================
@@ -244,11 +267,11 @@ class SphericalHarmonics:
 
         Rules
         -----
-        - If either unit is None or Units.None → always compatible.
+        - If either units is None or Units.None → always compatible.
         - Otherwise, units must be exactly equal.
         """
-        u1 = self.unit
-        u2 = other.unit
+        u1 = self.units
+        u2 = other.units
 
         is_none_1 = (u1 is None) or (u1 == Units.None)
         is_none_2 = (u2 is None) or (u2 == Units.None)
@@ -257,6 +280,23 @@ class SphericalHarmonics:
             return True
 
         return u1 == u2
+
+    def _coordinates_compatible(self, other: "SphericalHarmonics") -> bool:
+        """
+        Return True if coordinates are compatible for algebraic operations.
+
+        Rules
+        -----
+        - If either coordinates is None → always compatible.
+        - Otherwise, coordinates must be exactly equal.
+        """
+        c1 = self.coordinates
+        c2 = other.coordinates
+
+        if c1 is None or c2 is None:
+            return True
+
+        return c1 == c2
 
     # ----------------------
     # Addition / subtraction
@@ -273,20 +313,32 @@ class SphericalHarmonics:
 
         if not self._units_compatible(other):
             raise ValueError(
-                f"Incompatible units for addition: {self.unit} vs {other.unit}"
+                f"Incompatible units for addition: {self.units} vs {other.units}"
             )
 
-        # Result unit: if self has a "real" unit, keep it, otherwise inherit other.unit
-        if self.unit not in (None, Units.None):
-            result_unit = self.unit
+        if not self._coordinates_compatible(other):
+            raise ValueError(
+                f"Incompatible coordinates for addition: "
+                f"{self.coordinates} vs {other.coordinates}"
+            )
+
+        # Result units: if self has a "real" units, keep it, otherwise inherit other.units
+        if self.units not in (None, Units.None):
+            result_units = self.units
         else:
-            result_unit = other.unit
+            result_units = other.units
+
+        # Result coordinates: keep self if defined, otherwise inherit other
+        result_coordinates = (
+            self.coordinates if self.coordinates is not None else other.coordinates
+        )
 
         return SphericalHarmonics(
             values=self.values + other.values,
             lmax=self.lmax,
             mmax=self.mmax,
-            unit=result_unit,
+            units=result_units,
+            coordinates=result_coordinates,
         )
 
     def __iadd__(self, other: "SphericalHarmonics") -> "SphericalHarmonics":
@@ -300,14 +352,24 @@ class SphericalHarmonics:
 
         if not self._units_compatible(other):
             raise ValueError(
-                f"Incompatible units for addition: {self.unit} vs {other.unit}"
+                f"Incompatible units for addition: {self.units} vs {other.units}"
+            )
+
+        if not self._coordinates_compatible(other):
+            raise ValueError(
+                f"Incompatible coordinates for addition: "
+                f"{self.coordinates} vs {other.coordinates}"
             )
 
         self.values += other.values
 
-        # If self was unitless and other has a real unit, inherit it
-        if self.unit in (None, Units.None) and other.unit not in (None, Units.None):
-            self.unit = other.unit
+        # If self was unitless and other has a real units, inherit it
+        if self.units in (None, Units.None) and other.units not in (None, Units.None):
+            self.units = other.units
+
+        # If self had no coordinates and other has, inherit them
+        if self.coordinates is None and other.coordinates is not None:
+            self.coordinates = other.coordinates
 
         return self
 
@@ -322,19 +384,30 @@ class SphericalHarmonics:
 
         if not self._units_compatible(other):
             raise ValueError(
-                f"Incompatible units for subtraction: {self.unit} vs {other.unit}"
+                f"Incompatible units for subtraction: {self.units} vs {other.units}"
             )
 
-        if self.unit not in (None, Units.None):
-            result_unit = self.unit
+        if not self._coordinates_compatible(other):
+            raise ValueError(
+                f"Incompatible coordinates for subtraction: "
+                f"{self.coordinates} vs {other.coordinates}"
+            )
+
+        if self.units not in (None, Units.None):
+            result_units = self.units
         else:
-            result_unit = other.unit
+            result_units = other.units
+
+        result_coordinates = (
+            self.coordinates if self.coordinates is not None else other.coordinates
+        )
 
         return SphericalHarmonics(
             values=self.values - other.values,
             lmax=self.lmax,
             mmax=self.mmax,
-            unit=result_unit,
+            units=result_units,
+            coordinates=result_coordinates,
         )
 
     def __isub__(self, other: "SphericalHarmonics") -> "SphericalHarmonics":
@@ -348,13 +421,22 @@ class SphericalHarmonics:
 
         if not self._units_compatible(other):
             raise ValueError(
-                f"Incompatible units for subtraction: {self.unit} vs {other.unit}"
+                f"Incompatible units for subtraction: {self.units} vs {other.units}"
+            )
+
+        if not self._coordinates_compatible(other):
+            raise ValueError(
+                f"Incompatible coordinates for subtraction: "
+                f"{self.coordinates} vs {other.coordinates}"
             )
 
         self.values -= other.values
 
-        if self.unit in (None, Units.None) and other.unit not in (None, Units.None):
-            self.unit = other.unit
+        if self.units in (None, Units.None) and other.units not in (None, Units.None):
+            self.units = other.units
+
+        if self.coordinates is None and other.coordinates is not None:
+            self.coordinates = other.coordinates
 
         return self
 
@@ -366,7 +448,7 @@ class SphericalHarmonics:
         self,
         other: float | np.ndarray,
         *,
-        unit: Units | None = None,
+        units: Units | None = None,
     ) -> "SphericalHarmonics":
         """
         Supports:
@@ -377,9 +459,9 @@ class SphericalHarmonics:
         ----------
         other : float, int, complex or np.ndarray
             Either a scalar, or an array of shape ``(nstokes,)``.
-        unit : Units or None, keyword-only
-            Unit to assign to the resulting object. If ``None`` (default),
-            the unit of ``self`` is preserved.
+        units : Units or None, keyword-only
+            Units to assign to the resulting object. If ``None`` (default),
+            the units of ``self`` are preserved.
         """
         if isinstance(other, (float, int, complex)):
             new_values = self.values * other
@@ -393,28 +475,29 @@ class SphericalHarmonics:
         else:
             raise TypeError("Can only multiply by scalar or Stokes vector")
 
-        new_unit = self.unit if unit is None else unit
+        new_units = self.units if units is None else units
 
         return SphericalHarmonics(
             values=new_values,
             lmax=self.lmax,
             mmax=self.mmax,
-            unit=new_unit,
+            units=new_units,
+            coordinates=self.coordinates,
         )
 
     def __rmul__(
         self,
         other: float | np.ndarray,
         *,
-        unit: Units | None = None,
+        units: Units | None = None,
     ) -> "SphericalHarmonics":
         """
-        Right-multiplication: allow unit override just like in __mul__.
+        Right-multiplication: allow units override just like in __mul__.
 
-        Normal uses like ``2 * sh`` cannot pass ``unit=...`` because of Python
-        syntax, but explicit calls to ``sh.__rmul__(2.0, unit=...)`` are allowed.
+        Normal uses like ``2 * sh`` cannot pass ``units=...`` because of Python
+        syntax, but explicit calls to ``sh.__rmul__(2.0, units=...)`` are allowed.
         """
-        return self.__mul__(other, unit=unit)
+        return self.__mul__(other, units=units)
 
     # -------------
     # Convolution
@@ -433,7 +516,7 @@ class SphericalHarmonics:
         -------
         SphericalHarmonics
             A new SphericalHarmonics object with filtered coefficients.
-            The unit is preserved.
+            The units and coordinates are preserved.
         """
         l_arr = self.alm_l_array(self.lmax, self.mmax)
 
@@ -455,7 +538,8 @@ class SphericalHarmonics:
             values=self.values * kernel,
             lmax=self.lmax,
             mmax=self.mmax,
-            unit=self.unit,
+            units=self.units,
+            coordinates=self.coordinates,
         )
 
     # -------------
@@ -468,18 +552,21 @@ class SphericalHarmonics:
             values=self.values.copy(),
             lmax=self.lmax,
             mmax=self.mmax,
-            unit=self.unit,
+            units=self.units,
+            coordinates=self.coordinates,
         )
 
     def __eq__(self, other: Any) -> bool:
         """
-        Exact equality: same geometry, same unit and identical coefficients.
+        Exact equality: same geometry, same units, same coordinates
+        and identical coefficients.
         """
         if not isinstance(other, SphericalHarmonics):
             raise ValueError("Can only compare with another SphericalHarmonics object.")
         return (
             self.is_consistent(other)
-            and self.unit == other.unit
+            and self.units == other.units
+            and self.coordinates == other.coordinates
             and np.array_equal(self.values, other.values)
         )
 
@@ -488,6 +575,7 @@ class SphericalHarmonics:
         Compare SH values with tolerance.
 
         Units must be compatible (same, or one/both None/Units.None).
+        Coordinates must also be compatible (same, or one/both None).
         """
         if not isinstance(other, SphericalHarmonics):
             raise ValueError("Can only compare with another SphericalHarmonics object.")
@@ -496,6 +584,9 @@ class SphericalHarmonics:
             return False
 
         if not self._units_compatible(other):
+            return False
+
+        if not self._coordinates_compatible(other):
             return False
 
         return np.allclose(self.values, other.values, rtol=rtol, atol=atol)
@@ -514,6 +605,11 @@ class SphericalHarmonics:
             The path to the output .fits file.
         overwrite : bool
             Whether to overwrite an existing file.
+
+        Notes
+        -----
+        The units and coordinates metadata are *not* written to the FITS
+        file by this method and must be tracked separately if needed.
         """
         hp.write_alm(
             filename,
@@ -539,6 +635,11 @@ class SphericalHarmonics:
         Returns
         -------
         SphericalHarmonics
+
+        Notes
+        -----
+        The returned object has units and coordinates set to ``None``,
+        as this metadata is not stored/read here.
         """
         try:
             # Try to read all three Stokes components (T=1, E=2, B=3)
@@ -561,7 +662,18 @@ class SphericalHarmonics:
         # Compute lmax from nalm and mmax
         lmax = SphericalHarmonics.lmax_from_num_of_alm(nalm, mmax)
 
-        return SphericalHarmonics(values=values, lmax=lmax, mmax=mmax)
+        return SphericalHarmonics(
+            values=values,
+            lmax=lmax,
+            mmax=mmax,
+            units=None,
+            coordinates=None,
+        )
+
+
+# ======================================================================
+# HealpixMap
+# ======================================================================
 
 
 @dataclass
@@ -586,9 +698,12 @@ class HealpixMap:
     nside : int
         HEALPix NSIDE resolution parameter. Must be a power of two, otherwise
         an AssertionError is raised by :meth:`HealpixMap.nside_to_npix`.
-    unit : Units or None
-        Physical unit of the map. If set to :data:`Units.None` or ``None``,
+    units : Units or None
+        Physical units of the map. If set to :data:`Units.None` or ``None``,
         the map is treated as unitless / unspecified.
+    coordinates : CoordinateSystem or None
+        Sky coordinate system of the map (e.g. Galactic or Ecliptic).
+        If ``None``, coordinates are unspecified.
     nest : bool, optional
         If True, the map is in NESTED ordering; if False, in RING (default).
         This is just metadata here, no indexing operations are performed.
@@ -598,7 +713,8 @@ class HealpixMap:
 
     values: np.ndarray
     nside: int
-    unit: Units | None = Units.None
+    units: Units | None = Units.None
+    coordinates: CoordinateSystem | None = None
     nest: bool = False
     nstokes: int = field(init=False)
 
@@ -609,7 +725,9 @@ class HealpixMap:
         - Validates `nside` using :meth:`HealpixMap.nside_to_npix`.
         - If `values` is a tuple of arrays, it is converted to a NumPy array.
         - If `values` is 1D, it is reshaped to `(1, npix)`.
-        - Normalizes `unit` to either a :class:`Units` member or ``None``.
+        - Normalizes `units` to either a :class:`Units` member or ``None``.
+        - Normalizes `coordinates` to either a :class:`CoordinateSystem` member
+          or ``None``.
         - Sets `nstokes` from the first dimension of `values`.
         - Validates that `nstokes` is either 1 or 3.
         - Checks that `npix` matches :meth:`HealpixMap.nside_to_npix(self.nside)`.
@@ -620,7 +738,7 @@ class HealpixMap:
             If `nside` is not a valid HEALPix NSIDE value.
         ValueError
             If `nstokes` is not 1 or 3, or if the number of pixels does
-            not match the NSIDE.
+            not match the NSIDE, or if units / coordinates types are invalid.
         """
         # Validate NSIDE (raises AssertionError if invalid)
         _ = HealpixMap.nside_to_npix(self.nside)
@@ -633,10 +751,19 @@ class HealpixMap:
         if self.values.ndim == 1:
             self.values = self.values[np.newaxis, :]
 
-        # Normalize unit: allow None or Units members; string support optional
-        if self.unit is not None and not isinstance(self.unit, Units):
+        # Normalize units: allow None or Units members
+        if self.units is not None and not isinstance(self.units, Units):
             raise ValueError(
-                f"unit must be an instance of Units or None, got {type(self.unit)!r}"
+                f"units must be an instance of Units or None, got {type(self.units)!r}"
+            )
+
+        # Normalize coordinates: allow None or CoordinateSystem members
+        if self.coordinates is not None and not isinstance(
+            self.coordinates, CoordinateSystem
+        ):
+            raise ValueError(
+                "coordinates must be an instance of CoordinateSystem or None, "
+                f"got {type(self.coordinates)!r}"
             )
 
         self.nstokes = self.values.shape[0]
@@ -760,13 +887,13 @@ class HealpixMap:
 
         Rules
         -----
-        - If either unit is None or Units.None → always compatible.
+        - If either units is None or Units.None → always compatible.
         - Otherwise, units must be exactly equal.
         """
-        u1 = self.unit
-        u2 = other.unit
+        u1 = self.units
+        u2 = other.units
 
-        # Treat Units.None and Python None as "no unit / don't care"
+        # Treat Units.None and Python None as "no units / don't care"
         is_none_1 = (u1 is None) or (u1 == Units.None)
         is_none_2 = (u2 is None) or (u2 == Units.None)
 
@@ -775,8 +902,25 @@ class HealpixMap:
 
         return u1 == u2
 
+    def _coordinates_compatible(self, other: "HealpixMap") -> bool:
+        """
+        Return True if coordinates are compatible for algebraic operations.
+
+        Rules
+        -----
+        - If either coordinates is None → always compatible.
+        - Otherwise, coordinates must be exactly equal.
+        """
+        c1 = self.coordinates
+        c2 = other.coordinates
+
+        if c1 is None or c2 is None:
+            return True
+
+        return c1 == c2
+
     def __add__(self, other: "HealpixMap") -> "HealpixMap":
-        """Add two maps with the same geometry and compatible units."""
+        """Add two maps with the same geometry and compatible units / coordinates."""
         if not isinstance(other, HealpixMap):
             raise TypeError("Can only add another HealpixMap object")
 
@@ -787,21 +931,33 @@ class HealpixMap:
 
         if not self._units_compatible(other):
             raise ValueError(
-                f"Incompatible units for addition: {self.unit} vs {other.unit}"
+                f"Incompatible units for addition: {self.units} vs {other.units}"
             )
 
-        # Resulting unit:
-        # - if self has a "real" unit, keep it
-        # - otherwise, inherit other's unit (could be None / Units.None)
-        if (self.unit is not None) and (self.unit != Units.None):
-            result_unit = self.unit
+        if not self._coordinates_compatible(other):
+            raise ValueError(
+                f"Incompatible coordinates for addition: "
+                f"{self.coordinates} vs {other.coordinates}"
+            )
+
+        # Resulting units:
+        # - if self has "real" units, keep it
+        # - otherwise, inherit other's units (could be None / Units.None)
+        if (self.units is not None) and (self.units != Units.None):
+            result_units = self.units
         else:
-            result_unit = other.unit
+            result_units = other.units
+
+        # Resulting coordinates: keep self if defined, otherwise inherit other
+        result_coordinates = (
+            self.coordinates if self.coordinates is not None else other.coordinates
+        )
 
         return HealpixMap(
             values=self.values + other.values,
             nside=self.nside,
-            unit=result_unit,
+            units=result_units,
+            coordinates=result_coordinates,
             nest=self.nest,
         )
 
@@ -817,22 +973,32 @@ class HealpixMap:
 
         if not self._units_compatible(other):
             raise ValueError(
-                f"Incompatible units for addition: {self.unit} vs {other.unit}"
+                f"Incompatible units for addition: {self.units} vs {other.units}"
+            )
+
+        if not self._coordinates_compatible(other):
+            raise ValueError(
+                f"Incompatible coordinates for addition: "
+                f"{self.coordinates} vs {other.coordinates}"
             )
 
         self.values += other.values
 
-        # Optionally update unit if self was unitless and other had a unit
-        if (self.unit is None or self.unit == Units.None) and other.unit not in (
+        # Optionally update units if self was unitless and other had a units
+        if (self.units is None or self.units == Units.None) and other.units not in (
             None,
             Units.None,
         ):
-            self.unit = other.unit
+            self.units = other.units
+
+        # Optionally update coordinates if self had none and other has them
+        if self.coordinates is None and other.coordinates is not None:
+            self.coordinates = other.coordinates
 
         return self
 
     def __sub__(self, other: "HealpixMap") -> "HealpixMap":
-        """Subtract two maps with the same geometry and compatible units."""
+        """Subtract two maps with the same geometry and compatible units / coordinates."""
         if not isinstance(other, HealpixMap):
             raise TypeError("Subtraction requires another HealpixMap object")
 
@@ -843,19 +1009,30 @@ class HealpixMap:
 
         if not self._units_compatible(other):
             raise ValueError(
-                f"Incompatible units for subtraction: {self.unit} vs {other.unit}"
+                f"Incompatible units for subtraction: {self.units} vs {other.units}"
             )
 
-        # For subtraction, use the same unit resolution logic as for addition
-        if (self.unit is not None) and (self.unit != Units.None):
-            result_unit = self.unit
+        if not self._coordinates_compatible(other):
+            raise ValueError(
+                f"Incompatible coordinates for subtraction: "
+                f"{self.coordinates} vs {other.coordinates}"
+            )
+
+        # For subtraction, use the same units resolution logic as for addition
+        if (self.units is not None) and (self.units != Units.None):
+            result_units = self.units
         else:
-            result_unit = other.unit
+            result_units = other.units
+
+        result_coordinates = (
+            self.coordinates if self.coordinates is not None else other.coordinates
+        )
 
         return HealpixMap(
             values=self.values - other.values,
             nside=self.nside,
-            unit=result_unit,
+            units=result_units,
+            coordinates=result_coordinates,
             nest=self.nest,
         )
 
@@ -871,16 +1048,25 @@ class HealpixMap:
 
         if not self._units_compatible(other):
             raise ValueError(
-                f"Incompatible units for subtraction: {self.unit} vs {other.unit}"
+                f"Incompatible units for subtraction: {self.units} vs {other.units}"
+            )
+
+        if not self._coordinates_compatible(other):
+            raise ValueError(
+                f"Incompatible coordinates for subtraction: "
+                f"{self.coordinates} vs {other.coordinates}"
             )
 
         self.values -= other.values
-        # Same optional unit update as in __iadd__
-        if (self.unit is None or self.unit == Units.None) and other.unit not in (
+        # Same optional units update as in __iadd__
+        if (self.units is None or self.units == Units.None) and other.units not in (
             None,
             Units.None,
         ):
-            self.unit = other.unit
+            self.units = other.units
+
+        if self.coordinates is None and other.coordinates is not None:
+            self.coordinates = other.coordinates
 
         return self
 
@@ -888,7 +1074,7 @@ class HealpixMap:
         self,
         other: float | np.ndarray,
         *,
-        unit: Units | None = None,
+        units: Units | None = None,
     ) -> "HealpixMap":
         """
         Multiply a map by a scalar or a Stokes vector.
@@ -902,9 +1088,9 @@ class HealpixMap:
         ----------
         other : float, int, complex or np.ndarray
             Either a scalar, or an array of shape ``(nstokes,)``.
-        unit : Units or None, keyword-only
-            Unit to assign to the resulting map. If ``None`` (default),
-            the unit of ``self`` is preserved.
+        units : Units or None, keyword-only
+            Units to assign to the resulting map. If ``None`` (default),
+            the units of ``self`` is preserved.
 
         Returns
         -------
@@ -930,13 +1116,14 @@ class HealpixMap:
         else:
             raise TypeError("Can only multiply by scalar or Stokes vector")
 
-        # If unit is not provided, keep the original unit
-        new_unit = self.unit if unit is None else unit
+        # If units is not provided, keep the original units
+        new_units = self.units if units is None else units
 
         return HealpixMap(
             values=new_values,
             nside=self.nside,
-            unit=new_unit,
+            units=new_units,
+            coordinates=self.coordinates,
             nest=self.nest,
         )
 
@@ -944,27 +1131,27 @@ class HealpixMap:
         self,
         other: float | np.ndarray,
         *,
-        unit: Units | None = None,
+        units: Units | None = None,
     ) -> "HealpixMap":
         """
-        Right-multiplication: allow unit override just like in __mul__.
+        Right-multiplication: allow units override just like in __mul__.
 
         Parameters
         ----------
         other : float, int, complex or np.ndarray
             Multiplier.
-        unit : Units or None, keyword-only
-            Unit to assign to the resulting map. If None, keeps self.unit.
+        units : Units or None, keyword-only
+            Units to assign to the resulting map. If None, keeps self.units.
 
         Notes
         -----
-        Normal uses like ``2 * map`` cannot pass ``unit=...`` because the
+        Normal uses like ``2 * map`` cannot pass ``units=...`` because the
         Python operator syntax does not allow it. But explicit calls to
         ``__rmul__`` can override units:
 
-            newmap = map.__rmul__(2.0, unit=Units.K_CMB)
+            newmap = map.__rmul__(2.0, units=Units.K_CMB)
         """
-        return self.__mul__(other, unit=unit)
+        return self.__mul__(other, units=units)
 
     # ------------------------------------------------------------------
     # Comparison and utilities
@@ -975,19 +1162,22 @@ class HealpixMap:
         return HealpixMap(
             values=self.values.copy(),
             nside=self.nside,
-            unit=self.unit,
+            units=self.units,
+            coordinates=self.coordinates,
             nest=self.nest,
         )
 
     def __eq__(self, other: object) -> bool:
         """
-        Exact equality: same geometry, same unit and identical pixel values.
+        Exact equality: same geometry, same units, same coordinates
+        and identical pixel values.
         """
         if not isinstance(other, HealpixMap):
             raise ValueError("Can only compare with another HealpixMap object.")
         return (
             self.is_consistent(other)
-            and self.unit == other.unit
+            and self.units == other.units
+            and self.coordinates == other.coordinates
             and np.array_equal(self.values, other.values)
         )
 
@@ -995,8 +1185,9 @@ class HealpixMap:
         """
         Compare map values with tolerance.
 
-        Units must also match (except for the None / Units.None case,
-        where they are treated as equal).
+        Units and coordinates must be compatible. Units are compatible if
+        both match or one/both are None/Units.None; coordinates are
+        compatible if both match or one/both are None.
         """
         if not isinstance(other, HealpixMap):
             raise ValueError("Can only compare with another HealpixMap object.")
@@ -1007,18 +1198,15 @@ class HealpixMap:
         if not self._units_compatible(other):
             return False
 
-        # If one is unitless and the other is not, but we allow algebra,
-        # you can choose whether you want allclose to say True or False.
-        # Here, we require exact equality if both are "real" units:
-        if (
-            self.unit not in (None, Units.None)
-            and other.unit not in (None, Units.None)
-            and self.unit != other.unit
-        ):
+        if not self._coordinates_compatible(other):
             return False
 
         return np.allclose(self.values, other.values, rtol=rtol, atol=atol)
 
+
+# ======================================================================
+# ducc0-based helpers
+# ======================================================================
 
 
 def interpolate_alm(
@@ -1058,10 +1246,10 @@ def interpolate_alm(
         ``locations[:, 1]`` = longitude ``phi`` (0 .. 2π).
 
     epsilon : float, optional
-        Desired accuracy passed to :func:`synthesis_general`.  
+        Desired accuracy passed to :func:`synthesis_general`.
         If ``None``, a safe default is chosen depending on the dtype:
 
-        * complex64  → ``1e-6``  
+        * complex64  → ``1e-6``
         * complex128 → ``1e-13``
 
     nthreads : int, optional
@@ -1109,10 +1297,8 @@ def interpolate_alm(
             epsilon = 1e-13
 
     # --- Temperature (spin-0) ---
-    # alm_T has shape (1, nalm)
-    alm_T = alm[0:1]
     T_map = sht.synthesis_general(
-        alm=alm_T,
+        alm=alm[0:1],
         spin=0,
         lmax=alms.lmax,
         loc=loc,
@@ -1126,11 +1312,9 @@ def interpolate_alm(
         return T_map
 
     # --- Polarization (spin-2) ---
-    # alm_pol has shape (2, nalm); interpreted as a spin-2 field.
     # ducc returns nmaps = 2 for spin>0, so this gives (2, N).
-    alm_pol = alm[1:3]
     QU_maps = sht.synthesis_general(
-        alm=alm_pol,
+        alm=alm[1:3],
         spin=2,
         lmax=alms.lmax,
         loc=loc,
@@ -1166,7 +1350,10 @@ def alm2map(
     Geometry is obtained from :class:`ducc0.healpix.Healpix_Base` via
     its :meth:`sht_info` method, which provides the arrays
     ``theta``, ``nphi``, ``phi0`` and (optionally) ``ringstart``
-    needed by ducc's SHT routines. [oai_citation:0‡PyPI](https://pypi.org/project/ducc0/0.6.0/?utm_source=chatgpt.com)
+    needed by ducc's SHT routines.
+
+    The units and coordinates metadata are propagated from ``alms`` to
+    the returned :class:`HealpixMap`.
 
     Parameters
     ----------
@@ -1211,7 +1398,8 @@ def alm2map(
 
         * ``nside`` as specified
         * ``nest`` as specified
-        * ``unit = alms.unit``
+        * ``units = alms.units``
+        * ``coordinates = alms.coordinates``
 
     Raises
     ------
@@ -1294,12 +1482,13 @@ def alm2map(
             nthreads=nthreads,
         )
 
-    # --- wrap into HealpixMap, propagating units ---------------------------
+    # --- wrap into HealpixMap, propagating units and coordinates -----------
     return HealpixMap(
         values=values,
         nside=nside,
         nest=nest,
-        unit=alms.unit,
+        units=alms.units,
+        coordinates=alms.coordinates,
     )
 
 
@@ -1325,6 +1514,9 @@ def map2alm(
     its :meth:`sht_info` method, which provides the arrays
     ``theta``, ``nphi``, ``phi0`` and (optionally) ``ringstart``
     needed by ducc's SHT routines.
+
+    The units and coordinates metadata are propagated from ``map`` to
+    the returned :class:`SphericalHarmonics`.
 
     Parameters
     ----------
@@ -1356,7 +1548,8 @@ def map2alm(
         * ``values`` of shape ``(nstokes, nalm)``
         * ``lmax = lmax_eff``
         * ``mmax = mmax_eff``
-        * ``unit = map.unit``
+        * ``units = map.units``
+        * ``coordinates = map.coordinates``
 
     Raises
     ------
@@ -1432,10 +1625,11 @@ def map2alm(
             nthreads=nthreads,
         )
 
-    # --- wrap into SphericalHarmonics, propagating units -------------------
+    # --- wrap into SphericalHarmonics, propagating units and coordinates ---
     return SphericalHarmonics(
         values=alm,
         lmax=lmax_eff,
         mmax=mmax_eff,
-        unit=map.unit,
+        units=map.units,
+        coordinates=map.coordinates,
     )

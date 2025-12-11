@@ -183,8 +183,12 @@ from .spacecraft import (
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
 )
-from .spherical_harmonics import (
+from .maps_and_harmonics import (
     SphericalHarmonics,
+    HealpixMap,
+    interpolate_alm,
+    alm2map,
+    map2alm,
 )
 from .version import __author__, __version__
 
@@ -384,6 +388,10 @@ __all__ = [
     "FocalplaneCoord",
     "SpacecraftCoord",
     "PointingSys",
-    # spherical_harmonics.py
+    # maps_and_harmonics.py
     "SphericalHarmonics",
+    "HealpixMap",
+    "interpolate_alm",
+    "alm2map",
+    "map2alm",
 ]
