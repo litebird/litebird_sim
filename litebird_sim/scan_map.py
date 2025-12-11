@@ -2,6 +2,7 @@ import numpy as np
 from numba import njit, prange
 
 from ducc0.healpix import Healpix_Base
+from ducc0.sht.experimental import synthesis_general
 from .observations import Observation
 from .hwp_harmonics import fill_tod
 from .hwp import HWP, IdealHWP, NonIdealHWP
@@ -13,8 +14,9 @@ from .pointings_in_obs import (
 )
 from .coordinates import CoordinateSystem
 from .healpix import npix_to_nside
+
+from .spherical_harmonics import SphericalHarmonics
 import logging
-import healpy as hp
 
 
 @njit
@@ -228,28 +230,24 @@ def scan_map(
 
         nside = npix_to_nside(maps_det.shape[1])
 
-        if interpolation in ["", None]:
+        if isinstance(maps_det, np.ndarray)
             hpx = Healpix_Base(nside, "RING")
             pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
             input_T = maps_det[0, pixel_ind_det]
             input_Q = maps_det[1, pixel_ind_det]
             input_U = maps_det[2, pixel_ind_det]
-        elif interpolation == "linear":
-            input_T = hp.get_interp_val(
-                maps_det[0, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
-            )
-            input_Q = hp.get_interp_val(
-                maps_det[1, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
-            )
-            input_U = hp.get_interp_val(
-                maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
-            )
+        elif isinstance(maps_det, SphericalHarmonics):
+            input_T, input_Q, input_U = synthesis_general(
+                alm = maps_det.values,
+                lmax = maps_det.lmax,
+                mmax = maps_det.mmax,
+                loc = curr_pointings_det[:, 0:2],
+                )
         else:
             raise ValueError(
-                "Wrong value for interpolation. It should be one of the following:\n"
-                + '- "" for no interpolation\n'
-                + '- "linear" for linear interpolation\n'
-            )
+                "Wrong map passed. scan_map accepts either real space maps or SphericalHarmonics"
+                )
+
 
         if hwp is None or isinstance(hwp, IdealHWP):
             # With HWP implements:
@@ -291,12 +289,12 @@ def scan_map(
 
 def scan_map_in_observations(
     observations: Observation | list[Observation],
-    maps: np.ndarray | dict[str, np.ndarray],
+    maps: (
+        np.ndarray | dict[str, np.ndarray] | SphericalHarmonics | dict[str, SphericalHarmonics]),
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp: HWP | None = None,
     input_map_in_galactic: bool = True,
     component: str = "tod",
-    interpolation: str | None = "",
     pointings_dtype=np.float64,
     save_tod: bool = True,
     apply_non_linearity: bool = False,
@@ -338,6 +336,9 @@ def scan_map_in_observations(
         # in `observations.sky_tod`
         scan_map_in_observations(sim.observations, …, component="sky_tod")
 
+    If the inputs maps are in real space no interpolation is performed, if alms are
+    passed the code performs interpolation using ducc0.sht.experimental.synthesis_general
+
     Parameters
     ----------
     observations : Observation or list of Observation
@@ -363,11 +364,6 @@ def scan_map_in_observations(
 
     component : str, default="tod"
         The TOD component in the `Observation` object where the computed signal will be stored.
-
-    interpolation : str, optional, default=""
-        Method for extracting values from the sky maps:
-        - "" (default): Nearest-neighbor interpolation.
-        - "linear": Linear interpolation using Healpix.
 
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or

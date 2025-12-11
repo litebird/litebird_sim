@@ -506,3 +506,364 @@ class SphericalHarmonics:
         lmax = SphericalHarmonics.lmax_from_num_of_alm(nalm, mmax)
 
         return SphericalHarmonics(values=values, lmax=lmax, mmax=mmax)
+
+
+@dataclass
+class HealpixMap:
+    """
+    A small container class for HEALPix maps, with shape checks and algebra.
+
+    This class stores one- or three-component HEALPix maps and their NSIDE
+    consistently. Maps are always stored as a 2D NumPy array of shape
+    ``(nstokes, npix)``, even if ``nstokes == 1``.
+
+    It also provides basic algebraic operations and a few static helpers
+    for working with HEALPix geometry, without depending on ``healpy``.
+
+    Attributes
+    ----------
+    values : np.ndarray
+        Map values, stored as a NumPy array of shape ``(nstokes, npix)``.
+        If a 1D array is passed, it is promoted to shape ``(1, npix)``.
+        If a tuple of arrays is passed (e.g. (I, Q, U)), it is stacked
+        along the first axis.
+    nside : int
+        HEALPix NSIDE resolution parameter. Must be a power of two, otherwise
+        an AssertionError is raised by :meth:`HealpixMap.nside_to_npix`.
+    nest : bool, optional
+        If True, the map is in NESTED ordering; if False, in RING (default).
+        This is just metadata here, no indexing operations are performed.
+    nstokes : int
+        Number of Stokes parameters (1 for intensity-only, 3 for IQU).
+
+    Static helpers
+    --------------
+    - :meth:`HealpixMap.nside_to_npix`
+    - :meth:`HealpixMap.npix_to_nside`
+    - :meth:`HealpixMap.is_npix_ok`
+    - :meth:`HealpixMap.nside_to_pixel_solid_angle_sterad`
+    - :meth:`HealpixMap.nside_to_resolution_rad`
+
+    Arithmetic
+    ----------
+    The following operations are supported:
+
+    - `+`, `-` between two HealpixMap (same `nside`, `nest`, `nstokes`)
+    - `*` with scalar or Stokes-vector (array of shape `(nstokes,)`)
+    - in-place variants `+=`, `-=`
+    - equality checks via `==` or `.allclose(...)`
+    """
+
+    values: np.ndarray
+    nside: int
+    nest: bool = False
+    nstokes: int = field(init=False)
+
+    def __post_init__(self):
+        """
+        Initialize the `HealpixMap` instance by validating and reshaping input.
+
+        - Validates `nside` using :meth:`HealpixMap.nside_to_npix`.
+        - If `values` is a tuple of arrays, it is converted to a NumPy array.
+        - If `values` is 1D, it is reshaped to `(1, npix)`.
+        - Sets `nstokes` from the first dimension of `values`.
+        - Validates that `nstokes` is either 1 or 3.
+        - Checks that `npix` matches :meth:`HealpixMap.nside_to_npix(self.nside)`.
+
+        Raises
+        ------
+        AssertionError
+            If `nside` is not a valid HEALPix NSIDE value.
+        ValueError
+            If `nstokes` is not 1 or 3, or if the number of pixels does
+            not match the NSIDE.
+        """
+        # Validate NSIDE (raises AssertionError if invalid)
+        _ = HealpixMap.nside_to_npix(self.nside)
+
+        # Convert tuple of arrays (e.g. (I, Q, U)) into a stacked ndarray
+        if isinstance(self.values, tuple):
+            self.values = np.array([self.values[i] for i in range(len(self.values))])
+
+        # Ensure values have shape (nstokes, npix)
+        if self.values.ndim == 1:
+            self.values = self.values[np.newaxis, :]
+
+        self.nstokes = self.values.shape[0]
+        if self.nstokes not in (1, 3):
+            raise ValueError(
+                "The number of Stokes parameters in HealpixMap should be 1 or 3 "
+                f"instead of {self.nstokes}."
+            )
+
+        npix = self.values.shape[1]
+        expected_npix = HealpixMap.nside_to_npix(self.nside)
+        if npix != expected_npix:
+            raise ValueError(
+                "Wrong number of pixels for HealpixMap: it is "
+                f"{npix} instead of {expected_npix} for nside={self.nside}."
+            )
+
+    # ------------------------------------------------------------------
+    # Basic properties
+    # ------------------------------------------------------------------
+
+    @property
+    def npix(self) -> int:
+        """Return the number of pixels in the map."""
+        return self.values.shape[1]
+
+    # ------------------------------------------------------------------
+    # Static HEALPix helpers (no healpy dependency)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def nside_to_npix(nside: int) -> int:
+        """Return the number of pixels in a Healpix map with the specified NSIDE.
+
+        If the value of `nside` is not valid (power of two), an
+        `AssertionError` exception is raised.
+
+        .. doctest::
+
+            >>> HealpixMap.nside_to_npix(1)
+            12
+        """
+        assert 2 ** np.log2(nside) == nside, f"Invalid value for NSIDE: {nside}"
+        return 12 * nside * nside
+
+    @staticmethod
+    def is_npix_ok(num_of_pixels) -> bool:
+        """Return True or False whenever num_of_pixels is a valid number.
+
+        The function checks if the number of pixels provided as an
+        argument conforms to the Healpix standard, which means that the
+        number must be in the form 12 * NSIDE^2.
+
+        .. doctest::
+
+            >>> HealpixMap.is_npix_ok(48)
+            True
+            >>> HealpixMap.is_npix_ok(49)
+            False
+        """
+        nside = np.sqrt(np.asarray(num_of_pixels) / 12.0)
+        return nside == np.floor(nside)
+
+    @staticmethod
+    def npix_to_nside(num_of_pixels: int) -> int:
+        """Return NSIDE for a Healpix map containing `num_of_pixels` pixels.
+
+        If the number of pixels does not conform to the Healpix standard,
+        an `AssertionError` exception is raised.
+
+        .. doctest::
+
+            >>> HealpixMap.npix_to_nside(48)
+            2
+        """
+        assert HealpixMap.is_npix_ok(
+            num_of_pixels
+        ), f"Invalid number of pixels: {num_of_pixels}"
+        return int(np.sqrt(num_of_pixels / 12))
+
+    @staticmethod
+    def nside_to_pixel_solid_angle_sterad(nside: int) -> float:
+        """Return the value of the solid angle of a pixel.
+
+        The result is exact, as all pixels in a Healpix map have the same area.
+
+        The result is in steradians.
+        """
+        return 4 * np.pi / HealpixMap.nside_to_npix(nside)
+
+    @staticmethod
+    def nside_to_resolution_rad(nside: int) -> float:
+        """Return an approximated resolution of a Healpix map, given its NSIDE.
+
+        The value is the square root of the pixel area (which is measured in
+        steradians); see :meth:`HealpixMap.nside_to_pixel_solid_angle_sterad`.
+
+        The result is an angle in radians.
+        """
+        return np.sqrt(HealpixMap.nside_to_pixel_solid_angle_sterad(nside))
+
+    # ------------------------------------------------------------------
+    # Algebraic operations
+    # ------------------------------------------------------------------
+
+    def is_consistent(self, other: "HealpixMap") -> bool:
+        """Check if two HealpixMap objects are compatible for algebraic operations.
+
+        Two maps are considered consistent if they share the same
+        `nside`, `nest`, and `nstokes`.
+        """
+        return (
+            self.nside == other.nside
+            and self.nest == other.nest
+            and self.nstokes == other.nstokes
+        )
+
+    def __add__(self, other: "HealpixMap") -> "HealpixMap":
+        """Add two maps with the same geometry."""
+        if not isinstance(other, HealpixMap):
+            raise TypeError("Can only add another HealpixMap object")
+
+        if not self.is_consistent(other):
+            raise ValueError(
+                "HealpixMap objects must have matching nside, nest, and nstokes"
+            )
+
+        return HealpixMap(
+            values=self.values + other.values,
+            nside=self.nside,
+            nest=self.nest,
+        )
+
+    def __iadd__(self, other: "HealpixMap") -> "HealpixMap":
+        """In-place addition of two maps with the same geometry."""
+        if not isinstance(other, HealpixMap):
+            raise TypeError("Can only add another HealpixMap object")
+
+        if not self.is_consistent(other):
+            raise ValueError(
+                "HealpixMap objects must have matching nside, nest, and nstokes"
+            )
+
+        self.values += other.values
+        return self
+
+    def __sub__(self, other: "HealpixMap") -> "HealpixMap":
+        """Subtract two maps with the same geometry."""
+        if not isinstance(other, HealpixMap):
+            raise TypeError("Subtraction requires another HealpixMap object")
+
+        if not self.is_consistent(other):
+            raise ValueError(
+                "HealpixMap objects must have matching nside, nest, and nstokes"
+            )
+
+        return HealpixMap(
+            values=self.values - other.values,
+            nside=self.nside,
+            nest=self.nest,
+        )
+
+    def __isub__(self, other: "HealpixMap") -> "HealpixMap":
+        """In-place subtraction of two maps with the same geometry."""
+        if not isinstance(other, HealpixMap):
+            raise TypeError("Subtraction requires another HealpixMap object")
+
+        if not self.is_consistent(other):
+            raise ValueError(
+                "HealpixMap objects must have matching nside, nest, and nstokes"
+            )
+
+        self.values -= other.values
+        return self
+
+    def __mul__(self, other: float | np.ndarray) -> "HealpixMap":
+        """
+        Multiply a map by a scalar or a Stokes vector.
+
+        Supported cases
+        ---------------
+        - scalar multiplication: ``map * A`` where ``A`` is a float/int/complex
+        - Stokes-vector multiplication: ``map * [A_I, A_Q, A_U]``
+
+        Parameters
+        ----------
+        other : float, int, complex or np.ndarray
+            Either a scalar, or an array of shape ``(nstokes,)``.
+
+        Returns
+        -------
+        HealpixMap
+            A new HealpixMap with scaled values.
+
+        Raises
+        ------
+        TypeError
+            If `other` has an unsupported type.
+        ValueError
+            If `other` is an array with invalid shape.
+        """
+        if isinstance(other, (float, int, complex)):
+            new_values = self.values * other
+        elif isinstance(other, np.ndarray):
+            if other.shape != (self.nstokes,):
+                raise ValueError(
+                    f"Stokes multiplier must have shape ({self.nstokes},), "
+                    f"got {other.shape}"
+                )
+            new_values = self.values * other[:, None]
+        else:
+            raise TypeError("Can only multiply by scalar or Stokes vector")
+
+        return HealpixMap(
+            values=new_values,
+            nside=self.nside,
+            nest=self.nest,
+        )
+
+    def __rmul__(self, other: float | np.ndarray) -> "HealpixMap":
+        """Right-multiplication is the same as left-multiplication."""
+        return self.__mul__(other)
+
+    # ------------------------------------------------------------------
+    # Comparison and utilities
+    # ------------------------------------------------------------------
+
+    def copy(self) -> "HealpixMap":
+        """Return a deep copy of this HealpixMap object."""
+        return HealpixMap(
+            values=self.values.copy(),
+            nside=self.nside,
+            nest=self.nest,
+        )
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Exact equality: same geometry and identical pixel values.
+
+        Note
+        ----
+        This uses exact `np.array_equal` for the data, so it is usually
+        better to use :meth:`allclose` when comparing floating-point maps.
+        """
+        if not isinstance(other, HealpixMap):
+            raise ValueError("Can only compare with another HealpixMap object.")
+        return self.is_consistent(other) and np.array_equal(self.values, other.values)
+
+    def allclose(self, other: "HealpixMap", rtol=1e-5, atol=1e-8) -> bool:
+        """
+        Compare map values with tolerance.
+
+        Parameters
+        ----------
+        other : HealpixMap
+            Another map to compare with.
+        rtol : float, default=1e-5
+            Relative tolerance.
+        atol : float, default=1e-8
+            Absolute tolerance.
+
+        Returns
+        -------
+        bool
+            True if geometry is consistent and the pixel values are close.
+        """
+        if not isinstance(other, HealpixMap):
+            raise ValueError("Can only compare with another HealpixMap object.")
+        return self.is_consistent(other) and np.allclose(
+            self.values, other.values, rtol=rtol, atol=atol
+        )
+
+
+def interpolate_alm(
+    alms: SphericalHarmonics,
+    locations: np.ndarray (:,2)
+
+    ):
+
+    return T[:],Q[:],U[:] 
