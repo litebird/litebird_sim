@@ -219,7 +219,6 @@ __all__ = [
     "gauss_beam_to_alm",
     "generate_gauss_beam_alms",
     # constants.py
-    "TodUnits",
     "ARCMIN_TO_RAD",
     "C_LIGHT_KM_S",
     "H_OVER_K_B",
@@ -228,6 +227,7 @@ __all__ = [
     "SOLAR_VELOCITY_GAL_LAT_RAD",
     "SOLAR_VELOCITY_GAL_LON_RAD",
     "EARTH_L2_DISTANCE_KM",
+    "Units",
     # compress.py
     "rle_compress",
     "rle_decompress",
