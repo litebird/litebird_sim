@@ -2,7 +2,6 @@ import numbers
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
-from enum import Enum
 
 import astropy.time
 import numpy as np
