@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
-from .constants import Units
+from .units import Units
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_evenly, distribute_detector_blocks
 from .hwp import HWP, IdealHWP, NonIdealHWP

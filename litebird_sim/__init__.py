@@ -36,6 +36,8 @@ from .constants import (
     SOLAR_VELOCITY_GAL_LAT_RAD,
     SOLAR_VELOCITY_GAL_LON_RAD,
     EARTH_L2_DISTANCE_KM,
+)
+from .units import (
     Units,
 )
 from .coordinates import (
@@ -227,6 +229,7 @@ __all__ = [
     "SOLAR_VELOCITY_GAL_LAT_RAD",
     "SOLAR_VELOCITY_GAL_LON_RAD",
     "EARTH_L2_DISTANCE_KM",
+    # units.py
     "Units",
     # compress.py
     "rle_compress",
