@@ -101,10 +101,8 @@ def test_hwp_sys(nside_out):
             units="K_CMB",
         )
 
-        mbs = lbs.Mbs(
-            simulation=sim, parameters=mbs_params, channel_list=[channelinfo]
-        )
-        
+        mbs = lbs.Mbs(simulation=sim, parameters=mbs_params, channel_list=[channelinfo])
+
         input_maps = mbs.run_all()[0]["L4-140"]
 
         list_of_sims.append(sim)

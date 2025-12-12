@@ -577,4 +577,3 @@ def test_scan_map_algebras():
         rtol=tolerance,
         atol=0.1,
     )
-

@@ -166,7 +166,9 @@ def test_beam_convolution():
     np.random.seed(seed=123_456_789)
     inmaps = np.random.normal(0, 1, (3, npix))
 
-    maps = lbs.HealpixMap(hp.smoothing(inmaps, fwhm=np.deg2rad(fwhm_arcmin / 60.0), pol=True))
+    maps = lbs.HealpixMap(
+        hp.smoothing(inmaps, fwhm=np.deg2rad(fwhm_arcmin / 60.0), pol=True)
+    )
     alms = lbs.SphericalHarmonics(values=hp.map2alm(inmaps, lmax=lmax), lmax=lmax)
 
     (obs1,) = sim.create_observations(detectors=[detT, detB], tod_dtype=np.float64)

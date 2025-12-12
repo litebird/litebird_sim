@@ -19,6 +19,7 @@ from .pointings_in_obs import (
 from .maps_and_harmonics import SphericalHarmonics
 from .constants import NUM_THREADS_ENVVAR
 
+
 @dataclass
 class BeamConvolutionParameters:
     """Parameters used by the 4π beam convolution code

@@ -472,7 +472,7 @@ def fill_tod(
         | dict[str, HealpixMap]
         | SphericalHarmonics
         | dict[str, SphericalHarmonics]
-    ) = None,    
+    ) = None,
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp_angle: np.ndarray | list[np.ndarray] | None = None,
     save_tod: bool = True,
@@ -556,7 +556,6 @@ def fill_tod(
                 "the observations."
             )
             raise AttributeError(msg)
-
 
     # Set number of threads
     if nthreads is None:
@@ -739,6 +738,8 @@ def fill_tod(
                     input_Q = pixmap[1, pixel_ind_det]
                     input_U = pixmap[2, pixel_ind_det]
 
+                del pixel_ind_det
+
             # ----------------------------------------------------------
             # HARMONIC SPACE (SphericalHarmonics)
             # ----------------------------------------------------------
@@ -765,7 +766,7 @@ def fill_tod(
             # xi: polarization angle, i.e. detector dependent
             # psi: instrument angle, i.e. boresight direction from focal plane POV
             xi = cur_obs.pol_angle_rad[idet]
-            psi = cur_point[:, 2]
+            psi = curr_pointings_det[:, 2]
 
             phi = np.deg2rad(cur_obs.pointing_theta_phi_psi_deg[idet][1])
 
@@ -796,8 +797,6 @@ def fill_tod(
 
             cur_obs.tod[idet] = tod
 
-    if interpolation in ["", None]:
-        del pix
     del input_T, input_Q, input_U
     if not save_tod:
         del cur_obs.tod

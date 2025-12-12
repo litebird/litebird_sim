@@ -189,6 +189,8 @@ def test_map_rotation():
     )
     rot_maps = rot_mbs.run_all()[0]
 
-    ref_maps = rot_mbs.rotator.rotate_map_alms(maps["L4-140"].values, mbs_params.lmax_alms)
+    ref_maps = rot_mbs.rotator.rotate_map_alms(
+        maps["L4-140"].values, mbs_params.lmax_alms
+    )
 
     np.testing.assert_allclose(ref_maps, rot_maps["L4-140"].values, atol=1e-3)

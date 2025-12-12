@@ -1046,7 +1046,6 @@ class Mbs:
                 log.info("saving coadded signal maps")
                 self.write_coadded_maps(saved_maps)
             if not self.params.save:
-
                 tot_dict = {}
                 if self.params.maps_in_ecliptic:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic

@@ -695,7 +695,7 @@ class HealpixMap:
         If a tuple of arrays is passed (e.g. (I, Q, U)), it is stacked
         along the first axis.
     nside : int | None
-        HEALPix NSIDE resolution parameter. 
+        HEALPix NSIDE resolution parameter.
         If ``None``, it is automatically inferred from the last dimension of ``values``.
         If provided, it is checked against the size of ``values``.
     units : Units or None
@@ -745,7 +745,7 @@ class HealpixMap:
         # Ensure values have shape (nstokes, npix)
         if self.values.ndim == 1:
             self.values = self.values[np.newaxis, :]
-        
+
         # Get the actual number of pixels from the data
         npix = self.values.shape[1]
 
@@ -756,11 +756,15 @@ class HealpixMap:
             try:
                 self.nside = HealpixMap.npix_to_nside(npix)
             except AssertionError as e:
-                raise ValueError(f"Input values have {npix} pixels, which is not a valid HEALPix map size.") from e
+                raise ValueError(
+                    f"Input values have {npix} pixels, which is not a valid HEALPix map size."
+                ) from e
         else:
             # Check provided NSIDE validity
-            _ = HealpixMap.nside_to_npix(self.nside) # raises AssertionError if invalid power of 2
-            
+            _ = HealpixMap.nside_to_npix(
+                self.nside
+            )  # raises AssertionError if invalid power of 2
+
             # Check consistency between provided NSIDE and data
             expected_npix = HealpixMap.nside_to_npix(self.nside)
             if npix != expected_npix:
@@ -804,6 +808,11 @@ class HealpixMap:
     # ------------------------------------------------------------------
 
     @staticmethod
+    def _is_power_of_two(n: int) -> bool:
+        """Helper to check if an integer is a valid power of 2."""
+        return (n > 0) and ((n & (n - 1)) == 0)
+
+    @staticmethod
     def nside_to_npix(nside: int) -> int:
         """Return the number of pixels in a Healpix map with the specified NSIDE.
 
@@ -815,7 +824,9 @@ class HealpixMap:
             >>> HealpixMap.nside_to_npix(1)
             12
         """
-        assert 2 ** np.log2(nside) == nside, f"Invalid value for NSIDE: {nside}"
+        assert HealpixMap._is_power_of_two(nside), (
+            f"Invalid value for NSIDE: {nside} (must be power of 2)"
+        )
         return 12 * nside * nside
 
     @staticmethod
@@ -824,17 +835,21 @@ class HealpixMap:
 
         The function checks if the number of pixels provided as an
         argument conforms to the Healpix standard, which means that the
-        number must be in the form 12 * NSIDE^2.
+        number must be in the form 12 * NSIDE^2, where NSIDE is a power of 2.
 
         .. doctest::
 
             >>> HealpixMap.is_npix_ok(48)
             True
-            >>> HealpixMap.is_npix_ok(49)
+            >>> HealpixMap.is_npix_ok(108) # 12 * 3^2, but 3 not power of 2
             False
         """
-        nside = np.sqrt(np.asarray(num_of_pixels) / 12.0)
-        return nside == np.floor(nside)
+        # Calculate potential nside
+        nside_float = np.sqrt(np.asarray(num_of_pixels) / 12.0)
+        nside = int(nside_float)
+
+        # Check if nside is integer AND is a power of 2
+        return (nside_float == nside) and HealpixMap._is_power_of_two(nside)
 
     @staticmethod
     def npix_to_nside(num_of_pixels: int) -> int:
