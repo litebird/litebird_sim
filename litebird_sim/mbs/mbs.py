@@ -1046,7 +1046,13 @@ class Mbs:
                 log.info("saving coadded signal maps")
                 self.write_coadded_maps(saved_maps)
             if not self.params.save:
+
                 tot_dict = {}
+                if self.params.maps_in_ecliptic:
+                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
+                else:
+                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Galactic
+
                 for nch, chnl in enumerate(channels):
                     if self.params.store_alms:
                         alms = hp.map2alm(tot[nch], lmax=self.params.lmax_alms, iter=0)
@@ -1054,7 +1060,7 @@ class Mbs:
                             values=alms,
                             lmax=self.params.lmax_alms,
                             mmax=self.params.lmax_alms,
-                            units=Units[self.params.units],
+                            units=lbs.Units[self.params.units],
                             coordinates=tot_dict["Coordinates"],
                         )
                     else:
@@ -1062,15 +1068,9 @@ class Mbs:
                             values=tot[nch],
                             nside=self.params.nside,
                             coordinates=tot_dict["Coordinates"],
-                            units=Units[self.params.units],
+                            units=lbs.Units[self.params.units],
                             nest=False,
-                            nstokes=3,
                         )
-
-                if self.params.maps_in_ecliptic:
-                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
-                else:
-                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Galactic
 
                 if self.params.store_alms:
                     tot_dict["type"] = "alms"

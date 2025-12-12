@@ -138,7 +138,6 @@ def test_hwp_sys_mpi():
     lbs.scan_map_in_observations(
         maps=input_maps,
         observations=[obs],
-        input_map_in_galactic=False,
         save_tod=True,
     )
 

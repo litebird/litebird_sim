@@ -535,6 +535,7 @@ def scan_map_in_observations(
                 hwp_angle=hwp_angle,
                 pointings_dtype=pointings_dtype,
                 save_tod=save_tod,
+                input_names=input_names,
                 apply_non_linearity=apply_non_linearity,
                 add_2f_hwpss=add_2f_hwpss,
                 mueller_phases=mueller_phases,

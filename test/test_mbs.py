@@ -73,7 +73,7 @@ def test_mbs():
 
             curpath = Path(__file__).parent
             map_ref = hp.read_map(curpath / "reference_mbs.fits", (0, 1, 2))
-            npt.assert_allclose(maps["mock"], map_ref, atol=1e-3)
+            npt.assert_allclose(maps["mock"].values, map_ref, atol=1e-3)
 
 
 def test_map_rotation():
@@ -189,6 +189,6 @@ def test_map_rotation():
     )
     rot_maps = rot_mbs.run_all()[0]
 
-    ref_maps = rot_mbs.rotator.rotate_map_alms(maps["L4-140"], mbs_params.lmax_alms)
+    ref_maps = rot_mbs.rotator.rotate_map_alms(maps["L4-140"].values, mbs_params.lmax_alms)
 
-    np.testing.assert_allclose(ref_maps, rot_maps["L4-140"], atol=1e-3)
+    np.testing.assert_allclose(ref_maps, rot_maps["L4-140"].values, atol=1e-3)

@@ -833,7 +833,6 @@ def test_full_destriper(tmp_path):
     lbs.scan_map_in_observations(
         sim.observations,
         maps=maps,
-        input_map_in_galactic=True,
     )
 
     lbs.add_noise_to_observations(

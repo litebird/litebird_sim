@@ -1834,7 +1834,6 @@ class Simulation:
             observations=self.observations,
             sky_alms=sky_alms,
             beam_alms=beam_alms,
-            input_sky_alms_in_galactic=input_sky_alms_in_galactic,
             component=component,
             convolution_params=convolution_params,
             pointings_dtype=pointings_dtype,

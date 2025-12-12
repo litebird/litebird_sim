@@ -50,12 +50,12 @@ def map_type(pixels):
         for p in pixels[1:]:
             if len(p) != npix:
                 return -1
-        if is_npix_ok(len(pixels[0])):
+        if HealpixMap.is_npix_ok(len(pixels[0])):
             return len(pixels)
         else:
             return -1
     else:
-        if is_npix_ok(len(pixels)):
+        if HealpixMap.is_npix_ok(len(pixels)):
             return 0
         else:
             return -1

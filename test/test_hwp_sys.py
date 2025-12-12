@@ -8,14 +8,14 @@ from litebird_sim.scan_map import scan_map_in_observations
 
 
 @pytest.mark.parametrize(
-    "interpolation,nside_out",
+    "nside_out",
     [
-        ("", None),
-        ("", 32),
-        ("linear", None),
+        (None),
+        (32),
+        (None),
     ],
 )
-def test_hwp_sys(interpolation, nside_out):
+def test_hwp_sys(nside_out):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -101,17 +101,11 @@ def test_hwp_sys(interpolation, nside_out):
             units="K_CMB",
         )
 
-        if rank == 0:
-            mbs = lbs.Mbs(
-                simulation=sim, parameters=mbs_params, channel_list=[channelinfo]
-            )
-
-            input_maps = mbs.run_all()[0]["L4-140"]
-        else:
-            input_maps = None
-
-        if mpi.MPI_ENABLED:
-            input_maps = comm.bcast(input_maps, root=0)
+        mbs = lbs.Mbs(
+            simulation=sim, parameters=mbs_params, channel_list=[channelinfo]
+        )
+        
+        input_maps = mbs.run_all()[0]["L4-140"]
 
         list_of_sims.append(sim)
 
@@ -136,9 +130,7 @@ def test_hwp_sys(interpolation, nside_out):
 
     scan_map_in_observations(
         observations=list_of_sims[0].observations[0],
-        input_map_in_galactic=False,
         maps=input_maps,
-        interpolation=interpolation,
     )
 
     mueller_phases = {
@@ -155,9 +147,7 @@ def test_hwp_sys(interpolation, nside_out):
 
     scan_map_in_observations(
         observations=list_of_sims[1].observations[0],
-        input_map_in_galactic=False,
         maps=input_maps,
-        interpolation=interpolation,
         mueller_phases=mueller_phases,
     )
 

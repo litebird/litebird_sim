@@ -2,6 +2,7 @@
 
 import healpy
 import numpy as np
+import numpy.testing as npt
 import pytest
 
 from litebird_sim import SphericalHarmonics, HealpixMap
