@@ -2,7 +2,7 @@ import numpy as np
 from numpy import sqrt, exp, sin, cos, log
 from scipy.special import iv as bessel_i
 
-from .spherical_harmonics import SphericalHarmonics
+from .maps_and_harmonics import SphericalHarmonics
 from .observations import Observation
 
 from .detectors import FreqChannelInfo

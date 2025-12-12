@@ -1327,7 +1327,7 @@ def interpolate_alm(
     return T_map, Q_map, U_map
 
 
-def alm2map(
+def pixelize_alm(
     alms: "SphericalHarmonics",
     nside: int,
     *,
@@ -1340,7 +1340,7 @@ def alm2map(
     Convert spherical harmonics coefficients to a HEALPix map using
     :func:`ducc0.sht.synthesis` on the HEALPix geometry.
 
-    This is essentially an ``alm2map`` implemented on top of ducc0, with
+    This is essentially an ``pixelize_alm`` implemented on top of ducc0, with
     support for both scalar and polarized fields:
 
     - ``alms.nstokes == 1`` → spin-0 synthesis, returns a 1-component map
@@ -1492,7 +1492,7 @@ def alm2map(
     )
 
 
-def map2alm(
+def estimate_alm(
     map: "HealpixMap",
     *,
     lmax: Optional[int] = None,
@@ -1503,7 +1503,7 @@ def map2alm(
     Convert a HEALPix map to spherical harmonics coefficients using
     :func:`ducc0.sht.adjoint_synthesis` on the HEALPix geometry.
 
-    This is essentially a ``map2alm`` implemented on top of ducc0, with
+    This is essentially a ``estimate_alm`` implemented on top of ducc0, with
     support for both scalar and polarized fields:
 
     - ``map.nstokes == 1`` → spin-0 transform, returns a 1-component alm

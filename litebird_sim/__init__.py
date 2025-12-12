@@ -61,16 +61,11 @@ from .grasp2alm import (
 )
 from .healpix import (
     UNSEEN_PIXEL_VALUE,
-    nside_to_npix,
-    npix_to_nside,
-    nside_to_pixel_solid_angle_sterad,
-    nside_to_resolution_rad,
     is_npix_ok,
     map_type,
     get_pixel_format,
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
-    num_of_alms,
 )
 from .hwp import (
     HWP,
@@ -218,16 +213,11 @@ __all__ = [
     "BandPassInfo",
     # healpix.py
     "UNSEEN_PIXEL_VALUE",
-    "nside_to_npix",
-    "npix_to_nside",
-    "nside_to_pixel_solid_angle_sterad",
-    "nside_to_resolution_rad",
     "is_npix_ok",
     "map_type",
     "get_pixel_format",
     "write_healpix_map_to_hdu",
     "write_healpix_map_to_file",
-    "num_of_alms",
     # distribute.py
     "distribute_evenly",
     "distribute_optimally",

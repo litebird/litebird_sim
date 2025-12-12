@@ -64,15 +64,3 @@ def test_nside_to_resolution_rad():
             0.0004996712441144963,
         ],
     )
-
-
-def test_num_of_alms():
-    assert lbs.num_of_alms(lmax=5, mmax=4) == 20
-    assert lbs.num_of_alms(lmax=5) == 21
-    assert lbs.num_of_alms(lmax=8, mmax=2) == 24
-
-    # Be sure that values too large for mmax are clipped
-    assert lbs.num_of_alms(lmax=4, mmax=4) == 15
-    assert lbs.num_of_alms(lmax=4, mmax=7) == 15
-    assert lbs.num_of_alms(lmax=4, mmax=-1) == 15
-    assert lbs.num_of_alms(lmax=4) == 15

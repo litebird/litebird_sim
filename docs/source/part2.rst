@@ -11,6 +11,7 @@ Structure of the framework
    plot_fp.rst
    observations.rst
    data_layout.rst
+   maps_and_harmonics.rst
    profiling.rst
    reports.rst
    random_numbers.rst

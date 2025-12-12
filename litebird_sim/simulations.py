@@ -35,7 +35,7 @@ from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
-from .healpix import write_healpix_map_to_file, npix_to_nside
+from .healpix import write_healpix_map_to_file
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
 from .io import write_list_of_observations, read_list_of_observations
@@ -61,7 +61,7 @@ from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .spherical_harmonics import SphericalHarmonics
+from .maps_and_harmonics import SphericalHarmonics
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -1550,6 +1550,7 @@ class Simulation:
         interpolation: str | None = "",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        nthreads: int | None = None,
     ):
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
@@ -1564,6 +1565,9 @@ class Simulation:
 
         """
 
+        if nthreads is None:
+            nthreads = self.numba_threads
+
         scan_map_in_observations(
             observations=self.observations,
             maps=maps,
@@ -1572,6 +1576,7 @@ class Simulation:
             component=component,
             interpolation=interpolation,
             pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1595,7 +1600,7 @@ class Simulation:
                         fg_model=fg_model,
                     )
             else:
-                nside = npix_to_nside(len(maps[0]))
+                nside = SphericalHarmonics.npix_to_nside(len(maps[0]))
                 self.append_to_report(
                     markdown_template,
                     nside=nside,

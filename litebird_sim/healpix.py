@@ -7,6 +7,8 @@
 import numpy as np
 from astropy.io import fits
 
+from .maps_and_harmonics import HealpixMap
+
 STANDARD_COLUMN_NAMES = {
     1: "TEMPERATURE",
     2: ["Q_POLARISATION", "U_POLARISATION"],
@@ -249,7 +251,7 @@ def write_healpix_map_to_hdu(
         column_units = [column_units] * len(pixels)
 
     assert len(set(map(len, pixels))) == 1, "Maps must have the same length"
-    nside = npix_to_nside(len(pixels[0]))
+    nside = HealpixMap.npix_to_nside(len(pixels[0]))
 
     if nside < 0:
         raise ValueError("Invalid healpix map : wrong number of pixel")
@@ -284,7 +286,10 @@ def write_healpix_map_to_hdu(
     )
     tbhdu.header["NSIDE"] = (nside, "Resolution parameter of HEALPIX")
     tbhdu.header["FIRSTPIX"] = (0, "First pixel # (0 based)")
-    tbhdu.header["LASTPIX"] = (nside_to_npix(nside) - 1, "Last pixel # (0 based)")
+    tbhdu.header["LASTPIX"] = (
+        HealpixMap.nside_to_npix(nside) - 1,
+        "Last pixel # (0 based)",
+    )
     tbhdu.header["INDXSCHM"] = ("IMPLICIT", "Indexing: IMPLICIT or EXPLICIT")
     tbhdu.header["OBJECT"] = ("FULLSKY", "Sky coverage, either FULLSKY or PARTIAL")
 

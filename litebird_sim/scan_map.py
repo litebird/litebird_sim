@@ -13,7 +13,6 @@ from .pointings_in_obs import (
     _normalize_observations_and_pointings,
 )
 from .coordinates import CoordinateSystem
-from .healpix import npix_to_nside
 
 from .maps_and_harmonics import SphericalHarmonics, HealpixMap
 import logging
@@ -124,6 +123,7 @@ def scan_map(
     input_map_in_galactic: bool = True,
     interpolation: str | None = "",
     pointings_dtype=np.float64,
+    nthreads: int = 0,
 ):
     """
     Scan a sky map and fill time-ordered data (TOD) based on detector observations.
@@ -192,6 +192,10 @@ def scan_map(
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly.
 
+    nthreads : int, default=0
+        Number of threads to use for convolution. If set to 0, all available CPU cores
+        will be used.
+
     Raises
     ------
     TypeError
@@ -239,7 +243,6 @@ def scan_map(
                 ) from exc
         else:
             maps_det = maps
-
 
         # ----------------------------------------------------------
         # Determine coordinate system from the object
@@ -289,6 +292,7 @@ def scan_map(
             interp = interpolate_alm(
                 alms=maps_det,
                 locations=curr_pointings_det[:, 0:2],
+                nthreads=nthreads,
             )
 
             if maps_det.nstokes == 1:
@@ -362,7 +366,7 @@ def scan_map_in_observations(
     add_2f_hwpss: bool = False,
     mueller_phases: np.ndarray | None = None,
     comm: bool | None = None,
-    interpolation: str | None = None,
+    nthreads: int | None = None,
 ):
     """
     Scan a sky map and fill time-ordered data (TOD) for a set of observations.
@@ -442,10 +446,9 @@ def scan_map_in_observations(
     comm : SerialMpiCommunicator, optional
         (For the harmonics expansion case) MPI communicator.
 
-    interpolation : str or None, optional
-        Interpolation mode to be passed down to the lower-level scanning
-        routines. The exact semantics depend on :func:`.scan_map` /
-        :func:`.fill_tod`.
+    nthreads : int, default=None
+        Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
+        environment variable.
 
     Raises
     ------
@@ -517,6 +520,10 @@ def scan_map_in_observations(
             obs=cur_obs, hwp=cur_hwp, pointing_dtype=pointings_dtype
         )
 
+        # Set number of threads
+        if nthreads is None:
+            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+
         if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
             # Harmonic-expansion case: delegate to fill_tod
             return fill_tod(
@@ -545,4 +552,5 @@ def scan_map_in_observations(
                 mueller_hwp=cur_obs.mueller_hwp,
                 input_names=input_names,
                 pointings_dtype=pointings_dtype,
+                nthreads=nthreads,
             )

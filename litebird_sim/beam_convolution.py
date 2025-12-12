@@ -16,7 +16,7 @@ from .pointings_in_obs import (
     _get_centered_pointings,
     _get_pointings_array,
 )
-from .spherical_harmonics import SphericalHarmonics
+from .maps_and_harmonics import SphericalHarmonics
 
 # Name of the environment variable used in the convolution
 NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"

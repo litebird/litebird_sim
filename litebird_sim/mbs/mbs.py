@@ -1064,8 +1064,8 @@ class Mbs:
                             coordinates=tot_dict["Coordinates"],
                             units=Units[self.params.units],
                             nest=False,
-                            nstokes=3
-                            )
+                            nstokes=3,
+                        )
 
                 if self.params.maps_in_ecliptic:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
