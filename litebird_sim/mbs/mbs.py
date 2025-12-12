@@ -1054,9 +1054,19 @@ class Mbs:
                             values=alms,
                             lmax=self.params.lmax_alms,
                             mmax=self.params.lmax_alms,
+                            units=Units[self.params.units],
+                            coordinates=tot_dict["Coordinates"],
                         )
                     else:
-                        tot_dict[chnl] = tot[nch]
+                        tot_dict[chnl] = lbs.HealpixMap(
+                            values=tot[nch],
+                            nside=self.params.nside,
+                            coordinates=tot_dict["Coordinates"],
+                            units=Units[self.params.units],
+                            nest=False,
+                            nstokes=3
+                            )
+
                 if self.params.maps_in_ecliptic:
                     tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
                 else:

@@ -246,9 +246,6 @@ def add_convolved_sky(
         Parameters controlling the convolution, such as resolution and precision. If None,
         reasonable defaults are chosen based on the sky and beam properties, but a warning
         will be raised.
-    input_sky_alms_in_galactic : bool, default=True
-        Whether the input sky maps are provided in Galactic coordinates. If False, they are
-        assumed to be in equatorial coordinates.
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
         already precomputed this parameter is ineffective. Default is `np.float64`.
@@ -284,16 +281,25 @@ def add_convolved_sky(
         assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(n_detectors):
-        if input_sky_alms_in_galactic:
-            output_coordinate_system = CoordinateSystem.Galactic
-        else:
-            output_coordinate_system = CoordinateSystem.Ecliptic
+        # ----------------------------------------------------------
+        # Determine coordinate system from the object
+        # ----------------------------------------------------------
+        coordinates = getattr(maps_det, "coordinates", None)
+        if coordinates is None:
+            logging.warning(
+                "scan_map: maps_det.coordinates is None — assuming "
+                "CoordinateSystem.Galactic"
+            )
+            coordinates = CoordinateSystem.Galactic
 
+        # ----------------------------------------------------------
+        # Get pointings in the correct coordinate system
+        # ----------------------------------------------------------
         curr_pointings_det, hwp_angle = _get_pointings_array(
             detector_idx=detector_idx,
             pointings=pointings,
             hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
+            output_coordinate_system=coordinates,
             pointings_dtype=pointings_dtype,
         )
 
@@ -338,7 +344,6 @@ def add_convolved_sky_to_observations(
     ),  # at some point optional, taken from the obs
     pointings: npt.ArrayLike | list[npt.ArrayLike] | None = None,
     hwp: HWP | None = None,
-    input_sky_alms_in_galactic: bool = True,
     convolution_params: BeamConvolutionParameters | None = None,
     component: str = "tod",
     pointings_dtype=np.float64,
@@ -425,16 +430,6 @@ def add_convolved_sky_to_observations(
                 raise ValueError(
                     "Sky a_lm dictionary keys do not match detector/channel names."
                 )
-
-            if "Coordinates" in sky_alms:
-                dict_input_sky_alms_in_galactic = (
-                    sky_alms["Coordinates"] is CoordinateSystem.Galactic
-                )
-                if dict_input_sky_alms_in_galactic != input_sky_alms_in_galactic:
-                    logging.warning(
-                        "Overriding `input_sky_alms_in_galactic` from sky_alms dictionary."
-                    )
-                input_sky_alms_in_galactic = dict_input_sky_alms_in_galactic
         else:
             assert isinstance(sky_alms, SphericalHarmonics), "Invalid sky_alms format."
             input_sky_names = None
@@ -478,7 +473,6 @@ def add_convolved_sky_to_observations(
             input_sky_names=input_sky_names,
             input_beam_names=input_beam_names,
             convolution_params=convolution_params,
-            input_sky_alms_in_galactic=input_sky_alms_in_galactic,
             pointings_dtype=pointings_dtype,
             nside_centering=nside_centering,
             nthreads=nthreads,

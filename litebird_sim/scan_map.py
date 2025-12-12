@@ -544,6 +544,5 @@ def scan_map_in_observations(
                 hwp_angle=hwp_angle,
                 mueller_hwp=cur_obs.mueller_hwp,
                 input_names=input_names,
-                interpolation=interpolation,
                 pointings_dtype=pointings_dtype,
             )
