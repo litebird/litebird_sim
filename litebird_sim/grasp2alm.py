@@ -21,7 +21,7 @@ import numpy as np
 import numpy.typing as npt
 
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics
-from units import Units
+from .units import Units
 
 REASON_DESCRIPTION = {
     1: "Approximate solution found",
@@ -91,7 +91,10 @@ class BeamHealpixMap:
 
         geom = self.base.sht_info()
 
-        alm = np.empty((3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)), dtype=np.complex128)
+        alm = np.empty(
+            (3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)),
+            dtype=np.complex128,
+        )
         (_, reason, iter_count, residual_norm, quality) = ducc0.sht.pseudo_analysis(
             map=self.map[0].reshape(1, -1),  # Make this a 2D matrix
             alm=alm[0, :].reshape(1, -1),
@@ -856,7 +859,12 @@ def _grasp2alm(
         epsilon=epsilon,
         max_num_of_iterations=max_num_of_iterations,
     )
-    return SphericalHarmonics(values=alm, lmax=lmax, mmax=mmax, units=Units.None,)
+    return SphericalHarmonics(
+        values=alm,
+        lmax=lmax,
+        mmax=mmax,
+        units=Units.Pure,
+    )
 
 
 def ticra_cut_to_alm(*args, **kwargs) -> SphericalHarmonics:

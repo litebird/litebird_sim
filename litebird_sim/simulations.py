@@ -67,11 +67,10 @@ from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
+from .constants import NUMBA_NUM_THREADS_ENVVAR
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
-# Name of the environment variable used to set up Numba threads
-NUMBA_NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
@@ -1620,9 +1619,7 @@ class Simulation:
     def fill_tods(
         self,
         maps: np.ndarray | dict[str, np.ndarray] | None = None,
-        input_map_in_galactic: bool = True,
         component: str = "tod",
-        interpolation: str | None = "",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
         nthreads: int | None = None,
@@ -1646,10 +1643,8 @@ class Simulation:
         scan_map_in_observations(
             observations=self.observations,
             maps=maps,
-            input_map_in_galactic=input_map_in_galactic,
             hwp=self.hwp if self.hwp else None,
             component=component,
-            interpolation=interpolation,
             pointings_dtype=pointings_dtype,
             nthreads=nthreads,
         )

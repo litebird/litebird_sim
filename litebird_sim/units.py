@@ -10,6 +10,6 @@ Units = Enum(
         "MJy/sr",
         "Jy/sr",
         "ADU",
-        "None",  # when no physical unit applies
+        "Pure",  # when no physical unit applies
     ],
 )

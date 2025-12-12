@@ -36,6 +36,7 @@ from .constants import (
     SOLAR_VELOCITY_GAL_LAT_RAD,
     SOLAR_VELOCITY_GAL_LON_RAD,
     EARTH_L2_DISTANCE_KM,
+    NUM_THREADS_ENVVAR,
 )
 from .units import (
     Units,
@@ -74,7 +75,6 @@ from .grasp2alm import (
 )
 from .healpix import (
     UNSEEN_PIXEL_VALUE,
-    is_npix_ok,
     map_type,
     get_pixel_format,
     write_healpix_map_to_hdu,
@@ -195,8 +195,8 @@ from .maps_and_harmonics import (
     SphericalHarmonics,
     HealpixMap,
     interpolate_alm,
-    alm2map,
-    map2alm,
+    pixelize_alm,
+    estimate_alm,
 )
 from .version import __author__, __version__
 
@@ -228,6 +228,7 @@ __all__ = [
     "SOLAR_VELOCITY_GAL_LAT_RAD",
     "SOLAR_VELOCITY_GAL_LON_RAD",
     "EARTH_L2_DISTANCE_KM",
+    "NUM_THREADS_ENVVAR",
     # units.py
     "Units",
     # compress.py
@@ -406,6 +407,6 @@ __all__ = [
     "SphericalHarmonics",
     "HealpixMap",
     "interpolate_alm",
-    "alm2map",
-    "map2alm",
+    "pixelize_alm",
+    "estimate_alm",
 ]

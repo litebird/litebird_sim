@@ -7,6 +7,7 @@ import pytest
 from litebird_sim import SphericalHarmonics, HealpixMap
 from litebird_sim import Units, CoordinateSystem
 
+
 def test_constructor():
     nside = 16
     lmax = 10
@@ -182,7 +183,9 @@ def test_npix_to_nside():
 
 
 def test_nside_to_pixel_solid_angle_sterad():
-    actual = np.array([HealpixMap.nside_to_pixel_solid_angle_sterad(2**i) for i in range(12)])
+    actual = np.array(
+        [HealpixMap.nside_to_pixel_solid_angle_sterad(2**i) for i in range(12)]
+    )
     npt.assert_almost_equal(
         actual,
         [
@@ -221,6 +224,7 @@ def test_nside_to_resolution_rad():
             0.0004996712441144963,
         ],
     )
+
 
 def test_healpixmap_init_validation():
     """Test initialization logic, reshaping, and error handling."""
@@ -266,7 +270,7 @@ def test_healpixmap_algebra_scalar():
     # Addition
     m_sum = m1 + m2
     np.testing.assert_array_equal(m_sum.values, 3.0)
-    
+
     # Subtraction
     m_diff = m2 - m1
     np.testing.assert_array_equal(m_diff.values, 1.0)
@@ -285,14 +289,14 @@ def test_healpixmap_algebra_stokes():
     nside = 8
     npix = 12 * nside**2
     # Create I, Q, U map where I=1, Q=2, U=3 everywhere
-    values = np.array([np.ones(npix), np.ones(npix)*2, np.ones(npix)*3])
+    values = np.array([np.ones(npix), np.ones(npix) * 2, np.ones(npix) * 3])
     m = HealpixMap(values=values, nside=nside)
 
     # Multiply by Stokes vector [1, 0.5, 0]
     # Expected: I=1, Q=1, U=0
     stokes_vec = np.array([1.0, 0.5, 0.0])
     m_new = m * stokes_vec
-    
+
     expected = np.array([np.ones(npix), np.ones(npix), np.zeros(npix)])
     np.testing.assert_array_equal(m_new.values, expected)
 
@@ -309,13 +313,15 @@ def test_healpixmap_consistency_checks():
     npix2 = 12 * nside2**2
 
     m1 = HealpixMap(values=np.zeros((1, npix1)), nside=nside1, nest=False)
-    m2 = HealpixMap(values=np.zeros((1, npix2)), nside=nside2, nest=False) # Diff NSIDE
+    m2 = HealpixMap(values=np.zeros((1, npix2)), nside=nside2, nest=False)  # Diff NSIDE
     m3 = HealpixMap(values=np.zeros((1, npix1)), nside=nside1, nest=True)  # Diff NEST
-    m4 = HealpixMap(values=np.zeros((3, npix1)), nside=nside1, nest=False) # Diff Stokes
+    m4 = HealpixMap(
+        values=np.zeros((3, npix1)), nside=nside1, nest=False
+    )  # Diff Stokes
 
     with pytest.raises(ValueError, match="matching nside, nest, and nstokes"):
         _ = m1 + m2
-    
+
     with pytest.raises(ValueError, match="matching nside, nest, and nstokes"):
         _ = m1 + m3
 
@@ -329,11 +335,11 @@ def test_healpixmap_units_propagation():
     npix = 12 * nside**2
     vals = np.zeros((1, npix))
 
-    # Assume Units.K_CMB and Units.K_RJ exist in constants.py, 
+    # Assume Units.K_CMB and Units.K_RJ exist in constants.py,
     # otherwise use mocked Enum members or Units.None logic depending on implementation.
     # Here we test logic based on the code provided:
-    
-    m_none = HealpixMap(values=vals, nside=nside, units=Units.None)
+
+    m_none = HealpixMap(values=vals, nside=nside, units=None)
     m_kcmb = HealpixMap(values=vals, nside=nside, units=Units.K_CMB)
     m_krj = HealpixMap(values=vals, nside=nside, units=Units.K_RJ)
 
@@ -353,7 +359,7 @@ def test_healpixmap_units_propagation():
     # K_CMB * scalar -> K_CMB
     res = m_kcmb * 2.0
     assert res.units == Units.K_CMB
-    
+
     # K_CMB * scalar (with override) -> K_RJ
     res = m_kcmb.__mul__(2.0, units=Units.K_RJ)
     assert res.units == Units.K_RJ
@@ -364,7 +370,7 @@ def test_healpixmap_copy_and_equality():
     nside = 4
     npix = 12 * nside**2
     m1 = HealpixMap(values=np.random.rand(1, npix), nside=nside, units=Units.K_CMB)
-    
+
     # Test Copy
     m2 = m1.copy()
     assert m1 == m2
@@ -379,4 +385,3 @@ def test_healpixmap_copy_and_equality():
     m3 = m1.copy()
     m3.values += 1e-9
     assert m1.allclose(m3, atol=1e-8)
-    

@@ -17,10 +17,7 @@ from .pointings_in_obs import (
     _get_pointings_array,
 )
 from .maps_and_harmonics import SphericalHarmonics
-
-# Name of the environment variable used in the convolution
-NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
-
+from .constants import NUM_THREADS_ENVVAR
 
 @dataclass
 class BeamConvolutionParameters:
@@ -284,10 +281,10 @@ def add_convolved_sky(
         # ----------------------------------------------------------
         # Determine coordinate system from the object
         # ----------------------------------------------------------
-        coordinates = getattr(maps_det, "coordinates", None)
+        coordinates = getattr(sky_alms, "coordinates", None)
         if coordinates is None:
             logging.warning(
-                "scan_map: maps_det.coordinates is None — assuming "
+                "add_convolved_sky: sky_alms.coordinates is None — assuming "
                 "CoordinateSystem.Galactic"
             )
             coordinates = CoordinateSystem.Galactic

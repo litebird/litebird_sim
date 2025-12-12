@@ -5,10 +5,14 @@ import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from numba import njit, prange
+import os
 
 from .coordinates import rotate_coordinates_e2g
 from .hwp_diff_emiss import compute_2f_for_one_sample
 from .observations import Observation
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics
+from .constants import NUM_THREADS_ENVVAR
+
 
 COND_THRESHOLD = 1e10
 
@@ -459,18 +463,22 @@ def compute_ata_atd_for_one_detector(
 
 
 def fill_tod(
-    observations: Observation | list[Observation] = None,
+    observations: Observation | list[Observation],
+    maps: (
+        HealpixMap
+        | dict[str, HealpixMap]
+        | SphericalHarmonics
+        | dict[str, SphericalHarmonics]
+    ) = None,    
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp_angle: np.ndarray | list[np.ndarray] | None = None,
-    input_map_in_galactic: bool = True,
     save_tod: bool = True,
     pointings_dtype=np.float64,
-    interpolation: str | None = "",
-    maps: np.ndarray = None,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
     mueller_phases: dict | None = None,
     comm: bool | None = None,
+    nthreads: int | None = None,
 ):
     r"""Fill a TOD and/or :math:`A^T A` and :math:`A^T d` for the
     "on-the-fly" map production
@@ -502,11 +510,6 @@ def fill_tod(
             If ``observations`` is a list, ``hwp_angle`` must be a
             list with the same length.
 
-        input_map_in_galactic (bool) : if True, the input map is in
-            galactic coordinates, pointings are rotated from
-            ecliptic to galactic and output map will also be in
-            galactic.
-
         save_tod (bool) : if True, ``obs.tod`` is saved in
             ``observations.tod`` and locally as a .npy file;
             if False, ``obs.tod`` gets deleted.
@@ -515,14 +518,10 @@ def fill_tod(
             within ``fill_tod``, this is the dtype for
             pointings and tod (default: np.float32).
 
-        interpolation (str) : if it is ``""`` (the default), pixels in the map
-              won’t be interpolated. If it is ``linear``, a linear interpolation
-              will be used
-
-        maps (np.ndarray) : input maps (3, npix).
-              Input maps need to be in galactic (mbs default)
-              if `maps` is not None, `mbs_params` is ignored
-              (i.e. input maps are not generated)
+        maps : HealpixMap | SphericalHarmonics | dict[str, HealpixMap] |
+               dict[str, SphericalHarmonics]
+            Sky model to be scanned. In dictionary form, the keys must match the
+            entries of `input_names`.
 
         apply_non_linearity (bool) : applies the coupling of the non-linearity
               systematics with hwp_sys
@@ -535,10 +534,28 @@ def fill_tod(
 
         comm (SerialMpiCommunicator) : MPI communicator
 
+        nthreads : int, default=None
+            Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
+            environment variable.
+
     """
-    assert observations is not None, (
-        "You need to pass at least one observation to fill_tod."
-    )
+    if maps is None:
+        try:
+            maps = observations[0].sky
+        except AttributeError:
+            msg = (
+                "'maps' is None and nothing is found in the observation. "
+                "You should either pass the maps here, or store them in "
+                "the observations."
+            )
+            raise AttributeError(msg)
+
+
+    # Set number of threads
+    if nthreads is None:
+        nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+
+
 
     if mueller_phases is None:
         mueller_phases = temporary_mueller_phases
@@ -656,43 +673,68 @@ def fill_tod(
                 cur_point = ptg_list[idx_obs][idet, :, :]
                 cur_hwp_angle = hwp_angle_list[idx_obs]
 
-            # rotating pointing from ecliptic to galactic as the input map
-            if input_map_in_galactic:
-                cur_point = rotate_coordinates_e2g(cur_point)
-
-            nside = hp.npix2nside(maps.shape[1])
-
-            # all observed pixels over time (for each sample),
-            # i.e. len(pix)==len(times)
-            if interpolation in ["", None]:
-                pix = hp.ang2pix(nside, cur_point[:, 0], cur_point[:, 1])
-
-            if interpolation in ["", None]:
-                input_T = maps[0, pix]
-                input_Q = maps[1, pix]
-                input_U = maps[2, pix]
-
-            elif interpolation == "linear":
-                input_T = hp.get_interp_val(
-                    maps[0, :],
-                    cur_point[:, 0],
-                    cur_point[:, 1],
+            # ----------------------------------------------------------
+            # Determine coordinate system from the object
+            # ----------------------------------------------------------
+            coordinates = getattr(maps_det, "coordinates", None)
+            if coordinates is None:
+                logging.warning(
+                    "scan_map: maps_det.coordinates is None — assuming "
+                    "CoordinateSystem.Galactic"
                 )
-                input_Q = hp.get_interp_val(
-                    maps[1, :],
-                    cur_point[:, 0],
-                    cur_point[:, 1],
+                coordinates = CoordinateSystem.Galactic
+
+
+            # ----------------------------------------------------------
+            # Get pointings in the correct coordinate system
+            # ----------------------------------------------------------
+            curr_pointings_det, hwp_angle = _get_pointings_array(
+                detector_idx=detector_idx,
+                pointings=cur_point,
+                hwp_angle=hwp_angle,
+                output_coordinate_system=coordinates,
+                pointings_dtype=pointings_dtype,
+            )
+
+            # ----------------------------------------------------------
+            # REAL SPACE (HealpixMap)
+            # ----------------------------------------------------------
+            if isinstance(maps_det, HealpixMap):
+                pixmap = maps_det.values  # (nstokes, Npix)
+                scheme = "NESTED" if maps_det.nest else "RING"
+                hpx = Healpix_Base(maps_det.nside, scheme)
+
+                pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
+
+                if maps_det.nstokes == 1:
+                    input_T = pixmap[0, pixel_ind_det]
+                    input_Q = np.zeros_like(input_T)
+                    input_U = np.zeros_like(input_T)
+                else:
+                    input_T = pixmap[0, pixel_ind_det]
+                    input_Q = pixmap[1, pixel_ind_det]
+                    input_U = pixmap[2, pixel_ind_det]
+
+            # ----------------------------------------------------------
+            # HARMONIC SPACE (SphericalHarmonics)
+            # ----------------------------------------------------------
+            elif isinstance(maps_det, SphericalHarmonics):
+                interp = interpolate_alm(
+                    alms=maps_det,
+                    locations=curr_pointings_det[:, 0:2],
+                    nthreads=nthreads,
                 )
-                input_U = hp.get_interp_val(
-                    maps[2, :],
-                    cur_point[:, 0],
-                    cur_point[:, 1],
-                )
+
+                if maps_det.nstokes == 1:
+                    input_T = interp
+                    input_Q = np.zeros_like(input_T)
+                    input_U = np.zeros_like(input_T)
+                else:
+                    input_T, input_Q, input_U = interp
             else:
-                raise ValueError(
-                    "Wrong value for interpolation. It should be one of the following:\n"
-                    + '- "" for no interpolation\n'
-                    + '- "linear" for linear interpolation\n'
+                raise TypeError(
+                    "scan_map: maps_det must be HealpixMap or SphericalHarmonics "
+                    f"(got {type(maps_det)!r})"
                 )
 
             # separating polarization angle xi from cur_point[:, 2] = psi + xi

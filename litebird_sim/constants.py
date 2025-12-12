@@ -2,6 +2,10 @@ import numpy as np
 from astropy.constants import c as c_light
 from astropy.constants import h, k_B
 
+# Name of the environment variable used in the convolution
+NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
+NUMBA_NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
+
 ARCMIN_TO_RAD = np.pi / 180 / 60
 
 C_LIGHT_KM_S = c_light.value / 1e3

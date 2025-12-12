@@ -4,7 +4,7 @@ from typing import Any, Tuple, Optional
 import numpy as np
 import healpy as hp
 
-from .constants import Units
+from .units import Units
 from .coordinates import CoordinateSystem
 
 import ducc0.sht as sht
@@ -41,7 +41,7 @@ class SphericalHarmonics:
     mmax : int, optional
         The maximum order m_max of the expansion. If None, it is set equal to `lmax`.
     units : Units or None
-        Physical units of the coefficients. If set to :data:`Units.None` or ``None``,
+        Physical units of the coefficients. If set to :data:``None``,
         the object is treated as unitless / unspecified.
     coordinates : CoordinateSystem or None
         Sky coordinate system of these coefficients (e.g. Galactic or Ecliptic).
@@ -64,7 +64,7 @@ class SphericalHarmonics:
     lmax: int
     mmax: int | None = None
     nstokes: int = field(init=False)
-    units: Units | None = Units.None
+    units: Units | None = None
     coordinates: CoordinateSystem | None = None
 
     def __post_init__(self):
@@ -267,14 +267,14 @@ class SphericalHarmonics:
 
         Rules
         -----
-        - If either units is None or Units.None → always compatible.
+        - If either units is None → always compatible.
         - Otherwise, units must be exactly equal.
         """
         u1 = self.units
         u2 = other.units
 
-        is_none_1 = (u1 is None) or (u1 == Units.None)
-        is_none_2 = (u2 is None) or (u2 == Units.None)
+        is_none_1 = u1 is None
+        is_none_2 = u2 is None
 
         if is_none_1 or is_none_2:
             return True
@@ -323,7 +323,7 @@ class SphericalHarmonics:
             )
 
         # Result units: if self has a "real" units, keep it, otherwise inherit other.units
-        if self.units not in (None, Units.None):
+        if self.units is None:
             result_units = self.units
         else:
             result_units = other.units
@@ -364,7 +364,7 @@ class SphericalHarmonics:
         self.values += other.values
 
         # If self was unitless and other has a real units, inherit it
-        if self.units in (None, Units.None) and other.units not in (None, Units.None):
+        if self.units is None and other.units is not None:
             self.units = other.units
 
         # If self had no coordinates and other has, inherit them
@@ -393,7 +393,7 @@ class SphericalHarmonics:
                 f"{self.coordinates} vs {other.coordinates}"
             )
 
-        if self.units not in (None, Units.None):
+        if self.units is not None:
             result_units = self.units
         else:
             result_units = other.units
@@ -432,7 +432,7 @@ class SphericalHarmonics:
 
         self.values -= other.values
 
-        if self.units in (None, Units.None) and other.units not in (None, Units.None):
+        if self.units is None and other.units is not None:
             self.units = other.units
 
         if self.coordinates is None and other.coordinates is not None:
@@ -685,8 +685,7 @@ class HealpixMap:
     consistently. Maps are always stored as a 2D NumPy array of shape
     ``(nstokes, npix)``, even if ``nstokes == 1``.
 
-    It also provides basic algebraic operations and a few static helpers
-    for working with HEALPix geometry, without depending on ``healpy``.
+    If ``nside`` is not provided, it is inferred from the size of ``values``.
 
     Attributes
     ----------
@@ -695,9 +694,10 @@ class HealpixMap:
         If a 1D array is passed, it is promoted to shape ``(1, npix)``.
         If a tuple of arrays is passed (e.g. (I, Q, U)), it is stacked
         along the first axis.
-    nside : int
-        HEALPix NSIDE resolution parameter. Must be a power of two, otherwise
-        an AssertionError is raised by :meth:`HealpixMap.nside_to_npix`.
+    nside : int | None
+        HEALPix NSIDE resolution parameter. 
+        If ``None``, it is automatically inferred from the last dimension of ``values``.
+        If provided, it is checked against the size of ``values``.
     units : Units or None
         Physical units of the map. If set to :data:`Units.None` or ``None``,
         the map is treated as unitless / unspecified.
@@ -712,8 +712,8 @@ class HealpixMap:
     """
 
     values: np.ndarray
-    nside: int
-    units: Units | None = Units.None
+    nside: int | None = None
+    units: Units | None = None
     coordinates: CoordinateSystem | None = None
     nest: bool = False
     nstokes: int = field(init=False)
@@ -722,27 +722,22 @@ class HealpixMap:
         """
         Initialize the `HealpixMap` instance by validating and reshaping input.
 
-        - Validates `nside` using :meth:`HealpixMap.nside_to_npix`.
-        - If `values` is a tuple of arrays, it is converted to a NumPy array.
-        - If `values` is 1D, it is reshaped to `(1, npix)`.
-        - Normalizes `units` to either a :class:`Units` member or ``None``.
-        - Normalizes `coordinates` to either a :class:`CoordinateSystem` member
-          or ``None``.
-        - Sets `nstokes` from the first dimension of `values`.
-        - Validates that `nstokes` is either 1 or 3.
-        - Checks that `npix` matches :meth:`HealpixMap.nside_to_npix(self.nside)`.
+        - Converts `values` tuple/list to ndarray and shapes 1D input to `(1, npix)`.
+        - Infers `nside` from `npix` if `nside` is None.
+        - Validates `nside` against `npix` if `nside` is provided.
+        - Normalizes `units` and `coordinates`.
+        - Sets `nstokes`.
 
         Raises
         ------
         AssertionError
-            If `nside` is not a valid HEALPix NSIDE value.
+            If `nside` (provided or inferred) is not a valid HEALPix NSIDE value.
         ValueError
             If `nstokes` is not 1 or 3, or if the number of pixels does
-            not match the NSIDE, or if units / coordinates types are invalid.
+            not match the provided `nside`.
         """
-        # Validate NSIDE (raises AssertionError if invalid)
-        _ = HealpixMap.nside_to_npix(self.nside)
 
+        # 1. Normalize values shape first (we need npix to check/infer nside)
         # Convert tuple of arrays (e.g. (I, Q, U)) into a stacked ndarray
         if isinstance(self.values, tuple):
             self.values = np.array([self.values[i] for i in range(len(self.values))])
@@ -750,14 +745,36 @@ class HealpixMap:
         # Ensure values have shape (nstokes, npix)
         if self.values.ndim == 1:
             self.values = self.values[np.newaxis, :]
+        
+        # Get the actual number of pixels from the data
+        npix = self.values.shape[1]
 
-        # Normalize units: allow None or Units members
+        # 2. Handle NSIDE inference or validation
+        if self.nside is None:
+            # Infer NSIDE from npix
+            # npix_to_nside raises AssertionError if npix is not valid (12 * nside^2)
+            try:
+                self.nside = HealpixMap.npix_to_nside(npix)
+            except AssertionError as e:
+                raise ValueError(f"Input values have {npix} pixels, which is not a valid HEALPix map size.") from e
+        else:
+            # Check provided NSIDE validity
+            _ = HealpixMap.nside_to_npix(self.nside) # raises AssertionError if invalid power of 2
+            
+            # Check consistency between provided NSIDE and data
+            expected_npix = HealpixMap.nside_to_npix(self.nside)
+            if npix != expected_npix:
+                raise ValueError(
+                    f"Wrong number of pixels for HealpixMap: data has "
+                    f"{npix}, but expected {expected_npix} for nside={self.nside}."
+                )
+
+        # 3. Normalize metadata (units, coordinates, nstokes)
         if self.units is not None and not isinstance(self.units, Units):
             raise ValueError(
                 f"units must be an instance of Units or None, got {type(self.units)!r}"
             )
 
-        # Normalize coordinates: allow None or CoordinateSystem members
         if self.coordinates is not None and not isinstance(
             self.coordinates, CoordinateSystem
         ):
@@ -771,14 +788,6 @@ class HealpixMap:
             raise ValueError(
                 "The number of Stokes parameters in HealpixMap should be 1 or 3 "
                 f"instead of {self.nstokes}."
-            )
-
-        npix = self.values.shape[1]
-        expected_npix = HealpixMap.nside_to_npix(self.nside)
-        if npix != expected_npix:
-            raise ValueError(
-                "Wrong number of pixels for HealpixMap: it is "
-                f"{npix} instead of {expected_npix} for nside={self.nside}."
             )
 
     # ------------------------------------------------------------------
@@ -839,9 +848,9 @@ class HealpixMap:
             >>> HealpixMap.npix_to_nside(48)
             2
         """
-        assert HealpixMap.is_npix_ok(
-            num_of_pixels
-        ), f"Invalid number of pixels: {num_of_pixels}"
+        assert HealpixMap.is_npix_ok(num_of_pixels), (
+            f"Invalid number of pixels: {num_of_pixels}"
+        )
         return int(np.sqrt(num_of_pixels / 12))
 
     @staticmethod
@@ -887,15 +896,15 @@ class HealpixMap:
 
         Rules
         -----
-        - If either units is None or Units.None → always compatible.
+        - If either units is None → always compatible.
         - Otherwise, units must be exactly equal.
         """
         u1 = self.units
         u2 = other.units
 
         # Treat Units.None and Python None as "no units / don't care"
-        is_none_1 = (u1 is None) or (u1 == Units.None)
-        is_none_2 = (u2 is None) or (u2 == Units.None)
+        is_none_1 = u1 is None
+        is_none_2 = u2 is None
 
         if is_none_1 or is_none_2:
             return True
@@ -942,8 +951,8 @@ class HealpixMap:
 
         # Resulting units:
         # - if self has "real" units, keep it
-        # - otherwise, inherit other's units (could be None / Units.None)
-        if (self.units is not None) and (self.units != Units.None):
+        # - otherwise, inherit other's units (could be None)
+        if self.units is not None:
             result_units = self.units
         else:
             result_units = other.units
@@ -985,10 +994,7 @@ class HealpixMap:
         self.values += other.values
 
         # Optionally update units if self was unitless and other had a units
-        if (self.units is None or self.units == Units.None) and other.units not in (
-            None,
-            Units.None,
-        ):
+        if self.units is None and other.units is not None:
             self.units = other.units
 
         # Optionally update coordinates if self had none and other has them
@@ -1019,7 +1025,7 @@ class HealpixMap:
             )
 
         # For subtraction, use the same units resolution logic as for addition
-        if (self.units is not None) and (self.units != Units.None):
+        if self.units is not None:
             result_units = self.units
         else:
             result_units = other.units
@@ -1059,10 +1065,7 @@ class HealpixMap:
 
         self.values -= other.values
         # Same optional units update as in __iadd__
-        if (self.units is None or self.units == Units.None) and other.units not in (
-            None,
-            Units.None,
-        ):
+        if self.units is None and other.units is not None:
             self.units = other.units
 
         if self.coordinates is None and other.coordinates is not None:
@@ -1186,7 +1189,7 @@ class HealpixMap:
         Compare map values with tolerance.
 
         Units and coordinates must be compatible. Units are compatible if
-        both match or one/both are None/Units.None; coordinates are
+        both match or one/both are None; coordinates are
         compatible if both match or one/both are None.
         """
         if not isinstance(other, HealpixMap):
@@ -1279,9 +1282,7 @@ def interpolate_alm(
 
     nstokes = alm.shape[0]
     if nstokes not in (1, 3):
-        raise ValueError(
-            f"`alms.nstokes` must be 1 (scalar) or 3 (IQU); got {nstokes}"
-        )
+        raise ValueError(f"`alms.nstokes` must be 1 (scalar) or 3 (IQU); got {nstokes}")
 
     loc = np.asarray(locations, dtype=np.float64)
     if loc.ndim != 2 or loc.shape[1] != 2:

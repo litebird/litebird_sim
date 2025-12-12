@@ -1,5 +1,6 @@
 import numpy as np
 from numba import njit, prange
+import os
 
 from ducc0.healpix import Healpix_Base
 from ducc0.sht.experimental import synthesis_general
@@ -15,6 +16,8 @@ from .pointings_in_obs import (
 from .coordinates import CoordinateSystem
 
 from .maps_and_harmonics import SphericalHarmonics, HealpixMap
+from .constants import NUM_THREADS_ENVVAR
+
 import logging
 
 
@@ -120,7 +123,6 @@ def scan_map(
     hwp_angle: np.ndarray | None = None,
     mueller_hwp: np.ndarray | None = None,
     input_names: str | None = None,
-    input_map_in_galactic: bool = True,
     interpolation: str | None = "",
     pointings_dtype=np.float64,
     nthreads: int = 0,
@@ -277,13 +279,13 @@ def scan_map(
             pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
 
             if maps_det.nstokes == 1:
-                input_T = pixmap[0, pixel_ind]
+                input_T = pixmap[0, pixel_ind_det]
                 input_Q = np.zeros_like(input_T)
                 input_U = np.zeros_like(input_T)
             else:
-                input_T = pixmap[0, pixel_ind]
-                input_Q = pixmap[1, pixel_ind]
-                input_U = pixmap[2, pixel_ind]
+                input_T = pixmap[0, pixel_ind_det]
+                input_Q = pixmap[1, pixel_ind_det]
+                input_U = pixmap[2, pixel_ind_det]
 
         # ----------------------------------------------------------
         # HARMONIC SPACE (SphericalHarmonics)
@@ -529,11 +531,10 @@ def scan_map_in_observations(
             return fill_tod(
                 observations=cur_obs,
                 pointings=cur_ptg,
+                maps=maps,
                 hwp_angle=hwp_angle,
                 pointings_dtype=pointings_dtype,
                 save_tod=save_tod,
-                interpolation=interpolation,
-                maps=maps,
                 apply_non_linearity=apply_non_linearity,
                 add_2f_hwpss=add_2f_hwpss,
                 mueller_phases=mueller_phases,
