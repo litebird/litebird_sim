@@ -15,6 +15,7 @@ from .detectors import DetectorInfo
 from .hwp import read_hwp_from_hdf5
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD
 from .observations import Observation, TodDescription
+from .units import Units
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
 
@@ -289,6 +290,12 @@ def write_one_observation(
         cur_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
         cur_dataset.attrs["detectors"] = detectors_json
         cur_dataset.attrs["description"] = cur_field.description
+
+        try:
+            cur_dataset.attrs["units"] = cur_field.units.name
+        except AttributeError:
+            # Fallback in case units is stored as a plain string
+            cur_dataset.attrs["units"] = str(cur_field.units)
 
     # Save pointing information only if it is available
     if obs.pointing_provider and write_full_pointings:
@@ -572,16 +579,40 @@ def read_one_observation(
     The parameters `read_global_flags_if_present`, and `read_local_flags_if_present`
     permit to avoid loading some parts of the HDF5 if they are not needed.
 
+    The parameter `tod_fields` specifies which TOD datasets to load. It can be a list
+    of strings (dataset names) or :class:`.TodDescription` objects; in the latter
+    case, only the `name` is used to find the dataset, while `dtype`, `units`, and
+    `description` are read from the file when present.
+
     The function returns a :class:`.Observation`, or ``Nothing`` if the HDF5 file
     was ill-formed.
     """
 
     assert len(tod_fields) > 0
 
-    # We'll fill the description later
-    tod_full_fields = [
-        TodDescription(name=x, dtype=tod_dtype, description="") for x in tod_fields
-    ]
+    # We'll fill description and units later, after reading from file
+    tod_full_fields: list[TodDescription] = []
+    for cur_field in tod_fields:
+        if isinstance(cur_field, TodDescription):
+            # Use provided name/units, but override dtype with tod_dtype
+            tod_full_fields.append(
+                TodDescription(
+                    name=cur_field.name,
+                    units=cur_field.units,
+                    dtype=tod_dtype,
+                    description=cur_field.description or "",
+                )
+            )
+        else:
+            # Only the name is known; assume default units for now
+            tod_full_fields.append(
+                TodDescription(
+                    name=cur_field,
+                    units=Units.K_CMB,
+                    dtype=tod_dtype,
+                    description="",
+                )
+            )
 
     with h5py.File(str(path), "r") as inpf:
         if limit_mpi_rank:
@@ -621,6 +652,22 @@ def read_one_observation(
             tod_full_fields[cur_field_idx].description = hdf5_tod.attrs.get(
                 "description", ""
             )
+
+            units_attr = hdf5_tod.attrs.get("units", None)
+            if units_attr is not None:
+                try:
+                    # Expecting the name of the enum member, e.g. "K_CMB"
+                    tod_full_fields[cur_field_idx].units = Units[units_attr]
+                except KeyError:
+                    # Unknown unit string, keep whatever is in the descriptor
+                    log.warning(
+                        "Unknown TOD units '%s' in dataset '%s' (file %s); "
+                        "keeping existing units %s",
+                        units_attr,
+                        cur_field_name,
+                        path,
+                        tod_full_fields[cur_field_idx].units,
+                    )
 
             if result is None:
                 detectors = [
@@ -736,9 +783,11 @@ def read_list_of_observations(
 
     If the HDF5 file contains more than one TOD, e.g., foregrounds, dipole, noise…,
     you can specify which datasets to load with ``tod_fields`` (a list of strings
-    or :class:`.TodDescription` objects), which defaults to ``["tod"]``. Each
-    dataset will be initialized as a member field of the :class:`.Observation`
-    class, like ``Observation.tod``.
+    or :class:`.TodDescription` objects). When passing :class:`.TodDescription`
+    instances, only the `name` is used to select the dataset; `dtype`, `units`, and
+    `description` are taken from the HDF5 attributes when present. Each dataset is
+    initialized as a member field of the :class:`.Observation` class, like
+    ``Observation.tod``.
     """
 
     observations = []
