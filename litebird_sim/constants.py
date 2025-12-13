@@ -8,8 +8,12 @@ NUMBA_NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
 
 ARCMIN_TO_RAD = np.pi / 180 / 60
 
-C_LIGHT_KM_S = c_light.value / 1e3
-H_OVER_K_B = h.value / k_B.value
+C_LIGHT_M_OVER_S = c_light.value
+H = h.value
+K_B = k_B.value
+
+C_LIGHT_KM_OVER_S = C_LIGHT_M_OVER_S / 1e3
+H_OVER_K_B = H / K_B
 
 T_CMB_K = 2.72548  # Fixsen 2009 http://arxiv.org/abs/0911.1955
 

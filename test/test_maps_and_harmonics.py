@@ -5,7 +5,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from litebird_sim import SphericalHarmonics, HealpixMap
+from litebird_sim import SphericalHarmonics, HealpixMap, synthesize_alms, compute_cls
 from litebird_sim import Units, CoordinateSystem
 
 
@@ -386,3 +386,152 @@ def test_healpixmap_copy_and_equality():
     m3 = m1.copy()
     m3.values += 1e-9
     assert m1.allclose(m3, atol=1e-8)
+
+
+def test_synthesize_alms_scalar():
+    """Test synthesis of intensity-only (TT) maps."""
+    lmax = 10
+    cl_tt = np.ones(lmax + 1)
+
+    # 1. Automatic lmax detection from input array length
+    sh = synthesize_alms({"TT": cl_tt})
+    assert sh.nstokes == 1
+    assert sh.lmax == lmax
+    # Verify the array size matches the lmax
+    expected_size = SphericalHarmonics.num_of_alm_from_lmax(lmax)
+    assert sh.values.shape == (1, expected_size)
+
+    # 2. Explicit lmax (should override or match)
+    sh2 = synthesize_alms({"TT": cl_tt}, lmax=lmax)
+    assert sh2.lmax == lmax
+
+
+def test_synthesize_alms_polarization():
+    """Test synthesis of polarized maps (T, E, B) and implicit zero-filling."""
+    lmax = 5
+    cl_tt = np.ones(lmax + 1)
+    cl_ee = np.ones(lmax + 1)
+    cl_bb = np.ones(lmax + 1)
+    cl_te = np.zeros(lmax + 1)
+
+    # Case A: Full Standard CMB (TT, EE, BB, TE)
+    sh = synthesize_alms(
+        {"TT": cl_tt, "EE": cl_ee, "BB": cl_bb, "TE": cl_te}, lmax=lmax
+    )
+    assert sh.nstokes == 3
+    assert sh.values.shape == (3, SphericalHarmonics.num_of_alm_from_lmax(lmax))
+
+    # Case B: Implicit zero B-modes (only TE provided)
+    # The function should automatically set nstokes=3 and fill B with zeros
+    sh_nob = synthesize_alms({"TT": cl_tt, "EE": cl_ee, "TE": cl_te}, lmax=lmax)
+    assert sh_nob.nstokes == 3
+    # Verify B-mode values are exactly zero
+    npt.assert_allclose(sh_nob.values[2], 0.0)
+
+
+def test_synthesize_alms_units():
+    """Test that units are correctly passed to the SphericalHarmonics object."""
+    lmax = 2
+    cl_tt = np.ones(lmax + 1)
+
+    sh = synthesize_alms({"TT": cl_tt}, lmax=lmax, units=Units.uK_CMB)
+    assert sh.units == Units.uK_CMB
+
+
+def test_synthesize_alms_mmax_cut():
+    """Test that specifying mmax reduces the output array size correctly."""
+    lmax = 10
+    mmax = 2
+    cl_tt = np.ones(lmax + 1)
+
+    sh = synthesize_alms({"TT": cl_tt}, lmax=lmax, mmax=mmax)
+    assert sh.lmax == lmax
+    assert sh.mmax == mmax
+
+    # Check that the number of coefficients corresponds to the mmax cut
+    expected_size = SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)
+    assert sh.values.shape[1] == expected_size
+
+
+def test_compute_cls_basic_auto():
+    """Test basic auto-spectrum computation for scalar and polarized inputs."""
+    lmax = 4
+    n_coeffs = SphericalHarmonics.num_of_alm_from_lmax(lmax)
+
+    # 1. Scalar (TT)
+    val = np.random.standard_normal((1, n_coeffs)) + 1j * np.random.standard_normal(
+        (1, n_coeffs)
+    )
+    sh = SphericalHarmonics(val, lmax=lmax)
+
+    cls = compute_cls(sh)
+    assert "TT" in cls
+    assert len(cls["TT"]) == lmax + 1
+    # Sanity check: Auto-spectrum must be real and non-negative
+    # (Using complex inputs might give small imaginary residuals due to precision, but real part should be > 0)
+    assert np.all(cls["TT"] >= 0)
+
+    # 2. Polarization
+    val_pol = np.random.standard_normal((3, n_coeffs)) + 1j * np.random.standard_normal(
+        (3, n_coeffs)
+    )
+    sh_pol = SphericalHarmonics(val_pol, lmax=lmax)
+    cls_pol = compute_cls(sh_pol)
+    # Should contain all auto keys + cross keys (TE, TB, EB)
+    expected_keys = {"TT", "EE", "BB", "TE", "TB", "EB"}
+    assert expected_keys.issubset(cls_pol.keys())
+
+
+def test_compute_cls_cross_symmetrization():
+    """Test cross-spectrum logic: symmetrized vs full output."""
+    lmax = 4
+    n_coeffs = SphericalHarmonics.num_of_alm_from_lmax(lmax)
+
+    # Create two random polarized maps
+    val1 = np.random.randn(3, n_coeffs) + 1j * np.random.randn(3, n_coeffs)
+    val2 = np.random.randn(3, n_coeffs) + 1j * np.random.randn(3, n_coeffs)
+
+    sh1 = SphericalHarmonics(val1, lmax=lmax)
+    sh2 = SphericalHarmonics(val2, lmax=lmax)
+
+    # 1. Symmetrized (Default) -> Should produce averages like TE = (T1E2 + E1T2)/2
+    cls_sym = compute_cls(sh1, sh2, symmetrize=True)
+    assert {"TT", "EE", "BB", "TE", "TB", "EB"} == set(cls_sym.keys())
+    assert "ET" not in cls_sym
+
+    # 2. Non-symmetrized -> Should produce directional cross spectra (TE != ET)
+    cls_raw = compute_cls(sh1, sh2, symmetrize=False)
+    expected_full_keys = {"TT", "EE", "BB", "TE", "TB", "EB", "ET", "BT", "BE"}
+    assert expected_full_keys == set(cls_raw.keys())
+
+
+def test_compute_cls_input_clamping_and_mismatch():
+    """
+    Test that compute_cls robustly handles:
+    1. Inputs with different lmax (should use intersection).
+    2. Requested lmax larger than input (should warn and clamp).
+    """
+    lmax_large = 10
+    lmax_small = 5
+
+    # Create zero-filled objects for shape testing
+    sh_large = SphericalHarmonics(
+        np.zeros((1, SphericalHarmonics.num_of_alm_from_lmax(lmax_large))),
+        lmax=lmax_large,
+    )
+    sh_small = SphericalHarmonics(
+        np.zeros((1, SphericalHarmonics.num_of_alm_from_lmax(lmax_small))),
+        lmax=lmax_small,
+    )
+
+    # 1. Intersection Logic: Cross spectrum between lmax=10 and lmax=5
+    # The result should have length corresponding to the smaller lmax (5)
+    cls = compute_cls(sh_large, sh_small)
+    assert len(cls["TT"]) == lmax_small + 1
+
+    # 2. Warning Logic: Request lmax=20 from lmax=5 input
+    with pytest.warns(UserWarning, match="Requested lmax"):
+        cls_clamp = compute_cls(sh_small, lmax=20)
+
+    # It should have clamped effectively to lmax_small
+    assert len(cls_clamp["TT"]) == lmax_small + 1

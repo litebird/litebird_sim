@@ -29,7 +29,7 @@ from .compress import (
 )
 from .constants import (
     ARCMIN_TO_RAD,
-    C_LIGHT_KM_S,
+    C_LIGHT_KM_OVER_S,  # Updated name
     H_OVER_K_B,
     T_CMB_K,
     SOLAR_VELOCITY_KM_S,
@@ -40,6 +40,7 @@ from .constants import (
 )
 from .units import (
     Units,
+    UnitUtils,  # Added helper class
 )
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
@@ -197,6 +198,8 @@ from .maps_and_harmonics import (
     interpolate_alm,
     pixelize_alm,
     estimate_alm,
+    synthesize_alms,
+    compute_cls,
 )
 from .version import __author__, __version__
 
@@ -221,7 +224,7 @@ __all__ = [
     "generate_gauss_beam_alms",
     # constants.py
     "ARCMIN_TO_RAD",
-    "C_LIGHT_KM_S",
+    "C_LIGHT_KM_OVER_S",
     "H_OVER_K_B",
     "T_CMB_K",
     "SOLAR_VELOCITY_KM_S",
@@ -231,6 +234,7 @@ __all__ = [
     "NUM_THREADS_ENVVAR",
     # units.py
     "Units",
+    "UnitUtils",
     # compress.py
     "rle_compress",
     "rle_decompress",
@@ -409,4 +413,6 @@ __all__ = [
     "interpolate_alm",
     "pixelize_alm",
     "estimate_alm",
+    "synthesize_alms",
+    "compute_cls",
 ]

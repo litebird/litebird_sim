@@ -871,7 +871,7 @@ class Mbs:
         dipvec = (
             hp.ang2vec(sun_velocity[0], sun_velocity[1])
             * sun_velocity[2]
-            / c.C_LIGHT_KM_S
+            / c.C_LIGHT_KM_OVER_S
             * c.T_CMB_K
         )
 

@@ -62,7 +62,7 @@ from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .maps_and_harmonics import SphericalHarmonics
+from .maps_and_harmonics import SphericalHarmonics, HealpixMap
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
@@ -1618,7 +1618,13 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: np.ndarray | dict[str, np.ndarray] | None = None,
+        maps: (
+            HealpixMap
+            | dict[str, HealpixMap]
+            | SphericalHarmonics
+            | dict[str, SphericalHarmonics]
+            | None
+        ) = None,
         component: str = "tod",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
@@ -1686,7 +1692,7 @@ class Simulation:
         mmax: int | None = None,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
         store_in_observation: bool | None = False,
-    ):
+    ) -> dict[str, SphericalHarmonics]:
         """
         Compute Gaussian beam spherical harmonic coefficients.
 
@@ -1706,10 +1712,17 @@ class Simulation:
             If True, the computed blms will be stored in the `blms` attribute of
             the observation object.
 
-        Returns:
-        --------
-        Dictionary
-            A dictionary containing beam `a_lm` values per detector
+        Returns
+        -------
+        dict[str, SphericalHarmonics]
+            A dictionary containing beam `a_lm` values per detector.
+            The keys are detector names (str) and the values are instances of
+            :class:`SphericalHarmonics`.
+
+        Raises
+        ------
+        ValueError
+            If no observations are available to generate sky maps.
         """
 
         if not self.observations:
@@ -1729,7 +1742,7 @@ class Simulation:
         parameters: MbsParameters,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
         store_in_observation: bool | None = False,
-    ):
+    ) -> dict[str, SphericalHarmonics | HealpixMap]:
         """
         Generates sky maps for the observations using the provided parameters.
         If `channels` is not provided, it automatically infers the detectors
@@ -1749,8 +1762,11 @@ class Simulation:
 
         Returns
         -------
-        Dict
-            A dictionary containing the simulated sky maps for each detector or channel
+        dict[str, SphericalHarmonics | HealpixMap]
+            A dictionary containing the simulated sky components.
+            The keys are detector or channel names (str), and the values are either:
+            - :class:`SphericalHarmonics`: If the simulation is configured in harmonic space.
+            - :class:`HealpixMap`: If the simulation is configured in pixel space.
 
         Raises
         ------

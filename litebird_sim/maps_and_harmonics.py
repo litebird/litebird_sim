@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Any, Tuple, Optional
+from typing import Any, Tuple, Dict, Optional
+import warnings
 
 import numpy as np
 import healpy as hp
@@ -1649,3 +1650,397 @@ def estimate_alm(
         units=map.units,
         coordinates=map.coordinates,
     )
+
+
+def synthesize_alms(
+    cl_dict: Dict[str, np.ndarray],
+    lmax: Optional[int] = None,
+    mmax: Optional[int] = None,
+    rng: Optional[np.random.Generator] = None,
+    units: Optional["Units"] = None,
+) -> "SphericalHarmonics":
+    """
+    Generates a set of spherical harmonic coefficients (alms) from power spectra.
+
+    Optimized behavior based on input correlations:
+    - 'TT' only: Scalar generation (fastest).
+    - 'TT', 'EE', 'BB', 'TE': Block-diagonal generation. Computes (T, E)
+      as a correlated 2x2 pair, and B independently.
+    - 'TB' or 'EB' present: Full 3x3 covariance generation.
+
+    Parameters
+    ----------
+    cl_dict : Dict[str, np.ndarray]
+        Dictionary containing the power spectra (e.g. 'TT', 'EE', 'BB', 'TE'...).
+    lmax : int, optional
+        Maximum multipole degree l. If None, it defaults to the minimum lmax
+        determined from the lengths of the arrays in cl_dict (len(cl) - 1).
+    mmax : int, optional
+        Maximum multipole order m. If None, defaults to lmax.
+    rng : numpy.random.Generator, optional
+        Random number generator instance.
+    units : Units, optional
+        The physical units of the generated alms.
+
+    Returns
+    -------
+    SphericalHarmonics
+        Dataclass with .values of shape (nstokes, ncoeffs).
+
+    Raises
+    ------
+    ValueError
+        If lmax is None and cl_dict is empty.
+    """
+
+    # 0. Determine lmax if not provided
+    if lmax is None:
+        if not cl_dict:
+            raise ValueError("cl_dict is empty and lmax is not provided.")
+        # Arrays in cl_dict include l=0, so max l is len(arr) - 1
+        lmax = min(len(arr) for arr in cl_dict.values()) - 1
+
+    if mmax is None:
+        mmax = lmax
+
+    if rng is None:
+        rng = np.random.default_rng()
+
+    keys = cl_dict.keys()
+
+    # --- 1. Identify Physics Case ---
+    pol_keys = {"EE", "BB", "TE", "TB", "EB"}
+    has_polarization = any(k in keys for k in pol_keys)
+
+    # Check for parity breaking correlations (TB, EB)
+    has_parity_breaking = "TB" in keys or "EB" in keys
+    has_bb = "BB" in keys
+
+    # --- 2. Setup Indices (m-slow scheme) ---
+    # We need n_coeffs regardless of the method
+    # Create l values for every coefficient
+    l_indices_list = []
+    for m in range(mmax + 1):
+        l_indices_list.append(np.arange(m, lmax + 1))
+    l_indices = np.concatenate(l_indices_list)
+    n_coeffs = len(l_indices)
+
+    # Helper for extracting spectra
+    def get_padded_cl(key):
+        if key not in cl_dict:
+            return np.zeros(lmax + 1)
+        cl = cl_dict[key]
+        if len(cl) < lmax + 1:
+            warnings.warn(
+                f"Cl '{key}' len {len(cl)} < lmax+1 ({lmax + 1}). Padding with zeros.",
+                UserWarning,
+            )
+            padded = np.zeros(lmax + 1)
+            padded[: len(cl)] = cl
+            return padded
+        return cl[: lmax + 1]
+
+    # Helper for white noise generation
+    def generate_white_noise(shape):
+        # Generate Complex Normal(0, 1)
+        # Real/Imag parts ~ N(0, 1/sqrt(2)) -> Sum variance is 1
+        nr = rng.standard_normal(shape)
+        ni = rng.standard_normal(shape)
+        white = (nr + 1j * ni) / np.sqrt(2)
+
+        # Correct m=0 modes (first lmax+1 elements) to be real
+        # For real modes, we want variance 1 real.
+        # Currently nr is N(0, 1).
+        m0_count = lmax + 1
+        white[..., :m0_count] = nr[..., :m0_count] * (1.0 + 0j)
+        return white
+
+    # --- 3. Execution based on Case ---
+
+    # === CASE A: Intensity Only ===
+    if not has_polarization:
+        nstokes = 1
+        cl_tt = get_padded_cl("TT")
+
+        # Simple scalar scaling: alm = sqrt(Cl) * white_noise
+        alm_white = generate_white_noise((1, n_coeffs))
+
+        # Map sqrt(Cl) to indices
+        # Ensure non-negative Cl for sqrt
+        cl_sqrt = np.sqrt(np.maximum(cl_tt, 0.0))
+        scaling_factor = cl_sqrt[l_indices]
+
+        alm_colored = alm_white * scaling_factor
+
+    # === CASE B: Decoupled Polarization (Standard CMB) ===
+    # T and E are correlated (2x2), B is independent (scalar)
+    elif not has_parity_breaking:
+        nstokes = 3
+
+        # --- Block 1: T and E (2x2 mixing) ---
+        cl_tt = get_padded_cl("TT")
+        cl_ee = get_padded_cl("EE")
+        cl_te = get_padded_cl("TE")
+
+        # Construct 2x2 covariances: [[TT, TE], [TE, EE]]
+        # Shape (lmax+1, 2, 2)
+        cov_2x2 = np.zeros((lmax + 1, 2, 2))
+        cov_2x2[:, 0, 0] = cl_tt
+        cov_2x2[:, 1, 1] = cl_ee
+        cov_2x2[:, 0, 1] = cov_2x2[:, 1, 0] = cl_te
+
+        # Compute mixing matrices for T, E
+        L_matrices_2x2 = np.zeros_like(cov_2x2)
+        for l in range(lmax + 1):
+            C_l = cov_2x2[l]
+            if np.allclose(C_l, 0):
+                continue
+            u, s, vh = np.linalg.svd(C_l, hermitian=True)
+            s = np.maximum(s, 0.0)
+            L_matrices_2x2[l] = u @ np.diag(np.sqrt(s))
+
+        # Generate noise for T and E
+        white_te = generate_white_noise((2, n_coeffs))
+
+        # Apply coloring for T, E
+        L_expanded = L_matrices_2x2[l_indices]  # (n_coeffs, 2, 2)
+        colored_te_T = np.einsum("isk,ik->is", L_expanded, white_te.T)
+        colored_te = colored_te_T.T  # (2, n_coeffs)
+
+        # --- Block 2: B (Scalar) ---
+        if has_bb:
+            cl_bb = get_padded_cl("BB")
+            white_b = generate_white_noise((1, n_coeffs))
+            cl_bb_sqrt = np.sqrt(np.maximum(cl_bb, 0.0))
+            colored_b = white_b * cl_bb_sqrt[l_indices]
+        else:
+            colored_b = np.zeros((1, n_coeffs), dtype=np.complex128)
+
+        # Combine
+        alm_colored = np.vstack([colored_te, colored_b])
+
+    # === CASE C: Full Polarization (Parity Breaking) ===
+    # Everything is correlated (3x3)
+    else:
+        nstokes = 3
+        cl_tt = get_padded_cl("TT")
+        cl_ee = get_padded_cl("EE")
+        cl_bb = get_padded_cl("BB")
+        cl_te = get_padded_cl("TE")
+        cl_tb = get_padded_cl("TB")
+        cl_eb = get_padded_cl("EB")
+
+        cov_3x3 = np.zeros((lmax + 1, 3, 3))
+        # Diagonals
+        cov_3x3[:, 0, 0] = cl_tt
+        cov_3x3[:, 1, 1] = cl_ee
+        cov_3x3[:, 2, 2] = cl_bb
+        # Off-diagonals
+        cov_3x3[:, 0, 1] = cov_3x3[:, 1, 0] = cl_te
+        cov_3x3[:, 0, 2] = cov_3x3[:, 2, 0] = cl_tb
+        cov_3x3[:, 1, 2] = cov_3x3[:, 2, 1] = cl_eb
+
+        L_matrices = np.zeros_like(cov_3x3)
+        for l in range(lmax + 1):
+            C_l = cov_3x3[l]
+            if np.allclose(C_l, 0):
+                continue
+            u, s, vh = np.linalg.svd(C_l, hermitian=True)
+            s = np.maximum(s, 0.0)
+            L_matrices[l] = u @ np.diag(np.sqrt(s))
+
+        white_noise = generate_white_noise((3, n_coeffs))
+
+        L_expanded = L_matrices[l_indices]
+        colored_T = np.einsum("isk,ik->is", L_expanded, white_noise.T)
+        alm_colored = colored_T.T
+
+    return SphericalHarmonics(values=alm_colored, lmax=lmax, mmax=mmax, units=units)
+
+
+def compute_cls(
+    alm1: "SphericalHarmonics",
+    alm2: Optional["SphericalHarmonics"] = None,
+    lmax: Optional[int] = None,
+    mmax: Optional[int] = None,
+    symmetrize: bool = True,
+) -> Dict[str, np.ndarray]:
+    """
+    Computes angular power spectra (Cls) from one or two sets of spherical harmonic coefficients.
+
+    Calculates auto-spectra or cross-spectra. Automatically handles inputs with different
+    sizes (lmax, mmax) by computing the spectrum up to the minimum common lmax/mmax.
+
+    Parameters
+    ----------
+    alm1 : SphericalHarmonics
+        The first set of spherical harmonics.
+    alm2 : SphericalHarmonics, optional
+        The second set of spherical harmonics. If None, the auto-spectrum of alm1
+        is computed.
+    lmax : int, optional
+        The maximum l to compute. If None, derived from inputs.
+        If larger than input dimensions, it is clamped to the input size with a warning.
+    mmax : int, optional
+        The maximum m to compute. If None, derived from inputs (or set to lmax).
+    symmetrize : bool, default=True
+        Only applies when two different objects are passed and nstokes=3.
+        If True, returns symmetric cross-spectra (e.g., TE = (T1E2 + E1T2)/2).
+        If False, returns all cross-combinations (TE, ET, TB, BT, EB, BE).
+
+    Returns
+    -------
+    Dict[str, np.ndarray]
+        Dictionary of power spectra (values are 1D arrays of size lmax_calc + 1).
+    """
+
+    # 1. Handle Inputs and Auto-Correlation Setup
+    is_auto = False
+    if alm2 is None:
+        alm2 = alm1
+        is_auto = True
+
+    # 2. Determine Effective Limits for ALM 1
+    # Check against alm1 physical limits
+    lmax1_eff = lmax if lmax is not None else alm1.lmax
+    if lmax1_eff > alm1.lmax:
+        warnings.warn(
+            f"Requested lmax ({lmax1_eff}) > alm1.lmax ({alm1.lmax}). using {alm1.lmax}.",
+            UserWarning,
+        )
+        lmax1_eff = alm1.lmax
+
+    mmax1_in = alm1.mmax if alm1.mmax is not None else alm1.lmax
+    mmax1_eff = mmax if mmax is not None else mmax1_in
+    # If mmax was not passed, we might have defaulted to lmax_calc later,
+    # but here we check consistency with the object
+    if mmax1_eff > mmax1_in:
+        warnings.warn(
+            f"Requested mmax ({mmax1_eff}) > alm1.mmax ({mmax1_in}). Using {mmax1_in}.",
+            UserWarning,
+        )
+        mmax1_eff = mmax1_in
+
+    # 3. Determine Effective Limits for ALM 2
+    lmax2_eff = lmax if lmax is not None else alm2.lmax
+    if lmax2_eff > alm2.lmax:
+        warnings.warn(
+            f"Requested lmax ({lmax2_eff}) > alm2.lmax ({alm2.lmax}). Using {alm2.lmax}.",
+            UserWarning,
+        )
+        lmax2_eff = alm2.lmax
+
+    mmax2_in = alm2.mmax if alm2.mmax is not None else alm2.lmax
+    mmax2_eff = mmax if mmax is not None else mmax2_in
+    if mmax2_eff > mmax2_in:
+        warnings.warn(
+            f"Requested mmax ({mmax2_eff}) > alm2.mmax ({mmax2_in}). Using {mmax2_in}.",
+            UserWarning,
+        )
+        mmax2_eff = mmax2_in
+
+    # 4. Compute Intersection (Calculation Limits)
+    lmax_calc = min(lmax1_eff, lmax2_eff)
+    mmax_calc = min(mmax1_eff, mmax2_eff)
+
+    # Clamp mmax to lmax (physically m cannot exceed l)
+    if mmax_calc > lmax_calc:
+        mmax_calc = lmax_calc
+
+    # Check Stokes dimensions
+    nstokes1 = alm1.values.shape[0]
+    nstokes2 = alm2.values.shape[0]
+    if nstokes1 != nstokes2:
+        raise ValueError(
+            f"nstokes mismatch: alm1 has {nstokes1}, alm2 has {nstokes2}. "
+            "Mixed dimension spectra are not currently supported."
+        )
+
+    # 5. Core Computation Helper
+    def _compute_component_cl(arr1, arr2):
+        cl = np.zeros(lmax_calc + 1, dtype=np.float64)
+
+        # We need to traverse both arrays.
+        # Since they might have different sizes, we track indices separately.
+        idx1 = 0
+        idx2 = 0
+
+        # Pre-fetch object properties to avoid lookups in loop
+        # Note: We use the *intrinsic* lmax of the objects to advance pointers correctly
+        lmax1_obj = alm1.lmax
+        lmax2_obj = alm2.lmax
+
+        for m in range(mmax_calc + 1):
+            # The number of elements we WANT to compute for this m
+            # defined by the intersection limit lmax_calc
+            count = lmax_calc - m + 1
+
+            # Extract slices
+            # arr1 and arr2 are in m-slow order: [ (l=m..lmax_obj), (l=m+1..lmax_obj), ... ]
+            # We take the first 'count' elements which correspond to l=m..lmax_calc
+            chunk1 = arr1[idx1 : idx1 + count]
+            chunk2 = arr2[idx2 : idx2 + count]
+
+            # Cross product
+            prod = (chunk1 * chunk2.conj()).real
+
+            # Accumulate (m=0 once, m>0 twice)
+            if m == 0:
+                cl[m:] += prod
+            else:
+                cl[m:] += 2.0 * prod
+
+            # Advance indices by the FULL block size of each object
+            # To jump to the start of the next m block
+            idx1 += lmax1_obj - m + 1
+            idx2 += lmax2_obj - m + 1
+
+        # Normalize
+        ell = np.arange(lmax_calc + 1, dtype=np.float64)
+        cl /= 2.0 * ell + 1.0
+        return cl
+
+    # 6. Generate Spectra
+    out_cls = {}
+
+    if nstokes1 == 1:
+        out_cls["TT"] = _compute_component_cl(alm1.values[0], alm2.values[0])
+        return out_cls
+
+    elif nstokes1 == 3:
+        # Indices: 0=T, 1=E, 2=B
+        out_cls["TT"] = _compute_component_cl(alm1.values[0], alm2.values[0])
+        out_cls["EE"] = _compute_component_cl(alm1.values[1], alm2.values[1])
+        out_cls["BB"] = _compute_component_cl(alm1.values[2], alm2.values[2])
+
+        # Base Cross terms
+        cl_te = _compute_component_cl(alm1.values[0], alm2.values[1])  # T1 x E2
+        cl_tb = _compute_component_cl(alm1.values[0], alm2.values[2])  # T1 x B2
+        cl_eb = _compute_component_cl(alm1.values[1], alm2.values[2])  # E1 x B2
+
+        if is_auto:
+            out_cls["TE"] = cl_te
+            out_cls["TB"] = cl_tb
+            out_cls["EB"] = cl_eb
+        elif symmetrize:
+            # Symmetrized Cross
+            cl_et = _compute_component_cl(alm1.values[1], alm2.values[0])  # E1 x T2
+            cl_bt = _compute_component_cl(alm1.values[2], alm2.values[0])  # B1 x T2
+            cl_be = _compute_component_cl(alm1.values[2], alm2.values[1])  # B1 x E2
+
+            out_cls["TE"] = 0.5 * (cl_te + cl_et)
+            out_cls["TB"] = 0.5 * (cl_tb + cl_bt)
+            out_cls["EB"] = 0.5 * (cl_eb + cl_be)
+        else:
+            # Full Cross
+            out_cls["TE"] = cl_te
+            out_cls["TB"] = cl_tb
+            out_cls["EB"] = cl_eb
+            out_cls["ET"] = _compute_component_cl(alm1.values[1], alm2.values[0])
+            out_cls["BT"] = _compute_component_cl(alm1.values[2], alm2.values[0])
+            out_cls["BE"] = _compute_component_cl(alm1.values[2], alm2.values[1])
+
+        return out_cls
+
+    else:
+        raise ValueError(f"Unsupported number of Stokes parameters: {nstokes1}")
