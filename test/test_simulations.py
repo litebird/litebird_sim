@@ -719,9 +719,9 @@ def test_get_sky(tmp_path):
     )
 
     maps = sim.get_sky(parameters=mbs_params, store_in_observation=True)
-    maps = np.array([maps[det] for det in set(sim.observations[0].name)])
+    maps = np.array([maps[det].values for det in set(sim.observations[0].name)])
     obs_maps = sim.observations[0].sky
-    obs_maps = np.array([obs_maps[det] for det in set(sim.observations[0].name)])
+    obs_maps = np.array([obs_maps[det].values for det in set(sim.observations[0].name)])
 
     np.testing.assert_allclose(maps, obs_maps)
 
@@ -731,7 +731,7 @@ def test_get_sky(tmp_path):
     ]
 
     for idx_det in range(4):
-        np.testing.assert_allclose(maps[idx_det], same_ch_map)
+        np.testing.assert_allclose(maps[idx_det], same_ch_map.values)
 
     # Introduce a difference
     mbs_params.make_noise = True
@@ -743,8 +743,8 @@ def test_get_sky(tmp_path):
         np.testing.assert_raises(
             AssertionError,
             np.testing.assert_allclose,
-            maps[idx_det],
-            same_ch_map,
+            maps[idx_det].values,
+            same_ch_map.values,
         )
 
 

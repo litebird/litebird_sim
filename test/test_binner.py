@@ -234,7 +234,7 @@ def test_hwp_offset_angle():
 
     results = lbs.make_binned_map(nside, sim.observations, hwp=hwp_offset)
 
-    cl_in = hp.anafast(sky["Boresight_detector_T"], lmax=2 * nside)
+    cl_in = hp.anafast(sky["Boresight_detector_T"].values, lmax=2 * nside)
 
     cl_rot = hp.anafast(results.binned_map, lmax=2 * nside)
 

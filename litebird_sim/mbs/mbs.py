@@ -871,7 +871,7 @@ class Mbs:
         dipvec = (
             hp.ang2vec(sun_velocity[0], sun_velocity[1])
             * sun_velocity[2]
-            / c.C_LIGHT_KM_S
+            / c.C_LIGHT_KM_OVER_S
             * c.T_CMB_K
         )
 
@@ -1047,6 +1047,11 @@ class Mbs:
                 self.write_coadded_maps(saved_maps)
             if not self.params.save:
                 tot_dict = {}
+                if self.params.maps_in_ecliptic:
+                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
+                else:
+                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Galactic
+
                 for nch, chnl in enumerate(channels):
                     if self.params.store_alms:
                         alms = hp.map2alm(tot[nch], lmax=self.params.lmax_alms, iter=0)
@@ -1054,13 +1059,17 @@ class Mbs:
                             values=alms,
                             lmax=self.params.lmax_alms,
                             mmax=self.params.lmax_alms,
+                            units=lbs.Units[self.params.units],
+                            coordinates=tot_dict["Coordinates"],
                         )
                     else:
-                        tot_dict[chnl] = tot[nch]
-                if self.params.maps_in_ecliptic:
-                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Ecliptic
-                else:
-                    tot_dict["Coordinates"] = lbs.CoordinateSystem.Galactic
+                        tot_dict[chnl] = lbs.HealpixMap(
+                            values=tot[nch],
+                            nside=self.params.nside,
+                            coordinates=tot_dict["Coordinates"],
+                            units=lbs.Units[self.params.units],
+                            nest=False,
+                        )
 
                 if self.params.store_alms:
                     tot_dict["type"] = "alms"

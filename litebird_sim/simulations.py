@@ -35,7 +35,7 @@ from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
-from .healpix import write_healpix_map_to_file, npix_to_nside
+from .healpix import write_healpix_map_to_file
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
 from .io import write_list_of_observations, read_list_of_observations
@@ -62,16 +62,15 @@ from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .spherical_harmonics import SphericalHarmonics
+from .maps_and_harmonics import SphericalHarmonics, HealpixMap
 from .version import (
     __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
+from .constants import NUMBA_NUM_THREADS_ENVVAR
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
-# Name of the environment variable used to set up Numba threads
-NUMBA_NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
@@ -1619,12 +1618,17 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: np.ndarray | dict[str, np.ndarray] | None = None,
-        input_map_in_galactic: bool = True,
+        maps: (
+            HealpixMap
+            | dict[str, HealpixMap]
+            | SphericalHarmonics
+            | dict[str, SphericalHarmonics]
+            | None
+        ) = None,
         component: str = "tod",
-        interpolation: str | None = "",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        nthreads: int | None = None,
     ):
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
@@ -1639,14 +1643,16 @@ class Simulation:
 
         """
 
+        if nthreads is None:
+            nthreads = self.numba_threads
+
         scan_map_in_observations(
             observations=self.observations,
             maps=maps,
-            input_map_in_galactic=input_map_in_galactic,
             hwp=self.hwp if self.hwp else None,
             component=component,
-            interpolation=interpolation,
             pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1670,7 +1676,7 @@ class Simulation:
                         fg_model=fg_model,
                     )
             else:
-                nside = npix_to_nside(len(maps[0]))
+                nside = SphericalHarmonics.npix_to_nside(len(maps[0]))
                 self.append_to_report(
                     markdown_template,
                     nside=nside,
@@ -1686,7 +1692,7 @@ class Simulation:
         mmax: int | None = None,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
         store_in_observation: bool | None = False,
-    ):
+    ) -> dict[str, SphericalHarmonics]:
         """
         Compute Gaussian beam spherical harmonic coefficients.
 
@@ -1706,10 +1712,17 @@ class Simulation:
             If True, the computed blms will be stored in the `blms` attribute of
             the observation object.
 
-        Returns:
-        --------
-        Dictionary
-            A dictionary containing beam `a_lm` values per detector
+        Returns
+        -------
+        dict[str, SphericalHarmonics]
+            A dictionary containing beam `a_lm` values per detector.
+            The keys are detector names (str) and the values are instances of
+            :class:`SphericalHarmonics`.
+
+        Raises
+        ------
+        ValueError
+            If no observations are available to generate sky maps.
         """
 
         if not self.observations:
@@ -1729,7 +1742,7 @@ class Simulation:
         parameters: MbsParameters,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
         store_in_observation: bool | None = False,
-    ):
+    ) -> dict[str, SphericalHarmonics | HealpixMap]:
         """
         Generates sky maps for the observations using the provided parameters.
         If `channels` is not provided, it automatically infers the detectors
@@ -1749,8 +1762,11 @@ class Simulation:
 
         Returns
         -------
-        Dict
-            A dictionary containing the simulated sky maps for each detector or channel
+        dict[str, SphericalHarmonics | HealpixMap]
+            A dictionary containing the simulated sky components.
+            The keys are detector or channel names (str), and the values are either:
+            - :class:`SphericalHarmonics`: If the simulation is configured in harmonic space.
+            - :class:`HealpixMap`: If the simulation is configured in pixel space.
 
         Raises
         ------
@@ -1834,7 +1850,6 @@ class Simulation:
             observations=self.observations,
             sky_alms=sky_alms,
             beam_alms=beam_alms,
-            input_sky_alms_in_galactic=input_sky_alms_in_galactic,
             component=component,
             convolution_params=convolution_params,
             pointings_dtype=pointings_dtype,

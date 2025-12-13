@@ -25,7 +25,7 @@ from litebird_sim.pointings_in_obs import (
 from litebird_sim.hwp import HWP
 from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
-from litebird_sim.healpix import nside_to_npix
+from litebird_sim.maps_and_harmonics import HealpixMap
 
 
 from .common import (
@@ -202,7 +202,7 @@ def _build_nobs_matrix(
     pointings_dtype=np.float64,
 ) -> npt.ArrayLike:
     hpx = Healpix_Base(nside, "RING")
-    n_pix = nside_to_npix(nside)
+    n_pix = HealpixMap.nside_to_npix(nside)
 
     nobs_matrix = np.zeros((n_pix, 3, 3))
 
