@@ -142,6 +142,52 @@ class SphericalHarmonics:
         return self.values.shape[1]
 
     # ------------------------------------------------------------------
+    # Factory Methods
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def zeros(
+        cls,
+        lmax: int,
+        mmax: int | None = None,
+        nstokes: int = 3,
+        dtype: type = np.complex128,
+        units: Units | None = None,
+        coordinates: CoordinateSystem | None = None,
+    ) -> "SphericalHarmonics":
+        """
+        Create a SphericalHarmonics object filled with zeros.
+
+        Parameters
+        ----------
+        lmax : int
+            Maximum degree.
+        mmax : int, optional
+            Maximum order. Defaults to lmax.
+        nstokes : int, default=3
+            Number of Stokes parameters (1 or 3).
+        dtype : type, default=np.complex128
+            Data type for the array.
+        units : Units, optional
+            Physical units.
+        coordinates : CoordinateSystem, optional
+            Sky coordinate system.
+
+        Returns
+        -------
+        SphericalHarmonics
+            Instance initialized with zeros.
+        """
+        shape = cls.alm_array_size(lmax, mmax, nstokes)
+        return cls(
+            values=np.zeros(shape, dtype=dtype),
+            lmax=lmax,
+            mmax=mmax if mmax is not None else lmax,
+            units=units,
+            coordinates=coordinates,
+        )
+
+    # ------------------------------------------------------------------
     # Static methods
     # ------------------------------------------------------------------
 
@@ -803,6 +849,54 @@ class HealpixMap:
     def npix(self) -> int:
         """Return the number of pixels in the map."""
         return self.values.shape[1]
+
+    # ------------------------------------------------------------------
+    # Factory Methods
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def zeros(
+        cls,
+        nside: int,
+        nstokes: int = 3,
+        dtype: type = np.float64,
+        units: Units | None = None,
+        coordinates: CoordinateSystem | None = None,
+        nest: bool = False,
+    ) -> "HealpixMap":
+        """
+        Create a HealpixMap object filled with zeros.
+
+        Parameters
+        ----------
+        nside : int
+            HEALPix resolution.
+        nstokes : int, default=3
+            Number of Stokes parameters.
+        dtype : type, default=np.float64
+            Data type of the map.
+        units : Units, optional
+            Physical units.
+        coordinates : CoordinateSystem, optional
+            Sky coordinate system.
+        nest : bool, default=False
+            Ordering (Ring vs Nested).
+
+        Returns
+        -------
+        HealpixMap
+            Instance initialized with zeros.
+        """
+        npix = hp.nside2npix(nside)
+        values = np.zeros((nstokes, npix), dtype=dtype)
+        return cls(
+            values=values,
+            nside=nside,
+            units=units,
+            coordinates=coordinates,
+            nest=nest
+        )
+
 
     # ------------------------------------------------------------------
     # Static HEALPix helpers (no healpy dependency)

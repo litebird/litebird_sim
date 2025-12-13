@@ -18,8 +18,6 @@ from .beam_convolution import (
     BeamConvolutionParameters,
 )
 from .beam_synthesis import (
-    alm_index,
-    allocate_alm,
     gauss_beam_to_alm,
     generate_gauss_beam_alms,
 )
@@ -218,8 +216,6 @@ __all__ = [
     "add_convolved_sky_to_observations",
     "BeamConvolutionParameters",
     # beam_synthesis.py
-    "alm_index",
-    "allocate_alm",
     "gauss_beam_to_alm",
     "generate_gauss_beam_alms",
     # constants.py
