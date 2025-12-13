@@ -5,7 +5,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from litebird_sim import SphericalHarmonics, HealpixMap, synthesize_alm, compute_cl
+from litebird_sim import SphericalHarmonics, HealpixMap, synthesize_alm, compute_cl, rotate_alm
 from litebird_sim import Units, CoordinateSystem
 
 
@@ -386,6 +386,100 @@ def test_healpixmap_copy_and_equality():
     m3 = m1.copy()
     m3.values += 1e-9
     assert m1.allclose(m3, atol=1e-8)
+
+
+def test_rotate_alm():
+    """Test spherical harmonic rotations (Euler angles and coordinate transforms)."""
+    # Setup parameters
+    lmax = 4
+    nstokes = 3
+    n_coeffs = SphericalHarmonics.num_of_alm_from_lmax(lmax)
+    
+    # Create random coefficients (T, E, B)
+    rng = np.random.default_rng(42)
+    values = rng.standard_normal((nstokes, n_coeffs)) + 1j * rng.standard_normal((nstokes, n_coeffs))
+    
+    # --- FIX: Ensure m=0 coefficients are real ---
+    # For real-valued maps, a_l0 must be Real. 
+    # In standard packing, the first (lmax + 1) elements correspond to m=0.
+    # If we don't zero the imaginary part, ducc0 will strip it during rotation,
+    # causing the round-trip check to fail.
+    values[:, :lmax + 1] = values[:, :lmax + 1].real
+    # ---------------------------------------------
+    
+    # -------------------------------------------------------------------------
+    # 1. Identity Rotation (Explicit 0,0,0)
+    # -------------------------------------------------------------------------
+    sh = SphericalHarmonics(values, lmax=lmax, coordinates=CoordinateSystem.Ecliptic)
+    
+    # Explicit angles (0,0,0) -> Should preserve values but reset coordinates to None
+    sh_ident = rotate_alm(sh, psi=0.0, theta=0.0, phi=0.0)
+    
+    np.testing.assert_allclose(
+        sh.values, 
+        sh_ident.values, 
+        err_msg="Identity rotation (0,0,0) should not change values."
+    )
+    assert sh_ident.coordinates is None, "Explicit angles should reset coordinates to None."
+
+    # -------------------------------------------------------------------------
+    # 2. Predefined Rotation: Ecliptic -> Galactic (e2g)
+    # -------------------------------------------------------------------------
+    sh_ecl = SphericalHarmonics(values, lmax=lmax, coordinates=CoordinateSystem.Ecliptic)
+    sh_gal = rotate_alm(sh_ecl, kind='e2g')
+    
+    assert sh_gal.coordinates == CoordinateSystem.Galactic
+    assert sh_gal is not sh_ecl  # Should be a new object (default inplace=False)
+    
+    # -------------------------------------------------------------------------
+    # 3. Round Trip: Ecliptic -> Galactic -> Ecliptic
+    # -------------------------------------------------------------------------
+    sh_back = rotate_alm(sh_gal, kind='g2e')
+    
+    assert sh_back.coordinates == CoordinateSystem.Ecliptic
+    
+    # Check that we recover original values
+    np.testing.assert_allclose(
+        sh_ecl.values, 
+        sh_back.values, 
+        rtol=1e-10, 
+        atol=1e-10,
+        err_msg="E2G -> G2E round trip failed."
+    )
+
+    # -------------------------------------------------------------------------
+    # 4. In-place Operation
+    # -------------------------------------------------------------------------
+    sh_inplace = sh_ecl.copy()
+    rotate_alm(sh_inplace, kind='e2g', inplace=True)
+    
+    assert sh_inplace.coordinates == CoordinateSystem.Galactic
+    assert not np.allclose(sh_ecl.values, sh_inplace.values), "In-place rotation did not modify values."
+
+    # -------------------------------------------------------------------------
+    # 5. Error Handling & Validation
+    # -------------------------------------------------------------------------
+    
+    # A. Coordinate Mismatch: sh_gal is Galactic, asking for E2G (requires Ecliptic)
+    with pytest.raises(ValueError, match="requires input in Ecliptic"):
+        rotate_alm(sh_gal, kind='e2g')
+
+    # B. Coordinate Mismatch: sh_ecl is Ecliptic, asking for G2E (requires Galactic)
+    with pytest.raises(ValueError, match="requires input in Galactic"):
+        rotate_alm(sh_ecl, kind='g2e')
+
+    # C. Ambiguity: Both kind and explicit angles provided
+    with pytest.raises(ValueError, match="Cannot specify both"):
+        rotate_alm(sh_ecl, kind='e2g', psi=0.1)
+
+    # D. Invalid lmax: Provided lmax > object lmax
+    with pytest.raises(ValueError, match="Provided lmax"):
+        rotate_alm(sh_ecl, psi=0.1, lmax=lmax+1)
+
+    # E. No-Op Warning: No rotation specified
+    with pytest.warns(UserWarning, match="No rotation specified"):
+        res = rotate_alm(sh_ecl)
+        np.testing.assert_array_equal(res.values, sh_ecl.values)
 
 
 def test_synthesize_alm_scalar():

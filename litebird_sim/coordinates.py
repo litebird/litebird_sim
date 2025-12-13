@@ -11,6 +11,34 @@ DEFAULT_COORDINATE_SYSTEM = BarycentricMeanEcliptic()
 """The time scale used by the framework"""
 DEFAULT_TIME_SCALE = "tdb"
 
+
+def _rotmat2euler_zyz(mat):
+    """Return the ZYZ Euler angles corresponding to a given rotation matrix.
+    The angles can be used in ducc0's rotate_alm.
+    https://mtr.pages.mpcdf.de/ducc/sht.html#ducc0.sht.rotate_alm
+
+    example
+        angles = _rotmat2euler_zyz(lbs.ECL_TO_GAL_ROT_MATRIX)
+        rotate_alm(alm, lmax, *angles)
+
+    The code is taken from healpy.rotator.coordsys2euler_zyz
+    https://github.com/healpy/healpy/blob/90ce9f92b77ec94ab22d9d09aebf85db582bfc12/lib/healpy/rotator.py#L1234
+    """
+    zeta = [0.0, 0.0, 1.0]
+
+    xout, yout, zout = mat.T
+
+    xout /= np.sqrt(np.dot(xout, xout))
+    yout /= np.sqrt(np.dot(yout, yout))
+    zout /= np.sqrt(np.dot(zout, zout))
+
+    psi = np.arctan2(yout[2], -xout[2])
+    theta = np.arccos(np.dot(zeta, zout))
+    phi = np.arctan2(zout[1], zout[0])
+
+    return psi, theta, phi
+
+
 ECL_TO_GAL_ROT_MATRIX = (
     SkyCoord(
         x=[1.0, 0.0, 0.0],
@@ -24,6 +52,12 @@ ECL_TO_GAL_ROT_MATRIX = (
     .get_xyz()
     .value
 )
+
+GAL_TO_ECL_ROT_MATRIX = ECL_TO_GAL_ROT_MATRIX.T
+
+ECL_TO_GAL_EULER = _rotmat2euler_zyz(ECL_TO_GAL_ROT_MATRIX)
+GAL_TO_ECL_EULER = _rotmat2euler_zyz(GAL_TO_ECL_ROT_MATRIX)
+
 
 NORTH_POLE_VEC = np.tensordot(ECL_TO_GAL_ROT_MATRIX, [0.0, 0.0, 1.0], axes=(1, 0))
 
