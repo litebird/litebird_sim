@@ -1652,7 +1652,7 @@ def estimate_alm(
     )
 
 
-def synthesize_alms(
+def synthesize_alm(
     cl_dict: Dict[str, np.ndarray],
     lmax: Optional[int] = None,
     mmax: Optional[int] = None,
@@ -1660,7 +1660,7 @@ def synthesize_alms(
     units: Optional["Units"] = None,
 ) -> "SphericalHarmonics":
     """
-    Generates a set of spherical harmonic coefficients (alms) from power spectra.
+    Generates a set of spherical harmonic coefficients (alm) from power spectra.
 
     Optimized behavior based on input correlations:
     - 'TT' only: Scalar generation (fastest).
@@ -1680,7 +1680,7 @@ def synthesize_alms(
     rng : numpy.random.Generator, optional
         Random number generator instance.
     units : Units, optional
-        The physical units of the generated alms.
+        The physical units of the generated alm.
 
     Returns
     -------
@@ -1858,7 +1858,7 @@ def synthesize_alms(
     return SphericalHarmonics(values=alm_colored, lmax=lmax, mmax=mmax, units=units)
 
 
-def compute_cls(
+def compute_cl(
     alm1: "SphericalHarmonics",
     alm2: Optional["SphericalHarmonics"] = None,
     lmax: Optional[int] = None,
@@ -1866,7 +1866,7 @@ def compute_cls(
     symmetrize: bool = True,
 ) -> Dict[str, np.ndarray]:
     """
-    Computes angular power spectra (Cls) from one or two sets of spherical harmonic coefficients.
+    Computes angular power spectra (Cl) from one or two sets of spherical harmonic coefficients.
 
     Calculates auto-spectra or cross-spectra. Automatically handles inputs with different
     sizes (lmax, mmax) by computing the spectrum up to the minimum common lmax/mmax.

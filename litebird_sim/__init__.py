@@ -198,8 +198,8 @@ from .maps_and_harmonics import (
     interpolate_alm,
     pixelize_alm,
     estimate_alm,
-    synthesize_alms,
-    compute_cls,
+    synthesize_alm,
+    compute_cl,
 )
 from .version import __author__, __version__
 
@@ -413,6 +413,6 @@ __all__ = [
     "interpolate_alm",
     "pixelize_alm",
     "estimate_alm",
-    "synthesize_alms",
-    "compute_cls",
+    "synthesize_alm",
+    "compute_cl",
 ]
