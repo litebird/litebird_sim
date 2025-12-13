@@ -6,11 +6,7 @@ import numpy as np
 import healpy as hp
 
 from .units import Units
-from .coordinates import (
-    CoordinateSystem, 
-    ECL_TO_GAL_EULER, 
-    GAL_TO_ECL_EULER
-)
+from .coordinates import CoordinateSystem, ECL_TO_GAL_EULER, GAL_TO_ECL_EULER
 
 import ducc0.sht as sht
 import ducc0.healpix as dh
@@ -894,13 +890,8 @@ class HealpixMap:
         npix = hp.nside2npix(nside)
         values = np.zeros((nstokes, npix), dtype=dtype)
         return cls(
-            values=values,
-            nside=nside,
-            units=units,
-            coordinates=coordinates,
-            nest=nest
+            values=values, nside=nside, units=units, coordinates=coordinates, nest=nest
         )
-
 
     # ------------------------------------------------------------------
     # Static HEALPix helpers (no healpy dependency)
@@ -1784,7 +1775,7 @@ def rotate_alm(
     mmax : int, optional, keyword-only
         Maximum m index. If provided, it is checked against alms.mmax.
     inplace : bool, optional, keyword-only
-        If True, modifies the input `alms` object in place. 
+        If True, modifies the input `alms` object in place.
         If False (default), returns a new rotated `SphericalHarmonics` object.
     nthreads : int, optional, keyword-only
         Number of threads to use for the rotation. Default is 0 (use all available).
@@ -1793,21 +1784,23 @@ def rotate_alm(
     -------
     SphericalHarmonics
         The rotated spherical harmonics coefficients.
-    
+
     Raises
     ------
     ValueError
         If inputs are inconsistent (e.g. kind='e2g' but input is already Galactic,
         or providing both `kind` and explicit angles).
     """
-    
+
     # 1. Validation of lmax/mmax
     op_lmax = alms.lmax
     op_mmax = alms.mmax
 
     if lmax is not None:
         if lmax > alms.lmax:
-            raise ValueError(f"Provided lmax ({lmax}) > alms.lmax ({alms.lmax}). Cannot rotate coefficients that do not exist.")
+            raise ValueError(
+                f"Provided lmax ({lmax}) > alms.lmax ({alms.lmax}). Cannot rotate coefficients that do not exist."
+            )
         if lmax != alms.lmax:
             warnings.warn(
                 f"Provided lmax ({lmax}) differs from alms.lmax ({alms.lmax}). "
@@ -1825,35 +1818,45 @@ def rotate_alm(
 
     # 2. Check for No-Op or Invalid combinations
     has_angles = (psi is not None) or (theta is not None) or (phi is not None)
-    
+
     if kind is not None and has_angles:
-        raise ValueError("Cannot specify both 'kind' and explicit Euler angles (psi, theta, phi).")
-    
+        raise ValueError(
+            "Cannot specify both 'kind' and explicit Euler angles (psi, theta, phi)."
+        )
+
     if kind is None and not has_angles:
-        warnings.warn("No rotation specified (kind=None and no angles passed). Returning input alms.")
+        warnings.warn(
+            "No rotation specified (kind=None and no angles passed). Returning input alms."
+        )
         return alms if inplace else alms.copy()
 
     # 3. Coordinate determination and validation
     target_coords = None
-    
-    if kind == 'e2g':
-        if alms.coordinates is not None and alms.coordinates != CoordinateSystem.Ecliptic:
-             raise ValueError(
-                 f"Rotation 'e2g' (Ecliptic -> Galactic) requires input in Ecliptic coordinates, "
-                 f"but input is marked as {alms.coordinates}."
-             )
+
+    if kind == "e2g":
+        if (
+            alms.coordinates is not None
+            and alms.coordinates != CoordinateSystem.Ecliptic
+        ):
+            raise ValueError(
+                f"Rotation 'e2g' (Ecliptic -> Galactic) requires input in Ecliptic coordinates, "
+                f"but input is marked as {alms.coordinates}."
+            )
         psi_rot, theta_rot, phi_rot = ECL_TO_GAL_EULER
         target_coords = CoordinateSystem.Galactic
-        
-    elif kind == 'g2e':
-        if alms.coordinates is not None and alms.coordinates != CoordinateSystem.Galactic:
-             raise ValueError(
-                 f"Rotation 'g2e' (Galactic -> Ecliptic) requires input in Galactic coordinates, "
-                 f"but input is marked as {alms.coordinates}."
-             )
+
+    elif kind == "g2e":
+        if (
+            alms.coordinates is not None
+            and alms.coordinates != CoordinateSystem.Galactic
+        ):
+            raise ValueError(
+                f"Rotation 'g2e' (Galactic -> Ecliptic) requires input in Galactic coordinates, "
+                f"but input is marked as {alms.coordinates}."
+            )
         psi_rot, theta_rot, phi_rot = GAL_TO_ECL_EULER
         target_coords = CoordinateSystem.Ecliptic
-        
+
     elif kind is not None:
         raise ValueError(f"Unknown rotation kind '{kind}'. Supported: 'e2g', 'g2e'.")
     else:
@@ -1872,13 +1875,13 @@ def rotate_alm(
         # FIX: use 'mmax_in' instead of 'mmax'
         # FIX: assign the result back to the array slice
         out_alms.values[i] = sht.rotate_alm(
-            out_alms.values[i], 
-            op_lmax, 
-            psi_rot, 
-            theta_rot, 
-            phi_rot, 
+            out_alms.values[i],
+            op_lmax,
+            psi_rot,
+            theta_rot,
+            phi_rot,
             nthreads=nthreads,
-            mmax_in=op_mmax  # Correct keyword
+            mmax_in=op_mmax,  # Correct keyword
         )
 
     # 5. Update metadata

@@ -49,8 +49,8 @@ def gauss_beam_to_alm(
     SphericalHarmonics
         The spherical harmonics coefficients representing the beam.
     """
-    is_elliptical = (ellipticity != 1.0)
-    is_polarized = (psi_pol_rad is not None)
+    is_elliptical = ellipticity != 1.0
+    is_polarized = psi_pol_rad is not None
     num_stokes = 3 if is_polarized else 1
 
     # Use the factory method from SphericalHarmonics
@@ -68,8 +68,9 @@ def gauss_beam_to_alm(
         # Index for m=0 is just ell in standard healpix ordering (first block)
         idx_m0 = ell
 
-        beam_profile = np.sqrt((2 * ell + 1) / (4 * np.pi)) * \
-                       np.exp(-0.5 * sigma_squared * ell * (ell + 1))
+        beam_profile = np.sqrt((2 * ell + 1) / (4 * np.pi)) * np.exp(
+            -0.5 * sigma_squared * ell * (ell + 1)
+        )
 
         alm.values[0, idx_m0] = beam_profile
 
@@ -79,8 +80,11 @@ def gauss_beam_to_alm(
             ell_p = np.arange(2, lmax + 1)
             f1 = np.cos(2 * psi_pol_rad) - np.sin(2 * psi_pol_rad) * 1.0j
 
-            beam_pol = np.sqrt((2 * ell_p + 1) / (32 * np.pi)) * \
-                       np.exp(-0.5 * sigma_squared * ell_p * (ell_p + 1)) * f1
+            beam_pol = (
+                np.sqrt((2 * ell_p + 1) / (32 * np.pi))
+                * np.exp(-0.5 * sigma_squared * ell_p * (ell_p + 1))
+                * f1
+            )
 
             # Get indices for m=2
             idx_m2 = hp.Alm.getidx(lmax, ell_p, 2)
@@ -115,9 +119,11 @@ def gauss_beam_to_alm(
             s_slice = slice(idx_start, idx_start + len(ell))
 
             # --- Intensity (I) ---
-            val_I = np.sqrt((2 * ell + 1) / (4 * np.pi)) * \
-                    np.exp(-0.5 * tmp * (1.0 - e_squared / 2)) * \
-                    bessel_i(m // 2, 0.25 * tmp * e_squared)
+            val_I = (
+                np.sqrt((2 * ell + 1) / (4 * np.pi))
+                * np.exp(-0.5 * tmp * (1.0 - e_squared / 2))
+                * bessel_i(m // 2, 0.25 * tmp * e_squared)
+            )
 
             alm.values[0, s_slice] = val_I
 
@@ -125,7 +131,7 @@ def gauss_beam_to_alm(
             if is_polarized:
                 # Mask for ell >= 2 (only relevant if m < 2, i.e., m=0 case)
                 if m < 2:
-                    mask = (ell >= 2)
+                    mask = ell >= 2
                     ell_sub = ell[mask]
                     tmp_sub = tmp[mask]
                 else:
@@ -137,9 +143,11 @@ def gauss_beam_to_alm(
 
                 if m == 0:
                     # Special case m=0, uses bessel_i(1, ...)
-                    val_pol = np.sqrt((2 * ell_sub + 1) / (8 * np.pi)) * \
-                              np.exp(-tmp_sub * (1.0 - e_squared / 2) / 2) * \
-                              bessel_i(1, tmp2)
+                    val_pol = (
+                        np.sqrt((2 * ell_sub + 1) / (8 * np.pi))
+                        * np.exp(-tmp_sub * (1.0 - e_squared / 2) / 2)
+                        * bessel_i(1, tmp2)
+                    )
 
                     # Map mask back to the alm array slice
                     alm_view_1 = alm.values[1, s_slice]
@@ -150,8 +158,9 @@ def gauss_beam_to_alm(
 
                 else:
                     # General case m >= 2
-                    prefactor = np.sqrt((2 * ell_sub + 1) / (32 * np.pi)) * \
-                                np.exp(-0.5 * tmp_sub * (1.0 - 0.5 * e_squared))
+                    prefactor = np.sqrt((2 * ell_sub + 1) / (32 * np.pi)) * np.exp(
+                        -0.5 * tmp_sub * (1.0 - 0.5 * e_squared)
+                    )
 
                     b1 = f1_pol * bessel_i((m - 2) // 2, tmp2)
                     b2 = f2_pol * bessel_i((m + 2) // 2, tmp2)
@@ -176,9 +185,9 @@ def gauss_beam_to_alm(
 
     # Adjust for cross-polar leakage
     if cross_polar_leakage != 0.0:
-        alm.values[0, :] *= (1.0 + cross_polar_leakage)
+        alm.values[0, :] *= 1.0 + cross_polar_leakage
         if num_stokes > 1:
-            alm.values[1:, :] *= (1.0 - cross_polar_leakage)
+            alm.values[1:, :] *= 1.0 - cross_polar_leakage
 
     # Adjust normalization for Pol
     if num_stokes > 1:
@@ -248,7 +257,7 @@ def generate_gauss_beam_alms(
                 fwhm_rad=fwhm_rad,
                 ellipticity=channel.ellipticity,
                 psi_ell_rad=channel.psi_rad,
-                psi_pol_rad=0.0, # Channels usually treated as unrotated/unpolarized basis here
+                psi_pol_rad=0.0,  # Channels usually treated as unrotated/unpolarized basis here
                 cross_polar_leakage=0.0,
             )
 
