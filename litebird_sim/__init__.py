@@ -9,9 +9,8 @@ from litebird_sim.mapmaking import (
     DestriperParameters,
     DestriperResult,
     ExternalDestriperParameters,
-    HnMapResult,
-    load_h_map_from_file,
-    make_h_maps,
+    HnMapResult, 
+    make_h_map
 )
 from .bandpasses import BandPassInfo
 from .beam_convolution import (

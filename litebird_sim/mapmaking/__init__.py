@@ -23,7 +23,7 @@ __all__ = [
     # h_n.py
     "HnMapResult",
     "make_h_maps",
-    "load_h_map_from_file",
+    "load_h_map_from_files",
     # brahmap_gls
     "make_brahmap_gls_map",
     # destriper.py
