@@ -203,6 +203,7 @@ from .maps_and_harmonics import (
     rotate_alm,
     synthesize_alm,
     compute_cl,
+    pixel_window,
 )
 from .version import __author__, __version__
 
@@ -421,4 +422,5 @@ __all__ = [
     "rotate_alm",
     "synthesize_alm",
     "compute_cl",
+    "pixel_window",
 ]

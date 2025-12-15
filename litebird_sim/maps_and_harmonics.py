@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Tuple, Dict, Optional
 import warnings
+from pathlib import Path
 
 import numpy as np
 import healpy as hp
@@ -15,7 +16,6 @@ import ducc0.healpix as dh
 # ======================================================================
 # SphericalHarmonics
 # ======================================================================
-
 
 @dataclass
 class SphericalHarmonics:
@@ -550,7 +550,7 @@ class SphericalHarmonics:
     # Convolution
     # -------------
 
-    def convolve(self, f_ell: np.ndarray | list[np.ndarray]) -> "SphericalHarmonics":
+    def convolve(self, f_ell: np.ndarray | list[np.ndarray], in_place: bool = True) -> "SphericalHarmonics":
         """
         Apply a beam or filter to the SH coefficients.
 
@@ -558,20 +558,15 @@ class SphericalHarmonics:
         ----------
         f_ell : np.ndarray or list[np.ndarray]
             The ℓ-dependent filter(s).
-            - If 1D array: Shape (N,) where N >= lmax+1. Applied to all components.
-            - If 2D array: Shape (nstokes, N). Applied component-wise.
-            - If List: List of 1D arrays of length nstokes.
+        in_place : bool, optional
+            If True, modifies the coefficients of the current object.
+            If False, returns a new SphericalHarmonics object.
+            Default is True.
 
         Returns
         -------
         SphericalHarmonics
-            A new SphericalHarmonics object with filtered coefficients.
-            The units and coordinates are preserved.
-
-        Raises
-        ------
-        ValueError
-            If the filter size is smaller than lmax + 1 or dimensions do not match nstokes.
+            The object itself (if in_place=True) or a new object (if in_place=False).
         """
         # The filter must be defined at least up to self.lmax
         required_size = self.lmax + 1
@@ -587,9 +582,8 @@ class SphericalHarmonics:
                         f"Filter size ({f_ell.shape[0]}) is smaller than required lmax+1 ({required_size})"
                     )
                 # Broadcast 1D filter to (nstokes, ncoeff)
-                kernel = f_ell[l_arr]  # Shape (ncoeff,)
-                # Broadcasting will handle the nstokes dimension during multiplication
-
+                kernel = f_ell[l_arr] 
+            
             elif f_ell.ndim == 2:
                 # Case: Specific filter for each component
                 if f_ell.shape[0] != self.nstokes:
@@ -631,48 +625,67 @@ class SphericalHarmonics:
             raise TypeError("f_ell must be a numpy array or a list of numpy arrays")
 
         # Apply the kernel
-        # self.values is (nstokes, ncoeff), kernel is either (ncoeff,) or (nstokes, ncoeff)
-        return SphericalHarmonics(
-            values=self.values * kernel,
-            lmax=self.lmax,
-            mmax=self.mmax,
-            units=self.units,
-            coordinates=self.coordinates,
-        )
+        if in_place:
+            self.values *= kernel
+            return self
+        else:
+            return SphericalHarmonics(
+                values=self.values * kernel,
+                lmax=self.lmax,
+                mmax=self.mmax,
+                units=self.units,
+                coordinates=self.coordinates,
+            )
 
-    def apply_gaussian_smoothing(self, fwhm_rad: float) -> "SphericalHarmonics":
+    def apply_gaussian_smoothing(self, fwhm_rad: float, in_place: bool = True) -> "SphericalHarmonics":
         """
         Apply Gaussian smoothing to the spherical harmonics coefficients.
-
-        This method computes the appropriate Gaussian beam window function
-        (including polarization factors if applicable) and applies it to the coefficients.
 
         Parameters
         ----------
         fwhm_rad : float
             Full Width at Half Maximum (FWHM) of the Gaussian beam in radians.
+        in_place : bool, optional
+            If True, modifies the object in place. Default is True.
 
         Returns
         -------
         SphericalHarmonics
-            A new SphericalHarmonics object with smoothed coefficients.
+            The smoothed object.
         """
 
         # LOCAL IMPORT to prevent circular dependency
         from .beam_synthesis import gauss_bl
 
-        # Determine if we need polarization support based on the number of Stokes components.
-        # If nstokes > 1 (e.g., 3 for T, E, B), we request the polarized beam.
         nstokes = self.values.shape[0]
         use_pol = nstokes > 1
 
-        # Compute the beam transfer function b_l
-        # If use_pol=True, returns shape (3, lmax+1) for T, E, B.
-        # If use_pol=False, returns shape (1, lmax+1) or (lmax+1,).
         bl = gauss_bl(lmax=self.lmax, fwhm_rad=fwhm_rad, pol=use_pol)
 
-        # Apply convolution using the existing method
-        return self.convolve(bl)
+        return self.convolve(bl, in_place=in_place)
+
+    def apply_pixel_window(self, nside: int, in_place: bool = True) -> "SphericalHarmonics":
+        """
+        Apply the HEALPix pixel window function.
+
+        Parameters
+        ----------
+        nside : int
+            The HEALPix Nside resolution parameter.
+        in_place : bool, optional
+            If True, modifies the object in place. Default is True.
+
+        Returns
+        -------
+        SphericalHarmonics
+            The object with pixel window applied.
+        """
+        nstokes = self.values.shape[0]
+        use_pol = nstokes > 1
+
+        pw_ell = pixel_window(nside, lmax=self.lmax, pol=use_pol)
+
+        return self.convolve(pw_ell, in_place=in_place)
 
     # -------------
     # Copy / compare
@@ -1395,6 +1408,8 @@ class HealpixMap:
             return False
 
         return np.allclose(self.values, other.values, rtol=rtol, atol=atol)
+
+
 
 
 # ======================================================================
@@ -2372,3 +2387,59 @@ def compute_cl(
 
     else:
         raise ValueError(f"Unsupported number of Stokes parameters: {nstokes1}")
+
+
+def pixel_window(nside, lmax=None, pol=False):
+    """
+    Returns the pixel window function compatible with SphericalHarmonics.convolve.
+    
+    Parameters
+    ----------
+    nside : int
+        HEALPix Nside.
+    lmax : int, optional
+        Maximum multipole. If None, defaults to 4*nside.
+    pol : bool, optional
+        If True, returns TEB window functions (shape 3, lmax+1).
+        If False, returns T window function (shape lmax+1,).
+        
+    Returns
+    -------
+    np.ndarray
+        Pixel window array.
+    """
+    # Locate the data file
+    pkl_path = Path(__file__).parent / "datautils" / "pixwin.pkl"
+    
+    if not pkl_path.exists():
+        raise FileNotFoundError(f"pixwin.pkl not found at {pkl_path}")
+
+    # Load the database
+    db = np.load(pkl_path, allow_pickle=True)
+    
+    if nside not in db:
+        raise KeyError(f"Nside {nside} not available in pixel window database.")
+    
+    # Handle lmax default
+    if lmax is None:
+        lmax = 4 * nside
+
+    # 4. Fetch full arrays
+    pw_t_full = db[nside]['T']
+    pw_e_full = db[nside]['E'] # In HEALPix, E window applies to Polarization (E and B)
+    
+    # Check bounds
+    available_lmax = len(pw_t_full) - 1
+    if lmax > available_lmax:
+        raise ValueError(f"Requested lmax ({lmax}) > available lmax ({available_lmax}) for Nside {nside}")
+
+    # Slice data
+    pw_t = pw_t_full[:lmax+1]
+    
+    if not pol:
+        # Return T only
+        return pw_t
+
+    # Return TEB (T, E, B)
+    pw_pol = pw_e_full[:lmax+1]
+    return np.array([pw_t, pw_pol, pw_pol])
