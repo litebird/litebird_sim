@@ -1,6 +1,6 @@
 from .common import ExternalDestriperParameters
 from .binner import make_binned_map, check_valid_splits, BinnerResult
-from .h_n import HnMapResult, make_h_map
+from .h_n import HnMapResult, make_h_maps
 from .brahmap_gls import make_brahmap_gls_map
 from .destriper import (
     make_destriped_map,
@@ -22,7 +22,7 @@ __all__ = [
     "check_valid_splits",
     #h_n.py
     "HnMapResult",
-    "make_h_map",
+    "make_h_maps",
     # brahmap_gls
     "make_brahmap_gls_map",
     # destriper.py

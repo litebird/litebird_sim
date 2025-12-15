@@ -131,6 +131,7 @@ def _compute_pixel_indices(
     hwp_angle: npt.ArrayLike | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
+    hmap_generation: bool = False,
 ) -> tuple[npt.NDArray, npt.NDArray]:
     """Compute the index of each pixel and its attack angle
 
@@ -159,12 +160,14 @@ def _compute_pixel_indices(
             output_coordinate_system=output_coordinate_system,
             pointings_dtype=pointings_dtype,
         )
-
-        polang_all[idet] = _get_pol_angle(
-            curr_pointings_det=curr_pointings_det,
-            hwp_angle=hwp_angle,
-            pol_angle_detectors=pol_angle_detectors[idet],
-        )
+        if hmap_generation:
+            polang_all[idet] = curr_pointings_det[:, 2]
+        else:
+            polang_all[idet] = _get_pol_angle(
+                curr_pointings_det=curr_pointings_det,
+                hwp_angle=hwp_angle,
+                pol_angle_detectors=pol_angle_detectors[idet],
+            )
 
         pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
 
