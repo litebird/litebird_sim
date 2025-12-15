@@ -45,6 +45,10 @@ from .imo.imo import Imo
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
     HnMapResult,
+    make_binned_map,
+    make_h_maps,
+    make_brahmap_gls_map,
+    check_valid_splits,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
