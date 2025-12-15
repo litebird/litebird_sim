@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import litebird_sim as lbs
-from litebird_sim.maps_and_harmonics import HealpixMap
+from litebird_sim.maps_and_harmonics import HealpixMap, SphericalHarmonics
 
 import healpy as hp
 
@@ -36,10 +36,6 @@ STRICT_TYPES_TEST_PARAMETERS = [
 ]
 
 
-def num_of_alms(lmax: int, mmax: int) -> int:
-    return mmax * (2 * lmax + 1 - mmax) // 2 + lmax + 1
-
-
 @pytest.mark.parametrize(STRICT_TYPES_TEST_FIELDS, STRICT_TYPES_TEST_PARAMETERS)
 def test_beam_convolution_strict_types(
     tod_dtype,
@@ -69,13 +65,15 @@ def test_beam_convolution_strict_types(
     lmax = 10
     mmax_sky = 10
     sky_alms = lbs.SphericalHarmonics(
-        values=rng.random((3, num_of_alms(lmax, mmax_sky))),
+        values=rng.random((3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax_sky))),
         lmax=lmax,
         mmax=mmax_sky,
     )
     mmax_beam = mmax_sky - 4
     beam_alms = lbs.SphericalHarmonics(
-        values=rng.random((3, num_of_alms(lmax, mmax_beam))),
+        values=rng.random(
+            (3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax_beam))
+        ),
         lmax=lmax,
         mmax=mmax_beam,
     )

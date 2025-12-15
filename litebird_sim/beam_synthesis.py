@@ -265,3 +265,65 @@ def generate_gauss_beam_alms(
         observation.blms = blms
 
     return blms
+
+
+def gauss_bl(lmax: int, fwhm_rad: float, pol: bool = True) -> np.ndarray:
+    """
+    Compute the Gaussian beam transfer function b_l analytically (Pure NumPy).
+
+    This implementation computes the beam window function including the
+    polarization correction factors (Challinor et al 2000, astro-ph/0008228).
+
+    It returns components for T, E, B (excluding Stokes V).
+
+    Parameters
+    ----------
+    lmax : int
+        Maximum spherical harmonic degree ℓ_max.
+    fwhm_rad : float
+        Full width at half maximum (FWHM) of the beam in radians.
+    pol : bool, optional
+        If True, returns an array of shape (3, lmax+1) containing:
+          - Index 0: Temperature beam b_l^T
+          - Index 1: E-mode polarization beam b_l^E
+          - Index 2: B-mode polarization beam b_l^B
+        If False, returns a 1D array of shape (lmax+1,) (Temperature only).
+
+    Returns
+    -------
+    np.ndarray
+        Array containing the beam transfer function b_l.
+    """
+    if fwhm_rad < 0:
+        raise ValueError("FWHM must be non-negative.")
+
+    # Create ell array
+    ell = np.arange(lmax + 1, dtype=np.float64)
+
+    # Handle trivial case (delta function)
+    if fwhm_rad == 0.0:
+        base_bl = np.ones_like(ell)
+        sigma2 = 0.0
+    else:
+        # Convert FWHM to sigma: sigma = FWHM / sqrt(8 * ln(2))
+        sigma = fwhm_rad / np.sqrt(8.0 * np.log(2.0))
+        sigma2 = sigma**2
+
+        # Analytic Gaussian beam: exp(-0.5 * l(l+1) * sigma^2)
+        base_bl = np.exp(-0.5 * ell * (ell + 1) * sigma2)
+
+        # Avoid numerical underflow (consistent with healpy behavior)
+        base_bl[base_bl < 1e-30] = 0.0
+
+    if not pol:
+        return base_bl
+
+    # Polarization factors for [T, E, B]
+    # T -> 1.0
+    # E, B -> exp(2 * sigma^2) (due to spin-2 nature of polarization)
+    pol_factors = np.exp([0.0, 2.0 * sigma2, 2.0 * sigma2])
+
+    # Broadcast to shape (3, lmax+1)
+    # base_bl[None, :] is (1, L+1)
+    # pol_factors[:, None] is (3, 1)
+    return base_bl[None, :] * pol_factors[:, None]

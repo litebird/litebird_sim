@@ -20,6 +20,7 @@ from .beam_convolution import (
 from .beam_synthesis import (
     gauss_beam_to_alm,
     generate_gauss_beam_alms,
+    gauss_bl,
 )
 from .compress import (
     rle_compress,
@@ -222,6 +223,7 @@ __all__ = [
     # beam_synthesis.py
     "gauss_beam_to_alm",
     "generate_gauss_beam_alms",
+    "gauss_bl"
     # constants.py
     "ARCMIN_TO_RAD",
     "C_LIGHT_KM_OVER_S",

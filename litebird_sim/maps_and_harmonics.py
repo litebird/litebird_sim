@@ -557,30 +557,81 @@ class SphericalHarmonics:
         Parameters
         ----------
         f_ell : np.ndarray or list[np.ndarray]
-            The ℓ-dependent filter(s). Must be of shape (lmax+1,) or (nstokes, lmax+1)
+            The ℓ-dependent filter(s).
+            - If 1D array: Shape (N,) where N >= lmax+1. Applied to all components.
+            - If 2D array: Shape (nstokes, N). Applied component-wise.
+            - If List: List of 1D arrays of length nstokes.
 
         Returns
         -------
         SphericalHarmonics
             A new SphericalHarmonics object with filtered coefficients.
             The units and coordinates are preserved.
+
+        Raises
+        ------
+        ValueError
+            If the filter size is smaller than lmax + 1 or dimensions do not match nstokes.
         """
+        # The filter must be defined at least up to self.lmax
+        required_size = self.lmax + 1
+
+        # Get the l-index for every coefficient in the alm array
         l_arr = self.alm_l_array(self.lmax, self.mmax)
 
         if isinstance(f_ell, np.ndarray):
             if f_ell.ndim == 1:
-                kernel = np.broadcast_to(f_ell[l_arr], self.values.shape)
-            elif f_ell.ndim == 2 and f_ell.shape[0] == self.nstokes:
-                kernel = np.stack([f[l_arr] for f in f_ell])
+                # Case: Single filter applied to all maps (T, E, B...)
+                if f_ell.shape[0] < required_size:
+                    raise ValueError(
+                        f"Filter size ({f_ell.shape[0]}) is smaller than required lmax+1 ({required_size})"
+                    )
+                # Broadcast 1D filter to (nstokes, ncoeff)
+                kernel = f_ell[l_arr]  # Shape (ncoeff,)
+                # Broadcasting will handle the nstokes dimension during multiplication
+
+            elif f_ell.ndim == 2:
+                # Case: Specific filter for each component
+                if f_ell.shape[0] != self.nstokes:
+                    raise ValueError(
+                        f"Filter nstokes ({f_ell.shape[0]}) does not match object nstokes ({self.nstokes})"
+                    )
+                if f_ell.shape[1] < required_size:
+                    raise ValueError(
+                        f"Filter length ({f_ell.shape[1]}) is smaller than required lmax+1 ({required_size})"
+                    )
+                # Extract correct l values for each component
+                kernel = np.stack([f_row[l_arr] for f_row in f_ell])
+
             else:
-                raise ValueError(f"Invalid shape for f_ell: {f_ell.shape}")
+                raise ValueError(
+                    f"Invalid shape for f_ell: {f_ell.shape}. Expected 1D or 2D array."
+                )
+
         elif isinstance(f_ell, list):
+            # Case: List of filters
             if len(f_ell) != self.nstokes:
-                raise ValueError(f"Expected {self.nstokes} filters, got {len(f_ell)}")
-            kernel = np.stack([np.asarray(f)[l_arr] for f in f_ell])
+                raise ValueError(
+                    f"Expected {self.nstokes} filters in list, got {len(f_ell)}"
+                )
+
+            kernel_list = []
+            for i, f in enumerate(f_ell):
+                f_arr = np.asarray(f)
+                if f_arr.ndim != 1:
+                    raise ValueError(f"Filter at index {i} must be 1D.")
+                if f_arr.shape[0] < required_size:
+                    raise ValueError(
+                        f"Filter {i} size ({f_arr.shape[0]}) is smaller than required lmax+1 ({required_size})"
+                    )
+                kernel_list.append(f_arr[l_arr])
+
+            kernel = np.stack(kernel_list)
         else:
             raise TypeError("f_ell must be a numpy array or a list of numpy arrays")
 
+        # Apply the kernel
+        # self.values is (nstokes, ncoeff), kernel is either (ncoeff,) or (nstokes, ncoeff)
         return SphericalHarmonics(
             values=self.values * kernel,
             lmax=self.lmax,
@@ -588,6 +639,40 @@ class SphericalHarmonics:
             units=self.units,
             coordinates=self.coordinates,
         )
+
+    def apply_gaussian_smoothing(self, fwhm_rad: float) -> "SphericalHarmonics":
+        """
+        Apply Gaussian smoothing to the spherical harmonics coefficients.
+
+        This method computes the appropriate Gaussian beam window function
+        (including polarization factors if applicable) and applies it to the coefficients.
+
+        Parameters
+        ----------
+        fwhm_rad : float
+            Full Width at Half Maximum (FWHM) of the Gaussian beam in radians.
+
+        Returns
+        -------
+        SphericalHarmonics
+            A new SphericalHarmonics object with smoothed coefficients.
+        """
+
+        # LOCAL IMPORT to prevent circular dependency
+        from .beam_synthesis import gauss_bl
+
+        # Determine if we need polarization support based on the number of Stokes components.
+        # If nstokes > 1 (e.g., 3 for T, E, B), we request the polarized beam.
+        nstokes = self.values.shape[0]
+        use_pol = nstokes > 1
+
+        # Compute the beam transfer function b_l
+        # If use_pol=True, returns shape (3, lmax+1) for T, E, B.
+        # If use_pol=False, returns shape (1, lmax+1) or (lmax+1,).
+        bl = gauss_bl(lmax=self.lmax, fwhm_rad=fwhm_rad, pol=use_pol)
+
+        # Apply convolution using the existing method
+        return self.convolve(bl)
 
     # -------------
     # Copy / compare

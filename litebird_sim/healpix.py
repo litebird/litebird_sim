@@ -345,23 +345,3 @@ def write_healpix_map_to_file(
         extra_header=extra_header,
     )
     hdu.writeto(filename, overwrite=overwrite)
-
-
-def num_of_alms(lmax: int, mmax: int | None = None) -> int:
-    """
-    Return the number of coefficients in an array of a_ℓm coefficients
-
-    This function can be used to determine the size of an array that must hold
-    a set of a_ℓm coefficients, given the maximum value for ℓ and m.
-
-    Args:
-        lmax: Maximum value for ℓ
-        mmax: Maximum value for m. If not provided, it will be assumed that ``lmax == mmax``.
-
-    Returns:
-        Number of elements in the array of a_ℓm coefficients
-    """
-    if mmax is None or mmax < 0 or mmax > lmax:
-        mmax = lmax
-
-    return ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)
