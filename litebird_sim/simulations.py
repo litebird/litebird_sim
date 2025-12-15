@@ -44,6 +44,10 @@ from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
+    make_binned_map,
+    make_h_maps,
+    make_brahmap_gls_map,
+    check_valid_splits,
     BinnerResult,
     DestriperParameters,
     DestriperResult,

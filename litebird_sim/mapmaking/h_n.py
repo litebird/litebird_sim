@@ -8,7 +8,8 @@ import numpy as np
 import numpy.typing as npt
 from numba import njit
 import healpy as hp
-
+import h5py
+import os           
 from typing import Any
 from collections.abc import Callable
 from litebird_sim.observations import Observation
@@ -21,45 +22,53 @@ from litebird_sim.hwp import HWP
 from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
 from litebird_sim.healpix import nside_to_npix
-
-
+from litebird_sim.profiler import TimeProfiler
+from litebird_sim.detectors import DetectorInfo
 from .common import (
     _compute_pixel_indices,
-    COND_THRESHOLD,
-    get_map_making_weights,
     _build_mask_detector_split,
     _build_mask_time_split,
-    _check_valid_splits,
 )
 
+@dataclass
+class h_map_Re_and_Im:
+    """A single h_n,m map component for one detector"""
+    real: npt.NDArray
+    imag: npt.NDArray
+    det_info: DetectorInfo
+
+    @property
+    def norm(self):
+        return np.sqrt(self.real**2 + self.imag**2)
+
+# @dataclass  
+# class h_n_m_list:
+#     """All h_n,m maps for a single (n,m) pair"""
+#     maps: list[h_map_Re_and_Im]  # One per detector
+    
 
 @dataclass
 class HnMapResult:
-    """Result of a call to the :func:`.make_binned_map` function
+    """Result of a call to the :func:`make_hn_maps` function
 
     This dataclass has the following fields:
 
-    - ``binned_map``: Healpix map containing the binned value for each pixel
-
-    - ``invnpp``: inverse of the covariance matrix element for each
-      pixel in the map. It is an array of shape `(12 * nside * nside, 3, 3)`
+    - ``h_maps``: Dictionnary containing the h_n maps for each spin order n,m and each detector.
 
     - ``coordinate_system``: the coordinate system of the output maps
       (a :class:`.CoordinateSistem` object)
 
-    - ``components``: list of components included in the map, by default
-      only the field ``tod`` is used
+    - ``detector_split``: detector split of the h map
 
-    - ``detector_split``: detector split of the binned map
-
-    - ``time_split``: time split of the binned map
+    - ``time_split``: time split of the h map
     """
 
-    binned_map: Any = None
-    invnpp: Any = None
+    h_maps: dict[tuple[int, int], list[h_map_Re_and_Im]]
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
     detector_split: str = "full"
     time_split: str = "full"
+
+
 
 
 @njit
@@ -70,41 +79,35 @@ def _solve_binning(nobs_matrix, atd):
     # each 3×3 matrix in nobs_matrix[idx, :, :] will be the *inverse*.
 
     # Expected shape:
-    # - `nobs_matrix`: (N_p,3) is an array of N_p×3 matrices, where
-    #   N_p is the number of pixels in the map
-    # - `atd`: (N_p, 2)
-    npix = atd.shape[0]
-    for ipix in range(npix):
-        if nobs_matrix[ipix,0] != 0:
-            atd[ipix,0] = atd[ipix,0]/nobs_matrix[ipix,0]
-            atd[ipix,1] = atd[ipix,1]/nobs_matrix[ipix,0] 
-            nobs_matrix[ipix,0] =1/nobs_matrix[ipix,0]
-        else:
-            nobs_matrix[ipix]=hp.UNSEEN
-            atd[ipix]= hp.UNSEEN
+    # - `nobs_matrix`: array of shape (Ndet,N_p,3), where
+    #   N_p is the number of pixels in the map and Ndet the number of detectors
+    # - `atd`: (Ndet,N_p, 2)
+    ndet=atd.shape[0]
+    npix = atd.shape[1]
+    for idet in range(ndet):
+        for ipix in range(npix):
+            if nobs_matrix[idet,ipix,0] != 0:
+                atd[idet,ipix,0] = atd[idet,ipix,0]/nobs_matrix[idet,ipix,0]
+                atd[idet,ipix,1] = atd[idet,ipix,1]/nobs_matrix[idet,ipix,0] 
+                nobs_matrix[idet,ipix,0] =1/nobs_matrix[idet,ipix,0]
+            else:
+                nobs_matrix[idet,ipix]=float("NaN")#hp.UNSEEN
+                atd[idet,ipix]= float("NaN")#hp.UNSEEN
 
 
 @njit
-def _accumulate_samples_and_build_nobs_matrix(
+def _accumulate_spin_terms_and_build_nobs_matrix(
     n: int,
+    m: int,
     pix: npt.ArrayLike,
     psi: npt.ArrayLike,
+    hwp_angle: npt.ArrayLike |None, 
     d_mask: npt.ArrayLike,
     t_mask: npt.ArrayLike,
     nobs_matrix: npt.ArrayLike,
     num_of_detectors: int,
 
 ) -> None:
-    # Fill the upper triangle of the N_obs matrix and use the lower
-    # triangle for the RHS of the map-making equation:
-    #
-    # 1. The upper triangle and the diagonal contains the coefficients in
-    #    Eq. (10) of KurkiSuonio2009. This must be set just once, as it only
-    #    depends on the pointing information. The flag `additional_component`
-    #    tells if this part must be calculated (``False``) or not
-    # 2. The lower triangle contains the weighted sum of I/Q/U, i.e.,
-    #
-    #       (I + Q·cos(2ψ) + U·sin(2ψ)) / σ²
 
     assert pix.shape == psi.shape
 
@@ -115,50 +118,51 @@ def _accumulate_samples_and_build_nobs_matrix(
             continue
 
 
-        # Fill the upper triangle
-        for cur_pix_idx, cur_psi, cur_t_mask in zip(pix[idet], psi[idet], t_mask):
+        for cur_pix_idx, cur_psi in zip(pix[idet], psi[idet]):
 
-                info_pix = nobs_matrix[cur_pix_idx]
-
-                cos_n = np.cos(n * cur_psi) 
-                sin_n = np.sin(n * cur_psi)
-                
-                info_pix[0] += 1
-                info_pix[1] += cos_n 
-                info_pix[2] += sin_n
+                info_pix = nobs_matrix[idet,cur_pix_idx]
+                if hwp_angle != None:
+                    cos_n_m = np.cos(n * cur_psi +m * hwp_angle) 
+                    sin_n_m = np.sin(n * cur_psi+ m * hwp_angle)
+                else:
+                    cos_n_m = np.cos(n * cur_psi) 
+                    sin_n_m = np.sin(n * cur_psi)
+                if (n,m)==(0,0):
+                    info_pix[0] = 1
+                else: 
+                   info_pix[0] += 1 
+                info_pix[1] += cos_n_m 
+                info_pix[2] += sin_n_m
 
 
 @njit
-def _numba_extract_map_and_fill_nobs_matrix(
+def _numba_extract_rhs(
     nobs_matrix: npt.ArrayLike, rhs: npt.ArrayLike
 ) -> None:
-    # This is used internally by _extract_map_and_fill_info. The function
-    # modifies both `info` and `rhs`; the first parameter would be an `inout`
-    # parameter in Fortran (it is both used as input and output), while `rhs`
-    # is an `out` parameter
-    for idx in range(nobs_matrix.shape[0]):
-        # Extract the vector from the lower left triangle of the 3×3 matrix
-        # nobs_matrix[idx, :, :]
-        rhs[idx, 0] = nobs_matrix[idx, 1]
-        rhs[idx, 1] = nobs_matrix[idx, 2]
+    # This is used internally by _extract_map_and_fill_info.
+    for idet in range(nobs_matrix.shape[0]):
+        for idx in range(nobs_matrix.shape[1]):
+            # Extract the vector from the lower left triangle of the 3×3 matrix
+            # nobs_matrix[idx, :, :]
+            rhs[idet,idx, 0] = nobs_matrix[idet,idx, 1]
+            rhs[idet,idx, 1] = nobs_matrix[idet,idx, 2]
 
 
 
-def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
+def _extract_rhs(info: npt.ArrayLike) -> npt.ArrayLike:
     # Extract the RHS of the mapmaking equation from the lower triangle of info
-    # and fill the lower triangle with the upper triangle, thus making each
-    # matrix in "info" symmetric
-    rhs = np.empty((info.shape[0], 2), dtype=info.dtype)
+    # The RHS has a shape (Ndet,Np,2) 
+    rhs = np.empty((info.shape[0],info.shape[1], 2), dtype=info.dtype)
 
     # The implementation in Numba of this code is ~5 times faster than the older
     # implementation that used NumPy.
-    _numba_extract_map_and_fill_nobs_matrix(info, rhs)
+    _numba_extract_rhs(info, rhs)
 
     return rhs
 
-
 def _build_nobs_matrix(
     n:int,
+    m:int,
     nside: int,
     obs_list: list[Observation],
     ptg_list: list[npt.ArrayLike] | list[Callable],
@@ -170,19 +174,24 @@ def _build_nobs_matrix(
 ) -> npt.ArrayLike:
     hpx = Healpix_Base(nside, "RING")
     n_pix = nside_to_npix(nside)
-
-    nobs_matrix = np.zeros((n_pix,3))
-
+    
+    tot_num_of_detectors = sum([len(obs.detectors_global) for obs in obs_list])
+    nobs_matrix = np.zeros((tot_num_of_detectors,n_pix,3))
+    # print("yo")
     for obs_idx, (cur_obs, cur_ptg, cur_d_mask, cur_t_mask) in enumerate(
         zip(obs_list, ptg_list, dm_list, tm_list)
     ):
-
+        
+        cur_num_of_detectors = len(cur_obs.detectors_global)
+        
         # Determine the HWP angle to use:
         # - If an external HWP object is provided, compute the angle from it
         # - If not, compute or retrieve the HWP angle from the observation, depending on availability
+        
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
-        pixidx_all, polang_all = _compute_pixel_indices(
+        with TimeProfiler(name="_compute_pixel_indices") as perf:
+            pixidx_all, psi_all = _compute_pixel_indices(
             hpx=hpx,
             pointings=cur_ptg,
             pol_angle_detectors=np.zeros(cur_obs.n_detectors), #cur_obs.pol_angle_rad
@@ -191,110 +200,47 @@ def _build_nobs_matrix(
             hwp_angle=hwp_angle,
             output_coordinate_system=output_coordinate_system,
             pointings_dtype=pointings_dtype,
+            hmap_generation=True,
         )
-        num_of_detectors = len(cur_obs.detectors_global)
-
-        _accumulate_samples_and_build_nobs_matrix(
+        # print(f"The time spent for _compute_pixel_indices is {perf.elapsed_time_s():.10f} s")
+        del perf
+        with TimeProfiler(name="_accumulate_spin_terms_and_build_nobs_matrix") as perf: 
+            _accumulate_spin_terms_and_build_nobs_matrix(
             n,
+            m,
             pixidx_all,
-            polang_all,
+            psi_all,
+            hwp_angle,
             cur_d_mask,
             cur_t_mask,
             nobs_matrix,
-            num_of_detectors,
+            cur_num_of_detectors,
         )
+        # print(f"The time spent for _accumulate_spin_terms_and_build_nobs_matrix is {perf.elapsed_time_s():.10f} s")
 
-        del pixidx_all, polang_all
-
-    if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
-        # Serial call
-        pass
-    elif all(
-        [
-            mpi.MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
-            for i in range(len(obs_list) - 1)
-        ]
-    ):
-        obs_list[0].comm.Allreduce(mpi.MPI.IN_PLACE, nobs_matrix, mpi.MPI.SUM)
-
-    else:
-        raise NotImplementedError(
-            "All observations must be distributed over the same MPI groups"
-        )
+        del pixidx_all, psi_all
 
     return nobs_matrix
 
-def get_exp_i_pi_n_psi(obs,det_num,n):
-    pointings=obs.get_pointings()[0][det_num][:,2]
-    cos_n=np.cos(n*pointings)
-    sin_n=np.sin(n*pointings)
-    return cos_n,sin_n
 
-def make_h_map(
-    n,
-    nside: int,
+
+def make_h_maps(  
     observations: Observation | list[Observation],
+    nside: int,
+    pointings: np.ndarray | list[np.ndarray] | None = None,
+    n_list: list[int]=[0,2,4],
     hwp: HWP | None = None,
+    m_list: list[int] = [0],
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     detector_split: str = "full",
     time_split: str = "full",
     pointings_dtype=np.float64,
+    save_to_file: bool = True,
+    output_directory: str = "./h_n_maps",
 ) -> HnMapResult:
     """
-    Compute h_n maps 
-    """
-
-    # if isinstance(observations, Observation):
-    #     obs_list = [observations]
-    # else:
-    #     obs_list = observations
-    obs_list, ptg_list = _normalize_observations_and_pointings(
-        observations=observations, pointings=None
-    )
-    detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
-
-    time_mask_list = _build_mask_time_split(time_split, obs_list)
-
-    nobs_matrix = _build_nobs_matrix(
-        n,
-        nside=nside,
-        obs_list=obs_list,
-        ptg_list=ptg_list,
-        hwp=hwp,
-        dm_list=detector_mask_list,
-        tm_list=time_mask_list,
-        output_coordinate_system=output_coordinate_system,
-        pointings_dtype=pointings_dtype,
-    )
-
-    rhs = _extract_map_and_fill_info(nobs_matrix)
-
-    _solve_binning(nobs_matrix, rhs)
-
-    return HnMapResult(
-        binned_map=rhs.T,
-        invnpp=nobs_matrix,
-        coordinate_system=output_coordinate_system,
-        detector_split=detector_split,
-        time_split=time_split,
-    )
-
-
-def check_valid_splits(
-    observations: Observation | list[Observation],
-    detector_splits: str | list[str] = "full",
-    time_splits: str | list[str] = "full",
-):
-    """Check if the splits are valid
-
-    For each observation in the list, check if the detector and time splits
-    are valid.
-    In particular, the compatibility between the detectors in each observation
-    and the desired split in detector domain is checked. On the other hand, this
-    assess whether the desired time split fits inside the duration of the
-    observation (when this applies).
-    If the splits are not compatible with the input data, an error is raised.
-
+    Compute h_n maps for one or more observations.
+    This function generates complex harmonic maps h_n for the supplied observations by:
     Args:
         observations (list of :class:`Observations`): observations to be mapped.
             They are required to have the following attributes as arrays
@@ -302,8 +248,8 @@ def check_valid_splits(
             * `pointings`: the pointing information (in radians) for each tod
                sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
                with ``N_d`` number of detectors and ``N_t`` number of
-               samples in the TOD. @paganol paganol linked an issue 3 days ago that may be closed by this pull request 
-            * any attribute listed in `components` (by default, `tod`) @paganol paganol linked an issue 3 days ago that may be closed by this pull request  and
+               samples in the TOD.
+            * any attribute listed in `components` (by default, `tod`) and
               containing the TOD(s) to be binned together.
 
             If the observations are distributed over some communicator(s), they
@@ -311,35 +257,93 @@ def check_valid_splits(
             If pointings and psi are not included in the observations, they can
             be provided through an array (or a list of arrays) of dimension
             (Ndetectors x Nsamples x 3), containing theta, phi and psi
-        detector_splits (str | list[str], optional): detector-domain splits
-            used to produce maps.
-
-            * "full": every detector in the observation will be used;
-            * "waferXXX": the mapmaking will be performed on the intersection
-                of the detectors specified in the input and the detectors specified
-                in the detector_split.
-                The wafer must be specified in the format "waferXXX". The valid values
-                for "XXX" are all the 3-digits strings corresponding to the wafers
-                in the LITEBIRD focal plane (e.g. L00, M01, H02).
-
-        time_splits (str | list[str], optional): time-domain splits
-            used to produce maps. This defaults to "full" indicating that every
-            sample in the observation will be used. In addition, the user can specify
-            a string, or a list of strings, to indicate a subsample of the observation
-            to be used:
-
-            * "full": every sample in the observation will be used;
-            * "first_half" and/or "second_half": the first and/or second half of the
-                observation will be used;
-            * "odd" and/or "even": the odd and/or even samples in the observation
-                will be used;
-            * "yearX": the samples in the observation will be
-                used according to the year they belong to (relative to the
-                starting time). The valid values for "X" are ["1", "2", "3"].
-            * "surveyX": the samples in the observation will be used according
-                to the requested survey. In this context, a survey is taken to
-                be complete in 6 months, thus the valid values for "X" are
-                ["1", "2", "3", "4", "5", "6"].
-
+        nside (int): HEALPix nside of the output map
+        pointings (array or list of arrays): optional, external pointing
+            information, if not included in the observations
+        hwp (HWP, optional): An instance of the :class:`.HWP` class (optional)
+        n_list(list[int]): list of the spin order which are computed
+        output_coordinate_system (:class:`.CoordinateSystem`): the coordinates
+            to use for the output map
+        detector_split (str): select the detector split to use in the map-making
+        time_split (str): select the time split to use in the map-making.
+        pointings_dtype(dtype): data type for pointings generated on the fly. If
+            the pointing is passed or already precomputed this parameter is
+            ineffective. Default is `np.float64`.
+        save_to_file(bool): If true, the h_n_maps are saved in the hd5f file format
+        output_directory(str): path to directory where the h_n_maps are saved
+    Returns:
+        An instance of the class HnMapResult.
     """
-    _check_valid_splits(observations, detector_splits, time_splits)
+   
+    h_maps={}
+    obs_list, ptg_list = _normalize_observations_and_pointings(
+            observations=observations, pointings=pointings
+        )
+    all_dets_list = np.concatenate(
+        [obs.detectors_global for obs in obs_list])
+    tot_num_of_detectors = np.shape(all_dets_list)[0]
+
+    detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
+
+    time_mask_list = _build_mask_time_split(time_split, obs_list)
+
+    for n in n_list:
+        for m in m_list:
+            h_maps[(n,m)]=[]
+            if m !=0:
+                raise NotImplementedError("Currently only m=0 is implemented")
+
+            nobs_matrix = _build_nobs_matrix(
+                n,
+                m,
+                nside=nside,
+                obs_list=obs_list,
+                ptg_list=ptg_list,
+                hwp=hwp,
+                dm_list=detector_mask_list,
+                tm_list=time_mask_list,
+                output_coordinate_system=output_coordinate_system,
+                pointings_dtype=pointings_dtype,
+            )
+
+            rhs = _extract_rhs(nobs_matrix)
+
+            _solve_binning(nobs_matrix, rhs)
+            for idet in range(tot_num_of_detectors):
+                h_maps[(n,m)].append(h_map_Re_and_Im(real=rhs[idet].T[0],
+                                                     imag=rhs[idet].T[1],
+                                                     det_info=all_dets_list[idet]))
+    result=HnMapResult(
+        h_maps=h_maps,
+        coordinate_system=output_coordinate_system,
+        detector_split=detector_split,
+        time_split=time_split,
+    )
+    if save_to_file:
+        save_hn_maps(result, output_directory,all_dets_list)
+    return result
+
+def save_hn_maps(hn_maps, output_directory: str,dets_list) -> None:
+        """Save the h_n maps to the specified output directory
+
+        Parameters
+        ----------
+        output_directory : str
+            Path to the output directory where to save the maps
+        """
+
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+
+        for (n,m) in hn_maps.h_maps.keys():
+            with h5py.File(os.path.join(output_directory,f"h_{n,m}.h5"),"w") as f:
+                f.attrs["coordinate_system"]=hn_maps.coordinate_system.name
+                f.attrs["n"]=int(n)
+                f.attrs["m"]=int(m)
+                for _,det_map in enumerate(hn_maps.h_maps[n,m]):
+                    grp =f.create_group(det_map.det_info["name"])
+                    grp.create_dataset("Re",data=det_map.real)
+                    grp.create_dataset("Im",data=det_map.imag)
+                    for key in det_map.det_info.keys():
+                        grp.attrs[key]=str(det_map.det_info[key])
+                
