@@ -1,6 +1,5 @@
 import logging
 
-import healpy as hp
 import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo

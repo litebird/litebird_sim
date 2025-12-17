@@ -204,6 +204,7 @@ from .maps_and_harmonics import (
     synthesize_alm,
     compute_cl,
     pixel_window,
+    read_cls_from_fits,
 )
 from .version import __author__, __version__
 
@@ -423,4 +424,5 @@ __all__ = [
     "synthesize_alm",
     "compute_cl",
     "pixel_window",
+    "read_cls_from_fits",
 ]

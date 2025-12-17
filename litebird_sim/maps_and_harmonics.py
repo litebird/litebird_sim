@@ -3,6 +3,8 @@ from typing import Any, Tuple, Dict, Optional
 import warnings
 from pathlib import Path
 
+from astropy.io import fits
+
 import numpy as np
 import healpy as hp
 
@@ -16,6 +18,7 @@ import ducc0.healpix as dh
 # ======================================================================
 # SphericalHarmonics
 # ======================================================================
+
 
 @dataclass
 class SphericalHarmonics:
@@ -177,13 +180,13 @@ class SphericalHarmonics:
         -------
         SphericalHarmonics
             Instance initialized with zeros.
-        
+
         Raises
         ------
         ValueError
             If dtype is not np.complex64 or np.complex128.
         """
-        
+
         # Validazione del dtype
         if dtype not in (np.complex64, np.complex128):
             raise ValueError(
@@ -562,7 +565,9 @@ class SphericalHarmonics:
     # Convolution
     # -------------
 
-    def convolve(self, f_ell: np.ndarray | list[np.ndarray], in_place: bool = True) -> "SphericalHarmonics":
+    def convolve(
+        self, f_ell: np.ndarray | list[np.ndarray], in_place: bool = True
+    ) -> "SphericalHarmonics":
         """
         Apply a beam or filter to the SH coefficients.
 
@@ -594,8 +599,8 @@ class SphericalHarmonics:
                         f"Filter size ({f_ell.shape[0]}) is smaller than required lmax+1 ({required_size})"
                     )
                 # Broadcast 1D filter to (nstokes, ncoeff)
-                kernel = f_ell[l_arr] 
-            
+                kernel = f_ell[l_arr]
+
             elif f_ell.ndim == 2:
                 # Case: Specific filter for each component
                 if f_ell.shape[0] != self.nstokes:
@@ -649,7 +654,9 @@ class SphericalHarmonics:
                 coordinates=self.coordinates,
             )
 
-    def apply_gaussian_smoothing(self, fwhm_rad: float, in_place: bool = True) -> "SphericalHarmonics":
+    def apply_gaussian_smoothing(
+        self, fwhm_rad: float, in_place: bool = True
+    ) -> "SphericalHarmonics":
         """
         Apply Gaussian smoothing to the spherical harmonics coefficients.
 
@@ -676,7 +683,9 @@ class SphericalHarmonics:
 
         return self.convolve(bl, in_place=in_place)
 
-    def apply_pixel_window(self, nside: int, in_place: bool = True) -> "SphericalHarmonics":
+    def apply_pixel_window(
+        self, nside: int, in_place: bool = True
+    ) -> "SphericalHarmonics":
         """
         Apply the HEALPix pixel window function.
 
@@ -1422,8 +1431,6 @@ class HealpixMap:
         return np.allclose(self.values, other.values, rtol=rtol, atol=atol)
 
 
-
-
 # ======================================================================
 # ducc0-based helpers
 # ======================================================================
@@ -1887,7 +1894,7 @@ def rotate_alm(
         Must be <= alms.lmax.
     inplace : bool, optional, keyword-only
         If True, modifies the input `alms` object in place.
-        Note: In-place rotation is only possible if `mmax_out` is equal to 
+        Note: In-place rotation is only possible if `mmax_out` is equal to
         `alms.mmax` (output size must match input size).
     nthreads : int, optional, keyword-only
         Number of threads to use for the rotation. Default is 0 (use all available).
@@ -1913,14 +1920,14 @@ def rotate_alm(
     if mmax_out is None:
         # MODIFIED: Default to lmax (full triangular), per instruction.
         mmax_out = lmax_in
-    
+
     if mmax_out > lmax_in:
         raise ValueError(
             f"Provided mmax_out ({mmax_out}) cannot be larger than input lmax ({lmax_in})."
         )
 
     # 3. Check for Inplace Feasibility
-    # If mmax changes (even if it's just expanding from mmax_in to lmax_in), 
+    # If mmax changes (even if it's just expanding from mmax_in to lmax_in),
     # the array size changes, so inplace is impossible.
     if inplace and (mmax_out != mmax_in):
         raise ValueError(
@@ -1994,13 +2001,13 @@ def rotate_alm(
             nstokes=alms.nstokes,
             dtype=alms.values.dtype,
             units=alms.units,
-            coordinates=target_coords, # Using the determined target coords
+            coordinates=target_coords,  # Using the determined target coords
         )
 
     # 7. Execution (ducc0)
     for i in range(out_alms.nstokes):
         sht.rotate_alm(
-            alms.values[i],         # Input array
+            alms.values[i],  # Input array
             lmax=lmax_in,
             psi=psi_rot,
             theta=theta_rot,
@@ -2008,7 +2015,7 @@ def rotate_alm(
             nthreads=nthreads,
             mmax_in=mmax_in,
             mmax_out=mmax_out,
-            out=out_alms.values[i]  # Output array (pre-allocated)
+            out=out_alms.values[i],  # Output array (pre-allocated)
         )
 
     # 8. Update metadata (Critical for inplace operations or fallback safety)
@@ -2415,7 +2422,7 @@ def compute_cl(
 def pixel_window(nside, lmax=None, pol=False):
     """
     Returns the pixel window function compatible with SphericalHarmonics.convolve.
-    
+
     Parameters
     ----------
     nside : int
@@ -2425,7 +2432,7 @@ def pixel_window(nside, lmax=None, pol=False):
     pol : bool, optional
         If True, returns TEB window functions (shape 3, lmax+1).
         If False, returns T window function (shape lmax+1,).
-        
+
     Returns
     -------
     np.ndarray
@@ -2433,36 +2440,117 @@ def pixel_window(nside, lmax=None, pol=False):
     """
     # Locate the data file
     pkl_path = Path(__file__).parent / "datautils" / "pixwin.pkl"
-    
+
     if not pkl_path.exists():
         raise FileNotFoundError(f"pixwin.pkl not found at {pkl_path}")
 
     # Load the database
     db = np.load(pkl_path, allow_pickle=True)
-    
+
     if nside not in db:
         raise KeyError(f"Nside {nside} not available in pixel window database.")
-    
+
     # Handle lmax default
     if lmax is None:
         lmax = 4 * nside
 
     # 4. Fetch full arrays
-    pw_t_full = db[nside]['T']
-    pw_e_full = db[nside]['E'] # In HEALPix, E window applies to Polarization (E and B)
-    
+    pw_t_full = db[nside]["T"]
+    pw_e_full = db[nside]["E"]  # In HEALPix, E window applies to Polarization (E and B)
+
     # Check bounds
     available_lmax = len(pw_t_full) - 1
     if lmax > available_lmax:
-        raise ValueError(f"Requested lmax ({lmax}) > available lmax ({available_lmax}) for Nside {nside}")
+        raise ValueError(
+            f"Requested lmax ({lmax}) > available lmax ({available_lmax}) for Nside {nside}"
+        )
 
     # Slice data
-    pw_t = pw_t_full[:lmax+1]
-    
+    pw_t = pw_t_full[: lmax + 1]
+
     if not pol:
         # Return T only
         return pw_t
 
     # Return TEB (T, E, B)
-    pw_pol = pw_e_full[:lmax+1]
+    pw_pol = pw_e_full[: lmax + 1]
     return np.array([pw_t, pw_pol, pw_pol])
+
+
+def read_cls_from_fits(path: str | Path) -> dict[str, np.ndarray]:
+    """
+    Reads CMB power spectra from a FITS file using Astropy.
+
+    It first attempts to map specific column names (TTYPE) to standard keys:
+    TT, EE, BB, TE, TB, EB.
+
+    If no column names match the expected mapping, it falls back to a positional
+    assumption based on the number of columns:
+    - 6 columns: Assumes [TT, EE, BB, TE, TB, EB]
+    - 4 columns: Assumes [TT, EE, BB, TE]
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the FITS file containing the Cls.
+
+    Returns
+    -------
+    dict[str, np.ndarray]
+        Dictionary containing the power spectra with keys 'TT', 'EE', 'BB', etc.
+    """
+    # Mapping for standard CAMB/Healpy FITS headers
+    mapping = {
+        "TEMPERATURE": "TT",
+        "GRADIENT": "EE",
+        "CURL": "BB",
+        "G-T": "TE",
+        "C-T": "TB",
+        "C-G": "EB",
+    }
+
+    # Fallback orders if headers are non-standard (e.g., COL1, COL2...)
+    fallback_order_6 = ["TT", "EE", "BB", "TE", "TB", "EB"]
+    fallback_order_4 = ["TT", "EE", "BB", "TE"]
+
+    cls = {}
+
+    with fits.open(path) as hdul:
+        # Assuming data is in extension 1 (standard for Cls FITS)
+        data = hdul[1].data
+        columns = data.columns
+
+        # Strategy 1: Attempt to identify columns by name
+        for col in columns:
+            name = col.name.strip().upper()
+            for key_fits, key_out in mapping.items():
+                # Check if the standard keyword is part of the column name
+                if key_fits in name:
+                    cls[key_out] = data[col.name].flatten()
+                    break
+
+        # Strategy 2: Fallback to positional arguments if Strategy 1 failed
+        if not cls:
+            n_cols = len(columns)
+
+            if n_cols == 6:
+                print(
+                    f"No matching headers found in {path}. Assuming default 6-field order: {fallback_order_6}"
+                )
+                for i, key in enumerate(fallback_order_6):
+                    cls[key] = data[columns[i].name].flatten()
+
+            elif n_cols == 4:
+                print(
+                    f"No matching headers found in {path}. Assuming default 4-field order: {fallback_order_4}"
+                )
+                for i, key in enumerate(fallback_order_4):
+                    cls[key] = data[columns[i].name].flatten()
+
+            else:
+                raise ValueError(
+                    f"Could not parse Cls from {path}. No recognized column names found "
+                    f"and column count ({n_cols}) does not match standard fallback shapes (4 or 6)."
+                )
+
+    return cls

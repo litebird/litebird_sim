@@ -123,10 +123,10 @@ def test_convolution():
     """Test the convolution of SphericalHarmonics with a function f(ell)."""
     lmax = 3
     nalm = SphericalHarmonics.num_of_alm_from_lmax(lmax)
-    
-    # FIX 1: Usa complex128 come standard per SH. 
+
+    # FIX 1: Usa complex128 come standard per SH.
     values = np.ones((3, nalm), dtype=np.complex128)
-    
+
     sh = SphericalHarmonics(values, lmax=lmax)
 
     # -------------------------------------------------------------------------
@@ -136,15 +136,13 @@ def test_convolution():
     sh_conv = sh.convolve(f_ell)
 
     l_arr = SphericalHarmonics.alm_l_array(sh.lmax, mmax=sh.mmax)
-    kernel = f_ell[l_arr] # Broadcast da l a (nstokes, alm)
+    kernel = f_ell[l_arr]  # Broadcast da l a (nstokes, alm)
 
     expected = np.ones((3, nalm), dtype=np.complex128) * kernel
-    
+
     # FIX 4: assert_allclose è preferibile per operazioni float/complex
     np.testing.assert_allclose(
-        sh_conv.values, 
-        expected, 
-        err_msg="Scalar convolution mismatch"
+        sh_conv.values, expected, err_msg="Scalar convolution mismatch"
     )
 
     # -------------------------------------------------------------------------
@@ -161,9 +159,7 @@ def test_convolution():
     expected_vec = np.ones((3, nalm), dtype=np.complex128) * kernel_vec
 
     np.testing.assert_allclose(
-        sh_conv_vec.values, 
-        expected_vec,
-        err_msg="Vector convolution mismatch"
+        sh_conv_vec.values, expected_vec, err_msg="Vector convolution mismatch"
     )
 
 
@@ -497,10 +493,10 @@ def test_rotate_alm():
     # Reduce mmax (truncate high m modes)
     reduced_mmax = lmax - 2
     sh_reduced = rotate_alm(sh_ecl, psi=0.1, mmax_out=reduced_mmax)
-    
+
     assert sh_reduced.mmax == reduced_mmax
-    assert sh_reduced.lmax == lmax # lmax remains unchanged
-    
+    assert sh_reduced.lmax == lmax  # lmax remains unchanged
+
     expected_size = SphericalHarmonics.alm_array_size(lmax, reduced_mmax, nstokes)
     assert sh_reduced.values.shape == expected_size
     assert sh_reduced.values.shape[1] < sh_ecl.values.shape[1]
@@ -525,14 +521,14 @@ def test_rotate_alm():
     # (Replaces the old lmax check)
     with pytest.raises(ValueError, match="Provided mmax_out"):
         rotate_alm(sh_ecl, psi=0.1, mmax_out=lmax + 1)
-        
+
     # E. Invalid Inplace Resizing: Trying to change mmax in-place
     with pytest.raises(ValueError, match="Cannot perform inplace"):
-        rotate_alm(sh_ecl, psi=0.1, mmax_out=lmax-1, inplace=True)
+        rotate_alm(sh_ecl, psi=0.1, mmax_out=lmax - 1, inplace=True)
 
     # F. No-Op Warning: No rotation specified and mmax unchanged
     with pytest.warns(UserWarning, match="No rotation specified"):
-        res = rotate_alm(sh_ecl) # Defaults: kind=None, mmax_out=None (-> input mmax)
+        res = rotate_alm(sh_ecl)  # Defaults: kind=None, mmax_out=None (-> input mmax)
         np.testing.assert_array_equal(res.values, sh_ecl.values)
 
 
