@@ -167,7 +167,7 @@ class SphericalHarmonics:
         nstokes : int, default=3
             Number of Stokes parameters (1 or 3).
         dtype : type, default=np.complex128
-            Data type for the array.
+            Data type for the array. Must be np.complex64 or np.complex128.
         units : Units, optional
             Physical units.
         coordinates : CoordinateSystem, optional
@@ -177,7 +177,19 @@ class SphericalHarmonics:
         -------
         SphericalHarmonics
             Instance initialized with zeros.
+        
+        Raises
+        ------
+        ValueError
+            If dtype is not np.complex64 or np.complex128.
         """
+        
+        # Validazione del dtype
+        if dtype not in (np.complex64, np.complex128):
+            raise ValueError(
+                f"dtype must be either np.complex64 or np.complex128, got {dtype!r}"
+            )
+
         shape = cls.alm_array_size(lmax, mmax, nstokes)
         return cls(
             values=np.zeros(shape, dtype=dtype),
@@ -1848,8 +1860,7 @@ def rotate_alm(
     psi: Optional[float] = None,
     theta: Optional[float] = None,
     phi: Optional[float] = None,
-    lmax: Optional[int] = None,
-    mmax: Optional[int] = None,
+    mmax_out: Optional[int] = None,
     inplace: bool = False,
     nthreads: int = 0,
 ) -> SphericalHarmonics:
@@ -1870,13 +1881,14 @@ def rotate_alm(
         Second Euler angle (Y rotation) in radians.
     phi : float, optional, keyword-only
         Third Euler angle (Z rotation) in radians.
-    lmax : int, optional, keyword-only
-        Maximum l index. If provided, it is checked against alms.lmax.
-    mmax : int, optional, keyword-only
-        Maximum m index. If provided, it is checked against alms.mmax.
+    mmax_out : int, optional, keyword-only
+        Maximum m index for the output coefficients.
+        If None, it defaults to alms.lmax (full triangular expansion).
+        Must be <= alms.lmax.
     inplace : bool, optional, keyword-only
         If True, modifies the input `alms` object in place.
-        If False (default), returns a new rotated `SphericalHarmonics` object.
+        Note: In-place rotation is only possible if `mmax_out` is equal to 
+        `alms.mmax` (output size must match input size).
     nthreads : int, optional, keyword-only
         Number of threads to use for the rotation. Default is 0 (use all available).
 
@@ -1888,35 +1900,35 @@ def rotate_alm(
     Raises
     ------
     ValueError
-        If inputs are inconsistent (e.g. kind='e2g' but input is already Galactic,
-        or providing both `kind` and explicit angles).
+        - If inputs are inconsistent.
+        - If `mmax_out` > `alms.lmax`.
+        - If `inplace=True` is requested but `mmax_out` differs from `alms.mmax`.
     """
 
-    # 1. Validation of lmax/mmax
-    op_lmax = alms.lmax
-    op_mmax = alms.mmax
+    # 1. Retrieve Geometry from Input
+    lmax_in = alms.lmax
+    mmax_in = alms.mmax
 
-    if lmax is not None:
-        if lmax > alms.lmax:
-            raise ValueError(
-                f"Provided lmax ({lmax}) > alms.lmax ({alms.lmax}). Cannot rotate coefficients that do not exist."
-            )
-        if lmax != alms.lmax:
-            warnings.warn(
-                f"Provided lmax ({lmax}) differs from alms.lmax ({alms.lmax}). "
-                "Using alms.lmax to maintain array memory layout integrity."
-            )
+    # 2. Determine and Validate mmax_out
+    if mmax_out is None:
+        # MODIFIED: Default to lmax (full triangular), per instruction.
+        mmax_out = lmax_in
+    
+    if mmax_out > lmax_in:
+        raise ValueError(
+            f"Provided mmax_out ({mmax_out}) cannot be larger than input lmax ({lmax_in})."
+        )
 
-    if mmax is not None:
-        if mmax > alms.mmax:
-            raise ValueError(f"Provided mmax ({mmax}) > alms.mmax ({alms.mmax}).")
-        if mmax != alms.mmax:
-            warnings.warn(
-                f"Provided mmax ({mmax}) differs from alms.mmax ({alms.mmax}). "
-                "Using alms.mmax."
-            )
+    # 3. Check for Inplace Feasibility
+    # If mmax changes (even if it's just expanding from mmax_in to lmax_in), 
+    # the array size changes, so inplace is impossible.
+    if inplace and (mmax_out != mmax_in):
+        raise ValueError(
+            f"Cannot perform inplace rotation when changing mmax (Input: {mmax_in}, Output: {mmax_out}). "
+            "Set inplace=False to resize the output."
+        )
 
-    # 2. Check for No-Op or Invalid combinations
+    # 4. Check for No-Op or Invalid combinations
     has_angles = (psi is not None) or (theta is not None) or (phi is not None)
 
     if kind is not None and has_angles:
@@ -1924,13 +1936,8 @@ def rotate_alm(
             "Cannot specify both 'kind' and explicit Euler angles (psi, theta, phi)."
         )
 
-    if kind is None and not has_angles:
-        warnings.warn(
-            "No rotation specified (kind=None and no angles passed). Returning input alms."
-        )
-        return alms if inplace else alms.copy()
-
-    # 3. Coordinate determination and validation
+    # 5. Coordinate determination
+    # We determine target_coords BEFORE allocation to pass it to the constructor.
     target_coords = None
 
     if kind == "e2g":
@@ -1960,37 +1967,53 @@ def rotate_alm(
     elif kind is not None:
         raise ValueError(f"Unknown rotation kind '{kind}'. Supported: 'e2g', 'g2e'.")
     else:
+        # Generic rotation
         psi_rot = psi if psi is not None else 0.0
         theta_rot = theta if theta is not None else 0.0
         phi_rot = phi if phi is not None else 0.0
+        # For generic rotations, the target coordinate system is considered Unknown (None)
         target_coords = None
 
-    # 4. Execution
+    # Handle "No-Op" case where rotation is identity AND mmax is unchanged
+    if kind is None and not has_angles:
+        if mmax_out == mmax_in:
+            warnings.warn(
+                "No rotation specified and mmax unchanged. Returning input alms."
+            )
+            # If returning input/copy without rotation, we preserve original coords
+            return alms if inplace else alms.copy()
+
+    # 6. Prepare Output Container
     if inplace:
         out_alms = alms
     else:
-        out_alms = alms.copy()
-
-    for i in range(out_alms.nstokes):
-        # FIX: use 'mmax_in' instead of 'mmax'
-        # FIX: assign the result back to the array slice
-        out_alms.values[i] = sht.rotate_alm(
-            out_alms.values[i],
-            op_lmax,
-            psi_rot,
-            theta_rot,
-            phi_rot,
-            nthreads=nthreads,
-            mmax_in=op_mmax,  # Correct keyword
+        # MODIFIED: Allocate new container using target_coords explicitly.
+        out_alms = SphericalHarmonics.zeros(
+            lmax=lmax_in,
+            mmax=mmax_out,
+            nstokes=alms.nstokes,
+            dtype=alms.values.dtype,
+            units=alms.units,
+            coordinates=target_coords, # Using the determined target coords
         )
 
-    # 5. Update metadata
-    if target_coords is not None:
-        out_alms.coordinates = target_coords
-    elif not inplace:
-        out_alms.coordinates = None
-    else:
-        out_alms.coordinates = None
+    # 7. Execution (ducc0)
+    for i in range(out_alms.nstokes):
+        sht.rotate_alm(
+            alms.values[i],         # Input array
+            lmax=lmax_in,
+            psi=psi_rot,
+            theta=theta_rot,
+            phi=phi_rot,
+            nthreads=nthreads,
+            mmax_in=mmax_in,
+            mmax_out=mmax_out,
+            out=out_alms.values[i]  # Output array (pre-allocated)
+        )
+
+    # 8. Update metadata (Critical for inplace operations or fallback safety)
+    # MODIFIED: Always set the coordinates to the determined target logic.
+    out_alms.coordinates = target_coords
 
     return out_alms
 

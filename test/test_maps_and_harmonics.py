@@ -120,29 +120,51 @@ def test_arithmetic_operations():
 
 
 def test_convolution():
+    """Test the convolution of SphericalHarmonics with a function f(ell)."""
     lmax = 3
     nalm = SphericalHarmonics.num_of_alm_from_lmax(lmax)
-    values = np.ones((3, nalm))
-    sh = SphericalHarmonics(values, lmax)
+    
+    # FIX 1: Usa complex128 come standard per SH. 
+    values = np.ones((3, nalm), dtype=np.complex128)
+    
+    sh = SphericalHarmonics(values, lmax=lmax)
 
-    # Scalar filter
-    f_ell = np.arange(lmax + 1)
+    # -------------------------------------------------------------------------
+    # 1. Scalar Filter (Apply same f_ell to all Stokes)
+    # -------------------------------------------------------------------------
+    f_ell = np.arange(lmax + 1, dtype=np.float64)
     sh_conv = sh.convolve(f_ell)
 
-    l_arr = SphericalHarmonics.alm_l_array(lmax)
-    kernel = f_ell[l_arr]
+    l_arr = SphericalHarmonics.alm_l_array(sh.lmax, mmax=sh.mmax)
+    kernel = f_ell[l_arr] # Broadcast da l a (nstokes, alm)
 
-    expected = values * kernel
-    np.testing.assert_array_equal(sh_conv.values, expected)
+    expected = np.ones((3, nalm), dtype=np.complex128) * kernel
+    
+    # FIX 4: assert_allclose è preferibile per operazioni float/complex
+    np.testing.assert_allclose(
+        sh_conv.values, 
+        expected, 
+        err_msg="Scalar convolution mismatch"
+    )
 
-    # Vector filter (per Stokes)
+    # -------------------------------------------------------------------------
+    # 2. Vector Filter (Apply different f_ell per Stokes parameter)
+    # -------------------------------------------------------------------------
+    values = np.ones((3, nalm), dtype=np.complex128)
+    sh = SphericalHarmonics(values, lmax=lmax)
+
     f_ell_vec = np.stack([f_ell, f_ell**2, np.ones_like(f_ell)])
     sh_conv_vec = sh.convolve(f_ell_vec)
 
+    # kernel_vec shape: (nstokes, nalm)
     kernel_vec = np.stack([f[l_arr] for f in f_ell_vec])
-    expected_vec = values * kernel_vec
+    expected_vec = np.ones((3, nalm), dtype=np.complex128) * kernel_vec
 
-    np.testing.assert_array_equal(sh_conv_vec.values, expected_vec)
+    np.testing.assert_allclose(
+        sh_conv_vec.values, 
+        expected_vec,
+        err_msg="Vector convolution mismatch"
+    )
 
 
 def test_healpy_io(tmp_path):
@@ -395,7 +417,7 @@ def test_healpixmap_copy_and_equality():
 
 
 def test_rotate_alm():
-    """Test spherical harmonic rotations (Euler angles and coordinate transforms)."""
+    """Test spherical harmonic rotations (Euler angles, coordinate transforms and resizing)."""
     # Setup parameters
     lmax = 4
     nstokes = 3
@@ -410,8 +432,6 @@ def test_rotate_alm():
     # --- FIX: Ensure m=0 coefficients are real ---
     # For real-valued maps, a_l0 must be Real.
     # In standard packing, the first (lmax + 1) elements correspond to m=0.
-    # If we don't zero the imaginary part, ducc0 will strip it during rotation,
-    # causing the round-trip check to fail.
     values[:, : lmax + 1] = values[:, : lmax + 1].real
     # ---------------------------------------------
 
@@ -429,7 +449,7 @@ def test_rotate_alm():
         err_msg="Identity rotation (0,0,0) should not change values.",
     )
     assert sh_ident.coordinates is None, (
-        "Explicit angles should reset coordinates to None."
+        "Explicit angles should reset coordinates to None (generic rotation)."
     )
 
     # -------------------------------------------------------------------------
@@ -463,6 +483,7 @@ def test_rotate_alm():
     # 4. In-place Operation
     # -------------------------------------------------------------------------
     sh_inplace = sh_ecl.copy()
+    # Inplace allowed only if mmax doesn't change (default mmax_out=None -> keeps input mmax)
     rotate_alm(sh_inplace, kind="e2g", inplace=True)
 
     assert sh_inplace.coordinates == CoordinateSystem.Galactic
@@ -471,14 +492,28 @@ def test_rotate_alm():
     )
 
     # -------------------------------------------------------------------------
-    # 5. Error Handling & Validation
+    # 5. Resizing mmax (New Feature)
+    # -------------------------------------------------------------------------
+    # Reduce mmax (truncate high m modes)
+    reduced_mmax = lmax - 2
+    sh_reduced = rotate_alm(sh_ecl, psi=0.1, mmax_out=reduced_mmax)
+    
+    assert sh_reduced.mmax == reduced_mmax
+    assert sh_reduced.lmax == lmax # lmax remains unchanged
+    
+    expected_size = SphericalHarmonics.alm_array_size(lmax, reduced_mmax, nstokes)
+    assert sh_reduced.values.shape == expected_size
+    assert sh_reduced.values.shape[1] < sh_ecl.values.shape[1]
+
+    # -------------------------------------------------------------------------
+    # 6. Error Handling & Validation
     # -------------------------------------------------------------------------
 
-    # A. Coordinate Mismatch: sh_gal is Galactic, asking for E2G (requires Ecliptic)
+    # A. Coordinate Mismatch: sh_gal is Galactic, asking for E2G
     with pytest.raises(ValueError, match="requires input in Ecliptic"):
         rotate_alm(sh_gal, kind="e2g")
 
-    # B. Coordinate Mismatch: sh_ecl is Ecliptic, asking for G2E (requires Galactic)
+    # B. Coordinate Mismatch: sh_ecl is Ecliptic, asking for G2E
     with pytest.raises(ValueError, match="requires input in Galactic"):
         rotate_alm(sh_ecl, kind="g2e")
 
@@ -486,13 +521,18 @@ def test_rotate_alm():
     with pytest.raises(ValueError, match="Cannot specify both"):
         rotate_alm(sh_ecl, kind="e2g", psi=0.1)
 
-    # D. Invalid lmax: Provided lmax > object lmax
-    with pytest.raises(ValueError, match="Provided lmax"):
-        rotate_alm(sh_ecl, psi=0.1, lmax=lmax + 1)
+    # D. Invalid mmax_out: Provided mmax_out > object lmax
+    # (Replaces the old lmax check)
+    with pytest.raises(ValueError, match="Provided mmax_out"):
+        rotate_alm(sh_ecl, psi=0.1, mmax_out=lmax + 1)
+        
+    # E. Invalid Inplace Resizing: Trying to change mmax in-place
+    with pytest.raises(ValueError, match="Cannot perform inplace"):
+        rotate_alm(sh_ecl, psi=0.1, mmax_out=lmax-1, inplace=True)
 
-    # E. No-Op Warning: No rotation specified
+    # F. No-Op Warning: No rotation specified and mmax unchanged
     with pytest.warns(UserWarning, match="No rotation specified"):
-        res = rotate_alm(sh_ecl)
+        res = rotate_alm(sh_ecl) # Defaults: kind=None, mmax_out=None (-> input mmax)
         np.testing.assert_array_equal(res.values, sh_ecl.values)
 
 
