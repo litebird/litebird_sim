@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Tuple, Dict, Optional
+from typing import Any, Tuple, Dict, Optional, List
 import warnings
 from pathlib import Path
 
@@ -2513,7 +2513,7 @@ def read_cls_from_fits(path: str | Path) -> dict[str, np.ndarray]:
     fallback_order_6 = ["TT", "EE", "BB", "TE", "TB", "EB"]
     fallback_order_4 = ["TT", "EE", "BB", "TE"]
 
-    cls = {}
+    cl = {}
 
     with fits.open(path) as hdul:
         # Assuming data is in extension 1 (standard for Cls FITS)
@@ -2526,11 +2526,11 @@ def read_cls_from_fits(path: str | Path) -> dict[str, np.ndarray]:
             for key_fits, key_out in mapping.items():
                 # Check if the standard keyword is part of the column name
                 if key_fits in name:
-                    cls[key_out] = data[col.name].flatten()
+                    cl[key_out] = data[col.name].flatten()
                     break
 
         # Strategy 2: Fallback to positional arguments if Strategy 1 failed
-        if not cls:
+        if not cl:
             n_cols = len(columns)
 
             if n_cols == 6:
@@ -2538,14 +2538,14 @@ def read_cls_from_fits(path: str | Path) -> dict[str, np.ndarray]:
                     f"No matching headers found in {path}. Assuming default 6-field order: {fallback_order_6}"
                 )
                 for i, key in enumerate(fallback_order_6):
-                    cls[key] = data[columns[i].name].flatten()
+                    cl[key] = data[columns[i].name].flatten()
 
             elif n_cols == 4:
                 print(
                     f"No matching headers found in {path}. Assuming default 4-field order: {fallback_order_4}"
                 )
                 for i, key in enumerate(fallback_order_4):
-                    cls[key] = data[columns[i].name].flatten()
+                    cl[key] = data[columns[i].name].flatten()
 
             else:
                 raise ValueError(
@@ -2553,4 +2553,66 @@ def read_cls_from_fits(path: str | Path) -> dict[str, np.ndarray]:
                     f"and column count ({n_cols}) does not match standard fallback shapes (4 or 6)."
                 )
 
-    return cls
+    return cl
+
+
+def lin_comb_cls(
+    cls1: Dict[str, np.ndarray],
+    cls2: Dict[str, np.ndarray],
+    s1: float = 1.0,
+    s2: float = 1.0,
+    keys: Optional[List[str]] = None,
+) -> Dict[str, np.ndarray]:
+    """
+    Compute a linear combination of two power spectra dictionaries.
+
+    This function performs the operation: result = s1 * cls1 + s2 * cls2.
+    It is typically used to combine scalar and tensor components of CMB 
+    power spectra, for example by scaling the tensor part by the 
+    tensor-to-scalar ratio 'r'.
+
+    Parameters
+    ----------
+    cls1 : Dict[str, np.ndarray]
+        First dictionary of power spectra where keys are strings (e.g., 'TT', 'EE')
+        and values are NumPy arrays representing C_l.
+    cls2 : Dict[str, np.ndarray]
+        Second dictionary of power spectra to be combined with the first.
+    s1 : float, optional
+        Scaling factor applied to `cls1`. Default is 1.0.
+    s2 : float, optional
+        Scaling factor applied to `cls2`. Default is 1.0.
+    keys : List[str], optional
+        Specific list of keys (spectra types) to combine. If None, the 
+        intersection of keys present in both dictionaries is used.
+
+    Returns
+    -------
+    Dict[str, np.ndarray]
+        A dictionary containing the linearly combined spectra.
+
+    Raises
+    ------
+    ValueError
+        If the arrays for the same key have different lengths (mismatched lmax).
+    """
+    if keys is None:
+        target_keys = cls1.keys() & cls2.keys()
+    else:
+        # Ensure we only work with keys that exist in both
+        target_keys = [k for k in keys if k in cls1 and k in cls2]
+        missing = set(keys) - set(target_keys)
+        if missing:
+            # Using print or a logger depending on your preference
+            print(f"Warning: requested keys {missing} not found in both inputs.")
+
+    result = {}
+    for k in target_keys:
+        if len(cls1[k]) != len(cls2[k]):
+            raise ValueError(
+                f"Length mismatch for key '{k}': {len(cls1[k])} vs {len(cls2[k])}. "
+                "Verify that both input spectra share the same lmax."
+            )
+        result[k] = s1 * cls1[k] + s2 * cls2[k]
+
+    return result

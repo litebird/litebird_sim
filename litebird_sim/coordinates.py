@@ -79,61 +79,6 @@ def coord_sys_to_healpix_string(coordsys: CoordinateSystem) -> str:
     return _COORD_SYS_TO_HEALPIX[coordsys]
 
 
-def ang2vec(theta, phi):
-    """Transform a direction theta,phi to a unit vector.
-
-    Parameters
-    ----------
-    theta : float, scalar or array-like
-      The angle theta (scalar or shape (N,))
-    phi : float, scalar or array-like
-      The angle phi (scalar or shape (N,)).
-
-    Returns
-    -------
-    vec : array
-      The vector(s) corresponding to given angles, shape is (3,) or (3, N).
-
-    See Also
-    --------
-    https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L657
-    """
-    ct, st, cp, sp = np.cos(theta), np.sin(theta), np.cos(phi), np.sin(phi)
-    vec = np.empty((3, ct.size), np.float64)
-    vec[0, :] = st * cp
-    vec[1, :] = st * sp
-    vec[2, :] = ct
-    return vec.squeeze()
-
-
-def vec2ang(vx, vy, vz):
-    """Transform a vector (or many vectors) to angle given by theta,phi.
-
-    Parameters
-    ----------
-    vx : float, scalar or array-like
-      The x component of the vector (scalar or shape (N,))
-    vy : float, scalar or array-like, optional
-      The y component of the vector (scalar or shape (N,))
-    vz : float, scalar or array-like, optional
-      The z component of the vector (scalar or shape (N,))
-
-    Returns
-    -------
-    angles : float, array
-      The angles in radians in an array of shape (2, N)
-
-    See Also
-    --------
-    https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L610
-    """
-
-    ang = np.empty((2, vx.size))
-    ang[0, :] = np.arctan2(np.sqrt(vx**2 + vy**2), vz)
-    ang[1, :] = np.arctan2(vy, vx)
-    return ang.squeeze()
-
-
 @njit
 def _ang2galvec_one_sample(
     theta_rad: float, phi_rad: float
