@@ -2567,8 +2567,8 @@ def lin_comb_cls(
     Compute a linear combination of two power spectra dictionaries.
 
     This function performs the operation: result = s1 * cls1 + s2 * cls2.
-    It is typically used to combine scalar and tensor components of CMB 
-    power spectra, for example by scaling the tensor part by the 
+    It is typically used to combine scalar and tensor components of CMB
+    power spectra, for example by scaling the tensor part by the
     tensor-to-scalar ratio 'r'.
 
     Parameters
@@ -2583,7 +2583,7 @@ def lin_comb_cls(
     s2 : float, optional
         Scaling factor applied to `cls2`. Default is 1.0.
     keys : List[str], optional
-        Specific list of keys (spectra types) to combine. If None, the 
+        Specific list of keys (spectra types) to combine. If None, the
         intersection of keys present in both dictionaries is used.
 
     Returns

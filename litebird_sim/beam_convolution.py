@@ -279,10 +279,25 @@ def add_convolved_sky(
         assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(n_detectors):
+        if input_sky_names is None:
+            sky_alms_det = sky_alms
+        else:
+            sky_alms_det = sky_alms[input_sky_names[detector_idx]]
+
+        if input_beam_names is None:
+            beam_alms_det = beam_alms
+        else:
+            beam_alms_det = beam_alms[input_beam_names[detector_idx]]
+
+        if mueller_hwp is None:
+            mueller_matrix = None
+        else:
+            mueller_matrix = mueller_hwp[detector_idx]
+
         # ----------------------------------------------------------
         # Determine coordinate system from the object
         # ----------------------------------------------------------
-        coordinates = getattr(sky_alms, "coordinates", None)
+        coordinates = getattr(sky_alms_det, "coordinates", None)
         if coordinates is None:
             logging.warning(
                 "add_convolved_sky: sky_alms.coordinates is None — assuming "
@@ -303,21 +318,6 @@ def add_convolved_sky(
 
         # FIXME: Fix this at some point, ducc wants phi 0 -> 2pi
         curr_pointings_det[:, 1] = np.mod(curr_pointings_det[:, 1], 2 * np.pi)
-
-        if input_sky_names is None:
-            sky_alms_det = sky_alms
-        else:
-            sky_alms_det = sky_alms[input_sky_names[detector_idx]]
-
-        if input_beam_names is None:
-            beam_alms_det = beam_alms
-        else:
-            beam_alms_det = beam_alms[input_beam_names[detector_idx]]
-
-        if mueller_hwp is None:
-            mueller_matrix = None
-        else:
-            mueller_matrix = mueller_hwp[detector_idx]
 
         add_convolved_sky_to_one_detector(
             tod_det=tod[detector_idx],
