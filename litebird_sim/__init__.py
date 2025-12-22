@@ -106,6 +106,7 @@ from .io import (
     read_list_of_observations,
 )
 from .madam import save_simulation_for_madam
+from .input_sky import SkyGenerator, SkyGenerationParams
 from .mbs.mbs import FG_MODELS, Mbs, MbsParameters, MbsSavedMapInfo
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
 from .mueller_convolver import MuellerConvolver
@@ -284,6 +285,9 @@ __all__ = [
     "fill_tod",
     # madam.py
     "save_simulation_for_madam",
+    # input_sky.py
+    "SkyGenerator",
+    "SkyGenerationParams",
     # mbs.py
     "FG_MODELS",
     "Mbs",

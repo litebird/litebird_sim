@@ -566,7 +566,7 @@ class SphericalHarmonics:
     # -------------
 
     def convolve(
-        self, f_ell: np.ndarray | list[np.ndarray], in_place: bool = True
+        self, f_ell: np.ndarray | list[np.ndarray], inplace: bool = True
     ) -> "SphericalHarmonics":
         """
         Apply a beam or filter to the SH coefficients.
@@ -575,7 +575,7 @@ class SphericalHarmonics:
         ----------
         f_ell : np.ndarray or list[np.ndarray]
             The ℓ-dependent filter(s).
-        in_place : bool, optional
+        inplace : bool, optional
             If True, modifies the coefficients of the current object.
             If False, returns a new SphericalHarmonics object.
             Default is True.
@@ -583,7 +583,7 @@ class SphericalHarmonics:
         Returns
         -------
         SphericalHarmonics
-            The object itself (if in_place=True) or a new object (if in_place=False).
+            The object itself (if inplace=True) or a new object (if inplace=False).
         """
         # The filter must be defined at least up to self.lmax
         required_size = self.lmax + 1
@@ -642,7 +642,7 @@ class SphericalHarmonics:
             raise TypeError("f_ell must be a numpy array or a list of numpy arrays")
 
         # Apply the kernel
-        if in_place:
+        if inplace:
             self.values *= kernel
             return self
         else:
@@ -655,7 +655,7 @@ class SphericalHarmonics:
             )
 
     def apply_gaussian_smoothing(
-        self, fwhm_rad: float, in_place: bool = True
+        self, fwhm_rad: float, inplace: bool = True
     ) -> "SphericalHarmonics":
         """
         Apply Gaussian smoothing to the spherical harmonics coefficients.
@@ -664,7 +664,7 @@ class SphericalHarmonics:
         ----------
         fwhm_rad : float
             Full Width at Half Maximum (FWHM) of the Gaussian beam in radians.
-        in_place : bool, optional
+        inplace : bool, optional
             If True, modifies the object in place. Default is True.
 
         Returns
@@ -681,10 +681,10 @@ class SphericalHarmonics:
 
         bl = gauss_bl(lmax=self.lmax, fwhm_rad=fwhm_rad, pol=use_pol)
 
-        return self.convolve(bl, in_place=in_place)
+        return self.convolve(bl, inplace=inplace)
 
     def apply_pixel_window(
-        self, nside: int, in_place: bool = True
+        self, nside: int, inplace: bool = True
     ) -> "SphericalHarmonics":
         """
         Apply the HEALPix pixel window function.
@@ -693,7 +693,7 @@ class SphericalHarmonics:
         ----------
         nside : int
             The HEALPix Nside resolution parameter.
-        in_place : bool, optional
+        inplace : bool, optional
             If True, modifies the object in place. Default is True.
 
         Returns
@@ -706,7 +706,7 @@ class SphericalHarmonics:
 
         pw_ell = pixel_window(nside, lmax=self.lmax, pol=use_pol)
 
-        return self.convolve(pw_ell, in_place=in_place)
+        return self.convolve(pw_ell, inplace=inplace)
 
     # -------------
     # Copy / compare
@@ -1725,8 +1725,21 @@ def estimate_alm(
     nthreads: int = 0,
 ) -> "SphericalHarmonics":
     r"""
-    Convert a HEALPix map to spherical harmonics coefficients using
-    :func:`ducc0.sht.adjoint_synthesis` on the HEALPix geometry.
+    Estimate spherical harmonic coefficients ($a_{\ell m}$) from a HEALPix map.
+
+    This function performs a spherical harmonic analysis to transform the input map
+    space into harmonic space. It uses :func:`ducc0.sht.adjoint_synthesis`
+    to compute the summation over pixels and scales the result by the pixel area
+    to approximate the integration over the sphere.
+
+    Mathematically, it approximates:
+
+    .. math::
+        a_{\ell m} = \int_{\Omega} f(\hat{n}) Y_{\ell m}^*(\hat{n}) d\Omega
+        \approx \Omega_{pix} \sum_{p} f(p) Y_{\ell m}^*(p)
+
+    where :func:`ducc0.sht.adjoint_synthesis` computes the summation $\sum f Y^*$,
+    and this function multiplies by $\Omega_{pix}$ (``base.pix_area()``).
 
     This is essentially a ``estimate_alm`` implemented on top of ducc0, with
     support for both scalar and polarized fields:
@@ -1852,7 +1865,7 @@ def estimate_alm(
 
     # --- wrap into SphericalHarmonics, propagating units and coordinates ---
     return SphericalHarmonics(
-        values=alm,
+        values=alm * base.pix_area(),
         lmax=lmax_eff,
         mmax=mmax_eff,
         units=map.units,
@@ -2031,6 +2044,7 @@ def synthesize_alm(
     mmax: Optional[int] = None,
     rng: Optional[np.random.Generator] = None,
     units: Optional["Units"] = None,
+    coordinates: Optional["CoordinateSystem"] = None,
 ) -> "SphericalHarmonics":
     """
     Generates a set of spherical harmonic coefficients (alm) from power spectra.
@@ -2054,6 +2068,8 @@ def synthesize_alm(
         Random number generator instance.
     units : Units, optional
         The physical units of the generated alm.
+    coordinates : CoordinateSystem, optional
+        The coordinate system of the generated alms (e.g. Ecliptic, Galactic).
 
     Returns
     -------
@@ -2166,7 +2182,7 @@ def synthesize_alm(
         L_matrices_2x2 = np.zeros_like(cov_2x2)
         for l in range(lmax + 1):
             C_l = cov_2x2[l]
-            if np.allclose(C_l, 0):
+            if np.allclose(C_l, 0, atol=1e-20):
                 continue
             u, s, vh = np.linalg.svd(C_l, hermitian=True)
             s = np.maximum(s, 0.0)
@@ -2216,7 +2232,7 @@ def synthesize_alm(
         L_matrices = np.zeros_like(cov_3x3)
         for l in range(lmax + 1):
             C_l = cov_3x3[l]
-            if np.allclose(C_l, 0):
+            if np.allclose(C_l, 0, atol=1e-20):
                 continue
             u, s, vh = np.linalg.svd(C_l, hermitian=True)
             s = np.maximum(s, 0.0)
@@ -2228,7 +2244,9 @@ def synthesize_alm(
         colored_T = np.einsum("isk,ik->is", L_expanded, white_noise.T)
         alm_colored = colored_T.T
 
-    return SphericalHarmonics(values=alm_colored, lmax=lmax, mmax=mmax, units=units)
+    return SphericalHarmonics(
+        values=alm_colored, lmax=lmax, mmax=mmax, units=units, coordinates=coordinates
+    )
 
 
 def compute_cl(
@@ -2558,61 +2576,67 @@ def read_cls_from_fits(path: str | Path) -> dict[str, np.ndarray]:
 
 def lin_comb_cls(
     cls1: Dict[str, np.ndarray],
-    cls2: Dict[str, np.ndarray],
+    cls2: Optional[Dict[str, np.ndarray]] = None,
     s1: float = 1.0,
     s2: float = 1.0,
     keys: Optional[List[str]] = None,
 ) -> Dict[str, np.ndarray]:
     """
-    Compute a linear combination of two power spectra dictionaries.
+    Compute a linear combination of power spectra dictionaries or scale a single one.
 
-    This function performs the operation: result = s1 * cls1 + s2 * cls2.
-    It is typically used to combine scalar and tensor components of CMB
-    power spectra, for example by scaling the tensor part by the
-    tensor-to-scalar ratio 'r'.
+    This function performs the operation:
+    result = s1 * cls1 + s2 * cls2 (if cls2 is provided)
+    result = s1 * cls1 (if cls2 is None)
 
     Parameters
     ----------
     cls1 : Dict[str, np.ndarray]
-        First dictionary of power spectra where keys are strings (e.g., 'TT', 'EE')
-        and values are NumPy arrays representing C_l.
-    cls2 : Dict[str, np.ndarray]
-        Second dictionary of power spectra to be combined with the first.
+        First dictionary of power spectra {key: np.array}.
+    cls2 : Dict[str, np.ndarray], optional
+        Second dictionary of power spectra. If None, only cls1 is processed.
     s1 : float, optional
         Scaling factor applied to `cls1`. Default is 1.0.
     s2 : float, optional
         Scaling factor applied to `cls2`. Default is 1.0.
+        Ignored if `cls2` is None.
     keys : List[str], optional
-        Specific list of keys (spectra types) to combine. If None, the
-        intersection of keys present in both dictionaries is used.
+        Specific list of keys to process. If None, uses keys from cls1
+        (or intersection if cls2 is provided).
 
     Returns
     -------
     Dict[str, np.ndarray]
-        A dictionary containing the linearly combined spectra.
+        A dictionary containing the resulting spectra.
 
     Raises
     ------
     ValueError
-        If the arrays for the same key have different lengths (mismatched lmax).
+        If cls2 is provided and array lengths for the same key do not match.
     """
+    # Define which keys to operate on
     if keys is None:
-        target_keys = cls1.keys() & cls2.keys()
+        if cls2 is not None:
+            target_keys = cls1.keys() & cls2.keys()
+        else:
+            target_keys = cls1.keys()
     else:
-        # Ensure we only work with keys that exist in both
-        target_keys = [k for k in keys if k in cls1 and k in cls2]
+        # Filter keys to ensure they exist in cls1 (and cls2 if provided)
+        target_keys = [k for k in keys if k in cls1 and (cls2 is None or k in cls2)]
         missing = set(keys) - set(target_keys)
         if missing:
-            # Using print or a logger depending on your preference
-            print(f"Warning: requested keys {missing} not found in both inputs.")
+            print(f"Warning: requested keys {missing} not found in input(s).")
 
     result = {}
     for k in target_keys:
-        if len(cls1[k]) != len(cls2[k]):
-            raise ValueError(
-                f"Length mismatch for key '{k}': {len(cls1[k])} vs {len(cls2[k])}. "
-                "Verify that both input spectra share the same lmax."
-            )
-        result[k] = s1 * cls1[k] + s2 * cls2[k]
+        val = s1 * cls1[k]
+
+        if cls2 is not None:
+            if len(cls1[k]) != len(cls2[k]):
+                raise ValueError(
+                    f"Length mismatch for key '{k}': {len(cls1[k])} vs {len(cls2[k])}."
+                )
+            val += s2 * cls2[k]
+
+        result[k] = val
 
     return result
