@@ -176,6 +176,14 @@ class SkyGenerationParams:
         if self.lmax is None:
             self.lmax = 3 * self.nside - 1
 
+        # Warning for MPI consistency
+        if self.make_cmb and self.cmb_seed is None:
+            log.warning(
+                "cmb_seed is None. If this simulation is running across multiple MPI tasks, "
+                "the generated CMB sky will NOT be coherent (identical) across tasks. "
+                "Set a specific integer seed to ensure consistency."
+            )
+
 
 # --- Main Class ---
 
