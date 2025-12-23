@@ -208,7 +208,6 @@ def add_convolved_sky(
     input_sky_names: str | None = None,
     input_beam_names: str | None = None,
     convolution_params: BeamConvolutionParameters | None = None,
-    input_sky_alms_in_galactic: bool = True,
     pointings_dtype=np.float64,
     nside_centering: int | None = None,
     nthreads: int = 0,
@@ -366,11 +365,10 @@ def add_convolved_sky_to_observations(
         keyed by detector/channel names.
     pointings : np.ndarray, list of np.ndarray, or None, default=None
         Detector pointing matrices. If None, the function extracts pointings from the `Observation` objects.
+        Pointing information is always assumed to be in Ecliptic coordinates
     hwp : HWP | None, default=None
         Half-Wave Plate (HWP) parameters. If None, the function either assumes the information stored in the
         `Observation` objects, or, if they are absent, assumes no HWP.
-    input_sky_alms_in_galactic : bool, default=True
-        Whether the input sky alms are in Galactic coordinates.
     convolution_params : BeamConvolutionParameters | None, default=None
         Parameters controlling the beam convolution, including resolution limits and numerical precision.
     component : str, default="tod"
