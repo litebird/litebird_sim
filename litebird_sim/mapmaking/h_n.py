@@ -101,7 +101,7 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
     m: int,
     pix: npt.ArrayLike,
     psi: npt.ArrayLike,
-    hwp_angle: npt.ArrayLike |None, 
+    hwp_angle: npt.ArrayLike | None, 
     d_mask: npt.ArrayLike,
     t_mask: npt.ArrayLike,
     nobs_matrix: npt.ArrayLike,
@@ -111,26 +111,25 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
 
     assert pix.shape == psi.shape
 
-
-
     for idet in range(num_of_detectors):
         if not d_mask[idet]:
             continue
 
-
-        for cur_pix_idx, cur_psi in zip(pix[idet], psi[idet]):
+        print(np.shape(pix[idet]),"   ",np.shape(hwp_angle))
+        for cur_pix_idx, cur_psi, cur_hwp_angle in zip(pix[idet], psi[idet],hwp_angle):
 
                 info_pix = nobs_matrix[idet,cur_pix_idx]
                 if hwp_angle != None:
-                    cos_n_m = np.cos(n * cur_psi +m * hwp_angle) 
-                    sin_n_m = np.sin(n * cur_psi+ m * hwp_angle)
+                    cos_n_m = np.cos(n * cur_psi +m * cur_hwp_angle) 
+                    sin_n_m = np.sin(n * cur_psi+ m * cur_hwp_angle)
                 else:
                     cos_n_m = np.cos(n * cur_psi) 
                     sin_n_m = np.sin(n * cur_psi)
                 if (n,m)==(0,0):
-                    info_pix[0] = 1
+                    info_pix[0] = 1 # if n=m=0 we compute the hit count, beceause it is useful to combine h maps later on 
                 else: 
-                   info_pix[0] += 1 
+                   info_pix[0] += 1
+
                 info_pix[1] += cos_n_m 
                 info_pix[2] += sin_n_m
 
@@ -160,65 +159,80 @@ def _extract_rhs(info: npt.ArrayLike) -> npt.ArrayLike:
 
     return rhs
 
+def _compute_pixel_indices_for_all_obs(
+    nside: int,
+    obs_list: list[Observation],
+    ptg_list: list[npt.ArrayLike] | list[Callable],
+    hwp: HWP | None,
+    output_coordinate_system: CoordinateSystem,
+    pointings_dtype=np.float64,
+) -> tuple[list[npt.ArrayLike], list[npt.ArrayLike], list[npt.ArrayLike]]:
+    """Precompute pixel indices and angles for all observations.
+    
+    Returns:
+        Tuple of (pixidx_list, psi_list, hwp_angle_list) where each is a list indexed by observation.
+    """
+    hpx = Healpix_Base(nside, "RING")
+    
+    pixidx_list = []
+    psi_list = []
+    hwp_angle_list = []
+    
+    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        hwp_angle_list.append(hwp_angle)
+        print(hwp_angle)
+        pixidx_all, psi_all = _compute_pixel_indices(
+                hpx=hpx,
+                pointings=cur_ptg,
+                pol_angle_detectors=np.zeros(cur_obs.n_detectors),
+                num_of_detectors=cur_obs.n_detectors,
+                num_of_samples=cur_obs.n_samples,
+                hwp_angle=hwp_angle,
+                output_coordinate_system=output_coordinate_system,
+                pointings_dtype=pointings_dtype,
+                hmap_generation=True,
+            )
+        
+        pixidx_list.append(pixidx_all)
+        psi_list.append(psi_all)
+    
+    return pixidx_list, psi_list, hwp_angle_list
+
+
 def _build_nobs_matrix(
     n:int,
     m:int,
     nside: int,
     obs_list: list[Observation],
-    ptg_list: list[npt.ArrayLike] | list[Callable],
-    hwp: HWP | None,
+    pixidx_list: list[npt.ArrayLike],
+    psi_list: list[npt.ArrayLike],
+    hwp_angle_list: list[npt.ArrayLike | None],
     dm_list: list[npt.ArrayLike],
     tm_list: list[npt.ArrayLike],
-    output_coordinate_system: CoordinateSystem,
-    pointings_dtype=np.float64,
 ) -> npt.ArrayLike:
-    hpx = Healpix_Base(nside, "RING")
+    """Build the nobs matrix for all detectors and pixels, it has shape (Ndet,Npix,3) and contains the accumulated spin terms and hit counts of each detector and pixel."""
     n_pix = nside_to_npix(nside)
     
     tot_num_of_detectors = sum([len(obs.detectors_global) for obs in obs_list])
     nobs_matrix = np.zeros((tot_num_of_detectors,n_pix,3))
-    # print("yo")
-    for obs_idx, (cur_obs, cur_ptg, cur_d_mask, cur_t_mask) in enumerate(
-        zip(obs_list, ptg_list, dm_list, tm_list)
+    
+    for obs_idx, (cur_obs, cur_d_mask, cur_t_mask, pixidx_all, psi_all, hwp_angle) in enumerate(
+        zip(obs_list, dm_list, tm_list, pixidx_list, psi_list, hwp_angle_list)
     ):
-        
         cur_num_of_detectors = len(cur_obs.detectors_global)
         
-        # Determine the HWP angle to use:
-        # - If an external HWP object is provided, compute the angle from it
-        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
-
-        with TimeProfiler(name="_compute_pixel_indices") as perf:
-            pixidx_all, psi_all = _compute_pixel_indices(
-            hpx=hpx,
-            pointings=cur_ptg,
-            pol_angle_detectors=np.zeros(cur_obs.n_detectors), #cur_obs.pol_angle_rad
-            num_of_detectors=cur_obs.n_detectors,
-            num_of_samples=cur_obs.n_samples,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
-            pointings_dtype=pointings_dtype,
-            hmap_generation=True,
-        )
-        # print(f"The time spent for _compute_pixel_indices is {perf.elapsed_time_s():.10f} s")
-        del perf
-        with TimeProfiler(name="_accumulate_spin_terms_and_build_nobs_matrix") as perf: 
-            _accumulate_spin_terms_and_build_nobs_matrix(
-            n,
-            m,
-            pixidx_all,
-            psi_all,
-            hwp_angle,
-            cur_d_mask,
-            cur_t_mask,
-            nobs_matrix,
-            cur_num_of_detectors,
-        )
-        # print(f"The time spent for _accumulate_spin_terms_and_build_nobs_matrix is {perf.elapsed_time_s():.10f} s")
-
-        del pixidx_all, psi_all
+        _accumulate_spin_terms_and_build_nobs_matrix(
+                n,
+                m,
+                pixidx_all,
+                psi_all,
+                hwp_angle,
+                cur_d_mask,
+                cur_t_mask,
+                nobs_matrix,
+                cur_num_of_detectors,
+            )
 
     return nobs_matrix
 
@@ -239,19 +253,11 @@ def make_h_maps(
     output_directory: str = "./h_n_maps",
 ) -> HnMapResult:
     """
-    Compute h_n maps for one or more observations.
-    This function generates complex harmonic maps h_n for the supplied observations by:
+    This function generates complex harmonic maps h_n_m for the supplied observations.
+    The map h_0_0 contains the hit counts per pixel.
+
     Args:
-        observations (list of :class:`Observations`): observations to be mapped.
-            They are required to have the following attributes as arrays
-
-            * `pointings`: the pointing information (in radians) for each tod
-               sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
-               with ``N_d`` number of detectors and ``N_t`` number of
-               samples in the TOD.
-            * any attribute listed in `components` (by default, `tod`) and
-              containing the TOD(s) to be binned together.
-
+        observations (list of :class:`Observations`):
             If the observations are distributed over some communicator(s), they
             must share the same group processes.
             If pointings and psi are not included in the observations, they can
@@ -287,28 +293,37 @@ def make_h_maps(
 
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
+    # Precompute pixel indices and angles once for all (n, m) pairs
+    pixidx_list, psi_list, hwp_angle_list = _compute_pixel_indices_for_all_obs(
+        nside=nside,
+        obs_list=obs_list,
+        ptg_list=ptg_list,
+        hwp=hwp,
+        output_coordinate_system=output_coordinate_system,
+        pointings_dtype=pointings_dtype,
+    )
+
     for n in n_list:
         for m in m_list:
             h_maps[(n,m)]=[]
-            if m !=0:
-                raise NotImplementedError("Currently only m=0 is implemented")
+
 
             nobs_matrix = _build_nobs_matrix(
                 n,
                 m,
                 nside=nside,
                 obs_list=obs_list,
-                ptg_list=ptg_list,
-                hwp=hwp,
+                pixidx_list=pixidx_list,
+                psi_list=psi_list,
+                hwp_angle_list=hwp_angle_list,
                 dm_list=detector_mask_list,
                 tm_list=time_mask_list,
-                output_coordinate_system=output_coordinate_system,
-                pointings_dtype=pointings_dtype,
             )
 
             rhs = _extract_rhs(nobs_matrix)
 
             _solve_binning(nobs_matrix, rhs)
+
             for idet in range(tot_num_of_detectors):
                 h_maps[(n,m)].append(h_map_Re_and_Im(real=rhs[idet].T[0],
                                                      imag=rhs[idet].T[1],

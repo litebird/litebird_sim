@@ -42,6 +42,7 @@ from .io import write_list_of_observations, read_list_of_observations
 from .mapmaking import (
     make_binned_map,
     make_h_maps,
+    HnMapResult,
     make_brahmap_gls_map,
     check_valid_splits,
     BinnerResult,
@@ -2073,6 +2074,38 @@ class Simulation:
             time_split=time_split,
             pointings_dtype=pointings_dtype,
         )
+    
+    @_profile
+    def make_h_maps(  
+        self,
+        nside: int,
+        n_list: list[int]=[0,2,4],
+        hwp: HWP | None = None,
+        m_list: list[int] = [0],
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        detector_split: str = "full",
+        time_split: str = "full",
+        pointings_dtype=np.float64,
+        save_to_file: bool = True,
+        output_directory: str = "./h_n_maps",
+) -> HnMapResult:
+        """
+        Computes the Hn maps from the pointings  of `sim.observations`.
+        This is a wrapper around :func:`litebird_sim.mapmaking.make_h_maps`.
+
+        """
+        return make_h_maps(  
+            observations= self.observations,
+            nside=nside,
+            n_list=n_list,
+            hwp=hwp,
+            m_list=m_list,
+            output_coordinate_system=output_coordinate_system,
+            detector_split= detector_split ,
+            time_split= time_split,
+            pointings_dtype= pointings_dtype,
+            save_to_file= save_to_file ,
+            output_directory= output_directory)
 
     def _impose_and_check_full_split(self, detector_splits, time_splits):
         """
