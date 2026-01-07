@@ -1675,11 +1675,19 @@ class Simulation:
                         has_fg=maps["Mbs_parameters"].make_fg,
                         fg_model=fg_model,
                     )
-            else:
-                nside = SphericalHarmonics.npix_to_nside(len(maps[0]))
+            elif isinstance(maps, HealpixMap):
+                nside = HealpixMap.npix_to_nside(maps.npix)
                 self.append_to_report(
                     markdown_template,
                     nside=nside,
+                    has_cmb="N/A",
+                    has_fg="N/A",
+                    fg_model="N/A",
+                )
+            else:
+                self.append_to_report(
+                    markdown_template,
+                    nside="N/A",
                     has_cmb="N/A",
                     has_fg="N/A",
                     fg_model="N/A",
