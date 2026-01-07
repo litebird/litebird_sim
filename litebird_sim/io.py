@@ -477,7 +477,7 @@ def write_list_of_observations(
         # Empty list
         # We do not want to return here, as we still need to participate to
         # the call to _compute_global_start_index below
-        observations = []  # type: list[Observation]
+        observations: list[Observation] = []
 
     if not isinstance(path, Path):
         path = Path(path)
@@ -742,7 +742,7 @@ _FileEntry = namedtuple(
 
 
 def _build_file_entry_table(file_name_list: list[str | Path]) -> list[_FileEntry]:
-    file_entries = []  # type: list[_FileEntry]
+    file_entries: list[_FileEntry] = []
     for cur_file_name in file_name_list:
         with h5py.File(cur_file_name, "r") as inpf:
             try:

@@ -3,12 +3,15 @@ GLS Map-maker using BrahMap for Litebird_sim
 This function provides a consistent interface with other mapmaking routines.
 """
 
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 
 from litebird_sim.hwp import HWP
+
+if TYPE_CHECKING:
+    import brahmap
 
 
 def make_brahmap_gls_map(

@@ -31,7 +31,7 @@ class TruncatedBlm:
 
 def truncate_blm(inp, lmax: int, mmax: int, epsilon=1e-10) -> list[TruncatedBlm | None]:
     limit = epsilon * np.max(np.abs(inp))
-    out = []  # type: list[TruncatedBlm | None]
+    out: list[TruncatedBlm | None] = []
     for i in range(len(inp)):
         maxk = -1
         idx = 0
@@ -39,7 +39,6 @@ def truncate_blm(inp, lmax: int, mmax: int, epsilon=1e-10) -> list[TruncatedBlm 
             if np.max(np.abs(inp[i, :, idx:idx + lmax + 1 - k])) > limit:
                 maxk = k
             idx += lmax + 1 - k
-#        print("component",i,"maxk=",maxk)
         if maxk == -1:
             out.append(None)
         else:

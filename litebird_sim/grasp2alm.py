@@ -657,10 +657,10 @@ class BeamCut:
         # First pass: go through the file and count how many cuts it contains. Update
         # the list of values for φ in `phi_values`
         phi_values = []
-        self.ncomp = None  # type: int | None
-        self.theta0_deg = None  # type: float | None
-        self.delta_theta_deg = None  # type: float | None
-        self.n_theta = None  # type: int | None
+        self.ncomp: int | None = None
+        self.theta0_deg: float | None = None
+        self.delta_theta_deg: float | None = None
+        self.n_theta: int | None = None
         self.num_of_phi_cuts = 0
         while True:
             # Read the header line and throw it away
@@ -859,7 +859,7 @@ def _grasp2alm(
     return SphericalHarmonics(values=alm, lmax=lmax, mmax=mmax)
 
 
-def ticra_cut_to_alm(*args, **kwargs) -> SphericalHarmonics:
+def ticra_cut_to_alm(**kwargs) -> SphericalHarmonics:
     """Convert a GRASP ``.cut`` file to a spherical harmonic coefficients of beam map.
 
     Args:
@@ -887,13 +887,12 @@ def ticra_cut_to_alm(*args, **kwargs) -> SphericalHarmonics:
     """
     kwargs.pop("beam_class", None)
     return _grasp2alm(
-        *args,
-        **kwargs,
         beam_class=BeamCut,
+        **kwargs,
     )
 
 
-def ticra_grid_to_alm(*args, **kwargs) -> SphericalHarmonics:
+def ticra_grid_to_alm(**kwargs) -> SphericalHarmonics:
     """Convert a GRASP ``.grd`` file to a spherical harmonic coefficients of beam map.
 
     Args:
@@ -920,7 +919,6 @@ def ticra_grid_to_alm(*args, **kwargs) -> SphericalHarmonics:
     """
     kwargs.pop("beam_class", None)
     return _grasp2alm(
-        *args,
-        **kwargs,
         beam_class=BeamGrid,
+        **kwargs,
     )

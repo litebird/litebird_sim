@@ -237,7 +237,7 @@ class Observation:
             self.n_samples,
         ) = self._get_local_start_time_start_and_n_samples()
 
-        self.pointing_provider = None  # type: PointingProvider | None
+        self.pointing_provider: PointingProvider | None = None
 
         # By default this is set to False, prepare_pointings() can change its value
         self.has_hwp = False

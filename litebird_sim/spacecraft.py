@@ -349,6 +349,8 @@ def compute_start_and_span_for_obs(
     else:
         obs_list = observations
 
+    assert len(obs_list) > 0, "observations must not be empty"
+
     start_time, end_time = None, None
     for cur_obs in obs_list:
         assert isinstance(cur_obs.start_time, astropy.time.Time), (
@@ -363,6 +365,8 @@ def compute_start_and_span_for_obs(
         if (end_time is None) or (end_time > cur_end_time):
             end_time = cur_end_time
 
+    # These assertions help the type checker understand that the loop ran at least once
+    assert start_time is not None and end_time is not None
     time_span_s = (end_time - start_time).to("s").value
 
     return start_time, time_span_s

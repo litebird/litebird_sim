@@ -47,7 +47,7 @@ __DESTRIPER_RESULTS_FILE_NAME = "destriper_results.fits"
 __BASELINES_FILE_NAME = f"baselines_mpi{MPI_COMM_GRID.COMM_OBS_GRID.rank:04d}.fits"
 
 
-def _split_items_into_n_segments(n: int, num_of_segments: int) -> list[int]:
+def _split_items_into_n_segments(n: int, num_of_segments: int) -> np.ndarray:
     """Divide a quantity `length` into chunks, each roughly of the same length
 
     This low-level function is used to determine how many samples in a TOD should be
@@ -79,7 +79,7 @@ def _split_items_into_n_segments(n: int, num_of_segments: int) -> list[int]:
     return start_positions[1:] - start_positions[0:-1]
 
 
-def split_items_evenly(n: int, sub_n: int) -> list[int]:
+def split_items_evenly(n: int, sub_n: int) -> np.ndarray:
     """Evenly split `n` items into groups, each with roughly `sub_n` elements
 
     .. testsetup::
@@ -1201,8 +1201,8 @@ def _run_destriper(
     list[npt.ArrayLike],  # The solution, i.e., the list of baselines
     list[npt.ArrayLike],  # The error bars of the baselines
     list[float],  # The list of stopping factors
-    float,  # The best stopping factor found during the iterations
-    bool,  # Has the destriper converged to a solution?
+    float | None,  # The best stopping factor found during the iterations
+    bool | str,  # Has the destriper converged to a solution?
     int,  # Number of bytes used by temporary buffers
 ]:
     """Apply the Conjugate Gradient (CG) algorithm to find the solution for Ax=b"""
@@ -1313,7 +1313,7 @@ def _run_destriper(
 
     old_r_dot = _mpi_dot(z, r)
 
-    history_of_stopping_factors = [_get_stopping_factor(r)]  # type: list[float]
+    history_of_stopping_factors: list[float] = [_get_stopping_factor(r)]
     if callback:
         callback(
             stopping_factor=history_of_stopping_factors[-1],

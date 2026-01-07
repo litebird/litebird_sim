@@ -72,7 +72,7 @@ class PointingProvider:
         pointing_buffer: npt.NDArray | None = None,
         hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-    ) -> npt.NDArray | npt.NDArray | None:
+    ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the time-dependent pointing angles and (optionally) HWP angles for a detector.
 
         This method computes the pointing angles (θ, φ, ψ) in radians for a detector as a
@@ -171,7 +171,7 @@ class PointingProvider:
         nsamples: int,
         hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-    ) -> npt.NDArray:
+    ) -> npt.NDArray | None:
         """Compute the Half-Wave Plate (HWP) angle as a function of time.
 
         This method computes the HWP angle for each sample in a timeline, starting

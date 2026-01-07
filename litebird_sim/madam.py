@@ -297,8 +297,8 @@ def save_simulation_for_madam(
 
     # Build a dictionary containing the characteristics of each detector
     # to be written in the simulation file for Madam
-    madam_detectors = []  # type:list[Dict[str, Any]]
-    sorted_obs_per_det = []  # type: list[list[_ObsInMpiProcess]]
+    madam_detectors: list[dict[str, Any]] = []
+    sorted_obs_per_det: list[list[_ObsInMpiProcess]] = []
     for det_idx, det in enumerate(detectors):
         det_id = det_idx + 1
         madam_detectors.append(

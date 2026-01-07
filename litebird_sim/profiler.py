@@ -59,7 +59,7 @@ def profile_list_to_speedscope(profile_list: list[TimeProfiler]) -> dict[Any, An
         # This happens if no profile data was available
         end_time = 0.0
 
-    events = []  # type: list[dict[Any, Any]]
+    events: list[dict[Any, Any]] = []
 
     for prof in profile_list:
         if not prof.valid():

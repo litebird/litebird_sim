@@ -57,9 +57,9 @@ class Imo:
             else:
                 raise ValueError("You must either provide flatfile_location= or url=")
 
-        self.queried_objects = set()  # type: set[tuple[type, UUID]]
+        self.queried_objects: set[tuple[type, UUID]] = set()
 
-    def query_entity(self, identifier: UUID, track=True) -> Entity:
+    def query_entity(self, identifier: UUID, track=True) -> Entity | None:
         """Return a :class:`.Entity` object from an UUID.
 
         If ``track`` is `True` (the default), then the UUID of the
@@ -77,7 +77,7 @@ class Imo:
 
         return result
 
-    def query_quantity(self, identifier: UUID, track=True) -> Quantity:
+    def query_quantity(self, identifier: UUID, track=True) -> Quantity | None:
         """Return a :class:`.Quantity` object from an UUID.
 
         If ``track`` is `True` (the default), then the UUID of the
@@ -95,7 +95,7 @@ class Imo:
 
         return result
 
-    def query_data_file(self, identifier: str | UUID, track=True) -> DataFile:
+    def query_data_file(self, identifier: str | UUID, track=True) -> DataFile | None:
         """Return a :class:`.DataFile` object from an UUID.
 
         If ``track`` is `True` (the default), then the UUID of the

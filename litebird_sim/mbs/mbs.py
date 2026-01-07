@@ -975,7 +975,7 @@ class Mbs:
                 tot_file_name = f"{chnl}_coadd_signal_map_{file_str}.fits"
                 tot_file_path = coadd_dir / tot_file_name
                 lbs.write_healpix_map_to_file(
-                    tot_file_path, map_tot, column_units=col_units
+                    tot_file_path, fg_tot, column_units=col_units
                 )
                 saved_maps.append(
                     MbsSavedMapInfo(

@@ -9,8 +9,11 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from shutil import copyfile, copytree, SameFileError
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, TYPE_CHECKING
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    import brahmap
 
 import astropy.time
 import astropy.units
@@ -377,14 +380,14 @@ class Simulation:
         self.base_path = base_path
         self.name = name
 
-        self.observations = []  # type: list[Observation]
+        self.observations: list[Observation] = []
 
         self.start_time = start_time
         self.duration_s = duration_s
 
-        self.detectors = []  # type: list[DetectorInfo]
-        self.instrument = None  # type: InstrumentInfo | None
-        self.hwp = None  # type: HWP | None
+        self.detectors: list[DetectorInfo] = []
+        self.instrument: InstrumentInfo | None = None
+        self.hwp: HWP | None = None
 
         self.spin2ecliptic_quats = None
 
@@ -392,7 +395,7 @@ class Simulation:
 
         self.random_seed = random_seed
 
-        self.tod_list = []  # type: list[TodDescription]
+        self.tod_list: list[TodDescription] = []
 
         if imo:
             self.imo = imo
@@ -406,7 +409,7 @@ class Simulation:
         self.numba_threading_layer = numba_threading_layer
 
         self.profile_time = profile_time
-        self.profile_data = []  # type: list[TimeProfiler]
+        self.profile_data: list[TimeProfiler] = []
 
         assert not (parameter_file and parameters), (
             "you cannot use parameter_file and parameters together "
@@ -449,7 +452,7 @@ class Simulation:
             except SameFileError:
                 pass
 
-        self.list_of_outputs = []  # type: list[OutputFileRecord]
+        self.list_of_outputs: list[OutputFileRecord] = []
 
         self.report = ""
 
@@ -1264,8 +1267,8 @@ class Simulation:
         if not self.observations:
             return None
 
-        observation_descr = []  # type: list[MpiObservationDescr]
-        numba_num_of_threads_all = []  # type: list[int]
+        observation_descr: list[MpiObservationDescr] = []
+        numba_num_of_threads_all: list[int] = []
 
         for obs in self.observations:
             cur_det_names = list(obs.name)
@@ -1307,7 +1310,7 @@ class Simulation:
             num_of_observations_all = [num_of_observations]
             numba_num_of_threads_all = [numba_num_of_threads]
 
-        mpi_processes = []  # type: list[MpiProcessDescr]
+        mpi_processes: list[MpiProcessDescr] = []
         for i in range(MPI_COMM_WORLD.size):
             mpi_processes.append(
                 MpiProcessDescr(
@@ -2443,7 +2446,6 @@ class Simulation:
         self,
         subdir_name: None | str = "tod",
         append_to_report: bool = True,
-        *args,
         **kwargs,
     ) -> list[Path]:
         """Write a set of observations as HDF5
@@ -2469,7 +2471,7 @@ class Simulation:
             tod_path = self.base_path
 
         file_list = write_list_of_observations(
-            observations=self.observations, path=tod_path, *args, **kwargs
+            observations=self.observations, path=tod_path, **kwargs
         )
 
         if append_to_report:
@@ -2497,7 +2499,6 @@ class Simulation:
         self,
         path: str | Path = None,
         subdir_name: None | str = "tod",
-        *args,
         **kwargs,
     ):
         """Read a list of observations from a set of files in a simulation
@@ -2515,7 +2516,7 @@ class Simulation:
             path = self.base_path
 
         obs = read_list_of_observations(
-            file_name_list=list((path / subdir_name).glob("**/*.h5")), *args, **kwargs
+            file_name_list=list((path / subdir_name).glob("**/*.h5")), **kwargs
         )
         self.observations = obs
 

@@ -230,7 +230,7 @@ def _get_pointings_array(
     hwp_angle: np.ndarray | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
-) -> tuple[np.ndarray, np.ndarray, None]:
+) -> tuple[np.ndarray, np.ndarray | None]:
     """Compute the pointings (θ, φ) and HWP angle for a given detector.
 
     Parameters
@@ -306,7 +306,7 @@ def _get_centered_pointings(
 def _normalize_observations_and_pointings(
     observations: Observation | list[Observation],
     pointings: np.ndarray | list[np.ndarray] | None,
-) -> tuple[list[Observation], list[npt.NDArray]]:
+) -> tuple[list[Observation], list[npt.NDArray | Callable]]:
     """This function builds the tuple (`obs_list`, `ptg_list`) and returns it.
 
     - `obs_list` contains a list of the observations to be used by current MPI
@@ -325,9 +325,12 @@ def _normalize_observations_and_pointings(
 
     Returns
     -------
-    tuple[list[Observation], list[npt.NDArray]]
+    tuple[list[Observation], list[npt.NDArray | Callable]]
         The tuple of the list of observations and list of pointings
     """
+
+    obs_list: list[Observation]
+    ptg_list: list[npt.NDArray | Callable]
 
     if pointings is None:
         if isinstance(observations, Observation):
@@ -337,7 +340,7 @@ def _normalize_observations_and_pointings(
             else:
                 ptg_list = [observations.get_pointings]
         else:
-            obs_list = observations
+            obs_list = list(observations)
             ptg_list = []
             for ob in observations:
                 if hasattr(ob, "pointing_matrix"):
@@ -361,8 +364,8 @@ def _normalize_observations_and_pointings(
                 f"The list of observations has {len(observations)} elements, but "
                 + f"the list of pointings has {len(pointings)} elements"
             )
-            obs_list = observations
-            ptg_list = pointings
+            obs_list = list(observations)
+            ptg_list = list(pointings)
 
     return obs_list, ptg_list
 
