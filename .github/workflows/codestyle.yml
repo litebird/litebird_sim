@@ -7,9 +7,9 @@ jobs:
     runs-on: ubuntu-latest
 
     # Only run tests if there is no [skipci] or [skip ci] in the commit message
-    if: |
-      !startsWith(github.event.head_commit.message, '[skip ci]') &&
-      !startsWith(github.event.head_commit.message, '[skipci]')
+    # if: |
+    #   !startsWith(github.event.head_commit.message, '[skip ci]') &&
+    #   !startsWith(github.event.head_commit.message, '[skipci]')
 
     steps:
       - name: Checkout repository
