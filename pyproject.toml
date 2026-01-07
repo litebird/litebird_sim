@@ -120,5 +120,5 @@ unresolved-reference = "ignore"  # 10
 missing-argument = "ignore"  # 8
 parameter-already-assigned = "ignore"  # 5
 deprecated = "ignore"  # 4
-invalid-type-arguments = "ignore"  # 4
+invalid-type-arguments = "error"  # 4
 unknown-argument = "error"  # 3

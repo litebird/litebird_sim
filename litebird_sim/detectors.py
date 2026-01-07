@@ -188,10 +188,10 @@ class DetectorInfo:
     quat: Any = None
     pol_angle_rad: float = 0.0
     pol_efficiency: float = 1.0
-    mueller_hwp: None | np.ndarray | dict[np.ndarray] = None
-    mueller_hwp_solver: None | np.ndarray | dict[np.ndarray] = None
-    jones_hwp: None | np.ndarray | dict[np.ndarray] = None
-    jones_hwp_solver: None | np.ndarray | dict[np.ndarray] = None
+    mueller_hwp: None | np.ndarray | dict[str, np.ndarray] = None
+    mueller_hwp_solver: None | np.ndarray | dict[str, np.ndarray] = None
+    jones_hwp: None | np.ndarray | dict[str, np.ndarray] = None
+    jones_hwp_solver: None | np.ndarray | dict[str, np.ndarray] = None
     pointing_theta_phi_psi_deg: None | np.ndarray = None
     pointing_u_v: None | np.ndarray = None
     g_one_over_k: float = 0.0
