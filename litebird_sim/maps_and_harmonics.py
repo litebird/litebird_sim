@@ -303,6 +303,7 @@ class SphericalHarmonics:
             self.lmax = lmax_out
             self.mmax = mmax_out
             # units and coordinates unchanged
+            return self
         else:
             return SphericalHarmonics(
                 values=res,
