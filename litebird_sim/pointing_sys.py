@@ -348,6 +348,7 @@ class SpacecraftCoord:
         self.sim = sim
         self.obs = obs
         self.start_time = obs.start_time
+        assert self.sim.spin2ecliptic_quats is not None
         self.sim.spin2ecliptic_quats.start_time = obs.start_time
         self.sampling_rate_hz = obs.sampling_rate_hz
         self.instrument = sim.instrument
@@ -536,6 +537,8 @@ class PointingSys:
             assert detector.sampling_rate_hz == detectors[0].sampling_rate_hz, (
                 "Not all detectors have the same `.sampling_rate_hz`"
             )
+
+        assert sim.spin2ecliptic_quats is not None
 
         if isinstance(
             sim.spin2ecliptic_quats.start_time, astropy.time.Time

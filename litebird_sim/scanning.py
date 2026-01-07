@@ -418,7 +418,7 @@ class RotQuaternion:
 
     def __init__(
         self,
-        quats: Union[npt.ArrayLike, "RotQuaternion"] | None = None,
+        quats: Union[npt.NDArray, "RotQuaternion"] | None = None,
         start_time: float | astropy.time.Time | None = None,
         sampling_rate_hz: float | None = None,
     ):

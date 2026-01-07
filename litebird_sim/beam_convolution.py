@@ -336,7 +336,7 @@ def add_convolved_sky_to_observations(
     beam_alms: (
         SphericalHarmonics | dict[str, SphericalHarmonics]
     ),  # at some point optional, taken from the obs
-    pointings: npt.ArrayLike | list[npt.ArrayLike] | None = None,
+    pointings: npt.NDArray | list[npt.NDArray] | None = None,
     hwp: HWP | None = None,
     input_sky_alms_in_galactic: bool = True,
     convolution_params: BeamConvolutionParameters | None = None,

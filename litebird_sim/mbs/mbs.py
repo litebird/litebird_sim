@@ -583,6 +583,7 @@ class Mbs:
                         )
                     )
                 else:
+                    assert noise_map_matrix is not None
                     noise_map_matrix[Nchnl] = noise_map
 
         return (noise_map_matrix, saved_maps)
@@ -715,6 +716,7 @@ class Mbs:
                         MbsSavedMapInfo(path=cur_map_path, component="cmb")
                     )
                 else:
+                    assert cmb_map_matrix is not None
                     cmb_map_matrix[Nchnl] = cmb_map_smt
 
         return (cmb_map_matrix, saved_maps)

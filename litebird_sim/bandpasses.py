@@ -84,7 +84,7 @@ class BandPassInfo:
     name: str = ""
     bandtype: str = "top-hat"
     normalize: bool = False
-    model: str = None
+    model: str | None = None
 
     alpha_exp: float = 1
     beta_exp: float = 1

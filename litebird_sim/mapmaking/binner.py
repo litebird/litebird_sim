@@ -63,7 +63,7 @@ class BinnerResult:
     binned_map: Any = None
     invnpp: Any = None
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
-    components: list = None
+    components: list | None = None
     detector_split: str = "full"
     time_split: str = "full"
 
@@ -92,13 +92,13 @@ def _solve_binning(nobs_matrix, atd):
 
 @njit
 def _accumulate_samples_and_build_nobs_matrix(
-    tod: npt.ArrayLike,
-    pix: npt.ArrayLike,
-    psi: npt.ArrayLike,
-    weights: npt.ArrayLike,
-    d_mask: npt.ArrayLike,
-    t_mask: npt.ArrayLike,
-    nobs_matrix: npt.ArrayLike,
+    tod: npt.NDArray,
+    pix: npt.NDArray,
+    psi: npt.NDArray,
+    weights: npt.NDArray,
+    d_mask: npt.NDArray,
+    t_mask: npt.NDArray,
+    nobs_matrix: npt.NDArray,
     *,
     additional_component: bool,
 ) -> None:
@@ -158,7 +158,7 @@ def _accumulate_samples_and_build_nobs_matrix(
 
 @njit
 def _numba_extract_map_and_fill_nobs_matrix(
-    nobs_matrix: npt.ArrayLike, rhs: npt.ArrayLike
+    nobs_matrix: npt.NDArray, rhs: npt.NDArray
 ) -> None:
     # This is used internally by _extract_map_and_fill_info. The function
     # modifies both `info` and `rhs`; the first parameter would be an `inout`
@@ -177,7 +177,7 @@ def _numba_extract_map_and_fill_nobs_matrix(
         nobs_matrix[idx, 2, 1] = nobs_matrix[idx, 1, 2]
 
 
-def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
+def _extract_map_and_fill_info(info: npt.NDArray) -> npt.NDArray:
     # Extract the RHS of the mapmaking equation from the lower triangle of info
     # and fill the lower triangle with the upper triangle, thus making each
     # matrix in "info" symmetric
@@ -193,14 +193,14 @@ def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
 def _build_nobs_matrix(
     nside: int,
     obs_list: list[Observation],
-    ptg_list: list[npt.ArrayLike] | list[Callable],
+    ptg_list: list[npt.NDArray] | list[Callable],
     hwp: HWP | None,
-    dm_list: list[npt.ArrayLike],
-    tm_list: list[npt.ArrayLike],
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
     output_coordinate_system: CoordinateSystem,
     components: list[str],
     pointings_dtype=np.float64,
-) -> npt.ArrayLike:
+) -> npt.NDArray:
     hpx = Healpix_Base(nside, "RING")
     n_pix = nside_to_npix(nside)
 

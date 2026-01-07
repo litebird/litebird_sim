@@ -72,7 +72,7 @@ class SphericalHarmonics:
 
     values: np.ndarray
     lmax: int
-    mmax: int = None
+    mmax: int | None = None
     nstokes: int = field(init=False)
 
     def __post_init__(self):

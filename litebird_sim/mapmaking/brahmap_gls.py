@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 def make_brahmap_gls_map(
     nside: int,
     observations: list | Any,
-    pointings: npt.ArrayLike | list[npt.ArrayLike] | None = None,
+    pointings: npt.NDArray | list[npt.NDArray] | None = None,
     hwp: HWP | None = None,
     components: str | list[str] = "tod",
     pointings_flag: np.ndarray | None = None,

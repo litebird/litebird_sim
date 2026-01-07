@@ -132,6 +132,8 @@ def bandpass_profile(
 
     profile = np.ones_like(freqs)
 
+    assert bandpass is not None, "bandpass dict is required"
+
     if "bandpass_file" in bandpass.keys():
         try:
             f, profile = np.loadtxt(

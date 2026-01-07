@@ -226,7 +226,7 @@ def _get_pol_angle(
 
 def _get_pointings_array(
     detector_idx: int,
-    pointings: npt.ArrayLike | Callable,
+    pointings: npt.NDArray | Callable,
     hwp_angle: np.ndarray | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
@@ -237,7 +237,7 @@ def _get_pointings_array(
     ----------
     detector_idx : int
         Index of the detector, local to an :class:`Observation`.
-    pointings : npt.ArrayLike | Callable
+    pointings : npt.NDArray | Callable
         Pointing information, either a precomputed array or a callable returning
         (pointings, hwp_angle) for the specified detector.
     hwp_angle : np.ndarray | None
@@ -271,7 +271,7 @@ def _get_pointings_array(
 
 
 def _get_centered_pointings(
-    input_pointings: npt.ArrayLike,
+    input_pointings: npt.NDArray,
     nside_centering: int,
 ) -> np.ndarray:
     """Returns a copy of the input pointings aligned to the center of the HEALPix
@@ -279,7 +279,7 @@ def _get_centered_pointings(
 
     Parameters
     ----------
-    input_pointings : npt.ArrayLike
+    input_pointings : npt.NDArray
         Pointing information of the detector
     nside_centering : int
         HEALPix NSIDE parameter used to determine the pixel centers.
@@ -354,7 +354,7 @@ def _normalize_observations_and_pointings(
                 + "of pointing matrices to scan_map_in_observations"
             )
             obs_list = [observations]
-            ptg_list = [pointings]
+            ptg_list = [pointings]  # type: ignore[assignment]
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to scan_map_in_observations, "
@@ -409,7 +409,7 @@ def _get_pointings_and_pol_angles_det(
         pointing_dtype=pointing_dtype,
     )
 
-    __, pointings = _normalize_observations_and_pointings(
+    __, pointings = _normalize_observations_and_pointings(  # type: ignore[assignment]
         observations=obs, pointings=pointings
     )
 

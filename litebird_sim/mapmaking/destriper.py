@@ -106,7 +106,7 @@ def split_items_evenly(n: int, sub_n: int) -> np.ndarray:
 @njit(parallel=True)
 def _get_invnpp(
     nobs_matrix_cholesky: npt.NDArray,
-    valid_pixel: npt.ArrayLike,
+    valid_pixel: npt.NDArray,
     result: npt.NDArray,
 ):
     npix = nobs_matrix_cholesky.shape[0]
@@ -255,7 +255,7 @@ class DestriperParameters:
     """
 
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic
-    samples_per_baseline: int | list[npt.ArrayLike] | None = 100
+    samples_per_baseline: int | list[npt.NDArray] | None = 100
     iter_max: int = 100
     threshold: float = 1e-7
     use_preconditioner: bool = True
@@ -319,17 +319,17 @@ class DestriperResult:
     params: DestriperParameters
     nside: int
     components: list[str]
-    hit_map: npt.ArrayLike
-    binned_map: npt.ArrayLike
+    hit_map: npt.NDArray
+    binned_map: npt.NDArray
     nobs_matrix_cholesky: NobsMatrix
     coordinate_system: CoordinateSystem
     # The following fields are filled only if the CG algorithm was used
-    baselines: npt.ArrayLike | None
-    baseline_errors: npt.ArrayLike | None
-    baseline_lengths: npt.ArrayLike | None
+    baselines: list[npt.NDArray] | npt.NDArray | None
+    baseline_errors: list[npt.NDArray] | npt.NDArray | None
+    baseline_lengths: list[npt.NDArray] | npt.NDArray | None
     stopping_factor: float | None
     history_of_stopping_factors: list[float] | None
-    destriped_map: npt.ArrayLike | None
+    destriped_map: npt.NDArray | None
     converged: bool | str
     elapsed_time_s: float
     bytes_in_temporary_buffers: int
@@ -359,12 +359,12 @@ def _sum_components_into_obs(
 
 @njit
 def _accumulate_nobs_matrix(
-    pix_idx: npt.ArrayLike,  # Shape: (Ndet, 1)
-    psi_angle_rad: npt.ArrayLike,  # Shape: (Ndet, 1)
-    weights: npt.ArrayLike,  # Shape: (N_det,)
-    d_mask: npt.ArrayLike,
-    t_mask: npt.ArrayLike,
-    nobs_matrix: npt.ArrayLike,  # Shape: (N_pix, 6)
+    pix_idx: npt.NDArray,  # Shape: (Ndet, 1)
+    psi_angle_rad: npt.NDArray,  # Shape: (Ndet, 1)
+    weights: npt.NDArray,  # Shape: (N_det,)
+    d_mask: npt.NDArray,
+    t_mask: npt.NDArray,
+    nobs_matrix: npt.NDArray,  # Shape: (N_pix, 6)
 ) -> None:
     """
     Fill the upper triangle of the N_obs matrix following Eq. (10)
@@ -407,9 +407,9 @@ def _accumulate_nobs_matrix(
 
 @njit(parallel=True)
 def _nobs_matrix_to_cholesky(
-    nobs_matrix: npt.ArrayLike,  # Shape: (N_pix, 6)
-    dest_valid_pixel: npt.ArrayLike,  # Shape: (N_pix,)
-    dest_nobs_matrix_cholesky: npt.ArrayLike,  # Shape: (N_pix, 6)
+    nobs_matrix: npt.NDArray,  # Shape: (N_pix, 6)
+    dest_valid_pixel: npt.NDArray,  # Shape: (N_pix,)
+    dest_nobs_matrix_cholesky: npt.NDArray,  # Shape: (N_pix, 6)
 ) -> None:
     """Apply `cholesky` iteratively on all the input maps in `nobs_matrix`
     and save each result in `nobs_matrix_cholesky`"""
@@ -443,7 +443,7 @@ def _nobs_matrix_to_cholesky(
 def _store_pixel_idx_and_pol_angle_in_obs(
     hpx: Healpix_Base,
     obs_list: list[Observation],
-    ptg_list: list[npt.ArrayLike] | list[Callable],
+    ptg_list: list[npt.NDArray] | list[Callable],
     hwp: HWP | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
@@ -474,8 +474,8 @@ def _store_pixel_idx_and_pol_angle_in_obs(
 def _build_nobs_matrix(
     hpx: Healpix_Base,
     obs_list: list[Observation],
-    dm_list: list[npt.ArrayLike],
-    tm_list: list[npt.ArrayLike],
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
 ) -> NobsMatrix:
     # Instead of a shape like (Npix, 3, 3), i.e., one 3×3 matrix per each
     # pixel, we only store the lower triangular part in a 6-element array.
@@ -532,7 +532,7 @@ def _step_over_baseline(baseline_idx, samples_in_this_baseline, baseline_length)
 
 @njit
 def _sum_map_contribution_from_one_sample(
-    pol_angle_rad: float, sample: float, weight: float, dest_array: npt.ArrayLike
+    pol_angle_rad: float, sample: float, weight: float, dest_array: npt.NDArray
 ) -> None:
     "This code implements Eqq. (18)–(20)"
 
@@ -543,15 +543,15 @@ def _sum_map_contribution_from_one_sample(
 
 @njit
 def _update_sum_map_with_tod(
-    sky_map: npt.ArrayLike,
-    hit_map: npt.ArrayLike,
-    tod: npt.ArrayLike,
-    pol_angle_rad: npt.ArrayLike,
-    pixel_idx: npt.ArrayLike,
-    weights: npt.ArrayLike,
-    d_mask: npt.ArrayLike,
-    t_mask: npt.ArrayLike,
-    baseline_lengths: npt.ArrayLike,  # Number of samples per baseline
+    sky_map: npt.NDArray,
+    hit_map: npt.NDArray,
+    tod: npt.NDArray,
+    pol_angle_rad: npt.NDArray,
+    pixel_idx: npt.NDArray,
+    weights: npt.NDArray,
+    d_mask: npt.NDArray,
+    t_mask: npt.NDArray,
+    baseline_lengths: npt.NDArray,  # Number of samples per baseline
 ) -> None:
     """
     Compute the sum map within the current MPI process for TOD y
@@ -595,15 +595,15 @@ def _update_sum_map_with_tod(
 
 @njit
 def _update_sum_map_with_baseline(
-    sky_map: npt.ArrayLike,
-    hit_map: npt.ArrayLike,
-    pol_angle_rad: npt.ArrayLike,
-    pixel_idx: npt.ArrayLike,
-    weights: npt.ArrayLike,
-    d_mask: npt.ArrayLike,
-    t_mask: npt.ArrayLike,
-    baselines: npt.ArrayLike,  # Value of each baseline
-    baseline_lengths: npt.ArrayLike,  # Number of samples per baseline
+    sky_map: npt.NDArray,
+    hit_map: npt.NDArray,
+    pol_angle_rad: npt.NDArray,
+    pixel_idx: npt.NDArray,
+    weights: npt.NDArray,
+    d_mask: npt.NDArray,
+    t_mask: npt.NDArray,
+    baselines: npt.NDArray,  # Value of each baseline
+    baseline_lengths: npt.NDArray,  # Number of samples per baseline
 ) -> None:
     """
     Compute the sum map within the current MPI process for baselines Fa
@@ -646,9 +646,9 @@ def _update_sum_map_with_baseline(
 
 @njit
 def _sum_map_to_binned_map(
-    sky_map: npt.ArrayLike,
-    nobs_matrix_cholesky: npt.ArrayLike,
-    valid_pixels: npt.ArrayLike,
+    sky_map: npt.NDArray,
+    nobs_matrix_cholesky: npt.NDArray,
+    valid_pixels: npt.NDArray,
 ) -> None:
     """Convert a “sum map” into a “binned map” using the N_obs matrix"""
 
@@ -673,13 +673,13 @@ def _sum_map_to_binned_map(
 def _compute_binned_map(
     obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
-    baselines_list: list[npt.ArrayLike] | None,
-    baseline_lengths_list: list[npt.ArrayLike],
-    dm_list: list[npt.ArrayLike],
-    tm_list: list[npt.ArrayLike],
+    baselines_list: list[npt.NDArray] | None,
+    baseline_lengths_list: list[npt.NDArray],
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
     component: str | None,
-    output_hit_map: npt.ArrayLike,
-    output_sky_map: npt.ArrayLike,
+    output_hit_map: npt.NDArray,
+    output_sky_map: npt.NDArray,
 ) -> None:
     """
     Compute the global binned map
@@ -760,7 +760,7 @@ def _compute_binned_map(
 
 @njit
 def estimate_sample_from_map(
-    cur_pixel: int, cur_psi: float, sky_map: npt.ArrayLike
+    cur_pixel: int, cur_psi: float, sky_map: npt.NDArray
 ) -> float:
     cur_i = sky_map[0, cur_pixel]
     cur_q = sky_map[1, cur_pixel]
@@ -771,15 +771,15 @@ def estimate_sample_from_map(
 
 @njit
 def _compute_tod_sums_for_one_component(
-    weights: npt.ArrayLike,
-    tod: npt.ArrayLike,
-    pixel_idx: npt.ArrayLike,
-    psi_angle_rad: npt.ArrayLike,
-    sky_map: npt.ArrayLike,
-    d_mask: npt.ArrayLike,
-    t_mask: npt.ArrayLike,
-    baseline_length: npt.ArrayLike,
-    output_sums: npt.ArrayLike,
+    weights: npt.NDArray,
+    tod: npt.NDArray,
+    pixel_idx: npt.NDArray,
+    psi_angle_rad: npt.NDArray,
+    sky_map: npt.NDArray,
+    d_mask: npt.NDArray,
+    t_mask: npt.NDArray,
+    baseline_length: npt.NDArray,
+    output_sums: npt.NDArray,
 ) -> None:
     """
     Compute F^t C_w⁻¹ Z over TOD y
@@ -827,15 +827,15 @@ def _compute_tod_sums_for_one_component(
 
 @njit
 def _compute_baseline_sums_for_one_component(
-    weights: npt.ArrayLike,
-    pixel_idx: npt.ArrayLike,
-    psi_angle_rad: npt.ArrayLike,
-    sky_map: npt.ArrayLike,
-    d_mask: npt.ArrayLike,
-    t_mask: npt.ArrayLike,
-    baselines: npt.ArrayLike,
-    baseline_length: npt.ArrayLike,
-    output_sums: npt.ArrayLike,
+    weights: npt.NDArray,
+    pixel_idx: npt.NDArray,
+    psi_angle_rad: npt.NDArray,
+    sky_map: npt.NDArray,
+    d_mask: npt.NDArray,
+    t_mask: npt.NDArray,
+    baselines: npt.NDArray,
+    baseline_length: npt.NDArray,
+    output_sums: npt.NDArray,
 ) -> None:
     """
     Compute F^t C_w⁻¹ Z over TOD Fa (baselines projected in TOD space)
@@ -883,13 +883,13 @@ def _compute_baseline_sums_for_one_component(
 
 def _compute_baseline_sums(
     obs_list: list[Observation],
-    sky_map: npt.ArrayLike,
-    baselines_list: list[npt.ArrayLike] | None,
-    baseline_lengths_list: list[npt.ArrayLike],
+    sky_map: npt.NDArray,
+    baselines_list: list[npt.NDArray] | None,
+    baseline_lengths_list: list[npt.NDArray],
     component: str | None,
-    dm_list: list[npt.ArrayLike],
-    tm_list: list[npt.ArrayLike],
-    output_sums_list: list[npt.ArrayLike],
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
+    output_sums_list: list[npt.NDArray],
 ):
     """
     Compute F^t C_w⁻¹ Z either on the TOD Fa (baselines) or y (TOD)
@@ -971,7 +971,7 @@ def _compute_baseline_sums(
             )
 
 
-def _mpi_dot(a: list[npt.ArrayLike], b: list[npt.ArrayLike]) -> float:
+def _mpi_dot(a: list[npt.NDArray], b: list[npt.NDArray]) -> float:
     """Compute a dot product between lists of vectors using MPI
 
     This function is a glorified version of ``numpy.dot``. It assumes
@@ -993,7 +993,7 @@ def _mpi_dot(a: list[npt.ArrayLike], b: list[npt.ArrayLike]) -> float:
         return local_result
 
 
-def _get_stopping_factor(residual: list[npt.ArrayLike]) -> float:
+def _get_stopping_factor(residual: list[npt.NDArray]) -> float:
     """Given a list of baseline residuals, estimate the stopping factor
 
     Our assumption here is that the stopping factor is the maximum absolute
@@ -1013,14 +1013,14 @@ def _get_stopping_factor(residual: list[npt.ArrayLike]) -> float:
 def _compute_b_or_Ax(
     obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
-    sky_map: npt.ArrayLike,
-    hit_map: npt.ArrayLike,
-    dm_list: list[npt.ArrayLike],
-    tm_list: list[npt.ArrayLike],
-    baselines_list: list[npt.ArrayLike] | None,
-    baseline_lengths_list: list[npt.ArrayLike],
+    sky_map: npt.NDArray,
+    hit_map: npt.NDArray,
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
+    baselines_list: list[npt.NDArray] | None,
+    baseline_lengths_list: list[npt.NDArray],
     component: str | None,
-    result: list[npt.ArrayLike],
+    result: list[npt.NDArray],
 ):
     """Either compute `Ax` or `b` in the map-making equation `Ax=b`
 
@@ -1056,13 +1056,13 @@ def _compute_b_or_Ax(
 def compute_b(
     obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
-    sky_map: npt.ArrayLike,
-    hit_map: npt.ArrayLike,
-    baseline_lengths_list: list[npt.ArrayLike],
+    sky_map: npt.NDArray,
+    hit_map: npt.NDArray,
+    baseline_lengths_list: list[npt.NDArray],
     component: str,
-    dm_list: list[npt.ArrayLike],
-    tm_list: list[npt.ArrayLike],
-    result: list[npt.ArrayLike],
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
+    result: list[npt.NDArray],
 ) -> None:
     """
     Compute `F^t·C_w⁻¹·Z·y
@@ -1088,13 +1088,13 @@ def compute_b(
 def compute_Ax(
     obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
-    sky_map: npt.ArrayLike,
-    hit_map: npt.ArrayLike,
-    dm_list: list[npt.ArrayLike],
-    tm_list: list[npt.ArrayLike],
-    baselines_list: list[npt.ArrayLike],
-    baseline_lengths_list: list[npt.ArrayLike],
-    result: list[npt.ArrayLike],
+    sky_map: npt.NDArray,
+    hit_map: npt.NDArray,
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
+    baselines_list: list[npt.NDArray],
+    baseline_lengths_list: list[npt.NDArray],
+    result: list[npt.NDArray],
 ) -> None:
     """
     Compute `F^t·C_w⁻¹·Z·F·a
@@ -1120,7 +1120,7 @@ def compute_Ax(
 
 @njit
 def compute_weighted_baseline_length(
-    lengths: npt.ArrayLike, weights: npt.ArrayLike, result: npt.ArrayLike
+    lengths: npt.NDArray, weights: npt.NDArray, result: npt.NDArray
 ) -> None:
     """Compute Σ Nᵢ/σᵢ, where the summation is done over the detectors
 
@@ -1138,7 +1138,7 @@ def compute_weighted_baseline_length(
         result[baseline_idx] = 1.0 / result[baseline_idx]
 
 
-def _create_preconditioner(obs_list, baseline_lengths_list) -> list[npt.ArrayLike]:
+def _create_preconditioner(obs_list, baseline_lengths_list) -> list[npt.NDArray]:
     """
     We just compute (F^T·C_w⁻¹·F)⁻¹, which is a diagonal matrix containing
     the number of elements in each baseline divided by σ². (Remember
@@ -1170,25 +1170,25 @@ def _create_preconditioner(obs_list, baseline_lengths_list) -> list[npt.ArrayLik
     return result
 
 
-def _apply_preconditioner(precond: list[npt.ArrayLike], z: list[npt.ArrayLike]) -> None:
+def _apply_preconditioner(precond: list[npt.NDArray], z: list[npt.NDArray]) -> None:
     for precond_k, z_k in zip(precond, z):
         z_k *= precond_k
 
 
-def _compute_num_of_bytes_in_list(x: list[npt.ArrayLike]) -> int:
+def _compute_num_of_bytes_in_list(x: list[npt.NDArray]) -> int:
     return sum([elem.nbytes for elem in x])
 
 
 def _run_destriper(
     obs_list: list[Observation],
     nobs_matrix_cholesky: NobsMatrix,
-    binned_map: npt.ArrayLike,
-    destriped_map: npt.ArrayLike,
-    hit_map: npt.ArrayLike,
-    baseline_lengths_list: list[npt.ArrayLike],
-    baselines_list_start: list[npt.ArrayLike],
-    dm_list: list[npt.ArrayLike],
-    tm_list: list[npt.ArrayLike],
+    binned_map: npt.NDArray,
+    destriped_map: npt.NDArray,
+    hit_map: npt.NDArray,
+    baseline_lengths_list: list[npt.NDArray],
+    baselines_list_start: list[npt.NDArray],
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
     component: str,
     threshold: float,
     max_steps: int,
@@ -1198,8 +1198,8 @@ def _run_destriper(
     recycled_convergence: bool,
     recycle_baselines: bool | None = False,
 ) -> tuple[
-    list[npt.ArrayLike],  # The solution, i.e., the list of baselines
-    list[npt.ArrayLike],  # The error bars of the baselines
+    list[npt.NDArray],  # The solution, i.e., the list of baselines
+    list[npt.NDArray],  # The error bars of the baselines
     list[float],  # The list of stopping factors
     float | None,  # The best stopping factor found during the iterations
     bool | str,  # Has the destriper converged to a solution?
@@ -1452,7 +1452,7 @@ def destriper_log_callback(
 def make_destriped_map(
     nside: int,
     observations: Observation | list[Observation],
-    pointings: npt.ArrayLike | list[npt.ArrayLike] | None = None,
+    pointings: npt.NDArray | list[npt.NDArray] | None = None,
     hwp: HWP | None = None,
     params: DestriperParameters = DestriperParameters(),
     components: str | list[str] = "tod",
@@ -1461,7 +1461,7 @@ def make_destriped_map(
     keep_pol_angle_rad: bool = False,
     detector_split: str = "full",
     time_split: str = "full",
-    baselines_list: list[npt.ArrayLike] | None = None,
+    baselines_list: list[npt.NDArray] | None = None,
     recycled_convergence: bool = False,
     callback: Any = destriper_log_callback,
     callback_kwargs: dict[Any, Any] | None = None,
@@ -1790,7 +1790,7 @@ def make_destriped_map(
 
 @njit
 def _remove_baselines(
-    tod: npt.ArrayLike, baselines: npt.ArrayLike, baseline_lengths: npt.ArrayLike
+    tod: npt.NDArray, baselines: npt.NDArray, baseline_lengths: npt.NDArray
 ):
     num_of_detectors, num_of_samples = tod.shape
     for det_idx in range(num_of_detectors):
@@ -1805,8 +1805,8 @@ def _remove_baselines(
 
 def remove_baselines_from_tod(
     obs_list: list[Observation],
-    baselines: list[npt.ArrayLike],
-    baseline_lengths: list[npt.ArrayLike],
+    baselines: list[npt.NDArray],
+    baseline_lengths: list[npt.NDArray],
     component: str = "tod",
 ) -> None:
     """

@@ -102,23 +102,16 @@ exclude = [
     "docs/",
     "benchmarks/",
     "test/",
+    "scripts/",
 ]
 
 [tool.ty.rules]
 not-subscriptable = "ignore"  # 537
 invalid-argument-type = "ignore"  # 309
-invalid-assignment = "ignore"  # 256
+invalid-assignment = "error"  # 256
 possibly-missing-attribute = "ignore"  # 167
 unresolved-attribute = "ignore"  # 102
 unsupported-operator = "ignore"  # 60
-invalid-parameter-default = "error"  # 30
 not-iterable = "ignore"  # 25
 unresolved-import = "ignore"  # 16
 no-matching-overload = "ignore"  # 12
-invalid-return-type = "error"  # 11
-unresolved-reference = "error"  # 10
-missing-argument = "error"  # 8
-parameter-already-assigned = "error"  # 5
-deprecated = "error"  # 4
-invalid-type-arguments = "error"  # 4
-unknown-argument = "error"  # 3

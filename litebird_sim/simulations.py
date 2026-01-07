@@ -1798,7 +1798,7 @@ class Simulation:
 
         if store_in_observation:
             for obs in self.observations:
-                obs.sky = sky
+                obs.sky = sky  # type: ignore[assignment]
 
         return sky
 

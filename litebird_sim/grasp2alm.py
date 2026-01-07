@@ -200,7 +200,7 @@ class BeamStokesPolar:
     polarization basis with the co-polar direction (positive :math:`Q`) aligned with the y-axis.
 
     Args:
-        theta_phi_values_rad (`npt.ArrayLike`): A 2D matrix of shape :math:`(N, 2)` containing the
+        theta_phi_values_rad (`npt.NDArray`): A 2D matrix of shape :math:`(N, 2)` containing the
             values for :math:`\\theta` (in ``theta_phi_values_rad[:, 0]``) and for :math:`\\varphi`
             (in ``theta_phi_values_rad[:, 1]``.
         stokes (`numpy.ndarray`): Array of shape :math:`(4, N)` containing the four Stokes
@@ -214,7 +214,7 @@ class BeamStokesPolar:
 
     def __init__(
         self,
-        theta_phi_values_rad: npt.ArrayLike,
+        theta_phi_values_rad: npt.NDArray,
         polar_basis_flag: bool = False,
     ):
         assert theta_phi_values_rad.shape[1] == 2, (

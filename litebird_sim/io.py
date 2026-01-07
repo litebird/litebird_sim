@@ -368,8 +368,8 @@ def _compute_global_start_index(
     if MPI_ENABLED and collective_mpi_call:
         # Count how many observations are kept in the MPI processes with lower rank
         # than this one.
-        num_of_obs = np.asarray(MPI_COMM_WORLD.allgather(num_of_obs))
-        global_start_index += np.sum(num_of_obs[0 : MPI_COMM_WORLD.rank])
+        num_of_obs_all = np.asarray(MPI_COMM_WORLD.allgather(num_of_obs))
+        global_start_index += int(np.sum(num_of_obs_all[0 : MPI_COMM_WORLD.rank]))
 
     return global_start_index
 
@@ -469,32 +469,29 @@ def write_list_of_observations(
     file).
 
     """
-    try:
-        observations[0]
-    except TypeError:
-        observations = [observations]
-    except IndexError:
-        # Empty list
-        # We do not want to return here, as we still need to participate to
-        # the call to _compute_global_start_index below
-        observations: list[Observation] = []
+    if isinstance(observations, Observation):
+        obs_list = [observations]
+    elif isinstance(observations, list):
+        obs_list = observations
+    else:
+        obs_list = list(observations)
 
     if not isinstance(path, Path):
         path = Path(path)
 
     global_start_index = _compute_global_start_index(
-        num_of_obs=len(observations),
+        num_of_obs=len(obs_list),
         start_index=start_index,
         collective_mpi_call=collective_mpi_call,
     )
 
     # Iterate over all the observations and create one HDF5 file for each of them
     file_list = []
-    for obs_idx, cur_obs in enumerate(observations):
+    for obs_idx, cur_obs in enumerate(obs_list):
         params = {
             "mpi_rank": MPI_COMM_WORLD.rank,
             "mpi_size": MPI_COMM_WORLD.size,
-            "num_of_obs": len(observations),
+            "num_of_obs": len(obs_list),
             "global_index": global_start_index + obs_idx,
             "local_index": start_index + obs_idx,
         }
