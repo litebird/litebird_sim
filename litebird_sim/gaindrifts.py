@@ -403,7 +403,7 @@ def apply_gaindrift_to_tod(
     sampling_freq_hz: float,
     drift_params: GainDriftParams | None = None,
     focalplane_attr: list | np.ndarray | None = None,
-    dets_random: np.random.Generator | None = None,
+    dets_random: list[np.random.Generator] | None = None,
 ):
     """The function to apply the gain drift to all the detectors of a given TOD object.
 
@@ -447,6 +447,8 @@ def apply_gaindrift_to_tod(
 
     if drift_params is None:
         drift_params = GainDriftParams()
+
+    assert dets_random is not None, "dets_random is required"
 
     tod_size = len(tod[0])
 
