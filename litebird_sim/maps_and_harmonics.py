@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 import warnings
 from pathlib import Path
+import logging as log
 
 from astropy.io import fits
 
@@ -2552,14 +2553,14 @@ def read_cls_from_fits(path: str | Path) -> dict[str, np.ndarray]:
             n_cols = len(columns)
 
             if n_cols == 6:
-                print(
+                log.warning(
                     f"No matching headers found in {path}. Assuming default 6-field order: {fallback_order_6}"
                 )
                 for i, key in enumerate(fallback_order_6):
                     cl[key] = data[columns[i].name].flatten()
 
             elif n_cols == 4:
-                print(
+                log.warning(
                     f"No matching headers found in {path}. Assuming default 4-field order: {fallback_order_4}"
                 )
                 for i, key in enumerate(fallback_order_4):
@@ -2624,7 +2625,7 @@ def lin_comb_cls(
         target_keys = [k for k in keys if k in cls1 and (cls2 is None or k in cls2)]
         missing = set(keys) - set(target_keys)
         if missing:
-            print(f"Warning: requested keys {missing} not found in input(s).")
+            log.warning(f"Requested keys {missing} not found in input(s).")
 
     result = {}
     for k in target_keys:
