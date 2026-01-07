@@ -1,20 +1,17 @@
-from dataclasses import dataclass, field
-from typing import Any, Optional
 import warnings
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Optional
 import logging as log
 
+import ducc0.healpix as dh
+import ducc0.sht as sht
+import healpy as hp
+import numpy as np
 from astropy.io import fits
 
-import numpy as np
-import healpy as hp
-
+from .coordinates import ECL_TO_GAL_EULER, GAL_TO_ECL_EULER, CoordinateSystem
 from .units import Units
-from .coordinates import CoordinateSystem, ECL_TO_GAL_EULER, GAL_TO_ECL_EULER
-
-import ducc0.sht as sht
-import ducc0.healpix as dh
-
 
 # ======================================================================
 # SphericalHarmonics

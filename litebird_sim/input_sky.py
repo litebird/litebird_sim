@@ -3,24 +3,24 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+import ducc0.healpix as dh
 import numpy as np
 import pysm3
 import pysm3.units as u
 
-import ducc0.healpix as dh
-
 import litebird_sim as lbs
-from .detectors import DetectorInfo, FreqChannelInfo
 from litebird_sim import constants as c
+
 from .bandpasses import BandPassInfo
 from .coordinates import CoordinateSystem
+from .detectors import DetectorInfo, FreqChannelInfo
 from .maps_and_harmonics import (
     HealpixMap,
     estimate_alm,
-    pixelize_alm,
-    synthesize_alm,
-    read_cls_from_fits,
     lin_comb_cls,
+    pixelize_alm,
+    read_cls_from_fits,
+    synthesize_alm,
 )
 
 # --- Utility Functions ---
