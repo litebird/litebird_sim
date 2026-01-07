@@ -100,7 +100,7 @@ def apply_quadratic_nonlin_for_one_detector(
 def apply_quadratic_nonlin(
     tod: np.ndarray,
     nl_params: NonLinParams | None = None,
-    dets_random: np.random.Generator | None = None,
+    dets_random: list[np.random.Generator] | None = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -108,6 +108,7 @@ def apply_quadratic_nonlin(
     """
 
     assert len(tod.shape) == 2
+    assert dets_random is not None, "dets_random is required"
 
     for detector_idx in range(tod.shape[0]):
         apply_quadratic_nonlin_for_one_detector(
