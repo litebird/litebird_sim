@@ -1915,7 +1915,7 @@ class Simulation:
     @_profile
     def apply_quadratic_nonlin(
         self,
-        nl_params: NonLinParams = None,
+        nl_params: NonLinParams | None = None,
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
@@ -2396,7 +2396,7 @@ class Simulation:
         self,
         nside: int,
         components: str | list[str] = "tod",
-        pointing_flag: np.ndarray = None,
+        pointing_flag: np.ndarray | None = None,
         inv_noise_cov_operator=None,
         threshold: float = 1.0e-5,
         pointings_dtype=np.float64,
@@ -2497,7 +2497,7 @@ class Simulation:
     @_profile
     def read_observations(
         self,
-        path: str | Path = None,
+        path: str | Path | None = None,
         subdir_name: None | str = "tod",
         **kwargs,
     ):
@@ -2523,7 +2523,7 @@ class Simulation:
     @_profile
     def apply_gaindrift(
         self,
-        drift_params: GainDriftParams = None,
+        drift_params: GainDriftParams | None = None,
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = True,

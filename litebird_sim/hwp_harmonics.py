@@ -459,14 +459,14 @@ def compute_ata_atd_for_one_detector(
 
 
 def fill_tod(
-    observations: Observation | list[Observation] = None,
+    observations: Observation | list[Observation] | None = None,
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp_angle: np.ndarray | list[np.ndarray] | None = None,
     input_map_in_galactic: bool = True,
     save_tod: bool = True,
     pointings_dtype=np.float64,
     interpolation: str | None = "",
-    maps: np.ndarray = None,
+    maps: np.ndarray | None = None,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
     mueller_phases: dict | None = None,

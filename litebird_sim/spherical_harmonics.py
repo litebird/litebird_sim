@@ -252,7 +252,7 @@ class SphericalHarmonics:
     def resize_alm(
         self,
         lmax_out: int,
-        mmax_out: int = None,
+        mmax_out: int | None = None,
         inplace: bool = False,
     ):
         """

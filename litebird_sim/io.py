@@ -170,7 +170,7 @@ def write_one_observation(
     pointings_dtype,
     global_index: int,
     local_index: int,
-    tod_fields: list[str | TodDescription] = None,
+    tod_fields: list[str | TodDescription] | None = None,
     gzip_compression: bool = False,
     write_full_pointings: bool = False,
 ):

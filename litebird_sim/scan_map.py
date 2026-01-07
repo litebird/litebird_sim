@@ -301,7 +301,7 @@ def scan_map_in_observations(
     save_tod: bool = True,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
-    mueller_phases: np.ndarray = None,
+    mueller_phases: np.ndarray | None = None,
     comm: bool | None = None,
 ):
     """
