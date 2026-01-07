@@ -1029,6 +1029,7 @@ class HealpixMap:
 
         .. doctest::
 
+            >>> from litebird_sim import HealpixMap
             >>> HealpixMap.nside_to_npix(1)
             12
         """
@@ -1047,6 +1048,7 @@ class HealpixMap:
 
         .. doctest::
 
+            >>> from litebird_sim import HealpixMap
             >>> HealpixMap.is_npix_ok(48)
             True
             >>> HealpixMap.is_npix_ok(108) # 12 * 3^2, but 3 not power of 2
@@ -1068,6 +1070,7 @@ class HealpixMap:
 
         .. doctest::
 
+            >>> from litebird_sim import HealpixMap
             >>> HealpixMap.npix_to_nside(48)
             2
         """
