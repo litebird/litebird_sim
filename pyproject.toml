@@ -96,3 +96,10 @@ relative_files = true
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ty.src]
+exclude = [
+    "docs/",
+    "benchmarks/",
+    "test/",
+]
