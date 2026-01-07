@@ -94,14 +94,13 @@ shows:
 
    # Create a map to scan (in realistic simulations,
    # use the MBS module provided by litebird_sim)
-   maps = np.ones((3, npix))
-   in_map = {"Detector": maps, "Coordinates": lbs.CoordinateSystem.Ecliptic}
+   values_tuple = (np.ones(npix), np.ones(npix), np.ones(npix))
+   maps = lbs.HealpixMap(values=values_tuple, nside=nside, coordinates=lbs.CoordinateSystem.Ecliptic)
 
    # Here scan the map and fill tod
    lbs.scan_map_in_observations(
        obs,
-       in_map,
-       input_map_in_galactic = False,
+       maps,
    )
 
    for i in range(obs.n_samples):
@@ -133,7 +132,6 @@ The pointing information can be included in the observation or passed through
 `pointings`. If both `observations` and `pointings` are provided, they must be 
 coherent, so either a single Observation and a single numpy array, or same
 lenght list of Observations and numpy arrays.
-If the input map is ecliptic coordinates set `input_map_in_galactic` to `False`.
 The effect of a possible HWP is included in the pointing information, see
 :ref:`scanning-strategy`, the polarization angle of the detectors is taken from 
 the corresponding attributes included in the observations. The same applies to 
@@ -206,7 +204,8 @@ transparent:
 
   sim.prepare_pointings()
 
-  sky_signal = np.ones((3,12*nside*nside))*1e-4
+  values_tuple = (np.ones(12*nside*nside)*1e-4, np.ones(12*nside*nside)*1e-4, np.ones(12*nside*nside)*1e-4)
+  sky_signal = lbs.HealpixMap(values=values_tuple, nside=nside)
 
   sim.fill_tods(sky_signal)
 

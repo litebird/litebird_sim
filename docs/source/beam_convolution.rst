@@ -94,7 +94,6 @@ as demonstrated in the following example:
         obs,
         alms,
         blms,
-        input_sky_alms_in_galactic=True,
         convolution_params=Convparams,
         pointings_dtype=np.float32,
     )
@@ -134,7 +133,6 @@ via the `pointings` parameter. If both `observations` and `pointings` are provid
 they must be consistent—either as a single observation and a single numpy array 
 or as lists of equal length.
 
-If input alms are in ecliptic coordinates, set `input_sky_alms_in_galactic=False`. 
 The HWP effect can be incorporated via pointing data (see :ref:`scanning-strategy`) 
 or by using the `hwp` argument. The polarization angles of 
 detectors are derived from the observation attributes.
@@ -379,7 +377,6 @@ For a single-task execution, refer to the following example:
     sim.convolve_sky(sky_alms=alms,
                      beam_alms=blms,
                      convolution_params=Convparams,
-                     input_sky_alms_in_galactic=True,
                      pointings_dtype=np.float32,
                      nthreads = 0)
 
