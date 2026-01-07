@@ -527,7 +527,7 @@ def scan_map_in_observations(
 
         if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
             # Harmonic-expansion case: delegate to fill_tod
-            return fill_tod(
+            fill_tod(
                 observations=cur_obs,
                 pointings=cur_ptg,
                 maps=maps,
