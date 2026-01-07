@@ -216,6 +216,10 @@ class SkyGenerator:
         try:
             self.lbs_unit = lbs.Units[self.params.units]
         except (KeyError, AttributeError):
+            log.warning(
+                f"Unit string '{self.params.units}' not found in litebird_sim.Units Enum. "
+                "Proceeding without specific unit assignment for generated maps/alms."
+            )
             # Fallback if specific unit string not in Enum, pass None or handle error
             # Assuming lbs.Units matches the string key
             self.lbs_unit = None
