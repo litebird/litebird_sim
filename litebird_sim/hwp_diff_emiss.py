@@ -26,7 +26,7 @@ def add_2f_for_one_detector(tod_det, angle_det_rad, amplitude_k):
 def add_2f(
     tod,
     hwp_angle,
-    pol_angle_rad: float,
+    pol_angle_rad: np.ndarray,
     amplitude_2f_k: float | np.ndarray,
 ):
     """Add the HWP differential emission to some time-ordered data
