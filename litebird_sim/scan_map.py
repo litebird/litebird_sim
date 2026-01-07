@@ -333,7 +333,7 @@ def scan_map(
         elif isinstance(hwp, NonIdealHWP):
             # This implements:
             # (1,0,0,0) x Mpol(ρ) x Rpol(θ) x Rhwp(α)^T x Mhwp x Rhwp(α) x Rtel(ψ) x Stokes
-            assert all(m is None for m in mueller_hwp), (
+            assert all(m is not None for m in mueller_hwp), (
                 "Non ideal hwp type was selected but not all detectors have a mueller matrix associated. Please set det.mueller_hwp attribute."
             )
             scan_map_generic_hwp_for_one_detector(
