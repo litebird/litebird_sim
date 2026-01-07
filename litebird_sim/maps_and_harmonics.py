@@ -386,7 +386,7 @@ class SphericalHarmonics:
             )
 
         # Result units: if self has a "real" units, keep it, otherwise inherit other.units
-        if self.units is None:
+        if self.units:
             result_units = self.units
         else:
             result_units = other.units
