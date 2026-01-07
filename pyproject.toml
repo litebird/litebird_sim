@@ -106,12 +106,11 @@ exclude = [
 ]
 
 [tool.ty.rules]
-not-subscriptable = "ignore"  # 537
-invalid-argument-type = "ignore"  # 309
-invalid-assignment = "error"  # 256
-possibly-missing-attribute = "ignore"  # 167
-unresolved-attribute = "ignore"  # 102
-unsupported-operator = "ignore"  # 60
-not-iterable = "ignore"  # 25
-unresolved-import = "ignore"  # 16
-no-matching-overload = "ignore"  # 12
+possibly-missing-attribute = "ignore"  # 154
+invalid-argument-type = "ignore"  # 77
+unresolved-attribute = "ignore"  # 75
+not-subscriptable = "ignore"  # 44
+unsupported-operator = "ignore"  # 30
+not-iterable = "ignore"  # 24
+unresolved-import = "ignore"  # 18
+no-matching-overload = "ignore"  # 10
