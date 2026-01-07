@@ -66,7 +66,7 @@ class _InstrumentFreq:
 
     @staticmethod
     def from_npy(filename):
-        data = np.load(filename, allow_picke=True).item()
+        data = np.load(filename, allow_pickle=True).item()
         return _InstrumentFreq(
             bandcenter_ghz=data["freq"],
             bandwidth_ghz=data["freq_band"],
