@@ -161,7 +161,7 @@ class SkyGenerationParams:
 
     # Foreground Specifics
     fg_models: list[str] = field(default_factory=list)
-    fg_oversampling: float = 2
+    fg_oversampling: int = 2
 
     # Dipole Specifics
     # This simulates first order dipole (no kinematic high order terms)
