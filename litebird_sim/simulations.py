@@ -1,4 +1,3 @@
-import codecs
 import functools
 import importlib.resources
 import json
@@ -903,7 +902,7 @@ class Simulation:
 
     def _generate_html_report(self):
         # Expand the markdown text using Jinja2
-        with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
+        with open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
             outf.write(self.report)
 
         # Now generate an HTML file from Markdown.
@@ -920,7 +919,7 @@ class Simulation:
         html = markdown.markdown(self.report, extensions=md_extensions)
 
         static_path = importlib.resources.files("litebird_sim.static")
-        with codecs.open(static_path / "report_template.html") as inpf:
+        with open(static_path / "report_template.html") as inpf:
             html_full_report = jinja2.Template(inpf.read()).render(
                 name=self.name, html=html
             )
@@ -936,7 +935,7 @@ class Simulation:
 
         # Finally, write down the full HTML report
         html_report_path = self.base_path / "report.html"
-        with codecs.open(html_report_path, "w", encoding="utf-8") as outf:
+        with open(html_report_path, "w", encoding="utf-8") as outf:
             outf.write(html_full_report)
 
         return html_report_path

@@ -1880,14 +1880,14 @@ def remove_destriper_baselines_from_tod(
 
 def _save_rank0_destriper_results(results: DestriperResult, output_file: Path) -> None:
     from astropy.io import fits
-    from datetime import datetime
+    from datetime import datetime, timezone
     from litebird_sim import write_healpix_map_to_hdu
 
     destriping_flag = results.destriped_map is not None
 
     primary_hdu = fits.PrimaryHDU()
     primary_hdu.header.add_comment(
-        f"Created by the LiteBIRD Simulation Framework on {datetime.utcnow()}"
+        f"Created by the LiteBIRD Simulation Framework on {datetime.now(tz=timezone.utc)}"
     )
     primary_hdu.header["MPISIZE"] = (
         MPI_COMM_WORLD.size,
