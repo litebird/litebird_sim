@@ -1,7 +1,6 @@
 import numpy as np
 import healpy as hp
 from scipy.special import iv as bessel_i
-from typing import Optional, Union, List
 
 from .maps_and_harmonics import SphericalHarmonics
 from .observations import Observation
@@ -15,7 +14,7 @@ def gauss_beam_to_alm(
     fwhm_rad: float,
     ellipticity: float = 1.0,
     psi_ell_rad: float = 0.0,
-    psi_pol_rad: Optional[float] = 0.0,
+    psi_pol_rad: float | None = 0.0,
     cross_polar_leakage: float = 0.0,
 ) -> SphericalHarmonics:
     """
@@ -199,8 +198,8 @@ def gauss_beam_to_alm(
 def generate_gauss_beam_alms(
     observation: Observation,
     lmax: int,
-    mmax: Optional[int] = None,
-    channels: Union[FreqChannelInfo, List[FreqChannelInfo], None] = None,
+    mmax: int | None = None,
+    channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
     store_in_observation: bool = False,
 ) -> dict[str, SphericalHarmonics]:
     """

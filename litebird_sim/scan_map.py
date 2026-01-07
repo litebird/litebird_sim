@@ -3,7 +3,6 @@ from numba import njit, prange
 import os
 
 from ducc0.healpix import Healpix_Base
-from ducc0.sht.experimental import synthesis_general
 from .observations import Observation
 from .hwp_harmonics import fill_tod
 from .hwp import HWP, IdealHWP, NonIdealHWP
@@ -15,7 +14,7 @@ from .pointings_in_obs import (
 )
 from .coordinates import CoordinateSystem
 
-from .maps_and_harmonics import SphericalHarmonics, HealpixMap
+from .maps_and_harmonics import SphericalHarmonics, HealpixMap, interpolate_alm
 from .constants import NUM_THREADS_ENVVAR
 
 import logging

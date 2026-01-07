@@ -3,12 +3,10 @@ import astropy
 import healpy as hp
 import numpy as np
 import numpy.typing as npt
-import pytest
 from ducc0.healpix import Healpix_Base
 
 import litebird_sim as lbs
-from litebird_sim.maps_and_harmonics import HealpixMap, SphericalHarmonics
-from litebird_sim.hwp import NonIdealHWP
+from litebird_sim.maps_and_harmonics import HealpixMap
 
 
 def get_map_mask(pixels: npt.ArrayLike) -> npt.ArrayLike:

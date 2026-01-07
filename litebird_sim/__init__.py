@@ -227,7 +227,7 @@ __all__ = [
     # beam_synthesis.py
     "gauss_beam_to_alm",
     "generate_gauss_beam_alms",
-    "gauss_bl"
+    "gauss_bl",
     # constants.py
     "ARCMIN_TO_RAD",
     "C_LIGHT_KM_OVER_S",

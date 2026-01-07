@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Tuple, Dict, Optional, List
+from typing import Any, Optional
 import warnings
 from pathlib import Path
 
@@ -1442,7 +1442,7 @@ def interpolate_alm(
     *,
     epsilon: float | None = None,
     nthreads: int = 0,
-) -> np.ndarray | Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> np.ndarray | tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""Interpolate spherical-harmonic coefficients at arbitrary positions
     using :func:`ducc0.sht.synthesis_general`.
 
@@ -1557,8 +1557,8 @@ def pixelize_alm(
     nside: int,
     *,
     nest: bool = False,
-    lmax: Optional[int] = None,
-    mmax: Optional[int] = None,
+    lmax: int | None = None,
+    mmax: int | None = None,
     nthreads: int = 0,
 ) -> "HealpixMap":
     r"""
@@ -1720,8 +1720,8 @@ def pixelize_alm(
 def estimate_alm(
     map: "HealpixMap",
     *,
-    lmax: Optional[int] = None,
-    mmax: Optional[int] = None,
+    lmax: int | None = None,
+    mmax: int | None = None,
     nthreads: int = 0,
 ) -> "SphericalHarmonics":
     r"""
@@ -1875,12 +1875,12 @@ def estimate_alm(
 
 def rotate_alm(
     alms: SphericalHarmonics,
-    kind: Optional[str] = None,
+    kind: str | None = None,
     *,
-    psi: Optional[float] = None,
-    theta: Optional[float] = None,
-    phi: Optional[float] = None,
-    mmax_out: Optional[int] = None,
+    psi: float | None = None,
+    theta: float | None = None,
+    phi: float | None = None,
+    mmax_out: int | None = None,
     inplace: bool = False,
     nthreads: int = 0,
 ) -> SphericalHarmonics:
@@ -2039,10 +2039,10 @@ def rotate_alm(
 
 
 def synthesize_alm(
-    cl_dict: Dict[str, np.ndarray],
-    lmax: Optional[int] = None,
-    mmax: Optional[int] = None,
-    rng: Optional[np.random.Generator] = None,
+    cl_dict: dict[str, np.ndarray],
+    lmax: int | None = None,
+    mmax: int | None = None,
+    rng: np.random.Generator | None = None,
     units: Optional["Units"] = None,
     coordinates: Optional["CoordinateSystem"] = None,
 ) -> "SphericalHarmonics":
@@ -2148,7 +2148,7 @@ def synthesize_alm(
 
     # === CASE A: Intensity Only ===
     if not has_polarization:
-        nstokes = 1
+        # nstokes = 1
         cl_tt = get_padded_cl("TT")
 
         # Simple scalar scaling: alm = sqrt(Cl) * white_noise
@@ -2164,7 +2164,7 @@ def synthesize_alm(
     # === CASE B: Decoupled Polarization (Standard CMB) ===
     # T and E are correlated (2x2), B is independent (scalar)
     elif not has_parity_breaking:
-        nstokes = 3
+        # nstokes = 3
 
         # --- Block 1: T and E (2x2 mixing) ---
         cl_tt = get_padded_cl("TT")
@@ -2180,13 +2180,13 @@ def synthesize_alm(
 
         # Compute mixing matrices for T, E
         L_matrices_2x2 = np.zeros_like(cov_2x2)
-        for l in range(lmax + 1):
-            C_l = cov_2x2[l]
+        for l_val in range(lmax + 1):
+            C_l = cov_2x2[l_val]
             if np.allclose(C_l, 0, atol=1e-20):
                 continue
             u, s, vh = np.linalg.svd(C_l, hermitian=True)
             s = np.maximum(s, 0.0)
-            L_matrices_2x2[l] = u @ np.diag(np.sqrt(s))
+            L_matrices_2x2[l_val] = u @ np.diag(np.sqrt(s))
 
         # Generate noise for T and E
         white_te = generate_white_noise((2, n_coeffs))
@@ -2211,7 +2211,7 @@ def synthesize_alm(
     # === CASE C: Full Polarization (Parity Breaking) ===
     # Everything is correlated (3x3)
     else:
-        nstokes = 3
+        # nstokes = 3
         cl_tt = get_padded_cl("TT")
         cl_ee = get_padded_cl("EE")
         cl_bb = get_padded_cl("BB")
@@ -2230,13 +2230,13 @@ def synthesize_alm(
         cov_3x3[:, 1, 2] = cov_3x3[:, 2, 1] = cl_eb
 
         L_matrices = np.zeros_like(cov_3x3)
-        for l in range(lmax + 1):
-            C_l = cov_3x3[l]
+        for l_val in range(lmax + 1):
+            C_l = cov_3x3[l_val]
             if np.allclose(C_l, 0, atol=1e-20):
                 continue
             u, s, vh = np.linalg.svd(C_l, hermitian=True)
             s = np.maximum(s, 0.0)
-            L_matrices[l] = u @ np.diag(np.sqrt(s))
+            L_matrices[l_val] = u @ np.diag(np.sqrt(s))
 
         white_noise = generate_white_noise((3, n_coeffs))
 
@@ -2252,10 +2252,10 @@ def synthesize_alm(
 def compute_cl(
     alm1: "SphericalHarmonics",
     alm2: Optional["SphericalHarmonics"] = None,
-    lmax: Optional[int] = None,
-    mmax: Optional[int] = None,
+    lmax: int | None = None,
+    mmax: int | None = None,
     symmetrize: bool = True,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Computes angular power spectra (Cl) from one or two sets of spherical harmonic coefficients.
 
@@ -2575,12 +2575,12 @@ def read_cls_from_fits(path: str | Path) -> dict[str, np.ndarray]:
 
 
 def lin_comb_cls(
-    cls1: Dict[str, np.ndarray],
-    cls2: Optional[Dict[str, np.ndarray]] = None,
+    cls1: dict[str, np.ndarray],
+    cls2: dict[str, np.ndarray] | None = None,
     s1: float = 1.0,
     s2: float = 1.0,
-    keys: Optional[List[str]] = None,
-) -> Dict[str, np.ndarray]:
+    keys: list[str] | None = None,
+) -> dict[str, np.ndarray]:
     """
     Compute a linear combination of power spectra dictionaries or scale a single one.
 

@@ -7,10 +7,10 @@ from numba import njit, prange
 from ducc0.healpix import Healpix_Base
 import os
 
-from .coordinates import rotate_coordinates_e2g
+from .coordinates import CoordinateSystem
 from .hwp_diff_emiss import compute_2f_for_one_sample
 from .observations import Observation
-from .maps_and_harmonics import HealpixMap, SphericalHarmonics
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
 from .constants import NUM_THREADS_ENVVAR
 from .pointings_in_obs import (
     _get_pointings_array,

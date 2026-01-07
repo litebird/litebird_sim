@@ -1,22 +1,21 @@
 import logging as log
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 import numpy as np
 import pysm3
 import pysm3.units as u
-from astropy.io import fits
 
 import ducc0.healpix as dh
 
 import litebird_sim as lbs
 from .detectors import DetectorInfo, FreqChannelInfo
 from litebird_sim import constants as c
+from .bandpasses import BandPassInfo
 from .coordinates import CoordinateSystem
 from .maps_and_harmonics import (
     HealpixMap,
-    SphericalHarmonics,
     estimate_alm,
     pixelize_alm,
     synthesize_alm,
@@ -31,7 +30,7 @@ def _get_cmb_unit_conversion(
     target_units_str: str,
     origin_units_str: str = "K_CMB",
     freq_ghz: float | None = None,
-    bandpass: "BandPassInfo | None" = None,
+    bandpass: BandPassInfo | None = None,
     band_integration: bool = False,
 ) -> float:
     """
@@ -90,9 +89,9 @@ def _get_cmb_unit_conversion(
 
     if band_integration:
         # Full integration over the bandpass
-        nonzero = np.where(ch.band.freqs_ghz != 0)[0]
-        freqs = band.freqs_ghz[nonzero] * u.GHz
-        weights = band.weights[nonzero]
+        nonzero = np.where(bandpass.freqs_ghz != 0)[0]
+        freqs = bandpass.freqs_ghz[nonzero] * u.GHz
+        weights = bandpass.weights[nonzero]
 
         # pysm3.bandpass_unit_conversion calculates the factor C such that:
         # Value_Unit = Value_K_CMB * C
@@ -197,9 +196,9 @@ class SkyGenerator:
     def __init__(
         self,
         params: SkyGenerationParams,
-        channels: Union[
-            FreqChannelInfo, DetectorInfo, list[Union[FreqChannelInfo, DetectorInfo]]
-        ],
+        channels: (
+            FreqChannelInfo | DetectorInfo | list[FreqChannelInfo | DetectorInfo]
+        ),
     ):
         self.params = params
 

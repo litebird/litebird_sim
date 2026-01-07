@@ -2,7 +2,6 @@ import numpy as np
 import pytest
 
 import litebird_sim as lbs
-from litebird_sim import mpi
 from litebird_sim.hwp_harmonics import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
@@ -31,7 +30,7 @@ def test_hwp_sys(nside_out):
         )
 
         comm = sim.mpi_comm
-        rank = comm.rank
+        _ = comm.rank
 
         channelinfo = lbs.FreqChannelInfo(
             bandcenter_ghz=140.0,
