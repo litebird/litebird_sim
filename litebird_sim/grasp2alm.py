@@ -14,8 +14,8 @@ import typing
 import warnings
 from dataclasses import dataclass
 
-import ducc0.healpix
-import ducc0.sht
+import ducc0.healpix  # type: ignore[unresolved-import]
+import ducc0.sht  # type: ignore[unresolved-import]
 from numba import njit
 import numpy as np
 import numpy.typing as npt

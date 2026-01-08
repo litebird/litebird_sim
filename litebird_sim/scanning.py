@@ -9,7 +9,7 @@ from numba import njit, prange
 import numpy as np
 import numpy.typing as npt
 
-from ducc0.pointingprovider import PointingProvider as DuccPointingProvider
+from ducc0.pointingprovider import PointingProvider as DuccPointingProvider  # type: ignore[unresolved-import]
 
 from .coordinates import DEFAULT_COORDINATE_SYSTEM
 from .imo import Imo

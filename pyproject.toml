@@ -107,4 +107,4 @@ exclude = [
 ]
 
 [tool.ty.rules]
-unresolved-import = "ignore"  # 18
+unresolved-import = "error"  # 18

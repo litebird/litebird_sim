@@ -11,7 +11,7 @@ import numpy.typing as npt
 from litebird_sim.hwp import HWP
 
 if TYPE_CHECKING:
-    import brahmap
+    import brahmap  # type: ignore[unresolved-import]
 
 
 def make_brahmap_gls_map(
@@ -112,7 +112,7 @@ def make_brahmap_gls_map(
         Raises `ImportError` when the brahmap package couldn't be imported
     """
     try:
-        import brahmap
+        import brahmap  # type: ignore[unresolved-import]
     except ImportError:
         raise ImportError(
             "Could not import `BrahMap`. Make sure that the package "

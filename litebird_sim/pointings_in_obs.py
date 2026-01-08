@@ -6,7 +6,7 @@ import astropy.time
 
 from deprecated import deprecated
 
-from ducc0.healpix import Healpix_Base
+from ducc0.healpix import Healpix_Base  # type: ignore[unresolved-import]
 
 from .detectors import InstrumentInfo
 from .hwp import HWP
