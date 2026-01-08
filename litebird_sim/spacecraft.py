@@ -405,6 +405,7 @@ def spacecraft_pos_and_vel(
         # The caller either provided an observation or a list of observations.
         # Let's compute the overall time span
         start_time, time_span_s = compute_start_and_span_for_obs(observations)
+    assert time_span_s is not None and start_time is not None
 
     # We are going to compute the position of the L2 point at N times. The value N
     # is chosen such that the spacing between two consecutive times is never longer

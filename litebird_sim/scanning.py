@@ -587,6 +587,7 @@ class RotQuaternion:
         assert self.quats.shape[0] > 1, (
             "having only one quaternion is still unsupported"
         )
+        assert self.start_time is not None
 
         if isinstance(self.start_time, astropy.time.Time):
             assert isinstance(start_time, astropy.time.Time), (

@@ -12,10 +12,10 @@ class TimeProfiler:
     """
 
     def __init__(self, name: str = "", **kwargs):
-        self.name = name
+        self.name: str = name
         self.parameters = dict(kwargs)
-        self.start = None
-        self.end = None
+        self.start: int | float = 0.0
+        self.end: int | float = 0.0
 
     def __enter__(self):
         self.start = perf_counter()

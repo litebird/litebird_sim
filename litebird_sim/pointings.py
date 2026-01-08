@@ -65,8 +65,8 @@ class PointingProvider:
     def get_pointings(
         self,
         detector_quat: RotQuaternion,
-        start_time: float | astropy.time.Time,
-        start_time_global: float | astropy.time.Time,
+        start_time: int | float | astropy.time.Time,
+        start_time_global: int | float | astropy.time.Time,
         sampling_rate_hz: float,
         nsamples: int,
         pointing_buffer: npt.NDArray | None = None,
@@ -122,15 +122,6 @@ class PointingProvider:
                 one is a float and the other is an `astropy.time.Time`).
         """
 
-        assert (np.isscalar(start_time) and np.isscalar(start_time_global)) or (
-            isinstance(start_time_global, astropy.time.Time)
-            and isinstance(start_time, astropy.time.Time)
-        ), (
-            "The parameters start_time= and start_time_global= must be of the same "
-            "type (either floats or astropy.time.Time objects), but they are "
-            "{type1} (start_time) and {type2} (start_time_global)"
-        ).format(type1=str(type(start_time)), type2=str(type(start_time_global)))
-
         full_quaternions = (self.bore2ecliptic_quats * detector_quat).slerp(
             start_time=start_time,
             sampling_rate_hz=sampling_rate_hz,
@@ -141,9 +132,16 @@ class PointingProvider:
             if hwp_buffer is None:
                 hwp_buffer = np.empty(nsamples, dtype=pointings_dtype)
 
-            start_time_s = start_time - start_time_global
-            if isinstance(start_time_s, astropy.time.TimeDelta):
-                start_time_s = start_time_s.to("s").value
+            if isinstance(start_time, astropy.time.Time):
+                assert isinstance(start_time_global, astropy.time.Time), (
+                    "The start_time is a astropy.time.Time object, so start_time_global must also be an astropy.time.Time object."
+                )
+                start_time_s = (start_time - start_time_global).to("s").value
+            else:
+                assert isinstance(start_time_global, (int, float)), (
+                    "The start_time is a float, so start_time_global must also be a float."
+                )
+                start_time_s = start_time - start_time_global
 
             self.hwp.get_hwp_angle(
                 output_buffer=hwp_buffer,
@@ -165,8 +163,8 @@ class PointingProvider:
 
     def get_hwp_angle(
         self,
-        start_time: float | astropy.time.Time,
-        start_time_global: float | astropy.time.Time,
+        start_time: int | float | astropy.time.Time,
+        start_time_global: int | float | astropy.time.Time,
         sampling_rate_hz: float,
         nsamples: int,
         hwp_buffer: npt.NDArray | None = None,
@@ -209,22 +207,20 @@ class PointingProvider:
                 If `start_time` and `start_time_global` are not of the same type.
         """
 
-        assert (np.isscalar(start_time) and np.isscalar(start_time_global)) or (
-            isinstance(start_time_global, astropy.time.Time)
-            and isinstance(start_time, astropy.time.Time)
-        ), (
-            "The parameters start_time= and start_time_global= must be of the same "
-            "type (either floats or astropy.time.Time objects), but they are "
-            "{type1} (start_time) and {type2} (start_time_global)"
-        ).format(type1=str(type(start_time)), type2=str(type(start_time_global)))
-
         if self.hwp is not None:
             if hwp_buffer is None:
                 hwp_buffer = np.empty(nsamples, dtype=pointings_dtype)
 
-            start_time_s = start_time - start_time_global
-            if isinstance(start_time_s, astropy.time.TimeDelta):
-                start_time_s = start_time_s.to("s").value
+            if isinstance(start_time, astropy.time.Time):
+                assert isinstance(start_time_global, astropy.time.Time), (
+                    "The start_time is a astropy.time.Time object, so start_time_global must also be an astropy.time.Time object."
+                )
+                start_time_s = (start_time - start_time_global).to("s").value
+            else:
+                assert isinstance(start_time_global, (int, float)), (
+                    "The start_time is a float, so start_time_global must also be a float."
+                )
+                start_time_s = start_time - start_time_global
 
             self.hwp.get_hwp_angle(
                 output_buffer=hwp_buffer,

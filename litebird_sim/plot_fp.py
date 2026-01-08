@@ -129,7 +129,7 @@ class DetectorInfoViewer:
         return info_text
 
     def generate_dets_list_file(
-        self, filename, selected_detector_list, duration_yr=1.0
+        self, filename, selected_detector_list: list, duration_yr=1.0
     ):
         """Generate a text file with the selected detector list.
         The NET on detector is scaled by the`scaling_factor`:
@@ -142,6 +142,9 @@ class DetectorInfoViewer:
         """
         header = "# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name\n"
         selected_number_of_dets = len(selected_detector_list)
+        assert self.ndets_in_channel is not None, (
+            "ndets_in_channel must be set before generating detector list file."
+        )
         scaling_factor = np.sqrt(
             duration_yr / 3.0 * selected_number_of_dets / self.ndets_in_channel
         )

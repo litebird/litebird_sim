@@ -735,7 +735,7 @@ class BeamCut:
             for theta_idx in range(self.n_theta):
                 _ = file_obj.readline()
 
-        if self.n_theta % 2 == 0:
+        if self.n_theta is not None and self.n_theta % 2 == 0:
             raise ValueError("The number of pixels in a cut (VNUM) must be odd.")
 
         self.phi_values_rad = np.deg2rad(phi_values)

@@ -436,7 +436,7 @@ def test_grasp_to_alm(param, regenerate_grasp_alm: bool):
     nside = 128
     with (REFERENCE_BEAM_FILES_PATH / grasp_file_name).open("rt") as grasp_file:
         grasp2alm_result: SphericalHarmonics = function_to_test(
-            grasp_file,
+            file_obj=grasp_file,
             nside=nside,
         )
 

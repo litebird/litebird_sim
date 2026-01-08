@@ -135,7 +135,7 @@ def get_template_file_path(filename: str | Path) -> Path:
     returns a full, absolute path to the file within the ``templates``
     folder of the ``litebird_sim`` source code.
     """
-    return importlib.resources.files("litebird_sim.templates") / filename
+    return Path(importlib.resources.files("litebird_sim.templates").joinpath(filename))
 
 
 @dataclass
@@ -377,7 +377,7 @@ class Simulation:
 
         self._initialize_logging()
 
-        self.base_path = base_path
+        self.base_path: Path = Path(base_path) if base_path else Path()
         self.name = name
 
         self.observations: list[Observation] = []
@@ -435,10 +435,6 @@ class Simulation:
         if self.numba_threading_layer:
             numba.config.THREADING_LAYER = self.numba_threading_layer
 
-        if not self.base_path:
-            self.base_path = Path()
-
-        self.base_path = Path(self.base_path)
         self._ensure_base_path_exists()
 
         if parameter_file:
@@ -691,7 +687,7 @@ class Simulation:
             else:
                 log.basicConfig(level=log.CRITICAL, format=log_format)
 
-    def write_healpix_map(self, filename: str, pixels, **kwargs) -> str:
+    def write_healpix_map(self, filename: Path, pixels, **kwargs) -> Path:
         """Save a Healpix map in the output folder
 
         Args:
@@ -2497,8 +2493,8 @@ class Simulation:
     @_profile
     def read_observations(
         self,
-        path: str | Path | None = None,
-        subdir_name: None | str = "tod",
+        path: Path | None = None,
+        subdir_name: str = "tod",
         **kwargs,
     ):
         """Read a list of observations from a set of files in a simulation

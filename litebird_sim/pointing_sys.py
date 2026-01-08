@@ -364,6 +364,8 @@ class SpacecraftCoord:
 
             axis (`str`): The axis in the reference frame around which the rotation is to be performed. It must be one of 'x', 'y', or 'z'.
         """
+        assert self.sim.spin2ecliptic_quats is not None
+
         offset_rad, axis = _ecl2spacecraft(offset_rad, axis)
         rotation_func = _get_rotator(axis)
         syst_quat = RotQuaternion(quats=np.array(rotation_func(offset_rad)))
@@ -379,6 +381,8 @@ class SpacecraftCoord:
 
             axis (`str`): The axis in the reference frame around which the rotation is to be performed. It must be one of 'x', 'y', or 'z'.
         """
+        assert self.sim.spin2ecliptic_quats is not None
+
         noise_rad, axis = _ecl2spacecraft(noise_rad, axis)
         rotation_func = _get_rotator(axis, broadcast=True)
         syst_quat = RotQuaternion(
