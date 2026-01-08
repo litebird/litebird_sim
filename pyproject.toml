@@ -109,9 +109,5 @@ exclude = [
 [tool.ty.rules]
 possibly-missing-attribute = "ignore"  # 154
 invalid-argument-type = "ignore"  # 77
-unresolved-attribute = "error"  # 75
-not-subscriptable = "error"  # 44
-unsupported-operator = "error"  # 30
 not-iterable = "ignore"  # 16
 unresolved-import = "ignore"  # 18
-no-matching-overload = "error"  # 10
