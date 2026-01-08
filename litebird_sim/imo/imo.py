@@ -1,11 +1,12 @@
-import importlib
+import importlib.resources
 import logging as log
 from pathlib import Path
 from typing import IO, Any, cast
 from uuid import UUID
 
 import tomlkit
-from libinsdb import LocalInsDb, RemoteInsDb, Entity, Quantity, DataFile
+import tomlkit.exceptions
+from libinsdb import DataFile, Entity, LocalInsDb, Quantity, RemoteInsDb
 
 CONFIG_FILE_PATH = Path.home() / ".config" / "litebird_imo" / "imo.toml"
 
@@ -31,7 +32,7 @@ class Imo:
                 with CONFIG_FILE_PATH.open("rt") as inpf:
                     config = tomlkit.loads("".join(inpf.readlines()))
 
-                self.imoobject = LocalInsDb(PTEP_IMO_LOCATION)
+                self.imoobject = LocalInsDb(str(PTEP_IMO_LOCATION))
 
                 if load_defaults:
                     repositories = config["repositories"]
@@ -165,8 +166,10 @@ class Imo:
 
         """
         quantity = self.query_quantity(quantity_uuid, track=track)
+        assert quantity is not None, f"Quantity {quantity_uuid} not found"
         data_files = [self.query_data_file(x, track=track) for x in quantity.data_files]
-        return [x.uuid for x in sorted(data_files, key=lambda x: x.upload_date)]
+        valid_data_files = [x for x in data_files if x is not None]
+        return [x.uuid for x in sorted(valid_data_files, key=lambda x: x.upload_date)]
 
     def get_queried_entities(self):
         """Return a list of the UUIDs of entities queried so far."""

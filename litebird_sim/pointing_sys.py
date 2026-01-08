@@ -475,10 +475,12 @@ class HWPCoord:
 
         _start_time = self.obs.start_time - self.obs.start_time_global
         _delta_time = self.obs.get_delta_time()
+        assert self.sim.spin2ecliptic_quats is not None
         n_samples = self.sim.spin2ecliptic_quats.quats.shape[0]
         pointing_rot_angles = np.empty(n_samples)
 
         if isinstance(_start_time, astropy.time.TimeDelta):
+            assert isinstance(_delta_time, astropy.time.TimeDelta)
             start_time_s = _start_time.to("s").value
             delta_time_s = _delta_time.to("s").value
         else:
@@ -489,7 +491,7 @@ class HWPCoord:
             output_buffer=pointing_rot_angles,
             start_time_s=start_time_s,
             delta_time_s=delta_time_s,
-            start_angle_rad=self.sim.hwp.start_angle_rad,
+            start_angle_rad=getattr(self.sim.hwp, "start_angle_rad"),
             ang_speed_radpsec=self.ang_speed_radpsec,
         )
         # Set initial phase of pointing disturbance

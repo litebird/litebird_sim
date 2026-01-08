@@ -8,9 +8,11 @@ from collections import namedtuple
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from shutil import copyfile, copytree, SameFileError
-from typing import Any, Optional, Union, TYPE_CHECKING
+from shutil import SameFileError, copyfile, copytree
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import uuid4
+
+from mpi4py.MPI import Intercomm
 
 if TYPE_CHECKING:
     import brahmap
@@ -23,52 +25,52 @@ import matplotlib.pylab as plt
 import numba
 import numpy as np
 import tomlkit
+import tomlkit.items
 from markdown_katex import KatexExtension
 
 from litebird_sim import constants
-from .hwp import HWP
+
 from .beam_convolution import (
-    add_convolved_sky_to_observations,
     BeamConvolutionParameters,
+    add_convolved_sky_to_observations,
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
 from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
-from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
-from .healpix import write_healpix_map_to_file, npix_to_nside
+from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
+from .healpix import npix_to_nside, write_healpix_map_to_file
+from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
-from .io import write_list_of_observations, read_list_of_observations
+from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
-    make_binned_map,
-    make_brahmap_gls_map,
-    check_valid_splits,
     BinnerResult,
-    make_destriped_map,
-    save_destriper_results,
     DestriperParameters,
     DestriperResult,
+    check_valid_splits,
     destriper_log_callback,
+    make_binned_map,
+    make_brahmap_gls_map,
+    make_destriped_map,
+    save_destriper_results,
 )
 from .mbs import Mbs, MbsParameters
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
+from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
-from .units import Units
-from .pointings_in_obs import prepare_pointings, precompute_pointings
+from .pointings_in_obs import precompute_pointings, prepare_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .spherical_harmonics import SphericalHarmonics
-from .version import (
-    __version__ as litebird_sim_version,
-    __author__ as litebird_sim_author,
-)
+from .units import Units
+from .version import __author__ as litebird_sim_author
+from .version import __version__ as litebird_sim_version
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -79,7 +81,7 @@ OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
 
 def _tomlkit_to_popo(d):
-    from datetime import date, time, datetime
+    from datetime import date, datetime, time
 
     # This is a fix to issue
     # https://github.com/sdispater/tomlkit/issues/43. It converts an
@@ -440,7 +442,7 @@ class Simulation:
 
         self._ensure_base_path_exists()
 
-        if parameter_file:
+        if self.parameter_file:
             # Copy the parameter file to the output directory only if
             # it is not already there (this might happen if you did
             # not specify `base_path`, as the default for `base_path`
@@ -822,12 +824,12 @@ class Simulation:
         # Check if there are newer versions of the data files used in the simulation
         for cur_data_file in data_files:
             other_data_files = self.imo.get_list_of_data_files(
-                cur_data_file.quantity, track=False
+                getattr(cur_data_file, "quantity"), track=False
             )
             if not other_data_files:
                 continue
 
-            if other_data_files[-1] != cur_data_file.uuid:
+            if other_data_files[-1] != getattr(cur_data_file, "uuid"):
                 warnings.append((cur_data_file, other_data_files[-1]))
 
         if (not entities) and (not quantities) and (not data_files):
@@ -1303,6 +1305,7 @@ class Simulation:
         numba_num_of_threads = numba.get_num_threads()
 
         if self.mpi_comm and MPI_ENABLED:
+            assert isinstance(MPI_COMM_WORLD, Intercomm)
             observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
             num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
             numba_num_of_threads_all = MPI_COMM_WORLD.allgather(numba_num_of_threads)
@@ -1663,18 +1666,20 @@ class Simulation:
             assert maps is not None
             if isinstance(maps, dict):
                 if "Mbs_parameters" in maps.keys():
-                    if maps["Mbs_parameters"].make_fg:
-                        fg_model = maps["Mbs_parameters"].fg_models
-                    else:
-                        fg_model = "N/A"
+                    if "Mbs_parameters" in maps.keys():
+                        mbs_params = maps["Mbs_parameters"]
+                        if mbs_params.make_fg:  # type: ignore[union-attr]
+                            fg_model = mbs_params.fg_models  # type: ignore[union-attr]
+                        else:
+                            fg_model = "N/A"
 
-                    self.append_to_report(
-                        markdown_template,
-                        nside=maps["Mbs_parameters"].nside,
-                        has_cmb=maps["Mbs_parameters"].make_cmb,
-                        has_fg=maps["Mbs_parameters"].make_fg,
-                        fg_model=fg_model,
-                    )
+                        self.append_to_report(
+                            markdown_template,
+                            nside=mbs_params.nside,  # type: ignore[union-attr]
+                            has_cmb=mbs_params.make_cmb,  # type: ignore[union-attr]
+                            has_fg=mbs_params.make_fg,  # type: ignore[union-attr]
+                            fg_model=fg_model,
+                        )
             else:
                 nside = npix_to_nside(len(maps[0]))
                 self.append_to_report(
@@ -1857,17 +1862,19 @@ class Simulation:
                 sky_alms = self.observations[0].sky
             if isinstance(sky_alms, dict):
                 if "Mbs_parameters" in sky_alms.keys():
-                    if sky_alms["Mbs_parameters"].make_fg:
-                        fg_model = sky_alms["Mbs_parameters"].fg_models
-                    else:
-                        fg_model = "N/A"
+                    if "Mbs_parameters" in sky_alms.keys():
+                        mbs_params = sky_alms["Mbs_parameters"]
+                        if mbs_params.make_fg:  # type: ignore[union-attr]
+                            fg_model = mbs_params.fg_models  # type: ignore[union-attr]
+                        else:
+                            fg_model = "N/A"
 
-                    self.append_to_report(
-                        markdown_template,
-                        has_cmb=sky_alms["Mbs_parameters"].make_cmb,
-                        has_fg=sky_alms["Mbs_parameters"].make_fg,
-                        fg_model=fg_model,
-                    )
+                        self.append_to_report(
+                            markdown_template,
+                            has_cmb=mbs_params.make_cmb,  # type: ignore[union-attr]
+                            has_fg=mbs_params.make_fg,  # type: ignore[union-attr]
+                            fg_model=fg_model,
+                        )
             else:
                 self.append_to_report(
                     markdown_template,

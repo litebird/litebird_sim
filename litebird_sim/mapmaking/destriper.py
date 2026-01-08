@@ -1727,9 +1727,9 @@ def make_destriped_map(
     try:
         bytes_in_temporary_buffers += sum(
             [
-                cur_obs.destriper_weights.nbytes
-                + cur_obs.destriper_pixel_idx.nbytes
-                + cur_obs.destriper_pol_angle_rad.nbytes
+                getattr(cur_obs, "destriper_weights").nbytes
+                + getattr(cur_obs, "destriper_pixel_idx").nbytes
+                + getattr(cur_obs, "destriper_pol_angle_rad").nbytes
                 for cur_obs in obs_list
             ]
         )

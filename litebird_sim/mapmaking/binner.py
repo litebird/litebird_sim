@@ -7,34 +7,34 @@
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
+import healpy as hp
 import numpy as np
 import numpy.typing as npt
+from ducc0.healpix import Healpix_Base
 from numba import njit
-import healpy as hp
 
-from typing import Any
-from collections.abc import Callable
-from litebird_sim.observations import Observation
+from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
+from litebird_sim.healpix import nside_to_npix
+from litebird_sim.hwp import HWP
+from litebird_sim.mpi import MPI
+from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
-from litebird_sim.hwp import HWP
-from litebird_sim import mpi
-from ducc0.healpix import Healpix_Base
-from litebird_sim.healpix import nside_to_npix
-
 
 from .common import (
-    _compute_pixel_indices,
     COND_THRESHOLD,
-    get_map_making_weights,
     _build_mask_detector_split,
     _build_mask_time_split,
     _check_valid_splits,
+    _compute_pixel_indices,
+    get_map_making_weights,
 )
 
 
@@ -254,11 +254,11 @@ def _build_nobs_matrix(
         pass
     elif all(
         [
-            mpi.MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
+            MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
             for i in range(len(obs_list) - 1)
         ]
     ):
-        obs_list[0].comm.Allreduce(mpi.MPI.IN_PLACE, nobs_matrix, mpi.MPI.SUM)
+        obs_list[0].comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
 
     else:
         raise NotImplementedError(

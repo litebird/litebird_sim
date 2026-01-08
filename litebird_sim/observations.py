@@ -6,6 +6,7 @@ from typing import Any
 import astropy.time
 import numpy as np
 import numpy.typing as npt
+from mpi4py.MPI import Intercomm
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
@@ -490,6 +491,7 @@ class Observation:
         index and length of each block if the number of blocks is changed to the
         values passed as arguments
         """
+        assert self.comm is not None, "This method requires an MPI communicator"
         if self._det_blocks_attributes is None or self.comm.size == 1:
             det_start, det_n = np.array(
                 [
@@ -768,6 +770,7 @@ class Observation:
 
         my_col = MPI_COMM_GRID.COMM_OBS_GRID.rank % self._n_blocks_time
         root_col = root // self._n_blocks_det
+        assert isinstance(self.comm_time_block, Intercomm)
         if my_col == root_col:
             if MPI_COMM_GRID.COMM_OBS_GRID.rank == root:
                 starts, nums, _, _ = self._get_start_and_num(
@@ -777,6 +780,7 @@ class Observation:
 
             info = self.comm_time_block.scatter(info, root)
 
+        assert isinstance(self.comm_det_block, Intercomm)
         info = self.comm_det_block.bcast(info, root_col)
         assert (not self.tod_list) or len(info) == len(
             getattr(self, self.tod_list[0].name)

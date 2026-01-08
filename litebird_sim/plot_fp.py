@@ -193,8 +193,8 @@ class DetectorInfoViewer:
                         if detector in self.selected_detector_list:
                             self.selected_detector_list.remove(detector)
                 info_text = self.gen_detsinfo_text(dets_list[0], dets_list[1])
-                self.info_box.set_text(info_text)
-                self.fig.canvas.draw()
+                getattr(self.info_box, "set_text")(info_text)
+                getattr(self.fig, "canvas").draw()
 
     def ask_yes_or_no(self):
         while True:
@@ -228,7 +228,7 @@ class DetectorInfoViewer:
         else:
             IMO_ROOT_PATH = self.extract_location_from_toml(CONFIG_FILE_PATH)
             imo = Imo(flatfile_location=os.path.join(IMO_ROOT_PATH, "schema.json"))
-            versions = list(imo.imoobject.releases.keys())
+            versions = list(getattr(imo, "imoobject").releases.keys())
             versions_with_idx = [f"({i + 1}). {ver}" for i, ver in enumerate(versions)]
             print(
                 f"[green]Available IMO versions:[/green] [cyan]{versions_with_idx}[/cyan]"

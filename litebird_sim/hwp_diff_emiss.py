@@ -83,7 +83,12 @@ def add_2f_to_observations(
     # iterate through each observation
     for cur_obs in obs_list:
         if amplitude_2f_k is None:
-            amplitude_2f_k = cur_obs.amplitude_2f_k
+            amplitude_2f_k = getattr(cur_obs, "amplitude_2f_k", None)
+        assert amplitude_2f_k is not None, (
+            "The amplitude_2f_k parameter must be provided either "
+            "as an argument to add_2f_to_observations or as an "
+            "attribute of the Observation instance."
+        )
 
         # Determine the HWP angle to use:
         # - If an external HWP object is provided, compute the angle from it

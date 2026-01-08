@@ -7,17 +7,17 @@ import jinja2
 import numpy as np
 from astropy.io import fits
 from astropy.time import Time as AstroTime
+from mpi4py.MPI import Intercomm
 
 import litebird_sim
+
 from . import DetectorInfo
 from .coordinates import CoordinateSystem
 from .hwp import HWP
 from .mapmaking import ExternalDestriperParameters
 from .observations import Observation
-from .pointings_in_obs import (
-    _get_pointings_and_pol_angles_det,
-)
-from .simulations import Simulation, MpiDistributionDescr
+from .pointings_in_obs import _get_pointings_and_pol_angles_det
+from .simulations import MpiDistributionDescr, Simulation
 
 
 def _read_templates():
@@ -451,6 +451,7 @@ def save_simulation_for_madam(
         ]
     )
     if sim.mpi_comm and litebird_sim.MPI_ENABLED:
+        assert isinstance(litebird_sim.MPI_COMM_WORLD, Intercomm)
         number_of_files = litebird_sim.MPI_COMM_WORLD.allreduce(number_of_files)
         pointing_files = _combine_file_dictionaries(
             litebird_sim.MPI_COMM_WORLD.allgather(pointing_files),
@@ -491,6 +492,10 @@ def save_simulation_for_madam(
             else "F",
         }
 
+        assert simulation_file_path is not None
+        assert parameter_file_path is not None
+        assert sim_template is not None
+        assert par_template is not None
         with simulation_file_path.open("wt") as outf:
             outf.write(sim_template.render(**parameters))
 
