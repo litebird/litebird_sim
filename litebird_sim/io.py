@@ -9,7 +9,7 @@ from typing import Any
 import astropy.time
 import h5py
 import numpy as np
-from mpi4py.MPI import Intercomm
+from mpi4py.MPI import Intracomm
 
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
@@ -371,7 +371,7 @@ def _compute_global_start_index(
     if MPI_ENABLED and collective_mpi_call:
         # Count how many observations are kept in the MPI processes with lower rank
         # than this one.
-        assert isinstance(MPI_COMM_WORLD, Intercomm)
+        assert isinstance(MPI_COMM_WORLD, Intracomm)
         num_of_obs_all = np.asarray(MPI_COMM_WORLD.allgather(num_of_obs))
         global_start_index += int(np.sum(num_of_obs_all[0 : MPI_COMM_WORLD.rank]))
 
@@ -801,7 +801,7 @@ def read_list_of_observations(
             if (MPI_COMM_WORLD.rank == 0)
             else None
         )
-        assert isinstance(MPI_COMM_WORLD, Intercomm)
+        assert isinstance(MPI_COMM_WORLD, Intracomm)
         file_entries = MPI_COMM_WORLD.bcast(file_entries, root=0)
     else:
         file_entries = _build_file_entry_table(file_name_list)

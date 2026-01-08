@@ -52,11 +52,11 @@ class Imo:
             except tomlkit.exceptions.NonExistentKey:
                 log.warning('no repositories in file "%s"', str(CONFIG_FILE_PATH))
 
-        assert user is not None and password is not None
         if not self.imoobject:
             if flatfile_location:
                 self.imoobject = LocalInsDb(storage_path=flatfile_location)
             elif url:
+                assert user is not None and password is not None
                 self.imoobject = RemoteInsDb(
                     server_address=url, username=user, password=password
                 )

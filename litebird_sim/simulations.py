@@ -12,7 +12,7 @@ from shutil import SameFileError, copyfile, copytree
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import uuid4
 
-from mpi4py.MPI import Intercomm
+from mpi4py.MPI import Intracomm
 
 if TYPE_CHECKING:
     import brahmap  # type: ignore[unresolved-import]
@@ -924,8 +924,8 @@ class Simulation:
         ]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
-        static_path = Path(str(importlib.resources.files("litebird_sim.static")))
-        with open(static_path / "report_template.html") as inpf:
+        static_path = importlib.resources.files("litebird_sim.static")
+        with (static_path / "report_template.html").open() as inpf:
             html_full_report = jinja2.Template(inpf.read()).render(
                 name=self.name, html=html
             )
@@ -934,10 +934,11 @@ class Simulation:
         static_files_to_copy = ["sakura.css"]
         for curitem in static_files_to_copy:
             source = static_path / curitem
-            if source.is_dir():
-                copytree(src=source, dst=self.base_path)
-            else:
-                copyfile(src=source, dst=self.base_path / curitem)
+            with importlib.resources.as_file(source) as source_path:
+                if source_path.is_dir():
+                    copytree(src=source_path, dst=self.base_path)
+                else:
+                    copyfile(src=source_path, dst=self.base_path / curitem)
 
         # Finally, write down the full HTML report
         html_report_path = self.base_path / "report.html"
@@ -1305,7 +1306,7 @@ class Simulation:
         numba_num_of_threads = numba.get_num_threads()
 
         if self.mpi_comm and MPI_ENABLED:
-            assert isinstance(MPI_COMM_WORLD, Intercomm)
+            assert isinstance(MPI_COMM_WORLD, Intracomm)
             observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
             num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
             numba_num_of_threads_all = MPI_COMM_WORLD.allgather(numba_num_of_threads)

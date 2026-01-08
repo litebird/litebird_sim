@@ -464,8 +464,10 @@ def scan_map_in_observations(
         # it can still be None after this line, it is just for the cases where
         # we don't give hwp to scan_map_in_observations but there is in fact one
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
-        assert isinstance(maps, np.ndarray)
         if isinstance(hwp, NonIdealHWP) and hwp.harmonic_expansion:
+            assert isinstance(maps, np.ndarray), (
+                "maps must be a numpy array when using NonIdealHWP with harmonic_expansion"
+            )
             return fill_tod(
                 observations=cur_obs,
                 pointings=cur_ptg,
