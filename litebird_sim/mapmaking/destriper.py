@@ -3,7 +3,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from collections.abc import Callable
 
 import healpy as hp
@@ -443,7 +443,7 @@ def _nobs_matrix_to_cholesky(
 def _store_pixel_idx_and_pol_angle_in_obs(
     hpx: Healpix_Base,
     obs_list: list[Observation],
-    ptg_list: list[npt.NDArray] | list[Callable],
+    ptg_list: list[npt.NDArray | Callable],
     hwp: HWP | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
@@ -717,6 +717,7 @@ def _compute_binned_map(
         zip(obs_list, baseline_lengths_list, dm_list, tm_list)
     ):
         if baselines_list is None:
+            assert component is not None
             _update_sum_map_with_tod(
                 sky_map=output_sky_map,
                 hit_map=output_hit_map,
@@ -958,6 +959,7 @@ def _compute_baseline_sums(
                 output_sums=cur_sums,
             )
         else:
+            assert component is not None
             _compute_tod_sums_for_one_component(
                 weights=cur_obs.destriper_weights,
                 tod=getattr(cur_obs, component),
@@ -1625,23 +1627,18 @@ def make_destriped_map(
         # perform the following operations when MPI is not being used
         # OR when the MPI_COMM_GRID.COMM_OBS_GRID is not a NULL communicator
         if do_destriping:
-            try:
-                # This will fail if the parameter is a scalar
-                len(params.samples_per_baseline)
-
+            if isinstance(params.samples_per_baseline, list):
                 baseline_lengths_list = params.samples_per_baseline
                 assert len(baseline_lengths_list) == len(obs_list), (
                     f"The list baseline_lengths_list has {len(baseline_lengths_list)} "
                     f"elements, but there are {len(obs_list)} observations"
                 )
-            except TypeError:
-                # Ok, params.samples_per_baseline is a scalar, so we must
-                # figure out the number of samples in each baseline within
-                # each observation
+            else:
+                assert isinstance(params.samples_per_baseline, int)
                 baseline_lengths_list = [
                     split_items_evenly(
                         n=getattr(cur_obs, components[0]).shape[1],
-                        sub_n=int(params.samples_per_baseline),
+                        sub_n=params.samples_per_baseline,
                     )
                     for cur_obs in obs_list
                 ]
@@ -1779,7 +1776,7 @@ def make_destriped_map(
         baselines=baselines_list,
         baseline_errors=baseline_errors_list,
         baseline_lengths=baseline_lengths_list,
-        history_of_stopping_factors=history_of_stopping_factors,
+        history_of_stopping_factors=history_of_stopping_factors or [],
         stopping_factor=best_stopping_factor,
         destriped_map=destriped_map,
         converged=converged,
@@ -1869,11 +1866,12 @@ def remove_destriper_baselines_from_tod(
     :param component: The name of the TOD component to clean.
         The default is ``"tod"``.
     """
-
+    assert isinstance(destriper_result.baselines, list)
+    assert isinstance(destriper_result.baseline_lengths, list)
     remove_baselines_from_tod(
         obs_list=obs_list,
-        baselines=destriper_result.baselines,
-        baseline_lengths=destriper_result.baseline_lengths,
+        baselines=cast(list[npt.NDArray], destriper_result.baselines),
+        baseline_lengths=cast(list[npt.NDArray], destriper_result.baseline_lengths),
         component=component,
     )
 
@@ -2027,6 +2025,9 @@ def _save_baselines(results: DestriperResult, output_file: Path) -> None:
     hdu_list = [primary_hdu]
 
     idx = 0
+    assert results.baselines is not None
+    assert results.baseline_errors is not None
+    assert results.baseline_lengths is not None
     for cur_baseline, cur_error, cur_lengths in zip(
         results.baselines, results.baseline_errors, results.baseline_lengths
     ):

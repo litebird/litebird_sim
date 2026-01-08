@@ -1,7 +1,7 @@
 import importlib
 import logging as log
 from pathlib import Path
-from typing import IO
+from typing import IO, Any, cast
 from uuid import UUID
 
 import tomlkit
@@ -19,8 +19,8 @@ class Imo:
         self,
         flatfile_location=None,
         url=None,
-        user=None,
-        password=None,
+        user: str | None = None,
+        password: str | None = None,
         load_defaults: bool = False,
     ):
         self.imoobject = None
@@ -38,7 +38,8 @@ class Imo:
                     assert isinstance(repositories, list)
                     for cur_imo_definition in repositories:
                         assert isinstance(cur_imo_definition, dict)
-                        cur_location = cur_imo_definition["location"]
+                        cur_location = cast(dict[str, Any], cur_imo_definition)
+                        assert isinstance(cur_location, str)
                         self.imoobject.merge(LocalInsDb(cur_location))
 
             except FileNotFoundError:
@@ -50,6 +51,7 @@ class Imo:
             except tomlkit.exceptions.NonExistentKey:
                 log.warning('no repositories in file "%s"', str(CONFIG_FILE_PATH))
 
+        assert user is not None and password is not None
         if not self.imoobject:
             if flatfile_location:
                 self.imoobject = LocalInsDb(storage_path=flatfile_location)

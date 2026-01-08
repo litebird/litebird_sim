@@ -31,6 +31,7 @@ def get_detector_orientation(detector: DetectorInfo):
     """
 
     telescope = detector.name.split("_")[0]
+    assert detector.orient is not None
     if telescope == "000" or telescope == "002":  # LFT and HFT
         orient_angle = 0.0
         handiness = ""

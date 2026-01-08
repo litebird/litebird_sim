@@ -108,6 +108,6 @@ exclude = [
 
 [tool.ty.rules]
 possibly-missing-attribute = "ignore"  # 154
-invalid-argument-type = "ignore"  # 77
+invalid-argument-type = "error"  # 77
 not-iterable = "error"  # 16
 unresolved-import = "ignore"  # 18

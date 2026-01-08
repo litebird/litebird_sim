@@ -41,7 +41,7 @@ def add_2f(
     if isinstance(amplitude_2f_k, Number):
         amplitude_2f_k = np.array([amplitude_2f_k] * num_of_dets)
 
-    assert len(amplitude_2f_k) == num_of_dets
+        assert len(amplitude_2f_k) == num_of_dets
 
     for detector_idx in range(tod.shape[0]):
         add_2f_for_one_detector(

@@ -285,6 +285,7 @@ class SphericalHarmonics:
 
         lmax_in = self.lmax
         mmax_in = self.mmax
+        assert mmax_in is not None
 
         if mmax_out is None:
             mmax_out = lmax_out

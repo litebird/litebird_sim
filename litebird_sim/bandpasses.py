@@ -90,7 +90,7 @@ class BandPassInfo:
     beta_exp: float = 1
     cosine_apo_length: float = 5
     cheby_poly_order: int = 3
-    cheby_ripple_dB: int = 3
+    cheby_ripple_dB: int | float = 3
 
     def __post_init__(self):
         """

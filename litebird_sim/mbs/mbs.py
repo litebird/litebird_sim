@@ -246,7 +246,7 @@ class MbsParameters:
     nmc_cmb: int = 1
     seed_cmb: int | None = None
     make_fg: bool = False
-    fg_models: dict[str, Any] | None = None
+    fg_models: dict[str, Any] | list[str] | None = None
     make_dipole: bool = False
     sun_velocity: list | None = None
     output_string: str | None = None

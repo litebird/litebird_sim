@@ -124,7 +124,7 @@ def _tomlkit_to_popo(d):
     return result
 
 
-def get_template_file_path(filename: str | Path) -> Path:
+def get_template_file_path(filename: str) -> Path:
     """Return a Path object pointing to the full path of a template file.
 
     Template files are used by the framework to produce automatic
@@ -135,7 +135,9 @@ def get_template_file_path(filename: str | Path) -> Path:
     returns a full, absolute path to the file within the ``templates``
     folder of the ``litebird_sim`` source code.
     """
-    return Path(importlib.resources.files("litebird_sim.templates").joinpath(filename))
+    return Path(
+        str(importlib.resources.files("litebird_sim.templates").joinpath(filename))
+    )
 
 
 @dataclass
@@ -383,8 +385,8 @@ class Simulation:
 
         self.observations: list[Observation] = []
 
-        self.start_time = start_time
-        self.duration_s = duration_s
+        self.start_time: int | float | astropy.time.Time = start_time
+        self.duration_s: int | float = duration_s
 
         self.detectors: list[DetectorInfo] = []
         self.instrument: InstrumentInfo | None = None
@@ -445,7 +447,9 @@ class Simulation:
             # is the current working directory)
             dest_param_file = (self.base_path / self.parameter_file.name).resolve()
             try:
-                copyfile(src=self.parameter_file, dst=dest_param_file)
+                copyfile(
+                    src=self.parameter_file.as_posix(), dst=dest_param_file.as_posix()
+                )
             except SameFileError:
                 pass
 
@@ -918,7 +922,7 @@ class Simulation:
         ]
         html = markdown.markdown(self.report, extensions=md_extensions)
 
-        static_path = importlib.resources.files("litebird_sim.static")
+        static_path = Path(str(importlib.resources.files("litebird_sim.static")))
         with open(static_path / "report_template.html") as inpf:
             html_full_report = jinja2.Template(inpf.read()).render(
                 name=self.name, html=html
@@ -970,7 +974,7 @@ class Simulation:
         template_file_path = get_template_file_path("report_appendix.md")
         with template_file_path.open("rt") as inpf:
             markdown_template = "".join(inpf.readlines())
-        self.append_to_report(markdown_template, **dictionary)
+        self.append_to_report(markdown_template, figures=[], **dictionary)
 
         return self._generate_html_report() if MPI_COMM_WORLD.rank == 0 else None
 
@@ -1554,6 +1558,7 @@ class Simulation:
         1807.06207)
         """
 
+        assert isinstance(self.start_time, astropy.time.Time)
         orbit = SpacecraftOrbit(
             self.start_time,
             solar_velocity_km_s=solar_velocity_km_s,
@@ -1653,7 +1658,9 @@ class Simulation:
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
             if maps is None:
+                assert self.observations, "No observations available"
                 maps = self.observations[0].sky
+            assert maps is not None
             if isinstance(maps, dict):
                 if "Mbs_parameters" in maps.keys():
                     if maps["Mbs_parameters"].make_fg:
@@ -1846,6 +1853,7 @@ class Simulation:
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
             if sky_alms is None:
+                assert self.observations, "No observations available"
                 sky_alms = self.observations[0].sky
             if isinstance(sky_alms, dict):
                 if "Mbs_parameters" in sky_alms.keys():
@@ -2084,7 +2092,7 @@ class Simulation:
                             mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
                     filenames.append(
                         self.write_healpix_map(
-                            file, mapp, column_names=names, coord=coords
+                            Path(file), mapp, column_names=names, coord=coords
                         )
                     )
             return filenames
@@ -2206,7 +2214,7 @@ class Simulation:
         if write_to_disk:
             filenames = []
             baselines = None
-            recycled_convergence = None
+            recycled_convergence = False
             for ds in detector_splits:
                 for ts in time_splits:
                     result = make_destriped_map(
@@ -2251,7 +2259,7 @@ class Simulation:
         else:
             destriped_maps = {}
             baselines = None
-            recycled_convergence = None
+            recycled_convergence = False
             for ds in detector_splits:
                 for ts in time_splits:
                     destriped_maps[f"{ds}_{ts}"] = make_destriped_map(
@@ -2614,5 +2622,6 @@ class Simulation:
                 markdown_text=markdown_template,
                 component=component,
                 user_seed=user_seed,
+                figures=[],
                 **dictionary,
             )

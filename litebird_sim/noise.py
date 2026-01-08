@@ -155,6 +155,7 @@ def add_noise(
 
     if isinstance(scale, Number):
         scale = np.array([scale] * num_of_dets)
+    assert isinstance(scale, np.ndarray)
 
     assert len(net_ukrts) == num_of_dets
     assert len(fknee_mhz) == num_of_dets

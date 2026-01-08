@@ -8,14 +8,14 @@ import numpy as np
 import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
-from .units import Units
 from .detectors import DetectorInfo, InstrumentInfo
-from .distribute import distribute_evenly, distribute_detector_blocks
-from .hwp import HWP, IdealHWP, NonIdealHWP
+from .distribute import distribute_detector_blocks, distribute_evenly
+from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
-from .hwp import Calc
+from .spherical_harmonics import SphericalHarmonics
+from .units import Units
 
 
 @dataclass
@@ -154,7 +154,7 @@ class Observation:
     wafer: str | None
 
     # Dynamic attributes set by beam synthesis
-    name: list | None
+    name: list
     fwhm_arcmin: npt.NDArray
     ellipticity: npt.NDArray
     psi_rad: npt.NDArray
@@ -163,6 +163,15 @@ class Observation:
 
     # Dynamic attributes set by io
     local_flags: npt.NDArray | None
+
+    # Dynamic attributes set by scanning
+    sky: (
+        SphericalHarmonics
+        | dict[str, SphericalHarmonics]
+        | np.ndarray
+        | dict[str, np.ndarray]
+        | None
+    )
 
     def __init__(
         self,

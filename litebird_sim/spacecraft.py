@@ -295,7 +295,7 @@ class SpacecraftPositionAndVelocity:
         self.orbit = orbit
         self.start_time = start_time
         self.time_span_s = time_span_s
-        self.positions_km = positions_km
+        self.positions_km: np.ndarray = positions_km
         self.velocities_km_s: np.ndarray = velocities_km_s
 
     def __str__(self):

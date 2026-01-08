@@ -238,6 +238,7 @@ def generate_gauss_beam_alms(
 
     blms = {}
 
+    assert observation.name is not None
     if channels is None:
         # Use detectors from observations
         for detector_idx, det_name in enumerate(observation.name):

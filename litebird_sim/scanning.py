@@ -992,7 +992,7 @@ def get_det2ecl_quaternions(
 def get_ecl2det_quaternions(
     observations,
     spin2ecliptic_quats: RotQuaternion,
-    detector_quats: RotQuaternion,
+    detector_quats: list[RotQuaternion],
     bore2spin_quat: RotQuaternion,
     quaternion_buffer=None,
     dtype=np.float64,

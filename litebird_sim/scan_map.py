@@ -107,7 +107,7 @@ def scan_map_generic_hwp_for_one_detector(
 def scan_map(
     tod,
     pointings,
-    maps: dict[str, np.ndarray],
+    maps: dict[str, np.ndarray] | np.ndarray,
     pol_angle_detectors: np.ndarray | None = None,
     pol_eff_detectors: np.ndarray | None = None,
     hwp: HWP | None = None,
@@ -222,6 +222,7 @@ def scan_map(
         )
 
         if input_names is None:
+            assert isinstance(maps, np.ndarray)
             maps_det = maps
         else:
             maps_det = maps[input_names[detector_idx]]
@@ -294,7 +295,7 @@ def scan_map(
 
 def scan_map_in_observations(
     observations: Observation | list[Observation],
-    maps: np.ndarray | dict[str, np.ndarray],
+    maps: np.ndarray | dict[str, np.ndarray] | None,
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp: HWP | None = None,
     input_map_in_galactic: bool = True,
@@ -304,7 +305,7 @@ def scan_map_in_observations(
     save_tod: bool = True,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
-    mueller_phases: np.ndarray | None = None,
+    mueller_phases: dict | None = None,
     comm: bool | None = None,
 ):
     """
@@ -417,11 +418,12 @@ def scan_map_in_observations(
 
     if maps is None:
         try:
-            maps = observations[0].sky
+            assert obs_list, "No observations available"
+            maps = obs_list[0].sky
         except AttributeError:
             msg = "'maps' is None and nothing is found in the observation. You should either pass the maps here, or store them in the observations if 'mbs' is used."
             raise AttributeError(msg)
-        assert maps["type"] == "maps", (
+        assert maps is not None and maps["type"] == "maps", (
             "'maps' should be of type 'maps'. Disable 'store_alms' in 'MbsParameters' to make it so."
         )
 
@@ -462,6 +464,7 @@ def scan_map_in_observations(
         # it can still be None after this line, it is just for the cases where
         # we don't give hwp to scan_map_in_observations but there is in fact one
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+        assert isinstance(maps, np.ndarray)
         if isinstance(hwp, NonIdealHWP) and hwp.harmonic_expansion:
             return fill_tod(
                 observations=cur_obs,

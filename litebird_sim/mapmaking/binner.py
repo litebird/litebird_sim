@@ -193,7 +193,7 @@ def _extract_map_and_fill_info(info: npt.NDArray) -> npt.NDArray:
 def _build_nobs_matrix(
     nside: int,
     obs_list: list[Observation],
-    ptg_list: list[npt.NDArray] | list[Callable],
+    ptg_list: list[npt.NDArray | Callable],
     hwp: HWP | None,
     dm_list: list[npt.NDArray],
     tm_list: list[npt.NDArray],
@@ -248,6 +248,7 @@ def _build_nobs_matrix(
 
         del pixidx_all, polang_all
 
+    assert obs_list, "No observations provided"
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
         pass
@@ -324,6 +325,7 @@ def make_binned_map(
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
     )
+    assert ptg_list, "No observations provided"
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 

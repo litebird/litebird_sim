@@ -805,13 +805,18 @@ def read_list_of_observations(
     if limit_mpi_rank and MPI_ENABLED:
         file_entries = [x for x in file_entries if x.mpi_rank == MPI_COMM_WORLD.rank]
 
+    # Convert TodDescription objects to strings
+    tod_fields_str: list[str] = [
+        f.name if isinstance(f, TodDescription) else f for f in tod_fields
+    ]
+
     for cur_file_entry in file_entries:
         observations.append(
             read_one_observation(
                 cur_file_entry.path,
                 limit_mpi_rank=limit_mpi_rank,
                 tod_dtype=tod_dtype,
-                tod_fields=tod_fields,
+                tod_fields=tod_fields_str,
             )
         )
 

@@ -205,6 +205,7 @@ class DetectorInfo:
         self.quat = normalize_time_dependent_quaternion(self.quat)
 
         if isinstance(self.band_freqs_ghz, np.ndarray):
+            assert self.band_weights is not None
             assert len(self.band_freqs_ghz) == len(self.band_weights)
 
         # Warn if mueller_hwp is not a 4x4 numpy array
