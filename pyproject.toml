@@ -103,13 +103,14 @@ exclude = [
     "benchmarks/",
     "test/",
     "scripts/",
+    "litebird_sim/mbs/",
 ]
 
 [tool.ty.rules]
 possibly-missing-attribute = "ignore"  # 154
 invalid-argument-type = "ignore"  # 77
 unresolved-attribute = "ignore"  # 75
-not-subscriptable = "ignore"  # 44
+not-subscriptable = "error"  # 44
 unsupported-operator = "error"  # 30
 not-iterable = "ignore"  # 24
 unresolved-import = "ignore"  # 18

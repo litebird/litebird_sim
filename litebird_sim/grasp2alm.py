@@ -459,7 +459,6 @@ class BeamGrid:
         self.ny = 0
         self.frequency = 0.0
         self.frequency_unit = ""
-        self.amp = None
 
         while True:
             line = file_obj.readline().strip()

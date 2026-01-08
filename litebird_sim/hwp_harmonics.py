@@ -539,6 +539,7 @@ def fill_tod(
     assert observations is not None, (
         "You need to pass at least one observation to fill_tod."
     )
+    assert maps is not None, "You need to pass input maps to fill_tod."
 
     if mueller_phases is None:
         mueller_phases = temporary_mueller_phases

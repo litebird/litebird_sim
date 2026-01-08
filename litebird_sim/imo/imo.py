@@ -35,6 +35,7 @@ class Imo:
 
                 if load_defaults:
                     for cur_imo_definition in config["repositories"]:
+                        assert isinstance(cur_imo_definition, dict)
                         cur_location = cur_imo_definition["location"]
                         self.imoobject.merge(LocalInsDb(cur_location))
 

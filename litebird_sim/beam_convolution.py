@@ -303,11 +303,13 @@ def add_convolved_sky(
         if input_sky_names is None:
             sky_alms_det = sky_alms
         else:
+            assert isinstance(sky_alms, dict)
             sky_alms_det = sky_alms[input_sky_names[detector_idx]]
 
         if input_beam_names is None:
             beam_alms_det = beam_alms
         else:
+            assert isinstance(beam_alms, dict)
             beam_alms_det = beam_alms[input_beam_names[detector_idx]]
 
         if mueller_hwp is None:

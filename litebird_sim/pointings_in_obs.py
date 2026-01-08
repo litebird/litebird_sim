@@ -413,6 +413,7 @@ def _get_pointings_and_pol_angles_det(
         observations=obs, pointings=pointings
     )
 
+    assert pointings is not None, "Pointings should not be None after normalization."
     pointings_det, hwp_angle = _get_pointings_array(
         detector_idx=det_idx,
         pointings=pointings[0],
