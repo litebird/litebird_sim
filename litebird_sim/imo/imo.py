@@ -34,7 +34,9 @@ class Imo:
                 self.imoobject = LocalInsDb(PTEP_IMO_LOCATION)
 
                 if load_defaults:
-                    for cur_imo_definition in config["repositories"]:
+                    repositories = config["repositories"]
+                    assert isinstance(repositories, list)
+                    for cur_imo_definition in repositories:
                         assert isinstance(cur_imo_definition, dict)
                         cur_location = cur_imo_definition["location"]
                         self.imoobject.merge(LocalInsDb(cur_location))

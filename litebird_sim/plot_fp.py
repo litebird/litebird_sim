@@ -32,7 +32,7 @@ class DetectorInfoViewer:
         self.ndets_in_channel = None
         self.channel_dets_list = []
         self.total_dets_list = []
-        self.base_path = None
+        self.base_path = ""
         self.telescope = None
         self.channel = None
         self.imo_version = None

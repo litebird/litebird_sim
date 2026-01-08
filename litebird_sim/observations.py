@@ -138,6 +138,32 @@ class Observation:
 
     """
 
+    # Dynamic attributes set via setattr_det_global/setattr_det
+    det_idx: npt.NDArray | None
+    jones_hwp: list | None
+    quat: list
+    mueller_hwp: npt.NDArray | None
+
+    # Dynamic attributes set by destriper
+    destriper_weights: npt.NDArray | None
+    destriper_pixel_idx: npt.NDArray | None
+    destriper_pol_angle_rad: npt.NDArray | None
+
+    # Dynamic attributes set by mapmaker
+    net_ukrts: int | float | npt.NDArray
+    wafer: str | None
+
+    # Dynamic attributes set by beam synthesis
+    name: list | None
+    fwhm_arcmin: npt.NDArray
+    ellipticity: npt.NDArray
+    psi_rad: npt.NDArray
+    pol_angle_rad: npt.NDArray
+    blms: dict | None
+
+    # Dynamic attributes set by io
+    local_flags: npt.NDArray | None
+
     def __init__(
         self,
         detectors: int | list[dict],
@@ -319,6 +345,7 @@ class Observation:
         # Distribute the arrays
         if self.comm and self.comm.size > 1:
             keys = self.comm.bcast(keys)
+        assert keys is not None, "Keys should not be None after broadcast."
 
         for k in keys:
             self.setattr_det_global(k, dict_of_array.get(k), root)
@@ -401,6 +428,9 @@ class Observation:
             n_blocks_time (int): Number of time blocks
 
         """
+        assert self._det_blocks_attributes is not None, (
+            "Detector block attributes should not be None"
+        )
         self.detector_blocks = defaultdict(list)
         for det in detectors:
             key = tuple(det[attribute] for attribute in self._det_blocks_attributes)
@@ -983,6 +1013,9 @@ class Observation:
         if isinstance(detector_idx, int):
             assert (detector_idx >= 0) and (detector_idx < self.n_detectors), (
                 f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+            )
+            assert self.quat is not None, (
+                "Detector quaternions have not been initialized."
             )
 
             return self.pointing_provider.get_pointings(

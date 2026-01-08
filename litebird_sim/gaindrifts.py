@@ -1,7 +1,8 @@
-import numpy as np
-
-from enum import IntEnum
+import logging as log
 from dataclasses import dataclass
+from enum import IntEnum
+
+import numpy as np
 
 from .observations import Observation
 from .seeding import regenerate_or_check_detector_generators
@@ -22,7 +23,7 @@ class GainDriftType(IntEnum):
 
     LINEAR_GAIN = 0
     THERMAL_GAIN = 1
-    # SLOW_GAIN = 2 # Remains to be implemented
+    SLOW_GAIN = 2  # Remains to be implemented
 
 
 class SamplingDist(IntEnum):
@@ -389,7 +390,7 @@ def apply_gaindrift_for_one_detector(
         det_tod *= _responsivity_function(dT)
 
     elif drift_params.drift_type == GainDriftType.SLOW_GAIN:
-        # !!! Remains to be implemented
+        log.warning("Slow gain drift is not yet implemented.")
         pass
     else:
         raise ValueError(

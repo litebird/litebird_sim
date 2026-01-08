@@ -65,6 +65,7 @@ def _save_pointings_to_fits(
     psi_col = fits.Column(name="PSI", array=pol_angle, format="E")
 
     primary_hdu = fits.PrimaryHDU()
+    assert observation.name is not None
     primary_hdu.header["DET_NAME"] = observation.name[det_idx]
     primary_hdu.header["DET_IDX"] = det_idx
     primary_hdu.header["COORD"] = (
@@ -93,6 +94,7 @@ def _save_tod_to_fits(
     ensure_parent_dir_exists(file_name)
 
     primary_hdu = fits.PrimaryHDU()
+    assert observations.name is not None
     primary_hdu.header["DET_NAME"] = observations.name[det_idx]
     primary_hdu.header["DET_IDX"] = det_idx
     primary_hdu.header["TIME0"] = _format_time_for_fits(observations.start_time)

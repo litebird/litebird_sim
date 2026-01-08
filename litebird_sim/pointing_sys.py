@@ -544,25 +544,32 @@ class PointingSys:
 
         assert sim.spin2ecliptic_quats is not None
 
-        if isinstance(
-            sim.spin2ecliptic_quats.start_time, astropy.time.Time
-        ) and isinstance(obs.start_time, astropy.time.Time):
-            assert sim.spin2ecliptic_quats.start_time == obs.start_time, (
+        spin_start = sim.spin2ecliptic_quats.start_time
+        obs_start = obs.start_time
+        if isinstance(spin_start, astropy.time.Time) and isinstance(
+            obs_start, astropy.time.Time
+        ):
+            assert spin_start == obs_start, (
                 "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same `astropy.time.Time`."
             )
-        elif isinstance(sim.spin2ecliptic_quats.start_time, np.float64) and isinstance(
-            obs.start_time, np.float64
-        ):
-            assert np.isclose(sim.spin2ecliptic_quats.start_time, obs.start_time), (
+        elif isinstance(spin_start, np.floating) and isinstance(obs_start, np.floating):
+            assert np.isclose(spin_start, obs_start), (
                 "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same value."
             )
+        elif (
+            isinstance(spin_start, (int, float, np.floating))
+            and isinstance(obs_start, (int, float, np.floating))
+            and np.isclose(spin_start, obs_start)
+        ):
+            # call warning
+            spin_start = obs_start
+            warnings.warn(
+                "\nThe `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` are not same type, but they are same number. \nSo, the `Simulation.spin2ecliptic_quats.start_time` is updated to the `Observation.start_time`."
+            )
         else:
-            if np.isclose(sim.spin2ecliptic_quats.start_time, obs.start_time):
-                # call warning
-                sim.spin2ecliptic_quats.start_time = obs.start_time
-                warnings.warn(
-                    "\nThe `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` are not same type, but they are same number. \nSo, the `Simulation.spin2ecliptic_quats.start_time` is updated to the `Observation.start_time`."
-                )
+            raise ValueError(
+                "The `Simulation.spin2ecliptic_quats.start_time` and the `Observation.start_time` must be the same type (i.e., both are either float or astropy.time.Time)."
+            )
 
         self.focalplane = FocalplaneCoord(sim, obs, detectors)
         self.hwp = HWPCoord(sim, obs, detectors)

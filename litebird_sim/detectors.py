@@ -196,6 +196,7 @@ class DetectorInfo:
     pointing_u_v: None | np.ndarray = None
     g_one_over_k: float = 0.0
     amplitude_2f_k: float = 0.0
+    band: BandPassInfo | None = None
 
     def __post_init__(self):
         if self.quat is None:
@@ -341,6 +342,7 @@ class FreqChannelInfo:
     number_of_detectors: int = 0
     detector_names: list[str] = field(default_factory=list)
     detector_objs: list[UUID] = field(default_factory=list)
+    band: BandPassInfo | None = None
 
     """A data class representing the configuration of a frequency channel in LiteBIRD.
 

@@ -28,7 +28,7 @@ from .quaternions import (
     normalize_quaternions,
 )
 
-YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * u.year).to(u.s).value
+YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * getattr(u, "year")).to(u.s).value
 
 
 @njit
@@ -481,10 +481,8 @@ class RotQuaternion:
             assert self.quats.shape == other.quats.shape, (
                 f"quaternions have different shapes: {self.quats.shape} vs {other.quats.shape}"
             )
-            assert isinstance(self.start_time, type(other.start_time)), (
-                f"start_time must have the same type: {type(self.start_time)} vs {type(other.start_time)}"
-            )
             if isinstance(self.start_time, float):
+                assert isinstance(other.start_time, float)
                 assert np.isclose(self.start_time, other.start_time), (
                     f"start_time must be the same value: {self.start_time} vs {other.start_time}"
                 )
@@ -492,6 +490,9 @@ class RotQuaternion:
                 assert self.start_time == other.start_time, (
                     f"start_time must be the same value: {self.start_time} vs {other.start_time}"
                 )
+            assert (
+                self.sampling_rate_hz is not None and other.sampling_rate_hz is not None
+            )
             assert np.isclose(self.sampling_rate_hz, other.sampling_rate_hz), (
                 f"sampling_rate_hz must be the same value: {self.sampling_rate_hz} vs {other.sampling_rate_hz}"
             )
@@ -616,6 +617,7 @@ class RotQuaternion:
             return False
 
         if isinstance(self.start_time, float):
+            assert isinstance(other.start_time, float)
             if not np.isclose(self.start_time, other.start_time):
                 return False
         elif self.start_time is not None:
@@ -626,9 +628,9 @@ class RotQuaternion:
             # This catches the case where one variable is None but the other is not
             return False
 
-        if (self.sampling_rate_hz is not None) and not np.isclose(
-            self.sampling_rate_hz, other.sampling_rate_hz
-        ):
+        if (
+            self.sampling_rate_hz is not None and other.sampling_rate_hz is not None
+        ) and not np.isclose(self.sampling_rate_hz, other.sampling_rate_hz):
             return False
 
         return np.allclose(self.quats, other.quats)

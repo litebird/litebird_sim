@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 import numpy as np
 import scipy as sp
@@ -239,6 +239,12 @@ class BandPassInfo:
                 np.trapz(self.freqs_ghz * self.weights, self.freqs_ghz)
                 / self.get_normalization()
             )
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "BandPassInfo":
+        """Create a BandPassInfo object from a dictionary."""
+        field_names = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in d.items() if k in field_names})
 
     @staticmethod
     def from_imo(imo: Imo, url: UUID | str):

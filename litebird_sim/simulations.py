@@ -224,6 +224,7 @@ class MpiDistributionDescr:
 
 """
             for cur_obs_idx, cur_obs in enumerate(cur_mpi_proc.observations):
+                assert cur_obs.tod_shape is not None, "tod_shape should not be None"
                 result += """## Observation #{obs_idx}
 - Start time: {start_time}
 - Duration: {duration_s} s
@@ -433,7 +434,7 @@ class Simulation:
             numba.set_num_threads(self.numba_threads)
 
         if self.numba_threading_layer:
-            numba.config.THREADING_LAYER = self.numba_threading_layer
+            numba.config.THREADING_LAYER = self.numba_threading_layer  # type: ignore[attr-defined]
 
         self._ensure_base_path_exists()
 
@@ -628,16 +629,16 @@ class Simulation:
             # for the duration
             if isinstance(self.duration_s, str):
                 conversions = [
-                    ("years", astropy.units.year),
-                    ("year", astropy.units.year),
-                    ("days", astropy.units.day),
-                    ("day", astropy.units.day),
-                    ("hours", astropy.units.hour),
-                    ("hour", astropy.units.hour),
-                    ("minutes", astropy.units.minute),
-                    ("min", astropy.units.minute),
-                    ("sec", astropy.units.second),
-                    ("s", astropy.units.second),
+                    ("years", getattr(astropy.units, "year")),
+                    ("year", getattr(astropy.units, "year")),
+                    ("days", getattr(astropy.units, "day")),
+                    ("day", getattr(astropy.units, "day")),
+                    ("hours", getattr(astropy.units, "hour")),
+                    ("hour", getattr(astropy.units, "hour")),
+                    ("minutes", getattr(astropy.units, "minute")),
+                    ("min", getattr(astropy.units, "minute")),
+                    ("sec", getattr(astropy.units, "second")),
+                    ("s", getattr(astropy.units, "second")),
                 ]
 
                 for conv_str, conv_unit in conversions:

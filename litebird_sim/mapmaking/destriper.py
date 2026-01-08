@@ -328,7 +328,7 @@ class DestriperResult:
     baseline_errors: list[npt.NDArray] | npt.NDArray | None
     baseline_lengths: list[npt.NDArray] | npt.NDArray | None
     stopping_factor: float | None
-    history_of_stopping_factors: list[float] | None
+    history_of_stopping_factors: list[float]
     destriped_map: npt.NDArray | None
     converged: bool | str
     elapsed_time_s: float

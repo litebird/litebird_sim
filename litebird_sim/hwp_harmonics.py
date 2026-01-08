@@ -27,30 +27,21 @@ temporary_mueller_phases = {
     ),
 }
 
+k_B = getattr(const, "k_B").value  # Boltzmann constant in J/K
+c = getattr(const, "c").value  # Speed of light in m/s
+h = getattr(const, "h").value  # Planck constant in J s
+Tcmb0 = getattr(cosmo, "Tcmb0").value  # CMB temperature today in K
+
 
 def _dBodTrj(nu):
-    return 2 * const.k_B.value * nu * nu * 1e18 / const.c.value / const.c.value
+    return 2 * k_B * nu * nu * 1e18 / c / c
 
 
 def _dBodTth(nu):
-    x = const.h.value * nu * 1e9 / const.k_B.value / cosmo.Tcmb0.value
+    x = h * nu * 1e9 / k_B / Tcmb0
     ex = np.exp(x)
     exm1 = ex - 1.0e0
-    return (
-        2
-        * const.h.value
-        * nu
-        * nu
-        * nu
-        * 1e27
-        / const.c.value
-        / const.c.value
-        / exm1
-        / exm1
-        * ex
-        * x
-        / cosmo.Tcmb0.value
-    )
+    return 2 * h * nu * nu * nu * 1e27 / c / c / exm1 / exm1 * ex * x / Tcmb0
 
 
 @njit
