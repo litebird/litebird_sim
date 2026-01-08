@@ -169,7 +169,7 @@ def _get_hwp_angle(
                 return obs.get_hwp_angle(pointings_dtype=pointing_dtype)
         else:
             if hasattr(obs, "mueller_hwp"):
-                if any(m is not None for m in obs.mueller_hwp):
+                if any(m is not None for m in obs.mueller_hwp):  # type: ignore[not-iterable]
                     raise AssertionError(
                         "Detectors have been initialized with a mueller_hwp, "
                         "but no HWP is either passed or initialized in the pointing."

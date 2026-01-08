@@ -53,7 +53,7 @@ def compute_signal_for_one_sample(T, Q, U, co, si, gamma):
 def scan_map_for_one_detector(
     tod_det, input_T, input_Q, input_U, pol_angle_det, pol_eff_det
 ):
-    for i in prange(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         tod_det[i] += compute_signal_for_one_sample(
             T=input_T[i],
             Q=input_Q[i],

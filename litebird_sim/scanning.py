@@ -209,7 +209,7 @@ def all_compute_pointing_and_orientation(result_matrix, quat_matrix):
 
     n_samples = result_matrix.shape[0]
 
-    for sample_idx in prange(n_samples):
+    for sample_idx in prange(n_samples):  # type: ignore[not-iterable]
         compute_pointing_and_orientation(
             result_matrix[sample_idx, :],
             quat_matrix[sample_idx, :],
@@ -322,7 +322,7 @@ def all_spin_to_ecliptic(
     4)``.
 
     """
-    for row in prange(result_matrix.shape[0]):
+    for row in prange(result_matrix.shape[0]):  # type: ignore[not-iterable]
         spin_to_ecliptic(
             result=result_matrix[row, :],
             sun_earth_angle_rad=sun_earth_angles_rad[row],

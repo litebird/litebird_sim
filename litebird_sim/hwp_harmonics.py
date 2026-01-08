@@ -297,7 +297,7 @@ def compute_signal_for_one_detector(
     looping over (time) samples.
     """
 
-    for i in prange(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         # TODO: GET THE SEVERAL COSINE TERMS DIRECTLY FROM THE
         # COMPLEX COMPUTATION OF HWP_ANGLE in hwp._get_hwp_angle
         Four_rho_phi = 4 * (rho[i] - phi)
@@ -400,7 +400,7 @@ def compute_ata_atd_for_one_detector(
     for a single detector, looping over (time) samples.
     """
 
-    for i in prange(len(tod)):
+    for i in prange(len(tod)):  # type: ignore[not-iterable]
         Four_rho_phi = 4 * (rho[i] - phi)
         Two_rho_phi = 2 * (rho[i] - phi)
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(

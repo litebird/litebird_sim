@@ -139,10 +139,10 @@ class Observation:
     """
 
     # Dynamic attributes set via setattr_det_global/setattr_det
-    det_idx: npt.NDArray | None
-    jones_hwp: list | None
+    det_idx: npt.NDArray
+    jones_hwp: list
     quat: list
-    mueller_hwp: npt.NDArray | None
+    mueller_hwp: npt.NDArray
 
     # Dynamic attributes set by destriper
     destriper_weights: npt.NDArray | None

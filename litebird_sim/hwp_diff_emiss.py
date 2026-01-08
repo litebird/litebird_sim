@@ -17,7 +17,7 @@ def compute_2f_for_one_sample(angle_rad, amplitude_k):
 
 @njit(parallel=True)
 def add_2f_for_one_detector(tod_det, angle_det_rad, amplitude_k):
-    for i in prange(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         tod_det[i] += compute_2f_for_one_sample(
             angle_rad=angle_det_rad[i], amplitude_k=amplitude_k
         )

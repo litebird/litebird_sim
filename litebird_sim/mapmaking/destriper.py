@@ -414,7 +414,7 @@ def _nobs_matrix_to_cholesky(
     """Apply `cholesky` iteratively on all the input maps in `nobs_matrix`
     and save each result in `nobs_matrix_cholesky`"""
 
-    for pixel_idx in prange(nobs_matrix.shape[0]):
+    for pixel_idx in prange(nobs_matrix.shape[0]):  # type: ignore[not-iterable]
         cur_nobs_matrix = nobs_matrix[pixel_idx]
         (cond_number, flag) = estimate_cond_number(
             a00=cur_nobs_matrix[0],
