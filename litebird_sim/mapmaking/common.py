@@ -4,7 +4,7 @@ from collections.abc import Callable
 import astropy.time
 import numpy as np
 import numpy.typing as npt
-from ducc0.healpix import Healpix_Base  # type: ignore[unresolved-import]
+from ducc0.healpix import Healpix_Base
 from numba import njit
 
 from litebird_sim.coordinates import CoordinateSystem

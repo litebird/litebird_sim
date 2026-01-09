@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import uuid4
 
 if TYPE_CHECKING:
-    import brahmap  # type: ignore[unresolved-import]
+    import brahmap
 
 import astropy.time
 import astropy.units
@@ -2435,7 +2435,7 @@ class Simulation:
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-            import brahmap  # noqa  # type: ignore[unresolved-import]
+            import brahmap  # noqa
 
             template_file_path = get_template_file_path("report_brahmap.md")
             brahmap_version = getattr(brahmap, "__version__", "unknown")

@@ -3,7 +3,7 @@
 # to make updating from outside sources easier.
 from dataclasses import dataclass
 
-import ducc0  # type: ignore[unresolved-import]
+import ducc0
 import numpy as np
 
 __all__ = ["MuellerConvolver"]

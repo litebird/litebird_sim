@@ -105,3 +105,6 @@ exclude = [
     "scripts/",
     "litebird_sim/mbs/",
 ]
+
+[tool.ty.rules]
+unresolved-import="ignore"

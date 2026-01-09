@@ -1,6 +1,6 @@
 import numpy as np
-from astropy.constants import c as c_light  # type: ignore[unresolved-import]
-from astropy.constants import h, k_B  # type: ignore[unresolved-import]
+from astropy.constants import c as c_light
+from astropy.constants import h, k_B
 
 ARCMIN_TO_RAD = np.pi / 180 / 60
 

@@ -1,7 +1,7 @@
 import numpy as np
 from numba import njit, prange
 
-from ducc0.healpix import Healpix_Base  # type: ignore[unresolved-import]
+from ducc0.healpix import Healpix_Base
 from .observations import Observation
 from .hwp_harmonics import fill_tod
 from .hwp import HWP, IdealHWP, NonIdealHWP

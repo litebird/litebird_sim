@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import numpy.typing as npt
-from ducc0.totalconvolve import Interpolator, Interpolator_f  # type: ignore[unresolved-import]
+from ducc0.totalconvolve import Interpolator, Interpolator_f
 
 from .coordinates import CoordinateSystem
 from .hwp import HWP
