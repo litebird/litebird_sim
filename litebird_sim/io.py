@@ -475,28 +475,24 @@ def write_list_of_observations(
 
     """
     if isinstance(observations, Observation):
-        obs_list = [observations]
-    elif isinstance(observations, list):
-        obs_list = observations
-    else:
-        obs_list = list(observations)
+        observations: list[Observation] = [observations]
 
     if not isinstance(path, Path):
         path = Path(path)
 
     global_start_index = _compute_global_start_index(
-        num_of_obs=len(obs_list),
+        num_of_obs=len(observations),
         start_index=start_index,
         collective_mpi_call=collective_mpi_call,
     )
 
     # Iterate over all the observations and create one HDF5 file for each of them
     file_list = []
-    for obs_idx, cur_obs in enumerate(obs_list):
+    for obs_idx, cur_obs in enumerate(observations):
         params = {
             "mpi_rank": MPI_COMM_WORLD.rank,
             "mpi_size": MPI_COMM_WORLD.size,
-            "num_of_obs": len(obs_list),
+            "num_of_obs": len(observations),
             "global_index": global_start_index + obs_idx,
             "local_index": start_index + obs_idx,
         }
