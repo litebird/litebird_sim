@@ -9,7 +9,6 @@ from typing import Any
 import astropy.time
 import h5py
 import numpy as np
-from mpi4py.MPI import Intracomm
 
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
@@ -369,6 +368,8 @@ def _compute_global_start_index(
 ) -> int:
     global_start_index = start_index
     if MPI_ENABLED and collective_mpi_call:
+        from mpi4py.MPI import Intracomm
+
         # Count how many observations are kept in the MPI processes with lower rank
         # than this one.
         assert isinstance(MPI_COMM_WORLD, Intracomm)
@@ -796,6 +797,8 @@ def read_list_of_observations(
     # When running several MPI processes, make just one of them read the HDF5 metadata,
     # otherwise we put too much burden on the storage filesystem
     if MPI_ENABLED:
+        from mpi4py.MPI import Intracomm
+
         file_entries = (
             _build_file_entry_table(file_name_list)
             if (MPI_COMM_WORLD.rank == 0)

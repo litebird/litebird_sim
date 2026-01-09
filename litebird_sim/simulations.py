@@ -12,8 +12,6 @@ from shutil import SameFileError, copyfile, copytree
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import uuid4
 
-from mpi4py.MPI import Intracomm
-
 if TYPE_CHECKING:
     import brahmap  # type: ignore[unresolved-import]
 
@@ -1306,6 +1304,8 @@ class Simulation:
         numba_num_of_threads = numba.get_num_threads()
 
         if self.mpi_comm and MPI_ENABLED:
+            from mpi4py.MPI import Intracomm
+
             assert isinstance(MPI_COMM_WORLD, Intracomm)
             observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
             num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)

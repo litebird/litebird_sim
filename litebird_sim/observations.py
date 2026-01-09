@@ -6,7 +6,6 @@ from typing import Any
 import astropy.time
 import numpy as np
 import numpy.typing as npt
-from mpi4py.MPI import Intracomm
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
@@ -770,6 +769,8 @@ class Observation:
             value = np.array([0]) if isinstance(attribute, numbers.Number) else [None]
             setattr(self, name, value)
             return
+
+        from mpi4py.MPI import Intracomm
 
         my_col = MPI_COMM_GRID.COMM_OBS_GRID.rank % self._n_blocks_time
         root_col = root // self._n_blocks_det

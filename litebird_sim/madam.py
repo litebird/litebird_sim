@@ -7,7 +7,6 @@ import jinja2
 import numpy as np
 from astropy.io import fits
 from astropy.time import Time as AstroTime
-from mpi4py.MPI import Intracomm
 
 import litebird_sim
 
@@ -451,6 +450,8 @@ def save_simulation_for_madam(
         ]
     )
     if sim.mpi_comm and litebird_sim.MPI_ENABLED:
+        from mpi4py.MPI import Intracomm
+
         assert isinstance(litebird_sim.MPI_COMM_WORLD, Intracomm)
         number_of_files = litebird_sim.MPI_COMM_WORLD.allreduce(number_of_files)
         pointing_files = _combine_file_dictionaries(
