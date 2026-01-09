@@ -21,7 +21,6 @@ from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.healpix import nside_to_npix
 from litebird_sim.hwp import HWP
-from litebird_sim.mpi import MPI
 from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
@@ -249,6 +248,8 @@ def _build_nobs_matrix(
         del pixidx_all, polang_all
 
     assert obs_list, "No observations provided"
+    if mpi.MPI_ENABLED:
+        from litebird_sim.mpi import MPI
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
         pass

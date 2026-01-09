@@ -488,7 +488,7 @@ class Simulation:
 
             self.append_to_report(
                 markdown_template,
-                mpi4py_version=mpi4py.__version__,
+                mpi4py_version=getattr(mpi4py, "__version__"),
                 mpi_version=".".join([str(x) for x in mpi_version]),
                 mpi_implementation=str(MPI.Get_library_version()).strip(),
                 warning_mpi_version=warning_mpi_version,
