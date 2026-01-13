@@ -163,30 +163,38 @@ def test_convolution():
     )
 
 
-def test_healpy_io(tmp_path):
-    nside = 16
-
+def test_io_roundtrip_internal(tmp_path):
+    """
+    Test writing and reading back using ONLY litebird_sim (no healpy involved).
+    """
+    filename = tmp_path / "test_io_internal.fits"
     lmax = 10
     mmax = 4
 
     nstokes = 3
 
-    sh = SphericalHarmonics(
-        values=healpy.map2alm(
-            maps=np.random.rand(nstokes, healpy.nside2npix(nside)),
-            lmax=lmax,
-            mmax=mmax,
-        ),
-        lmax=lmax,
-        mmax=mmax,
+    # Create random complex data
+    # (Using fixed seed for reproducibility)
+    rng = np.random.default_rng(42)
+    nalm = SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)
+    # T, E, B components
+    values = rng.standard_normal((nstokes, nalm)) + 1j * rng.standard_normal(
+        (nstokes, nalm)
     )
-    file = tmp_path / "test_alm.fits.gz"
-    sh.write_fits(str(file))
 
-    sh_loaded = SphericalHarmonics.read_fits(str(file))
-    np.testing.assert_allclose(sh_loaded.values, sh.values)
-    assert sh_loaded.lmax == sh.lmax
-    assert sh_loaded.mmax == sh.mmax
+    sh_orig = SphericalHarmonics(values=values, lmax=lmax, mmax=mmax)
+
+    # Write using new Astropy implementation
+    sh_orig.write_fits(str(filename))
+
+    # Read back using new Astropy implementation
+    sh_loaded = SphericalHarmonics.read_fits(str(filename))
+
+    assert sh_loaded.lmax == lmax
+    assert sh_loaded.mmax == mmax
+    assert sh_loaded.nstokes == nstokes
+    # Use strict equality or strict close check
+    np.testing.assert_allclose(sh_loaded.values, sh_orig.values, rtol=1e-10)
 
 
 def test_nside_to_npix():

@@ -6,7 +6,6 @@ import logging as log
 
 import ducc0.healpix as dh
 import ducc0.sht as sht
-import healpy as hp
 import numpy as np
 from astropy.io import fits
 
@@ -32,6 +31,23 @@ class SphericalHarmonics:
     The shape of `values` is *always* ``(nstokes, ncoeff)``, even if ``nstokes == 1``.
 
     It also provides algebraic operations and I/O utilities compatible with Healpy.
+
+    **Ordering Convention (Healpix Scheme):**
+    The coefficients are stored in **m-major** order.
+    1. The outer loop iterates over `m` from 0 to `mmax`.
+    2. The inner loop iterates over `l` from `m` to `lmax`.
+
+    Sequence of coefficients in the array:
+    Index 0: (l=0, m=0)
+    Index 1: (l=1, m=0)
+    ...
+    Index lmax: (l=lmax, m=0)
+    Index lmax+1: (l=1, m=1)   <-- Note: l starts at m
+    Index lmax+2: (l=2, m=1)
+    ...
+
+    This specific ordering is required for operations involving `healpy.alm2map`
+    or `ducc0.sht`.
 
     Attributes
     ----------
@@ -259,9 +275,78 @@ class SphericalHarmonics:
             l_arr.extend(range(m, lmax + 1))
         return np.array(l_arr, dtype=int)
 
+    @staticmethod
+    def get_index(lmax: int, l: Any, m: Any) -> Any:
+        """
+        Calculate the 1D linear index in the standard Healpix (m-major) layout
+        for the given (l, m) pairs.
+
+        Formula: index = m * (2 * lmax + 1 - m) / 2 + l
+
+        Parameters
+        ----------
+        lmax : int
+            Maximum degree of the expansion.
+        l : int or np.ndarray
+            Degree l.
+        m : int or np.ndarray
+            Order m.
+
+        Returns
+        -------
+        int or np.ndarray
+            The 1D index. Returns an integer if inputs are scalars,
+            otherwise a numpy array.
+        """
+        # Calculate the index using integer division
+        idx = m * (2 * lmax + 1 - m) // 2 + l
+
+        # Robustly handle both scalar and array results
+        if np.isscalar(idx):
+            return int(idx)
+        return np.asarray(idx, dtype=int)
+
     # ------------------------------------------------------------------
-    # Resize
+    # Utils
     # ------------------------------------------------------------------
+
+    def get_lm_arrays(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Generate arrays of l and m for every coefficient stored in this object.
+
+        This reconstructs the explicit (l, m) coordinates for the flattened
+        data array, following the m-major ordering used internally.
+
+        Returns
+        -------
+        l_arr : np.ndarray
+            Array containing the l (degree) for each element.
+        m_arr : np.ndarray
+            Array containing the m (order) for each element.
+        """
+        ls = []
+        ms = []
+
+        # In Healpix layout (m-major), m ranges from 0 to mmax.
+        # For each m, l ranges from m to lmax.
+        for m_val in range(self.mmax + 1):
+            l_vals = np.arange(m_val, self.lmax + 1)
+            ls.append(l_vals)
+            ms.append(np.full_like(l_vals, m_val))
+
+        return np.concatenate(ls), np.concatenate(ms)
+
+    def print_ordering_example(self):
+        """Prints the first few (l, m) pairs to demonstrate ordering."""
+        idx = 0
+        print(f"Ordering for lmax={self.lmax}, mmax={self.mmax}:")
+        for m in range(self.mmax + 1):
+            for l in range(m, self.lmax + 1):
+                print(f"Index {idx}: (l={l}, m={m})")
+                idx += 1
+                if idx > 10:  # Just show the start
+                    print("...")
+                    return
 
     def resize_alm(
         self,
@@ -762,77 +847,155 @@ class SphericalHarmonics:
 
     def write_fits(self, filename: str, overwrite: bool = True):
         """
-        Save the SphericalHarmonics object to a Healpy-compatible .fits file.
+        Save the SphericalHarmonics object to a FITS file using the Explicit Index scheme.
 
-        Parameters
-        ----------
-        filename : str
-            The path to the output .fits file.
-        overwrite : bool
-            Whether to overwrite an existing file.
-
-        Notes
-        -----
-        The units and coordinates metadata are *not* written to the FITS
-        file by this method and must be tracked separately if needed.
+        Format:
+        - Separate HDUs for TEMPERATURE, E_MODE, B_MODE.
+        - Each HDU has 3 columns: INDEX, REAL, IMAG.
+        - INDEX = l^2 + l + m + 1 (FITS standard for sparse alm).
         """
-        hp.write_alm(
-            filename,
-            self.values if self.nstokes == 3 else self.values[0],
-            lmax=self.lmax,
-            mmax=self.mmax,
-            overwrite=overwrite,
-            mmax_in=self.mmax,
-        )
+        # 1. Retrieve l, m for each coefficient currently in memory
+        l, m = self.get_lm_arrays()
+
+        # 2. Compute the internal index (location of data in our numpy array)
+        idx_internal = self.get_index(self.lmax, l, m)
+
+        # 3. Compute the FITS Explicit Index (l^2 + l + m + 1)
+        idx_fits = l**2 + l + m + 1
+
+        # Handle components (1 for T, 3 for T,E,B)
+        if self.nstokes == 3:
+            components = self.values  # shape (3, Nalms)
+            ext_names = ["TEMPERATURE", "E_MODE", "B_MODE"]
+        else:
+            # Handle scalar case or 1D array
+            if self.values.ndim == 2:
+                components = [self.values[0]]
+            else:
+                components = [self.values]
+            ext_names = ["TEMPERATURE"]
+
+        hdus = [fits.PrimaryHDU()]
+
+        for comp_data, ext_name in zip(components, ext_names):
+            # Extract data from internal array using the internal index
+            real_part = comp_data.real[idx_internal]
+            imag_part = comp_data.imag[idx_internal]
+
+            # Create FITS columns ('J'=int32, 'D'=float64)
+            col_idx = fits.Column(name="INDEX", format="J", array=idx_fits)
+            col_real = fits.Column(name="REAL", format="D", array=real_part)
+            col_imag = fits.Column(name="IMAG", format="D", array=imag_part)
+
+            hdu = fits.BinTableHDU.from_columns([col_idx, col_real, col_imag])
+            hdu.name = ext_name
+
+            # Standard Healpix Header keywords
+            hdu.header["PIXTYPE"] = ("HEALPIX", "HEALPIX pixelisation")
+            hdu.header["MAX-LEN"] = (self.lmax, "Maximum l index")
+            hdu.header["MAX-M"] = (self.mmax, "Maximum m index")
+
+            hdus.append(hdu)
+
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(filename, overwrite=overwrite)
 
     @staticmethod
     def read_fits(filename: str) -> "SphericalHarmonics":
         """
-        Load a SphericalHarmonics object from a Healpy .fits file using only hp.read_alm.
-
-        This supports both 1-Stokes and 3-Stokes files written using hp.write_alm.
-
-        Parameters
-        ----------
-        filename : str
-            Path to the .fits file.
-
-        Returns
-        -------
-        SphericalHarmonics
-
-        Notes
-        -----
-        The returned object has units and coordinates set to ``None``,
-        as this metadata is not stored/read here.
+        Load a SphericalHarmonics object from a FITS file.
+        Compatible with both Explicit Index format and Standard Healpix format.
         """
-        try:
-            # Try to read all three Stokes components (T=1, E=2, B=3)
-            T, mmax = hp.read_alm(filename, hdu=1, return_mmax=True)
+        values_list = []
+        lmax_file = 0
+        mmax_file = 0
+        is_explicit = False
 
-            values = np.array(
-                [
-                    T,
-                    hp.read_alm(filename, hdu=2),
-                    hp.read_alm(filename, hdu=3),
-                ]
-            )
-            nalm = values.shape[1]
-        except Exception:
-            # Fallback to a single-Stokes file
-            alm, mmax = hp.read_alm(filename, return_mmax=True)
-            values = alm[np.newaxis, :]
-            nalm = values.shape[1]
+        with fits.open(filename) as hdul:
+            # Quick format check
+            try:
+                first_cols = [c.name.lower() for c in hdul[1].data.columns]
+                is_explicit = "index" in first_cols and "real" in first_cols
+            except IndexError:
+                pass  # Fallback or error if file is empty
 
-        # Compute lmax from nalm and mmax
-        lmax = SphericalHarmonics.lmax_from_num_of_alm(nalm, mmax)
+            if is_explicit:
+                # --- EXPLICIT FORMAT (INDEX, REAL, IMAG) ---
+                target_hdus = []
+                # Attempt to read up to 3 data HDUs (T, E, B)
+                for i in range(1, min(len(hdul), 4)):
+                    target_hdus.append(hdul[i])
+
+                for hdu in target_hdus:
+                    data = hdu.data
+                    idx = data["INDEX"]
+                    re = data["REAL"]
+                    im = data["IMAG"]
+
+                    # Inverse conversion: from FITS INDEX to (l, m)
+                    # formula: l = floor(sqrt(idx - 1))
+                    l = np.floor(np.sqrt(idx - 1)).astype(int)
+                    m = idx - l**2 - l - 1
+
+                    # Update lmax/mmax
+                    lmax_file = max(lmax_file, l.max())
+                    mmax_file = max(mmax_file, m.max())
+
+                    values_list.append({"l": l, "m": m, "re": re, "im": im})
+
+            else:
+                # --- STANDARD HEALPIX FORMAT (Complex columns) ---
+                header = hdul[1].header
+                data = hdul[1].data
+
+                lmax_file = header.get("MAX-LEN", header.get("LMAX", -1))
+                mmax_file = header.get("MAX-M", header.get("MMAX", -1))
+
+                # Read complex columns (T, and optionally E, B)
+                for col in data.columns:
+                    # Filter for numeric/complex columns if necessary
+                    c_data = data[col.name].astype(np.complex128)
+                    values_list.append(c_data)
+                    if len(values_list) == 3:
+                        break  # Max 3 Stokes
+
+                # Infer lmax if missing
+                if lmax_file == -1:
+                    nalm = len(values_list[0])
+                    # Approximate inverse estimation
+                    lmax_file = int(np.sqrt(2 * nalm)) - 1
+                    if mmax_file == -1:
+                        mmax_file = lmax_file
+
+        if mmax_file <= 0:
+            mmax_file = lmax_file
+
+        # --- FINAL ARRAY CONSTRUCTION ---
+
+        # 1. Use YOUR existing static method
+        nalm_theory = SphericalHarmonics.num_of_alm_from_lmax(lmax_file, mmax_file)
+        num_stokes = len(values_list)
+
+        final_values = np.zeros((num_stokes, nalm_theory), dtype=np.complex128)
+
+        if is_explicit:
+            for i, v in enumerate(values_list):
+                # Calculate destination index in the flat array (Healpix layout)
+                dest_idx = SphericalHarmonics.get_index(lmax_file, v["l"], v["m"])
+                final_values[i, dest_idx] = v["re"] + 1j * v["im"]
+        else:
+            # If standard, assume order is already correct
+            for i, arr in enumerate(values_list):
+                # Truncate or pad if necessary (safety check)
+                limit = min(len(arr), nalm_theory)
+                final_values[i, :limit] = arr[:limit]
 
         return SphericalHarmonics(
-            values=values,
-            lmax=lmax,
-            mmax=mmax,
-            units=None,
-            coordinates=None,
+            values=final_values,
+            lmax=lmax_file,
+            mmax=mmax_file,
+            units=None,  # Handle if present in header
+            coordinates=None,  # Handle if present
         )
 
 
@@ -971,7 +1134,6 @@ class HealpixMap:
     # ------------------------------------------------------------------
     # Factory Methods
     # ------------------------------------------------------------------
-
     @classmethod
     def zeros(
         cls,
@@ -1005,10 +1167,14 @@ class HealpixMap:
         HealpixMap
             Instance initialized with zeros.
         """
-        npix = hp.nside2npix(nside)
+        npix = cls.nside_to_npix(nside)
         values = np.zeros((nstokes, npix), dtype=dtype)
         return cls(
-            values=values, nside=nside, units=units, coordinates=coordinates, nest=nest
+            values=values,
+            nside=nside,
+            units=units,
+            coordinates=coordinates,
+            nest=nest,
         )
 
     # ------------------------------------------------------------------

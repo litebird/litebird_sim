@@ -61,6 +61,17 @@ class MuellerConvolver:
     Duivenvoorden et al. 2021, MNRAS 502, 4526
     (https://arxiv.org/abs/2012.10437)
 
+    Harmonic Layout Convention
+    --------------------------
+    All spherical harmonic inputs (`slm`, `blm`) must strictly follow the
+    **Healpix m-major ordering** convention, which is the same layout used by
+    the `SphericalHarmonics` class in this library.
+
+    - Indexing: The 1D array index for a given (l, m) is:
+      ``idx = m * (2 * lmax + 1 - m) // 2 + l``
+    - Ordering: The array is a concatenation of blocks of constant m:
+      [ (m=0, l=0..lmax), (m=1, l=1..lmax), ..., (m=mmax, l=mmax..lmax) ]
+
     Parameters
     ----------
     lmax : int

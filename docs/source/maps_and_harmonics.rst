@@ -28,7 +28,8 @@ Healpix Maps
 The :class:`~litebird_sim.maps_and_harmonics.HealpixMap` class wraps a dense HEALPix map.
 
 .. note::
-    This class does not perform reordering (RING vs NESTED) internally. It stores the ordering flag ``nest`` as metadata. Users must ensure they are using the correct geometry for their specific analysis tools.
+    This class does not perform reordering (RING vs NESTED) internally. 
+    It stores the ordering flag ``nest`` as metadata. Users must ensure they are using the correct geometry for their specific analysis tools.
 
 Key features:
 
@@ -40,26 +41,69 @@ Spherical Harmonics
 ~~~~~~~~~~~~~~~~~~~
 
 The :class:`~litebird_sim.maps_and_harmonics.SphericalHarmonics` class wraps $a_{\ell m}$ coefficients.
-
 It solves the "triangular array ambiguity" by explicitly storing ``lmax`` and ``mmax`` alongside the coefficients.
 
 * **Storage**: Standard HEALPix/ducc triangular layout.
 * **Convolution**: The :meth:`~litebird_sim.maps_and_harmonics.SphericalHarmonics.convolve` method allows easy application of beams or transfer functions in harmonic space.
 * **Resizing**: The :meth:`~litebird_sim.maps_and_harmonics.SphericalHarmonics.resize_alm` method allows you to truncate or zero-pad coefficients to a new $\ell_{max}$.
 
+Spherical Harmonics Ordering
+----------------------------
+
+A frequent source of confusion in CMB analysis is the ordering of $a_{\ell m}$ coefficients in the 1D array. 
+
+The :class:`SphericalHarmonics` class strictly enforces the **Standard Healpix Ordering** (also known as **m-major**).
+
+**Memory Layout**
+
+The coefficients are stored sequentially by iterating over $m$ (outer loop) and then $\ell$ (inner loop). This allows efficient recursion for Legendre polynomial calculations.
+
+1.  Block $m=0$: contains $\ell = 0, 1, \dots, \ell_{max}$
+2.  Block $m=1$: contains $\ell = 1, 2, \dots, \ell_{max}$
+3.  ...
+4.  Block $m=m_{max}$: contains $\ell = m_{max}, \dots, \ell_{max}$
+
+**Indexing Formula**
+
+To find the index of a specific mode $(\ell, m)$, the class provides a static method :meth:`SphericalHarmonics.get_index`. It implements the standard formula:
+
+.. math::
+
+    \text{index} = m \cdot \frac{2 \ell_{max} + 1 - m}{2} + \ell
+
+**Example: Converting coordinates to indices**
+
+.. code-block:: python
+
+    from litebird_sim import SphericalHarmonics
+    import numpy as np
+
+    lmax = 10
+    
+    # Get index for a single mode (l=2, m=2)
+    # Note: Arguments are (lmax, l, m) to match healpy signature
+    idx = SphericalHarmonics.get_index(lmax, 2, 2)
+    
+    # Vectorized usage
+    ls = np.array([2, 3, 4])
+    ms = np.array([2, 2, 2])
+    indices = SphericalHarmonics.get_index(lmax, ls, ms)
+
 .. _transforms:
 
 Transforms (SHT)
 ----------------
 
-We provide high-level wrappers around `ducc0` for spherical harmonic transforms. These functions handle the complexity of spin-0 (Temperature) vs spin-2 (Polarization) transforms automatically.
+We provide high-level wrappers around `ducc0` for spherical harmonic transforms. 
+These functions handle the complexity of spin-0 (Temperature) vs spin-2 (Polarization) transforms automatically.
 
 * :func:`~litebird_sim.maps_and_harmonics.estimate_alm`: Map $\rightarrow$ $a_{\ell m}$ (Analysis)
 * :func:`~litebird_sim.maps_and_harmonics.pixelize_alm`: $a_{\ell m}$ $\rightarrow$ Map (Synthesis)
 * :func:`~litebird_sim.maps_and_harmonics.interpolate_alm`: $a_{\ell m}$ $\rightarrow$ Values at arbitrary $(\theta, \phi)$
 
 .. tip::
-   All transform functions accept a ``nthreads`` argument. Setting ``nthreads=0`` (default) uses all available hardware threads, which is optimal for standalone scripts but should be adjusted when running inside an MPI environment.
+   All transform functions accept a ``nthreads`` argument. 
+   Setting ``nthreads=0`` (default) uses all available hardware threads, which is optimal for standalone scripts but should be adjusted when running inside an MPI environment.
 
 Cookbook
 --------
@@ -108,7 +152,7 @@ This example demonstrates how to smooth a T, Q, U map using a Gaussian beam.
 .. code-block:: python
 
     from litebird_sim.maps_and_harmonics import estimate_alm, pixelize_alm
-    import healpy as hp
+    from litebird_sim.beam_synthesis import gauss_bl
 
     # 1. Start with a 3-component map (T, Q, U)
     # shape must be (3, npix)
@@ -119,9 +163,9 @@ This example demonstrates how to smooth a T, Q, U map using a Gaussian beam.
     alms = estimate_alm(m_pol, lmax=128)
 
     # 3. Create a beam window function B_ell
-    # hp.gauss_beam returns an array of size lmax+1
+    # gauss_bl returns an array of size lmax+1
     fwhm_rad = np.radians(1.0)
-    b_ell = hp.gauss_beam(fwhm_rad, lmax=128)
+    b_ell = gauss_bl(fwhm_rad, lmax=128)
 
     # 4. Convolve (apply beam)
     # The 'convolve' method applies the filter to all Stokes components 
@@ -131,10 +175,10 @@ This example demonstrates how to smooth a T, Q, U map using a Gaussian beam.
     # 5. Synthesis: Convert back to map
     m_smoothed = pixelize_alm(alms_smoothed, nside=64)
 
-Interpolating at Point Sources
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Interpolating Alms
+~~~~~~~~~~~~~~~~~~
 
-If you need to evaluate the CMB field at specific locations (e.g., catalog positions):
+If you need to evaluate a set of alms at specific locations (e.g., catalog positions):
 
 .. code-block:: python
 

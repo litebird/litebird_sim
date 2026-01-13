@@ -1,328 +1,214 @@
-import numpy as np
-import healpy as hp
-from scipy.special import iv as bessel_i
+.. _maps_and_harmonics:
 
-from .maps_and_harmonics import SphericalHarmonics
-from .observations import Observation
-from .detectors import FreqChannelInfo
-from .constants import ARCMIN_TO_RAD
+Maps and Spherical Harmonics
+============================
 
+The ``litebird_sim.maps_and_harmonics`` module provides robust data containers for HEALPix maps and Spherical Harmonic coefficients ($a_{\ell m}$).
 
-def gauss_beam_to_alm(
-    lmax: int,
-    mmax: int,
-    fwhm_rad: float,
-    ellipticity: float = 1.0,
-    psi_ell_rad: float = 0.0,
-    psi_pol_rad: float | None = 0.0,
-    cross_polar_leakage: float = 0.0,
-) -> SphericalHarmonics:
-    """
-    Compute spherical harmonics coefficients a_ℓm representing a Gaussian beam.
+While libraries like ``healpy`` provide low-level array manipulation, this module introduces an object-oriented layer designed to prevent common errors in cosmological simulation pipelines, such as mixing coordinate systems or misinterpreting array shapes.
 
-    The implementation is vectorized for performance and based on the physics
-    described in Planck LevelS:
-    https://github.com/zonca/planck-levelS/blob/master/Beam/gaussbeampol_main.f90
+Design Philosophy
+-----------------
 
-    Parameters
-    ----------
-    lmax : int
-        Maximum spherical harmonic degree ℓ_max.
-    mmax : int
-        Maximum spherical harmonic order m_max.
-    fwhm_rad : float
-        Full width at half maximum (FWHM) of the beam in radians.
-        Defined as fwhm = sqrt(fwhm_max*fwhm_min).
-    ellipticity : float, optional, default=1.0
-        Beam ellipticity. Defined as fwhm_max/fwhm_min. Default is 1 (circular beam).
-    psi_ell_rad : float, optional, default=0.0
-        Orientation of the beam's major axis wrt the x-axis (radians).
-    psi_pol_rad : float, optional, default=0.0
-        Polarization angle of the beam wrt the x-axis.
-        If None, only the intensity (I) is computed (nstokes=1).
-    cross_polar_leakage : float, optional, default=0.0
-        Cross-polar leakage factor (pure number).
+In standard pipelines, a map is often just a NumPy array. This leads to ambiguity:
+is an array of shape ``(3, N)`` a T/Q/U map, or three T-only maps? Is the map in Galactic or Ecliptic coordinates?
 
-    Returns
-    -------
-    SphericalHarmonics
-        The spherical harmonics coefficients representing the beam.
-    """
-    is_elliptical = ellipticity != 1.0
-    is_polarized = psi_pol_rad is not None
-    num_stokes = 3 if is_polarized else 1
+The classes :class:`HealpixMap` and :class:`SphericalHarmonics` solve this by:
 
-    # Use the factory method from SphericalHarmonics
-    alm = SphericalHarmonics.zeros(lmax=lmax, mmax=mmax, nstokes=num_stokes)
+1.  **Strict Shape Enforcement**: Data is always stored as ``(nstokes, size)``. A temperature-only map is ``(1, npix)``, never ``(npix,)``.
+2.  **Metadata Propagation**: Every object carries physical ``units`` and ``coordinates``. Algebraic operations (like ``map_a + map_b``) automatically check that these match, raising a ``ValueError`` if you try to add a Galactic map to an Ecliptic one.
+3.  **Backend Agnosticism**: While the API feels like Healpy, the heavy lifting (SHTs) is performed by `ducc0 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_, offering significant performance improvements and correct handling of spin-weighted transforms.
 
-    # Common parameters
-    sigma_squared = fwhm_rad**2 / (8 * np.log(2))
+Data Structures
+---------------
 
-    # ---------------------------------------------------------
-    # Circular Beam
-    # ---------------------------------------------------------
-    if not is_elliptical:
-        # Intensity (T) component: only m=0 terms are non-zero for circular Gaussian
-        ell = np.arange(lmax + 1)
-        # Index for m=0 is just ell in standard healpix ordering (first block)
-        idx_m0 = ell
+Healpix Maps
+~~~~~~~~~~~~
 
-        beam_profile = np.sqrt((2 * ell + 1) / (4 * np.pi)) * np.exp(
-            -0.5 * sigma_squared * ell * (ell + 1)
-        )
+The :class:`~litebird_sim.maps_and_harmonics.HealpixMap` class wraps a dense HEALPix map.
 
-        alm.values[0, idx_m0] = beam_profile
+.. note::
+    This class does not perform reordering (RING vs NESTED) internally. 
+    It stores the ordering flag ``nest`` as metadata. Users must ensure they are using the correct geometry for their specific analysis tools.
 
-        if is_polarized:
-            # Pol components: only m=2 terms are non-zero
-            # We need ell >= 2
-            ell_p = np.arange(2, lmax + 1)
-            f1 = np.cos(2 * psi_pol_rad) - np.sin(2 * psi_pol_rad) * 1.0j
+Key features:
 
-            beam_pol = (
-                np.sqrt((2 * ell_p + 1) / (32 * np.pi))
-                * np.exp(-0.5 * sigma_squared * ell_p * (ell_p + 1))
-                * f1
-            )
+* **Geometry checks**: The number of pixels is validated against the ``nside`` upon initialization.
+* **Algebra**: Supports ``+``, ``-``, ``*`` (scalar), and Stokes vector multiplication.
+* **Static Helpers**: Access HEALPix geometry math without importing ``healpy`` (e.g., :meth:`~litebird_sim.maps_and_harmonics.HealpixMap.nside_to_resolution_rad`).
 
-            # Get indices for m=2
-            idx_m2 = hp.Alm.getidx(lmax, ell_p, 2)
+Spherical Harmonics
+~~~~~~~~~~~~~~~~~~~
 
-            alm.values[1, idx_m2] = beam_pol
-            alm.values[2, idx_m2] = beam_pol * 1.0j
+The :class:`~litebird_sim.maps_and_harmonics.SphericalHarmonics` class wraps $a_{\ell m}$ coefficients.
+It solves the "triangular array ambiguity" by explicitly storing ``lmax`` and ``mmax`` alongside the coefficients.
 
-    # ---------------------------------------------------------
-    # Elliptical Beam
-    # ---------------------------------------------------------
-    else:
-        e_squared = 1.0 - 1.0 / ellipticity**2
-        sigma_x_squared = fwhm_rad**2 * ellipticity / (np.log(2) * 8)
+* **Storage**: Standard HEALPix/ducc triangular layout.
+* **Convolution**: The :meth:`~litebird_sim.maps_and_harmonics.SphericalHarmonics.convolve` method allows easy application of beams or transfer functions in harmonic space.
+* **Resizing**: The :meth:`~litebird_sim.maps_and_harmonics.SphericalHarmonics.resize_alm` method allows you to truncate or zero-pad coefficients to a new $\ell_{max}$.
 
-        # Precompute polarization rotation factors if needed
-        if is_polarized:
-            rho = psi_pol_rad - psi_ell_rad
-            cos_2rho = np.cos(2 * rho)
-            sin_2rho = np.sin(2 * rho)
-            f1_pol = cos_2rho - sin_2rho * 1j
-            f2_pol = cos_2rho + sin_2rho * 1j
+Spherical Harmonics Ordering
+----------------------------
 
-        # Loop over m (step 2). For each m, we vectorize over ell.
-        for m in range(0, mmax + 1, 2):
-            ell = np.arange(m, lmax + 1)
+A frequent source of confusion in CMB analysis is the ordering of $a_{\ell m}$ coefficients in the 1D array. 
 
-            # Compute common term depending on ell
-            tmp = ell * (ell + 1) * sigma_x_squared
+The :class:`SphericalHarmonics` class strictly enforces the **Standard Healpix Ordering** (also known as **m-major**).
 
-            # Slice for the current m block
-            idx_start = hp.Alm.getidx(lmax, m, m)
-            s_slice = slice(idx_start, idx_start + len(ell))
+**Memory Layout**
 
-            # --- Intensity (I) ---
-            val_I = (
-                np.sqrt((2 * ell + 1) / (4 * np.pi))
-                * np.exp(-0.5 * tmp * (1.0 - e_squared / 2))
-                * bessel_i(m // 2, 0.25 * tmp * e_squared)
-            )
+The coefficients are stored sequentially by iterating over $m$ (outer loop) and then $\ell$ (inner loop). This allows efficient recursion for Legendre polynomial calculations.
 
-            alm.values[0, s_slice] = val_I
+1.  Block $m=0$: contains $\ell = 0, 1, \dots, \ell_{max}$
+2.  Block $m=1$: contains $\ell = 1, 2, \dots, \ell_{max}$
+3.  ...
+4.  Block $m=m_{max}$: contains $\ell = m_{max}, \dots, \ell_{max}$
 
-            # --- Polarization (Q, U) ---
-            if is_polarized:
-                # Mask for ell >= 2 (only relevant if m < 2, i.e., m=0 case)
-                if m < 2:
-                    mask = ell >= 2
-                    ell_sub = ell[mask]
-                    tmp_sub = tmp[mask]
-                else:
-                    mask = slice(None)
-                    ell_sub = ell
-                    tmp_sub = tmp
+**Indexing Formula**
 
-                tmp2 = 0.25 * tmp_sub * e_squared
+To find the index of a specific mode $(\ell, m)$, the class provides a static method :meth:`SphericalHarmonics.get_index`. It implements the standard formula:
 
-                if m == 0:
-                    # Special case m=0, uses bessel_i(1, ...)
-                    val_pol = (
-                        np.sqrt((2 * ell_sub + 1) / (8 * np.pi))
-                        * np.exp(-tmp_sub * (1.0 - e_squared / 2) / 2)
-                        * bessel_i(1, tmp2)
-                    )
+.. math::
 
-                    # Map mask back to the alm array slice
-                    alm_view_1 = alm.values[1, s_slice]
-                    alm_view_2 = alm.values[2, s_slice]
+    \text{index} = m \cdot \frac{2 \ell_{max} + 1 - m}{2} + \ell
 
-                    alm_view_1[mask] = val_pol * cos_2rho
-                    alm_view_2[mask] = val_pol * sin_2rho
+**Example: Converting coordinates to indices**
 
-                else:
-                    # General case m >= 2
-                    prefactor = np.sqrt((2 * ell_sub + 1) / (32 * np.pi)) * np.exp(
-                        -0.5 * tmp_sub * (1.0 - 0.5 * e_squared)
-                    )
+.. code-block:: python
 
-                    b1 = f1_pol * bessel_i((m - 2) // 2, tmp2)
-                    b2 = f2_pol * bessel_i((m + 2) // 2, tmp2)
+    from litebird_sim import SphericalHarmonics
+    import numpy as np
 
-                    alm.values[1, s_slice] = prefactor * (b1 + b2)
-                    alm.values[2, s_slice] = prefactor * (b1 - b2) * 1.0j
+    lmax = 10
+    
+    # Get index for a single mode (l=2, m=2)
+    # Note: Arguments are (lmax, l, m) to match healpy signature
+    idx = SphericalHarmonics.get_index(lmax, 2, 2)
+    
+    # Vectorized usage
+    ls = np.array([2, 3, 4])
+    ms = np.array([2, 2, 2])
+    indices = SphericalHarmonics.get_index(lmax, ls, ms)
 
-        # Rotate the multipoles through angle psi_ell about the z-axis
-        if psi_ell_rad != 0.0:
-            for m in range(0, mmax + 1, 2):
-                if m == 0:
-                    continue
-                f_rot = np.cos(m * psi_ell_rad) - np.sin(m * psi_ell_rad) * 1j
+.. _transforms:
 
-                idx_start = hp.Alm.getidx(lmax, m, m)
-                idx_end = hp.Alm.getidx(lmax, lmax, m) + 1
-                alm.values[:, idx_start:idx_end] *= f_rot
+Transforms (SHT)
+----------------
 
-    # ---------------------------------------------------------
-    # Adjustments
-    # ---------------------------------------------------------
+We provide high-level wrappers around `ducc0` for spherical harmonic transforms. 
+These functions handle the complexity of spin-0 (Temperature) vs spin-2 (Polarization) transforms automatically.
 
-    # Adjust for cross-polar leakage
-    if cross_polar_leakage != 0.0:
-        alm.values[0, :] *= 1.0 + cross_polar_leakage
-        if num_stokes > 1:
-            alm.values[1:, :] *= 1.0 - cross_polar_leakage
+* :func:`~litebird_sim.maps_and_harmonics.estimate_alm`: Map $\rightarrow$ $a_{\ell m}$ (Analysis)
+* :func:`~litebird_sim.maps_and_harmonics.pixelize_alm`: $a_{\ell m}$ $\rightarrow$ Map (Synthesis)
+* :func:`~litebird_sim.maps_and_harmonics.interpolate_alm`: $a_{\ell m}$ $\rightarrow$ Values at arbitrary $(\theta, \phi)$
 
-    # Adjust normalization for Pol
-    if num_stokes > 1:
-        alm.values[1:, :] *= -np.sqrt(2.0)
+.. tip::
+   All transform functions accept a ``nthreads`` argument. 
+   Setting ``nthreads=0`` (default) uses all available hardware threads, which is optimal for standalone scripts but should be adjusted when running inside an MPI environment.
 
-    return alm
+Cookbook
+--------
 
+Basic I/O and Algebra
+~~~~~~~~~~~~~~~~~~~~~
 
-def generate_gauss_beam_alms(
-    observation: Observation,
-    lmax: int,
-    mmax: int | None = None,
-    channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
-    store_in_observation: bool = False,
-) -> dict[str, SphericalHarmonics]:
-    """
-    Generate Gaussian beam spherical harmonics coefficients for each detector.
+.. code-block:: python
 
-    This function computes the blms for a 2D Gaussian beam, accounting for
-    detector-specific parameters such as beam width (FWHM), ellipticity,
-    and polarization orientation.
+    from litebird_sim.maps_and_harmonics import HealpixMap, SphericalHarmonics
+    from litebird_sim.constants import Units
+    from litebird_sim.coordinates import CoordinateSystem
 
-    Parameters
-    ----------
-    observation : Observation
-        Observation object containing detector parameters (names, fwhm, etc.).
-    lmax : int
-        Maximum spherical harmonic degree ℓ_max.
-    mmax : int, optional
-        Maximum spherical harmonic order m_max. If None, it defaults to `lmax`.
-    channels : FreqChannelInfo or list of FreqChannelInfo, optional
-        Frequency channels to use. If None, uses detectors from the observation.
-    store_in_observation : bool, default=False
-        If True, the computed blms will be stored in `observation.blms`.
+    # Loading a map from disk (wrapper around hp.read_alm usually not needed for maps, 
+    # but classes support direct instantiation)
+    # Here we create a dummy map for demonstration
+    import numpy as np
+    
+    nside = 128
+    npix = HealpixMap.nside_to_npix(nside)
+    
+    # Create a Temperature-only map in Galactic coordinates
+    m_gal = HealpixMap(
+        values=np.zeros((1, npix)), 
+        nside=nside, 
+        units=Units.K_CMB, 
+        coordinates=CoordinateSystem.Galactic
+    )
+    
+    # Create a mask (unitless)
+    mask = HealpixMap(
+        values=np.ones((1, npix)), 
+        nside=nside, 
+        units=Units.None, 
+        coordinates=CoordinateSystem.Galactic
+    )
+    
+    # Multiplication works (Units.K_CMB * Units.None = Units.K_CMB)
+    masked_map = m_gal * mask
 
-    Returns
-    -------
-    dict
-        Dictionary mapping detector names (str) to SphericalHarmonics objects.
-    """
-    mmax_val = mmax if mmax is not None else lmax
-    blms = {}
+Smoothing a Polarization Map
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    if channels is None:
-        # Use detectors from observations
-        for detector_idx, det_name in enumerate(observation.name):
-            fwhm_rad = observation.fwhm_arcmin[detector_idx] * ARCMIN_TO_RAD
+This example demonstrates how to smooth a T, Q, U map using a Gaussian beam.
 
-            blms[det_name] = gauss_beam_to_alm(
-                lmax=lmax,
-                mmax=mmax_val,
-                fwhm_rad=fwhm_rad,
-                ellipticity=observation.ellipticity[detector_idx],
-                psi_ell_rad=observation.psi_rad[detector_idx],
-                psi_pol_rad=observation.pol_angle_rad[detector_idx],
-                cross_polar_leakage=0.0,
-            )
-    else:
-        # Use explicitly provided frequency channels
-        channel_list = [channels] if isinstance(channels, FreqChannelInfo) else channels
+.. code-block:: python
 
-        for channel in channel_list:
-            fwhm_rad = channel.fwhm_arcmin * ARCMIN_TO_RAD
-            blms[channel.channel] = gauss_beam_to_alm(
-                lmax=lmax,
-                mmax=mmax_val,
-                fwhm_rad=fwhm_rad,
-                ellipticity=channel.ellipticity,
-                psi_ell_rad=channel.psi_rad,
-                psi_pol_rad=0.0,  # Channels usually treated as unrotated/unpolarized basis here
-                cross_polar_leakage=0.0,
-            )
+    from litebird_sim.maps_and_harmonics import estimate_alm, pixelize_alm
+    from litebird_sim.beam_synthesis import gauss_bl
 
-    if store_in_observation:
-        observation.blms = blms
+    # 1. Start with a 3-component map (T, Q, U)
+    # shape must be (3, npix)
+    m_pol = HealpixMap(..., nside=64, units=Units.uK_CMB)
 
-    return blms
+    # 2. Analysis: Convert to alms
+    # This automatically handles spin-0 for T and spin-2 for Q,U
+    alms = estimate_alm(m_pol, lmax=128)
 
+    # 3. Create a beam window function B_ell
+    # gauss_bl returns an array of size lmax+1
+    fwhm_rad = np.radians(1.0)
+    b_ell = gauss_bl(fwhm_rad, lmax=128)
 
-def gauss_bl(lmax: int, fwhm_rad: float, pol: bool = True) -> np.ndarray:
-    """
-    Compute the Gaussian beam transfer function b_l analytically (Pure NumPy).
+    # 4. Convolve (apply beam)
+    # The 'convolve' method applies the filter to all Stokes components 
+    # if a single array is passed.
+    alms_smoothed = alms.convolve(b_ell)
 
-    This implementation computes the beam window function including the
-    polarization correction factors (Challinor et al 2000, astro-ph/0008228).
+    # 5. Synthesis: Convert back to map
+    m_smoothed = pixelize_alm(alms_smoothed, nside=64)
 
-    It returns components for T, E, B (excluding Stokes V).
+Interpolating at Point Sources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    Parameters
-    ----------
-    lmax : int
-        Maximum spherical harmonic degree ℓ_max.
-    fwhm_rad : float
-        Full width at half maximum (FWHM) of the beam in radians.
-    pol : bool, optional
-        If True, returns an array of shape (3, lmax+1) containing:
-          - Index 0: Temperature beam b_l^T
-          - Index 1: E-mode polarization beam b_l^E
-          - Index 2: B-mode polarization beam b_l^B
-        If False, returns a 1D array of shape (lmax+1,) (Temperature only).
+If you need to evaluate the CMB field at specific locations (e.g., catalog positions):
 
-    Returns
-    -------
-    np.ndarray
-        Array containing the beam transfer function b_l.
-    """
-    if fwhm_rad < 0:
-        raise ValueError("FWHM must be non-negative.")
+.. code-block:: python
 
-    # Create ell array
-    ell = np.arange(lmax + 1, dtype=np.float64)
+    from litebird_sim.maps_and_harmonics import interpolate_alm
+    
+    # Define locations: (theta, phi) in radians
+    # Shape must be (N, 2)
+    locations = np.array([
+        [1.57, 0.0],  # Equator, phi=0
+        [0.0, 0.0]    # North Pole
+    ])
 
-    # Handle trivial case (delta function)
-    if fwhm_rad == 0.0:
-        base_bl = np.ones_like(ell)
-        sigma2 = 0.0
-    else:
-        # Convert FWHM to sigma: sigma = FWHM / sqrt(8 * ln(2))
-        sigma = fwhm_rad / np.sqrt(8.0 * np.log(2.0))
-        sigma2 = sigma**2
+    # Interpolate
+    # If alms.nstokes == 3, this returns tuple (T, Q, U)
+    # where each is an array of length N
+    t_vals, q_vals, u_vals = interpolate_alm(alms, locations)
 
-        # Analytic Gaussian beam: exp(-0.5 * l(l+1) * sigma^2)
-        base_bl = np.exp(-0.5 * ell * (ell + 1) * sigma2)
+API Reference
+-------------
 
-        # Avoid numerical underflow (consistent with healpy behavior)
-        base_bl[base_bl < 1e-30] = 0.0
+.. autoclass:: litebird_sim.maps_and_harmonics.SphericalHarmonics
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
-    if not pol:
-        return base_bl
+.. autoclass:: litebird_sim.maps_and_harmonics.HealpixMap
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
-    # Polarization factors for [T, E, B]
-    # T -> 1.0
-    # E, B -> exp(2 * sigma^2) (due to spin-2 nature of polarization)
-    pol_factors = np.exp([0.0, 2.0 * sigma2, 2.0 * sigma2])
-
-    # Broadcast to shape (3, lmax+1)
-    # base_bl[None, :] is (1, L+1)
-    # pol_factors[:, None] is (3, 1)
-    return base_bl[None, :] * pol_factors[:, None]
+.. autofunction:: litebird_sim.maps_and_harmonics.estimate_alm
+.. autofunction:: litebird_sim.maps_and_harmonics.pixelize_alm
+.. autofunction:: litebird_sim.maps_and_harmonics.interpolate_alm
