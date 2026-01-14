@@ -166,7 +166,7 @@ class SkyGenerationParams:
     # Dipole Specifics
     # This simulates first order dipole (no kinematic high order terms)
     sun_velocity_kms: float = c.SOLAR_VELOCITY_KM_S
-    sun_direction: tuple[float, float] = (
+    sun_direction_galactic: tuple[float, float] = (
         c.SOLAR_VELOCITY_GAL_LAT_RAD,
         c.SOLAR_VELOCITY_GAL_LON_RAD,
     )
@@ -377,7 +377,7 @@ class SkyGenerator:
         """Generates solar dipole."""
         log.info("Generating Dipole...")
         velocity = self.params.sun_velocity_kms
-        lat, lon = self.params.sun_direction
+        lat, lon = self.params.sun_direction_galactic
 
         # Amplitude in K_CMB
         amp = c.T_CMB_K * (velocity / c.C_LIGHT_KM_OVER_S)
@@ -446,7 +446,7 @@ class SkyGenerator:
             components["cmb"] = self.generate_cmb()
 
         if self.params.make_fg:
-            components["fg"] = self.generate_foregrounds()
+            components["foregrounds"] = self.generate_foregrounds()
 
         if self.params.make_dipole:
             components["dipole"] = self.generate_solar_dipole()

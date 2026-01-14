@@ -17,6 +17,7 @@ H_OVER_K_B = H / K_B
 
 T_CMB_K = 2.72548  # Fixsen 2009 http://arxiv.org/abs/0911.1955
 
+# Dipole parameters from https://arxiv.org/abs/1807.06207
 SOLAR_VELOCITY_KM_S = 369.8160
 SOLAR_VELOCITY_GAL_LAT_RAD = 0.842_173_724
 SOLAR_VELOCITY_GAL_LON_RAD = 4.608_035_744_4
