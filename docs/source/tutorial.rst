@@ -424,19 +424,19 @@ number generator provided by the :class:`.Simulation` and seeded with
       alpha=1.0,
   )
 
-  mbs_params = lbs.MbsParameters(
+  sky_params = lbs.SkyGenerationParams(
       nside=128,
       make_cmb=True,
       make_fg=True,
-      fg_models=["pysm_dust_0"],
+      fg_models=["d0"],
   )
 
-  mbs = lbs.Mbs(
+  sky_gen = lbs.SkyGenerator(
       simulation=sim,
-      parameters=mbs_params,
+      parameters=sky_params,
       detector_list=detector
   )
-  maps = mbs.run_all()[0]
+  maps = sky_gen.execute()
 
   sim.create_observations(
       detectors=detector,
@@ -522,19 +522,19 @@ dust, and white noise. The we bin the timeline in a map. ::
       net_ukrts = 50.0,
   )
 
-  mbs_params = lbs.MbsParameters(
+  sky_params = lbs.SkyGenerationParams(
       nside=nside,
       make_cmb=True,
       make_fg=True,
       fg_models=["pysm_dust_0"],
   )
 
-  mbs = lbs.Mbs(
+  sky_gen = lbs.SkyGenerator(
       simulation=sim,
-      parameters=mbs_params,
+      parameters=sky_params,
       detector_list=detector
   )
-  maps = mbs.run_all()[0]
+  maps = sky_gen.execute()
 
   sim.create_observations(
       detectors=detector,

@@ -93,7 +93,7 @@ shows:
    sim.prepare_pointings()
 
    # Create a map to scan (in realistic simulations,
-   # use the MBS module provided by litebird_sim)
+   # use the input_sky module provided by litebird_sim)
    values_tuple = (np.ones(npix), np.ones(npix), np.ones(npix))
    maps = lbs.HealpixMap(values=values_tuple, nside=nside, coordinates=lbs.CoordinateSystem.Ecliptic)
 
@@ -125,8 +125,8 @@ The code automatically selects the fastest algebra based on the provided HWP.
 
 The input maps to scan can be either included in a dictionary with the name of
 the channel or the name of the dectector as keyword (the routines described in
-:ref:`Mbs` already provied the inputs in the correct format), or a numpy array
-with shape (3, n_pixels).
+:ref:`SkyGenerator` already provied the inputs in the correct format), or a 
+numpy array with shape (3, n_pixels).
 
 The pointing information can be included in the observation or passed through
 `pointings`. If both `observations` and `pointings` are provided, they must be 
@@ -225,7 +225,7 @@ transparent:
 
 The input sky can be generated using the function :func:`.Simulation.get_sky` 
 which produces sky maps for all the detectors of a given observation based 
-on an instance of :class:`.mbs.MbsParameters`. These methods are MPI-compatible, 
+on an instance of :class:`.SkyGenerationParams`. These methods are MPI-compatible, 
 distributing inputs based on the job’s detector configuration without requiring 
 broadcast operations.
 

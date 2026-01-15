@@ -211,18 +211,18 @@ def test_hwp_offset_angle():
 
     sim.create_observations(detectors=[detT, detB])
 
-    mbs_params = lbs.MbsParameters(
+    sky_params = lbs.SkyGenerationParams(
         make_cmb=True,
         make_fg=False,
+        output_type="map",
         seed_cmb=1,
-        gaussian_smooth=True,
-        bandpass_int=False,
+        apply_beam=True,
+        bandpass_integration=False,
         nside=nside,
-        maps_in_ecliptic=False,
         units="uK_CMB",
     )
 
-    sky = sim.get_sky(parameters=mbs_params, store_in_observation=True)
+    sky = sim.get_sky(parameters=sky_params, store_in_observation=True)
 
     sim.prepare_pointings()
 

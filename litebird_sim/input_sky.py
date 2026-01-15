@@ -156,7 +156,7 @@ class SkyGenerationParams:
     # CMB Specifics
     # Assume input power spectrum in uK^2
     cmb_ps_file: str | Path | None = None
-    cmb_seed: int | None = None
+    seed_cmb: int | None = None
     cmb_r: float = 0.0
 
     # Foreground Specifics
@@ -176,9 +176,9 @@ class SkyGenerationParams:
             self.lmax = 3 * self.nside - 1
 
         # Warning for MPI consistency
-        if self.make_cmb and self.cmb_seed is None:
+        if self.make_cmb and self.seed_cmb is None:
             log.warning(
-                "cmb_seed is None. If this simulation is running across multiple MPI tasks, "
+                "seed_cmb is None. If this simulation is running across multiple MPI tasks, "
                 "the generated CMB sky will NOT be coherent (identical) across tasks. "
                 "Set a specific integer seed to ensure consistency."
             )
@@ -195,12 +195,12 @@ class SkyGenerator:
 
     def __init__(
         self,
-        params: SkyGenerationParams,
+        parameters: SkyGenerationParams,
         channels: (
             FreqChannelInfo | DetectorInfo | list[FreqChannelInfo | DetectorInfo]
         ),
     ):
-        self.params = params
+        self.params = parameters
 
         if isinstance(channels, list):
             self.channels = channels
@@ -246,7 +246,7 @@ class SkyGenerator:
         cl_cmb = lin_comb_cls(cl_cmb, s1=1e-12)
 
         # 2. Generate ALMs using maps_and_harmonics.,size_alm
-        rng = np.random.default_rng(self.params.cmb_seed)
+        rng = np.random.default_rng(self.params.seed_cmb)
         alm_cmb = synthesize_alm(
             cl_dict=cl_cmb,
             lmax=self.params.lmax,
@@ -282,7 +282,7 @@ class SkyGenerator:
             else:
                 conv_factor = _get_cmb_unit_conversion(
                     target_units_str=self.params.units,
-                    freq_ghz=ch.band.bandcenter_ghz,
+                    freq_ghz=ch.bandcenter_ghz,
                     band_integration=False,
                 )
 
@@ -328,10 +328,10 @@ class SkyGenerator:
                     bandpass_frequencies, weights, self.pysm_units
                 )
             else:
-                m_fg = sky.get_emission(ch.band.bandcenter_ghz * u.GHz)
+                m_fg = sky.get_emission(ch.bandcenter_ghz * u.GHz)
                 m_fg = m_fg.to(
                     self.pysm_units,
-                    equivalencies=u.cmb_equivalencies(ch.band.bandcenter_ghz * u.GHz),
+                    equivalencies=u.cmb_equivalencies(ch.bandcenter_ghz * u.GHz),
                 )
 
             # Convert to target unit
@@ -412,7 +412,7 @@ class SkyGenerator:
             else:
                 conv_factor = _get_cmb_unit_conversion(
                     target_units_str=self.params.units,
-                    freq_ghz=ch.band.bandcenter_ghz,
+                    freq_ghz=ch.bandcenter_ghz,
                     band_integration=False,
                 )
 
@@ -452,6 +452,7 @@ class SkyGenerator:
             components["dipole"] = self.generate_solar_dipole()
 
         if self.params.return_components:
+            components["SkyGenerationParams"] = self.params
             return components
 
         # Sum components
@@ -476,5 +477,6 @@ class SkyGenerator:
                 total_obj += components[comp_name][name]
 
             total_maps[name] = total_obj
+        total_maps["SkyGenerationParams"] = self.params
 
         return total_maps

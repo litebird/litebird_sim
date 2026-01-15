@@ -86,23 +86,22 @@ def test_hwp_sys(nside_out):
                 obs.quat[idet].quats[0]
             ) % (2 * np.pi)
 
-        mbs_params = lbs.MbsParameters(
+        sky_params = lbs.SkyGenerationParams(
             make_cmb=True,
             seed_cmb=1234,
-            make_noise=False,
+            output_type="map",
             make_dipole=True,
             make_fg=True,
-            fg_models=["pysm_synch_0", "pysm_dust_0", "pysm_freefree_1"],
-            gaussian_smooth=True,
-            bandpass_int=False,
-            maps_in_ecliptic=True,
+            fg_models=["s0", "d0", "f1"],
+            apply_beam=True,
+            bandpass_integration=False,
             nside=nside,
             units="K_CMB",
         )
 
-        mbs = lbs.Mbs(simulation=sim, parameters=mbs_params, channel_list=[channelinfo])
+        gen_sky = lbs.SkyGenerator(parameters=sky_params, channels=channelinfo)
 
-        input_maps = mbs.run_all()[0]["L4-140"]
+        input_maps = gen_sky.execute()["L4-140"]
 
         list_of_sims.append(sim)
 

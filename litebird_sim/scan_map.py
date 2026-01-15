@@ -486,12 +486,6 @@ def scan_map_in_observations(
                 "the observations."
             )
             raise AttributeError(msg)
-        # If you still have old dict-based `sky` objects with a "type" field,
-        # you can re-enable the check below:
-        # assert maps["type"] == "maps", (
-        #     "'maps' should be of type 'maps'. Disable 'store_alms' in "
-        #     "'MbsParameters' to make it so."
-        # )
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         # Decide how to select maps for this observation

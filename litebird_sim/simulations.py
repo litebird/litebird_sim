@@ -50,7 +50,7 @@ from .mapmaking import (
     DestriperResult,
     destriper_log_callback,
 )
-from .mbs import Mbs, MbsParameters
+from .input_sky import SkyGenerator, SkyGenerationParams
 from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
@@ -1639,7 +1639,7 @@ class Simulation:
         through calls to :meth:`.set_instrument` and
         :meth:`.create_observations`, and the method
         :meth:`.prepare_pointings`. maps is assumed to be produced by
-        :class:`.Mbs` or through :meth:`.get_sky`.
+        :class:`.SkyGenerator` or through :meth:`.get_sky`.
 
         """
 
@@ -1662,17 +1662,17 @@ class Simulation:
             if maps is None:
                 maps = self.observations[0].sky
             if isinstance(maps, dict):
-                if "Mbs_parameters" in maps.keys():
-                    if maps["Mbs_parameters"].make_fg:
-                        fg_model = maps["Mbs_parameters"].fg_models
+                if "SkyGenerationParams" in maps.keys():
+                    if maps["SkyGenerationParams"].make_fg:
+                        fg_model = maps["SkyGenerationParams"].fg_models
                     else:
                         fg_model = "N/A"
 
                     self.append_to_report(
                         markdown_template,
-                        nside=maps["Mbs_parameters"].nside,
-                        has_cmb=maps["Mbs_parameters"].make_cmb,
-                        has_fg=maps["Mbs_parameters"].make_fg,
+                        nside=maps["SkyGenerationParams"].nside,
+                        has_cmb=maps["SkyGenerationParams"].make_cmb,
+                        has_fg=maps["SkyGenerationParams"].make_fg,
                         fg_model=fg_model,
                     )
             elif isinstance(maps, HealpixMap):
@@ -1747,20 +1747,20 @@ class Simulation:
     @_profile
     def get_sky(
         self,
-        parameters: MbsParameters,
+        parameters: SkyGenerationParams,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
-        store_in_observation: bool | None = False,
+        store_in_observation: bool = False,
     ) -> dict[str, SphericalHarmonics | HealpixMap]:
         """
         Generates sky maps for the observations using the provided parameters.
         If `channels` is not provided, it automatically infers the detectors
-        used in the current observations and constructs the Mbs instance accordingly.
+        used in the current observations and constructs the SkyGenerator instance accordingly.
         otherwise a map per channel provided is returned
 
         Parameters
         ----------
-        parameters : MbsParameters
-            Configuration parameters for the Mbs simulation.
+        parameters : SkyGenerationParams
+            Configuration object containing nside, models, units, etc.
         channels : FreqChannelInfo or list of FreqChannelInfo, optional
             Frequency channels to use in the simulation. If None, it uses the detectors
             from the current observations.
@@ -1783,7 +1783,7 @@ class Simulation:
 
         """
 
-        if parameters.seed_cmb is None:
+        if getattr(parameters, "seed_cmb", None) is None:
             log.warning(
                 "seed_cmb is None. This could lead to unexpected behavior in MPI jobs."
             )
@@ -1798,11 +1798,7 @@ class Simulation:
                 det for det in self.detectors if det.name in detector_names
             ]
 
-            mbs = Mbs(
-                simulation=self,
-                parameters=parameters,
-                detector_list=detector_list,
-            )
+            sky_gen = SkyGenerator(parameters=parameters, channels=detector_list)
 
         else:
             # Use explicitly provided frequency channels
@@ -1810,13 +1806,9 @@ class Simulation:
                 [channels] if isinstance(channels, FreqChannelInfo) else channels
             )
 
-            mbs = Mbs(
-                simulation=self,
-                parameters=parameters,
-                channel_list=channel_list,
-            )
+            sky_gen = SkyGenerator(parameters=parameters, channels=channel_list)
 
-        sky = mbs.run_all()[0]
+        sky = sky_gen.execute()
 
         if store_in_observation:
             for obs in self.observations:
@@ -1847,7 +1839,7 @@ class Simulation:
         through calls to :meth:`.set_instrument` and
         :meth:`.add_detector`, and the method
         :meth:`.prepare_pointings`. alms are assumed to be produced by
-        :class:`.Mbs`
+        :class:`.SkyGenerator`
 
         """
 
@@ -1872,16 +1864,16 @@ class Simulation:
             if sky_alms is None:
                 sky_alms = self.observations[0].sky
             if isinstance(sky_alms, dict):
-                if "Mbs_parameters" in sky_alms.keys():
-                    if sky_alms["Mbs_parameters"].make_fg:
-                        fg_model = sky_alms["Mbs_parameters"].fg_models
+                if "SkyGenerationParams" in sky_alms.keys():
+                    if sky_alms["SkyGenerationParams"].make_fg:
+                        fg_model = sky_alms["SkyGenerationParams"].fg_models
                     else:
                         fg_model = "N/A"
 
                     self.append_to_report(
                         markdown_template,
-                        has_cmb=sky_alms["Mbs_parameters"].make_cmb,
-                        has_fg=sky_alms["Mbs_parameters"].make_fg,
+                        has_cmb=sky_alms["SkyGenerationParams"].make_cmb,
+                        has_fg=sky_alms["SkyGenerationParams"].make_fg,
                         fg_model=fg_model,
                     )
             else:

@@ -546,8 +546,8 @@ straightforward::
 Dedicated functions can also take care of the input generation and of
 the beam convolution::
 
-    mbs_params = lbs.MbsParameters(...)
-    alms = sim.get_sky(parameters=mbs_params)
+    sky_params = lbs.SkyGenerationParams(...)
+    alms = sim.get_sky(parameters=sky_params)
 
     blms = sim.get_gauss_beam_alms(...)
 
@@ -564,7 +564,7 @@ TODs of the simulations can be also zeroed easly with::
 
 See the documentation in :ref:`observations`, :ref:`scanning-strategy` 
 :ref:`dipole-anisotropy`, :ref:`noise`, :ref:`mapscanning`, :ref:`mapmaking`,
-:ref:`beamconvolution`, :ref:`Mbs`, for details of the single functions.
+:ref:`beamconvolution`, :ref:`input_sky`, for details of the single functions.
 
 The difference between the high-level and low-level interfaces is introduced in 
 :ref:`interface_hierarchy` and further explained in :ref:`high-level-vs-low-level-interfaces`.

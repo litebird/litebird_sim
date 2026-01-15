@@ -27,7 +27,7 @@ Here is an example showing how to generate a sky containing CMB and specific for
         units="K_CMB",
         output_type="map",       # Options: "map" or "alm"
         make_cmb=True,
-        cmb_seed=12345,          # Ensure reproducibility with a seed
+        seed_cmb=12345,          # Ensure reproducibility with a seed
         make_fg=True,
         fg_models=["d0", "s1"],  # PySM3 model short codes
         apply_beam=True,         # Apply the beam defined in the channel info
@@ -46,7 +46,7 @@ Here is an example showing how to generate a sky containing CMB and specific for
     ]
 
     # 3. Initialize and Run
-    sky_gen = SkyGenerator(params=params, channels=channels)
+    sky_gen = SkyGenerator(parameters=params, channels=channels)
     sky_maps = sky_gen.execute()
 
     # The result is a dictionary keyed by channel name
@@ -59,6 +59,7 @@ The :class:`~litebird_sim.input_sky.SkyGenerationParams` class controls every as
 
 **General Settings**
     * ``nside`` (int): The HEALPix resolution parameter ($N_{side}$) for the output maps.
+    * ``lmax`` (int): Maximum multipole moment ($\ell_{max}$) for spherical harmonic transforms.
     * ``output_type`` (str): The format of the output. Either ``"map"`` (pixel space) or ``"alm"`` (harmonic space).
     * ``units`` (str): The desired output units (e.g., ``"K_CMB"``, ``"MJy/sr"``, ``"uK_RJ"``).
     * ``return_components`` (bool): If True, returns a dictionary separated by component (CMB, FG, Dipole) instead of a summed sky.
@@ -67,10 +68,9 @@ The :class:`~litebird_sim.input_sky.SkyGenerationParams` class controls every as
 
 **CMB Settings**
     * ``make_cmb`` (bool): Enable/Disable CMB generation.
-    * ``cmb_seed`` (int): Random seed for the Gaussian realization.
+    * ``seed_cmb`` (int): Random seed for the Gaussian realization.
     * ``cmb_r`` (float): Tensor-to-scalar ratio for the simulation.
     * ``cmb_ps_file`` (Path, optional): Path to a FITS file containing input power spectra ($C_\ell$). If None, defaults to Planck 2018 best-fit.
-    * ``lmax_alms`` (int): Maximum multipole moment ($\ell_{max}$) for spherical harmonic transforms.
 
 **Foreground Settings**
     * ``make_fg`` (bool): Enable/Disable foreground generation.

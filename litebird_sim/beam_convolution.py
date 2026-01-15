@@ -399,10 +399,10 @@ def add_convolved_sky_to_observations(
         try:
             sky_alms = observations[0].sky
         except AttributeError:
-            msg = "'sky_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics, or store them in the observations if 'mbs' is used."
+            msg = "'sky_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics, or store them in the observations if 'input_sky' is used."
             raise AttributeError(msg)
-        assert sky_alms["type"] == "alms", (
-            "'sky_alms' should be of type 'alms'. Use 'store_alms' of 'MbsParameters' to make it so."
+        assert sky_alms["SkyGenerationParams"].output_type == "alm", (
+            "'sky_alms' should be of type 'alms'. Use 'store_alms' of 'SkyGenerationParams' to make it so."
         )
 
     if beam_alms is None:

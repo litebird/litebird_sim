@@ -807,28 +807,27 @@ def test_full_destriper(tmp_path):
     )
     sim.prepare_pointings()
 
-    mbs_params = lbs.MbsParameters(
+    sky_params = lbs.SkyGenerationParams(
         make_cmb=True,
         make_fg=True,
+        output_type="map",
         seed_cmb=1,
         fg_models=[
-            "pysm_synch_0",
-            "pysm_freefree_1",
-            "pysm_dust_0",
+            "s0",
+            "f1",
+            "d0",
         ],  # set the FG models you want
-        gaussian_smooth=True,
-        bandpass_int=False,
+        apply_beam=True,
+        bandpass_integration=False,
         nside=nside,
         units="K_CMB",
-        maps_in_ecliptic=False,
     )
 
-    mbs = lbs.Mbs(
-        simulation=sim,
-        parameters=mbs_params,
-        detector_list=dets,
+    sky_gen = lbs.SkyGenerator(
+        parameters=sky_params,
+        channels=dets,
     )
-    maps = mbs.run_all()[0]  # generates the map as a dictionary
+    maps = sky_gen.execute()  # generates the map as a dictionary
 
     lbs.scan_map_in_observations(
         sim.observations,
