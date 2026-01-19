@@ -36,6 +36,9 @@ def _rotmat2euler_zyz(mat):
     theta = np.arccos(np.dot(zeta, zout))
     phi = np.arctan2(zout[1], zout[0])
 
+    if phi < 0:
+        phi += 2 * np.pi
+
     return psi, theta, phi
 
 
@@ -132,14 +135,24 @@ def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> tuple[float, flo
     -------
     theta, phi : float
       A tuple containing the value of the colatitude and of the longitude,
-      in radians
+      in radians. Ensures phi is in [0, 2pi] range for ducc0 compatibility.
 
     See Also
     --------
     https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L610
     """
 
-    return np.arctan2(np.sqrt(vx**2 + vy**2), vz), np.arctan2(vy, vx)
+    # Calculate theta (colatitude)
+    theta = np.arctan2(np.sqrt(vx**2 + vy**2), vz)
+
+    # Calculate phi (longitude)
+    phi = np.arctan2(vy, vx)
+
+    # Normalize phi to be in [0, 2pi]
+    if phi < 0.0:
+        phi += 2.0 * np.pi
+
+    return theta, phi
 
 
 @njit
