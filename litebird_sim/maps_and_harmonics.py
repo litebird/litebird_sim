@@ -2605,6 +2605,51 @@ def compute_cl(
         raise ValueError(f"Unsupported number of Stokes parameters: {nstokes1}")
 
 
+def compute_dl(alm1, alm2=None, lmax=None, mmax=None, symmetrize=True):
+    """
+    Computes the Dl power spectrum, defined as l(l+1)Cl/2pi.
+
+    This function acts as a wrapper around :func:`compute_cl`, automatically
+    applying the scaling factor :math:`\\ell(\\ell+1)/2\\pi` to the output spectra.
+
+    Parameters
+    ----------
+    alm1 : SphericalHarmonics
+        The first set of spherical harmonics coefficients.
+    alm2 : SphericalHarmonics, optional
+        The second set of spherical harmonics coefficients. If None, the auto-spectrum
+        of `alm1` is computed.
+    lmax : int, optional
+        The maximum degree l to compute. If None, derived from inputs.
+    mmax : int, optional
+        The maximum order m to compute. If None, derived from inputs.
+    symmetrize : bool, default=True
+        Only applies when two different objects are passed and nstokes=3. 
+        If True, returns symmetric cross-spectra (e.g., TE = (T1E2 + E1T2)/2).
+
+    Returns
+    -------
+    Dict[str, np.ndarray]
+        A dictionary containing the Dl spectra. The keys follow the same 
+        convention as compute_cl (e.g., 'TT', 'EE', 'BB', 'TE').
+    """
+    # 1. Compute the Cl spectra by calling the existing function
+    cls = compute_cl(alm1, alm2=alm2, lmax=lmax, mmax=mmax, symmetrize=symmetrize)
+
+    dls = {}
+    # 2. Apply the scaling factor l(l+1)/2pi
+    for key, cl_array in cls.items():
+        # Generate the l (ell) array based on the length of the spectrum
+        ell = np.arange(len(cl_array))
+        
+        # Calculate the scaling factor. Note: for l=0, the factor is 0.
+        factor = ell * (ell + 1) / (2 * np.pi)
+        
+        dls[key] = cl_array * factor
+
+    return dls
+
+
 def pixel_window(nside, lmax=None, pol=False):
     """
     Returns the pixel window function compatible with SphericalHarmonics.convolve.
