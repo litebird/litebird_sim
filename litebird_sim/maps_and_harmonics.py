@@ -812,7 +812,8 @@ class SphericalHarmonics:
         and identical coefficients.
         """
         if not isinstance(other, SphericalHarmonics):
-            raise ValueError("Can only compare with another SphericalHarmonics object.")
+            return NotImplemented
+
         return (
             self.is_consistent(other)
             and self.units == other.units
@@ -820,25 +821,61 @@ class SphericalHarmonics:
             and np.array_equal(self.values, other.values)
         )
 
-    def allclose(self, other: "SphericalHarmonics", rtol=1e-5, atol=1e-8) -> bool:
+    def allclose(
+        self, other: "SphericalHarmonics", rtol: float = 1.0e-5, atol: float = 1.0e-8
+    ) -> bool:
         """
-        Compare SH values with tolerance.
+        Check if two SphericalHarmonics objects are equal within a tolerance.
 
         Units must be compatible (same, or one/both None/Units.None).
         Coordinates must also be compatible (same, or one/both None).
+
+        Returns
+        -------
+        bool
+            True if the objects are structurally consistent and their values are
+            close within the specified tolerance.
+            If the objects are inconsistent (e.g., different lmax, units, etc.),
+            a warning is logged with the specific reason, and False is returned.
         """
         if not isinstance(other, SphericalHarmonics):
-            raise ValueError("Can only compare with another SphericalHarmonics object.")
+            raise TypeError("Can only compare with another SphericalHarmonics object.")
 
-        if not self.is_consistent(other):
+        # 1. Check structural consistency (lmax, mmax, nstokes)
+        # We check attributes individually to log specific mismatch reasons
+        if self.lmax != other.lmax:
+            log.warning(
+                f"allclose mismatch: lmax differs ({self.lmax} vs {other.lmax})"
+            )
             return False
 
+        if self.mmax != other.mmax:
+            log.warning(
+                f"allclose mismatch: mmax differs ({self.mmax} vs {other.mmax})"
+            )
+            return False
+
+        if self.nstokes != other.nstokes:
+            log.warning(
+                f"allclose mismatch: nstokes differs ({self.nstokes} vs {other.nstokes})"
+            )
+            return False
+
+        # 2. Check units compatibility
         if not self._units_compatible(other):
+            log.warning(
+                f"allclose mismatch: Incompatible units ({self.units} vs {other.units})"
+            )
             return False
 
+        # 3. Check coordinates compatibility
         if not self._coordinates_compatible(other):
+            log.warning(
+                f"allclose mismatch: Incompatible coordinates ({self.coordinates} vs {other.coordinates})"
+            )
             return False
 
+        # 4. Check numerical equality
         return np.allclose(self.values, other.values, rtol=rtol, atol=atol)
 
     # -------------
@@ -1562,13 +1599,14 @@ class HealpixMap:
             nest=self.nest,
         )
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: Any) -> bool:
         """
         Exact equality: same geometry, same units, same coordinates
         and identical pixel values.
         """
         if not isinstance(other, HealpixMap):
-            raise ValueError("Can only compare with another HealpixMap object.")
+            return NotImplemented
+
         return (
             self.is_consistent(other)
             and self.units == other.units
@@ -1576,26 +1614,60 @@ class HealpixMap:
             and np.array_equal(self.values, other.values)
         )
 
-    def allclose(self, other: "HealpixMap", rtol=1e-5, atol=1e-8) -> bool:
+    def allclose(
+        self, other: "HealpixMap", rtol: float = 1.0e-5, atol: float = 1.0e-8
+    ) -> bool:
         """
-        Compare map values with tolerance.
+        Check if two HealpixMap objects are equal within a tolerance.
 
-        Units and coordinates must be compatible. Units are compatible if
-        both match or one/both are None; coordinates are
-        compatible if both match or one/both are None.
+        Checks for consistency in geometry (nside, nest, nstokes), metadata
+        (units, coordinates), and numerical values.
+
+        Returns
+        -------
+        bool
+            True if the objects are structurally consistent and their values are
+            close within the specified tolerance.
+            If the objects are inconsistent, a warning is logged with the specific
+            reason, and False is returned.
         """
         if not isinstance(other, HealpixMap):
-            raise ValueError("Can only compare with another HealpixMap object.")
+            raise TypeError("Can only compare with another HealpixMap object.")
 
-        if not self.is_consistent(other):
+        # 1. Check structural consistency (nside, nest, nstokes)
+        if self.nside != other.nside:
+            log.warning(
+                f"allclose mismatch: nside differs ({self.nside} vs {other.nside})"
+            )
             return False
 
+        if self.nest != other.nest:
+            log.warning(
+                f"allclose mismatch: nest ordering differs ({self.nest} vs {other.nest})"
+            )
+            return False
+
+        if self.nstokes != other.nstokes:
+            log.warning(
+                f"allclose mismatch: nstokes differs ({self.nstokes} vs {other.nstokes})"
+            )
+            return False
+
+        # 2. Check units compatibility
         if not self._units_compatible(other):
+            log.warning(
+                f"allclose mismatch: Incompatible units ({self.units} vs {other.units})"
+            )
             return False
 
+        # 3. Check coordinates compatibility
         if not self._coordinates_compatible(other):
+            log.warning(
+                f"allclose mismatch: Incompatible coordinates ({self.coordinates} vs {other.coordinates})"
+            )
             return False
 
+        # 4. Check numerical equality
         return np.allclose(self.values, other.values, rtol=rtol, atol=atol)
 
 
@@ -2624,13 +2696,13 @@ def compute_dl(alm1, alm2=None, lmax=None, mmax=None, symmetrize=True):
     mmax : int, optional
         The maximum order m to compute. If None, derived from inputs.
     symmetrize : bool, default=True
-        Only applies when two different objects are passed and nstokes=3. 
+        Only applies when two different objects are passed and nstokes=3.
         If True, returns symmetric cross-spectra (e.g., TE = (T1E2 + E1T2)/2).
 
     Returns
     -------
     Dict[str, np.ndarray]
-        A dictionary containing the Dl spectra. The keys follow the same 
+        A dictionary containing the Dl spectra. The keys follow the same
         convention as compute_cl (e.g., 'TT', 'EE', 'BB', 'TE').
     """
     # 1. Compute the Cl spectra by calling the existing function
@@ -2641,10 +2713,10 @@ def compute_dl(alm1, alm2=None, lmax=None, mmax=None, symmetrize=True):
     for key, cl_array in cls.items():
         # Generate the l (ell) array based on the length of the spectrum
         ell = np.arange(len(cl_array))
-        
+
         # Calculate the scaling factor. Note: for l=0, the factor is 0.
         factor = ell * (ell + 1) / (2 * np.pi)
-        
+
         dls[key] = cl_array * factor
 
     return dls
