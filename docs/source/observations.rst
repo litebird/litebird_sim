@@ -43,18 +43,25 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
 
    You can create other TOD-like arrays through the parameter ``tods``;
    it accepts a list of :class:`.TodDescription` objects that specify
-   the name of the field used to store the 2D array, a textual
-   description, and the value for ``dtype``. (By default, the ``tod``
+   the name of the field used to store the 2D array, the physical units
+   of the TOD expressed as an item of :class:.Units (e.g. Units.K_CMB);
+   a textual description, and the value for ``dtype``. (By default, the ``tod``
    field uses 32-bit floating-point numbers.) Here is an example::
 
     sim.create_observations(
         detectors=[det1, det2, det3],
         tods=[
             lbs.TodDescription(
-                name="tod", description="TOD", dtype=np.float64,
+                name="tod",
+                units=Units.K_CMB,
+                description="TOD",
+                dtype=np.float64,
             ),
             lbs.TodDescription(
-                name="noise", description="1/f+white noise", dtype=np.float32
+                name="noise", 
+                units=Units.K_CMB,
+                description="1/f+white noise", 
+                dtype=np.float32
             ),
         ],
     )
@@ -62,6 +69,15 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
     for cur_obs in sim.observations:
         print("Shape of 'tod': ", cur_obs.tod.shape)
         print("Shape of 'noise': ", cur_obs.noise.shape)
+
+   The default TOD named "tod" uses units Units.K_CMB and 32-bit
+   floating-point numbers (numpy.float32), which are adequate for most
+   LiteBIRD simulations.
+
+   The parameter ``allocate_tod`` controls whether these TOD arrays are effectivelly
+   allocated or not. By default TODs are allocated, but in some special situations,
+   e.g. you need just to deal with pointing, you can set it to ``False`` and save 
+   memory.
 
 2. If you called :func:`.prepare_pointings()` and then
    :func:`.precompute_pointings()`, the field ``Observation.pointing_matrix``

@@ -1,5 +1,9 @@
 # HEAD
 
+-   Stop using sphinxcontrib-asciinema [#478](https://github.com/litebird/litebird_sim/pull/478)
+
+-   TODs handling improved [#472](https://github.com/litebird/litebird_sim/pull/472)
+
 -   Optimize actions and add automatic publishing [#465](https://github.com/litebird/litebird_sim/pull/465)
 
 -   Improve caching system of CI tests [#462](https://github.com/litebird/litebird_sim/pull/462)

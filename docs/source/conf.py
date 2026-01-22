@@ -12,8 +12,10 @@
 
 import os
 import sys
+from pathlib import Path
 
 sys.path.insert(0, os.path.abspath(os.path.join("..", "..")))
+sys.path.append(str(Path("_ext").resolve()))
 
 # -- Project information -----------------------------------------------------
 
@@ -31,7 +33,7 @@ release = "0.16.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinxcontrib.asciinema",
+    "asciinema",
     "sphinx.ext.autodoc",
     "sphinxcontrib.bibtex",
     "sphinx.ext.doctest",
@@ -64,3 +66,7 @@ html_theme = "pydata_sphinx_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
+html_css_files = ["asciinema-player.css"]
+
+html_js_files = ["asciinema-player.min.js"]
