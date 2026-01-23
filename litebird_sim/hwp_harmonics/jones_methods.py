@@ -232,9 +232,12 @@ def compute_signal_for_one_detector(
         deltas = np.zeros((2, 2))
         for x in prange(2):
             for y in prange(2):
-                deltas[x, y] = np.abs(deltas_j0f[x, y]) + np.abs(
-                    deltas_j2f[x, y]
-                ) * np.cos(2 * alpha + 2 * np.angle(deltas_j2f[x, y]))
+                deltas[x, y] = np.abs(deltas_j0f[x, y]) * np.cos(
+                    np.angle(deltas_j0f[x, y])
+                )
+                +np.abs(deltas_j2f[x, y]) * np.cos(
+                    2 * alpha + np.angle(deltas_j2f[x, y])
+                )
 
         jones = np.array(
             [[1 - deltas[0, 0], deltas[0, 1]], [deltas[1, 0], -1 + deltas[1, 1]]],
@@ -325,10 +328,11 @@ def integrate_inband_signal_for_one_detector(
             for y in range(2):
                 for nu in range(n_freqs):
                     delta_j0 = np.abs(deltas_j0f[nu, x, y])
+                    angle_j0 = np.angle(deltas_j0f[nu, x, y])
                     delta_j2 = np.abs(deltas_j2f[nu, x, y])
                     angle_j2 = np.angle(deltas_j2f[nu, x, y])
-                    deltas[nu, x, y] = delta_j0 + delta_j2 * np.cos(
-                        2 * alpha + 2 * angle_j2
+                    deltas[nu, x, y] = delta_j0 * np.cos(angle_j0) + delta_j2 * np.cos(
+                        2 * alpha + angle_j2
                     )
 
         for nu in range(n_freqs):
