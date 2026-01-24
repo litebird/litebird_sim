@@ -41,7 +41,7 @@ def _get_cmb_unit_conversion(
     Parameters
     ----------
     target_unit : Units
-        The target unit Enum (e.g., Units.K_CMB, Units.MJy_sr).
+        The target unit Enum (e.g., Units.K_CMB, Units.MJy_over_sr).
     origin_unit : Units, optional
         The unit of the input data, by default Units.K_CMB.
     freq_ghz : float | None, optional
@@ -50,7 +50,30 @@ def _get_cmb_unit_conversion(
         Bandpass object containing frequencies and weights. Required if band_integration is True.
     band_integration : bool, optional
         If True, integrates over the bandpass using PySM3. If False, uses the band center
-        (or freq_ghz) for a monochromatic conversion using Astropy equivalencies.
+        (or freq_ghz) for a monochromatic conversion using Astropy equivalencies.Structure of the Output
+-----------------------
+
+The :meth:`~litebird_sim.input_sky.SkyGenerator.execute` method returns a dictionary containing the generated sky objects. Depending on the ``output_type`` parameter, these will be instances of either ``HealpixMap`` or ``SphericalHarmonics``.
+
+If ``return_components=True`` is set in the parameters, the output will be a nested dictionary separating the components:
+
+.. code-block:: python
+
+    {
+        "cmb": { "channel_name": map_obj, ... },
+        "foregrounds": { "channel_name": map_obj, ... },
+        "dipole": { "channel_name": map_obj, ... }
+    }
+
+Otherwise, it returns the sum of all requested components.
+
+API Reference
+-------------
+
+.. automodule:: litebird_sim.input_sky
+    :members:
+    :undoc-members:
+    :show-inheritance:
         Default is False.
 
     Returns

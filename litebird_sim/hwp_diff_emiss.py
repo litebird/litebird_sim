@@ -33,7 +33,8 @@ def add_2f(
 
     This functions modifies the values in `tod` by adding the contribution of the HWP
     synchronous signal coming from differential emission. The `amplitude_2f_k` argument must be
-    a N_dets array containing the amplitude of the HWPSS."""
+    a N_dets array containing the amplitude of the HWPSS.
+    """
 
     assert len(tod.shape) == 2
     num_of_dets = tod.shape[0]

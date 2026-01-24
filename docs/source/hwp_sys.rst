@@ -301,7 +301,7 @@ API reference
 HWP_sys
 ~~~~~~~
 
-.. automodule:: litebird_sim.hwp_sys.hwp_sys
+.. automodule:: litebird_sim.hwp_harmonics
     :members:
     :show-inheritance:
     :private-members:

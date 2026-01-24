@@ -389,7 +389,7 @@ API reference
     :undoc-members:
     :show-inheritance:
 
-.. automodule:: litebird_sim.spherical_harmonics
+.. automodule:: litebird_sim.maps_and_harmonics
     :members:
 
 .. automodule:: litebird_sim.beam_synthesis
