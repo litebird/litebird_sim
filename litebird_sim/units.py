@@ -21,7 +21,7 @@ class Units(str, Enum):
     MJy_over_sr = "MJy/sr"  # Valid string representation for Astropy/PySM
     Jy_over_sr = "Jy/sr"  # Valid string representation for Astropy/PySM
     ADU = "ADU"
-    Pure = "dimensionless_unscaled"
+    Pure = "dimensionless"
 
 
 # --- 2. The Functional Manager ---

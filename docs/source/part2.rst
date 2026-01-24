@@ -12,6 +12,7 @@ Structure of the framework
    observations.rst
    data_layout.rst
    maps_and_harmonics.rst
+   units.rst
    profiling.rst
    reports.rst
    random_numbers.rst
