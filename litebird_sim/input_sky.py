@@ -22,27 +22,28 @@ from .maps_and_harmonics import (
     read_cls_from_fits,
     synthesize_alm,
 )
+from .units import Units, UnitUtils  # <--- NEW IMPORT
 
 # --- Utility Functions ---
 
 
 def _get_cmb_unit_conversion(
-    target_units_str: str,
-    origin_units_str: str = "K_CMB",
+    target_unit: Units,
+    origin_unit: Units = Units.K_CMB,
     freq_ghz: float | None = None,
     bandpass: BandPassInfo | None = None,
     band_integration: bool = False,
 ) -> float:
     """
-    Computes the scalar factor to convert from origin_units_str into the target_units_str,
+    Computes the scalar factor to convert from origin_unit into the target_unit,
     considering potential bandpass integration over a CMB spectrum.
 
     Parameters
     ----------
-    target_units_str : str
-        The target unit string (e.g., 'K_CMB', 'MJy/sr', 'uK_RJ').
-    origin_units_str : str, optional
-        The unit of the input data, by default "K_CMB".
+    target_unit : Units
+        The target unit Enum (e.g., Units.K_CMB, Units.MJy_sr).
+    origin_unit : Units, optional
+        The unit of the input data, by default Units.K_CMB.
     freq_ghz : float | None, optional
         Frequency in GHz for monochromatic conversion. Required if bandpass is None.
     bandpass : BandPassInfo | None, optional
@@ -64,8 +65,9 @@ def _get_cmb_unit_conversion(
         If neither freq_ghz nor bandpass is provided.
         If band_integration is True but bandpass is None.
     """
-    target_units = u.Unit(target_units_str)
-    origin_units = u.Unit(origin_units_str)
+    # Use UnitUtils to get the actual Astropy objects needed by PySM logic
+    target_astropy = UnitUtils.get_astropy_unit(target_unit)
+    origin_astropy = UnitUtils.get_astropy_unit(origin_unit)
 
     # --- 1. Validation ---
 
@@ -96,9 +98,11 @@ def _get_cmb_unit_conversion(
         # pysm3.bandpass_unit_conversion calculates the factor C such that:
         # Value_Unit = Value_K_CMB * C
         # Therefore: C_target converts K_CMB -> Target
-        factor_to_target = pysm3.bandpass_unit_conversion(freqs, weights, target_units)
+        factor_to_target = pysm3.bandpass_unit_conversion(
+            freqs, weights, target_astropy
+        )
 
-        if origin_units_str == "K_CMB":
+        if origin_unit == Units.K_CMB:
             return factor_to_target.value
 
         # If origin is not K_CMB, we calculate the factor for the origin unit
@@ -107,7 +111,9 @@ def _get_cmb_unit_conversion(
         # Value_Origin = Value_K_CMB * C_origin  =>  Value_K_CMB = Value_Origin / C_origin
         # Value_Target = (Value_Origin / C_origin) * C_target
         # Factor = C_target / C_origin
-        factor_to_origin = pysm3.bandpass_unit_conversion(freqs, weights, origin_units)
+        factor_to_origin = pysm3.bandpass_unit_conversion(
+            freqs, weights, origin_astropy
+        )
         return (factor_to_target / factor_to_origin).value
 
     else:
@@ -118,7 +124,7 @@ def _get_cmb_unit_conversion(
             effective_freq = freq_ghz
 
         equiv = u.cmb_equivalencies(effective_freq * u.GHz)
-        factor = (1.0 * origin_units).to(target_units, equivalencies=equiv)
+        factor = (1.0 * origin_astropy).to(target_astropy, equivalencies=equiv)
         return factor.value
 
 
@@ -134,7 +140,7 @@ class SkyGenerationParams:
 
     # Output Control
     output_type: Literal["map", "alm"] = "map"
-    units: str = "K_CMB"
+    units: Units = Units.K_CMB  # Updated to use Enum
 
     # Beam & Smoothing
     apply_beam: bool = False
@@ -175,6 +181,10 @@ class SkyGenerationParams:
         if self.lmax is None:
             self.lmax = 3 * self.nside - 1
 
+        # Robustness: Ensure units is Enum if user passed string
+        if isinstance(self.units, str):
+            self.units = Units(self.units)
+
         # Warning for MPI consistency
         if self.make_cmb and self.seed_cmb is None:
             log.warning(
@@ -207,22 +217,22 @@ class SkyGenerator:
         else:
             self.channels = [channels]
 
-        self.pysm_units = u.Unit(self.params.units)
+        # --- VALIDATION (New) ---
+        if not UnitUtils.is_pysm3_compatible(self.params.units):
+            raise ValueError(
+                f"Unit '{self.params.units.name}' is not compatible with PySM 3 generation. "
+                f"Please select a Flux or Temperature unit."
+            )
+
+        # We store the Astropy Unit object for PySM calls (same name as before for consistency)
+        self.pysm_units = UnitUtils.get_astropy_unit(self.params.units)
 
         # Coordinate system is strictly Galactic
         self.coords = CoordinateSystem.Galactic
 
         # Resolve Unit object for lbs objects
-        try:
-            self.lbs_unit = lbs.Units[self.params.units]
-        except (KeyError, AttributeError):
-            log.warning(
-                f"Unit string '{self.params.units}' not found in litebird_sim.Units Enum. "
-                "Proceeding without specific unit assignment for generated maps/alms."
-            )
-            # Fallback if specific unit string not in Enum, pass None or handle error
-            # Assuming lbs.Units matches the string key
-            self.lbs_unit = None
+        # Direct assignment since we use the Enum now
+        self.lbs_unit = self.params.units
 
     def generate_cmb(self) -> dict[str, Any]:
         """Generates CMB component."""
@@ -275,13 +285,13 @@ class SkyGenerator:
             # Unit conversion
             if self.params.bandpass_integration:
                 conv_factor = _get_cmb_unit_conversion(
-                    target_units_str=self.params.units,
+                    target_unit=self.params.units,
                     bandpass=ch.band,
                     band_integration=True,
                 )
             else:
                 conv_factor = _get_cmb_unit_conversion(
-                    target_units_str=self.params.units,
+                    target_unit=self.params.units,
                     freq_ghz=ch.bandcenter_ghz,
                     band_integration=False,
                 )
@@ -324,6 +334,7 @@ class SkyGenerator:
                 weights = ch.band.weights[nonzero]
 
                 m_fg = sky.get_emission(bandpass_frequencies, weights=weights)
+                # Use self.pysm_units (which is now the Astropy object)
                 m_fg = m_fg * pysm3.bandpass_unit_conversion(
                     bandpass_frequencies, weights, self.pysm_units
                 )
@@ -405,13 +416,13 @@ class SkyGenerator:
             # Unit conversion
             if self.params.bandpass_integration:
                 conv_factor = _get_cmb_unit_conversion(
-                    target_units_str=self.params.units,
+                    target_unit=self.params.units,
                     bandpass=ch.band,
                     band_integration=True,
                 )
             else:
                 conv_factor = _get_cmb_unit_conversion(
-                    target_units_str=self.params.units,
+                    target_unit=self.params.units,
                     freq_ghz=ch.bandcenter_ghz,
                     band_integration=False,
                 )

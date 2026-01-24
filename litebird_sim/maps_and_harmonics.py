@@ -413,19 +413,25 @@ class SphericalHarmonics:
 
         Rules
         -----
-        - If either units is None → always compatible.
-        - Otherwise, units must be exactly equal.
+        - If units are identical, return True.
+        - If one unit is None, return True but issue a warning.
+        - If units are different and not None, return False.
         """
         u1 = self.units
         u2 = other.units
 
-        is_none_1 = u1 is None
-        is_none_2 = u2 is None
-
-        if is_none_1 or is_none_2:
+        if u1 == u2:
             return True
 
-        return u1 == u2
+        if u1 is None or u2 is None:
+            warnings.warn(
+                "Performing addition/subtraction where one object has undefined units. "
+                "Proceeding by assuming compatibility, but ensure this is physically intended.",
+                UserWarning,
+            )
+            return True
+
+        return False
 
     def _coordinates_compatible(self, other: "SphericalHarmonics") -> bool:
         """
@@ -1325,20 +1331,27 @@ class HealpixMap:
 
         Rules
         -----
-        - If either units is None → always compatible.
-        - Otherwise, units must be exactly equal.
+        - If units are equal, return True.
+        - If one unit is None, return True but issue a warning for additive operations.
+        - Otherwise, return False.
         """
         u1 = self.units
         u2 = other.units
 
-        # Treat Units.None and Python None as "no units / don't care"
-        is_none_1 = u1 is None
-        is_none_2 = u2 is None
-
-        if is_none_1 or is_none_2:
+        if u1 == u2:
             return True
 
-        return u1 == u2
+        # Check if either is None
+        if u1 is None or u2 is None:
+            warnings.warn(
+                f"Performing addition/subtraction between HealpixMap objects where "
+                f"one has undefined units (units: {u1} vs {u2}). "
+                "Assuming compatibility, but this may lead to physical errors.",
+                UserWarning,
+            )
+            return True
+
+        return False
 
     def _coordinates_compatible(self, other: "HealpixMap") -> bool:
         """
