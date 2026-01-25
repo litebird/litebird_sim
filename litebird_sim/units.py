@@ -99,7 +99,7 @@ class UnitUtils:
 
     @staticmethod
     def get_conversion_factor(
-        unit_from: Units, unit_to: Units, freq_ghz: float = None
+        unit_from: Units, unit_to: Units, freq_ghz: float | None = None
     ) -> float:
         """
         Calculates the multiplicative factor to convert between units using Astropy equivalencies.
@@ -138,7 +138,7 @@ class UnitUtils:
         # Define CMB equivalencies (required for T_RJ <-> T_CMB <-> Flux)
         eq = []
         if freq_ghz is not None:
-            eq = u.cmb_equivalencies(freq_ghz * u.GHz)
+            eq = u.cmb_equivalencies(freq_ghz * getattr(u, "GHz"))
 
         # We rely on Astropy to handle the physics.
         # We create a Quantity of "1.0 unit_from" and convert it to "unit_to".

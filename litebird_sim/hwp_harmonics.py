@@ -706,7 +706,7 @@ def fill_tod(
             curr_pointings_det, hwp_angle = _get_pointings_array(
                 detector_idx=idet,
                 pointings=cur_point,
-                hwp_angle=hwp_angle,
+                hwp_angle=cur_hwp_angle,
                 output_coordinate_system=coordinates,
                 pointings_dtype=pointings_dtype,
             )

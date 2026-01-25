@@ -3,9 +3,7 @@
 from pathlib import Path
 
 import healpy as hp
-import numpy as np
 import numpy.testing as npt
-import pytest
 
 import litebird_sim as lbs
 from litebird_sim.input_sky import SkyGenerator, SkyGenerationParams
@@ -153,6 +151,31 @@ def test_sky_generation_from_imo():
     assert generated_map_obj.units == lbs.Units.K_CMB
     assert generated_map_obj.coordinates == lbs.CoordinateSystem.Galactic
 
+    # Check that parameters were stored
+    assert "SkyGenerationParams" in result
+    assert result["SkyGenerationParams"].nside == nside
+
+    # Initialize Generator
+    dets = []
+    for d in detlist:
+        dets.append(
+            lbs.DetectorInfo.from_imo(
+                imo,
+                f"/releases/{imo_version}/satellite/{telescope}/{channel}/{d}/detector_info",
+            ),
+        )
+
+    sky_gen = SkyGenerator(parameters=params, channels=dets)
+    # Execute
+    result = sky_gen.execute()
+    # Verify Output
+    assert detlist[0] in result
+    generated_map_obj = result[detlist[0]]
+    # Check data integrity
+    assert generated_map_obj.nside == nside
+    assert generated_map_obj.values.shape == (3, 12 * nside**2)
+    assert generated_map_obj.units == lbs.Units.K_CMB
+    assert generated_map_obj.coordinates == lbs.CoordinateSystem.Galactic
     # Check that parameters were stored
     assert "SkyGenerationParams" in result
     assert result["SkyGenerationParams"].nside == nside
