@@ -457,7 +457,7 @@ def compute_ata_atd_for_one_detector(
 
 
 def fill_tod(
-    observation: Observation,
+    observation: Observation | list[Observation],
     maps: (
         HealpixMap
         | dict[str, HealpixMap | SkyGenerationParams]
@@ -539,15 +539,20 @@ def fill_tod(
 
     """
     if maps is None:
-        try:
-            maps = observation.sky
-        except AttributeError:
-            msg = (
-                "'maps' is None and nothing is found in the observation. "
-                "You should either pass the maps here, or store them in "
-                "the observations."
+        if observation is None:
+            raise ValueError(
+                "'maps' is None and 'observation' is None. "
+                "You should either pass the maps here, or pass an observation."
             )
-            raise AttributeError(msg)
+        elif isinstance(observation, list):
+            maps = observation[0].sky
+        elif isinstance(observation, Observation):
+            maps = observation.sky
+        else:
+            raise ValueError(
+                f"'maps' is None and type 'observation' is {type(observation)}. "
+                "You should either pass the maps here, or pass an observation, or a list of observations that contain the maps."
+            )
     assert maps is not None, "You need to pass input maps to fill_tod."
 
     # Set number of threads
