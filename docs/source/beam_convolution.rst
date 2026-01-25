@@ -361,7 +361,7 @@ For a single-task execution, refer to the following example:
         apply_beam=False,
         bandpass_integration=False,
         output_type="alm",
-        lmax_alms=lmax,
+        lmax=lmax,
         seed_cmb=12345,
     )
 
