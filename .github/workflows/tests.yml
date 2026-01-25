@@ -64,7 +64,11 @@ jobs:
       - name: Download PySM3 data files
         if: steps.cache-pysm3.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
+          if [ ! -d "$PYSM_LOCAL_DATA" ] || [ -z "$(ls -A "$PYSM_LOCAL_DATA" 2>/dev/null)" ]; then
+            git clone --depth 1 https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
+          else
+            echo "PySM data directory already exists and is not empty, skipping clone"
+          fi
 
       - name: Install basic dependencies (MPI, FFTW, IMO)
         run: |
