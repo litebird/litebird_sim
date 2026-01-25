@@ -137,7 +137,7 @@ def add_dipole_for_one_detector(
     dipole_type: DipoleType,
 ):
     if dipole_type == DipoleType.LINEAR:
-        for i in prange(len(tod_det)):
+        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
             tod_det[i] += compute_dipole_for_one_sample_linear(
                 theta=theta_phi_det[i, 0],
                 phi=theta_phi_det[i, 1],
@@ -145,7 +145,7 @@ def add_dipole_for_one_detector(
                 t_cmb_k=t_cmb_k,
             )
     elif dipole_type == DipoleType.QUADRATIC_EXACT:
-        for i in prange(len(tod_det)):
+        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
             tod_det[i] += compute_dipole_for_one_sample_quadratic_exact(
                 theta=theta_phi_det[i, 0],
                 phi=theta_phi_det[i, 1],
@@ -153,7 +153,7 @@ def add_dipole_for_one_detector(
                 t_cmb_k=t_cmb_k,
             )
     elif dipole_type == DipoleType.TOTAL_EXACT:
-        for i in prange(len(tod_det)):
+        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
             tod_det[i] += compute_dipole_for_one_sample_total_exact(
                 theta=theta_phi_det[i, 0],
                 phi=theta_phi_det[i, 1],
@@ -161,7 +161,7 @@ def add_dipole_for_one_detector(
                 t_cmb_k=t_cmb_k,
             )
     elif dipole_type == DipoleType.QUADRATIC_FROM_LIN_T:
-        for i in prange(len(tod_det)):
+        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
             tod_det[i] += compute_dipole_for_one_sample_quadratic_from_lin_t(
                 theta=theta_phi_det[i, 0],
                 phi=theta_phi_det[i, 1],
@@ -171,7 +171,7 @@ def add_dipole_for_one_detector(
             )
     elif dipole_type == DipoleType.TOTAL_FROM_LIN_T:
         planck_t0 = planck(nu_hz, t_cmb_k)
-        for i in prange(len(tod_det)):
+        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
             tod_det[i] += compute_dipole_for_one_sample_total_from_lin_t(
                 theta=theta_phi_det[i, 0],
                 phi=theta_phi_det[i, 1],

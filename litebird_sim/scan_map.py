@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import DTypeLike
 from numba import njit, prange
 import os
 
@@ -56,7 +57,7 @@ def compute_signal_for_one_sample(T, Q, U, co, si, gamma):
 def scan_map_for_one_detector(
     tod_det, input_T, input_Q, input_U, pol_angle_det, pol_eff_det
 ):
-    for i in prange(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         tod_det[i] += compute_signal_for_one_sample(
             T=input_T[i],
             Q=input_Q[i],
@@ -280,7 +281,7 @@ def scan_map(
             if maps_det.nstokes == 1:
                 input_T = pixmap[0, pixel_ind_det]
                 input_Q = np.zeros_like(input_T)
-                input_U = np.zeros_like(input_T)
+                input_U = input_Q
             else:
                 input_T = pixmap[0, pixel_ind_det]
                 input_Q = pixmap[1, pixel_ind_det]
@@ -333,6 +334,9 @@ def scan_map(
         elif isinstance(hwp, NonIdealHWP):
             # This implements:
             # (1,0,0,0) x Mpol(ρ) x Rpol(θ) x Rhwp(α)^T x Mhwp x Rhwp(α) x Rtel(ψ) x Stokes
+            assert mueller_hwp is not None, (
+                "Non ideal HWP selected but no mueller matrix provided."
+            )
             assert all(m is not None for m in mueller_hwp), (
                 "Non ideal hwp type was selected but not all detectors have a mueller matrix associated. Please set det.mueller_hwp attribute."
             )
@@ -361,11 +365,11 @@ def scan_map_in_observations(
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp: HWP | None = None,
     component: str = "tod",
-    pointings_dtype: np.dtype = np.float64,
+    pointings_dtype: DTypeLike = np.float64,
     save_tod: bool = True,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
-    mueller_phases: np.ndarray | None = None,
+    mueller_phases: dict | None = None,
     comm: bool | None = None,
     nthreads: int | None = None,
 ):
@@ -478,7 +482,8 @@ def scan_map_in_observations(
 
     if maps is None:
         try:
-            maps = observations[0].sky
+            assert obs_list, "No observations available"
+            maps = obs_list[0].sky
         except AttributeError:
             msg = (
                 "'maps' is None and nothing is found in the observation. "
@@ -522,7 +527,7 @@ def scan_map_in_observations(
         if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
             # Harmonic-expansion case: delegate to fill_tod
             fill_tod(
-                observations=cur_obs,
+                observation=cur_obs,
                 pointings=cur_ptg,
                 maps=maps,
                 hwp_angle=hwp_angle,

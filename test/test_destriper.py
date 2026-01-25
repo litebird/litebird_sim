@@ -265,7 +265,7 @@ def create_analytical_solution(
 
 def get_baseline_lengths_list(
     expected_solution: AnalyticalSolution,
-) -> list[npt.ArrayLike]:
+) -> list[npt.NDArray]:
     if MPI_COMM_WORLD.size == 2:
         return [
             np.array([expected_solution.baseline_runs[MPI_COMM_WORLD.rank]], dtype=int)
@@ -602,7 +602,7 @@ def test_map_maker_parts():
 
 
 def _compare_analytical_vs_estimated_map(
-    actual: npt.ArrayLike, desired: npt.ArrayLike, nobs_matrix_cholesky: NobsMatrix
+    actual: npt.NDArray, desired: npt.NDArray, nobs_matrix_cholesky: NobsMatrix
 ):
     for cur_pix in range(len(actual[0])):
         if nobs_matrix_cholesky.valid_pixel[cur_pix]:
@@ -617,7 +617,7 @@ def _compare_analytical_vs_estimated_map(
             assert np.isnan(actual[2, cur_pix])
 
 
-def _make_zero_mean(x: npt.ArrayLike) -> npt.NDArray:
+def _make_zero_mean(x: npt.NDArray) -> npt.NDArray:
     return x - np.mean(x)
 
 

@@ -33,30 +33,21 @@ temporary_mueller_phases = {
     ),
 }
 
+k_B = getattr(const, "k_B").value  # Boltzmann constant in J/K
+c = getattr(const, "c").value  # Speed of light in m/s
+h = getattr(const, "h").value  # Planck constant in J s
+Tcmb0 = getattr(cosmo, "Tcmb0").value  # CMB temperature today in K
+
 
 def _dBodTrj(nu):
-    return 2 * const.k_B.value * nu * nu * 1e18 / const.c.value / const.c.value
+    return 2 * k_B * nu * nu * 1e18 / c / c
 
 
 def _dBodTth(nu):
-    x = const.h.value * nu * 1e9 / const.k_B.value / cosmo.Tcmb0.value
+    x = h * nu * 1e9 / k_B / Tcmb0
     ex = np.exp(x)
     exm1 = ex - 1.0e0
-    return (
-        2
-        * const.h.value
-        * nu
-        * nu
-        * nu
-        * 1e27
-        / const.c.value
-        / const.c.value
-        / exm1
-        / exm1
-        * ex
-        * x
-        / cosmo.Tcmb0.value
-    )
+    return 2 * h * nu * nu * nu * 1e27 / c / c / exm1 / exm1 * ex * x / Tcmb0
 
 
 @njit
@@ -312,7 +303,7 @@ def compute_signal_for_one_detector(
     looping over (time) samples.
     """
 
-    for i in prange(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         # TODO: GET THE SEVERAL COSINE TERMS DIRECTLY FROM THE
         # COMPLEX COMPUTATION OF HWP_ANGLE in hwp._get_hwp_angle
         Four_rho_phi = 4 * (rho[i] - phi)
@@ -415,7 +406,7 @@ def compute_ata_atd_for_one_detector(
     for a single detector, looping over (time) samples.
     """
 
-    for i in prange(len(tod)):
+    for i in prange(len(tod)):  # type: ignore[not-iterable]
         Four_rho_phi = 4 * (rho[i] - phi)
         Two_rho_phi = 2 * (rho[i] - phi)
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
@@ -465,12 +456,13 @@ def compute_ata_atd_for_one_detector(
 
 
 def fill_tod(
-    observations: Observation | list[Observation],
+    observation: Observation,
     maps: (
         HealpixMap
         | dict[str, HealpixMap]
         | SphericalHarmonics
         | dict[str, SphericalHarmonics]
+        | None
     ) = None,
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp_angle: np.ndarray | list[np.ndarray] | None = None,
@@ -547,7 +539,7 @@ def fill_tod(
     """
     if maps is None:
         try:
-            maps = observations[0].sky
+            maps = observation.sky
         except AttributeError:
             msg = (
                 "'maps' is None and nothing is found in the observation. "
@@ -555,6 +547,7 @@ def fill_tod(
                 "the observations."
             )
             raise AttributeError(msg)
+    assert maps is not None, "You need to pass input maps to fill_tod."
 
     # Set number of threads
     if nthreads is None:
@@ -570,22 +563,22 @@ def fill_tod(
                 + "so hwp_angle will be ignored and re-computed on the fly."
             )
 
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix]
+        if isinstance(observation, Observation):
+            obs_list = [observation]
+            if hasattr(observation, "pointing_matrix"):
+                ptg_list = [observation.pointing_matrix]
             else:
                 ptg_list = []
-            if hasattr(observations, "hwp_angle"):
-                hwp_angle_list = [observations.hwp_angle]
+            if hasattr(observation, "hwp_angle"):
+                hwp_angle_list = [observation.hwp_angle]
             else:
                 hwp_angle_list = []
 
         else:
-            obs_list = observations
+            obs_list = observation
             ptg_list = []
             hwp_angle_list = []
-            for ob in observations:
+            for ob in observation:
                 if hasattr(ob, "pointing_matrix"):
                     ptg_list.append(ob.pointing_matrix)
                 if hasattr(ob, "hwp_angle"):
@@ -594,27 +587,27 @@ def fill_tod(
     else:
         if callable(pointings):
             pointings, hwp_angle = pointings("all", pointings_dtype=pointings_dtype)
-        if isinstance(observations, Observation):
+        if isinstance(observation, Observation):
             assert isinstance(pointings, np.ndarray), (
                 "For one observation you need to pass a np.array "
                 + "of pointings to fill_tod"
             )
             assert (
-                observations.n_detectors == pointings.shape[0]
-                and observations.n_samples == pointings.shape[1]
+                observation.n_detectors == pointings.shape[0]
+                and observation.n_samples == pointings.shape[1]
                 and pointings.shape[2] == 3
             ), (
                 "You need to pass a pointing np.array with shape"
                 + "(N_det, N_samples, 3) for the observation"
             )
-            obs_list = [observations]
+            obs_list = [observation]
             ptg_list = [pointings]
             if hwp_angle is not None:
                 assert isinstance(hwp_angle, np.ndarray), (
                     "For one observation, hwp_angle must be passed "
                     + "as a np.array to fill_tod"
                 )
-                assert observations.n_samples == hwp_angle.shape[0], (
+                assert observation.n_samples == hwp_angle.shape[0], (
                     "You need to pass a hwp_angle np.array with shape"
                     + "N_samples for the observation"
                 )
@@ -626,15 +619,15 @@ def fill_tod(
                 "When you pass a list of observations to fill_tod, "
                 + "you must a list of `pointings`"
             )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
+            assert len(observation) == len(pointings), (
+                f"The list of observations has {len(observation)} elements, but "
                 + f"the list of pointings has {len(pointings)} elements"
             )
-            obs_list = observations
+            obs_list = observation
             ptg_list = pointings
             if hwp_angle is not None:
-                assert len(observations) == len(hwp_angle), (
-                    f"The list of observations has {len(observations)} elements, but "
+                assert len(observation) == len(hwp_angle), (
+                    f"The list of observations has {len(observation)} elements, but "
                     + f"the list of hwp_angle has {len(hwp_angle)} elements"
                 )
                 hwp_angle_list = hwp_angle

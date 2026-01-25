@@ -106,7 +106,7 @@ def beam_throughtput(freqs):
 
 # Define bandpass profile
 def bandpass_profile(
-    freqs: np.ndarray | None = None,
+    freqs: np.ndarray,
     bandpass: dict | None = None,
     include_beam_throughput: bool | None = None,
 ):
@@ -131,6 +131,8 @@ def bandpass_profile(
     """
 
     profile = np.ones_like(freqs)
+
+    assert bandpass is not None, "bandpass dict is required"
 
     if "bandpass_file" in bandpass.keys():
         try:

@@ -124,11 +124,11 @@ def get_map_making_weights(
 
 def _compute_pixel_indices(
     hpx: Healpix_Base,
-    pointings: npt.ArrayLike | Callable,
-    pol_angle_detectors: npt.ArrayLike,
+    pointings: npt.NDArray | Callable,
+    pol_angle_detectors: npt.NDArray,
     num_of_detectors: int,
     num_of_samples: int,
-    hwp_angle: npt.ArrayLike | None,
+    hwp_angle: npt.NDArray | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
 ) -> tuple[npt.NDArray, npt.NDArray]:
@@ -178,7 +178,7 @@ def _compute_pixel_indices(
     return pixidx_all, polang_all
 
 
-def _cholesky_plain(A: npt.ArrayLike, dest_L: npt.ArrayLike) -> None:
+def _cholesky_plain(A: npt.NDArray, dest_L: npt.NDArray) -> None:
     "Store a lower-triangular matrix in L such that A = L·L†"
 
     # The following function is a standard textbook implementation of
@@ -245,7 +245,7 @@ def cholesky(
     a20: float,
     a21: float,
     a22: float,
-    dest_L: npt.ArrayLike,
+    dest_L: npt.NDArray,
 ) -> None:
     """Store a 3×3 lower-triangular matrix in L such that A = L·L†
 
@@ -278,7 +278,7 @@ def cholesky(
 
 @njit
 def solve_cholesky(
-    L: npt.ArrayLike, v0: float, v1: float, v2: float
+    L: npt.NDArray, v0: float, v1: float, v2: float
 ) -> tuple[float, float, float]:
     """Solve Ax = b if A is a 3×3 symmetric positive definite matrix.
 

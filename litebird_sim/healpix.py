@@ -215,7 +215,7 @@ def write_healpix_map_to_hdu(
         raise TypeError("The map must be a sequence")
 
     try:
-        pixels = pixels.filled()
+        pixels = pixels.filled()  # type: ignore[union-attr]
     except AttributeError:
         try:
             pixels = np.array([p.filled() for p in pixels])
@@ -229,7 +229,7 @@ def write_healpix_map_to_hdu(
 
     # check the dtype and convert it
     if dtype is None:
-        dtype = [x.dtype for x in pixels]
+        dtype = [x.dtype for x in pixels if hasattr(x, "dtype")]
     try:
         fitsformat = []
         for curr_dtype in dtype:

@@ -8,7 +8,6 @@ import numpy as np
 import pysm3
 import pysm3.units as u
 
-import litebird_sim as lbs
 from litebird_sim import constants as c
 
 from .bandpasses import BandPassInfo
@@ -35,58 +34,58 @@ def _get_cmb_unit_conversion(
     band_integration: bool = False,
 ) -> float:
     """
-    Computes the scalar factor to convert from origin_unit into the target_unit,
-    considering potential bandpass integration over a CMB spectrum.
+        Computes the scalar factor to convert from origin_unit into the target_unit,
+        considering potential bandpass integration over a CMB spectrum.
 
-    Parameters
-    ----------
-    target_unit : Units
-        The target unit Enum (e.g., Units.K_CMB, Units.MJy_over_sr).
-    origin_unit : Units, optional
-        The unit of the input data, by default Units.K_CMB.
-    freq_ghz : float | None, optional
-        Frequency in GHz for monochromatic conversion. Required if bandpass is None.
-    bandpass : BandPassInfo | None, optional
-        Bandpass object containing frequencies and weights. Required if band_integration is True.
-    band_integration : bool, optional
-        If True, integrates over the bandpass using PySM3. If False, uses the band center
-        (or freq_ghz) for a monochromatic conversion using Astropy equivalencies.Structure of the Output
------------------------
+        Parameters
+        ----------
+        target_unit : Units
+            The target unit Enum (e.g., Units.K_CMB, Units.MJy_over_sr).
+        origin_unit : Units, optional
+            The unit of the input data, by default Units.K_CMB.
+        freq_ghz : float | None, optional
+            Frequency in GHz for monochromatic conversion. Required if bandpass is None.
+        bandpass : BandPassInfo | None, optional
+            Bandpass object containing frequencies and weights. Required if band_integration is True.
+        band_integration : bool, optional
+            If True, integrates over the bandpass using PySM3. If False, uses the band center
+            (or freq_ghz) for a monochromatic conversion using Astropy equivalencies.Structure of the Output
+    -----------------------
 
-The :meth:`~litebird_sim.input_sky.SkyGenerator.execute` method returns a dictionary containing the generated sky objects. Depending on the ``output_type`` parameter, these will be instances of either ``HealpixMap`` or ``SphericalHarmonics``.
+    The :meth:`~litebird_sim.input_sky.SkyGenerator.execute` method returns a dictionary containing the generated sky objects. Depending on the ``output_type`` parameter, these will be instances of either ``HealpixMap`` or ``SphericalHarmonics``.
 
-If ``return_components=True`` is set in the parameters, the output will be a nested dictionary separating the components:
+    If ``return_components=True`` is set in the parameters, the output will be a nested dictionary separating the components:
 
-.. code-block:: python
+    .. code-block:: python
 
-    {
-        "cmb": { "channel_name": map_obj, ... },
-        "foregrounds": { "channel_name": map_obj, ... },
-        "dipole": { "channel_name": map_obj, ... }
-    }
+        {
+            "cmb": { "channel_name": map_obj, ... },
+            "foregrounds": { "channel_name": map_obj, ... },
+            "dipole": { "channel_name": map_obj, ... }
+        }
 
-Otherwise, it returns the sum of all requested components.
+    Otherwise, it returns the sum of all requested components.
 
-API Reference
--------------
+    API Reference
+    -------------
 
-.. automodule:: litebird_sim.input_sky
-    :members:
-    :undoc-members:
-    :show-inheritance:
-        Default is False.
+    .. automodule:: litebird_sim.input_sky
+        :members:
+        :undoc-members:
+        :show-inheritance:
+            Default is False.
 
-    Returns
-    -------
-    float
-        The conversion factor. Multiply the input data by this factor to get
-        values in the target unit.
+        Returns
+        -------
+        float
+            The conversion factor. Multiply the input data by this factor to get
+            values in the target unit.
 
-    Raises
-    ------
-    ValueError
-        If neither freq_ghz nor bandpass is provided.
-        If band_integration is True but bandpass is None.
+        Raises
+        ------
+        ValueError
+            If neither freq_ghz nor bandpass is provided.
+            If band_integration is True but bandpass is None.
     """
     # Use UnitUtils to get the actual Astropy objects needed by PySM logic
     target_astropy = UnitUtils.get_astropy_unit(target_unit)
@@ -163,7 +162,7 @@ class SkyGenerationParams:
 
     # Output Control
     output_type: Literal["map", "alm"] = "map"
-    units: Units = Units.K_CMB  # Updated to use Enum
+    units: str | Units = Units.K_CMB  # Updated to use Enum
 
     # Beam & Smoothing
     apply_beam: bool = False

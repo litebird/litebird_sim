@@ -211,7 +211,7 @@ from .version import __author__, __version__
 
 # Privilege TBB over OpenPM and the internal Numba implementation of a
 # work queue
-numba.config.THREADING_LAYER_CONFIG = ["tbb", "omp", "workqueue"]
+numba.config.THREADING_LAYER_CONFIG = ["tbb", "omp", "workqueue"]  # type: ignore
 
 
 __all__ = [

@@ -107,7 +107,7 @@ class SphericalHarmonics:
         """
 
         if self.mmax is None:
-            self.mmax = self.lmax
+            self.mmax: int = self.lmax
 
         if isinstance(self.values, tuple):
             # If self.values is a tuple containing NumPy arrays, convert to a stacked array
@@ -276,7 +276,7 @@ class SphericalHarmonics:
         return np.array(l_arr, dtype=int)
 
     @staticmethod
-    def get_index(lmax: int, l: Any, m: Any) -> Any:
+    def get_index(lmax: int, l_val: Any, m: Any) -> Any:
         """
         Calculate the 1D linear index in the standard Healpix (m-major) layout
         for the given (l, m) pairs.
@@ -287,7 +287,7 @@ class SphericalHarmonics:
         ----------
         lmax : int
             Maximum degree of the expansion.
-        l : int or np.ndarray
+        l_val : int or np.ndarray
             Degree l.
         m : int or np.ndarray
             Order m.
@@ -299,7 +299,7 @@ class SphericalHarmonics:
             otherwise a numpy array.
         """
         # Calculate the index using integer division
-        idx = m * (2 * lmax + 1 - m) // 2 + l
+        idx = m * (2 * lmax + 1 - m) // 2 + l_val
 
         # Robustly handle both scalar and array results
         if np.isscalar(idx):
@@ -341,8 +341,8 @@ class SphericalHarmonics:
         idx = 0
         print(f"Ordering for lmax={self.lmax}, mmax={self.mmax}:")
         for m in range(self.mmax + 1):
-            for l in range(m, self.lmax + 1):
-                print(f"Index {idx}: (l={l}, m={m})")
+            for l_val in range(m, self.lmax + 1):
+                print(f"Index {idx}: (l={l_val}, m={m})")
                 idx += 1
                 if idx > 10:  # Just show the start
                     print("...")
@@ -898,13 +898,13 @@ class SphericalHarmonics:
         - INDEX = l^2 + l + m + 1 (FITS standard for sparse alm).
         """
         # 1. Retrieve l, m for each coefficient currently in memory
-        l, m = self.get_lm_arrays()
+        l_val, m = self.get_lm_arrays()
 
         # 2. Compute the internal index (location of data in our numpy array)
-        idx_internal = self.get_index(self.lmax, l, m)
+        idx_internal = self.get_index(self.lmax, l_val, m)
 
         # 3. Compute the FITS Explicit Index (l^2 + l + m + 1)
-        idx_fits = l**2 + l + m + 1
+        idx_fits = l_val**2 + l_val + m + 1
 
         # Handle components (1 for T, 3 for T,E,B)
         if self.nstokes == 3:
@@ -977,14 +977,14 @@ class SphericalHarmonics:
 
                     # Inverse conversion: from FITS INDEX to (l, m)
                     # formula: l = floor(sqrt(idx - 1))
-                    l = np.floor(np.sqrt(idx - 1)).astype(int)
-                    m = idx - l**2 - l - 1
+                    l_val = np.floor(np.sqrt(idx - 1)).astype(int)
+                    m = idx - l_val**2 - l_val - 1
 
                     # Update lmax/mmax
-                    lmax_file = max(lmax_file, l.max())
+                    lmax_file = max(lmax_file, l_val.max())
                     mmax_file = max(mmax_file, m.max())
 
-                    values_list.append({"l": l, "m": m, "re": re, "im": im})
+                    values_list.append({"l": l_val, "m": m, "re": re, "im": im})
 
             else:
                 # --- STANDARD HEALPIX FORMAT (Complex columns) ---
