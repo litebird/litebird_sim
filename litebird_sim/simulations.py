@@ -981,15 +981,119 @@ class Simulation:
         return self._generate_html_report() if MPI_COMM_WORLD.rank == 0 else None
 
     @_profile
+    def get_detectors(
+        self,
+        channels_url: str | list[str],
+        detectors: int | list[int] | str | list[str] = "all",
+    ) -> list[DetectorInfo]:
+        """
+        Fetch detector information from the IMO based on channel URLs.
+
+        Args:
+            channels_url: URL or list of URLs for FreqChannelInfo in the IMO.
+            detectors: Selection filter. "all", an integer N (takes first N),
+                a list of indices, or a list of detector names.
+
+        Returns:
+            list[DetectorInfo]: A list of loaded DetectorInfo objects.
+        """
+
+        def slice_detectors(
+            detector_names: list[str], 
+            detector_objs: list[str], 
+            detectors_filter: int | list[int] | str | list[str]
+        ) -> tuple[list[str], list[str]]:
+            
+            num_available = len(detector_names)
+
+            if detectors_filter == "all":
+                return detector_names, detector_objs
+            
+            # If int, take first N detectors
+            if isinstance(detectors_filter, int):
+                return (
+                    detector_names[:detectors_filter], 
+                    detector_objs[:detectors_filter]
+                )
+            
+            # Normalize single string to list for matching
+            filter_list = [detectors_filter] if isinstance(detectors_filter, str) else detectors_filter
+            
+            selected_names = []
+            selected_objs = []
+            for det in filter_list:
+                if isinstance(det, int):
+                    if det < num_available:
+                        selected_names.append(detector_names[det])
+                        selected_objs.append(detector_objs[det])
+                elif isinstance(det, str):
+                    if det in detector_names:
+                        idx = detector_names.index(det)
+                        selected_names.append(detector_names[idx])
+                        selected_objs.append(detector_objs[idx])
+            
+            return selected_names, selected_objs
+
+        # Normalize inputs and check for duplicates
+        list_channels_url = [channels_url] if isinstance(channels_url, str) else channels_url
+        
+        if len(list_channels_url) != len(set(list_channels_url)):
+            log.error(f"Duplicate channel URLs found in input: {list_channels_url}")
+            raise ValueError("channels_url list contains duplicate strings")
+
+        full_detectors_list = []
+        for ch_url in list_channels_url:
+            channel = FreqChannelInfo.from_imo(self.imo, ch_url)
+            
+            _, det_urls = slice_detectors(
+                channel.detector_names, 
+                channel.detector_objs, 
+                detectors
+            )
+            
+            for d_url in det_urls:
+                full_detectors_list.append(
+                    DetectorInfo.from_imo(self.imo, url=d_url)
+                )
+
+        # Final validation logic with the corrected rules
+        if detectors != "all":
+            if isinstance(detectors, int):
+                expected_num = len(list_channels_url) * detectors
+            elif isinstance(detectors, str):
+                expected_num = len(list_channels_url)
+            elif isinstance(detectors, list):
+                if all(isinstance(d, int) for d in detectors):
+                    # list(int) logic
+                    expected_num = len(list_channels_url) * len(detectors)
+                else:
+                    # list(str) logic - purely based on list length
+                    expected_num = len(detectors)
+            else:
+                expected_num = 0
+
+            actual_num = len(full_detectors_list)
+            
+            if actual_num != expected_num:
+                log.error(
+                    f"Detector mismatch: expected {expected_num} detectors, "
+                    f"but found {actual_num} in the provided channels."
+                )
+                raise ValueError(f"Expected {expected_num} detectors, but got {actual_num}")
+        
+        self.detectors = full_detectors_list
+        return full_detectors_list
+
+    @_profile
     def create_observations(
         self,
-        detectors: list[DetectorInfo],
+        detectors: None | DetectorInfo | list[DetectorInfo] = None,
         num_of_obs_per_detector: int = 1,
-        split_list_over_processes=True,
+        split_list_over_processes: bool = True,
         det_blocks_attributes: list[str] | None = None,
-        n_blocks_det=1,
-        n_blocks_time=1,
-        root=0,
+        n_blocks_det: int = 1,
+        n_blocks_time: int = 1,
+        root: int = 0,
         tod_dtype: Any | None = None,
         tods: list[TodDescription] = [
             TodDescription(
@@ -999,8 +1103,8 @@ class Simulation:
                 description="Signal",
             )
         ],
-        allocate_tod=True,
-    ):
+        allocate_tod: bool = True,
+    ) -> list[Observation]:
         """Create a set of Observation objects.
 
         This method initializes the `Simulation.observations` field of
@@ -1046,7 +1150,7 @@ class Simulation:
         - ``units``: an item of :class:`Units` describing the physical units
           of the TOD (e.g. ``Units.K_CMB``);
         - ``dtype``: the NumPy type to use, like ``numpy.float32``;
-        - ``description``: a free-form, human-readable description.
+        - - ``description``: a free-form, human-readable description.
 
         By default, a single TOD named ``"tod"`` is created with
         ``units=Units.K_CMB`` and ``dtype=numpy.float32``, which should be
@@ -1062,8 +1166,13 @@ class Simulation:
 
         Parameters
         ----------
-        detectors : list[DetectorInfo]
-            The detector objects to be assigned to observations.
+        detectors : None | DetectorInfo | list[DetectorInfo], optional
+            The detector objects to be assigned to observations. If ``None`` 
+            (default), the method will use the detectors already stored in 
+            `self.detectors` (e.g., loaded via `get_detectors`). If a single 
+            `DetectorInfo` or a list is provided, it will use it overriding any 
+            pre-existing detectors in `self.detectors` and a warning will 
+            be issued.
 
         num_of_obs_per_detector : int, optional
             Number of observations to generate per detector. Useful for
@@ -1107,40 +1216,6 @@ class Simulation:
             :class:`.Observation` objects are created without allocating the
             TOD arrays, which can be useful for low-memory workflows or
             when TODs are filled on demand.
-
-        Examples
-        --------
-        Here is an example that creates three TODs::
-
-            sim.create_observations(
-                [det1, det2],
-                tods=[
-                    TodDescription(
-                        name="fg_tod",
-                        units=Units.K_CMB,
-                        dtype=np.float32,
-                        description="Foregrounds (computed by PySM)",
-                    ),
-                    TodDescription(
-                        name="cmb_tod",
-                        units=Units.K_CMB,
-                        dtype=np.float32,
-                        description="CMB realization following Planck (2018)",
-                    ),
-                    TodDescription(
-                        name="noise_tod",
-                        units=Units.K_CMB,
-                        dtype=np.float32,
-                        description="Noise TOD (only white noise, no 1/f)",
-                    ),
-                ],
-            )
-
-
-            # Now you can access these fields:
-            # - sim.fg_tod
-            # - sim.cmb_tod
-            # - sim.noise_tod
         """
 
         assert self.start_time is not None, (
@@ -1151,20 +1226,34 @@ class Simulation:
             "you must set duration_s when creating the Simulation object"
         )
 
-        if not detectors:
-            detectors = self.detectors
+        final_detectors = []
 
-        # if a single detector is passed, make it a list
-        if isinstance(detectors, DetectorInfo):
-            detectors = [detectors]
+        if detectors is None:
+            if hasattr(self, "detectors") and self.detectors:
+                final_detectors = self.detectors
+            else:
+                raise ValueError(
+                    "No detectors provided and self.detectors is empty. "
+                    "Call load_detectors() or pass a list of detectors."
+                )
+        else:
+            if hasattr(self, "detectors") and self.detectors:
+                log.warning(
+                    "Simulation.detectors was already populated. "
+                    "Overriding with the detectors passed to create_observations."
+                )
+            
+            if isinstance(detectors, DetectorInfo):
+                final_detectors = [detectors]
+            else:
+                final_detectors = detectors
 
-        self.init_detectors_random(len(detectors))
+        self.detectors = final_detectors
+        self.init_detectors_random(len(self.detectors))
 
         observations = []
-
-        duration_s = self.duration_s  # Cache the value to a local variable
-        sampfreq_hz = detectors[0].sampling_rate_hz
-        self.detectors = detectors
+        duration_s = self.duration_s  
+        sampfreq_hz = self.detectors[0].sampling_rate_hz
         num_of_samples = int(sampfreq_hz * duration_s)
         samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
@@ -1173,7 +1262,6 @@ class Simulation:
         if not tod_dtype:
             self.tod_list = tods
         else:
-            # Preserve name, units, and description; override dtype only.
             self.tod_list = [
                 TodDescription(
                     name=x.name,
@@ -1187,7 +1275,7 @@ class Simulation:
         for cur_obs_idx in range(num_of_obs_per_detector):
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(
-                detectors=[asdict(d) for d in detectors],
+                detectors=[asdict(d) for d in self.detectors],
                 start_time_global=cur_time,
                 sampling_rate_hz=sampfreq_hz,
                 allocate_tod=allocate_tod,
@@ -1196,7 +1284,7 @@ class Simulation:
                 n_blocks_det=n_blocks_det,
                 n_blocks_time=n_blocks_time,
                 comm=(None if split_list_over_processes else self.mpi_comm),
-                root=0,
+                root=root,
                 tods=self.tod_list,
             )
             observations.append(cur_obs)
