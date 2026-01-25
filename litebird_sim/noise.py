@@ -155,6 +155,7 @@ def add_noise(
 
     if isinstance(scale, Number):
         scale = np.array([scale] * num_of_dets)
+    assert isinstance(scale, np.ndarray)
 
     assert len(net_ukrts) == num_of_dets
     assert len(fknee_mhz) == num_of_dets
@@ -270,9 +271,9 @@ def add_noise_to_observations(
             noise_type=noise_type,
             sampling_rate_hz=cur_obs.sampling_rate_hz,
             net_ukrts=cur_obs.net_ukrts,
-            fknee_mhz=cur_obs.fknee_mhz,
-            fmin_hz=cur_obs.fmin_hz,
-            alpha=cur_obs.alpha,
+            fknee_mhz=getattr(cur_obs, "fknee_mhz"),
+            fmin_hz=getattr(cur_obs, "fmin_hz"),
+            alpha=(getattr(cur_obs, "alpha")),
             scale=scale,
             dets_random=dets_random,
         )

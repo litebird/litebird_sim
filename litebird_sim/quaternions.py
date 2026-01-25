@@ -418,7 +418,7 @@ def multiply_quaternions_list_x_list(
     into `result`."""
 
     num = array_a.shape[0]
-    for i in prange(num):
+    for i in prange(num):  # type: ignore[not-iterable]
         a0, a1, a2, a3 = array_a[i, :]
         b0, b1, b2, b3 = array_b[i, :]
         result[i, 0] = a3 * b0 - a2 * b1 + a1 * b2 + a0 * b3
@@ -437,7 +437,7 @@ def multiply_quaternions_list_x_one(
 
     num = array_a.shape[0]
     b0, b1, b2, b3 = single_b[:]
-    for i in prange(num):
+    for i in prange(num):  # type: ignore[not-iterable]
         a0, a1, a2, a3 = array_a[i, :]
         result[i, 0] = a3 * b0 - a2 * b1 + a1 * b2 + a0 * b3
         result[i, 1] = a2 * b0 + a3 * b1 - a0 * b2 + a1 * b3
@@ -455,7 +455,7 @@ def multiply_quaternions_one_x_list(
 
     num = array_b.shape[0]
     a0, a1, a2, a3 = single_a[:]
-    for i in prange(num):
+    for i in prange(num):  # type: ignore[not-iterable]
         b0, b1, b2, b3 = array_b[i, :]
         result[i, 0] = a3 * b0 - a2 * b1 + a1 * b2 + a0 * b3
         result[i, 1] = a2 * b0 + a3 * b1 - a0 * b2 + a1 * b3
@@ -470,7 +470,7 @@ def normalize_quaternions(quat_matrix: npt.NDArray) -> None:  # pragma: no cover
     All the quaternions are normalized in place.
     """
     num, _ = quat_matrix.shape
-    for i in prange(num):
+    for i in prange(num):  # type: ignore[not-iterable]
         v1, v2, v3, w = quat_matrix[i, :]
         norm = np.sqrt(v1**2 + v2**2 + v3**2 + w**2)
         quat_matrix[i, 0] /= norm

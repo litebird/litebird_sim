@@ -65,10 +65,10 @@ def gauss_beam_to_alm(
     lmax: int,
     mmax: int,
     fwhm_rad: float,
-    ellipticity: float | None = 1.0,
-    psi_ell_rad: float | None = 0.0,
-    psi_pol_rad: float | None = 0.0,
-    cross_polar_leakage: float | None = 0.0,
+    ellipticity: float = 1.0,
+    psi_ell_rad: float = 0.0,
+    psi_pol_rad: float = 0.0,
+    cross_polar_leakage: float = 0.0,
 ) -> SphericalHarmonics:
     """
     Compute spherical harmonics coefficients a_ℓm representing a Gaussian beam.
@@ -238,6 +238,7 @@ def generate_gauss_beam_alms(
 
     blms = {}
 
+    assert observation.name is not None
     if channels is None:
         # Use detectors from observations
         for detector_idx, det_name in enumerate(observation.name):

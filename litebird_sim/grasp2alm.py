@@ -200,7 +200,7 @@ class BeamStokesPolar:
     polarization basis with the co-polar direction (positive :math:`Q`) aligned with the y-axis.
 
     Args:
-        theta_phi_values_rad (`npt.ArrayLike`): A 2D matrix of shape :math:`(N, 2)` containing the
+        theta_phi_values_rad (`npt.NDArray`): A 2D matrix of shape :math:`(N, 2)` containing the
             values for :math:`\\theta` (in ``theta_phi_values_rad[:, 0]``) and for :math:`\\varphi`
             (in ``theta_phi_values_rad[:, 1]``.
         stokes (`numpy.ndarray`): Array of shape :math:`(4, N)` containing the four Stokes
@@ -214,7 +214,7 @@ class BeamStokesPolar:
 
     def __init__(
         self,
-        theta_phi_values_rad: npt.ArrayLike,
+        theta_phi_values_rad: npt.NDArray,
         polar_basis_flag: bool = False,
     ):
         assert theta_phi_values_rad.shape[1] == 2, (
@@ -459,7 +459,6 @@ class BeamGrid:
         self.ny = 0
         self.frequency = 0.0
         self.frequency_unit = ""
-        self.amp = None
 
         while True:
             line = file_obj.readline().strip()
@@ -657,10 +656,10 @@ class BeamCut:
         # First pass: go through the file and count how many cuts it contains. Update
         # the list of values for φ in `phi_values`
         phi_values = []
-        self.ncomp = None  # type: int | None
-        self.theta0_deg = None  # type: float | None
-        self.delta_theta_deg = None  # type: float | None
-        self.n_theta = None  # type: int | None
+        self.ncomp: int | None = None
+        self.theta0_deg: float | None = None
+        self.delta_theta_deg: float | None = None
+        self.n_theta: int | None = None
         self.num_of_phi_cuts = 0
         while True:
             # Read the header line and throw it away
@@ -735,6 +734,7 @@ class BeamCut:
             for theta_idx in range(self.n_theta):
                 _ = file_obj.readline()
 
+        assert self.n_theta is not None
         if self.n_theta % 2 == 0:
             raise ValueError("The number of pixels in a cut (VNUM) must be odd.")
 
@@ -859,7 +859,7 @@ def _grasp2alm(
     return SphericalHarmonics(values=alm, lmax=lmax, mmax=mmax)
 
 
-def ticra_cut_to_alm(*args, **kwargs) -> SphericalHarmonics:
+def ticra_cut_to_alm(**kwargs) -> SphericalHarmonics:
     """Convert a GRASP ``.cut`` file to a spherical harmonic coefficients of beam map.
 
     Args:
@@ -887,13 +887,12 @@ def ticra_cut_to_alm(*args, **kwargs) -> SphericalHarmonics:
     """
     kwargs.pop("beam_class", None)
     return _grasp2alm(
-        *args,
-        **kwargs,
         beam_class=BeamCut,
+        **kwargs,
     )
 
 
-def ticra_grid_to_alm(*args, **kwargs) -> SphericalHarmonics:
+def ticra_grid_to_alm(**kwargs) -> SphericalHarmonics:
     """Convert a GRASP ``.grd`` file to a spherical harmonic coefficients of beam map.
 
     Args:
@@ -920,7 +919,6 @@ def ticra_grid_to_alm(*args, **kwargs) -> SphericalHarmonics:
     """
     kwargs.pop("beam_class", None)
     return _grasp2alm(
-        *args,
-        **kwargs,
         beam_class=BeamGrid,
+        **kwargs,
     )

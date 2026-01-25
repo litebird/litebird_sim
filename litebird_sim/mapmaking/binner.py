@@ -7,34 +7,33 @@
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
+import healpy as hp
 import numpy as np
 import numpy.typing as npt
+from ducc0.healpix import Healpix_Base
 from numba import njit
-import healpy as hp
 
-from typing import Any
-from collections.abc import Callable
-from litebird_sim.observations import Observation
+from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
+from litebird_sim.healpix import nside_to_npix
+from litebird_sim.hwp import HWP
+from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
-from litebird_sim.hwp import HWP
-from litebird_sim import mpi
-from ducc0.healpix import Healpix_Base
-from litebird_sim.healpix import nside_to_npix
-
 
 from .common import (
-    _compute_pixel_indices,
     COND_THRESHOLD,
-    get_map_making_weights,
     _build_mask_detector_split,
     _build_mask_time_split,
     _check_valid_splits,
+    _compute_pixel_indices,
+    get_map_making_weights,
 )
 
 
@@ -63,7 +62,7 @@ class BinnerResult:
     binned_map: Any = None
     invnpp: Any = None
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
-    components: list = None
+    components: list | None = None
     detector_split: str = "full"
     time_split: str = "full"
 
@@ -92,13 +91,13 @@ def _solve_binning(nobs_matrix, atd):
 
 @njit
 def _accumulate_samples_and_build_nobs_matrix(
-    tod: npt.ArrayLike,
-    pix: npt.ArrayLike,
-    psi: npt.ArrayLike,
-    weights: npt.ArrayLike,
-    d_mask: npt.ArrayLike,
-    t_mask: npt.ArrayLike,
-    nobs_matrix: npt.ArrayLike,
+    tod: npt.NDArray,
+    pix: npt.NDArray,
+    psi: npt.NDArray,
+    weights: npt.NDArray,
+    d_mask: npt.NDArray,
+    t_mask: npt.NDArray,
+    nobs_matrix: npt.NDArray,
     *,
     additional_component: bool,
 ) -> None:
@@ -158,7 +157,7 @@ def _accumulate_samples_and_build_nobs_matrix(
 
 @njit
 def _numba_extract_map_and_fill_nobs_matrix(
-    nobs_matrix: npt.ArrayLike, rhs: npt.ArrayLike
+    nobs_matrix: npt.NDArray, rhs: npt.NDArray
 ) -> None:
     # This is used internally by _extract_map_and_fill_info. The function
     # modifies both `info` and `rhs`; the first parameter would be an `inout`
@@ -177,7 +176,7 @@ def _numba_extract_map_and_fill_nobs_matrix(
         nobs_matrix[idx, 2, 1] = nobs_matrix[idx, 1, 2]
 
 
-def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
+def _extract_map_and_fill_info(info: npt.NDArray) -> npt.NDArray:
     # Extract the RHS of the mapmaking equation from the lower triangle of info
     # and fill the lower triangle with the upper triangle, thus making each
     # matrix in "info" symmetric
@@ -193,14 +192,14 @@ def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
 def _build_nobs_matrix(
     nside: int,
     obs_list: list[Observation],
-    ptg_list: list[npt.ArrayLike] | list[Callable],
+    ptg_list: list[npt.NDArray | Callable],
     hwp: HWP | None,
-    dm_list: list[npt.ArrayLike],
-    tm_list: list[npt.ArrayLike],
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
     output_coordinate_system: CoordinateSystem,
     components: list[str],
     pointings_dtype=np.float64,
-) -> npt.ArrayLike:
+) -> npt.NDArray:
     hpx = Healpix_Base(nside, "RING")
     n_pix = nside_to_npix(nside)
 
@@ -248,16 +247,19 @@ def _build_nobs_matrix(
 
         del pixidx_all, polang_all
 
+    assert obs_list, "No observations provided"
+    if mpi.MPI_ENABLED:
+        from litebird_sim.mpi import MPI
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
         pass
     elif all(
         [
-            mpi.MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
+            MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
             for i in range(len(obs_list) - 1)
         ]
     ):
-        obs_list[0].comm.Allreduce(mpi.MPI.IN_PLACE, nobs_matrix, mpi.MPI.SUM)
+        obs_list[0].comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
 
     else:
         raise NotImplementedError(
@@ -324,6 +326,7 @@ def make_binned_map(
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
     )
+    assert ptg_list, "No observations provided"
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 

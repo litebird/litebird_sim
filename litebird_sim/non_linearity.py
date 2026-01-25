@@ -24,10 +24,10 @@ class NonLinParams:
 
 def apply_quadratic_nonlin_for_one_sample(
     data,
-    det_name: str = None,
-    nl_params: NonLinParams = None,
-    g_one_over_k: float = None,
-    random: np.random.Generator = None,
+    det_name: str | None = None,
+    nl_params: NonLinParams | None = None,
+    g_one_over_k: float | None = None,
+    random: np.random.Generator | None = None,
 ):
     assert random is not None, (
         "You should pass a random number generator which implements the `normal` method."
@@ -57,8 +57,8 @@ def apply_quadratic_nonlin_for_one_sample(
 
 def apply_quadratic_nonlin_for_one_detector(
     tod_det,
-    nl_params: NonLinParams = None,
-    random: np.random.Generator = None,
+    nl_params: NonLinParams | None = None,
+    random: np.random.Generator | None = None,
 ):
     """This function applies the quadratic non-linearity on the TOD corresponding to
     only one detector.
@@ -99,8 +99,8 @@ def apply_quadratic_nonlin_for_one_detector(
 
 def apply_quadratic_nonlin(
     tod: np.ndarray,
-    nl_params: NonLinParams = None,
-    dets_random: np.random.Generator | None = None,
+    nl_params: NonLinParams | None = None,
+    dets_random: list[np.random.Generator] | None = None,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -108,6 +108,7 @@ def apply_quadratic_nonlin(
     """
 
     assert len(tod.shape) == 2
+    assert dets_random is not None, "dets_random is required"
 
     for detector_idx in range(tod.shape[0]):
         apply_quadratic_nonlin_for_one_detector(
@@ -119,10 +120,10 @@ def apply_quadratic_nonlin(
 
 def apply_quadratic_nonlin_to_observations(
     observations: Observation | list[Observation],
-    nl_params: NonLinParams = None,
+    nl_params: NonLinParams | None = None,
     component: str = "tod",
     user_seed: int | None = None,
-    dets_random: list[np.random.Generator] = None,
+    dets_random: list[np.random.Generator] | None = None,
 ):
     """
     Apply a quadratic nonlinearity to some time-ordered data

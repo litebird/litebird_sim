@@ -72,6 +72,7 @@ dev = [
     "ruff>=0.11.11",
     "pytest>=8.4.1",
     "pytest-cov>=7.0.0",
+    "ty>=0.0.9",
 ]
 
 [tool.setuptools.package-data]
@@ -95,3 +96,15 @@ relative_files = true
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ty.src]
+exclude = [
+    "docs/",
+    "benchmarks/",
+    "test/",
+    "scripts/",
+    "litebird_sim/mbs/",
+]
+
+[tool.ty.rules]
+unresolved-import="ignore"

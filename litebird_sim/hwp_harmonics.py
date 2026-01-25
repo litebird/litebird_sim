@@ -27,30 +27,21 @@ temporary_mueller_phases = {
     ),
 }
 
+k_B = getattr(const, "k_B").value  # Boltzmann constant in J/K
+c = getattr(const, "c").value  # Speed of light in m/s
+h = getattr(const, "h").value  # Planck constant in J s
+Tcmb0 = getattr(cosmo, "Tcmb0").value  # CMB temperature today in K
+
 
 def _dBodTrj(nu):
-    return 2 * const.k_B.value * nu * nu * 1e18 / const.c.value / const.c.value
+    return 2 * k_B * nu * nu * 1e18 / c / c
 
 
 def _dBodTth(nu):
-    x = const.h.value * nu * 1e9 / const.k_B.value / cosmo.Tcmb0.value
+    x = h * nu * 1e9 / k_B / Tcmb0
     ex = np.exp(x)
     exm1 = ex - 1.0e0
-    return (
-        2
-        * const.h.value
-        * nu
-        * nu
-        * nu
-        * 1e27
-        / const.c.value
-        / const.c.value
-        / exm1
-        / exm1
-        * ex
-        * x
-        / cosmo.Tcmb0.value
-    )
+    return 2 * h * nu * nu * nu * 1e27 / c / c / exm1 / exm1 * ex * x / Tcmb0
 
 
 @njit
@@ -306,7 +297,7 @@ def compute_signal_for_one_detector(
     looping over (time) samples.
     """
 
-    for i in prange(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         # TODO: GET THE SEVERAL COSINE TERMS DIRECTLY FROM THE
         # COMPLEX COMPUTATION OF HWP_ANGLE in hwp._get_hwp_angle
         Four_rho_phi = 4 * (rho[i] - phi)
@@ -409,7 +400,7 @@ def compute_ata_atd_for_one_detector(
     for a single detector, looping over (time) samples.
     """
 
-    for i in prange(len(tod)):
+    for i in prange(len(tod)):  # type: ignore[not-iterable]
         Four_rho_phi = 4 * (rho[i] - phi)
         Two_rho_phi = 2 * (rho[i] - phi)
         Tterm, Qterm, Uterm = compute_TQUsolver_for_one_sample(
@@ -459,14 +450,14 @@ def compute_ata_atd_for_one_detector(
 
 
 def fill_tod(
-    observations: Observation | list[Observation] = None,
+    observations: Observation | list[Observation] | None = None,
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp_angle: np.ndarray | list[np.ndarray] | None = None,
     input_map_in_galactic: bool = True,
     save_tod: bool = True,
     pointings_dtype=np.float64,
     interpolation: str | None = "",
-    maps: np.ndarray = None,
+    maps: np.ndarray | None = None,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
     mueller_phases: dict | None = None,
@@ -539,6 +530,7 @@ def fill_tod(
     assert observations is not None, (
         "You need to pass at least one observation to fill_tod."
     )
+    assert maps is not None, "You need to pass input maps to fill_tod."
 
     if mueller_phases is None:
         mueller_phases = temporary_mueller_phases

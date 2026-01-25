@@ -72,7 +72,7 @@ class SphericalHarmonics:
 
     values: np.ndarray
     lmax: int
-    mmax: int = None
+    mmax: int | None = None
     nstokes: int = field(init=False)
 
     def __post_init__(self):
@@ -252,7 +252,7 @@ class SphericalHarmonics:
     def resize_alm(
         self,
         lmax_out: int,
-        mmax_out: int = None,
+        mmax_out: int | None = None,
         inplace: bool = False,
     ):
         """
@@ -285,6 +285,7 @@ class SphericalHarmonics:
 
         lmax_in = self.lmax
         mmax_in = self.mmax
+        assert mmax_in is not None
 
         if mmax_out is None:
             mmax_out = lmax_out

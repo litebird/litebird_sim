@@ -9,7 +9,7 @@ from ducc0.healpix import Healpix_Base
 import healpy as hp
 
 
-def get_map_mask(pixels: npt.ArrayLike) -> npt.ArrayLike:
+def get_map_mask(pixels: npt.NDArray) -> npt.NDArray:
     return np.isfinite(pixels) & (pixels != healpy.UNSEEN)
 
 

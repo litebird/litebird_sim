@@ -106,6 +106,7 @@ def add_convolved_sky_to_one_detector(
         beam_mmax = beam_alms_det.mmax
 
         default_lmax = min(sky_lmax, beam_lmax)
+        assert beam_mmax is not None
         default_mmax = min(default_lmax - 4, beam_mmax)
 
         logging.warning(
@@ -303,12 +304,16 @@ def add_convolved_sky(
         if input_sky_names is None:
             sky_alms_det = sky_alms
         else:
+            assert isinstance(sky_alms, dict)
             sky_alms_det = sky_alms[input_sky_names[detector_idx]]
+        assert isinstance(sky_alms_det, SphericalHarmonics)
 
         if input_beam_names is None:
             beam_alms_det = beam_alms
         else:
+            assert isinstance(beam_alms, dict)
             beam_alms_det = beam_alms[input_beam_names[detector_idx]]
+        assert isinstance(beam_alms_det, SphericalHarmonics)
 
         if mueller_hwp is None:
             mueller_matrix = None
@@ -331,12 +336,12 @@ def add_convolved_sky(
 def add_convolved_sky_to_observations(
     observations: Observation | list[Observation],
     sky_alms: (
-        SphericalHarmonics | dict[str, SphericalHarmonics]
+        SphericalHarmonics | dict[str, SphericalHarmonics] | None
     ),  # at some point optional, taken from the obs
     beam_alms: (
-        SphericalHarmonics | dict[str, SphericalHarmonics]
+        SphericalHarmonics | dict[str, SphericalHarmonics] | None
     ),  # at some point optional, taken from the obs
-    pointings: npt.ArrayLike | list[npt.ArrayLike] | None = None,
+    pointings: npt.NDArray | list[npt.NDArray] | None = None,
     hwp: HWP | None = None,
     input_sky_alms_in_galactic: bool = True,
     convolution_params: BeamConvolutionParameters | None = None,
@@ -396,20 +401,22 @@ def add_convolved_sky_to_observations(
 
     if sky_alms is None:
         try:
-            sky_alms = observations[0].sky
+            assert obs_list, "No observations available"
+            sky_alms = obs_list[0].sky
         except AttributeError:
             msg = "'sky_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics, or store them in the observations if 'mbs' is used."
             raise AttributeError(msg)
-        assert sky_alms["type"] == "alms", (
+        assert isinstance(sky_alms, dict) and sky_alms["type"] == "alms", (
             "'sky_alms' should be of type 'alms'. Use 'store_alms' of 'MbsParameters' to make it so."
         )
 
     if beam_alms is None:
         try:
-            beam_alms = observations[0].blms
+            beam_alms = obs_list[0].blms
         except AttributeError:
             msg = "'beam_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics of the beam, or store them in the observations if 'get_gauss_beam_alms' is used."
             raise AttributeError(msg)
+    assert beam_alms is not None
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         # Determine input sky names

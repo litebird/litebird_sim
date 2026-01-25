@@ -66,7 +66,7 @@ class _InstrumentFreq:
 
     @staticmethod
     def from_npy(filename):
-        data = np.load(filename, allow_picke=True).item()
+        data = np.load(filename, allow_pickle=True).item()
         return _InstrumentFreq(
             bandcenter_ghz=data["freq"],
             bandwidth_ghz=data["freq_band"],
@@ -246,7 +246,7 @@ class MbsParameters:
     nmc_cmb: int = 1
     seed_cmb: int | None = None
     make_fg: bool = False
-    fg_models: dict[str, Any] | None = None
+    fg_models: dict[str, Any] | list[str] | None = None
     make_dipole: bool = False
     sun_velocity: list | None = None
     output_string: str | None = None
@@ -583,6 +583,7 @@ class Mbs:
                         )
                     )
                 else:
+                    assert noise_map_matrix is not None
                     noise_map_matrix[Nchnl] = noise_map
 
         return (noise_map_matrix, saved_maps)
@@ -715,6 +716,7 @@ class Mbs:
                         MbsSavedMapInfo(path=cur_map_path, component="cmb")
                     )
                 else:
+                    assert cmb_map_matrix is not None
                     cmb_map_matrix[Nchnl] = cmb_map_smt
 
         return (cmb_map_matrix, saved_maps)
@@ -975,7 +977,7 @@ class Mbs:
                 tot_file_name = f"{chnl}_coadd_signal_map_{file_str}.fits"
                 tot_file_path = coadd_dir / tot_file_name
                 lbs.write_healpix_map_to_file(
-                    tot_file_path, map_tot, column_units=col_units
+                    tot_file_path, fg_tot, column_units=col_units
                 )
                 saved_maps.append(
                     MbsSavedMapInfo(

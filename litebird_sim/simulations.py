@@ -1,4 +1,3 @@
-import codecs
 import functools
 import importlib.resources
 import json
@@ -9,9 +8,12 @@ from collections import namedtuple
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from shutil import copyfile, copytree, SameFileError
-from typing import Any, Optional, Union
+from shutil import SameFileError, copyfile, copytree
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import uuid4
+
+if TYPE_CHECKING:
+    import brahmap
 
 import astropy.time
 import astropy.units
@@ -21,52 +23,52 @@ import matplotlib.pylab as plt
 import numba
 import numpy as np
 import tomlkit
+import tomlkit.items
 from markdown_katex import KatexExtension
 
 from litebird_sim import constants
-from .hwp import HWP
+
 from .beam_convolution import (
-    add_convolved_sky_to_observations,
     BeamConvolutionParameters,
+    add_convolved_sky_to_observations,
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
 from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
-from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
-from .healpix import write_healpix_map_to_file, npix_to_nside
+from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
+from .healpix import npix_to_nside, write_healpix_map_to_file
+from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
-from .io import write_list_of_observations, read_list_of_observations
+from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
-    make_binned_map,
-    make_brahmap_gls_map,
-    check_valid_splits,
     BinnerResult,
-    make_destriped_map,
-    save_destriper_results,
     DestriperParameters,
     DestriperResult,
+    check_valid_splits,
     destriper_log_callback,
+    make_binned_map,
+    make_brahmap_gls_map,
+    make_destriped_map,
+    save_destriper_results,
 )
 from .mbs import Mbs, MbsParameters
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
+from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
-from .units import Units
-from .pointings_in_obs import prepare_pointings, precompute_pointings
+from .pointings_in_obs import precompute_pointings, prepare_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .spherical_harmonics import SphericalHarmonics
-from .version import (
-    __version__ as litebird_sim_version,
-    __author__ as litebird_sim_author,
-)
+from .units import Units
+from .version import __author__ as litebird_sim_author
+from .version import __version__ as litebird_sim_version
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -77,7 +79,7 @@ OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
 
 def _tomlkit_to_popo(d):
-    from datetime import date, time, datetime
+    from datetime import date, datetime, time
 
     # This is a fix to issue
     # https://github.com/sdispater/tomlkit/issues/43. It converts an
@@ -122,7 +124,7 @@ def _tomlkit_to_popo(d):
     return result
 
 
-def get_template_file_path(filename: str | Path) -> Path:
+def get_template_file_path(filename: str) -> Path:
     """Return a Path object pointing to the full path of a template file.
 
     Template files are used by the framework to produce automatic
@@ -133,7 +135,9 @@ def get_template_file_path(filename: str | Path) -> Path:
     returns a full, absolute path to the file within the ``templates``
     folder of the ``litebird_sim`` source code.
     """
-    return importlib.resources.files("litebird_sim.templates") / filename
+    return Path(
+        str(importlib.resources.files("litebird_sim.templates").joinpath(filename))
+    )
 
 
 @dataclass
@@ -222,6 +226,7 @@ class MpiDistributionDescr:
 
 """
             for cur_obs_idx, cur_obs in enumerate(cur_mpi_proc.observations):
+                assert cur_obs.tod_shape is not None, "tod_shape should not be None"
                 result += """## Observation #{obs_idx}
 - Start time: {start_time}
 - Duration: {duration_s} s
@@ -375,17 +380,17 @@ class Simulation:
 
         self._initialize_logging()
 
-        self.base_path = base_path
+        self.base_path: Path = Path(base_path) if base_path else Path()
         self.name = name
 
-        self.observations = []  # type: list[Observation]
+        self.observations: list[Observation] = []
 
-        self.start_time = start_time
-        self.duration_s = duration_s
+        self.start_time: int | float | astropy.time.Time = start_time
+        self.duration_s: int | float = duration_s
 
-        self.detectors = []  # type: list[DetectorInfo]
-        self.instrument = None  # type: InstrumentInfo | None
-        self.hwp = None  # type: HWP | None
+        self.detectors: list[DetectorInfo] = []
+        self.instrument: InstrumentInfo | None = None
+        self.hwp: HWP | None = None
 
         self.spin2ecliptic_quats = None
 
@@ -393,7 +398,7 @@ class Simulation:
 
         self.random_seed = random_seed
 
-        self.tod_list = []  # type: list[TodDescription]
+        self.tod_list: list[TodDescription] = []
 
         if imo:
             self.imo = imo
@@ -407,7 +412,7 @@ class Simulation:
         self.numba_threading_layer = numba_threading_layer
 
         self.profile_time = profile_time
-        self.profile_data = []  # type: list[TimeProfiler]
+        self.profile_data: list[TimeProfiler] = []
 
         assert not (parameter_file and parameters), (
             "you cannot use parameter_file and parameters together "
@@ -431,26 +436,24 @@ class Simulation:
             numba.set_num_threads(self.numba_threads)
 
         if self.numba_threading_layer:
-            numba.config.THREADING_LAYER = self.numba_threading_layer
+            numba.config.THREADING_LAYER = self.numba_threading_layer  # type: ignore[attr-defined]
 
-        if not self.base_path:
-            self.base_path = Path()
-
-        self.base_path = Path(self.base_path)
         self._ensure_base_path_exists()
 
-        if parameter_file:
+        if self.parameter_file:
             # Copy the parameter file to the output directory only if
             # it is not already there (this might happen if you did
             # not specify `base_path`, as the default for `base_path`
             # is the current working directory)
             dest_param_file = (self.base_path / self.parameter_file.name).resolve()
             try:
-                copyfile(src=self.parameter_file, dst=dest_param_file)
+                copyfile(
+                    src=self.parameter_file.as_posix(), dst=dest_param_file.as_posix()
+                )
             except SameFileError:
                 pass
 
-        self.list_of_outputs = []  # type: list[OutputFileRecord]
+        self.list_of_outputs: list[OutputFileRecord] = []
 
         self.report = ""
 
@@ -485,7 +488,7 @@ class Simulation:
 
             self.append_to_report(
                 markdown_template,
-                mpi4py_version=mpi4py.__version__,
+                mpi4py_version=getattr(mpi4py, "__version__"),
                 mpi_version=".".join([str(x) for x in mpi_version]),
                 mpi_implementation=str(MPI.Get_library_version()).strip(),
                 warning_mpi_version=warning_mpi_version,
@@ -630,16 +633,16 @@ class Simulation:
             # for the duration
             if isinstance(self.duration_s, str):
                 conversions = [
-                    ("years", astropy.units.year),
-                    ("year", astropy.units.year),
-                    ("days", astropy.units.day),
-                    ("day", astropy.units.day),
-                    ("hours", astropy.units.hour),
-                    ("hour", astropy.units.hour),
-                    ("minutes", astropy.units.minute),
-                    ("min", astropy.units.minute),
-                    ("sec", astropy.units.second),
-                    ("s", astropy.units.second),
+                    ("years", getattr(astropy.units, "year")),
+                    ("year", getattr(astropy.units, "year")),
+                    ("days", getattr(astropy.units, "day")),
+                    ("day", getattr(astropy.units, "day")),
+                    ("hours", getattr(astropy.units, "hour")),
+                    ("hour", getattr(astropy.units, "hour")),
+                    ("minutes", getattr(astropy.units, "minute")),
+                    ("min", getattr(astropy.units, "minute")),
+                    ("sec", getattr(astropy.units, "second")),
+                    ("s", getattr(astropy.units, "second")),
                 ]
 
                 for conv_str, conv_unit in conversions:
@@ -689,7 +692,7 @@ class Simulation:
             else:
                 log.basicConfig(level=log.CRITICAL, format=log_format)
 
-    def write_healpix_map(self, filename: str, pixels, **kwargs) -> str:
+    def write_healpix_map(self, filename: Path, pixels, **kwargs) -> Path:
         """Save a Healpix map in the output folder
 
         Args:
@@ -819,12 +822,12 @@ class Simulation:
         # Check if there are newer versions of the data files used in the simulation
         for cur_data_file in data_files:
             other_data_files = self.imo.get_list_of_data_files(
-                cur_data_file.quantity, track=False
+                getattr(cur_data_file, "quantity"), track=False
             )
             if not other_data_files:
                 continue
 
-            if other_data_files[-1] != cur_data_file.uuid:
+            if other_data_files[-1] != getattr(cur_data_file, "uuid"):
                 warnings.append((cur_data_file, other_data_files[-1]))
 
         if (not entities) and (not quantities) and (not data_files):
@@ -903,7 +906,7 @@ class Simulation:
 
     def _generate_html_report(self):
         # Expand the markdown text using Jinja2
-        with codecs.open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
+        with open(self.base_path / "report.md", "w", encoding="utf-8") as outf:
             outf.write(self.report)
 
         # Now generate an HTML file from Markdown.
@@ -920,7 +923,7 @@ class Simulation:
         html = markdown.markdown(self.report, extensions=md_extensions)
 
         static_path = importlib.resources.files("litebird_sim.static")
-        with codecs.open(static_path / "report_template.html") as inpf:
+        with (static_path / "report_template.html").open() as inpf:
             html_full_report = jinja2.Template(inpf.read()).render(
                 name=self.name, html=html
             )
@@ -929,14 +932,15 @@ class Simulation:
         static_files_to_copy = ["sakura.css"]
         for curitem in static_files_to_copy:
             source = static_path / curitem
-            if source.is_dir():
-                copytree(src=source, dst=self.base_path)
-            else:
-                copyfile(src=source, dst=self.base_path / curitem)
+            with importlib.resources.as_file(source) as source_path:
+                if source_path.is_dir():
+                    copytree(src=source_path, dst=self.base_path)
+                else:
+                    copyfile(src=source_path, dst=self.base_path / curitem)
 
         # Finally, write down the full HTML report
         html_report_path = self.base_path / "report.html"
-        with codecs.open(html_report_path, "w", encoding="utf-8") as outf:
+        with open(html_report_path, "w", encoding="utf-8") as outf:
             outf.write(html_full_report)
 
         return html_report_path
@@ -971,7 +975,7 @@ class Simulation:
         template_file_path = get_template_file_path("report_appendix.md")
         with template_file_path.open("rt") as inpf:
             markdown_template = "".join(inpf.readlines())
-        self.append_to_report(markdown_template, **dictionary)
+        self.append_to_report(markdown_template, figures=[], **dictionary)
 
         return self._generate_html_report() if MPI_COMM_WORLD.rank == 0 else None
 
@@ -1265,8 +1269,8 @@ class Simulation:
         if not self.observations:
             return None
 
-        observation_descr = []  # type: list[MpiObservationDescr]
-        numba_num_of_threads_all = []  # type: list[int]
+        observation_descr: list[MpiObservationDescr] = []
+        numba_num_of_threads_all: list[int] = []
 
         for obs in self.observations:
             cur_det_names = list(obs.name)
@@ -1300,6 +1304,9 @@ class Simulation:
         numba_num_of_threads = numba.get_num_threads()
 
         if self.mpi_comm and MPI_ENABLED:
+            from mpi4py.MPI import Intracomm
+
+            assert isinstance(MPI_COMM_WORLD, Intracomm)
             observation_descr_all = MPI_COMM_WORLD.allgather(observation_descr)
             num_of_observations_all = MPI_COMM_WORLD.allgather(num_of_observations)
             numba_num_of_threads_all = MPI_COMM_WORLD.allgather(numba_num_of_threads)
@@ -1308,7 +1315,7 @@ class Simulation:
             num_of_observations_all = [num_of_observations]
             numba_num_of_threads_all = [numba_num_of_threads]
 
-        mpi_processes = []  # type: list[MpiProcessDescr]
+        mpi_processes: list[MpiProcessDescr] = []
         for i in range(MPI_COMM_WORLD.size):
             mpi_processes.append(
                 MpiProcessDescr(
@@ -1555,6 +1562,7 @@ class Simulation:
         1807.06207)
         """
 
+        assert isinstance(self.start_time, astropy.time.Time)
         orbit = SpacecraftOrbit(
             self.start_time,
             solar_velocity_km_s=solar_velocity_km_s,
@@ -1654,21 +1662,25 @@ class Simulation:
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
             if maps is None:
+                assert self.observations, "No observations available"
                 maps = self.observations[0].sky
+            assert maps is not None
             if isinstance(maps, dict):
                 if "Mbs_parameters" in maps.keys():
-                    if maps["Mbs_parameters"].make_fg:
-                        fg_model = maps["Mbs_parameters"].fg_models
-                    else:
-                        fg_model = "N/A"
+                    if "Mbs_parameters" in maps.keys():
+                        mbs_params = maps["Mbs_parameters"]
+                        if mbs_params.make_fg:  # type: ignore[union-attr]
+                            fg_model = mbs_params.fg_models  # type: ignore[union-attr]
+                        else:
+                            fg_model = "N/A"
 
-                    self.append_to_report(
-                        markdown_template,
-                        nside=maps["Mbs_parameters"].nside,
-                        has_cmb=maps["Mbs_parameters"].make_cmb,
-                        has_fg=maps["Mbs_parameters"].make_fg,
-                        fg_model=fg_model,
-                    )
+                        self.append_to_report(
+                            markdown_template,
+                            nside=mbs_params.nside,  # type: ignore[union-attr]
+                            has_cmb=mbs_params.make_cmb,  # type: ignore[union-attr]
+                            has_fg=mbs_params.make_fg,  # type: ignore[union-attr]
+                            fg_model=fg_model,
+                        )
             else:
                 nside = npix_to_nside(len(maps[0]))
                 self.append_to_report(
@@ -1796,7 +1808,7 @@ class Simulation:
 
         if store_in_observation:
             for obs in self.observations:
-                obs.sky = sky
+                obs.sky = sky  # type: ignore[assignment]
 
         return sky
 
@@ -1847,20 +1859,23 @@ class Simulation:
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
             if sky_alms is None:
+                assert self.observations, "No observations available"
                 sky_alms = self.observations[0].sky
             if isinstance(sky_alms, dict):
                 if "Mbs_parameters" in sky_alms.keys():
-                    if sky_alms["Mbs_parameters"].make_fg:
-                        fg_model = sky_alms["Mbs_parameters"].fg_models
-                    else:
-                        fg_model = "N/A"
+                    if "Mbs_parameters" in sky_alms.keys():
+                        mbs_params = sky_alms["Mbs_parameters"]
+                        if mbs_params.make_fg:  # type: ignore[union-attr]
+                            fg_model = mbs_params.fg_models  # type: ignore[union-attr]
+                        else:
+                            fg_model = "N/A"
 
-                    self.append_to_report(
-                        markdown_template,
-                        has_cmb=sky_alms["Mbs_parameters"].make_cmb,
-                        has_fg=sky_alms["Mbs_parameters"].make_fg,
-                        fg_model=fg_model,
-                    )
+                        self.append_to_report(
+                            markdown_template,
+                            has_cmb=mbs_params.make_cmb,  # type: ignore[union-attr]
+                            has_fg=mbs_params.make_fg,  # type: ignore[union-attr]
+                            fg_model=fg_model,
+                        )
             else:
                 self.append_to_report(
                     markdown_template,
@@ -1913,7 +1928,7 @@ class Simulation:
     @_profile
     def apply_quadratic_nonlin(
         self,
-        nl_params: NonLinParams = None,
+        nl_params: NonLinParams | None = None,
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
@@ -2085,7 +2100,7 @@ class Simulation:
                             mapp = np.append(mapp, inv_cov.pop(0)[None, :], axis=0)
                     filenames.append(
                         self.write_healpix_map(
-                            file, mapp, column_names=names, coord=coords
+                            Path(file), mapp, column_names=names, coord=coords
                         )
                     )
             return filenames
@@ -2207,7 +2222,7 @@ class Simulation:
         if write_to_disk:
             filenames = []
             baselines = None
-            recycled_convergence = None
+            recycled_convergence = False
             for ds in detector_splits:
                 for ts in time_splits:
                     result = make_destriped_map(
@@ -2252,7 +2267,7 @@ class Simulation:
         else:
             destriped_maps = {}
             baselines = None
-            recycled_convergence = None
+            recycled_convergence = False
             for ds in detector_splits:
                 for ts in time_splits:
                     destriped_maps[f"{ds}_{ts}"] = make_destriped_map(
@@ -2394,7 +2409,7 @@ class Simulation:
         self,
         nside: int,
         components: str | list[str] = "tod",
-        pointing_flag: np.ndarray = None,
+        pointing_flag: np.ndarray | None = None,
         inv_noise_cov_operator=None,
         threshold: float = 1.0e-5,
         pointings_dtype=np.float64,
@@ -2444,7 +2459,6 @@ class Simulation:
         self,
         subdir_name: None | str = "tod",
         append_to_report: bool = True,
-        *args,
         **kwargs,
     ) -> list[Path]:
         """Write a set of observations as HDF5
@@ -2470,7 +2484,7 @@ class Simulation:
             tod_path = self.base_path
 
         file_list = write_list_of_observations(
-            observations=self.observations, path=tod_path, *args, **kwargs
+            observations=self.observations, path=tod_path, **kwargs
         )
 
         if append_to_report:
@@ -2496,9 +2510,8 @@ class Simulation:
     @_profile
     def read_observations(
         self,
-        path: str | Path = None,
-        subdir_name: None | str = "tod",
-        *args,
+        path: Path | None = None,
+        subdir_name: str = "tod",
         **kwargs,
     ):
         """Read a list of observations from a set of files in a simulation
@@ -2516,14 +2529,14 @@ class Simulation:
             path = self.base_path
 
         obs = read_list_of_observations(
-            file_name_list=list((path / subdir_name).glob("**/*.h5")), *args, **kwargs
+            file_name_list=list((path / subdir_name).glob("**/*.h5")), **kwargs
         )
         self.observations = obs
 
     @_profile
     def apply_gaindrift(
         self,
-        drift_params: GainDriftParams = None,
+        drift_params: GainDriftParams | None = None,
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = True,
@@ -2617,5 +2630,6 @@ class Simulation:
                 markdown_text=markdown_template,
                 component=component,
                 user_seed=user_seed,
+                figures=[],
                 **dictionary,
             )
