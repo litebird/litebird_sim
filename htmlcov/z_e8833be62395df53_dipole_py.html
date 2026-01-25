@@ -3,9 +3,9 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>Coverage for litebird_sim/dipole.py: 62%</title>
-    <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
-    <link rel="stylesheet" href="style_cb_8432e98f.css" type="text/css">
-    <script src="coverage_html_cb_bcae5fc4.js" defer></script>
+    <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
+    <link rel="stylesheet" href="style_cb_9ff733b0.css" type="text/css">
+    <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
 </head>
 <body class="pyfile">
 <header>
@@ -17,7 +17,7 @@
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
             <label for="help_panel_state">
-                <img id="keyboard_icon" src="keybd_closed_cb_ce680311.png" alt="Show/hide keyboard shortcuts">
+                <img id="keyboard_icon" src="keybd_closed_cb_900cfef5.png" alt="Show/hide keyboard shortcuts">
             </label>
             <div id="help_panel">
                 <p class="legend">Shortcuts on this page</p>
@@ -64,8 +64,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_distribute_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.12.0">coverage.py v7.12.0</a>,
-            created at 2025-12-12 13:39 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.13.1">coverage.py v7.13.1</a>,
+            created at 2026-01-25 00:25 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -219,7 +219,7 @@
     <p class="run run2"><span class="n"><a id="t137" href="#t137">137</a></span><span class="t">    <span class="nam">dipole_type</span><span class="op">:</span> <span class="nam">DipoleType</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t138" href="#t138">138</a></span><span class="t"><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t139" href="#t139">139</a></span><span class="t">    <span class="key">if</span> <span class="nam">dipole_type</span> <span class="op">==</span> <span class="nam">DipoleType</span><span class="op">.</span><span class="nam">LINEAR</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t140" href="#t140">140</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t140" href="#t140">140</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>  <span class="com"># type: ignore[not-iterable]</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t141" href="#t141">141</a></span><span class="t">            <span class="nam">tod_det</span><span class="op">[</span><span class="nam">i</span><span class="op">]</span> <span class="op">+=</span> <span class="nam">compute_dipole_for_one_sample_linear</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t142" href="#t142">142</a></span><span class="t">                <span class="nam">theta</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">0</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t143" href="#t143">143</a></span><span class="t">                <span class="nam">phi</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">1</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -227,7 +227,7 @@
     <p class="mis mis2 show_mis"><span class="n"><a id="t145" href="#t145">145</a></span><span class="t">                <span class="nam">t_cmb_k</span><span class="op">=</span><span class="nam">t_cmb_k</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t146" href="#t146">146</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t147" href="#t147">147</a></span><span class="t">    <span class="key">elif</span> <span class="nam">dipole_type</span> <span class="op">==</span> <span class="nam">DipoleType</span><span class="op">.</span><span class="nam">QUADRATIC_EXACT</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t148" href="#t148">148</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t148" href="#t148">148</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>  <span class="com"># type: ignore[not-iterable]</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t149" href="#t149">149</a></span><span class="t">            <span class="nam">tod_det</span><span class="op">[</span><span class="nam">i</span><span class="op">]</span> <span class="op">+=</span> <span class="nam">compute_dipole_for_one_sample_quadratic_exact</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t150" href="#t150">150</a></span><span class="t">                <span class="nam">theta</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">0</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t151" href="#t151">151</a></span><span class="t">                <span class="nam">phi</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">1</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -235,7 +235,7 @@
     <p class="mis mis2 show_mis"><span class="n"><a id="t153" href="#t153">153</a></span><span class="t">                <span class="nam">t_cmb_k</span><span class="op">=</span><span class="nam">t_cmb_k</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t154" href="#t154">154</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t155" href="#t155">155</a></span><span class="t">    <span class="key">elif</span> <span class="nam">dipole_type</span> <span class="op">==</span> <span class="nam">DipoleType</span><span class="op">.</span><span class="nam">TOTAL_EXACT</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t156" href="#t156">156</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t156" href="#t156">156</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>  <span class="com"># type: ignore[not-iterable]</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t157" href="#t157">157</a></span><span class="t">            <span class="nam">tod_det</span><span class="op">[</span><span class="nam">i</span><span class="op">]</span> <span class="op">+=</span> <span class="nam">compute_dipole_for_one_sample_total_exact</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t158" href="#t158">158</a></span><span class="t">                <span class="nam">theta</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">0</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t159" href="#t159">159</a></span><span class="t">                <span class="nam">phi</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">1</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -243,7 +243,7 @@
     <p class="mis mis2 show_mis"><span class="n"><a id="t161" href="#t161">161</a></span><span class="t">                <span class="nam">t_cmb_k</span><span class="op">=</span><span class="nam">t_cmb_k</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t162" href="#t162">162</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t163" href="#t163">163</a></span><span class="t">    <span class="key">elif</span> <span class="nam">dipole_type</span> <span class="op">==</span> <span class="nam">DipoleType</span><span class="op">.</span><span class="nam">QUADRATIC_FROM_LIN_T</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t164" href="#t164">164</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t164" href="#t164">164</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>  <span class="com"># type: ignore[not-iterable]</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t165" href="#t165">165</a></span><span class="t">            <span class="nam">tod_det</span><span class="op">[</span><span class="nam">i</span><span class="op">]</span> <span class="op">+=</span> <span class="nam">compute_dipole_for_one_sample_quadratic_from_lin_t</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t166" href="#t166">166</a></span><span class="t">                <span class="nam">theta</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">0</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t167" href="#t167">167</a></span><span class="t">                <span class="nam">phi</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">1</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -253,7 +253,7 @@
     <p class="mis mis2 show_mis"><span class="n"><a id="t171" href="#t171">171</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t172" href="#t172">172</a></span><span class="t">    <span class="key">elif</span> <span class="nam">dipole_type</span> <span class="op">==</span> <span class="nam">DipoleType</span><span class="op">.</span><span class="nam">TOTAL_FROM_LIN_T</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t173" href="#t173">173</a></span><span class="t">        <span class="nam">planck_t0</span> <span class="op">=</span> <span class="nam">planck</span><span class="op">(</span><span class="nam">nu_hz</span><span class="op">,</span> <span class="nam">t_cmb_k</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t174" href="#t174">174</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t174" href="#t174">174</a></span><span class="t">        <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">prange</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">tod_det</span><span class="op">)</span><span class="op">)</span><span class="op">:</span>  <span class="com"># type: ignore[not-iterable]</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t175" href="#t175">175</a></span><span class="t">            <span class="nam">tod_det</span><span class="op">[</span><span class="nam">i</span><span class="op">]</span> <span class="op">+=</span> <span class="nam">compute_dipole_for_one_sample_total_from_lin_t</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t176" href="#t176">176</a></span><span class="t">                <span class="nam">theta</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">0</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t177" href="#t177">177</a></span><span class="t">                <span class="nam">phi</span><span class="op">=</span><span class="nam">theta_phi_det</span><span class="op">[</span><span class="nam">i</span><span class="op">,</span> <span class="num">1</span><span class="op">]</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
@@ -529,8 +529,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_e8833be62395df53_distribute_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.12.0">coverage.py v7.12.0</a>,
-            created at 2025-12-12 13:39 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.13.1">coverage.py v7.13.1</a>,
+            created at 2026-01-25 00:25 +0000
         </p>
     </div>
 </footer>

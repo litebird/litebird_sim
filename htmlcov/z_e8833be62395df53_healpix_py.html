@@ -3,9 +3,9 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>Coverage for litebird_sim/healpix.py: 72%</title>
-    <link rel="icon" sizes="32x32" href="favicon_32_cb_58284776.png">
-    <link rel="stylesheet" href="style_cb_8432e98f.css" type="text/css">
-    <script src="coverage_html_cb_bcae5fc4.js" defer></script>
+    <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
+    <link rel="stylesheet" href="style_cb_9ff733b0.css" type="text/css">
+    <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
 </head>
 <body class="pyfile">
 <header>
@@ -17,7 +17,7 @@
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
             <label for="help_panel_state">
-                <img id="keyboard_icon" src="keybd_closed_cb_ce680311.png" alt="Show/hide keyboard shortcuts">
+                <img id="keyboard_icon" src="keybd_closed_cb_900cfef5.png" alt="Show/hide keyboard shortcuts">
             </label>
             <div id="help_panel">
                 <p class="legend">Shortcuts on this page</p>
@@ -64,8 +64,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_hwp_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.12.0">coverage.py v7.12.0</a>,
-            created at 2025-12-12 13:39 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.13.1">coverage.py v7.13.1</a>,
+            created at 2026-01-25 00:25 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -368,7 +368,7 @@
     <p class="mis show_mis"><span class="n"><a id="t286" href="#t286">286</a></span><span class="t">        <span class="key">raise</span> <span class="nam">TypeError</span><span class="op">(</span><span class="str">"The map must be a sequence"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t287" href="#t287">287</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t288" href="#t288">288</a></span><span class="t">    <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t289" href="#t289">289</a></span><span class="t">        <span class="nam">pixels</span> <span class="op">=</span> <span class="nam">pixels</span><span class="op">.</span><span class="nam">filled</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t289" href="#t289">289</a></span><span class="t">        <span class="nam">pixels</span> <span class="op">=</span> <span class="nam">pixels</span><span class="op">.</span><span class="nam">filled</span><span class="op">(</span><span class="op">)</span>  <span class="com"># type: ignore[union-attr]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t290" href="#t290">290</a></span><span class="t">    <span class="key">except</span> <span class="nam">AttributeError</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t291" href="#t291">291</a></span><span class="t">        <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t292" href="#t292">292</a></span><span class="t">            <span class="nam">pixels</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">array</span><span class="op">(</span><span class="op">[</span><span class="nam">p</span><span class="op">.</span><span class="nam">filled</span><span class="op">(</span><span class="op">)</span> <span class="key">for</span> <span class="nam">p</span> <span class="key">in</span> <span class="nam">pixels</span><span class="op">]</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -382,7 +382,7 @@
     <p class="pln"><span class="n"><a id="t300" href="#t300">300</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t301" href="#t301">301</a></span><span class="t">    <span class="com"># check the dtype and convert it</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t302" href="#t302">302</a></span><span class="t">    <span class="key">if</span> <span class="nam">dtype</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t303" href="#t303">303</a></span><span class="t">        <span class="nam">dtype</span> <span class="op">=</span> <span class="op">[</span><span class="nam">x</span><span class="op">.</span><span class="nam">dtype</span> <span class="key">for</span> <span class="nam">x</span> <span class="key">in</span> <span class="nam">pixels</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t303" href="#t303">303</a></span><span class="t">        <span class="nam">dtype</span> <span class="op">=</span> <span class="op">[</span><span class="nam">x</span><span class="op">.</span><span class="nam">dtype</span> <span class="key">for</span> <span class="nam">x</span> <span class="key">in</span> <span class="nam">pixels</span> <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">x</span><span class="op">,</span> <span class="str">"dtype"</span><span class="op">)</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t304" href="#t304">304</a></span><span class="t">    <span class="key">try</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t305" href="#t305">305</a></span><span class="t">        <span class="nam">fitsformat</span> <span class="op">=</span> <span class="op">[</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t306" href="#t306">306</a></span><span class="t">        <span class="key">for</span> <span class="nam">curr_dtype</span> <span class="key">in</span> <span class="nam">dtype</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -523,8 +523,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_e8833be62395df53_hwp_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.12.0">coverage.py v7.12.0</a>,
-            created at 2025-12-12 13:39 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.13.1">coverage.py v7.13.1</a>,
+            created at 2026-01-25 00:25 +0000
         </p>
     </div>
 </footer>
