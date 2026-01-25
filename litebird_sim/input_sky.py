@@ -15,6 +15,7 @@ from .coordinates import CoordinateSystem
 from .detectors import DetectorInfo, FreqChannelInfo
 from .maps_and_harmonics import (
     HealpixMap,
+    SphericalHarmonics,
     estimate_alm,
     lin_comb_cls,
     pixelize_alm,
@@ -113,9 +114,9 @@ def _get_cmb_unit_conversion(
 
     if band_integration:
         # Full integration over the bandpass
-        nonzero = np.where(bandpass.freqs_ghz != 0)[0]
-        freqs = bandpass.freqs_ghz[nonzero] * u.GHz
-        weights = bandpass.weights[nonzero]
+        nonzero = np.where(getattr(bandpass, "freqs_ghz") != 0)[0]
+        freqs = getattr(bandpass, "freqs_ghz")[nonzero] * getattr(u, "GHz")
+        weights = getattr(bandpass, "weights")[nonzero]
 
         # pysm3.bandpass_unit_conversion calculates the factor C such that:
         # Value_Unit = Value_K_CMB * C
@@ -145,7 +146,7 @@ def _get_cmb_unit_conversion(
         else:
             effective_freq = freq_ghz
 
-        equiv = u.cmb_equivalencies(effective_freq * u.GHz)
+        equiv = u.cmb_equivalencies(effective_freq * getattr(u, "GHz"))
         factor = (1.0 * origin_astropy).to(target_astropy, equivalencies=equiv)
         return factor.value
 
@@ -205,7 +206,7 @@ class SkyGenerationParams:
 
         # Robustness: Ensure units is Enum if user passed string
         if isinstance(self.units, str):
-            self.units = Units(self.units)
+            self.units: Units = Units(self.units)
 
         # Warning for MPI consistency
         if self.make_cmb and self.seed_cmb is None:
@@ -229,17 +230,18 @@ class SkyGenerator:
         self,
         parameters: SkyGenerationParams,
         channels: (
-            FreqChannelInfo | DetectorInfo | list[FreqChannelInfo | DetectorInfo]
+            FreqChannelInfo | DetectorInfo | list[FreqChannelInfo] | list[DetectorInfo]
         ),
     ):
-        self.params = parameters
+        self.params: SkyGenerationParams = parameters
 
         if isinstance(channels, list):
-            self.channels = channels
+            self.channels: list[FreqChannelInfo | DetectorInfo] = channels
         else:
-            self.channels = [channels]
+            self.channels: list[FreqChannelInfo | DetectorInfo] = [channels]
 
         # --- VALIDATION (New) ---
+        assert isinstance(self.params.units, Units)
         if not UnitUtils.is_pysm3_compatible(self.params.units):
             raise ValueError(
                 f"Unit '{self.params.units.name}' is not compatible with PySM 3 generation. "
@@ -256,7 +258,7 @@ class SkyGenerator:
         # Direct assignment since we use the Enum now
         self.lbs_unit = self.params.units
 
-    def generate_cmb(self) -> dict[str, Any]:
+    def generate_cmb(self) -> dict[str, HealpixMap | SphericalHarmonics]:
         """Generates CMB component."""
         log.info("Generating CMB...")
 
@@ -305,6 +307,7 @@ class SkyGenerator:
                 alm_obs.apply_pixel_window(nside=self.params.nside, inplace=True)
 
             # Unit conversion
+            assert isinstance(self.params.units, Units)
             if self.params.bandpass_integration:
                 conv_factor = _get_cmb_unit_conversion(
                     target_unit=self.params.units,
@@ -335,7 +338,7 @@ class SkyGenerator:
 
         return result
 
-    def generate_foregrounds(self) -> dict[str, Any]:
+    def generate_foregrounds(self) -> dict[str, HealpixMap | SphericalHarmonics]:
         """Generates foregrounds using PySM3."""
         if not self.params.fg_models:
             return {}
@@ -351,9 +354,11 @@ class SkyGenerator:
 
             # 1. Compute Emission
             if self.params.bandpass_integration:
-                nonzero = np.where(ch.band.freqs_ghz != 0)[0]
-                bandpass_frequencies = ch.band.freqs_ghz[nonzero] * u.GHz
-                weights = ch.band.weights[nonzero]
+                nonzero = np.where(getattr(ch.band, "freqs_ghz") != 0)[0]
+                bandpass_frequencies = getattr(ch.band, "freqs_ghz")[nonzero] * getattr(
+                    u, "GHz"
+                )
+                weights = getattr(ch.band, "weights")[nonzero]
 
                 m_fg = sky.get_emission(bandpass_frequencies, weights=weights)
                 # Use self.pysm_units (which is now the Astropy object)
@@ -361,10 +366,12 @@ class SkyGenerator:
                     bandpass_frequencies, weights, self.pysm_units
                 )
             else:
-                m_fg = sky.get_emission(ch.bandcenter_ghz * u.GHz)
+                m_fg = sky.get_emission(ch.bandcenter_ghz * getattr(u, "GHz"))
                 m_fg = m_fg.to(
                     self.pysm_units,
-                    equivalencies=u.cmb_equivalencies(ch.bandcenter_ghz * u.GHz),
+                    equivalencies=u.cmb_equivalencies(
+                        ch.bandcenter_ghz * getattr(u, "GHz")
+                    ),
                 )
 
             # Convert to target unit
@@ -432,6 +439,7 @@ class SkyGenerator:
         # Initial map is unitless/K_CMB raw
 
         result = {}
+        assert isinstance(self.params.units, Units)
         for ch in self.channels:
             name = ch.name if hasattr(ch, "name") else ch.channel
 
@@ -468,7 +476,12 @@ class SkyGenerator:
 
         return result
 
-    def execute(self) -> dict[str, Any] | dict[str, dict[str, Any]]:
+    def execute(
+        self,
+    ) -> (
+        dict[str, HealpixMap | SphericalHarmonics]
+        | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
+    ):
         """
         Executes the generation pipeline.
         Returns a dictionary of objects (maps or alms) or a dictionary of components if requested.

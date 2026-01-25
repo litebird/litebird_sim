@@ -7,6 +7,7 @@ from ducc0.healpix import Healpix_Base
 from .observations import Observation
 from .hwp_harmonics import fill_tod
 from .hwp import HWP, IdealHWP, NonIdealHWP
+from .input_sky import SkyGenerationParams
 from .pointings_in_obs import (
     _get_hwp_angle,
     _get_pointings_array,
@@ -113,9 +114,9 @@ def scan_map(
     pointings,
     maps: (
         HealpixMap
-        | dict[str, HealpixMap]
+        | dict[str, HealpixMap | SkyGenerationParams]
         | SphericalHarmonics
-        | dict[str, SphericalHarmonics]
+        | dict[str, SphericalHarmonics | SkyGenerationParams]
     ),
     pol_angle_detectors: np.ndarray | None = None,
     pol_eff_detectors: np.ndarray | None = None,
@@ -357,9 +358,9 @@ def scan_map_in_observations(
     observations: Observation | list[Observation],
     maps: (
         HealpixMap
-        | dict[str, HealpixMap]
+        | dict[str, HealpixMap | SkyGenerationParams]
         | SphericalHarmonics
-        | dict[str, SphericalHarmonics]
+        | dict[str, SphericalHarmonics | SkyGenerationParams]
         | None
     ) = None,
     pointings: np.ndarray | list[np.ndarray] | None = None,

@@ -1630,9 +1630,9 @@ class Simulation:
         self,
         maps: (
             HealpixMap
-            | dict[str, HealpixMap]
+            | dict[str, HealpixMap | SkyGenerationParams]
             | SphericalHarmonics
-            | dict[str, SphericalHarmonics]
+            | dict[str, SphericalHarmonics | SkyGenerationParams]
             | None
         ) = None,
         component: str = "tod",
@@ -1675,6 +1675,7 @@ class Simulation:
             assert maps is not None
             if isinstance(maps, dict):
                 if "SkyGenerationParams" in maps.keys():
+                    assert isinstance(maps["SkyGenerationParams"], SkyGenerationParams)
                     if maps["SkyGenerationParams"].make_fg:
                         fg_model = maps["SkyGenerationParams"].fg_models
                     else:
@@ -1711,7 +1712,7 @@ class Simulation:
         lmax: int,
         mmax: int | None = None,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
-        store_in_observation: bool | None = False,
+        store_in_observation: bool = False,
     ) -> dict[str, SphericalHarmonics]:
         """
         Compute Gaussian beam spherical harmonic coefficients.
@@ -1762,7 +1763,10 @@ class Simulation:
         parameters: SkyGenerationParams,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
         store_in_observation: bool = False,
-    ) -> dict[str, SphericalHarmonics | HealpixMap]:
+    ) -> (
+        dict[str, HealpixMap | SphericalHarmonics]
+        | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
+    ):
         """
         Generates sky maps for the observations using the provided parameters.
         If `channels` is not provided, it automatically infers the detectors
@@ -1782,7 +1786,7 @@ class Simulation:
 
         Returns
         -------
-        dict[str, SphericalHarmonics | HealpixMap]
+        dict[str, HealpixMap | SphericalHarmonics]
             A dictionary containing the simulated sky components.
             The keys are detector or channel names (str), and the values are either:
             - :class:`SphericalHarmonics`: If the simulation is configured in harmonic space.
@@ -1814,7 +1818,7 @@ class Simulation:
 
         else:
             # Use explicitly provided frequency channels
-            channel_list = (
+            channel_list: list[FreqChannelInfo] = (
                 [channels] if isinstance(channels, FreqChannelInfo) else channels
             )
 
@@ -1878,6 +1882,9 @@ class Simulation:
                 sky_alms = self.observations[0].sky
             if isinstance(sky_alms, dict):
                 if "SkyGenerationParams" in sky_alms.keys():
+                    assert isinstance(
+                        sky_alms["SkyGenerationParams"], SkyGenerationParams
+                    )
                     if sky_alms["SkyGenerationParams"].make_fg:
                         fg_model = sky_alms["SkyGenerationParams"].fg_models
                     else:

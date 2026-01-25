@@ -9,6 +9,7 @@ import os
 
 from .coordinates import CoordinateSystem
 from .hwp_diff_emiss import compute_2f_for_one_sample
+from .input_sky import SkyGenerationParams
 from .observations import Observation
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
 from .constants import NUM_THREADS_ENVVAR
@@ -459,9 +460,9 @@ def fill_tod(
     observation: Observation,
     maps: (
         HealpixMap
-        | dict[str, HealpixMap]
+        | dict[str, HealpixMap | SkyGenerationParams]
         | SphericalHarmonics
-        | dict[str, SphericalHarmonics]
+        | dict[str, SphericalHarmonics | SkyGenerationParams]
         | None
     ) = None,
     pointings: np.ndarray | list[np.ndarray] | None = None,

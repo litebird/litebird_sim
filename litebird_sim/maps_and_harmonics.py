@@ -107,7 +107,8 @@ class SphericalHarmonics:
         """
 
         if self.mmax is None:
-            self.mmax: int = self.lmax
+            self.mmax = self.lmax
+        assert self.mmax >= 0
 
         if isinstance(self.values, tuple):
             # If self.values is a tuple containing NumPy arrays, convert to a stacked array
@@ -152,6 +153,13 @@ class SphericalHarmonics:
     # ------------------------------------------------------------------
     # Basic helpers
     # ------------------------------------------------------------------
+
+    @property
+    def mmax_int(self) -> int:
+        """Returns the maximum order m_max of the expansion."""
+        if self.mmax is None:
+            return self.lmax
+        return self.mmax
 
     @property
     def num_of_alm_per_stokes(self) -> int:
@@ -276,7 +284,11 @@ class SphericalHarmonics:
         return np.array(l_arr, dtype=int)
 
     @staticmethod
-    def get_index(lmax: int, l_val: Any, m: Any) -> Any:
+    def get_index(
+        lmax: int,
+        l_val: int | np.ndarray | list[int],
+        m_val: int | np.ndarray | list[int],
+    ) -> int | np.ndarray:
         """
         Calculate the 1D linear index in the standard Healpix (m-major) layout
         for the given (l, m) pairs.
@@ -289,7 +301,7 @@ class SphericalHarmonics:
             Maximum degree of the expansion.
         l_val : int or np.ndarray
             Degree l.
-        m : int or np.ndarray
+        m_val : int or np.ndarray
             Order m.
 
         Returns
@@ -298,13 +310,16 @@ class SphericalHarmonics:
             The 1D index. Returns an integer if inputs are scalars,
             otherwise a numpy array.
         """
-        # Calculate the index using integer division
-        idx = m * (2 * lmax + 1 - m) // 2 + l_val
+        if isinstance(l_val, (np.ndarray, list)) or isinstance(
+            m_val, (np.ndarray, list)
+        ):
+            l_val = np.asarray(l_val)
+            m_val = np.asarray(m_val)
 
-        # Robustly handle both scalar and array results
-        if np.isscalar(idx):
-            return int(idx)
-        return np.asarray(idx, dtype=int)
+        # Calculate the index using integer division
+        idx = m_val * (2 * lmax + 1 - m_val) // 2 + l_val
+
+        return idx
 
     # ------------------------------------------------------------------
     # Utils
@@ -329,7 +344,7 @@ class SphericalHarmonics:
 
         # In Healpix layout (m-major), m ranges from 0 to mmax.
         # For each m, l ranges from m to lmax.
-        for m_val in range(self.mmax + 1):
+        for m_val in range(self.mmax_int + 1):
             l_vals = np.arange(m_val, self.lmax + 1)
             ls.append(l_vals)
             ms.append(np.full_like(l_vals, m_val))
@@ -340,7 +355,7 @@ class SphericalHarmonics:
         """Prints the first few (l, m) pairs to demonstrate ordering."""
         idx = 0
         print(f"Ordering for lmax={self.lmax}, mmax={self.mmax}:")
-        for m in range(self.mmax + 1):
+        for m in range(self.mmax_int + 1):
             for l_val in range(m, self.lmax + 1):
                 print(f"Index {idx}: (l={l_val}, m={m})")
                 idx += 1
@@ -360,7 +375,7 @@ class SphericalHarmonics:
         Units and coordinates are preserved.
         """
         lmax_in = self.lmax
-        mmax_in = self.mmax
+        mmax_in = self.mmax_int
 
         if mmax_out is None:
             mmax_out = lmax_out
@@ -898,13 +913,13 @@ class SphericalHarmonics:
         - INDEX = l^2 + l + m + 1 (FITS standard for sparse alm).
         """
         # 1. Retrieve l, m for each coefficient currently in memory
-        l_val, m = self.get_lm_arrays()
+        l_val, m_val = self.get_lm_arrays()
 
         # 2. Compute the internal index (location of data in our numpy array)
-        idx_internal = self.get_index(self.lmax, l_val, m)
+        idx_internal = self.get_index(self.lmax, l_val, m_val)
 
         # 3. Compute the FITS Explicit Index (l^2 + l + m + 1)
-        idx_fits = l_val**2 + l_val + m + 1
+        idx_fits = l_val**2 + l_val + m_val + 1
 
         # Handle components (1 for T, 3 for T,E,B)
         if self.nstokes == 3:
@@ -1124,12 +1139,11 @@ class HealpixMap:
         if self.nside is None:
             # Infer NSIDE from npix
             # npix_to_nside raises AssertionError if npix is not valid (12 * nside^2)
-            try:
-                self.nside = HealpixMap.npix_to_nside(npix)
-            except AssertionError as e:
+            if np.sqrt(npix // 12) % 1 != 0:
                 raise ValueError(
                     f"Input values have {npix} pixels, which is not a valid HEALPix map size."
-                ) from e
+                )
+            self.nside: int = HealpixMap.npix_to_nside(npix)
         else:
             # Check provided NSIDE validity
             _ = HealpixMap.nside_to_npix(
@@ -1806,7 +1820,7 @@ def interpolate_alm(
 
 
 def pixelize_alm(
-    alms: "SphericalHarmonics",
+    alms: SphericalHarmonics,
     nside: int,
     *,
     nest: bool = False,
@@ -1896,15 +1910,15 @@ def pixelize_alm(
     npix = HealpixMap.nside_to_npix(nside)
 
     lmax_eff = alms.lmax if lmax is None else lmax
-    mmax_eff = alms.mmax if mmax is None else mmax
+    mmax_eff = alms.mmax_int if mmax is None else mmax
 
     if lmax_eff > alms.lmax:
         raise ValueError(
             f"Requested lmax={lmax_eff} exceeds available alms.lmax={alms.lmax}"
         )
-    if mmax_eff > alms.mmax:
+    if mmax_eff > alms.mmax_int:
         raise ValueError(
-            f"Requested mmax={mmax_eff} exceeds available alms.mmax={alms.mmax}"
+            f"Requested mmax={mmax_eff} exceeds available alms.mmax={alms.mmax_int}"
         )
 
     # Expected number of alm per Stokes for the requested (lmax,mmax)
@@ -1971,12 +1985,12 @@ def pixelize_alm(
 
 
 def estimate_alm(
-    map: "HealpixMap",
+    map: HealpixMap,
     *,
     lmax: int | None = None,
     mmax: int | None = None,
     nthreads: int = 0,
-) -> "SphericalHarmonics":
+) -> SphericalHarmonics:
     r"""
     Estimate spherical harmonic coefficients ($a_{\ell m}$) from a HEALPix map.
 
@@ -2055,6 +2069,7 @@ def estimate_alm(
         )
 
     # Validate NSIDE
+    assert map.nside is not None
     npix = HealpixMap.nside_to_npix(map.nside)
     if map.npix != npix:
         raise ValueError(
