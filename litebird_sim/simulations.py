@@ -34,7 +34,7 @@ from .beam_convolution import (
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
-from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
+from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo, UUID
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
@@ -1001,9 +1001,9 @@ class Simulation:
 
         def slice_detectors(
             detector_names: list[str],
-            detector_objs: list[str],
+            detector_objs: list[UUID],
             detectors_filter: int | list[int] | str | list[str],
-        ) -> tuple[list[str], list[str]]:
+        ) -> tuple[list[str], list[UUID]]:
             num_available = len(detector_names)
 
             if detectors_filter == "all":
@@ -1884,6 +1884,7 @@ class Simulation:
         self,
         parameters: SkyGenerationParams,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
+        detectors: DetectorInfo | list[DetectorInfo] | None = None,
         store_in_observation: bool = False,
     ) -> (
         dict[str, HealpixMap | SphericalHarmonics]
@@ -1929,28 +1930,29 @@ class Simulation:
         if not self.observations:
             raise ValueError("No observations available to generate sky maps.")
 
-        if channels is None:
+        if channels is None and detectors is None:
             # Use detectors from observations
             detector_names = set(self.observations[0].name)
             detector_list = [
                 det for det in self.detectors if det.name in detector_names
             ]
 
-            sky_gen = SkyGenerator(parameters=parameters, channels=detector_list)
-
-        else:
-            # Use explicitly provided frequency channels
-            channel_list: list[FreqChannelInfo] = (
-                [channels] if isinstance(channels, FreqChannelInfo) else channels
+            sky_gen = SkyGenerator(
+                parameters=parameters, channels=None, detectors=detector_list
             )
-
-            sky_gen = SkyGenerator(parameters=parameters, channels=channel_list)
+        else:
+            sky_gen = SkyGenerator(
+                parameters=parameters, channels=channels, detectors=detectors
+            )
 
         sky = sky_gen.execute()
 
         if store_in_observation:
             for obs in self.observations:
-                obs.sky = sky  # type: ignore[assignment]
+                obs.sky: (
+                    dict[str, HealpixMap | SphericalHarmonics]
+                    | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
+                ) = sky
 
         return sky
 
