@@ -7,7 +7,7 @@ warnings.warn(
     "in a future version. Please update your scripts or re-save your data to use "
     "'litebird_sim.maps_and_harmonics'.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 # TODO: Remove this module once all legacy MDR2 production files are migrated.
