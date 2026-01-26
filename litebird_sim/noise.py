@@ -30,7 +30,7 @@ def add_white_noise(data, sigma: float, random):
                   but **not** the white noise per sample.
 
         `random` : a random number generator that implements the ``normal`` method.
-                   This is typically obtained from the RNGHierarchy of the `Simulation` class. It must be specified
+                   This is typically obtained from the RNGHierarchy of the `Simulation` class.
     """
     data += random.normal(0, sigma, data.shape)
 
@@ -79,7 +79,7 @@ def add_one_over_f_noise(
         `sampling_rate_hz` : the sampling frequency of the data
 
         `random` : a random number generator that implements the ``normal`` method.
-                   This is typically obtained from the RNGHierarchy of the `Simulation` class. It must be specified
+                   This is typically obtained from the RNGHierarchy of the `Simulation` class.
     """
 
     noiselen = nearest_pow2(data)
@@ -155,6 +155,7 @@ def add_noise(
 
     if isinstance(scale, Number):
         scale = np.array([scale] * num_of_dets)
+    assert isinstance(scale, np.ndarray)
 
     assert len(net_ukrts) == num_of_dets
     assert len(fknee_mhz) == num_of_dets
@@ -270,9 +271,9 @@ def add_noise_to_observations(
             noise_type=noise_type,
             sampling_rate_hz=cur_obs.sampling_rate_hz,
             net_ukrts=cur_obs.net_ukrts,
-            fknee_mhz=cur_obs.fknee_mhz,
-            fmin_hz=cur_obs.fmin_hz,
-            alpha=cur_obs.alpha,
+            fknee_mhz=getattr(cur_obs, "fknee_mhz"),
+            fmin_hz=getattr(cur_obs, "fmin_hz"),
+            alpha=(getattr(cur_obs, "alpha")),
             scale=scale,
             dets_random=dets_random,
         )

@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -41,7 +41,7 @@ jobs:
             uv.lock
 
       - name: Cache virtual environment
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: cache-venv
         with:
           path: .venv
@@ -52,7 +52,7 @@ jobs:
       # store it
       - name: Cache PySM3 data files
         id: cache-pysm3
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/pysm3-data
           key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}
@@ -64,7 +64,11 @@ jobs:
       - name: Download PySM3 data files
         if: steps.cache-pysm3.outputs.cache-hit != 'true'
         run: |
-          git clone --depth 1 https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
+          if [ ! -d "$PYSM_LOCAL_DATA" ] || [ -z "$(ls -A "$PYSM_LOCAL_DATA" 2>/dev/null)" ]; then
+            git clone --depth 1 https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
+          else
+            echo "PySM data directory already exists and is not empty, skipping clone"
+          fi
 
       - name: Install basic dependencies (MPI, FFTW, IMO)
         run: |

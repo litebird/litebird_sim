@@ -2,7 +2,7 @@ import json
 import logging as log
 import re
 from collections import namedtuple
-from dataclasses import fields, asdict
+from dataclasses import asdict, fields
 from pathlib import Path
 from typing import Any
 
@@ -13,10 +13,11 @@ import numpy as np
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
 from .hwp import read_hwp_from_hdf5
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD
+from .mpi import MPI_COMM_WORLD, MPI_ENABLED
 from .observations import Observation, TodDescription
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
+from .units import Units
 
 __NUMPY_INT_TYPES = [
     np.int8,
@@ -130,6 +131,7 @@ def write_pointing_provider_to_hdf5(
     )
 
     if pointing_provider.has_hwp():
+        assert pointing_provider.hwp is not None
         hwp_field_name = f"{field_name}_hwp"
         pointing_provider.hwp.write_to_hdf5(
             output_file=output_file,
@@ -169,7 +171,7 @@ def write_one_observation(
     pointings_dtype,
     global_index: int,
     local_index: int,
-    tod_fields: list[str | TodDescription] = None,
+    tod_fields: list[str | TodDescription] | None = None,
     gzip_compression: bool = False,
     write_full_pointings: bool = False,
 ):
@@ -290,6 +292,12 @@ def write_one_observation(
         cur_dataset.attrs["detectors"] = detectors_json
         cur_dataset.attrs["description"] = cur_field.description
 
+        try:
+            cur_dataset.attrs["units"] = cur_field.units.name
+        except AttributeError:
+            # Fallback in case units is stored as a plain string
+            cur_dataset.attrs["units"] = str(cur_field.units)
+
     # Save pointing information only if it is available
     if obs.pointing_provider and write_full_pointings:
         n_detectors = obs.n_detectors
@@ -335,6 +343,7 @@ def write_one_observation(
     try:
         # We must separate the flags belonging to different detectors because they
         # might have different shapes
+        assert obs.local_flags is not None
         for det_idx in range(obs.local_flags.shape[0]):
             flags = obs.__getattribute__("local_flags")
             compressed_flags = rle_compress(flags[det_idx, :])
@@ -359,10 +368,13 @@ def _compute_global_start_index(
 ) -> int:
     global_start_index = start_index
     if MPI_ENABLED and collective_mpi_call:
+        from mpi4py.MPI import Intracomm
+
         # Count how many observations are kept in the MPI processes with lower rank
         # than this one.
-        num_of_obs = np.asarray(MPI_COMM_WORLD.allgather(num_of_obs))
-        global_start_index += np.sum(num_of_obs[0 : MPI_COMM_WORLD.rank])
+        assert isinstance(MPI_COMM_WORLD, Intracomm)
+        num_of_obs_all = np.asarray(MPI_COMM_WORLD.allgather(num_of_obs))
+        global_start_index += int(np.sum(num_of_obs_all[0 : MPI_COMM_WORLD.rank]))
 
     return global_start_index
 
@@ -462,15 +474,8 @@ def write_list_of_observations(
     file).
 
     """
-    try:
-        observations[0]
-    except TypeError:
-        observations = [observations]
-    except IndexError:
-        # Empty list
-        # We do not want to return here, as we still need to participate to
-        # the call to _compute_global_start_index below
-        observations = []  # type: list[Observation]
+    if isinstance(observations, Observation):
+        observations: list[Observation] = [observations]
 
     if not isinstance(path, Path):
         path = Path(path)
@@ -572,16 +577,40 @@ def read_one_observation(
     The parameters `read_global_flags_if_present`, and `read_local_flags_if_present`
     permit to avoid loading some parts of the HDF5 if they are not needed.
 
+    The parameter `tod_fields` specifies which TOD datasets to load. It can be a list
+    of strings (dataset names) or :class:`.TodDescription` objects; in the latter
+    case, only the `name` is used to find the dataset, while `dtype`, `units`, and
+    `description` are read from the file when present.
+
     The function returns a :class:`.Observation`, or ``Nothing`` if the HDF5 file
     was ill-formed.
     """
 
     assert len(tod_fields) > 0
 
-    # We'll fill the description later
-    tod_full_fields = [
-        TodDescription(name=x, dtype=tod_dtype, description="") for x in tod_fields
-    ]
+    # We'll fill description and units later, after reading from file
+    tod_full_fields: list[TodDescription] = []
+    for cur_field in tod_fields:
+        if isinstance(cur_field, TodDescription):
+            # Use provided name/units, but override dtype with tod_dtype
+            tod_full_fields.append(
+                TodDescription(
+                    name=cur_field.name,
+                    units=cur_field.units,
+                    dtype=tod_dtype,
+                    description=cur_field.description or "",
+                )
+            )
+        else:
+            # Only the name is known; assume default units for now
+            tod_full_fields.append(
+                TodDescription(
+                    name=cur_field,
+                    units=Units.K_CMB,
+                    dtype=tod_dtype,
+                    description="",
+                )
+            )
 
     with h5py.File(str(path), "r") as inpf:
         if limit_mpi_rank:
@@ -621,6 +650,22 @@ def read_one_observation(
             tod_full_fields[cur_field_idx].description = hdf5_tod.attrs.get(
                 "description", ""
             )
+
+            units_attr = hdf5_tod.attrs.get("units", None)
+            if units_attr is not None:
+                try:
+                    # Expecting the name of the enum member, e.g. "K_CMB"
+                    tod_full_fields[cur_field_idx].units = Units[units_attr]
+                except KeyError:
+                    # Unknown unit string, keep whatever is in the descriptor
+                    log.warning(
+                        "Unknown TOD units '%s' in dataset '%s' (file %s); "
+                        "keeping existing units %s",
+                        units_attr,
+                        cur_field_name,
+                        path,
+                        tod_full_fields[cur_field_idx].units,
+                    )
 
             if result is None:
                 detectors = [
@@ -695,7 +740,7 @@ _FileEntry = namedtuple(
 
 
 def _build_file_entry_table(file_name_list: list[str | Path]) -> list[_FileEntry]:
-    file_entries = []  # type: list[_FileEntry]
+    file_entries: list[_FileEntry] = []
     for cur_file_name in file_name_list:
         with h5py.File(cur_file_name, "r") as inpf:
             try:
@@ -736,9 +781,11 @@ def read_list_of_observations(
 
     If the HDF5 file contains more than one TOD, e.g., foregrounds, dipole, noise…,
     you can specify which datasets to load with ``tod_fields`` (a list of strings
-    or :class:`.TodDescription` objects), which defaults to ``["tod"]``. Each
-    dataset will be initialized as a member field of the :class:`.Observation`
-    class, like ``Observation.tod``.
+    or :class:`.TodDescription` objects). When passing :class:`.TodDescription`
+    instances, only the `name` is used to select the dataset; `dtype`, `units`, and
+    `description` are taken from the HDF5 attributes when present. Each dataset is
+    initialized as a member field of the :class:`.Observation` class, like
+    ``Observation.tod``.
     """
 
     observations = []
@@ -746,11 +793,14 @@ def read_list_of_observations(
     # When running several MPI processes, make just one of them read the HDF5 metadata,
     # otherwise we put too much burden on the storage filesystem
     if MPI_ENABLED:
+        from mpi4py.MPI import Intracomm
+
         file_entries = (
             _build_file_entry_table(file_name_list)
             if (MPI_COMM_WORLD.rank == 0)
             else None
         )
+        assert isinstance(MPI_COMM_WORLD, Intracomm)
         file_entries = MPI_COMM_WORLD.bcast(file_entries, root=0)
     else:
         file_entries = _build_file_entry_table(file_name_list)
@@ -759,13 +809,18 @@ def read_list_of_observations(
     if limit_mpi_rank and MPI_ENABLED:
         file_entries = [x for x in file_entries if x.mpi_rank == MPI_COMM_WORLD.rank]
 
+    # Convert TodDescription objects to strings
+    tod_fields_str: list[str] = [
+        f.name if isinstance(f, TodDescription) else f for f in tod_fields
+    ]
+
     for cur_file_entry in file_entries:
         observations.append(
             read_one_observation(
                 cur_file_entry.path,
                 limit_mpi_rank=limit_mpi_rank,
                 tod_dtype=tod_dtype,
-                tod_fields=tod_fields,
+                tod_fields=tod_fields_str,
             )
         )
 

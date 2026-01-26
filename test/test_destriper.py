@@ -265,7 +265,7 @@ def create_analytical_solution(
 
 def get_baseline_lengths_list(
     expected_solution: AnalyticalSolution,
-) -> list[npt.ArrayLike]:
+) -> list[npt.NDArray]:
     if MPI_COMM_WORLD.size == 2:
         return [
             np.array([expected_solution.baseline_runs[MPI_COMM_WORLD.rank]], dtype=int)
@@ -303,16 +303,19 @@ def setup_simulation(
         tods=[
             lbs.TodDescription(
                 name="sky_signal",
+                units=lbs.Units.K_CMB,
                 dtype=np.float32,
                 description="The projected signal P·m (Eq. 2 in KurkiSuonio2009)",
             ),
             lbs.TodDescription(
                 name="baseline",
+                units=lbs.Units.K_CMB,
                 dtype=np.float32,
                 description="The projected baselines F·a (Eq. 3 in KurkiSuonio2009)",
             ),
             lbs.TodDescription(
                 name="white_noise",
+                units=lbs.Units.K_CMB,
                 dtype=np.float32,
                 description="The white-noise term `w` (Eq. 3 in KurkiSuonio2009)",
             ),
@@ -599,7 +602,7 @@ def test_map_maker_parts():
 
 
 def _compare_analytical_vs_estimated_map(
-    actual: npt.ArrayLike, desired: npt.ArrayLike, nobs_matrix_cholesky: NobsMatrix
+    actual: npt.NDArray, desired: npt.NDArray, nobs_matrix_cholesky: NobsMatrix
 ):
     for cur_pix in range(len(actual[0])):
         if nobs_matrix_cholesky.valid_pixel[cur_pix]:
@@ -614,7 +617,7 @@ def _compare_analytical_vs_estimated_map(
             assert np.isnan(actual[2, cur_pix])
 
 
-def _make_zero_mean(x: npt.ArrayLike) -> npt.NDArray:
+def _make_zero_mean(x: npt.NDArray) -> npt.NDArray:
     return x - np.mean(x)
 
 
@@ -804,33 +807,31 @@ def test_full_destriper(tmp_path):
     )
     sim.prepare_pointings()
 
-    mbs_params = lbs.MbsParameters(
+    sky_params = lbs.SkyGenerationParams(
         make_cmb=True,
         make_fg=True,
+        output_type="map",
         seed_cmb=1,
         fg_models=[
-            "pysm_synch_0",
-            "pysm_freefree_1",
-            "pysm_dust_0",
+            "s0",
+            "f1",
+            "d0",
         ],  # set the FG models you want
-        gaussian_smooth=True,
-        bandpass_int=False,
+        apply_beam=True,
+        bandpass_integration=False,
         nside=nside,
         units="K_CMB",
-        maps_in_ecliptic=False,
     )
 
-    mbs = lbs.Mbs(
-        simulation=sim,
-        parameters=mbs_params,
-        detector_list=dets,
+    sky_gen = lbs.SkyGenerator(
+        parameters=sky_params,
+        channels=dets,
     )
-    maps = mbs.run_all()[0]  # generates the map as a dictionary
+    maps = sky_gen.execute()  # generates the map as a dictionary
 
     lbs.scan_map_in_observations(
         sim.observations,
         maps=maps,
-        input_map_in_galactic=True,
     )
 
     lbs.add_noise_to_observations(

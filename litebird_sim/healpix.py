@@ -7,6 +7,8 @@
 import numpy as np
 from astropy.io import fits
 
+from .maps_and_harmonics import HealpixMap
+
 STANDARD_COLUMN_NAMES = {
     1: "TEMPERATURE",
     2: ["Q_POLARISATION", "U_POLARISATION"],
@@ -15,79 +17,6 @@ STANDARD_COLUMN_NAMES = {
 }
 
 UNSEEN_PIXEL_VALUE = -1.6375e30
-
-
-def nside_to_npix(nside):
-    """Return the number of pixels in a Healpix map with the specified NSIDE.
-
-    If the value of `nside` is not valid (power of two), an
-    `AssertionError` exception is raised.
-
-    .. doctest::
-
-        >>> nside_to_npix(1)
-        12
-
-    """
-    assert 2 ** np.log2(nside) == nside, f"Invalid value for NSIDE: {nside}"
-    return 12 * nside * nside
-
-
-def npix_to_nside(num_of_pixels):
-    """Return NSIDE for a Healpix map containing `num_of_pixels` pixels.
-
-    If the number of pixels does not conform to the Healpix standard,
-    an `AssertionError` exception is raised.
-
-    .. doctest::
-
-        >>> npix_to_nside(48)
-        2
-
-    """
-
-    assert is_npix_ok(num_of_pixels), f"Invalid number of pixels: {num_of_pixels}"
-    return int(np.sqrt(num_of_pixels / 12))
-
-
-def nside_to_pixel_solid_angle_sterad(nside: int) -> float:
-    """Return the value of the solid angle of a pixel
-
-    The result is exact, as all pixels in a Healpix map have the same area.
-
-    The result is in steradians.
-    """
-    return 4 * np.pi / nside_to_npix(nside)
-
-
-def nside_to_resolution_rad(nside: int) -> float:
-    """Return an approximated resolution of a Healpix map, given its NSIDE
-
-    The value is the square root of the pixel area (which is measured in
-    steradians); see :func:`nside_to_pixel_area_sterad`.
-
-    The result is an angle in radians.
-    """
-    return np.sqrt(nside_to_pixel_solid_angle_sterad(nside))
-
-
-def is_npix_ok(num_of_pixels):
-    """Return True or False whenever num_of_pixels is a valid number.
-
-    The function checks if the number of pixels provided as an
-    argument conforms to the Healpix standard, which means that the
-    number must be in the form 12NSIDE^2.
-
-    .. doctest::
-
-        >>> is_npix_ok(48)
-        True
-        >>> is_npix_ok(49)
-        False
-
-    """
-    nside = np.sqrt(np.asarray(num_of_pixels) / 12.0)
-    return nside == np.floor(nside)
 
 
 def map_type(pixels):
@@ -121,12 +50,12 @@ def map_type(pixels):
         for p in pixels[1:]:
             if len(p) != npix:
                 return -1
-        if is_npix_ok(len(pixels[0])):
+        if HealpixMap.is_npix_ok(len(pixels[0])):
             return len(pixels)
         else:
             return -1
     else:
-        if is_npix_ok(len(pixels)):
+        if HealpixMap.is_npix_ok(len(pixels)):
             return 0
         else:
             return -1
@@ -286,7 +215,7 @@ def write_healpix_map_to_hdu(
         raise TypeError("The map must be a sequence")
 
     try:
-        pixels = pixels.filled()
+        pixels = pixels.filled()  # type: ignore[union-attr]
     except AttributeError:
         try:
             pixels = np.array([p.filled() for p in pixels])
@@ -300,7 +229,7 @@ def write_healpix_map_to_hdu(
 
     # check the dtype and convert it
     if dtype is None:
-        dtype = [x.dtype for x in pixels]
+        dtype = [x.dtype for x in pixels if hasattr(x, "dtype")]
     try:
         fitsformat = []
         for curr_dtype in dtype:
@@ -322,7 +251,7 @@ def write_healpix_map_to_hdu(
         column_units = [column_units] * len(pixels)
 
     assert len(set(map(len, pixels))) == 1, "Maps must have the same length"
-    nside = npix_to_nside(len(pixels[0]))
+    nside = HealpixMap.npix_to_nside(len(pixels[0]))
 
     if nside < 0:
         raise ValueError("Invalid healpix map : wrong number of pixel")
@@ -357,7 +286,10 @@ def write_healpix_map_to_hdu(
     )
     tbhdu.header["NSIDE"] = (nside, "Resolution parameter of HEALPIX")
     tbhdu.header["FIRSTPIX"] = (0, "First pixel # (0 based)")
-    tbhdu.header["LASTPIX"] = (nside_to_npix(nside) - 1, "Last pixel # (0 based)")
+    tbhdu.header["LASTPIX"] = (
+        HealpixMap.nside_to_npix(nside) - 1,
+        "Last pixel # (0 based)",
+    )
     tbhdu.header["INDXSCHM"] = ("IMPLICIT", "Indexing: IMPLICIT or EXPLICIT")
     tbhdu.header["OBJECT"] = ("FULLSKY", "Sky coverage, either FULLSKY or PARTIAL")
 
@@ -413,23 +345,3 @@ def write_healpix_map_to_file(
         extra_header=extra_header,
     )
     hdu.writeto(filename, overwrite=overwrite)
-
-
-def num_of_alms(lmax: int, mmax: int | None = None) -> int:
-    """
-    Return the number of coefficients in an array of a_ℓm coefficients
-
-    This function can be used to determine the size of an array that must hold
-    a set of a_ℓm coefficients, given the maximum value for ℓ and m.
-
-    Args:
-        lmax: Maximum value for ℓ
-        mmax: Maximum value for m. If not provided, it will be assumed that ``lmax == mmax``.
-
-    Returns:
-        Number of elements in the array of a_ℓm coefficients
-    """
-    if mmax is None or mmax < 0 or mmax > lmax:
-        mmax = lmax
-
-    return ((mmax + 1) * (mmax + 2)) // 2 + (mmax + 1) * (lmax - mmax)

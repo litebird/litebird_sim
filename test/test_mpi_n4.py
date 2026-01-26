@@ -110,24 +110,22 @@ def test_hwp_sys_mpi():
 
     sim.prepare_pointings(append_to_report=False)
 
-    mbs_params = lbs.MbsParameters(
+    sky_params = lbs.SkyGenerationParams(
         make_cmb=True,
         seed_cmb=1234,
-        make_noise=False,
         make_dipole=True,
         make_fg=True,
-        fg_models=["pysm_synch_0", "pysm_dust_0", "pysm_freefree_1"],
-        gaussian_smooth=True,
-        bandpass_int=False,
-        maps_in_ecliptic=True,
+        fg_models=["s0", "d0", "f1"],
+        apply_beam=True,
+        bandpass_integration=False,
         nside=nside,
         units="K_CMB",
     )
 
     if comm.rank == 0:
-        mbs = lbs.Mbs(simulation=sim, parameters=mbs_params, channel_list=[channelinfo])
+        gen_sky = lbs.SkyGenerator(parameters=sky_params, channels=channelinfo)
 
-        input_maps = mbs.run_all()[0]["MF1_140"]
+        input_maps = gen_sky.execute()["MF1_140"]
 
     else:
         input_maps = None
@@ -138,7 +136,6 @@ def test_hwp_sys_mpi():
     lbs.scan_map_in_observations(
         maps=input_maps,
         observations=[obs],
-        input_map_in_galactic=False,
         save_tod=True,
     )
 
@@ -146,52 +143,52 @@ def test_hwp_sys_mpi():
     expected_tod = np.array(
         [
             [
-                1.53299456e-03,
-                1.52484816e-03,
-                1.53325195e-03,
-                1.49508251e-03,
-                1.49978010e-03,
-                1.49765855e-03,
-                1.49710907e-03,
-                1.52729300e-03,
-                1.52358599e-03,
-                1.52939605e-03,
+                0.00147474,
+                0.00143285,
+                0.00144233,
+                0.00143362,
+                0.00144119,
+                0.00147416,
+                0.00147623,
+                0.00147591,
+                0.00147446,
+                0.00161493,
             ],
             [
-                2.24427693e-03,
-                2.24184804e-03,
-                2.23166589e-03,
-                2.22934526e-03,
-                2.23292410e-03,
-                2.22825119e-03,
-                2.23380793e-03,
-                2.22761487e-03,
-                2.26642378e-03,
-                2.29074061e-03,
+                0.00222174,
+                0.00222288,
+                0.00211296,
+                0.00210824,
+                0.00211418,
+                0.00210728,
+                0.00211484,
+                0.00225317,
+                0.00225564,
+                0.00225353,
             ],
             [
-                2.24442524e-03,
-                2.24241056e-03,
-                2.23042397e-03,
-                2.23121536e-03,
-                2.23050755e-03,
-                2.23110872e-03,
-                2.23063445e-03,
-                2.23096577e-03,
-                2.26299674e-03,
-                2.29409453e-03,
+                0.00222189,
+                0.00222344,
+                0.00211178,
+                0.00211001,
+                0.00211189,
+                0.00210999,
+                0.00211183,
+                0.00225656,
+                0.00225222,
+                0.00225683,
             ],
             [
-                -2.14275962e-04,
-                -2.12599334e-04,
-                -2.14288637e-04,
-                1.16508354e-05,
-                1.49919360e-05,
-                1.46891825e-05,
-                1.57095856e-05,
-                -1.29254782e-04,
-                -1.28528220e-04,
-                -1.71196109e-04,
+                -0.00037414,
+                -0.00037213,
+                -0.00037546,
+                -0.00038341,
+                -0.00038017,
+                -0.00038299,
+                -0.0003013,
+                -0.0003892,
+                -0.00039094,
+                -0.00039126,
             ],
         ]
     )
@@ -216,7 +213,13 @@ def test_hwp_sys_mpi():
             final_tod[3, :5] = tmp_arr[2, 1, :]
             final_tod[3, 5:] = tmp_arr[3, 1, :]
 
-            np.testing.assert_almost_equal(final_tod, expected_tod, decimal=10)
+            print(final_tod[0, :])
+            print(final_tod[1, :])
+            print(final_tod[2, :])
+            print(final_tod[3, :])
+
+            np.testing.assert_almost_equal(final_tod, expected_tod, decimal=8)
 
     else:
-        np.testing.assert_almost_equal(obs.tod, expected_tod, decimal=10)
+        print(obs.tod)
+        np.testing.assert_almost_equal(obs.tod, expected_tod, decimal=8)

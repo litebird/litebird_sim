@@ -251,7 +251,6 @@ command:
 Here is a short demo of its capabilities:
 
 .. asciinema:: imobrowser.cast
-   :preload: 1
 
 When «opening» a data file, you can copy either the full path of the
 data file or its UUID (the hexadecimal string uniquely identifying it)

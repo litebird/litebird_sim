@@ -31,7 +31,7 @@ class TruncatedBlm:
 
 def truncate_blm(inp, lmax: int, mmax: int, epsilon=1e-10) -> list[TruncatedBlm | None]:
     limit = epsilon * np.max(np.abs(inp))
-    out = []  # type: list[TruncatedBlm | None]
+    out: list[TruncatedBlm | None] = []
     for i in range(len(inp)):
         maxk = -1
         idx = 0
@@ -39,7 +39,6 @@ def truncate_blm(inp, lmax: int, mmax: int, epsilon=1e-10) -> list[TruncatedBlm 
             if np.max(np.abs(inp[i, :, idx:idx + lmax + 1 - k])) > limit:
                 maxk = k
             idx += lmax + 1 - k
-#        print("component",i,"maxk=",maxk)
         if maxk == -1:
             out.append(None)
         else:
@@ -60,6 +59,17 @@ class MuellerConvolver:
     Most of the expressions in this code are derived from
     Duivenvoorden et al. 2021, MNRAS 502, 4526
     (https://arxiv.org/abs/2012.10437)
+
+    Harmonic Layout Convention
+    --------------------------
+    All spherical harmonic inputs (`slm`, `blm`) must strictly follow the
+    **Healpix m-major ordering** convention, which is the same layout used by
+    the `SphericalHarmonics` class in this library.
+
+    - Indexing: The 1D array index for a given (l, m) is:
+      ``idx = m * (2 * lmax + 1 - m) // 2 + l``
+    - Ordering: The array is a concatenation of blocks of constant m:
+      [ (m=0, l=0..lmax), (m=1, l=1..lmax), ..., (m=mmax, l=mmax..lmax) ]
 
     Parameters
     ----------

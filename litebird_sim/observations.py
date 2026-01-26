@@ -9,17 +9,21 @@ import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
-from .distribute import distribute_evenly, distribute_detector_blocks
-from .hwp import HWP, IdealHWP, NonIdealHWP
+from .distribute import distribute_detector_blocks, distribute_evenly
+from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
+from .input_sky import SkyGenerationParams
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
-from .hwp import Calc
+from .units import Units
 
 
 @dataclass
 class TodDescription:
-    """A brief description of a TOD held in a :class:`.Observation` object
+    """
+    A compact descriptor for a Time-Ordered Data (TOD) field stored in an
+    :class:`.Observation` object.
 
     This field is used to pass information about one TOD in a :class:`.Observation`
     object. It is mainly used by the method :meth:`.Simulation.create_observation`
@@ -27,15 +31,27 @@ class TodDescription:
 
     The class contains three fields:
 
-    - `name` (a ``str``): the name of the field to be created within each
-      :class:`.Observation` object.
+    Parameters
+    ----------
+    name : str
+        Name of the attribute created inside each :class:`.Observation`
+        instance.
+    units : Units
+        Physical units of the TOD, expressed as an item of :class:`Units`.
+    dtype : Any
+        NumPy dtype used for allocating the underlying array, e.g., numpy.float32
+    description : str
+        Human-readable description of the TOD field.
 
-    - `dtype` (the NumPy type to use, e.g., ``numpy.float32``)
-
-    - `description` (a ``str``): human-readable description
+    Notes
+    -----
+    This class only *describes* the TOD. Actual memory allocation is performed
+    by :meth:`.Simulation.create_observations` based on the list of provided
+    descriptors.
     """
 
     name: str
+    units: Units
     dtype: Any
     description: str
 
@@ -46,11 +62,8 @@ class Observation:
     After construction at least the following attributes are available
 
     - :py:meth:`.start_time`
-
     - :py:meth:`.n_detectors`
-
     - :py:meth:`.n_samples`
-
     - :py:meth:`.tod` 2D array (`n_detectors` by `n_samples)` stacking
       the times streams of the detectors.
 
@@ -60,55 +73,106 @@ class Observation:
       in the following:
 
     - :py:meth:`.start_time_global`
-
     - :py:meth:`.end_time_global`
-
     - :py:meth:`.n_detectors_global` `~ n_detectors * n_blocks_det`
-
     - :py:meth:`.n_samples_global` `~ n_samples * n_blocks_time`
 
     Following the same philosophy, :py:meth:`.get_times` returns the
     time stamps of the local time interval
 
-    Args:
-        detectors (int/list of dict): Either the number of detectors or
-            a list of dictionaries with one entry for each detector. The keys of
-            the dictionaries will become attributes of the observation. If a
-            detector is missing a key it will be set to ``nan``.
-            If an MPI communicator is passed to ``comm``, ``detectors`` is
-            relevant only for the ``root`` process
+    Parameters
+    ----------
+    detectors : int or list[dict]
+        Either the number of detectors or a list of dictionaries with
+        one entry for each detector. The keys of the dictionaries
+        become attributes of the observation. If a detector is missing
+        a key it will be set to ``nan``. If an MPI communicator is
+        passed to ``comm``, ``detectors`` is relevant only on the
+        ``root`` process.
+    n_samples_global : int
+        The total number of samples in this observation (global, before
+        any MPI splitting in time).
+    start_time_global : float or astropy.time.Time
+        Start time of the observation. It can either be an
+        :class:`astropy.time.Time` instance or a floating-point number.
+        In the latter case, it must be expressed in seconds.
+    sampling_rate_hz : float
+        Sampling frequency, in Hertz.
+    allocate_tod : bool, optional
+        If ``True`` (default), allocate the TOD arrays described by
+        ``tods``. If ``False``, the corresponding attributes are
+        created but set to ``None``. This can be useful for workflows
+        that only need pointing or metadata.
+    tods : list[TodDescription] or None, optional
+        List of TOD descriptors defining which TOD arrays should be
+        attached to the observation. Each :class:`.TodDescription`
+        specifies:
 
-        n_samples_global (int): The number of samples in this observation.
+        - ``name``: attribute name of the 2D array;
+        - ``units``: physical units as a :class:`Units` item
+          (e.g. ``Units.K_CMB``);
+        - ``dtype``: NumPy dtype (e.g. ``numpy.float32``);
+        - ``description``: human-readable description.
 
-        start_time_global: Start time of the observation. It can either be a
-            `astropy.time.Time` type or a floating-point number. In
-            the latter case, it must be expressed in seconds.
-
-        sampling_rate_hz (float): The sampling frequency, in Hertz.
-
-        det_blocks_attributes (list of strings): The list of detector
-            attributes that will be used to divide the detector axis of the
-            tod matrix and all its attributes. For example, with
-            ``det_blocks_attributes = ["wafer", "pixel"]``, the detectors will
-            be divided into blocks such that all detectors in a block will
-            have the same ``wafer`` and ``pixel`` attribute.
-
-        n_blocks_det (int): divide the detector axis of the tod (and all the
-            arrays of detector attributes) in `n_blocks_det` blocks. It will
-            be ignored if ``det_blocks_attributes`` is not `None`.
-
-        n_blocks_time (int): divide the time axis of the tod in
-            `n_blocks_time` blocks. It will be ignored
-            if ``det_blocks_attributes`` is not `None`.
-
-        comm: either `None` (do not use MPI) or a MPI communicator
-            object, like `mpi4py.MPI.COMM_WORLD`. Its size is required to be at
-            least `n_blocks_det` times `n_blocks_time`
-
-        root (int): rank of the process receiving the detector list, if
-            ``detectors`` is a list of dictionaries, otherwise it is ignored.
+        If ``None``, a single TOD named ``"tod"`` with units
+        ``Units.K_CMB`` and dtype ``numpy.float32`` is created.
+    det_blocks_attributes : list[str] or None, optional
+        List of detector attributes used to divide the detector axis of
+        the TOD (and all detector-attribute arrays). For example, with
+        ``det_blocks_attributes = ["wafer", "pixel"]``, detectors are
+        divided into blocks such that all detectors in a block share
+        the same ``wafer`` and ``pixel`` attribute.
+    n_blocks_det : int, optional
+        Number of blocks used to divide the detector axis of the TOD
+        (and the arrays of detector attributes). Ignored if
+        ``det_blocks_attributes`` is not ``None``.
+    n_blocks_time : int, optional
+        Number of blocks used to divide the time axis of the TOD.
+        Ignored if ``det_blocks_attributes`` is not ``None``.
+    comm : MPI communicator or None, optional
+        Either ``None`` (do not use MPI) or an MPI communicator object,
+        such as ``mpi4py.MPI.COMM_WORLD``. Its size is required to be at
+        least ``n_blocks_det * n_blocks_time``.
+    root : int, optional
+        Rank of the process receiving the detector list when
+        ``detectors`` is a list of dictionaries; otherwise ignored.
 
     """
+
+    # Dynamic attributes set via setattr_det_global/setattr_det
+    det_idx: npt.NDArray
+    jones_hwp: list
+    quat: list
+    mueller_hwp: npt.NDArray
+
+    # Dynamic attributes set by destriper
+    destriper_weights: npt.NDArray | None
+    destriper_pixel_idx: npt.NDArray | None
+    destriper_pol_angle_rad: npt.NDArray | None
+
+    # Dynamic attributes set by mapmaker
+    net_ukrts: int | float | npt.NDArray
+    wafer: str | None
+
+    # Dynamic attributes set by beam synthesis
+    name: list
+    fwhm_arcmin: npt.NDArray
+    ellipticity: npt.NDArray
+    psi_rad: npt.NDArray
+    pol_angle_rad: npt.NDArray
+    blms: dict | None
+
+    # Dynamic attributes set by io
+    local_flags: npt.NDArray | None
+
+    # Dynamic attributes set by scanning
+    sky: (
+        HealpixMap
+        | dict[str, HealpixMap | SkyGenerationParams]
+        | SphericalHarmonics
+        | dict[str, SphericalHarmonics | SkyGenerationParams]
+        | None
+    )
 
     def __init__(
         self,
@@ -125,7 +189,14 @@ class Observation:
         root=0,
     ):
         if tods is None:
-            tods = [TodDescription(name="tod", dtype=np.float32, description="Signal")]
+            tods = [
+                TodDescription(
+                    name="tod",
+                    units=Units.K_CMB,
+                    dtype=np.float32,
+                    description="Signal",
+                )
+            ]
 
         self.comm = comm
         self.start_time_global = start_time_global
@@ -202,7 +273,7 @@ class Observation:
             self.n_samples,
         ) = self._get_local_start_time_start_and_n_samples()
 
-        self.pointing_provider = None  # type: PointingProvider | None
+        self.pointing_provider: PointingProvider | None = None
 
         # By default this is set to False, prepare_pointings() can change its value
         self.has_hwp = False
@@ -284,6 +355,7 @@ class Observation:
         # Distribute the arrays
         if self.comm and self.comm.size > 1:
             keys = self.comm.bcast(keys)
+        assert keys is not None, "Keys should not be None after broadcast."
 
         for k in keys:
             self.setattr_det_global(k, dict_of_array.get(k), root)
@@ -366,6 +438,9 @@ class Observation:
             n_blocks_time (int): Number of time blocks
 
         """
+        assert self._det_blocks_attributes is not None, (
+            "Detector block attributes should not be None"
+        )
         self.detector_blocks = defaultdict(list)
         for det in detectors:
             key = tuple(det[attribute] for attribute in self._det_blocks_attributes)
@@ -416,7 +491,11 @@ class Observation:
         index and length of each block if the number of blocks is changed to the
         values passed as arguments
         """
-        if self._det_blocks_attributes is None or self.comm.size == 1:
+        if (
+            self._det_blocks_attributes is None
+            or self.comm is None
+            or self.comm.size == 1
+        ):
             det_start, det_n = np.array(
                 [
                     [span.start_idx, span.num_of_elements]
@@ -692,8 +771,11 @@ class Observation:
             setattr(self, name, value)
             return
 
+        from mpi4py.MPI import Intracomm
+
         my_col = MPI_COMM_GRID.COMM_OBS_GRID.rank % self._n_blocks_time
         root_col = root // self._n_blocks_det
+        assert isinstance(self.comm_time_block, Intracomm)
         if my_col == root_col:
             if MPI_COMM_GRID.COMM_OBS_GRID.rank == root:
                 starts, nums, _, _ = self._get_start_and_num(
@@ -703,6 +785,7 @@ class Observation:
 
             info = self.comm_time_block.scatter(info, root)
 
+        assert isinstance(self.comm_det_block, Intracomm)
         info = self.comm_det_block.bcast(info, root_col)
         assert (not self.tod_list) or len(info) == len(
             getattr(self, self.tod_list[0].name)
@@ -948,6 +1031,9 @@ class Observation:
         if isinstance(detector_idx, int):
             assert (detector_idx >= 0) and (detector_idx < self.n_detectors), (
                 f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+            )
+            assert self.quat is not None, (
+                "Detector quaternions have not been initialized."
             )
 
             return self.pointing_provider.get_pointings(

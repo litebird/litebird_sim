@@ -146,7 +146,7 @@ def get_detector_level_generators_from_hierarchy(
 def regenerate_or_check_detector_generators(
     observations: list[Observation],
     user_seed: int | None = None,
-    dets_random: list[Generator] = None,
+    dets_random: list[Generator] | None = None,
 ) -> list[Generator]:
     """
     Check or regenerate detector-level RNGs for a given set of observations.
@@ -189,6 +189,7 @@ def regenerate_or_check_detector_generators(
         dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(rank=rank)
     if user_seed is None and dets_random is None:
         raise ValueError("You should pass either `user_seed` or `dets_random`.")
+    assert dets_random is not None  # Guaranteed by the check above
     assert len(dets_random) >= observations[0].n_detectors, (
         f"The number of random generators ({len(dets_random)}) must be at least the number of detectors ({observations[0].n_detectors})."
     )
@@ -201,7 +202,10 @@ class RNGHierarchy:
     SAVE_FORMAT_VERSION = 1
 
     def __init__(
-        self, base_seed: int, comm_size: int = None, num_detectors_per_rank: int = None
+        self,
+        base_seed: int,
+        comm_size: int | None = None,
+        num_detectors_per_rank: int | None = None,
     ):
         self.base_seed = base_seed
         self.comm_size = None
