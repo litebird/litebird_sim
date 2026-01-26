@@ -35,7 +35,19 @@ where
     * :math:`M_{\rm pol}` is mueller matrix of the polarimeter;
     * :math:`M_{\rm HWP}` is mueller matrix of the HWP;
     * :math:`R` is rotation matrix;
-    * :math:`\vec{S}` is the Stokes vector.
+    * :math:`\vec{S}` is the Stokes vector :math:`(T, Q, U, V)^T`.
+
+Supported Sky Inputs
+--------------------
+
+The routine supports different types of sky descriptions:
+
+1. **HealpixMap**: Real-space maps sampled using nearest-neighbor lookup via `ang2pix`.
+2. **SphericalHarmonics**: Harmonic space input, interpolated on-the-fly using the `ducc0` backend.
+3. **Dictionary**: A mapping where keys are detector or channel names and values are any of the above objects.
+
+Implementation Example
+----------------------
 
 You can fill with signal an existing TOD by using the
 function :func:`.scan_map_in_observations`, as the following example
@@ -123,11 +135,6 @@ shows:
 
 The code automatically selects the fastest algebra based on the provided HWP.
 
-The input maps to scan can be either included in a dictionary with the name of
-the channel or the name of the dectector as keyword (the routines described in
-:ref:`SkyGenerator` already provied the inputs in the correct format), or a 
-numpy array with shape (3, n_pixels).
-
 The pointing information can be included in the observation or passed through
 `pointings`. If both `observations` and `pointings` are provided, they must be 
 coherent, so either a single Observation and a single numpy array, or same
@@ -137,13 +144,11 @@ The effect of a possible HWP is included in the pointing information, see
 the corresponding attributes included in the observations. The same applies to 
 the polarization efficiency. 
 
-The routine provides an on-the-fly interpolation of the input maps. This option
-is available through the argument `interpolation` which specifies the type of TOD
-interpolation ("" for no interpolation, "linear" for linear interpolation).
-Default: no interpolation.
+The function automatically detects the coordinate system of the input map (e.g., 
+Galactic, Ecliptic) and rotates the pointings accordingly.
 
-The low level function, :func:`.scan_map`, allows a more refined handling of the
-inputs. 
+The low-level function, :func:`.scan_map`, allows for direct manipulation of TOD
+arrays and pointing matrices for advanced users.
 
 Methods of the Simulation class
 -------------------------------
