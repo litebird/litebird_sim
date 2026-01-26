@@ -16,10 +16,8 @@ from .pointings_in_obs import (
     _get_centered_pointings,
     _get_pointings_array,
 )
-from .spherical_harmonics import SphericalHarmonics
-
-# Name of the environment variable used in the convolution
-NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
+from .maps_and_harmonics import SphericalHarmonics
+from .constants import NUM_THREADS_ENVVAR
 
 
 @dataclass
@@ -211,7 +209,6 @@ def add_convolved_sky(
     input_sky_names: str | None = None,
     input_beam_names: str | None = None,
     convolution_params: BeamConvolutionParameters | None = None,
-    input_sky_alms_in_galactic: bool = True,
     pointings_dtype=np.float64,
     nside_centering: int | None = None,
     nthreads: int = 0,
@@ -247,9 +244,6 @@ def add_convolved_sky(
         Parameters controlling the convolution, such as resolution and precision. If None,
         reasonable defaults are chosen based on the sky and beam properties, but a warning
         will be raised.
-    input_sky_alms_in_galactic : bool, default=True
-        Whether the input sky maps are provided in Galactic coordinates. If False, they are
-        assumed to be in equatorial coordinates.
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
         already precomputed this parameter is ineffective. Default is `np.float64`.
@@ -285,22 +279,6 @@ def add_convolved_sky(
         assert tod.shape == pointings.shape[0:2]
 
     for detector_idx in range(n_detectors):
-        if input_sky_alms_in_galactic:
-            output_coordinate_system = CoordinateSystem.Galactic
-        else:
-            output_coordinate_system = CoordinateSystem.Ecliptic
-
-        curr_pointings_det, hwp_angle = _get_pointings_array(
-            detector_idx=detector_idx,
-            pointings=pointings,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
-            pointings_dtype=pointings_dtype,
-        )
-
-        # FIXME: Fix this at some point, ducc wants phi 0 -> 2pi
-        curr_pointings_det[:, 1] = np.mod(curr_pointings_det[:, 1], 2 * np.pi)
-
         if input_sky_names is None:
             sky_alms_det = sky_alms
         else:
@@ -319,6 +297,31 @@ def add_convolved_sky(
             mueller_matrix = None
         else:
             mueller_matrix = mueller_hwp[detector_idx]
+
+        # ----------------------------------------------------------
+        # Determine coordinate system from the object
+        # ----------------------------------------------------------
+        coordinates = getattr(sky_alms_det, "coordinates", None)
+        if coordinates is None:
+            logging.warning(
+                "add_convolved_sky: sky_alms.coordinates is None — assuming "
+                "CoordinateSystem.Galactic"
+            )
+            coordinates = CoordinateSystem.Galactic
+
+        # ----------------------------------------------------------
+        # Get pointings in the correct coordinate system
+        # ----------------------------------------------------------
+        curr_pointings_det, hwp_angle = _get_pointings_array(
+            detector_idx=detector_idx,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
+            output_coordinate_system=coordinates,
+            pointings_dtype=pointings_dtype,
+        )
+
+        # FIXME: Fix this at some point, ducc wants phi 0 -> 2pi
+        curr_pointings_det[:, 1] = np.mod(curr_pointings_det[:, 1], 2 * np.pi)
 
         add_convolved_sky_to_one_detector(
             tod_det=tod[detector_idx],
@@ -343,7 +346,6 @@ def add_convolved_sky_to_observations(
     ),  # at some point optional, taken from the obs
     pointings: npt.NDArray | list[npt.NDArray] | None = None,
     hwp: HWP | None = None,
-    input_sky_alms_in_galactic: bool = True,
     convolution_params: BeamConvolutionParameters | None = None,
     component: str = "tod",
     pointings_dtype=np.float64,
@@ -368,11 +370,10 @@ def add_convolved_sky_to_observations(
         keyed by detector/channel names.
     pointings : np.ndarray, list of np.ndarray, or None, default=None
         Detector pointing matrices. If None, the function extracts pointings from the `Observation` objects.
+        Pointing information is always assumed to be in Ecliptic coordinates
     hwp : HWP | None, default=None
         Half-Wave Plate (HWP) parameters. If None, the function either assumes the information stored in the
         `Observation` objects, or, if they are absent, assumes no HWP.
-    input_sky_alms_in_galactic : bool, default=True
-        Whether the input sky alms are in Galactic coordinates.
     convolution_params : BeamConvolutionParameters | None, default=None
         Parameters controlling the beam convolution, including resolution limits and numerical precision.
     component : str, default="tod"
@@ -404,11 +405,8 @@ def add_convolved_sky_to_observations(
             assert obs_list, "No observations available"
             sky_alms = obs_list[0].sky
         except AttributeError:
-            msg = "'sky_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics, or store them in the observations if 'mbs' is used."
+            msg = "'sky_alms' is None and nothing is found in the observation. You should either pass the spherical harmonics, or store them in the observations if 'input_sky' is used."
             raise AttributeError(msg)
-        assert isinstance(sky_alms, dict) and sky_alms["type"] == "alms", (
-            "'sky_alms' should be of type 'alms'. Use 'store_alms' of 'MbsParameters' to make it so."
-        )
 
     if beam_alms is None:
         try:
@@ -432,16 +430,6 @@ def add_convolved_sky_to_observations(
                 raise ValueError(
                     "Sky a_lm dictionary keys do not match detector/channel names."
                 )
-
-            if "Coordinates" in sky_alms:
-                dict_input_sky_alms_in_galactic = (
-                    sky_alms["Coordinates"] is CoordinateSystem.Galactic
-                )
-                if dict_input_sky_alms_in_galactic != input_sky_alms_in_galactic:
-                    logging.warning(
-                        "Overriding `input_sky_alms_in_galactic` from sky_alms dictionary."
-                    )
-                input_sky_alms_in_galactic = dict_input_sky_alms_in_galactic
         else:
             assert isinstance(sky_alms, SphericalHarmonics), "Invalid sky_alms format."
             input_sky_names = None
@@ -485,7 +473,6 @@ def add_convolved_sky_to_observations(
             input_sky_names=input_sky_names,
             input_beam_names=input_beam_names,
             convolution_params=convolution_params,
-            input_sky_alms_in_galactic=input_sky_alms_in_galactic,
             pointings_dtype=pointings_dtype,
             nside_centering=nside_centering,
             nthreads=nthreads,

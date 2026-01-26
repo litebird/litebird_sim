@@ -58,6 +58,15 @@ def test_coordinates():
 
     pointings_gal_lbs = lbs.coordinates.rotate_coordinates_e2g(pointings)
 
-    np.testing.assert_allclose(
-        pointings_gal_hp, pointings_gal_lbs, rtol=1e-6, atol=1e-6
-    )
+    # Calculate the raw difference
+    diff = pointings_gal_hp - pointings_gal_lbs
+
+    # Normalize the angular difference to handle periodicity (wrap-around).
+    # This maps any difference 'd' to the range [-pi, pi].
+    # Example: If the difference is ~2pi (e.g., 0.0 vs 6.28), the result becomes ~0.0.
+    angular_diff = np.arctan2(np.sin(diff), np.cos(diff))
+
+    print("\nMax angular error (wrapped):", np.max(np.abs(angular_diff)))
+
+    # Verify that the angular distance is effectively zero
+    np.testing.assert_allclose(angular_diff, 0.0, rtol=1e-6, atol=1e-6)

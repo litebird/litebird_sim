@@ -34,11 +34,11 @@ from .beam_convolution import (
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
-from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
+from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo, UUID
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
-from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
-from .healpix import npix_to_nside, write_healpix_map_to_file
+from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
+from .healpix import write_healpix_map_to_file
 from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
@@ -54,8 +54,8 @@ from .mapmaking import (
     make_destriped_map,
     save_destriper_results,
 )
-from .mbs import Mbs, MbsParameters
-from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
+from .input_sky import SkyGenerator, SkyGenerationParams
+from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
@@ -65,15 +65,16 @@ from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .spherical_harmonics import SphericalHarmonics
+from .maps_and_harmonics import SphericalHarmonics, HealpixMap
 from .units import Units
-from .version import __author__ as litebird_sim_author
-from .version import __version__ as litebird_sim_version
+from .version import (
+    __version__ as litebird_sim_version,
+    __author__ as litebird_sim_author,
+)
+from .constants import NUMBA_NUM_THREADS_ENVVAR
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
-# Name of the environment variable used to set up Numba threads
-NUMBA_NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
 
 OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
@@ -980,15 +981,129 @@ class Simulation:
         return self._generate_html_report() if MPI_COMM_WORLD.rank == 0 else None
 
     @_profile
+    def set_detectors(
+        self,
+        channels: FreqChannelInfo | list[FreqChannelInfo] | str | list[str],
+        detectors: int | list[int] | str | list[str] = "all",
+    ) -> list[DetectorInfo]:
+        """
+        Fetch detector information from the IMO or FreqChannelInfo objects.
+
+        Args:
+            channels: URL, list of URLs, FreqChannelInfo object, or list of
+                FreqChannelInfo objects.
+            detectors: Selection filter. "all", an integer N (takes first N),
+                a list of indices, or a list of detector names.
+
+        Returns:
+            list[DetectorInfo]: A list of loaded DetectorInfo objects.
+        """
+
+        def slice_detectors(
+            detector_names: list[str],
+            detector_objs: list[UUID],
+            detectors_filter: int | list[int] | str | list[str],
+        ) -> tuple[list[str], list[UUID]]:
+            num_available = len(detector_names)
+
+            if detectors_filter == "all":
+                return detector_names, detector_objs
+
+            if isinstance(detectors_filter, int):
+                return (
+                    detector_names[:detectors_filter],
+                    detector_objs[:detectors_filter],
+                )
+
+            filter_list = (
+                [detectors_filter]
+                if isinstance(detectors_filter, str)
+                else detectors_filter
+            )
+
+            selected_names = []
+            selected_objs = []
+            for det in filter_list:
+                if isinstance(det, int):
+                    if det < num_available:
+                        selected_names.append(detector_names[det])
+                        selected_objs.append(detector_objs[det])
+                elif isinstance(det, str):
+                    if det in detector_names:
+                        idx = detector_names.index(det)
+                        selected_names.append(detector_names[idx])
+                        selected_objs.append(detector_objs[idx])
+
+            return selected_names, selected_objs
+
+        # 1. Normalize input into a list
+        input_list = channels if isinstance(channels, list) else [channels]
+
+        # 2. Duplicate check (only relevant for URL strings)
+        urls_only = [c for c in input_list if isinstance(c, str)]
+        if len(urls_only) != len(set(urls_only)):
+            log.error(f"Duplicate channel URLs found in input: {urls_only}")
+            raise ValueError("channels list contains duplicate strings")
+
+        # 3. Resolve into FreqChannelInfo objects
+        channel_infos: list[FreqChannelInfo] = []
+        for item in input_list:
+            if isinstance(item, str):
+                channel_infos.append(FreqChannelInfo.from_imo(self.imo, item))
+            elif isinstance(item, FreqChannelInfo):
+                channel_infos.append(item)
+            else:
+                raise TypeError(f"Unsupported type in channels: {type(item)}")
+
+        # 4. Process channels
+        full_detectors_list = []
+        for channel in channel_infos:
+            _, det_urls = slice_detectors(
+                channel.detector_names, channel.detector_objs, detectors
+            )
+
+            for d_url in det_urls:
+                full_detectors_list.append(DetectorInfo.from_imo(self.imo, url=d_url))
+
+        # 5. Final validation logic
+        if detectors != "all":
+            if isinstance(detectors, int):
+                expected_num = len(channel_infos) * detectors
+            elif isinstance(detectors, str):
+                expected_num = len(channel_infos)
+            elif isinstance(detectors, list):
+                if all(isinstance(d, int) for d in detectors):
+                    expected_num = len(channel_infos) * len(detectors)
+                else:
+                    # list(str) logic
+                    expected_num = len(detectors)
+            else:
+                expected_num = 0
+
+            actual_num = len(full_detectors_list)
+
+            if actual_num != expected_num:
+                log.error(
+                    f"Detector mismatch: expected {expected_num} detectors, "
+                    f"but found {actual_num} in the provided channels."
+                )
+                raise ValueError(
+                    f"Expected {expected_num} detectors, but got {actual_num}"
+                )
+
+        self.detectors = full_detectors_list
+        return full_detectors_list
+
+    @_profile
     def create_observations(
         self,
-        detectors: list[DetectorInfo],
+        detectors: None | DetectorInfo | list[DetectorInfo] = None,
         num_of_obs_per_detector: int = 1,
-        split_list_over_processes=True,
+        split_list_over_processes: bool = True,
         det_blocks_attributes: list[str] | None = None,
-        n_blocks_det=1,
-        n_blocks_time=1,
-        root=0,
+        n_blocks_det: int = 1,
+        n_blocks_time: int = 1,
+        root: int = 0,
         tod_dtype: Any | None = None,
         tods: list[TodDescription] = [
             TodDescription(
@@ -998,8 +1113,8 @@ class Simulation:
                 description="Signal",
             )
         ],
-        allocate_tod=True,
-    ):
+        allocate_tod: bool = True,
+    ) -> list[Observation]:
         """Create a set of Observation objects.
 
         This method initializes the `Simulation.observations` field of
@@ -1045,7 +1160,7 @@ class Simulation:
         - ``units``: an item of :class:`Units` describing the physical units
           of the TOD (e.g. ``Units.K_CMB``);
         - ``dtype``: the NumPy type to use, like ``numpy.float32``;
-        - ``description``: a free-form, human-readable description.
+        - - ``description``: a free-form, human-readable description.
 
         By default, a single TOD named ``"tod"`` is created with
         ``units=Units.K_CMB`` and ``dtype=numpy.float32``, which should be
@@ -1061,8 +1176,13 @@ class Simulation:
 
         Parameters
         ----------
-        detectors : list[DetectorInfo]
-            The detector objects to be assigned to observations.
+        detectors : None | DetectorInfo | list[DetectorInfo], optional
+            The detector objects to be assigned to observations. If ``None``
+            (default), the method will use the detectors already stored in
+            `self.detectors` (e.g., loaded via `set_detectors`). If a single
+            `DetectorInfo` or a list is provided, it will use it overriding any
+            pre-existing detectors in `self.detectors` and a warning will
+            be issued.
 
         num_of_obs_per_detector : int, optional
             Number of observations to generate per detector. Useful for
@@ -1106,40 +1226,6 @@ class Simulation:
             :class:`.Observation` objects are created without allocating the
             TOD arrays, which can be useful for low-memory workflows or
             when TODs are filled on demand.
-
-        Examples
-        --------
-        Here is an example that creates three TODs::
-
-            sim.create_observations(
-                [det1, det2],
-                tods=[
-                    TodDescription(
-                        name="fg_tod",
-                        units=Units.K_CMB,
-                        dtype=np.float32,
-                        description="Foregrounds (computed by PySM)",
-                    ),
-                    TodDescription(
-                        name="cmb_tod",
-                        units=Units.K_CMB,
-                        dtype=np.float32,
-                        description="CMB realization following Planck (2018)",
-                    ),
-                    TodDescription(
-                        name="noise_tod",
-                        units=Units.K_CMB,
-                        dtype=np.float32,
-                        description="Noise TOD (only white noise, no 1/f)",
-                    ),
-                ],
-            )
-
-
-            # Now you can access these fields:
-            # - sim.fg_tod
-            # - sim.cmb_tod
-            # - sim.noise_tod
         """
 
         assert self.start_time is not None, (
@@ -1150,20 +1236,58 @@ class Simulation:
             "you must set duration_s when creating the Simulation object"
         )
 
-        if not detectors:
-            detectors = self.detectors
+        final_detectors = []
 
-        # if a single detector is passed, make it a list
-        if isinstance(detectors, DetectorInfo):
-            detectors = [detectors]
+        if detectors is None:
+            if hasattr(self, "detectors") and self.detectors:
+                final_detectors = self.detectors
+            else:
+                raise ValueError(
+                    "No detectors provided and self.detectors is empty. "
+                    "Call set_detectors() or pass a list of detectors."
+                )
+        else:
+            # Check if we are overwriting an existing list
+            if hasattr(self, "detectors") and self.detectors:
+                # Prepare names for the report
+                old_names = ", ".join([d.name for d in self.detectors])
 
-        self.init_detectors_random(len(detectors))
+                # Normalize new detectors to a list to extract names
+                new_det_list = (
+                    [detectors] if isinstance(detectors, DetectorInfo) else detectors
+                )
+                new_names = ", ".join([d.name for d in new_det_list])
+
+                msg = (
+                    "**Warning**: `Simulation.detectors` was already populated but has been "
+                    "overwritten by a manual list passed to `create_observations`."
+                )
+                log.warning(msg)
+
+                # Trigger report entry with name details
+                self.append_to_report(
+                    markdown_text=(
+                        f"### Detector List Override\n\n"
+                        f"{msg}\n\n"
+                        f"**Original List** ({len(self.detectors)} detectors):\n"
+                        f"> {old_names}\n\n"
+                        f"**New List** ({len(new_det_list)} detectors):\n"
+                        f"> {new_names}\n"
+                    ),
+                    component="Simulation Hardware",
+                )
+
+            if isinstance(detectors, DetectorInfo):
+                final_detectors = [detectors]
+            else:
+                final_detectors = detectors
+
+        self.detectors = final_detectors
+        self.init_detectors_random(len(self.detectors))
 
         observations = []
-
-        duration_s = self.duration_s  # Cache the value to a local variable
-        sampfreq_hz = detectors[0].sampling_rate_hz
-        self.detectors = detectors
+        duration_s = self.duration_s
+        sampfreq_hz = self.detectors[0].sampling_rate_hz
         num_of_samples = int(sampfreq_hz * duration_s)
         samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)
 
@@ -1172,7 +1296,6 @@ class Simulation:
         if not tod_dtype:
             self.tod_list = tods
         else:
-            # Preserve name, units, and description; override dtype only.
             self.tod_list = [
                 TodDescription(
                     name=x.name,
@@ -1186,7 +1309,7 @@ class Simulation:
         for cur_obs_idx in range(num_of_obs_per_detector):
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
             cur_obs = Observation(
-                detectors=[asdict(d) for d in detectors],
+                detectors=[asdict(d) for d in self.detectors],
                 start_time_global=cur_time,
                 sampling_rate_hz=sampfreq_hz,
                 allocate_tod=allocate_tod,
@@ -1195,7 +1318,7 @@ class Simulation:
                 n_blocks_det=n_blocks_det,
                 n_blocks_time=n_blocks_time,
                 comm=(None if split_list_over_processes else self.mpi_comm),
-                root=0,
+                root=root,
                 tods=self.tod_list,
             )
             observations.append(cur_obs)
@@ -1627,12 +1750,17 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: np.ndarray | dict[str, np.ndarray] | None = None,
-        input_map_in_galactic: bool = True,
+        maps: (
+            HealpixMap
+            | dict[str, HealpixMap | SkyGenerationParams]
+            | SphericalHarmonics
+            | dict[str, SphericalHarmonics | SkyGenerationParams]
+            | None
+        ) = None,
         component: str = "tod",
-        interpolation: str | None = "",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        nthreads: int | None = None,
     ):
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
@@ -1643,18 +1771,20 @@ class Simulation:
         through calls to :meth:`.set_instrument` and
         :meth:`.create_observations`, and the method
         :meth:`.prepare_pointings`. maps is assumed to be produced by
-        :class:`.Mbs` or through :meth:`.get_sky`.
+        :class:`.SkyGenerator` or through :meth:`.get_sky`.
 
         """
+
+        if nthreads is None:
+            nthreads = self.numba_threads
 
         scan_map_in_observations(
             observations=self.observations,
             maps=maps,
-            input_map_in_galactic=input_map_in_galactic,
             hwp=self.hwp if self.hwp else None,
             component=component,
-            interpolation=interpolation,
             pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -1666,26 +1796,33 @@ class Simulation:
                 maps = self.observations[0].sky
             assert maps is not None
             if isinstance(maps, dict):
-                if "Mbs_parameters" in maps.keys():
-                    if "Mbs_parameters" in maps.keys():
-                        mbs_params = maps["Mbs_parameters"]
-                        if mbs_params.make_fg:  # type: ignore[union-attr]
-                            fg_model = mbs_params.fg_models  # type: ignore[union-attr]
-                        else:
-                            fg_model = "N/A"
+                if "SkyGenerationParams" in maps.keys():
+                    assert isinstance(maps["SkyGenerationParams"], SkyGenerationParams)
+                    if maps["SkyGenerationParams"].make_fg:
+                        fg_model = maps["SkyGenerationParams"].fg_models
+                    else:
+                        fg_model = "N/A"
 
-                        self.append_to_report(
-                            markdown_template,
-                            nside=mbs_params.nside,  # type: ignore[union-attr]
-                            has_cmb=mbs_params.make_cmb,  # type: ignore[union-attr]
-                            has_fg=mbs_params.make_fg,  # type: ignore[union-attr]
-                            fg_model=fg_model,
-                        )
-            else:
-                nside = npix_to_nside(len(maps[0]))
+                    self.append_to_report(
+                        markdown_template,
+                        nside=maps["SkyGenerationParams"].nside,
+                        has_cmb=maps["SkyGenerationParams"].make_cmb,
+                        has_fg=maps["SkyGenerationParams"].make_fg,
+                        fg_model=fg_model,
+                    )
+            elif isinstance(maps, HealpixMap):
+                nside = HealpixMap.npix_to_nside(maps.npix)
                 self.append_to_report(
                     markdown_template,
                     nside=nside,
+                    has_cmb="N/A",
+                    has_fg="N/A",
+                    fg_model="N/A",
+                )
+            else:
+                self.append_to_report(
+                    markdown_template,
+                    nside="N/A",
                     has_cmb="N/A",
                     has_fg="N/A",
                     fg_model="N/A",
@@ -1697,8 +1834,8 @@ class Simulation:
         lmax: int,
         mmax: int | None = None,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
-        store_in_observation: bool | None = False,
-    ):
+        store_in_observation: bool = False,
+    ) -> dict[str, SphericalHarmonics]:
         """
         Compute Gaussian beam spherical harmonic coefficients.
 
@@ -1718,10 +1855,17 @@ class Simulation:
             If True, the computed blms will be stored in the `blms` attribute of
             the observation object.
 
-        Returns:
-        --------
-        Dictionary
-            A dictionary containing beam `a_lm` values per detector
+        Returns
+        -------
+        dict[str, SphericalHarmonics]
+            A dictionary containing beam `a_lm` values per detector.
+            The keys are detector names (str) and the values are instances of
+            :class:`SphericalHarmonics`.
+
+        Raises
+        ------
+        ValueError
+            If no observations are available to generate sky maps.
         """
 
         if not self.observations:
@@ -1738,20 +1882,24 @@ class Simulation:
     @_profile
     def get_sky(
         self,
-        parameters: MbsParameters,
+        parameters: SkyGenerationParams,
         channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
-        store_in_observation: bool | None = False,
+        detectors: DetectorInfo | list[DetectorInfo] | None = None,
+        store_in_observation: bool = False,
+    ) -> (
+        dict[str, HealpixMap | SphericalHarmonics]
+        | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
     ):
         """
         Generates sky maps for the observations using the provided parameters.
         If `channels` is not provided, it automatically infers the detectors
-        used in the current observations and constructs the Mbs instance accordingly.
+        used in the current observations and constructs the SkyGenerator instance accordingly.
         otherwise a map per channel provided is returned
 
         Parameters
         ----------
-        parameters : MbsParameters
-            Configuration parameters for the Mbs simulation.
+        parameters : SkyGenerationParams
+            Configuration object containing nside, models, units, etc.
         channels : FreqChannelInfo or list of FreqChannelInfo, optional
             Frequency channels to use in the simulation. If None, it uses the detectors
             from the current observations.
@@ -1761,8 +1909,11 @@ class Simulation:
 
         Returns
         -------
-        Dict
-            A dictionary containing the simulated sky maps for each detector or channel
+        dict[str, HealpixMap | SphericalHarmonics]
+            A dictionary containing the simulated sky components.
+            The keys are detector or channel names (str), and the values are either:
+            - :class:`SphericalHarmonics`: If the simulation is configured in harmonic space.
+            - :class:`HealpixMap`: If the simulation is configured in pixel space.
 
         Raises
         ------
@@ -1771,7 +1922,7 @@ class Simulation:
 
         """
 
-        if parameters.seed_cmb is None:
+        if getattr(parameters, "seed_cmb", None) is None:
             log.warning(
                 "seed_cmb is None. This could lead to unexpected behavior in MPI jobs."
             )
@@ -1779,36 +1930,29 @@ class Simulation:
         if not self.observations:
             raise ValueError("No observations available to generate sky maps.")
 
-        if channels is None:
+        if channels is None and detectors is None:
             # Use detectors from observations
             detector_names = set(self.observations[0].name)
             detector_list = [
                 det for det in self.detectors if det.name in detector_names
             ]
 
-            mbs = Mbs(
-                simulation=self,
-                parameters=parameters,
-                detector_list=detector_list,
+            sky_gen = SkyGenerator(
+                parameters=parameters, channels=None, detectors=detector_list
             )
-
         else:
-            # Use explicitly provided frequency channels
-            channel_list = (
-                [channels] if isinstance(channels, FreqChannelInfo) else channels
+            sky_gen = SkyGenerator(
+                parameters=parameters, channels=channels, detectors=detectors
             )
 
-            mbs = Mbs(
-                simulation=self,
-                parameters=parameters,
-                channel_list=channel_list,
-            )
-
-        sky = mbs.run_all()[0]
+        sky = sky_gen.execute()
 
         if store_in_observation:
             for obs in self.observations:
-                obs.sky = sky  # type: ignore[assignment]
+                obs.sky: (
+                    dict[str, HealpixMap | SphericalHarmonics]
+                    | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
+                ) = sky
 
         return sky
 
@@ -1833,9 +1977,9 @@ class Simulation:
         This method must be called after having set the scanning
         strategy, the instrument, the list of detectors to simulate
         through calls to :meth:`.set_instrument` and
-        :meth:`.add_detector`, and the method
+        :meth:`.set_detectors`, and the method
         :meth:`.prepare_pointings`. alms are assumed to be produced by
-        :class:`.Mbs`
+        :class:`.SkyGenerator`
 
         """
 
@@ -1846,7 +1990,6 @@ class Simulation:
             observations=self.observations,
             sky_alms=sky_alms,
             beam_alms=beam_alms,
-            input_sky_alms_in_galactic=input_sky_alms_in_galactic,
             component=component,
             convolution_params=convolution_params,
             pointings_dtype=pointings_dtype,
@@ -1862,20 +2005,21 @@ class Simulation:
                 assert self.observations, "No observations available"
                 sky_alms = self.observations[0].sky
             if isinstance(sky_alms, dict):
-                if "Mbs_parameters" in sky_alms.keys():
-                    if "Mbs_parameters" in sky_alms.keys():
-                        mbs_params = sky_alms["Mbs_parameters"]
-                        if mbs_params.make_fg:  # type: ignore[union-attr]
-                            fg_model = mbs_params.fg_models  # type: ignore[union-attr]
-                        else:
-                            fg_model = "N/A"
+                if "SkyGenerationParams" in sky_alms.keys():
+                    assert isinstance(
+                        sky_alms["SkyGenerationParams"], SkyGenerationParams
+                    )
+                    if sky_alms["SkyGenerationParams"].make_fg:
+                        fg_model = sky_alms["SkyGenerationParams"].fg_models
+                    else:
+                        fg_model = "N/A"
 
-                        self.append_to_report(
-                            markdown_template,
-                            has_cmb=mbs_params.make_cmb,  # type: ignore[union-attr]
-                            has_fg=mbs_params.make_fg,  # type: ignore[union-attr]
-                            fg_model=fg_model,
-                        )
+                    self.append_to_report(
+                        markdown_template,
+                        has_cmb=sky_alms["SkyGenerationParams"].make_cmb,
+                        has_fg=sky_alms["SkyGenerationParams"].make_fg,
+                        fg_model=fg_model,
+                    )
             else:
                 self.append_to_report(
                     markdown_template,
@@ -1986,7 +2130,7 @@ class Simulation:
 
         This method must be called after having set the instrument,
         the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`.
+        :meth:`.set_instrument` and :meth:`.set_detectors`.
         Random number generators are obtained from the detector-level layer. As default it uses
         the `dets_random` field of a :class:`.Simulation` object for this.
         """

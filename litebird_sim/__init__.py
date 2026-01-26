@@ -18,10 +18,9 @@ from .beam_convolution import (
     BeamConvolutionParameters,
 )
 from .beam_synthesis import (
-    alm_index,
-    allocate_alm,
     gauss_beam_to_alm,
     generate_gauss_beam_alms,
+    gauss_bl,
 )
 from .compress import (
     rle_compress,
@@ -29,21 +28,26 @@ from .compress import (
 )
 from .constants import (
     ARCMIN_TO_RAD,
-    C_LIGHT_KM_S,
+    C_LIGHT_KM_OVER_S,  # Updated name
     H_OVER_K_B,
     T_CMB_K,
     SOLAR_VELOCITY_KM_S,
     SOLAR_VELOCITY_GAL_LAT_RAD,
     SOLAR_VELOCITY_GAL_LON_RAD,
     EARTH_L2_DISTANCE_KM,
+    NUM_THREADS_ENVVAR,
 )
 from .units import (
     Units,
+    UnitUtils,  # Added helper class
 )
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,
     ECL_TO_GAL_ROT_MATRIX,
+    GAL_TO_ECL_ROT_MATRIX,
+    ECL_TO_GAL_EULER,
+    GAL_TO_ECL_EULER,
     CoordinateSystem,
     coord_sys_to_healpix_string,
     rotate_coordinates_e2g,
@@ -74,16 +78,10 @@ from .grasp2alm import (
 )
 from .healpix import (
     UNSEEN_PIXEL_VALUE,
-    nside_to_npix,
-    npix_to_nside,
-    nside_to_pixel_solid_angle_sterad,
-    nside_to_resolution_rad,
-    is_npix_ok,
     map_type,
     get_pixel_format,
     write_healpix_map_to_hdu,
     write_healpix_map_to_file,
-    num_of_alms,
 )
 from .hwp import (
     HWP,
@@ -108,7 +106,7 @@ from .io import (
     read_list_of_observations,
 )
 from .madam import save_simulation_for_madam
-from .mbs.mbs import FG_MODELS, Mbs, MbsParameters, MbsSavedMapInfo
+from .input_sky import SkyGenerator, SkyGenerationParams
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
 from .mueller_convolver import MuellerConvolver
 from .noise import (
@@ -196,8 +194,18 @@ from .spacecraft import (
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
 )
-from .spherical_harmonics import (
+from .maps_and_harmonics import (
     SphericalHarmonics,
+    HealpixMap,
+    interpolate_alm,
+    pixelize_alm,
+    estimate_alm,
+    rotate_alm,
+    synthesize_alm,
+    compute_cl,
+    pixel_window,
+    read_cls_from_fits,
+    lin_comb_cls,
 )
 from .version import __author__, __version__
 
@@ -216,21 +224,22 @@ __all__ = [
     "add_convolved_sky_to_observations",
     "BeamConvolutionParameters",
     # beam_synthesis.py
-    "alm_index",
-    "allocate_alm",
     "gauss_beam_to_alm",
     "generate_gauss_beam_alms",
+    "gauss_bl",
     # constants.py
     "ARCMIN_TO_RAD",
-    "C_LIGHT_KM_S",
+    "C_LIGHT_KM_OVER_S",
     "H_OVER_K_B",
     "T_CMB_K",
     "SOLAR_VELOCITY_KM_S",
     "SOLAR_VELOCITY_GAL_LAT_RAD",
     "SOLAR_VELOCITY_GAL_LON_RAD",
     "EARTH_L2_DISTANCE_KM",
+    "NUM_THREADS_ENVVAR",
     # units.py
     "Units",
+    "UnitUtils",
     # compress.py
     "rle_compress",
     "rle_decompress",
@@ -238,16 +247,11 @@ __all__ = [
     "BandPassInfo",
     # healpix.py
     "UNSEEN_PIXEL_VALUE",
-    "nside_to_npix",
-    "npix_to_nside",
-    "nside_to_pixel_solid_angle_sterad",
-    "nside_to_resolution_rad",
     "is_npix_ok",
     "map_type",
     "get_pixel_format",
     "write_healpix_map_to_hdu",
     "write_healpix_map_to_file",
-    "num_of_alms",
     # distribute.py
     "distribute_evenly",
     "distribute_optimally",
@@ -280,6 +284,9 @@ __all__ = [
     "fill_tod",
     # madam.py
     "save_simulation_for_madam",
+    # input_sky.py
+    "SkyGenerator",
+    "SkyGenerationParams",
     # mbs.py
     "FG_MODELS",
     "Mbs",
@@ -375,6 +382,9 @@ __all__ = [
     "DEFAULT_COORDINATE_SYSTEM",
     "DEFAULT_TIME_SCALE",
     "ECL_TO_GAL_ROT_MATRIX",
+    "GAL_TO_ECL_ROT_MATRIX",
+    "ECL_TO_GAL_EULER",
+    "GAL_TO_ECL_EULER",
     "CoordinateSystem",
     "coord_sys_to_healpix_string",
     "rotate_coordinates_e2g",
@@ -408,6 +418,16 @@ __all__ = [
     "FocalplaneCoord",
     "SpacecraftCoord",
     "PointingSys",
-    # spherical_harmonics.py
+    # maps_and_harmonics.py
     "SphericalHarmonics",
+    "HealpixMap",
+    "interpolate_alm",
+    "pixelize_alm",
+    "estimate_alm",
+    "rotate_alm",
+    "synthesize_alm",
+    "compute_cl",
+    "pixel_window",
+    "read_cls_from_fits",
+    "lin_comb_cls",
 ]

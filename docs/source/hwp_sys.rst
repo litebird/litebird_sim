@@ -65,7 +65,7 @@ of the HWP systematics. It defines three methods:
   handles the interface with the parameter file of the simulation.There is also the
   possibility of passing precomputed input maps (as a NumPy array)
   through the ``maps`` argument. Otherwise, the code computes input
-  maps through the module Mbs (see :ref:`Mbs`). If ``built_map_on_the_fly = True``, the
+  maps through the module input_sky (see :ref:`input_sky`). If ``built_map_on_the_fly = True``, the
   map-making can be performed internally on-the-fly;  There are two boolean arguments related to the coupling of non-linearity effects with hwp systematic effects: ``if apply_non_linearity`` and ``add_2f_hwpss``. Applying the non-linearities inside the hwp_sys module is useful when one wants to use the mapmaking on the fly. To know more about detector non-linearity and HWPSS, see `this section <https://litebird-sim.readthedocs.io/en/master/non_linearity.html>`_.
 
 *  :meth:`.hwp_sys.HwpSys.fill_tod` which fills the tod in a given Observation. The ``pointings``
@@ -301,7 +301,7 @@ API reference
 HWP_sys
 ~~~~~~~
 
-.. automodule:: litebird_sim.hwp_sys.hwp_sys
+.. automodule:: litebird_sim.hwp_harmonics
     :members:
     :show-inheritance:
     :private-members:

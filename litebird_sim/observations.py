@@ -11,10 +11,11 @@ from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_detector_blocks, distribute_evenly
 from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
+from .input_sky import SkyGenerationParams
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
-from .spherical_harmonics import SphericalHarmonics
 from .units import Units
 
 
@@ -166,10 +167,10 @@ class Observation:
 
     # Dynamic attributes set by scanning
     sky: (
-        SphericalHarmonics
-        | dict[str, SphericalHarmonics]
-        | np.ndarray
-        | dict[str, np.ndarray]
+        HealpixMap
+        | dict[str, HealpixMap | SkyGenerationParams]
+        | SphericalHarmonics
+        | dict[str, SphericalHarmonics | SkyGenerationParams]
         | None
     )
 

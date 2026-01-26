@@ -19,13 +19,14 @@ from numba import njit
 
 from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
-from litebird_sim.healpix import nside_to_npix
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
+from litebird_sim.maps_and_harmonics import HealpixMap
+
 
 from .common import (
     COND_THRESHOLD,
@@ -201,7 +202,7 @@ def _build_nobs_matrix(
     pointings_dtype=np.float64,
 ) -> npt.NDArray:
     hpx = Healpix_Base(nside, "RING")
-    n_pix = nside_to_npix(nside)
+    n_pix = HealpixMap.nside_to_npix(nside)
 
     nobs_matrix = np.zeros((n_pix, 3, 3))
 
