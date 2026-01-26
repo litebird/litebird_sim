@@ -981,16 +981,17 @@ class Simulation:
         return self._generate_html_report() if MPI_COMM_WORLD.rank == 0 else None
 
     @_profile
-    def get_detectors(
+    def set_detectors(
         self,
-        channels_url: str | list[str],
+        channels: FreqChannelInfo | list[FreqChannelInfo] | str | list[str],
         detectors: int | list[int] | str | list[str] = "all",
     ) -> list[DetectorInfo]:
         """
-        Fetch detector information from the IMO based on channel URLs.
+        Fetch detector information from the IMO or FreqChannelInfo objects.
 
         Args:
-            channels_url: URL or list of URLs for FreqChannelInfo in the IMO.
+            channels: URL, list of URLs, FreqChannelInfo object, or list of
+                FreqChannelInfo objects.
             detectors: Selection filter. "all", an integer N (takes first N),
                 a list of indices, or a list of detector names.
 
@@ -999,26 +1000,27 @@ class Simulation:
         """
 
         def slice_detectors(
-            detector_names: list[str], 
-            detector_objs: list[str], 
-            detectors_filter: int | list[int] | str | list[str]
+            detector_names: list[str],
+            detector_objs: list[str],
+            detectors_filter: int | list[int] | str | list[str],
         ) -> tuple[list[str], list[str]]:
-            
             num_available = len(detector_names)
 
             if detectors_filter == "all":
                 return detector_names, detector_objs
-            
-            # If int, take first N detectors
+
             if isinstance(detectors_filter, int):
                 return (
-                    detector_names[:detectors_filter], 
-                    detector_objs[:detectors_filter]
+                    detector_names[:detectors_filter],
+                    detector_objs[:detectors_filter],
                 )
-            
-            # Normalize single string to list for matching
-            filter_list = [detectors_filter] if isinstance(detectors_filter, str) else detectors_filter
-            
+
+            filter_list = (
+                [detectors_filter]
+                if isinstance(detectors_filter, str)
+                else detectors_filter
+            )
+
             selected_names = []
             selected_objs = []
             for det in filter_list:
@@ -1031,56 +1033,64 @@ class Simulation:
                         idx = detector_names.index(det)
                         selected_names.append(detector_names[idx])
                         selected_objs.append(detector_objs[idx])
-            
+
             return selected_names, selected_objs
 
-        # Normalize inputs and check for duplicates
-        list_channels_url = [channels_url] if isinstance(channels_url, str) else channels_url
-        
-        if len(list_channels_url) != len(set(list_channels_url)):
-            log.error(f"Duplicate channel URLs found in input: {list_channels_url}")
-            raise ValueError("channels_url list contains duplicate strings")
+        # 1. Normalize input into a list
+        input_list = channels if isinstance(channels, list) else [channels]
 
+        # 2. Duplicate check (only relevant for URL strings)
+        urls_only = [c for c in input_list if isinstance(c, str)]
+        if len(urls_only) != len(set(urls_only)):
+            log.error(f"Duplicate channel URLs found in input: {urls_only}")
+            raise ValueError("channels list contains duplicate strings")
+
+        # 3. Resolve into FreqChannelInfo objects
+        channel_infos: list[FreqChannelInfo] = []
+        for item in input_list:
+            if isinstance(item, str):
+                channel_infos.append(FreqChannelInfo.from_imo(self.imo, item))
+            elif isinstance(item, FreqChannelInfo):
+                channel_infos.append(item)
+            else:
+                raise TypeError(f"Unsupported type in channels: {type(item)}")
+
+        # 4. Process channels
         full_detectors_list = []
-        for ch_url in list_channels_url:
-            channel = FreqChannelInfo.from_imo(self.imo, ch_url)
-            
+        for channel in channel_infos:
             _, det_urls = slice_detectors(
-                channel.detector_names, 
-                channel.detector_objs, 
-                detectors
+                channel.detector_names, channel.detector_objs, detectors
             )
-            
-            for d_url in det_urls:
-                full_detectors_list.append(
-                    DetectorInfo.from_imo(self.imo, url=d_url)
-                )
 
-        # Final validation logic with the corrected rules
+            for d_url in det_urls:
+                full_detectors_list.append(DetectorInfo.from_imo(self.imo, url=d_url))
+
+        # 5. Final validation logic
         if detectors != "all":
             if isinstance(detectors, int):
-                expected_num = len(list_channels_url) * detectors
+                expected_num = len(channel_infos) * detectors
             elif isinstance(detectors, str):
-                expected_num = len(list_channels_url)
+                expected_num = len(channel_infos)
             elif isinstance(detectors, list):
                 if all(isinstance(d, int) for d in detectors):
-                    # list(int) logic
-                    expected_num = len(list_channels_url) * len(detectors)
+                    expected_num = len(channel_infos) * len(detectors)
                 else:
-                    # list(str) logic - purely based on list length
+                    # list(str) logic
                     expected_num = len(detectors)
             else:
                 expected_num = 0
 
             actual_num = len(full_detectors_list)
-            
+
             if actual_num != expected_num:
                 log.error(
                     f"Detector mismatch: expected {expected_num} detectors, "
                     f"but found {actual_num} in the provided channels."
                 )
-                raise ValueError(f"Expected {expected_num} detectors, but got {actual_num}")
-        
+                raise ValueError(
+                    f"Expected {expected_num} detectors, but got {actual_num}"
+                )
+
         self.detectors = full_detectors_list
         return full_detectors_list
 
@@ -1167,11 +1177,11 @@ class Simulation:
         Parameters
         ----------
         detectors : None | DetectorInfo | list[DetectorInfo], optional
-            The detector objects to be assigned to observations. If ``None`` 
-            (default), the method will use the detectors already stored in 
-            `self.detectors` (e.g., loaded via `get_detectors`). If a single 
-            `DetectorInfo` or a list is provided, it will use it overriding any 
-            pre-existing detectors in `self.detectors` and a warning will 
+            The detector objects to be assigned to observations. If ``None``
+            (default), the method will use the detectors already stored in
+            `self.detectors` (e.g., loaded via `set_detectors`). If a single
+            `DetectorInfo` or a list is provided, it will use it overriding any
+            pre-existing detectors in `self.detectors` and a warning will
             be issued.
 
         num_of_obs_per_detector : int, optional
@@ -1234,15 +1244,39 @@ class Simulation:
             else:
                 raise ValueError(
                     "No detectors provided and self.detectors is empty. "
-                    "Call load_detectors() or pass a list of detectors."
+                    "Call set_detectors() or pass a list of detectors."
                 )
         else:
+            # Check if we are overwriting an existing list
             if hasattr(self, "detectors") and self.detectors:
-                log.warning(
-                    "Simulation.detectors was already populated. "
-                    "Overriding with the detectors passed to create_observations."
+                # Prepare names for the report
+                old_names = ", ".join([d.name for d in self.detectors])
+
+                # Normalize new detectors to a list to extract names
+                new_det_list = (
+                    [detectors] if isinstance(detectors, DetectorInfo) else detectors
                 )
-            
+                new_names = ", ".join([d.name for d in new_det_list])
+
+                msg = (
+                    "**Warning**: `Simulation.detectors` was already populated but has been "
+                    "overwritten by a manual list passed to `create_observations`."
+                )
+                log.warning(msg)
+
+                # Trigger report entry with name details
+                self.append_to_report(
+                    markdown_text=(
+                        f"### Detector List Override\n\n"
+                        f"{msg}\n\n"
+                        f"**Original List** ({len(self.detectors)} detectors):\n"
+                        f"> {old_names}\n\n"
+                        f"**New List** ({len(new_det_list)} detectors):\n"
+                        f"> {new_names}\n"
+                    ),
+                    component="Simulation Hardware",
+                )
+
             if isinstance(detectors, DetectorInfo):
                 final_detectors = [detectors]
             else:
@@ -1252,7 +1286,7 @@ class Simulation:
         self.init_detectors_random(len(self.detectors))
 
         observations = []
-        duration_s = self.duration_s  
+        duration_s = self.duration_s
         sampfreq_hz = self.detectors[0].sampling_rate_hz
         num_of_samples = int(sampfreq_hz * duration_s)
         samples_per_obs = distribute_evenly(num_of_samples, num_of_obs_per_detector)

@@ -9,8 +9,10 @@ from uuid import UUID
 import astropy
 import numpy as np
 import pytest
+from unittest.mock import MagicMock, patch
 
 import litebird_sim as lbs
+from litebird_sim.detectors import DetectorInfo, FreqChannelInfo
 
 
 class MockPlot:
@@ -794,3 +796,94 @@ def test_convolve_and_filltods_from_obs(tmp_path):
 
 
 test_convolve_and_filltods_from_obs(Path("test.txt"))
+
+
+def test_get_detectors_logic(tmp_path):
+    # Setup simulation
+    sim = lbs.Simulation(
+        base_path=tmp_path / "sim",
+        start_time=0.0,
+        duration_s=10.0,
+        random_seed=1234,
+    )
+
+    sim.imo = MagicMock()  # Mock the IMO interface
+
+    # Create mock DetectorInfo objects
+    det_a1 = MagicMock(spec=DetectorInfo, sampling_rate_hz=100.0)
+    det_a2 = MagicMock(spec=DetectorInfo, sampling_rate_hz=100.0)
+    det_b1 = MagicMock(spec=DetectorInfo, sampling_rate_hz=100.0)
+    det_b2 = MagicMock(spec=DetectorInfo, sampling_rate_hz=100.0)
+
+    # Create mock FreqChannelInfo objects
+    # Channel A has det_a1, det_a2
+    ch_a = MagicMock(spec=FreqChannelInfo)
+    ch_a.detector_names = ["det_a1", "det_a2"]
+    ch_a.detector_objs = ["url_a1", "url_a2"]
+
+    # Channel B has det_b1, det_b2
+    ch_b = MagicMock(spec=FreqChannelInfo)
+    ch_b.detector_names = ["det_b1", "det_b2"]
+    ch_b.detector_objs = ["url_b1", "url_b2"]
+
+    # Mock the from_imo methods
+    with (
+        patch("litebird_sim.detectors.FreqChannelInfo.from_imo") as mock_ch_from_imo,
+        patch("litebird_sim.detectors.DetectorInfo.from_imo") as mock_det_from_imo,
+    ):
+        # Define behavior for mock_ch_from_imo
+        def ch_side_effect(imo, url):
+            if url == "url_ch_a":
+                return ch_a
+            if url == "url_ch_b":
+                return ch_b
+            return None
+
+        mock_ch_from_imo.side_effect = ch_side_effect
+
+        # Define behavior for mock_det_from_imo
+        def det_side_effect(imo, url):
+            mapping = {
+                "url_a1": det_a1,
+                "url_a2": det_a2,
+                "url_b1": det_b1,
+                "url_b2": det_b2,
+            }
+            return mapping.get(url)
+
+        mock_det_from_imo.side_effect = det_side_effect
+
+        # --- Test 1: Load all detectors from string URLs ---
+        res = sim.get_detectors(channels=["url_ch_a", "url_ch_b"], detectors="all")
+        assert len(res) == 4
+        assert sim.detectors == res
+
+        # --- Test 2: Integer filter (take first N from each) ---
+        # 2 channels * 1 detector each = 2 total
+        res = sim.get_detectors(channels=["url_ch_a", "url_ch_b"], detectors=1)
+        assert len(res) == 2
+
+        # --- Test 3: List of strings (Total count check) ---
+        # Logic: num_det = len(detectors) = 2
+        res = sim.get_detectors(
+            channels=["url_ch_a", "url_ch_b"], detectors=["det_a1", "det_b2"]
+        )
+        assert len(res) == 2
+
+        # --- Test 4: Passing FreqChannelInfo objects directly ---
+        res = sim.get_detectors(channels=[ch_a], detectors="all")
+        assert len(res) == 2
+
+        # --- Test 5: Error on Duplicate URLs ---
+        with pytest.raises(ValueError, match="duplicate strings"):
+            sim.get_detectors(channels=["url_ch_a", "url_ch_a"])
+
+        # --- Test 6: Error on Count Mismatch (list of strings) ---
+        # We ask for a detector that doesn't exist in either channel
+        with pytest.raises(ValueError, match="Expected 1 detectors, but got 0"):
+            sim.get_detectors(channels=["url_ch_a"], detectors=["missing_det"])
+
+        # --- Test 7: Error on Count Mismatch (integer) ---
+        # Asking for 5 detectors when only 2 exist in the channel
+        with pytest.raises(ValueError, match="Expected 5 detectors, but got 2"):
+            sim.get_detectors(channels=["url_ch_a"], detectors=5)

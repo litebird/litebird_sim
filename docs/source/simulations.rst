@@ -528,6 +528,8 @@ straightforward::
 
     sim.set_scanning_strategy(...)
     sim.set_instrument(...)
+
+    sim.set_detectors(...)
     sim.create_observations(...)
     sim.prepare_pointings()
 
