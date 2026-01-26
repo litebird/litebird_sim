@@ -13,7 +13,7 @@ The framework utilizes the `PySM3 <https://pysm3.readthedocs.io/en/latest/>`_ li
 Usage Example
 -------------
 
-The core interface is the :class:`~litebird_sim.input_sky.SkyGenerator` class. It requires a configuration object (:class:`~litebird_sim.input_sky.SkyGenerationParams`) and a list of channel or detector definitions.
+The core interface is the :class:`~litebird_sim.input_sky.SkyGenerator` class. It requires a configuration object (:class:`~litebird_sim.input_sky.SkyGenerationParams`) and **either** a list of channels (:class:`~litebird_sim.detectors.FreqChannelInfo`) **or** detectors (:class:`~litebird_sim.detectors.DetectorInfo`), but not both.
 
 Here is an example showing how to generate a sky containing CMB and specific foregrounds (Dust and Synchrotron) using the dedicated ``Units`` Enum:
 
@@ -47,8 +47,9 @@ Here is an example showing how to generate a sky containing CMB and specific for
         )
     ]
 
-    # 3. Initialize and Run
+    # 3. Initialize and Run (use 'channels=' OR 'detectors=', not both)
     sky_gen = SkyGenerator(parameters=params, channels=channels)
+    # Or alternatively: sky_gen = SkyGenerator(parameters=params, detectors=detectors)
     sky_maps = sky_gen.execute()
 
     # The result is a dictionary keyed by channel name

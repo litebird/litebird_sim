@@ -1977,7 +1977,7 @@ class Simulation:
         This method must be called after having set the scanning
         strategy, the instrument, the list of detectors to simulate
         through calls to :meth:`.set_instrument` and
-        :meth:`.add_detector`, and the method
+        :meth:`.set_detectors`, and the method
         :meth:`.prepare_pointings`. alms are assumed to be produced by
         :class:`.SkyGenerator`
 
@@ -2130,7 +2130,7 @@ class Simulation:
 
         This method must be called after having set the instrument,
         the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`.
+        :meth:`.set_instrument` and :meth:`.set_detectors`.
         Random number generators are obtained from the detector-level layer. As default it uses
         the `dets_random` field of a :class:`.Simulation` object for this.
         """

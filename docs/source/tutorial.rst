@@ -432,9 +432,8 @@ number generator provided by the :class:`.Simulation` and seeded with
   )
 
   sky_gen = lbs.SkyGenerator(
-      simulation=sim,
       parameters=sky_params,
-      detector_list=detector
+      detectors=detector,
   )
   maps = sky_gen.execute()
 
@@ -526,13 +525,12 @@ dust, and white noise. The we bin the timeline in a map. ::
       nside=nside,
       make_cmb=True,
       make_fg=True,
-      fg_models=["pysm_dust_0"],
+      fg_models=["d0"],
   )
 
   sky_gen = lbs.SkyGenerator(
-      simulation=sim,
       parameters=sky_params,
-      detector_list=detector
+      detectors=detector,
   )
   maps = sky_gen.execute()
 
@@ -544,7 +542,7 @@ dust, and white noise. The we bin the timeline in a map. ::
 
   sim.fill_tods(maps)
 
-  sim.add_noise(random=sim.random, noise_type="white")
+  sim.add_noise(noise_type="white")
 
   binner_results = sim.make_binned_map(nside=nside)
   binned = binner_results.binned_map

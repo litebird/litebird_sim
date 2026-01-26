@@ -555,7 +555,7 @@ the beam convolution::
 
     Convparams = lbs.BeamConvolutionParameters(...)
     sim.convolve_sky(sky_alms=alms,
-                     beam_alms=grasp_beam,
+                     beam_alms=blms,
                      convolution_params=Convparams,
                      ...,
                      )

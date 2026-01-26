@@ -56,14 +56,15 @@ Here is a short example that shows how to add noise:
     -5.19765e-05
 
 
-Note that we pass ``sim.random`` as the number generator to use.
-This is a member variable that is initialized by the constructor
-of the class :class:`.Simulation`, and it is safe to be used with
-multiple MPI processes as it ensures that each process has its
-own random number generator with a different seed. You can also
-pass another random number generator, as long as it has the
-``normal`` method. More information on the generation of random
-numbers can be found in :ref:`random-numbers`.
+Note that we pass ``sim.dets_random`` as the detector-level random
+number generators to use. This is a list member variable that is
+initialized by the constructor of the class :class:`.Simulation`,
+and it is safe to be used with multiple MPI processes as it ensures
+that each detector has its own random number generator with a
+different seed. You can also pass another list of random number
+generators, as long as each has the ``normal`` method. More
+information on the generation of random numbers can be found in
+:ref:`random-numbers`.
 
 To add white noise using a custom white noise sigma, in µK, we can
 call the low level function directly:

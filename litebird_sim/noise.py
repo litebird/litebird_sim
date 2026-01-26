@@ -30,7 +30,7 @@ def add_white_noise(data, sigma: float, random):
                   but **not** the white noise per sample.
 
         `random` : a random number generator that implements the ``normal`` method.
-                   This is typically obtained from the RNGHierarchy of the `Simulation` class. It must be specified
+                   This is typically obtained from the RNGHierarchy of the `Simulation` class.
     """
     data += random.normal(0, sigma, data.shape)
 
@@ -79,7 +79,7 @@ def add_one_over_f_noise(
         `sampling_rate_hz` : the sampling frequency of the data
 
         `random` : a random number generator that implements the ``normal`` method.
-                   This is typically obtained from the RNGHierarchy of the `Simulation` class. It must be specified
+                   This is typically obtained from the RNGHierarchy of the `Simulation` class.
     """
 
     noiselen = nearest_pow2(data)
