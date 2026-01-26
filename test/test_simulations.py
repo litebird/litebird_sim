@@ -798,7 +798,7 @@ def test_convolve_and_filltods_from_obs(tmp_path):
 test_convolve_and_filltods_from_obs(Path("test.txt"))
 
 
-def test_get_detectors_logic(tmp_path):
+def test_set_detectors_logic(tmp_path):
     # Setup simulation
     sim = lbs.Simulation(
         base_path=tmp_path / "sim",
@@ -854,36 +854,36 @@ def test_get_detectors_logic(tmp_path):
         mock_det_from_imo.side_effect = det_side_effect
 
         # --- Test 1: Load all detectors from string URLs ---
-        res = sim.get_detectors(channels=["url_ch_a", "url_ch_b"], detectors="all")
+        res = sim.set_detectors(channels=["url_ch_a", "url_ch_b"], detectors="all")
         assert len(res) == 4
         assert sim.detectors == res
 
         # --- Test 2: Integer filter (take first N from each) ---
         # 2 channels * 1 detector each = 2 total
-        res = sim.get_detectors(channels=["url_ch_a", "url_ch_b"], detectors=1)
+        res = sim.set_detectors(channels=["url_ch_a", "url_ch_b"], detectors=1)
         assert len(res) == 2
 
         # --- Test 3: List of strings (Total count check) ---
         # Logic: num_det = len(detectors) = 2
-        res = sim.get_detectors(
+        res = sim.set_detectors(
             channels=["url_ch_a", "url_ch_b"], detectors=["det_a1", "det_b2"]
         )
         assert len(res) == 2
 
         # --- Test 4: Passing FreqChannelInfo objects directly ---
-        res = sim.get_detectors(channels=[ch_a], detectors="all")
+        res = sim.set_detectors(channels=[ch_a], detectors="all")
         assert len(res) == 2
 
         # --- Test 5: Error on Duplicate URLs ---
         with pytest.raises(ValueError, match="duplicate strings"):
-            sim.get_detectors(channels=["url_ch_a", "url_ch_a"])
+            sim.set_detectors(channels=["url_ch_a", "url_ch_a"])
 
         # --- Test 6: Error on Count Mismatch (list of strings) ---
         # We ask for a detector that doesn't exist in either channel
         with pytest.raises(ValueError, match="Expected 1 detectors, but got 0"):
-            sim.get_detectors(channels=["url_ch_a"], detectors=["missing_det"])
+            sim.set_detectors(channels=["url_ch_a"], detectors=["missing_det"])
 
         # --- Test 7: Error on Count Mismatch (integer) ---
         # Asking for 5 detectors when only 2 exist in the channel
         with pytest.raises(ValueError, match="Expected 5 detectors, but got 2"):
-            sim.get_detectors(channels=["url_ch_a"], detectors=5)
+            sim.set_detectors(channels=["url_ch_a"], detectors=5)
