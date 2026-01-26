@@ -229,16 +229,29 @@ class SkyGenerator:
     def __init__(
         self,
         parameters: SkyGenerationParams,
-        channels: (
-            FreqChannelInfo | DetectorInfo | list[FreqChannelInfo] | list[DetectorInfo]
-        ),
+        channels: FreqChannelInfo | list[FreqChannelInfo] | None = None,
+        detectors: DetectorInfo | list[DetectorInfo] | None = None,
     ):
         self.params: SkyGenerationParams = parameters
 
+        if channels is None and detectors is None:
+            raise ValueError("Either 'channels' or 'detectors' must be provided.")
+        elif channels is not None and detectors is not None:
+            raise ValueError(
+                "Only one of 'channels' or 'detectors' should be provided."
+            )
+
         if isinstance(channels, list):
-            self.channels: list[FreqChannelInfo | DetectorInfo] = channels
+            self.channels: list[FreqChannelInfo] = channels
         else:
-            self.channels: list[FreqChannelInfo | DetectorInfo] = [channels]
+            self.channels: list[FreqChannelInfo] = [channels]
+
+        if isinstance(detectors, list):
+            self.detectors: list[DetectorInfo] = detectors
+        else:
+            self.detectors: list[DetectorInfo] = [detectors]
+
+        self.channels_or_detectors = self.detectors if detectors else self.channels
 
         # --- VALIDATION (New) ---
         assert isinstance(self.params.units, Units)
@@ -291,16 +304,16 @@ class SkyGenerator:
         )
 
         result = {}
-        for ch in self.channels:
-            name = ch.name if hasattr(ch, "name") else ch.channel
+        for ch_or_det in self.channels_or_detectors:
+            name = ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
             log.debug(f"Processing CMB for {name}")
 
             # Copy to avoid destructive inplace modifications
             alm_obs = alm_cmb.copy()
 
             # 3. Apply Beam and Window
-            if self.params.apply_beam and ch.fwhm_arcmin > 0:
-                fwhm_rad = np.radians(ch.fwhm_arcmin / 60.0)
+            if self.params.apply_beam and ch_or_det.fwhm_arcmin > 0:
+                fwhm_rad = np.radians(ch_or_det.fwhm_arcmin / 60.0)
                 alm_obs.apply_gaussian_smoothing(fwhm_rad=fwhm_rad, inplace=True)
 
             if self.params.apply_pixel_window:
@@ -311,13 +324,13 @@ class SkyGenerator:
             if self.params.bandpass_integration:
                 conv_factor = _get_cmb_unit_conversion(
                     target_unit=self.params.units,
-                    bandpass=ch.band,
+                    bandpass=ch_or_det.band,
                     band_integration=True,
                 )
             else:
                 conv_factor = _get_cmb_unit_conversion(
                     target_unit=self.params.units,
-                    freq_ghz=ch.bandcenter_ghz,
+                    freq_ghz=ch_or_det.bandcenter_ghz,
                     band_integration=False,
                 )
 
@@ -349,16 +362,16 @@ class SkyGenerator:
         sky = pysm3.Sky(nside=nside_fg, preset_strings=list(self.params.fg_models))
 
         result = {}
-        for ch in self.channels:
-            name = ch.name if hasattr(ch, "name") else ch.channel
+        for ch_or_det in self.channels_or_detectors:
+            name = ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
 
             # 1. Compute Emission
             if self.params.bandpass_integration:
-                nonzero = np.where(getattr(ch.band, "freqs_ghz") != 0)[0]
-                bandpass_frequencies = getattr(ch.band, "freqs_ghz")[nonzero] * getattr(
-                    u, "GHz"
-                )
-                weights = getattr(ch.band, "weights")[nonzero]
+                nonzero = np.where(getattr(ch_or_det.band, "freqs_ghz") != 0)[0]
+                bandpass_frequencies = getattr(ch_or_det.band, "freqs_ghz")[
+                    nonzero
+                ] * getattr(u, "GHz")
+                weights = getattr(ch_or_det.band, "weights")[nonzero]
 
                 m_fg = sky.get_emission(bandpass_frequencies, weights=weights)
                 # Use self.pysm_units (which is now the Astropy object)
@@ -366,11 +379,11 @@ class SkyGenerator:
                     bandpass_frequencies, weights, self.pysm_units
                 )
             else:
-                m_fg = sky.get_emission(ch.bandcenter_ghz * getattr(u, "GHz"))
+                m_fg = sky.get_emission(ch_or_det.bandcenter_ghz * getattr(u, "GHz"))
                 m_fg = m_fg.to(
                     self.pysm_units,
                     equivalencies=u.cmb_equivalencies(
-                        ch.bandcenter_ghz * getattr(u, "GHz")
+                        ch_or_det.bandcenter_ghz * getattr(u, "GHz")
                     ),
                 )
 
@@ -392,8 +405,8 @@ class SkyGenerator:
                 nthreads=self.params.nthreads,
             )
 
-            if self.params.apply_beam and ch.fwhm_arcmin > 0:
-                fwhm_rad = np.radians(ch.fwhm_arcmin / 60.0)
+            if self.params.apply_beam and ch_or_det.fwhm_arcmin > 0:
+                fwhm_rad = np.radians(ch_or_det.fwhm_arcmin / 60.0)
                 alm_fg.apply_gaussian_smoothing(fwhm_rad=fwhm_rad, inplace=True)
 
             if self.params.apply_pixel_window:
@@ -440,20 +453,20 @@ class SkyGenerator:
 
         result = {}
         assert isinstance(self.params.units, Units)
-        for ch in self.channels:
-            name = ch.name if hasattr(ch, "name") else ch.channel
+        for ch_or_det in self.channels_or_detectors:
+            name = ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
 
             # Unit conversion
             if self.params.bandpass_integration:
                 conv_factor = _get_cmb_unit_conversion(
                     target_unit=self.params.units,
-                    bandpass=ch.band,
+                    bandpass=ch_or_det.band,
                     band_integration=True,
                 )
             else:
                 conv_factor = _get_cmb_unit_conversion(
                     target_unit=self.params.units,
-                    freq_ghz=ch.bandcenter_ghz,
+                    freq_ghz=ch_or_det.bandcenter_ghz,
                     band_integration=False,
                 )
 
