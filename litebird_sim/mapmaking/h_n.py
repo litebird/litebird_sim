@@ -7,7 +7,6 @@ from dataclasses import dataclass
 import numpy as np
 import numpy.typing as npt
 from numba import njit
-import healpy as hp
 import h5py
 import os
 from typing import Any
@@ -21,7 +20,8 @@ from litebird_sim.pointings_in_obs import (
 from litebird_sim.hwp import HWP
 from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
-from litebird_sim.healpix import nside_to_npix
+from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
+from litebird_sim.maps_and_harmonics import HealpixMap
 from litebird_sim.profiler import TimeProfiler
 from litebird_sim.detectors import DetectorInfo
 from .common import (
@@ -92,8 +92,8 @@ def _solve_binning(nobs_matrix, atd):
                 atd[idet, ipix, 1] = atd[idet, ipix, 1] / nobs_matrix[idet, ipix, 0]
                 nobs_matrix[idet, ipix, 0] = 1 / nobs_matrix[idet, ipix, 0]
             else:
-                nobs_matrix[idet, ipix] = float("NaN")  # hp.UNSEEN
-                atd[idet, ipix] = float("NaN")  # hp.UNSEEN
+                nobs_matrix[idet, ipix] = UNSEEN_PIXEL_VALUE
+                atd[idet, ipix] = UNSEEN_PIXEL_VALUE
 
 
 @njit
@@ -210,7 +210,7 @@ def _build_nobs_matrix(
     tm_list: list[npt.ArrayLike],
 ) -> npt.ArrayLike:
     """Build the nobs matrix for all detectors and pixels, it has shape (Ndet,Npix,3) and contains the accumulated spin terms and hit counts of each detector and pixel."""
-    n_pix = nside_to_npix(nside)
+    n_pix = HealpixMap.nside_to_npix(nside)
 
     tot_num_of_detectors = sum([len(obs.detectors_global) for obs in obs_list])
     nobs_matrix = np.zeros((tot_num_of_detectors, n_pix, 3))
