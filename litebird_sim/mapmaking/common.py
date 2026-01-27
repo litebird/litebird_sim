@@ -145,6 +145,9 @@ def _compute_pixel_indices(
     ``N_d`` the number of detectors and ``N_t`` the number of samples in the TOD,
     and the last rank represents the θ and φ angles (in radians) expressed in the
     Ecliptic reference frame.
+
+    The option `hmap_generation` returns only the telescope orientation instead of
+    the polarization angle.
     """
 
     assert len(pol_angle_detectors) == num_of_detectors

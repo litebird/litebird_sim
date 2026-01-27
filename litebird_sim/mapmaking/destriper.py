@@ -6,10 +6,11 @@ from pathlib import Path
 from typing import Any, cast
 from collections.abc import Callable
 
-import healpy as hp
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
+from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
+
 from numba import njit, prange
 
 from litebird_sim.coordinates import CoordinateSystem, coord_sys_to_healpix_string
@@ -20,6 +21,8 @@ from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
+
+from litebird_sim.maps_and_harmonics import HealpixMap
 from .common import (
     _compute_pixel_indices,
     COND_THRESHOLD,
@@ -2142,7 +2145,7 @@ def _load_rank0_destriper_results(file_path: Path) -> DestriperResult:
             valid_pixel=np.array(inpf["MASK"].data.field("VALID"), dtype=bool),
             is_cholesky=bool(inpf["NOBSMATR"].header["ISCHOL"]),
         )
-        nside = hp.npix2nside(len(nobs_matrix.valid_pixel))
+        nside = HealpixMap.npix_to_nside(len(nobs_matrix.valid_pixel))
 
         if "GAL" in str(inpf["HITMAP"].header["COORDSYS"]).upper():
             coord_sys = CoordinateSystem.Galactic
