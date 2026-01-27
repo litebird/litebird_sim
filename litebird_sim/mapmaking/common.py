@@ -149,8 +149,8 @@ def _compute_pixel_indices(
 
     assert len(pol_angle_detectors) == num_of_detectors
 
-    pixidx_all = np.empty((num_of_detectors, num_of_samples), dtype=int)
-    polang_all = np.empty((num_of_detectors, num_of_samples), dtype=np.float64)
+    pixidx_all = np.empty((num_of_detectors, num_of_samples), dtype=np.int32)
+    polang_all = np.empty((num_of_detectors, num_of_samples), dtype=pointings_dtype)
 
     for idet in range(num_of_detectors):
         curr_pointings_det, hwp_angle = _get_pointings_array(
