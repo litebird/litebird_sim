@@ -1,5 +1,48 @@
 # HEAD
 
+-   **Breaking change**: Major reworking of the interfaces and handling of inputs across the framework [#479](https://github.com/litebird/litebird_sim/pull/479), in detail:
+
+    1. Rework the handling of spherical harmonics by integrating ducc0 as the primary engine for SHT operations, including interpolation.
+    2. New container for healpix maps called HealpixMap and further improvement of the class SphericalHarmonics. All the simulation modules are now only compatible with these new classes.
+    3. MBs replaced by a more flexible and simple module called input_sky.
+    4. Expansion of the class Units with several new functionalities. Integration with astropy and pysm3 improved.
+
+-   Add automatic type-checking with ty [#481](https://github.com/litebird/litebird_sim/pull/481)
+
+-   Stop using sphinxcontrib-asciinema [#478](https://github.com/litebird/litebird_sim/pull/478)
+
+-   TODs handling improved [#472](https://github.com/litebird/litebird_sim/pull/472)
+
+-   Optimize actions and add automatic publishing [#465](https://github.com/litebird/litebird_sim/pull/465)
+
+-   Improve caching system of CI tests [#462](https://github.com/litebird/litebird_sim/pull/462)
+
+-   Use `uv` to manage dependencies, run and build the package [#462](https://github.com/litebird/litebird_sim/pull/462)
+
+-   Refurbish HWP handling [#463](https://github.com/litebird/litebird_sim/pull/463), in detail:
+
+    1. Create NonIdealHWP class.
+
+    2. Remove HwpSys class.
+
+    3. Rename hwp_sys.py to hwp_harmonics.py.
+
+    4. Unify map scanning methods by making hwp_harmonics.fill_tod() a low-level method which is now executed by the high-level scan_map_in_observations.py.
+
+-   Fix angle in hwp differential emission [#452](https://github.com/litebird/litebird_sim/pull/452)
+
+-   New method `Imo.open_data_file` [#449](https://github.com/litebird/litebird_sim/pull/449)
+
+-   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
+
+-   Change hwp_angle calculation to the complex domain [#433](https://github.com/litebird/litebird_sim/pull/433)
+
+
+# Version 0.16.1
+
+-   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)
+
+
 # Version 0.16.0
 
 -   Add pre-commit hook to keep syntax compliant with `py3.10+` [#461](https://github.com/litebird/litebird_sim/pull/461)

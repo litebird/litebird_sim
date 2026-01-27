@@ -8,6 +8,8 @@ from .scanning import (
     RotQuaternion,
 )
 
+DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB = 256.0
+
 
 class PointingProvider:
     """Provides detector pointing angles and HWP angles based on scanning geometry.
@@ -51,9 +53,41 @@ class PointingProvider:
         # Note that we require here *boresight*→Ecliptic instead of *spin*→Ecliptic
         bore2ecliptic_quats: RotQuaternion,
         hwp: HWP | None = None,
+        maximum_internal_buffer_mem_mb: float = DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB,
     ):
         self.bore2ecliptic_quats = bore2ecliptic_quats
+        self.maximum_internal_buffer_mem_mb = maximum_internal_buffer_mem_mb
         self.hwp = hwp
+
+    def _optimal_block_lengths(self, total_nsamples: int) -> list[int]:
+        # Size of one quaternion, in bytes
+        quaternion_size_bytes = 4 * self.bore2ecliptic_quats.quats.itemsize
+
+        # Average number of quaternions in each block, to make sure that no more than
+        # a fixed number of MB is ever needed to store them
+        quaternions_per_block = int(
+            self.maximum_internal_buffer_mem_mb * 1024 * 1024 / quaternion_size_bytes
+        )
+
+        # How many blocks of quaternions will need to be processed
+        number_of_blocks = total_nsamples // quaternions_per_block
+
+        # If something was left out of the previous calculation, include an additional block
+        if total_nsamples % quaternions_per_block != 0:
+            number_of_blocks += 1
+
+        # Instead of making the first N−1 blocks of the same size and add any leftover to the
+        # last block, which might even have 1 sample, try to create the blocks so that they all
+        # have roughly the same number of elements
+        result = []
+        quaternions_left = total_nsamples
+        while quaternions_left > 0:
+            current_block_length = quaternions_left // (number_of_blocks - len(result))
+            result.append(current_block_length)
+            quaternions_left -= current_block_length
+
+        assert sum(result) == total_nsamples
+        return result
 
     def has_hwp(self):
         """Return ``True`` if a HWP has been set.
@@ -122,28 +156,20 @@ class PointingProvider:
                 one is a float and the other is an `astropy.time.Time`).
         """
 
-        assert (np.isscalar(start_time) and np.isscalar(start_time_global)) or (
-            isinstance(start_time_global, astropy.time.Time)
-            and isinstance(start_time, astropy.time.Time)
-        ), (
-            "The parameters start_time= and start_time_global= must be of the same "
-            "type (either floats or astropy.time.Time objects), but they are "
-            "{type1} (start_time) and {type2} (start_time_global)"
-        ).format(type1=str(type(start_time)), type2=str(type(start_time_global)))
-
-        full_quaternions = (self.bore2ecliptic_quats * detector_quat).slerp(
-            start_time=start_time,
-            sampling_rate_hz=sampling_rate_hz,
-            nsamples=nsamples,
-        )
+        if isinstance(start_time, astropy.time.Time):
+            assert isinstance(start_time_global, astropy.time.Time), (
+                "The start_time is a astropy.time.Time object, so start_time_global must also be an astropy.time.Time object."
+            )
+            start_time_s = (start_time - start_time_global).to("s").value
+        else:
+            assert isinstance(start_time_global, (int, float)), (
+                "The start_time is a float, so start_time_global must also be a float."
+            )
+            start_time_s = start_time - start_time_global
 
         if self.hwp is not None:
             if hwp_buffer is None:
                 hwp_buffer = np.empty(nsamples, dtype=pointings_dtype)
-
-            start_time_s = start_time - start_time_global
-            if isinstance(start_time_s, astropy.time.TimeDelta):
-                start_time_s = start_time_s.to("s").value
 
             self.hwp.get_hwp_angle(
                 output_buffer=hwp_buffer,
@@ -156,10 +182,32 @@ class PointingProvider:
         if pointing_buffer is None:
             pointing_buffer = np.empty(shape=(nsamples, 3), dtype=pointings_dtype)
 
-        all_compute_pointing_and_orientation(
-            result_matrix=pointing_buffer,
-            quat_matrix=full_quaternions,
-        )
+        block_lengths = self._optimal_block_lengths(total_nsamples=nsamples)
+
+        det_to_ecliptic_quats = self.bore2ecliptic_quats * detector_quat
+        cur_time = start_time
+        start_sample = 0
+        for cur_block_length in block_lengths:
+            cur_quaternions = det_to_ecliptic_quats.slerp(
+                start_time=cur_time,
+                sampling_rate_hz=sampling_rate_hz,
+                nsamples=cur_block_length,
+            )
+            all_compute_pointing_and_orientation(
+                result_matrix=pointing_buffer[
+                    start_sample : (start_sample + cur_block_length), :
+                ],
+                quat_matrix=cur_quaternions,
+            )
+
+            if isinstance(cur_time, astropy.time.Time):
+                cur_time += astropy.time.TimeDelta(
+                    cur_block_length / sampling_rate_hz, format="sec"
+                )
+            else:
+                cur_time += cur_block_length / sampling_rate_hz
+
+            start_sample += cur_block_length
 
         return pointing_buffer, hwp_buffer
 
