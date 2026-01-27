@@ -1,5 +1,7 @@
 # HEAD
 
+-   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)
+
 -   **Breaking change**: Major reworking of the interfaces and handling of inputs across the framework [#479](https://github.com/litebird/litebird_sim/pull/479), in detail:
 
     1. Rework the handling of spherical harmonics by integrating ducc0 as the primary engine for SHT operations, including interpolation.

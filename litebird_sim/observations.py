@@ -14,7 +14,7 @@ from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
 from .input_sky import SkyGenerationParams
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
-from .pointings import PointingProvider
+from .pointings import PointingProvider, DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB
 from .scanning import RotQuaternion
 from .units import Units
 
@@ -910,6 +910,7 @@ class Observation:
         instrument: InstrumentInfo,
         spin2ecliptic_quats: RotQuaternion,
         hwp: HWP | None = None,
+        maximum_internal_buffer_mem_mb: float = DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB,
     ) -> None:
         """Prepare quaternion-based pointing and HWP information for this observation.
 
@@ -936,6 +937,10 @@ class Observation:
                 Optional HWP model. If provided, it is stored and its Mueller matrix
                 applied to all detectors lacking one.
 
+            maximum_internal_buffer_mem_mb (float):
+                Maximum number of megabytes (MB) to allocate for internal buffers during
+                the computation of pointings. Set to -1 to remove any limit.
+
         Raises:
             AssertionError:
                 If `hwp` is not provided and one or more detectors do not have a
@@ -947,10 +952,19 @@ class Observation:
             internal :class:`.PointingProvider`.
         """
 
+        assert (maximum_internal_buffer_mem_mb > 0) or (
+            maximum_internal_buffer_mem_mb == -1
+        ), (
+            "Invalid value for maximum_internal_buffer_mem_mb ({val}), it must either be -1 or a positive number".format(
+                val=maximum_internal_buffer_mem_mb
+            )
+        )
+
         bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
         pointing_provider = PointingProvider(
             bore2ecliptic_quats=bore2ecliptic_quats,
             hwp=hwp,
+            maximum_internal_buffer_mem_mb=maximum_internal_buffer_mem_mb,
         )
 
         self.pointing_provider = pointing_provider
