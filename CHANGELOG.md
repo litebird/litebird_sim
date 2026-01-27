@@ -1,5 +1,7 @@
 # HEAD
 
+-   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)
+
 -   Add automatic type-checking with ty [#481](https://github.com/litebird/litebird_sim/pull/481)
 
 -   Stop using sphinxcontrib-asciinema [#478](https://github.com/litebird/litebird_sim/pull/478)
