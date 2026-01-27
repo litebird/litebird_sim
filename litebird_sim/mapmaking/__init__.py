@@ -20,7 +20,7 @@ __all__ = [
     "BinnerResult",
     "make_binned_map",
     "check_valid_splits",
-    #h_n.py
+    # h_n.py
     "HnMapResult",
     "make_h_maps",
     # brahmap_gls
