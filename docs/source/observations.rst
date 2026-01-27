@@ -433,10 +433,10 @@ key.
 
   # Second case: use MJD to track the time
   obs_mjd = lbs.Observation(
-      detectors=[{"name": "A"}, {"name": "B"}]
+      detectors=[{"name": "A"}, {"name": "B"}],
       start_time_global=Time("2020-02-20", format="iso"),
       sampling_rate_hz=5.0,
-      nsamples_global=5,
+      n_samples_global=5,
   )
 
   obs.name == np.array(["A", "B"])  # True

@@ -2,6 +2,13 @@
 
 -   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)
 
+-   **Breaking change**: Major reworking of the interfaces and handling of inputs across the framework [#479](https://github.com/litebird/litebird_sim/pull/479), in detail:
+
+    1. Rework the handling of spherical harmonics by integrating ducc0 as the primary engine for SHT operations, including interpolation.
+    2. New container for healpix maps called HealpixMap and further improvement of the class SphericalHarmonics. All the simulation modules are now only compatible with these new classes.
+    3. MBs replaced by a more flexible and simple module called input_sky.
+    4. Expansion of the class Units with several new functionalities. Integration with astropy and pysm3 improved.
+
 -   Add automatic type-checking with ty [#481](https://github.com/litebird/litebird_sim/pull/481)
 
 -   Stop using sphinxcontrib-asciinema [#478](https://github.com/litebird/litebird_sim/pull/478)

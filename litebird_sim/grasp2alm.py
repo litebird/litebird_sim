@@ -20,8 +20,8 @@ from numba import njit
 import numpy as np
 import numpy.typing as npt
 
-from .beam_convolution import SphericalHarmonics
-from .healpix import npix_to_nside, nside_to_npix, nside_to_resolution_rad, num_of_alms
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics
+from .units import Units
 
 REASON_DESCRIPTION = {
     1: "Approximate solution found",
@@ -50,7 +50,7 @@ class BeamHealpixMap:
     """
 
     def __init__(self, healpix_map):
-        self.nside = npix_to_nside(healpix_map.shape[1])
+        self.nside = HealpixMap.npix_to_nside(healpix_map.shape[1])
         self.map = healpix_map
         self.base = ducc0.healpix.Healpix_Base(self.nside, "RING")
 
@@ -91,7 +91,10 @@ class BeamHealpixMap:
 
         geom = self.base.sht_info()
 
-        alm = np.empty((3, num_of_alms(lmax, mmax)), dtype=np.complex128)
+        alm = np.empty(
+            (3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)),
+            dtype=np.complex128,
+        )
         (_, reason, iter_count, residual_norm, quality) = ducc0.sht.pseudo_analysis(
             map=self.map[0].reshape(1, -1),  # Make this a 2D matrix
             alm=alm[0, :].reshape(1, -1),
@@ -300,7 +303,7 @@ class BeamStokesPolar:
         nside = 1
         old_nside = 1
 
-        while nside_to_resolution_rad(nside) > actual_resol_rad:
+        while HealpixMap.nside_to_resolution_rad(nside) > actual_resol_rad:
             old_nside = nside
             nside *= 2
 
@@ -335,7 +338,7 @@ class BeamStokesPolar:
         )
 
         base = ducc0.healpix.Healpix_Base(nside, "RING")
-        npix = nside_to_npix(nside)
+        npix = HealpixMap.nside_to_npix(nside)
 
         # Convert Q and U from Ludwig’s third definition into θ/φ coordinates
         if not self.polar_basis_flag:
@@ -856,7 +859,12 @@ def _grasp2alm(
         epsilon=epsilon,
         max_num_of_iterations=max_num_of_iterations,
     )
-    return SphericalHarmonics(values=alm, lmax=lmax, mmax=mmax)
+    return SphericalHarmonics(
+        values=alm,
+        lmax=lmax,
+        mmax=mmax,
+        units=Units.Pure,
+    )
 
 
 def ticra_cut_to_alm(**kwargs) -> SphericalHarmonics:

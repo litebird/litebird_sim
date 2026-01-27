@@ -1,10 +1,13 @@
 import numpy as np
+from numpy.typing import DTypeLike
 from numba import njit, prange
+import os
 
 from ducc0.healpix import Healpix_Base
 from .observations import Observation
 from .hwp_harmonics import fill_tod
 from .hwp import HWP, IdealHWP, NonIdealHWP
+from .input_sky import SkyGenerationParams
 from .pointings_in_obs import (
     _get_hwp_angle,
     _get_pointings_array,
@@ -12,9 +15,11 @@ from .pointings_in_obs import (
     _normalize_observations_and_pointings,
 )
 from .coordinates import CoordinateSystem
-from .healpix import npix_to_nside
+
+from .maps_and_harmonics import SphericalHarmonics, HealpixMap, interpolate_alm
+from .constants import NUM_THREADS_ENVVAR
+
 import logging
-import healpy as hp
 
 
 @njit
@@ -107,45 +112,62 @@ def scan_map_generic_hwp_for_one_detector(
 def scan_map(
     tod,
     pointings,
-    maps: dict[str, np.ndarray] | np.ndarray,
+    maps: (
+        HealpixMap
+        | dict[str, HealpixMap | SkyGenerationParams]
+        | SphericalHarmonics
+        | dict[str, SphericalHarmonics | SkyGenerationParams]
+    ),
     pol_angle_detectors: np.ndarray | None = None,
     pol_eff_detectors: np.ndarray | None = None,
     hwp: HWP | None = None,
     hwp_angle: np.ndarray | None = None,
     mueller_hwp: np.ndarray | None = None,
     input_names: str | None = None,
-    input_map_in_galactic: bool = True,
     interpolation: str | None = "",
     pointings_dtype=np.float64,
+    nthreads: int = 0,
 ):
     """
     Scan a sky map and fill time-ordered data (TOD) based on detector observations.
 
     This function modifies the values in `tod` by adding the contribution of the
-    bolometric equation given a list of TQU maps `maps`. The `pointings` argument
-    must be a DxNx2 matrix containing the pointing information, where D is the number
-    of detector for the current observation and N is the size of the `tod` array.
-    `pol_angle` is the array of size DxN containing the polarization angle in radiants.
-    `input_names` is an array containing the keywords that allow to select the proper
-    input in `maps` for each detector in the TOD. If `input_map_in_galactic` is set to
-    False the input map is assumed in ecliptic coordinates, default galactic. The
-    `interpolation` argument specifies the type of TOD interpolation ("" for no
-    interpolation, "linear" for linear interpolation)
+    bolometric equation given a T/Q/U description of the sky. The `pointings`
+    argument must be a DxNx2 matrix containing the pointing information, where
+    D is the number of detectors for the current observation and N is the size
+    of the `tod` array.
+
+    Supported sky descriptions
+    --------------------------
+    - `HealpixMap`
+    - `SphericalHarmonics`
+    - `dict[str, HealpixMap]`
+    - `dict[str, SphericalHarmonics]`
+
+    In the dictionary case, the key selected for each detector is taken from
+    `input_names[detector_idx]`.
+
+    The sky coordinate system is taken from the `coordinates` attribute of the
+    selected object (either `HealpixMap` or `SphericalHarmonics`). If
+    `coordinates` is ``None``, Galactic coordinates are assumed and a warning
+    is issued.
 
     Parameters
     ----------
     tod : np.ndarray
-        Time-ordered data (TOD) array of shape (n_detectors, n_samples) that will be filled
-        with the simulated sky signal.
+        Time-ordered data (TOD) array of shape (n_detectors, n_samples) that will be
+        filled with the simulated sky signal.
 
     pointings : np.ndarray or callable
         Pointing information for each detector. If an array, it should have shape
-        (n_detectors, n_samples, 2), where the last dimension contains (theta, phi) in radians.
+        (n_detectors, n_samples, 2 or 3), where the first two entries are (theta, phi)
+        in radians, and the optional third entry is the telescope orientation.
         If a callable, it should return pointing data when passed a detector index.
 
-    maps : dict of str -> np.ndarray
-        Dictionary containing Stokes parameter maps (T, Q, U) in Healpix format. The keys
-        correspond to different sky components.
+    maps : HealpixMap | SphericalHarmonics | dict[str, HealpixMap] |
+           dict[str, SphericalHarmonics]
+        Sky model to be scanned. In dictionary form, the keys must match the
+        entries of `input_names`.
 
     pol_angle_detectors : np.ndarray or None, default=None
         Polarization angles of detectors in radians. If None, all angles are set to zero.
@@ -158,32 +180,29 @@ def scan_map(
         the `Observation` object contains HWP data.
 
     hwp_angle : np.ndarray or None, default=None
-        Half-wave plate (HWP) angles of an external HWP object. If None, the HWP information
-        is taken from the Observation.
+        Half-wave plate angles of an external HWP object.
 
     mueller_hwp : np.ndarray or None, default=None
-        Mueller matrices for the HWP. If None, a standard polarization response is used.
+        Mueller matrices for a non-ideal HWP.
 
-    input_names : str or None, default=None
-        Names of the sky maps to use for each detector. If None, all detectors use the same map.
-
-    input_map_in_galactic : bool, default=True
-        Whether the input sky maps are provided in Galactic coordinates. If False, they are
-        assumed to be in Ecliptic coordinates.
+    input_names : array-like of str or None, default=None
+        Per-detector keys to select entries in `maps` when `maps` is a dictionary.
 
     interpolation : str or None, default=""
-        Method for extracting values from the maps:
-        - "" (default): Nearest-neighbor interpolation.
-        - "linear": Linear interpolation using Healpix.
+        Currently unused here for the harmonic case; real-space maps are sampled
+        by nearest-neighbour (Healpix ang2pix).
 
     pointings_dtype : dtype, optional
-        Data type for pointings generated on the fly. If the pointing is passed or
-        already precomputed this parameter is ineffective. Default is `np.float64`.
+        Data type for pointings generated on the fly.
+
+    nthreads : int, default=0
+        Number of threads to use for convolution. If set to 0, all available CPU cores
+        will be used.
 
     Raises
     ------
-    ValueError
-        If an invalid interpolation method is provided.
+    TypeError
+        If `maps` is None at this level, or has an unsupported type.
     AssertionError
         If `tod` and `pointings` shapes are inconsistent.
 
@@ -208,50 +227,92 @@ def scan_map(
         pol_eff_detectors = np.ones(n_detectors)
 
     for detector_idx in range(n_detectors):
-        if input_map_in_galactic:
-            output_coordinate_system = CoordinateSystem.Galactic
+        # ----------------------------------------------------------
+        # Select per-detector sky object
+        # ----------------------------------------------------------
+        if isinstance(maps, dict):
+            if input_names is None:
+                raise ValueError(
+                    "scan_map: maps is a dict, but input_names is None. "
+                    "You must provide per-detector keys."
+                )
+            key = input_names[detector_idx]
+            try:
+                maps_det = maps[key]
+            except KeyError as exc:
+                raise KeyError(
+                    f"scan_map: maps does not contain an entry for '{key}' "
+                    f"(detector index {detector_idx})"
+                ) from exc
         else:
-            output_coordinate_system = CoordinateSystem.Ecliptic
+            maps_det = maps
 
+        # ----------------------------------------------------------
+        # Determine coordinate system from the object
+        # ----------------------------------------------------------
+        coordinates = getattr(maps_det, "coordinates", None)
+        if coordinates is None:
+            logging.warning(
+                "scan_map: maps_det.coordinates is None — assuming "
+                "CoordinateSystem.Galactic"
+            )
+            coordinates = CoordinateSystem.Galactic
+
+        # ----------------------------------------------------------
+        # Get pointings in the correct coordinate system
+        # ----------------------------------------------------------
         curr_pointings_det, hwp_angle = _get_pointings_array(
             detector_idx=detector_idx,
             pointings=pointings,
             hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
+            output_coordinate_system=coordinates,
             pointings_dtype=pointings_dtype,
         )
 
-        if input_names is None:
-            assert isinstance(maps, np.ndarray)
-            maps_det = maps
-        else:
-            maps_det = maps[input_names[detector_idx]]
+        # ----------------------------------------------------------
+        # REAL SPACE (HealpixMap)
+        # ----------------------------------------------------------
+        if isinstance(maps_det, HealpixMap):
+            pixmap = maps_det.values  # (nstokes, Npix)
+            scheme = "NESTED" if maps_det.nest else "RING"
+            hpx = Healpix_Base(maps_det.nside, scheme)
 
-        nside = npix_to_nside(maps_det.shape[1])
-
-        if interpolation in ["", None]:
-            hpx = Healpix_Base(nside, "RING")
             pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
-            input_T = maps_det[0, pixel_ind_det]
-            input_Q = maps_det[1, pixel_ind_det]
-            input_U = maps_det[2, pixel_ind_det]
-        elif interpolation == "linear":
-            input_T = hp.get_interp_val(
-                maps_det[0, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
-            )
-            input_Q = hp.get_interp_val(
-                maps_det[1, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
-            )
-            input_U = hp.get_interp_val(
-                maps_det[2, :], curr_pointings_det[:, 0], curr_pointings_det[:, 1]
-            )
-        else:
-            raise ValueError(
-                "Wrong value for interpolation. It should be one of the following:\n"
-                + '- "" for no interpolation\n'
-                + '- "linear" for linear interpolation\n'
+
+            if maps_det.nstokes == 1:
+                input_T = pixmap[0, pixel_ind_det]
+                input_Q = np.zeros_like(input_T)
+                input_U = input_Q
+            else:
+                input_T = pixmap[0, pixel_ind_det]
+                input_Q = pixmap[1, pixel_ind_det]
+                input_U = pixmap[2, pixel_ind_det]
+
+        # ----------------------------------------------------------
+        # HARMONIC SPACE (SphericalHarmonics)
+        # ----------------------------------------------------------
+        elif isinstance(maps_det, SphericalHarmonics):
+            interp = interpolate_alm(
+                alms=maps_det,
+                locations=curr_pointings_det[:, 0:2],
+                nthreads=nthreads,
             )
 
+            if maps_det.nstokes == 1:
+                input_T = interp
+                input_Q = np.zeros_like(input_T)
+                input_U = np.zeros_like(input_T)
+            else:
+                input_T, input_Q, input_U = interp
+        else:
+            raise TypeError(
+                "scan_map: maps_det must be HealpixMap or SphericalHarmonics "
+                f"(got {type(maps_det)!r})"
+            )
+
+        # ----------------------------------------------------------
+        # Apply detector response / HWP
+        # ----------------------------------------------------------
         if hwp is None or isinstance(hwp, IdealHWP):
             # With HWP implements:
             # (T + Q ρ Cos[2 (2 α - θ + ψ])] + U ρ Sin[2 (2 α - θ + ψ)])
@@ -277,7 +338,7 @@ def scan_map(
             assert mueller_hwp is not None, (
                 "Non ideal HWP selected but no mueller matrix provided."
             )
-            assert all(m is None for m in mueller_hwp), (
+            assert all(m is not None for m in mueller_hwp), (
                 "Non ideal hwp type was selected but not all detectors have a mueller matrix associated. Please set det.mueller_hwp attribute."
             )
             scan_map_generic_hwp_for_one_detector(
@@ -295,119 +356,123 @@ def scan_map(
 
 def scan_map_in_observations(
     observations: Observation | list[Observation],
-    maps: np.ndarray | dict[str, np.ndarray] | None,
+    maps: (
+        HealpixMap
+        | dict[str, HealpixMap | SkyGenerationParams]
+        | SphericalHarmonics
+        | dict[str, SphericalHarmonics | SkyGenerationParams]
+        | None
+    ) = None,
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp: HWP | None = None,
-    input_map_in_galactic: bool = True,
     component: str = "tod",
-    interpolation: str | None = "",
-    pointings_dtype=np.float64,
+    pointings_dtype: DTypeLike = np.float64,
     save_tod: bool = True,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
     mueller_phases: dict | None = None,
     comm: bool | None = None,
+    nthreads: int | None = None,
 ):
     """
-
     Scan a sky map and fill time-ordered data (TOD) for a set of observations.
 
-    This is a wrapper around the :func:`.scan_map` function that applies to the TOD
-    stored in `observations` and the pointings stored in `pointings`. The two types
-    can either bed a :class:`.Observation` instance and a NumPy matrix, or a list
-    of observations and a list of NumPy matrices; in the latter case, they must have
-    the same number of elements.
+    This is a wrapper around the :func:`.scan_map` function (and, for the
+    harmonic-expansion case, :func:`.fill_tod`) that applies to the TOD
+    stored in `observations` and the pointings stored in `pointings`. The two
+    types can either be a single :class:`.Observation` instance and a NumPy
+    matrix, or a list of observations and a list of NumPy matrices; in the
+    latter case, they must have the same number of elements.
 
-    The field `maps` must either be a (list of) dictionary associating the name of each
-    detector with a ``(3, NPIX)`` array containing the three I/Q/U maps or a
-    plain ``(3, NPIX)`` array. In the latter case, the I/Q/U maps will be used for all
-    the detectors.
+    The field `maps` can be:
 
-    The coordinate system is usually specified using the key `Coordinates` in the
-    dictionary passed to the `maps` argument, and it must be an instance of
-    the class :class:`.CoordinateSystem`. If you are using a plain NumPy array instead
-    of a dictionary for `maps`, you should specify whether to use Ecliptic or Galactic
-    coordinates through the parameter `input_map_in_galactic`. If
-    ``maps["Coordinates"]`` is present, it must be consistent with the value for
-    `input_map_in_galactic`; if not, the code prints a warning and uses the former.
+    - a single :class:`.HealpixMap` instance, used for all detectors;
+    - a single :class:`.SphericalHarmonics` instance, used for all detectors;
+    - a dictionary mapping detector or channel names (strings) to
+      :class:`.HealpixMap` or :class:`.SphericalHarmonics` objects.
 
-    By default, the signal is added to ``Observation.tod``. If you want to add it to
-    some other field of the :class:`.Observation` class, use `component`::
+    In the harmonic case (when the underlying routines see
+    :class:`.SphericalHarmonics` objects), the code performs interpolation using
+    the ducc0 spherical harmonics backend. For real-space inputs
+    (:class:`.HealpixMap`), no interpolation in harmonic space is performed.
+
+    By default, the signal is added to ``Observation.tod``. If you want to add
+    it to some other field of the :class:`.Observation` class, use `component`::
 
         for cur_obs in sim.observations:
             # Allocate a new TOD for the sky signal alone
             cur_obs.sky_tod = np.zeros_like(cur_obs.tod)
 
-        # Ask `add_noise_to_observations` to store the noise
+        # Ask `scan_map_in_observations` to store the sky signal
         # in `observations.sky_tod`
-        scan_map_in_observations(sim.observations, …, component="sky_tod")
+        scan_map_in_observations(sim.observations, ..., component="sky_tod")
 
     Parameters
     ----------
-    observations : Observation or list of Observation
+    observations : Observation or list[Observation]
         One or more `Observation` objects containing detector names, pointings,
         and TOD data, to which the computed sky signal will be added.
 
-    maps : np.ndarray or dict of str -> np.ndarray
-        Sky maps containing Stokes parameters (T, Q, U). If a dictionary, keys
-        should match detector or channel names, and values should be arrays of shape (3, NPIX).
-        If a single array is provided, the same map is used for all detectors.
+    maps : HealpixMap, SphericalHarmonics, dict[str, HealpixMap] or dict[str, SphericalHarmonics], optional
+        Sky description. If a dictionary, keys should match detector or channel
+        names, and values should be :class:`.HealpixMap` or
+        :class:`.SphericalHarmonics` instances. If a single object is provided,
+        the same sky is used for all detectors. If ``None``, the function
+        attempts to read `sky` from the first observation.
 
-    pointings : np.ndarray or list of np.ndarray, optional
+    pointings : np.ndarray or list[np.ndarray], optional
         Pointing matrices associated with the observations. If None, the function
         extracts pointing information from the `Observation` objects.
 
     hwp : HWP, optional
-        Half-wave plate (HWP) model. If None, HWP effects are ignored unless
-        the `Observation` object contains HWP data.
-
-    input_map_in_galactic : bool, default=True
-        Whether the input sky maps are provided in Galactic coordinates. If False, they
-        are assumed to be in Ecliptic coordinates.
+        Half-wave plate (HWP) model. If None, HWP effects are ignored unless the
+        `Observation` object itself contains HWP data.
 
     component : str, default="tod"
-        The TOD component in the `Observation` object where the computed signal will be stored.
-
-    interpolation : str, optional, default=""
-        Method for extracting values from the sky maps:
-        - "" (default): Nearest-neighbor interpolation.
-        - "linear": Linear interpolation using Healpix.
+        The TOD component in the `Observation` object where the computed signal
+        will be stored.
 
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly. If the pointing is passed or
         already precomputed this parameter is ineffective. Default is `np.float64`.
 
-    apply_non_linearity (bool) : (For the harmonics expansion case) applies the
-          coupling of the non-linearity systematics with hwp_sys
+    apply_non_linearity : bool, optional
+        (For the harmonics expansion case) applies the coupling of the
+        non-linearity systematics with `hwp_sys`.
 
-    add_2f_hwpss (bool) : (For the harmonics expansion case) adds the 2f hwpss signal
-         to the TOD
+    add_2f_hwpss : bool, optional
+        (For the harmonics expansion case) adds the 2f HWP synchronous signal
+        to the TOD.
 
-    mueller_phases (dict) : (For the harmonics expansion case) the non ideal phases
-          for the mueller matrix elements. When None is given, the temporary values
-          from Patanchon et al. [2021] are used.
+    mueller_phases : dict or np.ndarray, optional
+        (For the harmonics expansion case) the non-ideal phases for the Mueller
+        matrix elements. When None is given, temporary values from
+        Patanchon et al. [2021] are used.
 
-    comm (SerialMpiCommunicator) : (For the harmonics expansion case) MPI communicator.
+    comm : SerialMpiCommunicator, optional
+        (For the harmonics expansion case) MPI communicator.
+
+    nthreads : int, default=None
+        Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
+        environment variable.
 
     Raises
     ------
     ValueError
-        If the dictionary `maps` does not contain the required detector or channel keys.
+        If a dictionary `maps` does not contain the required detector or channel keys.
     AssertionError
         If the number of observations and pointings do not match.
-        If `maps` is not a dictionary or a valid `(3, NPIX)` NumPy array.
         If `tod` and `pointings` shapes are inconsistent.
 
     Notes
     -----
-    - This function modifies `observations` in place by adding the computed sky signal
-      to the specified `component` field.
-    - If `maps` is a dictionary, its `Coordinates` key (if present) must match
-      `input_map_in_galactic`, otherwise a warning is issued.
-    - If `pointings` is None, the function attempts to extract them from `Observation` objects.
-      If the pointing is generated on the fly pointings_dtype specifies its type.
-    - If an HWP model is provided, the function computes HWP angles and applies the
-      corresponding Mueller matrices.
+    - This function modifies `observations` in place by adding the computed sky
+      signal to the specified `component` field.
+    - If `pointings` is None, the function attempts to extract them from
+      `Observation` objects. If the pointing is generated on the fly,
+      `pointings_dtype` specifies its type.
+    - If an HWP model is provided, the function computes HWP angles and applies
+      the corresponding Mueller matrices.
     - This function supports both single observations and lists of observations,
       handling each one separately.
     """
@@ -421,79 +486,72 @@ def scan_map_in_observations(
             assert obs_list, "No observations available"
             maps = obs_list[0].sky
         except AttributeError:
-            msg = "'maps' is None and nothing is found in the observation. You should either pass the maps here, or store them in the observations if 'mbs' is used."
+            msg = (
+                "'maps' is None and nothing is found in the observation. "
+                "You should either pass the maps here, or store them in "
+                "the observations."
+            )
             raise AttributeError(msg)
-        assert maps is not None and maps["type"] == "maps", (
-            "'maps' should be of type 'maps'. Disable 'store_alms' in 'MbsParameters' to make it so."
-        )
 
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+        # Decide how to select maps for this observation
         if isinstance(maps, dict):
-            if all(item in maps.keys() for item in cur_obs.name):
+            if all(name in maps for name in cur_obs.name):
                 input_names = cur_obs.name
-            elif all(item in maps.keys() for item in cur_obs.channel):
+            elif all(ch in maps for ch in cur_obs.channel):
                 input_names = cur_obs.channel
             else:
                 raise ValueError(
-                    "The dictionary maps does not contain all the relevant"
-                    + "keys, please check the list of detectors and channels"
+                    "The dictionary 'maps' does not contain all the relevant "
+                    "keys; please check the list of detectors and channels."
                 )
-            if "Coordinates" in maps.keys():
-                dict_input_map_in_galactic = (
-                    maps["Coordinates"] is CoordinateSystem.Galactic
-                )
-                if dict_input_map_in_galactic != input_map_in_galactic:
-                    logging.warning(
-                        "input_map_in_galactic variable in scan_map_in_observations"
-                        + " overwritten!"
-                    )
-                input_map_in_galactic = dict_input_map_in_galactic
         else:
-            assert isinstance(maps, np.ndarray), (
-                "maps must either a dictionary contaning keys for all the"
-                + "channels/detectors, or be a numpy array of dim (3 x Npix)"
-            )
+            if not isinstance(maps, (HealpixMap, SphericalHarmonics)):
+                raise TypeError(
+                    "maps must be a HealpixMap, a SphericalHarmonics instance, "
+                    "or a dict mapping detector/channel names to such objects."
+                )
             input_names = None
 
-        # Determine the HWP angle to use:
-        # - If an external HWP object is provided, compute the angle from it
-        # - If not, compute or retrieve the HWP angle from the observation, depending on availability
-        if hwp is None:
-            hwp = cur_obs.hwp
+        # HWP handling: external HWP overrides, otherwise use obs.hwp
+        cur_hwp = hwp if hwp is not None else cur_obs.hwp
 
-        # it can still be None after this line, it is just for the cases where
-        # we don't give hwp to scan_map_in_observations but there is in fact one
-        hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
-        if isinstance(hwp, NonIdealHWP) and hwp.harmonic_expansion:
-            assert isinstance(maps, np.ndarray), (
-                "maps must be a numpy array when using NonIdealHWP with harmonic_expansion"
-            )
-            return fill_tod(
-                observations=cur_obs,
+        # Could still be None here; _get_hwp_angle should handle that
+        hwp_angle = _get_hwp_angle(
+            obs=cur_obs, hwp=cur_hwp, pointing_dtype=pointings_dtype
+        )
+
+        # Set number of threads
+        if nthreads is None:
+            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+
+        if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
+            # Harmonic-expansion case: delegate to fill_tod
+            fill_tod(
+                observation=cur_obs,
                 pointings=cur_ptg,
+                maps=maps,
                 hwp_angle=hwp_angle,
-                input_map_in_galactic=input_map_in_galactic,
                 pointings_dtype=pointings_dtype,
                 save_tod=save_tod,
-                interpolation=interpolation,
-                maps=maps,
+                input_names=input_names,
                 apply_non_linearity=apply_non_linearity,
                 add_2f_hwpss=add_2f_hwpss,
                 mueller_phases=mueller_phases,
                 comm=comm,
             )
         else:
+            # Standard scanning case
             scan_map(
                 tod=getattr(cur_obs, component),
                 pointings=cur_ptg,
                 maps=maps,
                 pol_angle_detectors=cur_obs.pol_angle_rad,
                 pol_eff_detectors=cur_obs.pol_efficiency,
-                hwp=hwp,
+                hwp=cur_hwp,
                 hwp_angle=hwp_angle,
                 mueller_hwp=cur_obs.mueller_hwp,
                 input_names=input_names,
-                input_map_in_galactic=input_map_in_galactic,
-                interpolation=interpolation,
                 pointings_dtype=pointings_dtype,
+                nthreads=nthreads,
             )
