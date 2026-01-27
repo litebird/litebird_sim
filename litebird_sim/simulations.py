@@ -2309,12 +2309,12 @@ class Simulation:
             time_split=time_split,
             pointings_dtype=pointings_dtype,
         )
-    
+
     @_profile
-    def make_h_maps(  
+    def make_h_maps(
         self,
         nside: int,
-        n_list: list[int]=[0,2,4],
+        n_list: list[int] = [0, 2, 4],
         hwp: HWP | None = None,
         m_list: list[int] = [0],
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
@@ -2323,24 +2323,25 @@ class Simulation:
         pointings_dtype=np.float64,
         save_to_file: bool = True,
         output_directory: str = "./h_n_maps",
-) -> HnMapResult:
+    ) -> HnMapResult:
         """
         Computes the Hn maps from the pointings  of `sim.observations`.
         This is a wrapper around :func:`litebird_sim.mapmaking.make_h_maps`.
 
         """
-        return make_h_maps(  
-            observations= self.observations,
+        return make_h_maps(
+            observations=self.observations,
             nside=nside,
             n_list=n_list,
             hwp=hwp,
             m_list=m_list,
             output_coordinate_system=output_coordinate_system,
-            detector_split= detector_split ,
-            time_split= time_split,
-            pointings_dtype= pointings_dtype,
-            save_to_file= save_to_file ,
-            output_directory= output_directory)
+            detector_split=detector_split,
+            time_split=time_split,
+            pointings_dtype=pointings_dtype,
+            save_to_file=save_to_file,
+            output_directory=output_directory,
+        )
 
     def _impose_and_check_full_split(self, detector_splits, time_splits):
         """
