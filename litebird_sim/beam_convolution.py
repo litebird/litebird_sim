@@ -130,6 +130,13 @@ def add_convolved_sky_to_one_detector(
         _slm = sky_alms_det.resize_alm(
             convolution_params.lmax, convolution_params.lmax, inplace=False
         ).values
+
+        logging.warning(
+            ("Input sky alms resized, using ℓ_max={lmax}.").format(
+                lmax=convolution_params.lmax
+            )
+        )
+
     else:
         _slm = sky_alms_det.values
 
@@ -139,6 +146,13 @@ def add_convolved_sky_to_one_detector(
         _blm = beam_alms_det.resize_alm(
             convolution_params.lmax, convolution_params.mmax, inplace=False
         ).values
+
+        logging.warning(
+            ("Input beam alms resized, using ℓ_max={lmax} and m_max={mmax}.").format(
+                lmax=convolution_params.lmax, mmax=convolution_params.mmax
+            )
+        )
+
     else:
         _blm = beam_alms_det.values
 
@@ -154,8 +168,8 @@ def add_convolved_sky_to_one_detector(
             intertype = Interpolator
 
         inter = intertype(
-            sky=_slm.astype(complex_type),
-            beam=_blm.astype(complex_type),
+            sky=_slm.astype(complex_type, copy=False),
+            beam=_blm.astype(complex_type, copy=False),
             separate=False,
             lmax=convolution_params.lmax,
             kmax=convolution_params.mmax,
