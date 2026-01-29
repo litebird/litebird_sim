@@ -84,7 +84,7 @@ def test_add_noise_to_observations_in_other_field():
         dets_random=sim.dets_random,
         component="noise_tod",
         engine="fft",
-        model="standard",
+        model="toast",
     )
 
     noise_out = sim.observations[0].noise_tod
@@ -136,12 +136,12 @@ def test_ducc_engine_constraints():
             "one_over_f",
             dets_random=sim.dets_random,
             engine="ducc",
-            model="standard",
+            model="toast",
         )
 
 
 @pytest.mark.parametrize(
-    "engine, model", [("fft", "standard"), ("fft", "keshner"), ("ducc", "keshner")]
+    "engine, model", [("fft", "toast"), ("fft", "keshner"), ("ducc", "keshner")]
 )
 def test_noise_psd_correctness(engine, model):
     """
@@ -181,7 +181,7 @@ def test_noise_psd_correctness(engine, model):
     fknee_hz = fknee_mhz / 1000.0
 
     with np.errstate(divide="ignore"):
-        if model == "standard":
+        if model == "toast":
             # (f^a + k^a) / (f^a + m^a)
             num = f**alpha + fknee_hz**alpha
             den = f**alpha + fmin_hz**alpha

@@ -113,8 +113,8 @@ Models
 
 The physical shape of the Power Spectral Density (PSD) is selected via the ``model`` parameter:
 
-1.  **"standard" (Default)**:
-    The classic power-law ratio often used in simple CMB simulations. The PSD is proportional to:
+1.  **"toast" (Default)**:
+    The classic power-law ratio, also implemented in https://github.com/hpc4cmb/toast/blob/372fa7642bbe61a5f01d239e707c04b80ad4bf46/src/toast/tod/sim_noise.py#L74. The PSD is proportional to:
 
     .. math::
 
@@ -221,8 +221,6 @@ Again, to generate noise with custom parameters, we can either use the low-level
     effects reduce the number of samples in the timeline that can be
     used to estimate the map, but they do not affect the noise of the
     timeline.
-
-
 
 
 Methods of the Simulation class

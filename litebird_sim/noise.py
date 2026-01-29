@@ -12,9 +12,9 @@ from .seeding import regenerate_or_check_detector_generators
 
 
 @njit
-def _transfer_standard(f_sq, fknee_hz, fmin_hz, alpha):
+def _transfer_toast(f_sq, fknee_hz, fmin_hz, alpha):
     """
-    Standard Model: PSD ~ (f^alpha + fknee^alpha) / (f^alpha + fmin^alpha)
+    Toast Model: PSD ~ (f^alpha + fknee^alpha) / (f^alpha + fmin^alpha)
     Used commonly in simple 1/f simulations.
     """
     # Note: f_sq is f^2, so we need sqrt(f_sq) to get f
@@ -66,7 +66,7 @@ def apply_transfer_function(ft, freqs, fknee_mhz, fmin_hz, alpha, sigma, model_i
         The white noise level (standard deviation).
     model_id : int
         The identifier for the model to use:
-        0 = 'standard'
+        0 = 'toast'
         1 = 'keshner'
     """
     fknee_hz = fknee_mhz / 1000.0
@@ -77,8 +77,8 @@ def apply_transfer_function(ft, freqs, fknee_mhz, fmin_hz, alpha, sigma, model_i
 
         if model_id == 1:  # Keshner
             tf = _transfer_keshner(f_sq, fknee_hz, fmin_hz, alpha)
-        else:  # Standard (Default)
-            tf = _transfer_standard(f_sq, fknee_hz, fmin_hz, alpha)
+        else:  # Toast model (Default)
+            tf = _transfer_toast(f_sq, fknee_hz, fmin_hz, alpha)
 
         ft[i] *= sigma * tf
 
@@ -125,7 +125,7 @@ def add_one_over_f_noise(
     sampling_rate_hz: float,
     random,
     engine: str = "fft",
-    model: str = "standard",
+    model: str = "toast",
 ):
     """
     Adds 1/f noise to the data array using a specific engine and physical model.
@@ -157,9 +157,9 @@ def add_one_over_f_noise(
         * ``"ducc"``: Uses ``ducc0.misc.OofaNoise`` (time-domain filtering).
           Supports **only** the ``"keshner"`` model. Very efficient for long streams.
     model : str, optional
-        The physical model for the Power Spectral Density (PSD). Defaults to ``"standard"``.
+        The physical model for the Power Spectral Density (PSD). Defaults to ``"toast"``.
 
-        * ``"standard"``: The classic power-law ratio model.
+        * ``"toast"``: The classic power-law ratio model.
           PSD ~ (f^alpha + f_k^alpha) / (f^alpha + f_m^alpha).
         * ``"keshner"``: The model implemented by DUCC0 (sum of relaxation processes).
           PSD ~ ((f^2 + f_k^2) / (f^2 + f_m^2))^(alpha/2).
@@ -261,7 +261,7 @@ def add_noise(
     dets_random,
     scale=1.0,
     engine="fft",
-    model="standard",
+    model="toast",
 ):
     """
     Adds noise (white or 1/f) to a TOD array for a specific detector.
@@ -293,7 +293,7 @@ def add_noise(
     engine : str, optional
         Computation engine (``"fft"`` or ``"ducc"``). Defaults to ``"fft"``.
     model : str, optional
-        Physical noise model (``"standard"`` or ``"keshner"``). Defaults to ``"standard"``.
+        Physical noise model (``"toast"`` or ``"keshner"``). Defaults to ``"toast"``.
     """
     sigma = rescale_noise(net_ukrts, sampling_rate_hz, scale)
 
@@ -335,7 +335,7 @@ def add_noise_to_observations(
     scale=1.0,
     component="tod",
     engine="fft",
-    model="standard",
+    model="toast",
 ):
     """
     Adds instrumental noise (white or 1/f) to a list of Observations.
@@ -380,17 +380,17 @@ def add_noise_to_observations(
           ``"keshner"`` model.
     model : str, optional
         The physical model for the 1/f noise Power Spectral Density (PSD).
-        Defaults to ``"standard"``.
+        Defaults to ``"toast"``.
 
-        * ``"standard"``: :math:`P(f) \propto (f^\alpha + f_{knee}^\alpha) / (f^\alpha + f_{min}^\alpha)`
-        * ``"keshner"``: :math:`P(f) \propto ((f^2 + f_{knee}^2) / (f^2 + f_{min}^2))^{\alpha/2}`
+        * ``"toast"``: :math:`P(f) \\propto (f^\alpha + f_{knee}^\alpha) / (f^\alpha + f_{min}^\alpha)`
+        * ``"keshner"``: :math:`P(f) \\propto ((f^2 + f_{knee}^2) / (f^2 + f_{min}^2))^{\alpha/2}`
 
     Raises
     ------
     ValueError
         If ``noise_type`` is not recognized.
     ValueError
-        If the ``ducc`` engine is requested with the ``standard`` model.
+        If the ``ducc`` engine is requested with the ``toast`` model.
     """
     if noise_type not in ["white", "one_over_f"]:
         raise ValueError("Unknown noise type " + noise_type)
