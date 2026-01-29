@@ -1,53 +1,119 @@
 from numbers import Number
-
 import numpy as np
 import scipy as sp
 from numba import njit
+from ducc0.misc import OofaNoise
 
 from .observations import Observation
 from .seeding import regenerate_or_check_detector_generators
 
 
-def nearest_pow2(data):
-    """returns the next largest power of 2 that will encompass the full data set
+# --- TRANSFER FUNCTIONS (MODELS) ---
 
-    data: 1-D numpy array
+
+@njit
+def _transfer_standard(f_sq, fknee_hz, fmin_hz, alpha):
+    """
+    Standard Model: PSD ~ (f^alpha + fknee^alpha) / (f^alpha + fmin^alpha)
+    Used commonly in simple 1/f simulations.
+    """
+    # Note: f_sq is f^2, so we need sqrt(f_sq) to get f
+    f = np.sqrt(f_sq)
+    f_alpha = np.power(f, alpha)
+    fknee_alpha = np.power(fknee_hz, alpha)
+    fmin_alpha = np.power(fmin_hz, alpha)
+
+    # Amplitude is sqrt(PSD)
+    return np.sqrt((f_alpha + fknee_alpha) / (f_alpha + fmin_alpha))
+
+
+@njit
+def _transfer_keshner(f_sq, fknee_hz, fmin_hz, alpha):
+    """
+    Keshner Model (DUCC-style): PSD ~ ((f^2 + fknee^2) / (f^2 + fmin^2))^(alpha/2)
+    This corresponds to a sum of superposition of relaxation processes.
+    """
+    fknee_sq = fknee_hz * fknee_hz
+    fmin_sq = fmin_hz * fmin_hz
+
+    ratio = (f_sq + fknee_sq) / (f_sq + fmin_sq)
+
+    # Amplitude is sqrt(PSD), so exponent is alpha/4
+    return np.power(ratio, alpha / 4.0)
+
+
+# --- CORE LOGIC ---
+
+
+@njit
+def apply_transfer_function(ft, freqs, fknee_mhz, fmin_hz, alpha, sigma, model_id):
+    """
+    Applies the selected transfer function model to the Fourier coefficients.
+
+    Parameters
+    ----------
+    ft : array-like
+        The Fourier transform of the white noise (modified in-place).
+    freqs : array-like
+        The frequency bins corresponding to `ft`.
+    fknee_mhz : float
+        The knee frequency in mHz.
+    fmin_hz : float
+        The minimum frequency in Hz.
+    alpha : float
+        The spectral index (slope).
+    sigma : float
+        The white noise level (standard deviation).
+    model_id : int
+        The identifier for the model to use:
+        0 = 'standard'
+        1 = 'keshner'
+    """
+    fknee_hz = fknee_mhz / 1000.0
+
+    # Iterate over frequencies (skip DC)
+    for i in range(1, len(freqs)):
+        f_sq = freqs[i] * freqs[i]
+
+        if model_id == 1:  # Keshner
+            tf = _transfer_keshner(f_sq, fknee_hz, fmin_hz, alpha)
+        else:  # Standard (Default)
+            tf = _transfer_standard(f_sq, fknee_hz, fmin_hz, alpha)
+
+        ft[i] *= sigma * tf
+
+    ft[0] = 0.0
+
+
+def nearest_pow2(data):
+    """
+    Returns the next largest power of 2 that will encompass the full data set.
+
+    Parameters
+    ----------
+    data : 1-D numpy array
+        The input data array.
     """
     return int(2 ** np.ceil(np.log2(len(data))))
 
 
 def add_white_noise(data, sigma: float, random):
-    """Adds white noise with the given sigma to the array data.
+    """
+    Adds white noise with the given sigma to the array data.
 
-    To be called from add_noise_to_observations.
-
-    Args:
-
-        `data` : 1-D numpy array
-
-        `sigma` : the white noise level per sample. Be sure *not* to include cosmic ray
-                  loss, repointing maneuvers, etc., as these affect the integration time
-                  but **not** the white noise per sample.
-
-        `random` : a random number generator that implements the ``normal`` method.
-                   This is typically obtained from the RNGHierarchy of the `Simulation` class.
+    Parameters
+    ----------
+    data : 1-D numpy array
+        The input data array (modified in-place).
+    sigma : float
+        The white noise level per sample. Be sure *not* to include cosmic ray
+        loss, repointing maneuvers, etc., as these affect the integration time
+        but **not** the white noise per sample.
+    random : numpy.random.Generator
+        A random number generator that implements the ``normal`` method.
+        This is typically obtained from the RNGHierarchy of the ``Simulation`` class.
     """
     data += random.normal(0, sigma, data.shape)
-
-
-@njit
-def build_one_over_f_model(ft, freqs, fknee_mhz, fmin_hz, alpha, sigma):
-    fknee_hz_alpha = pow(fknee_mhz / 1000, alpha)
-    fmin_hz_alpha = pow(fmin_hz, alpha)
-
-    # Skip the first element, as it is the constant offset
-    for i in range(1, len(ft)):
-        f_hz_alpha = pow(abs(freqs[i]), alpha)
-        ft[i] *= (
-            np.sqrt((f_hz_alpha + fknee_hz_alpha) / (f_hz_alpha + fmin_hz_alpha))
-            * sigma
-        )
-    ft[0] = 0
 
 
 def add_one_over_f_noise(
@@ -58,197 +124,273 @@ def add_one_over_f_noise(
     sigma: float,
     sampling_rate_hz: float,
     random,
+    engine: str = "fft",
+    model: str = "standard",
 ):
-    """Adds a 1/f noise timestream with the given f knee and alpha to data
-    To be called from add_noise_to_observations
+    """
+    Adds 1/f noise to the data array using a specific engine and physical model.
 
-    Args:
+    This function supports multiple noise generation engines (FFT-based synthesis
+    and DUCC0's time-domain filtering) and multiple physical models for the
+    noise power spectral density (PSD).
 
-        `data` : 1-D numpy array
+    Parameters
+    ----------
+    data : 1-D numpy array
+        The input time-ordered data (TOD) array (modified in-place).
+    fknee_mhz : float
+        The knee frequency in mHz.
+    fmin_hz : float
+        The minimum frequency in Hz below which the spectrum flattens.
+    alpha : float
+        The spectral slope (e.g., 1.0 for pink noise).
+    sigma : float
+        The white noise standard deviation (RMS) per sample.
+    sampling_rate_hz : float
+        The sampling rate of the data in Hz.
+    random : numpy.random.Generator
+        The random number generator instance.
+    engine : str, optional
+        The computational method used to generate the noise. Defaults to ``"fft"``.
 
-        `fknee_mhz` : knee frequency in mHz
+        * ``"fft"``: Generates noise in the Fourier domain. Supports all `model` types.
+        * ``"ducc"``: Uses ``ducc0.misc.OofaNoise`` (time-domain filtering).
+          Supports **only** the ``"keshner"`` model. Very efficient for long streams.
+    model : str, optional
+        The physical model for the Power Spectral Density (PSD). Defaults to ``"standard"``.
 
-        `fmin_hz` : kmin frequency for high pass in Hz
+        * ``"standard"``: The classic power-law ratio model.
+          PSD ~ (f^alpha + f_k^alpha) / (f^alpha + f_m^alpha).
+        * ``"keshner"``: The model implemented by DUCC0 (sum of relaxation processes).
+          PSD ~ ((f^2 + f_k^2) / (f^2 + f_m^2))^(alpha/2).
 
-        `alpha` : low frequency spectral tilt
-
-        `sigma` : the white noise level per sample. Be sure *not* to include cosmic ray
-                  loss, repointing maneuvers, etc., as these affect the integration time
-                  but **not** the white noise per sample.
-
-        `sampling_rate_hz` : the sampling frequency of the data
-
-        `random` : a random number generator that implements the ``normal`` method.
-                   This is typically obtained from the RNGHierarchy of the `Simulation` class.
+    Raises
+    ------
+    ValueError
+        If the ``engine`` is unknown or if the selected ``engine`` does not support
+        the requested ``model``.
     """
 
-    noiselen = nearest_pow2(data)
+    if engine == "fft":
+        # 1. Generate unit variance white noise
+        noiselen = nearest_pow2(data)
+        noise = random.normal(0, 1, noiselen)
 
-    # makes a white noise timestream with unit variance
-    noise = random.normal(0, 1, noiselen)
+        # 2. FFT
+        noise_ft = sp.fft.rfft(noise, overwrite_x=True)
+        freqs = sp.fft.rfftfreq(noiselen, d=1 / sampling_rate_hz)
 
-    noise = sp.fft.rfft(noise, overwrite_x=True)
-    freqs = sp.fft.rfftfreq(noiselen, d=1 / sampling_rate_hz)
+        # 3. Apply Model
+        # Map string to integer ID for Numba
+        model_id = 1 if model == "keshner" else 0
+        apply_transfer_function(
+            noise_ft, freqs, fknee_mhz, fmin_hz, alpha, sigma, model_id
+        )
 
-    # filters the white noise in the frequency domain with the 1/f filter
-    build_one_over_f_model(noise, freqs, fknee_mhz, fmin_hz, alpha, sigma)
+        # 4. IFFT
+        noise_final = sp.fft.irfft(noise_ft, overwrite_x=True)
+        data += noise_final[: len(data)]
 
-    # transforms the data back to the time domain
-    noise = sp.fft.irfft(noise, overwrite_x=True)
+    elif engine == "ducc":
+        if model != "keshner":
+            raise ValueError(
+                f"DUCC engine only supports 'keshner' model. Got '{model}'. "
+                "Use engine='fft' for other models, or set model='keshner' to use DUCC."
+            )
 
-    data += noise[: len(data)]
+        fknee_hz = fknee_mhz / 1000.0
+
+        # DUCC0 Logic (Slope must be negative)
+        oofa = OofaNoise(
+            sigmawhite=sigma,  # Correct normalization (Time RMS)
+            f_knee=fknee_hz,
+            f_min=fmin_hz,
+            f_samp=sampling_rate_hz,
+            slope=-alpha,  # DUCC expects negative slope
+        )
+
+        gauss_input = random.normal(0, 1, data.shape[-1])
+        data += oofa.filterGaussian(gauss_input)
+
+    elif engine == "random_walk":
+        # Legacy alias for DUCC
+        add_one_over_f_noise(
+            data,
+            fknee_mhz,
+            fmin_hz,
+            alpha,
+            sigma,
+            sampling_rate_hz,
+            random,
+            engine="ducc",
+            model="keshner",
+        )
+    else:
+        raise ValueError(f"Unknown engine '{engine}'.")
 
 
 def rescale_noise(net_ukrts: float, sampling_rate_hz: float, scale: float):
+    """
+    Converts NET [uK*sqrt(s)] to sigma per sample [K].
+
+    Parameters
+    ----------
+    net_ukrts : float or array-like
+        Noise Equivalent Temperature in micro-Kelvin sqrt(seconds).
+    sampling_rate_hz : float
+        The sampling rate in Hz.
+    scale : float
+        A multiplicative scaling factor applied to the NET.
+
+    Returns
+    -------
+    float or array-like
+        The standard deviation (sigma) of the white noise per sample in Kelvin.
+    """
     return net_ukrts * np.sqrt(sampling_rate_hz) * scale / 1e6
 
 
 def add_noise(
     tod,
-    noise_type: str,
-    sampling_rate_hz: float,
+    noise_type,
+    sampling_rate_hz,
     net_ukrts,
     fknee_mhz,
     fmin_hz,
     alpha,
     dets_random,
     scale=1.0,
+    engine="fft",
+    model="standard",
 ):
     """
-    Add noise (white or 1/f) to a 2D array of floating-point values
+    Adds noise (white or 1/f) to a TOD array for a specific detector.
 
-    This function sums an array of random number following a white noise model with
-    an optional 1/f component to `data`, which is assumed to be a D×N array containing
-    the TOD for D detectors, each containing N samples.
+    This function handles the correct broadcasting if `net_ukrts`, `fknee_mhz`, etc.,
+    are arrays (indicating multiple detectors) while the `tod` is processed
+    one detector at a time.
 
-    The parameter `noisetype` must either be ``white`` or ``one_over_f``; in the latter
-    case, the noise will contain a 1/f part and a white noise part.
-
-    Be sure *not* to include cosmic ray loss, repointing maneuvers, etc., in the value
-    passed as `net_ukrts`, as these affect the integration time but **not** the white
-    noise per sample.
-
-    The parameter `scale` can be used to introduce measurement unit conversions when
-    appropriate. Default units: [K].
-
-    The parameter `dets_random` must be specified and must be a list random number generators that
-    implement the ``normal`` method. This is typically obtained from the RNGHierarchy of the `Simulation` class.
-
-    The parameters `net_ukrts`, `fknee_mhz`, `fmin_hz`, `alpha`, and `scale` can
-    either be scalars or arrays; in the latter case, their size must be the same as
-    ``tod.shape[0]``, which is the number of detectors in the TOD.
+    Parameters
+    ----------
+    tod : ndarray
+        The Time-Ordered Data array of shape (n_detectors, n_samples).
+    noise_type : str
+        The type of noise to add: ``"white"`` or ``"one_over_f"``.
+    sampling_rate_hz : float
+        Sampling rate in Hz.
+    net_ukrts : float or array-like
+        NET in uK*sqrt(s). Can be a scalar or an array of length n_detectors.
+    fknee_mhz : float or array-like
+        Knee frequency in mHz. Can be a scalar or an array of length n_detectors.
+    fmin_hz : float or array-like
+        Minimum frequency in Hz. Can be a scalar or an array of length n_detectors.
+    alpha : float or array-like
+        Spectral slope. Can be a scalar or an array of length n_detectors.
+    dets_random : list of numpy.random.Generator
+        List of random number generators (one per detector).
+    scale : float, optional
+        A multiplicative scaling factor applied to the NET. Defaults to 1.0.
+    engine : str, optional
+        Computation engine (``"fft"`` or ``"ducc"``). Defaults to ``"fft"``.
+    model : str, optional
+        Physical noise model (``"standard"`` or ``"keshner"``). Defaults to ``"standard"``.
     """
-    assert len(tod.shape) == 2
-    num_of_dets = tod.shape[0]
+    sigma = rescale_noise(net_ukrts, sampling_rate_hz, scale)
 
-    if isinstance(net_ukrts, Number):
-        net_ukrts = np.array([net_ukrts] * num_of_dets)
+    # Helper function to extract scalar parameters for the i-th detector
+    # if the parameter is an array (representing multiple detectors).
+    def _get_val(param, idx):
+        if np.ndim(param) > 0:
+            return param[idx]
+        return param
 
-    if isinstance(fknee_mhz, Number):
-        fknee_mhz = np.array([fknee_mhz] * num_of_dets)
+    for idet in range(tod.shape[0]):
+        # Extract scalar values for this detector
+        sigma_i = _get_val(sigma, idet)
+        fknee_i = _get_val(fknee_mhz, idet)
+        fmin_i = _get_val(fmin_hz, idet)
+        alpha_i = _get_val(alpha, idet)
 
-    if isinstance(fmin_hz, Number):
-        fmin_hz = np.array([fmin_hz] * num_of_dets)
-
-    if isinstance(alpha, Number):
-        alpha = np.array([alpha] * num_of_dets)
-
-    if isinstance(scale, Number):
-        scale = np.array([scale] * num_of_dets)
-    assert isinstance(scale, np.ndarray)
-
-    assert len(net_ukrts) == num_of_dets
-    assert len(fknee_mhz) == num_of_dets
-    assert len(fmin_hz) == num_of_dets
-    assert len(alpha) == num_of_dets
-    assert len(scale) == num_of_dets
-
-    for i in range(num_of_dets):
         if noise_type == "white":
-            add_white_noise(
-                data=tod[i][:],
-                sigma=rescale_noise(
-                    net_ukrts=net_ukrts[i],
-                    sampling_rate_hz=sampling_rate_hz,
-                    scale=scale[i],
-                ),
-                random=dets_random[i],
-            )
+            add_white_noise(tod[idet], sigma_i, dets_random[idet])
         elif noise_type == "one_over_f":
             add_one_over_f_noise(
-                data=tod[i][:],
-                fknee_mhz=fknee_mhz[i],
-                fmin_hz=fmin_hz[i],
-                alpha=alpha[i],
-                sigma=rescale_noise(
-                    net_ukrts=net_ukrts[i],
-                    sampling_rate_hz=sampling_rate_hz,
-                    scale=scale[i],
-                ),
-                sampling_rate_hz=sampling_rate_hz,
-                random=dets_random[i],
+                tod[idet],
+                fknee_i,
+                fmin_i,
+                alpha_i,
+                sigma_i,
+                sampling_rate_hz,
+                dets_random[idet],
+                engine=engine,
+                model=model,
             )
 
 
 def add_noise_to_observations(
-    observations: Observation | list[Observation],
-    noise_type: str,
-    dets_random: list[np.random.Generator],
-    user_seed: int | None = None,
-    scale: float = 1.0,
-    component: str = "tod",
+    observations,
+    noise_type,
+    user_seed=None,
+    dets_random=None,
+    scale=1.0,
+    component="tod",
+    engine="fft",
+    model="standard",
 ):
-    """Add noise of the defined type to the observations in observations
+    """
+    Adds instrumental noise (white or 1/f) to a list of Observations.
 
-    This class provides an interface to the low-level function :func:`.add_noise`.
-    The parameter `observations` can either be one :class:`.Observation` instance
-    or a list of observations, which are typically taken from the field
-    `observations` of a :class:`.Simulation` object. Unlike :func:`.add_noise`,
-    it is not needed to pass the noise parameters here, as they are taken from the
-    characteristics of the detectors saved in `observations`. The random number generators must be explicitly
-    provided. You should typically use the `dets_random` field of a
-    :class:`.Simulation` object for this.
-
-    By default, the noise is added to ``Observation.tod``. If you want to add it to some
-    other field of the :class:`.Observation` class, use `component`:
-
-        for cur_obs in sim.observations:
-            # Allocate a new TOD for the noise alone
-            cur_obs.noise_tod = np.zeros_like(cur_obs.tod)
-
-        # Ask `add_noise_to_observations` to store the noise
-        # in `observations.noise_tod`
-        add_noise_to_observations(sim.observations, …, component="noise_tod")
-
-    See :func:`.add_noise` for more information.
+    This is the high-level interface for noise simulation. It iterates over
+    detectors and observations, handling random number generator initialization
+    and parameter broadcasting. It modifies the observations in-place.
 
     Parameters
     ----------
     observations : Observation or list of Observation
-        A single `Observation` instance or a list of them, to which noise
-        should be added.
+        The observation(s) to which noise will be added. Can be a single
+        :class:`.Observation` instance or a list of them.
     noise_type : str
-        Type of noise to inject. Must be one of `"white"` or `"one_over_f"`.
-    dets_random : list of np.random.Generator, optional
-        List of per-detector random number generators. If not provided, and
-        `user_seed` is given, generators are created internally. One of
-        `user_seed` or `dets_random` must be provided.
+        The type of noise to generate. Options are:
+
+        * ``"white"``: Uncorrelated Gaussian noise based on NET.
+        * ``"one_over_f"``: Correlated noise characterized by
+          knee frequency and spectral index.
     user_seed : int, optional
-        Base seed to build the RNG hierarchy and generate detector-level RNGs that overwrite any eventual `dets_random`.
-        Required if `dets_random` is not provided.
+        A master integer seed used to initialize the random number generators
+        if ``dets_random`` is not provided. If ``None`` and ``dets_random``
+        is also ``None``, the generators will be initialized unpredictably
+        (usually from the OS entropy source).
+    dets_random : list of numpy.random.Generator, optional
+        A list of pre-initialized random number generators, one per detector.
+        If provided, ``user_seed`` is ignored. This allows for precise control
+        over the RNG state for reproducibility across different calls.
     scale : float, optional
-        A scaling factor applied to the noise. Defaults to 1.0.
+        A multiplicative scaling factor applied to the noise level (NET).
+        Defaults to 1.0. Useful for simulating different noise realizations
+        or scaling noise down for debugging.
     component : str, optional
-        Name of the TOD attribute to modify. Defaults to `"tod"`.
+        The name of the attribute in the :class:`.Observation` objects where
+        the noise should be added. Defaults to ``"tod"``. Can be changed
+        (e.g., to ``"noise_tod"``) to store noise separately from the signal.
+    engine : str, optional
+        The computational backend for 1/f noise generation. Defaults to ``"fft"``.
+
+        * ``"fft"``: Uses Fourier synthesis. Supports all models.
+        * ``"ducc"``: Uses the `ducc0` library's IIR filter. Supports only the
+          ``"keshner"`` model.
+    model : str, optional
+        The physical model for the 1/f noise Power Spectral Density (PSD).
+        Defaults to ``"standard"``.
+
+        * ``"standard"``: :math:`P(f) \propto (f^\alpha + f_{knee}^\alpha) / (f^\alpha + f_{min}^\alpha)`
+        * ``"keshner"``: :math:`P(f) \propto ((f^2 + f_{knee}^2) / (f^2 + f_{min}^2))^{\alpha/2}`
 
     Raises
     ------
     ValueError
-        If `noise_type` is not one of `"white"` or `"one_over_f"`.
+        If ``noise_type`` is not recognized.
     ValueError
-        If neither `user_seed` nor `dets_random` is provided.
-    AssertionError
-        If the number of RNGs does not match the number of detectors.
+        If the ``ducc`` engine is requested with the ``standard`` model.
     """
     if noise_type not in ["white", "one_over_f"]:
         raise ValueError("Unknown noise type " + noise_type)
@@ -264,16 +406,16 @@ def add_noise_to_observations(
         dets_random=dets_random,
     )
 
-    # iterate through each observation
     for cur_obs in obs_list:
         add_noise(
             tod=getattr(cur_obs, component),
             noise_type=noise_type,
             sampling_rate_hz=cur_obs.sampling_rate_hz,
-            net_ukrts=cur_obs.net_ukrts,
+            net_ukrts=cur_obs.net_ukrts * scale,
             fknee_mhz=getattr(cur_obs, "fknee_mhz"),
             fmin_hz=getattr(cur_obs, "fmin_hz"),
-            alpha=(getattr(cur_obs, "alpha")),
-            scale=scale,
+            alpha=getattr(cur_obs, "alpha"),
             dets_random=dets_random,
+            engine=engine,
+            model=model,
         )
