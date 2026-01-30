@@ -1,5 +1,7 @@
 # HEAD
 
+-   Ducc0 1/f noise generation module included [#490](https://github.com/litebird/litebird_sim/pull/490)
+
 -   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)
 
 -   **Breaking change**: Major reworking of the interfaces and handling of inputs across the framework [#479](https://github.com/litebird/litebird_sim/pull/479), in detail:
