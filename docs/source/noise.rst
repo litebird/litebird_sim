@@ -11,7 +11,7 @@ function :func:`.add_noise_to_observations` and the low-level versions
 White noise
 -----------
 
-Here is a short example that shows how to add noise white noise to timelines:
+Here is a short example that shows how to add white noise to timelines:
 
 .. testcode::
 

@@ -181,7 +181,8 @@ It supports:
 - Resizing via zero-padding or truncation
 - I/O through Healpy-compatible FITS files
 
- 
+Full documentation can be found in :ref: `maps_and_harmonics`.
+
 Example usage:
 
 .. testcode::
@@ -389,9 +390,6 @@ API reference
     :members:
     :undoc-members:
     :show-inheritance:
-
-.. automodule:: litebird_sim.maps_and_harmonics
-    :members:
 
 .. automodule:: litebird_sim.beam_synthesis
     :members:

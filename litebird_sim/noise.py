@@ -160,9 +160,9 @@ def add_one_over_f_noise(
         The physical model for the Power Spectral Density (PSD). Defaults to ``"toast"``.
 
         * ``"toast"``: The classic power-law ratio model.
-          PSD ~ (f^alpha + f_k^alpha) / (f^alpha + f_m^alpha).
+          :math:`P(f) \\propto (f^\\alpha + f_{knee}^\\alpha) / (f^\\alpha + f_{min}^\\alpha)`
         * ``"keshner"``: The model implemented by DUCC0 (sum of relaxation processes).
-          PSD ~ ((f^2 + f_k^2) / (f^2 + f_m^2))^(alpha/2).
+          :math:`P(f) \\propto ((f^2 + f_{knee}^2) / (f^2 + f_{min}^2))^{\\alpha/2}`
 
     Raises
     ------
@@ -382,8 +382,8 @@ def add_noise_to_observations(
         The physical model for the 1/f noise Power Spectral Density (PSD).
         Defaults to ``"toast"``.
 
-        * ``"toast"``: :math:`P(f) \\propto (f^\alpha + f_{knee}^\alpha) / (f^\alpha + f_{min}^\alpha)`
-        * ``"keshner"``: :math:`P(f) \\propto ((f^2 + f_{knee}^2) / (f^2 + f_{min}^2))^{\alpha/2}`
+        * ``"toast"``: :math:`P(f) \\propto (f^\\alpha + f_{knee}^\\alpha) / (f^\\alpha + f_{min}^\\alpha)`
+        * ``"keshner"``: :math:`P(f) \\propto ((f^2 + f_{knee}^2) / (f^2 + f_{min}^2))^{\\alpha/2}`
 
     Raises
     ------
