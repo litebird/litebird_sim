@@ -9,7 +9,6 @@ import numpy.typing as npt
 from numba import njit
 import h5py
 import os
-from typing import Any
 from collections.abc import Callable
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
@@ -22,7 +21,6 @@ from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
 from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
 from litebird_sim.maps_and_harmonics import HealpixMap
-from litebird_sim.profiler import TimeProfiler
 from litebird_sim.detectors import DetectorInfo
 from .common import (
     _compute_pixel_indices,
@@ -33,10 +31,12 @@ from .common import (
 
 @dataclass
 class h_map_Re_and_Im:
-    """A single h_n,m map component for one detector"""
+    """A single h_n,m map component for one detector and time split"""
 
     real: npt.NDArray
     imag: npt.NDArray
+    n: int
+    m: int
     det_info: DetectorInfo
 
     @property
@@ -59,14 +59,14 @@ class HnMapResult:
     - ``h_maps``: Dictionnary containing the h_n maps for each spin order n,m and each detector.
 
     - ``coordinate_system``: the coordinate system of the output maps
-      (a :class:`.CoordinateSistem` object)
+      (a :class:`.CoordinateSystem` object)
 
     - ``detector_split``: detector split of the h map
 
     - ``time_split``: time split of the h map
     """
 
-    h_maps: dict[tuple[int, int], list[h_map_Re_and_Im]]
+    h_maps: dict[list[str], list[h_map_Re_and_Im]]
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
     detector_split: str = "full"
     time_split: str = "full"
@@ -114,10 +114,9 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
         if not d_mask[idet]:
             continue
 
-        print(np.shape(pix[idet]), "   ", np.shape(hwp_angle))
         for cur_pix_idx, cur_psi, cur_hwp_angle in zip(pix[idet], psi[idet], hwp_angle):
             info_pix = nobs_matrix[idet, cur_pix_idx]
-            if hwp_angle != None:
+            if hwp_angle is not None:
                 cos_n_m = np.cos(n * cur_psi + m * cur_hwp_angle)
                 sin_n_m = np.sin(n * cur_psi + m * cur_hwp_angle)
             else:
@@ -179,7 +178,6 @@ def _compute_pixel_indices_for_all_obs(
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
         hwp_angle_list.append(hwp_angle)
-        print(hwp_angle)
         pixidx_all, psi_all = _compute_pixel_indices(
             hpx=hpx,
             pointings=cur_ptg,
@@ -212,7 +210,7 @@ def _build_nobs_matrix(
     """Build the nobs matrix for all detectors and pixels, it has shape (Ndet,Npix,3) and contains the accumulated spin terms and hit counts of each detector and pixel."""
     n_pix = HealpixMap.nside_to_npix(nside)
 
-    tot_num_of_detectors = sum([len(obs.detectors_global) for obs in obs_list])
+    tot_num_of_detectors = sum([len(obs.name) for obs in obs_list])
     nobs_matrix = np.zeros((tot_num_of_detectors, n_pix, 3))
 
     for obs_idx, (
@@ -225,8 +223,7 @@ def _build_nobs_matrix(
     ) in enumerate(
         zip(obs_list, dm_list, tm_list, pixidx_list, psi_list, hwp_angle_list)
     ):
-        cur_num_of_detectors = len(cur_obs.detectors_global)
-
+        cur_num_of_detectors = len(cur_obs.name)
         _accumulate_spin_terms_and_build_nobs_matrix(
             n,
             m,
@@ -289,14 +286,14 @@ def make_h_maps(
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
     )
-    all_dets_list = np.concatenate([obs.detectors_global for obs in obs_list])
+    all_dets_list = np.concatenate([obs.name for obs in obs_list])
     tot_num_of_detectors = np.shape(all_dets_list)[0]
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
-    # Precompute pixel indices and angles once for all (n, m) pairs
+    # Precompute pixel indices and angles for all observations
     pixidx_list, psi_list, hwp_angle_list = _compute_pixel_indices_for_all_obs(
         nside=nside,
         obs_list=obs_list,
@@ -305,11 +302,9 @@ def make_h_maps(
         output_coordinate_system=output_coordinate_system,
         pointings_dtype=pointings_dtype,
     )
-
+    h_maps = {det: {} for det in all_dets_list}
     for n in n_list:
         for m in m_list:
-            h_maps[(n, m)] = []
-
             nobs_matrix = _build_nobs_matrix(
                 n,
                 m,
@@ -321,19 +316,19 @@ def make_h_maps(
                 dm_list=detector_mask_list,
                 tm_list=time_mask_list,
             )
-
             rhs = _extract_rhs(nobs_matrix)
 
             _solve_binning(nobs_matrix, rhs)
 
             for idet in range(tot_num_of_detectors):
-                h_maps[(n, m)].append(
-                    h_map_Re_and_Im(
-                        real=rhs[idet].T[0],
-                        imag=rhs[idet].T[1],
-                        det_info=all_dets_list[idet],
-                    )
+                h_maps[all_dets_list[idet]][n, m] = h_map_Re_and_Im(
+                    real=rhs[idet].T[0],
+                    imag=rhs[idet].T[1],
+                    det_info=all_dets_list[idet],
+                    n=n,
+                    m=m,
                 )
+
     result = HnMapResult(
         h_maps=h_maps,
         coordinate_system=output_coordinate_system,
@@ -341,11 +336,11 @@ def make_h_maps(
         time_split=time_split,
     )
     if save_to_file:
-        save_hn_maps(result, output_directory, all_dets_list)
+        save_hn_maps(result, output_directory)
     return result
 
 
-def save_hn_maps(hn_maps, output_directory: str, dets_list) -> None:
+def save_hn_maps(result, output_directory: str) -> None:
     """Save the h_n maps to the specified output directory
 
     Parameters
@@ -356,15 +351,13 @@ def save_hn_maps(hn_maps, output_directory: str, dets_list) -> None:
 
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
-
-    for n, m in hn_maps.h_maps.keys():
-        with h5py.File(os.path.join(output_directory, f"h_{n, m}.h5"), "w") as f:
-            f.attrs["coordinate_system"] = hn_maps.coordinate_system.name
-            f.attrs["n"] = int(n)
-            f.attrs["m"] = int(m)
-            for _, det_map in enumerate(hn_maps.h_maps[n, m]):
-                grp = f.create_group(det_map.det_info["name"])
-                grp.create_dataset("Re", data=det_map.real)
-                grp.create_dataset("Im", data=det_map.imag)
-                for key in det_map.det_info.keys():
-                    grp.attrs[key] = str(det_map.det_info[key])
+    for det in result.h_maps.keys():
+        with h5py.File(
+            os.path.join(output_directory, f"h_maps_det_{det}.h5"), "w"
+        ) as f:
+            f.attrs["coordinate_system"] = result.coordinate_system.name
+            f.attrs["det"] = str(det)
+            for hn_map in result.h_maps[det].values():
+                grp = f.create_group(f"{hn_map.n},{hn_map.m}")
+                grp.create_dataset("Re", data=hn_map.real)
+                grp.create_dataset("Im", data=hn_map.imag)
