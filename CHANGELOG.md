@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fixed a TypeError in Observation when allocate_tod=False in MPI jobs [#491](https://github.com/litebird/litebird_sim/pull/491)
+
 -   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)
 
 -   **Breaking change**: Major reworking of the interfaces and handling of inputs across the framework [#479](https://github.com/litebird/litebird_sim/pull/479), in detail:
