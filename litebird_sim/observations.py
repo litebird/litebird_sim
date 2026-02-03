@@ -787,9 +787,14 @@ class Observation:
 
         assert isinstance(self.comm_det_block, Intracomm)
         info = self.comm_det_block.bcast(info, root_col)
-        assert (not self.tod_list) or len(info) == len(
-            getattr(self, self.tod_list[0].name)
-        )
+        if self.tod_list:
+            # Get the first TOD attribute defined in the list
+            tod_data = getattr(self, self.tod_list[0].name)
+            # Only perform the length consistency check if the TOD array is actually allocated
+            if tod_data is not None:
+                assert len(info) == len(tod_data), \
+                    f"Metadata {name} length ({len(info)}) mismatch with TOD length ({len(tod_data)})"
+
         setattr(self, name, info)
 
     def get_delta_time(self) -> float | astropy.time.TimeDelta:
