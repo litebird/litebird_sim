@@ -792,8 +792,9 @@ class Observation:
             tod_data = getattr(self, self.tod_list[0].name)
             # Only perform the length consistency check if the TOD array is actually allocated
             if tod_data is not None:
-                assert len(info) == len(tod_data), \
+                assert len(info) == len(tod_data), (
                     f"Metadata {name} length ({len(info)}) mismatch with TOD length ({len(tod_data)})"
+                )
 
         setattr(self, name, info)
 
