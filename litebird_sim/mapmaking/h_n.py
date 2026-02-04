@@ -73,7 +73,7 @@ class HnMapResult:
 
 
 @njit
-def _solve_binning(nobs_matrix, atd):
+def _solve_binning(nobs_matrix, atd,n,m):
     # Solve the map-making equation
     #
     # This method alters the parameter `nobs_matrix`, so that after its completion
@@ -92,8 +92,12 @@ def _solve_binning(nobs_matrix, atd):
                 atd[idet, ipix, 1] = atd[idet, ipix, 1] / nobs_matrix[idet, ipix, 0]
                 nobs_matrix[idet, ipix, 0] = 1 / nobs_matrix[idet, ipix, 0]
             else:
-                nobs_matrix[idet, ipix] = UNSEEN_PIXEL_VALUE
-                atd[idet, ipix] = UNSEEN_PIXEL_VALUE
+                if (n, m) == (0, 0):
+                    nobs_matrix[idet, ipix] = 0
+                    atd[idet, ipix] = 0
+                else:
+                    nobs_matrix[idet, ipix] = UNSEEN_PIXEL_VALUE
+                    atd[idet, ipix] = UNSEEN_PIXEL_VALUE
 
 
 @njit
@@ -318,7 +322,7 @@ def make_h_maps(
             )
             rhs = _extract_rhs(nobs_matrix)
 
-            _solve_binning(nobs_matrix, rhs)
+            _solve_binning(nobs_matrix, rhs,n,m)
 
             for idet in range(tot_num_of_detectors):
                 h_maps[all_dets_list[idet]][n, m] = h_map_Re_and_Im(
