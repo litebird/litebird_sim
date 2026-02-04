@@ -38,6 +38,8 @@
 
 # Version 0.16.1
 
+-   Add option `allocate_tod` (backported from [#472](https://github.com/litebird/litebird_sim/pull/472))
+
 -   Fix angle in hwp differential emission [#452](https://github.com/litebird/litebird_sim/pull/452)
 
 -   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)

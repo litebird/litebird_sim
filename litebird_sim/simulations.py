@@ -986,8 +986,13 @@ class Simulation:
         root=0,
         tod_dtype: Any | None = None,
         tods: list[TodDescription] = [
-            TodDescription(name="tod", dtype=np.float32, description="Signal")
+            TodDescription(
+                name="tod",
+                dtype=np.float32,
+                description="Signal",
+            )
         ],
+        allocate_tod=True,
     ):
         """Create a set of Observation objects.
 
@@ -1028,19 +1033,76 @@ class Simulation:
 
         The parameter `tods` specifies how many TOD arrays should be
         created. Each element should be an instance of
-        :class:`.TodDescription` and contain the fields ``name`` (the name
-        of the member variable that will be created), ``dtype`` (the
-        NumPy type to use, like ``numpy.float32``), and ``description``
-        (a free-form description). The default is ``numpy.float32``,
-        which should be adequate for LiteBIRD's purposes; if you
-        want greater accuracy at the expense of doubling memory
-        occupation, choose ``numpy.float64``.
+        :class:`.TodDescription` and contain the fields:
+
+        - ``name``: the name of the member variable that will be created;
+        - ``units``: an item of :class:`Units` describing the physical units
+          of the TOD (e.g. ``Units.K_CMB``);
+        - ``dtype``: the NumPy type to use, like ``numpy.float32``;
+        - ``description``: a free-form, human-readable description.
+
+        By default, a single TOD named ``"tod"`` is created with
+        ``units=Units.K_CMB`` and ``dtype=numpy.float32``, which should be
+        adequate for LiteBIRD's purposes. If you want greater accuracy at the
+        expense of doubling memory occupation, choose ``numpy.float64``.
 
         If you specify `tod_dtype`, this will be used as the parameter
-        for each TOD specified in `tods`, overriding the value of `dtype`.
+        for each TOD specified in `tods`, **overriding only the `dtype` field**
+        while preserving each TOD's `name`, `units`, and `description`.
         This keyword is kept for legacy reasons but should be avoided
-        in newer code.
+        in newer code; prefer specifying `dtype` directly in the
+        :class:`.TodDescription` instances.
 
+        Parameters
+        ----------
+        detectors : list[DetectorInfo]
+            The detector objects to be assigned to observations.
+
+        num_of_obs_per_detector : int, optional
+            Number of observations to generate per detector. Useful for
+            splitting very long simulations into smaller time chunks.
+
+        split_list_over_processes : bool, optional
+            If ``True`` (default), observations are evenly assigned across the
+            MPI ranks in `self.mpi_comm` (created in :meth:`Simulation.__init__`).
+            If ``False``, no automatic distribution happens—useful when you want
+            to implement your own custom MPI load balancing.
+
+        det_blocks_attributes : list[str] or None, optional
+            Attributes used to group detectors into blocks. For example,
+            ``["wafer", "pixel"]`` groups detectors that share the same `wafer`
+            *and* `pixel`. If ``None``, detectors are grouped purely by count
+            (see `n_blocks_det`).
+
+        n_blocks_det : int, optional
+            Number of detector groups per observation. Default: 1.
+
+        n_blocks_time : int, optional
+            Number of time chunks per observation. Default: 1.
+
+        root : int, optional
+            Rank ID that gathers initial detector lists before redistribution.
+
+        tod_dtype : Any or None, optional
+            Overrides the dtype specified in each `TodDescription`. Retained
+            only for backwards compatibility; prefer setting the dtype directly
+            in `tods`. When set, only the `dtype` field of each TOD is changed;
+            `name`, `units`, and `description` are left untouched.
+
+        tods : list[TodDescription], optional
+            Descriptions of the TOD arrays to create. The default is a single
+            TOD named ``"tod"`` with units ``Units.K_CMB`` and dtype
+            ``numpy.float32``.
+
+        allocate_tod : bool, optional
+            If ``True`` (default), allocate the TOD arrays immediately when
+            constructing each :class:`.Observation`. If ``False``, the
+            :class:`.Observation` objects are created without allocating the
+            TOD arrays, which can be useful for low-memory workflows or
+            when TODs are filled on demand.
+
+        Examples
+        --------
         Here is an example that creates three TODs::
 
             sim.create_observations(
@@ -1111,6 +1173,7 @@ class Simulation:
                 detectors=[asdict(d) for d in detectors],
                 start_time_global=cur_time,
                 sampling_rate_hz=sampfreq_hz,
+                allocate_tod=allocate_tod,
                 n_samples_global=nsamples,
                 det_blocks_attributes=det_blocks_attributes,
                 n_blocks_det=n_blocks_det,
