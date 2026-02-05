@@ -94,6 +94,11 @@ def add_convolved_sky_to_one_detector(
     -----
     - If no HWP is present, a standard 4π convolution is performed.
     - If HWP is present, the Mueller matrix is used to properly handle polarization.
+    - **Memory Management**: To ensure maximum efficiency, the sky and beam coefficients
+      are passed to the underlying engine using `copy=False` during type casting.
+      If the input coefficients' precision (e.g., complex128) differs from the
+      requested `convolution_params.single_precision`, a conversion will occur.
+      Users should ensure types are coherent to avoid even temporary memory overhead.
     - The function modifies `tod_det` in place by adding the convolved signal.
     """
 
@@ -130,6 +135,13 @@ def add_convolved_sky_to_one_detector(
         _slm = sky_alms_det.resize_alm(
             convolution_params.lmax, convolution_params.lmax, inplace=False
         ).values
+
+        logging.warning(
+            ("Input sky alms resized, using ℓ_max={lmax}.").format(
+                lmax=convolution_params.lmax
+            )
+        )
+
     else:
         _slm = sky_alms_det.values
 
@@ -139,6 +151,13 @@ def add_convolved_sky_to_one_detector(
         _blm = beam_alms_det.resize_alm(
             convolution_params.lmax, convolution_params.mmax, inplace=False
         ).values
+
+        logging.warning(
+            ("Input beam alms resized, using ℓ_max={lmax} and m_max={mmax}.").format(
+                lmax=convolution_params.lmax, mmax=convolution_params.mmax
+            )
+        )
+
     else:
         _blm = beam_alms_det.values
 
@@ -154,8 +173,8 @@ def add_convolved_sky_to_one_detector(
             intertype = Interpolator
 
         inter = intertype(
-            sky=_slm.astype(complex_type),
-            beam=_blm.astype(complex_type),
+            sky=_slm.astype(complex_type, copy=False),
+            beam=_blm.astype(complex_type, copy=False),
             separate=False,
             lmax=convolution_params.lmax,
             kmax=convolution_params.mmax,

@@ -157,6 +157,19 @@ dataclass. Allowed parameters:
 
 If convolution parameters are omitted, defaults are inferred from sky and beam alms, triggering a warning.
 
+.. note::
+   **Type Coherence and Memory Efficiency**
+   
+   To optimize performance and minimize memory footprint, the convolution engine (based on ``ducc0``) 
+   requires specific floating-point precision. If the data types of the input ``sky_alms`` and 
+   ``beam_alms`` (instances of :class:`SphericalHarmonics`) do not match the precision 
+   specified in ``convolution_params`` (e.g., ``complex64`` for ``single_precision=True``), 
+   the code will perform a type conversion using ``astype(..., copy=False)``. 
+   
+   This means that if the types are already compatible, no copy is made, and the data is 
+   processed in-place. However, if a conversion is necessary, a new array might be 
+   created or the existing one casted, but the framework is designed to avoid 
+   unnecessary deep copies whenever possible.
 
 Container for Spherical Harmonics
 ---------------------------------
