@@ -72,8 +72,47 @@ class MuellerConvolver:
     Most of the expressions in this code are derived from
     Duivenvoorden et al. 2021, MNRAS 502, 4526
     (https://arxiv.org/abs/2012.10437)
-    """
 
+    Harmonic Layout Convention
+    --------------------------
+    All spherical harmonic inputs (`slm`, `blm`) must strictly follow the
+    **Healpix m-major ordering** convention, which is the same layout used by
+    the `SphericalHarmonics` class in this library.
+
+    - Indexing: The 1D array index for a given (l, m) is:
+      ``idx = m * (2 * lmax + 1 - m) // 2 + l``
+    - Ordering: The array is a concatenation of blocks of constant m:
+      [ (m=0, l=0..lmax), (m=1, l=1..lmax), ..., (m=mmax, l=mmax..lmax) ]
+
+    Parameters
+    ----------
+    lmax : int
+        maximum l moment of the provided sky and beam a_lm
+    kmax : int
+        maximum m moment of the provided beam a_lm
+    slm : numpy.ndarray((n_comp, n_slm), dtype=complex)
+        input sky a_lm
+        ncomp can be 1, 3, or 4, for T, TEB, TEBV components, respectively.
+        The components have the a_lm format used by healpy
+    blm : numpy.ndarray((n_comp, n_blm), dtype=complex)
+        input beam a_lm
+        ncomp can be 1, 3, or 4, for T, TEB, TEBV components, respectively.
+        The components have the a_lm format used by healpy
+    mueller : np.ndarray((4,4), dtype=np.float64)
+        Mueller matrix of the optical element in front of the detector
+    single_precision : bool
+        if True, store internal data in single precision, else double precision
+    epsilon : float
+        desired accuracy for the interpolation; a typical value is 1e-4
+    npoints : int
+        total number of irregularly spaced points you want to use this object for
+        (only used for performance fine-tuning)
+    sigma_min, sigma_max: float
+        minimum and maximum allowed oversampling factors
+        1.2 <= sigma_min < sigma_max <= 2.5
+    nthreads : int
+        the number of threads to use for computation
+    """
     def __init__(
         self,
         *,
@@ -137,8 +176,6 @@ class MuellerConvolver:
     def _mueller_tc_prep(self, blm: np.ndarray, mueller: np.ndarray, lmax: int, mmax: int) -> np.ndarray:
         """
         Internal: Combines the input beam with the Mueller matrix.
-        Optimized to use dense array slicing instead of the slow AlmPM class,
-        while strictly preserving the mathematical logic and comments.
         """
         ncomp = blm.shape[0]
         C = mueller_to_C(mueller)

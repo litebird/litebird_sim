@@ -94,6 +94,11 @@ def add_convolved_sky_to_one_detector(
     -----
     - If no HWP is present, a standard 4π convolution is performed.
     - If HWP is present, the Mueller matrix is used to properly handle polarization.
+    - **Memory Management**: To ensure maximum efficiency, the sky and beam coefficients
+      are passed to the underlying engine using `copy=False` during type casting.
+      If the input coefficients' precision (e.g., complex128) differs from the
+      requested `convolution_params.single_precision`, a conversion will occur.
+      Users should ensure types are coherent to avoid even temporary memory overhead.
     - The function modifies `tod_det` in place by adding the convolved signal.
     """
 
