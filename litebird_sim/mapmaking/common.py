@@ -183,6 +183,49 @@ def _compute_pixel_indices(
 
     return pixidx_all, polang_all
 
+def _compute_pixel_indices_single_detector(hpx: Healpix_Base,
+            pointings: npt.NDArray | Callable,
+            pol_angle_detector: float,
+            num_of_samples: int,
+            detector_index: int,
+            hwp_angle: npt.NDArray | None,
+            output_coordinate_system: CoordinateSystem,
+            pointings_dtype=np.float64,
+            hmap_generation: bool = False,
+            )-> tuple[npt.NDArray, npt.NDArray]:
+    """
+   Same as _compute_pixel_indices but for a single detector, thus returning only the pixel indices and polarization angles for that detector.
+    """
+    pixidx = np.empty((num_of_samples), dtype=np.int32)
+    polang = np.empty((num_of_samples), dtype=pointings_dtype)
+
+    curr_pointings_det, hwp_angle = _get_pointings_array(
+            detector_idx=detector_index,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
+            output_coordinate_system=output_coordinate_system,
+            pointings_dtype=pointings_dtype,
+        )
+    
+    if hmap_generation:
+        polang = curr_pointings_det[:, 2]
+    else:
+        polang = _get_pol_angle(
+            curr_pointings_det=curr_pointings_det,
+            hwp_angle=hwp_angle,
+            pol_angle_detectors=pol_angle_detector,
+        )
+    pixidx= hpx.ang2pix(curr_pointings_det[:, :2])
+
+    if output_coordinate_system == CoordinateSystem.Galactic:
+        # Free curr_pointings_det if the output map is already in Galactic coordinates
+        try:
+            del curr_pointings_det
+        except UnboundLocalError:
+            pass
+
+    return pixidx, polang
+    
 
 def _cholesky_plain(A: npt.NDArray, dest_L: npt.NDArray) -> None:
     "Store a lower-triangular matrix in L such that A = L·L†"
