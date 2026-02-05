@@ -8,7 +8,10 @@ function :func:`.add_noise_to_observations` and the low-level versions
 :func:`.add_noise`, :func:`.add_white_noise`, and
 :func:`.add_one_over_f_noise`.
 
-Here is a short example that shows how to add noise:
+White noise
+-----------
+
+Here is a short example that shows how to add white noise to timelines:
 
 .. testcode::
 
@@ -90,7 +93,42 @@ call the low level function directly:
    custom_sigma_uk = 1234
    lbs.noise.add_white_noise(obs[0].tod[0], custom_sigma_uk, random=sim.dets_random[0])
 
-We can also add 1/f noise using a very similar call to the above:
+
+1/f Models and Engines
+----------------------
+
+The framework supports also the generatio of 1/f noise. Here you can choose the computational **engine** 
+(how it is calculated) and the physical **model** (the shape of the power spectrum).
+
+Engines
+^^^^^^^
+
+The engine is selected via the ``engine`` parameter:
+
+1.  **"fft" (Default)**: Generates noise in the Fourier domain.
+2.  **"ducc"**: Uses time-domain infinite impulse response (IIR) filtering provided by the `ducc0` library. It only supports the "keshner" model.
+
+Models
+^^^^^^
+
+The physical shape of the Power Spectral Density (PSD) is selected via the ``model`` parameter:
+
+1.  **"toast" (Default)**:
+    The classic power-law ratio, also implemented in https://github.com/hpc4cmb/toast/blob/372fa7642bbe61a5f01d239e707c04b80ad4bf46/src/toast/tod/sim_noise.py#L74. The PSD is proportional to:
+
+    .. math::
+
+        P(f) \propto \frac{f^\alpha + f_{knee}^\alpha}{f^\alpha + f_{min}^\alpha}
+
+2.  **"keshner"**:
+    Corresponds to a sum of relaxation processes. This is the native model of the `ducc` engine. The PSD is proportional to:
+
+    .. math::
+
+        P(f) \propto \left( \frac{f^2 + f_{knee}^2}{f^2 + f_{min}^2} \right)^{\alpha/2}
+
+
+This call allows to add 1/f noise:
 
 .. testcode::
 

@@ -1,5 +1,9 @@
 # HEAD
 
+-   Ducc0 1/f noise generation module included [#490](https://github.com/litebird/litebird_sim/pull/490)
+
+-   Small optimizations in beam convolver [#492](https://github.com/litebird/litebird_sim/pull/492)
+
 -   Fixed a TypeError in Observation when allocate_tod=False in MPI jobs [#491](https://github.com/litebird/litebird_sim/pull/491)
 
 -   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)

@@ -486,7 +486,7 @@ def fill_tod(
             ``allocate_tod=False`` in :class:`.Observation`.
 
         maps : HealpixMap | SphericalHarmonics | dict[str, HealpixMap] |
-               dict[str, SphericalHarmonics]
+            dict[str, SphericalHarmonics]
             Sky model to be scanned. In dictionary form, the keys must match the
             entries of `input_names`.
 

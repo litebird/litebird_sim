@@ -2319,8 +2319,7 @@ def synthesize_alm(
 
     Optimized behavior based on input correlations:
     - 'TT' only: Scalar generation (fastest).
-    - 'TT', 'EE', 'BB', 'TE': Block-diagonal generation. Computes (T, E)
-      as a correlated 2x2 pair, and B independently.
+    - 'TT', 'EE', 'BB', 'TE': Block-diagonal generation. Computes (T, E) as a correlated 2x2 pair, and B independently.
     - 'TB' or 'EB' present: Full 3x3 covariance generation.
 
     Parameters
