@@ -286,6 +286,7 @@ def gauss_bl(lmax: int, fwhm_rad: float, pol: bool = True) -> np.ndarray:
           - Index 0: Temperature beam b_l^T
           - Index 1: E-mode polarization beam b_l^E
           - Index 2: B-mode polarization beam b_l^B
+
         If False, returns a 1D array of shape (lmax+1,) (Temperature only).
 
     Returns

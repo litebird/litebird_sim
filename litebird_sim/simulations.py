@@ -2128,6 +2128,8 @@ class Simulation:
         noise_type: str = "one_over_f",
         component: str = "tod",
         append_to_report: bool = True,
+        engine: str = "fft",
+        model: str = "standard",
     ):
         """Adds noise to tods.
 
@@ -2150,6 +2152,8 @@ class Simulation:
             dets_random=dets_random,
             user_seed=user_seed,
             component=component,
+            engine=engine,
+            model=model,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

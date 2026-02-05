@@ -80,6 +80,7 @@ as demonstrated in the following example:
         values=hp.synalm(np.ones((4,lmax+1)),lmax=lmax, mmax=lmax,),
         lmax=lmax,
         mmax=lmax,
+        coordinates=lbs.CoordinateSystem.Galactic,
     )
 
     Convparams = lbs.BeamConvolutionParameters(
@@ -193,7 +194,8 @@ It supports:
 - Resizing via zero-padding or truncation
 - I/O through Healpy-compatible FITS files
 
- 
+Full documentation can be found in :ref: `maps_and_harmonics`.
+
 Example usage:
 
 .. testcode::
@@ -401,9 +403,6 @@ API reference
     :members:
     :undoc-members:
     :show-inheritance:
-
-.. automodule:: litebird_sim.maps_and_harmonics
-    :members:
 
 .. automodule:: litebird_sim.beam_synthesis
     :members:

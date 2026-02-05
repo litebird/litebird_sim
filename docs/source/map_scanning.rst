@@ -210,7 +210,7 @@ transparent:
   sim.prepare_pointings()
 
   values_tuple = (np.ones(12*nside*nside)*1e-4, np.ones(12*nside*nside)*1e-4, np.ones(12*nside*nside)*1e-4)
-  sky_signal = lbs.HealpixMap(values=values_tuple, nside=nside)
+  sky_signal = lbs.HealpixMap(values=values_tuple, nside=nside, coordinates=lbs.CoordinateSystem.Galactic)
 
   sim.fill_tods(sky_signal)
 

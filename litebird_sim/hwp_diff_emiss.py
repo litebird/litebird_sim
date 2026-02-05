@@ -68,13 +68,13 @@ def add_2f_to_observations(
     By default, the TOD is added to ``Observation.tod``. If you want to add it to some
     other field of the :class:`.Observation` class, use `component`::
 
-    for cur_obs in sim.observations:
-        # Allocate a new TOD for the 2f alone
-        cur_obs.2f_tod = np.zeros_like(cur_obs.tod)
+        for cur_obs in sim.observations:
+            # Allocate a new TOD for the 2f alone
+            cur_obs.hwp_2f_tod = np.zeros_like(cur_obs.tod)
 
-        # Ask `add_2f_to_observations` to store the 2f
-        # in `observations.2f_tod`
-        add_2f_to_observations(sim.observations, component="2f_tod")
+            # Ask `add_2f_to_observations` to store the 2f
+            # in `observations.hwp_2f_tod`
+            add_2f_to_observations(sim.observations, component="hwp_2f_tod")
     """
     if isinstance(observations, Observation):
         obs_list = [observations]
