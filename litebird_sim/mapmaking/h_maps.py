@@ -271,7 +271,6 @@ def make_h_maps(
         observations=observations, pointings=pointings
     )
     all_dets_list = np.concatenate([obs.name for obs in obs_list])
-    tot_num_of_detectors = np.shape(all_dets_list)[0]
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 
