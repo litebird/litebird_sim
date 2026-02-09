@@ -66,7 +66,11 @@ class HnMapResult:
     """
 
     h_maps: dict[list[str], list[h_map_Re_and_Im]]
+    duration: float
+    sampling_rate: float
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
+
+
     detector_split: str = "full"
     time_split: str = "full"
 
@@ -96,6 +100,8 @@ def load_h_map_from_file(
             coordinate_system=CoordinateSystem[f.attrs["coordinate_system"]],
             detector_split=f.attrs["detector_split"],
             time_split=f.attrs["time_split"],
+            duration=f.attrs["duration"],
+            sampling_rate=f.attrs["sampling_rate"]
         )
 
 
@@ -287,7 +293,8 @@ def make_h_maps(
             
             hpx = Healpix_Base(nside, "RING")
             hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
-
+            duration=cur_obs.end_time_global
+            sampling_rate=cur_obs.sampling_rate_hz
             pixidx, polang= _compute_pixel_indices_single_detector(
             hpx=hpx,
             pointings=cur_ptg,
@@ -323,15 +330,21 @@ def make_h_maps(
                             det_info=all_dets_list[idet],
                             n=n,
                             m=m,
+
                         )
                     log.info(f"  h_map n={n} m={m} for detector {all_dets_list[idet]} computed." )
                     del rhs
                     del nobs_matrix
                     gc.collect()
+            del pixidx
+            del polang
+            gc.collect()
 
     result = HnMapResult(
         h_maps=h_maps,
         coordinate_system=output_coordinate_system,
+        duration=duration,
+        sampling_rate=sampling_rate,
         detector_split=detector_split,
         time_split=time_split,
     )
@@ -360,6 +373,8 @@ def save_hn_maps(result, output_directory: str) -> None:
             f.attrs["det"] = str(det)
             f.attrs["detector_split"] = result.detector_split
             f.attrs["time_split"] = result.time_split
+            f.attrs["duration"] = result.duration
+            f.attrs["sampling_rate"] = result.sampling_rate
             for hn_map in result.h_maps[det].values():
                 grp = f.create_group(f"{hn_map.n},{hn_map.m}")
                 grp.create_dataset("Re", data=hn_map.real)
