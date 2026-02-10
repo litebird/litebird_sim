@@ -2,7 +2,7 @@
 # MR: This code is maintained externally, so I'm switching auto-formatting off
 # to make updating from outside sources easier.
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional
 
 import ducc0
 import numpy as np
