@@ -262,7 +262,8 @@ class MuellerConvolver:
                 # Since we padded blm2_dense to mmax+4, checking bounds for +/- 2 is safe
                 # Checking +/- 4 might technically hit edge if m is at limit, but loop handles range.
                 def get_d(comp, idx_m):
-                    if idx_m < 0 or idx_m >= blm2_dense.shape[1]: return 0j
+                    if idx_m < 0 or idx_m >= blm2_dense.shape[1]:
+                        return 0j
                     return blm2_dense[comp, idx_m, lrange]
 
                 # T component, Marta notes [4a]
