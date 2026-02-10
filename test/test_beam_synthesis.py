@@ -39,28 +39,28 @@ def test_gaussbeam_circular():
     expected_alm[0, hp.Alm.getidx(lmax, 4, 0)] = 0.5391604701572851
     expected_alm[0, hp.Alm.getidx(lmax, 5, 0)] = 0.4757666450251654
     expected_alm[1, hp.Alm.getidx(lmax, 2, 2)] = (
-        -0.2273741959610235 + 0.15555505672403316j
+        -0.2488289072239636 + 0.17023301441135358j
     )
     expected_alm[1, hp.Alm.getidx(lmax, 3, 2)] = (
-        -0.23499883551559272 + 0.16077135329365197j
+        -0.2571729971076956 + 0.17594151343292616j
     )
     expected_alm[1, hp.Alm.getidx(lmax, 4, 2)] = (
-        -0.22249416864113872 + 0.1522164504087869j
+        -0.24348840734842728 + 0.1665793818715549j
     )
     expected_alm[1, hp.Alm.getidx(lmax, 5, 2)] = (
-        -0.1963335778700126 + 0.13431902733429554j
+        -0.2148593398045074 + 0.14699318297625882j
     )
     expected_alm[2, hp.Alm.getidx(lmax, 2, 2)] = (
-        -0.15555505672403316 - 0.2273741959610235j
+        -0.17023301441135358 - 0.2488289072239636j
     )
     expected_alm[2, hp.Alm.getidx(lmax, 3, 2)] = (
-        -0.16077135329365197 - 0.23499883551559272j
+        -0.17594151343292616 - 0.2571729971076956j
     )
     expected_alm[2, hp.Alm.getidx(lmax, 4, 2)] = (
-        -0.1522164504087869 - 0.22249416864113872j
+        -0.1665793818715549 - 0.24348840734842728j
     )
     expected_alm[2, hp.Alm.getidx(lmax, 5, 2)] = (
-        -0.13431902733429554 - 0.1963335778700126j
+        -0.14699318297625882 - 0.2148593398045074j
     )
 
     # We avoid implementing a `for` loop here so if anything fails we see
@@ -115,49 +115,50 @@ def test_gaussbeam_elliptical():
     expected_alm[0, hp.Alm.getidx(lmax, 5, 4)] = (
         0.009203862389390863 - 0.0038913306044336717j
     )
-    expected_alm[1, hp.Alm.getidx(lmax, 2, 0)] = -0.024122740986080488
+    expected_alm[1, hp.Alm.getidx(lmax, 2, 0)] = -0.027866479337096971
     expected_alm[1, hp.Alm.getidx(lmax, 2, 2)] = (
-        -0.205516866581687 + 0.14030160457109472j
+        -0.237412138169877 + 0.16207576771636262j
     )
-    expected_alm[1, hp.Alm.getidx(lmax, 3, 0)] = -0.045058306539990926
+    expected_alm[1, hp.Alm.getidx(lmax, 3, 0)] = -0.05205114828724336
     expected_alm[1, hp.Alm.getidx(lmax, 3, 2)] = (
-        -0.19368308440573004 + 0.13138637435273962j
+        -0.22374180747751102 + 0.15177693480974516j
     )
-    expected_alm[1, hp.Alm.getidx(lmax, 4, 0)] = -0.06238339172781836
+    expected_alm[1, hp.Alm.getidx(lmax, 4, 0)] = -0.072065006939484449
     expected_alm[1, hp.Alm.getidx(lmax, 4, 2)] = (
-        -0.16430910498705525 + 0.10983543758200465j
+        -0.18980912167737168 + 0.12688139186280961j
     )
     expected_alm[1, hp.Alm.getidx(lmax, 4, 4)] = (
-        -0.023767101720368118 + 0.02429323699423821j
+        -0.027455646494545925 + 0.028063435540835433j
     )
-    expected_alm[1, hp.Alm.getidx(lmax, 5, 0)] = -0.07059875958038433
+    expected_alm[1, hp.Alm.getidx(lmax, 5, 0)] = -0.081555362062987274
     expected_alm[1, hp.Alm.getidx(lmax, 5, 2)] = (
-        -0.1289506767929808 + 0.08387724340550018j
+        -0.14896322820154498 + 0.096894605449718577j
     )
     expected_alm[1, hp.Alm.getidx(lmax, 5, 4)] = (
-        -0.027137797028227294 + 0.027492451924840226j
+        -0.031349458197051351 + 0.031759153900950313j
     )
-    expected_alm[2, hp.Alm.getidx(lmax, 2, 0)] = -0.010198931306291946
+
+    expected_alm[2, hp.Alm.getidx(lmax, 2, 0)] = -0.011781758493831703
     expected_alm[2, hp.Alm.getidx(lmax, 2, 2)] = (
-        -0.14043877112078462 - 0.20484020274831682j
+        -0.16223422188311257 - 0.23663045922461737j
     )
-    expected_alm[2, hp.Alm.getidx(lmax, 3, 0)] = -0.019050346452933527
+    expected_alm[2, hp.Alm.getidx(lmax, 3, 0)] = -0.022006872523380971
     expected_alm[2, hp.Alm.getidx(lmax, 3, 2)] = (
-        -0.1318980840261679 - 0.19115874133537236j
+        -0.15236805946881316 - 0.22082569798355023j
     )
-    expected_alm[2, hp.Alm.getidx(lmax, 4, 0)] = -0.026375274984407938
+    expected_alm[2, hp.Alm.getidx(lmax, 4, 0)] = -0.030468596242332596
     expected_alm[2, hp.Alm.getidx(lmax, 4, 2)] = (
-        -0.11101235042399053 - 0.1585032116624718j
+        -0.12824095615990538 - 0.18310218043647988j
     )
     expected_alm[2, hp.Alm.getidx(lmax, 4, 4)] = (
-        -0.02429323699423821 - 0.02342079121136466j
+        -0.028063435540835433 - 0.027055590188799702j
     )
-    expected_alm[2, hp.Alm.getidx(lmax, 5, 0)] = -0.029848676801912326
+    expected_alm[2, hp.Alm.getidx(lmax, 5, 0)] = -0.034481054031966558
     expected_alm[2, hp.Alm.getidx(lmax, 5, 2)] = (
-        -0.0858624812886358 - 0.11915719085059061j
+        -0.099187943113193178 - 0.13764983832560829j
     )
     expected_alm[2, hp.Alm.getidx(lmax, 5, 4)] = (
-        -0.027492451924840223 - 0.02626434440594484j
+        -0.031759153900950306 - 0.030340449748765472j
     )
 
     # We avoid implementing a `for` loop here so if anything fails we see
