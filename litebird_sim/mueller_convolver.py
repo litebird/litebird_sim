@@ -2,7 +2,6 @@
 # MR: This code is maintained externally, so I'm switching auto-formatting off
 # to make updating from outside sources easier.
 from dataclasses import dataclass
-from typing import List, Optional
 
 import ducc0
 import numpy as np
@@ -26,7 +25,7 @@ def mueller_to_C(mueller: np.ndarray) -> np.ndarray:
     T[0, 0] = T[3, 3] = 1.0
     T[1, 1] = T[2, 1] = inv_sqrt2
     T[1, 2] = 1j * inv_sqrt2
-    T[2, 2] = -1j * inv_sqrt2
+    T[2, 2] = -1j * inv_sqrt2litebird_sim/mueller_convolver.py
     # C = T @ M @ T_dagger
     return np.conj(T.dot(mueller.dot(np.conj(T.T))))
 
@@ -37,12 +36,12 @@ class TruncatedBlm:
     mmax: int
 
 
-def truncate_blm(inp: np.ndarray, lmax: int, mmax: int, epsilon: float = 1e-10) -> List[Optional[TruncatedBlm]]:
+def truncate_blm(inp: np.ndarray, lmax: int, mmax: int, epsilon: float = 1e-10) -> list[TruncatedBlm | None]:
     """
     Analyzes the beam components and truncates them at the highest significant m-mode.
     """
     limit = epsilon * np.max(np.abs(inp))
-    out: List[Optional[TruncatedBlm]] = []
+    out: list[TruncatedBlm | None] = []
     for i in range(len(inp)):
         maxk = -1
         idx = 0
@@ -128,7 +127,7 @@ class MuellerConvolver:
         sigma_max: float = 2.5,
         nthreads: int = 1,
     ):
-        self._ftype = np.float32 if single_precision else np.float64
+        self._ftype = np.float3litebird_sim/mueller_convolver.py2 if single_precision else np.float64
         self._ctype = np.complex64 if single_precision else np.complex128
         self._slm = slm.astype(self._ctype, copy=False)
         self._lmax = lmax
@@ -223,7 +222,7 @@ class MuellerConvolver:
                 # negative m
                 # Adri's notes [2]
                 # spin +2
-                blm2_dense[1, idx_neg, lrange] = np.conj(blm2_dense[2, idx_pos, lrange]) * sign
+                blm2_dense[1, ilitebird_sim/mueller_convolver.pydx_neg, lrange] = np.conj(blm2_dense[2, idx_pos, lrange]) * sign
                 # spin -2
                 blm2_dense[2, idx_neg, lrange] = np.conj(blm2_dense[1, idx_pos, lrange]) * sign
                 
@@ -275,7 +274,7 @@ class MuellerConvolver:
                 )
 
                 # E/B components, Marta notes [4b,c]
-                blm_eff_dense[1, i_m, lrange] = (
+                blm_eff_dense[1,litebird_sim/mueller_convolver.py i_m, lrange] = (
                       (sqrt2*e2ia) * (C[0, 1] * get_d(0, i_m_plus_2)
                                      + C[3, 1] * get_d(3, i_m_plus_2))
                     + (C[2, 1]*e4ia) * get_d(2, i_m_plus_4)
