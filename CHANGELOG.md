@@ -1,5 +1,7 @@
 # HEAD
 
+-   Add multi-frequency support to HealpixMap and SphericalHarmonics [#496](https://github.com/litebird/litebird_sim/pull/496)
+
 -   Fix normalization in the generation of gaussian beam alms [#494](https://github.com/litebird/litebird_sim/pull/494)
 
 -   Ducc0 1/f noise generation module included [#490](https://github.com/litebird/litebird_sim/pull/490)
