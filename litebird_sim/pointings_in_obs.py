@@ -194,7 +194,6 @@ def _get_hwp_angle(
         obs.has_hwp = True
         return hwp_angle
 
-
 def _get_pol_angle(
     curr_pointings_det: np.ndarray,
     hwp_angle: np.ndarray | None,

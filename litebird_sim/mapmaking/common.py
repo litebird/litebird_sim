@@ -198,7 +198,6 @@ def _compute_pixel_indices_single_detector(hpx: Healpix_Base,
     """
     pixidx = np.empty((num_of_samples), dtype=np.int32)
     polang = np.empty((num_of_samples), dtype=pointings_dtype)
-
     curr_pointings_det, hwp_angle = _get_pointings_array(
             detector_idx=detector_index,
             pointings=pointings,
@@ -206,7 +205,7 @@ def _compute_pixel_indices_single_detector(hpx: Healpix_Base,
             output_coordinate_system=output_coordinate_system,
             pointings_dtype=pointings_dtype,
         )
-    
+
     if hmap_generation:
         polang = curr_pointings_det[:, 2]
     else:

@@ -222,9 +222,8 @@ def make_h_maps(
     observations: Observation | list[Observation],
     nside: int,
     pointings: np.ndarray | list[np.ndarray] | None = None,
-    n_list: list[int] = [0, 2, 4],
+    n_m_couples:np.ndarray = np.array(np.meshgrid([0,2,4],[0])).T.reshape(-1,2),
     hwp: HWP | None = None,
-    m_list: list[int] = [0],
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     detector_split: str = "full",
     time_split: str = "full",
@@ -280,12 +279,13 @@ def make_h_maps(
     #     output_coordinate_system=output_coordinate_system,
     #     pointings_dtype=pointings_dtype,
     # )
-
+    assert n_m_couples.shape[1]==2,"""the n,m couples should be passed in this shape: array([[n1, m1],
+       [n2, m2],
+       [n2, m3]])"""
     h_maps = {det: {} for det in all_dets_list}
 
     for (cur_obs, cur_ptg, cur_d_mask, cur_t_mask) in zip(
         obs_list, ptg_list, detector_mask_list, time_mask_list):
-
         for idet in range(cur_obs.n_detectors):
             if not cur_d_mask[idet]:
                 continue
@@ -305,37 +305,41 @@ def make_h_maps(
             output_coordinate_system=output_coordinate_system,
             pointings_dtype=pointings_dtype,
             hmap_generation=True,
-    )
-            for n in n_list:
-                for m in m_list:
-                    nobs_matrix = _build_nobs_matrix(
-                        n,
-                        m,
-                        nside=nside,
-                        obs=cur_obs,
-                        pointings=cur_ptg,
-                        pixidx=pixidx,
-                        polang=polang,
-                        detector_index=idet,
-                        hwp_angle=hwp_angle,
-                        time_mask=cur_t_mask,
-                        output_coordinate_system=output_coordinate_system,
-                        pointings_dtype=pointings_dtype,
-                    )
-                    rhs = _extract_rhs(nobs_matrix)
-                    _solve_binning(nobs_matrix, rhs,n,m)
-                    h_maps[all_dets_list[idet]][n, m] = h_map_Re_and_Im(
-                            real=rhs.T[0].copy(),
-                            imag=rhs.T[1].copy(),
-                            det_info=all_dets_list[idet],
-                            n=n,
-                            m=m,
+    )       
+            log.info(f"Pixel indices and angles for detector {all_dets_list[idet]} computed, now building nobs matrices" )
 
-                        )
-                    log.info(f"  h_map n={n} m={m} for detector {all_dets_list[idet]} computed." )
-                    del rhs
-                    del nobs_matrix
-                    gc.collect()
+            for i in range(n_m_couples.shape[0]):
+                
+                n=n_m_couples[i,0]
+                m=n_m_couples[i,1]
+
+                nobs_matrix = _build_nobs_matrix(
+                    n,
+                    m,
+                    nside=nside,
+                    obs=cur_obs,
+                    pointings=cur_ptg,
+                    pixidx=pixidx,
+                    polang=polang,
+                    detector_index=idet,
+                    hwp_angle=hwp_angle,
+                    time_mask=cur_t_mask,
+                    output_coordinate_system=output_coordinate_system,
+                    pointings_dtype=pointings_dtype,
+                )
+                rhs = _extract_rhs(nobs_matrix)
+                _solve_binning(nobs_matrix, rhs,n,m)
+                h_maps[all_dets_list[idet]][n, m] = h_map_Re_and_Im(
+                        real=rhs.T[0].copy(),
+                        imag=rhs.T[1].copy(),
+                        det_info=all_dets_list[idet],
+                        n=n,
+                        m=m,
+                    )
+                log.info(f"  h_map n={n} m={m} for detector {all_dets_list[idet]} computed." )
+                del rhs
+                del nobs_matrix
+                gc.collect()
             del pixidx
             del polang
             gc.collect()
