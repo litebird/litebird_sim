@@ -212,9 +212,9 @@ class SkyGenerator:
 
     2) Frequency mode:
        - Provide `frequencies_ghz`
-       - Output is a NumPy array with shape:
-            - maps: (nfreq, 3, npix)
-            - alms: (nfreq, 3, nalms)
+       - Output is a multi-frequency HealpixMap or SphericalHarmonics object.
+       - The `values` attribute has shape (nfreqs, 3, npix) or (nfreqs, 3, nalms).
+       - The `frequencies_ghz` attribute contains the frequency array.
        - `return_components=True` is not supported in this mode (a warning is raised and only the total is returned).
     """
 
@@ -349,19 +349,35 @@ class SkyGenerator:
     # Helpers (frequency mode)
     # ------------------------------------------------------------------
 
-    def _empty_frequency_output(self) -> np.ndarray:
-        """Return a zero-filled array with the correct frequency-mode output shape."""
+    def _empty_frequency_output(self) -> HealpixMap | SphericalHarmonics:
+        """Return a zero-filled multi-frequency HealpixMap or SphericalHarmonics object."""
         assert self.frequencies_ghz is not None
         nfreq = self.frequencies_ghz.size
         if self.params.output_type == "map":
             npix = dh.Healpix_Base(self.params.nside, "RING").npix()
-            return np.zeros((nfreq, 3, npix), dtype=float)
+            values = np.zeros((nfreq, 3, npix), dtype=float)
+            return HealpixMap(
+                values=values,
+                nside=self.params.nside,
+                units=self.lbs_unit,
+                coordinates=self.coords,
+                nest=False,
+                frequencies_ghz=self.frequencies_ghz.copy(),
+            )
         else:
             # SphericalHarmonics values are complex
             nalms = SphericalHarmonics.alm_array_size(
                 self.params.lmax, self.params.lmax, 3
             )[1]
-            return np.zeros((nfreq, 3, nalms), dtype=np.complex128)
+            values = np.zeros((nfreq, 3, nalms), dtype=np.complex128)
+            return SphericalHarmonics(
+                values=values,
+                lmax=self.params.lmax,
+                mmax=self.params.lmax,
+                coordinates=self.coords,
+                units=self.lbs_unit,
+                frequencies_ghz=self.frequencies_ghz.copy(),
+            )
 
     def _apply_smoothing_and_windows_to_alm(
         self, alm: SphericalHarmonics, fwhm_rad: float | None
@@ -597,7 +613,7 @@ class SkyGenerator:
     # Component generators (frequency mode)
     # ------------------------------------------------------------------
 
-    def _generate_cmb_frequencies(self) -> np.ndarray:
+    def _generate_cmb_frequencies(self) -> HealpixMap | SphericalHarmonics:
         assert self.frequencies_ghz is not None
 
         log.info("Generating CMB (frequency mode)...")
@@ -662,9 +678,27 @@ class SkyGenerator:
             else:
                 out[i] = alm_obs.values
 
-        return out
+        # Return multi-frequency object
+        if self.params.output_type == "map":
+            return HealpixMap(
+                values=out,
+                nside=self.params.nside,
+                units=self.lbs_unit,
+                coordinates=self.coords,
+                nest=False,
+                frequencies_ghz=self.frequencies_ghz.copy(),
+            )
+        else:
+            return SphericalHarmonics(
+                values=out,
+                lmax=self.params.lmax,
+                mmax=self.params.lmax,
+                coordinates=self.coords,
+                units=self.lbs_unit,
+                frequencies_ghz=self.frequencies_ghz.copy(),
+            )
 
-    def _generate_foregrounds_frequencies(self) -> np.ndarray:
+    def _generate_foregrounds_frequencies(self) -> HealpixMap | SphericalHarmonics:
         assert self.frequencies_ghz is not None
 
         if not self.params.fg_models:
@@ -721,9 +755,27 @@ class SkyGenerator:
             else:
                 out[i] = alm_fg.values
 
-        return out
+        # Return multi-frequency object
+        if self.params.output_type == "map":
+            return HealpixMap(
+                values=out,
+                nside=self.params.nside,
+                units=self.lbs_unit,
+                coordinates=self.coords,
+                nest=False,
+                frequencies_ghz=self.frequencies_ghz.copy(),
+            )
+        else:
+            return SphericalHarmonics(
+                values=out,
+                lmax=self.params.lmax,
+                mmax=self.params.lmax,
+                coordinates=self.coords,
+                units=self.lbs_unit,
+                frequencies_ghz=self.frequencies_ghz.copy(),
+            )
 
-    def _generate_dipole_frequencies(self) -> np.ndarray:
+    def _generate_dipole_frequencies(self) -> HealpixMap | SphericalHarmonics:
         assert self.frequencies_ghz is not None
 
         log.info("Generating Dipole (frequency mode)...")
@@ -786,7 +838,25 @@ class SkyGenerator:
             else:
                 out[i] = alm_dip.values
 
-        return out
+        # Return multi-frequency object
+        if self.params.output_type == "map":
+            return HealpixMap(
+                values=out,
+                nside=self.params.nside,
+                units=self.lbs_unit,
+                coordinates=self.coords,
+                nest=False,
+                frequencies_ghz=self.frequencies_ghz.copy(),
+            )
+        else:
+            return SphericalHarmonics(
+                values=out,
+                lmax=self.params.lmax,
+                mmax=self.params.lmax,
+                coordinates=self.coords,
+                units=self.lbs_unit,
+                frequencies_ghz=self.frequencies_ghz.copy(),
+            )
 
     # ------------------------------------------------------------------
     # Execute
@@ -795,7 +865,8 @@ class SkyGenerator:
     def execute(
         self,
     ) -> (
-        np.ndarray
+        HealpixMap
+        | SphericalHarmonics
         | dict[str, HealpixMap | SphericalHarmonics]
         | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
     ):
@@ -804,7 +875,7 @@ class SkyGenerator:
 
         Returns
         -------
-        - Frequency mode: NumPy array with shape (nfreq, 3, npix) or (nfreq, 3, nalms)
+        - Frequency mode: Multi-frequency HealpixMap or SphericalHarmonics object.
         - Channel/detector mode: dict keyed by channel/detector name.
           If return_components=True, returns a dict-of-dicts with keys: cmb/foregrounds/dipole.
         """
