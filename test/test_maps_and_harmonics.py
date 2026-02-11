@@ -352,13 +352,13 @@ def test_healpixmap_consistency_checks():
         values=np.zeros((3, npix1)), nside=nside1, nest=False
     )  # Diff Stokes
 
-    with pytest.raises(ValueError, match="matching nside, nest, and nstokes"):
+    with pytest.raises(ValueError, match="matching nside, nest, nstokes, and nfreqs"):
         _ = m1 + m2
 
-    with pytest.raises(ValueError, match="matching nside, nest, and nstokes"):
+    with pytest.raises(ValueError, match="matching nside, nest, nstokes, and nfreqs"):
         _ = m1 + m3
 
-    with pytest.raises(ValueError, match="matching nside, nest, and nstokes"):
+    with pytest.raises(ValueError, match="matching nside, nest, nstokes, and nfreqs"):
         _ = m1 + m4
 
 

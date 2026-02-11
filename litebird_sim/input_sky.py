@@ -36,34 +36,34 @@ def _get_cmb_unit_conversion(
     band_integration: bool = False,
 ) -> float:
     """
-        Computes the scalar factor to convert from origin_unit into the target_unit,
-        considering potential bandpass integration over a CMB spectrum.
+    Computes the scalar factor to convert from origin_unit into the target_unit,
+    considering potential bandpass integration over a CMB spectrum.
 
-        Parameters
-        ----------
-        target_unit : Units
-            The target unit Enum (e.g., Units.K_CMB, Units.MJy_over_sr).
-        origin_unit : Units, optional
-            The unit of the input data, by default Units.K_CMB.
-        freq_ghz : float | None, optional
-            Frequency in GHz for monochromatic conversion. Required if bandpass is None.
-        bandpass : BandPassInfo | None, optional
-            Bandpass object containing frequencies and weights. Required if band_integration is True.
-        band_integration : bool, optional
-            If True, integrates over the bandpass using PySM3. If False, uses the band center
-            (or freq_ghz) for a monochromatic conversion using Astropy equivalencies.Structure of the Output
+    Parameters
+    ----------
+    target_unit : Units
+        The target unit Enum (e.g., Units.K_CMB, Units.MJy_over_sr).
+    origin_unit : Units, optional
+        The unit of the input data, by default Units.K_CMB.
+    freq_ghz : float | None, optional
+        Frequency in GHz for monochromatic conversion. Required if bandpass is None.
+    bandpass : BandPassInfo | None, optional
+        Bandpass object containing frequencies and weights. Required if band_integration is True.
+    band_integration : bool, optional
+        If True, integrates over the bandpass using PySM3. If False, uses the band center
+        (or freq_ghz) for a monochromatic conversion using Astropy equivalencies.Structure of the Output
 
-        Returns
-        -------
-        float
-            The conversion factor. Multiply the input data by this factor to get
-            values in the target unit.
+    Returns
+    -------
+    float
+        The conversion factor. Multiply the input data by this factor to get
+        values in the target unit.
 
-        Raises
-        ------
-        ValueError
-            If neither freq_ghz nor bandpass is provided.
-            If band_integration is True but bandpass is None.
+    Raises
+    ------
+    ValueError
+        If neither freq_ghz nor bandpass is provided.
+        If band_integration is True but bandpass is None.
     """
     # Use UnitUtils to get the actual Astropy objects needed by PySM logic
     target_astropy = UnitUtils.get_astropy_unit(target_unit)
@@ -269,7 +269,9 @@ class SkyGenerator:
         if self.frequency_mode:
             freqs = np.asarray(frequencies_ghz, dtype=float)
             if freqs.ndim != 1 or freqs.size == 0:
-                raise ValueError("'frequencies_ghz' must be a 1D non-empty list/array of frequencies in GHz.")
+                raise ValueError(
+                    "'frequencies_ghz' must be a 1D non-empty list/array of frequencies in GHz."
+                )
             self.frequencies_ghz = freqs
             nfreq = freqs.size
 
@@ -288,7 +290,9 @@ class SkyGenerator:
             # Beam handling rules for frequency mode
             if self.params.apply_beam:
                 if fwhm_rad is None:
-                    raise ValueError("apply_beam=True requires 'fwhm_rad' in frequency mode, but fwhm_rad is None.")
+                    raise ValueError(
+                        "apply_beam=True requires 'fwhm_rad' in frequency mode, but fwhm_rad is None."
+                    )
                 fwhm = np.asarray(fwhm_rad, dtype=float)
                 if fwhm.ndim == 0:
                     self.fwhm_rad = np.full(nfreq, float(fwhm))
@@ -354,7 +358,9 @@ class SkyGenerator:
             return np.zeros((nfreq, 3, npix), dtype=float)
         else:
             # SphericalHarmonics values are complex
-            nalms = SphericalHarmonics.alm_array_size(self.params.lmax, self.params.lmax, 3)[1]
+            nalms = SphericalHarmonics.alm_array_size(
+                self.params.lmax, self.params.lmax, 3
+            )[1]
             return np.zeros((nfreq, 3, nalms), dtype=np.complex128)
 
     def _apply_smoothing_and_windows_to_alm(
@@ -454,7 +460,9 @@ class SkyGenerator:
     def generate_foregrounds(self) -> dict[str, HealpixMap | SphericalHarmonics]:
         """Generates foregrounds using PySM3 (channel/detector mode only)."""
         if self.frequency_mode:
-            raise RuntimeError("generate_foregrounds() is not available in frequency mode.")
+            raise RuntimeError(
+                "generate_foregrounds() is not available in frequency mode."
+            )
 
         if not self.params.fg_models:
             return {}
@@ -472,7 +480,9 @@ class SkyGenerator:
             # 1. Compute emission
             if self.params.bandpass_integration:
                 nonzero = np.where(getattr(ch_or_det.band, "freqs_ghz") != 0)[0]
-                bandpass_frequencies = getattr(ch_or_det.band, "freqs_ghz")[nonzero] * getattr(u, "GHz")
+                bandpass_frequencies = getattr(ch_or_det.band, "freqs_ghz")[
+                    nonzero
+                ] * getattr(u, "GHz")
                 weights = getattr(ch_or_det.band, "weights")[nonzero]
 
                 m_fg = sky.get_emission(bandpass_frequencies, weights=weights)
@@ -483,7 +493,9 @@ class SkyGenerator:
                 m_fg = sky.get_emission(ch_or_det.bandcenter_ghz * getattr(u, "GHz"))
                 m_fg = m_fg.to(
                     self.pysm_units,
-                    equivalencies=u.cmb_equivalencies(ch_or_det.bandcenter_ghz * getattr(u, "GHz")),
+                    equivalencies=u.cmb_equivalencies(
+                        ch_or_det.bandcenter_ghz * getattr(u, "GHz")
+                    ),
                 )
 
             m_fg_val = m_fg.value  # (3, npix)
@@ -524,7 +536,9 @@ class SkyGenerator:
     def generate_solar_dipole(self) -> dict[str, Any]:
         """Generates solar dipole (channel/detector mode only)."""
         if self.frequency_mode:
-            raise RuntimeError("generate_solar_dipole() is not available in frequency mode.")
+            raise RuntimeError(
+                "generate_solar_dipole() is not available in frequency mode."
+            )
 
         log.info("Generating Dipole...")
         velocity = self.params.sun_velocity_kms
@@ -666,7 +680,9 @@ class SkyGenerator:
             npix = dh.Healpix_Base(self.params.nside, "RING").npix()
             out = np.zeros((nfreq, 3, npix), dtype=float)
         else:
-            nalms = SphericalHarmonics.alm_array_size(self.params.lmax, self.params.lmax, 3)[1]
+            nalms = SphericalHarmonics.alm_array_size(
+                self.params.lmax, self.params.lmax, 3
+            )[1]
             out = np.zeros((nfreq, 3, nalms), dtype=np.complex128)
 
         for i, nu in enumerate(self.frequencies_ghz):
@@ -730,7 +746,9 @@ class SkyGenerator:
         if self.params.output_type == "map":
             out = np.zeros((nfreq, 3, npix), dtype=float)
         else:
-            nalms = SphericalHarmonics.alm_array_size(self.params.lmax, self.params.lmax, 3)[1]
+            nalms = SphericalHarmonics.alm_array_size(
+                self.params.lmax, self.params.lmax, 3
+            )[1]
             out = np.zeros((nfreq, 3, nalms), dtype=np.complex128)
 
         for i, nu in enumerate(self.frequencies_ghz):

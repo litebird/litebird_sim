@@ -28,7 +28,8 @@ class SphericalHarmonics:
     ℓ_max and m_max from the size of the array (unless you assume that ℓ_max == m_max).
 
     This small data class keeps the array and the values `l_max` and `m_max` together.
-    The shape of `values` is *always* ``(nstokes, ncoeff)``, even if ``nstokes == 1``.
+    The shape of `values` is ``(nstokes, ncoeff)`` if ``nfreqs == 1``, even if ``nstokes == 1``.
+    For multi-frequency data (``nfreqs > 1``), the shape is ``(nfreqs, nstokes, ncoeff)``.
 
     It also provides algebraic operations and I/O utilities compatible with Healpy.
 
@@ -53,11 +54,15 @@ class SphericalHarmonics:
     ----------
     values : np.ndarray
         The spherical harmonics coefficients, stored in a NumPy array of shape
-        ``(nstokes, ncoeff)``.
+        ``(nstokes, ncoeff)`` if ``nfreqs == 1``, or ``(nfreqs, nstokes, ncoeff)``
+        if ``nfreqs > 1``.
     lmax : int
         The maximum degree ℓ_max of the expansion.
     mmax : int, optional
         The maximum order m_max of the expansion. If None, it is set equal to `lmax`.
+    frequencies_ghz : np.ndarray or None
+        Array of frequencies in GHz. Must be None if ``nfreqs == 1``, otherwise
+        must be an array of length ``nfreqs``.
     units : Units or None
         Physical units of the coefficients. If set to :data:``None``,
         the object is treated as unitless / unspecified.
@@ -66,6 +71,8 @@ class SphericalHarmonics:
         If ``None``, coordinates are unspecified.
     nstokes : int
         The number of Stokes parameters (1 for intensity-only, 3 for TEB).
+    nfreqs : int
+        The number of frequency channels (1 for single frequency, > 1 for multi-frequency).
 
     Arithmetic
     ----------
@@ -81,7 +88,9 @@ class SphericalHarmonics:
     values: np.ndarray
     lmax: int
     mmax: int | None = None
+    frequencies_ghz: np.ndarray | None = None
     nstokes: int = field(init=False)
+    nfreqs: int = field(init=False)
     units: Units | None = None
     coordinates: CoordinateSystem | None = None
 
@@ -91,8 +100,10 @@ class SphericalHarmonics:
 
         - If `mmax` is not provided, it is set equal to `lmax`.
         - If `values` is a tuple of three arrays, it is converted into a NumPy array.
-        - Ensures `values` has shape `(nstokes, ncoeff)`, reshaping if necessary.
+        - Ensures `values` has shape `(nstokes, ncoeff)` if `nfreqs == 1`,
+          or `(nfreqs, nstokes, ncoeff)` if `nfreqs > 1`.
         - Validates that `nstokes` is either 1 or 3.
+        - Validates that `nfreqs` is consistent with `frequencies_ghz`.
         - Checks that the shape of `values` matches the expected shape.
         - Normalizes `units` to either a :class:`Units` member or ``None``.
         - Normalizes `coordinates` to either a :class:`CoordinateSystem` member or ``None``.
@@ -101,6 +112,7 @@ class SphericalHarmonics:
         ------
         ValueError
             If `nstokes` is not 1 or 3.
+            If `nfreqs` is not consistent with `frequencies_ghz`.
             If `values` does not have the expected shape.
             If `units` is not an instance of Units or None.
             If `coordinates` is not an instance of CoordinateSystem or None.
@@ -114,6 +126,7 @@ class SphericalHarmonics:
             # If self.values is a tuple containing NumPy arrays, convert to a stacked array
             self.values = np.array([self.values[i] for i in range(len(self.values))])
 
+        # Handle single-frequency case (2D array)
         if self.values.ndim == 1:
             self.values = np.reshape(self.values, (1, self.values.size))
 
@@ -132,23 +145,67 @@ class SphericalHarmonics:
                 f"got {type(self.coordinates)!r}"
             )
 
-        self.nstokes = self.values.shape[0]
+        # Determine nfreqs from values shape
+        if self.values.ndim == 2:
+            # Single frequency: (nstokes, ncoeff)
+            self.nfreqs = 1
+            self.nstokes = self.values.shape[0]
+        elif self.values.ndim == 3:
+            # Multi-frequency: (nfreqs, nstokes, ncoeff)
+            self.nfreqs = self.values.shape[0]
+            self.nstokes = self.values.shape[1]
+        else:
+            raise ValueError(
+                f"values must be 2D (nstokes, ncoeff) or 3D (nfreqs, nstokes, ncoeff), "
+                f"got {self.values.ndim}D array."
+            )
+
+        # Validate nstokes
         if self.nstokes not in (1, 3):
             raise ValueError(
                 "The number of Stokes parameters in SphericalHarmonics should be 1 "
                 f"or 3 instead of {self.nstokes}."
             )
 
-        expected_shape = SphericalHarmonics.alm_array_size(
-            self.lmax, self.mmax, self.nstokes
-        )
+        # Validate frequencies_ghz consistency
+        if self.nfreqs == 1:
+            if self.frequencies_ghz is not None:
+                raise ValueError("frequencies_ghz must be None when nfreqs == 1.")
+        else:  # nfreqs > 1
+            if self.frequencies_ghz is None:
+                raise ValueError(
+                    f"frequencies_ghz must be provided when nfreqs > 1 (nfreqs = {self.nfreqs})."
+                )
+            if not isinstance(self.frequencies_ghz, np.ndarray):
+                self.frequencies_ghz = np.array(self.frequencies_ghz)
+            if self.frequencies_ghz.shape != (self.nfreqs,):
+                raise ValueError(
+                    f"frequencies_ghz must have shape ({self.nfreqs},), "
+                    f"got {self.frequencies_ghz.shape}."
+                )
 
-        if self.values.shape != expected_shape:
-            raise ValueError(
-                (
-                    "Wrong shape for the a_ℓm array: it is {actual} instead of {expected}"
-                ).format(actual=self.values.shape, expected=expected_shape)
+        # Validate shape
+        if self.nfreqs == 1:
+            expected_shape = SphericalHarmonics.alm_array_size(
+                self.lmax, self.mmax, self.nstokes
             )
+            if self.values.shape != expected_shape:
+                raise ValueError(
+                    (
+                        "Wrong shape for the a_ℓm array: it is {actual} instead of {expected}"
+                    ).format(actual=self.values.shape, expected=expected_shape)
+                )
+        else:  # nfreqs > 1
+            expected_ncoeff = SphericalHarmonics.num_of_alm_from_lmax(
+                self.lmax, self.mmax
+            )
+            expected_shape = (self.nfreqs, self.nstokes, expected_ncoeff)
+            if self.values.shape != expected_shape:
+                raise ValueError(
+                    (
+                        "Wrong shape for the a_ℓm array: it is {actual} instead of {expected}"
+                    ).format(actual=self.values.shape, expected=expected_shape)
+                )
 
     # ------------------------------------------------------------------
     # Basic helpers
@@ -164,7 +221,10 @@ class SphericalHarmonics:
     @property
     def num_of_alm_per_stokes(self) -> int:
         """Returns the number of a_ℓm coefficients per Stokes component."""
-        return self.values.shape[1]
+        if self.nfreqs == 1:
+            return self.values.shape[1]
+        else:
+            return self.values.shape[2]
 
     # ------------------------------------------------------------------
     # Factory Methods
@@ -176,6 +236,8 @@ class SphericalHarmonics:
         lmax: int,
         mmax: int | None = None,
         nstokes: int = 3,
+        nfreqs: int = 1,
+        frequencies_ghz: np.ndarray | None = None,
         dtype: type = np.complex128,
         units: Units | None = None,
         coordinates: CoordinateSystem | None = None,
@@ -191,6 +253,10 @@ class SphericalHarmonics:
             Maximum order. Defaults to lmax.
         nstokes : int, default=3
             Number of Stokes parameters (1 or 3).
+        nfreqs : int, default=1
+            Number of frequency channels.
+        frequencies_ghz : np.ndarray, optional
+            Array of frequencies in GHz. Required if nfreqs > 1, must be None if nfreqs == 1.
         dtype : type, default=np.complex128
             Data type for the array. Must be np.complex64 or np.complex128.
         units : Units, optional
@@ -207,6 +273,7 @@ class SphericalHarmonics:
         ------
         ValueError
             If dtype is not np.complex64 or np.complex128.
+            If frequencies_ghz is inconsistent with nfreqs.
         """
 
         # Validazione del dtype
@@ -215,11 +282,25 @@ class SphericalHarmonics:
                 f"dtype must be either np.complex64 or np.complex128, got {dtype!r}"
             )
 
-        shape = cls.alm_array_size(lmax, mmax, nstokes)
+        # Validate frequencies_ghz
+        if nfreqs == 1:
+            if frequencies_ghz is not None:
+                raise ValueError("frequencies_ghz must be None when nfreqs == 1.")
+        else:
+            if frequencies_ghz is None:
+                raise ValueError(f"frequencies_ghz must be provided when nfreqs > 1.")
+
+        if nfreqs == 1:
+            shape = cls.alm_array_size(lmax, mmax, nstokes)
+        else:
+            ncoeff = cls.num_of_alm_from_lmax(lmax, mmax if mmax is not None else lmax)
+            shape = (nfreqs, nstokes, ncoeff)
+
         return cls(
             values=np.zeros(shape, dtype=dtype),
             lmax=lmax,
             mmax=mmax if mmax is not None else lmax,
+            frequencies_ghz=frequencies_ghz,
             units=units,
             coordinates=coordinates,
         )
@@ -372,7 +453,7 @@ class SphericalHarmonics:
         """
         Resizes the spherical harmonics coefficients, either truncating or padding them with zeros.
 
-        Units and coordinates are preserved.
+        Units, coordinates, and frequencies are preserved.
         """
         lmax_in = self.lmax
         mmax_in = self.mmax_int
@@ -380,32 +461,63 @@ class SphericalHarmonics:
         if mmax_out is None:
             mmax_out = lmax_out
 
-        res = np.zeros(
-            (self.nstokes, SphericalHarmonics.num_of_alm_from_lmax(lmax_out, mmax_out)),
-            dtype=self.values.dtype,
-        )
+        if self.nfreqs == 1:
+            # Single frequency case
+            res = np.zeros(
+                (
+                    self.nstokes,
+                    SphericalHarmonics.num_of_alm_from_lmax(lmax_out, mmax_out),
+                ),
+                dtype=self.values.dtype,
+            )
 
-        lmaxmin = min(lmax_in, lmax_out)
-        mmaxmin = min(mmax_in, mmax_out)
+            lmaxmin = min(lmax_in, lmax_out)
+            mmaxmin = min(mmax_in, mmax_out)
 
-        ofs_i, ofs_o = 0, 0
-        for m in range(0, mmaxmin + 1):
-            nval = lmaxmin - m + 1
-            res[:, ofs_o : ofs_o + nval] = self.values[:, ofs_i : ofs_i + nval]
-            ofs_i += lmax_in - m + 1
-            ofs_o += lmax_out - m + 1
+            ofs_i, ofs_o = 0, 0
+            for m in range(0, mmaxmin + 1):
+                nval = lmaxmin - m + 1
+                res[:, ofs_o : ofs_o + nval] = self.values[:, ofs_i : ofs_i + nval]
+                ofs_i += lmax_in - m + 1
+                ofs_o += lmax_out - m + 1
+        else:
+            # Multi-frequency case: loop over frequencies
+            res = np.zeros(
+                (
+                    self.nfreqs,
+                    self.nstokes,
+                    SphericalHarmonics.num_of_alm_from_lmax(lmax_out, mmax_out),
+                ),
+                dtype=self.values.dtype,
+            )
+
+            lmaxmin = min(lmax_in, lmax_out)
+            mmaxmin = min(mmax_in, mmax_out)
+
+            for ifreq in range(self.nfreqs):
+                ofs_i, ofs_o = 0, 0
+                for m in range(0, mmaxmin + 1):
+                    nval = lmaxmin - m + 1
+                    res[ifreq, :, ofs_o : ofs_o + nval] = self.values[
+                        ifreq, :, ofs_i : ofs_i + nval
+                    ]
+                    ofs_i += lmax_in - m + 1
+                    ofs_o += lmax_out - m + 1
 
         if inplace:
             self.values = res
             self.lmax = lmax_out
             self.mmax = mmax_out
-            # units and coordinates unchanged
+            # units, coordinates, and frequencies_ghz unchanged
             return self
         else:
             return SphericalHarmonics(
                 values=res,
                 lmax=lmax_out,
                 mmax=mmax_out,
+                frequencies_ghz=self.frequencies_ghz.copy()
+                if self.frequencies_ghz is not None
+                else None,
                 units=self.units,
                 coordinates=self.coordinates,
             )
@@ -420,7 +532,35 @@ class SphericalHarmonics:
             self.lmax == other.lmax
             and self.mmax == other.mmax
             and self.nstokes == other.nstokes
+            and self.nfreqs == other.nfreqs
         )
+
+    def _frequencies_compatible(self, other: "SphericalHarmonics") -> bool:
+        """
+        Return True if frequencies are compatible for algebraic operations.
+
+        Rules
+        -----
+        - Both must have the same nfreqs.
+        - If nfreqs == 1, no further check needed.
+        - If nfreqs > 1, frequencies_ghz must match (within tolerance).
+        """
+        if self.nfreqs != other.nfreqs:
+            return False
+
+        if self.nfreqs == 1:
+            return True
+
+        # nfreqs > 1: check that frequencies match
+        if self.frequencies_ghz is None or other.frequencies_ghz is None:
+            warnings.warn(
+                "Performing operation where frequencies_ghz should be defined but isn't. "
+                "Proceeding but ensure this is physically intended.",
+                UserWarning,
+            )
+            return True
+
+        return np.allclose(self.frequencies_ghz, other.frequencies_ghz)
 
     def _units_compatible(self, other: "SphericalHarmonics") -> bool:
         """
@@ -475,8 +615,11 @@ class SphericalHarmonics:
 
         if not self.is_consistent(other):
             raise ValueError(
-                "SphericalHarmonics objects must have matching lmax, mmax, and nstokes"
+                "SphericalHarmonics objects must have matching lmax, mmax, nstokes, and nfreqs"
             )
+
+        if not self._frequencies_compatible(other):
+            raise ValueError("Incompatible frequencies for addition")
 
         if not self._units_compatible(other):
             raise ValueError(
@@ -500,10 +643,18 @@ class SphericalHarmonics:
             self.coordinates if self.coordinates is not None else other.coordinates
         )
 
+        # Result frequencies_ghz: keep self if defined, otherwise inherit other
+        result_frequencies = (
+            self.frequencies_ghz
+            if self.frequencies_ghz is not None
+            else other.frequencies_ghz
+        )
+
         return SphericalHarmonics(
             values=self.values + other.values,
             lmax=self.lmax,
             mmax=self.mmax,
+            frequencies_ghz=result_frequencies,
             units=result_units,
             coordinates=result_coordinates,
         )
@@ -514,8 +665,11 @@ class SphericalHarmonics:
 
         if not self.is_consistent(other):
             raise ValueError(
-                "SphericalHarmonics objects must have matching lmax, mmax, and nstokes"
+                "SphericalHarmonics objects must have matching lmax, mmax, nstokes, and nfreqs"
             )
+
+        if not self._frequencies_compatible(other):
+            raise ValueError("Incompatible frequencies for addition")
 
         if not self._units_compatible(other):
             raise ValueError(
@@ -538,6 +692,10 @@ class SphericalHarmonics:
         if self.coordinates is None and other.coordinates is not None:
             self.coordinates = other.coordinates
 
+        # If self had no frequencies_ghz and other has, inherit them
+        if self.frequencies_ghz is None and other.frequencies_ghz is not None:
+            self.frequencies_ghz = other.frequencies_ghz
+
         return self
 
     def __sub__(self, other: "SphericalHarmonics") -> "SphericalHarmonics":
@@ -546,8 +704,11 @@ class SphericalHarmonics:
 
         if not self.is_consistent(other):
             raise ValueError(
-                "SphericalHarmonics objects must have matching lmax, mmax, and nstokes"
+                "SphericalHarmonics objects must have matching lmax, mmax, nstokes, and nfreqs"
             )
+
+        if not self._frequencies_compatible(other):
+            raise ValueError("Incompatible frequencies for subtraction")
 
         if not self._units_compatible(other):
             raise ValueError(
@@ -569,10 +730,17 @@ class SphericalHarmonics:
             self.coordinates if self.coordinates is not None else other.coordinates
         )
 
+        result_frequencies = (
+            self.frequencies_ghz
+            if self.frequencies_ghz is not None
+            else other.frequencies_ghz
+        )
+
         return SphericalHarmonics(
             values=self.values - other.values,
             lmax=self.lmax,
             mmax=self.mmax,
+            frequencies_ghz=result_frequencies,
             units=result_units,
             coordinates=result_coordinates,
         )
@@ -583,8 +751,11 @@ class SphericalHarmonics:
 
         if not self.is_consistent(other):
             raise ValueError(
-                "SphericalHarmonics objects must have matching lmax, mmax, and nstokes"
+                "SphericalHarmonics objects must have matching lmax, mmax, nstokes, and nfreqs"
             )
+
+        if not self._frequencies_compatible(other):
+            raise ValueError("Incompatible frequencies for subtraction")
 
         if not self._units_compatible(other):
             raise ValueError(
@@ -604,6 +775,9 @@ class SphericalHarmonics:
 
         if self.coordinates is None and other.coordinates is not None:
             self.coordinates = other.coordinates
+
+        if self.frequencies_ghz is None and other.frequencies_ghz is not None:
+            self.frequencies_ghz = other.frequencies_ghz
 
         return self
 
@@ -679,7 +853,14 @@ class SphericalHarmonics:
         Parameters
         ----------
         f_ell : np.ndarray or list[np.ndarray]
-            The ℓ-dependent filter(s).
+            The ℓ-dependent filter(s). Can be:
+            
+            - A 1D array: Single filter applied to all alms regardless of nfreqs.
+            - A list of 3 filters or 2D array with shape (3, >=lmax+1): TEB filters.
+              If nfreqs==1, applied as-is. If nfreqs>1, looped over frequencies
+              and applied to each frequency's TEB alms.
+            - A 3D array with shape (nfreqs, nstokes, >=lmax+1): Per-frequency windows.
+              First two dimensions must match values shape.
         inplace : bool, optional
             If True, modifies the coefficients of the current object.
             If False, returns a new SphericalHarmonics object.
@@ -696,79 +877,155 @@ class SphericalHarmonics:
         # Get the l-index for every coefficient in the alm array
         l_arr = self.alm_l_array(self.lmax, self.mmax)
 
+        # Convert list to array for unified handling
+        if isinstance(f_ell, list):
+            # Check if it's a list of 3 filters (TEB)
+            if len(f_ell) == 3:
+                f_ell = np.array(f_ell)
+            else:
+                raise ValueError(
+                    f"Expected list of 3 filters (TEB), got {len(f_ell)}"
+                )
+
         if isinstance(f_ell, np.ndarray):
             if f_ell.ndim == 1:
-                # Case: Single filter applied to all maps (T, E, B...)
+                # Case 1: Single 1D filter applied to all alms regardless of nfreqs
                 if f_ell.shape[0] < required_size:
                     raise ValueError(
                         f"Filter size ({f_ell.shape[0]}) is smaller than required lmax+1 ({required_size})"
                     )
-                # Broadcast 1D filter to (nstokes, ncoeff)
                 kernel = f_ell[l_arr]
+                if inplace:
+                    if self.nfreqs == 1:
+                        self.values *= kernel
+                    else:
+                        for ifreq in range(self.nfreqs):
+                            self.values[ifreq] *= kernel
+                    return self
+                else:
+                    if self.nfreqs == 1:
+                        new_values = self.values * kernel
+                    else:
+                        new_values = self.values.copy()
+                        for ifreq in range(self.nfreqs):
+                            new_values[ifreq] *= kernel
+                    return SphericalHarmonics(
+                        values=new_values,
+                        lmax=self.lmax,
+                        mmax=self.mmax,
+                        frequencies_ghz=self.frequencies_ghz.copy()
+                        if self.frequencies_ghz is not None
+                        else None,
+                        units=self.units,
+                        coordinates=self.coordinates,
+                    )
 
             elif f_ell.ndim == 2:
-                # Case: Specific filter for each component
-                if f_ell.shape[0] != self.nstokes:
+                # Case 2: TEB filters (3, >=lmax+1)
+                if f_ell.shape[0] != 3:
                     raise ValueError(
-                        f"Filter nstokes ({f_ell.shape[0]}) does not match object nstokes ({self.nstokes})"
+                        f"2D filter array must have 3 rows (TEB), got {f_ell.shape[0]}"
                     )
                 if f_ell.shape[1] < required_size:
                     raise ValueError(
-                        f"Filter length ({f_ell.shape[1]}) is smaller than required lmax+1 ({required_size})"
+                        f"Filter ell-size ({f_ell.shape[1]}) is smaller than required lmax+1 ({required_size})"
                     )
-                # Extract correct l values for each component
-                kernel = np.stack([f_row[l_arr] for f_row in f_ell])
+                
+                # Extract kernels for T, E, B
+                kernel_teb = np.stack([f_ell[i, :][l_arr] for i in range(3)])
+                
+                if inplace:
+                    if self.nfreqs == 1:
+                        # Apply TEB filters to each stokes
+                        for istokes in range(self.nstokes):
+                            self.values[istokes] *= kernel_teb[istokes]
+                    else:
+                        # Loop over frequencies and apply TEB filters
+                        for ifreq in range(self.nfreqs):
+                            for istokes in range(self.nstokes):
+                                self.values[ifreq, istokes] *= kernel_teb[istokes]
+                    return self
+                else:
+                    new_values = self.values.copy()
+                    if self.nfreqs == 1:
+                        for istokes in range(self.nstokes):
+                            new_values[istokes] *= kernel_teb[istokes]
+                    else:
+                        for ifreq in range(self.nfreqs):
+                            for istokes in range(self.nstokes):
+                                new_values[ifreq, istokes] *= kernel_teb[istokes]
+                    return SphericalHarmonics(
+                        values=new_values,
+                        lmax=self.lmax,
+                        mmax=self.mmax,
+                        frequencies_ghz=self.frequencies_ghz.copy()
+                        if self.frequencies_ghz is not None
+                        else None,
+                        units=self.units,
+                        coordinates=self.coordinates,
+                    )
+
+            elif f_ell.ndim == 3:
+                # Case 3: Per-frequency and per-stokes windows (nfreqs, nstokes, >=lmax+1)
+                if f_ell.shape[0] != self.nfreqs:
+                    raise ValueError(
+                        f"Filter first dimension ({f_ell.shape[0]}) must match nfreqs ({self.nfreqs})"
+                    )
+                if f_ell.shape[1] != self.nstokes:
+                    raise ValueError(
+                        f"Filter second dimension ({f_ell.shape[1]}) must match nstokes ({self.nstokes})"
+                    )
+                if f_ell.shape[2] < required_size:
+                    raise ValueError(
+                        f"Filter ell-size ({f_ell.shape[2]}) is smaller than required lmax+1 ({required_size})"
+                    )
+
+                if inplace:
+                    for ifreq in range(self.nfreqs):
+                        for istokes in range(self.nstokes):
+                            kernel = f_ell[ifreq, istokes, :][l_arr]
+                            self.values[ifreq, istokes] *= kernel
+                    return self
+                else:
+                    new_values = self.values.copy()
+                    for ifreq in range(self.nfreqs):
+                        for istokes in range(self.nstokes):
+                            kernel = f_ell[ifreq, istokes, :][l_arr]
+                            new_values[ifreq, istokes] *= kernel
+                    return SphericalHarmonics(
+                        values=new_values,
+                        lmax=self.lmax,
+                        mmax=self.mmax,
+                        frequencies_ghz=self.frequencies_ghz.copy()
+                        if self.frequencies_ghz is not None
+                        else None,
+                        units=self.units,
+                        coordinates=self.coordinates,
+                    )
 
             else:
                 raise ValueError(
-                    f"Invalid shape for f_ell: {f_ell.shape}. Expected 1D or 2D array."
+                    f"Invalid shape for f_ell: {f_ell.shape}. Expected 1D, 2D, or 3D array."
                 )
 
-        elif isinstance(f_ell, list):
-            # Case: List of filters
-            if len(f_ell) != self.nstokes:
-                raise ValueError(
-                    f"Expected {self.nstokes} filters in list, got {len(f_ell)}"
-                )
-
-            kernel_list = []
-            for i, f in enumerate(f_ell):
-                f_arr = np.asarray(f)
-                if f_arr.ndim != 1:
-                    raise ValueError(f"Filter at index {i} must be 1D.")
-                if f_arr.shape[0] < required_size:
-                    raise ValueError(
-                        f"Filter {i} size ({f_arr.shape[0]}) is smaller than required lmax+1 ({required_size})"
-                    )
-                kernel_list.append(f_arr[l_arr])
-
-            kernel = np.stack(kernel_list)
         else:
             raise TypeError("f_ell must be a numpy array or a list of numpy arrays")
 
-        # Apply the kernel
-        if inplace:
-            self.values *= kernel
-            return self
-        else:
-            return SphericalHarmonics(
-                values=self.values * kernel,
-                lmax=self.lmax,
-                mmax=self.mmax,
-                units=self.units,
-                coordinates=self.coordinates,
-            )
-
     def apply_gaussian_smoothing(
-        self, fwhm_rad: float, inplace: bool = True
+        self, fwhm_rad: float | np.ndarray | list, inplace: bool = True
     ) -> "SphericalHarmonics":
         """
         Apply Gaussian smoothing to the spherical harmonics coefficients.
 
         Parameters
         ----------
-        fwhm_rad : float
+        fwhm_rad : float, np.ndarray, or list
             Full Width at Half Maximum (FWHM) of the Gaussian beam in radians.
+            Can be:
+            
+            - A single float: Same FWHM applied to all frequencies.
+            - An array or list of floats: Per-frequency FWHM. Must have length
+              equal to nfreqs.
         inplace : bool, optional
             If True, modifies the object in place. Default is True.
 
@@ -781,12 +1038,34 @@ class SphericalHarmonics:
         # LOCAL IMPORT to prevent circular dependency
         from .beam_synthesis import gauss_bl
 
-        nstokes = self.values.shape[0]
+        nstokes = self.nstokes
         use_pol = nstokes > 1
 
-        bl = gauss_bl(lmax=self.lmax, fwhm_rad=fwhm_rad, pol=use_pol)
-
-        return self.convolve(bl, inplace=inplace)
+        # Handle fwhm_rad: scalar or array
+        if isinstance(fwhm_rad, (float, int)):
+            # Scalar: apply same FWHM to all frequencies
+            bl = gauss_bl(lmax=self.lmax, fwhm_rad=float(fwhm_rad), pol=use_pol)
+            return self.convolve(bl, inplace=inplace)
+        elif isinstance(fwhm_rad, (list, np.ndarray)):
+            fwhm_arr = np.asarray(fwhm_rad, dtype=float)
+            if fwhm_arr.ndim != 1:
+                raise ValueError(f"fwhm_rad array must be 1D, got shape {fwhm_arr.shape}")
+            if len(fwhm_arr) != self.nfreqs:
+                raise ValueError(
+                    f"fwhm_rad array length ({len(fwhm_arr)}) must match nfreqs ({self.nfreqs})"
+                )
+            # Generate per-frequency TEB filters
+            bl_list = []
+            for fwhm in fwhm_arr:
+                bl = gauss_bl(lmax=self.lmax, fwhm_rad=float(fwhm), pol=use_pol)
+                bl_list.append(bl)
+            # Stack into (nfreqs, nstokes, lmax+1) array
+            bl_array = np.stack(bl_list, axis=0)
+            return self.convolve(bl_array, inplace=inplace)
+        else:
+            raise TypeError(
+                f"fwhm_rad must be a float or array-like, got {type(fwhm_rad)}"
+            )
 
     def apply_pixel_window(
         self, nside: int, inplace: bool = True
@@ -806,12 +1085,48 @@ class SphericalHarmonics:
         SphericalHarmonics
             The object with pixel window applied.
         """
-        nstokes = self.values.shape[0]
-        use_pol = nstokes > 1
-
+        use_pol = self.nstokes > 1
         pw_ell = pixel_window(nside, lmax=self.lmax, pol=use_pol)
 
-        return self.convolve(pw_ell, inplace=inplace)
+        if self.nfreqs == 1:
+            # Single frequency case
+            return self.convolve(pw_ell, inplace=inplace)
+        else:
+            # Multi-frequency case: apply pixel window to each frequency
+            if inplace:
+                for ifreq in range(self.nfreqs):
+                    # Get the l-index for every coefficient in the alm array
+                    l_arr = self.alm_l_array(self.lmax, self.mmax)
+
+                    if pw_ell.ndim == 1:
+                        kernel = pw_ell[l_arr]
+                    else:  # pw_ell.ndim == 2
+                        kernel = np.stack([pw_row[l_arr] for pw_row in pw_ell])
+
+                    self.values[ifreq] *= kernel
+                return self
+            else:
+                result_values = self.values.copy()
+                for ifreq in range(self.nfreqs):
+                    l_arr = self.alm_l_array(self.lmax, self.mmax)
+
+                    if pw_ell.ndim == 1:
+                        kernel = pw_ell[l_arr]
+                    else:
+                        kernel = np.stack([pw_row[l_arr] for pw_row in pw_ell])
+
+                    result_values[ifreq] *= kernel
+
+                return SphericalHarmonics(
+                    values=result_values,
+                    lmax=self.lmax,
+                    mmax=self.mmax,
+                    frequencies_ghz=self.frequencies_ghz.copy()
+                    if self.frequencies_ghz is not None
+                    else None,
+                    units=self.units,
+                    coordinates=self.coordinates,
+                )
 
     # -------------
     # Copy / compare
@@ -823,22 +1138,35 @@ class SphericalHarmonics:
             values=self.values.copy(),
             lmax=self.lmax,
             mmax=self.mmax,
+            frequencies_ghz=self.frequencies_ghz.copy()
+            if self.frequencies_ghz is not None
+            else None,
             units=self.units,
             coordinates=self.coordinates,
         )
 
     def __eq__(self, other: Any) -> bool:
         """
-        Exact equality: same geometry, same units, same coordinates
-        and identical coefficients.
+        Exact equality: same geometry, same units, same coordinates,
+        same frequencies and identical coefficients.
         """
         if not isinstance(other, SphericalHarmonics):
             return NotImplemented
+
+        # Check frequencies_ghz equality
+        freqs_equal = True
+        if self.frequencies_ghz is None and other.frequencies_ghz is None:
+            freqs_equal = True
+        elif self.frequencies_ghz is None or other.frequencies_ghz is None:
+            freqs_equal = False
+        else:
+            freqs_equal = np.array_equal(self.frequencies_ghz, other.frequencies_ghz)
 
         return (
             self.is_consistent(other)
             and self.units == other.units
             and self.coordinates == other.coordinates
+            and freqs_equal
             and np.array_equal(self.values, other.values)
         )
 
@@ -882,21 +1210,32 @@ class SphericalHarmonics:
             )
             return False
 
-        # 2. Check units compatibility
+        if self.nfreqs != other.nfreqs:
+            log.warning(
+                f"allclose mismatch: nfreqs differs ({self.nfreqs} vs {other.nfreqs})"
+            )
+            return False
+
+        # 2. Check frequencies compatibility
+        if not self._frequencies_compatible(other):
+            log.warning(f"allclose mismatch: Incompatible frequencies")
+            return False
+
+        # 3. Check units compatibility
         if not self._units_compatible(other):
             log.warning(
                 f"allclose mismatch: Incompatible units ({self.units} vs {other.units})"
             )
             return False
 
-        # 3. Check coordinates compatibility
+        # 4. Check coordinates compatibility
         if not self._coordinates_compatible(other):
             log.warning(
                 f"allclose mismatch: Incompatible coordinates ({self.coordinates} vs {other.coordinates})"
             )
             return False
 
-        # 4. Check numerical equality
+        # 5. Check numerical equality
         return np.allclose(self.values, other.values, rtol=rtol, atol=atol)
 
     # -------------
@@ -1076,7 +1415,8 @@ class HealpixMap:
     Attributes
     ----------
     values : np.ndarray
-        Map values, stored as a NumPy array of shape ``(nstokes, npix)``.
+        Map values, stored as a NumPy array of shape ``(nstokes, npix)`` if ``nfreqs == 1``,
+        or ``(nfreqs, nstokes, npix)`` if ``nfreqs > 1``.
         If a 1D array is passed, it is promoted to shape ``(1, npix)``.
         If a tuple of arrays is passed (e.g. (I, Q, U)), it is stacked
         along the first axis.
@@ -1084,6 +1424,9 @@ class HealpixMap:
         HEALPix NSIDE resolution parameter.
         If ``None``, it is automatically inferred from the last dimension of ``values``.
         If provided, it is checked against the size of ``values``.
+    frequencies_ghz : np.ndarray or None
+        Array of frequencies in GHz. Must be None if ``nfreqs == 1``, otherwise
+        must be an array of length ``nfreqs``.
     units : Units or None
         Physical units of the map. If set to :data:`Units.None` or ``None``,
         the map is treated as unitless / unspecified.
@@ -1095,14 +1438,18 @@ class HealpixMap:
         This is just metadata here, no indexing operations are performed.
     nstokes : int
         Number of Stokes parameters (1 for intensity-only, 3 for IQU).
+    nfreqs : int
+        The number of frequency channels (1 for single frequency, > 1 for multi-frequency).
     """
 
     values: np.ndarray
     nside: int | None = None
+    frequencies_ghz: np.ndarray | None = None
     units: Units | None = None
     coordinates: CoordinateSystem | None = None
     nest: bool = False
     nstokes: int = field(init=False)
+    nfreqs: int = field(init=False)
 
     def __post_init__(self):
         """
@@ -1112,7 +1459,7 @@ class HealpixMap:
         - Infers `nside` from `npix` if `nside` is None.
         - Validates `nside` against `npix` if `nside` is provided.
         - Normalizes `units` and `coordinates`.
-        - Sets `nstokes`.
+        - Sets `nstokes` and `nfreqs`.
 
         Raises
         ------
@@ -1120,7 +1467,7 @@ class HealpixMap:
             If `nside` (provided or inferred) is not a valid HEALPix NSIDE value.
         ValueError
             If `nstokes` is not 1 or 3, or if the number of pixels does
-            not match the provided `nside`.
+            not match the provided `nside`, or if `nfreqs` is inconsistent.
         """
 
         # 1. Normalize values shape first (we need npix to check/infer nside)
@@ -1128,12 +1475,26 @@ class HealpixMap:
         if isinstance(self.values, tuple):
             self.values = np.array([self.values[i] for i in range(len(self.values))])
 
-        # Ensure values have shape (nstokes, npix)
+        # Handle single-frequency case (2D array)
         if self.values.ndim == 1:
             self.values = self.values[np.newaxis, :]
 
-        # Get the actual number of pixels from the data
-        npix = self.values.shape[1]
+        # Determine nfreqs and nstokes from values shape
+        if self.values.ndim == 2:
+            # Single frequency: (nstokes, npix)
+            self.nfreqs = 1
+            self.nstokes = self.values.shape[0]
+            npix = self.values.shape[1]
+        elif self.values.ndim == 3:
+            # Multi-frequency: (nfreqs, nstokes, npix)
+            self.nfreqs = self.values.shape[0]
+            self.nstokes = self.values.shape[1]
+            npix = self.values.shape[2]
+        else:
+            raise ValueError(
+                f"values must be 2D (nstokes, npix) or 3D (nfreqs, nstokes, npix), "
+                f"got {self.values.ndim}D array."
+            )
 
         # 2. Handle NSIDE inference or validation
         if self.nside is None:
@@ -1172,12 +1533,29 @@ class HealpixMap:
                 f"got {type(self.coordinates)!r}"
             )
 
-        self.nstokes = self.values.shape[0]
+        # Validate nstokes
         if self.nstokes not in (1, 3):
             raise ValueError(
                 "The number of Stokes parameters in HealpixMap should be 1 or 3 "
                 f"instead of {self.nstokes}."
             )
+
+        # Validate frequencies_ghz consistency
+        if self.nfreqs == 1:
+            if self.frequencies_ghz is not None:
+                raise ValueError("frequencies_ghz must be None when nfreqs == 1.")
+        else:  # nfreqs > 1
+            if self.frequencies_ghz is None:
+                raise ValueError(
+                    f"frequencies_ghz must be provided when nfreqs > 1 (nfreqs = {self.nfreqs})."
+                )
+            if not isinstance(self.frequencies_ghz, np.ndarray):
+                self.frequencies_ghz = np.array(self.frequencies_ghz)
+            if self.frequencies_ghz.shape != (self.nfreqs,):
+                raise ValueError(
+                    f"frequencies_ghz must have shape ({self.nfreqs},), "
+                    f"got {self.frequencies_ghz.shape}."
+                )
 
     # ------------------------------------------------------------------
     # Basic properties
@@ -1186,7 +1564,10 @@ class HealpixMap:
     @property
     def npix(self) -> int:
         """Return the number of pixels in the map."""
-        return self.values.shape[1]
+        if self.nfreqs == 1:
+            return self.values.shape[1]
+        else:
+            return self.values.shape[2]
 
     # ------------------------------------------------------------------
     # Factory Methods
@@ -1196,6 +1577,8 @@ class HealpixMap:
         cls,
         nside: int,
         nstokes: int = 3,
+        nfreqs: int = 1,
+        frequencies_ghz: np.ndarray | None = None,
         dtype: type = np.float64,
         units: Units | None = None,
         coordinates: CoordinateSystem | None = None,
@@ -1210,6 +1593,10 @@ class HealpixMap:
             HEALPix resolution.
         nstokes : int, default=3
             Number of Stokes parameters.
+        nfreqs : int, default=1
+            Number of frequency channels.
+        frequencies_ghz : np.ndarray, optional
+            Array of frequencies in GHz. Required if nfreqs > 1, must be None if nfreqs == 1.
         dtype : type, default=np.float64
             Data type of the map.
         units : Units, optional
@@ -1223,12 +1610,30 @@ class HealpixMap:
         -------
         HealpixMap
             Instance initialized with zeros.
+
+        Raises
+        ------
+        ValueError
+            If frequencies_ghz is inconsistent with nfreqs.
         """
+        # Validate frequencies_ghz
+        if nfreqs == 1:
+            if frequencies_ghz is not None:
+                raise ValueError("frequencies_ghz must be None when nfreqs == 1.")
+        else:
+            if frequencies_ghz is None:
+                raise ValueError(f"frequencies_ghz must be provided when nfreqs > 1.")
+
         npix = cls.nside_to_npix(nside)
-        values = np.zeros((nstokes, npix), dtype=dtype)
+        if nfreqs == 1:
+            values = np.zeros((nstokes, npix), dtype=dtype)
+        else:
+            values = np.zeros((nfreqs, nstokes, npix), dtype=dtype)
+
         return cls(
             values=values,
             nside=nside,
+            frequencies_ghz=frequencies_ghz,
             units=units,
             coordinates=coordinates,
             nest=nest,
@@ -1331,13 +1736,41 @@ class HealpixMap:
         """Check if two HealpixMap objects are compatible for algebraic operations.
 
         Two maps are considered consistent if they share the same
-        `nside`, `nest`, and `nstokes`.
+        `nside`, `nest`, `nstokes`, and `nfreqs`.
         """
         return (
             self.nside == other.nside
             and self.nest == other.nest
             and self.nstokes == other.nstokes
+            and self.nfreqs == other.nfreqs
         )
+
+    def _frequencies_compatible(self, other: "HealpixMap") -> bool:
+        """
+        Return True if frequencies are compatible for algebraic operations.
+
+        Rules
+        -----
+        - Both must have the same nfreqs.
+        - If nfreqs == 1, no further check needed.
+        - If nfreqs > 1, frequencies_ghz must match (within tolerance).
+        """
+        if self.nfreqs != other.nfreqs:
+            return False
+
+        if self.nfreqs == 1:
+            return True
+
+        # nfreqs > 1: check that frequencies match
+        if self.frequencies_ghz is None or other.frequencies_ghz is None:
+            warnings.warn(
+                "Performing operation where frequencies_ghz should be defined but isn't. "
+                "Proceeding but ensure this is physically intended.",
+                UserWarning,
+            )
+            return True
+
+        return np.allclose(self.frequencies_ghz, other.frequencies_ghz)
 
     def _units_compatible(self, other: "HealpixMap") -> bool:
         """
@@ -1391,8 +1824,11 @@ class HealpixMap:
 
         if not self.is_consistent(other):
             raise ValueError(
-                "HealpixMap objects must have matching nside, nest, and nstokes"
+                "HealpixMap objects must have matching nside, nest, nstokes, and nfreqs"
             )
+
+        if not self._frequencies_compatible(other):
+            raise ValueError("Incompatible frequencies for addition")
 
         if not self._units_compatible(other):
             raise ValueError(
@@ -1418,9 +1854,17 @@ class HealpixMap:
             self.coordinates if self.coordinates is not None else other.coordinates
         )
 
+        # Resulting frequencies_ghz: keep self if defined, otherwise inherit other
+        result_frequencies = (
+            self.frequencies_ghz
+            if self.frequencies_ghz is not None
+            else other.frequencies_ghz
+        )
+
         return HealpixMap(
             values=self.values + other.values,
             nside=self.nside,
+            frequencies_ghz=result_frequencies,
             units=result_units,
             coordinates=result_coordinates,
             nest=self.nest,
@@ -1433,8 +1877,11 @@ class HealpixMap:
 
         if not self.is_consistent(other):
             raise ValueError(
-                "HealpixMap objects must have matching nside, nest, and nstokes"
+                "HealpixMap objects must have matching nside, nest, nstokes, and nfreqs"
             )
+
+        if not self._frequencies_compatible(other):
+            raise ValueError("Incompatible frequencies for addition")
 
         if not self._units_compatible(other):
             raise ValueError(
@@ -1457,6 +1904,10 @@ class HealpixMap:
         if self.coordinates is None and other.coordinates is not None:
             self.coordinates = other.coordinates
 
+        # Optionally update frequencies_ghz if self had none and other has them
+        if self.frequencies_ghz is None and other.frequencies_ghz is not None:
+            self.frequencies_ghz = other.frequencies_ghz
+
         return self
 
     def __sub__(self, other: "HealpixMap") -> "HealpixMap":
@@ -1466,8 +1917,11 @@ class HealpixMap:
 
         if not self.is_consistent(other):
             raise ValueError(
-                "HealpixMap objects must have matching nside, nest, and nstokes"
+                "HealpixMap objects must have matching nside, nest, nstokes, and nfreqs"
             )
+
+        if not self._frequencies_compatible(other):
+            raise ValueError("Incompatible frequencies for subtraction")
 
         if not self._units_compatible(other):
             raise ValueError(
@@ -1490,9 +1944,16 @@ class HealpixMap:
             self.coordinates if self.coordinates is not None else other.coordinates
         )
 
+        result_frequencies = (
+            self.frequencies_ghz
+            if self.frequencies_ghz is not None
+            else other.frequencies_ghz
+        )
+
         return HealpixMap(
             values=self.values - other.values,
             nside=self.nside,
+            frequencies_ghz=result_frequencies,
             units=result_units,
             coordinates=result_coordinates,
             nest=self.nest,
@@ -1505,8 +1966,11 @@ class HealpixMap:
 
         if not self.is_consistent(other):
             raise ValueError(
-                "HealpixMap objects must have matching nside, nest, and nstokes"
+                "HealpixMap objects must have matching nside, nest, nstokes, and nfreqs"
             )
+
+        if not self._frequencies_compatible(other):
+            raise ValueError("Incompatible frequencies for subtraction")
 
         if not self._units_compatible(other):
             raise ValueError(
@@ -1526,6 +1990,9 @@ class HealpixMap:
 
         if self.coordinates is None and other.coordinates is not None:
             self.coordinates = other.coordinates
+
+        if self.frequencies_ghz is None and other.frequencies_ghz is not None:
+            self.frequencies_ghz = other.frequencies_ghz
 
         return self
 
@@ -1581,6 +2048,9 @@ class HealpixMap:
         return HealpixMap(
             values=new_values,
             nside=self.nside,
+            frequencies_ghz=self.frequencies_ghz.copy()
+            if self.frequencies_ghz is not None
+            else None,
             units=new_units,
             coordinates=self.coordinates,
             nest=self.nest,
@@ -1621,6 +2091,9 @@ class HealpixMap:
         return HealpixMap(
             values=self.values.copy(),
             nside=self.nside,
+            frequencies_ghz=self.frequencies_ghz.copy()
+            if self.frequencies_ghz is not None
+            else None,
             units=self.units,
             coordinates=self.coordinates,
             nest=self.nest,
@@ -1628,16 +2101,26 @@ class HealpixMap:
 
     def __eq__(self, other: Any) -> bool:
         """
-        Exact equality: same geometry, same units, same coordinates
-        and identical pixel values.
+        Exact equality: same geometry, same units, same coordinates,
+        same frequencies and identical pixel values.
         """
         if not isinstance(other, HealpixMap):
             return NotImplemented
+
+        # Check frequencies_ghz equality
+        freqs_equal = True
+        if self.frequencies_ghz is None and other.frequencies_ghz is None:
+            freqs_equal = True
+        elif self.frequencies_ghz is None or other.frequencies_ghz is None:
+            freqs_equal = False
+        else:
+            freqs_equal = np.array_equal(self.frequencies_ghz, other.frequencies_ghz)
 
         return (
             self.is_consistent(other)
             and self.units == other.units
             and self.coordinates == other.coordinates
+            and freqs_equal
             and np.array_equal(self.values, other.values)
         )
 
@@ -1680,21 +2163,32 @@ class HealpixMap:
             )
             return False
 
-        # 2. Check units compatibility
+        if self.nfreqs != other.nfreqs:
+            log.warning(
+                f"allclose mismatch: nfreqs differs ({self.nfreqs} vs {other.nfreqs})"
+            )
+            return False
+
+        # 2. Check frequencies compatibility
+        if not self._frequencies_compatible(other):
+            log.warning(f"allclose mismatch: Incompatible frequencies")
+            return False
+
+        # 3. Check units compatibility
         if not self._units_compatible(other):
             log.warning(
                 f"allclose mismatch: Incompatible units ({self.units} vs {other.units})"
             )
             return False
 
-        # 3. Check coordinates compatibility
+        # 4. Check coordinates compatibility
         if not self._coordinates_compatible(other):
             log.warning(
                 f"allclose mismatch: Incompatible coordinates ({self.coordinates} vs {other.coordinates})"
             )
             return False
 
-        # 4. Check numerical equality
+        # 5. Check numerical equality
         return np.allclose(self.values, other.values, rtol=rtol, atol=atol)
 
 
@@ -1946,38 +2440,73 @@ def pixelize_alm(
     base = dh.Healpix_Base(nside, scheme)
     geom = base.sht_info()
 
-    # --- allocate output map -----------------------------------------------
-    values = np.empty((alms.nstokes, npix), dtype=map_dtype)
+    # --- Handle single vs. multi-frequency cases ---------------------------
+    if alms.nfreqs == 1:
+        # Single frequency case
+        # --- allocate output map -----------------------------------------------
+        values = np.empty((alms.nstokes, npix), dtype=map_dtype)
 
-    # --- spin-0 (temperature / scalar) -------------------------------------
-    alm_T = alm_all[0:1]  # (1, nalm)
-    sht.synthesis(
-        alm=alm_T,
-        map=values[0:1],
-        **geom,
-        spin=0,
-        lmax=lmax_eff,
-        mmax=mmax_eff,
-        nthreads=nthreads,
-    )
-
-    # --- spin-2 (polarization Q,U) if present ------------------------------
-    if alms.nstokes == 3:
-        alm_pol = alm_all[1:3]  # (2, nalm)
+        # --- spin-0 (temperature / scalar) -------------------------------------
+        alm_T = alm_all[0:1]  # (1, nalm)
         sht.synthesis(
-            alm=alm_pol,
-            map=values[1:3],
+            alm=alm_T,
+            map=values[0:1],
             **geom,
-            spin=2,
+            spin=0,
             lmax=lmax_eff,
             mmax=mmax_eff,
             nthreads=nthreads,
         )
 
+        # --- spin-2 (polarization Q,U) if present ------------------------------
+        if alms.nstokes == 3:
+            alm_pol = alm_all[1:3]  # (2, nalm)
+            sht.synthesis(
+                alm=alm_pol,
+                map=values[1:3],
+                **geom,
+                spin=2,
+                lmax=lmax_eff,
+                mmax=mmax_eff,
+                nthreads=nthreads,
+            )
+    else:
+        # Multi-frequency case: loop over frequencies
+        values = np.empty((alms.nfreqs, alms.nstokes, npix), dtype=map_dtype)
+
+        for ifreq in range(alms.nfreqs):
+            # --- spin-0 (temperature / scalar) -------------------------------------
+            alm_T = alm_all[ifreq, 0:1]  # (1, nalm)
+            sht.synthesis(
+                alm=alm_T,
+                map=values[ifreq, 0:1],
+                **geom,
+                spin=0,
+                lmax=lmax_eff,
+                mmax=mmax_eff,
+                nthreads=nthreads,
+            )
+
+            # --- spin-2 (polarization Q,U) if present ------------------------------
+            if alms.nstokes == 3:
+                alm_pol = alm_all[ifreq, 1:3]  # (2, nalm)
+                sht.synthesis(
+                    alm=alm_pol,
+                    map=values[ifreq, 1:3],
+                    **geom,
+                    spin=2,
+                    lmax=lmax_eff,
+                    mmax=mmax_eff,
+                    nthreads=nthreads,
+                )
+
     # --- wrap into HealpixMap, propagating units and coordinates -----------
     return HealpixMap(
         values=values,
         nside=nside,
+        frequencies_ghz=alms.frequencies_ghz.copy()
+        if alms.frequencies_ghz is not None
+        else None,
         nest=nest,
         units=alms.units,
         coordinates=alms.coordinates,
@@ -2101,41 +2630,78 @@ def estimate_alm(
             map_arr = map_arr.astype(np.float64)
         alm_dtype = np.complex128
 
-    alm = np.zeros((map.nstokes, nalm), dtype=alm_dtype)
-
     # --- build Healpix geometry from ducc0.healpix -------------------------
     scheme = "NESTED" if map.nest else "RING"
     base = dh.Healpix_Base(nside, scheme)
     geom = base.sht_info()  # provides theta, nphi, phi0, ringstart, etc.
 
-    # --- spin-0 (T or scalar) ----------------------------------------------
-    sht.adjoint_synthesis(
-        alm=alm[0:1],
-        map=map_arr[0:1],
-        **geom,
-        spin=0,
-        lmax=lmax_eff,
-        mmax=mmax_eff,
-        nthreads=nthreads,
-    )
+    # --- Handle single vs. multi-frequency cases ---------------------------
+    if map.nfreqs == 1:
+        # Single frequency case
+        alm = np.zeros((map.nstokes, nalm), dtype=alm_dtype)
 
-    # --- spin-2 (Q,U) if present -------------------------------------------
-    if map.nstokes == 3:
+        # --- spin-0 (T or scalar) ----------------------------------------------
         sht.adjoint_synthesis(
-            alm=alm[1:3],
-            map=map_arr[1:3],
+            alm=alm[0:1],
+            map=map_arr[0:1],
             **geom,
-            spin=2,
+            spin=0,
             lmax=lmax_eff,
             mmax=mmax_eff,
             nthreads=nthreads,
         )
 
+        # --- spin-2 (Q,U) if present -------------------------------------------
+        if map.nstokes == 3:
+            sht.adjoint_synthesis(
+                alm=alm[1:3],
+                map=map_arr[1:3],
+                **geom,
+                spin=2,
+                lmax=lmax_eff,
+                mmax=mmax_eff,
+                nthreads=nthreads,
+            )
+
+        alm = alm * base.pix_area()
+    else:
+        # Multi-frequency case: loop over frequencies
+        alm = np.zeros((map.nfreqs, map.nstokes, nalm), dtype=alm_dtype)
+
+        for ifreq in range(map.nfreqs):
+            # --- spin-0 (T or scalar) ------------------------------------------
+            sht.adjoint_synthesis(
+                alm=alm[ifreq, 0:1],
+                map=map_arr[ifreq, 0:1],
+                **geom,
+                spin=0,
+                lmax=lmax_eff,
+                mmax=mmax_eff,
+                nthreads=nthreads,
+            )
+
+            # --- spin-2 (Q,U) if present ---------------------------------------
+            if map.nstokes == 3:
+                sht.adjoint_synthesis(
+                    alm=alm[ifreq, 1:3],
+                    map=map_arr[ifreq, 1:3],
+                    **geom,
+                    spin=2,
+                    lmax=lmax_eff,
+                    mmax=mmax_eff,
+                    nthreads=nthreads,
+                )
+
+        alm = alm * base.pix_area()
+
     # --- wrap into SphericalHarmonics, propagating units and coordinates ---
     return SphericalHarmonics(
-        values=alm * base.pix_area(),
+        values=alm,
         lmax=lmax_eff,
         mmax=mmax_eff,
+        frequencies_ghz=map.frequencies_ghz.copy()
+        if map.frequencies_ghz is not None
+        else None,
         units=map.units,
         coordinates=map.coordinates,
     )
@@ -2280,24 +2846,45 @@ def rotate_alm(
             lmax=lmax_in,
             mmax=mmax_out,
             nstokes=alms.nstokes,
+            nfreqs=alms.nfreqs,
+            frequencies_ghz=alms.frequencies_ghz.copy()
+            if alms.frequencies_ghz is not None
+            else None,
             dtype=alms.values.dtype,
             units=alms.units,
             coordinates=target_coords,  # Using the determined target coords
         )
 
     # 7. Execution (ducc0)
-    for i in range(out_alms.nstokes):
-        sht.rotate_alm(
-            alms.values[i],  # Input array
-            lmax=lmax_in,
-            psi=psi_rot,
-            theta=theta_rot,
-            phi=phi_rot,
-            nthreads=nthreads,
-            mmax_in=mmax_in,
-            mmax_out=mmax_out,
-            out=out_alms.values[i],  # Output array (pre-allocated)
-        )
+    if alms.nfreqs == 1:
+        # Single frequency case
+        for i in range(out_alms.nstokes):
+            sht.rotate_alm(
+                alms.values[i],  # Input array
+                lmax=lmax_in,
+                psi=psi_rot,
+                theta=theta_rot,
+                phi=phi_rot,
+                nthreads=nthreads,
+                mmax_in=mmax_in,
+                mmax_out=mmax_out,
+                out=out_alms.values[i],  # Output array (pre-allocated)
+            )
+    else:
+        # Multi-frequency case: loop over frequencies
+        for ifreq in range(alms.nfreqs):
+            for i in range(out_alms.nstokes):
+                sht.rotate_alm(
+                    alms.values[ifreq, i],  # Input array
+                    lmax=lmax_in,
+                    psi=psi_rot,
+                    theta=theta_rot,
+                    phi=phi_rot,
+                    nthreads=nthreads,
+                    mmax_in=mmax_in,
+                    mmax_out=mmax_out,
+                    out=out_alms.values[ifreq, i],  # Output array (pre-allocated)
+                )
 
     # 8. Update metadata (Critical for inplace operations or fallback safety)
     # MODIFIED: Always set the coordinates to the determined target logic.
