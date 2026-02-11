@@ -254,11 +254,13 @@ API Reference
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: coordinates, frequencies_ghz, lmax, mmax, nfreqs, nstokes, units, values
 
 .. autoclass:: litebird_sim.maps_and_harmonics.HealpixMap
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: coordinates, frequencies_ghz, nest, nfreqs, nside, nstokes, units, values
 
 .. autofunction:: litebird_sim.maps_and_harmonics.estimate_alm
 .. autofunction:: litebird_sim.maps_and_harmonics.pixelize_alm
