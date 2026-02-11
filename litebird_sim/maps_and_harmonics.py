@@ -854,7 +854,7 @@ class SphericalHarmonics:
         ----------
         f_ell : np.ndarray or list[np.ndarray]
             The ℓ-dependent filter(s). Can be:
-            
+
             - A 1D array: Single filter applied to all alms regardless of nfreqs.
             - A list of 3 filters or 2D array with shape (3, >=lmax+1): TEB filters.
               If nfreqs==1, applied as-is. If nfreqs>1, looped over frequencies
@@ -883,9 +883,7 @@ class SphericalHarmonics:
             if len(f_ell) == 3:
                 f_ell = np.array(f_ell)
             else:
-                raise ValueError(
-                    f"Expected list of 3 filters (TEB), got {len(f_ell)}"
-                )
+                raise ValueError(f"Expected list of 3 filters (TEB), got {len(f_ell)}")
 
         if isinstance(f_ell, np.ndarray):
             if f_ell.ndim == 1:
@@ -930,10 +928,10 @@ class SphericalHarmonics:
                     raise ValueError(
                         f"Filter ell-size ({f_ell.shape[1]}) is smaller than required lmax+1 ({required_size})"
                     )
-                
+
                 # Extract kernels for T, E, B
                 kernel_teb = np.stack([f_ell[i, :][l_arr] for i in range(3)])
-                
+
                 if inplace:
                     if self.nfreqs == 1:
                         # Apply TEB filters to each stokes
@@ -1022,7 +1020,7 @@ class SphericalHarmonics:
         fwhm_rad : float, np.ndarray, or list
             Full Width at Half Maximum (FWHM) of the Gaussian beam in radians.
             Can be:
-            
+
             - A single float: Same FWHM applied to all frequencies.
             - An array or list of floats: Per-frequency FWHM. Must have length
               equal to nfreqs.
@@ -1049,7 +1047,9 @@ class SphericalHarmonics:
         elif isinstance(fwhm_rad, (list, np.ndarray)):
             fwhm_arr = np.asarray(fwhm_rad, dtype=float)
             if fwhm_arr.ndim != 1:
-                raise ValueError(f"fwhm_rad array must be 1D, got shape {fwhm_arr.shape}")
+                raise ValueError(
+                    f"fwhm_rad array must be 1D, got shape {fwhm_arr.shape}"
+                )
             if len(fwhm_arr) != self.nfreqs:
                 raise ValueError(
                     f"fwhm_rad array length ({len(fwhm_arr)}) must match nfreqs ({self.nfreqs})"
@@ -2258,59 +2258,103 @@ def interpolate_alm(
     ValueError
         If the input shapes are inconsistent or ``nstokes`` is not 1 or 3.
     """
+
     alm = np.asarray(alms.values)
-
-    if alm.ndim != 2:
-        raise ValueError(
-            f"`alms.values` must be 2D (nstokes, nalm); got shape {alm.shape!r}"
-        )
-
-    nstokes = alm.shape[0]
-    if nstokes not in (1, 3):
-        raise ValueError(f"`alms.nstokes` must be 1 (scalar) or 3 (IQU); got {nstokes}")
-
     loc = np.asarray(locations, dtype=np.float64)
     if loc.ndim != 2 or loc.shape[1] != 2:
         raise ValueError(
             f"`locations` must have shape (N, 2) [theta, phi]; got {loc.shape!r}"
         )
+    N = loc.shape[0]
 
     # Choose epsilon if not given, respecting ducc constraints
+    dtype = alm.dtype if alm.ndim == 2 else alm.dtype
     if epsilon is None:
-        if alm.dtype == np.complex64:
+        if dtype == np.complex64:
             epsilon = 1e-6
-        else:  # assume complex128 or higher precision
+        else:
             epsilon = 1e-13
 
-    # --- Temperature (spin-0) ---
-    T_map = sht.synthesis_general(
-        alm=alm[0:1],
-        spin=0,
-        lmax=alms.lmax,
-        loc=loc,
-        epsilon=epsilon,
-        mmax=alms.mmax,
-        nthreads=nthreads,
-    )[0]  # (1, N) -> (N,)
+    nfreqs = getattr(alms, "nfreqs", 1)
+    nstokes = getattr(alms, "nstokes", alm.shape[0] if alm.ndim == 2 else alm.shape[1])
+    if nstokes not in (1, 3):
+        raise ValueError(f"`alms.nstokes` must be 1 (scalar) or 3 (IQU); got {nstokes}")
 
-    # If scalar-only, we're done
-    if nstokes == 1:
-        return T_map
-
-    # --- Polarization (spin-2) ---
-    # ducc returns nmaps = 2 for spin>0, so this gives (2, N).
-    QU_maps = sht.synthesis_general(
-        alm=alm[1:3],
-        spin=2,
-        lmax=alms.lmax,
-        loc=loc,
-        epsilon=epsilon,
-        mmax=alms.mmax,
-        nthreads=nthreads,
-    )
-    Q_map, U_map = QU_maps
-
-    return T_map, Q_map, U_map
+    if nfreqs == 1:
+        # Backward compatible: expects (nstokes, nalm)
+        if alm.ndim != 2:
+            raise ValueError(
+                f"`alms.values` must be 2D (nstokes, nalm); got shape {alm.shape!r}"
+            )
+        # --- Temperature (spin-0) ---
+        T_map = sht.synthesis_general(
+            alm=alm[0:1],
+            spin=0,
+            lmax=alms.lmax,
+            loc=loc,
+            epsilon=epsilon,
+            mmax=alms.mmax,
+            nthreads=nthreads,
+        )[0]  # (1, N) -> (N,)
+        if nstokes == 1:
+            return T_map
+        # --- Polarization (spin-2) ---
+        QU_maps = sht.synthesis_general(
+            alm=alm[1:3],
+            spin=2,
+            lmax=alms.lmax,
+            loc=loc,
+            epsilon=epsilon,
+            mmax=alms.mmax,
+            nthreads=nthreads,
+        )
+        Q_map, U_map = QU_maps
+        return T_map, Q_map, U_map
+    else:
+        # Multi-frequency: expects (nfreqs, nstokes, nalm)
+        if alm.ndim != 3:
+            raise ValueError(
+                f"`alms.values` must be 3D (nfreqs, nstokes, nalm); got shape {alm.shape!r}"
+            )
+        # Allocate output arrays
+        if nstokes == 1:
+            T_map = np.empty((nfreqs, N), dtype=np.float64)
+            for ifreq in range(nfreqs):
+                T_map[ifreq] = sht.synthesis_general(
+                    alm=alm[ifreq, 0:1],
+                    spin=0,
+                    lmax=alms.lmax,
+                    loc=loc,
+                    epsilon=epsilon,
+                    mmax=alms.mmax,
+                    nthreads=nthreads,
+                )[0]
+            return T_map
+        else:
+            T_map = np.empty((nfreqs, N), dtype=np.float64)
+            Q_map = np.empty((nfreqs, N), dtype=np.float64)
+            U_map = np.empty((nfreqs, N), dtype=np.float64)
+            for ifreq in range(nfreqs):
+                T_map[ifreq] = sht.synthesis_general(
+                    alm=alm[ifreq, 0:1],
+                    spin=0,
+                    lmax=alms.lmax,
+                    loc=loc,
+                    epsilon=epsilon,
+                    mmax=alms.mmax,
+                    nthreads=nthreads,
+                )[0]
+                QU = sht.synthesis_general(
+                    alm=alm[ifreq, 1:3],
+                    spin=2,
+                    lmax=alms.lmax,
+                    loc=loc,
+                    epsilon=epsilon,
+                    mmax=alms.mmax,
+                    nthreads=nthreads,
+                )
+                Q_map[ifreq], U_map[ifreq] = QU
+            return T_map, Q_map, U_map
 
 
 def pixelize_alm(
@@ -3145,6 +3189,19 @@ def compute_cl(
         alm2 = alm1
         is_auto = True
 
+    nfreqs1 = getattr(alm1, "nfreqs", 1)
+    nfreqs2 = getattr(alm2, "nfreqs", 1)
+    multi_freq = nfreqs1 > 1 or nfreqs2 > 1
+    if nfreqs1 != nfreqs2:
+        raise ValueError(f"nfreqs mismatch: alm1 has {nfreqs1}, alm2 has {nfreqs2}.")
+    if nfreqs1 > 1:
+        # Check frequency compatibility for cross-spectra
+        if not np.allclose(
+            getattr(alm1, "frequencies_ghz", None),
+            getattr(alm2, "frequencies_ghz", None),
+        ):
+            raise ValueError("Frequencies are not compatible for cross-spectrum.")
+
     # 2. Determine Effective Limits for ALM 1
     # Check against alm1 physical limits
     lmax1_eff = lmax if lmax is not None else alm1.lmax
@@ -3193,8 +3250,8 @@ def compute_cl(
         mmax_calc = lmax_calc
 
     # Check Stokes dimensions
-    nstokes1 = alm1.values.shape[0]
-    nstokes2 = alm2.values.shape[0]
+    nstokes1 = alm1.nstokes
+    nstokes2 = alm2.nstokes
     if nstokes1 != nstokes2:
         raise ValueError(
             f"nstokes mismatch: alm1 has {nstokes1}, alm2 has {nstokes2}. "
@@ -3248,47 +3305,107 @@ def compute_cl(
     # 6. Generate Spectra
     out_cls = {}
 
-    if nstokes1 == 1:
-        out_cls["TT"] = _compute_component_cl(alm1.values[0], alm2.values[0])
-        return out_cls
-
-    elif nstokes1 == 3:
-        # Indices: 0=T, 1=E, 2=B
-        out_cls["TT"] = _compute_component_cl(alm1.values[0], alm2.values[0])
-        out_cls["EE"] = _compute_component_cl(alm1.values[1], alm2.values[1])
-        out_cls["BB"] = _compute_component_cl(alm1.values[2], alm2.values[2])
-
-        # Base Cross terms
-        cl_te = _compute_component_cl(alm1.values[0], alm2.values[1])  # T1 x E2
-        cl_tb = _compute_component_cl(alm1.values[0], alm2.values[2])  # T1 x B2
-        cl_eb = _compute_component_cl(alm1.values[1], alm2.values[2])  # E1 x B2
-
-        if is_auto:
-            out_cls["TE"] = cl_te
-            out_cls["TB"] = cl_tb
-            out_cls["EB"] = cl_eb
-        elif symmetrize:
-            # Symmetrized Cross
-            cl_et = _compute_component_cl(alm1.values[1], alm2.values[0])  # E1 x T2
-            cl_bt = _compute_component_cl(alm1.values[2], alm2.values[0])  # B1 x T2
-            cl_be = _compute_component_cl(alm1.values[2], alm2.values[1])  # B1 x E2
-
-            out_cls["TE"] = 0.5 * (cl_te + cl_et)
-            out_cls["TB"] = 0.5 * (cl_tb + cl_bt)
-            out_cls["EB"] = 0.5 * (cl_eb + cl_be)
+    if not multi_freq:
+        # Single frequency (backward compatible)
+        if nstokes1 == 1:
+            out_cls["TT"] = _compute_component_cl(alm1.values[0], alm2.values[0])
+            return out_cls
+        elif nstokes1 == 3:
+            out_cls["TT"] = _compute_component_cl(alm1.values[0], alm2.values[0])
+            out_cls["EE"] = _compute_component_cl(alm1.values[1], alm2.values[1])
+            out_cls["BB"] = _compute_component_cl(alm1.values[2], alm2.values[2])
+            cl_te = _compute_component_cl(alm1.values[0], alm2.values[1])
+            cl_tb = _compute_component_cl(alm1.values[0], alm2.values[2])
+            cl_eb = _compute_component_cl(alm1.values[1], alm2.values[2])
+            if is_auto:
+                out_cls["TE"] = cl_te
+                out_cls["TB"] = cl_tb
+                out_cls["EB"] = cl_eb
+            elif symmetrize:
+                cl_et = _compute_component_cl(alm1.values[1], alm2.values[0])
+                cl_bt = _compute_component_cl(alm1.values[2], alm2.values[0])
+                cl_be = _compute_component_cl(alm1.values[2], alm2.values[1])
+                out_cls["TE"] = 0.5 * (cl_te + cl_et)
+                out_cls["TB"] = 0.5 * (cl_tb + cl_bt)
+                out_cls["EB"] = 0.5 * (cl_eb + cl_be)
+            else:
+                out_cls["TE"] = cl_te
+                out_cls["TB"] = cl_tb
+                out_cls["EB"] = cl_eb
+                out_cls["ET"] = _compute_component_cl(alm1.values[1], alm2.values[0])
+                out_cls["BT"] = _compute_component_cl(alm1.values[2], alm2.values[0])
+                out_cls["BE"] = _compute_component_cl(alm1.values[2], alm2.values[1])
+            return out_cls
         else:
-            # Full Cross
-            out_cls["TE"] = cl_te
-            out_cls["TB"] = cl_tb
-            out_cls["EB"] = cl_eb
-            out_cls["ET"] = _compute_component_cl(alm1.values[1], alm2.values[0])
-            out_cls["BT"] = _compute_component_cl(alm1.values[2], alm2.values[0])
-            out_cls["BE"] = _compute_component_cl(alm1.values[2], alm2.values[1])
-
-        return out_cls
-
+            raise ValueError(f"Unsupported number of Stokes parameters: {nstokes1}")
     else:
-        raise ValueError(f"Unsupported number of Stokes parameters: {nstokes1}")
+        # Multi-frequency: output arrays of shape (nfreqs, lmax+1)
+        nfreqs = nfreqs1
+        lsize = lmax_calc + 1
+        if nstokes1 == 1:
+            TT = np.zeros((nfreqs, lsize), dtype=np.float64)
+            for i in range(nfreqs):
+                TT[i] = _compute_component_cl(alm1.values[i, 0], alm2.values[i, 0])
+            out_cls["TT"] = TT
+        elif nstokes1 == 3:
+            TT = np.zeros((nfreqs, lsize), dtype=np.float64)
+            EE = np.zeros((nfreqs, lsize), dtype=np.float64)
+            BB = np.zeros((nfreqs, lsize), dtype=np.float64)
+            TE = np.zeros((nfreqs, lsize), dtype=np.float64)
+            TB = np.zeros((nfreqs, lsize), dtype=np.float64)
+            EB = np.zeros((nfreqs, lsize), dtype=np.float64)
+            if not is_auto and not symmetrize:
+                ET = np.zeros((nfreqs, lsize), dtype=np.float64)
+                BT = np.zeros((nfreqs, lsize), dtype=np.float64)
+                BE = np.zeros((nfreqs, lsize), dtype=np.float64)
+            for i in range(nfreqs):
+                TT[i] = _compute_component_cl(alm1.values[i, 0], alm2.values[i, 0])
+                EE[i] = _compute_component_cl(alm1.values[i, 1], alm2.values[i, 1])
+                BB[i] = _compute_component_cl(alm1.values[i, 2], alm2.values[i, 2])
+                te = _compute_component_cl(alm1.values[i, 0], alm2.values[i, 1])
+                tb = _compute_component_cl(alm1.values[i, 0], alm2.values[i, 2])
+                eb = _compute_component_cl(alm1.values[i, 1], alm2.values[i, 2])
+                if is_auto:
+                    TE[i] = te
+                    TB[i] = tb
+                    EB[i] = eb
+                elif symmetrize:
+                    et = _compute_component_cl(alm1.values[i, 1], alm2.values[i, 0])
+                    bt = _compute_component_cl(alm1.values[i, 2], alm2.values[i, 0])
+                    be = _compute_component_cl(alm1.values[i, 2], alm2.values[i, 1])
+                    TE[i] = 0.5 * (te + et)
+                    TB[i] = 0.5 * (tb + bt)
+                    EB[i] = 0.5 * (eb + be)
+                else:
+                    TE[i] = te
+                    TB[i] = tb
+                    EB[i] = eb
+                    ET[i] = _compute_component_cl(alm1.values[i, 1], alm2.values[i, 0])
+                    BT[i] = _compute_component_cl(alm1.values[i, 2], alm2.values[i, 0])
+                    BE[i] = _compute_component_cl(alm1.values[i, 2], alm2.values[i, 1])
+            out_cls["TT"] = TT
+            out_cls["EE"] = EE
+            out_cls["BB"] = BB
+            if is_auto or symmetrize:
+                out_cls["TE"] = TE
+                out_cls["TB"] = TB
+                out_cls["EB"] = EB
+            else:
+                out_cls["TE"] = TE
+                out_cls["TB"] = TB
+                out_cls["EB"] = EB
+                out_cls["ET"] = ET
+                out_cls["BT"] = BT
+                out_cls["BE"] = BE
+        else:
+            raise ValueError(f"Unsupported number of Stokes parameters: {nstokes1}")
+        # Add frequency info
+        out_cls["frequency_ghz"] = (
+            alm1.frequencies_ghz.copy()
+            if hasattr(alm1, "frequencies_ghz") and alm1.frequencies_ghz is not None
+            else None
+        )
+        return out_cls
 
 
 def compute_dl(alm1, alm2=None, lmax=None, mmax=None, symmetrize=True):
@@ -3323,16 +3440,20 @@ def compute_dl(alm1, alm2=None, lmax=None, mmax=None, symmetrize=True):
     cls = compute_cl(alm1, alm2=alm2, lmax=lmax, mmax=mmax, symmetrize=symmetrize)
 
     dls = {}
-    # 2. Apply the scaling factor l(l+1)/2pi
     for key, cl_array in cls.items():
-        # Generate the l (ell) array based on the length of the spectrum
-        ell = np.arange(len(cl_array))
-
-        # Calculate the scaling factor. Note: for l=0, the factor is 0.
-        factor = ell * (ell + 1) / (2 * np.pi)
-
-        dls[key] = cl_array * factor
-
+        if key == "frequency_ghz":
+            dls[key] = cl_array
+            continue
+        # For multi-frequency, cl_array is (nfreqs, lmax+1), else (lmax+1,)
+        if cl_array.ndim == 2:
+            nfreqs, lsize = cl_array.shape
+            ell = np.arange(lsize)
+            factor = ell * (ell + 1) / (2 * np.pi)
+            dls[key] = cl_array * factor[None, :]
+        else:
+            ell = np.arange(len(cl_array))
+            factor = ell * (ell + 1) / (2 * np.pi)
+            dls[key] = cl_array * factor
     return dls
 
 
