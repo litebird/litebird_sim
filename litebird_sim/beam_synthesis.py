@@ -187,6 +187,12 @@ def gauss_beam_to_alm(
         if num_stokes > 1:
             alm.values[1:, :] *= 1.0 - cross_polar_leakage
 
+    # --- Add Challinor spin-2 normalization to match gauss_bl() ---
+    # gauss_bl() uses B_l^{E,B} = exp(-0.5*l(l+1)*sigma^2) * exp(2*sigma^2)
+    if num_stokes > 1:
+        pol_scale = np.exp(2.0 * sigma_squared)
+        alm.values[1:, :] *= pol_scale
+
     # Adjust normalization for Pol
     if num_stokes > 1:
         alm.values[1:, :] *= -np.sqrt(2.0)

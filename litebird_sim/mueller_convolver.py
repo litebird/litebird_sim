@@ -2,7 +2,6 @@
 # MR: This code is maintained externally, so I'm switching auto-formatting off
 # to make updating from outside sources easier.
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
 
 import ducc0
 import numpy as np
@@ -37,12 +36,12 @@ class TruncatedBlm:
     mmax: int
 
 
-def truncate_blm(inp: np.ndarray, lmax: int, mmax: int, epsilon: float = 1e-10) -> List[Optional[TruncatedBlm]]:
+def truncate_blm(inp: np.ndarray, lmax: int, mmax: int, epsilon: float = 1e-10) -> list[TruncatedBlm | None]:
     """
     Analyzes the beam components and truncates them at the highest significant m-mode.
     """
     limit = epsilon * np.max(np.abs(inp))
-    out: List[Optional[TruncatedBlm]] = []
+    out: list[TruncatedBlm | None] = []
     for i in range(len(inp)):
         maxk = -1
         idx = 0
@@ -262,7 +261,8 @@ class MuellerConvolver:
                 # Since we padded blm2_dense to mmax+4, checking bounds for +/- 2 is safe
                 # Checking +/- 4 might technically hit edge if m is at limit, but loop handles range.
                 def get_d(comp, idx_m):
-                    if idx_m < 0 or idx_m >= blm2_dense.shape[1]: return 0j
+                    if idx_m < 0 or idx_m >= blm2_dense.shape[1]:
+                        return 0j
                     return blm2_dense[comp, idx_m, lrange]
 
                 # T component, Marta notes [4a]

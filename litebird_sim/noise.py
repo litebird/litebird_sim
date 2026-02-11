@@ -1,4 +1,3 @@
-from numbers import Number
 import numpy as np
 import scipy as sp
 from numba import njit
