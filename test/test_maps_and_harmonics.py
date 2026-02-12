@@ -704,7 +704,9 @@ def test_multifreq_spherical_harmonics_creation():
     values = np.random.randn(nfreqs, nstokes, nalm) + 1j * np.random.randn(
         nfreqs, nstokes, nalm
     )
-    sh = SphericalHarmonics(values, lmax=lmax, frequencies_ghz=freqs)
+    sh = SphericalHarmonics(
+        values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs
+    )
 
     assert sh.nfreqs == nfreqs
     assert sh.nstokes == nstokes
@@ -722,9 +724,9 @@ def test_multifreq_spherical_harmonics_creation():
 
     # 3. Test validation: frequencies_ghz required for nfreqs > 1
     with pytest.raises(ValueError, match="frequencies_ghz must be provided"):
-        SphericalHarmonics(values, lmax=lmax)
+        SphericalHarmonics(values, lmax=lmax, nfreqs=nfreqs)
 
-    # 4. Test validation: frequencies_ghz must be None for nfreqs == 1
+    # 4. Test validation: frequencies_ghz must be None for nfreqs is None
     single_freq_values = np.random.randn(nstokes, nalm) + 1j * np.random.randn(
         nstokes, nalm
     )
@@ -742,7 +744,7 @@ def test_multifreq_healpix_map_creation():
 
     # 1. Create multi-frequency map
     values = np.random.randn(nfreqs, nstokes, npix)
-    m = HealpixMap(values, nside=nside, frequencies_ghz=freqs)
+    m = HealpixMap(values, nside=nside, nfreqs=nfreqs, frequencies_ghz=freqs)
 
     assert m.nfreqs == nfreqs
     assert m.nstokes == nstokes
@@ -760,7 +762,7 @@ def test_multifreq_healpix_map_creation():
 
     # 3. Test validation
     with pytest.raises(ValueError, match="frequencies_ghz must be provided"):
-        HealpixMap(values, nside=nside)
+        HealpixMap(values, nside=nside, nfreqs=nfreqs)
 
 
 def test_multifreq_arithmetic_operations():
@@ -773,8 +775,8 @@ def test_multifreq_arithmetic_operations():
     v1 = np.ones((nfreqs, 3, nalm), dtype=np.complex128)
     v2 = 2 * np.ones((nfreqs, 3, nalm), dtype=np.complex128)
 
-    sh1 = SphericalHarmonics(v1, lmax, frequencies_ghz=freqs)
-    sh2 = SphericalHarmonics(v2, lmax, frequencies_ghz=freqs)
+    sh1 = SphericalHarmonics(v1, lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
+    sh2 = SphericalHarmonics(v2, lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
 
     # Addition
     sh_sum = sh1 + sh2
@@ -787,7 +789,7 @@ def test_multifreq_arithmetic_operations():
 
     # Test incompatible frequencies
     freqs_bad = np.array([30.0, 45.0])
-    sh_bad = SphericalHarmonics(v2, lmax, frequencies_ghz=freqs_bad)
+    sh_bad = SphericalHarmonics(v2, lmax, nfreqs=nfreqs, frequencies_ghz=freqs_bad)
     with pytest.raises(ValueError, match="Incompatible frequencies"):
         _ = sh1 + sh_bad
 
@@ -800,7 +802,7 @@ def test_multifreq_convolve():
     nalm = SphericalHarmonics.num_of_alm_from_lmax(lmax)
 
     values = np.ones((nfreqs, 3, nalm), dtype=np.complex128)
-    sh = SphericalHarmonics(values, lmax=lmax, frequencies_ghz=freqs)
+    sh = SphericalHarmonics(values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
 
     # 1. Single 1D filter (applied to all frequencies)
     f_ell = np.arange(lmax + 1, dtype=np.float64)
@@ -829,7 +831,7 @@ def test_multifreq_gaussian_smoothing():
     nalm = SphericalHarmonics.num_of_alm_from_lmax(lmax)
 
     values = np.ones((nfreqs, 3, nalm), dtype=np.complex128)
-    sh = SphericalHarmonics(values, lmax=lmax, frequencies_ghz=freqs)
+    sh = SphericalHarmonics(values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
 
     # 1. Single FWHM (applied to all frequencies)
     sh_smooth = sh.apply_gaussian_smoothing(fwhm_rad=0.1, inplace=False)
@@ -859,7 +861,7 @@ def test_multifreq_interpolate_alm():
     values = (
         np.random.randn(nfreqs, 3, nalm) + 1j * np.random.randn(nfreqs, 3, nalm)
     ).astype(np.complex128)
-    sh = SphericalHarmonics(values, lmax=lmax, frequencies_ghz=freqs)
+    sh = SphericalHarmonics(values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
 
     # Test locations
     N = 10
@@ -899,7 +901,7 @@ def test_multifreq_pixelize_estimate_roundtrip():
         rng.standard_normal((nfreqs, 3, nalm))
         + 1j * rng.standard_normal((nfreqs, 3, nalm))
     ).astype(np.complex128)
-    sh_orig = SphericalHarmonics(values, lmax=lmax, frequencies_ghz=freqs)
+    sh_orig = SphericalHarmonics(values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
 
     # Pixelize
     m = pixelize_alm(sh_orig, nside=nside)
@@ -927,7 +929,7 @@ def test_multifreq_compute_cl():
         rng.standard_normal((nfreqs, 3, nalm))
         + 1j * rng.standard_normal((nfreqs, 3, nalm))
     ).astype(np.complex128)
-    sh = SphericalHarmonics(values, lmax=lmax, frequencies_ghz=freqs)
+    sh = SphericalHarmonics(values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
 
     # Compute auto-spectrum
     cls = compute_cl(sh)
@@ -949,13 +951,13 @@ def test_multifreq_compute_cl():
         rng.standard_normal((nfreqs, 3, nalm))
         + 1j * rng.standard_normal((nfreqs, 3, nalm))
     ).astype(np.complex128)
-    sh2 = SphericalHarmonics(values2, lmax=lmax, frequencies_ghz=freqs)
+    sh2 = SphericalHarmonics(values2, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
     cls_cross = compute_cl(sh, sh2)
     assert cls_cross["TT"].shape == (nfreqs, lmax + 1)
 
     # Test error with incompatible frequencies
     freqs_bad = np.array([30.0, 40.0, 55.0])
-    sh_bad = SphericalHarmonics(values2, lmax=lmax, frequencies_ghz=freqs_bad)
+    sh_bad = SphericalHarmonics(values2, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs_bad)
     with pytest.raises(ValueError, match="Frequencies are not compatible"):
         compute_cl(sh, sh_bad)
 
@@ -975,7 +977,7 @@ def test_multifreq_compute_dl():
         rng.standard_normal((nfreqs, 3, nalm))
         + 1j * rng.standard_normal((nfreqs, 3, nalm))
     ).astype(np.complex128)
-    sh = SphericalHarmonics(values, lmax=lmax, frequencies_ghz=freqs)
+    sh = SphericalHarmonics(values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
 
     # Compute Dl
     dls = compute_dl(sh)
@@ -1005,16 +1007,16 @@ def test_multifreq_single_freq_compatibility():
     values_single = np.random.randn(3, nalm) + 1j * np.random.randn(3, nalm)
     sh_single = SphericalHarmonics(values_single, lmax=lmax)
 
-    assert sh_single.nfreqs == 1
+    assert sh_single.nfreqs is None
     assert sh_single.frequencies_ghz is None
     assert sh_single.values.shape == (3, nalm)
 
     # Operations should still work
     sh_copy = sh_single.copy()
-    assert sh_copy.nfreqs == 1
+    assert sh_copy.nfreqs is None
 
     sh_sum = sh_single + sh_copy
-    assert sh_sum.nfreqs == 1
+    assert sh_sum.nfreqs is None
 
     # Compute cl should return 1D arrays
     cls = compute_cl(sh_single)

@@ -211,9 +211,9 @@ class SkyGenerator:
        - Output is a dict keyed by channel/detector name, values are HealpixMap/SphericalHarmonics.
 
     2) Frequency mode:
-       - Provide `frequencies_ghz`
-       - Output is a multi-frequency HealpixMap or SphericalHarmonics object.
-       - The `values` attribute has shape (nfreqs, 3, npix) or (nfreqs, 3, nalms).
+       - Provide `frequencies_ghz` (single float or array of frequencies)
+       - Single frequency output: HealpixMap or SphericalHarmonics with 2D arrays (nstokes, size)
+       - Multi-frequency output: HealpixMap or SphericalHarmonics with 3D arrays (nfreqs, nstokes, size)
        - The `frequencies_ghz` attribute contains the frequency array.
        - `return_components=True` is not supported in this mode (a warning is raised and only the total is returned).
     """
@@ -223,7 +223,7 @@ class SkyGenerator:
         parameters: SkyGenerationParams,
         channels: FreqChannelInfo | Sequence[FreqChannelInfo] | None = None,
         detectors: DetectorInfo | Sequence[DetectorInfo] | None = None,
-        frequencies_ghz: Sequence[float] | np.ndarray | None = None,
+        frequencies_ghz: float | Sequence[float] | np.ndarray | None = None,
         fwhm_rad: float | Sequence[float] | np.ndarray | None = None,
     ):
         self.params: SkyGenerationParams = parameters
@@ -267,10 +267,10 @@ class SkyGenerator:
         self.fwhm_rad: np.ndarray | None = None
 
         if self.frequency_mode:
-            freqs = np.asarray(frequencies_ghz, dtype=float)
+            freqs = np.atleast_1d(np.asarray(frequencies_ghz, dtype=float))
             if freqs.ndim != 1 or freqs.size == 0:
                 raise ValueError(
-                    "'frequencies_ghz' must be a 1D non-empty list/array of frequencies in GHz."
+                    "'frequencies_ghz' must be a frequency in GHz (float) or a 1D non-empty list/array of frequencies in GHz."
                 )
             self.frequencies_ghz = freqs
             nfreq = freqs.size
@@ -359,6 +359,7 @@ class SkyGenerator:
             return HealpixMap(
                 values=values,
                 nside=self.params.nside,
+                nfreqs=nfreq,
                 units=self.lbs_unit,
                 coordinates=self.coords,
                 nest=False,
@@ -374,6 +375,7 @@ class SkyGenerator:
                 values=values,
                 lmax=self.params.lmax,
                 mmax=self.params.lmax,
+                nfreqs=nfreq,
                 coordinates=self.coords,
                 units=self.lbs_unit,
                 frequencies_ghz=self.frequencies_ghz.copy(),
@@ -683,6 +685,7 @@ class SkyGenerator:
             return HealpixMap(
                 values=out,
                 nside=self.params.nside,
+                nfreqs=nfreq,
                 units=self.lbs_unit,
                 coordinates=self.coords,
                 nest=False,
@@ -693,6 +696,7 @@ class SkyGenerator:
                 values=out,
                 lmax=self.params.lmax,
                 mmax=self.params.lmax,
+                nfreqs=nfreq,
                 coordinates=self.coords,
                 units=self.lbs_unit,
                 frequencies_ghz=self.frequencies_ghz.copy(),
@@ -760,6 +764,7 @@ class SkyGenerator:
             return HealpixMap(
                 values=out,
                 nside=self.params.nside,
+                nfreqs=nfreq,
                 units=self.lbs_unit,
                 coordinates=self.coords,
                 nest=False,
@@ -770,6 +775,7 @@ class SkyGenerator:
                 values=out,
                 lmax=self.params.lmax,
                 mmax=self.params.lmax,
+                nfreqs=nfreq,
                 coordinates=self.coords,
                 units=self.lbs_unit,
                 frequencies_ghz=self.frequencies_ghz.copy(),
@@ -843,6 +849,7 @@ class SkyGenerator:
             return HealpixMap(
                 values=out,
                 nside=self.params.nside,
+                nfreqs=nfreq,
                 units=self.lbs_unit,
                 coordinates=self.coords,
                 nest=False,
@@ -853,6 +860,7 @@ class SkyGenerator:
                 values=out,
                 lmax=self.params.lmax,
                 mmax=self.params.lmax,
+                nfreqs=nfreq,
                 coordinates=self.coords,
                 units=self.lbs_unit,
                 frequencies_ghz=self.frequencies_ghz.copy(),

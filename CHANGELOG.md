@@ -34,11 +34,8 @@
 -   Refurbish HWP handling [#463](https://github.com/litebird/litebird_sim/pull/463), in detail:
         
     1. Create NonIdealHWP class.
-
     2. Remove HwpSys class.
-
     3. Rename hwp_sys.py to hwp_harmonics.py.
-
     4. Unify map scanning methods by making hwp_harmonics.fill_tod() a low-level method which is now executed by the high-level scan_map_in_observations.py.
 
 -   Fix angle in hwp differential emission [#452](https://github.com/litebird/litebird_sim/pull/452)
@@ -166,13 +163,9 @@
 -   **Breaking change**: Change to the pointing API [#358](https://github.com/litebird/litebird_sim/pull/358), in detail:
 
     1. DetectorInfo has three new attributes: pol_angle_rad (polarization angle), pol_efficiency (polarization efficiency)and mueller_hwp (mueller matrix of the HWP).
-
     2. get_pointings() return only the orientation ψ of the detector, the polarization angle is a separate variable stored in the `Observation` class. The same class also handles the mueller_hwp for each detector, and it has a new bool variable `has_hwp` that is set to true if an HWP object is passed to `prepare_pointings()`.
-
     3. The mock vPTEP IMo has been updated accordingly.
-
     4. The `HWP` class has a new field called mueller, that contains the mueller matrix of the HWP.
-
     5. The function `scan_map()` now handles three possible algebras: (i) no HWP, (ii) ideal HWP, (iii) generic optical chain.
 
 -   Implementation of distributing detectors across the MPI processes by grouping them according to given attributes [#334](https://github.com/litebird/litebird_sim/pull/334)
@@ -200,17 +193,11 @@
 -   **Breaking change**: new API for pointing computation [#319](https://github.com/litebird/litebird_sim/pull/319). Here is a in-depth list of all the breaking changes in this PR:
 
     1.  Quaternions describing the orientation of the detectors must now be encoded using a `RotQuaternion` object; plain NumPy arrays are no longer supported.
-
     2.  Quaternions are now computed using the function `prepare_pointings()` (low-level) and the method `Simulation.prepare_pointings()` (high-level, you should use this). Pointings are no longer kept in memory until you retrieve them using `Observation.get_pointings()`.
-
     3.  Pointings are no longer accessible using the field `pointings` in the `Observation` class. (Not 100% true, see below.) They are computed on the fly by the method `Observation.get_pointings()`.
-
     4.  The way pointings are returned differs from how they were stored before. The result of a call to `Observation.get_pointings()` is a 2-element tuple: the first element contains a `(N, 3)` NumPy array containing the colatitude θ, the longitude φ, and the orientation ψ, while the second element is an array of the angles of the HWP. Thus, the orientation angle ψ is now stored together with θ and φ.
-
     5.  If you want to pre-compute all the pointings instead of computing them on the fly each time you call `Observation.get_pointings()`, you can use the function `precompute_pointings()` (low-level) and the method `Simulation.precompute_pointings()` (high-level). This initializes a number of fields in each `Observation` object, but they are shaped as described in the previous point, i.e., ψ is kept in the same matrix as θ and φ.
-
     6.  The argument `dtype_tod` of the method `Simulation.create_observations` has become `tod_type` for consistency with other similar parameters.
-
     7.  The format of the HDF5 files has been slightly changed to let additional information about pointings to be stored.
 
     See the comments in [PR#319](https://github.com/litebird/litebird_sim/pull/319) and discussion [#312](https://github.com/litebird/litebird_sim/discussions/312) for more details.
