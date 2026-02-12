@@ -1132,7 +1132,7 @@ class SphericalHarmonics:
         else:
             # Multi-frequency case: apply pixel window to each frequency
             if inplace:
-                for ifreq in range(int(self.nfreqs)):
+                for ifreq in range(self.nfreqs):
                     # Get the l-index for every coefficient in the alm array
                     l_arr = self.alm_l_array(self.lmax, self.mmax)
 
