@@ -301,9 +301,11 @@ class SphericalHarmonics:
         frequencies_ghz_array = None
         if frequencies_ghz is not None:
             # Normalize frequencies_ghz to array (handles scalar float)
-            frequencies_ghz_array = np.atleast_1d(np.asarray(frequencies_ghz, dtype=float))
+            frequencies_ghz_array = np.atleast_1d(
+                np.asarray(frequencies_ghz, dtype=float)
+            )
             nfreq = frequencies_ghz_array.size
-            
+
             # If nfreqs was also provided, ensure consistency
             if nfreqs is not None and nfreqs != nfreq:
                 raise ValueError(
@@ -1130,7 +1132,7 @@ class SphericalHarmonics:
         else:
             # Multi-frequency case: apply pixel window to each frequency
             if inplace:
-                for ifreq in range(self.nfreqs):
+                for ifreq in range(int(self.nfreqs)):
                     # Get the l-index for every coefficient in the alm array
                     l_arr = self.alm_l_array(self.lmax, self.mmax)
 
@@ -1280,7 +1282,9 @@ class SphericalHarmonics:
     # I/O
     # -------------
 
-    def write_fits(self, filename: str, overwrite: bool = True):
+    def write_fits(
+        self, filename: str, overwrite: bool = True, idx_frequency: int | None = None
+    ):
         """
         Save the SphericalHarmonics object to a FITS file using the Explicit Index scheme.
 
@@ -1288,7 +1292,52 @@ class SphericalHarmonics:
         - Separate HDUs for TEMPERATURE, E_MODE, B_MODE.
         - Each HDU has 3 columns: INDEX, REAL, IMAG.
         - INDEX = l^2 + l + m + 1 (FITS standard for sparse alm).
+
+        Parameters
+        ----------
+        filename : str
+            The FITS file path.
+        overwrite : bool, optional
+            If True, overwrite existing file. Default is True.
+        idx_frequency : int or None, optional
+            The frequency index to write (for multi-frequency objects).
+            - If nfreqs is None (single-frequency): ignored; raises warning if not None.
+            - If nfreqs is not None (multi-frequency): must be specified and < nfreqs.
+            Default is None.
+
+        Raises
+        ------
+        ValueError
+            If nfreqs > 1 and idx_frequency is None.
+            If idx_frequency is not in valid range [0, nfreqs).
+        UserWarning
+            If nfreqs is None and idx_frequency is not None.
         """
+        # Validate idx_frequency parameter
+        if self.nfreqs is None:
+            # Single-frequency mode
+            if idx_frequency is not None:
+                warnings.warn(
+                    "idx_frequency is ignored for single-frequency SphericalHarmonics "
+                    "(nfreqs is None)",
+                    UserWarning,
+                )
+        else:
+            # Multi-frequency mode
+            if idx_frequency is None:
+                raise ValueError(
+                    f"idx_frequency must be specified for multi-frequency SphericalHarmonics "
+                    f"(nfreqs={self.nfreqs})"
+                )
+            if (
+                not isinstance(idx_frequency, int)
+                or idx_frequency < 0
+                or idx_frequency >= self.nfreqs
+            ):
+                raise ValueError(
+                    f"idx_frequency ({idx_frequency}) must be in range [0, {self.nfreqs})"
+                )
+
         # 1. Retrieve l, m for each coefficient currently in memory
         l_val, m_val = self.get_lm_arrays()
 
@@ -1299,16 +1348,27 @@ class SphericalHarmonics:
         idx_fits = l_val**2 + l_val + m_val + 1
 
         # Handle components (1 for T, 3 for T,E,B)
-        if self.nstokes == 3:
-            components = self.values  # shape (3, Nalms)
-            ext_names = ["TEMPERATURE", "E_MODE", "B_MODE"]
-        else:
-            # Handle scalar case or 1D array
-            if self.values.ndim == 2:
-                components = [self.values[0]]
+        if self.nfreqs is None:
+            # Single-frequency case
+            if self.nstokes == 3:
+                components = self.values  # shape (3, Nalms)
+                ext_names = ["TEMPERATURE", "E_MODE", "B_MODE"]
             else:
-                components = [self.values]
-            ext_names = ["TEMPERATURE"]
+                # Handle scalar case or 1D array
+                if self.values.ndim == 2:
+                    components = [self.values[0]]
+                else:
+                    components = [self.values]
+                ext_names = ["TEMPERATURE"]
+        else:
+            # Multi-frequency case: extract the specified frequency
+            if self.nstokes == 3:
+                components = self.values[idx_frequency]  # shape (3, Nalms)
+                ext_names = ["TEMPERATURE", "E_MODE", "B_MODE"]
+            else:
+                # Handle scalar case
+                components = [self.values[idx_frequency, 0]]
+                ext_names = ["TEMPERATURE"]
 
         hdus = [fits.PrimaryHDU()]
 
@@ -1667,9 +1727,11 @@ class HealpixMap:
         frequencies_ghz_array = None
         if frequencies_ghz is not None:
             # Normalize frequencies_ghz to array (handles scalar float)
-            frequencies_ghz_array = np.atleast_1d(np.asarray(frequencies_ghz, dtype=float))
+            frequencies_ghz_array = np.atleast_1d(
+                np.asarray(frequencies_ghz, dtype=float)
+            )
             nfreq = frequencies_ghz_array.size
-            
+
             # If nfreqs was also provided, ensure consistency
             if nfreqs is not None and nfreqs != nfreq:
                 raise ValueError(
@@ -3211,7 +3273,12 @@ def synthesize_alm(
         alm_colored = colored_T.T
 
     return SphericalHarmonics(
-        values=alm_colored, lmax=lmax, mmax=mmax, nfreqs=None, units=units, coordinates=coordinates
+        values=alm_colored,
+        lmax=lmax,
+        mmax=mmax,
+        nfreqs=None,
+        units=units,
+        coordinates=coordinates,
     )
 
 

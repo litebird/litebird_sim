@@ -111,7 +111,7 @@ These functions handle the complexity of spin-0 (Temperature) vs spin-2 (Polariz
    Setting ``nthreads=0`` (default) uses all available hardware threads, which is optimal for standalone scripts but should be adjusted when running inside an MPI environment.
 
 .. note::
-   All transform functions support multi-frequency data. When operating on multi-frequency objects (``nfreqs > 1``), transforms are applied independently to each frequency, and the output maintains the multi-frequency structure.
+   All transform functions support multi-frequency data. When operating on multi-frequency objects, transforms are applied independently to each frequency, and the output maintains the multi-frequency structure.
 
 Cookbook
 --------

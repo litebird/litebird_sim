@@ -551,7 +551,7 @@ class SkyGenerator:
 
         return result
 
-    def generate_solar_dipole(self) -> dict[str, Any]:
+    def generate_solar_dipole(self) -> dict[str, HealpixMap | SphericalHarmonics]:
         """Generates solar dipole (channel/detector mode only)."""
         if self.frequency_mode:
             raise RuntimeError(
@@ -574,7 +574,7 @@ class SkyGenerator:
         dipole_map_val = np.zeros((3, npix))
         dipole_map_val[0] = np.dot(pix_vecs, vec) * amp
 
-        result: dict[str, Any] = {}
+        result: dict[str, HealpixMap | SphericalHarmonics] = {}
 
         for ch_or_det in self.channels_or_detectors:
             name = ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel

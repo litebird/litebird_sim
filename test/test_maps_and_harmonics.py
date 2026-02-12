@@ -704,9 +704,7 @@ def test_multifreq_spherical_harmonics_creation():
     values = np.random.randn(nfreqs, nstokes, nalm) + 1j * np.random.randn(
         nfreqs, nstokes, nalm
     )
-    sh = SphericalHarmonics(
-        values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs
-    )
+    sh = SphericalHarmonics(values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
 
     assert sh.nfreqs == nfreqs
     assert sh.nstokes == nstokes
@@ -901,7 +899,9 @@ def test_multifreq_pixelize_estimate_roundtrip():
         rng.standard_normal((nfreqs, 3, nalm))
         + 1j * rng.standard_normal((nfreqs, 3, nalm))
     ).astype(np.complex128)
-    sh_orig = SphericalHarmonics(values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs)
+    sh_orig = SphericalHarmonics(
+        values, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs
+    )
 
     # Pixelize
     m = pixelize_alm(sh_orig, nside=nside)
@@ -957,7 +957,9 @@ def test_multifreq_compute_cl():
 
     # Test error with incompatible frequencies
     freqs_bad = np.array([30.0, 40.0, 55.0])
-    sh_bad = SphericalHarmonics(values2, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs_bad)
+    sh_bad = SphericalHarmonics(
+        values2, lmax=lmax, nfreqs=nfreqs, frequencies_ghz=freqs_bad
+    )
     with pytest.raises(ValueError, match="Frequencies are not compatible"):
         compute_cl(sh, sh_bad)
 

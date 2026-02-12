@@ -214,9 +214,7 @@ def test_skygenerator_scalar_frequency():
     result_array = gen_array.execute()
 
     # Both should have same frequency
-    npt.assert_array_almost_equal(
-        gen_scalar.frequencies_ghz, gen_array.frequencies_ghz
-    )
+    npt.assert_array_almost_equal(gen_scalar.frequencies_ghz, gen_array.frequencies_ghz)
 
     # Should have same nfreqs
     assert result_scalar.nfreqs == result_array.nfreqs
@@ -226,9 +224,7 @@ def test_skygenerator_scalar_frequency():
     result_multi = gen_multi.execute()
 
     assert gen_multi.frequencies_ghz.shape == (3,)
-    npt.assert_array_almost_equal(
-        gen_multi.frequencies_ghz, [30.0, 40.0, 50.0]
-    )
+    npt.assert_array_almost_equal(gen_multi.frequencies_ghz, [30.0, 40.0, 50.0])
     assert result_multi.nfreqs == 3
     assert result_multi.values.shape[0] == 3
 
