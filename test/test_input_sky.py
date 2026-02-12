@@ -3,6 +3,7 @@
 from pathlib import Path
 
 import healpy as hp
+import numpy as np
 import numpy.testing as npt
 
 import litebird_sim as lbs
@@ -179,3 +180,79 @@ def test_sky_generation_from_imo():
     # Check that parameters were stored
     assert "SkyGenerationParams" in result
     assert result["SkyGenerationParams"].nside == nside
+
+
+def test_skygenerator_scalar_frequency():
+    """
+    Tests that SkyGenerator accepts both scalar float and array frequencies in frequency mode.
+    Verifies that scalar float input is normalized correctly.
+    """
+    params = SkyGenerationParams(
+        nside=16,
+        output_type="map",
+        make_cmb=True,
+        make_fg=False,
+        make_dipole=False,
+    )
+
+    # Test 1: Single scalar float frequency
+    gen_scalar = SkyGenerator(params, frequencies_ghz=30.0)
+    result_scalar = gen_scalar.execute()
+
+    # Verify frequency was normalized to array
+    assert isinstance(gen_scalar.frequencies_ghz, np.ndarray)
+    assert gen_scalar.frequencies_ghz.shape == (1,)
+    npt.assert_array_almost_equal(gen_scalar.frequencies_ghz, [30.0])
+
+    # Verify output structure
+    assert result_scalar.nfreqs == 1
+    assert result_scalar.values.ndim == 3
+    assert result_scalar.values.shape[0] == 1  # nfreqs dimension
+
+    # Test 2: Array with single frequency should match scalar
+    gen_array = SkyGenerator(params, frequencies_ghz=[30.0])
+    result_array = gen_array.execute()
+
+    # Both should have same frequency
+    npt.assert_array_almost_equal(gen_scalar.frequencies_ghz, gen_array.frequencies_ghz)
+
+    # Should have same nfreqs
+    assert result_scalar.nfreqs == result_array.nfreqs
+
+    # Test 3: Multiple frequencies
+    gen_multi = SkyGenerator(params, frequencies_ghz=[30.0, 40.0, 50.0])
+    result_multi = gen_multi.execute()
+
+    assert gen_multi.frequencies_ghz.shape == (3,)
+    npt.assert_array_almost_equal(gen_multi.frequencies_ghz, [30.0, 40.0, 50.0])
+    assert result_multi.nfreqs == 3
+    assert result_multi.values.shape[0] == 3
+
+
+def test_skygenerator_frequency_mode_all_components():
+    """
+    Tests frequency mode with all sky components (CMB, foregrounds, dipole).
+    Verifies that scalar frequency input works across all components.
+    """
+    params = SkyGenerationParams(
+        nside=16,
+        output_type="map",
+        make_cmb=True,
+        make_fg=True,
+        make_dipole=True,
+    )
+
+    # Test with scalar frequency
+    gen = SkyGenerator(params, frequencies_ghz=30.0)
+    result = gen.execute()
+
+    # Verify single frequency output
+    assert result.nfreqs == 1
+    assert result.values.shape == (1, 3, 12 * 16**2)  # (nfreqs, nstokes, npix)
+
+    # Test with multiple frequencies
+    gen_multi = SkyGenerator(params, frequencies_ghz=[30.0, 40.0])
+    result_multi = gen_multi.execute()
+
+    assert result_multi.nfreqs == 2
+    assert result_multi.values.shape == (2, 3, 12 * 16**2)  # (nfreqs, nstokes, npix)

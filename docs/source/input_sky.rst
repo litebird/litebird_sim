@@ -13,9 +13,16 @@ The framework utilizes the `PySM3 <https://pysm3.readthedocs.io/en/latest/>`_ li
 Usage Example
 -------------
 
-The core interface is the :class:`~litebird_sim.input_sky.SkyGenerator` class. It requires a configuration object (:class:`~litebird_sim.input_sky.SkyGenerationParams`) and **either** a list of channels (:class:`~litebird_sim.detectors.FreqChannelInfo`) **or** detectors (:class:`~litebird_sim.detectors.DetectorInfo`), but not both.
+The core interface is the :class:`~litebird_sim.input_sky.SkyGenerator` class. It requires a configuration object (:class:`~litebird_sim.input_sky.SkyGenerationParams`) and supports three mutually-exclusive modes:
 
-Here is an example showing how to generate a sky containing CMB and specific foregrounds (Dust and Synchrotron) using the dedicated ``Units`` Enum:
+1. **Channel mode**: Provide a list of :class:`~litebird_sim.detectors.FreqChannelInfo` objects
+2. **Detector mode**: Provide a list of :class:`~litebird_sim.detectors.DetectorInfo` objects
+3. **Frequency mode**: Provide an array of frequencies in GHz via ``frequencies_ghz``
+
+Channel/Detector Mode Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Here is an example showing how to generate a sky containing CMB and specific foregrounds (Dust and Synchrotron) using channels:
 
 .. code-block:: python
 
@@ -47,13 +54,55 @@ Here is an example showing how to generate a sky containing CMB and specific for
         )
     ]
 
-    # 3. Initialize and Run (use 'channels=' OR 'detectors=', not both)
+    # 3. Initialize and Run (use 'channels=' OR 'detectors=' OR 'frequencies_ghz=', not multiple)
     sky_gen = SkyGenerator(parameters=params, channels=channels)
     # Or alternatively: sky_gen = SkyGenerator(parameters=params, detectors=detectors)
     sky_maps = sky_gen.execute()
 
     # The result is a dictionary keyed by channel name
     # healpix_map = sky_maps["L1-040"]
+
+Frequency Mode Example
+~~~~~~~~~~~~~~~~~~~~~~
+
+Alternatively, you can generate multi-frequency sky maps directly without defining channels or detectors:
+
+.. code-block:: python
+
+    import litebird_sim as lbs
+    from litebird_sim.input_sky import SkyGenerator, SkyGenerationParams
+    from litebird_sim.units import Units
+    import numpy as np
+
+    # 1. Define Simulation Parameters
+    params = SkyGenerationParams(
+        nside=512,
+        units=Units.K_CMB,
+        output_type="map",       # Options: "map" or "alm"
+        make_cmb=True,
+        seed_cmb=12345,
+        make_fg=True,
+        fg_models=["d0", "s1"],  # PySM3 model short codes
+        apply_beam=True,         # Requires fwhm_rad parameter
+    )
+
+    # 2. Define frequencies and beam sizes
+    frequencies_ghz = np.array([100.0, 143.0, 217.0])
+    fwhm_arcmin = np.array([10.0, 7.0, 5.0])
+    fwhm_rad = np.radians(fwhm_arcmin / 60.0)
+
+    # 3. Initialize and Run in frequency mode
+    sky_gen = SkyGenerator(
+        parameters=params,
+        frequencies_ghz=frequencies_ghz,
+        fwhm_rad=fwhm_rad  # Can be scalar or array matching frequencies
+    )
+    sky_map = sky_gen.execute()
+
+    # Result is a multi-frequency HealpixMap object
+    # sky_map.nfreqs == 3
+    # sky_map.frequencies_ghz == [100.0, 143.0, 217.0]
+    # sky_map.values.shape == (3, 3, npix)  # (nfreqs, nstokes, npix)
 
 Configuration Parameters
 ------------------------
@@ -168,7 +217,11 @@ It provides robust handling of physical units via the ``litebird_sim.units.Units
 Structure of the Output
 -----------------------
 
-The :meth:`~litebird_sim.input_sky.SkyGenerator.execute` method returns a dictionary containing the generated sky objects. Depending on the ``output_type`` parameter, these will be instances of either ``HealpixMap`` or ``SphericalHarmonics``.
+The :meth:`~litebird_sim.input_sky.SkyGenerator.execute` method returns different structures depending on the mode:
+
+**Channel/Detector Mode**
+
+Returns a dictionary containing the generated sky objects, keyed by channel or detector name. Depending on the ``output_type`` parameter, values will be instances of either :class:`~litebird_sim.maps_and_harmonics.HealpixMap` or :class:`~litebird_sim.maps_and_harmonics.SphericalHarmonics`.
 
 If ``return_components=True`` is set in the parameters, the output will be a nested dictionary separating the components:
 
@@ -180,7 +233,23 @@ If ``return_components=True`` is set in the parameters, the output will be a nes
         "dipole": { "channel_name": map_obj, ... }
     }
 
-Otherwise, it returns the sum of all requested components.
+Otherwise, it returns the sum of all requested components in a single dictionary:
+
+.. code-block:: python
+
+    {
+        "channel_name": combined_map_obj,
+        ...
+    }
+
+**Frequency Mode**
+
+Returns a single multi-frequency :class:`~litebird_sim.maps_and_harmonics.HealpixMap` or :class:`~litebird_sim.maps_and_harmonics.SphericalHarmonics` object.
+
+* The ``values`` attribute has shape ``(nfreqs, nstokes, npix)`` for maps or ``(nfreqs, nstokes, nalms)`` for alms.
+* The ``frequencies_ghz`` attribute contains the array of frequencies.
+* The ``nfreqs`` property indicates the number of frequencies.
+* ``return_components=True`` is not supported in frequency mode (a warning is issued and only the total is returned).
 
 API Reference
 -------------
