@@ -4,6 +4,7 @@ import healpy as hp
 import numpy as np
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
+from typing import List
 
 from .coordinates import CoordinateSystem
 from .healpix import npix_to_nside
