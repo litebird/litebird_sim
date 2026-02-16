@@ -135,7 +135,7 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
 
         det_params = {}
         for var, data in zip(variables, loaded_data):
-            if "freq" in var or "Ph" in var:
+            if "freq" in var or var.startswith("Ph"):
                 det_params[var] = np.array(data, dtype=np.float64)
             else:
                 det_params[var] = np.array(data, dtype=np.complex128)
