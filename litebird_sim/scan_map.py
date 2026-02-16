@@ -1,20 +1,21 @@
+import logging
+
+import healpy as hp
 import numpy as np
+from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
-from ducc0.healpix import Healpix_Base
-from .observations import Observation
-from .hwp_harmonics.hwp_harmonics import fill_tod
+from .coordinates import CoordinateSystem
+from .healpix import npix_to_nside
 from .hwp import HWP, IdealHWP, NonIdealHWP
+from .hwp_harmonics.hwp_harmonics import fill_tod
+from .observations import Observation
 from .pointings_in_obs import (
     _get_hwp_angle,
     _get_pointings_array,
     _get_pol_angle,
     _normalize_observations_and_pointings,
 )
-from .coordinates import CoordinateSystem
-from .healpix import npix_to_nside
-import logging
-import healpy as hp
 
 
 @njit
@@ -302,7 +303,8 @@ def scan_map_in_observations(
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
     mueller_phases: np.ndarray = None,
-    comm: bool | None = None,
+    integrate_in_band: bool = False,
+    band_filenames: List[str] = None,
 ):
     """
 
@@ -473,6 +475,8 @@ def scan_map_in_observations(
                 apply_non_linearity=apply_non_linearity,
                 add_2f_hwpss=add_2f_hwpss,
                 mueller_phases=mueller_phases,
+                integrate_in_band=integrate_in_band,
+                band_filenames=band_filenames,
             )
         else:
             scan_map(

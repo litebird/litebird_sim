@@ -9,7 +9,7 @@ from collections import namedtuple
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from shutil import copyfile, copytree, SameFileError
+from shutil import SameFileError, copyfile, copytree
 from typing import Any, Optional, Union
 from uuid import uuid4
 
@@ -24,48 +24,51 @@ import tomlkit
 from markdown_katex import KatexExtension
 
 from litebird_sim import constants
-from .hwp import HWP
+
 from .beam_convolution import (
-    add_convolved_sky_to_observations,
     BeamConvolutionParameters,
+    add_convolved_sky_to_observations,
 )
 from .beam_synthesis import generate_gauss_beam_alms
 from .coordinates import CoordinateSystem
 from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
-from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
-from .healpix import write_healpix_map_to_file, npix_to_nside
+from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
+from .healpix import npix_to_nside, write_healpix_map_to_file
+from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
-from .io import write_list_of_observations, read_list_of_observations
+from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
-    make_binned_map,
-    make_brahmap_gls_map,
-    check_valid_splits,
     BinnerResult,
-    make_destriped_map,
-    save_destriper_results,
     DestriperParameters,
     DestriperResult,
+    check_valid_splits,
     destriper_log_callback,
+    make_binned_map,
+    make_brahmap_gls_map,
+    make_destriped_map,
+    save_destriper_results,
 )
 from .mbs import Mbs, MbsParameters
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
+from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
-from .units import Units
-from .pointings_in_obs import prepare_pointings, precompute_pointings
+from .pointings_in_obs import precompute_pointings, prepare_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .spherical_harmonics import SphericalHarmonics
+from .units import Units
+from .version import (
+    __author__ as litebird_sim_author,
+)
 from .version import (
     __version__ as litebird_sim_version,
-    __author__ as litebird_sim_author,
 )
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
@@ -77,7 +80,7 @@ OutputFileRecord = namedtuple("OutputFileRecord", ["path", "description"])
 
 
 def _tomlkit_to_popo(d):
-    from datetime import date, time, datetime
+    from datetime import date, datetime, time
 
     # This is a fix to issue
     # https://github.com/sdispater/tomlkit/issues/43. It converts an
@@ -1633,6 +1636,8 @@ class Simulation:
         interpolation: str | None = "",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        integrate_in_band: bool = False,
+        band_filenames: List[str] = None,
     ):
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
 
@@ -1655,6 +1660,8 @@ class Simulation:
             component=component,
             interpolation=interpolation,
             pointings_dtype=pointings_dtype,
+            integrate_in_band=integrate_in_band,
+            band_filenames=band_filenames,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
