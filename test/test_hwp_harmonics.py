@@ -128,8 +128,8 @@ def test_hwp_harmonics(interpolation, calculus):
         }
     else:
         list_of_sims[1].observations[0].jones_hwp[0] = {
-            "0f": np.array([[0, 0]], dtype=np.float64),
-            "2f": np.array([[0, 0]], dtype=np.float64),
+            "0f": np.array([[1, 0],[0,-1]], dtype=np.float64),
+            "2f": np.array([[1, 0],[0,-1]], dtype=np.float64),
         }
 
     list_of_sims[1].set_hwp(nonideal_hwp)
