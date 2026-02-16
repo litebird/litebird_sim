@@ -349,18 +349,18 @@ def fill_tod(
                         [
                             (
                                 cur_det_params["Jxx_0f"][nu]
-                                * np.exp(1j * cur_det_params["Phxx_0f"][nu])
+                                * np.exp(1j * np.deg2rad(cur_det_params["Phxx_0f"][nu]))
                             )
                             - 1,
                             cur_det_params["Jxy_0f"][nu]
-                            * np.exp(1j * cur_det_params["Phxy_0f"][nu]),
+                            * np.exp(1j * np.deg2rad(cur_det_params["Phxy_0f"][nu])),
                         ],
                         [
                             cur_det_params["Jyx_0f"][nu]
-                            * np.exp(1j * cur_det_params["Phyx_0f"][nu]),
+                            * np.exp(1j * np.deg2rad(cur_det_params["Phyx_0f"][nu])),
                             (
                                 cur_det_params["Jyy_0f"][nu]
-                                * np.exp(1j * cur_det_params["Phyy_0f"][nu])
+                                * np.exp(1j * np.deg2rad(cur_det_params["Phyy_0f"][nu]))
                             )
                             + 1,
                         ],
@@ -372,18 +372,18 @@ def fill_tod(
                         [
                             (
                                 cur_det_params["Jxx_2f"][nu]
-                                * np.exp(1j * cur_det_params["Phxx_2f"][nu])
+                                * np.exp(1j * np.deg2rad(cur_det_params["Phxx_2f"][nu]))
                             )
                             - 1,
                             cur_det_params["Jxy_2f"][nu]
-                            * np.exp(1j * cur_det_params["Phxy_2f"][nu]),
+                            * np.exp(1j * np.deg2rad(cur_det_params["Phxy_2f"][nu])),
                         ],
                         [
                             cur_det_params["Jyx_2f"][nu]
-                            * np.exp(1j * cur_det_params["Phyx_2f"][nu]),
+                            * np.exp(1j * np.deg2rad(cur_det_params["Phyx_2f"][nu])),
                             (
                                 cur_det_params["Jyy_2f"][nu]
-                                * np.exp(1j * cur_det_params["Phyy_2f"][nu])
+                                * np.exp(1j * np.deg2rad(cur_det_params["Phyy_2f"][nu]))
                             )
                             + 1,
                         ],
