@@ -126,7 +126,7 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
 
         loaded_data = np.loadtxt(
             band_filenames[idet],
-            delimiter=" ",
+            delimiter=",",
             dtype=object,
             unpack=True,
             skiprows=1,
