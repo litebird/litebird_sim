@@ -1,11 +1,12 @@
 # -*- encoding: utf-8 -*-
 import numpy as np
 from numba import njit, prange
+
+from ..hwp_diff_emiss import compute_2f_for_one_sample
 from .common import (
     compute_signal_for_one_sample,
     integrate_inband_signal_for_one_sample,
 )
-from ..hwp_diff_emiss import compute_2f_for_one_sample
 
 
 @njit(inline="always")
@@ -240,7 +241,7 @@ def compute_signal_for_one_detector(
                 )
 
         jones = np.array(
-            [[1 - deltas[0, 0], deltas[0, 1]], [deltas[1, 0], -1 + deltas[1, 1]]],
+            [[1 + deltas[0, 0], deltas[0, 1]], [deltas[1, 0], -1 + deltas[1, 1]]],
             dtype=np.complex64,
         )
 
@@ -389,7 +390,7 @@ def integrate_inband_signal_for_one_detector(
                 deltas[:, x, y] = np.abs(deltas_j0f[:, x, y]) + np.abs(deltas_j2f[:, x, y]) * np.cos(
                     2 * alpha + 2 * np.angle(deltas_j2f[:, x, y])
                 )
-        
+
         #jones = np.zeros((len(freqs),2,2))
         #mII=mIQ=mIU=mQI=mQQ=mQU=mUI=mUQ=mUU= np.zeros((len(freqs)))
         #for nu in range(len(freqs)):
@@ -405,7 +406,7 @@ def integrate_inband_signal_for_one_detector(
         #    mII[nu], mIQ[nu], mIU[nu], mQI[nu], mQQ[nu], mQU[nu], mUI[nu], mUQ[nu], mUU[nu] = hwp_to_fp_frame(
         #        alpha, mueller_hwp_nu
         #    )
-        
+
 
         mII=mIQ=mIU=mQI=mQQ=mQU=mUI=mUQ=mUU= np.zeros((len(freqs)))
         for nu in prange(len(freqs)):
@@ -413,7 +414,7 @@ def integrate_inband_signal_for_one_detector(
                 [[1 - deltas[nu, 0, 0], deltas[nu, 0, 1]], [deltas[nu, 1, 0], -1 + deltas[nu, 1, 1]]],
                 dtype=np.complex64,
             )
-            
+
             #start=time.time()
             mueller_hwp_nu = JonesToMueller(jones_nu)
             #print("jonestomueller",time.time()-start)

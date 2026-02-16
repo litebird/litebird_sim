@@ -8,13 +8,12 @@ from astropy.cosmology import Planck18 as cosmo
 from numba import njit
 
 from ..coordinates import CoordinateSystem
+from ..hwp import HWP, Calc
 from ..observations import Observation
-from . import mueller_methods
-from . import jones_methods
 from ..pointings_in_obs import (
     _get_pointings_array,
 )
-from ..hwp import HWP, Calc
+from . import jones_methods, mueller_methods
 
 COND_THRESHOLD = 1e10
 
@@ -107,26 +106,14 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
     if hwp.calc is Calc.JONES:
         variables = [
             "freqs",
-            "h1_0f",
-            "h2_0f",
-            "beta_0f",
-            "z1_0f",
-            "z2_0f",
-            "h1_2f",
-            "h2_2f",
-            "beta_2f",
-            "z1_2f",
-            "z2_2f",
-            "h1_0f_slv",
-            "h2_0f_slv",
-            "beta_0f_slv",
-            "z1_0f_slv",
-            "z2_0f_slv",
-            "h1_2f_slv",
-            "h2_2f_slv",
-            "beta_2f_slv",
-            "z1_2f_slv",
-            "z2_2f_slv",
+            "j00_0f",
+            "j01_0f",
+            "j10_0f",
+            "j11_0f",
+            "j00_2f",
+            "j01_2f",
+            "j10_2f",
+            "j11_2f",
         ]
 
         loaded_data = np.loadtxt(
@@ -140,9 +127,7 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
 
         det_params = {}
         for var, data in zip(variables, loaded_data):
-            if "beta" in var:
-                det_params[var] = np.deg2rad(np.array(data, dtype=np.float64))
-            elif "freqs" in var:
+            if "freqs" in var:
                 det_params[var] = np.array(data, dtype=np.float64)
             else:
                 det_params[var] = np.array(data, dtype=np.complex128)
@@ -354,14 +339,12 @@ def fill_tod(
                 deltas_j0f[nu] = np.array(
                     [
                         [
-                            cur_det_params["h1_0f"][nu],
-                            cur_det_params["z1_0f"][nu],
+                            cur_det_params["j00_0f"][nu] - 1,
+                            cur_det_params["j01_0f"][nu],
                         ],
                         [
-                            cur_det_params["z2_0f"][nu],
-                            1
-                            - (1 + cur_det_params["h2_0f"][nu])
-                            * np.exp(cur_det_params["beta_0f"][nu] * 1j),
+                            cur_det_params["j10_0f"][nu],
+                            cur_det_params["j11_0f"][nu] + 1,
                         ],
                     ],
                     dtype=np.complex128,
@@ -369,14 +352,12 @@ def fill_tod(
                 deltas_j2f[nu] = np.array(
                     [
                         [
-                            cur_det_params["h1_2f"][nu],
-                            cur_det_params["z1_2f"][nu],
+                            cur_det_params["j00_2f"][nu] - 1,
+                            cur_det_params["j01_2f"][nu],
                         ],
                         [
-                            cur_det_params["z2_2f"][nu],
-                            1
-                            - (1 + cur_det_params["h2_2f"][nu])
-                            * np.exp(cur_det_params["beta_2f"][nu] * 1j),
+                            cur_det_params["j10_2f"][nu],
+                            cur_det_params["j11_2f"][nu] + 1,
                         ],
                     ],
                     dtype=np.complex128,
@@ -427,7 +408,11 @@ def fill_tod(
 
             elif hwp.calculus is Calc.JONES:
                 deltas_j0f = observation.jones_hwp[idet]["0f"]
+                deltas_j0f[0, 0] = deltas_j0f[0, 0] - 1
+                deltas_j0f[1, 1] = deltas_j0f[0, 0] + 1
                 deltas_j2f = observation.jones_hwp[idet]["2f"]
+                deltas_j2f[0, 0] = deltas_j2f[0, 0] - 1
+                deltas_j2f[1, 1] = deltas_j2f[0, 0] + 1
 
                 jones_methods.compute_signal_for_one_detector(
                     tod_det=tod,
