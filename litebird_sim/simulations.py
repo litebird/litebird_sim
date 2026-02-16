@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from shutil import SameFileError, copyfile, copytree
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, List
 from uuid import uuid4
 
 import astropy.time
