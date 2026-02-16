@@ -105,15 +105,23 @@ def mueller_interpolation(Theta, harmonic, i, j):
 def set_band_params_for_one_detector(hwp, band_filenames, idet):
     if hwp.calc is Calc.JONES:
         variables = [
-            "freqs",
+            "freq",
             "Jxx_0f",
+            "Phxx_0f",
             "Jxy_0f",
+            "Phxy_0f",
             "Jyx_0f",
+            "Phyx_0f",
             "Jyy_0f",
+            "Phyy_0f",
             "Jxx_2f",
+            "Phxx_2f",
             "Jxy_2f",
+            "Phxy_2f",
             "Jyx_2f",
+            "Phyx_2f",
             "Jyy_2f",
+            "Phyy_2f",
         ]
 
         loaded_data = np.loadtxt(
@@ -127,7 +135,7 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
 
         det_params = {}
         for var, data in zip(variables, loaded_data):
-            if "freqs" in var:
+            if "freq" in var:
                 det_params[var] = np.array(data, dtype=np.float64)
             else:
                 det_params[var] = np.array(data, dtype=np.complex128)
@@ -138,19 +146,19 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
         )
 
     # if not cur_det.bandpass:
-    cmb2bb = _dBodTth(det_params["freqs"])
+    cmb2bb = _dBodTth(det_params["freq"])
 
     # TODO: insert bandpass in detectorinfo so that we can apply the case where
     # each detector has a bandpass
     # elif bandpass:
-    #    cur_det_params['freqs'], bandpass_profile = bandpass_profile(
-    #        cur_det_params['freqs'], bandpass, include_beam_throughput
+    #    cur_det_params['freq'], bandpass_profile = bandpass_profile(
+    #        cur_det_params['freq'], bandpass, include_beam_throughput
     #    )
     #
-    #    cmb2bb = _dBodTth(cur_det_params['freqs']) * bandpass_profile
+    #    cmb2bb = _dBodTth(cur_det_params['freq']) * bandpass_profile
 
     # Normalize the band
-    cmb2bb /= np.trapz(cmb2bb, det_params["freqs"])
+    cmb2bb /= np.trapz(cmb2bb, det_params["freq"])
 
     return [det_params, cmb2bb]
 
@@ -324,27 +332,37 @@ def fill_tod(
                 hwp, band_filenames, idet
             )
 
-            input_T = np.array([input_T for i in range(len(cur_det_params["freqs"]))]).T
-            input_Q = np.array([input_Q for i in range(len(cur_det_params["freqs"]))]).T
-            input_U = np.array([input_U for i in range(len(cur_det_params["freqs"]))]).T
+            input_T = np.array([input_T for i in range(len(cur_det_params["freq"]))]).T
+            input_Q = np.array([input_Q for i in range(len(cur_det_params["freq"]))]).T
+            input_U = np.array([input_U for i in range(len(cur_det_params["freq"]))]).T
 
             deltas_j0f = np.zeros(
-                (len(cur_det_params["freqs"]), 2, 2), dtype=np.complex128
+                (len(cur_det_params["freq"]), 2, 2), dtype=np.complex128
             )
             deltas_j2f = np.zeros(
-                (len(cur_det_params["freqs"]), 2, 2), dtype=np.complex128
+                (len(cur_det_params["freq"]), 2, 2), dtype=np.complex128
             )
 
-            for nu in range(len(cur_det_params["freqs"])):
+            for nu in range(len(cur_det_params["freq"])):
                 deltas_j0f[nu] = np.array(
                     [
                         [
-                            cur_det_params["Jxx_0f"][nu] - 1,
-                            cur_det_params["Jxy_0f"][nu],
+                            (
+                                cur_det_params["Jxx_0f"][nu]
+                                * np.exp(1j * cur_det_params["Phxx_0f"][nu])
+                            )
+                            - 1,
+                            cur_det_params["Jxy_0f"][nu]
+                            * np.exp(1j * cur_det_params["Phxy_0f"][nu]),
                         ],
                         [
-                            cur_det_params["Jyx_0f"][nu],
-                            cur_det_params["Jyy_0f"][nu] + 1,
+                            cur_det_params["Jyx_0f"][nu]
+                            * np.exp(1j * cur_det_params["Phyx_0f"][nu]),
+                            (
+                                cur_det_params["Jyy_0f"][nu]
+                                * np.exp(1j * cur_det_params["Phyy_0f"][nu])
+                            )
+                            + 1,
                         ],
                     ],
                     dtype=np.complex128,
@@ -352,12 +370,22 @@ def fill_tod(
                 deltas_j2f[nu] = np.array(
                     [
                         [
-                            cur_det_params["Jxx_2f"][nu] - 1,
-                            cur_det_params["Jxy_2f"][nu],
+                            (
+                                cur_det_params["Jxx_2f"][nu]
+                                * np.exp(1j * cur_det_params["Phxx_2f"][nu])
+                            )
+                            - 1,
+                            cur_det_params["Jxy_2f"][nu]
+                            * np.exp(1j * cur_det_params["Phxy_2f"][nu]),
                         ],
                         [
-                            cur_det_params["Jyx_2f"][nu],
-                            cur_det_params["Jyy_2f"][nu] + 1,
+                            cur_det_params["Jyx_2f"][nu]
+                            * np.exp(1j * cur_det_params["Phyx_2f"][nu]),
+                            (
+                                cur_det_params["Jyy_2f"][nu]
+                                * np.exp(1j * cur_det_params["Phyy_2f"][nu])
+                            )
+                            + 1,
                         ],
                     ],
                     dtype=np.complex128,
@@ -365,7 +393,7 @@ def fill_tod(
 
                 jones_methods.integrate_inband_signal_for_one_detector(
                     tod_det=tod,
-                    freqs=cur_det_params["freqs"],
+                    freqs=cur_det_params["freq"],
                     band=cur_det_cmb2bb,
                     deltas_j0f=deltas_j0f,
                     deltas_j2f=deltas_j2f,
