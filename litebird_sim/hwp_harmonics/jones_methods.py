@@ -246,6 +246,8 @@ def compute_signal_for_one_detector(
         )
 
         mueller_hwp = JonesToMueller(jones)
+        # normalize to the gain
+        mueller_hwp /= mueller_hwp[0, 0]
 
         mII, mIQ, mIU, mQI, mQQ, mQU, mUI, mUQ, mUU = hwp_to_fp_frame(
             alpha, mueller_hwp
