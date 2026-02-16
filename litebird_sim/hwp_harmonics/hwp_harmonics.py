@@ -103,7 +103,7 @@ def mueller_interpolation(Theta, harmonic, i, j):
 
 
 def set_band_params_for_one_detector(hwp, band_filenames, idet):
-    if hwp.calc is Calc.JONES:
+    if hwp.calculus is Calc.JONES:
         variables = [
             "freq",
             "Jxx_0f",
