@@ -146,12 +146,9 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
 
     for cur_pix_idx, cur_psi, cur_hwp_angle in zip(pix, psi, hwp_angle):
         info_pix = nobs_matrix[cur_pix_idx]
-        if hwp_angle is not None:
-            cos_n_m = np.cos(n * cur_psi + m * cur_hwp_angle)
-            sin_n_m = np.sin(n * cur_psi + m * cur_hwp_angle)
-        else:
-            cos_n_m = np.cos(n * cur_psi)
-            sin_n_m = np.sin(n * cur_psi)
+
+        cos_n_m = np.cos(n * cur_psi + m * cur_hwp_angle)
+        sin_n_m = np.sin(n * cur_psi + m * cur_hwp_angle)
         if (n, m) == (0, 0):
             info_pix[0] = (
                 1  # if n=m=0 we compute the hit count, beceause it is useful to combine h maps later on
@@ -189,22 +186,18 @@ def _build_nobs_matrix(
     n: int,
     m: int,
     nside: int,
-    obs: Observation,
-    pointings: npt.ArrayLike,
     pixidx: npt.ArrayLike,
     polang: npt.ArrayLike,
-    detector_index: int,
-    hwp_angle: npt.ArrayLike,
+    hwp_angle: npt.ArrayLike | None,
     time_mask: npt.ArrayLike,
-    output_coordinate_system: CoordinateSystem,
-    pointings_dtype=np.float64,
     
 ) -> npt.ArrayLike:
     """Build the nobs matrix for all detectors and pixels, it has shape (Npix,3) and contains the accumulated spin terms and hit counts of each pixel for the considered detector."""
     n_pix = HealpixMap.nside_to_npix(nside)
     
     nobs_matrix = np.zeros((n_pix, 3))
-    
+    if hwp_angle is None:
+        hwp_angle=np.zeros_like(polang)
     _accumulate_spin_terms_and_build_nobs_matrix(
             n,
             m,
@@ -293,6 +286,8 @@ def make_h_maps(
             
             hpx = Healpix_Base(nside, "RING")
             hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+            # print(np.shape(hwp_angle))
+            # print(f"size of hwp array: {hwp_angle.nbytes}")
             duration=cur_obs.end_time_global
             sampling_rate=cur_obs.sampling_rate_hz
             pixidx, polang= _compute_pixel_indices_single_detector(
@@ -317,15 +312,10 @@ def make_h_maps(
                     n,
                     m,
                     nside=nside,
-                    obs=cur_obs,
-                    pointings=cur_ptg,
                     pixidx=pixidx,
                     polang=polang,
-                    detector_index=idet,
                     hwp_angle=hwp_angle,
                     time_mask=cur_t_mask,
-                    output_coordinate_system=output_coordinate_system,
-                    pointings_dtype=pointings_dtype,
                 )
                 rhs = _extract_rhs(nobs_matrix)
                 _solve_binning(nobs_matrix, rhs,n,m)
