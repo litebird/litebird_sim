@@ -106,14 +106,14 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
     if hwp.calc is Calc.JONES:
         variables = [
             "freqs",
-            "j00_0f",
-            "j01_0f",
-            "j10_0f",
-            "j11_0f",
-            "j00_2f",
-            "j01_2f",
-            "j10_2f",
-            "j11_2f",
+            "Jxx_0f",
+            "Jxy_0f",
+            "Jyx_0f",
+            "Jyy_0f",
+            "Jxx_2f",
+            "Jxy_2f",
+            "Jyx_2f",
+            "Jyy_2f",
         ]
 
         loaded_data = np.loadtxt(
@@ -339,12 +339,12 @@ def fill_tod(
                 deltas_j0f[nu] = np.array(
                     [
                         [
-                            cur_det_params["j00_0f"][nu] - 1,
-                            cur_det_params["j01_0f"][nu],
+                            cur_det_params["Jxx_0f"][nu] - 1,
+                            cur_det_params["Jxy_0f"][nu],
                         ],
                         [
-                            cur_det_params["j10_0f"][nu],
-                            cur_det_params["j11_0f"][nu] + 1,
+                            cur_det_params["Jyx_0f"][nu],
+                            cur_det_params["Jyy_0f"][nu] + 1,
                         ],
                     ],
                     dtype=np.complex128,
@@ -352,12 +352,12 @@ def fill_tod(
                 deltas_j2f[nu] = np.array(
                     [
                         [
-                            cur_det_params["j00_2f"][nu] - 1,
-                            cur_det_params["j01_2f"][nu],
+                            cur_det_params["Jxx_2f"][nu] - 1,
+                            cur_det_params["Jxy_2f"][nu],
                         ],
                         [
-                            cur_det_params["j10_2f"][nu],
-                            cur_det_params["j11_2f"][nu] + 1,
+                            cur_det_params["Jyx_2f"][nu],
+                            cur_det_params["Jyy_2f"][nu] + 1,
                         ],
                     ],
                     dtype=np.complex128,
@@ -409,10 +409,10 @@ def fill_tod(
             elif hwp.calculus is Calc.JONES:
                 deltas_j0f = observation.jones_hwp[idet]["0f"]
                 deltas_j0f[0, 0] = deltas_j0f[0, 0] - 1
-                deltas_j0f[1, 1] = deltas_j0f[0, 0] + 1
+                deltas_j0f[1, 1] = deltas_j0f[1, 1] + 1
                 deltas_j2f = observation.jones_hwp[idet]["2f"]
                 deltas_j2f[0, 0] = deltas_j2f[0, 0] - 1
-                deltas_j2f[1, 1] = deltas_j2f[0, 0] + 1
+                deltas_j2f[1, 1] = deltas_j2f[1, 1] + 1
 
                 jones_methods.compute_signal_for_one_detector(
                     tod_det=tod,
