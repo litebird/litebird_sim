@@ -380,7 +380,7 @@ class TimeDependentHWP(HWP):
         self.ang_speed_DIFF_amplitude_radpsec = ang_speed_DIFF_amplitude_radpsec
         self.ang_speed_DIFF_ang_speed_radpsec = ang_speed_DIFF_ang_speed_radpsec
         self.ang_speed_DIFF_start_angle_rad = ang_speed_DIFF_start_angle_rad
-        self.mueller = np.copy(mueller_ideal_hwp)
+        # self.mueller = np.copy(mueller_ideal_hwp) # mueller_ideal_hwp was not defined!
 
     def get_hwp_angle(
         self, output_buffer, start_time_s: float, delta_time_s: float
