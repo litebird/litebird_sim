@@ -1002,6 +1002,10 @@ class SphericalHarmonics:
 
             elif f_ell.ndim == 3:
                 # Case 3: Per-frequency and per-stokes windows (nfreqs, nstokes, >=lmax+1)
+                if self.nfreqs is None:
+                    raise ValueError(
+                        "3D filter array provided but SphericalHarmonics object has nfreqs=None"
+                    )
                 if f_ell.shape[0] != self.nfreqs:
                     raise ValueError(
                         f"Filter first dimension ({f_ell.shape[0]}) must match nfreqs ({self.nfreqs})"
@@ -1258,7 +1262,7 @@ class SphericalHarmonics:
 
         # 2. Check frequencies compatibility
         if not self._frequencies_compatible(other):
-            log.warning(f"allclose mismatch: Incompatible frequencies")
+            log.warning("allclose mismatch: Incompatible frequencies")
             return False
 
         # 3. Check units compatibility
@@ -2299,7 +2303,7 @@ class HealpixMap:
 
         # 2. Check frequencies compatibility
         if not self._frequencies_compatible(other):
-            log.warning(f"allclose mismatch: Incompatible frequencies")
+            log.warning("allclose mismatch: Incompatible frequencies")
             return False
 
         # 3. Check units compatibility
@@ -3329,13 +3333,17 @@ def compute_cl(
     multi_freq = nfreqs1 is not None or nfreqs2 is not None
     if nfreqs1 != nfreqs2:
         raise ValueError(f"nfreqs mismatch: alm1 has {nfreqs1}, alm2 has {nfreqs2}.")
-    if nfreqs1 is not None:
+
+    if not is_auto:
         # Check frequency compatibility for cross-spectra
-        if not np.allclose(
-            getattr(alm1, "frequencies_ghz", None),
-            getattr(alm2, "frequencies_ghz", None),
-        ):
-            raise ValueError("Frequencies are not compatible for cross-spectrum.")
+        freqs1: Any | None = getattr(alm1, "frequencies_ghz", None)
+        freqs2 = getattr(alm2, "frequencies_ghz", None)
+        if freqs1 is not None and freqs2 is not None:
+            if not np.allclose(
+                freqs1,
+                freqs2,
+            ):
+                raise ValueError("Frequencies are not compatible for cross-spectrum.")
 
     # 2. Determine Effective Limits for ALM 1
     # Check against alm1 physical limits
@@ -3476,6 +3484,9 @@ def compute_cl(
     else:
         # Multi-frequency: output arrays of shape (nfreqs, lmax+1)
         nfreqs = nfreqs1
+        # This assert is more of a sanity check at this point, since we already checked nfreqs1 vs nfreqs2 above.
+        # It needs to be here to satisfy the type checker that nfreqs is not None in the code below.
+        assert nfreqs is not None
         lsize = lmax_calc + 1
         if nstokes1 == 1:
             TT = np.zeros((nfreqs, lsize), dtype=np.float64)
