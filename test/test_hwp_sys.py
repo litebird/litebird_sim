@@ -2,20 +2,19 @@ import numpy as np
 import pytest
 
 import litebird_sim as lbs
-from litebird_sim import mpi
-from litebird_sim.hwp_sys.hwp_sys import compute_orientation_from_detquat
+from litebird_sim.hwp_harmonics import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
 
 @pytest.mark.parametrize(
-    "interpolation,nside_out",
+    "nside_out",
     [
-        ("", None),
-        ("", 32),
-        ("linear", None),
+        (None),
+        (32),
+        (None),
     ],
 )
-def test_hwp_sys(interpolation, nside_out):
+def test_hwp_sys(nside_out):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -24,16 +23,14 @@ def test_hwp_sys(interpolation, nside_out):
         46 * 2 * np.pi / 60,
     ).ang_speed_radpsec
 
-    list_of_obs = []
+    list_of_sims = []
     for i in range(2):
         sim = lbs.Simulation(
             start_time=start_time, duration_s=time_span_s, random_seed=0
         )
 
-        sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
-
         comm = sim.mpi_comm
-        rank = comm.rank
+        _ = comm.rank
 
         channelinfo = lbs.FreqChannelInfo(
             bandcenter_ghz=140.0,
@@ -89,73 +86,77 @@ def test_hwp_sys(interpolation, nside_out):
                 obs.quat[idet].quats[0]
             ) % (2 * np.pi)
 
-        sim.prepare_pointings(append_to_report=False)
-
-        mbs_params = lbs.MbsParameters(
+        sky_params = lbs.SkyGenerationParams(
             make_cmb=True,
             seed_cmb=1234,
-            make_noise=False,
+            output_type="map",
             make_dipole=True,
             make_fg=True,
-            fg_models=["pysm_synch_0", "pysm_dust_0", "pysm_freefree_1"],
-            gaussian_smooth=True,
-            bandpass_int=False,
-            maps_in_ecliptic=True,
+            fg_models=["s0", "d0", "f1"],
+            apply_beam=True,
+            bandpass_integration=False,
             nside=nside,
             units="K_CMB",
         )
 
-        if rank == 0:
-            mbs = lbs.Mbs(
-                simulation=sim, parameters=mbs_params, channel_list=[channelinfo]
-            )
+        gen_sky = lbs.SkyGenerator(parameters=sky_params, channels=channelinfo)
 
-            input_maps = mbs.run_all()[0]["L4-140"]
-        else:
-            input_maps = None
+        input_maps = gen_sky.execute()["L4-140"]
 
-        if mpi.MPI_ENABLED:
-            input_maps = comm.bcast(input_maps, root=0)
+        list_of_sims.append(sim)
 
-        hwp_sys = lbs.HwpSys(sim)
+    nonideal_hwp = lbs.NonIdealHWP(
+        ang_speed_radpsec=hwp_radpsec,
+        harmonic_expansion=True,
+        calculus=lbs.Calc.MUELLER,
+    )
+    list_of_sims[1].observations[0].mueller_hwp[0] = {
+        "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
+        "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
+        "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64),
+    }
+    list_of_sims[1].set_hwp(nonideal_hwp)
 
-        hwp_sys.set_parameters(
-            nside=nside,
-            nside_out=nside_out,
-            maps=input_maps,
-            channel=channelinfo,
-            interpolation=interpolation,
-            mbs_params=mbs_params,
-            build_map_on_the_fly=True,
-            comm=comm,
-        )
-
-        list_of_obs.append(obs)
+    list_of_sims[0].prepare_pointings()
+    list_of_sims[1].prepare_pointings()
 
     # we have two similar observations, now we will compute the TOD
     # using both scan_map_in_observations and hwp_sys.fill_tod
     # and check that they are the same
 
     scan_map_in_observations(
-        observations=list_of_obs[0],
-        input_map_in_galactic=False,
+        observations=list_of_sims[0].observations[0],
         maps=input_maps,
-        interpolation=interpolation,
     )
 
-    hwp_sys.fill_tod(
-        observations=list_of_obs[1],
-        input_map_in_galactic=False,
-        save_tod=True,
+    mueller_phases = {
+        "2f": np.zeros((3, 3)),
+        "4f": np.array(
+            [
+                [0, 0, 0],
+                [0, 0, -np.pi / 2],
+                [0, -np.pi / 2, np.pi],
+            ],
+            dtype=np.float64,
+        ),
+    }
+
+    scan_map_in_observations(
+        observations=list_of_sims[1].observations[0],
+        maps=input_maps,
+        mueller_phases=mueller_phases,
     )
 
     # Check that we are using 64-bit floating-point numbers for pointings. See
     # https://github.com/litebird/litebird_sim/pull/429
-    pointings, _ = list_of_obs[1].get_pointings()
+    pointings, _ = list_of_sims[1].observations[0].get_pointings()
     assert pointings.dtype == np.float64
 
     # The decimal=3 in here has a reason, explained in PR 395.
     # This should be changed in the future
     np.testing.assert_almost_equal(
-        list_of_obs[0].tod, list_of_obs[1].tod, decimal=3, verbose=True
+        list_of_sims[0].observations[0].tod,
+        list_of_sims[1].observations[0].tod,
+        decimal=3,
+        verbose=True,
     )

@@ -1,9 +1,7 @@
-# -*- encoding: utf-8 -*-
-
 import numbers
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Union, List, Any, Optional
+from typing import Any
 
 import astropy.time
 import numpy as np
@@ -11,16 +9,21 @@ import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
-from .distribute import distribute_evenly, distribute_detector_blocks
-from .hwp import HWP
+from .distribute import distribute_detector_blocks, distribute_evenly
+from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
+from .input_sky import SkyGenerationParams
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
-from .pointings import PointingProvider
+from .pointings import PointingProvider, DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB
 from .scanning import RotQuaternion
+from .units import Units
 
 
 @dataclass
 class TodDescription:
-    """A brief description of a TOD held in a :class:`.Observation` object
+    """
+    A compact descriptor for a Time-Ordered Data (TOD) field stored in an
+    :class:`.Observation` object.
 
     This field is used to pass information about one TOD in a :class:`.Observation`
     object. It is mainly used by the method :meth:`.Simulation.create_observation`
@@ -28,15 +31,27 @@ class TodDescription:
 
     The class contains three fields:
 
-    - `name` (a ``str``): the name of the field to be created within each
-      :class:`.Observation` object.
+    Parameters
+    ----------
+    name : str
+        Name of the attribute created inside each :class:`.Observation`
+        instance.
+    units : Units
+        Physical units of the TOD, expressed as an item of :class:`Units`.
+    dtype : Any
+        NumPy dtype used for allocating the underlying array, e.g., numpy.float32
+    description : str
+        Human-readable description of the TOD field.
 
-    - `dtype` (the NumPy type to use, e.g., ``numpy.float32``)
-
-    - `description` (a ``str``): human-readable description
+    Notes
+    -----
+    This class only *describes* the TOD. Actual memory allocation is performed
+    by :meth:`.Simulation.create_observations` based on the list of provided
+    descriptors.
     """
 
     name: str
+    units: Units
     dtype: Any
     description: str
 
@@ -47,11 +62,8 @@ class Observation:
     After construction at least the following attributes are available
 
     - :py:meth:`.start_time`
-
     - :py:meth:`.n_detectors`
-
     - :py:meth:`.n_samples`
-
     - :py:meth:`.tod` 2D array (`n_detectors` by `n_samples)` stacking
       the times streams of the detectors.
 
@@ -61,72 +73,130 @@ class Observation:
       in the following:
 
     - :py:meth:`.start_time_global`
-
     - :py:meth:`.end_time_global`
-
     - :py:meth:`.n_detectors_global` `~ n_detectors * n_blocks_det`
-
     - :py:meth:`.n_samples_global` `~ n_samples * n_blocks_time`
 
     Following the same philosophy, :py:meth:`.get_times` returns the
     time stamps of the local time interval
 
-    Args:
-        detectors (int/list of dict): Either the number of detectors or
-            a list of dictionaries with one entry for each detector. The keys of
-            the dictionaries will become attributes of the observation. If a
-            detector is missing a key it will be set to ``nan``.
-            If an MPI communicator is passed to ``comm``, ``detectors`` is
-            relevant only for the ``root`` process
+    Parameters
+    ----------
+    detectors : int or list[dict]
+        Either the number of detectors or a list of dictionaries with
+        one entry for each detector. The keys of the dictionaries
+        become attributes of the observation. If a detector is missing
+        a key it will be set to ``nan``. If an MPI communicator is
+        passed to ``comm``, ``detectors`` is relevant only on the
+        ``root`` process.
+    n_samples_global : int
+        The total number of samples in this observation (global, before
+        any MPI splitting in time).
+    start_time_global : float or astropy.time.Time
+        Start time of the observation. It can either be an
+        :class:`astropy.time.Time` instance or a floating-point number.
+        In the latter case, it must be expressed in seconds.
+    sampling_rate_hz : float
+        Sampling frequency, in Hertz.
+    allocate_tod : bool, optional
+        If ``True`` (default), allocate the TOD arrays described by
+        ``tods``. If ``False``, the corresponding attributes are
+        created but set to ``None``. This can be useful for workflows
+        that only need pointing or metadata.
+    tods : list[TodDescription] or None, optional
+        List of TOD descriptors defining which TOD arrays should be
+        attached to the observation. Each :class:`.TodDescription`
+        specifies:
 
-        n_samples_global (int): The number of samples in this observation.
+        - ``name``: attribute name of the 2D array;
+        - ``units``: physical units as a :class:`Units` item
+          (e.g. ``Units.K_CMB``);
+        - ``dtype``: NumPy dtype (e.g. ``numpy.float32``);
+        - ``description``: human-readable description.
 
-        start_time_global: Start time of the observation. It can either be a
-            `astropy.time.Time` type or a floating-point number. In
-            the latter case, it must be expressed in seconds.
-
-        sampling_rate_hz (float): The sampling frequency, in Hertz.
-
-        det_blocks_attributes (list of strings): The list of detector
-            attributes that will be used to divide the detector axis of the
-            tod matrix and all its attributes. For example, with
-            ``det_blocks_attributes = ["wafer", "pixel"]``, the detectors will
-            be divided into blocks such that all detectors in a block will
-            have the same ``wafer`` and ``pixel`` attribute.
-
-        n_blocks_det (int): divide the detector axis of the tod (and all the
-            arrays of detector attributes) in `n_blocks_det` blocks. It will
-            be ignored if ``det_blocks_attributes`` is not `None`.
-
-        n_blocks_time (int): divide the time axis of the tod in
-            `n_blocks_time` blocks. It will be ignored
-            if ``det_blocks_attributes`` is not `None`.
-
-        comm: either `None` (do not use MPI) or a MPI communicator
-            object, like `mpi4py.MPI.COMM_WORLD`. Its size is required to be at
-            least `n_blocks_det` times `n_blocks_time`
-
-        root (int): rank of the process receiving the detector list, if
-            ``detectors`` is a list of dictionaries, otherwise it is ignored.
+        If ``None``, a single TOD named ``"tod"`` with units
+        ``Units.K_CMB`` and dtype ``numpy.float32`` is created.
+    det_blocks_attributes : list[str] or None, optional
+        List of detector attributes used to divide the detector axis of
+        the TOD (and all detector-attribute arrays). For example, with
+        ``det_blocks_attributes = ["wafer", "pixel"]``, detectors are
+        divided into blocks such that all detectors in a block share
+        the same ``wafer`` and ``pixel`` attribute.
+    n_blocks_det : int, optional
+        Number of blocks used to divide the detector axis of the TOD
+        (and the arrays of detector attributes). Ignored if
+        ``det_blocks_attributes`` is not ``None``.
+    n_blocks_time : int, optional
+        Number of blocks used to divide the time axis of the TOD.
+        Ignored if ``det_blocks_attributes`` is not ``None``.
+    comm : MPI communicator or None, optional
+        Either ``None`` (do not use MPI) or an MPI communicator object,
+        such as ``mpi4py.MPI.COMM_WORLD``. Its size is required to be at
+        least ``n_blocks_det * n_blocks_time``.
+    root : int, optional
+        Rank of the process receiving the detector list when
+        ``detectors`` is a list of dictionaries; otherwise ignored.
 
     """
 
+    # Dynamic attributes set via setattr_det_global/setattr_det
+    det_idx: npt.NDArray
+    jones_hwp: list
+    quat: list
+    mueller_hwp: npt.NDArray
+
+    # Dynamic attributes set by destriper
+    destriper_weights: npt.NDArray | None
+    destriper_pixel_idx: npt.NDArray | None
+    destriper_pol_angle_rad: npt.NDArray | None
+
+    # Dynamic attributes set by mapmaker
+    net_ukrts: int | float | npt.NDArray
+    wafer: str | None
+
+    # Dynamic attributes set by beam synthesis
+    name: list
+    fwhm_arcmin: npt.NDArray
+    ellipticity: npt.NDArray
+    psi_rad: npt.NDArray
+    pol_angle_rad: npt.NDArray
+    blms: dict | None
+
+    # Dynamic attributes set by io
+    local_flags: npt.NDArray | None
+
+    # Dynamic attributes set by scanning
+    sky: (
+        HealpixMap
+        | dict[str, HealpixMap | SkyGenerationParams]
+        | SphericalHarmonics
+        | dict[str, SphericalHarmonics | SkyGenerationParams]
+        | None
+    )
+
     def __init__(
         self,
-        detectors: Union[int, List[dict]],
+        detectors: int | list[dict],
         n_samples_global: int,
-        start_time_global: Union[float, astropy.time.Time],
+        start_time_global: float | astropy.time.Time,
         sampling_rate_hz: float,
         allocate_tod=True,
         tods=None,
-        det_blocks_attributes: Union[List[str], None] = None,
+        det_blocks_attributes: list[str] | None = None,
         n_blocks_det=1,
         n_blocks_time=1,
         comm=None,
         root=0,
     ):
         if tods is None:
-            tods = [TodDescription(name="tod", dtype=np.float32, description="Signal")]
+            tods = [
+                TodDescription(
+                    name="tod",
+                    units=Units.K_CMB,
+                    dtype=np.float32,
+                    description="Signal",
+                )
+            ]
 
         self.comm = comm
         self.start_time_global = start_time_global
@@ -203,10 +273,11 @@ class Observation:
             self.n_samples,
         ) = self._get_local_start_time_start_and_n_samples()
 
-        self.pointing_provider = None  # type: Optional["PointingProvider"]
+        self.pointing_provider: PointingProvider | None = None
 
         # By default this is set to False, prepare_pointings() can change its value
         self.has_hwp = False
+        self.hwp = None
 
     @property
     def sampling_rate_hz(self):
@@ -284,6 +355,7 @@ class Observation:
         # Distribute the arrays
         if self.comm and self.comm.size > 1:
             keys = self.comm.bcast(keys)
+        assert keys is not None, "Keys should not be None after broadcast."
 
         for k in keys:
             self.setattr_det_global(k, dict_of_array.get(k), root)
@@ -356,7 +428,7 @@ class Observation:
             and return `n_blocks_det = 3`
 
         Args:
-            detectors (List[dict]): List of detectors
+            detectors (list[dict]): List of detectors
 
             comm: The MPI communicator
 
@@ -366,6 +438,9 @@ class Observation:
             n_blocks_time (int): Number of time blocks
 
         """
+        assert self._det_blocks_attributes is not None, (
+            "Detector block attributes should not be None"
+        )
         self.detector_blocks = defaultdict(list)
         for det in detectors:
             key = tuple(det[attribute] for attribute in self._det_blocks_attributes)
@@ -416,7 +491,11 @@ class Observation:
         index and length of each block if the number of blocks is changed to the
         values passed as arguments
         """
-        if self._det_blocks_attributes is None or self.comm.size == 1:
+        if (
+            self._det_blocks_attributes is None
+            or self.comm is None
+            or self.comm.size == 1
+        ):
             det_start, det_n = np.array(
                 [
                     [span.start_idx, span.num_of_elements]
@@ -692,8 +771,11 @@ class Observation:
             setattr(self, name, value)
             return
 
+        from mpi4py.MPI import Intracomm
+
         my_col = MPI_COMM_GRID.COMM_OBS_GRID.rank % self._n_blocks_time
         root_col = root // self._n_blocks_det
+        assert isinstance(self.comm_time_block, Intracomm)
         if my_col == root_col:
             if MPI_COMM_GRID.COMM_OBS_GRID.rank == root:
                 starts, nums, _, _ = self._get_start_and_num(
@@ -703,13 +785,20 @@ class Observation:
 
             info = self.comm_time_block.scatter(info, root)
 
+        assert isinstance(self.comm_det_block, Intracomm)
         info = self.comm_det_block.bcast(info, root_col)
-        assert (not self.tod_list) or len(info) == len(
-            getattr(self, self.tod_list[0].name)
-        )
+        if self.tod_list:
+            # Get the first TOD attribute defined in the list
+            tod_data = getattr(self, self.tod_list[0].name)
+            # Only perform the length consistency check if the TOD array is actually allocated
+            if tod_data is not None:
+                assert len(info) == len(tod_data), (
+                    f"Metadata {name} length ({len(info)}) mismatch with TOD length ({len(tod_data)})"
+                )
+
         setattr(self, name, info)
 
-    def get_delta_time(self) -> Union[float, astropy.time.TimeDelta]:
+    def get_delta_time(self) -> float | astropy.time.TimeDelta:
         """Return the time interval between two consecutive samples in this observation
 
         Depending whether the field ``start_time`` of the :class:`.Observation` object
@@ -723,7 +812,7 @@ class Observation:
 
         return delta
 
-    def get_time_span(self) -> Union[float, astropy.time.TimeDelta]:
+    def get_time_span(self) -> float | astropy.time.TimeDelta:
         """Return the temporal length of the current observation
 
         This method can either return a ``float`` (in seconds) or a
@@ -790,50 +879,123 @@ class Observation:
 
         return t0 + np.arange(self.n_samples) / self.sampling_rate_hz
 
+    def set_hwp(self, hwp):
+        if isinstance(hwp, IdealHWP):
+            self.mueller_hwp = np.array(
+                [np.diag([1.0, 1.0, -1.0, -1.0]) for _ in self.mueller_hwp]
+            )
+
+        elif isinstance(hwp, NonIdealHWP):
+            if not hwp.harmonic_expansion:
+                assert all(len(d) == 1 for d in self.mueller_hwp), (
+                    "harmonic_expansion is set to False but more than one more matrix exists in at least one detector."
+                )
+
+            if hwp.calculus is Calc.JONES:
+                assert all(d.jones_hwp is not None for d in self.jones_hwp), (
+                    "Jones formalism was selected but at least one detector does not have jones_hwp attribute."
+                )
+                if hwp.harmonic_expansion:
+                    assert all(len(d) >= 2 for d in self.jones_hwp), (
+                        "harmonic_expansion is set to True but at least one detector has less then 2 jones matrices."
+                    )
+
+            elif hwp.calculus is Calc.MUELLER:
+                assert all(d is not None for d in self.mueller_hwp), (
+                    "Mueller formalism was selected but at least one detector does not have mueller_hwp attribute."
+                )
+                if hwp.harmonic_expansion:
+                    assert all(len(d) >= 3 for d in self.mueller_hwp), (
+                        "harmonic_expansion is set to True but at least one detector has less then 3 mueller matrices."
+                    )
+
+        self.hwp = hwp
+
     def prepare_pointings(
         self,
         instrument: InstrumentInfo,
         spin2ecliptic_quats: RotQuaternion,
-        hwp: Optional[HWP] = None,
+        hwp: HWP | None = None,
+        maximum_internal_buffer_mem_mb: float = DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB,
     ) -> None:
-        """Store the quaternions needed to compute pointings in the current observation
+        """Prepare quaternion-based pointing and HWP information for this observation.
 
-        This function computes the quaternions that convert the boresight direction
-        of `instrument` into the Ecliptic reference frame. The `spin2ecliptic_quats`
-        object must be an instance of the :class:`.RotQuaternion` class and can
-        be created using the method :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+        This method initializes the :class:`.PointingProvider` used to compute
+        time-dependent detector pointing angles (θ, φ, ψ) and, optionally, HWP angles.
+        It combines the global spin-to-Ecliptic quaternions with the instrument’s
+        internal boresight-to-spin rotation to produce a final boresight-to-Ecliptic
+        quaternion, which is stored internally.
+
+        If a Half-Wave Plate (HWP) model is provided, it is attached to the pointing
+        provider and its Mueller matrix is applied to all detectors that do not already
+        have one assigned. If no HWP is passed, all detectors must already define their
+        own Mueller matrices.
+
+        Args:
+            instrument (InstrumentInfo):
+                The instrument definition containing the boresight-to-spin rotation.
+
+            spin2ecliptic_quats (RotQuaternion):
+                Time-dependent rotation from the spin frame to the Ecliptic frame.
+                Typically generated using :meth:`.ScanningStrategy.generate_spin2ecl_quaternions`.
+
+            hwp (HWP | None):
+                Optional HWP model. If provided, it is stored and its Mueller matrix
+                applied to all detectors lacking one.
+
+            maximum_internal_buffer_mem_mb (float):
+                Maximum number of megabytes (MB) to allocate for internal buffers during
+                the computation of pointings. Set to -1 to remove any limit.
+
+        Raises:
+            AssertionError:
+                If `hwp` is not provided and one or more detectors do not have a
+                pre-assigned Mueller matrix.
+
+        Notes:
+            After calling this method, the observation becomes ready to compute pointings
+            via :meth:`.get_pointings()` or :meth:`.get_hwp_angle()` using its
+            internal :class:`.PointingProvider`.
         """
+
+        assert (maximum_internal_buffer_mem_mb > 0) or (
+            maximum_internal_buffer_mem_mb == -1
+        ), (
+            "Invalid value for maximum_internal_buffer_mem_mb ({val}), it must either be -1 or a positive number".format(
+                val=maximum_internal_buffer_mem_mb
+            )
+        )
 
         bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
         pointing_provider = PointingProvider(
             bore2ecliptic_quats=bore2ecliptic_quats,
             hwp=hwp,
+            maximum_internal_buffer_mem_mb=maximum_internal_buffer_mem_mb,
         )
 
         self.pointing_provider = pointing_provider
 
         # If the hwp object is passed and is not initialised in the observations, it gets applied to all detectors
         if hwp is None:
-            assert all(m is None for m in self.mueller_hwp), (
-                "Some detectors have been initialized with a mueller_hwp,"
+            assert all(m is None for m in self.mueller_hwp) or all(
+                m is None for m in self.jones_hwp
+            ), (
+                "Some detectors have been initialized with a mueller_hwp or jones_hwp,"
                 "but no HWP object has been passed to prepare_pointings."
             )
             self.has_hwp = False
         else:
-            for idet in range(self.n_detectors):
-                if self.mueller_hwp[idet] is None:
-                    self.mueller_hwp[idet] = hwp.mueller
+            self.hwp = hwp
             self.has_hwp = True
 
     def get_pointings(
         self,
-        detector_idx: Union[int, List[int], str] = "all",
-        pointing_buffer: Optional[npt.NDArray] = None,
-        hwp_buffer: Optional[npt.NDArray] = None,
+        detector_idx: int | list[int] | str = "all",
+        pointing_buffer: npt.NDArray | None = None,
+        hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-    ) -> tuple[npt.NDArray, Optional[npt.NDArray]]:
-        """
-        Compute the pointings for one or more detectors in this observation
+    ) -> tuple[npt.NDArray, npt.NDArray | None]:
+        """Compute the pointings for one or more detectors in this observation
 
         This method triggers the computation of the matrix of pointings that indicate
         the direction of the line of sight for each sample in the TOD of the current
@@ -889,6 +1051,9 @@ class Observation:
         if isinstance(detector_idx, int):
             assert (detector_idx >= 0) and (detector_idx < self.n_detectors), (
                 f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+            )
+            assert self.quat is not None, (
+                "Detector quaternions have not been initialized."
             )
 
             return self.pointing_provider.get_pointings(
@@ -966,17 +1131,41 @@ class Observation:
 
     def get_hwp_angle(
         self,
-        hwp_buffer: Optional[npt.NDArray] = None,
+        hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-    ) -> Union[npt.NDArray, None]:
-        """
-        Compute the hwp angle in this observation
+    ) -> npt.NDArray | None:
+        """Compute the Half-Wave Plate (HWP) angle for this observation.
 
-        This method triggers the computation of the hwp angle for the given observation
-        The HWP angle is always a vector with shape ``(N_samples,)``. This is the typical
-        call:
+        This method triggers the time-domain computation of the HWP angle using the
+        internally stored :class:`.PointingProvider`. It returns a NumPy array of shape
+        `(n_samples,)` containing the HWP angle in radians for the entire duration
+        of the observation.
 
-        hwp_angle = cur_obs.get_hwp_angle()
+        If the observation does not include a Half-Wave Plate, the method returns `None`.
+
+        Args:
+            hwp_buffer (np.ndarray, optional):
+                Optional pre-allocated array of shape `(n_samples,)` in which to store the
+                HWP angle values. If not provided, a new buffer will be allocated.
+
+            pointings_dtype (data-type, optional):
+                Data type to use when allocating the HWP buffer, if needed.
+                Defaults to `np.float64`.
+
+        Returns:
+            np.ndarray or None:
+                The array containing the computed HWP angles (in radians),
+                or `None` if no HWP is configured for the observation.
+
+        Raises:
+            AssertionError:
+                If the `pointing_provider` has not been initialized (e.g., `prepare_pointings()`
+                has not been called), or if the provided `hwp_buffer` does not match the
+                expected shape.
+
+        Example:
+            hwp_angle = obs.get_hwp_angle()
+            hwp_angle.shape -> (obs.n_samples,)
         """
         assert self.pointing_provider is not None, (
             "You must initialize pointing_provider; use Simulation.prepare_pointings()"
@@ -1001,6 +1190,7 @@ class Observation:
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
             )
+            self.has_hwp = True
         else:
             hwp_buffer = None
 
@@ -1010,13 +1200,27 @@ class Observation:
         self,
         pointings_dtype=np.float64,
     ) -> None:
-        """Precompute all the pointings for the current observation
+        """Precompute and store the full pointing matrix and HWP angles for this observation.
 
-        Compute the full pointing matrix and the HWP angle the current observation and
-        store them in the fields ``pointing_matrix`` and ``hwp_angle``.
-        The datatype for the pointings is specified by `pointings_dtype`.
+        This method computes the time-domain pointing angles (θ, φ, ψ) and, if applicable,
+        HWP angles for all detectors in the current observation. The results are stored
+        in the fields `self.pointing_matrix` and `self.hwp_angle`.
+
+        This is typically used to cache the pointings when running in a mode that avoids
+        on-the-fly computation.
+
+        Args:
+            pointings_dtype (data-type, optional):
+                Data type to use for the computed arrays. Defaults to `np.float64`.
+
+        Raises:
+            AssertionError:
+                If `prepare_pointings()` has not been called prior to this method,
+                i.e., if `self.pointing_provider` is not defined.
+
+        Notes:
+            This method must be called after `prepare_pointings()`.
         """
-
         assert "pointing_provider" in dir(self), (
             "you must call prepare_pointings() on a set of observations "
             "before calling precompute_pointings()"
@@ -1029,8 +1233,7 @@ class Observation:
         self.hwp_angle = hwp_angle
 
     def _set_mpi_subcommunicators(self):
-        """
-        This function splits the global MPI communicator into three kinds of
+        """This function splits the global MPI communicator into three kinds of
         sub-communicators:
 
         1. A sub-communicator containing all the processes with global rank less than

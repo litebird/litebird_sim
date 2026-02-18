@@ -1,6 +1,4 @@
-# -*- encoding: utf-8 -*-
 from enum import Enum
-from typing import Tuple
 
 import numpy as np
 from astropy.coordinates import BarycentricMeanEcliptic
@@ -12,6 +10,37 @@ DEFAULT_COORDINATE_SYSTEM = BarycentricMeanEcliptic()
 
 """The time scale used by the framework"""
 DEFAULT_TIME_SCALE = "tdb"
+
+
+def _rotmat2euler_zyz(mat):
+    """Return the ZYZ Euler angles corresponding to a given rotation matrix.
+    The angles can be used in ducc0's rotate_alm.
+    https://mtr.pages.mpcdf.de/ducc/sht.html#ducc0.sht.rotate_alm
+
+    example
+        angles = _rotmat2euler_zyz(lbs.ECL_TO_GAL_ROT_MATRIX)
+        rotate_alm(alm, lmax, *angles)
+
+    The code is taken from healpy.rotator.coordsys2euler_zyz
+    https://github.com/healpy/healpy/blob/90ce9f92b77ec94ab22d9d09aebf85db582bfc12/lib/healpy/rotator.py#L1234
+    """
+    zeta = [0.0, 0.0, 1.0]
+
+    xout, yout, zout = mat.T
+
+    xout /= np.sqrt(np.dot(xout, xout))
+    yout /= np.sqrt(np.dot(yout, yout))
+    zout /= np.sqrt(np.dot(zout, zout))
+
+    psi = np.arctan2(yout[2], -xout[2])
+    theta = np.arccos(np.dot(zeta, zout))
+    phi = np.arctan2(zout[1], zout[0])
+
+    if phi < 0:
+        phi += 2 * np.pi
+
+    return psi, theta, phi
+
 
 ECL_TO_GAL_ROT_MATRIX = (
     SkyCoord(
@@ -26,6 +55,12 @@ ECL_TO_GAL_ROT_MATRIX = (
     .get_xyz()
     .value
 )
+
+GAL_TO_ECL_ROT_MATRIX = ECL_TO_GAL_ROT_MATRIX.T
+
+ECL_TO_GAL_EULER = _rotmat2euler_zyz(ECL_TO_GAL_ROT_MATRIX)
+GAL_TO_ECL_EULER = _rotmat2euler_zyz(GAL_TO_ECL_ROT_MATRIX)
+
 
 NORTH_POLE_VEC = np.tensordot(ECL_TO_GAL_ROT_MATRIX, [0.0, 0.0, 1.0], axes=(1, 0))
 
@@ -47,65 +82,10 @@ def coord_sys_to_healpix_string(coordsys: CoordinateSystem) -> str:
     return _COORD_SYS_TO_HEALPIX[coordsys]
 
 
-def ang2vec(theta, phi):
-    """Transform a direction theta,phi to a unit vector.
-
-    Parameters
-    ----------
-    theta : float, scalar or array-like
-      The angle theta (scalar or shape (N,))
-    phi : float, scalar or array-like
-      The angle phi (scalar or shape (N,)).
-
-    Returns
-    -------
-    vec : array
-      The vector(s) corresponding to given angles, shape is (3,) or (3, N).
-
-    See Also
-    --------
-    https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L657
-    """
-    ct, st, cp, sp = np.cos(theta), np.sin(theta), np.cos(phi), np.sin(phi)
-    vec = np.empty((3, ct.size), np.float64)
-    vec[0, :] = st * cp
-    vec[1, :] = st * sp
-    vec[2, :] = ct
-    return vec.squeeze()
-
-
-def vec2ang(vx, vy, vz):
-    """Transform a vector (or many vectors) to angle given by theta,phi.
-
-    Parameters
-    ----------
-    vx : float, scalar or array-like
-      The x component of the vector (scalar or shape (N,))
-    vy : float, scalar or array-like, optional
-      The y component of the vector (scalar or shape (N,))
-    vz : float, scalar or array-like, optional
-      The z component of the vector (scalar or shape (N,))
-
-    Returns
-    -------
-    angles : float, array
-      The angles in radians in an array of shape (2, N)
-
-    See Also
-    --------
-    https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L610
-    """
-
-    ang = np.empty((2, vx.size))
-    ang[0, :] = np.arctan2(np.sqrt(vx**2 + vy**2), vz)
-    ang[1, :] = np.arctan2(vy, vx)
-    return ang.squeeze()
-
-
 @njit
 def _ang2galvec_one_sample(
     theta_rad: float, phi_rad: float
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Transform a direction (theta, phi) in Ecliptic coordinates to
     a unit vector in Galactic coordinates.
 
@@ -139,7 +119,7 @@ def _ang2galvec_one_sample(
 
 
 @njit
-def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> Tuple[float, float]:
+def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> tuple[float, float]:
     """Transform a vector to angle given by (θ,φ).
 
     Parameters
@@ -155,20 +135,30 @@ def _vec2ang_for_one_sample(vx: float, vy: float, vz: float) -> Tuple[float, flo
     -------
     theta, phi : float
       A tuple containing the value of the colatitude and of the longitude,
-      in radians
+      in radians. Ensures phi is in [0, 2pi] range for ducc0 compatibility.
 
     See Also
     --------
     https://github.com/healpy/healpy/blob/main/healpy/rotator.py#L610
     """
 
-    return np.arctan2(np.sqrt(vx**2 + vy**2), vz), np.arctan2(vy, vx)
+    # Calculate theta (colatitude)
+    theta = np.arctan2(np.sqrt(vx**2 + vy**2), vz)
+
+    # Calculate phi (longitude)
+    phi = np.arctan2(vy, vx)
+
+    # Normalize phi to be in [0, 2pi]
+    if phi < 0.0:
+        phi += 2.0 * np.pi
+
+    return theta, phi
 
 
 @njit
 def _rotate_coordinates_and_orientation_e2g_for_one_sample(
     theta_ecl_rad: float, phi_ecl_rad: float, psi_ecl_rad: float
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Rotate the angles theta,phi and psi from ecliptic to galactic coordinates
 
     Parameters

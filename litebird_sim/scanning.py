@@ -1,7 +1,5 @@
-# -*- encoding: utf-8 -*-
-
 from abc import ABC, abstractmethod
-from typing import Union, List, Optional
+from typing import Union
 from uuid import UUID
 
 from astropy.coordinates import ICRS, get_body_barycentric
@@ -30,7 +28,7 @@ from .quaternions import (
     normalize_quaternions,
 )
 
-YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * u.year).to(u.s).value
+YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * getattr(u, "year")).to(u.s).value
 
 
 @njit
@@ -211,7 +209,7 @@ def all_compute_pointing_and_orientation(result_matrix, quat_matrix):
 
     n_samples = result_matrix.shape[0]
 
-    for sample_idx in prange(n_samples):
+    for sample_idx in prange(n_samples):  # type: ignore[not-iterable]
         compute_pointing_and_orientation(
             result_matrix[sample_idx, :],
             quat_matrix[sample_idx, :],
@@ -324,7 +322,7 @@ def all_spin_to_ecliptic(
     4)``.
 
     """
-    for row in prange(result_matrix.shape[0]):
+    for row in prange(result_matrix.shape[0]):  # type: ignore[not-iterable]
         spin_to_ecliptic(
             result=result_matrix[row, :],
             sun_earth_angle_rad=sun_earth_angles_rad[row],
@@ -420,9 +418,9 @@ class RotQuaternion:
 
     def __init__(
         self,
-        quats: Union[npt.ArrayLike, "RotQuaternion", None] = None,
-        start_time: Optional[Union[float, astropy.time.Time]] = None,
-        sampling_rate_hz: Optional[float] = None,
+        quats: Union[npt.NDArray, "RotQuaternion"] | None = None,
+        start_time: float | astropy.time.Time | None = None,
+        sampling_rate_hz: float | None = None,
     ):
         """
         Create a new instance of a time-dependent quaternion
@@ -483,10 +481,8 @@ class RotQuaternion:
             assert self.quats.shape == other.quats.shape, (
                 f"quaternions have different shapes: {self.quats.shape} vs {other.quats.shape}"
             )
-            assert isinstance(self.start_time, type(other.start_time)), (
-                f"start_time must have the same type: {type(self.start_time)} vs {type(other.start_time)}"
-            )
             if isinstance(self.start_time, float):
+                assert isinstance(other.start_time, float)
                 assert np.isclose(self.start_time, other.start_time), (
                     f"start_time must be the same value: {self.start_time} vs {other.start_time}"
                 )
@@ -494,6 +490,9 @@ class RotQuaternion:
                 assert self.start_time == other.start_time, (
                     f"start_time must be the same value: {self.start_time} vs {other.start_time}"
                 )
+            assert (
+                self.sampling_rate_hz is not None and other.sampling_rate_hz is not None
+            )
             assert np.isclose(self.sampling_rate_hz, other.sampling_rate_hz), (
                 f"sampling_rate_hz must be the same value: {self.sampling_rate_hz} vs {other.sampling_rate_hz}"
             )
@@ -552,7 +551,7 @@ class RotQuaternion:
 
     def slerp(
         self,
-        start_time: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
         sampling_rate_hz: float,
         nsamples: int,
     ):
@@ -589,6 +588,7 @@ class RotQuaternion:
         assert self.quats.shape[0] > 1, (
             "having only one quaternion is still unsupported"
         )
+        assert self.start_time is not None
 
         if isinstance(self.start_time, astropy.time.Time):
             assert isinstance(start_time, astropy.time.Time), (
@@ -617,6 +617,7 @@ class RotQuaternion:
             return False
 
         if isinstance(self.start_time, float):
+            assert isinstance(other.start_time, float)
             if not np.isclose(self.start_time, other.start_time):
                 return False
         elif self.start_time is not None:
@@ -627,9 +628,9 @@ class RotQuaternion:
             # This catches the case where one variable is None but the other is not
             return False
 
-        if (self.sampling_rate_hz is not None) and not np.isclose(
-            self.sampling_rate_hz, other.sampling_rate_hz
-        ):
+        if (
+            self.sampling_rate_hz is not None and other.sampling_rate_hz is not None
+        ) and not np.isclose(self.sampling_rate_hz, other.sampling_rate_hz):
             return False
 
         return np.allclose(self.quats, other.quats)
@@ -649,7 +650,7 @@ class ScanningStrategy(ABC):
     @abstractmethod
     def generate_spin2ecl_quaternions(
         self,
-        start_time: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
         time_span_s: float,
         delta_time_s: float,
     ) -> RotQuaternion:
@@ -673,7 +674,7 @@ class ScanningStrategy(ABC):
 
         Args:
 
-            start_time (Union[float, astropy.time.Time]): start time
+            start_time (float | astropy.time.Time): start time
                 of the simulation. If it is a floating-point number,
                 it is arbitrary and can usually be set to 0.0;
                 otherwise, it must be a ``astropy.time.Time`` object,
@@ -717,7 +718,7 @@ class ScanningStrategy(ABC):
 
     @staticmethod
     def get_times(
-        start_time: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
         delta_time_s: float,
         num_of_quaternions: int,
     ):
@@ -837,7 +838,7 @@ class SpinningScanningStrategy(ScanningStrategy):
         )
 
     @staticmethod
-    def from_imo(imo: Imo, url: Union[str, UUID]):
+    def from_imo(imo: Imo, url: str | UUID):
         """Read the definition of the scanning strategy from the IMO
 
         This function returns a :class:`.SpinningScanningStrategy`
@@ -874,7 +875,7 @@ class SpinningScanningStrategy(ScanningStrategy):
 
     def generate_spin2ecl_quaternions(
         self,
-        start_time: Union[float, astropy.time.Time],
+        start_time: float | astropy.time.Time,
         time_span_s: float,
         delta_time_s: float,
     ) -> RotQuaternion:
@@ -936,7 +937,7 @@ def get_quaternion_buffer_shape(observations, num_of_detectors=None):
 def get_det2ecl_quaternions(
     observations,
     spin2ecliptic_quats: RotQuaternion,
-    detector_quats: List[RotQuaternion],
+    detector_quats: list[RotQuaternion],
     bore2spin_quat: RotQuaternion,
     quaternion_buffer=None,
     dtype=np.float64,
@@ -991,7 +992,7 @@ def get_det2ecl_quaternions(
 def get_ecl2det_quaternions(
     observations,
     spin2ecliptic_quats: RotQuaternion,
-    detector_quats: RotQuaternion,
+    detector_quats: list[RotQuaternion],
     bore2spin_quat: RotQuaternion,
     quaternion_buffer=None,
     dtype=np.float64,

@@ -1,13 +1,12 @@
-# -*- encoding: utf-8 -*-
-
-import importlib
+import importlib.resources
 import logging as log
 from pathlib import Path
-from typing import Union, List, IO
+from typing import IO, Any, cast
 from uuid import UUID
 
 import tomlkit
-from libinsdb import LocalInsDb, RemoteInsDb, Entity, Quantity, DataFile
+import tomlkit.exceptions
+from libinsdb import DataFile, Entity, LocalInsDb, Quantity, RemoteInsDb
 
 CONFIG_FILE_PATH = Path.home() / ".config" / "litebird_imo" / "imo.toml"
 
@@ -21,8 +20,8 @@ class Imo:
         self,
         flatfile_location=None,
         url=None,
-        user=None,
-        password=None,
+        user: str | None = None,
+        password: str | None = None,
         load_defaults: bool = False,
     ):
         self.imoobject = None
@@ -33,11 +32,15 @@ class Imo:
                 with CONFIG_FILE_PATH.open("rt") as inpf:
                     config = tomlkit.loads("".join(inpf.readlines()))
 
-                self.imoobject = LocalInsDb(PTEP_IMO_LOCATION)
+                self.imoobject = LocalInsDb(str(PTEP_IMO_LOCATION))
 
                 if load_defaults:
-                    for cur_imo_definition in config["repositories"]:
-                        cur_location = cur_imo_definition["location"]
+                    repositories = config["repositories"]
+                    assert isinstance(repositories, list)
+                    for cur_imo_definition in repositories:
+                        assert isinstance(cur_imo_definition, dict)
+                        cur_location = cast(dict[str, Any], cur_imo_definition)
+                        assert isinstance(cur_location, str)
                         self.imoobject.merge(LocalInsDb(cur_location))
 
             except FileNotFoundError:
@@ -53,15 +56,16 @@ class Imo:
             if flatfile_location:
                 self.imoobject = LocalInsDb(storage_path=flatfile_location)
             elif url:
+                assert user is not None and password is not None
                 self.imoobject = RemoteInsDb(
                     server_address=url, username=user, password=password
                 )
             else:
                 raise ValueError("You must either provide flatfile_location= or url=")
 
-        self.queried_objects = set()  # type: Set[Tuple[type, UUID]]
+        self.queried_objects: set[tuple[type, UUID]] = set()
 
-    def query_entity(self, identifier: UUID, track=True) -> Entity:
+    def query_entity(self, identifier: UUID, track=True) -> Entity | None:
         """Return a :class:`.Entity` object from an UUID.
 
         If ``track`` is `True` (the default), then the UUID of the
@@ -79,7 +83,7 @@ class Imo:
 
         return result
 
-    def query_quantity(self, identifier: UUID, track=True) -> Quantity:
+    def query_quantity(self, identifier: UUID, track=True) -> Quantity | None:
         """Return a :class:`.Quantity` object from an UUID.
 
         If ``track`` is `True` (the default), then the UUID of the
@@ -97,7 +101,7 @@ class Imo:
 
         return result
 
-    def query_data_file(self, identifier: Union[str, UUID], track=True) -> DataFile:
+    def query_data_file(self, identifier: str | UUID, track=True) -> DataFile | None:
         """Return a :class:`.DataFile` object from an UUID.
 
         If ``track`` is `True` (the default), then the UUID of the
@@ -114,7 +118,7 @@ class Imo:
 
         return result
 
-    def query(self, identifier: Union[str, UUID], track=True):
+    def query(self, identifier: str | UUID, track=True):
         """Query an object from the IMO
 
         The value of `identifier` can be one of the following:
@@ -148,7 +152,7 @@ class Imo:
             self.queried_objects.add((type(result), result.uuid))
         return result
 
-    def get_list_of_data_files(self, quantity_uuid: UUID, track=False) -> List[UUID]:
+    def get_list_of_data_files(self, quantity_uuid: UUID, track=False) -> list[UUID]:
         """Return a sorted list of the UUIDs of the data files belonging to a quantity.
 
         The result is sorted according to their upload date (oldest
@@ -162,8 +166,10 @@ class Imo:
 
         """
         quantity = self.query_quantity(quantity_uuid, track=track)
+        assert quantity is not None, f"Quantity {quantity_uuid} not found"
         data_files = [self.query_data_file(x, track=track) for x in quantity.data_files]
-        return [x.uuid for x in sorted(data_files, key=lambda x: x.upload_date)]
+        valid_data_files = [x for x in data_files if x is not None]
+        return [x.uuid for x in sorted(valid_data_files, key=lambda x: x.upload_date)]
 
     def get_queried_entities(self):
         """Return a list of the UUIDs of entities queried so far."""

@@ -152,12 +152,10 @@ IPython prompt will appear, and you can use ``litebird_sim``
 immediately.
 
 .. asciinema:: singularity_demo1.cast
-   :preload: 1
 
 You can use it to run scripts as well:
 
 .. asciinema:: singularity_demo2.cast
-   :preload: 1
 
 .. note::
 
@@ -181,13 +179,11 @@ You can use it to run scripts as well:
 To use MPI, you must call ``mpirun`` *outside* the container:
 
 .. asciinema:: singularity_demo3.cast
-   :preload: 1
 
 To obtain a short help about how to use the container, you can use the
 command ``singularity run-help``:
 
 .. asciinema:: singularity_help.cast
-   :preload: 1
 
 Finally, the following demo shows how to test the correctness of the
 LiteBIRD Simulation Framework and browse a local copy of the
@@ -197,7 +193,6 @@ container; you can then move to ``/opt/litebird_sim`` (the directory
 where the framework has been installed) and run commands from there.
 
 .. asciinema:: singularity_shell.cast
-   :preload: 1
 
 Running ``python3 -m http.server`` starts an HTTP server connected to
 http://0.0.0.0:8000/: browsing to that URL will open your own local

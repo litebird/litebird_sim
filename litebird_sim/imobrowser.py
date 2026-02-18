@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- encoding: utf-8 -*-
 
 from __future__ import annotations
 from pathlib import Path
@@ -57,7 +56,7 @@ THEMES["custom"] = defaultdict(
 )
 
 
-class EntityBrowser(object):
+class EntityBrowser:
     def __init__(self, path: Path | None):
         if path:
             self._imo = Imo(flatfile_location=path)
@@ -83,7 +82,7 @@ class EntityBrowser(object):
 
         return parent + [
             ((x.name, x.full_path), x.uuid)
-            for x in self._imo.imoobject.entities.values()
+            for x in getattr(self._imo.imoobject, "entities").values()
             if x.parent == self._base
         ]
 
@@ -93,7 +92,7 @@ class EntityBrowser(object):
 
         result = []
         for cur_uuid in self._base.quantities:
-            cur_quantity = self._imo.imoobject.quantities[cur_uuid]
+            cur_quantity = getattr(self._imo.imoobject, "quantities")[cur_uuid]
             result.append(
                 (
                     (
@@ -114,24 +113,26 @@ class EntityBrowser(object):
 
     def enter_child(self, uuid):
         if uuid:
-            self._base = self._imo.imoobject.entities[uuid]
+            self._base = getattr(self._imo.imoobject, "entities")[uuid]
         else:
             self._base = None
 
     def set_current_quantity(self, uuid):
         if uuid:
-            self._quantity = self._imo.imoobject.quantities[uuid]
+            self._quantity = getattr(self._imo.imoobject, "quantities")[uuid]
         else:
             self._quantity = None
 
     def get_quantity_name(self):
         try:
+            assert self._quantity is not None
             return self._quantity.name
         except AttributeError:
             return ""
 
     def get_quantity_path(self):
         try:
+            assert self._quantity is not None
             return f"{self.get_entity_name()}/{self._quantity.name}"
         except AttributeError:
             return ""
@@ -142,11 +143,11 @@ class EntityBrowser(object):
 
         result = []
         for cur_file_uuid in self._quantity.data_files:
-            cur_file = self._imo.imoobject.data_files[cur_file_uuid]
+            cur_file = getattr(self._imo.imoobject, "data_files")[cur_file_uuid]
             release_tag_string = ", ".join(
                 [
                     x.tag
-                    for x in self._imo.imoobject.releases.values()
+                    for x in getattr(self._imo.imoobject, "releases").values()
                     if cur_file_uuid in x.data_files
                 ]
             )
@@ -162,7 +163,11 @@ class EntityBrowser(object):
         quantity_path = self.get_quantity_path()
         # Get a list of releases, sorted from the most recent to the oldest
         releases = sorted(
-            [x for x in self._imo.imoobject.releases.values() if uuid in x.data_files],
+            [
+                x
+                for x in getattr(self._imo.imoobject, "releases").values()
+                if uuid in x.data_files
+            ],
             key=lambda x: x.rel_date,
             reverse=True,
         )
@@ -178,7 +183,7 @@ class EntityBrowser(object):
 
 class EntityListView(Frame):
     def __init__(self, screen, model):
-        super(EntityListView, self).__init__(
+        super().__init__(
             screen,
             screen.height,
             screen.width,
@@ -264,7 +269,7 @@ class EntityListView(Frame):
 
 class QuantityDetailsView(Frame):
     def __init__(self, screen, model):
-        super(QuantityDetailsView, self).__init__(
+        super().__init__(
             screen,
             screen.height,
             screen.width,

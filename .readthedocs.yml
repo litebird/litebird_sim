@@ -4,19 +4,19 @@
 
 version: 2
 
+sphinx:
+  configuration: docs/source/conf.py
+
 build:
   os: "ubuntu-24.04"
   tools: 
-    python: "3.12"
+    python: "3.11"
   jobs:
-    pre_install:
-      - pip install poetry poetry-plugin-export
-      - poetry export -f requirements.txt --without-hashes --output requirements.txt
-
-python:
-  install:
-    - method: pip
-      path: .
-
-sphinx:
-  configuration: docs/source/conf.py
+    pre_create_environment:
+      - asdf plugin add uv
+      - asdf install uv latest
+      - asdf global uv latest
+    create_environment:
+      - uv venv "${READTHEDOCS_VIRTUALENV_PATH}"
+    install:
+      - UV_PROJECT_ENVIRONMENT="${READTHEDOCS_VIRTUALENV_PATH}" uv sync --frozen --extra docs

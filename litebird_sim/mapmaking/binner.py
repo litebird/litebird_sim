@@ -7,33 +7,34 @@
 # functions and variable defined here use the same letters and symbols of that
 # paper. We refer to it in code comments and docstrings as "KurkiSuonio2009".
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
+import healpy as hp
 import numpy as np
 import numpy.typing as npt
+from ducc0.healpix import Healpix_Base
 from numba import njit
-import healpy as hp
 
-from typing import Union, List, Any, Optional, Callable
-from litebird_sim.observations import Observation
+from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
+from litebird_sim.hwp import HWP
+from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
-from litebird_sim.hwp import HWP
-from litebird_sim import mpi
-from ducc0.healpix import Healpix_Base
-from litebird_sim.healpix import nside_to_npix
+from litebird_sim.maps_and_harmonics import HealpixMap
 
 
 from .common import (
-    _compute_pixel_indices,
     COND_THRESHOLD,
-    get_map_making_weights,
     _build_mask_detector_split,
     _build_mask_time_split,
     _check_valid_splits,
+    _compute_pixel_indices,
+    get_map_making_weights,
 )
 
 
@@ -62,7 +63,7 @@ class BinnerResult:
     binned_map: Any = None
     invnpp: Any = None
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
-    components: List = None
+    components: list | None = None
     detector_split: str = "full"
     time_split: str = "full"
 
@@ -91,13 +92,13 @@ def _solve_binning(nobs_matrix, atd):
 
 @njit
 def _accumulate_samples_and_build_nobs_matrix(
-    tod: npt.ArrayLike,
-    pix: npt.ArrayLike,
-    psi: npt.ArrayLike,
-    weights: npt.ArrayLike,
-    d_mask: npt.ArrayLike,
-    t_mask: npt.ArrayLike,
-    nobs_matrix: npt.ArrayLike,
+    tod: npt.NDArray,
+    pix: npt.NDArray,
+    psi: npt.NDArray,
+    weights: npt.NDArray,
+    d_mask: npt.NDArray,
+    t_mask: npt.NDArray,
+    nobs_matrix: npt.NDArray,
     *,
     additional_component: bool,
 ) -> None:
@@ -157,7 +158,7 @@ def _accumulate_samples_and_build_nobs_matrix(
 
 @njit
 def _numba_extract_map_and_fill_nobs_matrix(
-    nobs_matrix: npt.ArrayLike, rhs: npt.ArrayLike
+    nobs_matrix: npt.NDArray, rhs: npt.NDArray
 ) -> None:
     # This is used internally by _extract_map_and_fill_info. The function
     # modifies both `info` and `rhs`; the first parameter would be an `inout`
@@ -176,7 +177,7 @@ def _numba_extract_map_and_fill_nobs_matrix(
         nobs_matrix[idx, 2, 1] = nobs_matrix[idx, 1, 2]
 
 
-def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
+def _extract_map_and_fill_info(info: npt.NDArray) -> npt.NDArray:
     # Extract the RHS of the mapmaking equation from the lower triangle of info
     # and fill the lower triangle with the upper triangle, thus making each
     # matrix in "info" symmetric
@@ -191,17 +192,17 @@ def _extract_map_and_fill_info(info: npt.ArrayLike) -> npt.ArrayLike:
 
 def _build_nobs_matrix(
     nside: int,
-    obs_list: List[Observation],
-    ptg_list: Union[List[npt.ArrayLike], List[Callable]],
-    hwp: Union[HWP, None],
-    dm_list: List[npt.ArrayLike],
-    tm_list: List[npt.ArrayLike],
+    obs_list: list[Observation],
+    ptg_list: list[npt.NDArray | Callable],
+    hwp: HWP | None,
+    dm_list: list[npt.NDArray],
+    tm_list: list[npt.NDArray],
     output_coordinate_system: CoordinateSystem,
-    components: List[str],
+    components: list[str],
     pointings_dtype=np.float64,
-) -> npt.ArrayLike:
+) -> npt.NDArray:
     hpx = Healpix_Base(nside, "RING")
-    n_pix = nside_to_npix(nside)
+    n_pix = HealpixMap.nside_to_npix(nside)
 
     nobs_matrix = np.zeros((n_pix, 3, 3))
 
@@ -247,16 +248,19 @@ def _build_nobs_matrix(
 
         del pixidx_all, polang_all
 
+    assert obs_list, "No observations provided"
+    if mpi.MPI_ENABLED:
+        from litebird_sim.mpi import MPI
     if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
         # Serial call
         pass
     elif all(
         [
-            mpi.MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
+            MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
             for i in range(len(obs_list) - 1)
         ]
     ):
-        obs_list[0].comm.Allreduce(mpi.MPI.IN_PLACE, nobs_matrix, mpi.MPI.SUM)
+        obs_list[0].comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
 
     else:
         raise NotImplementedError(
@@ -268,11 +272,11 @@ def _build_nobs_matrix(
 
 def make_binned_map(
     nside: int,
-    observations: Union[Observation, List[Observation]],
-    pointings: Union[np.ndarray, List[np.ndarray], None] = None,
-    hwp: Optional[HWP] = None,
+    observations: Observation | list[Observation],
+    pointings: np.ndarray | list[np.ndarray] | None = None,
+    hwp: HWP | None = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    components: Union[str, List[str]] = "tod",
+    components: str | list[str] = "tod",
     detector_split: str = "full",
     time_split: str = "full",
     pointings_dtype=np.float64,
@@ -323,6 +327,7 @@ def make_binned_map(
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
     )
+    assert ptg_list, "No observations provided"
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 
@@ -355,9 +360,9 @@ def make_binned_map(
 
 
 def check_valid_splits(
-    observations: Union[Observation, List[Observation]],
-    detector_splits: Union[str, List[str]] = "full",
-    time_splits: Union[str, List[str]] = "full",
+    observations: Observation | list[Observation],
+    detector_splits: str | list[str] = "full",
+    time_splits: str | list[str] = "full",
 ):
     """Check if the splits are valid
 
@@ -385,7 +390,7 @@ def check_valid_splits(
             If pointings and psi are not included in the observations, they can
             be provided through an array (or a list of arrays) of dimension
             (Ndetectors x Nsamples x 3), containing theta, phi and psi
-        detector_splits (Union[str, List[str]], optional): detector-domain splits
+        detector_splits (str | list[str], optional): detector-domain splits
             used to produce maps.
 
             * "full": every detector in the observation will be used;
@@ -396,7 +401,7 @@ def check_valid_splits(
                 for "XXX" are all the 3-digits strings corresponding to the wafers
                 in the LITEBIRD focal plane (e.g. L00, M01, H02).
 
-        time_splits (Union[str, List[str]], optional): time-domain splits
+        time_splits (str | list[str], optional): time-domain splits
             used to produce maps. This defaults to "full" indicating that every
             sample in the observation will be used. In addition, the user can specify
             a string, or a list of strings, to indicate a subsample of the observation

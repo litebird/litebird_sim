@@ -74,7 +74,7 @@ The LiteBIRD Simulation Framework is being developed for the
 
 -   Love!
 -   [Python 3](https://www.python.org)
--   [Poetry](https://python-poetry.org/)
+-   [uv](https://docs.astral.sh/uv/)
 -   [NumPy](https://numpy.org)
 -   [Astropy](https://www.astropy.org)
 -   [Healpix](https://healpix.jpl.nasa.gov)
@@ -99,7 +99,7 @@ The documentation is available online at
 [litebird-sim.readthedocs.io/en/master/](https://litebird-sim.readthedocs.io/en/master/).
 
 To create a local copy of the documentation, make sure you ran
-`poetry` with the flag `--extras=docs`, then run the following
+`uv` with the `docs` optional dependencies, then run the following
 command:
 
 -   Linux or Mac OS X:
@@ -109,7 +109,7 @@ command:
 
 -   Windows:
     ```
-    poetry shell
+    uv shell
     cd docs
     make.bat html
     ```

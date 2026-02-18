@@ -538,3 +538,54 @@ def test_time_dependent_quaternions_operations():
     expected[0, :] = qconst1.quats[0, :]
     lbs.quat_right_multiply(expected[0, :], *qconst2.quats[0, :])
     np.testing.assert_allclose(actual=result.quats, desired=expected)
+
+
+def test_chunked_pointing_generation():
+    quat_array = lbs.RotQuaternion(
+        quats=np.array(
+            [
+                # This is not really a “rotating” quaternion: we repeat
+                # the same quaternion (90° rotation around x) thrice
+                # just for testing
+                [1.0, 0.0, 0.0, 1.0],
+                [1.0, 0.0, 0.0, 1.0],
+                [1.0, 0.0, 0.0, 1.0],
+            ]
+            / np.sqrt(2)
+        ),
+        start_time=0.0,
+        sampling_rate_hz=0.25,  # Four seconds per quaternion
+    )
+
+    # Make room for 5 quaternions at most
+    quaternion_size_in_bytes = 32
+    pp = lbs.PointingProvider(
+        bore2ecliptic_quats=quat_array,
+        maximum_internal_buffer_mem_mb=(quaternion_size_in_bytes * 5) / (1024 * 1024),
+    )
+
+    num_of_samples = 12
+    block_lengths = pp._optimal_block_lengths(total_nsamples=num_of_samples)
+    assert len(block_lengths) == 3
+    assert sum(block_lengths) == num_of_samples
+
+    pointing_buf, hwp_buf = pp.get_pointings(
+        detector_quat=lbs.RotQuaternion(quats=np.array([[0.0, 0.0, 0.0, 1.0]])),
+        start_time=0.0,
+        start_time_global=0.0,
+        sampling_rate_hz=1.0,
+        nsamples=num_of_samples,
+    )
+    assert pointing_buf.shape == (num_of_samples, 3)
+
+    # We expect the +z axis of the detector to be rotated by 90° around the x axis,
+    # so that it should point towards −y. This implies that ϑ = π/2 and φ = −π/2
+
+    # ϑ
+    np.testing.assert_allclose(pointing_buf[:, 0], np.pi / 2)
+
+    # φ
+    np.testing.assert_allclose(pointing_buf[:, 1], -np.pi / 2)
+
+    # ψ
+    np.testing.assert_allclose(pointing_buf[:, 2], 0, atol=1e-15)

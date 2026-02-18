@@ -95,29 +95,25 @@ def test_GLS_mapmaking():
     )
     ch_info.append(n_ch_info)
 
-    mbs_params = lbs.MbsParameters(
+    sky_params = lbs.SkyGenerationParams(
         make_cmb=True,
         make_fg=False,
-        seed_cmb=1,
-        gaussian_smooth=True,
-        bandpass_int=False,
+        seed_cmb=1,  # set this seed if you want to fix the CMB realization
+        apply_beam=True,  # if True, smooths the input map by the beam of the channel
+        bandpass_integration=False,  # if True, integrates over the top-hat bandpass of the channel
+        units="K_CMB",
+        output_type="map",
         nside=nside,
-        units="uK_CMB",
-        maps_in_ecliptic=False,
-        output_string="mbs_cmb_lens",
     )
 
-    mbs_obj = lbs.Mbs(
-        simulation=sim,
-        parameters=mbs_params,
-        channel_list=ch_info,
+    input_maps = sim.get_sky(
+        parameters=sky_params,
+        channels=ch_info,
     )
-
-    input_maps = mbs_obj.run_all()
 
     lbs.scan_map_in_observations(
         sim.observations,
-        maps=input_maps[0][channel],
+        maps=input_maps,
     )
 
     inv_cov = brahmap.LBSim_InvNoiseCovLO_UnCorr(sim.observations)

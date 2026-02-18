@@ -3,6 +3,10 @@
 Detectors, channels, and instruments
 ====================================
 
+.. contents:: Table of Contents
+   :depth: 2
+   :local:
+
 The core of the LiteBIRD instruments is the set of *detectors* that
 perform the measurement of the electromagnetic power entering through
 the telescope. Several simulation modules revolve around the concept

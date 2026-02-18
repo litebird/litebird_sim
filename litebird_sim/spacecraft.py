@@ -1,7 +1,4 @@
-# -*- encoding: utf-8 -*-
-
 from dataclasses import dataclass
-from typing import Union, List, Tuple
 
 import astropy
 from astropy.coordinates import ICRS, get_body_barycentric_posvel, SkyCoord
@@ -298,13 +295,12 @@ class SpacecraftPositionAndVelocity:
         self.orbit = orbit
         self.start_time = start_time
         self.time_span_s = time_span_s
-        self.positions_km = positions_km
-        self.velocities_km_s = velocities_km_s
+        self.positions_km: np.ndarray = positions_km
+        self.velocities_km_s: np.ndarray = velocities_km_s
 
     def __str__(self):
         return (
-            "SpacecraftPositionAndVelocity(start_time={0}, "
-            "time_span_s={1}, nsamples={2})"
+            "SpacecraftPositionAndVelocity(start_time={}, time_span_s={}, nsamples={})"
         ).format(self.start_time, self.time_span_s, len(self.positions_km))
 
     def __repr__(self):
@@ -339,8 +335,8 @@ class SpacecraftPositionAndVelocity:
 
 
 def compute_start_and_span_for_obs(
-    observations: Union[Observation, List[Observation]],
-) -> Tuple[astropy.time.Time, float]:
+    observations: Observation | list[Observation],
+) -> tuple[astropy.time.Time, float]:
     """
     Compute the start time and the overall duration in seconds of a set of observations.
 
@@ -352,6 +348,8 @@ def compute_start_and_span_for_obs(
         obs_list = [observations]
     else:
         obs_list = observations
+
+    assert len(obs_list) > 0, "observations must not be empty"
 
     start_time, end_time = None, None
     for cur_obs in obs_list:
@@ -367,6 +365,8 @@ def compute_start_and_span_for_obs(
         if (end_time is None) or (end_time > cur_end_time):
             end_time = cur_end_time
 
+    # These assertions help the type checker understand that the loop ran at least once
+    assert start_time is not None and end_time is not None
     time_span_s = (end_time - start_time).to("s").value
 
     return start_time, time_span_s
@@ -374,9 +374,9 @@ def compute_start_and_span_for_obs(
 
 def spacecraft_pos_and_vel(
     orbit: SpacecraftOrbit,
-    observations: Union[Observation, List[Observation], None] = None,
-    start_time: Union[astropy.time.Time, None] = None,
-    time_span_s: Union[float, None] = None,
+    observations: Observation | list[Observation] | None = None,
+    start_time: astropy.time.Time | None = None,
+    time_span_s: float | None = None,
     delta_time_s: float = 86400.0,
 ) -> SpacecraftPositionAndVelocity:
     """Compute the position and velocity of the L2 point within some time span
@@ -405,6 +405,7 @@ def spacecraft_pos_and_vel(
         # The caller either provided an observation or a list of observations.
         # Let's compute the overall time span
         start_time, time_span_s = compute_start_and_span_for_obs(observations)
+    assert time_span_s is not None and start_time is not None
 
     # We are going to compute the position of the L2 point at N times. The value N
     # is chosen such that the spacing between two consecutive times is never longer

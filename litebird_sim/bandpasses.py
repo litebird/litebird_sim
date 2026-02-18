@@ -1,11 +1,8 @@
-# -*- encoding: utf-8 -*-
-
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 import numpy as np
 import scipy as sp
 import logging
-from typing import Optional, Union
 from uuid import UUID
 
 from .imo import Imo
@@ -81,19 +78,19 @@ class BandPassInfo:
 
     bandcenter_ghz: float = 0.0
     bandwidth_ghz: float = 0.0
-    bandlow_ghz: Union[float, None] = None
-    bandhigh_ghz: Union[float, None] = None
+    bandlow_ghz: float | None = None
+    bandhigh_ghz: float | None = None
     nsamples_inband: int = 128
     name: str = ""
     bandtype: str = "top-hat"
     normalize: bool = False
-    model: str = None
+    model: str | None = None
 
     alpha_exp: float = 1
     beta_exp: float = 1
     cosine_apo_length: float = 5
     cheby_poly_order: int = 3
-    cheby_ripple_dB: int = 3
+    cheby_ripple_dB: int | float = 3
 
     def __post_init__(self):
         """
@@ -141,7 +138,7 @@ class BandPassInfo:
             self.bandcenter_ghz + self.bandwidth_ghz / 2,
         )
 
-    def _get_top_hat_bandpass(self, normalize=False, apodization: Optional[str] = None):
+    def _get_top_hat_bandpass(self, normalize=False, apodization: str | None = None):
         """
         Sample a top-hat bandpass, given the centroid and the bandwidth.
         If the `normalize` flag is set to ``True``, the transmission
@@ -243,8 +240,14 @@ class BandPassInfo:
                 / self.get_normalization()
             )
 
+    @classmethod
+    def from_dict(cls, d: dict) -> "BandPassInfo":
+        """Create a BandPassInfo object from a dictionary."""
+        field_names = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in d.items() if k in field_names})
+
     @staticmethod
-    def from_imo(imo: Imo, url: Union[UUID, str]):
+    def from_imo(imo: Imo, url: UUID | str):
         """Create a `BandPassInfo` object from a definition in the IMO
         The `url` must either specify a UUID or a full URL to the
         object.

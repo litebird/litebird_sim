@@ -59,7 +59,7 @@ Here is an example::
     from litebird_sim import TimeProfiler, profile_list_to_speedscope
     from time import sleep
 
-    perf_list = []  # type: list[TimeProfiler]
+    perf_list: list[TimeProfiler] = []
 
     # First code block to profile
     with TimeProfiler(name="function_A") as perf:

@@ -19,7 +19,6 @@ This is the User’s Manual of the LiteBIRD Simulation Framework.
    part5.rst
    part6.rst
    appendix.rst
-   installation
 
 Indices and tables
 ==================
