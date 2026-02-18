@@ -452,10 +452,6 @@ def test_scan_map_algebras():
     maps = np.random.normal(0, 1, (3, npix))
 
     # This part tests the ecliptic coordinates
-    in_map = {
-        "Boresight_detector_T": maps,
-        "Boresight_detector_B": maps,
-        "Coordinates": lbs.CoordinateSystem.Ecliptic,
     map_ecl = HealpixMap(maps, coordinates=lbs.CoordinateSystem.Ecliptic)
     in_map = {
         "Boresight_detector_T": map_ecl,
