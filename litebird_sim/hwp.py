@@ -411,7 +411,7 @@ class TimeDependentHWP(HWP):
         )
 
     def write_to_hdf5(
-        self, output_file: h5py.File, field_name: str, compression: str = None
+        self, output_file: h5py.File, field_name: str, compression: str | None = None
     ) -> h5py.Dataset:
         # For an ideal HWP, we just save an empty dataset with a few attributes
         # This means that we must *not* use the "compression" field here, otherwise
