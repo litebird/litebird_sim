@@ -546,7 +546,14 @@ def read_hwp_from_hdf5(input_file: h5py.File, field_name: str) -> HWP:
     dataset = input_file[field_name]
     class_name = dataset.attrs["class_name"]
 
-    if class_name == "TimeDependentHWP":
+    if class_name == "IdealHWP":
+        # Let's pass dummy values to each field. They will be
+        # fixed once the data are read from the file
+        result = IdealHWP(
+            ang_speed_radpsec=0.0,
+            start_angle_rad=0.0,
+        )
+    elif class_name == "TimeDependentHWP":
         # Let's pass dummy values to each field. They will be
         # fixed once the data are read from the file
         result = TimeDependentHWP(
