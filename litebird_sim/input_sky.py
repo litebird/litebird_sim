@@ -2,7 +2,7 @@ import logging as log
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import Literal, Sequence
 
 import ducc0.healpix as dh
 import numpy as np
