@@ -1,7 +1,6 @@
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
 from collections.abc import Sequence
 import logging as log
 
@@ -1191,7 +1190,7 @@ class SphericalHarmonics:
             coordinates=self.coordinates,
         )
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Exact equality: same geometry, same units, same coordinates,
         same frequencies and identical coefficients.
@@ -2233,7 +2232,7 @@ class HealpixMap:
             nest=self.nest,
         )
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Exact equality: same geometry, same units, same coordinates,
         same frequencies and identical pixel values.
@@ -3078,8 +3077,8 @@ def synthesize_alm(
     lmax: int | None = None,
     mmax: int | None = None,
     rng: np.random.Generator | None = None,
-    units: Optional["Units"] = None,
-    coordinates: Optional["CoordinateSystem"] = None,
+    units: "Units" | None = None,
+    coordinates: "CoordinateSystem" | None = None,
 ) -> "SphericalHarmonics":
     """
     Generates a set of spherical harmonic coefficients (alm) from power spectra.
@@ -3290,7 +3289,7 @@ def synthesize_alm(
 
 def compute_cl(
     alm1: "SphericalHarmonics",
-    alm2: Optional["SphericalHarmonics"] = None,
+    alm2: "SphericalHarmonics" | None = None,
     lmax: int | None = None,
     mmax: int | None = None,
     symmetrize: bool = True,
