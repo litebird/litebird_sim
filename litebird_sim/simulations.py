@@ -1887,7 +1887,9 @@ class Simulation:
         detectors: DetectorInfo | list[DetectorInfo] | None = None,
         store_in_observation: bool = False,
     ) -> (
-        dict[str, HealpixMap | SphericalHarmonics]
+        HealpixMap
+        | SphericalHarmonics
+        | dict[str, HealpixMap | SphericalHarmonics | SkyGenerationParams]
         | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
     ):
         """

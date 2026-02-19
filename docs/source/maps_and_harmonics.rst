@@ -15,9 +15,10 @@ is an array of shape ``(3, N)`` a T/Q/U map, or three T-only maps? Is the map in
 
 The classes :class:`HealpixMap` and :class:`SphericalHarmonics` solve this by:
 
-1.  **Strict Shape Enforcement**: Data is always stored as ``(nstokes, size)``. A temperature-only map is ``(1, npix)``, never ``(npix,)``.
+1.  **Strict Shape Enforcement**: Data is always stored as ``(nstokes, size)`` for single-frequency, or ``(nfreqs, nstokes, size)`` for multi-frequency. A temperature-only map is ``(1, npix)``, never ``(npix,)``.
 2.  **Metadata Propagation**: Every object carries physical ``units`` and ``coordinates``. Algebraic operations (like ``map_a + map_b``) automatically check that these match, raising a ``ValueError`` if you try to add a Galactic map to an Ecliptic one.
-3.  **Backend Agnosticism**: While the API feels like Healpy, the heavy lifting (SHTs) is performed by `ducc0 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_, offering significant performance improvements and correct handling of spin-weighted transforms.
+3.  **Multi-Frequency Support**: Both classes support storing data for multiple frequencies simultaneously, with automatic validation that frequency arrays match during operations.
+4.  **Backend Agnosticism**: While the API feels like Healpy, the heavy lifting (SHTs) is performed by `ducc0 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_, offering significant performance improvements and correct handling of spin-weighted transforms.
 
 Data Structures
 ---------------
@@ -35,6 +36,7 @@ Key features:
 
 * **Geometry checks**: The number of pixels is validated against the ``nside`` upon initialization.
 * **Algebra**: Supports ``+``, ``-``, ``*`` (scalar), and Stokes vector multiplication.
+* **Multi-frequency support**: Can store maps for multiple frequencies with shape ``(nfreqs, nstokes, npix)``. The ``frequencies_ghz`` attribute holds the frequency array, and ``nfreqs`` indicates the number of frequencies.
 * **Static Helpers**: Access HEALPix geometry math without importing ``healpy`` (e.g., :meth:`~litebird_sim.maps_and_harmonics.HealpixMap.nside_to_resolution_rad`).
 
 Spherical Harmonics
@@ -44,8 +46,9 @@ The :class:`~litebird_sim.maps_and_harmonics.SphericalHarmonics` class wraps $a_
 It solves the "triangular array ambiguity" by explicitly storing ``lmax`` and ``mmax`` alongside the coefficients.
 
 * **Storage**: Standard HEALPix/ducc triangular layout.
-* **Convolution**: The :meth:`~litebird_sim.maps_and_harmonics.SphericalHarmonics.convolve` method allows easy application of beams or transfer functions in harmonic space.
+* **Convolution**: The :meth:`~litebird_sim.maps_and_harmonics.SphericalHarmonics.convolve` method allows easy application of beams or transfer functions in harmonic space. Supports flexible multi-frequency convolution with 1D (broadcast to all frequencies), 2D (TEB filters), or 3D (per-frequency-stokes) filter arrays.
 * **Resizing**: The :meth:`~litebird_sim.maps_and_harmonics.SphericalHarmonics.resize_alm` method allows you to truncate or zero-pad coefficients to a new $\ell_{max}$.
+* **Multi-frequency support**: Can store coefficients for multiple frequencies with shape ``(nfreqs, nstokes, nalms)``. The ``frequencies_ghz`` attribute holds the frequency array, and ``nfreqs`` indicates the number of frequencies.
 
 Spherical Harmonics Ordering
 ----------------------------
@@ -100,10 +103,15 @@ These functions handle the complexity of spin-0 (Temperature) vs spin-2 (Polariz
 * :func:`~litebird_sim.maps_and_harmonics.estimate_alm`: Map $\rightarrow$ $a_{\ell m}$ (Analysis)
 * :func:`~litebird_sim.maps_and_harmonics.pixelize_alm`: $a_{\ell m}$ $\rightarrow$ Map (Synthesis)
 * :func:`~litebird_sim.maps_and_harmonics.interpolate_alm`: $a_{\ell m}$ $\rightarrow$ Values at arbitrary $(\theta, \phi)$
+* :func:`~litebird_sim.maps_and_harmonics.compute_cl`: Compute auto- or cross-power spectra from $a_{\ell m}$
+* :func:`~litebird_sim.maps_and_harmonics.compute_dl`: Compute $D_{\ell} = \ell(\ell+1)C_{\ell}/(2\pi)$ spectra
 
 .. tip::
    All transform functions accept a ``nthreads`` argument. 
    Setting ``nthreads=0`` (default) uses all available hardware threads, which is optimal for standalone scripts but should be adjusted when running inside an MPI environment.
+
+.. note::
+   All transform functions support multi-frequency data. When operating on multi-frequency objects, transforms are applied independently to each frequency, and the output maintains the multi-frequency structure.
 
 Cookbook
 --------
@@ -193,8 +201,51 @@ If you need to evaluate a set of alms at specific locations (e.g., catalog posit
 
     # Interpolate
     # If alms.nstokes == 3, this returns tuple (T, Q, U)
-    # where each is an array of length N
+    # where each is an array of length N (single-freq) or (nfreqs, N) (multi-freq)
     t_vals, q_vals, u_vals = interpolate_alm(alms, locations)
+
+Multi-Frequency Operations
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both :class:`HealpixMap` and :class:`SphericalHarmonics` support multi-frequency data:
+
+.. code-block:: python
+
+    from litebird_sim.maps_and_harmonics import SphericalHarmonics, compute_cl
+    import numpy as np
+    
+    # Create multi-frequency alms
+    lmax = 128
+    nfreqs = 3
+    frequencies = np.array([100.0, 143.0, 217.0])  # GHz
+    
+    # Shape: (nfreqs, nstokes, nalms)
+    nalms = SphericalHarmonics.alm_array_size(lmax, lmax, 3)[1]
+    values = np.random.randn(nfreqs, 3, nalms) + 1j * np.random.randn(nfreqs, 3, nalms)
+    
+    alms = SphericalHarmonics(
+        values=values,
+        lmax=lmax,
+        frequencies_ghz=frequencies
+    )
+    
+    # Multi-frequency smoothing: apply different FWHM to each frequency
+    fwhm_arcmin = np.array([30.0, 23.0, 14.0])
+    fwhm_rad = np.radians(fwhm_arcmin / 60.0)
+    alms_smooth = alms.apply_gaussian_smoothing(fwhm_rad=fwhm_rad)
+    
+    # Compute power spectra: returns 2D arrays (nfreqs, lmax+1)
+    cls = compute_cl(alms_smooth, alms_smooth)
+    # cls["TT"] has shape (3, 129) for 3 frequencies
+    # cls["frequency_ghz"] contains the frequency array
+    
+    # Arithmetic operations check frequency compatibility
+    alms2 = alms.copy()
+    alms_sum = alms + alms2  # Works: same frequencies
+    
+    # This would raise ValueError:
+    # alms_bad = SphericalHarmonics(..., frequencies_ghz=np.array([95, 150, 220]))
+    # alms + alms_bad  # ValueError: frequencies not compatible!
 
 API Reference
 -------------
@@ -203,11 +254,13 @@ API Reference
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: coordinates, frequencies_ghz, lmax, mmax, nfreqs, nstokes, units, values
 
 .. autoclass:: litebird_sim.maps_and_harmonics.HealpixMap
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: coordinates, frequencies_ghz, nest, nfreqs, nside, nstokes, units, values
 
 .. autofunction:: litebird_sim.maps_and_harmonics.estimate_alm
 .. autofunction:: litebird_sim.maps_and_harmonics.pixelize_alm
