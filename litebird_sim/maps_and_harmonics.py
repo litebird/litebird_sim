@@ -3077,9 +3077,9 @@ def synthesize_alm(
     lmax: int | None = None,
     mmax: int | None = None,
     rng: np.random.Generator | None = None,
-    units: "Units" | None = None,
-    coordinates: "CoordinateSystem" | None = None,
-) -> "SphericalHarmonics":
+    units: Units | None = None,
+    coordinates: CoordinateSystem | None = None,
+) -> SphericalHarmonics:
     """
     Generates a set of spherical harmonic coefficients (alm) from power spectra.
 
@@ -3288,8 +3288,8 @@ def synthesize_alm(
 
 
 def compute_cl(
-    alm1: "SphericalHarmonics",
-    alm2: "SphericalHarmonics" | None = None,
+    alm1: SphericalHarmonics,
+    alm2: SphericalHarmonics | None = None,
     lmax: int | None = None,
     mmax: int | None = None,
     symmetrize: bool = True,
