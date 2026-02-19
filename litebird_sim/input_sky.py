@@ -1,8 +1,9 @@
 import logging as log
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import field
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal
+from collections.abc import Sequence
 
 import ducc0.healpix as dh
 import numpy as np
@@ -131,67 +132,65 @@ def _get_cmb_unit_conversion(
 # --- Configuration DataClasses ---
 
 
-@dataclass
 class SkyGenerationParams:
     """Parameters for sky signal generation."""
 
-    nside: int = 512
-    lmax: int | None = None
-
-    # Output Control
-    output_type: Literal["map", "alm"] = "map"
-    units: str | Units = Units.K_CMB  # Updated to use Enum
-
-    # Beam & Smoothing
-    apply_beam: bool = False
-    apply_pixel_window: bool = False
-
-    # Bandpass
-    bandpass_integration: bool = False
-
-    # Parallelism
-    nthreads: int = 0  # 0 usually means "use all available" in ducc0
-
-    # Components to generate
-    make_cmb: bool = True
-    make_fg: bool = False
-    make_dipole: bool = False
-
-    return_components: bool = False
-
-    # CMB Specifics
-    # Assume input power spectrum in uK^2
-    cmb_ps_file: str | Path | None = None
-    seed_cmb: int | None = None
-    cmb_r: float = 0.0
-
-    # Foreground Specifics
-    fg_models: list[str] = field(default_factory=list)
-    fg_oversampling: int = 2
-
-    # Dipole Specifics
-    # This simulates first order dipole (no kinematic high order terms)
-    sun_velocity_kms: float = c.SOLAR_VELOCITY_KM_S
-    sun_direction_galactic: tuple[float, float] = (
-        c.SOLAR_VELOCITY_GAL_LAT_RAD,
-        c.SOLAR_VELOCITY_GAL_LON_RAD,
-    )
-
-    def __post_init__(self):
+    def __init__(
+        self,
+        nside: int = 512,
+        lmax: int | None = None,
+        # Output Control
+        output_type: Literal["map", "alm"] = "map",
+        units: str | Units = Units.K_CMB,  # Updated to use Enum
+        # Beam & Smoothing
+        apply_beam: bool = False,
+        apply_pixel_window: bool = False,
+        # Bandpass
+        bandpass_integration: bool = False,
+        # Parallelism
+        nthreads: int = 0,  # 0 usually means "use all available" in ducc0
+        # Components to generate
+        make_cmb: bool = True,
+        make_fg: bool = False,
+        make_dipole: bool = False,
+        return_components: bool = False,
+        # CMB Specifics
+        # Assume input power spectrum in uK^2
+        cmb_ps_file: str | Path | None = None,
+        seed_cmb: int | None = None,
+        cmb_r: float = 0.0,
+        # Foreground Specifics
+        fg_models: list[str] = field(default_factory=list),
+        fg_oversampling: int = 2,
+        # Dipole Specifics
+        # This simulates first order dipole (no kinematic high order terms)
+        sun_velocity_kms: float = c.SOLAR_VELOCITY_KM_S,
+        sun_direction_galactic: tuple[float, float] = (
+            c.SOLAR_VELOCITY_GAL_LAT_RAD,
+            c.SOLAR_VELOCITY_GAL_LON_RAD,
+        ),
+    ):
+        self.nside = nside
+        self.lmax: int = lmax
         if self.lmax is None:
-            self.lmax = 3 * self.nside - 1
-
-        # Robustness: Ensure units is Enum if user passed string
-        if isinstance(self.units, str):
-            self.units: Units = Units(self.units)
-
-        # Warning for MPI consistency
-        if self.make_cmb and self.seed_cmb is None:
-            log.warning(
-                "seed_cmb is None. If this simulation is running across multiple MPI tasks, "
-                "the generated CMB sky will NOT be coherent (identical) across tasks. "
-                "Set a specific integer seed to ensure consistency."
-            )
+            self.lmax: int = 3 * self.nside - 1
+        self.output_type = output_type
+        self.units = Units(units) if isinstance(units, str) else units
+        self.apply_beam = apply_beam
+        self.apply_pixel_window = apply_pixel_window
+        self.bandpass_integration = bandpass_integration
+        self.nthreads = nthreads
+        self.make_cmb = make_cmb
+        self.make_fg = make_fg
+        self.make_dipole = make_dipole
+        self.return_components = return_components
+        self.cmb_ps_file = cmb_ps_file
+        self.seed_cmb = seed_cmb
+        self.cmb_r = cmb_r
+        self.fg_models = fg_models
+        self.fg_oversampling = fg_oversampling
+        self.sun_velocity_kms = sun_velocity_kms
+        self.sun_direction_galactic = sun_direction_galactic
 
 
 # --- Main Class ---
@@ -327,27 +326,47 @@ class SkyGenerator:
                     warnings.warn(
                         "'fwhm_rad' was provided but 'apply_beam=False'. The fwhm will be ignored."
                     )
-
+            self.channels_or_detectors: list[FreqChannelInfo] | list[DetectorInfo]
             if channels is not None:
-                if isinstance(channels, (list, tuple)):
-                    self.channels = list(channels)
+                if isinstance(channels, FreqChannelInfo):
+                    self.channels: list[FreqChannelInfo] = [channels]
                 else:
-                    self.channels = [channels]
-                self.detectors = []
+                    self.channels: list[FreqChannelInfo] = list(channels)
+                self.detectors: list[DetectorInfo] = []
                 self.channels_or_detectors = self.channels
 
-            else:
-                # detectors is not None here by construction
-                if isinstance(detectors, (list, tuple)):
-                    self.detectors = list(detectors)
+            elif detectors is not None:
+                if isinstance(detectors, DetectorInfo):
+                    self.detectors: list[DetectorInfo] = [detectors]
                 else:
-                    self.detectors = [detectors]
-                self.channels = []
+                    self.detectors: list[DetectorInfo] = list(detectors)
+                self.channels: list[FreqChannelInfo] = []
                 self.channels_or_detectors = self.detectors
+            else:
+                raise ValueError(
+                    "Internal error: No channels or detectors provided, but not in frequency mode. This should have been caught by validation."
+                )
 
     # ------------------------------------------------------------------
     # Helpers (frequency mode)
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _accumulate(
+        total: HealpixMap | SphericalHarmonics,
+        component: HealpixMap | SphericalHarmonics,
+    ) -> HealpixMap | SphericalHarmonics:
+        if isinstance(total, HealpixMap) and isinstance(component, HealpixMap):
+            total += component
+        elif isinstance(total, SphericalHarmonics) and isinstance(
+            component, SphericalHarmonics
+        ):
+            total += component
+        else:
+            raise TypeError(
+                f"Cannot add {type(component).__name__} to {type(total).__name__}"
+            )
+        return total
 
     def _empty_frequency_output(self) -> HealpixMap | SphericalHarmonics:
         """Return a zero-filled multi-frequency HealpixMap or SphericalHarmonics object."""
@@ -432,7 +451,9 @@ class SkyGenerator:
         result: dict[str, HealpixMap | SphericalHarmonics] = {}
 
         for ch_or_det in self.channels_or_detectors:
-            name = ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
+            name: str = str(
+                ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
+            )
             log.debug(f"Processing CMB for {name}")
 
             alm_obs = alm_cmb.copy()
@@ -493,7 +514,9 @@ class SkyGenerator:
         result: dict[str, HealpixMap | SphericalHarmonics] = {}
 
         for ch_or_det in self.channels_or_detectors:
-            name = ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
+            name: str = str(
+                ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
+            )
 
             # 1. Compute emission
             if self.params.bandpass_integration:
@@ -577,7 +600,9 @@ class SkyGenerator:
         result: dict[str, HealpixMap | SphericalHarmonics] = {}
 
         for ch_or_det in self.channels_or_detectors:
-            name = ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
+            name: str = str(
+                ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
+            )
 
             if self.params.bandpass_integration:
                 conv_factor = _get_cmb_unit_conversion(
@@ -875,7 +900,7 @@ class SkyGenerator:
     ) -> (
         HealpixMap
         | SphericalHarmonics
-        | dict[str, HealpixMap | SphericalHarmonics]
+        | dict[str, HealpixMap | SphericalHarmonics | SkyGenerationParams]
         | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
     ):
         """
@@ -900,15 +925,17 @@ class SkyGenerator:
             any_component = False
 
             if self.params.make_cmb:
-                total += self._generate_cmb_frequencies()
+                total = self._accumulate(total, self._generate_cmb_frequencies())
                 any_component = True
 
             if self.params.make_fg:
-                total += self._generate_foregrounds_frequencies()
+                total = self._accumulate(
+                    total, self._generate_foregrounds_frequencies()
+                )
                 any_component = True
 
             if self.params.make_dipole:
-                total += self._generate_dipole_frequencies()
+                total = self._accumulate(total, self._generate_dipole_frequencies())
                 any_component = True
 
             if not any_component:
@@ -936,7 +963,9 @@ class SkyGenerator:
             return components  # type: ignore[return-value]
 
         log.info("Summing components...")
-        total_maps: dict[str, HealpixMap | SphericalHarmonics] = {}
+        total_maps: dict[
+            str, HealpixMap | SphericalHarmonics | SkyGenerationParams
+        ] = {}
 
         if not components:
             return {}

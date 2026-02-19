@@ -1,7 +1,8 @@
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Optional
+from collections.abc import Sequence
 import logging as log
 
 import ducc0.healpix as dh
@@ -1004,7 +1005,8 @@ class SphericalHarmonics:
                 # Case 3: Per-frequency and per-stokes windows (nfreqs, nstokes, >=lmax+1)
                 if self.nfreqs is None:
                     raise ValueError(
-                        "3D filter array provided but SphericalHarmonics object has nfreqs=None"
+                        "3D filter array provided but nfreqs is None. "
+                        "nfreqs must be set to use a 3D filter."
                     )
                 if f_ell.shape[0] != self.nfreqs:
                     raise ValueError(
@@ -3336,7 +3338,7 @@ def compute_cl(
 
     if not is_auto:
         # Check frequency compatibility for cross-spectra
-        freqs1: Any | None = getattr(alm1, "frequencies_ghz", None)
+        freqs1: np.ndarray | None = getattr(alm1, "frequencies_ghz", None)
         freqs2 = getattr(alm2, "frequencies_ghz", None)
         if freqs1 is not None and freqs2 is not None:
             if not np.allclose(
@@ -3483,10 +3485,8 @@ def compute_cl(
             raise ValueError(f"Unsupported number of Stokes parameters: {nstokes1}")
     else:
         # Multi-frequency: output arrays of shape (nfreqs, lmax+1)
-        nfreqs = nfreqs1
-        # This assert is more of a sanity check at this point, since we already checked nfreqs1 vs nfreqs2 above.
-        # It needs to be here to satisfy the type checker that nfreqs is not None in the code below.
-        assert nfreqs is not None
+        assert nfreqs1 is not None  # Checked earlier for consistency
+        nfreqs: int = nfreqs1
         lsize = lmax_calc + 1
         if nstokes1 == 1:
             TT = np.zeros((nfreqs, lsize), dtype=np.float64)
