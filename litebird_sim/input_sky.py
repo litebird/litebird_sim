@@ -1,6 +1,5 @@
 import logging as log
 import warnings
-from dataclasses import field
 from pathlib import Path
 from typing import Literal
 from collections.abc import Sequence
@@ -160,7 +159,7 @@ class SkyGenerationParams:
         seed_cmb: int | None = None,
         cmb_r: float = 0.0,
         # Foreground Specifics
-        fg_models: list[str] = field(default_factory=list),
+        fg_models: list[str] | None = None,
         fg_oversampling: int = 2,
         # Dipole Specifics
         # This simulates first order dipole (no kinematic high order terms)
@@ -187,7 +186,7 @@ class SkyGenerationParams:
         self.cmb_ps_file = cmb_ps_file
         self.seed_cmb = seed_cmb
         self.cmb_r = cmb_r
-        self.fg_models = fg_models
+        self.fg_models: list[str] = fg_models if fg_models is not None else []
         self.fg_oversampling = fg_oversampling
         self.sun_velocity_kms = sun_velocity_kms
         self.sun_direction_galactic = sun_direction_galactic
