@@ -226,7 +226,7 @@ def distribute_optimally(elements, num_of_groups, weight_fn=None) -> list[Span]:
 
     max_weight = _partition(elements, len(elements), num_of_groups, weight_fn)
 
-    result = []  # type: list[Span]
+    result: list[Span] = []
     start_idx = 0
     weight = 0
     cur_num = 0

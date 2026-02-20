@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 import litebird_sim as lbs
+from litebird_sim.maps_and_harmonics import HealpixMap, SphericalHarmonics
 
 import healpy as hp
 
@@ -35,10 +36,6 @@ STRICT_TYPES_TEST_PARAMETERS = [
 ]
 
 
-def num_of_alms(lmax: int, mmax: int) -> int:
-    return mmax * (2 * lmax + 1 - mmax) // 2 + lmax + 1
-
-
 @pytest.mark.parametrize(STRICT_TYPES_TEST_FIELDS, STRICT_TYPES_TEST_PARAMETERS)
 def test_beam_convolution_strict_types(
     tod_dtype,
@@ -68,13 +65,15 @@ def test_beam_convolution_strict_types(
     lmax = 10
     mmax_sky = 10
     sky_alms = lbs.SphericalHarmonics(
-        values=rng.random((3, num_of_alms(lmax, mmax_sky))),
+        values=rng.random((3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax_sky))),
         lmax=lmax,
         mmax=mmax_sky,
     )
     mmax_beam = mmax_sky - 4
     beam_alms = lbs.SphericalHarmonics(
-        values=rng.random((3, num_of_alms(lmax, mmax_beam))),
+        values=rng.random(
+            (3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax_beam))
+        ),
         lmax=lmax,
         mmax=mmax_beam,
     )
@@ -119,7 +118,7 @@ def test_beam_convolution():
 
     fwhm_arcmin = 4.0 * 60
 
-    npix = lbs.nside_to_npix(nside_in)
+    npix = HealpixMap.nside_to_npix(nside_in)
 
     sim = lbs.Simulation(
         start_time=start_time, duration_s=time_span_s, random_seed=12345
@@ -165,7 +164,9 @@ def test_beam_convolution():
     np.random.seed(seed=123_456_789)
     inmaps = np.random.normal(0, 1, (3, npix))
 
-    maps = hp.smoothing(inmaps, fwhm=np.deg2rad(fwhm_arcmin / 60.0), pol=True)
+    maps = lbs.HealpixMap(
+        hp.smoothing(inmaps, fwhm=np.deg2rad(fwhm_arcmin / 60.0), pol=True)
+    )
     alms = lbs.SphericalHarmonics(values=hp.map2alm(inmaps, lmax=lmax), lmax=lmax)
 
     (obs1,) = sim.create_observations(detectors=[detT, detB], tod_dtype=np.float64)
@@ -186,8 +187,6 @@ def test_beam_convolution():
     lbs.scan_map_in_observations(
         observations=obs1,
         maps=maps,
-        input_map_in_galactic=False,
-        interpolation="linear",
     )
 
     blms = lbs.generate_gauss_beam_alms(
@@ -207,7 +206,6 @@ def test_beam_convolution():
         observations=obs2,
         sky_alms=alms,
         beam_alms=blms,
-        input_sky_alms_in_galactic=False,
         convolution_params=Convparams,
         pointings_dtype=np.float64,
     )

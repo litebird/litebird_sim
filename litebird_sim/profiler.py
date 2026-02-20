@@ -12,10 +12,10 @@ class TimeProfiler:
     """
 
     def __init__(self, name: str = "", **kwargs):
-        self.name = name
+        self.name: str = name
         self.parameters = dict(kwargs)
-        self.start = None
-        self.end = None
+        self.start: int | float = 0.0
+        self.end: int | float = 0.0
 
     def __enter__(self):
         self.start = perf_counter()
@@ -59,7 +59,7 @@ def profile_list_to_speedscope(profile_list: list[TimeProfiler]) -> dict[Any, An
         # This happens if no profile data was available
         end_time = 0.0
 
-    events = []  # type: list[dict[Any, Any]]
+    events: list[dict[Any, Any]] = []
 
     for prof in profile_list:
         if not prof.valid():

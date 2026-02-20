@@ -1,16 +1,15 @@
+import logging as log
 from dataclasses import dataclass, field, fields
 from typing import Any
-
 from uuid import UUID
-import numpy as np
-import logging as log
 
 import astropy.time as astrotime
-from .imo import Imo
-from .quaternions import quat_rotation_y, quat_rotation_z, quat_left_multiply
-from .scanning import RotQuaternion
+import numpy as np
 
 from .bandpasses import BandPassInfo
+from .imo import Imo
+from .quaternions import quat_left_multiply, quat_rotation_y, quat_rotation_z
+from .scanning import RotQuaternion
 
 
 def url_to_uuid(url: str) -> UUID:
@@ -188,6 +187,7 @@ class DetectorInfo:
     pointing_u_v: None | np.ndarray = None
     g_one_over_k: float = 0.0
     amplitude_2f_k: float = 0.0
+    band: BandPassInfo | None = None
 
     def __post_init__(self):
         if self.quat is None:
@@ -196,6 +196,7 @@ class DetectorInfo:
         self.quat = normalize_time_dependent_quaternion(self.quat)
 
         if isinstance(self.band_freqs_ghz, np.ndarray):
+            assert self.band_weights is not None
             assert len(self.band_freqs_ghz) == len(self.band_weights)
 
         # Warn if mueller_hwp is not a 4x4 numpy array
@@ -333,6 +334,7 @@ class FreqChannelInfo:
     number_of_detectors: int = 0
     detector_names: list[str] = field(default_factory=list)
     detector_objs: list[UUID] = field(default_factory=list)
+    band: BandPassInfo | None = None
 
     """A data class representing the configuration of a frequency channel in LiteBIRD.
 

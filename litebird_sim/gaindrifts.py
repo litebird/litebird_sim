@@ -1,7 +1,8 @@
-import numpy as np
-
-from enum import IntEnum
+import logging as log
 from dataclasses import dataclass
+from enum import IntEnum
+
+import numpy as np
 
 from .observations import Observation
 from .seeding import regenerate_or_check_detector_generators
@@ -22,7 +23,7 @@ class GainDriftType(IntEnum):
 
     LINEAR_GAIN = 0
     THERMAL_GAIN = 1
-    # SLOW_GAIN = 2 # Remains to be implemented
+    SLOW_GAIN = 2  # Remains to be implemented
 
 
 class SamplingDist(IntEnum):
@@ -202,8 +203,8 @@ def _get_psd(
 def _noise_timestream(
     tod_size: int,
     sampling_freq_hz: float,
-    drift_params: GainDriftParams = None,
-    random: np.random.Generator = None,
+    drift_params: GainDriftParams | None = None,
+    random: np.random.Generator | None = None,
 ) -> np.ndarray:
     """The function to generate the thermal noise time stream with
     :math:`1/f` power spectral density.
@@ -279,9 +280,9 @@ def _noise_timestream(
 def apply_gaindrift_for_one_detector(
     det_tod: np.ndarray,
     sampling_freq_hz: float,
-    drift_params: GainDriftParams = None,
-    noise_timestream: np.ndarray = None,
-    random: np.random.Generator = None,
+    drift_params: GainDriftParams | None = None,
+    noise_timestream: np.ndarray | None = None,
+    random: np.random.Generator | None = None,
 ):
     """This function applies the gain drift on the TOD corresponding to only one
     detector.
@@ -389,7 +390,7 @@ def apply_gaindrift_for_one_detector(
         det_tod *= _responsivity_function(dT)
 
     elif drift_params.drift_type == GainDriftType.SLOW_GAIN:
-        # !!! Remains to be implemented
+        log.warning("Slow gain drift is not yet implemented.")
         pass
     else:
         raise ValueError(
@@ -401,9 +402,9 @@ def apply_gaindrift_for_one_detector(
 def apply_gaindrift_to_tod(
     tod: np.ndarray,
     sampling_freq_hz: float,
-    drift_params: GainDriftParams = None,
-    focalplane_attr: list | np.ndarray = None,
-    dets_random: np.random.Generator | None = None,
+    drift_params: GainDriftParams | None = None,
+    focalplane_attr: list | np.ndarray | None = None,
+    dets_random: list[np.random.Generator] | None = None,
 ):
     """The function to apply the gain drift to all the detectors of a given TOD object.
 
@@ -447,6 +448,8 @@ def apply_gaindrift_to_tod(
 
     if drift_params is None:
         drift_params = GainDriftParams()
+
+    assert dets_random is not None, "dets_random is required"
 
     tod_size = len(tod[0])
 
@@ -501,10 +504,10 @@ def apply_gaindrift_to_tod(
 
 def apply_gaindrift_to_observations(
     observations: Observation | list[Observation],
-    drift_params: GainDriftParams = None,
+    drift_params: GainDriftParams | None = None,
     user_seed: int | None = None,
     component: str = "tod",
-    dets_random: list[np.random.Generator] = None,
+    dets_random: list[np.random.Generator] | None = None,
 ):
     """
     Apply gain drift to one or more observations.

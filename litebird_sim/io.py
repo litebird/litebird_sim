@@ -2,7 +2,7 @@ import json
 import logging as log
 import re
 from collections import namedtuple
-from dataclasses import fields, asdict
+from dataclasses import asdict, fields
 from pathlib import Path
 from typing import Any
 
@@ -13,11 +13,11 @@ import numpy as np
 from .compress import rle_compress, rle_decompress
 from .detectors import DetectorInfo
 from .hwp import read_hwp_from_hdf5
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD
+from .mpi import MPI_COMM_WORLD, MPI_ENABLED
 from .observations import Observation, TodDescription
-from .units import Units
 from .pointings import PointingProvider
 from .scanning import RotQuaternion
+from .units import Units
 
 __NUMPY_INT_TYPES = [
     np.int8,
@@ -131,6 +131,7 @@ def write_pointing_provider_to_hdf5(
     )
 
     if pointing_provider.has_hwp():
+        assert pointing_provider.hwp is not None
         hwp_field_name = f"{field_name}_hwp"
         pointing_provider.hwp.write_to_hdf5(
             output_file=output_file,
@@ -170,7 +171,7 @@ def write_one_observation(
     pointings_dtype,
     global_index: int,
     local_index: int,
-    tod_fields: list[str | TodDescription] = None,
+    tod_fields: list[str | TodDescription] | None = None,
     gzip_compression: bool = False,
     write_full_pointings: bool = False,
 ):
@@ -342,6 +343,7 @@ def write_one_observation(
     try:
         # We must separate the flags belonging to different detectors because they
         # might have different shapes
+        assert obs.local_flags is not None
         for det_idx in range(obs.local_flags.shape[0]):
             flags = obs.__getattribute__("local_flags")
             compressed_flags = rle_compress(flags[det_idx, :])
@@ -366,10 +368,13 @@ def _compute_global_start_index(
 ) -> int:
     global_start_index = start_index
     if MPI_ENABLED and collective_mpi_call:
+        from mpi4py.MPI import Intracomm
+
         # Count how many observations are kept in the MPI processes with lower rank
         # than this one.
-        num_of_obs = np.asarray(MPI_COMM_WORLD.allgather(num_of_obs))
-        global_start_index += np.sum(num_of_obs[0 : MPI_COMM_WORLD.rank])
+        assert isinstance(MPI_COMM_WORLD, Intracomm)
+        num_of_obs_all = np.asarray(MPI_COMM_WORLD.allgather(num_of_obs))
+        global_start_index += int(np.sum(num_of_obs_all[0 : MPI_COMM_WORLD.rank]))
 
     return global_start_index
 
@@ -469,15 +474,8 @@ def write_list_of_observations(
     file).
 
     """
-    try:
-        observations[0]
-    except TypeError:
-        observations = [observations]
-    except IndexError:
-        # Empty list
-        # We do not want to return here, as we still need to participate to
-        # the call to _compute_global_start_index below
-        observations = []  # type: list[Observation]
+    if isinstance(observations, Observation):
+        observations: list[Observation] = [observations]
 
     if not isinstance(path, Path):
         path = Path(path)
@@ -742,7 +740,7 @@ _FileEntry = namedtuple(
 
 
 def _build_file_entry_table(file_name_list: list[str | Path]) -> list[_FileEntry]:
-    file_entries = []  # type: list[_FileEntry]
+    file_entries: list[_FileEntry] = []
     for cur_file_name in file_name_list:
         with h5py.File(cur_file_name, "r") as inpf:
             try:
@@ -795,11 +793,14 @@ def read_list_of_observations(
     # When running several MPI processes, make just one of them read the HDF5 metadata,
     # otherwise we put too much burden on the storage filesystem
     if MPI_ENABLED:
+        from mpi4py.MPI import Intracomm
+
         file_entries = (
             _build_file_entry_table(file_name_list)
             if (MPI_COMM_WORLD.rank == 0)
             else None
         )
+        assert isinstance(MPI_COMM_WORLD, Intracomm)
         file_entries = MPI_COMM_WORLD.bcast(file_entries, root=0)
     else:
         file_entries = _build_file_entry_table(file_name_list)
@@ -808,13 +809,18 @@ def read_list_of_observations(
     if limit_mpi_rank and MPI_ENABLED:
         file_entries = [x for x in file_entries if x.mpi_rank == MPI_COMM_WORLD.rank]
 
+    # Convert TodDescription objects to strings
+    tod_fields_str: list[str] = [
+        f.name if isinstance(f, TodDescription) else f for f in tod_fields
+    ]
+
     for cur_file_entry in file_entries:
         observations.append(
             read_one_observation(
                 cur_file_entry.path,
                 limit_mpi_rank=limit_mpi_rank,
                 tod_dtype=tod_dtype,
-                tod_fields=tod_fields,
+                tod_fields=tod_fields_str,
             )
         )
 

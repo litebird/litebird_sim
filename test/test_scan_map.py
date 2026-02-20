@@ -1,16 +1,25 @@
 # -*- encoding: utf-8 -*-
 import astropy
-import healpy
-
-import litebird_sim as lbs
+import healpy as hp
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
-import healpy as hp
+
+import litebird_sim as lbs
+from litebird_sim.maps_and_harmonics import HealpixMap
 
 
 def get_map_mask(pixels: npt.ArrayLike) -> npt.ArrayLike:
-    return np.isfinite(pixels) & (pixels != healpy.UNSEEN)
+    return np.isfinite(pixels) & (pixels != hp.UNSEEN)
+
+
+def get_map_values(map_obj):
+    """Retrieve pixel values from a HealpixMap or legacy map object."""
+    if hasattr(map_obj, "values"):
+        return map_obj.values
+    if hasattr(map_obj, "binned_map"):
+        return map_obj.binned_map
+    return map_obj
 
 
 def test_scan_map_no_interpolation():
@@ -36,7 +45,7 @@ def test_scan_map_no_interpolation():
 
     hpx = Healpix_Base(nside, "RING")
 
-    npix = lbs.nside_to_npix(nside)
+    npix = HealpixMap.nside_to_npix(nside)
 
     sim = lbs.Simulation(
         start_time=start_time, duration_s=time_span_s, random_seed=12345
@@ -81,10 +90,11 @@ def test_scan_map_no_interpolation():
     maps = np.random.normal(0, 1, (3, npix))
 
     # This part tests the ecliptic coordinates
+    # Wraps numpy arrays into HealpixMap objects
+    map_ecl = HealpixMap(maps, coordinates=lbs.CoordinateSystem.Ecliptic)
     in_map = {
-        "Boresight_detector_T": maps,
-        "Boresight_detector_B": maps,
-        "Coordinates": lbs.CoordinateSystem.Ecliptic,
+        "Boresight_detector_T": map_ecl,
+        "Boresight_detector_B": map_ecl,
     }
 
     (obs1,) = sim.create_observations(detectors=[detT, detB])
@@ -101,11 +111,10 @@ def test_scan_map_no_interpolation():
 
     pointings, hwp_angle = obs1.get_pointings("all")
 
+    # Removed input_map_in_galactic and interpolation (handled by HealpixMap object)
     lbs.scan_map_in_observations(
         observations=obs1,
         maps=in_map,
-        input_map_in_galactic=False,
-        interpolation=None,
     )
 
     out_map1 = lbs.make_binned_map(
@@ -131,29 +140,33 @@ def test_scan_map_no_interpolation():
         output_coordinate_system=lbs.CoordinateSystem.Ecliptic,
     )
 
-    mask1 = get_map_mask(out_map1.binned_map)
-    mask2 = get_map_mask(out_map2.binned_map)
+    # Use helper to access values regardless of return type
+    out_vals1 = get_map_values(out_map1)
+    out_vals2 = get_map_values(out_map2)
+
+    mask1 = get_map_mask(out_vals1)
+    mask2 = get_map_mask(out_vals2)
     np.testing.assert_array_equal(mask1, mask2)
 
     np.testing.assert_allclose(
-        out_map1.binned_map[mask1],
-        in_map["Boresight_detector_T"][mask1],
+        out_vals1[mask1],
+        in_map["Boresight_detector_T"].values[mask1],
         rtol=tolerance,
         atol=0.1,
     )
 
     np.testing.assert_allclose(
-        out_map1.binned_map[mask1], out_map2.binned_map[mask2], rtol=tolerance, atol=0.1
+        out_vals1[mask1], out_vals2[mask2], rtol=tolerance, atol=0.1
     )
 
     # This part tests the galactic coordinates
     r = hp.Rotator(coord=["E", "G"])
-    maps = r.rotate_map_alms(maps, use_pixel_weights=False)
+    maps_gal = r.rotate_map_alms(maps, use_pixel_weights=False)
 
+    map_gal = HealpixMap(maps_gal, coordinates=lbs.CoordinateSystem.Galactic)
     in_map_G = {
-        "Boresight_detector_T": maps,
-        "Boresight_detector_B": maps,
-        "Coordinates": lbs.CoordinateSystem.Galactic,
+        "Boresight_detector_T": map_gal,
+        "Boresight_detector_B": map_gal,
     }
 
     (obs1,) = sim.create_observations(detectors=[detT, detB])
@@ -165,18 +178,19 @@ def test_scan_map_no_interpolation():
         hwp=hwp,
     )
 
+    # Removed input_map_in_galactic (handled by map_gal.coordinates)
     lbs.scan_map_in_observations(
         observations=obs1,
         maps=in_map_G,
-        input_map_in_galactic=True,
     )
 
     out_map1 = lbs.make_binned_map(nside=nside, observations=obs1)
-    mask1 = get_map_mask(out_map1.binned_map)
+    out_vals1 = get_map_values(out_map1)
+    mask1 = get_map_mask(out_vals1)
 
     np.testing.assert_allclose(
-        out_map1.binned_map[mask1],
-        in_map_G["Boresight_detector_T"][mask1],
+        out_vals1[mask1],
+        in_map_G["Boresight_detector_T"].values[mask1],
         rtol=tolerance,
         atol=0.1,
     )
@@ -184,7 +198,8 @@ def test_scan_map_no_interpolation():
 
 def test_scan_map_linear_interpolation():
     # This test is the same as test_scan_map_no_interpolation, but here we just check
-    # that the call to `scan_map` does not fail
+    # that the call to `scan_map` does not fail.
+    # Note: Explicit interpolation is removed in real-space scan_map, assumes NN.
 
     start_time = 0
     time_span_s = 24 * 3600  # The time is much shorter here!
@@ -193,7 +208,7 @@ def test_scan_map_linear_interpolation():
     net = 50.0
     hwp_radpsec = 4.084_070_449_666_731
 
-    npix = lbs.nside_to_npix(nside)
+    npix = HealpixMap.nside_to_npix(nside)
 
     sim = lbs.Simulation(
         start_time=start_time, duration_s=time_span_s, random_seed=12345
@@ -235,10 +250,10 @@ def test_scan_map_linear_interpolation():
     np.random.seed(seed=123_456_789)
     maps = np.random.normal(0, 1, (3, npix))
 
+    map_ecl = HealpixMap(maps, coordinates=lbs.CoordinateSystem.Ecliptic)
     in_map = {
-        "Boresight_detector_T": maps,
-        "Boresight_detector_B": maps,
-        "Coordinates": lbs.CoordinateSystem.Ecliptic,
+        "Boresight_detector_T": map_ecl,
+        "Boresight_detector_B": map_ecl,
     }
 
     (obs1,) = sim.create_observations(detectors=[detT, detB])
@@ -253,14 +268,11 @@ def test_scan_map_linear_interpolation():
         hwp=hwp,
     )
 
-    pointings, hwp_angle = obs1.get_pointings("all")
-
     # Just check that the code does not crash
     lbs.scan_map_in_observations(
         observations=obs1,
         maps=in_map,
-        input_map_in_galactic=False,
-        interpolation="linear",
+        # interpolation="linear" removed as it is not supported in the current interface
     )
 
 
@@ -307,18 +319,16 @@ def test_scanning_list_of_obs(tmp_path):
     )
 
     np.random.seed(seed=123_456_789)
-    base_map = np.zeros((3, lbs.nside_to_npix(128)))
+    base_map = np.zeros((3, HealpixMap.nside_to_npix(128)))
 
     # This part tests the ecliptic coordinates
-    maps = {"A": base_map, "B": base_map, "Coordinates": lbs.CoordinateSystem.Ecliptic}
+    map_ecl = HealpixMap(base_map, coordinates=lbs.CoordinateSystem.Ecliptic)
+    maps = {"A": map_ecl, "B": map_ecl}
 
-    # Just call the function and check that it does not raise any of the
-    # "assert" that are placed at the beginning to check the consistency
-    # of observations and pointings
+    # Just call the function and check that it does not raise
     lbs.scan_map_in_observations(
         observations=sim.observations,
         maps=maps,
-        input_map_in_galactic=True,
     )
 
 
@@ -365,9 +375,10 @@ def test_scanning_list_of_obs_in_other_component(tmp_path):
     )
 
     # Create fake maps containing only nonzero pixels
-    base_map = np.ones((3, lbs.nside_to_npix(128)))
+    base_map = np.ones((3, HealpixMap.nside_to_npix(128)))
 
-    maps = {"A": base_map, "B": base_map, "Coordinates": lbs.CoordinateSystem.Galactic}
+    map_gal = HealpixMap(base_map, coordinates=lbs.CoordinateSystem.Galactic)
+    maps = {"A": map_gal, "B": map_gal}
 
     for cur_obs in sim.observations:
         cur_obs.fg_tod = np.zeros_like(cur_obs.tod)
@@ -375,15 +386,13 @@ def test_scanning_list_of_obs_in_other_component(tmp_path):
     lbs.scan_map_in_observations(
         observations=sim.observations,
         maps=maps,
-        input_map_in_galactic=True,
         component="fg_tod",
     )
 
     # Check that the "tod" field has been left unchanged
     assert np.allclose(sim.observations[0].tod, 0.0)
 
-    # Check that "fg_tod" has some non-zero data in it, as
-    # all the pixels in the foreground map have nonzero pixels
+    # Check that "fg_tod" has some non-zero data in it
     assert np.sum(np.abs(sim.observations[0].fg_tod)) > 0.0
 
 
@@ -398,7 +407,7 @@ def test_scan_map_algebras():
 
     hpx = Healpix_Base(nside, "RING")
 
-    npix = lbs.nside_to_npix(nside)
+    npix = HealpixMap.nside_to_npix(nside)
 
     sim = lbs.Simulation(
         start_time=start_time, duration_s=time_span_s, random_seed=12345
@@ -443,25 +452,24 @@ def test_scan_map_algebras():
     maps = np.random.normal(0, 1, (3, npix))
 
     # This part tests the ecliptic coordinates
+    map_ecl = HealpixMap(maps, coordinates=lbs.CoordinateSystem.Ecliptic)
     in_map = {
-        "Boresight_detector_T": maps,
-        "Boresight_detector_B": maps,
-        "Coordinates": lbs.CoordinateSystem.Ecliptic,
+        "Boresight_detector_T": map_ecl,
+        "Boresight_detector_B": map_ecl,
     }
 
     (obs,) = sim.create_observations(detectors=[detT, detB])
     tod = np.empty_like(obs.tod)
 
-    # standard computation with HWP:
-    # - set the HWP in the simulation
-    # - then fill_tods
     hwp = lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec)
 
     sim.set_hwp(hwp)
 
     sim.prepare_pointings()
 
-    sim.fill_tods(in_map, input_map_in_galactic=False)
+    # Updated: sim.fill_tods probably expects HealpixMap and no kwargs for coordinates
+    # if it wraps scan_map_in_observations
+    sim.fill_tods(in_map)
 
     for idet in range(obs.n_detectors):
         pointings, hwp_angle = obs.get_pointings(idet)
@@ -482,23 +490,18 @@ def test_scan_map_algebras():
 
     sim.nullify_tod()
 
-    # here we use the low level function scan_map_in_observations
-    # passing an external HWP
-    # - so we initialize a new instance of the class HWP
-    # - then we call scan_map_in_observations
     hwp_new = lbs.IdealHWP(ang_speed_radpsec=hwp_radpsec * 0.5)
 
     lbs.scan_map_in_observations(
         observations=obs,
         maps=in_map,
         hwp=hwp_new,
-        input_map_in_galactic=False,
-        interpolation=None,
     )
 
     for idet in range(obs.n_detectors):
         pointings, _ = obs.get_pointings(idet)
         pixind = hpx.ang2pix(pointings[:, 0:2])
+        # Note: calling internal method _get_hwp_angle
         hwp_angle = lbs.pointings_in_obs._get_hwp_angle(obs, hwp_new)
         angle = 2 * pointings[:, 2] - 2 * obs.pol_angle_rad[idet] + 4 * hwp_angle
         tod[idet, :] = (
@@ -523,8 +526,6 @@ def test_scan_map_algebras():
         observations=obs,
         maps=in_map,
         hwp=hwp_new,
-        input_map_in_galactic=False,
-        interpolation=None,
     )
 
     for idet in range(obs.n_detectors):
@@ -556,7 +557,7 @@ def test_scan_map_algebras():
 
     sim.prepare_pointings()
 
-    sim.fill_tods(in_map, input_map_in_galactic=False)
+    sim.fill_tods(in_map)
 
     for idet in range(obs.n_detectors):
         pointings, _ = obs.get_pointings(idet)

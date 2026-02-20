@@ -82,7 +82,7 @@ class EntityBrowser:
 
         return parent + [
             ((x.name, x.full_path), x.uuid)
-            for x in self._imo.imoobject.entities.values()
+            for x in getattr(self._imo.imoobject, "entities").values()
             if x.parent == self._base
         ]
 
@@ -92,7 +92,7 @@ class EntityBrowser:
 
         result = []
         for cur_uuid in self._base.quantities:
-            cur_quantity = self._imo.imoobject.quantities[cur_uuid]
+            cur_quantity = getattr(self._imo.imoobject, "quantities")[cur_uuid]
             result.append(
                 (
                     (
@@ -113,24 +113,26 @@ class EntityBrowser:
 
     def enter_child(self, uuid):
         if uuid:
-            self._base = self._imo.imoobject.entities[uuid]
+            self._base = getattr(self._imo.imoobject, "entities")[uuid]
         else:
             self._base = None
 
     def set_current_quantity(self, uuid):
         if uuid:
-            self._quantity = self._imo.imoobject.quantities[uuid]
+            self._quantity = getattr(self._imo.imoobject, "quantities")[uuid]
         else:
             self._quantity = None
 
     def get_quantity_name(self):
         try:
+            assert self._quantity is not None
             return self._quantity.name
         except AttributeError:
             return ""
 
     def get_quantity_path(self):
         try:
+            assert self._quantity is not None
             return f"{self.get_entity_name()}/{self._quantity.name}"
         except AttributeError:
             return ""
@@ -141,11 +143,11 @@ class EntityBrowser:
 
         result = []
         for cur_file_uuid in self._quantity.data_files:
-            cur_file = self._imo.imoobject.data_files[cur_file_uuid]
+            cur_file = getattr(self._imo.imoobject, "data_files")[cur_file_uuid]
             release_tag_string = ", ".join(
                 [
                     x.tag
-                    for x in self._imo.imoobject.releases.values()
+                    for x in getattr(self._imo.imoobject, "releases").values()
                     if cur_file_uuid in x.data_files
                 ]
             )
@@ -161,7 +163,11 @@ class EntityBrowser:
         quantity_path = self.get_quantity_path()
         # Get a list of releases, sorted from the most recent to the oldest
         releases = sorted(
-            [x for x in self._imo.imoobject.releases.values() if uuid in x.data_files],
+            [
+                x
+                for x in getattr(self._imo.imoobject, "releases").values()
+                if uuid in x.data_files
+            ],
             key=lambda x: x.rel_date,
             reverse=True,
         )

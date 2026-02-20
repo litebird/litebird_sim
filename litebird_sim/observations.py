@@ -8,14 +8,15 @@ import numpy as np
 import numpy.typing as npt
 
 from .coordinates import DEFAULT_TIME_SCALE
-from .units import Units
 from .detectors import DetectorInfo, InstrumentInfo
-from .distribute import distribute_evenly, distribute_detector_blocks
-from .hwp import HWP, IdealHWP, NonIdealHWP
+from .distribute import distribute_detector_blocks, distribute_evenly
+from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
+from .input_sky import SkyGenerationParams
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
-from .pointings import PointingProvider
+from .pointings import PointingProvider, DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB
 from .scanning import RotQuaternion
-from .hwp import Calc
+from .units import Units
 
 
 @dataclass
@@ -138,6 +139,41 @@ class Observation:
 
     """
 
+    # Dynamic attributes set via setattr_det_global/setattr_det
+    det_idx: npt.NDArray
+    jones_hwp: list
+    quat: list
+    mueller_hwp: npt.NDArray
+
+    # Dynamic attributes set by destriper
+    destriper_weights: npt.NDArray | None
+    destriper_pixel_idx: npt.NDArray | None
+    destriper_pol_angle_rad: npt.NDArray | None
+
+    # Dynamic attributes set by mapmaker
+    net_ukrts: int | float | npt.NDArray
+    wafer: str | None
+
+    # Dynamic attributes set by beam synthesis
+    name: list
+    fwhm_arcmin: npt.NDArray
+    ellipticity: npt.NDArray
+    psi_rad: npt.NDArray
+    pol_angle_rad: npt.NDArray
+    blms: dict | None
+
+    # Dynamic attributes set by io
+    local_flags: npt.NDArray | None
+
+    # Dynamic attributes set by scanning
+    sky: (
+        HealpixMap
+        | dict[str, HealpixMap | SkyGenerationParams]
+        | SphericalHarmonics
+        | dict[str, SphericalHarmonics | SkyGenerationParams]
+        | None
+    )
+
     def __init__(
         self,
         detectors: int | list[dict],
@@ -237,7 +273,7 @@ class Observation:
             self.n_samples,
         ) = self._get_local_start_time_start_and_n_samples()
 
-        self.pointing_provider = None  # type: PointingProvider | None
+        self.pointing_provider: PointingProvider | None = None
 
         # By default this is set to False, prepare_pointings() can change its value
         self.has_hwp = False
@@ -319,6 +355,7 @@ class Observation:
         # Distribute the arrays
         if self.comm and self.comm.size > 1:
             keys = self.comm.bcast(keys)
+        assert keys is not None, "Keys should not be None after broadcast."
 
         for k in keys:
             self.setattr_det_global(k, dict_of_array.get(k), root)
@@ -401,6 +438,9 @@ class Observation:
             n_blocks_time (int): Number of time blocks
 
         """
+        assert self._det_blocks_attributes is not None, (
+            "Detector block attributes should not be None"
+        )
         self.detector_blocks = defaultdict(list)
         for det in detectors:
             key = tuple(det[attribute] for attribute in self._det_blocks_attributes)
@@ -451,7 +491,11 @@ class Observation:
         index and length of each block if the number of blocks is changed to the
         values passed as arguments
         """
-        if self._det_blocks_attributes is None or self.comm.size == 1:
+        if (
+            self._det_blocks_attributes is None
+            or self.comm is None
+            or self.comm.size == 1
+        ):
             det_start, det_n = np.array(
                 [
                     [span.start_idx, span.num_of_elements]
@@ -727,8 +771,11 @@ class Observation:
             setattr(self, name, value)
             return
 
+        from mpi4py.MPI import Intracomm
+
         my_col = MPI_COMM_GRID.COMM_OBS_GRID.rank % self._n_blocks_time
         root_col = root // self._n_blocks_det
+        assert isinstance(self.comm_time_block, Intracomm)
         if my_col == root_col:
             if MPI_COMM_GRID.COMM_OBS_GRID.rank == root:
                 starts, nums, _, _ = self._get_start_and_num(
@@ -738,10 +785,17 @@ class Observation:
 
             info = self.comm_time_block.scatter(info, root)
 
+        assert isinstance(self.comm_det_block, Intracomm)
         info = self.comm_det_block.bcast(info, root_col)
-        assert (not self.tod_list) or len(info) == len(
-            getattr(self, self.tod_list[0].name)
-        )
+        if self.tod_list:
+            # Get the first TOD attribute defined in the list
+            tod_data = getattr(self, self.tod_list[0].name)
+            # Only perform the length consistency check if the TOD array is actually allocated
+            if tod_data is not None:
+                assert len(info) == len(tod_data), (
+                    f"Metadata {name} length ({len(info)}) mismatch with TOD length ({len(tod_data)})"
+                )
+
         setattr(self, name, info)
 
     def get_delta_time(self) -> float | astropy.time.TimeDelta:
@@ -862,6 +916,7 @@ class Observation:
         instrument: InstrumentInfo,
         spin2ecliptic_quats: RotQuaternion,
         hwp: HWP | None = None,
+        maximum_internal_buffer_mem_mb: float = DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB,
     ) -> None:
         """Prepare quaternion-based pointing and HWP information for this observation.
 
@@ -888,6 +943,10 @@ class Observation:
                 Optional HWP model. If provided, it is stored and its Mueller matrix
                 applied to all detectors lacking one.
 
+            maximum_internal_buffer_mem_mb (float):
+                Maximum number of megabytes (MB) to allocate for internal buffers during
+                the computation of pointings. Set to -1 to remove any limit.
+
         Raises:
             AssertionError:
                 If `hwp` is not provided and one or more detectors do not have a
@@ -899,10 +958,19 @@ class Observation:
             internal :class:`.PointingProvider`.
         """
 
+        assert (maximum_internal_buffer_mem_mb > 0) or (
+            maximum_internal_buffer_mem_mb == -1
+        ), (
+            "Invalid value for maximum_internal_buffer_mem_mb ({val}), it must either be -1 or a positive number".format(
+                val=maximum_internal_buffer_mem_mb
+            )
+        )
+
         bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
         pointing_provider = PointingProvider(
             bore2ecliptic_quats=bore2ecliptic_quats,
             hwp=hwp,
+            maximum_internal_buffer_mem_mb=maximum_internal_buffer_mem_mb,
         )
 
         self.pointing_provider = pointing_provider
@@ -983,6 +1051,9 @@ class Observation:
         if isinstance(detector_idx, int):
             assert (detector_idx >= 0) and (detector_idx < self.n_detectors), (
                 f"Invalid detector index {detector_idx}, it must be a number between 0 and {self.n_detectors - 1}"
+            )
+            assert self.quat is not None, (
+                "Detector quaternions have not been initialized."
             )
 
             return self.pointing_provider.get_pointings(

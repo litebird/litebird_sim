@@ -32,7 +32,7 @@ class DetectorInfoViewer:
         self.ndets_in_channel = None
         self.channel_dets_list = []
         self.total_dets_list = []
-        self.base_path = None
+        self.base_path = ""
         self.telescope = None
         self.channel = None
         self.imo_version = None
@@ -129,7 +129,7 @@ class DetectorInfoViewer:
         return info_text
 
     def generate_dets_list_file(
-        self, filename, selected_detector_list, duration_yr=1.0
+        self, filename, selected_detector_list: list, duration_yr=1.0
     ):
         """Generate a text file with the selected detector list.
         The NET on detector is scaled by the`scaling_factor`:
@@ -142,6 +142,9 @@ class DetectorInfoViewer:
         """
         header = "# Telescope     Channel         IMO_NET         Number_det      Scaled_NET      Detector_name\n"
         selected_number_of_dets = len(selected_detector_list)
+        assert self.ndets_in_channel is not None, (
+            "ndets_in_channel must be set before generating detector list file."
+        )
         scaling_factor = np.sqrt(
             duration_yr / 3.0 * selected_number_of_dets / self.ndets_in_channel
         )
@@ -190,8 +193,8 @@ class DetectorInfoViewer:
                         if detector in self.selected_detector_list:
                             self.selected_detector_list.remove(detector)
                 info_text = self.gen_detsinfo_text(dets_list[0], dets_list[1])
-                self.info_box.set_text(info_text)
-                self.fig.canvas.draw()
+                getattr(self.info_box, "set_text")(info_text)
+                getattr(self.fig, "canvas").draw()
 
     def ask_yes_or_no(self):
         while True:
@@ -225,7 +228,7 @@ class DetectorInfoViewer:
         else:
             IMO_ROOT_PATH = self.extract_location_from_toml(CONFIG_FILE_PATH)
             imo = Imo(flatfile_location=os.path.join(IMO_ROOT_PATH, "schema.json"))
-            versions = list(imo.imoobject.releases.keys())
+            versions = list(getattr(imo, "imoobject").releases.keys())
             versions_with_idx = [f"({i + 1}). {ver}" for i, ver in enumerate(versions)]
             print(
                 f"[green]Available IMO versions:[/green] [cyan]{versions_with_idx}[/cyan]"

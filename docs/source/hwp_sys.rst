@@ -104,7 +104,7 @@ We expand each of the perturbations $\delta_{pq}$ into harmonics of the rotation
 where :math:`p`, :math:`q` are the matrix indexes, :math:`n_{f} = 0,2,4` are the harmonics and :math:`\alpha` is the HWP angle in focal plane coordinates (assuming for simplicity that the azimuthal angle of the detector is set to 0, and ignoring the dependence on the incidence angle). If our input matrices have the :math:`\gamma` values as complex numbers :math:`A e^{i \phi}`, for each harmonic, we get:
 
 .. math::
-    \delta_{pq}^{n_{f}}( n_{f} \alpha) = \sum_{n_{f}} A_{pq}^{n_{f}} e^{i\phi} e^{in\alpha} 
+    \delta_{pq}^{n_{f}}( n_{f} \alpha) = \sum_{n_{f}} A_{pq}^{n_{f}} e^{i\phi} e^{in\alpha}
 
 
 Developing this and taking only the real part we get to:
@@ -124,7 +124,8 @@ of the HWP systematics. It defines three methods:
   handles the interface with the parameter file of the simulation.There is also the
   possibility of passing precomputed input maps (as a NumPy array)
   through the ``maps`` argument. Otherwise, the code computes input
-  maps through the module Mbs (see :ref:`Mbs`). ``mueller_or_jones`` sets the operations to be performed internally depending on the type of input matrices representing the hwp. If ``built_map_on_the_fly = True``, the map-making can be performed internally on-the-fly;  There are two boolean arguments related to the coupling of non-linearity effects with hwp systematic effects: ``if apply_non_linearity`` and ``add_2f_hwpss``. Applying the non-linearities inside the hwp_sys module is useful when one wants to use the mapmaking on the fly. To know more about detector non-linearity and HWPSS, see `this section <https://litebird-sim.readthedocs.io/en/master/non_linearity.html>`_.
+  maps through the module input_sky (see :ref:`input_sky`). If ``built_map_on_the_fly = True``, the
+  map-making can be performed internally on-the-fly;  There are two boolean arguments related to the coupling of non-linearity effects with hwp systematic effects: ``if apply_non_linearity`` and ``add_2f_hwpss``. Applying the non-linearities inside the hwp_sys module is useful when one wants to use the mapmaking on the fly. To know more about detector non-linearity and HWPSS, see `this section <https://litebird-sim.readthedocs.io/en/master/non_linearity.html>`_.
 
 *  :meth:`.hwp_sys.HwpSys.fill_tod` which fills the tod in a given Observation. The ``pointings``
    angles passed have to include no rotating HWP, since the effect of the rotating HWP to the
@@ -180,7 +181,7 @@ The examples below skip the simulation and observation creation for brevity. If 
 
    sim.prepare_pointings()
 
-   # creating the HwpSys object 
+   # creating the HwpSys object
    hwp_sys = lbs.HwpSys(sim)
 
    # setting HwpSys parameters
@@ -227,7 +228,7 @@ To couple detector non-linearity with HWP systematics, three attributes must be 
 
    sim.prepare_pointings()
 
-   # creating the HwpSys object 
+   # creating the HwpSys object
    hwp_sys = lbs.HwpSys(sim)
 
    # setting HwpSys parameters
@@ -257,7 +258,7 @@ The module :mod:`.hwp_diff_emiss` implements the additive contamination coming f
 
 At finite temperature :math:`T_\textsc{hwp}`, HWPs emit blackbody radiation (in
 :math:`\mathrm{W}\,\mathrm{str}^{-1}\,\mathrm{m}^{-2}\,\mathrm{Hz}^{-1}`
-units) weighted by their frequency-dependent emissivity, :math:`\varepsilon(\nu)`  
+units) weighted by their frequency-dependent emissivity, :math:`\varepsilon(\nu)`
 
 .. math:: \varepsilon(\nu) I_\textsc{hwp}(\nu, T_\textsc{hwp}) = \varepsilon(\nu) \frac{2h\nu^3}{c^2} \frac{1}{e^{\frac{h\nu}{kT_\textsc{hwp}}}-1}\,,
 
@@ -314,9 +315,9 @@ More explicitly:
        &= \varepsilon_i\,I_{\textsc{hwp},i}(T_\textsc{hwp}) + \Delta\varepsilon_i\, I_{\textsc{hwp},i}(T_\textsc{hwp}) \cos[2(\xi-\rho)]\,.
    \end{aligned}
 
-The first term represents the unpolarized thermal emission, while the 
+The first term represents the unpolarized thermal emission, while the
 second term is the polarized emission, modulated at twice the relative
-angle between the HWP and detector. 
+angle between the HWP and detector.
 
 To simulate the 2f signal from a rotating, emitting HWP, one can use the method of
 :class:`.Simulation` class :meth:`.Simulation.add_2f()`, or any of the
@@ -346,8 +347,8 @@ The examples below skip the simulation and observation creation for brevity. If 
 
    sim.prepare_pointings()
 
-   # Define differential emission amplitude for the detectors, in the same temperature units you used for the TOD. 
-   # If just one value is set, all the detectors will have the same 2f amplitude. 
+   # Define differential emission amplitude for the detectors, in the same temperature units you used for the TOD.
+   # If just one value is set, all the detectors will have the same 2f amplitude.
    sim.observations[0].amplitude_2f_k = np.array([0.1, 0.2])
 
    # Adding 2f signal from HWP differential emission using the `Simulation` class method
@@ -363,7 +364,7 @@ API reference
 HWP_sys
 ~~~~~~~
 
-.. automodule:: litebird_sim.hwp_sys.hwp_sys
+.. automodule:: litebird_sim.hwp_harmonics
     :members:
     :show-inheritance:
     :private-members:

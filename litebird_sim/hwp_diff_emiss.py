@@ -17,7 +17,7 @@ def compute_2f_for_one_sample(angle_rad, amplitude_k):
 
 @njit(parallel=True)
 def add_2f_for_one_detector(tod_det, angle_det_rad, amplitude_k):
-    for i in prange(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         tod_det[i] += compute_2f_for_one_sample(
             angle_rad=angle_det_rad[i], amplitude_k=amplitude_k
         )
@@ -26,14 +26,15 @@ def add_2f_for_one_detector(tod_det, angle_det_rad, amplitude_k):
 def add_2f(
     tod,
     hwp_angle,
-    pol_angle_rad: float,
-    amplitude_2f_k: float,
+    pol_angle_rad: np.ndarray,
+    amplitude_2f_k: float | np.ndarray,
 ):
     """Add the HWP differential emission to some time-ordered data
 
     This functions modifies the values in `tod` by adding the contribution of the HWP
     synchronous signal coming from differential emission. The `amplitude_2f_k` argument must be
-    a N_dets array containing the amplitude of the HWPSS."""
+    a N_dets array containing the amplitude of the HWPSS.
+    """
 
     assert len(tod.shape) == 2
     num_of_dets = tod.shape[0]
@@ -41,7 +42,7 @@ def add_2f(
     if isinstance(amplitude_2f_k, Number):
         amplitude_2f_k = np.array([amplitude_2f_k] * num_of_dets)
 
-    assert len(amplitude_2f_k) == num_of_dets
+        assert len(amplitude_2f_k) == num_of_dets
 
     for detector_idx in range(tod.shape[0]):
         add_2f_for_one_detector(
@@ -67,13 +68,13 @@ def add_2f_to_observations(
     By default, the TOD is added to ``Observation.tod``. If you want to add it to some
     other field of the :class:`.Observation` class, use `component`::
 
-    for cur_obs in sim.observations:
-        # Allocate a new TOD for the 2f alone
-        cur_obs.2f_tod = np.zeros_like(cur_obs.tod)
+        for cur_obs in sim.observations:
+            # Allocate a new TOD for the 2f alone
+            cur_obs.hwp_2f_tod = np.zeros_like(cur_obs.tod)
 
-        # Ask `add_2f_to_observations` to store the 2f
-        # in `observations.2f_tod`
-        add_2f_to_observations(sim.observations, component="2f_tod")
+            # Ask `add_2f_to_observations` to store the 2f
+            # in `observations.hwp_2f_tod`
+            add_2f_to_observations(sim.observations, component="hwp_2f_tod")
     """
     if isinstance(observations, Observation):
         obs_list = [observations]
@@ -83,7 +84,12 @@ def add_2f_to_observations(
     # iterate through each observation
     for cur_obs in obs_list:
         if amplitude_2f_k is None:
-            amplitude_2f_k = cur_obs.amplitude_2f_k
+            amplitude_2f_k = getattr(cur_obs, "amplitude_2f_k", None)
+        assert amplitude_2f_k is not None, (
+            "The amplitude_2f_k parameter must be provided either "
+            "as an argument to add_2f_to_observations or as an "
+            "attribute of the Observation instance."
+        )
 
         # Determine the HWP angle to use:
         # - If an external HWP object is provided, compute the angle from it

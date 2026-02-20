@@ -80,6 +80,7 @@ as demonstrated in the following example:
         values=hp.synalm(np.ones((4,lmax+1)),lmax=lmax, mmax=lmax,),
         lmax=lmax,
         mmax=lmax,
+        coordinates=lbs.CoordinateSystem.Galactic,
     )
 
     Convparams = lbs.BeamConvolutionParameters(
@@ -94,7 +95,6 @@ as demonstrated in the following example:
         obs,
         alms,
         blms,
-        input_sky_alms_in_galactic=True,
         convolution_params=Convparams,
         pointings_dtype=np.float32,
     )
@@ -122,7 +122,7 @@ Input Data Format
 The input sky alms and beam alms must be encapsulated in instances of the 
 :class:`SphericalHarmonics` class. These can be stored in a dictionary, 
 using either the channel or detector name as a keyword, or passed directly 
-to :func:`.add_convolved_sky_to_observations`. The routines in :ref:`Mbs` 
+to :func:`.add_convolved_sky_to_observations`. The routines in :ref:`input_sky` 
 already provide correctly formatted inputs. See below for a desctription 
 of the dataclass :class:`SphericalHarmonics`.
 
@@ -134,7 +134,6 @@ via the `pointings` parameter. If both `observations` and `pointings` are provid
 they must be consistent—either as a single observation and a single numpy array 
 or as lists of equal length.
 
-If input alms are in ecliptic coordinates, set `input_sky_alms_in_galactic=False`. 
 The HWP effect can be incorporated via pointing data (see :ref:`scanning-strategy`) 
 or by using the `hwp` argument. The polarization angles of 
 detectors are derived from the observation attributes.
@@ -158,6 +157,19 @@ dataclass. Allowed parameters:
 
 If convolution parameters are omitted, defaults are inferred from sky and beam alms, triggering a warning.
 
+.. note::
+   **Type Coherence and Memory Efficiency**
+   
+   To optimize performance and minimize memory footprint, the convolution engine (based on ``ducc0``) 
+   requires specific floating-point precision. If the data types of the input ``sky_alms`` and 
+   ``beam_alms`` (instances of :class:`SphericalHarmonics`) do not match the precision 
+   specified in ``convolution_params`` (e.g., ``complex64`` for ``single_precision=True``), 
+   the code will perform a type conversion using ``astype(..., copy=False)``. 
+   
+   This means that if the types are already compatible, no copy is made, and the data is 
+   processed in-place. However, if a conversion is necessary, a new array might be 
+   created or the existing one casted, but the framework is designed to avoid 
+   unnecessary deep copies whenever possible.
 
 Container for Spherical Harmonics
 ---------------------------------
@@ -182,7 +194,8 @@ It supports:
 - Resizing via zero-padding or truncation
 - I/O through Healpy-compatible FITS files
 
- 
+Full documentation can be found in :ref:`maps_and_harmonics`.
+
 Example usage:
 
 .. testcode::
@@ -286,7 +299,7 @@ Methods of the Simulation class
 The :class:`.Simulation` class offers various functions to streamline convolution:
 
 - :func:`.Simulation.get_gauss_beam_alms`: Generates Gaussian beam alms for all detectors using :class:`.DetectorInfo`.
-- :func:`.Simulation.get_sky`: Produces sky alms based on an instance of :class:`.mbs.MbsParameters`.
+- :func:`.Simulation.get_sky`: Produces sky alms based on an instance of :class:`.SkyGenerationParams`.
 - :func:`.Simulation.convolve_sky`: Convolves sky and beam alms for all observations in the simulation.
 
 These methods are MPI-compatible, distributing inputs based on the job’s detector configuration without requiring broadcast operations.
@@ -355,19 +368,19 @@ For a single-task execution, refer to the following example:
     blms = sim.get_gauss_beam_alms(lmax=lmax)
 
     # Create the alms to convolve
-    mbs_params = lbs.MbsParameters(
+    sky_params = lbs.SkyGenerationParams(
         make_cmb=True,
         make_fg=False,
         nside=nside,
         units="K_CMB",
-        gaussian_smooth=False,
-        bandpass_int=False,
-        store_alms=True,
-        lmax_alms=lmax,
+        apply_beam=False,
+        bandpass_integration=False,
+        output_type="alm",
+        lmax=lmax,
         seed_cmb=12345,
     )
 
-    alms = sim.get_sky(parameters = mbs_params)
+    alms = sim.get_sky(parameters = sky_params)
 
     Convparams = lbs.BeamConvolutionParameters(
         lmax = lmax,
@@ -379,7 +392,6 @@ For a single-task execution, refer to the following example:
     sim.convolve_sky(sky_alms=alms,
                      beam_alms=blms,
                      convolution_params=Convparams,
-                     input_sky_alms_in_galactic=True,
                      pointings_dtype=np.float32,
                      nthreads = 0)
 
@@ -391,9 +403,6 @@ API reference
     :members:
     :undoc-members:
     :show-inheritance:
-
-.. automodule:: litebird_sim.spherical_harmonics
-    :members:
 
 .. automodule:: litebird_sim.beam_synthesis
     :members:

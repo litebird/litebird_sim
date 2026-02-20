@@ -295,8 +295,8 @@ class SpacecraftPositionAndVelocity:
         self.orbit = orbit
         self.start_time = start_time
         self.time_span_s = time_span_s
-        self.positions_km = positions_km
-        self.velocities_km_s = velocities_km_s
+        self.positions_km: np.ndarray = positions_km
+        self.velocities_km_s: np.ndarray = velocities_km_s
 
     def __str__(self):
         return (
@@ -349,6 +349,8 @@ def compute_start_and_span_for_obs(
     else:
         obs_list = observations
 
+    assert len(obs_list) > 0, "observations must not be empty"
+
     start_time, end_time = None, None
     for cur_obs in obs_list:
         assert isinstance(cur_obs.start_time, astropy.time.Time), (
@@ -363,6 +365,8 @@ def compute_start_and_span_for_obs(
         if (end_time is None) or (end_time > cur_end_time):
             end_time = cur_end_time
 
+    # These assertions help the type checker understand that the loop ran at least once
+    assert start_time is not None and end_time is not None
     time_span_s = (end_time - start_time).to("s").value
 
     return start_time, time_span_s
@@ -401,6 +405,7 @@ def spacecraft_pos_and_vel(
         # The caller either provided an observation or a list of observations.
         # Let's compute the overall time span
         start_time, time_span_s = compute_start_and_span_for_obs(observations)
+    assert time_span_s is not None and start_time is not None
 
     # We are going to compute the position of the L2 point at N times. The value N
     # is chosen such that the spacing between two consecutive times is never longer

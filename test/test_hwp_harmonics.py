@@ -1,8 +1,6 @@
+import litebird_sim as lbs
 import numpy as np
 import pytest
-
-import litebird_sim as lbs
-from litebird_sim import mpi
 from litebird_sim.hwp_harmonics.hwp_harmonics import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
@@ -15,7 +13,7 @@ from litebird_sim.scan_map import scan_map_in_observations
         ("linear", lbs.Calc.MUELLER),
     ],
 )
-def test_hwp_harmonics(interpolation, calculus):
+def test_hwp_harmonics(calculus):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -31,7 +29,7 @@ def test_hwp_harmonics(interpolation, calculus):
         )
 
         comm = sim.mpi_comm
-        rank = comm.rank
+        _ = comm.rank
 
         channelinfo = lbs.FreqChannelInfo(
             bandcenter_ghz=140.0,
@@ -87,31 +85,22 @@ def test_hwp_harmonics(interpolation, calculus):
                 obs.quat[idet].quats[0]
             ) % (2 * np.pi)
 
-        mbs_params = lbs.MbsParameters(
+        sky_params = lbs.SkyGenerationParams(
             make_cmb=True,
             seed_cmb=1234,
-            make_noise=False,
+            output_type="map",
             make_dipole=True,
             make_fg=True,
-            fg_models=["pysm_synch_0", "pysm_dust_0", "pysm_freefree_1"],
-            gaussian_smooth=True,
-            bandpass_int=False,
-            maps_in_ecliptic=True,
+            fg_models=["s0", "d0", "f1"],
+            apply_beam=True,
+            bandpass_integration=False,
             nside=nside,
             units="K_CMB",
         )
 
-        if rank == 0:
-            mbs = lbs.Mbs(
-                simulation=sim, parameters=mbs_params, channel_list=[channelinfo]
-            )
+        gen_sky = lbs.SkyGenerator(parameters=sky_params, channels=channelinfo)
 
-            input_maps = mbs.run_all()[0]["L4-140"]
-        else:
-            input_maps = None
-
-        if mpi.MPI_ENABLED:
-            input_maps = comm.bcast(input_maps, root=0)
+        input_maps = gen_sky.execute()["L4-140"]
 
         list_of_sims.append(sim)
 
@@ -128,8 +117,8 @@ def test_hwp_harmonics(interpolation, calculus):
         }
     else:
         list_of_sims[1].observations[0].jones_hwp[0] = {
-            "0f": np.array([[1, 0],[0,-1]], dtype=np.float64),
-            "2f": np.array([[1, 0],[0,-1]], dtype=np.float64),
+            "0f": np.array([[1, 0], [0, -1]], dtype=np.float64),
+            "2f": np.array([[1, 0], [0, -1]], dtype=np.float64),
         }
 
     list_of_sims[1].set_hwp(nonideal_hwp)
@@ -148,9 +137,7 @@ def test_hwp_harmonics(interpolation, calculus):
 
     scan_map_in_observations(
         observations=list_of_sims[0].observations[0],
-        input_map_in_galactic=False,
         maps=input_maps,
-        interpolation=interpolation,
     )
 
     mueller_phases = {
@@ -167,9 +154,7 @@ def test_hwp_harmonics(interpolation, calculus):
 
     scan_map_in_observations(
         observations=list_of_sims[1].observations[0],
-        input_map_in_galactic=False,
         maps=input_maps,
-        interpolation=interpolation,
         mueller_phases=mueller_phases,
     )
 
@@ -180,8 +165,6 @@ def test_hwp_harmonics(interpolation, calculus):
     pointings, _ = list_of_sims[0].observations[0].get_pointings()
     assert pointings.dtype == np.float64
 
-    # The decimal=3 in here has a reason, explained in PR 395.
-    # This should be changed in the future
     np.testing.assert_almost_equal(
         list_of_sims[0].observations[0].tod,
         list_of_sims[1].observations[0].tod,

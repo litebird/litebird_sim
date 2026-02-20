@@ -358,9 +358,9 @@ def integrate_inband_signal_for_one_detector(
             ) = hwp_to_fp_frame(alpha, mueller_hwp_nu)
 
         tod_det[i] += integrate_inband_signal_for_one_sample(
-            T=mapT[i],
-            Q=mapQ[i],
-            U=mapU[i],
+            T=mapT[:, i],
+            Q=mapQ[:, i],
+            U=mapU[:, i],
             freqs=freqs,
             band=band,
             mII=mII,
@@ -382,77 +382,3 @@ def integrate_inband_signal_for_one_detector(
         tod_det[i] += compute_2f_for_one_sample(rho[i], amplitude_2f_k)
     if apply_non_linearity:
         tod_det[i] += g_one_over_k * tod_det[i] ** 2
-
-    """
-    for i in prange(len(tod_det)):
-        alpha = rho[i] - phi
-        deltas = np.zeros((len(freqs),2, 2), dtype=np.float64)
-        for x in prange(2):
-            for y in prange(2):
-                deltas[:, x, y] = np.abs(deltas_j0f[:, x, y]) + np.abs(deltas_j2f[:, x, y]) * np.cos(
-                    2 * alpha + 2 * np.angle(deltas_j2f[:, x, y])
-                )
-
-        #jones = np.zeros((len(freqs),2,2))
-        #mII=mIQ=mIU=mQI=mQQ=mQU=mUI=mUQ=mUU= np.zeros((len(freqs)))
-        #for nu in range(len(freqs)):
-        #    jones[nu] = np.array(
-        #        [[1 - deltas[nu, 0, 0], deltas[nu, 0, 1]], [deltas[nu, 1, 0], -1 + deltas[nu, 1, 1]]],
-        #        dtype=np.complex64,
-        #    )
-        #
-        #
-        #
-        #for nu in range(len(freqs)):
-        #    mueller_hwp_nu = JonesToMueller(jones[nu])
-        #    mII[nu], mIQ[nu], mIU[nu], mQI[nu], mQQ[nu], mQU[nu], mUI[nu], mUQ[nu], mUU[nu] = hwp_to_fp_frame(
-        #        alpha, mueller_hwp_nu
-        #    )
-
-
-        mII=mIQ=mIU=mQI=mQQ=mQU=mUI=mUQ=mUU= np.zeros((len(freqs)))
-        for nu in prange(len(freqs)):
-            jones_nu = np.array(
-                [[1 - deltas[nu, 0, 0], deltas[nu, 0, 1]], [deltas[nu, 1, 0], -1 + deltas[nu, 1, 1]]],
-                dtype=np.complex64,
-            )
-
-            #start=time.time()
-            mueller_hwp_nu = JonesToMueller(jones_nu)
-            #print("jonestomueller",time.time()-start)
-
-            #start=time.time()
-            mII[nu], mIQ[nu], mIU[nu], mQI[nu], mQQ[nu], mQU[nu], mUI[nu], mUQ[nu], mUU[nu] = hwp_to_fp_frame(
-                alpha, mueller_hwp_nu
-            )
-            #print("hwptofp",time.time()-start)
-
-
-
-        tod_det[i] += integrate_inband_signal_for_one_sample(
-            T=mapT[i],
-            Q=mapQ[i],
-            U=mapU[i],
-            freqs=freqs,
-            band=band,
-            mII=mII,
-            mQI=mQI,
-            mUI=mUI,
-            mIQ=mIQ,
-            mIU=mIU,
-            mQQ=mQQ,
-            mUU=mUU,
-            mUQ=mUQ,
-            mQU=mQU,
-            cos2Xi2Phi=cos2Xi2Phi,
-            sin2Xi2Phi=sin2Xi2Phi,
-            cos2Psi2Phi=np.cos(2 * psi[i] + 2 * phi),
-            sin2Psi2Phi=np.sin(2 * psi[i] + 2 * phi),
-        )
-
-        if add_2f_hwpss:
-            tod_det[i] += compute_2f_for_one_sample(rho[i], amplitude_2f_k)
-        if apply_non_linearity:
-            tod_det[i] += g_one_over_k * tod_det[i] ** 2
-
-    """

@@ -169,7 +169,7 @@ def _get_hwp_angle(
                 return obs.get_hwp_angle(pointings_dtype=pointing_dtype)
         else:
             if hasattr(obs, "mueller_hwp"):
-                if any(m is not None for m in obs.mueller_hwp):
+                if any(m is not None for m in obs.mueller_hwp):  # type: ignore[not-iterable]
                     raise AssertionError(
                         "Detectors have been initialized with a mueller_hwp, "
                         "but no HWP is either passed or initialized in the pointing."
@@ -226,18 +226,18 @@ def _get_pol_angle(
 
 def _get_pointings_array(
     detector_idx: int,
-    pointings: npt.ArrayLike | Callable,
+    pointings: npt.NDArray | Callable,
     hwp_angle: np.ndarray | None,
     output_coordinate_system: CoordinateSystem,
     pointings_dtype=np.float64,
-) -> tuple[np.ndarray, np.ndarray, None]:
+) -> tuple[np.ndarray, np.ndarray | None]:
     """Compute the pointings (θ, φ) and HWP angle for a given detector.
 
     Parameters
     ----------
     detector_idx : int
         Index of the detector, local to an :class:`Observation`.
-    pointings : npt.ArrayLike | Callable
+    pointings : npt.NDArray | Callable
         Pointing information, either a precomputed array or a callable returning
         (pointings, hwp_angle) for the specified detector.
     hwp_angle : np.ndarray | None
@@ -271,7 +271,7 @@ def _get_pointings_array(
 
 
 def _get_centered_pointings(
-    input_pointings: npt.ArrayLike,
+    input_pointings: npt.NDArray,
     nside_centering: int,
 ) -> np.ndarray:
     """Returns a copy of the input pointings aligned to the center of the HEALPix
@@ -279,7 +279,7 @@ def _get_centered_pointings(
 
     Parameters
     ----------
-    input_pointings : npt.ArrayLike
+    input_pointings : npt.NDArray
         Pointing information of the detector
     nside_centering : int
         HEALPix NSIDE parameter used to determine the pixel centers.
@@ -306,7 +306,7 @@ def _get_centered_pointings(
 def _normalize_observations_and_pointings(
     observations: Observation | list[Observation],
     pointings: np.ndarray | list[np.ndarray] | None,
-) -> tuple[list[Observation], list[npt.NDArray]]:
+) -> tuple[list[Observation], list[npt.NDArray | Callable]]:
     """This function builds the tuple (`obs_list`, `ptg_list`) and returns it.
 
     - `obs_list` contains a list of the observations to be used by current MPI
@@ -325,9 +325,12 @@ def _normalize_observations_and_pointings(
 
     Returns
     -------
-    tuple[list[Observation], list[npt.NDArray]]
+    tuple[list[Observation], list[npt.NDArray | Callable]]
         The tuple of the list of observations and list of pointings
     """
+
+    obs_list: list[Observation]
+    ptg_list: list[npt.NDArray | Callable]
 
     if pointings is None:
         if isinstance(observations, Observation):
@@ -337,7 +340,7 @@ def _normalize_observations_and_pointings(
             else:
                 ptg_list = [observations.get_pointings]
         else:
-            obs_list = observations
+            obs_list = list(observations)
             ptg_list = []
             for ob in observations:
                 if hasattr(ob, "pointing_matrix"):
@@ -351,7 +354,7 @@ def _normalize_observations_and_pointings(
                 + "of pointing matrices to scan_map_in_observations"
             )
             obs_list = [observations]
-            ptg_list = [pointings]
+            ptg_list = [pointings]  # type: ignore[assignment]
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to scan_map_in_observations, "
@@ -361,8 +364,8 @@ def _normalize_observations_and_pointings(
                 f"The list of observations has {len(observations)} elements, but "
                 + f"the list of pointings has {len(pointings)} elements"
             )
-            obs_list = observations
-            ptg_list = pointings
+            obs_list = list(observations)
+            ptg_list = list(pointings)
 
     return obs_list, ptg_list
 
@@ -406,10 +409,11 @@ def _get_pointings_and_pol_angles_det(
         pointing_dtype=pointing_dtype,
     )
 
-    __, pointings = _normalize_observations_and_pointings(
+    __, pointings = _normalize_observations_and_pointings(  # type: ignore[assignment]
         observations=obs, pointings=pointings
     )
 
+    assert pointings is not None, "Pointings should not be None after normalization."
     pointings_det, hwp_angle = _get_pointings_array(
         detector_idx=det_idx,
         pointings=pointings[0],

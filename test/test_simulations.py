@@ -9,8 +9,10 @@ from uuid import UUID
 import astropy
 import numpy as np
 import pytest
+from unittest.mock import MagicMock, patch
 
 import litebird_sim as lbs
+from litebird_sim.detectors import DetectorInfo, FreqChannelInfo
 
 
 class MockPlot:
@@ -705,46 +707,44 @@ def test_get_sky(tmp_path):
         tmp_path, include_hwp=True, store_full_pointings=True, num_of_detectors=4
     )
 
-    mbs_params = lbs.MbsParameters(
+    sky_params = lbs.SkyGenerationParams(
         make_cmb=True,
         make_fg=True,
-        make_noise=False,  # This is detector-dependent
         seed_cmb=1234,
-        fg_models=["pysm_dust_0"],
-        gaussian_smooth=False,  # This is detector-dependent
-        bandpass_int=False,  # This is detector-dependent
+        fg_models=["d0"],
+        apply_beam=False,  # This is detector-dependent
+        bandpass_integration=False,  # This is detector-dependent
         nside=16,
         units="uK_CMB",
-        maps_in_ecliptic=False,
     )
 
-    maps = sim.get_sky(parameters=mbs_params, store_in_observation=True)
-    maps = np.array([maps[det] for det in set(sim.observations[0].name)])
+    maps = sim.get_sky(parameters=sky_params, store_in_observation=True)
+    maps = np.array([maps[det].values for det in set(sim.observations[0].name)])
     obs_maps = sim.observations[0].sky
-    obs_maps = np.array([obs_maps[det] for det in set(sim.observations[0].name)])
+    obs_maps = np.array([obs_maps[det].values for det in set(sim.observations[0].name)])
 
     np.testing.assert_allclose(maps, obs_maps)
 
     ChanInfo = lbs.FreqChannelInfo(bandcenter_ghz=40)
-    same_ch_map = sim.get_sky(parameters=mbs_params, channels=ChanInfo)[
-        ChanInfo.channel.replace(" ", "_")
+    same_ch_map = sim.get_sky(parameters=sky_params, channels=ChanInfo)[
+        ChanInfo.channel
     ]
 
     for idx_det in range(4):
-        np.testing.assert_allclose(maps[idx_det], same_ch_map)
+        np.testing.assert_allclose(maps[idx_det], same_ch_map.values)
 
     # Introduce a difference
-    mbs_params.make_noise = True
+    sky_params.make_dipole = True
 
-    maps = sim.get_sky(parameters=mbs_params, store_in_observation=True)
+    maps = sim.get_sky(parameters=sky_params, store_in_observation=True)
     maps = np.array([maps[det] for det in set(sim.observations[0].name)])
 
     for idx_det in range(4):
         np.testing.assert_raises(
             AssertionError,
             np.testing.assert_allclose,
-            maps[idx_det],
-            same_ch_map,
+            maps[idx_det].values,
+            same_ch_map.values,
         )
 
 
@@ -753,45 +753,41 @@ def test_convolve_and_filltods_from_obs(tmp_path):
         tmp_path, include_hwp=True, store_full_pointings=True, num_of_detectors=4
     )
 
-    mbs_params = lbs.MbsParameters(
+    sky_params = lbs.SkyGenerationParams(
         make_cmb=True,
         make_fg=True,
-        make_noise=False,
+        output_type="alm",
         seed_cmb=1234,
-        fg_models=["pysm_dust_0"],
-        gaussian_smooth=False,
-        bandpass_int=False,
+        fg_models=["d0"],
+        apply_beam=False,
+        bandpass_integration=False,
         nside=16,
         units="uK_CMB",
-        maps_in_ecliptic=False,
-        store_alms=True,  # This will produce alms
     )
 
-    maps = sim.get_sky(parameters=mbs_params, store_in_observation=True)
-    assert maps["type"] == "alms"
+    maps = sim.get_sky(parameters=sky_params, store_in_observation=True)
+    assert maps["SkyGenerationParams"].output_type == "alm"
 
-    _ = sim.get_gauss_beam_alms(mbs_params.lmax_alms, store_in_observation=True)
+    _ = sim.get_gauss_beam_alms(sky_params.lmax, store_in_observation=True)
 
     sim.convolve_sky()
     tod = sim.observations[0].tod[0]
 
     sim.nullify_tod()
 
-    mbs_params = lbs.MbsParameters(
+    sky_params = lbs.SkyGenerationParams(
         make_cmb=True,
         make_fg=True,
-        make_noise=False,
+        output_type="map",
         seed_cmb=1234,
-        fg_models=["pysm_dust_0"],
-        gaussian_smooth=True,
-        bandpass_int=False,
+        fg_models=["d0"],
+        apply_beam=True,
+        bandpass_integration=False,
         nside=16,
         units="uK_CMB",
-        maps_in_ecliptic=False,
-        store_alms=False,  # This will produce maps
     )
 
-    maps = sim.get_sky(parameters=mbs_params, store_in_observation=True)
+    maps = sim.get_sky(parameters=sky_params, store_in_observation=True)
     sim.fill_tods()
 
     tod_2 = sim.observations[0].tod[0]
@@ -800,3 +796,94 @@ def test_convolve_and_filltods_from_obs(tmp_path):
 
 
 test_convolve_and_filltods_from_obs(Path("test.txt"))
+
+
+def test_set_detectors_logic(tmp_path):
+    # Setup simulation
+    sim = lbs.Simulation(
+        base_path=tmp_path / "sim",
+        start_time=0.0,
+        duration_s=10.0,
+        random_seed=1234,
+    )
+
+    sim.imo = MagicMock()  # Mock the IMO interface
+
+    # Create mock DetectorInfo objects
+    det_a1 = MagicMock(spec=DetectorInfo, sampling_rate_hz=100.0)
+    det_a2 = MagicMock(spec=DetectorInfo, sampling_rate_hz=100.0)
+    det_b1 = MagicMock(spec=DetectorInfo, sampling_rate_hz=100.0)
+    det_b2 = MagicMock(spec=DetectorInfo, sampling_rate_hz=100.0)
+
+    # Create mock FreqChannelInfo objects
+    # Channel A has det_a1, det_a2
+    ch_a = MagicMock(spec=FreqChannelInfo)
+    ch_a.detector_names = ["det_a1", "det_a2"]
+    ch_a.detector_objs = ["url_a1", "url_a2"]
+
+    # Channel B has det_b1, det_b2
+    ch_b = MagicMock(spec=FreqChannelInfo)
+    ch_b.detector_names = ["det_b1", "det_b2"]
+    ch_b.detector_objs = ["url_b1", "url_b2"]
+
+    # Mock the from_imo methods
+    with (
+        patch("litebird_sim.detectors.FreqChannelInfo.from_imo") as mock_ch_from_imo,
+        patch("litebird_sim.detectors.DetectorInfo.from_imo") as mock_det_from_imo,
+    ):
+        # Define behavior for mock_ch_from_imo
+        def ch_side_effect(imo, url):
+            if url == "url_ch_a":
+                return ch_a
+            if url == "url_ch_b":
+                return ch_b
+            return None
+
+        mock_ch_from_imo.side_effect = ch_side_effect
+
+        # Define behavior for mock_det_from_imo
+        def det_side_effect(imo, url):
+            mapping = {
+                "url_a1": det_a1,
+                "url_a2": det_a2,
+                "url_b1": det_b1,
+                "url_b2": det_b2,
+            }
+            return mapping.get(url)
+
+        mock_det_from_imo.side_effect = det_side_effect
+
+        # --- Test 1: Load all detectors from string URLs ---
+        res = sim.set_detectors(channels=["url_ch_a", "url_ch_b"], detectors="all")
+        assert len(res) == 4
+        assert sim.detectors == res
+
+        # --- Test 2: Integer filter (take first N from each) ---
+        # 2 channels * 1 detector each = 2 total
+        res = sim.set_detectors(channels=["url_ch_a", "url_ch_b"], detectors=1)
+        assert len(res) == 2
+
+        # --- Test 3: List of strings (Total count check) ---
+        # Logic: num_det = len(detectors) = 2
+        res = sim.set_detectors(
+            channels=["url_ch_a", "url_ch_b"], detectors=["det_a1", "det_b2"]
+        )
+        assert len(res) == 2
+
+        # --- Test 4: Passing FreqChannelInfo objects directly ---
+        res = sim.set_detectors(channels=[ch_a], detectors="all")
+        assert len(res) == 2
+
+        # --- Test 5: Error on Duplicate URLs ---
+        with pytest.raises(ValueError, match="duplicate strings"):
+            sim.set_detectors(channels=["url_ch_a", "url_ch_a"])
+
+        # --- Test 6: Error on Count Mismatch (list of strings) ---
+        # We ask for a detector that doesn't exist in either channel
+        with pytest.raises(ValueError, match="Expected 1 detectors, but got 0"):
+            sim.set_detectors(channels=["url_ch_a"], detectors=["missing_det"])
+
+        # --- Test 7: Error on Count Mismatch (integer) ---
+        # Asking for 5 detectors when only 2 exist in the channel
+        with pytest.raises(ValueError, match="Expected 5 detectors, but got 2"):
+            sim.set_detectors(channels=["url_ch_a"], detectors=5)
