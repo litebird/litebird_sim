@@ -8,7 +8,7 @@ from ducc0.healpix import Healpix_Base
 from numba import njit
 
 from ..coordinates import CoordinateSystem
-from ..hwp import HWP, Calc, NonIdealHWP
+from ..hwp import Calc, NonIdealHWP
 from ..input_sky import SkyGenerationParams
 from ..maps_and_harmonics import HealpixMap, SphericalHarmonics
 from ..observations import Observation
@@ -158,7 +158,7 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
 
 def fill_tod(
     hwp: NonIdealHWP,
-    observation: Observation,
+    observation: Observation | list[Observation],
     maps: (
         HealpixMap
         | dict[str, HealpixMap | SkyGenerationParams]
@@ -166,8 +166,8 @@ def fill_tod(
         | dict[str, SphericalHarmonics | SkyGenerationParams]
         | None
     ) = None,
-    pointings: np.ndarray | list[np.ndarray] | None = None,
-    hwp_angle: np.ndarray | list[np.ndarray] | None = None,
+    pointings: np.ndarray | None = None,
+    hwp_angle: np.ndarray | None = None,
     save_tod: bool = True,
     input_names: List[str] | None = None,
     pointings_dtype=np.float64,
@@ -281,11 +281,11 @@ def fill_tod(
         }
 
     for idet in range(observation.n_detectors):
-        if pointings is None:
-            cur_point, cur_hwp_angle = observation.get_pointings(
+        if pointings is None or hwp_angle is None:
+            pointings, hwp_angle = observation.get_pointings(
                 detector_idx=idet, pointings_dtype=pointings_dtype
             )
-            cur_point = cur_point.reshape(-1, 3)
+            pointings = pointings.reshape(-1, 3)
 
         # ----------------------------------------------------------
         # Get pointings in the correct coordinate system
@@ -293,8 +293,8 @@ def fill_tod(
 
         curr_pointings_det, hwp_angle = _get_pointings_array(
             detector_idx=idet,
-            pointings=cur_point,
-            hwp_angle=cur_hwp_angle,
+            pointings=pointings,
+            hwp_angle=hwp_angle,
             output_coordinate_system=CoordinateSystem.Galactic,
             pointings_dtype=pointings_dtype,
         )
