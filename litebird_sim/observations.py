@@ -14,7 +14,7 @@ from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
 from .input_sky import SkyGenerationParams
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
-from .pointings import PointingProvider, DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB
+from .pointings import DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB, PointingProvider
 from .scanning import RotQuaternion
 from .units import Units
 
@@ -144,6 +144,7 @@ class Observation:
     jones_hwp: list
     quat: list
     mueller_hwp: npt.NDArray
+    tod: npt.NDArray
 
     # Dynamic attributes set by destriper
     destriper_weights: npt.NDArray | None

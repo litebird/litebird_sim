@@ -251,14 +251,13 @@ def fill_tod(
 
     # use getattr to avoid ty errors for dynamically
     # generated Observation class attributes
-    tod = getattr(observation, "tod")
     g_one_over_k = getattr(observation, "g_one_over_k")
     amplitude_2f_k = getattr(observation, "amplitude_2f_k")
     pol_angle_rad = getattr(observation, "pol_angle_rad")
     pointing_theta_phi_psi_deg = getattr(observation, "pointing_theta_phi_psi_deg")
 
     if type(pointings) is np.ndarray:
-        assert tod.shape == pointings.shape[0:2]
+        assert observation.tod.shape == pointings.shape[0:2]
 
     if integrate_in_band:
         band_filenames = band_filenames
@@ -299,7 +298,7 @@ def fill_tod(
             pointings_dtype=pointings_dtype,
         )
 
-        tod = tod[idet, :]
+        tod = observation.tod[idet, :]
 
         xi = pol_angle_rad[idet]
         psi = curr_pointings_det[:, 2]
@@ -492,9 +491,9 @@ def fill_tod(
                     amplitude_2f_k=amplitude_2f_k[idet],
                 )
 
-        tod[idet] = tod
+        observation.tod[idet] = tod
 
     del pixel_ind_det
     del input_T, input_Q, input_U
     if not save_tod:
-        del tod
+        del observation.tod
