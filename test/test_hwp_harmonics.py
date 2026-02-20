@@ -6,11 +6,10 @@ from litebird_sim.scan_map import scan_map_in_observations
 
 
 @pytest.mark.parametrize(
-    "interpolation,calculus",
+    "calculus",
     [
-        ("", lbs.Calc.MUELLER),
-        ("", lbs.Calc.JONES),
-        ("linear", lbs.Calc.MUELLER),
+        lbs.Calc.MUELLER,
+        lbs.Calc.JONES,
     ],
 )
 def test_hwp_harmonics(calculus):
