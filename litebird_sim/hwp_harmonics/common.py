@@ -92,7 +92,7 @@ def integrate_inband_signal_for_one_sample(
     for a single (time) sample.
     """
     tod = 0
-    for i in prange(len(band) - 1):
+    for i in prange(len(band) - 1):  # type: ignore[not-iterable]
         dnu = freqs[i + 1] - freqs[i]
         tod += (
             (

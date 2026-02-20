@@ -1771,7 +1771,7 @@ class Simulation:
         pointings_dtype=np.float64,
         append_to_report: bool = True,
         integrate_in_band: bool = False,
-        band_filenames: list[str] = None,
+        band_filenames: list[str] | None = None,
         nthreads: int | None = None,
     ):
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.

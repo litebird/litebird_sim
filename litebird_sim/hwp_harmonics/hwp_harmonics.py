@@ -8,7 +8,7 @@ from ducc0.healpix import Healpix_Base
 from numba import njit
 
 from ..coordinates import CoordinateSystem
-from ..hwp import HWP, Calc
+from ..hwp import HWP, Calc, NonIdealHWP
 from ..input_sky import SkyGenerationParams
 from ..maps_and_harmonics import HealpixMap, SphericalHarmonics
 from ..observations import Observation
@@ -157,7 +157,7 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
 
 
 def fill_tod(
-    hwp: HWP,
+    hwp: NonIdealHWP,
     observation: Observation,
     maps: (
         HealpixMap
@@ -173,9 +173,9 @@ def fill_tod(
     pointings_dtype=np.float64,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
-    mueller_phases: dict | None = None,
+    mueller_phases: dict[str, np.ndarray] | None = None,
     integrate_in_band: bool = False,
-    band_filenames: List[str] = None,
+    band_filenames: List[str] | None = None,
     nthreads: int | None = None,
 ):
     r"""Fill a TOD for one observation, using HWP rotation speed
@@ -249,8 +249,16 @@ def fill_tod(
 
     """
 
+    # use getattr to avoid ty errors for dynamically
+    # generated Observation class attributes
+    tod = getattr(observation, "tod")
+    g_one_over_k = getattr(observation, "g_one_over_k")
+    amplitude_2f_k = getattr(observation, "amplitude_2f_k")
+    pol_angle_rad = getattr(observation, "pol_angle_rad")
+    pointing_theta_phi_psi_deg = getattr(observation, "pointing_theta_phi_psi_deg")
+
     if type(pointings) is np.ndarray:
-        assert observation.tod.shape == pointings.shape[0:2]
+        assert tod.shape == pointings.shape[0:2]
 
     if integrate_in_band:
         band_filenames = band_filenames
@@ -273,33 +281,60 @@ def fill_tod(
         }
 
     for idet in range(observation.n_detectors):
-        cur_point, cur_hwp_angle = _get_pointings_array(
+        if pointings is None:
+            cur_point, cur_hwp_angle = observation.get_pointings(
+                detector_idx=idet, pointings_dtype=pointings_dtype
+            )
+            cur_point = cur_point.reshape(-1, 3)
+
+        # ----------------------------------------------------------
+        # Get pointings in the correct coordinate system
+        # ----------------------------------------------------------
+
+        curr_pointings_det, hwp_angle = _get_pointings_array(
             detector_idx=idet,
-            pointings=pointings,
-            hwp_angle=hwp_angle,
+            pointings=cur_point,
+            hwp_angle=cur_hwp_angle,
             output_coordinate_system=CoordinateSystem.Galactic,
             pointings_dtype=pointings_dtype,
         )
 
-        tod = observation.tod[idet, :]
+        tod = tod[idet, :]
 
-        xi = observation.pol_angle_rad[idet]
-        psi = cur_point[:, 2]
+        xi = pol_angle_rad[idet]
+        psi = curr_pointings_det[:, 2]
 
-        phi = np.deg2rad(observation.pointing_theta_phi_psi_deg[idet][1])
+        phi = np.deg2rad(pointing_theta_phi_psi_deg[idet][1])
 
         cos2Xi2Phi = np.cos(2 * xi - 2 * phi)
         sin2Xi2Phi = np.sin(2 * xi - 2 * phi)
 
-        pixmap = maps.values
-        scheme = "NESTED" if maps.nest else "RING"
-        hpx = Healpix_Base(maps.nside, scheme)
+        if isinstance(maps, dict):
+            if input_names is None:
+                raise ValueError(
+                    "scan_map: maps is a dict, but input_names is None. "
+                    "You must provide per-detector keys."
+                )
+            key = input_names[idet]
+            try:
+                maps_det = maps[key]
+            except KeyError as exc:
+                raise KeyError(
+                    f"scan_map: maps does not contain an entry for '{key}' "
+                    f"(detector index {idet})"
+                ) from exc
+        else:
+            maps_det = maps
 
-        pixel_ind_det = hpx.ang2pix(cur_point[:, 0:2])
+        pixmap = maps_det.values
+        scheme = "NESTED" if maps_det.nest else "RING"
+        hpx = Healpix_Base(maps_det.nside, scheme)
+
+        pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
 
         if pixmap.ndim == 2:
             # Shape: (nstokes, Npix)
-            if maps.nstokes == 1:
+            if maps_det.nstokes == 1:
                 input_T = pixmap[0, pixel_ind_det]
                 input_Q = np.zeros_like(input_T)
                 input_U = input_Q
@@ -309,7 +344,7 @@ def fill_tod(
                 input_U = pixmap[2, pixel_ind_det]
         elif pixmap.ndim == 3:
             # Shape: (N, nstokes, Npix)
-            if maps.nstokes == 1:
+            if maps_det.nstokes == 1:
                 input_T = pixmap[:, 0, pixel_ind_det]
                 input_Q = np.zeros_like(input_T)
                 input_U = input_Q
@@ -328,7 +363,7 @@ def fill_tod(
                 hwp, band_filenames, idet
             )
 
-            if maps.nfreqs != len(cur_det_params["freq"]):
+            if maps_det.nfreqs != len(cur_det_params["freq"]):
                 raise AssertionError(
                     "Number of frequencies in the input sky maps is not equal to the number of frequencies in the input band parameters csv file"
                 )
@@ -397,15 +432,15 @@ def fill_tod(
                     mapT=input_T,
                     mapQ=input_Q,
                     mapU=input_U,
-                    rho=np.array(cur_hwp_angle, dtype=np.float64),
+                    rho=np.array(hwp_angle, dtype=np.float64),
                     psi=np.array(psi, dtype=np.float64),
                     phi=phi,
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
                     apply_non_linearity=apply_non_linearity,
-                    g_one_over_k=observation.g_one_over_k[idet],
+                    g_one_over_k=g_one_over_k[idet],
                     add_2f_hwpss=add_2f_hwpss,
-                    amplitude_2f_k=observation.amplitude_2f_k[idet],
+                    amplitude_2f_k=amplitude_2f_k[idet],
                 )
 
         else:
@@ -415,7 +450,7 @@ def fill_tod(
                     m0f=observation.mueller_hwp[idet]["0f"],
                     m2f=observation.mueller_hwp[idet]["2f"],
                     m4f=observation.mueller_hwp[idet]["4f"],
-                    rho=np.array(cur_hwp_angle, dtype=np.float64),
+                    rho=np.array(hwp_angle, dtype=np.float64),
                     psi=np.array(psi, dtype=np.float64),
                     mapT=input_T,
                     mapQ=input_Q,
@@ -424,9 +459,9 @@ def fill_tod(
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
                     apply_non_linearity=apply_non_linearity,
-                    g_one_over_k=observation.g_one_over_k[idet],
+                    g_one_over_k=g_one_over_k[idet],
                     add_2f_hwpss=add_2f_hwpss,
-                    amplitude_2f_k=observation.amplitude_2f_k[idet],
+                    amplitude_2f_k=amplitude_2f_k[idet],
                     phases_2f=mueller_phases["2f"],
                     phases_4f=mueller_phases["4f"],
                 )
@@ -443,7 +478,7 @@ def fill_tod(
                     tod_det=tod,
                     deltas_j0f=deltas_j0f,
                     deltas_j2f=deltas_j2f,
-                    rho=np.array(cur_hwp_angle, dtype=np.float64),
+                    rho=np.array(hwp_angle, dtype=np.float64),
                     psi=np.array(psi, dtype=np.float64),
                     mapT=input_T,
                     mapQ=input_Q,
@@ -452,14 +487,14 @@ def fill_tod(
                     sin2Xi2Phi=sin2Xi2Phi,
                     phi=phi,
                     apply_non_linearity=apply_non_linearity,
-                    g_one_over_k=observation.g_one_over_k[idet],
+                    g_one_over_k=g_one_over_k[idet],
                     add_2f_hwpss=add_2f_hwpss,
-                    amplitude_2f_k=observation.amplitude_2f_k[idet],
+                    amplitude_2f_k=amplitude_2f_k[idet],
                 )
 
-        observation.tod[idet] = tod
+        tod[idet] = tod
 
     del pixel_ind_det
     del input_T, input_Q, input_U
     if not save_tod:
-        del observation.tod
+        del tod

@@ -228,11 +228,11 @@ def compute_signal_for_one_detector(
     Single-frequency case: compute the signal for a single detector,
     looping over (time) samples.
     """
-    for i in prange(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         alpha = rho[i] - phi
         deltas = np.zeros((2, 2))
-        for x in prange(2):
-            for y in prange(2):
+        for x in prange(2):  # type: ignore[not-iterable]
+            for y in prange(2):  # type: ignore[not-iterable]
                 deltas[x, y] = np.abs(deltas_j0f[x, y]) * np.cos(
                     np.angle(deltas_j0f[x, y])
                 )
@@ -311,7 +311,7 @@ def integrate_inband_signal_for_one_detector(
 
     # Allocate buffers outside the loop
 
-    for i in prange(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         alpha = rho[i] - phi
 
         deltas = np.empty((n_freqs, 2, 2), dtype=np.float64)

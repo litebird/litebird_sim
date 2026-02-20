@@ -369,9 +369,9 @@ def scan_map_in_observations(
     save_tod: bool = True,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
-    mueller_phases: np.ndarray = None,
+    mueller_phases: dict | None = None,
     integrate_in_band: bool = False,
-    band_filenames: list[str] = None,
+    band_filenames: list[str] | None = None,
     nthreads: int | None = None,
 ):
     """
