@@ -371,7 +371,6 @@ def scan_map_in_observations(
     add_2f_hwpss: bool = False,
     mueller_phases: dict | None = None,
     integrate_in_band: bool = False,
-    band_filenames: list[str] | None = None,
     nthreads: int | None = None,
 ):
     """
@@ -449,8 +448,9 @@ def scan_map_in_observations(
         matrix elements. When None is given, temporary values from
         Patanchon et al. [2021] are used.
 
-    comm : SerialMpiCommunicator, optional
-        (For the harmonics expansion case) MPI communicator.
+    integrate_in_band : bool, default=False
+        Whether to integrate the signal over the detector's frequency band.
+        Only implemented for the Jones formalism and explicit harmonics expansion case.
 
     nthreads : int, default=None
         Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
@@ -540,7 +540,6 @@ def scan_map_in_observations(
                 add_2f_hwpss=add_2f_hwpss,
                 mueller_phases=mueller_phases,
                 integrate_in_band=integrate_in_band,
-                band_filenames=band_filenames,
             )
         else:
             # Standard scanning case

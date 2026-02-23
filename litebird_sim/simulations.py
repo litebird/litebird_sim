@@ -1797,7 +1797,6 @@ class Simulation:
             component=component,
             pointings_dtype=pointings_dtype,
             integrate_in_band=integrate_in_band,
-            band_filenames=band_filenames,
             nthreads=nthreads,
         )
 

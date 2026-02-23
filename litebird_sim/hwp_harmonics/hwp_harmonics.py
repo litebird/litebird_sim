@@ -95,7 +95,9 @@ def mueller_interpolation(Theta, harmonic, i, j):
     )
 
 
-def set_band_params_for_one_detector(hwp, band_filenames, idet):
+def set_band_params_for_one_detector(
+    hwp: NonIdealHWP, band_filepath: str, bandcenter: float, bandwidth: float
+):
     if hwp.calculus is Calc.JONES:
         variables = [
             "freq",
@@ -118,13 +120,22 @@ def set_band_params_for_one_detector(hwp, band_filenames, idet):
         ]
 
         loaded_data = np.loadtxt(
-            band_filenames[idet],
+            band_filepath,
             delimiter=",",
             dtype=object,
             unpack=True,
             skiprows=1,
             comments="#",
         )
+
+        # Filter by frequency range [bandcenter - bandwidth, bandcenter + bandwidth]
+        freq_data = np.array(loaded_data[0], dtype=np.float64)
+        freq_min = bandcenter - bandwidth
+        freq_max = bandcenter + bandwidth
+        mask = (freq_data >= freq_min) & (freq_data <= freq_max)
+
+        # Apply mask to all loaded data
+        loaded_data = tuple(data[mask] for data in loaded_data)
 
         det_params = {}
         for var, data in zip(variables, loaded_data):
@@ -175,7 +186,6 @@ def fill_tod(
     add_2f_hwpss: bool = False,
     mueller_phases: dict[str, np.ndarray] | None = None,
     integrate_in_band: bool = False,
-    band_filenames: List[str] | None = None,
     nthreads: int | None = None,
 ):
     r"""Fill a TOD for one observation, using HWP rotation speed
@@ -239,10 +249,6 @@ def fill_tod(
             Whether to integrate the signal over the detector's frequency band.
             Only implemented for the Jones formalism.
 
-        band_filenames : list of str or None, default=None
-            List of filenames containing bandpass information for each detector.
-            Required if `integrate_in_band` is True.
-
     Raises:
         NotImplementedError : If `integrate_in_band` is True and the HWP calculus
             is set to Mueller.
@@ -255,12 +261,19 @@ def fill_tod(
     amplitude_2f_k = getattr(observation, "amplitude_2f_k")
     pol_angle_rad = getattr(observation, "pol_angle_rad")
     pointing_theta_phi_psi_deg = getattr(observation, "pointing_theta_phi_psi_deg")
+    bandcenter_ghz = getattr(observation, "bandcenter_ghz")
+    bandwidth_ghz = getattr(observation, "bandwidth_ghz")
 
     if type(pointings) is np.ndarray:
         assert observation.tod.shape == pointings.shape[0:2]
 
     if integrate_in_band:
-        band_filenames = band_filenames
+        if hwp.jones_per_freq_csv_path is None:
+            raise AssertionError(
+                "integrate_in_band set to True but no csv file containing the jones parameters per frequency given to the HWP object"
+            )
+        else:
+            band_filepath = hwp.jones_per_freq_csv_path
 
     if mueller_phases is None:
         # (temporary solution) using phases from Patanchon et al 2021 as the default.
@@ -359,7 +372,10 @@ def fill_tod(
                 )
 
             cur_det_params, cur_det_cmb2bb = set_band_params_for_one_detector(
-                hwp, band_filenames, idet
+                hwp,
+                band_filepath,
+                bandcenter_ghz[idet],
+                bandwidth_ghz[idet],
             )
 
             if maps_det.nfreqs != len(cur_det_params["freq"]):
