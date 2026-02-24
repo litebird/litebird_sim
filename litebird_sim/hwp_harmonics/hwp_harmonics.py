@@ -139,10 +139,7 @@ def set_band_params_for_one_detector(
 
         det_params = {}
         for var, data in zip(variables, loaded_data):
-            if "freq" in var or var.startswith("Ph"):
-                det_params[var] = np.array(data, dtype=np.float64)
-            else:
-                det_params[var] = np.array(data, dtype=np.complex128)
+            det_params[var] = np.array(data, dtype=np.float64)
 
     else:  # TODO mueller_or_jones == "mueller"
         raise NotImplementedError(
@@ -150,7 +147,7 @@ def set_band_params_for_one_detector(
         )
 
     # if not cur_det.bandpass:
-    cmb2bb = _dBodTth(det_params["freq"])
+    # cmb2bb = _dBodTth(det_params["freq"])
 
     # TODO: insert bandpass in detectorinfo so that we can apply the case where
     # each detector has a bandpass
@@ -162,9 +159,11 @@ def set_band_params_for_one_detector(
     #    cmb2bb = _dBodTth(cur_det_params['freq']) * bandpass_profile
 
     # Normalize the band
-    cmb2bb /= np.trapz(cmb2bb, det_params["freq"])
+    # cmb2bb /= np.trapz(cmb2bb, det_params["freq"])
+    #
+    bandpass = np.ones(len(det_params["freq"]))
 
-    return [det_params, cmb2bb]
+    return [det_params, bandpass]
 
 
 def fill_tod(
@@ -355,15 +354,25 @@ def fill_tod(
                 input_Q = pixmap[1, pixel_ind_det]
                 input_U = pixmap[2, pixel_ind_det]
         elif pixmap.ndim == 3:
+            frequencies = np.array(maps_det.frequencies_ghz)
+
+            # Find indices for the frequency band range for this detector
+            indices = np.where(
+                (frequencies >= bandcenter_ghz[idet] - bandwidth_ghz[idet])
+                & (frequencies <= bandcenter_ghz[idet] + bandwidth_ghz[idet])
+            )[0]
+            start_index = indices[0]
+            end_index = indices[-1]
+
             # Shape: (N, nstokes, Npix)
             if maps_det.nstokes == 1:
-                input_T = pixmap[:, 0, pixel_ind_det]
+                input_T = pixmap[start_index:end_index, 0, pixel_ind_det]
                 input_Q = np.zeros_like(input_T)
                 input_U = input_Q
             else:
-                input_T = pixmap[:, 0, pixel_ind_det]
-                input_Q = pixmap[:, 1, pixel_ind_det]
-                input_U = pixmap[:, 2, pixel_ind_det]
+                input_T = pixmap[start_index:end_index, 0, pixel_ind_det]
+                input_Q = pixmap[start_index:end_index, 1, pixel_ind_det]
+                input_U = pixmap[start_index:end_index, 2, pixel_ind_det]
 
         if integrate_in_band:
             if hwp.calculus is Calc.MUELLER:
@@ -377,11 +386,6 @@ def fill_tod(
                 bandcenter_ghz[idet],
                 bandwidth_ghz[idet],
             )
-
-            if maps_det.nfreqs != len(cur_det_params["freq"]):
-                raise AssertionError(
-                    "Number of frequencies in the input sky maps is not equal to the number of frequencies in the input band parameters csv file"
-                )
 
             deltas_j0f = np.zeros(
                 (len(cur_det_params["freq"]), 2, 2), dtype=np.complex128
@@ -420,8 +424,7 @@ def fill_tod(
                             (
                                 cur_det_params["Jxx_2f"][nu]
                                 * np.exp(1j * np.deg2rad(cur_det_params["Phxx_2f"][nu]))
-                            )
-                            - 1,
+                            ),
                             cur_det_params["Jxy_2f"][nu]
                             * np.exp(1j * np.deg2rad(cur_det_params["Phxy_2f"][nu])),
                         ],
@@ -431,8 +434,7 @@ def fill_tod(
                             (
                                 cur_det_params["Jyy_2f"][nu]
                                 * np.exp(1j * np.deg2rad(cur_det_params["Phyy_2f"][nu]))
-                            )
-                            + 1,
+                            ),
                         ],
                     ],
                     dtype=np.complex128,
@@ -482,12 +484,16 @@ def fill_tod(
                 )
 
             elif hwp.calculus is Calc.JONES:
-                deltas_j0f = observation.jones_hwp[idet]["0f"]
-                deltas_j0f[0, 0] = deltas_j0f[0, 0] - 1
-                deltas_j0f[1, 1] = deltas_j0f[1, 1] + 1
-                deltas_j2f = observation.jones_hwp[idet]["2f"]
-                deltas_j2f[0, 0] = deltas_j2f[0, 0] - 1
-                deltas_j2f[1, 1] = deltas_j2f[1, 1] + 1
+                jones_0f = observation.jones_hwp[idet]["0f"]
+                jones_2f = observation.jones_hwp[idet]["2f"]
+                deltas_j0f = jones_0f.copy()
+                deltas_j2f = jones_2f.copy()
+                deltas_j0f[0, 0] = jones_0f[0, 0] - 1
+                deltas_j0f[1, 1] = jones_0f[1, 1] + 1
+                deltas_j2f[0, 0] = jones_2f[0, 0]
+                deltas_j2f[1, 1] = jones_2f[1, 1]
+
+                # print(deltas_j0f, deltas_j2f)
 
                 jones_methods.compute_signal_for_one_detector(
                     tod_det=tod,

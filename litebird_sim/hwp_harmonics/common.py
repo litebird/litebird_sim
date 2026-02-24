@@ -95,48 +95,44 @@ def integrate_inband_signal_for_one_sample(
     for i in prange(len(band) - 1):  # type: ignore[not-iterable]
         dnu = freqs[i + 1] - freqs[i]
         tod += (
-            (
-                band[i]
-                * compute_signal_for_one_sample(
-                    T=T[i],
-                    Q=Q[i],
-                    U=U[i],
-                    mII=mII[i],
-                    mQI=mQI[i],
-                    mUI=mUI[i],
-                    mIQ=mIQ[i],
-                    mIU=mIU[i],
-                    mQQ=mQQ[i],
-                    mUU=mUU[i],
-                    mUQ=mUQ[i],
-                    mQU=mQU[i],
-                    cos2Xi2Phi=cos2Xi2Phi,
-                    sin2Xi2Phi=sin2Xi2Phi,
-                    cos2Psi2Phi=cos2Psi2Phi,
-                    sin2Psi2Phi=sin2Psi2Phi,
-                )
-                + band[i + 1]
-                * compute_signal_for_one_sample(
-                    T=T[i + 1],
-                    Q=Q[i + 1],
-                    U=U[i + 1],
-                    mII=mII[i + 1],
-                    mQI=mQI[i + 1],
-                    mUI=mUI[i + 1],
-                    mIQ=mIQ[i + 1],
-                    mIU=mIU[i + 1],
-                    mQQ=mQQ[i + 1],
-                    mUU=mUU[i + 1],
-                    mUQ=mUQ[i + 1],
-                    mQU=mQU[i + 1],
-                    cos2Xi2Phi=cos2Xi2Phi,
-                    sin2Xi2Phi=sin2Xi2Phi,
-                    cos2Psi2Phi=cos2Psi2Phi,
-                    sin2Psi2Phi=sin2Psi2Phi,
-                )
+            band[i]
+            * compute_signal_for_one_sample(
+                T=T[i],
+                Q=Q[i],
+                U=U[i],
+                mII=mII[i],
+                mQI=mQI[i],
+                mUI=mUI[i],
+                mIQ=mIQ[i],
+                mIU=mIU[i],
+                mQQ=mQQ[i],
+                mUU=mUU[i],
+                mUQ=mUQ[i],
+                mQU=mQU[i],
+                cos2Xi2Phi=cos2Xi2Phi,
+                sin2Xi2Phi=sin2Xi2Phi,
+                cos2Psi2Phi=cos2Psi2Phi,
+                sin2Psi2Phi=sin2Psi2Phi,
             )
-            * dnu
-            / 2
-        )
+            + band[i + 1]
+            * compute_signal_for_one_sample(
+                T=T[i + 1],
+                Q=Q[i + 1],
+                U=U[i + 1],
+                mII=mII[i + 1],
+                mQI=mQI[i + 1],
+                mUI=mUI[i + 1],
+                mIQ=mIQ[i + 1],
+                mIU=mIU[i + 1],
+                mQQ=mQQ[i + 1],
+                mUU=mUU[i + 1],
+                mUQ=mUQ[i + 1],
+                mQU=mQU[i + 1],
+                cos2Xi2Phi=cos2Xi2Phi,
+                sin2Xi2Phi=sin2Xi2Phi,
+                cos2Psi2Phi=cos2Psi2Phi,
+                sin2Psi2Phi=sin2Psi2Phi,
+            )
+        ) * (dnu / 2)
 
     return tod

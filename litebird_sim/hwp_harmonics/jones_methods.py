@@ -230,25 +230,21 @@ def compute_signal_for_one_detector(
     """
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         alpha = rho[i] - phi
-        deltas = np.zeros((2, 2))
+        deltas = np.zeros((2, 2), dtype=np.complex128)
         for x in prange(2):  # type: ignore[not-iterable]
             for y in prange(2):  # type: ignore[not-iterable]
-                deltas[x, y] = np.abs(deltas_j0f[x, y]) * np.cos(
-                    np.angle(deltas_j0f[x, y])
-                )
-                +np.abs(deltas_j2f[x, y]) * np.cos(
-                    2 * alpha + np.angle(deltas_j2f[x, y])
+                deltas[x, y] = deltas_j0f[x, y] + np.abs(deltas_j2f[x, y]) * np.exp(
+                    1j * (2 * alpha + np.angle(deltas_j2f[x, y]))
                 )
 
         jones = np.array(
             [[1 + deltas[0, 0], deltas[0, 1]], [deltas[1, 0], -1 + deltas[1, 1]]],
-            dtype=np.complex64,
+            dtype=np.complex128,
         )
 
         mueller_hwp = JonesToMueller(jones)
         # normalize to the gain
         mueller_hwp /= mueller_hwp[0, 0]
-
         mII, mIQ, mIU, mQI, mQQ, mQU, mUI, mUQ, mUU = hwp_to_fp_frame(
             alpha, mueller_hwp
         )
@@ -314,8 +310,8 @@ def integrate_inband_signal_for_one_detector(
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         alpha = rho[i] - phi
 
-        deltas = np.empty((n_freqs, 2, 2), dtype=np.float64)
-        jones_nu = np.empty((2, 2), dtype=np.complex64)
+        deltas = np.empty((n_freqs, 2, 2), dtype=np.complex128)
+        jones_nu = np.empty((2, 2), dtype=np.complex128)
 
         mII = np.empty(n_freqs, dtype=np.float64)
         mIQ = np.empty(n_freqs, dtype=np.float64)
@@ -330,21 +326,20 @@ def integrate_inband_signal_for_one_detector(
         for x in range(2):
             for y in range(2):
                 for nu in range(n_freqs):
-                    delta_j0 = np.abs(deltas_j0f[nu, x, y])
-                    angle_j0 = np.angle(deltas_j0f[nu, x, y])
                     delta_j2 = np.abs(deltas_j2f[nu, x, y])
                     angle_j2 = np.angle(deltas_j2f[nu, x, y])
-                    deltas[nu, x, y] = delta_j0 * np.cos(angle_j0) + delta_j2 * np.cos(
-                        2 * alpha + angle_j2
+                    deltas[nu, x, y] = deltas_j0f[nu, x, y] + delta_j2 * np.exp(
+                        1j * (2 * alpha + angle_j2)
                     )
 
         for nu in range(n_freqs):
-            jones_nu[0, 0] = 1 - deltas[nu, 0, 0]
+            jones_nu[0, 0] = 1 + deltas[nu, 0, 0]
             jones_nu[0, 1] = deltas[nu, 0, 1]
             jones_nu[1, 0] = deltas[nu, 1, 0]
             jones_nu[1, 1] = -1 + deltas[nu, 1, 1]
 
             mueller_hwp_nu = JonesToMueller(jones_nu)
+            mueller_hwp_nu /= mueller_hwp_nu[0, 0]
             (
                 mII[nu],
                 mIQ[nu],
