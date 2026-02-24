@@ -206,7 +206,7 @@ def hwp_to_fp_frame(alpha, mueller_hwp):
 ################################################################
 
 
-@njit
+@njit(parallel=True)
 def compute_signal_for_one_detector(
     tod_det,
     deltas_j0f,
@@ -304,9 +304,6 @@ def integrate_inband_signal_for_one_detector(
     looping over (time) samples.
     """
     n_freqs = len(freqs)
-
-    # Allocate buffers outside the loop
-
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         alpha = rho[i] - phi
 
@@ -373,7 +370,7 @@ def integrate_inband_signal_for_one_detector(
             sin2Psi2Phi=np.sin(2 * psi[i] + 2 * phi),
         )
 
-    if add_2f_hwpss:
-        tod_det[i] += compute_2f_for_one_sample(rho[i], amplitude_2f_k)
-    if apply_non_linearity:
-        tod_det[i] += g_one_over_k * tod_det[i] ** 2
+        if add_2f_hwpss:
+            tod_det[i] += compute_2f_for_one_sample(rho[i], amplitude_2f_k)
+        if apply_non_linearity:
+            tod_det[i] += g_one_over_k * tod_det[i] ** 2

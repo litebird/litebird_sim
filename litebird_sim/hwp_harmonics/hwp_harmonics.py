@@ -440,25 +440,25 @@ def fill_tod(
                     dtype=np.complex128,
                 )
 
-                jones_methods.integrate_inband_signal_for_one_detector(
-                    tod_det=tod,
-                    freqs=cur_det_params["freq"],
-                    band=cur_det_cmb2bb,
-                    deltas_j0f=deltas_j0f,
-                    deltas_j2f=deltas_j2f,
-                    mapT=input_T,
-                    mapQ=input_Q,
-                    mapU=input_U,
-                    rho=np.array(hwp_angle, dtype=np.float64),
-                    psi=np.array(psi, dtype=np.float64),
-                    phi=phi,
-                    cos2Xi2Phi=cos2Xi2Phi,
-                    sin2Xi2Phi=sin2Xi2Phi,
-                    apply_non_linearity=apply_non_linearity,
-                    g_one_over_k=g_one_over_k[idet],
-                    add_2f_hwpss=add_2f_hwpss,
-                    amplitude_2f_k=amplitude_2f_k[idet],
-                )
+            jones_methods.integrate_inband_signal_for_one_detector(
+                tod_det=tod,
+                freqs=cur_det_params["freq"],
+                band=cur_det_cmb2bb,
+                deltas_j0f=deltas_j0f,
+                deltas_j2f=deltas_j2f,
+                mapT=input_T,
+                mapQ=input_Q,
+                mapU=input_U,
+                rho=np.array(hwp_angle, dtype=np.float64),
+                psi=np.array(psi, dtype=np.float64),
+                phi=phi,
+                cos2Xi2Phi=cos2Xi2Phi,
+                sin2Xi2Phi=sin2Xi2Phi,
+                apply_non_linearity=apply_non_linearity,
+                g_one_over_k=g_one_over_k[idet],
+                add_2f_hwpss=add_2f_hwpss,
+                amplitude_2f_k=amplitude_2f_k[idet],
+            )
 
         else:
             if hwp.calculus is Calc.MUELLER:
