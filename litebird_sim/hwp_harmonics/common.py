@@ -52,7 +52,6 @@ def compute_signal_for_one_sample(
     sin2Psi2Phi,
 ):
     # Bolometric equation, tod filling for a single (time) sample
-
     d = T * compute_Tterm_for_one_sample(mII, mQI, mUI, cos2Xi2Phi, sin2Xi2Phi)
 
     d += Q * compute_Qterm_for_one_sample(
@@ -62,7 +61,6 @@ def compute_signal_for_one_sample(
     d += U * compute_Uterm_for_one_sample(
         mIU, mQU, mUQ, mIQ, mQQ, mUU, cos2Xi2Phi, sin2Xi2Phi, cos2Psi2Phi, sin2Psi2Phi
     )
-
     return d
 
 
@@ -93,7 +91,7 @@ def integrate_inband_signal_for_one_sample(
     for a single (time) sample.
     """
 
-    S = np.empty(len(band))
+    S = np.empty(len(band), dtype=np.float64)
     for i in range(len(band)):
         S[i] = compute_signal_for_one_sample(
             T=T[i],
@@ -115,6 +113,8 @@ def integrate_inband_signal_for_one_sample(
         )
 
     tod = 0.0
+    if len(band) == 1:
+        tod += S[0]
     for i in range(len(band) - 1):
         dnu = freqs[i + 1] - freqs[i]
         tod += (band[i] * S[i] + band[i + 1] * S[i + 1]) * (dnu / 2)

@@ -370,9 +370,9 @@ def fill_tod(
                 input_Q = np.zeros_like(input_T)
                 input_U = input_Q
             else:
-                input_T = pixmap[start_index:end_index, 0, pixel_ind_det]
-                input_Q = pixmap[start_index:end_index, 1, pixel_ind_det]
-                input_U = pixmap[start_index:end_index, 2, pixel_ind_det]
+                input_T = pixmap[start_index : end_index + 1, 0, pixel_ind_det]
+                input_Q = pixmap[start_index : end_index + 1, 1, pixel_ind_det]
+                input_U = pixmap[start_index : end_index + 1, 2, pixel_ind_det]
 
         if integrate_in_band:
             if hwp.calculus is Calc.MUELLER:
@@ -492,8 +492,6 @@ def fill_tod(
                 deltas_j0f[1, 1] = jones_0f[1, 1] + 1
                 deltas_j2f[0, 0] = jones_2f[0, 0]
                 deltas_j2f[1, 1] = jones_2f[1, 1]
-
-                # print(deltas_j0f, deltas_j2f)
 
                 jones_methods.compute_signal_for_one_detector(
                     tod_det=tod,
