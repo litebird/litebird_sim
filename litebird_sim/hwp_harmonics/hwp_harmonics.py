@@ -128,10 +128,10 @@ def set_band_params_for_one_detector(
             comments="#",
         )
 
-        # Filter by frequency range [bandcenter - bandwidth, bandcenter + bandwidth]
+        # Filter by frequency range [bandcenter - bandwidth/2, bandcenter + bandwidth/2]
         freq_data = np.array(loaded_data[0], dtype=np.float64)
-        freq_min = bandcenter - bandwidth
-        freq_max = bandcenter + bandwidth
+        freq_min = bandcenter - bandwidth / 2
+        freq_max = bandcenter + bandwidth / 2
         mask = (freq_data >= freq_min) & (freq_data <= freq_max)
 
         # Apply mask to all loaded data
@@ -358,8 +358,8 @@ def fill_tod(
 
             # Find indices for the frequency band range for this detector
             indices = np.where(
-                (frequencies >= bandcenter_ghz[idet] - bandwidth_ghz[idet])
-                & (frequencies <= bandcenter_ghz[idet] + bandwidth_ghz[idet])
+                (frequencies >= bandcenter_ghz[idet] - bandwidth_ghz[idet] / 2)
+                & (frequencies <= bandcenter_ghz[idet] + bandwidth_ghz[idet] / 2)
             )[0]
             start_index = indices[0]
             end_index = indices[-1]
