@@ -840,32 +840,21 @@ class SkyGenerator:
                 band_integration=False,
             )
 
-            m_dip = HealpixMap(
-                values=dipole_map_val * conv_factor,
-                nside=self.params.nside,
-                units=self.lbs_unit,
-                coordinates=self.coords,
-                nest=False,
-            )
-
-            alm_dip = estimate_alm(
-                m_dip,
-                lmax=self.params.lmax,
-                nthreads=self.params.nthreads,
-            )
-
-            fwhm = None if self.fwhm_rad is None else float(self.fwhm_rad[i])
-            self._apply_smoothing_and_windows_to_alm(alm_dip, fwhm)
-
             if self.params.output_type == "map":
-                m = pixelize_alm(
-                    alm_dip,
+                out[i] = dipole_map_val * conv_factor
+            else:
+                m_dip = HealpixMap(
+                    values=dipole_map_val * conv_factor,
                     nside=self.params.nside,
+                    units=self.lbs_unit,
+                    coordinates=self.coords,
+                    nest=False,
+                )
+                alm_dip = estimate_alm(
+                    m_dip,
                     lmax=self.params.lmax,
                     nthreads=self.params.nthreads,
                 )
-                out[i] = m.values
-            else:
                 out[i] = alm_dip.values
 
         # Return multi-frequency object

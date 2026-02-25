@@ -256,3 +256,48 @@ def test_skygenerator_frequency_mode_all_components():
 
     assert result_multi.nfreqs == 2
     assert result_multi.values.shape == (2, 3, 12 * 16**2)  # (nfreqs, nstokes, npix)
+
+
+def test_dipole_consistency_channel_vs_frequency():
+    """
+    Tests that the dipole map is identical when generated via the channel path
+    and the frequency path, reproducing the bug reported in the issue.
+    The frequency path previously applied a map->alm->map round trip and beam
+    smoothing to the dipole that the channel path did not, causing discrepancies.
+    """
+    nside = 64
+    fwhm_arcmin = 37.805193
+
+    channel_info = FreqChannelInfo(
+        bandcenter_ghz=140.0,
+        channel="L4-140",
+        bandwidth_ghz=1.0,
+        fwhm_arcmin=fwhm_arcmin,
+    )
+
+    sky_params = SkyGenerationParams(
+        make_cmb=False,
+        make_dipole=True,
+        make_fg=False,
+        output_type="map",
+        apply_beam=True,
+        bandpass_integration=False,
+        nside=nside,
+        units="K_CMB",
+    )
+
+    gen_sky_ch = SkyGenerator(parameters=sky_params, channels=channel_info)
+    input_maps_ch = gen_sky_ch.execute()["L4-140"]
+
+    gen_sky_freq = SkyGenerator(
+        parameters=sky_params,
+        frequencies_ghz=140.0,
+        fwhm_rad=np.radians(fwhm_arcmin / 60.0),
+    )
+    input_maps_freq = gen_sky_freq.execute()
+
+    npt.assert_array_almost_equal(
+        input_maps_ch.values,
+        input_maps_freq.values[0],
+        decimal=5,
+    )
