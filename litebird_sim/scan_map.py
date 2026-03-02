@@ -6,7 +6,7 @@ import os
 from ducc0.healpix import Healpix_Base
 from .observations import Observation
 from .hwp_harmonics import fill_tod
-from .hwp import HWP, IdealHWP, NonIdealHWP
+from .hwp import HWP, IdealHWP, NonIdealHWP, TimeDependentHWP
 from .input_sky import SkyGenerationParams
 from .pointings_in_obs import (
     _get_hwp_angle,
@@ -353,6 +353,30 @@ def scan_map(
                 pol_eff_det=pol_eff_detectors[detector_idx],
                 hwp_angle=hwp_angle,
                 mueller_hwp=mueller_hwp[detector_idx],
+            )
+        elif isinstance(hwp, TimeDependentHWP):
+            # With HWP implements:
+            # (T + Q ρ Cos[2 (2 α - θ + ψ])] + U ρ Sin[2 (2 α - θ + ψ)])
+            # without
+            # (T + Q ρ Cos[2 (θ + ψ])] + U ρ Sin[2 (θ + ψ)])
+            # ρ: polarization efficiency
+            # θ: polarization angle
+            # ψ: angle of the telescope
+            # α: HWP angle
+            scan_map_for_one_detector(
+                tod_det=tod[detector_idx],
+                input_T=input_T,
+                input_Q=input_Q,
+                input_U=input_U,
+                pol_angle_det=_get_pol_angle(
+                    curr_pointings_det, hwp_angle, pol_angle_detectors[detector_idx]
+                ),
+                pol_eff_det=pol_eff_detectors[detector_idx],
+            )
+        else:
+            raise TypeError(
+                "scan_map: hwp must be None, IdealHWP, TimeDependentHWP, or NonIdealHWP "
+                f"(got {type(hwp)!r})"
             )
 
 

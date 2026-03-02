@@ -149,6 +149,8 @@ def _get_ideal_hwp_angle(
 
         output_buffer[sample_idx] = angle
 
+    print(output_buffer)
+
 
 def _add_ideal_hwp_angle(
     pointing_buffer, start_time_s, delta_time_s, start_angle_rad, ang_speed_radpsec
@@ -265,13 +267,13 @@ def _get_timedependent_hwp_angle(
     ang_speed_DIFF_ang_speed_radpsec,
     ang_speed_DIFF_start_angle_rad,
 ):
-    # rho_t = phi_0
+    # rho_t = rho_0
     #         + omega_0 * t_0
     #         - amp_DIFF/omega_DIFF * sin(phi_DIFF))
     #         + omega_0 * dt
     #         + amp_DIFF/omega_DIFF * sin(phi_DIFF + omega_DIFF * t0 + omega_DIFF * dt))
 
-    # complex = e^(i*alpha), with alpha = phi_0 + omega_0 * t_0 - amp_DIFF/omega_DIFF * sin(phi_DIFF))
+    # complex = e^(i*alpha), with alpha = rho_0 + omega_0 * t_0 - amp_DIFF/omega_DIFF * sin(phi_DIFF))
     complex = np.exp(1j * start_angle_rad)
     complex *= np.exp(1j * start_time_s * ang_speed_radpsec)
     complex *= np.exp(
@@ -370,8 +372,8 @@ class TimeDependentHWP(HWP):
     def __init__(
         self,
         ang_speed_radpsec: float,
-        ang_speed_DIFF_amplitude_radpsec,
-        ang_speed_DIFF_ang_speed_radpsec,
+        ang_speed_DIFF_amplitude_radpsec=0.0,
+        ang_speed_DIFF_ang_speed_radpsec=1.0,
         start_angle_rad=0.0,
         ang_speed_DIFF_start_angle_rad=0.0,
     ):
@@ -380,7 +382,7 @@ class TimeDependentHWP(HWP):
         self.ang_speed_DIFF_amplitude_radpsec = ang_speed_DIFF_amplitude_radpsec
         self.ang_speed_DIFF_ang_speed_radpsec = ang_speed_DIFF_ang_speed_radpsec
         self.ang_speed_DIFF_start_angle_rad = ang_speed_DIFF_start_angle_rad
-        # self.mueller = np.copy(mueller_ideal_hwp) # mueller_ideal_hwp was not defined!
+        self.mueller = np.diag([1, 1, -1, -1])
 
     def get_hwp_angle(
         self, output_buffer, start_time_s: float, delta_time_s: float
@@ -401,6 +403,24 @@ class TimeDependentHWP(HWP):
     ) -> None:
         _add_timedependent_hwp_angle(
             pointing_buffer=pointing_buffer,
+            start_time_s=start_time_s,
+            delta_time_s=delta_time_s,
+            start_angle_rad=self.start_angle_rad,
+            ang_speed_radpsec=self.ang_speed_radpsec,
+            ang_speed_DIFF_amplitude_radpsec=self.ang_speed_DIFF_amplitude_radpsec,
+            ang_speed_DIFF_ang_speed_radpsec=self.ang_speed_DIFF_ang_speed_radpsec,
+            ang_speed_DIFF_start_angle_rad=self.ang_speed_DIFF_start_angle_rad,
+        )
+
+    def apply_hwp_to_pointings(
+        self,
+        start_time_s: float,
+        delta_time_s: float,
+        bore2ecl_quaternions_inout,
+        hwp_angle_out,
+    ) -> None:
+        _get_timedependent_hwp_angle(
+            output_buffer=hwp_angle_out,
             start_time_s=start_time_s,
             delta_time_s=delta_time_s,
             start_angle_rad=self.start_angle_rad,
