@@ -72,43 +72,6 @@ class HWP:
             "You should not use the HWP class in your code, use IdealHWP instead"
         )
 
-    def apply_hwp_to_pointings(
-        self,
-        start_time_s: float,
-        delta_time_s: float,  # This will be 1/(19 Hz) in most cases
-        bore2ecl_quaternions_inout: npt.NDArray,  # Boresight→Ecliptic quaternions at 19 Hz
-        hwp_angle_out: npt.NDArray,
-    ) -> None:
-        """
-        Simulates the presence of a HWP on the pointings and the HWP angle
-
-        This method must be redefined in derived classes. The parameter `start_time_s`
-        specifies the time of the first sample in `pointings` and must be a floating-point
-        value; this means that you should already have converted any AstroPy time to a plain
-        scalar before calling this method. The parameter `delta_time_s` is the inverse
-        of the sampling frequency and must be expressed in seconds.
-
-        The result is saved in the NumPy array `hwp_angle_out`, which must have already been
-        allocated with the appropriate number of samples. However, if the HWP is not ideal,
-        it is possible that the `bore2ecl_quaternions_inout` matrix, whose shape is
-        ``(N, 4)`` and contains ``N`` quaternions, is changed by this method, typically
-        via a multiplication with a rotation simulating a wobbling effect. (Multiplying
-        a quaternion on the *left* of ``bore2ecl_quaternions_inout`` means that you
-        are adding a rotation at the *end* of the chain of transformations, i.e.,
-        after the conversion to the Ecliptic reference frame. Multiplying a quaternion
-        on the *right* means that you are introducing a new rotation between the
-        reference frame of the detector and of the boresight of the focal plane.)
-
-        :param start_time_s:
-        :param delta_time_s:
-        :param bore2ecl_quaternions_inout:
-        :param hwp_angle_out:
-        :return:
-        """
-        raise NotImplementedError(
-            "You should not use the HWP class in your code, use IdealHWP instead"
-        )
-
     def write_to_hdf5(
         self, output_file: h5py.File, field_name: str, compression: str | None = None
     ) -> h5py.Dataset:
@@ -148,8 +111,6 @@ def _get_ideal_hwp_angle(
         angle = np.angle(complex)
 
         output_buffer[sample_idx] = angle
-
-    print(output_buffer)
 
 
 def _add_ideal_hwp_angle(
@@ -403,24 +364,6 @@ class TimeDependentHWP(HWP):
     ) -> None:
         _add_timedependent_hwp_angle(
             pointing_buffer=pointing_buffer,
-            start_time_s=start_time_s,
-            delta_time_s=delta_time_s,
-            start_angle_rad=self.start_angle_rad,
-            ang_speed_radpsec=self.ang_speed_radpsec,
-            ang_speed_DIFF_amplitude_radpsec=self.ang_speed_DIFF_amplitude_radpsec,
-            ang_speed_DIFF_ang_speed_radpsec=self.ang_speed_DIFF_ang_speed_radpsec,
-            ang_speed_DIFF_start_angle_rad=self.ang_speed_DIFF_start_angle_rad,
-        )
-
-    def apply_hwp_to_pointings(
-        self,
-        start_time_s: float,
-        delta_time_s: float,
-        bore2ecl_quaternions_inout,
-        hwp_angle_out,
-    ) -> None:
-        _get_timedependent_hwp_angle(
-            output_buffer=hwp_angle_out,
             start_time_s=start_time_s,
             delta_time_s=delta_time_s,
             start_angle_rad=self.start_angle_rad,
