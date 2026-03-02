@@ -1,16 +1,15 @@
+import logging as log
 from dataclasses import dataclass, field, fields
 from typing import Any
-
 from uuid import UUID
-import numpy as np
-import logging as log
 
 import astropy.time as astrotime
-from .imo import Imo
-from .quaternions import quat_rotation_y, quat_rotation_z, quat_left_multiply
-from .scanning import RotQuaternion
+import numpy as np
 
 from .bandpasses import BandPassInfo
+from .imo import Imo
+from .quaternions import quat_left_multiply, quat_rotation_y, quat_rotation_z
+from .scanning import RotQuaternion
 
 
 def url_to_uuid(url: str) -> UUID:
@@ -144,13 +143,7 @@ class DetectorInfo:
 
         mueller_hwp (None | np.ndarray | dict): Mueller matrix of the HWP: None if no hwp, np.ndarray if a single matrix, dict if multiple matrices, in the case of rotation harmonics expansion. Default is None (no HWP).
 
-        mueller_hwp_solver (None | dict): Mueller matrix used in the mapmaking solver to
-            model a non-ideal HWP. Can be None, np.ndarray or dict, following the same reasoning as mueller_hwp. Default is None (no HWP).
-
         jones_hwp (None | np.ndarray | dict): Jones matrix of the HWP: None if no hwp, np.ndarray if a single matrix, dict if multiple matrices, in the case of rotation harmonics expansion. Default is None (no HWP).
-
-        jones_hwp_solver (None | dict): Jones matrix used in the mapmaking solver to
-            model a non-ideal HWP. Can be None, np.ndarray or dict, following the same reasoning as mueller_hwp. Default is None (no HWP).
 
         pointing_theta_phi_psi_deg (None | np.ndarray): Array of pointing angles (θ, φ, ψ)
             in degrees: colatitude, longitude, and orientation. Default is None.
@@ -189,9 +182,7 @@ class DetectorInfo:
     pol_angle_rad: float = 0.0
     pol_efficiency: float = 1.0
     mueller_hwp: None | np.ndarray | dict[str, np.ndarray] = None
-    mueller_hwp_solver: None | np.ndarray | dict[str, np.ndarray] = None
     jones_hwp: None | np.ndarray | dict[str, np.ndarray] = None
-    jones_hwp_solver: None | np.ndarray | dict[str, np.ndarray] = None
     pointing_theta_phi_psi_deg: None | np.ndarray = None
     pointing_u_v: None | np.ndarray = None
     g_one_over_k: float = 0.0

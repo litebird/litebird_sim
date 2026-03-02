@@ -1,9 +1,10 @@
+from enum import Enum, auto
+
 import h5py
 import numpy as np
 import numpy.typing as npt
 from deprecated import deprecated
 from numba import njit
-from enum import Enum, auto
 
 
 class Calc(Enum):
@@ -272,12 +273,14 @@ class NonIdealHWP(HWP):
         ang_speed_radpsec: float,
         harmonic_expansion: bool,
         calculus: Calc,
+        jones_per_freq_csv_path: str | None = None,
         start_angle_rad=0.0,
     ):
         self.ang_speed_radpsec = ang_speed_radpsec
         self.start_angle_rad = start_angle_rad
         self.harmonic_expansion = harmonic_expansion
         self.calculus = calculus
+        self.jones_per_freq_csv_path = jones_per_freq_csv_path
 
     def get_hwp_angle(
         self, output_buffer, start_time_s: float, delta_time_s: float
