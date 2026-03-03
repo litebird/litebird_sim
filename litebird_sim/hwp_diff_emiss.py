@@ -1,25 +1,27 @@
-import numpy as np
-from numba import njit, prange
-
 from numbers import Number
 
-from .observations import Observation
+import numpy as np
+from numba import njit
+
 from .hwp import HWP
+from .observations import Observation
 from .pointings_in_obs import _get_hwp_angle
 
 
 # We calculate the additive signal coming from hwp harmonics.
 # here we calculate 2f directly.
 @njit
-def compute_2f_for_one_sample(angle_rad, amplitude_k):
-    return amplitude_k * np.cos(2 * angle_rad)
+def compute_2f_for_one_sample(angle_rad, offset_rad, amplitude_k):
+    return amplitude_k * np.cos(2 * (angle_rad - offset_rad))
 
 
-@njit(parallel=True)
-def add_2f_for_one_detector(tod_det, angle_det_rad, amplitude_k):
-    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
+@njit
+def add_2f_for_one_detector(
+    tod_det, angle_det_rad, offset_angle_rad: float, amplitude_k
+):
+    for i, cur_angle in enumerate(angle_det_rad):  # type: ignore[not-iterable]
         tod_det[i] += compute_2f_for_one_sample(
-            angle_rad=angle_det_rad[i], amplitude_k=amplitude_k
+            angle_rad=cur_angle, offset_rad=offset_angle_rad, amplitude_k=amplitude_k
         )
 
 
@@ -37,6 +39,8 @@ def add_2f(
     """
 
     assert len(tod.shape) == 2
+    assert len(hwp_angle.shape) == 1
+    assert tod.shape[1] == hwp_angle.shape[0]
     num_of_dets = tod.shape[0]
 
     if isinstance(amplitude_2f_k, Number):
@@ -44,10 +48,11 @@ def add_2f(
 
         assert len(amplitude_2f_k) == num_of_dets
 
-    for detector_idx in range(tod.shape[0]):
+    for detector_idx in range(num_of_dets):
         add_2f_for_one_detector(
             tod_det=tod[detector_idx],
-            angle_det_rad=hwp_angle - pol_angle_rad[detector_idx],
+            angle_det_rad=hwp_angle,
+            offset_angle_rad=pol_angle_rad[detector_idx],
             amplitude_k=amplitude_2f_k[detector_idx],
         )
 

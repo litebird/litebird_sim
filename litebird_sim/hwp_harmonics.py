@@ -1,18 +1,18 @@
 import logging
+import os
 
 import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
-from numba import njit, prange
 from ducc0.healpix import Healpix_Base
-import os
+from numba import njit, prange
 
+from .constants import NUM_THREADS_ENVVAR
 from .coordinates import CoordinateSystem
 from .hwp_diff_emiss import compute_2f_for_one_sample
 from .input_sky import SkyGenerationParams
-from .observations import Observation
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
-from .constants import NUM_THREADS_ENVVAR
+from .observations import Observation
 from .pointings_in_obs import (
     _get_pointings_array,
 )
@@ -346,7 +346,9 @@ def compute_signal_for_one_detector(
             sin2Xi2Phi=sin2Xi2Phi,
         )
         if add_2f_hwpss:
-            tod_det[i] += compute_2f_for_one_sample(rho[i] - xi, amplitude_2f_k)
+            tod_det[i] += compute_2f_for_one_sample(
+                angle_rad=rho[i], offset_rad=xi, amplitude_k=amplitude_2f_k
+            )
         if apply_non_linearity:
             tod_det[i] += g_one_over_k * tod_det[i] ** 2
 
