@@ -59,7 +59,7 @@ from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
-from .pointings_in_obs import precompute_pointings, prepare_pointings
+from .pointings_in_obs import precompute_pointings, prepare_pointings, center_pointings
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
@@ -1665,6 +1665,14 @@ class Simulation:
         """
         precompute_pointings(
             observations=self.observations, pointings_dtype=pointings_dtype
+        )
+
+    def center_pointings(self, nside, pointings_dtype=np.float64) -> None:
+        """Force the pointings to the center of pixels for a given nside.
+        Changes the values in the field ``pointing matrix
+        """
+        center_pointings(
+            observations=self.observations, nside=nside, pointings_dtype=pointings_dtype
         )
 
     @_profile

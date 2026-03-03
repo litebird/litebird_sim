@@ -6,6 +6,7 @@ from typing import Any
 import astropy.time
 import numpy as np
 import numpy.typing as npt
+from ducc0.healpix import Healpix_Base
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
@@ -14,7 +15,7 @@ from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
 from .input_sky import SkyGenerationParams
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
-from .pointings import PointingProvider, DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB
+from .pointings import DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB, PointingProvider
 from .scanning import RotQuaternion
 from .units import Units
 
@@ -1231,6 +1232,40 @@ class Observation:
         )
         self.pointing_matrix = pointing_matrix
         self.hwp_angle = hwp_angle
+
+    def center_pointings(
+        self,
+        nside,
+        pointings_dtype=np.float64,
+    ) -> None:
+        """Force the pointings to the center of pixels for a given nside.
+
+        This method can be useful to ensure that the pixels used when scanning
+        are exactly the same as the ones used at the map-making step.
+
+        Args:
+            nside (int):
+                The nside of the map to whose pixels it centers the pointings.
+            pointings_dtype (data-type, optional):
+                Data type to use for the computed arrays. Defaults to `np.float64`.
+
+        Raises:
+            AssertionError:
+                If `precompute_pointings()` has not been called prior to this method,
+                i.e., if `self.pointing_matrix is not defined.
+
+        Notes:
+            This method must be called after `precompute_pointings()`.
+        """
+
+        assert "pointing_matrix" in dir(self), (
+            "you must call precompute_pointings() on a set of observations "
+            "before calling center_pointings()"
+        )
+
+        hpx = Healpix_Base(nside, "RING")
+        pixel_ind = hpx.ang2pix(self.pointing_matrix[:, :, 0:2])
+        self.pointing_matrix[:, :, 0:2] = hpx.pix2ang(pixel_ind)
 
     def _set_mpi_subcommunicators(self):
         """This function splits the global MPI communicator into three kinds of

@@ -1,19 +1,16 @@
 from collections.abc import Callable
 
+import astropy.time
 import numpy as np
 import numpy.typing as npt
-import astropy.time
-
 from deprecated import deprecated
-
 from ducc0.healpix import Healpix_Base
 
+from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 from .detectors import InstrumentInfo
 from .hwp import HWP
 from .observations import Observation
 from .scanning import RotQuaternion
-
-from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 
 
 def prepare_pointings(
@@ -110,6 +107,53 @@ def precompute_pointings(
 
     for cur_obs in obs_list:
         cur_obs.precompute_pointings(pointings_dtype=pointings_dtype)
+
+
+def center_pointings(
+    observations: Observation | list[Observation],
+    nside: int,
+    pointings_dtype=np.float64,
+) -> None:
+    """Force the pointings to the center of pixels for a given nside.
+
+    This function triggers the change of the full time-domain pointing matrix
+    and, The results are stored internally in each observation's
+    ``pointing_matrix`` field.
+
+    This method can be useful to ensure that the pixels used when scanning
+    are exactly the same as the ones used at the map-making step.
+
+    Args:
+        observations (Observation or list[Observation]):
+            A single observation or a list of observations for which pointings should be precomputed.
+
+        nside (int):
+            The nside of the map to whose pixels it centers the pointings.
+
+        pointings_dtype (data-type, optional):
+            Data type to use when allocating the pointing and HWP arrays.
+            Defaults to `np.float64`.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError:
+            If any observation does not have a pointing matrix defined.
+            Make sure to call :func:`precompute_pointings()` beforehand.
+
+    Notes:
+        - This function must be called after pointing precomputation (i.e., after `precompute_pointings()`).
+        - Output arrays are stored in `Observation.pointing_matrix`.
+    """
+
+    if isinstance(observations, Observation):
+        obs_list = [observations]
+    else:
+        obs_list = observations
+
+    for cur_obs in obs_list:
+        cur_obs.center_pointings(nside=nside, pointings_dtype=pointings_dtype)
 
 
 @deprecated(
