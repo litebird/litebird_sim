@@ -3,15 +3,15 @@
 import os
 import pathlib
 from pathlib import Path
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import astropy
+import litebird_sim as lbs
 import numpy as np
 import pytest
-from unittest.mock import MagicMock, patch
-
-import litebird_sim as lbs
+from ducc0.healpix import Healpix_Base
 from litebird_sim.detectors import DetectorInfo, FreqChannelInfo
 
 
@@ -21,7 +21,7 @@ class MockPlot:
 
 
 def test_healpix_map_write(tmp_path):
-    sim = lbs.Simulation(base_path=tmp_path / "simulation_dir", random_seed=12345)
+    sim = lbs.Simulation(base_path="./simulation_dir", random_seed=12345)
     output_file = sim.write_healpix_map(filename="test.fits.gz", pixels=np.zeros(12))
 
     assert isinstance(output_file, pathlib.Path)
@@ -40,7 +40,7 @@ def test_healpix_map_write(tmp_path):
 
 def test_markdown_report(tmp_path):
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir",
+        base_path="./simulation_dir",
         name="My simulation",
         description="Lorem ipsum",
         start_time=1.0,
@@ -98,7 +98,7 @@ def test_imo_in_report(tmp_path):
     imo = lbs.Imo(flatfile_location=curpath / "test_imo")
 
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir",
+        base_path="./simulation_dir",
         name="My simulation",
         description="Lorem ipsum",
         imo=imo,
@@ -414,6 +414,7 @@ def _configure_simulation_for_pointings(
     tmp_path: Path,
     include_hwp: bool,
     store_full_pointings: bool,
+    nside_centering: int | None = None,
     num_of_detectors: int = 1,
     dtype=np.float32,
 ) -> lbs.Simulation:
@@ -428,7 +429,7 @@ def _configure_simulation_for_pointings(
     )
 
     sim = lbs.Simulation(
-        base_path=tmp_path / "simulation_dir",
+        base_path="./simulation_dir",
         start_time=0.0,
         duration_s=61.0,
         random_seed=12345,
@@ -473,7 +474,10 @@ def _configure_simulation_for_pointings(
     sim.prepare_pointings()
 
     if store_full_pointings:
-        sim.precompute_pointings(pointings_dtype=dtype)
+        sim.precompute_pointings(
+            pointings_dtype=dtype,
+            nside_centering=nside_centering,
+        )
 
     return sim
 
@@ -887,3 +891,63 @@ def test_set_detectors_logic(tmp_path):
         # Asking for 5 detectors when only 2 exist in the channel
         with pytest.raises(ValueError, match="Expected 5 detectors, but got 2"):
             sim.set_detectors(channels=["url_ch_a"], detectors=5)
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_center_pointings(tmp_path, dtype):
+    sim = _configure_simulation_for_pointings(
+        tmp_path,
+        include_hwp=False,
+        store_full_pointings=True,
+        nside_centering=16,
+        dtype=dtype,
+    )
+
+    for cur_obs in sim.observations:
+        assert "pointing_matrix" in dir(cur_obs)
+        assert cur_obs.pointing_matrix.dtype == dtype
+        assert cur_obs.pointing_matrix.shape == (
+            cur_obs.n_detectors,
+            cur_obs.n_samples,
+            3,
+        )
+
+        # confirming that the pointings are centered
+        # by confirming they are exactly the same after
+        # doing ang2pix and pix2ang in sequence
+        hpx = Healpix_Base(16, "RING")
+        aux_pointings = cur_obs.pointing_matrix.copy()
+        aux_pointings[:, :, 0:2] = hpx.pix2ang(
+            hpx.ang2pix(cur_obs.pointing_matrix[:, :, 0:2])
+        )
+
+        np.testing.assert_allclose(
+            cur_obs.pointing_matrix,
+            aux_pointings,
+        )
+
+    ###
+
+    sim_wo_precompute = _configure_simulation_for_pointings(
+        tmp_path,
+        include_hwp=False,
+        store_full_pointings=False,
+        dtype=dtype,
+    )
+
+    for cur_obs in sim_wo_precompute.observations:
+        pointing_matrix, _ = cur_obs.get_pointings(
+            nside_centering=16, pointings_dtype=dtype
+        )
+
+        # confirming that the pointings are centered
+        # by confirming they are exactly the same after
+        # doing ang2pix and pix2ang in sequence
+        hpx = Healpix_Base(16, "RING")
+        aux_pointings = pointing_matrix.copy()
+        aux_pointings[:, :, 0:2] = hpx.pix2ang(hpx.ang2pix(pointing_matrix[:, :, 0:2]))
+
+        np.testing.assert_allclose(
+            pointing_matrix,
+            aux_pointings,
+        )

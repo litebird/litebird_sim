@@ -1,19 +1,16 @@
 from collections.abc import Callable
 
+import astropy.time
 import numpy as np
 import numpy.typing as npt
-import astropy.time
-
 from deprecated import deprecated
-
 from ducc0.healpix import Healpix_Base
 
+from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 from .detectors import InstrumentInfo
 from .hwp import HWP
 from .observations import Observation
 from .scanning import RotQuaternion
-
-from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 
 
 def prepare_pointings(
@@ -71,6 +68,7 @@ def prepare_pointings(
 def precompute_pointings(
     observations: Observation | list[Observation],
     pointings_dtype=np.float64,
+    nside_centering: int | None = None,
 ) -> None:
     """Precompute pointing angles and HWP angles for a set of observations.
 
@@ -89,6 +87,10 @@ def precompute_pointings(
         pointings_dtype (data-type, optional):
             Data type to use when allocating the pointing and HWP arrays.
             Defaults to `np.float64`.
+
+        nside_centering : int
+            HEALPix NSIDE parameter used to determine the pixel centers.
+            Defaults to None.
 
     Returns:
         None
@@ -110,6 +112,11 @@ def precompute_pointings(
 
     for cur_obs in obs_list:
         cur_obs.precompute_pointings(pointings_dtype=pointings_dtype)
+        if isinstance(nside_centering, int):
+            for det_idx in range(len(cur_obs.pointing_matrix)):
+                cur_obs.pointing_matrix[det_idx] = _get_centered_pointings(
+                    cur_obs.pointing_matrix[det_idx], nside_centering=nside_centering
+                )
 
 
 @deprecated(
