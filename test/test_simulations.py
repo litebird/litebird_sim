@@ -414,6 +414,8 @@ def _configure_simulation_for_pointings(
     tmp_path: Path,
     include_hwp: bool,
     store_full_pointings: bool,
+    center_pointings: bool = False,
+    nside_centering: int | None = None,
     num_of_detectors: int = 1,
     dtype=np.float32,
 ) -> lbs.Simulation:
@@ -473,7 +475,11 @@ def _configure_simulation_for_pointings(
     sim.prepare_pointings()
 
     if store_full_pointings:
-        sim.precompute_pointings(pointings_dtype=dtype)
+        sim.precompute_pointings(
+            pointings_dtype=dtype,
+            center=center_pointings,
+            nside_centering=nside_centering,
+        )
 
     return sim
 
@@ -895,10 +901,10 @@ def test_center_pointings(tmp_path, dtype):
         tmp_path,
         include_hwp=False,
         store_full_pointings=True,
+        center_pointings=True,
+        nside_centering=16,
         dtype=dtype,
     )
-
-    sim.center_pointings(nside=16, pointings_dtype=dtype)
 
     for cur_obs in sim.observations:
         assert "pointing_matrix" in dir(cur_obs)
@@ -920,5 +926,31 @@ def test_center_pointings(tmp_path, dtype):
 
         np.testing.assert_allclose(
             cur_obs.pointing_matrix,
+            aux_pointings,
+        )
+
+    ###
+
+    sim_wo_precompute = _configure_simulation_for_pointings(
+        tmp_path,
+        include_hwp=False,
+        store_full_pointings=False,
+        dtype=dtype,
+    )
+
+    for cur_obs in sim_wo_precompute.observations:
+        pointing_matrix, _ = cur_obs.get_pointings(
+            center=True, nside_centering=16, pointings_dtype=dtype
+        )
+
+        # confirming that the pointings are centered
+        # by confirming they are exactly the same after
+        # doing ang2pix and pix2ang in sequence
+        hpx = Healpix_Base(16, "RING")
+        aux_pointings = pointing_matrix.copy()
+        aux_pointings[:, :, 0:2] = hpx.pix2ang(hpx.ang2pix(pointing_matrix[:, :, 0:2]))
+
+        np.testing.assert_allclose(
+            pointing_matrix,
             aux_pointings,
         )

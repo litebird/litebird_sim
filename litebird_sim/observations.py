@@ -995,6 +995,8 @@ class Observation:
         pointing_buffer: npt.NDArray | None = None,
         hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
+        center: bool = False,
+        nside_centering: int | None = None,
     ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the pointings for one or more detectors in this observation
 
@@ -1036,6 +1038,8 @@ class Observation:
         and ψ (orientation angle, in radians). *Important*: if you ask for just *one*
         detector passing the index of the detector, the shape of the pointing matrix
         will always be ``(N_samples, 3)``.
+        The pointings can be aligned to the center of the HEALPix pixel they belong to
+        by setting center=True and setting nside_centering to the nside of the map.
         The HWP angle is always a vector with shape ``(N_samples,)``, as it does
         not depend on the list of detectors.
 
@@ -1047,6 +1051,11 @@ class Observation:
         assert self.pointing_provider is not None, (
             "You must initialize pointing_provider; use Simulation.prepare_pointings()"
         )
+
+        if center:
+            assert nside_centering is not None, (
+                "You must set the parameter nside_centering when center=True"
+            )
 
         # Simplest case: we need just one detector
         if isinstance(detector_idx, int):
@@ -1078,6 +1087,8 @@ class Observation:
                 pointing_buffer=pointing_buffer,
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
+                center=center,
+                nside_centering=nside_centering,
             )
 
         # Most complex case: an explicit list (or NumPy array) of detectors
@@ -1126,6 +1137,15 @@ class Observation:
                 abs_det_idx,
                 pointing_buffer=pointing_buffer[rel_det_idx, :, :],
                 hwp_buffer=hwp_buffer,
+                center=center,
+                nside_centering=nside_centering,
+            )
+
+        if center:
+            hpx = Healpix_Base(nside_centering, "RING")
+            # Apply centering on the first two columns (θ, φ)
+            pointing_buffer[:, :, 0:2] = hpx.pix2ang(
+                hpx.ang2pix(pointing_buffer[:, :, 0:2])
             )
 
         return pointing_buffer, hwp_buffer
@@ -1232,40 +1252,6 @@ class Observation:
         )
         self.pointing_matrix = pointing_matrix
         self.hwp_angle = hwp_angle
-
-    def center_pointings(
-        self,
-        nside,
-        pointings_dtype=np.float64,
-    ) -> None:
-        """Force the pointings to the center of pixels for a given nside.
-
-        This method can be useful to ensure that the pixels used when scanning
-        are exactly the same as the ones used at the map-making step.
-
-        Args:
-            nside (int):
-                The nside of the map to whose pixels it centers the pointings.
-            pointings_dtype (data-type, optional):
-                Data type to use for the computed arrays. Defaults to `np.float64`.
-
-        Raises:
-            AssertionError:
-                If `precompute_pointings()` has not been called prior to this method,
-                i.e., if `self.pointing_matrix is not defined.
-
-        Notes:
-            This method must be called after `precompute_pointings()`.
-        """
-
-        assert "pointing_matrix" in dir(self), (
-            "you must call precompute_pointings() on a set of observations "
-            "before calling center_pointings()"
-        )
-
-        hpx = Healpix_Base(nside, "RING")
-        pixel_ind = hpx.ang2pix(self.pointing_matrix[:, :, 0:2])
-        self.pointing_matrix[:, :, 0:2] = hpx.pix2ang(pixel_ind)
 
     def _set_mpi_subcommunicators(self):
         """This function splits the global MPI communicator into three kinds of

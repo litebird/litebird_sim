@@ -59,7 +59,11 @@ from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
-from .pointings_in_obs import precompute_pointings, prepare_pointings, center_pointings
+from .pointings_in_obs import (
+    precompute_pointings,
+    prepare_pointings,
+    _get_centered_pointings,
+)
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
@@ -1652,7 +1656,9 @@ class Simulation:
                 memory_occupation=int(memory_occupation),
             )
 
-    def precompute_pointings(self, pointings_dtype=np.float64) -> None:
+    def precompute_pointings(
+        self, pointings_dtype=np.float64, center=False, nside_centering=None
+    ) -> None:
         """Compute all the pointings for all observations and save them
 
         Save the pointing matrix of each :class:`.Observation` object in this simulation
@@ -1664,16 +1670,23 @@ class Simulation:
         execution if you plan to access the pointings repeatedly during a simulation.
         """
         precompute_pointings(
-            observations=self.observations, pointings_dtype=pointings_dtype
+            observations=self.observations,
+            pointings_dtype=pointings_dtype,
+            center=center,
+            nside_centering=nside_centering,
         )
 
-    def center_pointings(self, nside, pointings_dtype=np.float64) -> None:
+    def center_pointings(self, nside) -> None:
         """Force the pointings to the center of pixels for a given nside.
-        Changes the values in the field ``pointing matrix
+        Changes the values in the field ``pointing matrix``
         """
-        center_pointings(
-            observations=self.observations, nside=nside, pointings_dtype=pointings_dtype
-        )
+        for obs_idx, cur_obs in enumerate(self.observations):
+            for det_idx in range(len(cur_obs.pointing_matrix)):
+                self.observations[obs_idx].pointing_matrix[det_idx] = (
+                    _get_centered_pointings(
+                        cur_obs.pointing_matrix[det_idx], nside_centering=nside
+                    )
+                )
 
     @_profile
     def compute_pos_and_vel(
