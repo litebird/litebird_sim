@@ -995,7 +995,6 @@ class Observation:
         pointing_buffer: npt.NDArray | None = None,
         hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
-        center: bool = False,
         nside_centering: int | None = None,
     ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the pointings for one or more detectors in this observation
@@ -1052,11 +1051,6 @@ class Observation:
             "You must initialize pointing_provider; use Simulation.prepare_pointings()"
         )
 
-        if center:
-            assert nside_centering is not None, (
-                "You must set the parameter nside_centering when center=True"
-            )
-
         # Simplest case: we need just one detector
         if isinstance(detector_idx, int):
             assert (detector_idx >= 0) and (detector_idx < self.n_detectors), (
@@ -1087,7 +1081,6 @@ class Observation:
                 pointing_buffer=pointing_buffer,
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
-                center=center,
                 nside_centering=nside_centering,
             )
 
@@ -1137,11 +1130,10 @@ class Observation:
                 abs_det_idx,
                 pointing_buffer=pointing_buffer[rel_det_idx, :, :],
                 hwp_buffer=hwp_buffer,
-                center=center,
                 nside_centering=nside_centering,
             )
 
-        if center:
+        if isinstance(nside_centering, int):
             hpx = Healpix_Base(nside_centering, "RING")
             # Apply centering on the first two columns (θ, φ)
             pointing_buffer[:, :, 0:2] = hpx.pix2ang(

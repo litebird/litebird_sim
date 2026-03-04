@@ -1657,7 +1657,7 @@ class Simulation:
             )
 
     def precompute_pointings(
-        self, pointings_dtype=np.float64, center=False, nside_centering=None
+        self, pointings_dtype=np.float64, nside_centering=None
     ) -> None:
         """Compute all the pointings for all observations and save them
 
@@ -1672,7 +1672,6 @@ class Simulation:
         precompute_pointings(
             observations=self.observations,
             pointings_dtype=pointings_dtype,
-            center=center,
             nside_centering=nside_centering,
         )
 

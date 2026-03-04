@@ -414,7 +414,6 @@ def _configure_simulation_for_pointings(
     tmp_path: Path,
     include_hwp: bool,
     store_full_pointings: bool,
-    center_pointings: bool = False,
     nside_centering: int | None = None,
     num_of_detectors: int = 1,
     dtype=np.float32,
@@ -477,7 +476,6 @@ def _configure_simulation_for_pointings(
     if store_full_pointings:
         sim.precompute_pointings(
             pointings_dtype=dtype,
-            center=center_pointings,
             nside_centering=nside_centering,
         )
 
@@ -901,7 +899,6 @@ def test_center_pointings(tmp_path, dtype):
         tmp_path,
         include_hwp=False,
         store_full_pointings=True,
-        center_pointings=True,
         nside_centering=16,
         dtype=dtype,
     )
@@ -940,7 +937,7 @@ def test_center_pointings(tmp_path, dtype):
 
     for cur_obs in sim_wo_precompute.observations:
         pointing_matrix, _ = cur_obs.get_pointings(
-            center=True, nside_centering=16, pointings_dtype=dtype
+            nside_centering=16, pointings_dtype=dtype
         )
 
         # confirming that the pointings are centered
