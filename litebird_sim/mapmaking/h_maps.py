@@ -29,7 +29,9 @@ from .common import (
 )
 import gc
 import logging
+
 log = logging.getLogger(__name__)
+
 
 @dataclass
 class h_map_Re_and_Im:
@@ -43,9 +45,9 @@ class h_map_Re_and_Im:
 
     @property
     def norm(self):
-        output=np.full(np.shape(self.real),UNSEEN_PIXEL_VALUE)
-        mask=self.real !=UNSEEN_PIXEL_VALUE
-        output[mask]=np.sqrt(self.real[mask]**2 + self.imag[mask]**2)
+        output = np.full(np.shape(self.real), UNSEEN_PIXEL_VALUE)
+        mask = self.real != UNSEEN_PIXEL_VALUE
+        output[mask] = np.sqrt(self.real[mask] ** 2 + self.imag[mask] ** 2)
         return output
 
 
@@ -70,9 +72,9 @@ class HnMapResult:
     sampling_rate: float
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
 
-
     detector_split: str = "full"
     time_split: str = "full"
+
 
 def load_h_map_from_file(
     filepath: str,
@@ -87,7 +89,7 @@ def load_h_map_from_file(
             n, m = map(int, hn_map_key.split(","))
             log.debug(f"Loading h map n,m ={n},{m}")
             group = f[hn_map_key]
-            h_maps[det_info][n,m] = h_map_Re_and_Im(
+            h_maps[det_info][n, m] = h_map_Re_and_Im(
                 real=np.array(group["Re"]),
                 imag=np.array(group["Im"]),
                 det_info=det_info,
@@ -101,12 +103,12 @@ def load_h_map_from_file(
             detector_split=f.attrs["detector_split"],
             time_split=f.attrs["time_split"],
             duration=f.attrs["duration"],
-            sampling_rate=f.attrs["sampling_rate"]
+            sampling_rate=f.attrs["sampling_rate"],
         )
 
 
 @njit
-def _solve_binning(nobs_matrix, atd,n,m):
+def _solve_binning(nobs_matrix, atd, n, m):
     # Solve the map-making equation
     #
     # This method alters the parameter `nobs_matrix`, so that after its completion
@@ -128,7 +130,7 @@ def _solve_binning(nobs_matrix, atd,n,m):
                 atd[ipix] = 0
             else:
                 nobs_matrix[ipix] = UNSEEN_PIXEL_VALUE
-                atd[ ipix] = UNSEEN_PIXEL_VALUE
+                atd[ipix] = UNSEEN_PIXEL_VALUE
 
 
 @njit
@@ -142,7 +144,6 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
     nobs_matrix: npt.ArrayLike,
 ) -> None:
     assert pix.shape == psi.shape
-
 
     for cur_pix_idx, cur_psi, cur_hwp_angle in zip(pix, psi, hwp_angle):
         info_pix = nobs_matrix[cur_pix_idx]
@@ -163,8 +164,8 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
 def _numba_extract_rhs(nobs_matrix: npt.ArrayLike, rhs: npt.ArrayLike) -> None:
     # This is used internally by _extract_map_and_fill_info.
     for idx in range(nobs_matrix.shape[0]):
-            # Extract the vector from the lower left triangle of the 3×3 matrix
-            # nobs_matrix[idx, :, :]
+        # Extract the vector from the lower left triangle of the 3×3 matrix
+        # nobs_matrix[idx, :, :]
         rhs[idx, 0] = nobs_matrix[idx, 1]
         rhs[idx, 1] = nobs_matrix[idx, 2]
 
@@ -181,7 +182,6 @@ def _extract_rhs(n_obs: npt.ArrayLike) -> npt.ArrayLike:
     return rhs
 
 
-
 def _build_nobs_matrix(
     n: int,
     m: int,
@@ -190,23 +190,22 @@ def _build_nobs_matrix(
     polang: npt.ArrayLike,
     hwp_angle: npt.ArrayLike | None,
     time_mask: npt.ArrayLike,
-    
 ) -> npt.ArrayLike:
     """Build the nobs matrix for all detectors and pixels, it has shape (Npix,3) and contains the accumulated spin terms and hit counts of each pixel for the considered detector."""
     n_pix = HealpixMap.nside_to_npix(nside)
-    
+
     nobs_matrix = np.zeros((n_pix, 3))
     if hwp_angle is None:
-        hwp_angle=np.zeros_like(polang)
+        hwp_angle = np.zeros_like(polang)
     _accumulate_spin_terms_and_build_nobs_matrix(
-            n,
-            m,
-            pixidx,
-            polang,
-            hwp_angle,
-            time_mask,
-            nobs_matrix,
-        )
+        n,
+        m,
+        pixidx,
+        polang,
+        hwp_angle,
+        time_mask,
+        nobs_matrix,
+    )
 
     return nobs_matrix
 
@@ -215,7 +214,7 @@ def make_h_maps(
     observations: Observation | list[Observation],
     nside: int,
     pointings: np.ndarray | list[np.ndarray] | None = None,
-    n_m_couples:np.ndarray = np.array(np.meshgrid([0,2,4],[0])).T.reshape(-1,2),
+    n_m_couples: np.ndarray = np.array(np.meshgrid([0, 2, 4], [0])).T.reshape(-1, 2),
     hwp: HWP | None = None,
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     detector_split: str = "full",
@@ -226,7 +225,7 @@ def make_h_maps(
 ) -> HnMapResult:
     """
     This function generates complex harmonic maps h_n_m for the supplied observations.
-    The map h_0_0 contains the hit counts per pixel.
+    The map h_0_0 contains the hit counts per pixel instead of the mask of the hitted pixels expected from the mathematical definition.
 
     Args:
         observations (list of :class:`Observations`):
@@ -248,10 +247,17 @@ def make_h_maps(
             the pointing is passed or already precomputed this parameter is
             ineffective. Default is `np.float64`.
         save_to_file(bool): If true, the h_n_maps are saved in the hd5f file format
-        output_directory(str): path to directory where the h_n_maps are saved
+        output_directory(str): path to directory where the h_n_maps are saved. If the directory does not exist, it is created.
+        Each detector maps are saved in a separate file named "h_maps_det_{detector_name}.h5"
     Returns:
         An instance of the class HnMapResult.
     """
+
+    assert (
+        n_m_couples.shape[1] == 2
+    ), """the n,m couples should be passed in this shape: array([[n1, m1],
+       [n2, m2],
+       [n2, m3]])"""
 
     h_maps = {}
     obs_list, ptg_list = _normalize_observations_and_pointings(
@@ -263,50 +269,47 @@ def make_h_maps(
 
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
-    # Precompute pixel indices and angles for all observations
-    # pixidx_list, psi_list, hwp_angle_list = _compute_pixel_indices_for_all_obs(
-    #     nside=nside,
-    #     obs_list=obs_list,
-    #     ptg_list=ptg_list,
-    #     hwp=hwp,
-    #     output_coordinate_system=output_coordinate_system,
-    #     pointings_dtype=pointings_dtype,
-    # )
-    assert n_m_couples.shape[1]==2,"""the n,m couples should be passed in this shape: array([[n1, m1],
-       [n2, m2],
-       [n2, m3]])"""
     h_maps = {det: {} for det in all_dets_list}
 
-    for (cur_obs, cur_ptg, cur_d_mask, cur_t_mask) in zip(
-        obs_list, ptg_list, detector_mask_list, time_mask_list):
+    for cur_obs, cur_ptg, cur_d_mask, cur_t_mask in zip(
+        obs_list, ptg_list, detector_mask_list, time_mask_list
+    ):
+        assert cur_obs.n_blocks_time == 1, (
+            "The current implementation of make_h_maps only supports one time block per observation, you can set several detector blocks though."
+        )
         for idet in range(cur_obs.n_detectors):
             if not cur_d_mask[idet]:
                 continue
-            log.info(f" Computing pixel indices and angles for detector {all_dets_list[idet]}" )
-            
+            log.info(
+                f" Computing pixel indices and angles for detector {all_dets_list[idet]}"
+            )
+
             hpx = Healpix_Base(nside, "RING")
-            hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+            hwp_angle = _get_hwp_angle(
+                obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype
+            )
             # print(np.shape(hwp_angle))
             # print(f"size of hwp array: {hwp_angle.nbytes}")
-            duration=cur_obs.end_time_global
-            sampling_rate=cur_obs.sampling_rate_hz
-            pixidx, polang= _compute_pixel_indices_single_detector(
-            hpx=hpx,
-            pointings=cur_ptg,
-            pol_angle_detector=cur_obs.pol_angle_rad,
-            num_of_samples=cur_obs.n_samples,
-            detector_index=idet,
-            hwp_angle=hwp_angle,
-            output_coordinate_system=output_coordinate_system,
-            pointings_dtype=pointings_dtype,
-            hmap_generation=True,
-    )       
-            log.info(f"Pixel indices and angles for detector {all_dets_list[idet]} computed, now building nobs matrices" )
+            duration = cur_obs.end_time_global
+            sampling_rate = cur_obs.sampling_rate_hz
+            pixidx, polang = _compute_pixel_indices_single_detector(
+                hpx=hpx,
+                pointings=cur_ptg,
+                pol_angle_detector=cur_obs.pol_angle_rad,
+                num_of_samples=cur_obs.n_samples,
+                detector_index=idet,
+                hwp_angle=hwp_angle,
+                output_coordinate_system=output_coordinate_system,
+                pointings_dtype=pointings_dtype,
+                hmap_generation=True,
+            )
+            log.info(
+                f"Pixel indices and angles for detector {all_dets_list[idet]} computed, now building nobs matrices"
+            )
 
             for i in range(n_m_couples.shape[0]):
-                
-                n=n_m_couples[i,0]
-                m=n_m_couples[i,1]
+                n = n_m_couples[i, 0]
+                m = n_m_couples[i, 1]
 
                 nobs_matrix = _build_nobs_matrix(
                     n,
@@ -318,15 +321,17 @@ def make_h_maps(
                     time_mask=cur_t_mask,
                 )
                 rhs = _extract_rhs(nobs_matrix)
-                _solve_binning(nobs_matrix, rhs,n,m)
+                _solve_binning(nobs_matrix, rhs, n, m)
                 h_maps[all_dets_list[idet]][n, m] = h_map_Re_and_Im(
-                        real=rhs.T[0].copy(),
-                        imag=rhs.T[1].copy(),
-                        det_info=all_dets_list[idet],
-                        n=n,
-                        m=m,
-                    )
-                log.info(f"  h_map n={n} m={m} for detector {all_dets_list[idet]} computed." )
+                    real=rhs.T[0].copy(),
+                    imag=rhs.T[1].copy(),
+                    det_info=all_dets_list[idet],
+                    n=n,
+                    m=m,
+                )
+                log.info(
+                    f"  h_map n={n} m={m} for detector {all_dets_list[idet]} computed."
+                )
                 del rhs
                 del nobs_matrix
                 gc.collect()
@@ -350,7 +355,7 @@ def make_h_maps(
 
 def save_hn_maps(result, output_directory: str) -> None:
     """Save the h_n maps to the specified output directory
-
+        If the directory does not exist, it is created.
     Parameters
     ----------
     output_directory : str
