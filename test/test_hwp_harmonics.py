@@ -1,20 +1,18 @@
+import litebird_sim as lbs
 import numpy as np
 import pytest
-
-import litebird_sim as lbs
-from litebird_sim.hwp_harmonics import compute_orientation_from_detquat
+from litebird_sim.hwp_harmonics.hwp_harmonics import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
 
 @pytest.mark.parametrize(
-    "nside_out",
+    "calculus",
     [
-        (None),
-        (32),
-        (None),
+        lbs.Calc.MUELLER,
+        lbs.Calc.JONES,
     ],
 )
-def test_hwp_sys(nside_out):
+def test_hwp_harmonics(calculus):
     start_time = 0
     time_span_s = 1000
     nside = 64
@@ -108,20 +106,32 @@ def test_hwp_sys(nside_out):
     nonideal_hwp = lbs.NonIdealHWP(
         ang_speed_radpsec=hwp_radpsec,
         harmonic_expansion=True,
-        calculus=lbs.Calc.MUELLER,
+        calculus=calculus,
     )
-    list_of_sims[1].observations[0].mueller_hwp[0] = {
-        "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
-        "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
-        "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64),
-    }
+    if calculus == lbs.Calc.MUELLER:
+        list_of_sims[1].observations[0].mueller_hwp[0] = {
+            "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
+            "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
+            "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64),
+        }
+    else:
+        list_of_sims[1].observations[0].jones_hwp[0] = {
+            "0f": np.array([[1, 0], [0, -1]], dtype=np.float64),
+            "2f": np.array([[1, 0], [0, -1]], dtype=np.float64),
+        }
+
     list_of_sims[1].set_hwp(nonideal_hwp)
+
+    ideal_hwp = lbs.IdealHWP(
+        ang_speed_radpsec=hwp_radpsec,
+    )
+    list_of_sims[0].set_hwp(ideal_hwp)
 
     list_of_sims[0].prepare_pointings()
     list_of_sims[1].prepare_pointings()
 
     # we have two similar observations, now we will compute the TOD
-    # using both scan_map_in_observations and hwp_sys.fill_tod
+    # using both scan_map_in_observations and hwp_harmonics.fill_tod
     # and check that they are the same
 
     scan_map_in_observations(
@@ -151,12 +161,12 @@ def test_hwp_sys(nside_out):
     # https://github.com/litebird/litebird_sim/pull/429
     pointings, _ = list_of_sims[1].observations[0].get_pointings()
     assert pointings.dtype == np.float64
+    pointings, _ = list_of_sims[0].observations[0].get_pointings()
+    assert pointings.dtype == np.float64
 
-    # The decimal=3 in here has a reason, explained in PR 395.
-    # This should be changed in the future
     np.testing.assert_almost_equal(
         list_of_sims[0].observations[0].tod,
         list_of_sims[1].observations[0].tod,
-        decimal=3,
+        decimal=12,
         verbose=True,
     )

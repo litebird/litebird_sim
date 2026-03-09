@@ -1,9 +1,20 @@
 .. _hwp_sys:
 
-HWP systematics
+HWP Systematics
 ===============
 
-This module implements HWP non-idealities using Mueller’s formalism
+The description and simulation of Half-Wave Plate (HWP) systematic effects in a realistic manner including explicitly the influence of the harmonics of the rotation frequency of the HWP.
+However, in simple cases, a description of the HWP systematics that does not take the harmonics explicitly into account can be applied. For this reason, litebird_sim includes two ways of simulating the systematics effects of a HWP.
+
+The simpler case is already described in `here <https://litebird-sim.readthedocs.io/en/master/map_scanning.html#equation-generichwp>`_, where a given hwp mueller matrix is directly used to compute the TOD with the `scan_map() https://litebird-sim.readthedocs.io/en/master/map_scanning.html#litebird_sim.scan_map.scan_map`_ routine.
+
+The explicit harmonics case is explained below. The high-level way of choosing between one or the other description is by setting the attribute harmonic_expansion to True or False when instantiating the HWP object. See more about this in `here https://litebird-sim.readthedocs.io/en/master/hwp.html`_
+
+
+HWP Harmonics Formalism
+----------------
+
+This module implements rotation frequency harmonics explicit HWP non-idealities using Mueller’s formalism (see Jones formalism below)
 (as described in `Patanchon et al. 2023
 <https://arxiv.org/pdf/2308.00967>`_). The Mueller matrix describing the effect of a HWP in the signal received by a detector can be expanded into the harmonics of the HWP rotation frequency f, from which we pick the 0th, 2nd and 4th terms.
 
@@ -58,135 +69,99 @@ The expected sin and negative cosine terms are accounted for by the phases :math
 Changing one of the values in the matrices above represents a non-ideality in the hwp.
 
 
-The class :class:`.hwp_sys.HwpSys` is a container for the parameters
-of the HWP systematics. It defines three methods:
+Jones Formalism
+^^^^^^^^^^^^^^^^^^^^^
 
-* :meth:`.hwp_sys.HwpSys.set_parameters`, which sets the defaults and
-  handles the interface with the parameter file of the simulation.There is also the
-  possibility of passing precomputed input maps (as a NumPy array)
-  through the ``maps`` argument. Otherwise, the code computes input
-  maps through the module input_sky (see :ref:`input_sky`). If ``built_map_on_the_fly = True``, the
-  map-making can be performed internally on-the-fly;  There are two boolean arguments related to the coupling of non-linearity effects with hwp systematic effects: ``if apply_non_linearity`` and ``add_2f_hwpss``. Applying the non-linearities inside the hwp_sys module is useful when one wants to use the mapmaking on the fly. To know more about detector non-linearity and HWPSS, see `this section <https://litebird-sim.readthedocs.io/en/master/non_linearity.html>`_.
 
-*  :meth:`.hwp_sys.HwpSys.fill_tod` which fills the tod in a given Observation. The ``pointings``
-   angles passed have to include no rotating HWP, since the effect of the rotating HWP to the
-   polarization angle is included in the TOD computation.
-   The TOD is computed by the **equation 5.2** in `Patanchon et al. 2023 <https://arxiv.org/pdf/2308.00967>`_.
+In the Jones formalism, a non-ideal static HWP can be described by perturbations :math:`\delta_{ij}` to each ij element of the ideal HWP Jones Matrix, i.e.:
 
-   If ``built_map_on_the_fly = True``, the code computes also
+.. math::
+   J = \begin{pmatrix} 1+\delta_{11} & \delta_{11} \\ \delta_{21}  & -1 + \delta_{22}\end{pmatrix}
 
-   .. math::
 
-      m_{\text{out}} = {\,\left(\sum_{i} B_{i}^{T} B_{i} \right)^{-1} \left( \sum_{i} B_{i}^{T} d_{\text{obs}}(t_{i}) \right)},
+These perturbations can be related to the Mueller matrix elements through the relation:
 
-   where the map-making matrix is given by the user for each detector in the mueller_hwp_solver attribute of the DetectorInfo class.
+.. math::
+   M_{ij} = \frac{1}{2} Tr(\sigma_i J \sigma_j J^{\dagger})
 
-*  :meth:`.hwp_sys.HwpSys.make_map` which can bin the observations in a map. This is available only
-   if ``built_map_on_the_fly`` variable is set to ``True``. With this method, it is possible to
-   include non-ideal HWP knowledge in the map-making procedure.
+that is, for each element of the matrix:
+
+.. math::
+   M_{II} = Re(\delta_{11} - \delta_{22} + 1)
+
+   M_{QI}=Re(\delta_{11} + \delta_{12})
+
+   M_{UI}=Re(\delta_{21} - \delta_{12})
+
+   M_{IQ}=Re(\delta_{11} + \delta_{12})
+
+   M_{IU}=Re(\delta_{12} - \delta_{21})
+
+   M_{QQ}=Re(\delta_{12} - \delta_{22} + 1)
+
+   M_{UU}=Re(\delta_{22} + \delta_{11} - 1)
+
+   M_{UQ}=Re(\delta_{12} + \delta_{21})
+
+   M_{QU}=Re(\delta_{12} + \delta_{21})
+
+
+We expand each of the perturbations $\delta_{pq}$ into harmonics of the rotation frequency as:
+
+.. math::
+    \delta_{pq} = \sum_n \gamma_{pq}^{n_{f}} exp(in\alpha)
+
+
+where :math:`p`, :math:`q` are the matrix indexes, :math:`n_{f} = 0,2,4` are the harmonics and :math:`\alpha` is the HWP angle in focal plane coordinates (assuming for simplicity that the azimuthal angle of the detector is set to 0, and ignoring the dependence on the incidence angle). If our input matrices have the :math:`\gamma` values as complex numbers :math:`A e^{i \phi}`, for each harmonic, we get:
+
+.. math::
+    \delta_{pq}^{n_{f}}( n_{f} \alpha) = \sum_{n_{f}} A_{pq}^{n_{f}} e^{i\phi} e^{in\alpha}
+
+
+Developing this and taking only the real part we get to:
+
+.. math::
+    \delta_{pq}^{n_{f}}(n_{f} \alpha) = \sum_{n_{f}} A_{pq}^{n_{f}} \  cos(n\alpha + n\phi_{ij}^{n_{f}})
+
+In terms of implementation on lbs, this is done in 3 steps:
+
+Then, the obtain matrix is rotated from the hwp frame to the focal plane frame, in order to apply the mueller formalism explained above. In an ideal case, the jones perturbation matrices will be composed of only zero values and the transformation will yield the ideal hwp mueller matrix.
+
+
+
+Band Integration
+^^^^^^^^^^^^^^^^^^^^^
+
+Currently, the integration in band is available only for the Jones formalism. It works by the trapezoidal rule:
+
+.. math::
+    \sum_i \sum_f \big[d_f(i) + d_{f+1}(i)\big] \frac{\nu_{f+1} - \nu_{f}}{2}
+
+where :math:`d_{f}(i)` is the tod computed for a sample i, and at frequency at index f, and :math:`\nu_{f}` if the frequency in Hz at index f.
+
+The steps to perform band integration are:
+    1 - give the path to a csv/txt file containing the jones parameters for **all frequencies of the instrument** to the attribute **jones_per_freq_csv_path** when instantiating **NonIdealHWP** object.
+
+    2 - set integrate_in_band to True when calling **scan_map()** (or **hwp_harmonics.fill_tod()** if working at a lower-level).
+
+The csv/txt file should have the following columns:
+
+..  csv-table::
+    :header: "freq", "Jxx_0f", "Phxx_0f","Jxy_0f", "Phxy_0f","Jyx_0f", "Phyx_0f","Jyy_0f", "Phyy_0f","Jxx_2f", "Phxx_2f","Jxy_2f", "Phxy_2f","Jyx_2f", "Phyx_2f","Jyy_2f", "Phyy_2f",
+
+    70, 0.93, 40, 0.001, 100, 0.003, 32, 0.95, 170, 0.012, 85, 0.0008, 95, 0.0025, 28, 0.011, 92
+    71, 0.92, 42, 0.0012, 102, 0.0032, 34, 0.94, 168, 0.013, 87, 0.0009, 97, 0.0027, 30, 0.012, 94
+    72, 0.94, 38, 0.0009, 98, 0.0028, 30, 0.96, 172, 0.011, 83, 0.0007, 93, 0.0023, 26, 0.010, 90
 
 
 Examples
 -------------
 
-The examples below skip the simulation and observation creation for brevity. If needed, the implementation for those parts are explained in other sections of the docs.
+Examples can be seen in the notebooks:
+    1 - `Performing a simulation with explicit HWP harmonics expansion <https://github.com/litebird/litebird_sim/blob/master/notebooks/litebird_sim_hwp_harmonics_example.ipynb>`_
+    2 - `Performing band integration with a Jones Matrix <https://github.com/litebird/litebird_sim/blob/master/notebooks/litebird_sim_hwp_band_integration.ipynb>`_
 
-.. code-block:: python
 
-   (... importing modules, creating simulation, seetting scanning strategy, instrument etc...)
-
-   sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
-
-   # creating the detectors (DetectorInfo objects - only one in this example)
-   det = lbs.DetectorInfo.from_imo(...)
-
-   # defining the mueller matrices for the HWP for this detector.
-   # In this example, we set non-idealities in the IP leakage terms.
-   det.mueller_hwp = {
-            "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]]),
-            "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
-            "4f": np.array([[4*1e-4, 0, 0], [3*1e-4, 1, 1], [0, 1, 1]]),
-        }
-
-   # defining the mueller matrices for the mapmaking (pointing matrix) for this detector
-   # In this example, we consider an ideal pointing matrix. This could be left empty as it is the default case.
-   det.mueller_hwp_solver = {
-            "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]]),
-            "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
-            "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]]),
-        }
-
-   (obs,) = sim.create_observations(
-      detectors=dets,
-   )
-
-   sim.prepare_pointings()
-
-   # creating the HwpSys object 
-   hwp_sys = lbs.HwpSys(sim)
-
-   # setting HwpSys parameters
-   hwp_sys.set_parameters(
-        nside=nside,
-        maps=input_maps,
-        Channel=channelinfo,
-        mbs_params=mbs_params,
-        build_map_on_the_fly=True, #if one wants to perform the mapmaking on-the-fly
-        comm=sim.mpi_comm,
-    )
-
-    hwp_sys.fill_tod(
-        observations=[obs],
-        input_map_in_galactic=False,
-    )
-
-    output_maps = hwp_sys.make_map([obs])
-
-To couple detector non-linearity with HWP systematics, three attributes must be defined when creating the DetectorInfo objects, and the respective booleans set to True in set_parameters, as in the example below:
-
-.. code-block:: python
-
-   (... importing modules, creating simulation, setting scanning strategy, instrument etc...)
-
-   sim.set_hwp(lbs.IdealHWP(hwp_radpsec))
-
-   det = lbs.DetectorInfo.from_imo(...)
-
-   det.mueller_hwp = {...}
-   det.mueller_hwp_solver = {...}
-
-   det.g_one_over_k = -0.144
-   det.amplitude_2f_k = 2.0
-   det.optical_power_k = 1.5
-
-   (obs,) = sim.create_observations(
-      detectors=dets,
-   )
-
-   sim.prepare_pointings()
-
-   # creating the HwpSys object 
-   hwp_sys = lbs.HwpSys(sim)
-
-   # setting HwpSys parameters
-   hwp_sys.set_parameters(
-        nside=nside,
-        maps=input_maps,
-        Channel=channelinfo,
-        mbs_params=mbs_params,
-        build_map_on_the_fly=True, #if one wants to perform the mapmaking on-the-fly
-        apply_non_linearity=True,
-        add_orbital_dipole=True,
-        add_2f_hwpss=True,
-        comm=sim.mpi_comm,
-    )
-
-    hwp_sys.fill_tod(
-        observations=[obs],
-        input_map_in_galactic=False,
-    )
-
-    output_maps = hwp_sys.make_map([obs])
 
 HWP emissivity
 ==============
@@ -195,7 +170,7 @@ The module :mod:`.hwp_diff_emiss` implements the additive contamination coming f
 
 At finite temperature :math:`T_\textsc{hwp}`, HWPs emit blackbody radiation (in
 :math:`\mathrm{W}\,\mathrm{str}^{-1}\,\mathrm{m}^{-2}\,\mathrm{Hz}^{-1}`
-units) weighted by their frequency-dependent emissivity, :math:`\varepsilon(\nu)`  
+units) weighted by their frequency-dependent emissivity, :math:`\varepsilon(\nu)`
 
 .. math:: \varepsilon(\nu) I_\textsc{hwp}(\nu, T_\textsc{hwp}) = \varepsilon(\nu) \frac{2h\nu^3}{c^2} \frac{1}{e^{\frac{h\nu}{kT_\textsc{hwp}}}-1}\,,
 
@@ -252,9 +227,9 @@ More explicitly:
        &= \varepsilon_i\,I_{\textsc{hwp},i}(T_\textsc{hwp}) + \Delta\varepsilon_i\, I_{\textsc{hwp},i}(T_\textsc{hwp}) \cos[2(\xi-\rho)]\,.
    \end{aligned}
 
-The first term represents the unpolarized thermal emission, while the 
+The first term represents the unpolarized thermal emission, while the
 second term is the polarized emission, modulated at twice the relative
-angle between the HWP and detector. 
+angle between the HWP and detector.
 
 To simulate the 2f signal from a rotating, emitting HWP, one can use the method of
 :class:`.Simulation` class :meth:`.Simulation.add_2f()`, or any of the
@@ -284,8 +259,8 @@ The examples below skip the simulation and observation creation for brevity. If 
 
    sim.prepare_pointings()
 
-   # Define differential emission amplitude for the detectors, in the same temperature units you used for the TOD. 
-   # If just one value is set, all the detectors will have the same 2f amplitude. 
+   # Define differential emission amplitude for the detectors, in the same temperature units you used for the TOD.
+   # If just one value is set, all the detectors will have the same 2f amplitude.
    sim.observations[0].amplitude_2f_k = np.array([0.1, 0.2])
 
    # Adding 2f signal from HWP differential emission using the `Simulation` class method
@@ -298,10 +273,28 @@ The examples below skip the simulation and observation creation for brevity. If 
 API reference
 -------------
 
-HWP_sys
+HWP_harmonics
 ~~~~~~~
 
-.. automodule:: litebird_sim.hwp_harmonics
+.. automodule:: litebird_sim.hwp_harmonics.hwp_harmonics
+    :members:
+    :show-inheritance:
+    :private-members:
+    :member-order: bysource
+
+.. automodule:: litebird_sim.hwp_harmonics.mueller_methos
+    :members:
+    :show-inheritance:
+    :private-members:
+    :member-order: bysource
+
+.. automodule:: litebird_sim.hwp_harmonics.jones_methods
+    :members:
+    :show-inheritance:
+    :private-members:
+    :member-order: bysource
+
+.. automodule:: litebird_sim.hwp_harmonics.common
     :members:
     :show-inheritance:
     :private-members:

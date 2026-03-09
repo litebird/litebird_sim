@@ -90,7 +90,7 @@ from .hwp import (
     read_hwp_from_hdf5,
     Calc,
 )
-from .hwp_harmonics import (
+from .hwp_harmonics.hwp_harmonics import (
     fill_tod,
 )
 from .imo import (

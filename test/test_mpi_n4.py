@@ -2,7 +2,7 @@ import numpy as np
 
 import litebird_sim as lbs
 from litebird_sim import mpi
-from litebird_sim.hwp_harmonics import mueller_interpolation
+from litebird_sim.hwp_harmonics.hwp_harmonics import mueller_interpolation
 
 
 def test_hwp_sys_mpi():
