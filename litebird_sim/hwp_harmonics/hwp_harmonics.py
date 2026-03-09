@@ -7,6 +7,7 @@ from astropy.cosmology import Planck18 as cosmo
 from ducc0.healpix import Healpix_Base
 from numba import njit
 
+from ..bandpass_template_module import bandpass_profile
 from ..coordinates import CoordinateSystem
 from ..hwp import Calc, NonIdealHWP
 from ..input_sky import SkyGenerationParams
@@ -96,7 +97,12 @@ def mueller_interpolation(Theta, harmonic, i, j):
 
 
 def set_band_params_for_one_detector(
-    hwp: NonIdealHWP, band_filepath: str, bandcenter: float, bandwidth: float
+    hwp: NonIdealHWP,
+    band_filepath: str,
+    bandcenter: float,
+    bandwidth: float,
+    bandpass: dict[str, object] | None,
+    include_beam_throughput: bool,
 ):
     if hwp.calculus is Calc.JONES:
         variables = [
@@ -146,24 +152,22 @@ def set_band_params_for_one_detector(
             "band integration is only implemented for the Jones formalism."
         )
 
-    # if not cur_det.bandpass:
-    # cmb2bb = _dBodTth(det_params["freq"])
+    # bpi : bandpass profile * intensity conversion
+    # if no bandpass, only apply the frequency dependent
+    # T to I conversion
+    if not bandpass:
+        bpi = _dBodTth(det_params["freq"])
 
-    # TODO: insert bandpass in detectorinfo so that we can apply the case where
-    # each detector has a bandpass
-    # elif bandpass:
-    #    cur_det_params['freq'], bandpass_profile = bandpass_profile(
-    #        cur_det_params['freq'], bandpass, include_beam_throughput
-    #    )
-    #
-    #    cmb2bb = _dBodTth(cur_det_params['freq']) * bandpass_profile
+    else:
+        det_params["freq"], bandpass_prof = bandpass_profile(
+            det_params["freq"], bandpass, include_beam_throughput
+        )
+        bpi = _dBodTth(det_params["freq"]) * bandpass_prof
 
     # Normalize the band
-    # cmb2bb /= np.trapz(cmb2bb, det_params["freq"])
-    #
-    bandpass = np.ones(len(det_params["freq"]))
+    bpi /= np.trapz(bpi, det_params["freq"])
 
-    return [det_params, bandpass]
+    return [det_params, bpi]
 
 
 def fill_tod(
@@ -186,6 +190,7 @@ def fill_tod(
     mueller_phases: dict[str, np.ndarray] | None = None,
     integrate_in_band: bool = False,
     nthreads: int | None = None,
+    include_beam_throughput: bool = False,
 ):
     r"""Fill a TOD for one observation, using HWP rotation speed
     harmonics calculus.
@@ -248,6 +253,9 @@ def fill_tod(
             Whether to integrate the signal over the detector's frequency band.
             Only implemented for the Jones formalism.
 
+        include_beam_throughput: bool, default=False
+            Whether to include beam throughput in the bandpass in the bandpass profile.
+
     Raises:
         NotImplementedError : If `integrate_in_band` is True and the HWP calculus
             is set to Mueller.
@@ -262,6 +270,7 @@ def fill_tod(
     pointing_theta_phi_psi_deg = getattr(observation, "pointing_theta_phi_psi_deg")
     bandcenter_ghz = getattr(observation, "bandcenter_ghz")
     bandwidth_ghz = getattr(observation, "bandwidth_ghz")
+    bandpass = getattr(observation, "bandpass")
 
     if type(pointings) is np.ndarray:
         assert observation.tod.shape == pointings.shape[0:2]
@@ -380,11 +389,13 @@ def fill_tod(
                     "Band integration is only implemented for Jones Formalism"
                 )
 
-            cur_det_params, cur_det_cmb2bb = set_band_params_for_one_detector(
+            cur_det_params, cur_det_bpi = set_band_params_for_one_detector(
                 hwp,
                 band_filepath,
                 bandcenter_ghz[idet],
                 bandwidth_ghz[idet],
+                bandpass[idet],
+                include_beam_throughput,
             )
 
             deltas_j0f = np.zeros(
@@ -440,10 +451,10 @@ def fill_tod(
                     dtype=np.complex128,
                 )
 
-            jones_methods.integrate_inband_signal_for_one_detector(
+            return jones_methods.integrate_inband_signal_for_one_detector(
                 tod_det=tod,
                 freqs=cur_det_params["freq"],
-                band=cur_det_cmb2bb,
+                band=cur_det_bpi,
                 deltas_j0f=deltas_j0f,
                 deltas_j2f=deltas_j2f,
                 mapT=input_T,
