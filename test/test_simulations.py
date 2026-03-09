@@ -21,7 +21,7 @@ class MockPlot:
 
 
 def test_healpix_map_write(tmp_path):
-    sim = lbs.Simulation(base_path="./simulation_dir", random_seed=12345)
+    sim = lbs.Simulation(base_path=tmp_path / "simulation_dir", random_seed=12345)
     output_file = sim.write_healpix_map(filename="test.fits.gz", pixels=np.zeros(12))
 
     assert isinstance(output_file, pathlib.Path)
@@ -40,7 +40,7 @@ def test_healpix_map_write(tmp_path):
 
 def test_markdown_report(tmp_path):
     sim = lbs.Simulation(
-        base_path="./simulation_dir",
+        base_path=tmp_path / "simulation_dir",
         name="My simulation",
         description="Lorem ipsum",
         start_time=1.0,
@@ -98,7 +98,7 @@ def test_imo_in_report(tmp_path):
     imo = lbs.Imo(flatfile_location=curpath / "test_imo")
 
     sim = lbs.Simulation(
-        base_path="./simulation_dir",
+        base_path=tmp_path / "simulation_dir",
         name="My simulation",
         description="Lorem ipsum",
         imo=imo,
@@ -428,7 +428,7 @@ def _configure_simulation_for_pointings(
     )
 
     sim = lbs.Simulation(
-        base_path="./simulation_dir",
+        base_path=tmp_path / "simulation_dir",
         start_time=0.0,
         duration_s=61.0,
         random_seed=12345,
