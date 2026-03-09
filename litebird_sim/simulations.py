@@ -33,15 +33,17 @@ from .beam_convolution import (
     add_convolved_sky_to_observations,
 )
 from .beam_synthesis import generate_gauss_beam_alms
+from .constants import NUMBA_NUM_THREADS_ENVVAR
 from .coordinates import CoordinateSystem
-from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo, UUID
+from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
-from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
+from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
 from .healpix import write_healpix_map_to_file
 from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
+from .input_sky import SkyGenerationParams, SkyGenerator
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
     BinnerResult,
@@ -54,28 +56,27 @@ from .mapmaking import (
     make_destriped_map,
     save_destriper_results,
 )
-from .input_sky import SkyGenerator, SkyGenerationParams
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics
+from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
 from .pointings_in_obs import (
     precompute_pointings,
     prepare_pointings,
-    _get_centered_pointings,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .maps_and_harmonics import SphericalHarmonics, HealpixMap
 from .units import Units
 from .version import (
-    __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
-from .constants import NUMBA_NUM_THREADS_ENVVAR
+from .version import (
+    __version__ as litebird_sim_version,
+)
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -1656,9 +1657,7 @@ class Simulation:
                 memory_occupation=int(memory_occupation),
             )
 
-    def precompute_pointings(
-        self, pointings_dtype=np.float64, nside_centering=None
-    ) -> None:
+    def precompute_pointings(self, pointings_dtype=np.float64) -> None:
         """Compute all the pointings for all observations and save them
 
         Save the pointing matrix of each :class:`.Observation` object in this simulation
@@ -1672,20 +1671,7 @@ class Simulation:
         precompute_pointings(
             observations=self.observations,
             pointings_dtype=pointings_dtype,
-            nside_centering=nside_centering,
         )
-
-    def center_pointings(self, nside) -> None:
-        """Force the pointings to the center of pixels for a given nside.
-        Changes the values in the field ``pointing matrix``
-        """
-        for obs_idx, cur_obs in enumerate(self.observations):
-            for det_idx in range(len(cur_obs.pointing_matrix)):
-                self.observations[obs_idx].pointing_matrix[det_idx] = (
-                    _get_centered_pointings(
-                        cur_obs.pointing_matrix[det_idx], nside_centering=nside
-                    )
-                )
 
     @_profile
     def compute_pos_and_vel(

@@ -414,7 +414,6 @@ def _configure_simulation_for_pointings(
     tmp_path: Path,
     include_hwp: bool,
     store_full_pointings: bool,
-    nside_centering: int | None = None,
     num_of_detectors: int = 1,
     dtype=np.float32,
 ) -> lbs.Simulation:
@@ -476,7 +475,6 @@ def _configure_simulation_for_pointings(
     if store_full_pointings:
         sim.precompute_pointings(
             pointings_dtype=dtype,
-            nside_centering=nside_centering,
         )
 
     return sim
@@ -898,44 +896,11 @@ def test_center_pointings(tmp_path, dtype):
     sim = _configure_simulation_for_pointings(
         tmp_path,
         include_hwp=False,
-        store_full_pointings=True,
-        nside_centering=16,
-        dtype=dtype,
-    )
-
-    for cur_obs in sim.observations:
-        assert "pointing_matrix" in dir(cur_obs)
-        assert cur_obs.pointing_matrix.dtype == dtype
-        assert cur_obs.pointing_matrix.shape == (
-            cur_obs.n_detectors,
-            cur_obs.n_samples,
-            3,
-        )
-
-        # confirming that the pointings are centered
-        # by confirming they are exactly the same after
-        # doing ang2pix and pix2ang in sequence
-        hpx = Healpix_Base(16, "RING")
-        aux_pointings = cur_obs.pointing_matrix.copy()
-        aux_pointings[:, :, 0:2] = hpx.pix2ang(
-            hpx.ang2pix(cur_obs.pointing_matrix[:, :, 0:2])
-        )
-
-        np.testing.assert_allclose(
-            cur_obs.pointing_matrix,
-            aux_pointings,
-        )
-
-    ###
-
-    sim_wo_precompute = _configure_simulation_for_pointings(
-        tmp_path,
-        include_hwp=False,
         store_full_pointings=False,
         dtype=dtype,
     )
 
-    for cur_obs in sim_wo_precompute.observations:
+    for cur_obs in sim.observations:
         pointing_matrix, _ = cur_obs.get_pointings(
             nside_centering=16, pointings_dtype=dtype
         )
