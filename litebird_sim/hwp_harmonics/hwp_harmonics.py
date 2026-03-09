@@ -190,6 +190,7 @@ def fill_tod(
     mueller_phases: dict[str, np.ndarray] | None = None,
     integrate_in_band: bool = False,
     nthreads: int | None = None,
+    bandpass: dict | None = None,
     include_beam_throughput: bool = False,
 ):
     r"""Fill a TOD for one observation, using HWP rotation speed
@@ -270,7 +271,6 @@ def fill_tod(
     pointing_theta_phi_psi_deg = getattr(observation, "pointing_theta_phi_psi_deg")
     bandcenter_ghz = getattr(observation, "bandcenter_ghz")
     bandwidth_ghz = getattr(observation, "bandwidth_ghz")
-    bandpass = getattr(observation, "bandpass")
 
     if type(pointings) is np.ndarray:
         assert observation.tod.shape == pointings.shape[0:2]
