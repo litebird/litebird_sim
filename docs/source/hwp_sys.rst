@@ -6,13 +6,13 @@ HWP Systematics
 The description and simulation of Half-Wave Plate (HWP) systematic effects in a realistic manner including explicitly the influence of the harmonics of the rotation frequency of the HWP.
 However, in simple cases, a description of the HWP systematics that does not take the harmonics explicitly into account can be applied. For this reason, litebird_sim includes two ways of simulating the systematics effects of a HWP.
 
-The simpler case is already described in `here <https://litebird-sim.readthedocs.io/en/master/map_scanning.html#equation-generichwp>`_, where a given hwp mueller matrix is directly used to compute the TOD with the `scan_map() https://litebird-sim.readthedocs.io/en/master/map_scanning.html#litebird_sim.scan_map.scan_map`_ routine.
+The simpler case is already described in `here <https://litebird-sim.readthedocs.io/en/master/map_scanning.html#equation-generichwp>`_, where a given hwp mueller matrix is directly used to compute the TOD with the :func:`.scan_map()` routine.
 
-The explicit harmonics case is explained below. The high-level way of choosing between one or the other description is by setting the attribute harmonic_expansion to True or False when instantiating the HWP object. See more about this in `here https://litebird-sim.readthedocs.io/en/master/hwp.html`_
+The explicit harmonics case is explained below. The high-level way of choosing between one or the other description is by setting the attribute harmonic_expansion to True or False when instantiating the HWP object. See more about this in :ref:`hwp`.
 
 
 HWP Harmonics Formalism
-----------------
+-----------------------
 
 This module implements rotation frequency harmonics explicit HWP non-idealities using Mueller’s formalism (see Jones formalism below)
 (as described in `Patanchon et al. 2023
@@ -37,11 +37,9 @@ The :math:`\Theta` dependence is included in the input matrices, which are then 
 .. math::
    :label: cosine_terms
 
-   M^{0f}_{ij} = M_{input_{ij}}^{0f}
-
-   M^{2f}_{ij} = M_{input_{ij}}^{2f} \cos(2\rho - 2\Phi - \phi_{ij}^{2f})
-
-   M^{4f}_{ij} = M_{input_{ij}}^{4f} \cos(4\rho - 4\Phi - \phi_{ij}^{4f})
+   M^{0f}_{ij} &= M_{input_{ij}}^{0f} \\
+   M^{2f}_{ij} &= M_{input_{ij}}^{2f} \cos(2\rho - 2\Phi - \phi_{ij}^{2f}) \\
+   M^{4f}_{ij} &= M_{input_{ij}}^{4f} \cos(4\rho - 4\Phi - \phi_{ij}^{4f})
 
 
 where :math:`\phi_{ij}` are harmonic and element dependent phases obtained trough EM simulations.   Because the Mueller matrix for an ideal HWP (for a detector at azimuthal angle :math:`\Phi = 0`) is given by:
@@ -82,28 +80,20 @@ In the Jones formalism, a non-ideal static HWP can be described by perturbations
 These perturbations can be related to the Mueller matrix elements through the relation:
 
 .. math::
-   M_{ij} = \frac{1}{2} Tr(\sigma_i J \sigma_j J^{\dagger})
+   M_{ij} = \frac{1}{2} \mathrm{Tr}(\sigma_i J \sigma_j J^{\dagger})
 
 that is, for each element of the matrix:
 
 .. math::
-   M_{II} = Re(\delta_{11} - \delta_{22} + 1)
-
-   M_{QI}=Re(\delta_{11} + \delta_{12})
-
-   M_{UI}=Re(\delta_{21} - \delta_{12})
-
-   M_{IQ}=Re(\delta_{11} + \delta_{12})
-
-   M_{IU}=Re(\delta_{12} - \delta_{21})
-
-   M_{QQ}=Re(\delta_{12} - \delta_{22} + 1)
-
-   M_{UU}=Re(\delta_{22} + \delta_{11} - 1)
-
-   M_{UQ}=Re(\delta_{12} + \delta_{21})
-
-   M_{QU}=Re(\delta_{12} + \delta_{21})
+   M_{II} &= Re(\delta_{11} - \delta_{22} + 1) \\
+   M_{QI} &= Re(\delta_{11} + \delta_{12}) \\
+   M_{UI} &= Re(\delta_{21} - \delta_{12}) \\
+   M_{IQ} &= Re(\delta_{11} + \delta_{12}) \\
+   M_{IU} &= Re(\delta_{12} - \delta_{21}) \\
+   M_{QQ} &= Re(\delta_{12} - \delta_{22} + 1) \\
+   M_{UU} &= Re(\delta_{22} + \delta_{11} - 1) \\
+   M_{UQ} &= Re(\delta_{12} + \delta_{21}) \\
+   M_{QU} &= Re(\delta_{12} + \delta_{21})
 
 
 We expand each of the perturbations $\delta_{pq}$ into harmonics of the rotation frequency as:
@@ -121,11 +111,11 @@ where :math:`p`, :math:`q` are the matrix indexes, :math:`n_{f} = 0,2,4` are the
 Developing this and taking only the real part we get to:
 
 .. math::
-    \delta_{pq}^{n_{f}}(n_{f} \alpha) = \sum_{n_{f}} A_{pq}^{n_{f}} \  cos(n\alpha + n\phi_{ij}^{n_{f}})
+    \delta_{pq}^{n_{f}}(n_{f} \alpha) = \sum_{n_{f}} A_{pq}^{n_{f}} \ \cos(n\alpha + n\phi_{ij}^{n_{f}})
 
-In terms of implementation on lbs, this is done in 3 steps:
+In terms of implementation in LBS, this is done in 3 steps:
 
-Then, the obtain matrix is rotated from the hwp frame to the focal plane frame, in order to apply the mueller formalism explained above. In an ideal case, the jones perturbation matrices will be composed of only zero values and the transformation will yield the ideal hwp mueller matrix.
+Then, the obtain matrix is rotated from the hwp frame to the focal plane frame, in order to apply the Mueller formalism explained above. In an ideal case, the jones perturbation matrices will be composed of only zero values and the transformation will yield the ideal hwp mueller matrix.
 
 
 
@@ -273,8 +263,6 @@ The examples below skip the simulation and observation creation for brevity. If 
 API reference
 -------------
 
-HWP_harmonics
-~~~~~~~
 
 .. automodule:: litebird_sim.hwp_harmonics.hwp_harmonics
     :members:
@@ -282,7 +270,7 @@ HWP_harmonics
     :private-members:
     :member-order: bysource
 
-.. automodule:: litebird_sim.hwp_harmonics.mueller_methos
+.. automodule:: litebird_sim.hwp_harmonics.mueller_methods
     :members:
     :show-inheritance:
     :private-members:

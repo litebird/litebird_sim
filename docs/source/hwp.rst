@@ -1,10 +1,14 @@
+.. _hwp:
+
 Half Wave Plate
-=====================
+===============
 
 The rotation of the polarization angle induced by a HWP can be
 included in the returned pointing information by passing an instance
 of IdealHWP, a descendant of the class :class:`.HWP`, to the method
-:meth:`.Simulation.set_hwp`. Here is an example for the simplest case, with an Ideal HWP::
+:meth:`.Simulation.set_hwp`. Here is an example for the simplest case, with an Ideal HWP:
+
+.. testcode::
 
     import litebird_sim as lbs
 
@@ -46,29 +50,42 @@ of IdealHWP, a descendant of the class :class:`.HWP`, to the method
     sim.prepare_pointings()
 
     pointing, hwp_angle = sim.observations[0].get_pointings()
+    print(f"{pointing.shape=}")
+    print(f"{hwp_angle.shape=}")
+
+.. testoutput::
+
+    pointing.shape=(1, 100, 3)
+    hwp_angle.shape=(100,)
+
 
 This example uses the :class:`.IdealHWP`, which represents an ideal
 spinning HWP. The method :func:`.get_pointings` returns both pointing
-and hwp angle on the fly. As shown before a similar syntax allow to
+and hwp angle on the fly; the shape of ``pointing`` reveals that there
+is one detector, 100 samples, and three angles (ϑ, φ, ψ).
+
+As shown before a similar syntax allow to
 precompute the pointing and the hwp angle::
 
     sim.prepare_pointings()
     sim.precompute_pointings()
 
-    sim.observations[0].pointing_matrix.shape
-    sim.observations[0].hwp_angle.shape
+    # Now you can access:
+    # - sim.observations[0].pointing_matrix
+    # - sim.observations[0].hwp_angle
 
 This fills the fields `pointing_matrix` and `hwp_angle` for all the
 observations in the current simulation.
 
 
-Defining a NonIdealHWP
-----------------
-Another descendant of the class :class:`.HWP` is the class NonIdealHWP, which allows to define a more realistic HWP object.
+Defining a non-ideal HWP
+------------------------
+
+Another descendant of the class :class:`.HWP` is the class :class:`.NonIdealHWP`, which allows to define a more realistic HWP object.
 When defining a non ideal HWP, one can choose it to be described by Mueller or Jones formalism and if the desired representation should include the expansion of the matrix in harmonics of the HWP rotation frequency.
 Here is an example::
 
-import litebird_sim as lbs
+    import litebird_sim as lbs
 
     sim = lbs.Simulation(
         start_time=0,
