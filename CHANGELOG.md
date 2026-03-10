@@ -1,5 +1,7 @@
 # HEAD
 
+-   Update dependency on Ducc and Numba [#502](https://github.com/litebird/litebird_sim/pull/502)
+
 -   Add multi-frequency support to HealpixMap and SphericalHarmonics. New option for generation of multi-frequency maps in input_sky [#496](https://github.com/litebird/litebird_sim/pull/496)
 
 -   Fix normalization in the generation of gaussian beam alms [#494](https://github.com/litebird/litebird_sim/pull/494)
