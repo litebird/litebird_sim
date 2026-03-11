@@ -1,19 +1,16 @@
 from collections.abc import Callable
 
+import astropy.time
 import numpy as np
 import numpy.typing as npt
-import astropy.time
-
 from deprecated import deprecated
-
 from ducc0.healpix import Healpix_Base
 
+from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 from .detectors import InstrumentInfo
 from .hwp import HWP
 from .observations import Observation
 from .scanning import RotQuaternion
-
-from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 
 
 def prepare_pointings(
