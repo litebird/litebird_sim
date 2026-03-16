@@ -35,7 +35,19 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class h_map_Re_and_Im:
-    """A single h_n,m map component for one detector and time split"""
+    """Single :math:`h_{n,m}` map component for one detector.
+
+    :ivar real: Real part of :math:`h_{n,m}`.
+    :type real: npt.NDArray
+    :ivar imag: Imaginary part of :math:`h_{n,m}`.
+    :type imag: npt.NDArray
+    :ivar n: Spin index :math:`n`.
+    :type n: int
+    :ivar m: Spin index :math:`m`.
+    :type m: int
+    :ivar det_info: Detector name associated with this map.
+    :type det_info: str
+    """
 
     real: npt.NDArray
     imag: npt.NDArray
@@ -45,6 +57,11 @@ class h_map_Re_and_Im:
 
     @property
     def norm(self):
+        """Return :math:`|h_{n,m}|` per pixel.
+
+        :returns: Pixel-wise magnitude computed from ``real`` and ``imag``.
+        :rtype: npt.NDArray
+        """
         output = np.full(np.shape(self.real), UNSEEN_PIXEL_VALUE)
         mask = self.real != UNSEEN_PIXEL_VALUE
         output[mask] = np.sqrt(self.real[mask] ** 2 + self.imag[mask] ** 2)
@@ -53,23 +70,26 @@ class h_map_Re_and_Im:
 
 @dataclass
 class HnMapResult:
-    """Result of a call to the :func:`make_hn_maps` function
+    """Result of :func:`make_h_maps`.
 
-    This dataclass has the following fields:
-
-    - ``h_maps``: Dictionnary containing the h_n maps for each spin order n,m and each detector.
-
-    - ``coordinate_system``: the coordinate system of the output maps
-      (a :class:`.CoordinateSystem` object)
-
-    - ``detector_split``: detector split of the h map
-
-    - ``time_split``: time split of the h map
+    :ivar h_maps: Mapping ``detector -> {(n, m): h_map_Re_and_Im}`` containing
+        all computed :math:`h_{n,m}` maps.
+    :type h_maps: dict[str, dict[tuple[int, int], h_map_Re_and_Im]]
+    :ivar duration_s: Duration of the simulated observation in seconds.
+    :type duration_s: float
+    :ivar sampling_rate_Hz: Sampling rate in hertz.
+    :type sampling_rate_Hz: float
+    :ivar coordinate_system: Coordinate system of the output maps.
+    :type coordinate_system: CoordinateSystem
+    :ivar detector_split: Detector split used to build the maps.
+    :type detector_split: str
+    :ivar time_split: Time split used to build the maps.
+    :type time_split: str
     """
 
     h_maps: dict[list[str], list[h_map_Re_and_Im]]
-    duration: float
-    sampling_rate: float
+    duration_s: float
+    sampling_rate_Hz: float
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
 
     detector_split: str = "full"
@@ -79,7 +99,13 @@ class HnMapResult:
 def load_h_map_from_file(
     filepath: str,
 ) -> HnMapResult:
-    """Load h_n maps from an HDF5 file"""
+    """Load :math:`h_{n,m}` maps from an HDF5 file.
+
+    :param filepath: Path to an HDF5 file produced by :func:`save_hn_maps`.
+    :type filepath: str
+    :returns: Loaded maps and metadata.
+    :rtype: HnMapResult
+    """
     h_maps = {}
     log.info(f"Loading h maps from file:{filepath}")
     with h5py.File(filepath, "r") as f:
@@ -102,8 +128,8 @@ def load_h_map_from_file(
             coordinate_system=CoordinateSystem[f.attrs["coordinate_system"]],
             detector_split=f.attrs["detector_split"],
             time_split=f.attrs["time_split"],
-            duration=f.attrs["duration"],
-            sampling_rate=f.attrs["sampling_rate"],
+            duration_s=f.attrs["duration_s"],
+            sampling_rate_s=f.attrs["sampling_rate_Hz"],
         )
 
 
@@ -223,34 +249,36 @@ def make_h_maps(
     save_to_file: bool = True,
     output_directory: str = "./h_n_maps",
 ) -> HnMapResult:
-    """
-    This function generates complex harmonic maps h_n_m for the supplied observations.
-    The map h_0_0 contains the hit counts per pixel instead of the mask of the hitted pixels expected from the mathematical definition.
+    """Generate complex harmonic maps :math:`h_{n,m}` from observations.
 
-    Args:
-        observations (list of :class:`Observations`):
-            If the observations are distributed over some communicator(s), they
-            must share the same group processes.
-            If pointings and psi are not included in the observations, they can
-            be provided through an array (or a list of arrays) of dimension
-            (Ndetectors x Nsamples x 3), containing theta, phi and psi
-        nside (int): HEALPix nside of the output map
-        pointings (array or list of arrays): optional, external pointing
-            information, if not included in the observations
-        hwp (HWP, optional): An instance of the :class:`.HWP` class (optional)
-        n_list(list[int]): list of the spin order which are computed
-        output_coordinate_system (:class:`.CoordinateSystem`): the coordinates
-            to use for the output map
-        detector_split (str): select the detector split to use in the map-making
-        time_split (str): select the time split to use in the map-making.
-        pointings_dtype(dtype): data type for pointings generated on the fly. If
-            the pointing is passed or already precomputed this parameter is
-            ineffective. Default is `np.float64`.
-        save_to_file(bool): If true, the h_n_maps are saved in the hd5f file format
-        output_directory(str): path to directory where the h_n_maps are saved. If the directory does not exist, it is created.
-        Each detector maps are saved in a separate file named "h_maps_det_{detector_name}.h5"
-    Returns:
-        An instance of the class HnMapResult.
+    The map for ``(n, m) = (0, 0)`` contains hit counts per pixel.
+
+    :param observations: Observation object or list of observations used to build
+        the maps.
+    :type observations: Observation | list[Observation]
+    :param nside: HEALPix ``nside`` of the output maps.
+    :type nside: int
+    :param pointings: Optional external pointings. Expected shape is
+        ``(n_detectors, n_samples, 3)`` per observation.
+    :type pointings: np.ndarray | list[np.ndarray] | None
+    :param n_m_couples: Array of ``(n, m)`` pairs with shape ``(N, 2)``.
+    :type n_m_couples: np.ndarray
+    :param hwp: Half-wave plate model.
+    :type hwp: HWP | None
+    :param output_coordinate_system: Coordinate system of the output maps.
+    :type output_coordinate_system: CoordinateSystem
+    :param detector_split: Detector split to apply.
+    :type detector_split: str
+    :param time_split: Time split to apply.
+    :type time_split: str
+    :param pointings_dtype: Data type used when pointings are computed on the fly.
+    :type pointings_dtype: type
+    :param save_to_file: If ``True``, save maps to HDF5 files.
+    :type save_to_file: bool
+    :param output_directory: Output directory for generated HDF5 files.
+    :type output_directory: str
+    :returns: Result container with all computed maps and metadata.
+    :rtype: HnMapResult
     """
 
     assert (
@@ -354,12 +382,17 @@ def make_h_maps(
 
 
 def save_hn_maps(result, output_directory: str) -> None:
-    """Save the h_n maps to the specified output directory
-        If the directory does not exist, it is created.
-    Parameters
-    ----------
-    output_directory : str
-        Path to the output directory where to save the maps
+    """Save :math:`h_n` maps to HDF5 files.
+
+    One file is produced per detector in ``output_directory``. The directory is
+    created if it does not exist.
+
+    :param result: Container with maps and metadata to save.
+    :type result: HnMapResult
+    :param output_directory: Destination directory for output HDF5 files.
+    :type output_directory: str
+    :returns: ``None``
+    :rtype: None
     """
 
     if not os.path.exists(output_directory):
@@ -372,8 +405,8 @@ def save_hn_maps(result, output_directory: str) -> None:
             f.attrs["det"] = str(det)
             f.attrs["detector_split"] = result.detector_split
             f.attrs["time_split"] = result.time_split
-            f.attrs["duration"] = result.duration
-            f.attrs["sampling_rate"] = result.sampling_rate
+            f.attrs["duration_s"] = result.duration
+            f.attrs["sampling_rate_Hz"] = result.sampling_rate
             for hn_map in result.h_maps[det].values():
                 grp = f.create_group(f"{hn_map.n},{hn_map.m}")
                 grp.create_dataset("Re", data=hn_map.real)

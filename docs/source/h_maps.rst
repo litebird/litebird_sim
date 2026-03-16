@@ -12,15 +12,13 @@ Overview
 
 The ``h_maps`` module provides tools to generate **complex harmonic maps**
 :math:`h_{n,m}` from LiteBIRD observations. These maps allow to perform a spin-based mapmaking, they encode the scanning
-strategy information. The spin-based mapmaking can be performed with to the `SMARTIES <https://github.com/simonsobs/smarties/tree/main>` package, it has an interface with LBS :math:`h` maps through the functions :func:`read_lbs_h_maps` and :func:`build_mask_from_lbs_h_maps`.
+strategy information. The spin-based mapmaking can be performed with the `SMARTIES <https://github.com/simonsobs/smarties/tree/main>`_ package, it has an interface with LBS :math:`h` maps through the functions :func:`read_lbs_h_maps` and :func:`build_mask_from_lbs_h_maps`.
 
-This implementation follows the formalism introduced in McCallum et al
-Brown (2021)
-(`arXiv:2109.05038 <https://arxiv.org/abs/2109.05038>`), extended to the HWP case in Takase et al (2024) (`arXiv:2408.03040 <https://arxiv.org/abs/2408.03040>`).
+This implementation follows the formalism introduced in McCallum et al (2021)
+(`arXiv:2109.05038 <https://arxiv.org/abs/2109.05038>`_), extended to the HWP case in Takase et al (2024) (`arXiv:2408.03040 <https://arxiv.org/abs/2408.03040>`_).
 
 Mathematical formalism
 ----------------------
-
 For a scanning strategy with HWP modulation, the harmonic map of spin
 order :math:`n,m` at pixel :math:`p` is defined as:
 
@@ -110,8 +108,8 @@ Output: ``HnMapResult``
   (a :class:`.CoordinateSystem` object).
 - ``detector_split``: the detector split used.
 - ``time_split``: the time split used.
-- ``duration``: the duration of the observation.
-- ``sampling_rate``: the sampling rate of the observation.
+- ``duration_s``: the duration of the observation in seconds.
+- ``sampling_rate_Hz``: the sampling rate of the observation in Hz.
 
 Accessing individual maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -194,11 +192,9 @@ API reference
 -------------
 
 .. autoclass:: litebird_sim.mapmaking.h_maps.h_map_Re_and_Im
-    :members:
     :undoc-members:
 
 .. autoclass:: litebird_sim.mapmaking.h_maps.HnMapResult
-    :members:
     :undoc-members:
 
 .. autofunction:: litebird_sim.mapmaking.h_maps.make_h_maps
