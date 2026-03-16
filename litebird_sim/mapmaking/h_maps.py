@@ -129,7 +129,7 @@ def load_h_map_from_file(
             detector_split=f.attrs["detector_split"],
             time_split=f.attrs["time_split"],
             duration_s=f.attrs["duration_s"],
-            sampling_rate_s=f.attrs["sampling_rate_Hz"],
+            sampling_rate_Hz=f.attrs["sampling_rate_Hz"],
         )
 
 
@@ -370,8 +370,8 @@ def make_h_maps(
     result = HnMapResult(
         h_maps=h_maps,
         coordinate_system=output_coordinate_system,
-        duration=duration,
-        sampling_rate=sampling_rate,
+        duration_s=duration,
+        sampling_rate_Hz=sampling_rate,
         detector_split=detector_split,
         time_split=time_split,
     )
@@ -405,8 +405,8 @@ def save_hn_maps(result, output_directory: str) -> None:
             f.attrs["det"] = str(det)
             f.attrs["detector_split"] = result.detector_split
             f.attrs["time_split"] = result.time_split
-            f.attrs["duration_s"] = result.duration
-            f.attrs["sampling_rate_Hz"] = result.sampling_rate
+            f.attrs["duration_s"] = result.duration_s
+            f.attrs["sampling_rate_Hz"] = result.sampling_rate_Hz
             for hn_map in result.h_maps[det].values():
                 grp = f.create_group(f"{hn_map.n},{hn_map.m}")
                 grp.create_dataset("Re", data=hn_map.real)
