@@ -450,7 +450,7 @@ def fill_tod(
                     dtype=np.complex128,
                 )
 
-            return jones_methods.integrate_inband_signal_for_one_detector(
+            jones_methods.integrate_inband_signal_for_one_detector(
                 tod_det=tod,
                 freqs=cur_det_params["freq"],
                 band=cur_det_bpi,
