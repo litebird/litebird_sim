@@ -192,7 +192,8 @@ API reference
 -------------
 
 .. autoclass:: litebird_sim.mapmaking.h_maps.h_map_Re_and_Im
-    :undoc-members:
+   :members: norm
+   :undoc-members:
 
 .. autoclass:: litebird_sim.mapmaking.h_maps.HnMapResult
     :undoc-members:
