@@ -23,18 +23,21 @@ The framework provides the following solutions:
 1. A *binner*, i.e., a simple map-maker that assumes that only
    uncorrelated noise is present in the timelines.
 
-2. A *destriper*, i.e., a more advanced map-maker that can remove the
+2. A *pair-differencing* map-maker that solves for Q/U only by
+  differencing T/B detector pairs on the same wafer pixel.
+
+3. A *destriper*, i.e., a more advanced map-maker that can remove the
    effect of correlated instrumental noise from the timelines before
    producing a map. We usually refer to correlated noise as 1/f
    noise, and the purpose of the destriper is to estimate its
    contribution and remove it from the timelines; then, a classical
    *binner* is run over the cleaned timelines.
 
-3. You can also use :func:`.save_simulation_for_madam` to save TODs
+4. You can also use :func:`.save_simulation_for_madam` to save TODs
    and pointing information to disk and then manually call the `Madam
    map-maker <https://arxiv.org/abs/astro-ph/0412517>`_.
 
-4. An interface to use the
+5. An interface to use the
    `BrahMap <https://github.com/anand-avinash/BrahMap>` GLS mapmaker.
    (To use this, you must ensure that the package is installed, thus
    see `BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.)
@@ -349,6 +352,53 @@ split is compatible with the observation duration and the detector
 list. Thus, for example, if the observation lasts one year, the split ``year2``
 will raise an ``AssertionError``. Similarly, if some detector in the L00 wafer
 does the observation, ``waferL03`` will also raise an ``AssertionError``.
+
+
+.. _mapmaking-pair-differencing:
+
+Pair Differencing (Q/U only)
+----------------------------
+
+The function :func:`.make_pair_differenced_map` implements QU map-making
+from detector pairs. For each pair of detectors in the same wafer pixel,
+the map-maker differences the timelines (T - B) and solves a 2x2 system
+for Q and U in each sky pixel.
+
+If :math:`\psi_T` and :math:`\psi_B` are the effective polarization angles
+for the two detectors in the pair, the model used in map-making is
+
+.. math::
+
+   d_T - d_B = Q\,[\cos(2\psi_T) - \cos(2\psi_B)] + U\,[\sin(2\psi_T) - \sin(2\psi_B)].
+
+The pair weight is the average of the detector weights:
+
+.. math::
+
+   w_{\mathrm{pair}} = \frac{w_T + w_B}{2}.
+
+This is the low-level usage::
+
+  result = lbs.make_pair_differenced_map(nside=128, observations=observations)
+  healpy.mollview(result.binned_map[0])  # Q
+  healpy.mollview(result.binned_map[1])  # U
+
+The :class:`.PairDifferencingResult` output contains:
+
+- ``binned_map`` with shape ``(2, N_pix)`` (Q/U only),
+- ``invnpp`` with shape ``(N_pix, 2, 2)``.
+
+The corresponding high-level interface is :meth:`Simulation.make_pair_differenced_map`::
+
+  result = sim.make_pair_differenced_map(nside=nside)
+
+Constraints for this map-maker:
+
+- each local observation must provide detector attributes ``pol``, ``wafer``, and ``pixel``;
+- detectors must form valid T/B pairs within each ``(wafer, pixel)`` group;
+- paired detectors must point to the same sky pixel for the selected samples.
+
+Time and detector splits are supported with the same semantics of :func:`.make_binned_map`.
 
 .. _mapmaking-destriper:
 
@@ -742,8 +792,8 @@ For further details refer to
 High level interface and data-splits
 ------------------------------------
 
-The functions :meth:`Simulation.make_binned_map`, :meth:`Simulation.make_destriped_map`,
-and :meth:`Simulation.make_brahmap_gls_map` provide high-level access to the main map-making pipelines
+The functions :meth:`Simulation.make_binned_map`, :meth:`Simulation.make_pair_differenced_map`,
+:meth:`Simulation.make_destriped_map`, and :meth:`Simulation.make_brahmap_gls_map` provide high-level access to the main map-making pipelines
 offered in ``litebird_sim``. These interfaces simplify the process of generating maps from simulated data
 and are well-integrated into the overall simulation flow via the :class:`Simulation` class.
 
