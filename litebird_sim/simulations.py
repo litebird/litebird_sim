@@ -47,11 +47,13 @@ from .mapmaking import (
     BinnerResult,
     DestriperParameters,
     DestriperResult,
+    PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
+    make_pair_differenced_map,
     save_destriper_results,
 )
 from .input_sky import SkyGenerator, SkyGenerationParams
@@ -2177,6 +2179,50 @@ class Simulation:
             raise AssertionError(
                 f"The splits are not compatible with the observations:\n{e}"
             )
+
+    @_profile
+    def make_pair_differenced_map(
+        self,
+        nside: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        components: str | list[str] = "tod",
+        detector_split: str = "full",
+        time_split: str = "full",
+        pointings_dtype=np.float64,
+    ) -> PairDifferencingResult:
+        """QU pair-differencing map-maker.
+
+        Differences the TOD for each T/B detector pair in ``sim.observations``
+        and solves for the Q and U Stokes parameters only.
+
+        The local detectors in every observation must be arranged in T/B pairs
+        sharing the same wafer and focal-plane pixel (``pol``, ``pixel``, and
+        ``wafer`` attributes must be set on each observation).
+
+        The syntax mirrors :meth:`.make_binned_map`; see
+        :func:`litebird_sim.make_pair_differenced_map` for the full argument
+        description.
+        """
+
+        if isinstance(components, str):
+            components = [components]
+        if isinstance(detector_split, list) or isinstance(time_split, list):
+            raise ValueError(
+                "Pass a single string for 'detector_split' and 'time_split'. "
+                "Use multiple calls for multiple splits."
+            )
+        if detector_split != "full" or time_split != "full":
+            self.check_valid_splits(detector_split, time_split)
+
+        return make_pair_differenced_map(
+            nside=nside,
+            observations=self.observations,
+            output_coordinate_system=output_coordinate_system,
+            components=components,
+            detector_split=detector_split,
+            time_split=time_split,
+            pointings_dtype=pointings_dtype,
+        )
 
     @_profile
     def make_binned_map_splits(
