@@ -801,11 +801,14 @@ In addition to single-map outputs, these methods support automatic splitting of 
 time and detector axes, enabling efficient generation of subsets for validation, null tests, and systematics control.
 
 Since the class :class:`Simulation` is interfaced to
-:func:`litebird_sim.make_binned_map` and :func:`litebird_sim.make_destriped_map`,
+:func:`litebird_sim.make_binned_map`, :func:`litebird_sim.make_pair_differenced_map`,
+and :func:`litebird_sim.make_destriped_map`,
 it is able to provide data splits both in time and detector space (see :ref:`mapmaking`
 for more details on the splitting and the available options).
 In addition, the class contains :meth:`Simulation.make_binned_map_splits`,
 which is a wrapper around :func:`litebird_sim.make_binned_map`,
+:meth:`Simulation.make_pair_differenced_map_splits`, which is a wrapper
+around :func:`litebird_sim.make_pair_differenced_map`,
 and :meth:`Simulation.make_destriped_map_splits`, which is a wrapper
 around :func:`litebird_sim.make_destriped_map`.
 These allow performing the mapmaking on multiple choices
@@ -814,9 +817,10 @@ Indeed, the functions will loop over the cartesian
 product of the time and detector splits. The default
 behavior is to perform the mapmaking in each combination
 and save the result to disk, to avoid memory issues.
-In particular, in the case of :meth:`Simulation.make_binned_map_splits`,
-only the binned maps are saved to disk, unless you set
-``include_inv_covariance`` to ``True``. This saves the elements of
+In particular, in the case of :meth:`Simulation.make_binned_map_splits`
+and :meth:`Simulation.make_pair_differenced_map_splits`,
+only the maps (I/Q/U for the binner; Q/U for pair-differencing) are saved to disk,
+unless you set ``include_inv_covariance`` to ``True``. This saves the elements of
 the inverse covariance as extra fields in the output FITS file.
 This default behavior can be changed by setting the ``write_to_disk`` parameter
 to ``False``. Then, the function returns a dictionary

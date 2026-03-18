@@ -327,7 +327,10 @@ def _get_detector_pairs(
     return detector_pairs
 
 
-def _check_tb_detector_pairs(obs_list: list[Observation]) -> None:
+def _check_tb_detector_pairs(
+    obs_list: list[Observation],
+    detector_mask_list: list[npt.NDArray | None] | None = None,
+) -> None:
     """Verify that detectors form valid T/B pairs sharing the same wafer and pixel.
 
     For each observation, every unique (wafer, pixel) combination must contain
@@ -338,8 +341,13 @@ def _check_tb_detector_pairs(obs_list: list[Observation]) -> None:
             ``wafer`` detector attribute, or if any (wafer, pixel) group does
             not contain exactly one T and one B detector.
     """
-    for obs_idx, obs in enumerate(obs_list):
-        _get_detector_pairs(obs, obs_idx=obs_idx)
+    if detector_mask_list is None:
+        detector_mask_list = [None] * len(obs_list)
+
+    assert detector_mask_list is not None
+
+    for obs_idx, (obs, det_mask) in enumerate(zip(obs_list, detector_mask_list)):
+        _get_detector_pairs(obs, detector_mask=det_mask, obs_idx=obs_idx)
 
 
 def make_pair_differenced_map(
@@ -405,9 +413,9 @@ def make_pair_differenced_map(
     )
     assert ptg_list, "No observations provided"
 
-    _check_tb_detector_pairs(obs_list)
-
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
+
+    _check_tb_detector_pairs(obs_list, detector_mask_list)
 
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 

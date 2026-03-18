@@ -2225,6 +2225,80 @@ class Simulation:
         )
 
     @_profile
+    def make_pair_differenced_map_splits(
+        self,
+        nside: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        components: str | list[str] = "tod",
+        detector_splits: str | list[str] = "full",
+        time_splits: str | list[str] = "full",
+        write_to_disk: bool = True,
+        include_inv_covariance: bool = False,
+        pointings_dtype=np.float64,
+    ) -> list[str] | dict[str, PairDifferencingResult]:
+        """Compute pair-differenced maps for multiple split combinations.
+
+        This is a wrapper around :meth:`.make_pair_differenced_map` that loops
+        over the Cartesian product of detector and time splits.
+        """
+
+        if isinstance(components, str):
+            components = [components]
+        if isinstance(detector_splits, str):
+            detector_splits = [detector_splits]
+        if isinstance(time_splits, str):
+            time_splits = [time_splits]
+        if detector_splits != ["full"] or time_splits != ["full"]:
+            self.check_valid_splits(detector_splits, time_splits)
+
+        if write_to_disk:
+            filenames = []
+            for ds in detector_splits:
+                for ts in time_splits:
+                    result = make_pair_differenced_map(
+                        nside=nside,
+                        observations=self.observations,
+                        output_coordinate_system=output_coordinate_system,
+                        components=components,
+                        detector_split=ds,
+                        time_split=ts,
+                        pointings_dtype=pointings_dtype,
+                    )
+
+                    file = f"pair_differenced_map_DET{ds}_TIME{ts}.fits"
+                    names = ["Q", "U"]
+                    mapp = result.binned_map
+
+                    if include_inv_covariance:
+                        inv_cov = result.invnpp.T[np.tril_indices(2)]
+                        names.extend(["QQ", "QU", "UU"])
+                        for idx in range(3):
+                            mapp = np.append(mapp, inv_cov[idx][None, :], axis=0)
+
+                    filenames.append(
+                        self.write_healpix_map(
+                            Path(file), mapp, column_names=names, coord=result.coordinate_system.name
+                        )
+                    )
+
+            return filenames
+
+        pair_maps = {}
+        for ds in detector_splits:
+            for ts in time_splits:
+                pair_maps[f"{ds}_{ts}"] = make_pair_differenced_map(
+                    nside=nside,
+                    observations=self.observations,
+                    output_coordinate_system=output_coordinate_system,
+                    components=components,
+                    detector_split=ds,
+                    time_split=ts,
+                    pointings_dtype=pointings_dtype,
+                )
+
+        return pair_maps
+
+    @_profile
     def make_binned_map_splits(
         self,
         nside: int,

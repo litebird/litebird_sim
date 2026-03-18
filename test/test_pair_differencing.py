@@ -116,3 +116,107 @@ def test_make_pair_differenced_map_rejects_unpaired_detectors():
             pointings=[pointings],
             output_coordinate_system=CoordinateSystem.Ecliptic,
         )
+
+
+def test_make_pair_differenced_map_is_split_aware_for_pairs():
+    detectors = [
+        {
+            "name": "pair_T",
+            "wafer": "L00",
+            "pixel": 12,
+            "pol": "T",
+            "pol_angle_rad": 0.0,
+            "net_ukrts": 2.0,
+        },
+        {
+            "name": "pair_B",
+            "wafer": "L00",
+            "pixel": 12,
+            "pol": "B",
+            "pol_angle_rad": np.pi / 2.0,
+            "net_ukrts": 4.0,
+        },
+        {
+            "name": "extra_T",
+            "wafer": "L01",
+            "pixel": 99,
+            "pol": "T",
+            "pol_angle_rad": 0.0,
+            "net_ukrts": 3.0,
+        },
+    ]
+    obs, pointings, pix_idx = _build_observation(detectors)
+
+    q_true = 1.5
+    u_true = -0.25
+    psi_base = pointings[0, :, 2]
+    psi_t = psi_base + obs.pol_angle_rad[0]
+    psi_b = psi_base + obs.pol_angle_rad[1]
+
+    obs.tod[0] = q_true * np.cos(2 * psi_t) + u_true * np.sin(2 * psi_t)
+    obs.tod[1] = q_true * np.cos(2 * psi_b) + u_true * np.sin(2 * psi_b)
+    obs.tod[2] = 0.0
+
+    # This should succeed because the selected split waferL00 is correctly paired,
+    # even though the full detector list is not.
+    result = make_pair_differenced_map(
+        nside=1,
+        observations=[obs],
+        pointings=[pointings],
+        output_coordinate_system=CoordinateSystem.Ecliptic,
+        detector_split="waferL00",
+    )
+
+    assert np.allclose(result.binned_map[:, pix_idx], np.array([q_true, u_true]))
+
+
+def test_simulation_make_pair_differenced_map_splits(tmp_path):
+    detectors = [
+        {
+            "name": "pair_T",
+            "wafer": "L00",
+            "pixel": 12,
+            "pol": "T",
+            "pol_angle_rad": 0.0,
+            "net_ukrts": 2.0,
+        },
+        {
+            "name": "pair_B",
+            "wafer": "L00",
+            "pixel": 12,
+            "pol": "B",
+            "pol_angle_rad": np.pi / 2.0,
+            "net_ukrts": 4.0,
+        },
+    ]
+    obs, pointings, pix_idx = _build_observation(detectors)
+
+    q_true = 0.75
+    u_true = 0.5
+    psi_base = pointings[0, :, 2]
+    psi_t = psi_base + obs.pol_angle_rad[0]
+    psi_b = psi_base + obs.pol_angle_rad[1]
+    obs.tod[0] = q_true * np.cos(2 * psi_t) + u_true * np.sin(2 * psi_t)
+    obs.tod[1] = q_true * np.cos(2 * psi_b) + u_true * np.sin(2 * psi_b)
+
+    # The Simulation wrapper does not accept external pointings, so we preload them.
+    obs.pointing_matrix = pointings
+
+    sim = lbs.Simulation(
+        base_path=tmp_path / "pairdiff_splits",
+        start_time=0.0,
+        duration_s=1.0,
+        random_seed=1,
+    )
+    sim.observations = [obs]
+
+    results = sim.make_pair_differenced_map_splits(
+        nside=1,
+        output_coordinate_system=CoordinateSystem.Ecliptic,
+        detector_splits=["full"],
+        time_splits=["full"],
+        write_to_disk=False,
+    )
+
+    assert "full_full" in results
+    assert np.allclose(results["full_full"].binned_map[:, pix_idx], np.array([q_true, u_true]))
