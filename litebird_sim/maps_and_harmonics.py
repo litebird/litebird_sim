@@ -2697,26 +2697,30 @@ def estimate_alm(
     lmax: int | None = None,
     mmax: int | None = None,
     nthreads: int = 0,
+    maxiter: int | None = None,
 ) -> SphericalHarmonics:
     r"""
     Estimate spherical harmonic coefficients ($a_{\ell m}$) from a HEALPix map.
 
     This function performs a spherical harmonic analysis to transform the input map
-    space into harmonic space. It uses :func:`ducc0.sht.adjoint_synthesis`
-    to compute the summation over pixels and scales the result by the pixel area
-    to approximate the integration over the sphere.
+    into harmonic space. Two backends are available depending on ``maxiter``:
 
-    Mathematically, it approximates:
+    * **Default (``maxiter=None``)** – uses :func:`ducc0.sht.adjoint_synthesis`
+      to compute the pixel summation and scales the result by the pixel area,
+      approximating the integral over the sphere:
 
-    .. math::
-        a_{\ell m} = \int_{\Omega} f(\hat{n}) Y_{\ell m}^*(\hat{n}) d\Omega
-        \approx \Omega_{pix} \sum_{p} f(p) Y_{\ell m}^*(p)
+      .. math::
+          a_{\ell m} \approx \Omega_{pix} \sum_{p} f(p) Y_{\ell m}^*(p)
 
-    where :func:`ducc0.sht.adjoint_synthesis` computes the summation $\sum f Y^*$,
-    and this function multiplies by $\Omega_{pix}$ (``base.pix_area()``).
+      where :func:`ducc0.sht.adjoint_synthesis` computes $\sum f Y^*$ and
+      the result is multiplied by $\Omega_{pix}$ (``base.pix_area()``).
 
-    This is essentially a ``estimate_alm`` implemented on top of ducc0, with
-    support for both scalar and polarized fields:
+    * **Iterative (``maxiter`` a positive integer)** – uses
+      :func:`ducc0.sht.pseudo_analysis`, an iterative least-squares solver
+      that converges to more accurate coefficients at the cost of additional
+      computation.
+
+    Both backends support scalar and polarized fields:
 
     - ``map.nstokes == 1`` → spin-0 transform, returns a 1-component alm
     - ``map.nstokes == 3`` → spin-0 for T and spin-2 for (Q, U),
@@ -2765,10 +2769,24 @@ def estimate_alm(
 
     Raises
     ------
+    TypeError
+        If ``maxiter`` is not an integer or ``None``.
     ValueError
+        If ``maxiter`` is an integer but not positive (i.e. ≤ 0).
         If the HealpixMap object has unsupported ``nstokes``,
         or if requested ``lmax``/``mmax`` are inconsistent.
     """
+    # --- validate maxiter ---------------------------------------------------
+    if maxiter is not None:
+        if not isinstance(maxiter, int):
+            raise TypeError(
+                f"maxiter must be a positive integer or None, got {type(maxiter).__name__}"
+            )
+        if maxiter <= 0:
+            raise ValueError(
+                f"maxiter must be a positive integer, got {maxiter}"
+            )
+
     # --- checks and effective lmax, mmax -----------------------------------
     if map.nstokes not in (1, 3):
         raise ValueError(
@@ -2818,39 +2836,38 @@ def estimate_alm(
         # Single frequency case
         alm = np.zeros((map.nstokes, nalm), dtype=alm_dtype)
 
-        # --- spin-0 (T or scalar) ----------------------------------------------
-        sht.adjoint_synthesis(
-            alm=alm[0:1],
-            map=map_arr[0:1],
-            **geom,
-            spin=0,
-            lmax=lmax_eff,
-            mmax=mmax_eff,
-            nthreads=nthreads,
-        )
-
-        # --- spin-2 (Q,U) if present -------------------------------------------
-        if map.nstokes == 3:
-            sht.adjoint_synthesis(
-                alm=alm[1:3],
-                map=map_arr[1:3],
+        if maxiter is not None:
+            # --- iterative pseudo-analysis ------------------------------------
+            # --- spin-0 (T or scalar) -----------------------------------------
+            sht.pseudo_analysis(
+                alm=alm[0:1],
+                map=map_arr[0:1],
                 **geom,
-                spin=2,
+                spin=0,
                 lmax=lmax_eff,
                 mmax=mmax_eff,
                 nthreads=nthreads,
+                maxiter=maxiter,
             )
 
-        alm = alm * base.pix_area()
-    else:
-        # Multi-frequency case: loop over frequencies
-        alm = np.zeros((map.nfreqs, map.nstokes, nalm), dtype=alm_dtype)
-
-        for ifreq in range(map.nfreqs):
-            # --- spin-0 (T or scalar) ------------------------------------------
+            # --- spin-2 (Q,U) if present --------------------------------------
+            if map.nstokes == 3:
+                sht.pseudo_analysis(
+                    alm=alm[1:3],
+                    map=map_arr[1:3],
+                    **geom,
+                    spin=2,
+                    lmax=lmax_eff,
+                    mmax=mmax_eff,
+                    nthreads=nthreads,
+                    maxiter=maxiter,
+                )
+        else:
+            # --- adjoint synthesis + pixel-area scaling -----------------------
+            # --- spin-0 (T or scalar) -----------------------------------------
             sht.adjoint_synthesis(
-                alm=alm[ifreq, 0:1],
-                map=map_arr[ifreq, 0:1],
+                alm=alm[0:1],
+                map=map_arr[0:1],
                 **geom,
                 spin=0,
                 lmax=lmax_eff,
@@ -2858,11 +2875,11 @@ def estimate_alm(
                 nthreads=nthreads,
             )
 
-            # --- spin-2 (Q,U) if present ---------------------------------------
+            # --- spin-2 (Q,U) if present --------------------------------------
             if map.nstokes == 3:
                 sht.adjoint_synthesis(
-                    alm=alm[ifreq, 1:3],
-                    map=map_arr[ifreq, 1:3],
+                    alm=alm[1:3],
+                    map=map_arr[1:3],
                     **geom,
                     spin=2,
                     lmax=lmax_eff,
@@ -2870,7 +2887,65 @@ def estimate_alm(
                     nthreads=nthreads,
                 )
 
-        alm = alm * base.pix_area()
+            alm = alm * base.pix_area()
+    else:
+        # Multi-frequency case: loop over frequencies
+        alm = np.zeros((map.nfreqs, map.nstokes, nalm), dtype=alm_dtype)
+
+        for ifreq in range(map.nfreqs):
+            if maxiter is not None:
+                # --- iterative pseudo-analysis --------------------------------
+                # --- spin-0 (T or scalar) -------------------------------------
+                sht.pseudo_analysis(
+                    alm=alm[ifreq, 0:1],
+                    map=map_arr[ifreq, 0:1],
+                    **geom,
+                    spin=0,
+                    lmax=lmax_eff,
+                    mmax=mmax_eff,
+                    nthreads=nthreads,
+                    maxiter=maxiter,
+                )
+
+                # --- spin-2 (Q,U) if present ----------------------------------
+                if map.nstokes == 3:
+                    sht.pseudo_analysis(
+                        alm=alm[ifreq, 1:3],
+                        map=map_arr[ifreq, 1:3],
+                        **geom,
+                        spin=2,
+                        lmax=lmax_eff,
+                        mmax=mmax_eff,
+                        nthreads=nthreads,
+                        maxiter=maxiter,
+                    )
+            else:
+                # --- adjoint synthesis + pixel-area scaling -------------------
+                # --- spin-0 (T or scalar) -------------------------------------
+                sht.adjoint_synthesis(
+                    alm=alm[ifreq, 0:1],
+                    map=map_arr[ifreq, 0:1],
+                    **geom,
+                    spin=0,
+                    lmax=lmax_eff,
+                    mmax=mmax_eff,
+                    nthreads=nthreads,
+                )
+
+                # --- spin-2 (Q,U) if present ----------------------------------
+                if map.nstokes == 3:
+                    sht.adjoint_synthesis(
+                        alm=alm[ifreq, 1:3],
+                        map=map_arr[ifreq, 1:3],
+                        **geom,
+                        spin=2,
+                        lmax=lmax_eff,
+                        mmax=mmax_eff,
+                        nthreads=nthreads,
+                    )
+
+        if maxiter is None:
+            alm = alm * base.pix_area()
 
     # --- wrap into SphericalHarmonics, propagating units and coordinates ---
     return SphericalHarmonics(

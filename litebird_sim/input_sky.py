@@ -138,6 +138,7 @@ class SkyGenerationParams:
         self,
         nside: int = 512,
         lmax: int | None = None,
+        maxiter: int | None = None,
         # Output Control
         output_type: Literal["map", "alm"] = "map",
         units: str | Units = Units.K_CMB,  # Updated to use Enum
@@ -178,6 +179,7 @@ class SkyGenerationParams:
         self.apply_beam = apply_beam
         self.apply_pixel_window = apply_pixel_window
         self.bandpass_integration = bandpass_integration
+        self.maxiter = maxiter
         self.nthreads = nthreads
         self.make_cmb = make_cmb
         self.make_fg = make_fg
@@ -551,6 +553,7 @@ class SkyGenerator:
                 map_fg,
                 lmax=self.params.lmax,
                 nthreads=self.params.nthreads,
+                maxiter=self.params.maxiter,
             )
 
             if self.params.apply_beam and getattr(ch_or_det, "fwhm_arcmin", 0) > 0:
@@ -629,6 +632,7 @@ class SkyGenerator:
                     m_dip,
                     lmax=self.params.lmax,
                     nthreads=self.params.nthreads,
+                    maxiter=self.params.maxiter,
                 )
             else:
                 result[name] = m_dip
@@ -767,6 +771,7 @@ class SkyGenerator:
                 map_fg,
                 lmax=self.params.lmax,
                 nthreads=self.params.nthreads,
+                maxiter=self.params.maxiter,
             )
 
             fwhm = None if self.fwhm_rad is None else float(self.fwhm_rad[i])
@@ -854,6 +859,7 @@ class SkyGenerator:
                     m_dip,
                     lmax=self.params.lmax,
                     nthreads=self.params.nthreads,
+                    maxiter=self.params.maxiter,
                 )
                 out[i] = alm_dip.values
 
