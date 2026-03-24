@@ -33,15 +33,17 @@ from .beam_convolution import (
     add_convolved_sky_to_observations,
 )
 from .beam_synthesis import generate_gauss_beam_alms
+from .constants import NUMBA_NUM_THREADS_ENVVAR
 from .coordinates import CoordinateSystem
-from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo, UUID
+from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
-from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
+from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
 from .healpix import write_healpix_map_to_file
 from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
+from .input_sky import SkyGenerationParams, SkyGenerator
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
     BinnerResult,
@@ -54,8 +56,8 @@ from .mapmaking import (
     make_destriped_map,
     save_destriper_results,
 )
-from .input_sky import SkyGenerator, SkyGenerationParams
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics
+from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
@@ -65,13 +67,13 @@ from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .maps_and_harmonics import SphericalHarmonics, HealpixMap
 from .units import Units
 from .version import (
-    __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
-from .constants import NUMBA_NUM_THREADS_ENVVAR
+from .version import (
+    __version__ as litebird_sim_version,
+)
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -2078,7 +2080,6 @@ class Simulation:
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
-        rng_hierarchy: RNGHierarchy | None = None,
     ):
         """A method to apply non-linearity to the observation.
 
@@ -2087,11 +2088,7 @@ class Simulation:
         applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained from the detector-level layer. As default it uses
         the `dets_random` field of a :class:`.Simulation` object for this.
         """
-        if rng_hierarchy is None:
-            rng_hierarchy = self.rng_hierarchy
-        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
-            self.mpi_comm.rank
-        )
+
         if nl_params is None:
             nl_params = NonLinParams()
 
@@ -2100,7 +2097,6 @@ class Simulation:
             nl_params=nl_params,
             user_seed=user_seed,
             component=component,
-            dets_random=dets_random,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

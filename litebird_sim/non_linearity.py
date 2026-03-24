@@ -1,8 +1,9 @@
-import numpy as np
 from dataclasses import dataclass
 
+import numpy as np
+from numpy.random import PCG64, Generator, SeedSequence
+
 from .observations import Observation
-from .seeding import regenerate_or_check_detector_generators
 
 
 @dataclass
@@ -93,6 +94,8 @@ def apply_quadratic_nonlin_for_one_detector(
         scale=nl_params.sampling_gaussian_scale,
     )
 
+    print("g_one_over_k", g_one_over_k)
+
     for i in range(len(tod_det)):
         tod_det[i] += g_one_over_k * tod_det[i] ** 2
 
@@ -123,7 +126,6 @@ def apply_quadratic_nonlin_to_observations(
     nl_params: NonLinParams | None = None,
     component: str = "tod",
     user_seed: int | None = None,
-    dets_random: list[np.random.Generator] | None = None,
 ):
     """
     Apply a quadratic nonlinearity to some time-ordered data
@@ -155,23 +157,15 @@ def apply_quadratic_nonlin_to_observations(
     component : str, optional
         Name of the TOD attribute to modify. Defaults to `"tod"`.
     user_seed : int, optional
-        Base seed to build the RNG hierarchy and generate detector-level RNGs
-        that overwrite any eventual `dets_random`. Required if `dets_random`
-        is not provided.
-    dets_random : list of np.random.Generator, optional
-        List of per-detector random number generators. If not provided, and
-        `user_seed` is given, generators are created internally. One of
-        `user_seed` or `dets_random` must be provided.
+        Base seed to build the RNG that overwrite the default generators
+        defined from the detector names.
 
     Raises
     ------
     TypeError
         If `observations` is neither an `Observation` nor a list of them.
-    ValueError
-        If neither `user_seed` nor `dets_random` is provided.
-    AssertionError
-        If the number of random generators does not match the number of detectors.
     """
+
     if nl_params is None:
         nl_params = NonLinParams()
 
@@ -183,14 +177,19 @@ def apply_quadratic_nonlin_to_observations(
         raise TypeError(
             "The parameter `observations` must be an `Observation` or a list of `Observation`."
         )
-    dets_random = regenerate_or_check_detector_generators(
-        observations=obs_list,
-        user_seed=user_seed,
-        dets_random=dets_random,
-    )
 
     # iterate through each observation
     for cur_obs in obs_list:
+        det_names = cur_obs.name
+        if user_seed is None:
+            seeds = [sum(ord(c) for c in dn) for dn in det_names]
+            sg = SeedSequence(seeds)
+            dets_random = [Generator(PCG64(s)) for s in sg.spawn(len(det_names))]
+
+        else:
+            sg = SeedSequence(user_seed)
+            dets_random = [Generator(PCG64(s)) for s in sg.spawn(len(det_names))]
+
         tod = getattr(cur_obs, component)
 
         apply_quadratic_nonlin(
