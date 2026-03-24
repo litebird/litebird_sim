@@ -94,8 +94,6 @@ def apply_quadratic_nonlin_for_one_detector(
         scale=nl_params.sampling_gaussian_scale,
     )
 
-    print("g_one_over_k", g_one_over_k)
-
     for i in range(len(tod_det)):
         tod_det[i] += g_one_over_k * tod_det[i] ** 2
 
