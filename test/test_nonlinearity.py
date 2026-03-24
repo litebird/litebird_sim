@@ -1,7 +1,9 @@
 from copy import deepcopy
-import numpy as np
+
 import litebird_sim as lbs
+import numpy as np
 from astropy.time import Time
+from numpy.random import PCG64, Generator, SeedSequence
 
 
 def test_add_quadratic_nonlinearity():
@@ -16,7 +18,6 @@ def test_add_quadratic_nonlinearity():
     ]
 
     nl_params = lbs.NonLinParams(sampling_gaussian_loc=0.0, sampling_gaussian_scale=0.1)
-
     random_seed = 12345
     sim = lbs.Simulation(
         base_path="nonlin_example",
@@ -41,23 +42,18 @@ def test_add_quadratic_nonlinearity():
         component="nl_2_self",
     )
 
-    # Applying non-linearity on the given TOD component of an `Observation` object
-    RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
-    )
-    dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     lbs.apply_quadratic_nonlin_to_observations(
         observations=sim.observations,
         nl_params=nl_params,
         component="nl_2_obs",
-        dets_random=dets_random,
     )
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
-    RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
-    )
-    dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
+    seeds = [sum(ord(c) for c in dn) for dn in sim.observations[0].name]
+    sg = SeedSequence(seeds)
+    dets_random = [
+        Generator(PCG64(s)) for s in sg.spawn(sim.observations[0].n_detectors)
+    ]
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
         lbs.apply_quadratic_nonlin_for_one_detector(
             tod_det=tod,
@@ -75,10 +71,11 @@ def test_add_quadratic_nonlinearity():
     )
 
     # Check if non-linearity is applied correctly
-    RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
-    )
-    dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
+    seeds = [sum(ord(c) for c in dn) for dn in sim.observations[0].name]
+    sg = SeedSequence(seeds)
+    dets_random = [
+        Generator(PCG64(s)) for s in sg.spawn(sim.observations[0].n_detectors)
+    ]
     sim.observations[0].tod_origin = np.ones_like(sim.observations[0].tod)
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
         g_one_over_k = dets_random[idx].normal(

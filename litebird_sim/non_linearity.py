@@ -184,11 +184,11 @@ def apply_quadratic_nonlin_to_observations(
         if user_seed is None:
             seeds = [sum(ord(c) for c in dn) for dn in det_names]
             sg = SeedSequence(seeds)
-            dets_random = [Generator(PCG64(s)) for s in sg.spawn(len(det_names))]
+            dets_random = [Generator(PCG64(s)) for s in sg.spawn(cur_obs.n_detectors)]
 
         else:
             sg = SeedSequence(user_seed)
-            dets_random = [Generator(PCG64(s)) for s in sg.spawn(len(det_names))]
+            dets_random = [Generator(PCG64(s)) for s in sg.spawn(cur_obs.n_detectors)]
 
         tod = getattr(cur_obs, component)
 
