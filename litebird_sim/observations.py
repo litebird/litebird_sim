@@ -10,7 +10,8 @@ import numpy.typing as npt
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_detector_blocks, distribute_evenly
-from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
+from .hwp import HWP, IdealHWP
+from .hwp_non_ideal import HWPFormalism, NonIdealHWP
 from .input_sky import SkyGenerationParams
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
@@ -892,7 +893,7 @@ class Observation:
                     "harmonic_expansion is set to False but more than one more matrix exists in at least one detector."
                 )
 
-            if hwp.calculus is Calc.JONES:
+            if hwp.calculus is HWPFormalism.JONES:
                 assert all(d is not None for d in self.jones_hwp), (
                     "Jones formalism was selected but at least one detector does not have jones_hwp attribute."
                 )
@@ -901,7 +902,7 @@ class Observation:
                         "harmonic_expansion is set to True but at least one detector has less then 2 jones matrices."
                     )
 
-            elif hwp.calculus is Calc.MUELLER:
+            elif hwp.calculus is HWPFormalism.MUELLER:
                 assert all(d is not None for d in self.mueller_hwp), (
                     "Mueller formalism was selected but at least one detector does not have mueller_hwp attribute."
                 )

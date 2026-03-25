@@ -1,8 +1,9 @@
-import tempfile
-from pathlib import Path
+from io import StringIO
+
+import numpy as np
 
 import litebird_sim as lbs
-import numpy as np
+from litebird_sim import HWPJonesParams
 from litebird_sim.input_sky import SkyGenerator
 from litebird_sim.scan_map import scan_map_in_observations
 
@@ -113,7 +114,7 @@ def test_hwp_band_integration():
         lbs.NonIdealHWP(
             hwp_radpsec,
             harmonic_expansion=True,
-            calculus=lbs.Calc.JONES,
+            calculus=lbs.HWPFormalism.JONES,
         )
     )
 
@@ -122,18 +123,12 @@ def test_hwp_band_integration():
     140.0,0.989,-138.0,0.0743,145.0,0.0741,149.0,0.972,77.1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
     142.0,0.965,171.0,0.106,145.0,0.106,103.0,0.973,33.8,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0"""
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".txt", delete=False, encoding="utf-8", newline="\n"
-    ) as tmp:
-        path = Path(tmp.name)
-        tmp.write(text)
-
     list_of_sims[1].set_hwp(
         lbs.NonIdealHWP(
             hwp_radpsec,
             harmonic_expansion=True,
-            calculus=lbs.Calc.JONES,
-            jones_per_freq_csv_path=path,
+            calculus=lbs.HWPFormalism.JONES,
+            jones_parameters=HWPJonesParams.from_stream(StringIO(text)),
         )
     )
 

@@ -115,7 +115,7 @@ Here is an example::
         lbs.NonIdealHWP(
             ang_speed_radpsec=4.084_070_449_666_731,
             harmonic_expansion=True,
-            calculus=lbs.Calc.JONES,
+            calculus=lbs.HWPFormalism.JONES,
         )
     )
 

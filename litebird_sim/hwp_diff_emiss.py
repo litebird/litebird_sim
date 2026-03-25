@@ -19,7 +19,7 @@ def compute_2f_for_one_sample(angle_rad, offset_rad, amplitude_k):
 def add_2f_for_one_detector(
     tod_det, angle_det_rad, offset_angle_rad: float, amplitude_k
 ):
-    for i, cur_angle in enumerate(angle_det_rad):  # type: ignore[not-iterable]
+    for i, cur_angle in enumerate(angle_det_rad):
         tod_det[i] += compute_2f_for_one_sample(
             angle_rad=cur_angle, offset_rad=offset_angle_rad, amplitude_k=amplitude_k
         )

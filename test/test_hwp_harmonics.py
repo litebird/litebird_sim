@@ -1,6 +1,7 @@
-import litebird_sim as lbs
 import numpy as np
 import pytest
+
+import litebird_sim as lbs
 from litebird_sim.hwp_harmonics.hwp_harmonics import compute_orientation_from_detquat
 from litebird_sim.scan_map import scan_map_in_observations
 
@@ -8,8 +9,8 @@ from litebird_sim.scan_map import scan_map_in_observations
 @pytest.mark.parametrize(
     "calculus",
     [
-        lbs.Calc.MUELLER,
-        lbs.Calc.JONES,
+        lbs.HWPFormalism.MUELLER,
+        lbs.HWPFormalism.JONES,
     ],
 )
 def test_hwp_harmonics(calculus):
@@ -108,7 +109,7 @@ def test_hwp_harmonics(calculus):
         harmonic_expansion=True,
         calculus=calculus,
     )
-    if calculus == lbs.Calc.MUELLER:
+    if calculus == lbs.HWPFormalism.MUELLER:
         list_of_sims[1].observations[0].mueller_hwp[0] = {
             "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
             "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),

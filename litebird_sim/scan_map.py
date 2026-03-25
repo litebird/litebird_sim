@@ -8,8 +8,9 @@ from numpy.typing import DTypeLike
 
 from .constants import NUM_THREADS_ENVVAR
 from .coordinates import CoordinateSystem
-from .hwp import HWP, IdealHWP, NonIdealHWP
+from .hwp import HWP, IdealHWP
 from .hwp_harmonics.hwp_harmonics import fill_tod
+from .hwp_non_ideal import NonIdealHWP
 from .input_sky import SkyGenerationParams
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
 from .observations import Observation

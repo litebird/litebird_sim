@@ -37,10 +37,6 @@ from .constants import (
     EARTH_L2_DISTANCE_KM,
     NUM_THREADS_ENVVAR,
 )
-from .units import (
-    Units,
-    UnitUtils,  # Added helper class
-)
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,
@@ -86,12 +82,17 @@ from .healpix import (
 from .hwp import (
     HWP,
     IdealHWP,
-    NonIdealHWP,
     read_hwp_from_hdf5,
-    Calc,
 )
 from .hwp_harmonics.hwp_harmonics import (
     fill_tod,
+)
+from .hwp_jones_parameters import (
+    HWPJonesParams,
+)
+from .hwp_non_ideal import (
+    HWPFormalism,
+    NonIdealHWP,
 )
 from .imo import (
     PTEP_IMO_LOCATION,
@@ -101,12 +102,25 @@ from .imo import (
     Quantity,
     Release,
 )
+from .input_sky import SkyGenerator, SkyGenerationParams
 from .io import (
     write_list_of_observations,
     read_list_of_observations,
 )
 from .madam import save_simulation_for_madam
-from .input_sky import SkyGenerator, SkyGenerationParams
+from .maps_and_harmonics import (
+    SphericalHarmonics,
+    HealpixMap,
+    interpolate_alm,
+    pixelize_alm,
+    estimate_alm,
+    rotate_alm,
+    synthesize_alm,
+    compute_cl,
+    pixel_window,
+    read_cls_from_fits,
+    lin_comb_cls,
+)
 from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
 from .mueller_convolver import MuellerConvolver
 from .noise import (
@@ -194,18 +208,9 @@ from .spacecraft import (
     SpacecraftOrbit,
     SpacecraftPositionAndVelocity,
 )
-from .maps_and_harmonics import (
-    SphericalHarmonics,
-    HealpixMap,
-    interpolate_alm,
-    pixelize_alm,
-    estimate_alm,
-    rotate_alm,
-    synthesize_alm,
-    compute_cl,
-    pixel_window,
-    read_cls_from_fits,
-    lin_comb_cls,
+from .units import (
+    Units,
+    UnitUtils,  # Added helper class
 )
 from .version import __author__, __version__
 
@@ -279,8 +284,9 @@ __all__ = [
     "IdealHWP",
     "NonIdealHWP",
     "read_hwp_from_hdf5",
-    "Calc",
+    "HWPFormalism",
     # hwp_harmonics.py
+    "HWPJonesParams",
     "fill_tod",
     # madam.py
     "save_simulation_for_madam",

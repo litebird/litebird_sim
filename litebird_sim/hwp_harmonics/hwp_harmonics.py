@@ -1,22 +1,27 @@
-# -*- encoding: utf-8 -*-
-from typing import List
-
 import numpy as np
+import numpy.typing as npt
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from ducc0.healpix import Healpix_Base
 from numba import njit
 
+from litebird_sim.hwp_jones_parameters import HWPJonesParams
+from .jones_methods import (
+    compute_signal_for_one_detector as compute_signal_for_one_detector_jones,
+    integrate_inband_signal_for_one_detector as integrate_inband_signal_for_one_detector_jones,
+)
+from .mueller_methods import (
+    compute_signal_for_one_detector as compute_signal_for_one_detector_mueller,
+)
 from ..bandpass_template_module import bandpass_profile
 from ..coordinates import CoordinateSystem
-from ..hwp import Calc, NonIdealHWP
+from ..hwp_non_ideal import HWPFormalism, NonIdealHWP
 from ..input_sky import SkyGenerationParams
 from ..maps_and_harmonics import HealpixMap, SphericalHarmonics
 from ..observations import Observation
 from ..pointings_in_obs import (
     _get_pointings_array,
 )
-from . import jones_methods, mueller_methods
 
 COND_THRESHOLD = 1e10
 
@@ -26,11 +31,11 @@ h = getattr(const, "h").value  # Planck constant in J s
 Tcmb0 = getattr(cosmo, "Tcmb0").value  # CMB temperature today in K
 
 
-def _dBodTrj(nu):
+def _dBodTrj(nu: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     return 2 * k_B * nu * nu * 1e18 / c / c
 
 
-def _dBodTth(nu):
+def _dBodTth(nu: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     x = h * nu * 1e9 / k_B / Tcmb0
     ex = np.exp(x)
     exm1 = ex - 1.0e0
@@ -38,9 +43,9 @@ def _dBodTth(nu):
 
 
 @njit
-def compute_orientation_from_detquat(quat):
+def compute_orientation_from_detquat(quat: npt.NDArray[np.float64]) -> float:
     if quat[2] == 0:
-        polang = 0
+        polang = 0.0
     else:
         polang = 2 * np.arctan2(
             np.sqrt(quat[0] ** 2 + quat[1] ** 2 + quat[2] ** 2), quat[3]
@@ -52,7 +57,7 @@ def compute_orientation_from_detquat(quat):
 
 
 @njit
-def mueller_interpolation(Theta, harmonic, i, j):
+def mueller_interpolation(theta, harmonic, i, j):
     mueller0deg = {
         "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
         "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
@@ -87,7 +92,7 @@ def mueller_interpolation(Theta, harmonic, i, j):
     }
 
     f_factor = (
-        np.sin(np.deg2rad(0.078 * Theta)) ** 2 / np.sin(np.deg2rad(0.078 * 10)) ** 2
+        np.sin(np.deg2rad(0.078 * theta)) ** 2 / np.sin(np.deg2rad(0.078 * 10)) ** 2
     )
 
     return (
@@ -98,76 +103,62 @@ def mueller_interpolation(Theta, harmonic, i, j):
 
 def set_band_params_for_one_detector(
     hwp: NonIdealHWP,
-    band_filepath: str,
-    bandcenter: float,
-    bandwidth: float,
+    band_params: HWPJonesParams,
+    bandcenter_ghz: float,
+    bandwidth_ghz: float,
     bandpass: dict[str, object] | None,
     include_beam_throughput: bool,
-):
-    if hwp.calculus is Calc.JONES:
-        variables = [
-            "freq",
-            "Jxx_0f",
-            "Phxx_0f",
-            "Jxy_0f",
-            "Phxy_0f",
-            "Jyx_0f",
-            "Phyx_0f",
-            "Jyy_0f",
-            "Phyy_0f",
-            "Jxx_2f",
-            "Phxx_2f",
-            "Jxy_2f",
-            "Phxy_2f",
-            "Jyx_2f",
-            "Phyx_2f",
-            "Jyy_2f",
-            "Phyy_2f",
-        ]
+) -> tuple[HWPJonesParams, float]:
+    """
+    Load frequency-dependent parameters and normalized bandpass profiles
+    for a single detector based on HWP Jones coefficients.
 
-        loaded_data = np.loadtxt(
-            band_filepath,
-            delimiter=",",
-            dtype=object,
-            unpack=True,
-            skiprows=1,
-            comments="#",
-        )
+    This function retrieves the necessary HWP coefficients, filters them by
+    the detector's frequency range, and calculates the integrated bandpass
+    profile (bpi) weighted by the derivative of the Planck function.
 
-        # Filter by frequency range [bandcenter - bandwidth/2, bandcenter + bandwidth/2]
-        freq_data = np.array(loaded_data[0], dtype=np.float64)
-        freq_min = bandcenter - bandwidth / 2
-        freq_max = bandcenter + bandwidth / 2
-        mask = (freq_data >= freq_min) & (freq_data <= freq_max)
+    Args:
+        hwp: The HWP object
+        bandcenter_ghz: Central frequency of the detector band.
+        bandwidth_ghz: Width of the detector band.
+        bandpass: Dictionary containing bandpass profile metadata.
+        include_beam_throughput: Whether to include beam effects in the profile.
 
-        # Apply mask to all loaded data
-        loaded_data = tuple(data[mask] for data in loaded_data)
+    Returns:
+        A tuple containing:
+            - An instance of :class:`HWPJonesParams`.
+            - A numpy array representing the normalized bandpass profile (bpi).
 
-        det_params = {}
-        for var, data in zip(variables, loaded_data):
-            det_params[var] = np.array(data, dtype=np.float64)
+    Raises:
+        NotImplementedError: If the HWP calculus is set to Mueller instead of Jones.
+    """
 
-    else:  # TODO mueller_or_jones == "mueller"
+    if hwp.calculus != HWPFormalism.JONES:
         raise NotImplementedError(
-            "band integration is only implemented for the Jones formalism."
+            "Band integration is currently only implemented for the Jones formalism."
         )
+
+    # Create a copy of `band_params` that only refers to the frequencies
+    # of this detector
+    det_params = band_params.clip_frequencies(
+        bandcenter_ghz=bandcenter_ghz, bandwidth_ghz=bandwidth_ghz
+    )
 
     # bpi : bandpass profile * intensity conversion
     # if no bandpass, only apply the frequency dependent
     # T to I conversion
     if not bandpass:
-        bpi = _dBodTth(det_params["freq"])
-
+        bpi = _dBodTth(det_params.freq_ghz)
     else:
-        det_params["freq"], bandpass_prof = bandpass_profile(
-            det_params["freq"], bandpass, include_beam_throughput
+        band_params.freq_ghz, bandpass_prof = bandpass_profile(
+            band_params.freq_ghz, bandpass, include_beam_throughput
         )
-        bpi = _dBodTth(det_params["freq"]) * bandpass_prof
+        bpi = _dBodTth(det_params.freq_ghz) * bandpass_prof
 
     # Normalize the band
-    bpi /= np.trapz(bpi, det_params["freq"])
+    bpi /= np.trapz(bpi, det_params.freq_ghz)
 
-    return [det_params, bpi]
+    return (det_params, bpi)
 
 
 def fill_tod(
@@ -183,7 +174,7 @@ def fill_tod(
     pointings: np.ndarray | None = None,
     hwp_angle: np.ndarray | None = None,
     save_tod: bool = True,
-    input_names: List[str] | None = None,
+    input_names: list[str] | None = None,
     pointings_dtype=np.float64,
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
@@ -275,12 +266,12 @@ def fill_tod(
         assert observation.tod.shape == pointings.shape[0:2]
 
     if integrate_in_band:
-        if hwp.jones_per_freq_csv_path is None:
+        if hwp.jones_parameters is None:
             raise AssertionError(
                 "integrate_in_band set to True but no csv file containing the jones parameters per frequency given to the HWP object"
             )
         else:
-            band_filepath = hwp.jones_per_freq_csv_path
+            band_params = hwp.jones_parameters
 
     if mueller_phases is None:
         # (temporary solution) using phases from Patanchon et al 2021 as the default.
@@ -383,45 +374,45 @@ def fill_tod(
                 input_U = pixmap[start_index : end_index + 1, 2, pixel_ind_det]
 
         if integrate_in_band:
-            if hwp.calculus is Calc.MUELLER:
+            if hwp.calculus is HWPFormalism.MUELLER:
                 raise NotImplementedError(
                     "Band integration is only implemented for Jones Formalism"
                 )
 
             cur_det_params, cur_det_bpi = set_band_params_for_one_detector(
-                hwp,
-                band_filepath,
-                bandcenter_ghz[idet],
-                bandwidth_ghz[idet],
-                None,
-                include_beam_throughput,
+                hwp=hwp,
+                band_params=band_params,
+                bandcenter_ghz=bandcenter_ghz[idet],
+                bandwidth_ghz=bandwidth_ghz[idet],
+                bandpass=None,
+                include_beam_throughput=include_beam_throughput,
             )
 
             deltas_j0f = np.zeros(
-                (len(cur_det_params["freq"]), 2, 2), dtype=np.complex128
+                (len(cur_det_params.freq_ghz), 2, 2), dtype=np.complex128
             )
             deltas_j2f = np.zeros(
-                (len(cur_det_params["freq"]), 2, 2), dtype=np.complex128
+                (len(cur_det_params.freq_ghz), 2, 2), dtype=np.complex128
             )
 
-            for nu in range(len(cur_det_params["freq"])):
+            for nu in range(len(cur_det_params.freq_ghz)):
                 deltas_j0f[nu] = np.array(
                     [
                         [
                             (
-                                cur_det_params["Jxx_0f"][nu]
-                                * np.exp(1j * np.deg2rad(cur_det_params["Phxx_0f"][nu]))
+                                cur_det_params.Jxx_0f[nu]
+                                * np.exp(1j * np.deg2rad(cur_det_params.Phxx_0f[nu]))
                             )
                             - 1,
-                            cur_det_params["Jxy_0f"][nu]
-                            * np.exp(1j * np.deg2rad(cur_det_params["Phxy_0f"][nu])),
+                            cur_det_params.Jxy_0f[nu]
+                            * np.exp(1j * np.deg2rad(cur_det_params.Phxy_0f[nu])),
                         ],
                         [
-                            cur_det_params["Jyx_0f"][nu]
-                            * np.exp(1j * np.deg2rad(cur_det_params["Phyx_0f"][nu])),
+                            cur_det_params.Jyx_0f[nu]
+                            * np.exp(1j * np.deg2rad(cur_det_params.Phyx_0f[nu])),
                             (
-                                cur_det_params["Jyy_0f"][nu]
-                                * np.exp(1j * np.deg2rad(cur_det_params["Phyy_0f"][nu]))
+                                cur_det_params.Jyy_0f[nu]
+                                * np.exp(1j * np.deg2rad(cur_det_params.Phyy_0f[nu]))
                             )
                             + 1,
                         ],
@@ -432,27 +423,27 @@ def fill_tod(
                     [
                         [
                             (
-                                cur_det_params["Jxx_2f"][nu]
-                                * np.exp(1j * np.deg2rad(cur_det_params["Phxx_2f"][nu]))
+                                cur_det_params.Jxx_2f[nu]
+                                * np.exp(1j * np.deg2rad(cur_det_params.Phxx_2f[nu]))
                             ),
-                            cur_det_params["Jxy_2f"][nu]
-                            * np.exp(1j * np.deg2rad(cur_det_params["Phxy_2f"][nu])),
+                            cur_det_params.Jxy_2f[nu]
+                            * np.exp(1j * np.deg2rad(cur_det_params.Phxy_2f[nu])),
                         ],
                         [
-                            cur_det_params["Jyx_2f"][nu]
-                            * np.exp(1j * np.deg2rad(cur_det_params["Phyx_2f"][nu])),
+                            cur_det_params.Jyx_2f[nu]
+                            * np.exp(1j * np.deg2rad(cur_det_params.Phyx_2f[nu])),
                             (
-                                cur_det_params["Jyy_2f"][nu]
-                                * np.exp(1j * np.deg2rad(cur_det_params["Phyy_2f"][nu]))
+                                cur_det_params.Jyy_2f[nu]
+                                * np.exp(1j * np.deg2rad(cur_det_params.Phyy_2f[nu]))
                             ),
                         ],
                     ],
                     dtype=np.complex128,
                 )
 
-            jones_methods.integrate_inband_signal_for_one_detector(
+            integrate_inband_signal_for_one_detector_jones(
                 tod_det=tod,
-                freqs=cur_det_params["freq"],
+                freqs=cur_det_params.freq_ghz,
                 band=cur_det_bpi,
                 deltas_j0f=deltas_j0f,
                 deltas_j2f=deltas_j2f,
@@ -472,8 +463,8 @@ def fill_tod(
             )
 
         else:
-            if hwp.calculus is Calc.MUELLER:
-                mueller_methods.compute_signal_for_one_detector(
+            if hwp.calculus is HWPFormalism.MUELLER:
+                compute_signal_for_one_detector_mueller(
                     tod_det=tod,
                     m0f=observation.mueller_hwp[idet]["0f"],
                     m2f=observation.mueller_hwp[idet]["2f"],
@@ -495,7 +486,7 @@ def fill_tod(
                     phases_4f=mueller_phases["4f"],
                 )
 
-            elif hwp.calculus is Calc.JONES:
+            elif hwp.calculus is HWPFormalism.JONES:
                 jones_0f = observation.jones_hwp[idet]["0f"]
                 jones_2f = observation.jones_hwp[idet]["2f"]
                 deltas_j0f = jones_0f.copy()
@@ -505,7 +496,7 @@ def fill_tod(
                 deltas_j2f[0, 0] = jones_2f[0, 0]
                 deltas_j2f[1, 1] = jones_2f[1, 1]
 
-                jones_methods.compute_signal_for_one_detector(
+                compute_signal_for_one_detector_jones(
                     tod_det=tod,
                     deltas_j0f=deltas_j0f,
                     deltas_j2f=deltas_j2f,
