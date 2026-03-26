@@ -72,6 +72,7 @@ class HWPJonesParams:
         """
 
         data_file = imo.query_data_file(url)
+        assert data_file is not None, f"Reference {url} does not point to a data file"
         with imo.open_data_file(data_file) as inpf:
             return HWPJonesParams.from_stream(inpf)
 

@@ -108,7 +108,7 @@ def set_band_params_for_one_detector(
     bandwidth_ghz: float,
     bandpass: dict[str, object] | None,
     include_beam_throughput: bool,
-) -> tuple[HWPJonesParams, float]:
+) -> tuple[HWPJonesParams, npt.NDArray[np.float64]]:
     """
     Load frequency-dependent parameters and normalized bandpass profiles
     for a single detector based on HWP Jones coefficients.
@@ -261,6 +261,8 @@ def fill_tod(
     pointing_theta_phi_psi_deg = getattr(observation, "pointing_theta_phi_psi_deg")
     bandcenter_ghz = getattr(observation, "bandcenter_ghz")
     bandwidth_ghz = getattr(observation, "bandwidth_ghz")
+
+    assert hasattr(observation, "tod"), "Observation must have 'tod' initialized"
 
     if type(pointings) is np.ndarray:
         assert observation.tod.shape == pointings.shape[0:2]
