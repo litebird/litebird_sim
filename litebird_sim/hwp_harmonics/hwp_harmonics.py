@@ -56,51 +56,6 @@ def compute_orientation_from_detquat(quat: npt.NDArray[np.float64]) -> float:
     return polang
 
 
-@njit
-def mueller_interpolation(theta, harmonic, i, j):
-    mueller0deg = {
-        "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
-        "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
-        "4f": np.array([[0, 0, 0], [0, 1, 1], [0, 1, 1]], dtype=np.float64),
-    }
-
-    mueller10deg = {
-        "0f": np.array(
-            [
-                [0.961, 8.83 * 1e-5, -7.87 * 1e-6],
-                [9.60 * 1e-5, 1.88 * 1e-4, 4.87 * 1e-4],
-                [4.39 * 1e-6, -4.63 * 1e-4, 7.48 * 1e-4],
-            ],
-            dtype=np.float64,
-        ),
-        "2f": np.array(
-            [
-                [4.89 * 1e-6, 5.15 * 1e-4, 5.16 * 1e-4],
-                [5.43 * 1e-4, 3.10 * 1e-3, 3.28 * 1e-3],
-                [5.42 * 1e-4, 2.96 * 1e-3, 3.24 * 1e-3],
-            ],
-            dtype=np.float64,
-        ),
-        "4f": np.array(
-            [
-                [1.09 * 1e-7, 9.26 * 1e-5, 9.25 * 1e-5],
-                [8.86 * 1e-5, 0.959, 0.959],
-                [8.86 * 1e-5, 0.959, 0.959],
-            ],
-            dtype=np.float64,
-        ),
-    }
-
-    f_factor = (
-        np.sin(np.deg2rad(0.078 * theta)) ** 2 / np.sin(np.deg2rad(0.078 * 10)) ** 2
-    )
-
-    return (
-        mueller0deg[harmonic][i, j]
-        + (mueller10deg[harmonic][i, j] - mueller0deg[harmonic][i, j]) * f_factor
-    )
-
-
 def set_band_params_for_one_detector(
     hwp: NonIdealHWP,
     band_params: HWPJonesParams,
