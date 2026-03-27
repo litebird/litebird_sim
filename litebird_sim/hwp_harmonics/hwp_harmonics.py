@@ -161,7 +161,7 @@ def set_band_params_for_one_detector(
     return (det_params, bpi)
 
 
-def fill_tod(
+def fill_tod_with_hwp_harmonics(
     hwp: NonIdealHWP,
     observation: Observation | list[Observation],
     maps: (

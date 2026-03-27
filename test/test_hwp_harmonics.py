@@ -132,7 +132,7 @@ def test_hwp_harmonics(calculus):
     list_of_sims[1].prepare_pointings()
 
     # we have two similar observations, now we will compute the TOD
-    # using both scan_map_in_observations and hwp_harmonics.fill_tod
+    # using both scan_map_in_observations and  fill_tod_with_hwp_harmonics
     # and check that they are the same
 
     scan_map_in_observations(

@@ -85,7 +85,7 @@ from .hwp import (
     read_hwp_from_hdf5,
 )
 from .hwp_harmonics.hwp_harmonics import (
-    fill_tod,
+    fill_tod_with_hwp_harmonics,
 )
 from .hwp_jones_parameters import (
     HWPJonesParams,

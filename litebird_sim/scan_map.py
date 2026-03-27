@@ -9,7 +9,6 @@ from numpy.typing import DTypeLike
 from .constants import NUM_THREADS_ENVVAR
 from .coordinates import CoordinateSystem
 from .hwp import HWP, IdealHWP
-from .hwp_harmonics.hwp_harmonics import fill_tod
 from .hwp_non_ideal import NonIdealHWP
 from .input_sky import SkyGenerationParams
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
@@ -533,7 +532,7 @@ def scan_map_in_observations(
 
         if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
             # Harmonic-expansion case: delegate to fill_tod
-            fill_tod(
+            lbs.fill_tod_with_hwp_harmonics(
                 hwp=cur_hwp,
                 observation=cur_obs,
                 pointings=cur_ptg,
