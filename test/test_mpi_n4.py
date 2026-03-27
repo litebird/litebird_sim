@@ -2,7 +2,6 @@ import numpy as np
 
 import litebird_sim as lbs
 from litebird_sim import mpi
-from litebird_sim.hwp_harmonics.hwp_harmonics import mueller_interpolation
 
 
 def test_hwp_sys_mpi():
@@ -67,16 +66,14 @@ def test_hwp_sys_mpi():
             }
         )
 
-        theta = det.pointing_theta_phi_psi_deg[0]
-
         det.mueller_hwp = {
             "0f": np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
             "2f": np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]], dtype=np.float64),
             "4f": np.array(
                 [
                     [0, 0, 0],
-                    [mueller_interpolation(theta, "4f", 1, 0), 1, 1],
-                    [mueller_interpolation(theta, "4f", 2, 0), 1, 1],
+                    [3e-5, 1, 1],
+                    [3e-5, 1, 1],
                 ],
                 dtype=np.float64,
             ),
