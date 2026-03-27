@@ -1,6 +1,6 @@
 # HEAD
 
--   Add complete HWP Jones formalism, including band integration. [#499](https://github.com/litebird/litebird_sim/pull/499)
+-   Add complete HWP Jones formalism, including band integration [#499](https://github.com/litebird/litebird_sim/pull/499)
 
 -   Update dependency on Ducc and Numba [#502](https://github.com/litebird/litebird_sim/pull/502)
 
