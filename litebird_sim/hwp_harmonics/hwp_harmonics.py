@@ -119,6 +119,7 @@ def set_band_params_for_one_detector(
 def fill_tod_with_hwp_harmonics(
     hwp: NonIdealHWP,
     observation: Observation | list[Observation],
+    tod: np.ndarray,
     maps: (
         HealpixMap
         | dict[str, HealpixMap | SkyGenerationParams]
@@ -142,10 +143,18 @@ def fill_tod_with_hwp_harmonics(
     harmonics calculus.
 
     Args:
+        hwp : HWP, optional
+            Half-wave plate (HWP) model. If None, HWP effects are ignored unless
+            the `Observation` object contains HWP data.
+
         observation (:class:`Observation`) : container for the
             TOD,detectors and pointings. If the TOD is not required,
             you can avoid allocating ``observations.tod`` by setting
             ``allocate_tod=False`` in :class:`.Observation`.
+
+        tod : np.ndarray
+            Time-ordered data (TOD) array of shape (n_detectors, n_samples) that will be
+            filled with the simulated sky signal.
 
         maps : HealpixMap | SphericalHarmonics | dict[str, HealpixMap] |
             dict[str, SphericalHarmonics]
@@ -220,32 +229,16 @@ def fill_tod_with_hwp_harmonics(
     assert hasattr(observation, "tod"), "Observation must have 'tod' initialized"
 
     if type(pointings) is np.ndarray:
-        assert observation.tod.shape == pointings.shape[0:2]
+        assert tod.shape == pointings.shape[0:2]
 
     if integrate_in_band:
         if hwp.jones_parameters is None:
             raise AssertionError(
-                "integrate_in_band set to True but no csv file containing the jones parameters per frequency given to the HWP object"
+                "integrate_in_band set to True but no csv file containing the jones parameters \
+                per frequency given to the HWP object."
             )
         else:
             band_params = hwp.jones_parameters
-
-    if mueller_phases is None:
-        # (temporary solution) using phases from Patanchon et al 2021 as the default.
-        mueller_phases = {
-            "2f": np.array(
-                [[-2.32, -0.49, -2.06], [2.86, -0.25, -2.00], [1.29, -2.01, 2.54]],
-                dtype=np.float64,
-            ),
-            "4f": np.array(
-                [
-                    [-0.84, -0.04, -1.61],
-                    [0.14, -0.00061, -0.00056 - np.pi / 2],
-                    [-1.43, -0.00070 - np.pi / 2, np.pi - 0.00065],
-                ],
-                dtype=np.float64,
-            ),
-        }
 
     for idet in range(observation.n_detectors):
         if pointings is None or hwp_angle is None:
@@ -266,7 +259,7 @@ def fill_tod_with_hwp_harmonics(
             pointings_dtype=pointings_dtype,
         )
 
-        tod = observation.tod[idet, :]
+        tod_det = tod[idet, :]
 
         xi = pol_angle_rad[idet]
         psi = curr_pointings_det[:, 2]
@@ -399,7 +392,7 @@ def fill_tod_with_hwp_harmonics(
                 )
 
             integrate_inband_signal_for_one_detector_jones(
-                tod_det=tod,
+                tod_det=tod_det,
                 freqs=cur_det_params.freq_ghz,
                 band=cur_det_bpi,
                 deltas_j0f=deltas_j0f,
@@ -421,8 +414,12 @@ def fill_tod_with_hwp_harmonics(
 
         else:
             if hwp.calculus is HWPFormalism.MUELLER:
+                if mueller_phases is None:
+                    raise AssertionError(
+                        "HWP Formalism set to Mueller but no mueller_phases given."
+                    )
                 compute_signal_for_one_detector_mueller(
-                    tod_det=tod,
+                    tod_det=tod_det,
                     m0f=observation.mueller_hwp[idet]["0f"],
                     m2f=observation.mueller_hwp[idet]["2f"],
                     m4f=observation.mueller_hwp[idet]["4f"],
@@ -454,7 +451,7 @@ def fill_tod_with_hwp_harmonics(
                 deltas_j2f[1, 1] = jones_2f[1, 1]
 
                 compute_signal_for_one_detector_jones(
-                    tod_det=tod,
+                    tod_det=tod_det,
                     deltas_j0f=deltas_j0f,
                     deltas_j2f=deltas_j2f,
                     rho=np.array(hwp_angle, dtype=np.float64),
@@ -472,9 +469,7 @@ def fill_tod_with_hwp_harmonics(
                     amplitude_2f_k=amplitude_2f_k[idet],
                 )
 
-        observation.tod[idet] = tod
-
     del pixel_ind_det
     del input_T, input_Q, input_U
     if not save_tod:
-        del observation.tod
+        del tod

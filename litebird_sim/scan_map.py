@@ -12,6 +12,7 @@ from .hwp import HWP, IdealHWP
 from .hwp_non_ideal import NonIdealHWP
 from .input_sky import SkyGenerationParams
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
+from .hwp_harmonics.hwp_harmonics import fill_tod_with_hwp_harmonics
 from .observations import Observation
 from .pointings_in_obs import (
     _get_hwp_angle,
@@ -532,9 +533,10 @@ def scan_map_in_observations(
 
         if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
             # Harmonic-expansion case: delegate to fill_tod
-            lbs.fill_tod_with_hwp_harmonics(
+            fill_tod_with_hwp_harmonics(
                 hwp=cur_hwp,
                 observation=cur_obs,
+                tod=cur_obs.tod,
                 pointings=cur_ptg,
                 maps=maps,
                 hwp_angle=hwp_angle,

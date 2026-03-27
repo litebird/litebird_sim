@@ -287,7 +287,7 @@ __all__ = [
     "HWPFormalism",
     # hwp_harmonics.py
     "HWPJonesParams",
-    "fill_tod",
+    "fill_tod_with_hwp_harmonics",
     # madam.py
     "save_simulation_for_madam",
     # input_sky.py
