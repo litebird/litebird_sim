@@ -303,6 +303,8 @@ def test_dipole_consistency_channel_vs_frequency(output_type):
         input_maps_freq.values[0],
         decimal=5,
     )
+
+
 @pytest.mark.parametrize("output_type", ["map", "alm"])
 def test_cmb_consistency_channel_vs_frequency(output_type):
     """
