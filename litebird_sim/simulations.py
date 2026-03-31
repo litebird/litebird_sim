@@ -2189,6 +2189,7 @@ class Simulation:
         detector_split: str = "full",
         time_split: str = "full",
         pointings_dtype=np.float64,
+        append_to_report: bool = True,
     ) -> PairDifferencingResult:
         """QU pair-differencing map-maker.
 
@@ -2214,6 +2215,16 @@ class Simulation:
         if detector_split != "full" or time_split != "full":
             self.check_valid_splits(detector_split, time_split)
 
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_pair_differenced_map.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                nside=nside,
+                coord=str(output_coordinate_system),
+            )
+
         return make_pair_differenced_map(
             nside=nside,
             observations=self.observations,
@@ -2235,6 +2246,7 @@ class Simulation:
         write_to_disk: bool = True,
         include_inv_covariance: bool = False,
         pointings_dtype=np.float64,
+        append_to_report: bool = True,
     ) -> list[str] | dict[str, PairDifferencingResult]:
         """Compute pair-differenced maps for multiple split combinations.
 
@@ -2251,6 +2263,17 @@ class Simulation:
         if detector_splits != ["full"] or time_splits != ["full"]:
             self.check_valid_splits(detector_splits, time_splits)
 
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_pair_differenced_map_splits.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                time_split=time_splits,
+                detector_split=detector_splits,
+                nside=nside,
+                coord=str(output_coordinate_system),
+            )
         if write_to_disk:
             filenames = []
             for ds in detector_splits:
