@@ -141,10 +141,14 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
                 info_pix[1, 0] += pair_cos * pair_sin * inv_sigma2
                 info_pix[1, 1] += pair_sin * pair_sin * inv_sigma2
 
-
-    for cur_sample_t, cur_sample_b, cur_pix_idx, cur_psi_t, cur_psi_b, cur_t_mask in zip(
-        tod_t, tod_b, pix_t, psi_t, psi_b, t_mask
-    ):
+    for (
+        cur_sample_t,
+        cur_sample_b,
+        cur_pix_idx,
+        cur_psi_t,
+        cur_psi_b,
+        cur_t_mask,
+    ) in zip(tod_t, tod_b, pix_t, psi_t, psi_b, t_mask):
         if cur_t_mask:
             pair_sample = cur_sample_t - cur_sample_b
             pair_cos = np.cos(2 * cur_psi_t) - np.cos(2 * cur_psi_b)
@@ -198,7 +202,9 @@ def _build_nobs_matrix(
         )
 
         for t_idx, b_idx in detector_pairs:
-            if not np.array_equal(pixidx_all[t_idx, cur_t_mask], pixidx_all[b_idx, cur_t_mask]):
+            if not np.array_equal(
+                pixidx_all[t_idx, cur_t_mask], pixidx_all[b_idx, cur_t_mask]
+            ):
                 raise ValueError(
                     f"Observation {obs_idx}: detectors {t_idx} and {b_idx} do not "
                     "observe the same map pixels for the selected time samples."

@@ -7,7 +7,9 @@ from litebird_sim import CoordinateSystem
 from litebird_sim.mapmaking.pair_differencing import make_pair_differenced_map
 
 
-def _build_observation(detectors: list[dict]) -> tuple[lbs.Observation, np.ndarray, int]:
+def _build_observation(
+    detectors: list[dict],
+) -> tuple[lbs.Observation, np.ndarray, int]:
     n_samples = 4
     theta, phi = hp.pix2ang(1, 0)
     psi = np.array([0.0, np.pi / 8.0, np.pi / 4.0, 3.0 * np.pi / 8.0])
@@ -71,7 +73,9 @@ def test_make_pair_differenced_map_recovers_qu():
     unseen_mask[pix_idx] = False
     assert np.all(result.binned_map[:, unseen_mask] == hp.UNSEEN)
 
-    pair_weight = 0.5 * (detectors[0]["net_ukrts"] ** 2 + detectors[1]["net_ukrts"] ** 2)
+    pair_weight = 0.5 * (
+        detectors[0]["net_ukrts"] ** 2 + detectors[1]["net_ukrts"] ** 2
+    )
     design_matrix = np.column_stack(
         (
             np.cos(2 * psi_t) - np.cos(2 * psi_b),
@@ -219,4 +223,6 @@ def test_simulation_make_pair_differenced_map_splits(tmp_path):
     )
 
     assert "full_full" in results
-    assert np.allclose(results["full_full"].binned_map[:, pix_idx], np.array([q_true, u_true]))
+    assert np.allclose(
+        results["full_full"].binned_map[:, pix_idx], np.array([q_true, u_true])
+    )

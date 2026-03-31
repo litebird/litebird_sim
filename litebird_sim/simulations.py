@@ -2216,7 +2216,9 @@ class Simulation:
             self.check_valid_splits(detector_split, time_split)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_pair_differenced_map.md")
+            template_file_path = get_template_file_path(
+                "report_pair_differenced_map.md"
+            )
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
             self.append_to_report(
@@ -2264,7 +2266,9 @@ class Simulation:
             self.check_valid_splits(detector_splits, time_splits)
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
-            template_file_path = get_template_file_path("report_pair_differenced_map_splits.md")
+            template_file_path = get_template_file_path(
+                "report_pair_differenced_map_splits.md"
+            )
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
             self.append_to_report(
@@ -2300,7 +2304,10 @@ class Simulation:
 
                     filenames.append(
                         self.write_healpix_map(
-                            Path(file), mapp, column_names=names, coord=result.coordinate_system.name
+                            Path(file),
+                            mapp,
+                            column_names=names,
+                            coord=result.coordinate_system.name,
                         )
                     )
 
