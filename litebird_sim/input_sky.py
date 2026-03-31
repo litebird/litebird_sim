@@ -487,7 +487,9 @@ class SkyGenerator:
             nest=False,
         )
 
-    def _alm_to_output(self, alm: SphericalHarmonics) -> HealpixMap | SphericalHarmonics:
+    def _alm_to_output(
+        self, alm: SphericalHarmonics
+    ) -> HealpixMap | SphericalHarmonics:
         if self.params.output_type == "map":
             return pixelize_alm(
                 alm,
@@ -579,9 +581,9 @@ class SkyGenerator:
     ) -> HealpixMap:
         if self.params.bandpass_integration and target.bandpass is not None:
             nonzero = np.where(getattr(target.bandpass, "freqs_ghz") != 0)[0]
-            bandpass_frequencies = getattr(target.bandpass, "freqs_ghz")[nonzero] * getattr(
-                u, "GHz"
-            )
+            bandpass_frequencies = getattr(target.bandpass, "freqs_ghz")[
+                nonzero
+            ] * getattr(u, "GHz")
             weights = getattr(target.bandpass, "weights")[nonzero]
 
             m_fg = sky.get_emission(bandpass_frequencies, weights=weights)
@@ -670,7 +672,9 @@ class SkyGenerator:
         """Generates CMB component (channel/detector mode only)."""
         if self.frequency_mode:
             raise RuntimeError("generate_cmb() is not available in frequency mode.")
-        return cast(dict[str, HealpixMap | SphericalHarmonics], self._generate_cmb_common())
+        return cast(
+            dict[str, HealpixMap | SphericalHarmonics], self._generate_cmb_common()
+        )
 
     def generate_foregrounds(self) -> dict[str, HealpixMap | SphericalHarmonics]:
         """Generates foregrounds using PySM3 (channel/detector mode only)."""

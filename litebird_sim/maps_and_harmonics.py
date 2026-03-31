@@ -2799,9 +2799,7 @@ def estimate_alm(
                 f"maxiter must be a positive integer or None, got {type(maxiter).__name__}"
             )
         if maxiter <= 0:
-            raise ValueError(
-                f"maxiter must be a positive integer, got {maxiter}"
-            )
+            raise ValueError(f"maxiter must be a positive integer, got {maxiter}")
 
     # --- checks and effective lmax, mmax -----------------------------------
     if map.nstokes not in (1, 3):

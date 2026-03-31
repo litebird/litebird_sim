@@ -1,5 +1,7 @@
 # HEAD
 
+-   Refactor `input_sky.SkyGenerator` to reduce duplicated logic between channel/detector mode and frequency mode by using shared component-generation helpers for CMB, foregrounds, and dipole [#501](https://github.com/litebird/litebird_sim/pull/501)
+
 -   Add multi-frequency support to HealpixMap and SphericalHarmonics. New option for generation of multi-frequency maps in input_sky [#496](https://github.com/litebird/litebird_sim/pull/496)
 
 -   Fix normalization in the generation of gaussian beam alms [#494](https://github.com/litebird/litebird_sim/pull/494)
