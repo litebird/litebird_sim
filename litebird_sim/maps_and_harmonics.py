@@ -2696,8 +2696,9 @@ def estimate_alm(
     *,
     lmax: int | None = None,
     mmax: int | None = None,
-    nthreads: int = 0,
     maxiter: int | None = None,
+    epsilon: float | None = None,
+    nthreads: int = 0,
 ) -> SphericalHarmonics:
     r"""
     Estimate spherical harmonic coefficients ($a_{\ell m}$) from a HEALPix map.
@@ -2751,6 +2752,21 @@ def estimate_alm(
         * if ``mmax`` is None → ``mmax_eff = lmax_eff``
 
         ``mmax_eff`` must be ≤ ``lmax_eff``.
+
+    maxiter : int or None, optional
+        If ``None`` (default), uses the non-iterative
+        :func:`ducc0.sht.adjoint_synthesis` backend followed by pixel-area
+        scaling. If a positive integer, uses
+        :func:`ducc0.sht.pseudo_analysis` instead and performs at most
+        ``maxiter`` iterations.
+
+    epsilon : float or None, optional
+        Desired accuracy for :func:`ducc0.sht.pseudo_analysis`.
+        This parameter is used only when ``maxiter`` is a positive integer.
+        If ``None``, a dtype-dependent default is chosen:
+
+        * ``complex64`` output  -> ``1e-6``
+        * ``complex128`` output -> ``1e-13``
 
     nthreads : int, optional
         Number of threads passed to ducc. If zero (default), ducc chooses
@@ -2831,6 +2847,12 @@ def estimate_alm(
     base = dh.Healpix_Base(nside, scheme)
     geom = base.sht_info()  # provides theta, nphi, phi0, ringstart, etc.
 
+    if maxiter is not None and epsilon is None:
+        if alm_dtype == np.complex64:
+            epsilon = 1e-6
+        else:
+            epsilon = 1e-13
+
     # --- Handle single vs. multi-frequency cases ---------------------------
     if map.nfreqs is None:
         # Single frequency case
@@ -2848,6 +2870,7 @@ def estimate_alm(
                 mmax=mmax_eff,
                 nthreads=nthreads,
                 maxiter=maxiter,
+                epsilon=epsilon,
             )
 
             # --- spin-2 (Q,U) if present --------------------------------------
@@ -2861,6 +2884,7 @@ def estimate_alm(
                     mmax=mmax_eff,
                     nthreads=nthreads,
                     maxiter=maxiter,
+                    epsilon=epsilon,
                 )
         else:
             # --- adjoint synthesis + pixel-area scaling -----------------------
@@ -2905,6 +2929,7 @@ def estimate_alm(
                     mmax=mmax_eff,
                     nthreads=nthreads,
                     maxiter=maxiter,
+                    epsilon=epsilon,
                 )
 
                 # --- spin-2 (Q,U) if present ----------------------------------
@@ -2918,6 +2943,7 @@ def estimate_alm(
                         mmax=mmax_eff,
                         nthreads=nthreads,
                         maxiter=maxiter,
+                        epsilon=epsilon,
                     )
             else:
                 # --- adjoint synthesis + pixel-area scaling -------------------
