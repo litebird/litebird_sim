@@ -1,7 +1,8 @@
 import logging as log
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 from collections.abc import Sequence
 
 import ducc0.healpix as dh
@@ -129,6 +130,14 @@ def _get_cmb_unit_conversion(
 
 
 # --- Configuration DataClasses ---
+
+
+@dataclass(frozen=True)
+class _GenerationTarget:
+    name: str | None
+    freq_ghz: float
+    bandpass: BandPassInfo | None
+    fwhm_rad: float | None
 
 
 class SkyGenerationParams:
@@ -351,7 +360,7 @@ class SkyGenerator:
                 )
 
     # ------------------------------------------------------------------
-    # Helpers (frequency mode)
+    # Helpers
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -371,13 +380,51 @@ class SkyGenerator:
             )
         return total
 
-    def _empty_frequency_output(self) -> HealpixMap | SphericalHarmonics:
-        """Return a zero-filled multi-frequency HealpixMap or SphericalHarmonics object."""
+    @staticmethod
+    def _channel_or_detector_name(ch_or_det: FreqChannelInfo | DetectorInfo) -> str:
+        return str(ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel)
+
+    @staticmethod
+    def _channel_or_detector_fwhm_rad(
+        ch_or_det: FreqChannelInfo | DetectorInfo,
+    ) -> float | None:
+        fwhm_arcmin = getattr(ch_or_det, "fwhm_arcmin", 0)
+        if fwhm_arcmin <= 0:
+            return None
+        return float(np.radians(fwhm_arcmin / 60.0))
+
+    def _get_generation_targets(self) -> list[_GenerationTarget]:
+        if self.frequency_mode:
+            assert self.frequencies_ghz is not None
+            targets: list[_GenerationTarget] = []
+            for i, freq_ghz in enumerate(self.frequencies_ghz):
+                fwhm_rad = None if self.fwhm_rad is None else float(self.fwhm_rad[i])
+                targets.append(
+                    _GenerationTarget(
+                        name=None,
+                        freq_ghz=float(freq_ghz),
+                        bandpass=None,
+                        fwhm_rad=fwhm_rad,
+                    )
+                )
+            return targets
+
+        return [
+            _GenerationTarget(
+                name=self._channel_or_detector_name(ch_or_det),
+                freq_ghz=float(ch_or_det.bandcenter_ghz),
+                bandpass=ch_or_det.band,
+                fwhm_rad=self._channel_or_detector_fwhm_rad(ch_or_det),
+            )
+            for ch_or_det in self.channels_or_detectors
+        ]
+
+    def _build_frequency_output(
+        self, values: np.ndarray
+    ) -> HealpixMap | SphericalHarmonics:
         assert self.frequencies_ghz is not None
         nfreq = self.frequencies_ghz.size
         if self.params.output_type == "map":
-            npix = dh.Healpix_Base(self.params.nside, "RING").npix()
-            values = np.zeros((nfreq, 3, npix), dtype=float)
             return HealpixMap(
                 values=values,
                 nside=self.params.nside,
@@ -387,21 +434,95 @@ class SkyGenerator:
                 nest=False,
                 frequencies_ghz=self.frequencies_ghz.copy(),
             )
+
+        return SphericalHarmonics(
+            values=values,
+            lmax=self.params.lmax,
+            mmax=self.params.lmax,
+            nfreqs=nfreq,
+            coordinates=self.coords,
+            units=self.lbs_unit,
+            frequencies_ghz=self.frequencies_ghz.copy(),
+        )
+
+    def _stack_frequency_outputs(
+        self, outputs: Sequence[HealpixMap | SphericalHarmonics]
+    ) -> HealpixMap | SphericalHarmonics:
+        values = np.stack([output.values for output in outputs], axis=0)
+        return self._build_frequency_output(values)
+
+    def _collect_target_outputs(self, build_output):
+        targets = self._get_generation_targets()
+
+        if self.frequency_mode:
+            outputs = [build_output(target) for target in targets]
+            return self._stack_frequency_outputs(outputs)
+
+        result: dict[str, HealpixMap | SphericalHarmonics] = {}
+        for target in targets:
+            assert target.name is not None
+            result[target.name] = build_output(target)
+        return result
+
+    def _cmb_unit_conversion_for_target(self, target: _GenerationTarget) -> float:
+        if self.params.bandpass_integration and target.bandpass is not None:
+            return _get_cmb_unit_conversion(
+                target_unit=self.params.units,
+                bandpass=target.bandpass,
+                band_integration=True,
+            )
+
+        return _get_cmb_unit_conversion(
+            target_unit=self.params.units,
+            freq_ghz=target.freq_ghz,
+            band_integration=False,
+        )
+
+    def _healpix_map_from_values(self, values: np.ndarray, nside: int) -> HealpixMap:
+        return HealpixMap(
+            values=values,
+            nside=nside,
+            units=self.lbs_unit,
+            coordinates=self.coords,
+            nest=False,
+        )
+
+    def _alm_to_output(self, alm: SphericalHarmonics) -> HealpixMap | SphericalHarmonics:
+        if self.params.output_type == "map":
+            return pixelize_alm(
+                alm,
+                nside=self.params.nside,
+                lmax=self.params.lmax,
+                nthreads=self.params.nthreads,
+            )
+        return alm
+
+    def _map_to_output(self, map_obj: HealpixMap) -> HealpixMap | SphericalHarmonics:
+        if self.params.output_type == "alm":
+            return estimate_alm(
+                map_obj,
+                lmax=self.params.lmax,
+                nthreads=self.params.nthreads,
+                maxiter=self.params.maxiter,
+                epsilon=self.params.epsilon,
+            )
+        return map_obj
+
+    def _empty_frequency_output(self) -> HealpixMap | SphericalHarmonics:
+        """Return a zero-filled multi-frequency HealpixMap or SphericalHarmonics object."""
+        assert self.frequencies_ghz is not None
+        nfreq = self.frequencies_ghz.size
+        if self.params.output_type == "map":
+            npix = dh.Healpix_Base(self.params.nside, "RING").npix()
+            values = np.zeros((nfreq, 3, npix), dtype=float)
+            return self._build_frequency_output(values)
         else:
             # SphericalHarmonics values are complex
             nalms = SphericalHarmonics.alm_array_size(
                 self.params.lmax, self.params.lmax, 3
             )[1]
             values = np.zeros((nfreq, 3, nalms), dtype=np.complex128)
-            return SphericalHarmonics(
-                values=values,
-                lmax=self.params.lmax,
-                mmax=self.params.lmax,
-                nfreqs=nfreq,
-                coordinates=self.coords,
-                units=self.lbs_unit,
-                frequencies_ghz=self.frequencies_ghz.copy(),
-            )
+            return self._build_frequency_output(values)
 
     def _apply_smoothing_and_windows_to_alm(
         self, alm: SphericalHarmonics, fwhm_rad: float | None
@@ -413,6 +534,134 @@ class SkyGenerator:
             alm.apply_pixel_window(nside=self.params.nside, inplace=True)
         return alm
 
+    def _generate_cmb_common(
+        self,
+    ) -> HealpixMap | SphericalHarmonics | dict[str, HealpixMap | SphericalHarmonics]:
+        log.info(
+            "Generating CMB%s...",
+            " (frequency mode)" if self.frequency_mode else "",
+        )
+
+        if self.params.cmb_ps_file:
+            cl_cmb = read_cls_from_fits(self.params.cmb_ps_file)
+        else:
+            datautils_dir = Path(__file__).parent / "datautils"
+            cl_cmb_scalar = read_cls_from_fits(
+                datautils_dir / "Cls_Planck2018_for_PTEP_2020_r0.fits"
+            )
+            cl_cmb_tensor = read_cls_from_fits(
+                datautils_dir / "Cls_Planck2018_for_PTEP_2020_tensor_r1.fits"
+            )
+            cl_cmb = lin_comb_cls(cl_cmb_scalar, cl_cmb_tensor, s2=self.params.cmb_r)
+
+        cl_cmb = lin_comb_cls(cl_cmb, s1=1e-12)
+
+        rng = np.random.default_rng(self.params.seed_cmb)
+        alm_cmb = synthesize_alm(
+            cl_dict=cl_cmb,
+            lmax=self.params.lmax,
+            mmax=self.params.lmax,
+            coordinates=self.coords,
+            rng=rng,
+            units=self.lbs_unit,
+        )
+
+        def build_output(target: _GenerationTarget) -> HealpixMap | SphericalHarmonics:
+            alm_obs = alm_cmb.copy()
+            self._apply_smoothing_and_windows_to_alm(alm_obs, target.fwhm_rad)
+            alm_obs *= self._cmb_unit_conversion_for_target(target)
+            return self._alm_to_output(alm_obs)
+
+        return self._collect_target_outputs(build_output)
+
+    def _foreground_map_for_target(
+        self, sky: pysm3.Sky, target: _GenerationTarget, nside_fg: int
+    ) -> HealpixMap:
+        if self.params.bandpass_integration and target.bandpass is not None:
+            nonzero = np.where(getattr(target.bandpass, "freqs_ghz") != 0)[0]
+            bandpass_frequencies = getattr(target.bandpass, "freqs_ghz")[nonzero] * getattr(
+                u, "GHz"
+            )
+            weights = getattr(target.bandpass, "weights")[nonzero]
+
+            m_fg = sky.get_emission(bandpass_frequencies, weights=weights)
+            m_fg = m_fg * pysm3.bandpass_unit_conversion(
+                bandpass_frequencies, weights, self.pysm_units
+            )
+        else:
+            m_fg = sky.get_emission(target.freq_ghz * getattr(u, "GHz"))
+            m_fg = m_fg.to(
+                self.pysm_units,
+                equivalencies=u.cmb_equivalencies(target.freq_ghz * getattr(u, "GHz")),
+            )
+
+        return self._healpix_map_from_values(m_fg.value, nside=nside_fg)
+
+    def _generate_foregrounds_common(
+        self,
+    ) -> HealpixMap | SphericalHarmonics | dict[str, HealpixMap | SphericalHarmonics]:
+        if not self.params.fg_models:
+            if self.frequency_mode:
+                return self._empty_frequency_output()
+            return {}
+
+        log.info(
+            "Generating Foregrounds%s...",
+            " (frequency mode)" if self.frequency_mode else "",
+        )
+
+        nside_fg = self.params.nside * self.params.fg_oversampling
+        sky = pysm3.Sky(nside=nside_fg, preset_strings=list(self.params.fg_models))
+
+        def build_output(target: _GenerationTarget) -> HealpixMap | SphericalHarmonics:
+            map_fg = self._foreground_map_for_target(sky, target, nside_fg)
+            alm_fg = estimate_alm(
+                map_fg,
+                lmax=self.params.lmax,
+                nthreads=self.params.nthreads,
+                maxiter=self.params.maxiter,
+                epsilon=self.params.epsilon,
+            )
+            self._apply_smoothing_and_windows_to_alm(alm_fg, target.fwhm_rad)
+            return self._alm_to_output(alm_fg)
+
+        return self._collect_target_outputs(build_output)
+
+    def _dipole_map_values(self) -> np.ndarray:
+        velocity = self.params.sun_velocity_kms
+        lat, lon = self.params.sun_direction_galactic
+
+        amp = c.T_CMB_K * (velocity / c.C_LIGHT_KM_OVER_S)
+
+        hpx = dh.Healpix_Base(self.params.nside, "RING")
+        npix = hpx.npix()
+
+        vec = dh.ang2vec(np.array([[lat, lon]]))[0]
+        pix_vecs = hpx.pix2vec(np.arange(npix))
+
+        dipole_map_val = np.zeros((3, npix))
+        dipole_map_val[0] = np.dot(pix_vecs, vec) * amp
+        return dipole_map_val
+
+    def _generate_dipole_common(
+        self,
+    ) -> HealpixMap | SphericalHarmonics | dict[str, HealpixMap | SphericalHarmonics]:
+        log.info(
+            "Generating Dipole%s...",
+            " (frequency mode)" if self.frequency_mode else "",
+        )
+
+        dipole_map_val = self._dipole_map_values()
+
+        def build_output(target: _GenerationTarget) -> HealpixMap | SphericalHarmonics:
+            map_obj = self._healpix_map_from_values(
+                dipole_map_val * self._cmb_unit_conversion_for_target(target),
+                nside=self.params.nside,
+            )
+            return self._map_to_output(map_obj)
+
+        return self._collect_target_outputs(build_output)
+
     # ------------------------------------------------------------------
     # Component generators (channel/detector mode)
     # ------------------------------------------------------------------
@@ -421,83 +670,7 @@ class SkyGenerator:
         """Generates CMB component (channel/detector mode only)."""
         if self.frequency_mode:
             raise RuntimeError("generate_cmb() is not available in frequency mode.")
-
-        log.info("Generating CMB...")
-
-        # 1. Get Cls
-        if self.params.cmb_ps_file:
-            cl_cmb = read_cls_from_fits(self.params.cmb_ps_file)
-        else:
-            datautils_dir = Path(__file__).parent / "datautils"
-            cl_cmb_scalar = read_cls_from_fits(
-                datautils_dir / "Cls_Planck2018_for_PTEP_2020_r0.fits"
-            )
-            cl_cmb_tensor = read_cls_from_fits(
-                datautils_dir / "Cls_Planck2018_for_PTEP_2020_tensor_r1.fits"
-            )
-            cl_cmb = lin_comb_cls(cl_cmb_scalar, cl_cmb_tensor, s2=self.params.cmb_r)
-
-        # Default units of the input cmb K_CMB (Cls in uK^2 -> K^2)
-        cl_cmb = lin_comb_cls(cl_cmb, s1=1e-12)
-
-        # 2. Generate ALMs
-        rng = np.random.default_rng(self.params.seed_cmb)
-        alm_cmb = synthesize_alm(
-            cl_dict=cl_cmb,
-            lmax=self.params.lmax,
-            mmax=self.params.lmax,
-            coordinates=self.coords,
-            rng=rng,
-            units=self.lbs_unit,
-        )
-
-        result: dict[str, HealpixMap | SphericalHarmonics] = {}
-
-        for ch_or_det in self.channels_or_detectors:
-            name: str = str(
-                ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
-            )
-            log.debug(f"Processing CMB for {name}")
-
-            alm_obs = alm_cmb.copy()
-
-            # Beam / window from channel/detector
-            if self.params.apply_beam and getattr(ch_or_det, "fwhm_arcmin", 0) > 0:
-                fwhm_rad = np.radians(ch_or_det.fwhm_arcmin / 60.0)
-                alm_obs.apply_gaussian_smoothing(fwhm_rad=fwhm_rad, inplace=True)
-
-            if self.params.apply_pixel_window:
-                alm_obs.apply_pixel_window(nside=self.params.nside, inplace=True)
-
-            # Unit conversion
-            if self.params.bandpass_integration:
-                conv_factor = _get_cmb_unit_conversion(
-                    target_unit=self.params.units,
-                    bandpass=ch_or_det.band,
-                    band_integration=True,
-                )
-            else:
-                conv_factor = _get_cmb_unit_conversion(
-                    target_unit=self.params.units,
-                    freq_ghz=ch_or_det.bandcenter_ghz,
-                    band_integration=False,
-                )
-
-            alm_obs *= conv_factor
-
-            # Output
-            if self.params.output_type == "map":
-                map_obs = pixelize_alm(
-                    alm_obs,
-                    nside=self.params.nside,
-                    lmax=self.params.lmax,
-                    nthreads=self.params.nthreads,
-                )
-                result[name] = map_obs
-            else:
-                result[name] = alm_obs
-
-        return result
+        return cast(dict[str, HealpixMap | SphericalHarmonics], self._generate_cmb_common())
 
     def generate_foregrounds(self) -> dict[str, HealpixMap | SphericalHarmonics]:
         """Generates foregrounds using PySM3 (channel/detector mode only)."""
@@ -505,79 +678,10 @@ class SkyGenerator:
             raise RuntimeError(
                 "generate_foregrounds() is not available in frequency mode."
             )
-
-        if not self.params.fg_models:
-            return {}
-
-        log.info("Generating Foregrounds...")
-
-        nside_fg = self.params.nside * self.params.fg_oversampling
-        sky = pysm3.Sky(nside=nside_fg, preset_strings=list(self.params.fg_models))
-
-        result: dict[str, HealpixMap | SphericalHarmonics] = {}
-
-        for ch_or_det in self.channels_or_detectors:
-            name: str = str(
-                ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
-            )
-
-            # 1. Compute emission
-            if self.params.bandpass_integration:
-                nonzero = np.where(getattr(ch_or_det.band, "freqs_ghz") != 0)[0]
-                bandpass_frequencies = getattr(ch_or_det.band, "freqs_ghz")[
-                    nonzero
-                ] * getattr(u, "GHz")
-                weights = getattr(ch_or_det.band, "weights")[nonzero]
-
-                m_fg = sky.get_emission(bandpass_frequencies, weights=weights)
-                m_fg = m_fg * pysm3.bandpass_unit_conversion(
-                    bandpass_frequencies, weights, self.pysm_units
-                )
-            else:
-                m_fg = sky.get_emission(ch_or_det.bandcenter_ghz * getattr(u, "GHz"))
-                m_fg = m_fg.to(
-                    self.pysm_units,
-                    equivalencies=u.cmb_equivalencies(
-                        ch_or_det.bandcenter_ghz * getattr(u, "GHz")
-                    ),
-                )
-
-            m_fg_val = m_fg.value  # (3, npix)
-            map_fg = HealpixMap(
-                values=m_fg_val,
-                nside=nside_fg,
-                units=self.lbs_unit,
-                coordinates=self.coords,
-                nest=False,
-            )
-
-            alm_fg = estimate_alm(
-                map_fg,
-                lmax=self.params.lmax,
-                nthreads=self.params.nthreads,
-                maxiter=self.params.maxiter,
-                epsilon=self.params.epsilon,
-            )
-
-            if self.params.apply_beam and getattr(ch_or_det, "fwhm_arcmin", 0) > 0:
-                fwhm_rad = np.radians(ch_or_det.fwhm_arcmin / 60.0)
-                alm_fg.apply_gaussian_smoothing(fwhm_rad=fwhm_rad, inplace=True)
-
-            if self.params.apply_pixel_window:
-                alm_fg.apply_pixel_window(nside=self.params.nside, inplace=True)
-
-            if self.params.output_type == "map":
-                map_fg = pixelize_alm(
-                    alm_fg,
-                    nside=self.params.nside,
-                    lmax=self.params.lmax,
-                    nthreads=self.params.nthreads,
-                )
-                result[name] = map_fg
-            else:
-                result[name] = alm_fg
-
-        return result
+        return cast(
+            dict[str, HealpixMap | SphericalHarmonics],
+            self._generate_foregrounds_common(),
+        )
 
     def generate_solar_dipole(self) -> dict[str, HealpixMap | SphericalHarmonics]:
         """Generates solar dipole (channel/detector mode only)."""
@@ -585,63 +689,10 @@ class SkyGenerator:
             raise RuntimeError(
                 "generate_solar_dipole() is not available in frequency mode."
             )
-
-        log.info("Generating Dipole...")
-        velocity = self.params.sun_velocity_kms
-        lat, lon = self.params.sun_direction_galactic
-
-        # Amplitude in K_CMB
-        amp = c.T_CMB_K * (velocity / c.C_LIGHT_KM_OVER_S)
-
-        hpx = dh.Healpix_Base(self.params.nside, "RING")
-        npix = hpx.npix()
-
-        vec = dh.ang2vec(np.array([[lat, lon]]))[0]
-        pix_vecs = hpx.pix2vec(np.arange(npix))
-
-        dipole_map_val = np.zeros((3, npix))
-        dipole_map_val[0] = np.dot(pix_vecs, vec) * amp
-
-        result: dict[str, HealpixMap | SphericalHarmonics] = {}
-
-        for ch_or_det in self.channels_or_detectors:
-            name: str = str(
-                ch_or_det.name if hasattr(ch_or_det, "name") else ch_or_det.channel
-            )
-
-            if self.params.bandpass_integration:
-                conv_factor = _get_cmb_unit_conversion(
-                    target_unit=self.params.units,
-                    bandpass=ch_or_det.band,
-                    band_integration=True,
-                )
-            else:
-                conv_factor = _get_cmb_unit_conversion(
-                    target_unit=self.params.units,
-                    freq_ghz=ch_or_det.bandcenter_ghz,
-                    band_integration=False,
-                )
-
-            m_dip = HealpixMap(
-                values=dipole_map_val * conv_factor,
-                nside=self.params.nside,
-                units=self.lbs_unit,
-                coordinates=self.coords,
-                nest=False,
-            )
-
-            if self.params.output_type == "alm":
-                result[name] = estimate_alm(
-                    m_dip,
-                    lmax=self.params.lmax,
-                    nthreads=self.params.nthreads,
-                    maxiter=self.params.maxiter,
-                    epsilon=self.params.epsilon,
-                )
-            else:
-                result[name] = m_dip
-
-        return result
+        return cast(
+            dict[str, HealpixMap | SphericalHarmonics],
+            self._generate_dipole_common(),
+        )
 
     # ------------------------------------------------------------------
     # Component generators (frequency mode)
@@ -649,247 +700,17 @@ class SkyGenerator:
 
     def _generate_cmb_frequencies(self) -> HealpixMap | SphericalHarmonics:
         assert self.frequencies_ghz is not None
-
-        log.info("Generating CMB (frequency mode)...")
-
-        # 1. Get Cls
-        if self.params.cmb_ps_file:
-            cl_cmb = read_cls_from_fits(self.params.cmb_ps_file)
-        else:
-            datautils_dir = Path(__file__).parent / "datautils"
-            cl_cmb_scalar = read_cls_from_fits(
-                datautils_dir / "Cls_Planck2018_for_PTEP_2020_r0.fits"
-            )
-            cl_cmb_tensor = read_cls_from_fits(
-                datautils_dir / "Cls_Planck2018_for_PTEP_2020_tensor_r1.fits"
-            )
-            cl_cmb = lin_comb_cls(cl_cmb_scalar, cl_cmb_tensor, s2=self.params.cmb_r)
-
-        # uK^2 -> K^2
-        cl_cmb = lin_comb_cls(cl_cmb, s1=1e-12)
-
-        rng = np.random.default_rng(self.params.seed_cmb)
-        alm_cmb = synthesize_alm(
-            cl_dict=cl_cmb,
-            lmax=self.params.lmax,
-            mmax=self.params.lmax,
-            coordinates=self.coords,
-            rng=rng,
-            units=self.lbs_unit,
-        )
-
-        nfreq = self.frequencies_ghz.size
-        if self.params.output_type == "map":
-            npix = dh.Healpix_Base(self.params.nside, "RING").npix()
-            out = np.zeros((nfreq, 3, npix), dtype=float)
-        else:
-            nalms = alm_cmb.values.shape[1]
-            out = np.zeros((nfreq, 3, nalms), dtype=np.complex128)
-
-        for i, nu in enumerate(self.frequencies_ghz):
-            alm_obs = alm_cmb.copy()
-
-            # Smooth/window
-            fwhm = None if self.fwhm_rad is None else float(self.fwhm_rad[i])
-            self._apply_smoothing_and_windows_to_alm(alm_obs, fwhm)
-
-            # Units
-            conv_factor = _get_cmb_unit_conversion(
-                target_unit=self.params.units,
-                freq_ghz=float(nu),
-                band_integration=False,
-            )
-            alm_obs *= conv_factor
-
-            if self.params.output_type == "map":
-                m = pixelize_alm(
-                    alm_obs,
-                    nside=self.params.nside,
-                    lmax=self.params.lmax,
-                    nthreads=self.params.nthreads,
-                )
-                out[i] = m.values
-            else:
-                out[i] = alm_obs.values
-
-        # Return multi-frequency object
-        if self.params.output_type == "map":
-            return HealpixMap(
-                values=out,
-                nside=self.params.nside,
-                nfreqs=nfreq,
-                units=self.lbs_unit,
-                coordinates=self.coords,
-                nest=False,
-                frequencies_ghz=self.frequencies_ghz.copy(),
-            )
-        else:
-            return SphericalHarmonics(
-                values=out,
-                lmax=self.params.lmax,
-                mmax=self.params.lmax,
-                nfreqs=nfreq,
-                coordinates=self.coords,
-                units=self.lbs_unit,
-                frequencies_ghz=self.frequencies_ghz.copy(),
-            )
+        return cast(HealpixMap | SphericalHarmonics, self._generate_cmb_common())
 
     def _generate_foregrounds_frequencies(self) -> HealpixMap | SphericalHarmonics:
         assert self.frequencies_ghz is not None
-
-        if not self.params.fg_models:
-            return self._empty_frequency_output()
-
-        log.info("Generating Foregrounds (frequency mode)...")
-
-        nside_fg = self.params.nside * self.params.fg_oversampling
-        sky = pysm3.Sky(nside=nside_fg, preset_strings=list(self.params.fg_models))
-
-        nfreq = self.frequencies_ghz.size
-        if self.params.output_type == "map":
-            npix = dh.Healpix_Base(self.params.nside, "RING").npix()
-            out = np.zeros((nfreq, 3, npix), dtype=float)
-        else:
-            nalms = SphericalHarmonics.alm_array_size(
-                self.params.lmax, self.params.lmax, 3
-            )[1]
-            out = np.zeros((nfreq, 3, nalms), dtype=np.complex128)
-
-        for i, nu in enumerate(self.frequencies_ghz):
-            # Emission at frequency (monochromatic)
-            m_fg = sky.get_emission(float(nu) * getattr(u, "GHz"))
-            m_fg = m_fg.to(
-                self.pysm_units,
-                equivalencies=u.cmb_equivalencies(float(nu) * getattr(u, "GHz")),
-            )
-
-            map_fg = HealpixMap(
-                values=m_fg.value,
-                nside=nside_fg,
-                units=self.lbs_unit,
-                coordinates=self.coords,
-                nest=False,
-            )
-
-            alm_fg = estimate_alm(
-                map_fg,
-                lmax=self.params.lmax,
-                nthreads=self.params.nthreads,
-                maxiter=self.params.maxiter,
-                epsilon=self.params.epsilon,
-            )
-
-            fwhm = None if self.fwhm_rad is None else float(self.fwhm_rad[i])
-            self._apply_smoothing_and_windows_to_alm(alm_fg, fwhm)
-
-            if self.params.output_type == "map":
-                m = pixelize_alm(
-                    alm_fg,
-                    nside=self.params.nside,
-                    lmax=self.params.lmax,
-                    nthreads=self.params.nthreads,
-                )
-                out[i] = m.values
-            else:
-                out[i] = alm_fg.values
-
-        # Return multi-frequency object
-        if self.params.output_type == "map":
-            return HealpixMap(
-                values=out,
-                nside=self.params.nside,
-                nfreqs=nfreq,
-                units=self.lbs_unit,
-                coordinates=self.coords,
-                nest=False,
-                frequencies_ghz=self.frequencies_ghz.copy(),
-            )
-        else:
-            return SphericalHarmonics(
-                values=out,
-                lmax=self.params.lmax,
-                mmax=self.params.lmax,
-                nfreqs=nfreq,
-                coordinates=self.coords,
-                units=self.lbs_unit,
-                frequencies_ghz=self.frequencies_ghz.copy(),
-            )
+        return cast(
+            HealpixMap | SphericalHarmonics, self._generate_foregrounds_common()
+        )
 
     def _generate_dipole_frequencies(self) -> HealpixMap | SphericalHarmonics:
         assert self.frequencies_ghz is not None
-
-        log.info("Generating Dipole (frequency mode)...")
-
-        velocity = self.params.sun_velocity_kms
-        lat, lon = self.params.sun_direction_galactic
-
-        amp = c.T_CMB_K * (velocity / c.C_LIGHT_KM_OVER_S)
-
-        hpx = dh.Healpix_Base(self.params.nside, "RING")
-        npix = hpx.npix()
-
-        vec = dh.ang2vec(np.array([[lat, lon]]))[0]
-        pix_vecs = hpx.pix2vec(np.arange(npix))
-
-        dipole_map_val = np.zeros((3, npix))
-        dipole_map_val[0] = np.dot(pix_vecs, vec) * amp
-
-        nfreq = self.frequencies_ghz.size
-        if self.params.output_type == "map":
-            out = np.zeros((nfreq, 3, npix), dtype=float)
-        else:
-            nalms = SphericalHarmonics.alm_array_size(
-                self.params.lmax, self.params.lmax, 3
-            )[1]
-            out = np.zeros((nfreq, 3, nalms), dtype=np.complex128)
-
-        for i, nu in enumerate(self.frequencies_ghz):
-            conv_factor = _get_cmb_unit_conversion(
-                target_unit=self.params.units,
-                freq_ghz=float(nu),
-                band_integration=False,
-            )
-
-            if self.params.output_type == "map":
-                out[i] = dipole_map_val * conv_factor
-            else:
-                m_dip = HealpixMap(
-                    values=dipole_map_val * conv_factor,
-                    nside=self.params.nside,
-                    units=self.lbs_unit,
-                    coordinates=self.coords,
-                    nest=False,
-                )
-                alm_dip = estimate_alm(
-                    m_dip,
-                    lmax=self.params.lmax,
-                    nthreads=self.params.nthreads,
-                    maxiter=self.params.maxiter,
-                    epsilon=self.params.epsilon,
-                )
-                out[i] = alm_dip.values
-
-        # Return multi-frequency object
-        if self.params.output_type == "map":
-            return HealpixMap(
-                values=out,
-                nside=self.params.nside,
-                nfreqs=nfreq,
-                units=self.lbs_unit,
-                coordinates=self.coords,
-                nest=False,
-                frequencies_ghz=self.frequencies_ghz.copy(),
-            )
-        else:
-            return SphericalHarmonics(
-                values=out,
-                lmax=self.params.lmax,
-                mmax=self.params.lmax,
-                nfreqs=nfreq,
-                coordinates=self.coords,
-                units=self.lbs_unit,
-                frequencies_ghz=self.frequencies_ghz.copy(),
-            )
+        return cast(HealpixMap | SphericalHarmonics, self._generate_dipole_common())
 
     # ------------------------------------------------------------------
     # Execute
