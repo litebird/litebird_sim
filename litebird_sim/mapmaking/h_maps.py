@@ -134,7 +134,7 @@ def load_h_map_from_file(
 
 
 @njit
-def _solve_binning(nobs_matrix, atd, n, m):
+def _solve_binning(nobs_matrix, atd):
     # Solve the map-making equation
     #
     # This method alters the parameter `nobs_matrix`, so that after its completion
@@ -149,14 +149,9 @@ def _solve_binning(nobs_matrix, atd, n, m):
         if nobs_matrix[ipix, 0] != 0:
             atd[ipix, 0] = atd[ipix, 0] / nobs_matrix[ipix, 0]
             atd[ipix, 1] = atd[ipix, 1] / nobs_matrix[ipix, 0]
-            nobs_matrix[ipix, 0] = 1 / nobs_matrix[ipix, 0]
         else:
-            if (n, m) == (0, 0):
-                nobs_matrix[ipix] = 0
-                atd[ipix] = 0
-            else:
-                nobs_matrix[ipix] = UNSEEN_PIXEL_VALUE
-                atd[ipix] = UNSEEN_PIXEL_VALUE
+            atd[ipix] = 0 #If there is no hit we set the pixel to 0
+
 
 
 @njit
@@ -349,7 +344,7 @@ def make_h_maps(
                     time_mask=cur_t_mask,
                 )
                 rhs = _extract_rhs(nobs_matrix)
-                _solve_binning(nobs_matrix, rhs, n, m)
+                _solve_binning(nobs_matrix, rhs)
                 h_maps[all_dets_list[idet]][n, m] = h_map_Re_and_Im(
                     real=rhs.T[0].copy(),
                     imag=rhs.T[1].copy(),
