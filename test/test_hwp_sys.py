@@ -11,10 +11,9 @@ from litebird_sim.scan_map import scan_map_in_observations
     [
         (None),
         (32),
-        (None),
     ],
 )
-def test_hwp_sys(nside_out):
+def test_hwp_sys(nside_out: int | None) -> None:
     start_time = 0
     time_span_s = 1000
     nside = 64

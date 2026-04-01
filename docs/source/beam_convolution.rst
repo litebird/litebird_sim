@@ -194,7 +194,7 @@ It supports:
 - Resizing via zero-padding or truncation
 - I/O through Healpy-compatible FITS files
 
-Full documentation can be found in :ref: `maps_and_harmonics`.
+Full documentation can be found in :ref:`maps_and_harmonics`.
 
 Example usage:
 

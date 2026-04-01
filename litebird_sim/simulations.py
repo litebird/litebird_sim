@@ -52,11 +52,13 @@ from .mapmaking import (
     BinnerResult,
     DestriperParameters,
     DestriperResult,
+    PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
+    make_pair_differenced_map,
     save_destriper_results,
 )
 from .input_sky import SkyGenerator, SkyGenerationParams
@@ -1892,7 +1894,9 @@ class Simulation:
         detectors: DetectorInfo | list[DetectorInfo] | None = None,
         store_in_observation: bool = False,
     ) -> (
-        dict[str, HealpixMap | SphericalHarmonics]
+        HealpixMap
+        | SphericalHarmonics
+        | dict[str, HealpixMap | SphericalHarmonics | SkyGenerationParams]
         | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
     ):
         """
@@ -2180,6 +2184,154 @@ class Simulation:
             raise AssertionError(
                 f"The splits are not compatible with the observations:\n{e}"
             )
+
+    @_profile
+    def make_pair_differenced_map(
+        self,
+        nside: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        components: str | list[str] = "tod",
+        detector_split: str = "full",
+        time_split: str = "full",
+        pointings_dtype=np.float64,
+        append_to_report: bool = True,
+    ) -> PairDifferencingResult:
+        """QU pair-differencing map-maker.
+
+        Differences the TOD for each T/B detector pair in ``sim.observations``
+        and solves for the Q and U Stokes parameters only.
+
+        The local detectors in every observation must be arranged in T/B pairs
+        sharing the same wafer and focal-plane pixel (``pol``, ``pixel``, and
+        ``wafer`` attributes must be set on each observation).
+
+        The syntax mirrors :meth:`.make_binned_map`; see
+        :func:`litebird_sim.make_pair_differenced_map` for the full argument
+        description.
+        """
+
+        if isinstance(components, str):
+            components = [components]
+        if isinstance(detector_split, list) or isinstance(time_split, list):
+            raise ValueError(
+                "Pass a single string for 'detector_split' and 'time_split'. "
+                "Use multiple calls for multiple splits."
+            )
+        if detector_split != "full" or time_split != "full":
+            self.check_valid_splits(detector_split, time_split)
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path(
+                "report_pair_differenced_map.md"
+            )
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                nside=nside,
+                coord=str(output_coordinate_system),
+            )
+
+        return make_pair_differenced_map(
+            nside=nside,
+            observations=self.observations,
+            output_coordinate_system=output_coordinate_system,
+            components=components,
+            detector_split=detector_split,
+            time_split=time_split,
+            pointings_dtype=pointings_dtype,
+        )
+
+    @_profile
+    def make_pair_differenced_map_splits(
+        self,
+        nside: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        components: str | list[str] = "tod",
+        detector_splits: str | list[str] = "full",
+        time_splits: str | list[str] = "full",
+        write_to_disk: bool = True,
+        include_inv_covariance: bool = False,
+        pointings_dtype=np.float64,
+        append_to_report: bool = True,
+    ) -> list[str] | dict[str, PairDifferencingResult]:
+        """Compute pair-differenced maps for multiple split combinations.
+
+        This is a wrapper around :meth:`.make_pair_differenced_map` that loops
+        over the Cartesian product of detector and time splits.
+        """
+
+        if isinstance(components, str):
+            components = [components]
+        if isinstance(detector_splits, str):
+            detector_splits = [detector_splits]
+        if isinstance(time_splits, str):
+            time_splits = [time_splits]
+        if detector_splits != ["full"] or time_splits != ["full"]:
+            self.check_valid_splits(detector_splits, time_splits)
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path(
+                "report_pair_differenced_map_splits.md"
+            )
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                time_split=time_splits,
+                detector_split=detector_splits,
+                nside=nside,
+                coord=str(output_coordinate_system),
+            )
+        if write_to_disk:
+            filenames = []
+            for ds in detector_splits:
+                for ts in time_splits:
+                    result = make_pair_differenced_map(
+                        nside=nside,
+                        observations=self.observations,
+                        output_coordinate_system=output_coordinate_system,
+                        components=components,
+                        detector_split=ds,
+                        time_split=ts,
+                        pointings_dtype=pointings_dtype,
+                    )
+
+                    file = f"pair_differenced_map_DET{ds}_TIME{ts}.fits"
+                    names = ["Q", "U"]
+                    mapp = result.binned_map
+
+                    if include_inv_covariance:
+                        inv_cov = result.invnpp.T[np.tril_indices(2)]
+                        names.extend(["QQ", "QU", "UU"])
+                        for idx in range(3):
+                            mapp = np.append(mapp, inv_cov[idx][None, :], axis=0)
+
+                    filenames.append(
+                        self.write_healpix_map(
+                            Path(file),
+                            mapp,
+                            column_names=names,
+                            coord=result.coordinate_system.name,
+                        )
+                    )
+
+            return filenames
+
+        pair_maps = {}
+        for ds in detector_splits:
+            for ts in time_splits:
+                pair_maps[f"{ds}_{ts}"] = make_pair_differenced_map(
+                    nside=nside,
+                    observations=self.observations,
+                    output_coordinate_system=output_coordinate_system,
+                    components=components,
+                    detector_split=ds,
+                    time_split=ts,
+                    pointings_dtype=pointings_dtype,
+                )
+
+        return pair_maps
 
     @_profile
     def make_binned_map_splits(

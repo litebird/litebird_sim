@@ -3,7 +3,9 @@
 from pathlib import Path
 
 import healpy as hp
+import numpy as np
 import numpy.testing as npt
+import pytest
 
 import litebird_sim as lbs
 from litebird_sim.input_sky import SkyGenerator, SkyGenerationParams
@@ -179,3 +181,218 @@ def test_sky_generation_from_imo():
     # Check that parameters were stored
     assert "SkyGenerationParams" in result
     assert result["SkyGenerationParams"].nside == nside
+
+
+def test_skygenerator_scalar_frequency():
+    """
+    Tests that SkyGenerator accepts both scalar float and array frequencies in frequency mode.
+    Verifies that scalar float input is normalized correctly.
+    """
+    params = SkyGenerationParams(
+        nside=16,
+        output_type="map",
+        make_cmb=True,
+        make_fg=False,
+        make_dipole=False,
+    )
+
+    # Test 1: Single scalar float frequency
+    gen_scalar = SkyGenerator(params, frequencies_ghz=30.0)
+    result_scalar = gen_scalar.execute()
+
+    # Verify frequency was normalized to array
+    assert isinstance(gen_scalar.frequencies_ghz, np.ndarray)
+    assert gen_scalar.frequencies_ghz.shape == (1,)
+    npt.assert_array_almost_equal(gen_scalar.frequencies_ghz, [30.0])
+
+    # Verify output structure
+    assert result_scalar.nfreqs == 1
+    assert result_scalar.values.ndim == 3
+    assert result_scalar.values.shape[0] == 1  # nfreqs dimension
+
+    # Test 2: Array with single frequency should match scalar
+    gen_array = SkyGenerator(params, frequencies_ghz=[30.0])
+    result_array = gen_array.execute()
+
+    # Both should have same frequency
+    npt.assert_array_almost_equal(gen_scalar.frequencies_ghz, gen_array.frequencies_ghz)
+
+    # Should have same nfreqs
+    assert result_scalar.nfreqs == result_array.nfreqs
+
+    # Test 3: Multiple frequencies
+    gen_multi = SkyGenerator(params, frequencies_ghz=[30.0, 40.0, 50.0])
+    result_multi = gen_multi.execute()
+
+    assert gen_multi.frequencies_ghz.shape == (3,)
+    npt.assert_array_almost_equal(gen_multi.frequencies_ghz, [30.0, 40.0, 50.0])
+    assert result_multi.nfreqs == 3
+    assert result_multi.values.shape[0] == 3
+
+
+def test_skygenerator_frequency_mode_all_components():
+    """
+    Tests frequency mode with all sky components (CMB, foregrounds, dipole).
+    Verifies that scalar frequency input works across all components.
+    """
+    params = SkyGenerationParams(
+        nside=16,
+        output_type="map",
+        make_cmb=True,
+        make_fg=True,
+        make_dipole=True,
+    )
+
+    # Test with scalar frequency
+    gen = SkyGenerator(params, frequencies_ghz=30.0)
+    result = gen.execute()
+
+    # Verify single frequency output
+    assert result.nfreqs == 1
+    assert result.values.shape == (1, 3, 12 * 16**2)  # (nfreqs, nstokes, npix)
+
+    # Test with multiple frequencies
+    gen_multi = SkyGenerator(params, frequencies_ghz=[30.0, 40.0])
+    result_multi = gen_multi.execute()
+
+    assert result_multi.nfreqs == 2
+    assert result_multi.values.shape == (2, 3, 12 * 16**2)  # (nfreqs, nstokes, npix)
+
+
+@pytest.mark.parametrize("output_type", ["map", "alm"])
+def test_dipole_consistency_channel_vs_frequency(output_type):
+    """
+    Tests that the dipole output is identical when generated via the channel path
+    and the frequency path, for both map and alm output types.
+    The frequency path previously applied a map->alm->map round trip and beam
+    smoothing to the dipole that the channel path did not, causing discrepancies.
+    """
+    nside = 64
+    fwhm_arcmin = 37.805193
+
+    channel_info = FreqChannelInfo(
+        bandcenter_ghz=140.0,
+        channel="L4-140",
+        bandwidth_ghz=1.0,
+        fwhm_arcmin=fwhm_arcmin,
+    )
+
+    sky_params = SkyGenerationParams(
+        make_cmb=False,
+        make_dipole=True,
+        make_fg=False,
+        output_type=output_type,
+        apply_beam=True,
+        bandpass_integration=False,
+        nside=nside,
+        units="K_CMB",
+    )
+
+    gen_sky_ch = SkyGenerator(parameters=sky_params, channels=channel_info)
+    input_maps_ch = gen_sky_ch.execute()["L4-140"]
+
+    gen_sky_freq = SkyGenerator(
+        parameters=sky_params,
+        frequencies_ghz=140.0,
+        fwhm_rad=np.radians(fwhm_arcmin / 60.0),
+    )
+    input_maps_freq = gen_sky_freq.execute()
+
+    npt.assert_array_almost_equal(
+        input_maps_ch.values,
+        input_maps_freq.values[0],
+        decimal=5,
+    )
+
+
+@pytest.mark.parametrize("output_type", ["map", "alm"])
+def test_cmb_consistency_channel_vs_frequency(output_type):
+    """
+    Tests that the CMB output is identical when generated via the channel path
+    and the frequency path for the same monochromatic configuration,
+    for both map and alm output types.
+    """
+    nside = 32
+    fwhm_arcmin = 20.0
+    seed_cmb = 12345
+
+    channel_info = FreqChannelInfo(
+        bandcenter_ghz=140.0,
+        channel="L4-140",
+        bandwidth_ghz=1.0,
+        fwhm_arcmin=fwhm_arcmin,
+    )
+
+    sky_params = SkyGenerationParams(
+        make_cmb=True,
+        seed_cmb=seed_cmb,
+        make_dipole=False,
+        make_fg=False,
+        output_type=output_type,
+        apply_beam=True,
+        bandpass_integration=False,
+        nside=nside,
+        units="K_CMB",
+    )
+
+    gen_sky_ch = SkyGenerator(parameters=sky_params, channels=channel_info)
+    input_maps_ch = gen_sky_ch.execute()["L4-140"]
+
+    gen_sky_freq = SkyGenerator(
+        parameters=sky_params,
+        frequencies_ghz=140.0,
+        fwhm_rad=np.radians(fwhm_arcmin / 60.0),
+    )
+    input_maps_freq = gen_sky_freq.execute()
+
+    npt.assert_array_almost_equal(
+        input_maps_ch.values,
+        input_maps_freq.values[0],
+        decimal=5,
+    )
+
+
+@pytest.mark.parametrize("output_type", ["map", "alm"])
+def test_foregrounds_consistency_channel_vs_frequency(output_type):
+    """
+    Tests that foreground-only output is identical when generated via the
+    channel path and the frequency path for the same monochromatic setup,
+    for both map and alm output types.
+    """
+    nside = 32
+    fwhm_arcmin = 20.0
+
+    channel_info = FreqChannelInfo(
+        bandcenter_ghz=140.0,
+        channel="L4-140",
+        bandwidth_ghz=1.0,
+        fwhm_arcmin=fwhm_arcmin,
+    )
+
+    sky_params = SkyGenerationParams(
+        make_cmb=False,
+        make_dipole=False,
+        make_fg=True,
+        fg_models=["d0", "s0", "f1", "a1"],
+        output_type=output_type,
+        apply_beam=True,
+        bandpass_integration=False,
+        nside=nside,
+        units="K_CMB",
+    )
+
+    gen_sky_ch = SkyGenerator(parameters=sky_params, channels=channel_info)
+    input_maps_ch = gen_sky_ch.execute()["L4-140"]
+
+    gen_sky_freq = SkyGenerator(
+        parameters=sky_params,
+        frequencies_ghz=140.0,
+        fwhm_rad=np.radians(fwhm_arcmin / 60.0),
+    )
+    input_maps_freq = gen_sky_freq.execute()
+
+    npt.assert_array_almost_equal(
+        input_maps_ch.values,
+        input_maps_freq.values[0],
+        decimal=5,
+    )

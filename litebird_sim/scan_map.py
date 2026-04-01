@@ -352,6 +352,11 @@ def scan_map(
                 hwp_angle=hwp_angle,
                 mueller_hwp=mueller_hwp[detector_idx],
             )
+        else:
+            raise TypeError(
+                "scan_map: hwp must be None, IdealHWP, or NonIdealHWP "
+                f"(got {type(hwp)!r})"
+            )
 
 
 def scan_map_in_observations(

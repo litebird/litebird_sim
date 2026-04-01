@@ -77,6 +77,7 @@ commit`:
 ```sh
 cd litebird_sim
 ruff format .
+ruff check --fix .
 ```
 
 It's a good practice to run tests on the code while you are developing
