@@ -9,6 +9,8 @@ from litebird_sim.mapmaking import (
     DestriperParameters,
     DestriperResult,
     ExternalDestriperParameters,
+    make_pair_differenced_map,
+    PairDifferencingResult,
 )
 from .bandpasses import BandPassInfo
 from .beam_convolution import (
@@ -366,6 +368,8 @@ __all__ = [
     "DestriperParameters",
     "DestriperResult",
     "ExternalDestriperParameters",
+    "make_pair_differenced_map",
+    "PairDifferencingResult",
     # simulations.py
     "NUMBA_NUM_THREADS_ENVVAR",
     "Simulation",
