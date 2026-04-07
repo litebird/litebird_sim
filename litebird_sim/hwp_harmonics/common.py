@@ -116,7 +116,7 @@ def integrate_inband_signal_for_one_sample(
     if len(band) == 1:
         tod += S[0]
     for i in range(len(band) - 1):
-        dnu = freqs[i + 1] - freqs[i]
+        dnu = (freqs[i + 1] - freqs[i]) * 1e9
         tod += (band[i] * S[i] + band[i + 1] * S[i + 1]) * (dnu / 2)
 
     return tod
