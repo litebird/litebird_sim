@@ -412,7 +412,7 @@ def test_scan_map_algebras():
             + np.sin(angle) * maps[2, pixind]
         )
 
-    np.testing.assert_allclose(
+    assert np.allclose(
         obs.tod,
         tod,
         rtol=tolerance,
@@ -441,7 +441,7 @@ def test_scan_map_algebras():
             + np.sin(angle) * maps[2, pixind]
         )
 
-    np.testing.assert_allclose(
+    assert np.allclose(
         obs.tod,
         tod,
         rtol=tolerance,
@@ -470,7 +470,7 @@ def test_scan_map_algebras():
             + np.sin(angle) * maps[2, pixind]
         )
 
-    np.testing.assert_allclose(
+    assert np.allclose(
         obs.tod,
         tod,
         rtol=tolerance,
@@ -500,7 +500,7 @@ def test_scan_map_algebras():
             + np.sin(angle) * maps[2, pixind]
         )
 
-    np.testing.assert_allclose(
+    assert np.allclose(
         obs.tod,
         tod,
         rtol=tolerance,
