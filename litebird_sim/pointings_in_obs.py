@@ -1,19 +1,16 @@
 from collections.abc import Callable
 
+import astropy.time
 import numpy as np
 import numpy.typing as npt
-import astropy.time
-
 from deprecated import deprecated
-
 from ducc0.healpix import Healpix_Base
 
+from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 from .detectors import InstrumentInfo
 from .hwp import HWP
 from .observations import Observation
 from .scanning import RotQuaternion
-
-from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 
 
 def prepare_pointings(
@@ -169,7 +166,7 @@ def _get_hwp_angle(
                 return obs.get_hwp_angle(pointings_dtype=pointing_dtype)
         else:
             if hasattr(obs, "mueller_hwp"):
-                if any(m is not None for m in obs.mueller_hwp):  # type: ignore[not-iterable]
+                if any(m is not None for m in obs.mueller_hwp):
                     raise AssertionError(
                         "Detectors have been initialized with a mueller_hwp, "
                         "but no HWP is either passed or initialized in the pointing."
