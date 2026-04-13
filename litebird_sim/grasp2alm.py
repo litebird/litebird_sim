@@ -57,7 +57,10 @@ class BeamHealpixMap:
     def _check_reason(
         self, reason: int, iter_count: int, residual_norm: float, quality: float
     ) -> None:
-        assert reason in (1, 2), (
+        assert reason in (
+            1,
+            2,
+        ), (
             f"pseudo_analysis failed, reason: {REASON_DESCRIPTION[reason]}, {iter_count=}, {residual_norm=}, {quality=}"
         )
 
@@ -95,7 +98,7 @@ class BeamHealpixMap:
             (3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)),
             dtype=np.complex128,
         )
-        (_, reason, iter_count, residual_norm, quality) = ducc0.sht.pseudo_analysis(
+        _, reason, iter_count, residual_norm, quality = ducc0.sht.pseudo_analysis(
             map=self.map[0].reshape(1, -1),  # Make this a 2D matrix
             alm=alm[0, :].reshape(1, -1),
             lmax=lmax,
@@ -190,7 +193,7 @@ def beam_mapmaker(
         if hit_map[i] > 0:
             output_map[i] /= hit_map[i]
         else:
-            output_map[i] = np.NaN
+            output_map[i] = np.nan
 
 
 @dataclass
