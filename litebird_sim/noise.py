@@ -161,8 +161,15 @@ def _synthesize_one_over_f_stream(
     """
     stream = np.zeros(n_samples)
     add_one_over_f_noise(
-        stream, fknee_mhz, fmin_hz, alpha, sigma, sampling_rate_hz, random,
-        engine=engine, model=model,
+        stream,
+        fknee_mhz,
+        fmin_hz,
+        alpha,
+        sigma,
+        sampling_rate_hz,
+        random,
+        engine=engine,
+        model=model,
     )
     return stream
 
@@ -542,8 +549,7 @@ def add_correlated_noise(
         R = np.asarray(corr_matrix, dtype=float)
         if R.shape != (n_det, n_det):
             raise ValueError(
-                f"corr_matrix must be a ({n_det}, {n_det}) matrix, "
-                f"got shape {R.shape}."
+                f"corr_matrix must be a ({n_det}, {n_det}) matrix, got shape {R.shape}."
             )
         try:
             L = np.linalg.cholesky(R)
@@ -561,8 +567,15 @@ def add_correlated_noise(
             fmin_j = _get_param_value(fmin_hz, j)
             alpha_j = _get_param_value(alpha, j)
             unit_streams[j] = _synthesize_one_over_f_stream(
-                n_samp, fknee_j, fmin_j, alpha_j, 1.0,
-                sampling_rate_hz, dets_random[j], engine=engine, model=model,
+                n_samp,
+                fknee_j,
+                fmin_j,
+                alpha_j,
+                1.0,
+                sampling_rate_hz,
+                dets_random[j],
+                engine=engine,
+                model=model,
             )
         # Mix streams: n_i = sigma_i * sum_j L[i,j] * z_j
         mixed = L @ unit_streams  # shape (n_det, n_samp)
@@ -574,8 +587,7 @@ def add_correlated_noise(
     # --- Common-mode path ---
     if groups is None:
         raise ValueError(
-            "Either 'corr_matrix' or 'groups' must be provided to "
-            "add_correlated_noise."
+            "Either 'corr_matrix' or 'groups' must be provided to add_correlated_noise."
         )
     groups = _validate_grouping(n_det, groups)
     rho_arr = _normalize_rho(rho, n_det)
@@ -595,8 +607,15 @@ def add_correlated_noise(
 
         if common_mode_type == "one_over_f":
             common_streams[grp] = _synthesize_one_over_f_stream(
-                n_samp, fknee_g, fmin_g, alpha_g, sigma_g,
-                sampling_rate_hz, grp_rng, engine=engine, model=model,
+                n_samp,
+                fknee_g,
+                fmin_g,
+                alpha_g,
+                sigma_g,
+                sampling_rate_hz,
+                grp_rng,
+                engine=engine,
+                model=model,
             )
         elif common_mode_type == "white":
             stream = np.zeros(n_samp)
@@ -619,13 +638,19 @@ def add_correlated_noise(
 
         # Unique stream
         unique_stream = _synthesize_one_over_f_stream(
-            n_samp, fknee_i, fmin_i, alpha_i, sigma_i,
-            sampling_rate_hz, dets_random[idet], engine=engine, model=model,
+            n_samp,
+            fknee_i,
+            fmin_i,
+            alpha_i,
+            sigma_i,
+            sampling_rate_hz,
+            dets_random[idet],
+            engine=engine,
+            model=model,
         )
 
         tod[idet] += (
-            np.sqrt(rho_i) * common_streams[grp]
-            + np.sqrt(1.0 - rho_i) * unique_stream
+            np.sqrt(rho_i) * common_streams[grp] + np.sqrt(1.0 - rho_i) * unique_stream
         )
 
 
@@ -690,9 +715,7 @@ def add_noise(
     """
     if noise_type == "correlated":
         if correlation is None:
-            raise ValueError(
-                "noise_type='correlated' requires a 'correlation' dict."
-            )
+            raise ValueError("noise_type='correlated' requires a 'correlation' dict.")
         add_correlated_noise(
             tod=tod,
             sampling_rate_hz=sampling_rate_hz,
