@@ -461,7 +461,6 @@ def _store_pixel_idx_and_pol_angle_in_obs(
         # - If not, compute or retrieve the HWP angle from the observation, depending on availability
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
-
         # Set number of threads
         if nthreads is None:
             nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
