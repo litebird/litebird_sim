@@ -22,7 +22,7 @@ from litebird_sim.pointings_in_obs import (
     _normalize_observations_and_pointings,
 )
 
-from .constants import NUM_THREADS_ENVVAR
+from ..constants import NUM_THREADS_ENVVAR
 
 from .common import (
     _compute_pixel_indices,

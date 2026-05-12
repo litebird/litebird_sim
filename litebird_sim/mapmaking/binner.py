@@ -28,7 +28,7 @@ from litebird_sim.pointings_in_obs import (
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
-from .constants import NUM_THREADS_ENVVAR
+from ..constants import NUM_THREADS_ENVVAR
 
 from .common import (
     COND_THRESHOLD,
