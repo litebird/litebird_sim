@@ -3,7 +3,7 @@ from enum import Enum
 import numpy as np
 from astropy.coordinates import BarycentricMeanEcliptic
 from astropy.coordinates import SkyCoord
-from numba import njit
+from numba import njit, prange
 
 """The coordinate system used by the framework"""
 DEFAULT_COORDINATE_SYSTEM = BarycentricMeanEcliptic()
@@ -193,7 +193,7 @@ def _rotate_coordinates_and_orientation_e2g_for_one_sample(
     return theta_gal_rad, phi_gal_rad, psi_gal_rad
 
 
-@njit
+@njit(parallel=True)
 def _rotate_coordinates_and_orientation_e2g_for_all(
     input_pointings_ecl_rad: np.ndarray,
     output_pointings_gal_rad: np.ndarray,
@@ -211,7 +211,7 @@ def _rotate_coordinates_and_orientation_e2g_for_all(
     """
 
     n_samples = input_pointings_ecl_rad.shape[0]
-    for i in range(n_samples):
+    for i in prange(n_samples):  # type: ignore[not-iterable]
         cur_theta_ecl_rad, cur_phi_ecl_rad, cur_psi_ecl_rad = input_pointings_ecl_rad[
             i, :
         ]
