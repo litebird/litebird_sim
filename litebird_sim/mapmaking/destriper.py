@@ -450,7 +450,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
     ptg_list: list[npt.NDArray | Callable],
     hwp: HWP | None,
     output_coordinate_system: CoordinateSystem,
-    nthreads: int,
+    nthreads: int | None = None,
     pointings_dtype=np.float64,
 ):
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
@@ -460,6 +460,11 @@ def _store_pixel_idx_and_pol_angle_in_obs(
         # - If an external HWP object is provided, compute the angle from it
         # - If not, compute or retrieve the HWP angle from the observation, depending on availability
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+
+
+        # Set number of threads
+        if nthreads is None:
+            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
 
         (
             cur_obs.destriper_pixel_idx,
@@ -547,7 +552,7 @@ def _sum_map_contribution_from_one_sample(
     dest_array[2] += sample * np.sin(2 * pol_angle_rad) / weight
 
 
-@njit(parallel=True)
+@njit
 def _update_sum_map_with_tod(
     sky_map: npt.NDArray,
     hit_map: npt.NDArray,
@@ -578,7 +583,7 @@ def _update_sum_map_with_tod(
         baseline_idx = 0
         samples_in_this_baseline = 0
 
-        for sample_idx in prange(tod.shape[1]):  # type: ignore[not-iterable]
+        for sample_idx in range(tod.shape[1]):
             if not t_mask[sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_lengths
@@ -599,7 +604,7 @@ def _update_sum_map_with_tod(
             )
 
 
-@njit(parallel=True)
+@njit
 def _update_sum_map_with_baseline(
     sky_map: npt.NDArray,
     hit_map: npt.NDArray,
@@ -629,7 +634,7 @@ def _update_sum_map_with_baseline(
         baseline_idx = 0
         samples_in_this_baseline = 0
 
-        for sample_idx in prange(pixel_idx.shape[1]):  # type: ignore[not-iterable]
+        for sample_idx in range(pixel_idx.shape[1]):
             if not t_mask[sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_lengths
@@ -776,7 +781,7 @@ def estimate_sample_from_map(
     return cur_i + cur_q * np.cos(2 * cur_psi) + cur_u * np.sin(2 * cur_psi)
 
 
-@njit(parallel=True)
+@njit
 def _compute_tod_sums_for_one_component(
     weights: npt.NDArray,
     tod: npt.NDArray,
@@ -811,7 +816,7 @@ def _compute_tod_sums_for_one_component(
         baseline_idx = 0
         samples_in_this_baseline = 0
 
-        for sample_idx in prange(len(det_pixel_idx)):  # type: ignore[not-iterable]
+        for sample_idx in range(len(det_pixel_idx)):
             if not t_mask[sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_length
@@ -832,7 +837,7 @@ def _compute_tod_sums_for_one_component(
             )
 
 
-@njit(parallel=True)
+@njit
 def _compute_baseline_sums_for_one_component(
     weights: npt.NDArray,
     pixel_idx: npt.NDArray,
@@ -867,7 +872,7 @@ def _compute_baseline_sums_for_one_component(
         baseline_idx = 0
         samples_in_this_baseline = 0
 
-        for sample_idx in prange(len(det_pixel_idx)):  # type: ignore[not-iterable]
+        for sample_idx in range(len(det_pixel_idx)):
             if not t_mask[sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_length
@@ -1800,7 +1805,7 @@ def make_destriped_map(
     )
 
 
-@njit(parallel=True)
+@njit
 def _remove_baselines(
     tod: npt.NDArray, baselines: npt.NDArray, baseline_lengths: npt.NDArray
 ):
@@ -1808,7 +1813,7 @@ def _remove_baselines(
     for det_idx in range(num_of_detectors):
         baseline_idx = 0
         samples_in_this_baseline = 0
-        for sample_idx in prange(num_of_samples):  # type: ignore[not-iterable]
+        for sample_idx in range(num_of_samples):
             tod[det_idx, sample_idx] -= baselines[det_idx, baseline_idx]
             (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                 baseline_idx, samples_in_this_baseline, baseline_lengths
