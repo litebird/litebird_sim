@@ -20,7 +20,7 @@ class Test_wrappers_gain_drift:
     """Class to group tests for checking the consistency of wrappers and
     low level functions"""
 
-    start_time = Time("2034-05-02")
+    start_time = Time("2026-05-02")
     duration_s = 2 * 24 * 3600
     sampling_freq_Hz = 1
 
@@ -182,7 +182,7 @@ class Test_wrappers_gain_drift:
 def test_linear_gain_drift(tmp_path):
     """This function test if the linear gain drifts are applied correctly."""
 
-    start_time = Time("2034-05-02")
+    start_time = Time("2026-05-02")
     duration_s = 2 * 24 * 3600
     sampling_freq_Hz = 3
 
@@ -280,7 +280,7 @@ class Test_thermal_gain:
     exactly this.
     """
 
-    start_time = Time("2034-05-02")
+    start_time = Time("2026-05-02")
     duration_s = 2 * 24 * 3600
     sampling_freq_Hz = 1
 
