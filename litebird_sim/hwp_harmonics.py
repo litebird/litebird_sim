@@ -525,7 +525,7 @@ def fill_tod(
             pointings and tod (default: np.float32).
 
         apply_non_linearity (bool) : applies the coupling of the non-linearity
-              systematics with hwp_sys
+            systematics with hwp_sys
 
         add_2f_hwpss (bool) : adds the 2f hwpss signal to the TOD
 
@@ -535,9 +535,8 @@ def fill_tod(
 
         comm (SerialMpiCommunicator) : MPI communicator
 
-        nthreads : int, default=None
-            Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
-            environment variable.
+        nthreads (int) : number of threads to use in ducc's Healpix methods.
+            If None, the function reads from the `OMP_NUM_THREADS` environment variable.
 
     """
     if maps is None:
@@ -727,7 +726,9 @@ def fill_tod(
                 scheme = "NESTED" if maps_det.nest else "RING"
                 hpx = Healpix_Base(maps_det.nside, scheme)
 
-                pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
+                pixel_ind_det = hpx.ang2pix(
+                    curr_pointings_det[:, 0:2], nthreads=nthreads
+                )
 
                 if maps_det.nstokes == 1:
                     input_T = pixmap[0, pixel_ind_det]
