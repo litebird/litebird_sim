@@ -27,7 +27,7 @@ def test_tophat_bpass():
     weights[np.ma.masked_inside(freqs_ghz, f0, f1).mask] = 1.0
     assert np.allclose(B0.weights, weights)
 
-    test.assertAlmostEqual(B0.get_normalization(), np.trapz(weights, freqs_ghz))
+    test.assertAlmostEqual(B0.get_normalization(), np.trapezoid(weights, freqs_ghz))
 
 
 def test_bpass_apodization():
@@ -87,7 +87,7 @@ def test_bpass_resampling():
     )
 
     test.assertAlmostEqual(
-        np.trapz(bpass_resampled, Bcos.freqs_ghz), Bcos.get_normalization()
+        np.trapezoid(bpass_resampled, Bcos.freqs_ghz), Bcos.get_normalization()
     )
 
 
