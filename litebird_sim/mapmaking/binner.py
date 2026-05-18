@@ -15,12 +15,8 @@ import os
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
-<<<<<<< HEAD
 from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
-from numba import njit
-=======
 from numba import njit, prange
->>>>>>> origin
 
 from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem

@@ -149,11 +149,11 @@ Maps are saved in **HDF5** format, one file per detector:
        │   └── Im
        └── ...
 
-To reload maps from disk, use :func:`.load_h_map_from_file`::
+To reload maps from disk, use :func:`.load_h_maps_from_file`::
 
-   from litebird_sim.mapmaking.h_maps import load_h_map_from_file
+   from litebird_sim.mapmaking.h_maps import load_h_maps_from_file
 
-   result = load_h_map_from_file("./h_n_maps/h_maps_det_mydetector.h5")
+   result = load_h_maps_from_file("./h_n_maps/h_maps_det_mydetector.h5")
 
 Detector and time splits
 ------------------------
@@ -202,6 +202,6 @@ API reference
 
 .. autofunction:: litebird_sim.mapmaking.h_maps.make_h_maps
 
-.. autofunction:: litebird_sim.mapmaking.h_maps.save_hn_maps
+.. autofunction:: litebird_sim.mapmaking.h_maps.save_h_maps
 
-.. autofunction:: litebird_sim.mapmaking.h_maps.load_h_map_from_file
+.. autofunction:: litebird_sim.mapmaking.h_maps.load_h_maps_from_file
