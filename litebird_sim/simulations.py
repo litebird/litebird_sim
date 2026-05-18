@@ -46,7 +46,7 @@ from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
     make_binned_map,
     make_h_maps,
-    HnMapResult,
+    HMapsResult,
     make_brahmap_gls_map,
     check_valid_splits,
     BinnerResult,
@@ -2481,7 +2481,7 @@ class Simulation:
         pointings_dtype=np.float64,
         save_to_file: bool = True,
         output_directory: str = "./h_n_maps",
-    ) -> HnMapResult:
+    ) -> HMapsResult:
         """
         Computes the Hn maps from the pointings  of `sim.observations`.
         This is a wrapper around :func:`litebird_sim.mapmaking.make_h_maps`.

@@ -9,7 +9,6 @@ import numpy.typing as npt
 from numba import njit
 import h5py
 import os
-from collections.abc import Callable
 from litebird_sim.observations import Observation
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.pointings_in_obs import (
@@ -17,11 +16,9 @@ from litebird_sim.pointings_in_obs import (
     _normalize_observations_and_pointings,
 )
 from litebird_sim.hwp import HWP
-from litebird_sim import mpi
 from ducc0.healpix import Healpix_Base
 from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
 from litebird_sim.maps_and_harmonics import HealpixMap
-from litebird_sim.detectors import DetectorInfo
 from .common import (
     _compute_pixel_indices_single_detector,
     _build_mask_detector_split,
@@ -69,7 +66,7 @@ class h_map_Re_and_Im:
 
 
 @dataclass
-class HnMapResult:
+class HMapsResult:
     """Result of :func:`make_h_maps`.
 
     :ivar h_maps: Mapping ``detector -> {(n, m): h_map_Re_and_Im}`` containing
@@ -96,9 +93,9 @@ class HnMapResult:
     time_split: str = "full"
 
 
-def load_h_map_from_file(
+def load_h_maps_from_file(
     filepath: str,
-) -> HnMapResult:
+) -> HMapsResult:
     """Load :math:`h_{n,m}` maps from an HDF5 file.
 
     :param filepath: Path to an HDF5 file produced by :func:`save_hn_maps`.
@@ -123,7 +120,7 @@ def load_h_map_from_file(
                 m=m,
             )
 
-        return HnMapResult(
+        return HMapsResult(
             h_maps=h_maps,
             coordinate_system=CoordinateSystem[f.attrs["coordinate_system"]],
             detector_split=f.attrs["detector_split"],
@@ -150,8 +147,7 @@ def _solve_binning(nobs_matrix, atd):
             atd[ipix, 0] = atd[ipix, 0] / nobs_matrix[ipix, 0]
             atd[ipix, 1] = atd[ipix, 1] / nobs_matrix[ipix, 0]
         else:
-            atd[ipix] = 0 #If there is no hit we set the pixel to 0
-
+            atd[ipix] = 0  # If there is no hit we set the pixel to 0
 
 
 @njit
@@ -243,7 +239,7 @@ def make_h_maps(
     pointings_dtype=np.float64,
     save_to_file: bool = True,
     output_directory: str = "./h_n_maps",
-) -> HnMapResult:
+) -> HMapsResult:
     """Generate complex harmonic maps :math:`h_{n,m}` from observations.
 
     The map for ``(n, m) = (0, 0)`` contains hit counts per pixel.
@@ -362,7 +358,7 @@ def make_h_maps(
             del polang
             gc.collect()
 
-    result = HnMapResult(
+    result = HMapsResult(
         h_maps=h_maps,
         coordinate_system=output_coordinate_system,
         duration_s=duration,
@@ -371,12 +367,12 @@ def make_h_maps(
         time_split=time_split,
     )
     if save_to_file:
-        save_hn_maps(result, output_directory)
+        save_h_maps(result, output_directory)
         log.info(f"h_n maps saved to directory: {output_directory}")
     return result
 
 
-def save_hn_maps(result, output_directory: str) -> None:
+def save_h_maps(result, output_directory: str) -> None:
     """Save :math:`h_n` maps to HDF5 files.
 
     One file is produced per detector in ``output_directory``. The directory is
