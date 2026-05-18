@@ -130,6 +130,7 @@ def _compute_pixel_indices(
     num_of_samples: int,
     hwp_angle: npt.NDArray | None,
     output_coordinate_system: CoordinateSystem,
+    nthreads: int,
     pointings_dtype=np.float64,
     hmap_generation: bool = False,
 ) -> tuple[npt.NDArray, npt.NDArray]:
@@ -172,7 +173,7 @@ def _compute_pixel_indices(
                 pol_angle_detectors=pol_angle_detectors[idet],
             )
 
-        pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2])
+        pixidx_all[idet] = hpx.ang2pix(curr_pointings_det[:, :2], nthreads=nthreads)
 
     if output_coordinate_system == CoordinateSystem.Galactic:
         # Free curr_pointings_det if the output map is already in Galactic coordinates

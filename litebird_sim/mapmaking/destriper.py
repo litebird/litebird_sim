@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 from collections.abc import Callable
+import os
 
 import numpy as np
 import numpy.typing as npt
@@ -22,7 +23,8 @@ from litebird_sim.pointings_in_obs import (
     _normalize_observations_and_pointings,
 )
 
-from litebird_sim.maps_and_harmonics import HealpixMap
+from ..constants import NUM_THREADS_ENVVAR
+
 from .common import (
     _compute_pixel_indices,
     COND_THRESHOLD,
@@ -114,7 +116,7 @@ def _get_invnpp(
 ):
     npix = nobs_matrix_cholesky.shape[0]
 
-    for ipix in range(npix):
+    for ipix in prange(npix):  # type: ignore[not-iterable]
         if not valid_pixel[ipix]:
             result[ipix, :, :] = 0.0
             continue
@@ -449,6 +451,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
     ptg_list: list[npt.NDArray | Callable],
     hwp: HWP | None,
     output_coordinate_system: CoordinateSystem,
+    nthreads: int | None = None,
     pointings_dtype=np.float64,
 ):
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
@@ -458,6 +461,10 @@ def _store_pixel_idx_and_pol_angle_in_obs(
         # - If an external HWP object is provided, compute the angle from it
         # - If not, compute or retrieve the HWP angle from the observation, depending on availability
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
+
+        # Set number of threads
+        if nthreads is None:
+            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
 
         (
             cur_obs.destriper_pixel_idx,
@@ -470,6 +477,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
             num_of_samples=cur_obs.n_samples,
             hwp_angle=hwp_angle,
             output_coordinate_system=output_coordinate_system,
+            nthreads=nthreads,
             pointings_dtype=pointings_dtype,
         )
 
@@ -647,7 +655,7 @@ def _update_sum_map_with_baseline(
             )
 
 
-@njit
+@njit(parallel=True)
 def _sum_map_to_binned_map(
     sky_map: npt.NDArray,
     nobs_matrix_cholesky: npt.NDArray,
@@ -655,7 +663,7 @@ def _sum_map_to_binned_map(
 ) -> None:
     """Convert a “sum map” into a “binned map” using the N_obs matrix"""
 
-    for cur_pix in range(sky_map.shape[1]):
+    for cur_pix in prange(sky_map.shape[1]):  # type: ignore[not-iterable]
         if valid_pixels[cur_pix]:
             cur_i, cur_q, cur_u = solve_cholesky(
                 L=nobs_matrix_cholesky[cur_pix, :],
@@ -1471,6 +1479,7 @@ def make_destriped_map(
     callback: Any = destriper_log_callback,
     callback_kwargs: dict[Any, Any] | None = None,
     pointings_dtype=np.float64,
+    nthreads: int | None = None,
 ) -> DestriperResult:
     """
     Applies the destriping algorithm to produce a map out from a TOD
@@ -1567,6 +1576,9 @@ def make_destriped_map(
     :param pointings_dtype(dtype): data type for pointings generated on
         the fly. If the pointing is passed or already precomputed this
         parameter is ineffective. Default is `np.float64`.
+    :param nthreads: number of threads to use in ducc's Healpix methods.
+        If None, the function reads from the `OMP_NUM_THREADS` environment
+        variable.
 
     :return: an instance of the :class:`.DestriperResult`
        containing the destriped map and other useful information
@@ -1584,6 +1596,10 @@ def make_destriped_map(
 
     hpx = Healpix_Base(nside=nside, scheme="RING")
 
+    # Set number of threads
+    if nthreads is None:
+        nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+
     # Convert pointings and ψ angles according to the coordinate system,
     # convert them into Healpix indices and save the result into
     # each Observation object (don't worry, we will delete them
@@ -1594,6 +1610,7 @@ def make_destriped_map(
         ptg_list=ptg_list,
         hwp=hwp,
         output_coordinate_system=params.output_coordinate_system,
+        nthreads=nthreads,
         pointings_dtype=pointings_dtype,
     )
 
