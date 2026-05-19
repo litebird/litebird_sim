@@ -18,9 +18,8 @@ class DipoleType(IntEnum):
 
     The non-convolved TOD path supports all members. Beam convolution is
     enabled separately with ``apply_convolution=True`` in :func:`add_dipole`
-    or :func:`add_dipole_to_observations`; in that mode the public wrapper
-    currently accepts ``LINEAR``, ``QUADRATIC_EXACT``, and
-    ``QUADRATIC_FROM_LIN_T``.
+    or :func:`add_dipole_to_observations`; in that mode the total-formula
+    models ``TOTAL_EXACT`` and ``TOTAL_FROM_LIN_T`` are not supported.
     """
 
     LINEAR = 0
@@ -726,8 +725,11 @@ def add_dipole(
         1-D array with frequency in GHz for each detector.
     dipole_type:
         DipoleType enum specifying the Doppler shift approximation.
-        When ``apply_convolution=True``, the supported public choices are
-        ``LINEAR``, ``QUADRATIC_EXACT``, and ``QUADRATIC_FROM_LIN_T``.
+        When ``apply_convolution=True``, all polynomial-expansion models
+        are supported: ``LINEAR``, ``QUADRATIC_EXACT``, ``CUBIC_EXACT``,
+        ``QUADRATIC_FROM_LIN_T``, and ``CUBIC_FROM_LIN_T``. The total
+        formulae ``TOTAL_EXACT`` and ``TOTAL_FROM_LIN_T`` are not
+        supported in the moment-expanded convolution path.
     pointings_dtype:
         Data type for pointings if generated on the fly.
     apply_convolution:
@@ -770,7 +772,9 @@ def add_dipole(
             if dipole_type in (
                 DipoleType.LINEAR,
                 DipoleType.QUADRATIC_EXACT,
+                DipoleType.CUBIC_EXACT,
                 DipoleType.QUADRATIC_FROM_LIN_T,
+                DipoleType.CUBIC_FROM_LIN_T,
             ):
                 s_params = compute_s_params_from_beam_alm(beam_alm_det)
                 add_dipole_for_one_detector_convolved(
@@ -787,7 +791,8 @@ def add_dipole(
             else:
                 raise ValueError(
                     f"dipole_type={dipole_type.name} does not support apply_convolution=True. "
-                    "Supported types: LINEAR, QUADRATIC_EXACT, QUADRATIC_FROM_LIN_T."
+                    "Supported types: LINEAR, QUADRATIC_EXACT, CUBIC_EXACT, "
+                    "QUADRATIC_FROM_LIN_T, CUBIC_FROM_LIN_T."
                 )
         else:
             # Standard (non-convolved) dipole calculation
@@ -847,7 +852,10 @@ def add_dipole_to_observations(
     t_cmb_k : float, default=T_CMB_K
         CMB monopole temperature in Kelvin.
     dipole_type : DipoleType, default=TOTAL_FROM_LIN_T
-        Type of dipole approximation to use.
+        Type of dipole approximation to use. With ``apply_convolution=True``,
+        choose one of the polynomial-expansion models; ``TOTAL_EXACT`` and
+        ``TOTAL_FROM_LIN_T`` are not supported by the moment-expanded
+        convolution.
     frequency_ghz : np.ndarray | None, default=None
         Frequencies in GHz for each detector. If None, taken from observation.
     component : str, default="tod"

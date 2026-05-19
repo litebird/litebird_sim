@@ -243,11 +243,12 @@ and the S-parameters are
 
 These integrals are computed **once** per detector from the full 4π
 beam harmonics and then reused for every TOD sample. The public
-``apply_convolution=True`` path supports ``DipoleType.LINEAR``,
-``DipoleType.QUADRATIC_EXACT``, and
-``DipoleType.QUADRATIC_FROM_LIN_T``. For these public choices the
-cubic coefficient is zero; ``s_ten`` is still returned as part of the
-complete moment expansion.
+``apply_convolution=True`` path supports the polynomial-expansion
+models ``DipoleType.LINEAR``, ``DipoleType.QUADRATIC_EXACT``,
+``DipoleType.CUBIC_EXACT``, ``DipoleType.QUADRATIC_FROM_LIN_T``, and
+``DipoleType.CUBIC_FROM_LIN_T``. The total-formula models
+``DipoleType.TOTAL_EXACT`` and ``DipoleType.TOTAL_FROM_LIN_T`` are not
+implemented in this moment-expanded convolution path.
 
 Computing S-parameters
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -285,7 +286,9 @@ Adding a convolved dipole
 Pass the beam harmonics to :func:`.add_dipole` or
 :func:`.add_dipole_to_observations` and enable ``apply_convolution``.
 The pointing matrices must include the :math:`\psi` column, with shape
-``(n_det, n_samples, 3)``:
+``(n_det, n_samples, 3)``. Choose any polynomial-expansion
+:class:`.DipoleType`; the example below uses
+``DipoleType.QUADRATIC_FROM_LIN_T``:
 
 .. testcode::
 
