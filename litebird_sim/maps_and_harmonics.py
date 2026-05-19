@@ -463,6 +463,39 @@ class SphericalHarmonics:
 
         return np.concatenate(ls), np.concatenate(ms)
 
+    def get_coeff(self, l_val: int, m_val: int, stokes: int = 0) -> complex:
+        """Return the a_{ℓm} coefficient for the given (l, m).
+
+        Parameters
+        ----------
+        l_val : int
+            Degree ℓ. Must satisfy ``m_val <= l_val <= lmax``.
+        m_val : int
+            Order m. Must satisfy ``0 <= m_val <= mmax``.
+        stokes : int, default=0
+            Stokes component index (0=T, 1=E, 2=B for ``nstokes=3``).
+
+        Returns
+        -------
+        complex
+            The coefficient ``a_{ℓm}``, or ``0+0j`` if ``(l, m)`` is outside
+            the stored range.
+
+        Raises
+        ------
+        ValueError
+            If called on a multi-frequency object (``nfreqs`` is not None).
+        """
+        if self.nfreqs is not None:
+            raise ValueError(
+                "get_coeff does not support multi-frequency SphericalHarmonics; "
+                "index self.values directly."
+            )
+        if m_val < 0 or l_val < m_val or l_val > self.lmax or m_val > self.mmax_int:
+            return 0.0 + 0.0j
+        idx = SphericalHarmonics.get_index(self.lmax, l_val, m_val)
+        return complex(self.values[stokes, idx])
+
     def print_ordering_example(self):
         """Prints the first few (l, m) pairs to demonstrate ordering."""
         idx = 0
