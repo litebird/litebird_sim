@@ -14,7 +14,14 @@ from .constants import C_LIGHT_KM_OVER_S, H_OVER_K_B, T_CMB_K
 
 # We use a IntEnum class so that comparisons are much faster than with strings
 class DipoleType(IntEnum):
-    """Approximation for the Doppler shift caused by the motion of the spacecraft"""
+    """Doppler-shift model used when adding the CMB dipole to TOD.
+
+    The non-convolved TOD path supports all members. Beam convolution is
+    enabled separately with ``apply_convolution=True`` in :func:`add_dipole`
+    or :func:`add_dipole_to_observations`; in that mode the public wrapper
+    currently accepts ``LINEAR``, ``QUADRATIC_EXACT``, and
+    ``QUADRATIC_FROM_LIN_T``.
+    """
 
     LINEAR = 0
     r"""Linear approximation in β using thermodynamic units:
@@ -80,6 +87,7 @@ class DipoleType(IntEnum):
        \vec\beta\cdot\hat n)\bigr)^3\mathrm{BB}(t_0)}\right).
     """
 
+
 @dataclass
 class BeamSParams:
     r"""Beam-weighted S-parameters for full-4π dipole convolution.
@@ -110,10 +118,12 @@ class BeamSParams:
     s_mat: np.ndarray  # shape (3, 3)
     s_ten: np.ndarray  # shape (3, 3, 3)
 
+
 @njit
 def _compute_f_x(x):
     """Spectral function f(x) = x e^x / (e^x - 1)."""
     return x * np.exp(x) / (np.exp(x) - 1)
+
 
 @njit
 def _compute_q_x(x):
@@ -126,10 +136,12 @@ def _compute_r_x(x):
     """Octupole spectral weight r(x) = x^2(e^{2x}+4e^x+1) / (6(e^x-1)^2)."""
     return x**2 * (np.exp(2 * x) + 4 * np.exp(x) + 1) / (6 * (np.exp(x) - 1) ** 2)
 
+
 @njit
 def _compute_occupation(x):
     """Return occupation number for x"""
     return 1 / (np.expm1(x))
+
 
 @njit
 def _compute_scalar_product(theta, phi, v):
@@ -138,6 +150,7 @@ def _compute_scalar_product(theta, phi, v):
 
     return dx * v[0] + dy * v[1] + dz * v[2]
 
+
 @njit
 def _calculate_beta(theta, phi, v_km_s):
     """Return a 2-tuple containing β·n and β"""
@@ -145,6 +158,7 @@ def _calculate_beta(theta, phi, v_km_s):
     beta = np.sqrt(v_km_s[0] ** 2 + v_km_s[1] ** 2 + v_km_s[2] ** 2) / C_LIGHT_KM_OVER_S
 
     return beta_dot_n, beta
+
 
 @njit
 def _rotate_velocity_to_beam_frame(theta, phi, psi, v_km_s):
@@ -172,11 +186,20 @@ def _rotate_velocity_to_beam_frame(theta, phi, psi, v_km_s):
     v2 = v_km_s[2]
 
     # ê_θ = (ct*cp, ct*sp, -st),  ê_φ = (-sp, cp, 0)
-    vx = (cpsi * ct * cp + spsi * sp) * v0 + (cpsi * ct * sp - spsi * cp) * v1 + (-cpsi * st) * v2
-    vy = (spsi * ct * cp - cpsi * sp) * v0 + (spsi * ct * sp + cpsi * cp) * v1 + (-spsi * st) * v2
+    vx = (
+        (cpsi * ct * cp + spsi * sp) * v0
+        + (cpsi * ct * sp - spsi * cp) * v1
+        + (-cpsi * st) * v2
+    )
+    vy = (
+        (spsi * ct * cp - cpsi * sp) * v0
+        + (spsi * ct * sp + cpsi * cp) * v1
+        + (-spsi * st) * v2
+    )
     vz = st * cp * v0 + st * sp * v1 + ct * v2
 
     return vx, vy, vz
+
 
 @njit
 def compute_dipole_for_one_sample_linear(theta, phi, v_km_s, t_cmb_k):
@@ -222,7 +245,9 @@ def compute_dipole_for_one_sample_cubic_exact(theta, phi, v_km_s, t_cmb_k):
 
 
 @njit
-def compute_dipole_for_one_sample_cubic_from_lin_t(theta, phi, v_km_s, t_cmb_k, q_x, r_x):
+def compute_dipole_for_one_sample_cubic_from_lin_t(
+    theta, phi, v_km_s, t_cmb_k, q_x, r_x
+):
     # Third order in linearized units: r_x = x^2*(exp(2x)+4*exp(x)+1)/(6*(exp(x)-1)^2)
     # No boosting induced monopoles are added.
     beta_dot_n, beta = _calculate_beta(theta, phi, v_km_s)
@@ -243,16 +268,88 @@ def compute_dipole_for_one_sample_total_from_lin_t(
 
 
 @njit
-def compute_dipole_for_one_sample_convolved(theta, phi, psi, v_km_s, t_cmb_k, q_x, s_vec, s_mat):
-    r"""Compute the beam-convolved dipole+quadrupole for one TOD sample.
+def compute_dipole_for_one_sample_expanded(
+    theta, phi, v_km_s, t_cmb_k, q_x, r_x
+):
+    r"""Polynomial β-expansion for one TOD sample (no beam convolution).
 
-    Implements Eq. (C.5) of the Planck NPIPE paper (arXiv:2007.04997):
+    Computes
 
-        D̃ = T₀ [ Sᵢ βᵢ  +  q(x) Sᵢⱼ βᵢ βⱼ ]
+    .. math::
+
+       \Delta T = T_0\bigl(\beta\cdot\hat n
+                 + q_x (\beta\cdot\hat n)^2
+                 + r_x (\beta\cdot\hat n)^3\bigr)
+
+    This is the scalar (delta-function beam) limit of
+    :func:`compute_dipole_for_one_sample_convolved`, where
+    :math:`S_i = \hat n_i`, :math:`S_{ij} = \hat n_i \hat n_j`, etc.
+    The caller selects the approximation order by choosing *q_x* and *r_x*:
+
+    ========================== ============== ==============
+    DipoleType                 q_x            r_x
+    ========================== ============== ==============
+    ``LINEAR``                 ``0``          ``0``
+    ``QUADRATIC_EXACT``        ``1``          ``0``
+    ``CUBIC_EXACT``            ``1``          ``1``
+    ``QUADRATIC_FROM_LIN_T``   ``q(x)``       ``0``
+    ``CUBIC_FROM_LIN_T``       ``q(x)``       ``r(x)``
+    ========================== ============== ==============
+    """
+    beta_dot_n, _ = _calculate_beta(theta, phi, v_km_s)
+    if q_x == 0.0:
+        return t_cmb_k * beta_dot_n
+    elif r_x == 0.0:
+        return t_cmb_k * (beta_dot_n + q_x * beta_dot_n**2)
+    else:
+        return t_cmb_k * (beta_dot_n + q_x * beta_dot_n**2 + r_x * beta_dot_n**3)
+
+
+@njit
+def compute_dipole_for_one_sample_total(
+    theta, phi, v_km_s, t_cmb_k, nu_hz, f_x, n_x
+):
+    r"""Exact or full-Planck formula for one TOD sample.
+
+    Selects the formula via *f_x*:
+
+    - ``f_x == 0``  →  thermodynamic exact (``TOTAL_EXACT``)
+
+      .. math:: \Delta T = \frac{T_0}{\gamma(1 - \beta\cdot\hat n)} - T_0
+
+    - ``f_x ≠ 0``  →  full Planck in linearised units (``TOTAL_FROM_LIN_T``)
+
+      .. math:: \Delta T = \frac{T_0}{f(x)}\left(
+                \frac{\bar n(x_\mathrm{Doppler})}{\bar n(x)} - 1\right)
+
+    where :math:`x_\mathrm{Doppler} = \frac{h\nu}{k_B T_0}\gamma(1-\beta\cdot\hat n)`.
+
+    For ``TOTAL_EXACT`` pass *nu_hz* = 0, *f_x* = 0, *n_x* = 1 (unused).
+    """
+    beta_dot_n, beta = _calculate_beta(theta, phi, v_km_s)
+    gamma = 1.0 / np.sqrt(1.0 - beta**2)
+    if f_x == 0.0:
+        return t_cmb_k / gamma / (1.0 - beta_dot_n) - t_cmb_k
+    else:
+        x_doppler = H_OVER_K_B * nu_hz * gamma * (1.0 - beta_dot_n) / t_cmb_k
+        n_x_shifted = _compute_occupation(x_doppler)
+        return t_cmb_k / f_x * (n_x_shifted / n_x - 1.0)
+
+
+@njit
+def compute_dipole_for_one_sample_convolved(
+    theta, phi, psi, v_km_s, t_cmb_k, q_x, r_x, s_vec, s_mat, s_ten,
+):
+    r"""Compute the beam-convolved dipole+quadrupole+octupole for one TOD sample.
+
+    Implements Eq. (C.5) of the Planck NPIPE paper (arXiv:2007.04997)
+    adding the octupole term for the CUBIC_FROM_LIN_T case:
+
+        D̃ = T₀ [ Sᵢ βᵢ  +  q(x) Sᵢⱼ βᵢ βⱼ +  r(x) Sᵢⱼₖ βᵢ βⱼ βₖ ]
 
     where β is the velocity divided by c expressed in the beam frame
     (obtained by rotating v_km_s with (theta, phi, psi)), and the
-    S-parameters are the beam-weighted integrals stored in s_vec / s_mat.
+    S-parameters are the beam-weighted integrals stored in s_vec / s_mat / s_ten.
     """
     vx, vy, vz = _rotate_velocity_to_beam_frame(theta, phi, psi, v_km_s)
     bx = vx / C_LIGHT_KM_OVER_S
@@ -264,31 +361,23 @@ def compute_dipole_for_one_sample_convolved(theta, phi, psi, v_km_s, t_cmb_k, q_
 
     # Quadrupole term: S_ij β_i β_j  (S is symmetric)
     b = (bx, by, bz)
-    quadrupole = 0.0
-    for i in range(3):
-        for j in range(3):
-            quadrupole += s_mat[i, j] * b[i] * b[j]
 
-    return t_cmb_k * (dipole + q_x * quadrupole)
-
-
-@njit(parallel=True)
-def _add_dipole_for_one_detector_convolved_quadratic(
-    tod_det, theta_phi_psi_det, velocity, t_cmb_k, q_x, s_vec, s_mat
-):
-    """Beam-convolved QUADRATIC_FROM_LIN_T dipole for one detector (in-place)."""
-    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-        tod_det[i] += compute_dipole_for_one_sample_convolved(
-            theta=theta_phi_psi_det[i, 0],
-            phi=theta_phi_psi_det[i, 1],
-            psi=theta_phi_psi_det[i, 2],
-            v_km_s=velocity[i],
-            t_cmb_k=t_cmb_k,
-            q_x=q_x,
-            s_vec=s_vec,
-            s_mat=s_mat,
-        )
-
+    if q_x == 0.0:
+        return t_cmb_k * dipole
+    else:
+        quadrupole = 0.0
+        for i in range(3):
+            for j in range(3):
+                quadrupole += s_mat[i, j] * b[i] * b[j]
+        if r_x == 0.0:
+            return t_cmb_k * (dipole + q_x * quadrupole)
+        else:
+            octupole = 0.0
+            for i in range(3):
+                for j in range(3):
+                    for k in range(3):
+                        octupole += s_ten[i, j, k] * b[i] * b[j] * b[k]
+            return t_cmb_k * (dipole + q_x * quadrupole + r_x * octupole)
 
 def _scalar_beam_alm_from_input(beam_alm: SphericalHarmonics) -> SphericalHarmonics:
     """Return a scalar (nstokes=1) beam alm object from user input."""
@@ -375,10 +464,7 @@ def compute_s_params_from_beam_alm(
     sz = np.sqrt(4.0 * np.pi / 3.0) * np.real(np.conj(a10))
     s_vec = np.array([sx, sy, sz], dtype=np.float64)
 
-    i_zz = (
-        norm / 3.0
-        + (2.0 / 3.0) * np.sqrt(4.0 * np.pi / 5.0) * np.conj(a20)
-    )
+    i_zz = norm / 3.0 + (2.0 / 3.0) * np.sqrt(4.0 * np.pi / 5.0) * np.conj(a20)
     i_xx_minus_yy = np.sqrt(8.0 * np.pi / 15.0) * (np.conj(a22) + a22)
     i_xy2 = 1j * np.sqrt(8.0 * np.pi / 15.0) * (a22 - np.conj(a22))
     i_xz = np.sqrt(2.0 * np.pi / 15.0) * (-a21 - np.conj(a21))
@@ -398,6 +484,20 @@ def compute_s_params_from_beam_alm(
         dtype=np.float64,
     )
 
+    # --- Octupole moments S_{ijk} = ∫ B n_i n_j n_k dΩ  (i,j,k ∈ {x,y,z}) ---
+    # Cubic monomials decompose as  n_i n_j n_k = (ℓ=1 trace part) + (ℓ=3 traceless part),
+    # so only ℓ=1 and ℓ=3 alms contribute.  Expanding each monomial in spherical harmonics
+    # and using  S_{ijk} = Σ_{ℓm} a_{ℓm} ∫ n_i n_j n_k Y_{ℓm} dΩ  (convention a = ∫ B Y dΩ)
+    # yields a linear combination of a_{1m} and a_{3m} coefficients.
+    #
+    # Normalisation constants derived from the standard relations
+    #   n_z             =  k10 · Re(Y_{10}*)            k10 = sqrt(4π/3)
+    #   n_x + i n_y     = -k11 · Y_{11}*                k11 = sqrt(8π/3)
+    #   Y_{3m} ∝ n^3 traceless pieces:
+    #     m=0  (5n_z³ − 3n_z)      /2    k30 = sqrt(  π/ 7)
+    #     m=1  (5n_z² − 1)(n_x±in_y)/... k31 = sqrt(  π/21)
+    #     m=2  n_z(n_x ± in_y)²         k32 = sqrt(8π/105)
+    #     m=3  (n_x ± in_y)³             k33 = sqrt(  π/35)
     k10 = np.sqrt(4.0 * np.pi / 3.0)
     k11 = np.sqrt(8.0 * np.pi / 3.0)
     k30 = np.sqrt(np.pi / 7.0)
@@ -405,49 +505,53 @@ def compute_s_params_from_beam_alm(
     k32 = np.sqrt(8.0 * np.pi / 105.0)
     k33 = np.sqrt(np.pi / 35.0)
 
-    # Cubic direction-cosine monomials contain both ell=1 and ell=3 pieces.
-    s_xxx = (
-        -(3.0 / 5.0) * k11 * np.real(a11)
-        + (6.0 / 5.0) * k31 * np.real(a31)
-        - 2.0 * k33 * np.real(a33)
+    # Each formula has an ℓ=1 part (from the trace: n_i n_j n_k = δ_{ij}n_k/5 + ...)
+    # and an ℓ=3 part (the symmetric traceless remainder).
+    # Consistency check: S_{xxx}+S_{xyy}+S_{xzz} = S_x, and cyclic permutations.
+
+    # --- m=0/1 terms (real n_z axis, involve a10, a30, a31) ---
+    s_zzz = (  # ℓ=1: (3/5)n_z;  ℓ=3: (2/5)P_3(n_z)
+        (3.0 / 5.0) * k10 * np.real(np.conj(a10))
+        + (4.0 / 5.0) * k30 * np.real(np.conj(a30))
     )
-    s_xxy = (
-        (1.0 / 5.0) * k11 * np.imag(a11)
-        - (2.0 / 5.0) * k31 * np.imag(a31)
-        + 2.0 * k33 * np.imag(a33)
-    )
-    s_xxz = (
+    s_xxz = (  # S_{xxz} = S_{yyz} ± (a32 term)
         (1.0 / 5.0) * k10 * np.real(np.conj(a10))
         - (2.0 / 5.0) * k30 * np.real(np.conj(a30))
         + k32 * np.real(a32)
-    )
-    s_xyy = (
-        -(1.0 / 5.0) * k11 * np.real(a11)
-        + (2.0 / 5.0) * k31 * np.real(a31)
-        + 2.0 * k33 * np.real(a33)
-    )
-    s_xyz = -k32 * np.imag(a32)
-    s_xzz = (
-        -(1.0 / 5.0) * k11 * np.real(a11)
-        - (8.0 / 5.0) * k31 * np.real(a31)
-    )
-    s_yyy = (
-        (3.0 / 5.0) * k11 * np.imag(a11)
-        - (6.0 / 5.0) * k31 * np.imag(a31)
-        - 2.0 * k33 * np.imag(a33)
     )
     s_yyz = (
         (1.0 / 5.0) * k10 * np.real(np.conj(a10))
         - (2.0 / 5.0) * k30 * np.real(np.conj(a30))
         - k32 * np.real(a32)
     )
-    s_yzz = (
-        (1.0 / 5.0) * k11 * np.imag(a11)
-        + (8.0 / 5.0) * k31 * np.imag(a31)
+    s_xzz = (  # ℓ=1 and ℓ=3 m=1 contribute
+        -(1.0 / 5.0) * k11 * np.real(a11) - (8.0 / 5.0) * k31 * np.real(a31)
     )
-    s_zzz = (
-        (3.0 / 5.0) * k10 * np.real(np.conj(a10))
-        + (4.0 / 5.0) * k30 * np.real(np.conj(a30))
+    s_yzz = (1.0 / 5.0) * k11 * np.imag(a11) + (8.0 / 5.0) * k31 * np.imag(a31)
+
+    # --- m=2 term (off-diagonal xy plane) ---
+    s_xyz = -k32 * np.imag(a32)  # pure ℓ=3, m=2
+
+    # --- m=1/3 terms (in-plane, involve a11, a31, a33) ---
+    s_xxx = (  # ℓ=1 + ℓ=3 m=1 + ℓ=3 m=3
+        -(3.0 / 5.0) * k11 * np.real(a11)
+        + (6.0 / 5.0) * k31 * np.real(a31)
+        - 2.0 * k33 * np.real(a33)
+    )
+    s_yyy = (
+        (3.0 / 5.0) * k11 * np.imag(a11)
+        - (6.0 / 5.0) * k31 * np.imag(a31)
+        - 2.0 * k33 * np.imag(a33)
+    )
+    s_xxy = (
+        (1.0 / 5.0) * k11 * np.imag(a11)
+        - (2.0 / 5.0) * k31 * np.imag(a31)
+        + 2.0 * k33 * np.imag(a33)
+    )
+    s_xyy = (
+        -(1.0 / 5.0) * k11 * np.real(a11)
+        + (2.0 / 5.0) * k31 * np.real(a31)
+        + 2.0 * k33 * np.real(a33)
     )
 
     s_ten = np.zeros((3, 3, 3), dtype=np.float64)
@@ -481,71 +585,112 @@ def add_dipole_for_one_detector(
     q_x = _compute_q_x(x)
     r_x = _compute_r_x(x)
 
-    if dipole_type == DipoleType.LINEAR:
+    if dipole_type == DipoleType.TOTAL_EXACT:
+        # Exact thermodynamic formula: f_x=0 signals compute_dipole_for_one_sample_total
+        # to use the T₀/γ/(1−β·n̂) branch.
         for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-            tod_det[i] += compute_dipole_for_one_sample_linear(
+            tod_det[i] += compute_dipole_for_one_sample_total(
                 theta=theta_phi_det[i, 0],
                 phi=theta_phi_det[i, 1],
                 v_km_s=velocity[i],
                 t_cmb_k=t_cmb_k,
-            )
-    elif dipole_type == DipoleType.QUADRATIC_EXACT:
-        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-            tod_det[i] += compute_dipole_for_one_sample_quadratic_exact(
-                theta=theta_phi_det[i, 0],
-                phi=theta_phi_det[i, 1],
-                v_km_s=velocity[i],
-                t_cmb_k=t_cmb_k,
-            )
-    elif dipole_type == DipoleType.TOTAL_EXACT:
-        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-            tod_det[i] += compute_dipole_for_one_sample_total_exact(
-                theta=theta_phi_det[i, 0],
-                phi=theta_phi_det[i, 1],
-                v_km_s=velocity[i],
-                t_cmb_k=t_cmb_k,
-            )
-    elif dipole_type == DipoleType.CUBIC_EXACT:
-        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-            tod_det[i] += compute_dipole_for_one_sample_cubic_exact(
-                theta=theta_phi_det[i, 0],
-                phi=theta_phi_det[i, 1],
-                v_km_s=velocity[i],
-                t_cmb_k=t_cmb_k,
-            )
-    elif dipole_type == DipoleType.QUADRATIC_FROM_LIN_T:
-        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-            tod_det[i] += compute_dipole_for_one_sample_quadratic_from_lin_t(
-                theta=theta_phi_det[i, 0],
-                phi=theta_phi_det[i, 1],
-                v_km_s=velocity[i],
-                t_cmb_k=t_cmb_k,
-                q_x=q_x,
-            )
-    elif dipole_type == DipoleType.CUBIC_FROM_LIN_T:
-        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-            tod_det[i] += compute_dipole_for_one_sample_cubic_from_lin_t(
-                theta=theta_phi_det[i, 0],
-                phi=theta_phi_det[i, 1],
-                v_km_s=velocity[i],
-                t_cmb_k=t_cmb_k,
-                q_x=q_x,
-                r_x=r_x,
+                nu_hz=0.0,
+                f_x=0.0,
+                n_x=1.0,
             )
     elif dipole_type == DipoleType.TOTAL_FROM_LIN_T:
         for i in prange(len(tod_det)):  # type: ignore[not-iterable]
-            tod_det[i] += compute_dipole_for_one_sample_total_from_lin_t(
+            tod_det[i] += compute_dipole_for_one_sample_total(
                 theta=theta_phi_det[i, 0],
                 phi=theta_phi_det[i, 1],
                 v_km_s=velocity[i],
                 t_cmb_k=t_cmb_k,
                 nu_hz=nu_hz,
-                n_x=n_x,
                 f_x=f_x,
+                n_x=n_x,
             )
     else:
-        print("Dipole Type not implemented!!!")
+        # All polynomial-expansion types, mapped to (q_eff, r_eff):
+        #   LINEAR               → (0,    0)
+        #   QUADRATIC_EXACT      → (1,    0)
+        #   CUBIC_EXACT          → (1,    1)
+        #   QUADRATIC_FROM_LIN_T → (q(x), 0)
+        #   CUBIC_FROM_LIN_T     → (q(x), r(x))
+        if dipole_type == DipoleType.LINEAR:
+            q_eff = 0.0
+            r_eff = 0.0
+        elif dipole_type == DipoleType.QUADRATIC_EXACT:
+            q_eff = 1.0
+            r_eff = 0.0
+        elif dipole_type == DipoleType.CUBIC_EXACT:
+            q_eff = 1.0
+            r_eff = 1.0
+        elif dipole_type == DipoleType.QUADRATIC_FROM_LIN_T:
+            q_eff = q_x
+            r_eff = 0.0
+        elif dipole_type == DipoleType.CUBIC_FROM_LIN_T:
+            q_eff = q_x
+            r_eff = r_x
+        else:
+            print("Dipole Type not implemented!!!")
+            q_eff = 0.0
+            r_eff = 0.0
+        for i in prange(len(tod_det)):  # type: ignore[not-iterable]
+            tod_det[i] += compute_dipole_for_one_sample_expanded(
+                theta=theta_phi_det[i, 0],
+                phi=theta_phi_det[i, 1],
+                v_km_s=velocity[i],
+                t_cmb_k=t_cmb_k,
+                q_x=q_eff,
+                r_x=r_eff,
+            )
 
+@njit(parallel=True)
+def add_dipole_for_one_detector_convolved(
+    tod_det, 
+    theta_phi_psi_det, 
+    velocity,     
+    t_cmb_k,
+    nu_hz,
+    dipole_type: DipoleType,
+    s_vec,
+    s_mat,
+    s_ten,
+):
+
+    x = H_OVER_K_B * nu_hz / t_cmb_k
+
+    if dipole_type == DipoleType.LINEAR:
+        q_x = 0.0
+        r_x = 0.0
+    elif dipole_type == DipoleType.QUADRATIC_EXACT:
+        q_x = 1.0
+        r_x = 0.0
+    elif dipole_type == DipoleType.CUBIC_EXACT:
+        q_x = 1.0
+        r_x = 1.0
+    elif dipole_type == DipoleType.QUADRATIC_FROM_LIN_T:
+        q_x = _compute_q_x(x)
+        r_x = 0.0
+    elif dipole_type == DipoleType.CUBIC_FROM_LIN_T:
+        q_x = _compute_q_x(x)
+        r_x = _compute_r_x(x)
+    else:
+        print("Convolved Dipole Type not implemented!!!")
+
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
+        tod_det[i] += compute_dipole_for_one_sample_convolved(
+        theta=theta_phi_psi_det[i, 0],
+        phi=theta_phi_psi_det[i, 1],
+        psi=theta_phi_psi_det[i, 2],
+        v_km_s=velocity[i],
+        t_cmb_k=t_cmb_k,
+        q_x=q_x,
+        r_x=r_x,       
+        s_vec=s_vec,
+        s_mat=s_mat,
+        s_ten=s_ten,
+    )
 
 def add_dipole(
     tod,
@@ -556,19 +701,26 @@ def add_dipole(
     dipole_type: DipoleType,
     pointings_dtype=np.float64,
     apply_convolution: bool = False,
-    beam_alms: (
-        SphericalHarmonics | dict[str, SphericalHarmonics] | None
-    ) = None,
+    beam_alms: (SphericalHarmonics | dict[str, SphericalHarmonics] | None) = None,
 ):
     """Add the CMB dipole contribution to time-ordered data (TOD).
+
+    This array-oriented helper operates on one TOD matrix containing all
+    detectors for one observation. The standard path evaluates the selected
+    :class:`DipoleType` along the detector boresight. If
+    ``apply_convolution=True``, the routine first derives beam S-parameters
+    from the supplied beam harmonics and then evaluates the moment-expanded
+    full-4π beam convolution.
 
     Parameters
     ----------
     tod:
         2-D time-ordered data array for all detectors (shape ``(n_det, n_samples)``).
     pointings:
-        Pointing matrices. If apply_convolution is True, must include the ψ column
-        (shape ``(n_det, n_samples, 3)``). Otherwise, only θ, φ needed (shape ``(n_det, n_samples, 2)`` or more).
+        Pointing matrices. If ``apply_convolution`` is true, the matrix must
+        include the ``psi`` column (shape ``(n_det, n_samples, 3)``).
+        Otherwise, only ``theta`` and ``phi`` are used (shape
+        ``(n_det, n_samples, 2)`` or more).
     velocity:
         2-D array of shape ``(n_samples, 3)`` with the velocity in km/s.
     t_cmb_k:
@@ -577,17 +729,17 @@ def add_dipole(
         1-D array with frequency in GHz for each detector.
     dipole_type:
         DipoleType enum specifying the Doppler shift approximation.
-        When apply_convolution=True, supported types are:
-        LINEAR, QUADRATIC_EXACT, and QUADRATIC_FROM_LIN_T.
+        When ``apply_convolution=True``, the supported public choices are
+        ``LINEAR``, ``QUADRATIC_EXACT``, and ``QUADRATIC_FROM_LIN_T``.
     pointings_dtype:
         Data type for pointings if generated on the fly.
     apply_convolution:
-        If True, use beam-convolved dipole with provided beam_alms.
-        If False, use standard dipole calculation (without beam convolution).
+        If true, use beam-convolved dipole with provided ``beam_alms``.
+        If false, use the standard pencil-beam dipole calculation.
     beam_alms:
         Spherical harmonics of the beam(s). Required when apply_convolution=True.
         Can be a single SphericalHarmonics object (for all detectors) or a
-        dictionary keyed by detector names.
+        dictionary keyed by detector index strings (``"0"``, ``"1"``, ...).
     """
 
     if type(pointings) is np.ndarray:
@@ -611,7 +763,9 @@ def add_dipole(
             if isinstance(beam_alms, dict):
                 beam_alm_det = beam_alms.get(str(detector_idx))
                 if beam_alm_det is None:
-                    raise ValueError(f"beam_alms dictionary missing key for detector {detector_idx}")
+                    raise ValueError(
+                        f"beam_alms dictionary missing key for detector {detector_idx}"
+                    )
             else:
                 beam_alm_det = beam_alms
 
@@ -622,22 +776,16 @@ def add_dipole(
                 DipoleType.QUADRATIC_FROM_LIN_T,
             ):
                 s_params = compute_s_params_from_beam_alm(beam_alm_det)
-                if dipole_type == DipoleType.LINEAR:
-                    q_x_eff = 0.0
-                elif dipole_type == DipoleType.QUADRATIC_EXACT:
-                    q_x_eff = 1.0
-                else:
-                    # Note that x is a dimensionless parameter
-                    x = H_OVER_K_B * nu_hz / t_cmb_k
-                    q_x_eff = _compute_q_x(x)
-                _add_dipole_for_one_detector_convolved_quadratic(
+                add_dipole_for_one_detector_convolved(
                     tod_det=tod[detector_idx],
                     theta_phi_psi_det=theta_phi_psi_det,
                     velocity=velocity,
                     t_cmb_k=t_cmb_k,
-                    q_x=q_x_eff,
+                    nu_hz=nu_hz,
+                    dipole_type=dipole_type,
                     s_vec=s_params.s_vec,
                     s_mat=s_params.s_mat,
+                    s_ten=s_params.s_ten,
                 )
             else:
                 raise ValueError(
@@ -673,16 +821,21 @@ def add_dipole_to_observations(
     component: str = "tod",
     pointings_dtype=np.float64,
     apply_convolution: bool = False,
-    beam_alms: (
-        SphericalHarmonics | dict[str, SphericalHarmonics] | None
-    ) = None,
+    beam_alms: (SphericalHarmonics | dict[str, SphericalHarmonics] | None) = None,
 ):
     """Add the CMB dipole signal to the time-ordered data (TOD) stored
     in one or more `Observation` objects.
 
-    This function supports both convolved and non-convolved dipole calculations.
-    When apply_convolution=True, beam_alms can be provided explicitly or retrieved
-    from the observation's blms attribute (similar to add_convolved_sky_to_observations).
+    This is the observation-oriented wrapper around :func:`add_dipole`. It
+    interpolates the spacecraft velocity to each observation's sampling and
+    obtains pointings either from the explicit ``pointings`` argument, from a
+    precomputed ``pointing_matrix`` attribute, or from
+    :meth:`Observation.get_pointings`.
+
+    The function supports both pencil-beam and moment-expanded full-4π
+    beam-convolved dipole calculations. When ``apply_convolution=True``,
+    ``beam_alms`` can be provided explicitly or retrieved from the
+    observation's ``blms`` attribute.
 
     Parameters
     ----------
@@ -691,7 +844,9 @@ def add_dipole_to_observations(
     pos_and_vel : SpacecraftPositionAndVelocity
         Spacecraft position and velocity data.
     pointings : np.ndarray | list[np.ndarray] | None, default=None
-        Pointing matrices. If None, extracted from observations.
+        Pointing matrices. If None, extracted from observations. Convolved
+        calculations require the ``psi`` column, i.e. shape
+        ``(n_det, n_samples, 3)``.
     t_cmb_k : float, default=T_CMB_K
         CMB monopole temperature in Kelvin.
     dipole_type : DipoleType, default=TOTAL_FROM_LIN_T
@@ -706,7 +861,8 @@ def add_dipole_to_observations(
         If True, apply beam convolution using the provided or observed beam_alms.
     beam_alms : SphericalHarmonics | dict[str, SphericalHarmonics] | None, default=None
         Beam harmonic coefficients. If None and apply_convolution=True,
-        attempts to retrieve from observation.blms.
+        attempts to retrieve from observation.blms. Dictionaries are forwarded
+        to :func:`add_dipole`, which indexes them by detector index strings.
     """
     # For convolved types we keep the full (θ, φ, ψ) columns; otherwise strip to (θ, φ).
     ptg_cols = slice(None) if apply_convolution else slice(0, 2)

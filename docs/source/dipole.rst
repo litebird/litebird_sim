@@ -94,7 +94,9 @@ Computing the dipole
 --------------------
 
 The CMB dipole is caused by a Doppler shift of the frequencies
-observed while looking at the CMB blackbody spectrum, according to the formula
+observed while looking at the CMB blackbody spectrum. In thermodynamic
+temperature units the observed temperature along the direction
+:math:`\hat n` is
 
 .. math::
    :label: dipole
@@ -104,7 +106,9 @@ observed while looking at the CMB blackbody spectrum, according to the formula
 where :math:`T_0` is the temperature in the rest frame of the CMB,
 :math:`\vec \beta = \vec v / c` is the dimensionless velocity vector,
 :math:`\hat n` is the direction of the line of sight, and
-:math:`\gamma = \bigl(1 - \vec\beta \cdot \vec\beta\bigr)^2`.
+:math:`\gamma = \bigl(1 - \vec\beta \cdot \vec\beta\bigr)^{-1/2}`.
+The TOD routines add the temperature fluctuation
+:math:`\Delta T = T(\vec\beta,\hat n) - T_0`.
 
 However, CMB experiments usually employ the linear thermodynamic
 temperature definition, where temperature differences :math:`\Delta_1 T`
@@ -127,58 +131,52 @@ black-body according to Planck's law:
 .. math:: \mathrm{BB}(\nu, T) = \frac{2h\nu^3}{c^2} \frac1{e^{h\nu/k_B T} - 1} = \frac{2h\nu^3}{c^2} \frac1{e^x - 1}.
 
 There is no numerical issue in computing the complete formula, but
-often, models use some simplifications to make the math more
-manageable to work on the blackboard. The LiteBIRD Simulation
-Framework implements several simplifications of the formula, which are
-based on a series expansion of :eq:`dipole`; the caller must pass an
-object of type :class:`.DipoleType` (an `enum class
-<https://docs.python.org/3/library/enum.html>`_), whose value signals
-which kind of approximation to use:
+series approximations are often useful when separating the dipole,
+quadrupole, and octupole contributions. The LiteBIRD Simulation
+Framework selects the model through :class:`.DipoleType`:
 
-1. The most simple formula uses a series expansion of :eq:`dipole` at
-   the first order:
+.. list-table::
+   :header-rows: 1
+   :widths: 30 45 25
 
-   .. math:: \Delta T(\vec\beta, \hat n) = T_0 \vec\beta\cdot\hat n,
+   * - Type
+     - Formula
+     - Notes
+   * - ``DipoleType.LINEAR``
+     - :math:`T_0 b`
+     - First order, where :math:`b=\vec\beta\cdot\hat n`.
+   * - ``DipoleType.QUADRATIC_EXACT``
+     - :math:`T_0\left(b + b^2\right)`
+     - Thermodynamic expansion to second order. The monopole
+       :math:`-T_0\beta^2/2` is omitted.
+   * - ``DipoleType.CUBIC_EXACT``
+     - :math:`T_0\left(b + b^2 + b^3\right)`
+     - Thermodynamic expansion to third order, again omitting monopole
+       terms from the :math:`\gamma` factor.
+   * - ``DipoleType.TOTAL_EXACT``
+     - :math:`T_0/\left[\gamma(1-b)\right] - T_0`
+     - Exact thermodynamic-temperature formula.
+   * - ``DipoleType.QUADRATIC_FROM_LIN_T``
+     - :math:`T_0\left[b + q(x)b^2\right]`
+     - Second-order expansion in linearized thermodynamic units.
+   * - ``DipoleType.CUBIC_FROM_LIN_T``
+     - :math:`T_0\left[b + q(x)b^2 + r(x)b^3\right]`
+     - Third-order expansion in linearized thermodynamic units.
+   * - ``DipoleType.TOTAL_FROM_LIN_T``
+     - Full expression from :eq:`linearized-dipole`
+     - The default model, typically used by CMB experiments.
 
-   which is associated to the constant ``DipoleType.LINEAR``.
+The frequency-dependent weights in the linearized expansions are
 
-2. The same series expansion for :eq:`dipole`, but stopped at the
-   second order (``DipoleType.QUADRATIC_EXACT``):
+.. math::
 
-   .. math:: \Delta T(\vec\beta, \hat n) = T_0\left(\vec\beta\cdot\hat n + \bigl(\vec\beta\cdot\hat n\bigr)^2\right),
+   q(x) = \frac{x}{2}\frac{e^x + 1}{e^x - 1},
+   \qquad
+   r(x) = \frac{x^2(e^{2x} + 4e^x + 1)}{6(e^x - 1)^2}.
 
-   which discards a :math:`-T_0\,\beta^2/2` term (monopole).
-
-3. The exact formula as in :eq:`dipole` (``DipoleType.TOTAL_EXACT``).
-
-4. Using a series expansion to the second order of
-   :eq:`linearized-dipole` instead of :eq:`dipole` and neglecting
-   monopoles (``DipoleTotal.QUADRATIC_FROM_LIN_T``):
-
-   .. math:: \Delta_2 T(\nu) = T_0 \left(\vec\beta\cdot\hat n + q(x) \bigl(\vec\beta\cdot\hat n\bigr)^2\right),
-
-   where the dependence on the frequency ν is due to the presence of
-   the term :math:`x = h\nu / k_B T` in the equation. This is the
-   formula to use if you want the leading frequency-dependent term
-   (second order) without the boosting induced monopoles.
-
-5. Finally, linearizing :eq:`dipole` through :eq:`linearized-dipole`
-   (``DipoleTotal.TOTAL_FROM_LIN_T``):
-
-   .. math::
-
-      \Delta T = \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\left(T_0 / \gamma\bigl(1 - \vec\beta\cdot\hat n\bigr)\right)}{\mathrm{BB}(T_0)} - 1\right) =
-      \frac{T_0}{f(x)} \left(\frac{\mathrm{BB}\bigl(\nu\gamma(1-\vec\beta\cdot\hat n), T_0\bigr)}{\bigl(\gamma(1-\vec\beta\cdot\hat n)\bigr)^3\mathrm{BB}(T_0)}\right).
-
-   In this case too, the temperature variation depends on the
-   frequency because of :eq:`linearized-dipole`. This is the formula
-   that is typically used by CMB experiments.
-
-6. A beam-convolved version of formula 4 (``DipoleType.CONVOLVED``),
-   described in the next section.
-
-7. An exact beam-convolved version of formula 5
-   (``DipoleType.CONVOLVED_TOTAL_FROM_LIN_T``), also described below.
+Beam convolution is not a separate :class:`.DipoleType`; it is enabled
+with the ``apply_convolution=True`` keyword of :func:`.add_dipole` or
+:func:`.add_dipole_to_observations`, as described below.
 
 You can *add* the dipole signal to an existing TOD through the
 function :func:`.add_dipole_to_observations`, as the following example
@@ -197,12 +195,12 @@ Beam-convolved dipole
 ---------------------
 
 When a real instrument observes the CMB, its response is spread over
-the full 4π sky by the beam, including far sidelobes.  This distorts
-the dipole template used for photometric calibration and must be
-accounted for.  The method follows Appendix C of the Planck NPIPE
-paper :cite:`2020:planck:npipe` (arXiv:2007.04997).
+the full 4π sky by the beam, including far sidelobes. This changes the
+dipole template used for photometric calibration. The implementation
+follows the moment expansion in Appendix C of the Planck NPIPE paper
+:cite:`2020:planck:npipe`.
 
-The frequency-dependent dipole+quadrupole template is
+For the frequency-dependent linearized expansion the sky template is
 
 .. math::
    :label: dipole-quad
@@ -215,7 +213,7 @@ The frequency-dependent dipole+quadrupole template is
 
 which corresponds to ``DipoleType.QUADRATIC_FROM_LIN_T``.
 
-A detector with beam pattern :math:`B(\hat n)` (normalised so that
+A detector with beam pattern :math:`B(\hat n)` (normalized so that
 :math:`\int B(\hat n)\,d\Omega = 1`) observes a beam-convolved signal
 
 .. math::
@@ -229,110 +227,105 @@ a dot product with pre-computed beam moments (Eq. C.5 of NPIPE):
 
 .. math::
 
-   \tilde D = T_0 \bigl[S_i \beta_i + q(x)\, S_{ij} \beta_i \beta_j\bigr],
+   \tilde D =
+   T_0 \bigl[S_i \beta_i
+       + q(x)\, S_{ij} \beta_i \beta_j
+       + r(x)\, S_{ijk} \beta_i \beta_j \beta_k\bigr],
 
 where :math:`\boldsymbol\beta` is the velocity in the **beam frame**
 and the S-parameters are
 
 .. math::
 
-   S_i    &= \int B(\hat n)\, \hat n_i\, d\Omega, \\
-   S_{ij} &= \int B(\hat n)\, \hat n_i\, \hat n_j\, d\Omega.
+   S_i     &= \int B(\hat n)\, \hat n_i\, d\Omega, \\
+   S_{ij}  &= \int B(\hat n)\, \hat n_i\, \hat n_j\, d\Omega, \\
+   S_{ijk} &= \int B(\hat n)\, \hat n_i\, \hat n_j\, \hat n_k\, d\Omega.
 
-These integrals need to be computed **once** per detector from the
-full 4π beam map and then reused for every TOD sample.
+These integrals are computed **once** per detector from the full 4π
+beam harmonics and then reused for every TOD sample. The public
+``apply_convolution=True`` path supports ``DipoleType.LINEAR``,
+``DipoleType.QUADRATIC_EXACT``, and
+``DipoleType.QUADRATIC_FROM_LIN_T``. For these public choices the
+cubic coefficient is zero; ``s_ten`` is still returned as part of the
+complete moment expansion.
 
 Computing S-parameters
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Given a HEALPix beam map in the beam frame (boresight at the north
-pole, RING ordering), use :func:`.compute_s_params_from_beam_map`:
+Given beam spherical harmonics in the beam frame (boresight at the
+north pole), use :func:`.compute_s_params_from_beam_alm`:
 
 .. code-block:: python
 
-    import healpy as hp
     import numpy as np
     import litebird_sim as lbs
 
-    # Load or simulate a beam map (RING-ordered HEALPix, boresight at north pole).
-    # The map must be normalised so that sum(beam) * (4π / npix) = 1.
-    nside = 512
-    npix  = hp.nside2npix(nside)
-
-    # Example: Gaussian beam with FWHM = 30 arcmin
-    fwhm_rad = np.deg2rad(30.0 / 60.0)
-    sigma = fwhm_rad / (2.0 * np.sqrt(2.0 * np.log(2.0)))
-    pixel_area = 4.0 * np.pi / npix
-    vecs = np.array(hp.pix2vec(nside, np.arange(npix)))
-    cos_theta = vecs[2]  # z-component = cos(angular distance from north pole)
-    beam_map = np.exp(-0.5 * (np.arccos(np.clip(cos_theta, -1, 1)) / sigma) ** 2)
-    beam_map /= beam_map.sum() * pixel_area  # normalise to unit integral
-
-    s_params = lbs.compute_s_params_from_beam_map(beam_map)
+    beam_alm = lbs.gauss_beam_to_alm(
+        lmax=64,
+        mmax=64,
+        fwhm_rad=np.deg2rad(30.0 / 60.0),
+        psi_pol_rad=None,
+    )
+    s_params = lbs.compute_s_params_from_beam_alm(beam_alm)
 
 The result is a :class:`.BeamSParams` object holding the 3-element
-vector ``s_vec`` and the 3×3 matrix ``s_mat``.
+vector ``s_vec``, the 3×3 matrix ``s_mat``, and the 3×3×3 tensor
+``s_ten``. If a polarized beam object is provided, only its temperature
+component is used for the scalar dipole convolution.
 
 For a circularly symmetric beam, :math:`S_x = S_y = 0` and
 :math:`S_{xy} = S_{xz} = S_{yz} = 0` by symmetry, so only
 :math:`S_z`, :math:`S_{xx} = S_{yy}`, and :math:`S_{zz}` are
-non-zero.  As a sanity check, :math:`S_{xx} + S_{yy} + S_{zz} = 1`
+non-zero. As a sanity check, :math:`S_{xx} + S_{yy} + S_{zz} = 1`
 (trace equals the beam normalisation).
 
-Using DipoleType.CONVOLVED
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Adding a convolved dipole
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Pass the :class:`.BeamSParams` instance to :func:`.add_dipole` or
-:func:`.add_dipole_to_observations` together with
-``dipole_type=lbs.DipoleType.CONVOLVED``.  The pointing matrices
-must include the ψ column (shape ``(n_det, n_samples, 3)``):
+Pass the beam harmonics to :func:`.add_dipole` or
+:func:`.add_dipole_to_observations` and enable ``apply_convolution``.
+The pointing matrices must include the :math:`\psi` column, with shape
+``(n_det, n_samples, 3)``:
 
 .. testcode::
 
     import litebird_sim as lbs
     import numpy as np
 
-    # Pencil-beam S-parameters: delta function at the boresight.
-    # With these parameters DipoleType.CONVOLVED is identical to
-    # DipoleType.QUADRATIC_FROM_LIN_T (useful as a unit-test baseline).
-    s_params = lbs.BeamSParams(
-        s_vec=np.array([0.0, 0.0, 1.0]),
-        s_mat=np.diag([0.0, 0.0, 1.0]),
-    )
-
+    n_samples = 3
     pointings = np.deg2rad(
-        np.array([[[0, 0, 0], [90, 0, 0], [180, 0, 0]]])
+        np.array([[[90, 0, 0], [90, 90, 0], [90, 180, 0]]], dtype=float)
     )
-    velocity = 299_792.458 * np.array(
-        [[0.1, 0.0, 0.0], [0.1, 0.0, 0.0], [0.1, 0.0, 0.0]]
+    velocity = np.tile([300.0, 0.0, 0.0], (n_samples, 1))
+    tod = np.zeros((1, n_samples))
+
+    beam_alm = lbs.gauss_beam_to_alm(
+        lmax=32,
+        mmax=32,
+        fwhm_rad=np.deg2rad(30.0),
+        psi_pol_rad=None,
     )
 
-    tod = np.zeros((1, 3))
     lbs.add_dipole(
         tod,
         pointings,
         velocity,
-        t_cmb_k=1.0,
-        frequency_ghz=[100.0],
-        dipole_type=lbs.DipoleType.CONVOLVED,
-        s_params=s_params,
+        t_cmb_k=lbs.T_CMB_K,
+        frequency_ghz=np.array([100.0]),
+        dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
+        apply_convolution=True,
+        beam_alms=beam_alm,
     )
 
-    for val in tod[0]:
-        print(f"{val:.6f}")
+For more than one detector, ``beam_alms`` can be a single
+:class:`.SphericalHarmonics` object reused for all detectors, or a
+dictionary keyed by detector index strings (``"0"``, ``"1"``, ...).
 
-.. testoutput::
-
-    0.000000
-    0.124395
-    0.000000
-
-The following plot compares the pencil-beam dipole with the one produced
-by a Gaussian beam of FWHM = 60°, scanning the sky along the equator
-with the velocity pointing in the +x direction.  The upper panel shows
-both signals and the lower panel shows the difference, which arises from
-the beam suppression of the dipole amplitude (by a factor :math:`S_z < 1`)
-and the small pointing-independent offset from the quadrupole term.
+The following plot compares the ordinary
+``DipoleType.QUADRATIC_FROM_LIN_T`` dipole with the same model after
+convolution with a wide Gaussian beam. The upper panel shows both
+signals and the lower panel shows the difference, which is dominated by
+the beam suppression of the dipole amplitude.
 
 .. plot:: pyplots/dipole_convolved_demo.py
    :include-source:
@@ -352,82 +345,11 @@ Interpretation of the S-parameters
 +-----------------------------+---------------------------------------------------+
 
 For the pencil beam the formula reduces to
-:eq:`dipole-quad`, so ``CONVOLVED`` with these S-parameters is
-identical to ``QUADRATIC_FROM_LIN_T``.  A real beam with significant
+:eq:`dipole-quad`, so the convolved result is identical to
+``QUADRATIC_FROM_LIN_T``. A real beam with significant
 sidelobes will have :math:`S_z < 1` and :math:`S_{xx} = S_{yy} > 0`,
 which suppresses the dipole amplitude and introduces a small
 pointing-independent offset (from :math:`S_{ij}\beta_i\beta_j`).
-
-
-Exact convolution: DipoleType.CONVOLVED_TOTAL_FROM_LIN_T
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-``DipoleType.CONVOLVED`` truncates the Doppler shift at second order
-in :math:`\beta` (i.e. it uses ``QUADRATIC_FROM_LIN_T`` as the
-per-pixel integrand).  ``DipoleType.CONVOLVED_TOTAL_FROM_LIN_T``
-instead evaluates the full :attr:`DipoleType.TOTAL_FROM_LIN_T` formula
-for every beam pixel and sums the weighted contributions:
-
-.. math::
-
-   \tilde{D}(\hat{n}_0) = \sum_p w_p\,
-   \frac{T_0}{f(x)} \left(
-   \frac{\mathrm{BB}\!\left(T_0 / \gamma(1-\boldsymbol{\beta}\cdot\hat{n}_p)\right)}
-   {\mathrm{BB}(T_0)} - 1
-   \right),
-   \qquad w_p = B_p \cdot \frac{4\pi}{N_\mathrm{pix}}
-
-where :math:`\hat{n}_p` are the beam pixel unit vectors in the beam
-frame and :math:`\boldsymbol{\beta}` is the velocity rotated into the
-beam frame (exactly as for ``CONVOLVED``).
-
-Because the full Planck function is evaluated at each pixel the result
-is exact to all orders in :math:`\beta`; the runtime is
-:math:`O(N_\mathrm{pix})` per TOD sample rather than :math:`O(1)`.
-
-**Difference from CONVOLVED.**  The Taylor expansion of the exact
-formula gives
-
-.. math::
-
-   \frac{T_0}{f(x)}\!\left(\frac{\mathrm{BB}(T_0/\gamma/(1-\mu))}{\mathrm{BB}(T_0)}-1\right)
-   \approx T_0\!\left(\mu - \frac{\beta^2}{2} + q(x)\,\mu^2\right) + O(\beta^3),
-
-so ``CONVOLVED_TOTAL_FROM_LIN_T`` minus ``CONVOLVED`` equals the
-pointing-independent monopole correction :math:`-T_0\beta^2/2`, which
-is the relativistic :math:`\gamma`-factor term absent from
-``QUADRATIC_FROM_LIN_T``.  For the CMB dipole
-(:math:`\beta\approx 10^{-3}`) this offset is :math:`\approx -1.4\,\mu\mathrm{K}`.
-
-**Usage.**  Instead of a :class:`.BeamSParams` object, pass a
-:class:`.BeamConvolutionData` object returned by
-:func:`.compute_beam_convolution_data_from_beam_map`:
-
-.. code-block:: python
-
-   import litebird_sim as lbs
-   import healpy as hp, numpy as np
-
-   # Build the full-4π beam map (RING, normalised) at your preferred nside.
-   nside = 64
-   npix  = hp.nside2npix(nside)
-   theta, _ = hp.pix2ang(nside, np.arange(npix))
-   sigma_rad = np.deg2rad(10.0)
-   beam_map = np.exp(-0.5 * theta**2 / sigma_rad**2)
-   beam_map /= beam_map.sum() * (4 * np.pi / npix)   # normalise
-
-   beam_conv = lbs.compute_beam_convolution_data_from_beam_map(beam_map)
-
-   lbs.add_dipole(
-       tod, pointings, velocity,
-       t_cmb_k=lbs.T_CMB_K,
-       frequency_ghz=freq_arr,
-       dipole_type=lbs.DipoleType.CONVOLVED_TOTAL_FROM_LIN_T,
-       beam_conv_data=beam_conv,
-   )
-
-The pointing matrices must include the :math:`\psi` column (shape
-``(n_det, n_samples, 3)``), exactly as for ``DipoleType.CONVOLVED``.
 
 Methods of class simulation
 ---------------------------
