@@ -9,6 +9,8 @@
     3. MBs replaced by a more flexible and simple module called input_sky.
     4. Expansion of the class Units with several new functionalities. Integration with astropy and pysm3 improved.
 
+-   Fix missing parallelizations in multiple places [#521](https://github.com/litebird/litebird_sim/pull/521)
+
 -   Refactor `input_sky.SkyGenerator` to reduce duplicated logic between channel/detector mode and frequency mode by using shared component-generation helpers for CMB, foregrounds, and dipole [#501](https://github.com/litebird/litebird_sim/pull/501)
 
 -   Simple pair differencing map-maker [#509](https://github.com/litebird/litebird_sim/pull/509)

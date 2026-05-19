@@ -10,12 +10,13 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
+import os
 
 import healpy as hp
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
-from numba import njit
+from numba import njit, prange
 
 from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
@@ -27,6 +28,7 @@ from litebird_sim.pointings_in_obs import (
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
+from ..constants import NUM_THREADS_ENVVAR
 
 from .common import (
     COND_THRESHOLD,
@@ -68,7 +70,7 @@ class PairDifferencingResult:
     time_split: str = "full"
 
 
-@njit
+@njit(parallel=True)
 def _solve_binning(nobs_matrix, atd):
     # Solve the map-making equation
     #
@@ -81,7 +83,7 @@ def _solve_binning(nobs_matrix, atd):
     # - `atd`: (N_p, N_c)
     npix = atd.shape[0]
 
-    for ipix in range(npix):
+    for ipix in prange(npix):  # type: ignore[not-iterable]
         if np.linalg.cond(nobs_matrix[ipix]) < COND_THRESHOLD:
             atd[ipix] = np.linalg.solve(nobs_matrix[ipix], atd[ipix])
             nobs_matrix[ipix] = np.linalg.inv(nobs_matrix[ipix])
@@ -168,6 +170,7 @@ def _build_nobs_matrix(
     tm_list: list[npt.NDArray],
     output_coordinate_system: CoordinateSystem,
     components: list[str],
+    nthreads: int,
     pointings_dtype=np.float64,
 ) -> tuple[npt.NDArray, npt.NDArray]:
     hpx = Healpix_Base(nside, "RING")
@@ -194,6 +197,7 @@ def _build_nobs_matrix(
             num_of_samples=cur_obs.n_samples,
             hwp_angle=hwp_angle,
             output_coordinate_system=output_coordinate_system,
+            nthreads=nthreads,
             pointings_dtype=pointings_dtype,
         )
 
@@ -366,6 +370,7 @@ def make_pair_differenced_map(
     detector_split: str = "full",
     time_split: str = "full",
     pointings_dtype=np.float64,
+    nthreads: int | None = None,
 ) -> PairDifferencingResult:
     """QU pair-differencing map-maker
 
@@ -405,6 +410,9 @@ def make_pair_differenced_map(
         pointings_dtype(dtype): data type for pointings generated on the fly. If
             the pointing is passed or already precomputed this parameter is
             ineffective. Default is `np.float64`.
+        nthreads : int, default=None
+            Number of threads to use in ducc's Healpix methods. If None,
+            the function reads from the `OMP_NUM_THREADS` environment variable.
 
     Returns:
         An instance of the class :class:`.PairDifferencingResult`. If the observations are
@@ -425,6 +433,10 @@ def make_pair_differenced_map(
 
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
+    # Set number of threads
+    if nthreads is None:
+        nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+
     nobs_matrix, rhs = _build_nobs_matrix(
         nside=nside,
         obs_list=obs_list,
@@ -434,6 +446,7 @@ def make_pair_differenced_map(
         tm_list=time_mask_list,
         output_coordinate_system=output_coordinate_system,
         components=components,
+        nthreads=nthreads,
         pointings_dtype=pointings_dtype,
     )
 

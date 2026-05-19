@@ -77,7 +77,7 @@ def compute_signal_generic_hwp_for_one_sample(Stokes, Vpol, Rhwp, Mhwp, Rtel):
     return Vpol @ Rhwp.T @ Mhwp @ Rhwp @ Rtel @ Stokes
 
 
-@njit
+@njit(parallel=True)
 def scan_map_generic_hwp_for_one_detector(
     tod_det,
     input_T,
@@ -95,7 +95,7 @@ def scan_map_generic_hwp_for_one_detector(
     rot_hwp = np.eye(4, dtype=np.float64)
     rot_tel = np.eye(4, dtype=np.float64)
 
-    for i in range(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
         rot_matrix(rot_hwp, hwp_angle[i])
         rot_matrix(rot_tel, orientation_telescope[i])
@@ -277,7 +277,7 @@ def scan_map(
             scheme = "NESTED" if maps_det.nest else "RING"
             hpx = Healpix_Base(maps_det.nside, scheme)
 
-            pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
+            pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2], nthreads=nthreads)
 
             if maps_det.nstokes == 1:
                 input_T = pixmap[0, pixel_ind_det]
@@ -544,6 +544,7 @@ def scan_map_in_observations(
                 add_2f_hwpss=add_2f_hwpss,
                 mueller_phases=mueller_phases,
                 comm=comm,
+                nthreads=nthreads,
             )
         else:
             # Standard scanning case

@@ -270,6 +270,7 @@ def _get_pointings_array(
 def _get_centered_pointings(
     input_pointings: npt.NDArray,
     nside_centering: int,
+    nthreads: int,
 ) -> np.ndarray:
     """Returns a copy of the input pointings aligned to the center of the HEALPix
     pixel they belong to.
@@ -280,6 +281,8 @@ def _get_centered_pointings(
         Pointing information of the detector
     nside_centering : int
         HEALPix NSIDE parameter used to determine the pixel centers.
+    nthreads : int, default=0
+        Number of threads to use for ducc healpix operations.
 
     Returns
     -------
@@ -291,7 +294,9 @@ def _get_centered_pointings(
     output_pointings = np.empty_like(input_pointings)
 
     # Apply centering on the first two columns (θ, φ)
-    output_pointings[:, 0:2] = hpx.pix2ang(hpx.ang2pix(input_pointings[:, 0:2]))
+    output_pointings[:, 0:2] = hpx.pix2ang(
+        hpx.ang2pix(input_pointings[:, 0:2], nthreads=nthreads), nthreads=nthreads
+    )
 
     # Copy any additional columns (e.g., polarization angles) without change
     if input_pointings.shape[1] > 2:
