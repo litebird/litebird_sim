@@ -104,14 +104,11 @@ class BeamSParams:
     The beam map must be normalised so that
     :math:`\int B(\hat n)\, d\Omega = 1`.
 
-    Attributes:
-        s_vec: 1-D array of shape ``(3,)`` – dipole moments
-               :math:`(S_x, S_y, S_z)` in the beam frame.
-        s_mat: 2-D array of shape ``(3, 3)`` – quadrupole moments
-               :math:`S_{ij}` in the beam frame.
-        s_ten: 3-D array of shape ``(3, 3, 3)`` – octupole moments
-                :math:`S_{ijk} = \int B(\hat n)\, \hat n_i\, \hat n_j\, \hat n_k\, d\Omega`
-                in the beam frame.        
+    Fields are ``s_vec`` (shape ``(3,)``), containing the dipole
+    moments :math:`(S_x, S_y, S_z)`; ``s_mat`` (shape ``(3, 3)``),
+    containing the quadrupole moments :math:`S_{ij}`; and ``s_ten``
+    (shape ``(3, 3, 3)``), containing the octupole moments
+    :math:`S_{ijk}`.
     """
 
     s_vec: np.ndarray  # shape (3,)
