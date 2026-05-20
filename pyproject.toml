@@ -30,23 +30,22 @@ authors = [
 ]
 readme = "README.md"
 license = {text = "GPL-3.0"}
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10,<3.15"
 dependencies = [
-    "numba>=0.63.0",
-    "numpy>=1.26.4",
+    "numba>=0.65.0",
+    "numpy>=2.2.6",
     "astropy>=6.1.7",
     "tomlkit>=0.12.1",
     "jinja2>=3.1",
-    "matplotlib>=3.10.3",
+    "matplotlib>=3.10.8",
     "healpy>=1.18.1",
     "pyyaml>=6.0",
     "jplephem>=2.22",
     "requests>=2.32.0",
     "rich>=14.0.0",
-    "ducc0>=0.40.0",
-    "pysm3>=3.4.2",
+    "ducc0>=0.41.0",
+    "pysm3>=3.4.4",
     "h5py>=3.9",
-    "deprecation>=2.1.0",
     "deprecated>=1.2.18",
     "scipy>=1.14.0",
     "libinsdb>=0.9.0",
@@ -72,7 +71,7 @@ dev = [
     "ruff>=0.11.11",
     "pytest>=8.4.1",
     "pytest-cov>=7.0.0",
-    "ty>=0.0.9",
+    "ty==0.0.13",
 ]
 
 [tool.setuptools.package-data]

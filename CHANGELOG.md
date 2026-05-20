@@ -1,5 +1,14 @@
 # HEAD
 
+-   **Breaking change**: Stop supporting NumPy 1.x and move to NumPy 2.x. Add support for Python 3.14 [#519](https://github.com/litebird/litebird_sim/pull/519)
+
+-   **Breaking change**: Major reworking of the interfaces and handling of inputs across the framework [#479](https://github.com/litebird/litebird_sim/pull/479), in detail:
+
+    1. Rework the handling of spherical harmonics by integrating ducc0 as the primary engine for SHT operations, including interpolation.
+    2. New container for healpix maps called HealpixMap and further improvement of the class SphericalHarmonics. All the simulation modules are now only compatible with these new classes.
+    3. MBs replaced by a more flexible and simple module called input_sky.
+    4. Expansion of the class Units with several new functionalities. Integration with astropy and pysm3 improved.
+
 -   Fix missing parallelizations in multiple places [#521](https://github.com/litebird/litebird_sim/pull/521)
 
 -   Refactor `input_sky.SkyGenerator` to reduce duplicated logic between channel/detector mode and frequency mode by using shared component-generation helpers for CMB, foregrounds, and dipole [#501](https://github.com/litebird/litebird_sim/pull/501)
@@ -8,7 +17,7 @@
 
 -   Update dependency on Ducc and Numba [#502](https://github.com/litebird/litebird_sim/pull/502)
 
--   Add multi-frequency support to HealpixMap and SphericalHarmonics. New option for generation of multi-frequency maps in input_sky [#496](https://github.com/litebird/litebird_sim/pull/496)
+-   Add multi-frequency support to HealpixMap and SphericalHarmonics. New option for generation of multi-frequency maps in `input_sky` [#496](https://github.com/litebird/litebird_sim/pull/496)
 
 -   Fix normalization in the generation of gaussian beam alms [#494](https://github.com/litebird/litebird_sim/pull/494)
 
@@ -16,16 +25,9 @@
 
 -   Small optimizations in beam convolver [#492](https://github.com/litebird/litebird_sim/pull/492)
 
--   Fixed a TypeError in Observation when allocate_tod=False in MPI jobs [#491](https://github.com/litebird/litebird_sim/pull/491)
+-   Fixed a TypeError in Observation when `allocate_tod=False` in MPI jobs [#491](https://github.com/litebird/litebird_sim/pull/491)
 
 -   Save memory in pointing generation [#488](https://github.com/litebird/litebird_sim/pull/488)
-
--   **Breaking change**: Major reworking of the interfaces and handling of inputs across the framework [#479](https://github.com/litebird/litebird_sim/pull/479), in detail:
-
-    1. Rework the handling of spherical harmonics by integrating ducc0 as the primary engine for SHT operations, including interpolation.
-    2. New container for healpix maps called HealpixMap and further improvement of the class SphericalHarmonics. All the simulation modules are now only compatible with these new classes.
-    3. MBs replaced by a more flexible and simple module called input_sky.
-    4. Expansion of the class Units with several new functionalities. Integration with astropy and pysm3 improved.
 
 -   Add automatic type-checking with ty [#481](https://github.com/litebird/litebird_sim/pull/481)
 
@@ -41,10 +43,10 @@
 
 -   Refurbish HWP handling [#463](https://github.com/litebird/litebird_sim/pull/463), in detail:
         
-    1. Create NonIdealHWP class.
-    2. Remove HwpSys class.
-    3. Rename hwp_sys.py to hwp_harmonics.py.
-    4. Unify map scanning methods by making hwp_harmonics.fill_tod() a low-level method which is now executed by the high-level scan_map_in_observations.py.
+    1. Create `NonIdealHWP` class.
+    2. Remove `HwpSys class`.
+    3. Rename `hwp_sys.py` to `hwp_harmonics.py`.
+    4. Unify map scanning methods by making `hwp_harmonics.fill_tod()` a low-level method which is now executed by the high-level scan_map_in_observations.py.
 
 -   Fix angle in hwp differential emission [#452](https://github.com/litebird/litebird_sim/pull/452)
 
@@ -52,7 +54,7 @@
 
 -   Improved `SphericalHarmonics` class, algebra and I/O implemented [#448](https://github.com/litebird/litebird_sim/pull/448)
 
--   Change hwp_angle calculation to the complex domain [#433](https://github.com/litebird/litebird_sim/pull/433)
+-   Change `hwp_angle` calculation to the complex domain [#433](https://github.com/litebird/litebird_sim/pull/433)
 
 # Version 0.16.0
 
@@ -74,7 +76,7 @@
 
 -   Add low-level interface to `BrahMap` [#440](https://github.com/litebird/litebird_sim/pull/440)
 
--   Set Mueller matrix phases in Hwp_sys module as class attributes, instead of being hardcoded [#442](https://github.com/litebird/litebird_sim/pull/442)
+-   Set Mueller matrix phases in `Hwp_sys` module as class attributes, instead of being hardcoded [#442](https://github.com/litebird/litebird_sim/pull/442)
 
 # Version 0.15.2
 
@@ -86,9 +88,9 @@
 
 -   Make sure that the PTEP IMo, the Madam templates, and the static files required to create the HTML reports are installed properly by `pip` and enable Binder/Google Colab [#436](https://github.com/litebird/litebird_sim/pull/436)
 
--   Make the HWP_sys module able to deal with missing pixels, let the output maps to use a different NSIDE than the one of the inputs [#432](https://github.com/litebird/litebird_sim/pull/432)
+-   Make the `HWP_sys` module able to deal with missing pixels, let the output maps to use a different NSIDE than the one of the inputs [#432](https://github.com/litebird/litebird_sim/pull/432)
 
--   Fix bug in the computation of pointings for the HWP_sys module [#429](https://github.com/litebird/litebird_sim/pull/429)
+-   Fix bug in the computation of pointings for the `HWP_sys` module [#429](https://github.com/litebird/litebird_sim/pull/429)
 
 -   Upgrade PySM to 3.4.2 [#431](https://github.com/litebird/litebird_sim/pull/431)
 
@@ -375,7 +377,7 @@
 
 -   Create a script that fetches information about the latest release and produce a release announcement [PR#156](https://github.com/litebird/litebird_sim/pull/156)
 
--   Option for rotating the pointing from ecliptic to galactic coordinates in scan_map [#164](https://github.com/litebird/litebird_sim/pull/164)
+-   Option for rotating the pointing from ecliptic to galactic coordinates in `scan_map` [#164](https://github.com/litebird/litebird_sim/pull/164)
 
 -   Fix issue [#148](https://github.com/litebird/litebird_sim/issues/148)
 
@@ -437,7 +439,7 @@
 
 - Make tests run faster by using ducc0 0.8.0 [PR#92](https://github.com/litebird/litebird_sim/pull/92)
 
-- Misc minor changes: gitignore .DS_Store; losslessly compress some assets [PR#88](https://github.com/litebird/litebird_sim/pull/88)
+- Misc minor changes: `gitignore`, `.DS_Store`; losslessly compress some assets [PR#88](https://github.com/litebird/litebird_sim/pull/88)
 
 - Improve the `Observation` API. Deprecate the pointing-related methods (moved to `scanning`), quantities are local by default [PR#84](https://github.com/litebird/litebird_sim/pull/84)
 
