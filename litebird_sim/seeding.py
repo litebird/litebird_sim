@@ -6,8 +6,6 @@ from datetime import datetime, timezone
 import numpy as np
 from numpy.random import PCG64, Generator, SeedSequence
 
-from mpi4py.MPI import Comm
-
 from .mpi import MPI_COMM_WORLD, _SerialMpiCommunicator
 
 from .observations import Observation
@@ -206,7 +204,7 @@ class RNGHierarchy:
     def __init__(
         self,
         base_seed: int,
-        comm: Comm = MPI_COMM_WORLD,
+        comm=MPI_COMM_WORLD,
         num_detectors_per_rank: int | None = None,
     ):
         self.base_seed = base_seed
