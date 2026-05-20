@@ -534,7 +534,7 @@ class Simulation:
           the user-provided `random_seed`, but can be invoked again to
           reseed the simulation at any point.
         """
-        self.rng_hierarchy = RNGHierarchy(random_seed)
+        self.rng_hierarchy = RNGHierarchy(random_seed, self.mpi_comm)
         self.rng_hierarchy.build_mpi_layer(self.mpi_comm.size)
 
         self.random = self.rng_hierarchy.get_generator(self.mpi_comm.rank)

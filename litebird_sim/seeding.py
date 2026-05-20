@@ -6,6 +6,10 @@ from datetime import datetime, timezone
 import numpy as np
 from numpy.random import PCG64, Generator, SeedSequence
 
+from mpi4py.MPI import Comm
+
+from .mpi import MPI_COMM_WORLD, _SerialMpiCommunicator
+
 from .observations import Observation
 
 
@@ -177,16 +181,14 @@ def regenerate_or_check_detector_generators(
         If the number of generators does not match the number of detectors.
     """
     comm = observations[0].comm
-    if comm is not None:
-        rank = comm.rank
-        comm_size = comm.size
-    else:
-        rank = 0
-        comm_size = 1
+    if comm is None:
+        comm = _SerialMpiCommunicator()
 
     if user_seed is not None:
-        RNG_hierarchy = RNGHierarchy(user_seed, comm_size, observations[0].n_detectors)
-        dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(rank=rank)
+        RNG_hierarchy = RNGHierarchy(user_seed, comm, observations[0].n_detectors)
+        dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(
+            rank=comm.rank
+        )
     if user_seed is None and dets_random is None:
         raise ValueError("You should pass either `user_seed` or `dets_random`.")
     assert dets_random is not None  # Guaranteed by the check above
@@ -204,11 +206,11 @@ class RNGHierarchy:
     def __init__(
         self,
         base_seed: int,
-        comm_size: int | None = None,
+        comm: Comm = MPI_COMM_WORLD,
         num_detectors_per_rank: int | None = None,
     ):
         self.base_seed = base_seed
-        self.comm_size = None
+        self.comm_size = comm.size
         self.num_detectors_per_rank = None
         # self.root_seq = SeedSequence(base_seed)
         self.metadata = {
@@ -216,8 +218,8 @@ class RNGHierarchy:
             "save_format_version": self.SAVE_FORMAT_VERSION,
         }
         self.hierarchy = {}
-        if comm_size is not None:
-            self.build_mpi_layer(comm_size)
+        if self.comm_size is not None:
+            self.build_mpi_layer(self.comm_size)
             if num_detectors_per_rank is not None:
                 self.build_detector_layer(num_detectors_per_rank)
 
