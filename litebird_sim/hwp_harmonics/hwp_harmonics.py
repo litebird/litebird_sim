@@ -432,14 +432,40 @@ def fill_tod_with_hwp_harmonics(
                     curr_pointings_det[:, 0:2], nthreads=nthreads
                 )
 
-                if maps_det.nstokes == 1:
-                    input_T = pixmap[0, pixel_ind_det]
-                    input_Q = np.zeros_like(input_T)
-                    input_U = np.zeros_like(input_T)
-                else:
-                    input_T = pixmap[0, pixel_ind_det]
-                    input_Q = pixmap[1, pixel_ind_det]
-                    input_U = pixmap[2, pixel_ind_det]
+                if pixmap.ndim == 2:
+                    # Shape: (nstokes, Npix)
+                    if maps_det.nstokes == 1:
+                        input_T = pixmap[0, pixel_ind_det]
+                        input_Q = np.zeros_like(input_T)
+                        input_U = np.zeros_like(input_T)
+                    else:
+                        input_T = pixmap[0, pixel_ind_det]
+                        input_Q = pixmap[1, pixel_ind_det]
+                        input_U = pixmap[2, pixel_ind_det]
+
+                elif pixmap.ndim == 3:
+                    frequencies = np.array(maps_det.frequencies_ghz)
+
+                    # Find indices for the frequency band range for this detector
+                    indices = np.where(
+                        (frequencies >= bandcenter_ghz[idet] - bandwidth_ghz[idet] / 2)
+                        & (
+                            frequencies
+                            <= bandcenter_ghz[idet] + bandwidth_ghz[idet] / 2
+                        )
+                    )[0]
+                    start_index = indices[0]
+                    end_index = indices[-1]
+
+                    # Shape: (N, nstokes, Npix)
+                    if maps_det.nstokes == 1:
+                        input_T = pixmap[start_index:end_index, 0, pixel_ind_det]
+                        input_Q = np.zeros_like(input_T)
+                        input_U = input_Q
+                    else:
+                        input_T = pixmap[start_index : end_index + 1, 0, pixel_ind_det]
+                        input_Q = pixmap[start_index : end_index + 1, 1, pixel_ind_det]
+                        input_U = pixmap[start_index : end_index + 1, 2, pixel_ind_det]
 
                 del pixel_ind_det
 
