@@ -1,5 +1,7 @@
 # HEAD
 
+-   Allow center pointings in get_pointings, remove _get_centered_pointings function and move its centering logic inside _get_pointings_array [#506](https://github.com/litebird/litebird_sim/pull/506)
+
 -   Add complete HWP Jones formalism, including band integration [#499](https://github.com/litebird/litebird_sim/pull/499)
 
 -   Fix missing parallelizations in multiple places [#521](https://github.com/litebird/litebird_sim/pull/521)
