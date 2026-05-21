@@ -22,7 +22,6 @@ from .pointings_in_obs import (
 from .utilities import resolve_nthreads
 
 
-
 @njit
 def vec_stokes(stokes, T, Q, U):
     stokes[0] = T
