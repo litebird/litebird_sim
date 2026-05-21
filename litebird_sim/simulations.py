@@ -1591,12 +1591,20 @@ class Simulation:
         self.instrument = instrument
 
     def set_hwp(self, hwp: HWP):
-        """Set the HWP to be used in the simulation
+        """Set the HWP to be used in the simulation. This method should be used
+        if the hwp is the same for all observations. Otherwise, Observation.set_hwp()
+        should be used.
 
-        The argument must be a class derived from :class:`.HWP`, for instance
-        :class:`.IdealHWP`.
+        The argument must be an instance of a class derived from :class:`.HWP`, either
+        :class:`.IdealHWP` or :class:`.NonIdealHWP`.
         """
+
+        # TODO add warning that if this method is created before creating
+        # observations, then all observations will share the same HWP instance
+        # by default.
+
         self.hwp = hwp
+
         for obs in self.observations:
             obs.set_hwp(hwp)
 
@@ -1768,6 +1776,8 @@ class Simulation:
         component: str = "tod",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        integrate_in_band: bool = False,
+        band_filenames: list[str] | None = None,
         nthreads: int | None = None,
     ):
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
@@ -1792,6 +1802,7 @@ class Simulation:
             hwp=self.hwp if self.hwp else None,
             component=component,
             pointings_dtype=pointings_dtype,
+            integrate_in_band=integrate_in_band,
             nthreads=nthreads,
         )
 
