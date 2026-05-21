@@ -1,7 +1,7 @@
 from numbers import Number
 
 import numpy as np
-from numba import njit
+from numba import njit, prange
 
 from .hwp import HWP
 from .observations import Observation
@@ -15,13 +15,15 @@ def compute_2f_for_one_sample(angle_rad, offset_rad, amplitude_k):
     return amplitude_k * np.cos(2 * (angle_rad - offset_rad))
 
 
-@njit
+@njit(parallel=True)
 def add_2f_for_one_detector(
     tod_det, angle_det_rad, offset_angle_rad: float, amplitude_k
 ):
-    for i, cur_angle in enumerate(angle_det_rad):
+    for i in prange(len(angle_det_rad)):  # type: ignore[not-iterable]
         tod_det[i] += compute_2f_for_one_sample(
-            angle_rad=cur_angle, offset_rad=offset_angle_rad, amplitude_k=amplitude_k
+            angle_rad=angle_det_rad[i],
+            offset_rad=offset_angle_rad,
+            amplitude_k=amplitude_k,
         )
 
 

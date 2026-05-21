@@ -13,15 +13,17 @@ from enum import IntEnum
 import typing
 import warnings
 from dataclasses import dataclass
+import os
 
 import ducc0.healpix
 import ducc0.sht
-from numba import njit
+from numba import njit, prange
 import numpy as np
 import numpy.typing as npt
 
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .units import Units
+from .constants import NUM_THREADS_ENVVAR
 
 REASON_DESCRIPTION = {
     1: "Approximate solution found",
@@ -134,11 +136,11 @@ class BeamHealpixMap:
         return alm
 
 
-@njit
+@njit(parallel=True)
 def _to_polar_basis(theta_phi_values_rad: npt.NDArray, stokes: npt.NDArray) -> None:
     num_of_samples = theta_phi_values_rad.shape[0]
 
-    for i in range(num_of_samples):
+    for i in prange(num_of_samples):  # type: ignore[not-iterable]
         cur_theta = theta_phi_values_rad[i, 0]
         if cur_theta == 0:
             # No transformation is needed at the North Pole
@@ -317,6 +319,7 @@ class BeamStokesPolar:
         nside: int,
         nstokes: int = 3,
         unseen_pixel_value: float = 0.0,
+        nthreads: int | None = None,
     ) -> BeamHealpixMap:
         """Convert the :class:`.BeamPolar` to a :class:`.BeamMap`.
 
@@ -328,6 +331,8 @@ class BeamStokesPolar:
             nstokes (`int`): Number of Stokes parameters to project. The default is 3, which means
                 that three maps are produced: I, Q, and U.
             unseen_pixel_value (`float`): Value to fill outside the valid theta range.
+            nthreads (`int`): Number of threads to use in ducc's Healpix methods. If None,
+                the function reads from the `OMP_NUM_THREADS` environment variable.
 
         Returns:
             :class:`.BeamMap`: A new instance of ``BeamMap`` representing the beam map.
@@ -347,7 +352,9 @@ class BeamStokesPolar:
             beam_polar = self
 
         # Build the Stokes maps
-        pixel_indexes = base.ang2pix(self.theta_phi_values_rad)
+        if nthreads is None:
+            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+        pixel_indexes = base.ang2pix(self.theta_phi_values_rad, nthreads=nthreads)
         beam_map = np.empty((nstokes, npix), dtype=float)
         hit_map = np.empty(npix, dtype=int)
         for stokes_idx in range(nstokes):
