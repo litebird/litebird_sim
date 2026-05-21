@@ -1,18 +1,18 @@
 import logging
+import os
 
 import numpy as np
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
-from numba import njit, prange
 from ducc0.healpix import Healpix_Base
-import os
+from numba import njit, prange
 
+from .constants import NUM_THREADS_ENVVAR
 from .coordinates import CoordinateSystem
 from .hwp_diff_emiss import compute_2f_for_one_sample
 from .input_sky import SkyGenerationParams
-from .observations import Observation
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
-from .constants import NUM_THREADS_ENVVAR
+from .observations import Observation
 from .pointings_in_obs import (
     _get_pointings_array,
 )
@@ -346,7 +346,9 @@ def compute_signal_for_one_detector(
             sin2Xi2Phi=sin2Xi2Phi,
         )
         if add_2f_hwpss:
-            tod_det[i] += compute_2f_for_one_sample(rho[i] - xi, amplitude_2f_k)
+            tod_det[i] += compute_2f_for_one_sample(
+                angle_rad=rho[i], offset_rad=xi, amplitude_k=amplitude_2f_k
+            )
         if apply_non_linearity:
             tod_det[i] += g_one_over_k * tod_det[i] ** 2
 
@@ -523,7 +525,7 @@ def fill_tod(
             pointings and tod (default: np.float32).
 
         apply_non_linearity (bool) : applies the coupling of the non-linearity
-              systematics with hwp_sys
+            systematics with hwp_sys
 
         add_2f_hwpss (bool) : adds the 2f hwpss signal to the TOD
 
@@ -533,9 +535,8 @@ def fill_tod(
 
         comm (SerialMpiCommunicator) : MPI communicator
 
-        nthreads : int, default=None
-            Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
-            environment variable.
+        nthreads (int) : number of threads to use in ducc's Healpix methods.
+            If None, the function reads from the `OMP_NUM_THREADS` environment variable.
 
     """
     if maps is None:
@@ -725,7 +726,9 @@ def fill_tod(
                 scheme = "NESTED" if maps_det.nest else "RING"
                 hpx = Healpix_Base(maps_det.nside, scheme)
 
-                pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
+                pixel_ind_det = hpx.ang2pix(
+                    curr_pointings_det[:, 0:2], nthreads=nthreads
+                )
 
                 if maps_det.nstokes == 1:
                     input_T = pixmap[0, pixel_ind_det]

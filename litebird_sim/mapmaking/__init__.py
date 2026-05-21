@@ -11,6 +11,10 @@ from .destriper import (
     save_destriper_results,
     load_destriper_results,
 )
+from .pair_differencing import (
+    make_pair_differenced_map,
+    PairDifferencingResult,
+)
 
 __all__ = [
     # common.py
@@ -30,4 +34,7 @@ __all__ = [
     "destriper_log_callback",
     "save_destriper_results",
     "load_destriper_results",
+    # pair_differencing.py
+    "make_pair_differenced_map",
+    "PairDifferencingResult",
 ]

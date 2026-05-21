@@ -41,15 +41,15 @@ from .common import (
 
 
 @dataclass
-class BinnerResult:
-    """Result of a call to the :func:`.make_binned_map` function
+class PairDifferencingResult:
+    """Result of a call to the :func:`.make_pair_differenced_map` function
 
     This dataclass has the following fields:
 
-    - ``binned_map``: Healpix map containing the binned value for each pixel
+        - ``binned_map``: Healpix map containing the binned value for each pixel
 
-    - ``invnpp``: inverse of the covariance matrix element for each
-      pixel in the map. It is an array of shape `(12 * nside * nside, 3, 3)`
+        - ``invnpp``: inverse of the covariance matrix element for each
+            pixel in the map. It is an array of shape `(12 * nside * nside, 2, 2)`
 
     - ``coordinate_system``: the coordinate system of the output maps
       (a :class:`.CoordinateSistem` object)
@@ -75,12 +75,12 @@ def _solve_binning(nobs_matrix, atd):
     # Solve the map-making equation
     #
     # This method alters the parameter `nobs_matrix`, so that after its completion
-    # each 3×3 matrix in nobs_matrix[idx, :, :] will be the *inverse*.
+    # each matrix in nobs_matrix[idx, :, :] will be the *inverse*.
 
     # Expected shape:
-    # - `nobs_matrix`: (N_p, 3, 3) is an array of N_p 3×3 matrices, where
+    # - `nobs_matrix`: (N_p, N_c, N_c) is an array of N_p square matrices, where
     #   N_p is the number of pixels in the map
-    # - `atd`: (N_p, 3)
+    # - `atd`: (N_p, N_c)
     npix = atd.shape[0]
 
     for ipix in prange(npix):  # type: ignore[not-iterable]
@@ -93,103 +93,72 @@ def _solve_binning(nobs_matrix, atd):
 
 
 @njit
-def _accumulate_samples_and_build_nobs_matrix(
-    tod: npt.NDArray,
-    pix: npt.NDArray,
-    psi: npt.NDArray,
-    weights: npt.NDArray,
-    d_mask: npt.NDArray,
+def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
+    tod_t: npt.NDArray,
+    tod_b: npt.NDArray,
+    pix_t: npt.NDArray,
+    psi_t: npt.NDArray,
+    psi_b: npt.NDArray,
+    weight_t: float,
+    weight_b: float,
     t_mask: npt.NDArray,
     nobs_matrix: npt.NDArray,
+    rhs: npt.NDArray,
     *,
     additional_component: bool,
 ) -> None:
-    # Fill the upper triangle of the N_obs matrix and use the lower
-    # triangle for the RHS of the map-making equation:
+    # Fill the QU pair-differencing normal matrix and RHS.
     #
-    # 1. The upper triangle and the diagonal contains the coefficients in
-    #    Eq. (10) of KurkiSuonio2009. This must be set just once, as it only
-    #    depends on the pointing information. The flag `additional_component`
-    #    tells if this part must be calculated (``False``) or not
-    # 2. The lower triangle contains the weighted sum of I/Q/U, i.e.,
+    # For a T/B pair, the differenced TOD is modeled as
     #
-    #       (I + Q·cos(2ψ) + U·sin(2ψ)) / σ²
+    #   d_T - d_B = Q·(cos(2ψ_T) - cos(2ψ_B)) + U·(sin(2ψ_T) - sin(2ψ_B))
+    #
+    # The pair weight is defined as the average of the two detector weights
+    # ψ is the proper sum of the detector polarization angle and the HWP angle (if present)
 
-    assert tod.shape == pix.shape == psi.shape
+    assert (
+        tod_t.shape
+        == tod_b.shape
+        == pix_t.shape
+        == psi_t.shape
+        == psi_b.shape
+        == t_mask.shape
+    )
 
-    assert tod.shape[0] == d_mask.shape[0]
+    pair_weight = 0.5 * (weight_t + weight_b)
+    inv_sigma = 1.0 / np.sqrt(pair_weight)
+    inv_sigma2 = inv_sigma * inv_sigma
 
-    num_of_detectors = tod.shape[0]
-
-    for idet in range(num_of_detectors):
-        if not d_mask[idet]:
-            continue
-
-        inv_sigma = 1.0 / np.sqrt(weights[idet])
-        inv_sigma2 = inv_sigma * inv_sigma
-
-        if not additional_component:
-            # Fill the upper triangle
-            for cur_pix_idx, cur_psi, cur_t_mask in zip(pix[idet], psi[idet], t_mask):
-                if cur_t_mask:
-                    cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
-                    sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
-                    info_pix = nobs_matrix[cur_pix_idx]
-
-                    # Upper triangle
-                    info_pix[0, 0] += inv_sigma2
-                    info_pix[0, 1] += inv_sigma * cos_over_sigma
-                    info_pix[0, 2] += inv_sigma * sin_over_sigma
-                    info_pix[1, 1] += cos_over_sigma * cos_over_sigma
-                    info_pix[1, 2] += sin_over_sigma * cos_over_sigma
-                    info_pix[2, 2] += sin_over_sigma * sin_over_sigma
-
-        # Fill the lower triangle
-        for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
-            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
+    if not additional_component:
+        for cur_pix_idx, cur_psi_t, cur_psi_b, cur_t_mask in zip(
+            pix_t, psi_t, psi_b, t_mask
         ):
             if cur_t_mask:
-                cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
-                sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+                pair_cos = np.cos(2 * cur_psi_t) - np.cos(2 * cur_psi_b)
+                pair_sin = np.sin(2 * cur_psi_t) - np.sin(2 * cur_psi_b)
                 info_pix = nobs_matrix[cur_pix_idx]
 
-                info_pix[1, 0] += cur_sample * inv_sigma2
-                info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
-                info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma
+                info_pix[0, 0] += pair_cos * pair_cos * inv_sigma2
+                info_pix[0, 1] += pair_cos * pair_sin * inv_sigma2
+                info_pix[1, 0] += pair_cos * pair_sin * inv_sigma2
+                info_pix[1, 1] += pair_sin * pair_sin * inv_sigma2
 
+    for (
+        cur_sample_t,
+        cur_sample_b,
+        cur_pix_idx,
+        cur_psi_t,
+        cur_psi_b,
+        cur_t_mask,
+    ) in zip(tod_t, tod_b, pix_t, psi_t, psi_b, t_mask):
+        if cur_t_mask:
+            pair_sample = cur_sample_t - cur_sample_b
+            pair_cos = np.cos(2 * cur_psi_t) - np.cos(2 * cur_psi_b)
+            pair_sin = np.sin(2 * cur_psi_t) - np.sin(2 * cur_psi_b)
+            rhs_pix = rhs[cur_pix_idx]
 
-@njit
-def _numba_extract_map_and_fill_nobs_matrix(
-    nobs_matrix: npt.NDArray, rhs: npt.NDArray
-) -> None:
-    # This is used internally by _extract_map_and_fill_info. The function
-    # modifies both `info` and `rhs`; the first parameter would be an `inout`
-    # parameter in Fortran (it is both used as input and output), while `rhs`
-    # is an `out` parameter
-    for idx in range(nobs_matrix.shape[0]):
-        # Extract the vector from the lower left triangle of the 3×3 matrix
-        # nobs_matrix[idx, :, :]
-        rhs[idx, 0] = nobs_matrix[idx, 1, 0]
-        rhs[idx, 1] = nobs_matrix[idx, 2, 0]
-        rhs[idx, 2] = nobs_matrix[idx, 2, 1]
-
-        # Make each 3×3 matrix in nobs_matrix[idx, :, :] symmetric
-        nobs_matrix[idx, 1, 0] = nobs_matrix[idx, 0, 1]
-        nobs_matrix[idx, 2, 0] = nobs_matrix[idx, 0, 2]
-        nobs_matrix[idx, 2, 1] = nobs_matrix[idx, 1, 2]
-
-
-def _extract_map_and_fill_info(info: npt.NDArray) -> npt.NDArray:
-    # Extract the RHS of the mapmaking equation from the lower triangle of info
-    # and fill the lower triangle with the upper triangle, thus making each
-    # matrix in "info" symmetric
-    rhs = np.empty((info.shape[0], 3), dtype=info.dtype)
-
-    # The implementation in Numba of this code is ~5 times faster than the older
-    # implementation that used NumPy.
-    _numba_extract_map_and_fill_nobs_matrix(info, rhs)
-
-    return rhs
+            rhs_pix[0] += pair_sample * pair_cos * inv_sigma2
+            rhs_pix[1] += pair_sample * pair_sin * inv_sigma2
 
 
 def _build_nobs_matrix(
@@ -203,11 +172,12 @@ def _build_nobs_matrix(
     components: list[str],
     nthreads: int,
     pointings_dtype=np.float64,
-) -> npt.NDArray:
+) -> tuple[npt.NDArray, npt.NDArray]:
     hpx = Healpix_Base(nside, "RING")
     n_pix = HealpixMap.nside_to_npix(nside)
 
-    nobs_matrix = np.zeros((n_pix, 3, 3))
+    nobs_matrix = np.zeros((n_pix, 2, 2))
+    rhs = np.zeros((n_pix, 2))
 
     for obs_idx, (cur_obs, cur_ptg, cur_d_mask, cur_t_mask) in enumerate(
         zip(obs_list, ptg_list, dm_list, tm_list)
@@ -231,6 +201,19 @@ def _build_nobs_matrix(
             pointings_dtype=pointings_dtype,
         )
 
+        detector_pairs = _get_detector_pairs(
+            cur_obs, detector_mask=cur_d_mask, obs_idx=obs_idx
+        )
+
+        for t_idx, b_idx in detector_pairs:
+            if not np.array_equal(
+                pixidx_all[t_idx, cur_t_mask], pixidx_all[b_idx, cur_t_mask]
+            ):
+                raise ValueError(
+                    f"Observation {obs_idx}: detectors {t_idx} and {b_idx} do not "
+                    "observe the same map pixels for the selected time samples."
+                )
+
         first_component = getattr(cur_obs, components[0])
         for idx, cur_component_name in enumerate(components):
             cur_component = getattr(cur_obs, cur_component_name)
@@ -239,16 +222,20 @@ def _build_nobs_matrix(
                     components[0], cur_component_name
                 )
             )
-            _accumulate_samples_and_build_nobs_matrix(
-                cur_component,
-                pixidx_all,
-                polang_all,
-                cur_weights,
-                cur_d_mask,
-                cur_t_mask,
-                nobs_matrix,
-                additional_component=idx > 0,
-            )
+            for t_idx, b_idx in detector_pairs:
+                _accumulate_pair_differenced_samples_and_build_nobs_matrix(
+                    cur_component[t_idx],
+                    cur_component[b_idx],
+                    pixidx_all[t_idx],
+                    polang_all[t_idx],
+                    polang_all[b_idx],
+                    cur_weights[t_idx],
+                    cur_weights[b_idx],
+                    cur_t_mask,
+                    nobs_matrix,
+                    rhs,
+                    additional_component=idx > 0,
+                )
 
         del pixidx_all, polang_all
 
@@ -265,16 +252,115 @@ def _build_nobs_matrix(
         ]
     ):
         obs_list[0].comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
+        obs_list[0].comm.Allreduce(MPI.IN_PLACE, rhs, MPI.SUM)
 
     else:
         raise NotImplementedError(
             "All observations must be distributed over the same MPI groups"
         )
 
-    return nobs_matrix
+    return nobs_matrix, rhs
 
 
-def make_binned_map(
+def _get_detector_pairs(
+    obs: Observation,
+    detector_mask: npt.NDArray | None = None,
+    *,
+    obs_idx: int | None = None,
+) -> list[tuple[int, int]]:
+    pol_values = getattr(obs, "pol", None)
+    pixel_values = getattr(obs, "pixel", None)
+    wafer_values = getattr(obs, "wafer", None)
+
+    for attr_name, attr_values in (
+        ("pol", pol_values),
+        ("pixel", pixel_values),
+        ("wafer", wafer_values),
+    ):
+        if attr_values is None:
+            obs_label = "Observation" if obs_idx is None else f"Observation {obs_idx}"
+            raise ValueError(
+                f"{obs_label} is missing the '{attr_name}' detector attribute required "
+                "for pair-differencing map-making."
+            )
+
+    assert pol_values is not None
+    assert pixel_values is not None
+    assert wafer_values is not None
+
+    pairs: dict[tuple[Any, Any], dict[str, int]] = {}
+    for det_idx in range(obs.n_detectors):
+        if detector_mask is not None and not detector_mask[det_idx]:
+            continue
+
+        wafer = wafer_values[det_idx]
+        pixel = pixel_values[det_idx]
+        pol = pol_values[det_idx]
+
+        if wafer is None or pixel is None or pol is None:
+            obs_label = "observation" if obs_idx is None else f"observation {obs_idx}"
+            raise ValueError(
+                f"Detector {det_idx} in {obs_label} has unset 'wafer', 'pixel', "
+                "or 'pol' attribute."
+            )
+
+        if pol not in ("T", "B"):
+            obs_label = "Observation" if obs_idx is None else f"Observation {obs_idx}"
+            raise ValueError(
+                f"{obs_label}: detector {det_idx} has unsupported polarization '{pol}'."
+            )
+
+        pair_key = (wafer, pixel)
+        if pair_key not in pairs:
+            pairs[pair_key] = {}
+
+        if pol in pairs[pair_key]:
+            obs_label = "Observation" if obs_idx is None else f"Observation {obs_idx}"
+            raise ValueError(
+                f"{obs_label}: wafer '{wafer}', pixel {pixel} has more than one '{pol}' detector."
+            )
+
+        pairs[pair_key][pol] = det_idx
+
+    detector_pairs = []
+    for (wafer, pixel), pol_to_det in pairs.items():
+        if set(pol_to_det) != {"T", "B"}:
+            obs_label = "Observation" if obs_idx is None else f"Observation {obs_idx}"
+            found_pols = sorted(pol_to_det)
+            raise ValueError(
+                f"{obs_label}: detectors in wafer '{wafer}', pixel {pixel} do not form "
+                f"a valid T/B pair (found polarizations: {found_pols})."
+            )
+
+        detector_pairs.append((pol_to_det["T"], pol_to_det["B"]))
+
+    return detector_pairs
+
+
+def _check_tb_detector_pairs(
+    obs_list: list[Observation],
+    detector_mask_list: list[npt.NDArray | None] | None = None,
+) -> None:
+    """Verify that detectors form valid T/B pairs sharing the same wafer and pixel.
+
+    For each observation, every unique (wafer, pixel) combination must contain
+    exactly two detectors: one with ``pol='T'`` and one with ``pol='B'``.
+
+    Raises:
+        ValueError: if any observation is missing the ``pol``, ``pixel``, or
+            ``wafer`` detector attribute, or if any (wafer, pixel) group does
+            not contain exactly one T and one B detector.
+    """
+    if detector_mask_list is None:
+        detector_mask_list = [None] * len(obs_list)
+
+    assert detector_mask_list is not None
+
+    for obs_idx, (obs, det_mask) in enumerate(zip(obs_list, detector_mask_list)):
+        _get_detector_pairs(obs, detector_mask=det_mask, obs_idx=obs_idx)
+
+
+def make_pair_differenced_map(
     nside: int,
     observations: Observation | list[Observation],
     pointings: np.ndarray | list[np.ndarray] | None = None,
@@ -285,8 +371,8 @@ def make_binned_map(
     time_split: str = "full",
     pointings_dtype=np.float64,
     nthreads: int | None = None,
-) -> BinnerResult:
-    """Bin Map-maker
+) -> PairDifferencingResult:
+    """QU pair-differencing map-maker
 
     Map a list of observations
 
@@ -298,8 +384,12 @@ def make_binned_map(
                sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
                with ``N_d`` number of detectors and ``N_t`` number of
                samples in the TOD.
-            * any attribute listed in `components` (by default, `tod`) and
-              containing the TOD(s) to be binned together.
+                        * any attribute listed in `components` (by default, `tod`) and
+                            containing the TOD(s) to be differenced and binned together.
+
+                        The local detector set is required to be arranged in T/B pairs sharing
+                        the same wafer and focal-plane pixel. The map-maker differences the TOD
+                        of each pair and solves only for the Q/U Stokes components.
 
             If the observations are distributed over some communicator(s), they
             must share the same group processes.
@@ -321,11 +411,11 @@ def make_binned_map(
             the pointing is passed or already precomputed this parameter is
             ineffective. Default is `np.float64`.
         nthreads : int, default=None
-            Number of threads to use in ducc's Healpix methods. If None, the
-            function reads from the `OMP_NUM_THREADS` environment variable.
+            Number of threads to use in ducc's Healpix methods. If None,
+            the function reads from the `OMP_NUM_THREADS` environment variable.
 
     Returns:
-        An instance of the class :class:`.MapMakerResult`. If the observations are
+        An instance of the class :class:`.PairDifferencingResult`. If the observations are
             distributed over MPI Processes, all of them get a copy of the same object.
     """
 
@@ -339,13 +429,15 @@ def make_binned_map(
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 
+    _check_tb_detector_pairs(obs_list, detector_mask_list)
+
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
     # Set number of threads
     if nthreads is None:
         nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
 
-    nobs_matrix = _build_nobs_matrix(
+    nobs_matrix, rhs = _build_nobs_matrix(
         nside=nside,
         obs_list=obs_list,
         ptg_list=ptg_list,
@@ -358,11 +450,9 @@ def make_binned_map(
         pointings_dtype=pointings_dtype,
     )
 
-    rhs = _extract_map_and_fill_info(nobs_matrix)
-
     _solve_binning(nobs_matrix, rhs)
 
-    return BinnerResult(
+    return PairDifferencingResult(
         binned_map=rhs.T,
         invnpp=nobs_matrix,
         coordinate_system=output_coordinate_system,
