@@ -1,4 +1,5 @@
 import numbers
+import os
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
@@ -8,6 +9,7 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
+from .constants import NUM_THREADS_ENVVAR
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_detector_blocks, distribute_evenly
@@ -996,6 +998,7 @@ class Observation:
         hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
         nside_centering: int | None = None,
+        nthreads: int | None = None,
     ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the pointings for one or more detectors in this observation
 
@@ -1134,10 +1137,14 @@ class Observation:
             )
 
         if isinstance(nside_centering, int):
+            if nthreads is None:
+                nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+
             hpx = Healpix_Base(nside_centering, "RING")
             # Apply centering on the first two columns (θ, φ)
             pointing_buffer[:, :, 0:2] = hpx.pix2ang(
-                hpx.ang2pix(pointing_buffer[:, :, 0:2])
+                hpx.ang2pix(pointing_buffer[:, :, 0:2], nthreads=nthreads),
+                nthreads=nthreads,
             )
 
         return pointing_buffer, hwp_buffer
