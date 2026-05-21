@@ -1040,8 +1040,8 @@ class Observation:
         and ψ (orientation angle, in radians). *Important*: if you ask for just *one*
         detector passing the index of the detector, the shape of the pointing matrix
         will always be ``(N_samples, 3)``.
-        The pointings can be aligned to the center of the HEALPix pixel they belong to
-        by setting center=True and setting nside_centering to the nside of the map.
+        The pointings can be aligned to the center of the HEALPix pixel setting
+        nside_centering to the nside of an HEALPix map.
         The HWP angle is always a vector with shape ``(N_samples,)``, as it does
         not depend on the list of detectors.
 
