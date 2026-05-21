@@ -13,7 +13,6 @@ from enum import IntEnum
 import typing
 import warnings
 from dataclasses import dataclass
-import os
 
 import ducc0.healpix
 import ducc0.sht
@@ -23,7 +22,7 @@ import numpy.typing as npt
 
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .units import Units
-from .constants import NUM_THREADS_ENVVAR
+from .utilities import resolve_nthreads
 
 REASON_DESCRIPTION = {
     1: "Approximate solution found",
@@ -352,8 +351,7 @@ class BeamStokesPolar:
             beam_polar = self
 
         # Build the Stokes maps
-        if nthreads is None:
-            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+        nthreads = resolve_nthreads(nthreads)
         pixel_indexes = base.ang2pix(self.theta_phi_values_rad, nthreads=nthreads)
         beam_map = np.empty((nstokes, npix), dtype=float)
         hit_map = np.empty(npix, dtype=int)

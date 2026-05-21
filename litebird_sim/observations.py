@@ -1,5 +1,4 @@
 import numbers
-import os
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
@@ -9,7 +8,6 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
-from .constants import NUM_THREADS_ENVVAR
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_detector_blocks, distribute_evenly
@@ -20,6 +18,7 @@ from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 from .pointings import DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB, PointingProvider
 from .scanning import RotQuaternion
 from .units import Units
+from .utilities import resolve_nthreads
 
 
 @dataclass
@@ -1137,8 +1136,7 @@ class Observation:
             )
 
         if isinstance(nside_centering, int):
-            if nthreads is None:
-                nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+            nthreads = resolve_nthreads(nthreads)
 
             hpx = Healpix_Base(nside_centering, "RING")
             # Apply centering on the first two columns (θ, φ)

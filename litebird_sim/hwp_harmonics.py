@@ -1,5 +1,4 @@
 import logging
-import os
 
 import numpy as np
 from astropy import constants as const
@@ -7,7 +6,7 @@ from astropy.cosmology import Planck18 as cosmo
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
-from .constants import NUM_THREADS_ENVVAR
+from .utilities import resolve_nthreads
 from .coordinates import CoordinateSystem
 from .hwp_diff_emiss import compute_2f_for_one_sample
 from .input_sky import SkyGenerationParams
@@ -557,8 +556,7 @@ def fill_tod(
     assert maps is not None, "You need to pass input maps to fill_tod."
 
     # Set number of threads
-    if nthreads is None:
-        nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+    nthreads = resolve_nthreads(nthreads)
 
     if mueller_phases is None:
         mueller_phases = temporary_mueller_phases

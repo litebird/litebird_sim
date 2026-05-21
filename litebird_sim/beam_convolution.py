@@ -1,5 +1,4 @@
 import logging
-import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -16,7 +15,7 @@ from .pointings_in_obs import (
     _get_pointings_array,
 )
 from .maps_and_harmonics import SphericalHarmonics
-from .constants import NUM_THREADS_ENVVAR
+from .utilities import resolve_nthreads
 
 
 @dataclass
@@ -255,7 +254,7 @@ def add_convolved_sky(
         If set, shifts the detector pointings to the centers of the corresponding HEALPix pixels
         at the given NSIDE resolution. If None, no centering is applied.
     nthreads : int, default=0
-        Number of threads to use for convolution and in case for HEALPix operations. 
+        Number of threads to use for convolution and in case for HEALPix operations.
         If set to 0, all available CPU cores will be used.
 
     Raises
@@ -463,8 +462,7 @@ def add_convolved_sky_to_observations(
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         # Set number of threads
-        if nthreads is None:
-            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+        nthreads = resolve_nthreads(nthreads)
 
         # Perform convolution
         add_convolved_sky(

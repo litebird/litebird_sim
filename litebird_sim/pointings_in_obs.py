@@ -248,7 +248,7 @@ def _get_pointings_array(
     pointings_dtype : np.dtype, optional
         Data type for computed pointings and angles. Default is `np.float64`.
     nthreads : int, optional
-        Number of threads to use for HEALPix operations when centering pointings. 
+        Number of threads to use for HEALPix operations when centering pointings.
         Default is 0 (use all available threads).
 
     Returns
@@ -271,7 +271,6 @@ def _get_pointings_array(
         curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
     if nside_centering is not None:
-
         hpx = Healpix_Base(nside_centering, "RING")
         output_pointings = np.empty_like(curr_pointings_det)
 
