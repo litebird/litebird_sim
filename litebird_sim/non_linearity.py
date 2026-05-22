@@ -59,11 +59,11 @@ def apply_quadratic_nonlin_for_one_sample(
 
 def apply_quadratic_nonlin_for_one_detector(
     tod_det,
+    det_bandcenter_ghz: np.float64,
+    det_bandwidth_ghz: np.float64,
     nl_params: NonLinParams | None = None,
     random: np.random.Generator | None = None,
     conv_K_to_SR: bool = False,
-    det_bandcenter_ghz: np.float64 | None = None,
-    det_bandwidth_ghz: np.float64 | None = None,
 ):
     """This function applies the quadratic non-linearity on the TOD corresponding to
     only one detector.
