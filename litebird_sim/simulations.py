@@ -2094,6 +2094,7 @@ class Simulation:
         component: str = "tod",
         append_to_report: bool = False,
         rng_hierarchy: RNGHierarchy | None = None,
+        conv_K_to_SR: bool = False,
     ):
         """A method to apply non-linearity to the observation.
 
@@ -2116,6 +2117,7 @@ class Simulation:
             user_seed=user_seed,
             component=component,
             dets_random=dets_random,
+            conv_K_to_SR=conv_K_to_SR,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
