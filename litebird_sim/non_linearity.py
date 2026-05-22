@@ -195,12 +195,6 @@ def apply_quadratic_nonlin_to_observations(
     conv_K_to_SR (bool, optional): Flag for temperature to spectral radiance
         units conversion. Defaults to False.
 
-    det_freq_ghz (np.float64, optional): Detector central frequency in GHz.
-        Used in the K to SR conversion. Defaults to None.
-
-    det_bandwidth_ghz (np.float64, optional): Detector bandwidth in GHz.
-        Used in the K to SR conversion. Defaults to None.
-
     Raises
     ------
     TypeError
