@@ -2102,6 +2102,9 @@ class Simulation:
         :func:`.apply_quadratic_nonlin_to_observations()` that
         applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained from the detector-level layer. As default it uses
         the `dets_random` field of a :class:`.Simulation` object for this.
+
+        conv_K_to_SR (bool, optional) is a flag for temperature to spectral radiance
+        units conversion. Defaults to False.
         """
         if rng_hierarchy is None:
             rng_hierarchy = self.rng_hierarchy
@@ -2134,6 +2137,7 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 g=g,
+                conv_K_to_SR=conv_K_to_SR,
             )
 
     @_profile
