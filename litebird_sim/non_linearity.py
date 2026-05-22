@@ -59,8 +59,8 @@ def apply_quadratic_nonlin_for_one_sample(
 
 def apply_quadratic_nonlin_for_one_detector(
     tod_det,
-    det_bandcenter_ghz: np.float64,
-    det_bandwidth_ghz: np.float64,
+    det_bandcenter_ghz: np.float64 | None = None,
+    det_bandwidth_ghz: np.float64 | None = None,
     nl_params: NonLinParams | None = None,
     random: np.random.Generator | None = None,
     conv_K_to_SR: bool = False,
@@ -109,6 +109,9 @@ def apply_quadratic_nonlin_for_one_detector(
     )
 
     if conv_K_to_SR:
+        assert det_bandcenter_ghz is not None and det_bandwidth_ghz is not None, (
+            "You should pass det_bandcenter_ghz and det_bandwidth_ghz when conv_K_to_SR is set to True."
+        )
         conv_factor = _dBodTth(det_bandcenter_ghz)
         # convert sampled g (1/K units) to (1/spectral radiance) units
         g_nonlin = 1 / (conv_factor * (1 / g_nonlin) * det_bandwidth_ghz * 1e9)
