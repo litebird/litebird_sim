@@ -2,30 +2,33 @@
 # -------
 # -------
 
+import gc
+import logging
+import os
 from dataclasses import dataclass
 
+import h5py
 import numpy as np
 import numpy.typing as npt
+from astropy.units import cu
+from ducc0.healpix import Healpix_Base
 from numba import njit
-import h5py
-import os
-from litebird_sim.observations import Observation
+
 from litebird_sim.coordinates import CoordinateSystem
+from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
+from litebird_sim.hwp import HWP
+from litebird_sim.maps_and_harmonics import HealpixMap
+from litebird_sim.observations import Observation
 from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
-from litebird_sim.hwp import HWP
-from ducc0.healpix import Healpix_Base
-from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
-from litebird_sim.maps_and_harmonics import HealpixMap
+
 from .common import (
-    _compute_pixel_indices_single_detector,
     _build_mask_detector_split,
     _build_mask_time_split,
+    _compute_pixel_indices_single_detector,
 )
-import gc
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -162,19 +165,22 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
 ) -> None:
     assert pix.shape == psi.shape
 
-    for cur_pix_idx, cur_psi, cur_hwp_angle in zip(pix, psi, hwp_angle):
-        info_pix = nobs_matrix[cur_pix_idx]
+    for cur_pix_idx, cur_psi, cur_hwp_angle, cur_t_mask in zip(
+        pix, psi, hwp_angle, t_mask
+    ):
+        if cur_t_mask:
+            info_pix = nobs_matrix[cur_pix_idx]
 
-        cos_n_m = np.cos(n * cur_psi + m * cur_hwp_angle)
-        sin_n_m = np.sin(n * cur_psi + m * cur_hwp_angle)
-        if (n, m) == (0, 0):
-            info_pix[0] = (
-                1  # if n=m=0 we compute the hit count, beceause it is useful to combine h maps later on
-            )
-        else:
-            info_pix[0] += 1
-        info_pix[1] += cos_n_m
-        info_pix[2] += sin_n_m
+            cos_n_m = np.cos(n * cur_psi + m * cur_hwp_angle)
+            sin_n_m = np.sin(n * cur_psi + m * cur_hwp_angle)
+            if (n, m) == (0, 0):
+                info_pix[0] = (
+                    1  # if n=m=0 we compute the hit count, beceause it is useful to combine h maps later on
+                )
+            else:
+                info_pix[0] += 1
+            info_pix[1] += cos_n_m
+            info_pix[2] += sin_n_m
 
 
 @njit
@@ -278,6 +284,8 @@ def make_h_maps(
        [n2, m2],
        [n2, m3]])"""
 
+    assert detector_split == "full", "detectors split over wafers is not implemented"
+
     h_maps = {}
     obs_list, ptg_list = _normalize_observations_and_pointings(
         observations=observations, pointings=pointings
@@ -293,12 +301,18 @@ def make_h_maps(
     for cur_obs, cur_ptg, cur_d_mask, cur_t_mask in zip(
         obs_list, ptg_list, detector_mask_list, time_mask_list
     ):
+        assert cur_d_mask.ravel().any(), (
+            "No detectors is selected by the current detector split"
+        )
         assert cur_obs.n_blocks_time == 1, (
             "The current implementation of make_h_maps only supports one time block per observation, you can set several detector blocks though."
         )
         for idet in range(cur_obs.n_detectors):
+            print(cur_d_mask[idet])
             if not cur_d_mask[idet]:
+                print(f"skipping detector {idet}")
                 continue
+
             log.info(
                 f" Computing pixel indices and angles for detector {all_dets_list[idet]}"
             )
@@ -309,7 +323,7 @@ def make_h_maps(
             )
             # print(np.shape(hwp_angle))
             # print(f"size of hwp array: {hwp_angle.nbytes}")
-            duration = cur_obs.end_time_global
+            duration = cur_obs.end_time_global - cur_obs.start_time_global
             sampling_rate = cur_obs.sampling_rate_hz
             pixidx, polang = _compute_pixel_indices_single_detector(
                 hpx=hpx,
@@ -357,6 +371,7 @@ def make_h_maps(
             del pixidx
             del polang
             gc.collect()
+
 
     result = HMapsResult(
         h_maps=h_maps,

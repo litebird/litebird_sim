@@ -2472,9 +2472,8 @@ class Simulation:
     def make_h_maps(
         self,
         nside: int,
-        n_list: list[int] = [0, 2, 4],
+        n_m_couples: np.ndarray = np.array(np.meshgrid([0, 2, 4], [0])).T.reshape(-1, 2),
         hwp: HWP | None = None,
-        m_list: list[int] = [0],
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         detector_split: str = "full",
         time_split: str = "full",
@@ -2490,9 +2489,8 @@ class Simulation:
         return make_h_maps(
             observations=self.observations,
             nside=nside,
-            n_list=n_list,
+            n_m_couples=n_m_couples,
             hwp=hwp,
-            m_list=m_list,
             output_coordinate_system=output_coordinate_system,
             detector_split=detector_split,
             time_split=time_split,
