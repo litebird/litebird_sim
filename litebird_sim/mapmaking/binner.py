@@ -12,10 +12,10 @@ from dataclasses import dataclass
 from typing import Any
 import os
 
+import healpy as hp
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
-from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
 from numba import njit, prange
 
 from litebird_sim import mpi
@@ -88,8 +88,8 @@ def _solve_binning(nobs_matrix, atd):
             atd[ipix] = np.linalg.solve(nobs_matrix[ipix], atd[ipix])
             nobs_matrix[ipix] = np.linalg.inv(nobs_matrix[ipix])
         else:
-            nobs_matrix[ipix].fill(UNSEEN_PIXEL_VALUE)
-            atd[ipix].fill(UNSEEN_PIXEL_VALUE)
+            nobs_matrix[ipix].fill(hp.UNSEEN)
+            atd[ipix].fill(hp.UNSEEN)
 
 
 @njit
