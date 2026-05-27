@@ -323,7 +323,7 @@ def make_h_maps(
             # print(np.shape(hwp_angle))
             # print(f"size of hwp array: {hwp_angle.nbytes}")
             duration_s = cur_obs.get_time_span()
-            assert isinstance(duration_s,float)
+            assert isinstance(duration_s, float)
             sampling_rate = cur_obs.sampling_rate_hz
             pixidx, polang = _compute_pixel_indices_single_detector(
                 hpx=hpx,
