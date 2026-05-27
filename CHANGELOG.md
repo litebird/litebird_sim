@@ -1,5 +1,7 @@
 # HEAD
 
+-   Add complete HWP Jones formalism, including band integration [#499](https://github.com/litebird/litebird_sim/pull/499)
+
 -   Fix missing parallelizations in multiple places [#521](https://github.com/litebird/litebird_sim/pull/521)
 
 -   Refactor `input_sky.SkyGenerator` to reduce duplicated logic between channel/detector mode and frequency mode by using shared component-generation helpers for CMB, foregrounds, and dipole [#501](https://github.com/litebird/litebird_sim/pull/501)
