@@ -147,6 +147,7 @@ def get_detector_level_generators_from_hierarchy(
 
 def regenerate_or_check_detector_generators(
     observations: list[Observation],
+    comm=None,
     user_seed: int | None = None,
     dets_random: list[Generator] | None = None,
 ) -> list[Generator]:
@@ -178,7 +179,6 @@ def regenerate_or_check_detector_generators(
     AssertionError
         If the number of generators does not match the number of detectors.
     """
-    comm = observations[0].comm
     if comm is None:
         comm = _SerialMpiCommunicator()
 
