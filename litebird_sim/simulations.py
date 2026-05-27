@@ -44,17 +44,14 @@ from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
-    make_binned_map,
-    make_h_maps,
     HMapsResult,
-    make_brahmap_gls_map,
-    check_valid_splits,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
     PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
+    make_h_maps,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
@@ -2472,7 +2469,9 @@ class Simulation:
     def make_h_maps(
         self,
         nside: int,
-        n_m_couples: np.ndarray = np.array(np.meshgrid([0, 2, 4], [0])).T.reshape(-1, 2),
+        n_m_couples: np.ndarray = np.array(np.meshgrid([0, 2, 4], [0])).T.reshape(
+            -1, 2
+        ),
         hwp: HWP | None = None,
         output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         detector_split: str = "full",

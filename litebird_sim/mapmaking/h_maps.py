@@ -10,7 +10,6 @@ from dataclasses import dataclass
 import h5py
 import numpy as np
 import numpy.typing as npt
-from astropy.units import cu
 from ducc0.healpix import Healpix_Base
 from numba import njit
 
@@ -371,7 +370,6 @@ def make_h_maps(
             del pixidx
             del polang
             gc.collect()
-
 
     result = HMapsResult(
         h_maps=h_maps,
