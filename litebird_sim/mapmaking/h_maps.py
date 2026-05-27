@@ -86,7 +86,7 @@ class HMapsResult:
     :type time_split: str
     """
 
-    h_maps: dict[list[str], list[h_map_Re_and_Im]]
+    h_maps: dict[str, dict[tuple[int, int], h_map_Re_and_Im]]
     duration_s: float
     sampling_rate_Hz: float
     coordinate_system: CoordinateSystem = CoordinateSystem.Ecliptic
@@ -156,11 +156,11 @@ def _solve_binning(nobs_matrix, atd):
 def _accumulate_spin_terms_and_build_nobs_matrix(
     n: int,
     m: int,
-    pix: npt.ArrayLike,
-    psi: npt.ArrayLike,
-    hwp_angle: npt.ArrayLike | None,
-    t_mask: npt.ArrayLike,
-    nobs_matrix: npt.ArrayLike,
+    pix: npt.NDArray,
+    psi: npt.NDArray,
+    hwp_angle: npt.NDArray,
+    t_mask: npt.NDArray,
+    nobs_matrix: npt.NDArray,
 ) -> None:
     assert pix.shape == psi.shape
 
@@ -183,7 +183,7 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
 
 
 @njit
-def _numba_extract_rhs(nobs_matrix: npt.ArrayLike, rhs: npt.ArrayLike) -> None:
+def _numba_extract_rhs(nobs_matrix: npt.NDArray, rhs: npt.NDArray) -> None:
     # This is used internally by _extract_map_and_fill_info.
     for idx in range(nobs_matrix.shape[0]):
         # Extract the vector from the lower left triangle of the 3×3 matrix
@@ -192,7 +192,7 @@ def _numba_extract_rhs(nobs_matrix: npt.ArrayLike, rhs: npt.ArrayLike) -> None:
         rhs[idx, 1] = nobs_matrix[idx, 2]
 
 
-def _extract_rhs(n_obs: npt.ArrayLike) -> npt.ArrayLike:
+def _extract_rhs(n_obs: npt.NDArray) -> npt.NDArray:
     # Extract the RHS of the mapmaking equation from the lower triangle of info
     # The RHS has a shape (Ndet,Np,2)
     rhs = np.empty((n_obs.shape[0], 2), dtype=n_obs.dtype)
@@ -208,11 +208,11 @@ def _build_nobs_matrix(
     n: int,
     m: int,
     nside: int,
-    pixidx: npt.ArrayLike,
-    polang: npt.ArrayLike,
-    hwp_angle: npt.ArrayLike | None,
-    time_mask: npt.ArrayLike,
-) -> npt.ArrayLike:
+    pixidx: npt.NDArray,
+    polang: npt.NDArray,
+    hwp_angle: npt.NDArray | None,
+    time_mask: npt.NDArray,
+) -> npt.NDArray:
     """Build the nobs matrix for all detectors and pixels, it has shape (Npix,3) and contains the accumulated spin terms and hit counts of each pixel for the considered detector."""
     n_pix = HealpixMap.nside_to_npix(nside)
 
@@ -322,12 +322,13 @@ def make_h_maps(
             )
             # print(np.shape(hwp_angle))
             # print(f"size of hwp array: {hwp_angle.nbytes}")
-            duration = cur_obs.end_time_global - cur_obs.start_time_global
+            duration_s = cur_obs.get_time_span()
+            assert isinstance(duration_s,float)
             sampling_rate = cur_obs.sampling_rate_hz
             pixidx, polang = _compute_pixel_indices_single_detector(
                 hpx=hpx,
                 pointings=cur_ptg,
-                pol_angle_detector=cur_obs.pol_angle_rad,
+                pol_angle_detector=cur_obs.pol_angle_rad[idet],
                 num_of_samples=cur_obs.n_samples,
                 detector_index=idet,
                 hwp_angle=hwp_angle,
@@ -374,7 +375,7 @@ def make_h_maps(
     result = HMapsResult(
         h_maps=h_maps,
         coordinate_system=output_coordinate_system,
-        duration_s=duration,
+        duration_s=duration_s,
         sampling_rate_Hz=sampling_rate,
         detector_split=detector_split,
         time_split=time_split,
