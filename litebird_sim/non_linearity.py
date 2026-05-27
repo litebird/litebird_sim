@@ -185,6 +185,7 @@ def apply_quadratic_nonlin_to_observations(
         )
     dets_random = regenerate_or_check_detector_generators(
         observations=obs_list,
+        comm=obs_list[0].comm_time_block,
         user_seed=user_seed,
         dets_random=dets_random,
     )

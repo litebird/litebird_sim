@@ -558,6 +558,7 @@ def apply_gaindrift_to_observations(
         )
     dets_random = regenerate_or_check_detector_generators(
         observations=obs_list,
+        comm=None,
         user_seed=user_seed,
         dets_random=dets_random,
     )
