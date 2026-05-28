@@ -1,6 +1,7 @@
 from copy import deepcopy
-import numpy as np
+
 import litebird_sim as lbs
+import numpy as np
 from astropy.time import Time
 
 
@@ -39,6 +40,7 @@ def test_add_quadratic_nonlinearity():
     sim.apply_quadratic_nonlin(
         nl_params=nl_params,
         component="nl_2_self",
+        user_seed=1234,
     )
 
     # Applying non-linearity on the given TOD component of an `Observation` object

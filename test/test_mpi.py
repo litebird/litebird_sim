@@ -6,9 +6,8 @@ from tempfile import TemporaryDirectory
 from typing import Callable
 
 import astropy.time as astrotime
-import numpy as np
-
 import litebird_sim as lbs
+import numpy as np
 from litebird_sim import MPI_COMM_WORLD
 
 
@@ -703,3 +702,62 @@ if __name__ == "__main__":
         if MPI_COMM_WORLD.rank == 0:
             print("Running test function {}".format(str(cur_test_fn)), file=stderr)
         __run_test_in_same_folder(cur_test_fn)
+
+
+def test_non_linearity_seeding(tmp_path):
+    """Check if the seed for each detector is consistent even when
+    different MPI tasks share the same detector
+    """
+
+    if not lbs.MPI_ENABLED:
+        return
+
+    rank = lbs.MPI_COMM_WORLD.rank
+
+    tmp_path = Path(tmp_path)
+
+    start_time = 0
+    time_span_s = 4
+    sampling_hz = 1
+
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=start_time,
+        duration_s=time_span_s,
+        random_seed=12345,
+        imo=lbs.Imo(flatfile_location=lbs.PTEP_IMO_LOCATION),
+    )
+
+    det1 = lbs.DetectorInfo(
+        name="Dummy detector",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    det2 = lbs.DetectorInfo(
+        name="Dummy detector",
+        sampling_rate_hz=sampling_hz,
+        bandcenter_ghz=100.0,
+        quat=[0.0, 0.0, 0.0, 1.0],
+    )
+
+    sim.create_observations(
+        detectors=[det1, det2],
+        n_blocks_time=2,
+        n_blocks_det=1,
+        split_list_over_processes=False,
+    )
+
+    nl_params = lbs.NonLinParams(
+        sampling_gaussian_loc=0.0, sampling_gaussian_scale=2e-3
+    )
+
+    sim.observations[0].tod = np.ones_like(sim.observations[0].tod)
+
+    sim.apply_quadratic_nonlin(nl_params=nl_params, user_seed=1234)
+
+    tods = lbs.MPI_COMM_WORLD.gather(sim.observations[0].tod, root=0)
+
+    if rank == 0:
+        np.testing.assert_equal(tods[0], tods[1])
