@@ -676,7 +676,7 @@ def test_nullify_mpi(tmp_path):
     sim.flush()
 
 
-def test_non_linearity_seeding(tmp_path):
+def test_non_linearity_seeding():
     """Check if the seed for each detector is consistent even when
     different MPI tasks share the same detector in different time samples
     """
@@ -686,14 +686,11 @@ def test_non_linearity_seeding(tmp_path):
 
     rank = lbs.MPI_COMM_WORLD.rank
 
-    tmp_path = Path(tmp_path)
-
     start_time = 0
     time_span_s = 4
     sampling_hz = 1
 
     sim = lbs.Simulation(
-        base_path=tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
         random_seed=12345,
