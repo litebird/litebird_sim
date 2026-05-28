@@ -63,7 +63,10 @@ from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
-from .pointings_in_obs import precompute_pointings, prepare_pointings
+from .pointings_in_obs import (
+    precompute_pointings,
+    prepare_pointings,
+)
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
@@ -1676,7 +1679,8 @@ class Simulation:
         execution if you plan to access the pointings repeatedly during a simulation.
         """
         precompute_pointings(
-            observations=self.observations, pointings_dtype=pointings_dtype
+            observations=self.observations,
+            pointings_dtype=pointings_dtype,
         )
 
     @_profile
