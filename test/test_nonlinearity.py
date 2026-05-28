@@ -40,7 +40,7 @@ def test_add_quadratic_nonlinearity():
     sim.apply_quadratic_nonlin(
         nl_params=nl_params,
         component="nl_2_self",
-        user_seed=1234,
+        user_seed=random_seed,
     )
 
     # Applying non-linearity on the given TOD component of an `Observation` object
@@ -53,7 +53,7 @@ def test_add_quadratic_nonlinearity():
         nl_params=nl_params,
         component="nl_2_obs",
         dets_random=dets_random,
-        user_seed=1234,
+        user_seed=random_seed,
     )
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
@@ -66,7 +66,6 @@ def test_add_quadratic_nonlinearity():
             tod_det=tod,
             nl_params=nl_params,
             random=dets_random[idx],
-            user_seed=1234,
         )
 
     # Check if the three non-linear tods are equal
