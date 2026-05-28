@@ -676,37 +676,9 @@ def test_nullify_mpi(tmp_path):
     sim.flush()
 
 
-if __name__ == "__main__":
-    test_functions = [
-        test_observation_time,
-        test_construction_from_detectors,
-        test_observation_tod_single_block,
-        test_observation_tod_two_block_time,
-        test_observation_tod_two_block_det,
-        test_observation_tod_set_blocks,
-        test_simulation_random,
-    ]
-
-    for cur_test_fn in test_functions:
-        if MPI_COMM_WORLD.rank == 0:
-            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
-        cur_test_fn()
-
-    same_folder_test_functions = [
-        test_write_hdf5_mpi,
-        test_issue314,
-        test_nullify_mpi,
-    ]
-
-    for cur_test_fn in same_folder_test_functions:
-        if MPI_COMM_WORLD.rank == 0:
-            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
-        __run_test_in_same_folder(cur_test_fn)
-
-
 def test_non_linearity_seeding(tmp_path):
     """Check if the seed for each detector is consistent even when
-    different MPI tasks share the same detector
+    different MPI tasks share the same detector in different time samples
     """
 
     if not lbs.MPI_ENABLED:
@@ -761,3 +733,32 @@ def test_non_linearity_seeding(tmp_path):
 
     if rank == 0:
         np.testing.assert_equal(tods[0], tods[1])
+
+
+if __name__ == "__main__":
+    test_functions = [
+        test_observation_time,
+        test_construction_from_detectors,
+        test_observation_tod_single_block,
+        test_observation_tod_two_block_time,
+        test_observation_tod_two_block_det,
+        test_observation_tod_set_blocks,
+        test_simulation_random,
+        test_non_linearity_seeding,
+    ]
+
+    for cur_test_fn in test_functions:
+        if MPI_COMM_WORLD.rank == 0:
+            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
+        cur_test_fn()
+
+    same_folder_test_functions = [
+        test_write_hdf5_mpi,
+        test_issue314,
+        test_nullify_mpi,
+    ]
+
+    for cur_test_fn in same_folder_test_functions:
+        if MPI_COMM_WORLD.rank == 0:
+            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
+        __run_test_in_same_folder(cur_test_fn)
