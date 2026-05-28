@@ -53,6 +53,7 @@ def test_add_quadratic_nonlinearity():
         nl_params=nl_params,
         component="nl_2_obs",
         dets_random=dets_random,
+        user_seed=1234,
     )
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
@@ -65,6 +66,7 @@ def test_add_quadratic_nonlinearity():
             tod_det=tod,
             nl_params=nl_params,
             random=dets_random[idx],
+            user_seed=1234,
         )
 
     # Check if the three non-linear tods are equal
