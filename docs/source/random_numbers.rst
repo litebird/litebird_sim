@@ -177,7 +177,7 @@ detector across different global ranks, when sampling random numbers for values 
 detector-specific, such as non-linearities. When TODs are distributed such
 that the same detector appears on multiple global ranks in different time blocks,
 creating the RNGHierarchy with a time-block communicator will produce the same
-detector-level RNGs on each rank in that time-block communicator, ensuring that
+detector-level RNGs on each rank in that time-block communicator, ensuring, for example, that
 the random non linearity factor sampled for a given detector is identical across those ranks.
 
 Saving and loading
