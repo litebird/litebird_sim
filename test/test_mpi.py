@@ -681,7 +681,7 @@ def test_non_linearity_seeding():
     different MPI tasks share the same detector in different time samples
     """
 
-    if not lbs.MPI_ENABLED:
+    if lbs.MPI_COMM_WORLD.size < 2:
         return
 
     rank = lbs.MPI_COMM_WORLD.rank
