@@ -1,5 +1,7 @@
 # HEAD
 
+-   Refactor RNGHierarchy to enable tying the random number generators to detectors [#523](https://github.com/litebird/litebird_sim/pull/523)
+
 -   Allow center pointings in get_pointings, remove _get_centered_pointings function and move its centering logic inside _get_pointings_array [#506](https://github.com/litebird/litebird_sim/pull/506)
 
 -   Add complete HWP Jones formalism, including band integration [#499](https://github.com/litebird/litebird_sim/pull/499)
