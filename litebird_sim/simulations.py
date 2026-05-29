@@ -2082,18 +2082,19 @@ class Simulation:
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
+        rng_hierarchy: RNGHierarchy | None = None,
     ):
         """A method to apply non-linearity to the observation.
 
         This is a wrapper around
         :func:`.apply_quadratic_nonlin_to_observations()` that
-        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained from the detector-level layer. As default it uses
-        the `dets_random` field of a :class:`.Simulation` object for this.
+        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained for each detector, independently of the MPI distribution across detectors and time. Setting the `user_seed` argument is required for this.
         """
 
         assert user_seed is not None, (
             "user_seed must be given in apply_quadratic_nonlin."
         )
+
         if nl_params is None:
             nl_params = NonLinParams()
 

@@ -1,5 +1,6 @@
-import numpy as np
 from dataclasses import dataclass
+
+import numpy as np
 
 from .observations import Observation
 from .seeding import regenerate_or_check_detector_generators
@@ -123,7 +124,6 @@ def apply_quadratic_nonlin_to_observations(
     nl_params: NonLinParams | None = None,
     component: str = "tod",
     user_seed: int | None = None,
-    dets_random: list[np.random.Generator] | None = None,
 ):
     """
     Apply a quadratic nonlinearity to some time-ordered data
@@ -143,7 +143,7 @@ def apply_quadratic_nonlin_to_observations(
 
         # Ask `apply_quadratic_nonlin_to_observations` to store the nonlinear TOD
         # in `observations.nl_tod`
-        apply_quadratic_nonlin_to_observations(sim.observations, component="nl_tod")
+        apply_quadratic_nonlin_to_observations(sim.observations, component="nl_tod", user_seed=1234)
 
     Parameters
     ----------
@@ -154,14 +154,10 @@ def apply_quadratic_nonlin_to_observations(
         provided, a default configuration is used.
     component : str, optional
         Name of the TOD attribute to modify. Defaults to `"tod"`.
-    user_seed : int, optional
-        Base seed to build the RNG hierarchy and generate detector-level RNGs
-        that overwrite any eventual `dets_random`. Required if `dets_random`
-        is not provided.
-    dets_random : list of np.random.Generator, optional
-        List of per-detector random number generators. If not provided, and
-        `user_seed` is given, generators are created internally. One of
-        `user_seed` or `dets_random` must be provided.
+    user_seed : int or None
+        Base seed to build the RNG hierarchy and generate samples of the detector non-linearity factor,
+        independently of the MPI distribution across detectors and time.
+        The user is required to set this parameter.
 
     Raises
     ------
@@ -172,6 +168,11 @@ def apply_quadratic_nonlin_to_observations(
     AssertionError
         If the number of random generators does not match the number of detectors.
     """
+
+    assert user_seed is not None, (
+        "user_seed must be given in apply_quadratic_nonlin_to_observations."
+    )
+
     if nl_params is None:
         nl_params = NonLinParams()
 
@@ -183,11 +184,11 @@ def apply_quadratic_nonlin_to_observations(
         raise TypeError(
             "The parameter `observations` must be an `Observation` or a list of `Observation`."
         )
+
     dets_random = regenerate_or_check_detector_generators(
         observations=obs_list,
         comm=obs_list[0].comm_time_block,
         user_seed=user_seed,
-        dets_random=dets_random,
     )
 
     # iterate through each observation
