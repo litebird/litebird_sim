@@ -1,6 +1,7 @@
 from copy import deepcopy
-import numpy as np
+
 import litebird_sim as lbs
+import numpy as np
 from astropy.time import Time
 
 
@@ -39,11 +40,12 @@ def test_add_quadratic_nonlinearity():
     sim.apply_quadratic_nonlin(
         nl_params=nl_params,
         component="nl_2_self",
+        user_seed=random_seed,
     )
 
     # Applying non-linearity on the given TOD component of an `Observation` object
     RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
+        random_seed, comm=lbs.MPI_COMM_WORLD, num_detectors_per_rank=len(dets)
     )
     dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     lbs.apply_quadratic_nonlin_to_observations(
@@ -51,11 +53,12 @@ def test_add_quadratic_nonlinearity():
         nl_params=nl_params,
         component="nl_2_obs",
         dets_random=dets_random,
+        user_seed=random_seed,
     )
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
     RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
+        random_seed, comm=lbs.MPI_COMM_WORLD, num_detectors_per_rank=len(dets)
     )
     dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
@@ -76,7 +79,7 @@ def test_add_quadratic_nonlinearity():
 
     # Check if non-linearity is applied correctly
     RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
+        random_seed, comm=lbs.MPI_COMM_WORLD, num_detectors_per_rank=len(dets)
     )
     dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     sim.observations[0].tod_origin = np.ones_like(sim.observations[0].tod)

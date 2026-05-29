@@ -1,5 +1,6 @@
-import numpy as np
 from dataclasses import dataclass
+
+import numpy as np
 
 from .observations import Observation
 from .seeding import regenerate_or_check_detector_generators
@@ -65,19 +66,11 @@ def apply_quadratic_nonlin_for_one_detector(
 
     Args:
 
-        det_tod (np.ndarray): The TOD array corresponding to only one
+        tod_det (np.ndarray): The TOD array corresponding to only one
           detector.
-
-        det_name (str): The name of the detector to which the TOD belongs.
-          This name is used with ``user_seed`` to generate hash. This hash is used to
-          set random slope in case of linear drift, and randomized detector mismatch
-          in case of thermal gain drift.
 
         nl_params (:class:`.NonLinParams`, optional): The non-linearity
           injection parameters object. Defaults to None.
-
-        user_seed (int, optional): A seed provided by the user. Defaults
-          to None.
 
         random (np.random.Generator, optional): A random number generator.
           Defaults to None.
@@ -143,7 +136,7 @@ def apply_quadratic_nonlin_to_observations(
 
         # Ask `apply_quadratic_nonlin_to_observations` to store the nonlinear TOD
         # in `observations.nl_tod`
-        apply_quadratic_nonlin_to_observations(sim.observations, component="nl_tod")
+        apply_quadratic_nonlin_to_observations(sim.observations, component="nl_tod", user_seed=1234)
 
     Parameters
     ----------
@@ -154,10 +147,10 @@ def apply_quadratic_nonlin_to_observations(
         provided, a default configuration is used.
     component : str, optional
         Name of the TOD attribute to modify. Defaults to `"tod"`.
-    user_seed : int, optional
-        Base seed to build the RNG hierarchy and generate detector-level RNGs
-        that overwrite any eventual `dets_random`. Required if `dets_random`
-        is not provided.
+    user_seed : int or None
+            Base seed to build the RNG hierarchy and generate samples of the detector non-linearity factor,
+            independently of the MPI distribution across detectors and time.
+            The user is required to set this parameter.
     dets_random : list of np.random.Generator, optional
         List of per-detector random number generators. If not provided, and
         `user_seed` is given, generators are created internally. One of
@@ -172,6 +165,11 @@ def apply_quadratic_nonlin_to_observations(
     AssertionError
         If the number of random generators does not match the number of detectors.
     """
+
+    assert user_seed is not None, (
+        "user_seed must be given in apply_quadratic_nonlin_to_observations."
+    )
+
     if nl_params is None:
         nl_params = NonLinParams()
 
@@ -185,6 +183,7 @@ def apply_quadratic_nonlin_to_observations(
         )
     dets_random = regenerate_or_check_detector_generators(
         observations=obs_list,
+        comm=obs_list[0].comm_time_block,
         user_seed=user_seed,
         dets_random=dets_random,
     )

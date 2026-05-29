@@ -539,7 +539,7 @@ class Simulation:
           the user-provided `random_seed`, but can be invoked again to
           reseed the simulation at any point.
         """
-        self.rng_hierarchy = RNGHierarchy(random_seed)
+        self.rng_hierarchy = RNGHierarchy(random_seed, self.mpi_comm)
         self.rng_hierarchy.build_mpi_layer(self.mpi_comm.size)
 
         self.random = self.rng_hierarchy.get_generator(self.mpi_comm.rank)
@@ -2103,14 +2103,13 @@ class Simulation:
 
         This is a wrapper around
         :func:`.apply_quadratic_nonlin_to_observations()` that
-        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained from the detector-level layer. As default it uses
-        the `dets_random` field of a :class:`.Simulation` object for this.
+        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained for each detector, independently of the MPI distribution across detectors and time. Setting the `user_seed` argument is required for this.
         """
-        if rng_hierarchy is None:
-            rng_hierarchy = self.rng_hierarchy
-        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
-            self.mpi_comm.rank
+
+        assert user_seed is not None, (
+            "user_seed must be given in apply_quadratic_nonlin."
         )
+
         if nl_params is None:
             nl_params = NonLinParams()
 
@@ -2119,7 +2118,6 @@ class Simulation:
             nl_params=nl_params,
             user_seed=user_seed,
             component=component,
-            dets_random=dets_random,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
