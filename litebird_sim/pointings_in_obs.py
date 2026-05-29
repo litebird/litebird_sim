@@ -1,19 +1,16 @@
 from collections.abc import Callable
 
+import astropy.time
 import numpy as np
 import numpy.typing as npt
-import astropy.time
-
 from deprecated import deprecated
-
 from ducc0.healpix import Healpix_Base
 
+from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 from .detectors import InstrumentInfo
 from .hwp import HWP
 from .observations import Observation
 from .scanning import RotQuaternion
-
-from .coordinates import CoordinateSystem, rotate_coordinates_e2g
 
 
 def prepare_pointings(
@@ -229,7 +226,9 @@ def _get_pointings_array(
     pointings: npt.NDArray | Callable,
     hwp_angle: np.ndarray | None,
     output_coordinate_system: CoordinateSystem,
+    nside_centering: int | None = None,
     pointings_dtype=np.float64,
+    nthreads: int = 0,
 ) -> tuple[np.ndarray, np.ndarray | None]:
     """Compute the pointings (θ, φ) and HWP angle for a given detector.
 
@@ -244,14 +243,20 @@ def _get_pointings_array(
         Array of HWP angles. If None, the angle is assumed to be provided by the `pointings` callable.
     output_coordinate_system : CoordinateSystem
         Desired coordinate system for the output pointings.
+    nside_centering : int | None, optional
+        If provided, the pointings will be aligned to the center of the HEALPix pixel.
     pointings_dtype : np.dtype, optional
         Data type for computed pointings and angles. Default is `np.float64`.
+    nthreads : int, optional
+        Number of threads to use for HEALPix operations when centering pointings.
+        Default is 0 (use all available threads).
 
     Returns
     -------
     tuple[np.ndarray, np.ndarray | None]
         A tuple `(pointings, hwp_angle)`, where:
-          - `pointings` is an array of shape (n_samples, 2) with [θ, φ].
+                    - `pointings` is an array of shape (n_samples, N_cols), where
+                        N_cols is typically 2 ([θ, φ]) or 3 ([θ, φ, ψ]).
           - `hwp_angle` is either the provided array or the one computed by the callable.
     """
     if isinstance(pointings, np.ndarray):
@@ -265,47 +270,27 @@ def _get_pointings_array(
     if output_coordinate_system == CoordinateSystem.Galactic:
         curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
+    if nside_centering is not None:
+        hpx = Healpix_Base(nside_centering, "RING")
+        output_pointings = np.empty_like(curr_pointings_det)
+
+        # Apply centering on the first two columns (θ, φ)
+        output_pointings[:, 0:2] = hpx.pix2ang(
+            hpx.ang2pix(curr_pointings_det[:, 0:2], nthreads=nthreads),
+            nthreads=nthreads,
+        )
+
+        # Copy any additional columns (e.g., polarization angles) without change
+        if curr_pointings_det.shape[1] > 2:
+            output_pointings[:, 2:] = curr_pointings_det[:, 2:]
+
+        return output_pointings, hwp_angle if isinstance(
+            hwp_angle, np.ndarray
+        ) else computed_hwp_angle
+
     return curr_pointings_det, hwp_angle if isinstance(
         hwp_angle, np.ndarray
     ) else computed_hwp_angle
-
-
-def _get_centered_pointings(
-    input_pointings: npt.NDArray,
-    nside_centering: int,
-    nthreads: int,
-) -> np.ndarray:
-    """Returns a copy of the input pointings aligned to the center of the HEALPix
-    pixel they belong to.
-
-    Parameters
-    ----------
-    input_pointings : npt.NDArray
-        Pointing information of the detector
-    nside_centering : int
-        HEALPix NSIDE parameter used to determine the pixel centers.
-    nthreads : int, default=0
-        Number of threads to use for ducc healpix operations.
-
-    Returns
-    -------
-    np.ndarray
-        An array with the same dimensions of input_pointings alligned with the center of the
-        belonging healpix pixel
-    """
-    hpx = Healpix_Base(nside_centering, "RING")
-    output_pointings = np.empty_like(input_pointings)
-
-    # Apply centering on the first two columns (θ, φ)
-    output_pointings[:, 0:2] = hpx.pix2ang(
-        hpx.ang2pix(input_pointings[:, 0:2], nthreads=nthreads), nthreads=nthreads
-    )
-
-    # Copy any additional columns (e.g., polarization angles) without change
-    if input_pointings.shape[1] > 2:
-        output_pointings[:, 2:] = input_pointings[:, 2:]
-
-    return output_pointings
 
 
 def _normalize_observations_and_pointings(

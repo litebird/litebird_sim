@@ -3,15 +3,15 @@
 import os
 import pathlib
 from pathlib import Path
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import astropy
+import litebird_sim as lbs
 import numpy as np
 import pytest
-from unittest.mock import MagicMock, patch
-
-import litebird_sim as lbs
+from ducc0.healpix import Healpix_Base
 from litebird_sim.detectors import DetectorInfo, FreqChannelInfo
 
 
@@ -473,7 +473,9 @@ def _configure_simulation_for_pointings(
     sim.prepare_pointings()
 
     if store_full_pointings:
-        sim.precompute_pointings(pointings_dtype=dtype)
+        sim.precompute_pointings(
+            pointings_dtype=dtype,
+        )
 
     return sim
 
@@ -887,3 +889,30 @@ def test_set_detectors_logic(tmp_path):
         # Asking for 5 detectors when only 2 exist in the channel
         with pytest.raises(ValueError, match="Expected 5 detectors, but got 2"):
             sim.set_detectors(channels=["url_ch_a"], detectors=5)
+
+
+@pytest.mark.parametrize("dtype", [np.float32, np.float64])
+def test_center_pointings(tmp_path, dtype):
+    sim = _configure_simulation_for_pointings(
+        tmp_path,
+        include_hwp=False,
+        store_full_pointings=False,
+        dtype=dtype,
+    )
+
+    for cur_obs in sim.observations:
+        pointing_matrix, _ = cur_obs.get_pointings(
+            nside_centering=16, pointings_dtype=dtype
+        )
+
+        # confirming that the pointings are centered
+        # by confirming they are exactly the same after
+        # doing ang2pix and pix2ang in sequence
+        hpx = Healpix_Base(16, "RING")
+        aux_pointings = pointing_matrix.copy()
+        aux_pointings[:, :, 0:2] = hpx.pix2ang(hpx.ang2pix(pointing_matrix[:, :, 0:2]))
+
+        np.testing.assert_allclose(
+            pointing_matrix,
+            aux_pointings,
+        )

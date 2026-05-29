@@ -63,7 +63,10 @@ from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
-from .pointings_in_obs import precompute_pointings, prepare_pointings
+from .pointings_in_obs import (
+    precompute_pointings,
+    prepare_pointings,
+)
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
@@ -1588,12 +1591,20 @@ class Simulation:
         self.instrument = instrument
 
     def set_hwp(self, hwp: HWP):
-        """Set the HWP to be used in the simulation
+        """Set the HWP to be used in the simulation. This method should be used
+        if the hwp is the same for all observations. Otherwise, Observation.set_hwp()
+        should be used.
 
-        The argument must be a class derived from :class:`.HWP`, for instance
-        :class:`.IdealHWP`.
+        The argument must be an instance of a class derived from :class:`.HWP`, either
+        :class:`.IdealHWP` or :class:`.NonIdealHWP`.
         """
+
+        # TODO add warning that if this method is created before creating
+        # observations, then all observations will share the same HWP instance
+        # by default.
+
         self.hwp = hwp
+
         for obs in self.observations:
             obs.set_hwp(hwp)
 
@@ -1668,7 +1679,8 @@ class Simulation:
         execution if you plan to access the pointings repeatedly during a simulation.
         """
         precompute_pointings(
-            observations=self.observations, pointings_dtype=pointings_dtype
+            observations=self.observations,
+            pointings_dtype=pointings_dtype,
         )
 
     @_profile
@@ -1764,6 +1776,8 @@ class Simulation:
         component: str = "tod",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        integrate_in_band: bool = False,
+        band_filenames: list[str] | None = None,
         nthreads: int | None = None,
     ):
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
@@ -1788,6 +1802,7 @@ class Simulation:
             hwp=self.hwp if self.hwp else None,
             component=component,
             pointings_dtype=pointings_dtype,
+            integrate_in_band=integrate_in_band,
             nthreads=nthreads,
         )
 

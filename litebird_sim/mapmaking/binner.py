@@ -10,7 +10,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
-import os
 
 import healpy as hp
 import numpy as np
@@ -28,7 +27,7 @@ from litebird_sim.pointings_in_obs import (
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
-from ..constants import NUM_THREADS_ENVVAR
+from ..utilities import resolve_nthreads
 
 from .common import (
     COND_THRESHOLD,
@@ -342,8 +341,7 @@ def make_binned_map(
     time_mask_list = _build_mask_time_split(time_split, obs_list)
 
     # Set number of threads
-    if nthreads is None:
-        nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+    nthreads = resolve_nthreads(nthreads)
 
     nobs_matrix = _build_nobs_matrix(
         nside=nside,
