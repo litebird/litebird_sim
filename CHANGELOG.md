@@ -1,5 +1,7 @@
 # HEAD
 
+-   Implement the ability to produce the h‑maps defined in McAllum et al. 2021b [#473](https://github.com/litebird/litebird_sim/pull/473)
+
 -   Add complete HWP Jones formalism, including band integration [#499](https://github.com/litebird/litebird_sim/pull/499)
 
 -   Fix missing parallelizations in multiple places [#521](https://github.com/litebird/litebird_sim/pull/521)
