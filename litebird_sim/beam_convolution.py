@@ -1,5 +1,4 @@
 import logging
-import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -13,11 +12,10 @@ from .observations import Observation
 from .pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
-    _get_centered_pointings,
     _get_pointings_array,
 )
 from .maps_and_harmonics import SphericalHarmonics
-from .constants import NUM_THREADS_ENVVAR
+from .utilities import resolve_nthreads
 
 
 @dataclass
@@ -53,7 +51,6 @@ def add_convolved_sky_to_one_detector(
     mueller_matrix,
     hwp_angle,
     convolution_params: BeamConvolutionParameters | None = None,
-    nside_centering: int | None = None,
     nthreads: int = 0,
 ):
     """
@@ -77,9 +74,6 @@ def add_convolved_sky_to_one_detector(
     convolution_params : BeamConvolutionParameters, optional
         Parameters controlling the convolution, such as resolution and precision. If None,
         reasonable defaults are chosen based on the sky and beam properties.
-    nside_centering : int, default=None
-        If set, shifts the detector pointings to the centers of the corresponding HEALPix pixels
-        at the given NSIDE resolution. If None, no centering is applied.
     nthreads : int, default=0
         Number of threads to use for convolution. If set to 0, all available CPU cores
         will be used.
@@ -189,13 +183,7 @@ def add_convolved_sky_to_one_detector(
                     pointings_det.dtype, real_type
                 )
             )
-        tod_det += inter.interpol(
-            pointings_det.astype(real_type, copy=False)
-            if nside_centering is None
-            else _get_centered_pointings(
-                pointings_det.astype(real_type, copy=False), nside_centering, nthreads
-            )
-        )[0]
+        tod_det += inter.interpol(pointings_det.astype(real_type, copy=False))[0]
     else:
         fullconv = MuellerConvolver(
             slm=_slm,
@@ -208,11 +196,7 @@ def add_convolved_sky_to_one_detector(
             nthreads=nthreads,
         )
         tod_det += fullconv.signal(
-            ptg=(
-                pointings_det
-                if nside_centering is None
-                else _get_centered_pointings(pointings_det, nside_centering, nthreads)
-            ),
+            ptg=pointings_det,
             alpha=hwp_angle,
             strict_typing=convolution_params.strict_typing,
         )
@@ -270,8 +254,8 @@ def add_convolved_sky(
         If set, shifts the detector pointings to the centers of the corresponding HEALPix pixels
         at the given NSIDE resolution. If None, no centering is applied.
     nthreads : int, default=0
-        Number of threads to use for convolution. If set to 0, all available CPU cores
-        will be used.
+        Number of threads to use for convolution and in case for HEALPix operations.
+        If set to 0, all available CPU cores will be used.
 
     Raises
     ------
@@ -336,6 +320,7 @@ def add_convolved_sky(
             pointings=pointings,
             hwp_angle=hwp_angle,
             output_coordinate_system=coordinates,
+            nside_centering=nside_centering,
             pointings_dtype=pointings_dtype,
         )
 
@@ -350,7 +335,6 @@ def add_convolved_sky(
             mueller_matrix=mueller_matrix,
             hwp_angle=hwp_angle,
             convolution_params=convolution_params,
-            nside_centering=nside_centering,
             nthreads=nthreads,
         )
 
@@ -478,8 +462,7 @@ def add_convolved_sky_to_observations(
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         # Set number of threads
-        if nthreads is None:
-            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+        nthreads = resolve_nthreads(nthreads)
 
         # Perform convolution
         add_convolved_sky(

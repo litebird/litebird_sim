@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 from collections.abc import Callable
-import os
 
 import healpy as hp
 import numpy as np
@@ -22,7 +21,7 @@ from litebird_sim.pointings_in_obs import (
     _normalize_observations_and_pointings,
 )
 
-from ..constants import NUM_THREADS_ENVVAR
+from ..utilities import resolve_nthreads
 
 from .common import (
     _compute_pixel_indices,
@@ -462,8 +461,7 @@ def _store_pixel_idx_and_pol_angle_in_obs(
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         # Set number of threads
-        if nthreads is None:
-            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+        nthreads = resolve_nthreads(nthreads)
 
         (
             cur_obs.destriper_pixel_idx,
@@ -1596,8 +1594,7 @@ def make_destriped_map(
     hpx = Healpix_Base(nside=nside, scheme="RING")
 
     # Set number of threads
-    if nthreads is None:
-        nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+    nthreads = resolve_nthreads(nthreads)
 
     # Convert pointings and ψ angles according to the coordinate system,
     # convert them into Healpix indices and save the result into
