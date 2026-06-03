@@ -140,7 +140,7 @@ def _solve_binning(nobs_matrix, atd):
     #   N_p is the number of pixels in the map and Ndet the number of detectors
     # - `atd`: (Ndet,N_p, 2)
     npix = atd.shape[0]
-    for ipix in prange(npix):
+    for ipix in prange(npix): # type: ignore[not-iterable]
         if nobs_matrix[ipix, 0] != 0:
             atd[ipix, 0] = atd[ipix, 0] / nobs_matrix[ipix, 0]
             atd[ipix, 1] = atd[ipix, 1] / nobs_matrix[ipix, 0]
