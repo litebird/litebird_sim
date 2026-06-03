@@ -8,3 +8,4 @@ Systematic effects
    non_linearity.rst
    hwp_sys.rst
    pointing_sys.rst
+   h_maps.rst

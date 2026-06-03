@@ -1,5 +1,7 @@
 # HEAD
 
+-   Implement the ability to produce the h‑maps defined in McAllum et al. 2021b [#473](https://github.com/litebird/litebird_sim/pull/473)
+
 -   **Breaking change**: Stop supporting NumPy 1.x and move to NumPy 2.x. Add support for Python 3.14 [#519](https://github.com/litebird/litebird_sim/pull/519)
 
 -   **Breaking change**: Major reworking of the interfaces and handling of inputs across the framework [#479](https://github.com/litebird/litebird_sim/pull/479), in detail:
