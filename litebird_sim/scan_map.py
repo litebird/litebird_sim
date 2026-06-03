@@ -1,12 +1,10 @@
-import logging
-import os
-
 import numpy as np
-from ducc0.healpix import Healpix_Base
-from numba import njit, prange
 from numpy.typing import DTypeLike
+from numba import njit, prange
+import logging
 
-from .constants import NUM_THREADS_ENVVAR
+from ducc0.healpix import Healpix_Base
+
 from .coordinates import CoordinateSystem
 from .hwp import HWP, IdealHWP
 from .hwp_harmonics.hwp_harmonics import fill_tod_with_hwp_harmonics
@@ -20,6 +18,8 @@ from .pointings_in_obs import (
     _get_pol_angle,
     _normalize_observations_and_pointings,
 )
+
+from .utilities import resolve_nthreads
 
 
 @njit
@@ -528,8 +528,7 @@ def scan_map_in_observations(
         )
 
         # Set number of threads
-        if nthreads is None:
-            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+        nthreads = resolve_nthreads(nthreads)
 
         if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
             # Harmonic-expansion case: delegate to fill_tod

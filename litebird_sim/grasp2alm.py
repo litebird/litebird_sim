@@ -13,7 +13,6 @@ from enum import IntEnum
 import typing
 import warnings
 from dataclasses import dataclass
-import os
 
 import ducc0.healpix
 import ducc0.sht
@@ -23,7 +22,7 @@ import numpy.typing as npt
 
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .units import Units
-from .constants import NUM_THREADS_ENVVAR
+from .utilities import resolve_nthreads
 
 REASON_DESCRIPTION = {
     1: "Approximate solution found",
@@ -59,7 +58,10 @@ class BeamHealpixMap:
     def _check_reason(
         self, reason: int, iter_count: int, residual_norm: float, quality: float
     ) -> None:
-        assert reason in (1, 2), (
+        assert reason in (
+            1,
+            2,
+        ), (
             f"pseudo_analysis failed, reason: {REASON_DESCRIPTION[reason]}, {iter_count=}, {residual_norm=}, {quality=}"
         )
 
@@ -97,7 +99,7 @@ class BeamHealpixMap:
             (3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax)),
             dtype=np.complex128,
         )
-        (_, reason, iter_count, residual_norm, quality) = ducc0.sht.pseudo_analysis(
+        _, reason, iter_count, residual_norm, quality = ducc0.sht.pseudo_analysis(
             map=self.map[0].reshape(1, -1),  # Make this a 2D matrix
             alm=alm[0, :].reshape(1, -1),
             lmax=lmax,
@@ -192,7 +194,7 @@ def beam_mapmaker(
         if hit_map[i] > 0:
             output_map[i] /= hit_map[i]
         else:
-            output_map[i] = np.NaN
+            output_map[i] = np.nan
 
 
 @dataclass
@@ -352,8 +354,7 @@ class BeamStokesPolar:
             beam_polar = self
 
         # Build the Stokes maps
-        if nthreads is None:
-            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+        nthreads = resolve_nthreads(nthreads)
         pixel_indexes = base.ang2pix(self.theta_phi_values_rad, nthreads=nthreads)
         beam_map = np.empty((nstokes, npix), dtype=float)
         hit_map = np.empty(npix, dtype=int)

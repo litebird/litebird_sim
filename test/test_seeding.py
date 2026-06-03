@@ -257,7 +257,7 @@ def test_multiple_calls_initialization():
 
 
 def test_detector_generators_regeneration(tmp_path):
-    start_time = Time("2034-05-02")
+    start_time = Time("2026-05-02")
     duration_s = 2 * 24 * 3600
     sampling_freq_Hz = 3
 
