@@ -6,17 +6,20 @@ from typing import Any
 import astropy.time
 import numpy as np
 import numpy.typing as npt
+from ducc0.healpix import Healpix_Base
 
 from .coordinates import DEFAULT_TIME_SCALE
 from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_detector_blocks, distribute_evenly
-from .hwp import HWP, Calc, IdealHWP, NonIdealHWP
+from .hwp import HWP, IdealHWP
+from .hwp_non_ideal import HWPFormalism, NonIdealHWP
 from .input_sky import SkyGenerationParams
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
-from .pointings import PointingProvider, DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB
+from .pointings import DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB, PointingProvider
 from .scanning import RotQuaternion
 from .units import Units
+from .utilities import resolve_nthreads
 
 
 @dataclass
@@ -144,6 +147,7 @@ class Observation:
     jones_hwp: list
     quat: list
     mueller_hwp: npt.NDArray
+    tod: npt.NDArray
 
     # Dynamic attributes set by destriper
     destriper_weights: npt.NDArray | None
@@ -891,8 +895,8 @@ class Observation:
                     "harmonic_expansion is set to False but more than one more matrix exists in at least one detector."
                 )
 
-            if hwp.calculus is Calc.JONES:
-                assert all(d.jones_hwp is not None for d in self.jones_hwp), (
+            if hwp.calculus is HWPFormalism.JONES:
+                assert all(d is not None for d in self.jones_hwp), (
                     "Jones formalism was selected but at least one detector does not have jones_hwp attribute."
                 )
                 if hwp.harmonic_expansion:
@@ -900,7 +904,7 @@ class Observation:
                         "harmonic_expansion is set to True but at least one detector has less then 2 jones matrices."
                     )
 
-            elif hwp.calculus is Calc.MUELLER:
+            elif hwp.calculus is HWPFormalism.MUELLER:
                 assert all(d is not None for d in self.mueller_hwp), (
                     "Mueller formalism was selected but at least one detector does not have mueller_hwp attribute."
                 )
@@ -994,6 +998,8 @@ class Observation:
         pointing_buffer: npt.NDArray | None = None,
         hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
+        nside_centering: int | None = None,
+        nthreads: int | None = None,
     ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the pointings for one or more detectors in this observation
 
@@ -1035,6 +1041,8 @@ class Observation:
         and ψ (orientation angle, in radians). *Important*: if you ask for just *one*
         detector passing the index of the detector, the shape of the pointing matrix
         will always be ``(N_samples, 3)``.
+        The pointings can be aligned to the center of the HEALPix pixel setting
+        nside_centering to the nside of an HEALPix map.
         The HWP angle is always a vector with shape ``(N_samples,)``, as it does
         not depend on the list of detectors.
 
@@ -1077,6 +1085,7 @@ class Observation:
                 pointing_buffer=pointing_buffer,
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
+                nside_centering=nside_centering,
             )
 
         # Most complex case: an explicit list (or NumPy array) of detectors
@@ -1125,6 +1134,17 @@ class Observation:
                 abs_det_idx,
                 pointing_buffer=pointing_buffer[rel_det_idx, :, :],
                 hwp_buffer=hwp_buffer,
+                nside_centering=nside_centering,
+            )
+
+        if isinstance(nside_centering, int):
+            nthreads = resolve_nthreads(nthreads)
+
+            hpx = Healpix_Base(nside_centering, "RING")
+            # Apply centering on the first two columns (θ, φ)
+            pointing_buffer[:, :, 0:2] = hpx.pix2ang(
+                hpx.ang2pix(pointing_buffer[:, :, 0:2], nthreads=nthreads),
+                nthreads=nthreads,
             )
 
         return pointing_buffer, hwp_buffer
