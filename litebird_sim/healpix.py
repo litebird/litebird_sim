@@ -215,7 +215,7 @@ def write_healpix_map_to_hdu(
         raise TypeError("The map must be a sequence")
 
     try:
-        pixels = pixels.filled()  # type: ignore[union-attr]
+        pixels = pixels.filled()
     except AttributeError:
         try:
             pixels = np.array([p.filled() for p in pixels])

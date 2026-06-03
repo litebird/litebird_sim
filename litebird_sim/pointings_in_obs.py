@@ -166,7 +166,7 @@ def _get_hwp_angle(
                 return obs.get_hwp_angle(pointings_dtype=pointing_dtype)
         else:
             if hasattr(obs, "mueller_hwp"):
-                if any(m is not None for m in obs.mueller_hwp):  # type: ignore[not-iterable]
+                if any(m is not None for m in obs.mueller_hwp):
                     raise AssertionError(
                         "Detectors have been initialized with a mueller_hwp, "
                         "but no HWP is either passed or initialized in the pointing."
@@ -344,7 +344,7 @@ def _normalize_observations_and_pointings(
                 + "of pointing matrices to scan_map_in_observations"
             )
             obs_list = [observations]
-            ptg_list = [pointings]  # type: ignore[assignment]
+            ptg_list = [pointings]
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to scan_map_in_observations, "
