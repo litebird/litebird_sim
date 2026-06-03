@@ -344,7 +344,7 @@ def _normalize_observations_and_pointings(
                 + "of pointing matrices to scan_map_in_observations"
             )
             obs_list = [observations]
-            ptg_list = [pointings]  # type: ignore[assignment]
+            ptg_list = [pointings]
         else:
             assert isinstance(pointings, list), (
                 "When you pass a list of observations to scan_map_in_observations, "
