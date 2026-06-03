@@ -1,7 +1,3 @@
-# WIP
-# -------
-# -------
-
 import gc
 import logging
 import os
@@ -11,7 +7,7 @@ import h5py
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
-from numba import njit
+from numba import njit, prange
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
@@ -132,7 +128,7 @@ def load_h_maps_from_file(
         )
 
 
-@njit
+@njit(parallel=True)
 def _solve_binning(nobs_matrix, atd):
     # Solve the map-making equation
     #
@@ -144,7 +140,7 @@ def _solve_binning(nobs_matrix, atd):
     #   N_p is the number of pixels in the map and Ndet the number of detectors
     # - `atd`: (Ndet,N_p, 2)
     npix = atd.shape[0]
-    for ipix in range(npix):
+    for ipix in prange(npix):
         if nobs_matrix[ipix, 0] != 0:
             atd[ipix, 0] = atd[ipix, 0] / nobs_matrix[ipix, 0]
             atd[ipix, 1] = atd[ipix, 1] / nobs_matrix[ipix, 0]
