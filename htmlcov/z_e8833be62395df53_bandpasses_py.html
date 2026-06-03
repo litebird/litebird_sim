@@ -4,14 +4,14 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <title>Coverage for litebird_sim/bandpasses.py: 82%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
-    <link rel="stylesheet" href="style_cb_9ff733b0.css" type="text/css">
+    <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
 </head>
 <body class="pyfile">
 <header>
     <div class="content">
         <h1>
-            <span class="text">Coverage for </span><b>litebird_sim&#8201;/&#8201;bandpasses.py</b>:
+            <span class="text">Coverage for </span><b>litebird_sim<span class="sep">/</span>bandpasses.py</b>:
             <span class="pc_cov">82%</span>
         </h1>
         <aside id="help_panel_wrapper">
@@ -64,8 +64,8 @@
             <a id="indexLink" class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_beam_convolution_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-20 06:44 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
+            created at 2026-06-03 09:41 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -80,12 +80,12 @@
     </div>
 </header>
 <main id="source">
-    <p class="run"><span class="n"><a id="t1" href="#t1">1</a></span><span class="t"><span class="key">from</span> <span class="nam">dataclasses</span> <span class="key">import</span> <span class="nam">dataclass</span><span class="op">,</span> <span class="nam">fields</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t2" href="#t2">2</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t3" href="#t3">3</a></span><span class="t"><span class="key">import</span> <span class="nam">numpy</span> <span class="key">as</span> <span class="nam">np</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t4" href="#t4">4</a></span><span class="t"><span class="key">import</span> <span class="nam">scipy</span> <span class="key">as</span> <span class="nam">sp</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t5" href="#t5">5</a></span><span class="t"><span class="key">import</span> <span class="nam">logging</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t6" href="#t6">6</a></span><span class="t"><span class="key">from</span> <span class="nam">uuid</span> <span class="key">import</span> <span class="nam">UUID</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t1" href="#t1">1</a></span><span class="t"><span class="key">import</span> <span class="nam">logging</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t2" href="#t2">2</a></span><span class="t"><span class="key">from</span> <span class="nam">dataclasses</span> <span class="key">import</span> <span class="nam">dataclass</span><span class="op">,</span> <span class="nam">fields</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t3" href="#t3">3</a></span><span class="t"><span class="key">from</span> <span class="nam">uuid</span> <span class="key">import</span> <span class="nam">UUID</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t4" href="#t4">4</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t5" href="#t5">5</a></span><span class="t"><span class="key">import</span> <span class="nam">numpy</span> <span class="key">as</span> <span class="nam">np</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t6" href="#t6">6</a></span><span class="t"><span class="key">import</span> <span class="nam">scipy</span> <span class="key">as</span> <span class="nam">sp</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t7" href="#t7">7</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="nam">imo</span> <span class="key">import</span> <span class="nam">Imo</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t9" href="#t9">9</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -248,7 +248,7 @@
     <p class="pln"><span class="n"><a id="t166" href="#t166">166</a></span><span class="t"><span class="str">        Normalize the band transmission coefficients</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t167" href="#t167">167</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t168" href="#t168">168</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t169" href="#t169">169</a></span><span class="t">        <span class="nam">A</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">trapz</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">weights</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t169" href="#t169">169</a></span><span class="t">        <span class="nam">A</span> <span class="op">=</span> <span class="nam">np</span><span class="op">.</span><span class="nam">trapezoid</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">weights</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t170" href="#t170">170</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">weights</span> <span class="op">/=</span> <span class="nam">A</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t171" href="#t171">171</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">isnormalized</span> <span class="op">=</span> <span class="key">True</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t172" href="#t172">172</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -307,7 +307,7 @@
     <p class="pln"><span class="n"><a id="t225" href="#t225">225</a></span><span class="t">        <span class="str">"""</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t226" href="#t226">226</a></span><span class="t"><span class="str">        Estimate the integral over the frequency band</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t227" href="#t227">227</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t228" href="#t228">228</a></span><span class="t">        <span class="key">return</span> <span class="nam">np</span><span class="op">.</span><span class="nam">trapz</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">weights</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t228" href="#t228">228</a></span><span class="t">        <span class="key">return</span> <span class="nam">np</span><span class="op">.</span><span class="nam">trapezoid</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">weights</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t229" href="#t229">229</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t230" href="#t230">230</a></span><span class="t">    <span class="com"># Find effective central frequency of a bandpass profile</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t231" href="#t231">231</a></span><span class="t">    <span class="key">def</span> <span class="nam">find_central_frequency</span><span class="op">(</span><span class="nam">self</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -315,10 +315,10 @@
     <p class="pln"><span class="n"><a id="t233" href="#t233">233</a></span><span class="t"><span class="str">        a bandpass profile as defined in https://arxiv.org/abs/1303.5070</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t234" href="#t234">234</a></span><span class="t"><span class="str">        """</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t235" href="#t235">235</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">isnormalized</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t236" href="#t236">236</a></span><span class="t">            <span class="key">return</span> <span class="nam">np</span><span class="op">.</span><span class="nam">trapz</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span> <span class="op">*</span> <span class="nam">self</span><span class="op">.</span><span class="nam">weights</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t236" href="#t236">236</a></span><span class="t">            <span class="key">return</span> <span class="nam">np</span><span class="op">.</span><span class="nam">trapezoid</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span> <span class="op">*</span> <span class="nam">self</span><span class="op">.</span><span class="nam">weights</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t237" href="#t237">237</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t238" href="#t238">238</a></span><span class="t">            <span class="key">return</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t239" href="#t239">239</a></span><span class="t">                <span class="nam">np</span><span class="op">.</span><span class="nam">trapz</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span> <span class="op">*</span> <span class="nam">self</span><span class="op">.</span><span class="nam">weights</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t239" href="#t239">239</a></span><span class="t">                <span class="nam">np</span><span class="op">.</span><span class="nam">trapezoid</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span> <span class="op">*</span> <span class="nam">self</span><span class="op">.</span><span class="nam">weights</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t240" href="#t240">240</a></span><span class="t">                <span class="op">/</span> <span class="nam">self</span><span class="op">.</span><span class="nam">get_normalization</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t241" href="#t241">241</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t242" href="#t242">242</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -424,7 +424,7 @@
     <p class="run run2"><span class="n"><a id="t342" href="#t342">342</a></span><span class="t">            <span class="op">)</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t343" href="#t343">343</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t344" href="#t344">344</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">isnormalized</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t345" href="#t345">345</a></span><span class="t">            <span class="key">return</span> <span class="nam">resampled_bpass</span> <span class="op">/</span> <span class="nam">np</span><span class="op">.</span><span class="nam">trapz</span><span class="op">(</span><span class="nam">resampled_bpass</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t345" href="#t345">345</a></span><span class="t">            <span class="key">return</span> <span class="nam">resampled_bpass</span> <span class="op">/</span> <span class="nam">np</span><span class="op">.</span><span class="nam">trapezoid</span><span class="op">(</span><span class="nam">resampled_bpass</span><span class="op">,</span> <span class="nam">self</span><span class="op">.</span><span class="nam">freqs_ghz</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t346" href="#t346">346</a></span><span class="t">        <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t347" href="#t347">347</a></span><span class="t">            <span class="key">return</span> <span class="nam">resampled_bpass</span>&nbsp;</span><span class="r"></span></p>
 </main>
@@ -435,8 +435,8 @@
             <a class="nav" href="index.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_e8833be62395df53_beam_convolution_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.13.5">coverage.py v7.13.5</a>,
-            created at 2026-05-20 06:44 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.14.1">coverage.py v7.14.1</a>,
+            created at 2026-06-03 09:41 +0000
         </p>
     </div>
 </footer>
