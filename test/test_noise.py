@@ -323,9 +323,7 @@ def test_correlated_noise_reproducible():
             rho=0.4,
         )
 
-    np.testing.assert_array_equal(
-        sim1.observations[0].tod, sim2.observations[0].tod
-    )
+    np.testing.assert_array_equal(sim1.observations[0].tod, sim2.observations[0].tod)
 
 
 def test_correlated_noise_rho_zero_uncorrelated():
@@ -559,18 +557,14 @@ def test_correlated_noise_cholesky_reproducible():
             corr_matrix=R,
         )
 
-    np.testing.assert_array_equal(
-        sim1.observations[0].tod, sim2.observations[0].tod
-    )
+    np.testing.assert_array_equal(sim1.observations[0].tod, sim2.observations[0].tod)
 
 
 def test_correlated_noise_cholesky_not_psd():
     """Non-PSD corr_matrix raises ValueError."""
     n = 3
     # A clearly non-PD matrix
-    R = np.array([[1.0, 2.0, 0.0],
-                  [2.0, 1.0, 0.0],
-                  [0.0, 0.0, 1.0]])
+    R = np.array([[1.0, 2.0, 0.0], [2.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
 
     sim = _make_sim(n, seed=1)
     obs = sim.observations[0]
@@ -641,9 +635,7 @@ def test_add_noise_to_observations_correlated_explicit_groups():
 def test_add_noise_to_observations_correlated_corr_matrix():
     """noise_type='correlated' with corr_matrix key."""
     n = 3
-    R = np.array([[1.0, 0.6, 0.3],
-                  [0.6, 1.0, 0.6],
-                  [0.3, 0.6, 1.0]])
+    R = np.array([[1.0, 0.6, 0.3], [0.6, 1.0, 0.6], [0.3, 0.6, 1.0]])
     sim = _make_sim(n, seed=22)
 
     lbs.noise.add_noise_to_observations(
@@ -692,9 +684,7 @@ def test_simulation_add_noise_correlated_common_mode():
 def test_simulation_add_noise_correlated_cholesky():
     """Simulation.add_noise with noise_type='correlated' and corr_matrix."""
     n = 3
-    R = np.array([[1.0, 0.7, 0.4],
-                  [0.7, 1.0, 0.7],
-                  [0.4, 0.7, 1.0]])
+    R = np.array([[1.0, 0.7, 0.4], [0.7, 1.0, 0.7], [0.4, 0.7, 1.0]])
     sim = _make_sim(n, seed=31)
     sim.add_noise(
         noise_type="correlated",
