@@ -1,9 +1,9 @@
+import logging
 from dataclasses import dataclass, fields
+from uuid import UUID
 
 import numpy as np
 import scipy as sp
-import logging
-from uuid import UUID
 
 from .imo import Imo
 
@@ -166,7 +166,7 @@ class BandPassInfo:
         Normalize the band transmission coefficients
 
         """
-        A = np.trapz(self.weights, self.freqs_ghz)
+        A = np.trapezoid(self.weights, self.freqs_ghz)
         self.weights /= A
         self.isnormalized = True
 
@@ -225,7 +225,7 @@ class BandPassInfo:
         """
         Estimate the integral over the frequency band
         """
-        return np.trapz(self.weights, self.freqs_ghz)
+        return np.trapezoid(self.weights, self.freqs_ghz)
 
     # Find effective central frequency of a bandpass profile
     def find_central_frequency(self):
@@ -233,10 +233,10 @@ class BandPassInfo:
         a bandpass profile as defined in https://arxiv.org/abs/1303.5070
         """
         if self.isnormalized:
-            return np.trapz(self.freqs_ghz * self.weights, self.freqs_ghz)
+            return np.trapezoid(self.freqs_ghz * self.weights, self.freqs_ghz)
         else:
             return (
-                np.trapz(self.freqs_ghz * self.weights, self.freqs_ghz)
+                np.trapezoid(self.freqs_ghz * self.weights, self.freqs_ghz)
                 / self.get_normalization()
             )
 
@@ -342,6 +342,6 @@ class BandPassInfo:
             )(self.freqs_ghz)
         )
         if self.isnormalized:
-            return resampled_bpass / np.trapz(resampled_bpass, self.freqs_ghz)
+            return resampled_bpass / np.trapezoid(resampled_bpass, self.freqs_ghz)
         else:
             return resampled_bpass

@@ -33,47 +33,54 @@ from .beam_convolution import (
     add_convolved_sky_to_observations,
 )
 from .beam_synthesis import generate_gauss_beam_alms
+from .constants import NUMBA_NUM_THREADS_ENVVAR
 from .coordinates import CoordinateSystem
-from .detectors import DetectorInfo, FreqChannelInfo, InstrumentInfo, UUID
+from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
 from .distribute import distribute_evenly, distribute_optimally
-from .gaindrifts import GainDriftType, GainDriftParams, apply_gaindrift_to_observations
+from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
 from .healpix import write_healpix_map_to_file
 from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
+from .input_sky import SkyGenerationParams, SkyGenerator
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
+    HMapsResult,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
     PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
+    make_h_maps,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
     make_pair_differenced_map,
     save_destriper_results,
 )
-from .input_sky import SkyGenerator, SkyGenerationParams
-from .mpi import MPI_ENABLED, MPI_COMM_WORLD, MPI_COMM_GRID
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics
+from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
-from .pointings_in_obs import precompute_pointings, prepare_pointings
+from .pointings_in_obs import (
+    precompute_pointings,
+    prepare_pointings,
+)
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
 from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
-from .maps_and_harmonics import SphericalHarmonics, HealpixMap
 from .units import Units
 from .version import (
-    __version__ as litebird_sim_version,
     __author__ as litebird_sim_author,
 )
-from .constants import NUMBA_NUM_THREADS_ENVVAR
+from .version import (
+    __version__ as litebird_sim_version,
+)
 
 DEFAULT_BASE_IMO_URL = "https://litebirdimo.ssdc.asi.it"
 
@@ -1586,12 +1593,20 @@ class Simulation:
         self.instrument = instrument
 
     def set_hwp(self, hwp: HWP):
-        """Set the HWP to be used in the simulation
+        """Set the HWP to be used in the simulation. This method should be used
+        if the hwp is the same for all observations. Otherwise, Observation.set_hwp()
+        should be used.
 
-        The argument must be a class derived from :class:`.HWP`, for instance
-        :class:`.IdealHWP`.
+        The argument must be an instance of a class derived from :class:`.HWP`, either
+        :class:`.IdealHWP` or :class:`.NonIdealHWP`.
         """
+
+        # TODO add warning that if this method is created before creating
+        # observations, then all observations will share the same HWP instance
+        # by default.
+
         self.hwp = hwp
+
         for obs in self.observations:
             obs.set_hwp(hwp)
 
@@ -1666,7 +1681,8 @@ class Simulation:
         execution if you plan to access the pointings repeatedly during a simulation.
         """
         precompute_pointings(
-            observations=self.observations, pointings_dtype=pointings_dtype
+            observations=self.observations,
+            pointings_dtype=pointings_dtype,
         )
 
     @_profile
@@ -1762,6 +1778,8 @@ class Simulation:
         component: str = "tod",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
+        integrate_in_band: bool = False,
+        band_filenames: list[str] | None = None,
         nthreads: int | None = None,
     ):
         """Fills the Time-Ordered Data (TOD) by scanning a given sky map.
@@ -1786,6 +1804,7 @@ class Simulation:
             hwp=self.hwp if self.hwp else None,
             component=component,
             pointings_dtype=pointings_dtype,
+            integrate_in_band=integrate_in_band,
             nthreads=nthreads,
         )
 
@@ -2500,6 +2519,39 @@ class Simulation:
             detector_split=detector_split,
             time_split=time_split,
             pointings_dtype=pointings_dtype,
+        )
+
+    @_profile
+    def make_h_maps(
+        self,
+        nside: int,
+        n_m_couples: np.ndarray = np.array(np.meshgrid([0, 2, 4], [0])).T.reshape(
+            -1, 2
+        ),
+        hwp: HWP | None = None,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        detector_split: str = "full",
+        time_split: str = "full",
+        pointings_dtype=np.float64,
+        save_to_file: bool = True,
+        output_directory: str = "./h_n_maps",
+    ) -> HMapsResult:
+        """
+        Computes the Hn maps from the pointings  of `sim.observations`.
+        This is a wrapper around :func:`litebird_sim.mapmaking.make_h_maps`.
+
+        """
+        return make_h_maps(
+            observations=self.observations,
+            nside=nside,
+            n_m_couples=n_m_couples,
+            hwp=hwp,
+            output_coordinate_system=output_coordinate_system,
+            detector_split=detector_split,
+            time_split=time_split,
+            pointings_dtype=pointings_dtype,
+            save_to_file=save_to_file,
+            output_directory=output_directory,
         )
 
     def _impose_and_check_full_split(self, detector_splits, time_splits):

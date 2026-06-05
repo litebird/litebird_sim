@@ -1,25 +1,25 @@
 import numpy as np
 from numpy.typing import DTypeLike
 from numba import njit, prange
-import os
+import logging
 
 from ducc0.healpix import Healpix_Base
-from .observations import Observation
-from .hwp_harmonics import fill_tod
-from .hwp import HWP, IdealHWP, NonIdealHWP
+
+from .coordinates import CoordinateSystem
+from .hwp import HWP, IdealHWP
+from .hwp_harmonics.hwp_harmonics import fill_tod_with_hwp_harmonics
+from .hwp_non_ideal import NonIdealHWP
 from .input_sky import SkyGenerationParams
+from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
+from .observations import Observation
 from .pointings_in_obs import (
     _get_hwp_angle,
     _get_pointings_array,
     _get_pol_angle,
     _normalize_observations_and_pointings,
 )
-from .coordinates import CoordinateSystem
 
-from .maps_and_harmonics import SphericalHarmonics, HealpixMap, interpolate_alm
-from .constants import NUM_THREADS_ENVVAR
-
-import logging
+from .utilities import resolve_nthreads
 
 
 @njit
@@ -77,7 +77,7 @@ def compute_signal_generic_hwp_for_one_sample(Stokes, Vpol, Rhwp, Mhwp, Rtel):
     return Vpol @ Rhwp.T @ Mhwp @ Rhwp @ Rtel @ Stokes
 
 
-@njit
+@njit(parallel=True)
 def scan_map_generic_hwp_for_one_detector(
     tod_det,
     input_T,
@@ -95,7 +95,7 @@ def scan_map_generic_hwp_for_one_detector(
     rot_hwp = np.eye(4, dtype=np.float64)
     rot_tel = np.eye(4, dtype=np.float64)
 
-    for i in range(len(tod_det)):
+    for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         vec_stokes(vec_S, input_T[i], input_Q[i], input_U[i])
         rot_matrix(rot_hwp, hwp_angle[i])
         rot_matrix(rot_tel, orientation_telescope[i])
@@ -277,7 +277,7 @@ def scan_map(
             scheme = "NESTED" if maps_det.nest else "RING"
             hpx = Healpix_Base(maps_det.nside, scheme)
 
-            pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2])
+            pixel_ind_det = hpx.ang2pix(curr_pointings_det[:, 0:2], nthreads=nthreads)
 
             if maps_det.nstokes == 1:
                 input_T = pixmap[0, pixel_ind_det]
@@ -376,7 +376,7 @@ def scan_map_in_observations(
     apply_non_linearity: bool = False,
     add_2f_hwpss: bool = False,
     mueller_phases: dict | None = None,
-    comm: bool | None = None,
+    integrate_in_band: bool = False,
     nthreads: int | None = None,
 ):
     """
@@ -454,8 +454,9 @@ def scan_map_in_observations(
         matrix elements. When None is given, temporary values from
         Patanchon et al. [2021] are used.
 
-    comm : SerialMpiCommunicator, optional
-        (For the harmonics expansion case) MPI communicator.
+    integrate_in_band : bool, default=False
+        Whether to integrate the signal over the detector's frequency band.
+        Only implemented for the Jones formalism and explicit harmonics expansion case.
 
     nthreads : int, default=None
         Number of threads to use in the convolution. If None, the function reads from the `OMP_NUM_THREADS`
@@ -527,13 +528,14 @@ def scan_map_in_observations(
         )
 
         # Set number of threads
-        if nthreads is None:
-            nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+        nthreads = resolve_nthreads(nthreads)
 
         if isinstance(cur_hwp, NonIdealHWP) and cur_hwp.harmonic_expansion:
             # Harmonic-expansion case: delegate to fill_tod
-            fill_tod(
+            fill_tod_with_hwp_harmonics(
+                hwp=cur_hwp,
                 observation=cur_obs,
+                tod=cur_obs.tod,
                 pointings=cur_ptg,
                 maps=maps,
                 hwp_angle=hwp_angle,
@@ -543,7 +545,8 @@ def scan_map_in_observations(
                 apply_non_linearity=apply_non_linearity,
                 add_2f_hwpss=add_2f_hwpss,
                 mueller_phases=mueller_phases,
-                comm=comm,
+                integrate_in_band=integrate_in_band,
+                nthreads=nthreads,
             )
         else:
             # Standard scanning case
