@@ -7,6 +7,7 @@ import logging as log
 import ducc0.healpix as dh
 import ducc0.sht as sht
 import numpy as np
+import numpy.typing as npt
 from astropy.io import fits
 
 from .coordinates import ECL_TO_GAL_EULER, GAL_TO_ECL_EULER, CoordinateSystem
@@ -250,7 +251,7 @@ class SphericalHarmonics:
         nstokes: int = 3,
         nfreqs: int | None = None,
         frequencies_ghz: float | Sequence[float] | np.ndarray | None = None,
-        dtype: type = np.complex128,
+        dtype: npt.DTypeLike = np.complex128,
         units: Units | None = None,
         coordinates: CoordinateSystem | None = None,
     ) -> "SphericalHarmonics":
