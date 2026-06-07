@@ -46,12 +46,14 @@ from .imo.imo import Imo
 from .input_sky import SkyGenerationParams, SkyGenerator
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
+    HMapsResult,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
     PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
+    make_h_maps,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
@@ -2484,6 +2486,39 @@ class Simulation:
             detector_split=detector_split,
             time_split=time_split,
             pointings_dtype=pointings_dtype,
+        )
+
+    @_profile
+    def make_h_maps(
+        self,
+        nside: int,
+        n_m_couples: np.ndarray = np.array(np.meshgrid([0, 2, 4], [0])).T.reshape(
+            -1, 2
+        ),
+        hwp: HWP | None = None,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        detector_split: str = "full",
+        time_split: str = "full",
+        pointings_dtype=np.float64,
+        save_to_file: bool = True,
+        output_directory: str = "./h_n_maps",
+    ) -> HMapsResult:
+        """
+        Computes the Hn maps from the pointings  of `sim.observations`.
+        This is a wrapper around :func:`litebird_sim.mapmaking.make_h_maps`.
+
+        """
+        return make_h_maps(
+            observations=self.observations,
+            nside=nside,
+            n_m_couples=n_m_couples,
+            hwp=hwp,
+            output_coordinate_system=output_coordinate_system,
+            detector_split=detector_split,
+            time_split=time_split,
+            pointings_dtype=pointings_dtype,
+            save_to_file=save_to_file,
+            output_directory=output_directory,
         )
 
     def _impose_and_check_full_split(self, detector_splits, time_splits):

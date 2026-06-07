@@ -54,7 +54,11 @@ def test_accumulate_map_and_info():
     assert np.allclose(res_info, info)
 
     rhs = mapping._extract_map_and_fill_info(info)
-    assert np.allclose(np.linalg.solve(info, rhs), res_map)
+    # Starting from NumPy 2, we must reshape `rhs`
+    # so that it matches the shape of the `info` tensor.
+    # Plus, we add `.squeeze(1)` to remove the (new)
+    # dimension at the end of the result
+    assert np.allclose(np.linalg.solve(info, rhs[..., np.newaxis]).squeeze(-1), res_map)
 
 
 def test_make_binned_map_api_simulation(tmp_path):

@@ -118,7 +118,7 @@ def set_band_params_for_one_detector(
         bpi = _dBodTth(det_params.freq_ghz) * bandpass_prof
 
     # Normalize the band
-    bpi /= np.trapz(bpi, det_params.freq_ghz)
+    bpi /= np.trapezoid(bpi, det_params.freq_ghz)
 
     return (det_params, bpi)
 
