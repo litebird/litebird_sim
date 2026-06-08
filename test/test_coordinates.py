@@ -1,8 +1,9 @@
 # -*- encoding: utf-8 -*-
 
-import litebird_sim as lbs
 import numpy as np
-import healpy as hp
+
+import litebird_sim as lbs
+from utils import astropy_ecl_to_gal
 
 
 def test_coordinates():
@@ -47,26 +48,21 @@ def test_coordinates():
 
     pointings, _ = obs.get_pointings(0, pointings_dtype=np.float64)
 
-    r = hp.Rotator(coord=["E", "G"])
-
-    pointings_gal_hp = np.empty_like(pointings)
-
-    pointings_gal_hp[:, 0:2] = r(pointings[:, 0], pointings[:, 1]).T
-    pointings_gal_hp[:, 2] = pointings[:, 2] + r.angle_ref(
-        pointings[:, 0], pointings[:, 1]
+    pointings_gal_ref = astropy_ecl_to_gal(
+        pointings[:, 0],
+        pointings[:, 1],
+        pointings[:, 2],
     )
 
     pointings_gal_lbs = lbs.coordinates.rotate_coordinates_e2g(pointings)
 
     # Calculate the raw difference
-    diff = pointings_gal_hp - pointings_gal_lbs
+    diff = pointings_gal_ref - pointings_gal_lbs
 
     # Normalize the angular difference to handle periodicity (wrap-around).
     # This maps any difference 'd' to the range [-pi, pi].
     # Example: If the difference is ~2pi (e.g., 0.0 vs 6.28), the result becomes ~0.0.
     angular_diff = np.arctan2(np.sin(diff), np.cos(diff))
-
-    print("\nMax angular error (wrapped):", np.max(np.abs(angular_diff)))
 
     # Verify that the angular distance is effectively zero
     np.testing.assert_allclose(angular_diff, 0.0, rtol=1e-6, atol=1e-6)

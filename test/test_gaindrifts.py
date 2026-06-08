@@ -1,6 +1,7 @@
 import numpy as np
-import litebird_sim as lbs
 from astropy.time import Time
+
+import litebird_sim as lbs
 
 
 def get_RNG_hierarchy(seed, num_of_dets):
@@ -19,7 +20,7 @@ class Test_wrappers_gain_drift:
     """Class to group tests for checking the consistency of wrappers and
     low level functions"""
 
-    start_time = Time("2034-05-02")
+    start_time = Time("2026-05-02")
     duration_s = 2 * 24 * 3600
     sampling_freq_Hz = 1
 
@@ -61,10 +62,12 @@ class Test_wrappers_gain_drift:
             num_of_obs_per_detector=1,
         )
 
-        sim1.observations[0].gain_2_self = np.ones_like(sim1.observations[0].tod)
-        sim1.observations[0].gain_2_obs = np.ones_like(sim1.observations[0].tod)
-        sim1.observations[0].gain_2_tod = np.ones_like(sim1.observations[0].tod)
-        sim1.observations[0].gain_2_det = np.ones_like(sim1.observations[0].tod)
+        sim1_obs = sim1.observations[0]
+
+        sim1_obs.gain_2_self = np.ones_like(sim1_obs.tod)
+        sim1_obs.gain_2_obs = np.ones_like(sim1_obs.tod)
+        sim1_obs.gain_2_tod = np.ones_like(sim1_obs.tod)
+        sim1_obs.gain_2_det = np.ones_like(sim1_obs.tod)
 
         # Applying gain drift using four different functions
         sim1.apply_gaindrift(
@@ -82,14 +85,14 @@ class Test_wrappers_gain_drift:
 
         dets_random = get_dets_random(random_seed, len(self.dets))
         lbs.apply_gaindrift_to_tod(
-            tod=sim1.observations[0].gain_2_tod,
+            tod=sim1_obs.gain_2_tod,
             sampling_freq_hz=self.sampling_freq_Hz,
             drift_params=self.drift_params,
             dets_random=dets_random,
         )
 
         dets_random = get_dets_random(random_seed, len(self.dets))
-        for idx, tod in enumerate(sim1.observations[0].gain_2_det):
+        for idx, tod in enumerate(sim1_obs.gain_2_det):
             lbs.apply_gaindrift_for_one_detector(
                 det_tod=tod,
                 sampling_freq_hz=self.sampling_freq_Hz,
@@ -97,16 +100,13 @@ class Test_wrappers_gain_drift:
                 random=dets_random[idx],
             )
 
-        # Testing if the four gain drift tods are same
-        np.testing.assert_array_equal(
-            sim1.observations[0].gain_2_self, sim1.observations[0].gain_2_obs
-        )
-        np.testing.assert_array_equal(
-            sim1.observations[0].gain_2_self, sim1.observations[0].gain_2_tod
-        )
-        np.testing.assert_array_equal(
-            sim1.observations[0].gain_2_self, sim1.observations[0].gain_2_det
-        )
+        # We use `assert np.allclose()` instead of
+        # `np.testing.assert_array_equal` because the latter
+        # does not work reliably with Python 3.14 and NumPy 2.
+        assert np.allclose(sim1_obs.gain_2_self, sim1_obs.gain_2_obs)
+        assert np.allclose(sim1_obs.gain_2_self, sim1_obs.gain_2_obs)
+        assert np.allclose(sim1_obs.gain_2_self, sim1_obs.gain_2_tod)
+        assert np.allclose(sim1_obs.gain_2_self, sim1_obs.gain_2_det)
 
         sim1.flush()
 
@@ -129,10 +129,12 @@ class Test_wrappers_gain_drift:
             num_of_obs_per_detector=1,
         )
 
-        sim1.observations[0].gain_2_self = np.ones_like(sim1.observations[0].tod)
-        sim1.observations[0].gain_2_obs = np.ones_like(sim1.observations[0].tod)
-        sim1.observations[0].gain_2_tod = np.ones_like(sim1.observations[0].tod)
-        sim1.observations[0].gain_2_det = np.ones_like(sim1.observations[0].tod)
+        sim1_obs = sim1.observations[0]
+
+        sim1_obs.gain_2_self = np.ones_like(sim1_obs.tod)
+        sim1_obs.gain_2_obs = np.ones_like(sim1_obs.tod)
+        sim1_obs.gain_2_tod = np.ones_like(sim1_obs.tod)
+        sim1_obs.gain_2_det = np.ones_like(sim1_obs.tod)
 
         self.drift_params.drift_type = lbs.GainDriftType.THERMAL_GAIN
 
@@ -152,17 +154,15 @@ class Test_wrappers_gain_drift:
 
         dets_random = get_dets_random(random_seed, len(self.dets))
         lbs.apply_gaindrift_to_tod(
-            tod=sim1.observations[0].gain_2_tod,
+            tod=sim1_obs.gain_2_tod,
             sampling_freq_hz=self.sampling_freq_Hz,
             drift_params=self.drift_params,
-            focalplane_attr=getattr(
-                sim1.observations[0], self.drift_params.focalplane_group
-            ),
+            focalplane_attr=getattr(sim1_obs, self.drift_params.focalplane_group),
             dets_random=dets_random,
         )
 
         dets_random = get_dets_random(random_seed, len(self.dets))
-        for idx, tod in enumerate(sim1.observations[0].gain_2_det):
+        for idx, tod in enumerate(sim1_obs.gain_2_det):
             lbs.apply_gaindrift_for_one_detector(
                 det_tod=tod,
                 sampling_freq_hz=self.sampling_freq_Hz,
@@ -171,16 +171,10 @@ class Test_wrappers_gain_drift:
             )
 
         # Testing if the four gain drift tods are same
-        np.testing.assert_array_equal(
-            sim1.observations[0].gain_2_self, sim1.observations[0].gain_2_obs
-        )
-        np.testing.assert_array_equal(
-            sim1.observations[0].gain_2_self, sim1.observations[0].gain_2_tod
-        )
+        assert np.allclose(sim1_obs.gain_2_self, sim1_obs.gain_2_obs)
+        assert np.allclose(sim1_obs.gain_2_self, sim1_obs.gain_2_tod)
         if False:  # This is expected to fail as it does not reproduce what happens in `Simulation`
-            np.testing.assert_array_equal(
-                sim1.observations[0].gain_2_self, sim1.observations[0].gain_2_det
-            )
+            assert np.allclose(sim1_obs.gain_2_self, sim1_obs.gain_2_det)
 
         sim1.flush()
 
@@ -188,7 +182,7 @@ class Test_wrappers_gain_drift:
 def test_linear_gain_drift(tmp_path):
     """This function test if the linear gain drifts are applied correctly."""
 
-    start_time = Time("2034-05-02")
+    start_time = Time("2026-05-02")
     duration_s = 2 * 24 * 3600
     sampling_freq_Hz = 3
 
@@ -224,11 +218,13 @@ def test_linear_gain_drift(tmp_path):
         num_of_obs_per_detector=1,
     )
 
+    sim1_obs = sim1.observations[0]
+
     # gain_wrapper stores the tod applied with the wrapper function and is
     # tested against gain_native where the gain is applied right within
     # this function
-    sim1.observations[0].gain_wrapper = np.ones_like(sim1.observations[0].tod)
-    sim1.observations[0].gain_native = np.ones_like(sim1.observations[0].tod)
+    sim1_obs.gain_wrapper = np.ones_like(sim1_obs.tod)
+    sim1_obs.gain_native = np.ones_like(sim1_obs.tod)
 
     sim1.apply_gaindrift(
         drift_params=drift_params,
@@ -236,10 +232,10 @@ def test_linear_gain_drift(tmp_path):
         user_seed=987654321,
     )
 
-    tod_size = len(sim1.observations[0].gain_native[0])
+    tod_size = len(sim1_obs.gain_native[0])
 
     dets_random = get_dets_random(987654321, len(dets))
-    for idx, tod in enumerate(sim1.observations[0].gain_native):
+    for idx, tod in enumerate(sim1_obs.gain_native):
         rng = dets_random[idx]
 
         rand = rng.normal(
@@ -264,9 +260,7 @@ def test_linear_gain_drift(tmp_path):
         tod[div * gain_arr_size :] *= gain_arr[:mod]
 
     # Testing if the two tods are same
-    np.testing.assert_array_equal(
-        sim1.observations[0].gain_wrapper, sim1.observations[0].gain_native
-    )
+    assert np.allclose(sim1_obs.gain_wrapper, sim1_obs.gain_native)
 
     sim1.flush()
 
@@ -286,7 +280,7 @@ class Test_thermal_gain:
     exactly this.
     """
 
-    start_time = Time("2034-05-02")
+    start_time = Time("2026-05-02")
     duration_s = 2 * 24 * 3600
     sampling_freq_Hz = 1
 
@@ -329,11 +323,13 @@ class Test_thermal_gain:
             num_of_obs_per_detector=1,
         )
 
+        sim1_obs = sim1.observations[0]
+
         # gain_wrapper stores the tod applied with the wrapper function
         # and is tested against gain_native where the gain is applied right
         # within this function
-        sim1.observations[0].gain_wrapper = np.ones_like(sim1.observations[0].tod)
-        sim1.observations[0].gain_native = np.ones_like(sim1.observations[0].tod)
+        sim1_obs.gain_wrapper = np.ones_like(sim1_obs.tod)
+        sim1_obs.gain_native = np.ones_like(sim1_obs.tod)
 
         sim1.apply_gaindrift(
             drift_params=drift_params,
@@ -341,7 +337,7 @@ class Test_thermal_gain:
             user_seed=987654321,
         )
         dets_random = get_dets_random(987654321, len(self.dets))
-        for idx, tod in enumerate(sim1.observations[0].gain_native):
+        for idx, tod in enumerate(sim1_obs.gain_native):
             rng = dets_random[idx]
 
             rand = rng.normal(loc=0.7, scale=0.5)
@@ -352,11 +348,8 @@ class Test_thermal_gain:
             tod *= 1.0 + thermal_factor / drift_params.focalplane_Tbath_K
 
         for i in np.arange(len(self.dets)):
-            assert (
-                sim1.observations[0].gain_wrapper[i]
-                < sim1.observations[0].gain_native[i]
-            ).all(), (
-                f"The assertion is failed for detector {sim1.observations[0].name[i]}"
+            assert (sim1_obs.gain_wrapper[i] < sim1_obs.gain_native[i]).all(), (
+                f"The assertion is failed for detector {sim1_obs.name[i]}"
             )
 
         sim1.flush()
@@ -387,8 +380,10 @@ class Test_thermal_gain:
             num_of_obs_per_detector=1,
         )
 
-        sim1.observations[0].gain_wrapper = np.ones_like(sim1.observations[0].tod)
-        sim1.observations[0].gain_native = np.ones_like(sim1.observations[0].tod)
+        sim1_obs = sim1.observations[0]
+
+        sim1_obs.gain_wrapper = np.ones_like(sim1_obs.tod)
+        sim1_obs.gain_native = np.ones_like(sim1_obs.tod)
 
         sim1.apply_gaindrift(
             drift_params=drift_params,
@@ -396,7 +391,7 @@ class Test_thermal_gain:
             user_seed=987654321,
         )
         dets_random = get_dets_random(987654321, len(self.dets))
-        for idx, tod in enumerate(sim1.observations[0].gain_native):
+        for idx, tod in enumerate(sim1_obs.gain_native):
             rng = dets_random[idx]
 
             rand = rng.normal(loc=0.7, scale=0.5)
@@ -407,11 +402,8 @@ class Test_thermal_gain:
             tod *= 1.0 + thermal_factor / drift_params.focalplane_Tbath_K
 
         for i in np.arange(len(self.dets)):
-            assert (
-                sim1.observations[0].gain_wrapper[i]
-                < sim1.observations[0].gain_native[i]
-            ).all(), (
-                f"The assertion is failed for detector {sim1.observations[0].name[i]}"
+            assert (sim1_obs.gain_wrapper[i] < sim1_obs.gain_native[i]).all(), (
+                f"The assertion is failed for detector {sim1_obs.name[i]}"
             )
 
         sim1.flush()

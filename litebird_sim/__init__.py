@@ -9,6 +9,9 @@ from litebird_sim.mapmaking import (
     DestriperParameters,
     DestriperResult,
     ExternalDestriperParameters,
+    load_h_maps_from_file,
+    make_h_maps,
+    HMapsResult,
     make_pair_differenced_map,
     PairDifferencingResult,
 )
@@ -368,6 +371,9 @@ __all__ = [
     "DestriperParameters",
     "DestriperResult",
     "ExternalDestriperParameters",
+    "make_h_maps",
+    "HMapsResult",
+    "load_h_maps_from_file",
     "make_pair_differenced_map",
     "PairDifferencingResult",
     # simulations.py

@@ -288,4 +288,4 @@ def test_madam(tmp_path):
 
 
 def test_madam_astropy_time(tmp_path):
-    run_mpi_test_on_madam(tmp_path, start_time=astropy.time.Time("2030-01-01 00:00:00"))
+    run_mpi_test_on_madam(tmp_path, start_time=astropy.time.Time("2026-01-01 00:00:00"))

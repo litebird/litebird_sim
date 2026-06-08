@@ -46,12 +46,14 @@ from .imo.imo import Imo
 from .input_sky import SkyGenerationParams, SkyGenerator
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
+    HMapsResult,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
     PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
+    make_h_maps,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
@@ -2098,12 +2100,15 @@ class Simulation:
         component: str = "tod",
         append_to_report: bool = False,
         rng_hierarchy: RNGHierarchy | None = None,
+        conv_K_to_SR: bool = False,
     ):
         """A method to apply non-linearity to the observation.
 
         This is a wrapper around
         :func:`.apply_quadratic_nonlin_to_observations()` that
         applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained for each detector, independently of the MPI distribution across detectors and time. Setting the `user_seed` argument is required for this.
+        conv_K_to_SR (bool, optional) is a flag for temperature to spectral radiance
+        units conversion. Defaults to False.
         """
 
         assert user_seed is not None, (
@@ -2118,6 +2123,8 @@ class Simulation:
             nl_params=nl_params,
             user_seed=user_seed,
             component=component,
+            dets_random=dets_random,
+            conv_K_to_SR=conv_K_to_SR,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2134,6 +2141,7 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 g=g,
+                conv_K_to_SR=conv_K_to_SR,
             )
 
     @_profile
@@ -2476,6 +2484,39 @@ class Simulation:
             detector_split=detector_split,
             time_split=time_split,
             pointings_dtype=pointings_dtype,
+        )
+
+    @_profile
+    def make_h_maps(
+        self,
+        nside: int,
+        n_m_couples: np.ndarray = np.array(np.meshgrid([0, 2, 4], [0])).T.reshape(
+            -1, 2
+        ),
+        hwp: HWP | None = None,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        detector_split: str = "full",
+        time_split: str = "full",
+        pointings_dtype=np.float64,
+        save_to_file: bool = True,
+        output_directory: str = "./h_n_maps",
+    ) -> HMapsResult:
+        """
+        Computes the Hn maps from the pointings  of `sim.observations`.
+        This is a wrapper around :func:`litebird_sim.mapmaking.make_h_maps`.
+
+        """
+        return make_h_maps(
+            observations=self.observations,
+            nside=nside,
+            n_m_couples=n_m_couples,
+            hwp=hwp,
+            output_coordinate_system=output_coordinate_system,
+            detector_split=detector_split,
+            time_split=time_split,
+            pointings_dtype=pointings_dtype,
+            save_to_file=save_to_file,
+            output_directory=output_directory,
         )
 
     def _impose_and_check_full_split(self, detector_splits, time_splits):

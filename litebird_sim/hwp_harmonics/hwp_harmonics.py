@@ -1,21 +1,17 @@
+import logging
+import os
+
 import numpy as np
 import numpy.typing as npt
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from ducc0.healpix import Healpix_Base
 from numba import njit
-import os
-import logging
 
 from litebird_sim.hwp_jones_parameters import HWPJonesParams
-from .jones_methods import (
-    compute_signal_for_one_detector as compute_signal_for_one_detector_jones,
-    integrate_inband_signal_for_one_detector as integrate_inband_signal_for_one_detector_jones,
-)
-from .mueller_methods import (
-    compute_signal_for_one_detector as compute_signal_for_one_detector_mueller,
-)
+
 from ..bandpass_template_module import bandpass_profile
+from ..constants import NUM_THREADS_ENVVAR
 from ..coordinates import CoordinateSystem
 from ..hwp_non_ideal import HWPFormalism, NonIdealHWP
 from ..input_sky import SkyGenerationParams
@@ -24,7 +20,15 @@ from ..observations import Observation
 from ..pointings_in_obs import (
     _get_pointings_array,
 )
-from ..constants import NUM_THREADS_ENVVAR
+from .jones_methods import (
+    compute_signal_for_one_detector as compute_signal_for_one_detector_jones,
+)
+from .jones_methods import (
+    integrate_inband_signal_for_one_detector as integrate_inband_signal_for_one_detector_jones,
+)
+from .mueller_methods import (
+    compute_signal_for_one_detector as compute_signal_for_one_detector_mueller,
+)
 
 COND_THRESHOLD = 1e10
 
@@ -34,11 +38,11 @@ h = getattr(const, "h").value  # Planck constant in J s
 Tcmb0 = getattr(cosmo, "Tcmb0").value  # CMB temperature today in K
 
 
-def _dBodTrj(nu: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def _dBodTrj(nu: npt.NDArray[np.float64] | np.float64):
     return 2 * k_B * nu * nu * 1e18 / c / c
 
 
-def _dBodTth(nu: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def _dBodTth(nu: npt.NDArray[np.float64] | np.float64):
     x = h * nu * 1e9 / k_B / Tcmb0
     ex = np.exp(x)
     exm1 = ex - 1.0e0
@@ -114,7 +118,7 @@ def set_band_params_for_one_detector(
         bpi = _dBodTth(det_params.freq_ghz) * bandpass_prof
 
     # Normalize the band
-    bpi /= np.trapz(bpi, det_params.freq_ghz)
+    bpi /= np.trapezoid(bpi, det_params.freq_ghz)
 
     return (det_params, bpi)
 
