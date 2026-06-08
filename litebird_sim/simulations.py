@@ -46,17 +46,17 @@ from .imo.imo import Imo
 from .input_sky import SkyGenerationParams, SkyGenerator
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
-    HMapsResult,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
+    HMapsResult,
     PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
-    make_h_maps,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
+    make_h_maps,
     make_pair_differenced_map,
     save_destriper_results,
 )
@@ -2099,7 +2099,6 @@ class Simulation:
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
-        rng_hierarchy: RNGHierarchy | None = None,
         conv_K_to_SR: bool = False,
     ):
         """A method to apply non-linearity to the observation.
@@ -2123,7 +2122,6 @@ class Simulation:
             nl_params=nl_params,
             user_seed=user_seed,
             component=component,
-            dets_random=dets_random,
             conv_K_to_SR=conv_K_to_SR,
         )
 
