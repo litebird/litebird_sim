@@ -289,8 +289,8 @@ def test_dipole_convolved():
         np.array(
             [
                 [
-                    [0, 0, 0],    # north pole
-                    [90, 0, 0],   # equator, φ = 0
+                    [0, 0, 0],  # north pole
+                    [90, 0, 0],  # equator, φ = 0
                     [180, 0, 0],  # south pole
                 ]
             ]
@@ -341,9 +341,9 @@ def test_dipole_convolved_beam_suppression():
         np.array(
             [
                 [
-                    [90, 0, 0],   # equator, φ = 0
+                    [90, 0, 0],  # equator, φ = 0
                     [90, 90, 0],  # equator, φ = 90°
-                    [90, 180, 0], # equator, φ = 180°
+                    [90, 180, 0],  # equator, φ = 180°
                 ]
             ]
         )
@@ -411,12 +411,12 @@ def test_dipole_convolved_total_pencil_beam():
 
     # Arbitrary pointing and velocity.
     theta_p = np.deg2rad(45.0)
-    phi_p   = np.deg2rad(30.0)
-    psi_p   = np.deg2rad(20.0)
-    v_km_s  = np.array([100.0, 50.0, -30.0])
+    phi_p = np.deg2rad(30.0)
+    psi_p = np.deg2rad(20.0)
+    v_km_s = np.array([100.0, 50.0, -30.0])
 
     pointings = np.array([[[theta_p, phi_p, psi_p]]])
-    velocity  = v_km_s[np.newaxis, :]
+    velocity = v_km_s[np.newaxis, :]
 
     tod = np.zeros((1, 1))
     lbs.add_dipole(
@@ -444,7 +444,7 @@ def test_dipole_convolved_total_pencil_beam():
     x = lbs.H_OVER_K_B * nu_hz / lbs.T_CMB_K
     f_x = x * np.exp(x) / (np.exp(x) - 1)
     planck_t0 = lbs_planck(nu_hz, lbs.T_CMB_K)
-    planck_t  = lbs_planck(nu_hz, lbs.T_CMB_K / gamma / (1.0 - mu))
+    planck_t = lbs_planck(nu_hz, lbs.T_CMB_K / gamma / (1.0 - mu))
     expected = lbs.T_CMB_K / f_x * (planck_t / planck_t0 - 1.0)
 
     np.testing.assert_allclose(tod[0, 0], expected, rtol=1e-10)
@@ -483,23 +483,38 @@ def test_dipole_convolved_total_vs_quadratic():
     v_km_s = lbs.C_LIGHT_KM_OVER_S * beta
     pointings = np.deg2rad(
         np.array(
-            [[[90, 0, 0], [90, 60, 0], [90, 120, 0],
-              [90, 180, 0], [90, 240, 0], [90, 300, 0]]]
+            [
+                [
+                    [90, 0, 0],
+                    [90, 60, 0],
+                    [90, 120, 0],
+                    [90, 180, 0],
+                    [90, 240, 0],
+                    [90, 300, 0],
+                ]
+            ]
         )
     )
     n_samples = pointings.shape[1]
-    velocity  = np.tile([v_km_s, 0.0, 0.0], (n_samples, 1))
+    velocity = np.tile([v_km_s, 0.0, 0.0], (n_samples, 1))
 
     tod_quad = np.zeros((1, n_samples))
     lbs.add_dipole(
-        tod_quad, pointings, velocity, t_cmb_k=lbs.T_CMB_K,
-        frequency_ghz=[100.0], dipole_type=lbs.DipoleType.CONVOLVED,
+        tod_quad,
+        pointings,
+        velocity,
+        t_cmb_k=lbs.T_CMB_K,
+        frequency_ghz=[100.0],
+        dipole_type=lbs.DipoleType.CONVOLVED,
         s_params=s_params,
     )
 
     tod_total = np.zeros((1, n_samples))
     lbs.add_dipole(
-        tod_total, pointings, velocity, t_cmb_k=lbs.T_CMB_K,
+        tod_total,
+        pointings,
+        velocity,
+        t_cmb_k=lbs.T_CMB_K,
         frequency_ghz=[100.0],
         dipole_type=lbs.DipoleType.CONVOLVED_TOTAL_FROM_LIN_T,
         beam_conv_data=beam_data,
@@ -515,4 +530,3 @@ def test_dipole_convolved_total_vs_quadratic():
     # 2. The mean offset equals -T₀β²/2 to better than 0.1%.
     expected_offset = -lbs.T_CMB_K * beta**2 / 2.0
     np.testing.assert_allclose(np.mean(diff), expected_offset, rtol=1e-3)
-

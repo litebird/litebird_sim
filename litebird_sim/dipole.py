@@ -264,9 +264,7 @@ def compute_dipole_for_one_sample_total_from_lin_t(
 
 
 @njit
-def compute_dipole_for_one_sample_expanded(
-    theta, phi, v_km_s, t_cmb_k, q_x, r_x
-):
+def compute_dipole_for_one_sample_expanded(theta, phi, v_km_s, t_cmb_k, q_x, r_x):
     r"""Polynomial β-expansion for one TOD sample (no beam convolution).
 
     Computes
@@ -302,9 +300,7 @@ def compute_dipole_for_one_sample_expanded(
 
 
 @njit
-def compute_dipole_for_one_sample_total(
-    theta, phi, v_km_s, t_cmb_k, nu_hz, f_x, n_x
-):
+def compute_dipole_for_one_sample_total(theta, phi, v_km_s, t_cmb_k, nu_hz, f_x, n_x):
     r"""Exact or full-Planck formula for one TOD sample.
 
     Selects the formula via *f_x*:
@@ -334,7 +330,16 @@ def compute_dipole_for_one_sample_total(
 
 @njit
 def compute_dipole_for_one_sample_convolved(
-    theta, phi, psi, v_km_s, t_cmb_k, q_x, r_x, s_vec, s_mat, s_ten,
+    theta,
+    phi,
+    psi,
+    v_km_s,
+    t_cmb_k,
+    q_x,
+    r_x,
+    s_vec,
+    s_mat,
+    s_ten,
 ):
     r"""Compute the beam-convolved dipole+quadrupole+octupole for one TOD sample.
 
@@ -374,6 +379,7 @@ def compute_dipole_for_one_sample_convolved(
                     for k in range(3):
                         octupole += s_ten[i, j, k] * b[i] * b[j] * b[k]
             return t_cmb_k * (dipole + q_x * quadrupole + r_x * octupole)
+
 
 def _scalar_beam_alm_from_input(beam_alm: SphericalHarmonics) -> SphericalHarmonics:
     """Return a scalar (nstokes=1) beam alm object from user input."""
@@ -641,11 +647,12 @@ def add_dipole_for_one_detector(
                 r_x=r_eff,
             )
 
+
 @njit(parallel=True)
 def add_dipole_for_one_detector_convolved(
-    tod_det, 
-    theta_phi_psi_det, 
-    velocity,     
+    tod_det,
+    theta_phi_psi_det,
+    velocity,
     t_cmb_k,
     nu_hz,
     dipole_type: DipoleType,
@@ -653,7 +660,6 @@ def add_dipole_for_one_detector_convolved(
     s_mat,
     s_ten,
 ):
-
     x = H_OVER_K_B * nu_hz / t_cmb_k
 
     if dipole_type == DipoleType.LINEAR:
@@ -676,17 +682,18 @@ def add_dipole_for_one_detector_convolved(
 
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
         tod_det[i] += compute_dipole_for_one_sample_convolved(
-        theta=theta_phi_psi_det[i, 0],
-        phi=theta_phi_psi_det[i, 1],
-        psi=theta_phi_psi_det[i, 2],
-        v_km_s=velocity[i],
-        t_cmb_k=t_cmb_k,
-        q_x=q_x,
-        r_x=r_x,       
-        s_vec=s_vec,
-        s_mat=s_mat,
-        s_ten=s_ten,
-    )
+            theta=theta_phi_psi_det[i, 0],
+            phi=theta_phi_psi_det[i, 1],
+            psi=theta_phi_psi_det[i, 2],
+            v_km_s=velocity[i],
+            t_cmb_k=t_cmb_k,
+            q_x=q_x,
+            r_x=r_x,
+            s_vec=s_vec,
+            s_mat=s_mat,
+            s_ten=s_ten,
+        )
+
 
 def add_dipole(
     tod,
