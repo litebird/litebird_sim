@@ -44,15 +44,10 @@ def test_add_quadratic_nonlinearity():
     )
 
     # Applying non-linearity on the given TOD component of an `Observation` object
-    RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm=lbs.MPI_COMM_WORLD, num_detectors_per_rank=len(dets)
-    )
-    dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     lbs.apply_quadratic_nonlin_to_observations(
         observations=sim.observations,
         nl_params=nl_params,
         component="nl_2_obs",
-        dets_random=dets_random,
         user_seed=random_seed,
     )
 
