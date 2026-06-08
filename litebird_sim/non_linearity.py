@@ -144,7 +144,6 @@ def apply_quadratic_nonlin_to_observations(
     nl_params: NonLinParams | None = None,
     component: str = "tod",
     user_seed: int | None = None,
-    dets_random: list[np.random.Generator] | None = None,
     conv_K_to_SR: bool = False,
 ):
     """
@@ -180,10 +179,6 @@ def apply_quadratic_nonlin_to_observations(
             Base seed to build the RNG hierarchy and generate samples of the detector non-linearity factor,
             independently of the MPI distribution across detectors and time.
             The user is required to set this parameter.
-    dets_random : list of np.random.Generator, optional
-        List of per-detector random number generators. If not provided, and
-        `user_seed` is given, generators are created internally. One of
-        `user_seed` or `dets_random` must be provided.
     conv_K_to_SR (bool, optional): Flag for temperature to spectral radiance
         units conversion. Defaults to False.
 
@@ -192,7 +187,7 @@ def apply_quadratic_nonlin_to_observations(
     TypeError
         If `observations` is neither an `Observation` nor a list of them.
     ValueError
-        If neither `user_seed` nor `dets_random` is provided.
+        If `user_seed` is not provided.
     AssertionError
         If the number of random generators does not match the number of detectors.
     """
@@ -216,7 +211,6 @@ def apply_quadratic_nonlin_to_observations(
         observations=obs_list,
         comm=obs_list[0].comm_time_block,
         user_seed=user_seed,
-        dets_random=dets_random,
     )
 
     # iterate through each observation
