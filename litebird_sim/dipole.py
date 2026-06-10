@@ -116,7 +116,9 @@ class BeamSParams:
 
     s_vec: np.ndarray  # shape (3,)
     s_mat: np.ndarray  # shape (3, 3)
-    s_ten: np.ndarray = field(default_factory=lambda: np.zeros((3, 3, 3)))  # shape (3, 3, 3)
+    s_ten: np.ndarray = field(
+        default_factory=lambda: np.zeros((3, 3, 3))
+    )  # shape (3, 3, 3)
 
     @classmethod
     def from_beam_alm(cls, beam_alm: SphericalHarmonics) -> "BeamSParams":

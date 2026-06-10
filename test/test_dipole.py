@@ -258,7 +258,9 @@ def test_dipole_convolved_through_observations(tmp_path):
         random_seed=12345,
     )
     sim.create_observations(
-        detectors=[lbs.DetectorInfo(name="A", sampling_rate_hz=1, bandcenter_ghz=100.0)],
+        detectors=[
+            lbs.DetectorInfo(name="A", sampling_rate_hz=1, bandcenter_ghz=100.0)
+        ],
     )
     sim.set_scanning_strategy(
         lbs.SpinningScanningStrategy(
@@ -434,5 +436,3 @@ def test_dipole_convolved_beam_suppression():
     beta_sq = 0.1**2
     expected = q_x * beta_sq / 3.0
     np.testing.assert_allclose(tod_conv[0, 0], expected, rtol=1e-10)
-
-
