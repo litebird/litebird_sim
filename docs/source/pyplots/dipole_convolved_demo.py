@@ -22,7 +22,7 @@ beam_alm = lbs.gauss_beam_to_alm(
     fwhm_rad=np.deg2rad(60.0),
     psi_pol_rad=None,
 )
-s_params = lbs.compute_s_params_from_beam_alm(beam_alm)
+s_params = lbs.BeamSParams.from_beam_alm(beam_alm)
 
 tod_pencil = np.zeros((1, n_samples))
 lbs.add_dipole(
@@ -42,8 +42,7 @@ lbs.add_dipole(
     t_cmb_k=lbs.T_CMB_K,
     frequency_ghz=frequency_ghz,
     dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
-    apply_convolution=True,
-    beam_alms=beam_alm,
+    s_params=s_params,
 )
 
 scan_angle_deg = np.rad2deg(phi)

@@ -243,8 +243,77 @@ def test_dipole_list_of_obs(tmp_path):
     )
 
 
+def test_dipole_convolved_through_observations(tmp_path):
+    """add_dipole_to_observations must build S-parameters and convolve.
+
+    Exercises the wrapper convolution path (apply_convolution=True), which
+    computes BeamSParams.from_beam_alm internally. Checks that:
+      * a single beam and a per-detector dict ({"0": beam}) give the same TOD;
+      * the convolved TOD differs from the pencil-beam TOD.
+    """
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=Time("2020-01-01T00:00:00"),
+        duration_s=100.0,
+        random_seed=12345,
+    )
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="A", sampling_rate_hz=1, bandcenter_ghz=100.0)],
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785_398_163_397_448_3,
+            precession_rate_hz=8.664_850_513_998_931e-05,
+            spin_rate_hz=0.000_833_333_333_333_333_4,
+            start_time=sim.start_time,
+        ),
+        delta_time_s=60,
+    )
+    sim.set_instrument(
+        lbs.InstrumentInfo(
+            boresight_rotangle_rad=0.0,
+            spin_boresight_angle_rad=0.872_664_625_997_164_8,
+            spin_rotangle_rad=3.141_592_653_589_793,
+        )
+    )
+    lbs.prepare_pointings(
+        sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=None
+    )
+    lbs.precompute_pointings(sim.observations)
+
+    orbit = lbs.SpacecraftOrbit(sim.start_time)
+    pos_vel = lbs.spacecraft_pos_and_vel(
+        orbit, observations=sim.observations, delta_time_s=10.0
+    )
+
+    beam_alm = lbs.gauss_beam_to_alm(
+        lmax=32, mmax=32, fwhm_rad=np.deg2rad(30.0), psi_pol_rad=None
+    )
+
+    obs = sim.observations[0]
+
+    def run(**kwargs):
+        obs.tod[0][:] = 0.0
+        lbs.add_dipole_to_observations(
+            observations=sim.observations,
+            pos_and_vel=pos_vel,
+            dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
+            **kwargs,
+        )
+        return obs.tod[0].copy()
+
+    tod_pencil = run()
+    tod_single = run(apply_convolution=True, beam_alms=beam_alm)
+    tod_dict = run(apply_convolution=True, beam_alms={"0": beam_alm})
+
+    # Single beam and per-detector dict must agree exactly.
+    np.testing.assert_allclose(tod_single, tod_dict, rtol=1e-12, atol=1e-12)
+    # Convolution with a wide beam must change the signal.
+    assert not np.allclose(tod_single, tod_pencil)
+
+
 def test_compute_s_params_from_beam_alm():
-    """compute_s_params_from_beam_alm must work with beam alms only."""
+    """BeamSParams.from_beam_alm must work with beam alms only."""
     beam_alm = lbs.gauss_beam_to_alm(
         lmax=128,
         mmax=128,
@@ -252,32 +321,15 @@ def test_compute_s_params_from_beam_alm():
         psi_pol_rad=None,
     )
 
-    s_params = lbs.compute_s_params_from_beam_alm(beam_alm)
+    s_params = lbs.BeamSParams.from_beam_alm(beam_alm)
 
     assert s_params.s_vec.shape == (3,)
     assert s_params.s_mat.shape == (3, 3)
     np.testing.assert_allclose(s_params.s_mat, s_params.s_mat.T, atol=1e-12)
 
 
-def test_compute_beam_convolution_data_from_beam_alm():
-    """compute_beam_convolution_data_from_beam_alm must work with beam alms only."""
-    nside = 32
-    beam_alm = lbs.gauss_beam_to_alm(
-        lmax=64,
-        mmax=64,
-        fwhm_rad=np.deg2rad(2.0),
-        psi_pol_rad=None,
-    )
-
-    beam_data = lbs.compute_beam_convolution_data_from_beam_alm(beam_alm, nside=nside)
-
-    assert beam_data.pixel_vecs.shape == (hp.nside2npix(nside), 3)
-    assert beam_data.pixel_weights.shape == (hp.nside2npix(nside),)
-    np.testing.assert_allclose(np.sum(beam_data.pixel_weights), 1.0, atol=1e-4)
-
-
 def test_dipole_convolved():
-    """DipoleType.CONVOLVED with a pencil-beam must reproduce QUADRATIC_FROM_LIN_T.
+    """A pencil-beam S-parameter set must reproduce QUADRATIC_FROM_LIN_T.
 
     When the S-parameters correspond to a perfect pencil beam aligned with the
     boresight (S_vec = ẑ, S_mat = diag(0,0,1)), Eq. (C.5) of the NPIPE paper
@@ -323,7 +375,7 @@ def test_dipole_convolved():
         velocity,
         t_cmb_k=1.0,
         frequency_ghz=[100],
-        dipole_type=lbs.DipoleType.CONVOLVED,
+        dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
         s_params=s_params,
     )
 
@@ -365,7 +417,7 @@ def test_dipole_convolved_beam_suppression():
         velocity,
         t_cmb_k=1.0,
         frequency_ghz=[100],
-        dipole_type=lbs.DipoleType.CONVOLVED,
+        dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
         s_params=s_params,
     )
 
@@ -384,149 +436,3 @@ def test_dipole_convolved_beam_suppression():
     np.testing.assert_allclose(tod_conv[0, 0], expected, rtol=1e-10)
 
 
-def test_dipole_convolved_total_pencil_beam():
-    """Single-pixel beam gives the exact TOTAL_FROM_LIN_T at that pixel's direction.
-
-    For a beam with all weight at pixel p₀ in the beam frame, the convolution
-    integral collapses to D(β_beam · n̂_{p₀}).  This is an exact identity that
-    holds for any pointing, velocity, and frequency.
-    """
-    import healpy as hp
-    from litebird_sim.dipole import (
-        _rotate_velocity_to_beam_frame,
-        planck as lbs_planck,
-    )
-
-    nside = 16
-    npix = hp.nside2npix(nside)
-    p0 = 100
-
-    # Build alms for a delta beam centered on pixel p0.
-    beam_map = np.zeros((1, npix))
-    beam_map[0, p0] = 1.0
-    beam_map_hpx = lbs.HealpixMap(values=beam_map, nside=nside)
-    beam_alm = lbs.estimate_alm(beam_map_hpx, lmax=3 * nside - 1, mmax=3 * nside - 1)
-
-    beam_data = lbs.compute_beam_convolution_data_from_beam_alm(beam_alm, nside=nside)
-
-    # Arbitrary pointing and velocity.
-    theta_p = np.deg2rad(45.0)
-    phi_p = np.deg2rad(30.0)
-    psi_p = np.deg2rad(20.0)
-    v_km_s = np.array([100.0, 50.0, -30.0])
-
-    pointings = np.array([[[theta_p, phi_p, psi_p]]])
-    velocity = v_km_s[np.newaxis, :]
-
-    tod = np.zeros((1, 1))
-    lbs.add_dipole(
-        tod,
-        pointings,
-        velocity,
-        t_cmb_k=lbs.T_CMB_K,
-        frequency_ghz=[100.0],
-        dipole_type=lbs.DipoleType.CONVOLVED_TOTAL_FROM_LIN_T,
-        beam_conv_data=beam_data,
-    )
-
-    # Reference: D(β_beam · n̂_{p₀}) evaluated directly.
-    vx, vy, vz = _rotate_velocity_to_beam_frame(theta_p, phi_p, psi_p, v_km_s)
-    bx = vx / lbs.C_LIGHT_KM_OVER_S
-    by = vy / lbs.C_LIGHT_KM_OVER_S
-    bz = vz / lbs.C_LIGHT_KM_OVER_S
-    beta_sq = bx**2 + by**2 + bz**2
-    gamma = 1.0 / np.sqrt(1.0 - beta_sq)
-
-    n0x, n0y, n0z = hp.pix2vec(nside, p0)  # direction of p0 in beam frame
-    mu = bx * n0x + by * n0y + bz * n0z
-
-    nu_hz = 100e9
-    x = lbs.H_OVER_K_B * nu_hz / lbs.T_CMB_K
-    f_x = x * np.exp(x) / (np.exp(x) - 1)
-    planck_t0 = lbs_planck(nu_hz, lbs.T_CMB_K)
-    planck_t = lbs_planck(nu_hz, lbs.T_CMB_K / gamma / (1.0 - mu))
-    expected = lbs.T_CMB_K / f_x * (planck_t / planck_t0 - 1.0)
-
-    np.testing.assert_allclose(tod[0, 0], expected, rtol=1e-10)
-
-
-def test_dipole_convolved_total_vs_quadratic():
-    """CONVOLVED_TOTAL_FROM_LIN_T and CONVOLVED differ by a known monopole.
-
-    The full TOTAL_FROM_LIN_T formula includes the relativistic γ factor:
-
-        D_total(μ) ≈ T₀(μ - β²/2 + q(x) μ²) + O(β³)
-
-    whereas CONVOLVED (Eq. C.5) uses QUADRATIC_FROM_LIN_T:
-
-        D_quad(μ) = T₀(μ + q(x) μ²)
-
-    Integrating over the beam: D̃_total - D̃_quad ≈ -T₀β²/2 (constant).
-    """
-    nside = 64
-
-    # Narrow Gaussian beam, FWHM = 2*sqrt(2*ln2)*sigma = 11.7741...°
-    sigma_rad = np.deg2rad(5.0)
-    fwhm_rad = 2.0 * np.sqrt(2.0 * np.log(2.0)) * sigma_rad
-    beam_alm = lbs.gauss_beam_to_alm(
-        lmax=3 * nside - 1,
-        mmax=3 * nside - 1,
-        fwhm_rad=fwhm_rad,
-        psi_pol_rad=None,
-    )
-
-    s_params = lbs.compute_s_params_from_beam_alm(beam_alm, nside=nside)
-    beam_data = lbs.compute_beam_convolution_data_from_beam_alm(beam_alm, nside=nside)
-
-    # β = 0.001 along x, six equatorial samples.
-    beta = 0.001
-    v_km_s = lbs.C_LIGHT_KM_OVER_S * beta
-    pointings = np.deg2rad(
-        np.array(
-            [
-                [
-                    [90, 0, 0],
-                    [90, 60, 0],
-                    [90, 120, 0],
-                    [90, 180, 0],
-                    [90, 240, 0],
-                    [90, 300, 0],
-                ]
-            ]
-        )
-    )
-    n_samples = pointings.shape[1]
-    velocity = np.tile([v_km_s, 0.0, 0.0], (n_samples, 1))
-
-    tod_quad = np.zeros((1, n_samples))
-    lbs.add_dipole(
-        tod_quad,
-        pointings,
-        velocity,
-        t_cmb_k=lbs.T_CMB_K,
-        frequency_ghz=[100.0],
-        dipole_type=lbs.DipoleType.CONVOLVED,
-        s_params=s_params,
-    )
-
-    tod_total = np.zeros((1, n_samples))
-    lbs.add_dipole(
-        tod_total,
-        pointings,
-        velocity,
-        t_cmb_k=lbs.T_CMB_K,
-        frequency_ghz=[100.0],
-        dipole_type=lbs.DipoleType.CONVOLVED_TOTAL_FROM_LIN_T,
-        beam_conv_data=beam_data,
-    )
-
-    diff = tod_total[0] - tod_quad[0]
-
-    # 1. The difference is nearly pointing-independent; the residual variation
-    #    is O(β³) ~ T₀β³ ≈ 2.7e-9 K for β = 0.001.
-    spread = diff.max() - diff.min()
-    assert spread < 10 * lbs.T_CMB_K * beta**3, f"diff spread = {spread:.2e} K"
-
-    # 2. The mean offset equals -T₀β²/2 to better than 0.1%.
-    expected_offset = -lbs.T_CMB_K * beta**2 / 2.0
-    np.testing.assert_allclose(np.mean(diff), expected_offset, rtol=1e-3)

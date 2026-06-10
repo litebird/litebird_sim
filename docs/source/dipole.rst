@@ -175,7 +175,8 @@ The frequency-dependent weights in the linearized expansions are
    r(x) = \frac{x^2(e^{2x} + 4e^x + 1)}{6(e^x - 1)^2}.
 
 Beam convolution is not a separate :class:`.DipoleType`; it is enabled
-with the ``apply_convolution=True`` keyword of :func:`.add_dipole` or
+by passing beam S-parameters to :func:`.add_dipole` (the ``s_params``
+keyword) or by setting ``apply_convolution=True`` on
 :func:`.add_dipole_to_observations`, as described below.
 
 You can *add* the dipole signal to an existing TOD through the
@@ -242,19 +243,19 @@ and the S-parameters are
    S_{ijk} &= \int B(\hat n)\, \hat n_i\, \hat n_j\, \hat n_k\, d\Omega.
 
 These integrals are computed **once** per detector from the full 4π
-beam harmonics and then reused for every TOD sample. The public
-``apply_convolution=True`` path supports the polynomial-expansion
-models ``DipoleType.LINEAR``, ``DipoleType.QUADRATIC_EXACT``,
-``DipoleType.CUBIC_EXACT``, ``DipoleType.QUADRATIC_FROM_LIN_T``, and
-``DipoleType.CUBIC_FROM_LIN_T``. The total-formula models
-``DipoleType.TOTAL_EXACT`` and ``DipoleType.TOTAL_FROM_LIN_T`` are not
-implemented in this moment-expanded convolution path.
+beam harmonics and then reused for every TOD sample. Convolution by
+moment expansion is the only supported way to beam-convolve the dipole.
+It supports the polynomial-expansion models ``DipoleType.LINEAR``,
+``DipoleType.QUADRATIC_EXACT``, ``DipoleType.CUBIC_EXACT``,
+``DipoleType.QUADRATIC_FROM_LIN_T``, and ``DipoleType.CUBIC_FROM_LIN_T``.
+The total-formula models ``DipoleType.TOTAL_EXACT`` and
+``DipoleType.TOTAL_FROM_LIN_T`` are not supported under convolution.
 
 Computing S-parameters
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Given beam spherical harmonics in the beam frame (boresight at the
-north pole), use :func:`.compute_s_params_from_beam_alm`:
+north pole), use :meth:`.BeamSParams.from_beam_alm`:
 
 .. code-block:: python
 
@@ -267,7 +268,7 @@ north pole), use :func:`.compute_s_params_from_beam_alm`:
         fwhm_rad=np.deg2rad(30.0 / 60.0),
         psi_pol_rad=None,
     )
-    s_params = lbs.compute_s_params_from_beam_alm(beam_alm)
+    s_params = lbs.BeamSParams.from_beam_alm(beam_alm)
 
 The result is a :class:`.BeamSParams` object holding the 3-element
 vector ``s_vec``, the 3×3 matrix ``s_mat``, and the 3×3×3 tensor
@@ -283,8 +284,8 @@ non-zero. As a sanity check, :math:`S_{xx} + S_{yy} + S_{zz} = 1`
 Adding a convolved dipole
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Pass the beam harmonics to :func:`.add_dipole` or
-:func:`.add_dipole_to_observations` and enable ``apply_convolution``.
+For the low-level :func:`.add_dipole`, compute the beam S-parameters
+with :meth:`.BeamSParams.from_beam_alm` and pass them via ``s_params``.
 The pointing matrices must include the :math:`\psi` column, with shape
 ``(n_det, n_samples, 3)``. Choose any polynomial-expansion
 :class:`.DipoleType`; the example below uses
@@ -308,6 +309,7 @@ The pointing matrices must include the :math:`\psi` column, with shape
         fwhm_rad=np.deg2rad(30.0),
         psi_pol_rad=None,
     )
+    s_params = lbs.BeamSParams.from_beam_alm(beam_alm)
 
     lbs.add_dipole(
         tod,
@@ -316,13 +318,16 @@ The pointing matrices must include the :math:`\psi` column, with shape
         t_cmb_k=lbs.T_CMB_K,
         frequency_ghz=np.array([100.0]),
         dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
-        apply_convolution=True,
-        beam_alms=beam_alm,
+        s_params=s_params,
     )
 
-For more than one detector, ``beam_alms`` can be a single
-:class:`.SphericalHarmonics` object reused for all detectors, or a
-dictionary keyed by detector index strings (``"0"``, ``"1"``, ...).
+For more than one detector, ``s_params`` can be a single
+:class:`.BeamSParams` object reused for all detectors, or a dictionary
+keyed by detector index strings (``"0"``, ``"1"``, ...). The
+observation-oriented :func:`.add_dipole_to_observations` instead takes
+beam harmonics directly: set ``apply_convolution=True`` and pass
+``beam_alms`` (or store them on the observation's ``blms`` attribute),
+and it computes the S-parameters per detector for you.
 
 The following plot compares the ordinary
 ``DipoleType.QUADRATIC_FROM_LIN_T`` dipole with the same model after

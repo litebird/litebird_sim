@@ -1,6 +1,11 @@
 # This file is created by ASDF
 .tool-versions
 
+# Editor / AI tooling
+.claude/
+.vscode/
+CLAUDE.md
+
 # PyCharm-related stuff
 .idea/
 

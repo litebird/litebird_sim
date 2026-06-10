@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 
 from numba import njit, prange
@@ -16,10 +16,14 @@ from .constants import C_LIGHT_KM_OVER_S, H_OVER_K_B, T_CMB_K
 class DipoleType(IntEnum):
     """Doppler-shift model used when adding the CMB dipole to TOD.
 
-    The non-convolved TOD path supports all members. Beam convolution is
-    enabled separately with ``apply_convolution=True`` in :func:`add_dipole`
-    or :func:`add_dipole_to_observations`; in that mode the total-formula
-    models ``TOTAL_EXACT`` and ``TOTAL_FROM_LIN_T`` are not supported.
+    Every member selects a Doppler-shift approximation for the pencil-beam
+    (non-convolved) path. Beam convolution is enabled separately by passing
+    beam S-parameters (``s_params`` in :func:`add_dipole`, or ``beam_alms`` in
+    :func:`add_dipole_to_observations`); convolution supports the
+    polynomial-expansion models (``LINEAR``, ``QUADRATIC_EXACT``,
+    ``CUBIC_EXACT``, ``QUADRATIC_FROM_LIN_T`` and ``CUBIC_FROM_LIN_T``) — the
+    total-formula models ``TOTAL_EXACT`` and ``TOTAL_FROM_LIN_T`` are not
+    supported under convolution.
     """
 
     LINEAR = 0
@@ -112,7 +116,184 @@ class BeamSParams:
 
     s_vec: np.ndarray  # shape (3,)
     s_mat: np.ndarray  # shape (3, 3)
-    s_ten: np.ndarray  # shape (3, 3, 3)
+    s_ten: np.ndarray = field(default_factory=lambda: np.zeros((3, 3, 3)))  # shape (3, 3, 3)
+
+    @classmethod
+    def from_beam_alm(cls, beam_alm: SphericalHarmonics) -> "BeamSParams":
+        r"""Compute S-parameters from full-4π beam harmonic coefficients.
+
+        The beam alms must be in the beam frame with the boresight centred
+        on the north pole. It should be normalised so that its integral over
+        the sphere equals unity:
+
+        .. math:: \sum_p B_p \cdot \frac{4\pi}{N_\mathrm{pix}} = 1
+
+        Parameters
+        ----------
+        beam_alm:
+            :class:`SphericalHarmonics` object containing beam alms ``B_{\ell m}``.
+            If a polarized object (``nstokes=3``) is provided, only the
+            temperature component is used.
+
+        Returns
+        -------
+        BeamSParams
+            A :class:`BeamSParams` instance with ``s_vec`` (shape 3),
+            ``s_mat`` (shape 3×3), and ``s_ten`` (shape 3×3×3) computed
+            using exact harmonic identities (up to :math:`\ell=3` modes),
+            without synthesizing a HEALPix map.
+        """
+        if not isinstance(beam_alm, SphericalHarmonics):
+            raise TypeError("beam_alm must be a SphericalHarmonics instance")
+
+        if beam_alm.nfreqs is not None:
+            raise ValueError(
+                "beam alms must be single-frequency (nfreqs=None) for dipole beam convolution"
+            )
+
+        if beam_alm.nstokes == 1:
+            alm = beam_alm
+        elif beam_alm.nstokes == 3:
+            # Use the temperature component for scalar beam convolution.
+            alm = SphericalHarmonics(
+                values=np.ascontiguousarray(beam_alm.values[0:1]),
+                lmax=beam_alm.lmax,
+                mmax=beam_alm.mmax,
+                units=beam_alm.units,
+                coordinates=beam_alm.coordinates,
+            )
+        else:
+            raise ValueError(
+                f"beam alms must have nstokes=1 or 3, got {beam_alm.nstokes}"
+            )
+
+        a00 = alm.get_coeff(0, 0)
+
+        a10 = alm.get_coeff(1, 0)
+        a11 = alm.get_coeff(1, 1)
+
+        a20: int | float | complex = alm.get_coeff(2, 0)
+        a21 = alm.get_coeff(2, 1)
+        a22: int | float | complex = alm.get_coeff(2, 2)
+
+        a30: int | float | complex = alm.get_coeff(3, 0)
+        a31 = alm.get_coeff(3, 1)
+        a32: int | float | complex = alm.get_coeff(3, 2)
+        a33: int | float | complex = alm.get_coeff(3, 3)
+
+        # For real beam maps and m>=0 storage:
+        # ∫B Y_{l,-m} dΩ = (-1)^m a_{lm},  ∫B Y_{lm} dΩ = a_{lm}^*.
+        norm = np.sqrt(4.0 * np.pi) * np.conj(a00)
+
+        sx = -np.sqrt(8.0 * np.pi / 3.0) * np.real(a11)
+        sy = np.sqrt(8.0 * np.pi / 3.0) * np.imag(a11)
+        sz = np.sqrt(4.0 * np.pi / 3.0) * np.real(np.conj(a10))
+        s_vec = np.array([sx, sy, sz], dtype=np.float64)
+
+        i_zz = norm / 3.0 + (2.0 / 3.0) * np.sqrt(4.0 * np.pi / 5.0) * np.conj(a20)
+        i_xx_minus_yy = np.sqrt(8.0 * np.pi / 15.0) * (np.conj(a22) + a22)
+        i_xy2 = 1j * np.sqrt(8.0 * np.pi / 15.0) * (a22 - np.conj(a22))
+        i_xz = np.sqrt(2.0 * np.pi / 15.0) * (-a21 - np.conj(a21))
+        i_yz = 1j * np.sqrt(2.0 * np.pi / 15.0) * (-a21 + np.conj(a21))
+
+        i_xx_plus_yy = norm - i_zz
+        i_xx = 0.5 * (i_xx_plus_yy + i_xx_minus_yy)
+        i_yy = 0.5 * (i_xx_plus_yy - i_xx_minus_yy)
+        i_xy = 0.5 * i_xy2
+
+        s_mat = np.array(
+            [
+                [np.real(i_xx), np.real(i_xy), np.real(i_xz)],
+                [np.real(i_xy), np.real(i_yy), np.real(i_yz)],
+                [np.real(i_xz), np.real(i_yz), np.real(i_zz)],
+            ],
+            dtype=np.float64,
+        )
+
+        # --- Octupole moments S_{ijk} = ∫ B n_i n_j n_k dΩ  (i,j,k ∈ {x,y,z}) ---
+        # Cubic monomials decompose as  n_i n_j n_k = (ℓ=1 trace part) + (ℓ=3 traceless part),
+        # so only ℓ=1 and ℓ=3 alms contribute.  Expanding each monomial in spherical harmonics
+        # and using  S_{ijk} = Σ_{ℓm} a_{ℓm} ∫ n_i n_j n_k Y_{ℓm} dΩ  (convention a = ∫ B Y dΩ)
+        # yields a linear combination of a_{1m} and a_{3m} coefficients.
+        #
+        # Normalisation constants derived from the standard relations
+        #   n_z             =  k10 · Re(Y_{10}*)            k10 = sqrt(4π/3)
+        #   n_x + i n_y     = -k11 · Y_{11}*                k11 = sqrt(8π/3)
+        #   Y_{3m} ∝ n^3 traceless pieces:
+        #     m=0  (5n_z³ − 3n_z)      /2    k30 = sqrt(  π/ 7)
+        #     m=1  (5n_z² − 1)(n_x±in_y)/... k31 = sqrt(  π/21)
+        #     m=2  n_z(n_x ± in_y)²         k32 = sqrt(8π/105)
+        #     m=3  (n_x ± in_y)³             k33 = sqrt(  π/35)
+        k10 = np.sqrt(4.0 * np.pi / 3.0)
+        k11 = np.sqrt(8.0 * np.pi / 3.0)
+        k30 = np.sqrt(np.pi / 7.0)
+        k31 = np.sqrt(np.pi / 21.0)
+        k32 = np.sqrt(8.0 * np.pi / 105.0)
+        k33 = np.sqrt(np.pi / 35.0)
+
+        # Each formula has an ℓ=1 part (from the trace: n_i n_j n_k = δ_{ij}n_k/5 + ...)
+        # and an ℓ=3 part (the symmetric traceless remainder).
+        # Consistency check: S_{xxx}+S_{xyy}+S_{xzz} = S_x, and cyclic permutations.
+
+        # --- m=0/1 terms (real n_z axis, involve a10, a30, a31) ---
+        s_zzz = (  # ℓ=1: (3/5)n_z;  ℓ=3: (2/5)P_3(n_z)
+            (3.0 / 5.0) * k10 * np.real(np.conj(a10))
+            + (4.0 / 5.0) * k30 * np.real(np.conj(a30))
+        )
+        s_xxz = (  # S_{xxz} = S_{yyz} ± (a32 term)
+            (1.0 / 5.0) * k10 * np.real(np.conj(a10))
+            - (2.0 / 5.0) * k30 * np.real(np.conj(a30))
+            + k32 * np.real(a32)
+        )
+        s_yyz = (
+            (1.0 / 5.0) * k10 * np.real(np.conj(a10))
+            - (2.0 / 5.0) * k30 * np.real(np.conj(a30))
+            - k32 * np.real(a32)
+        )
+        s_xzz = (  # ℓ=1 and ℓ=3 m=1 contribute
+            -(1.0 / 5.0) * k11 * np.real(a11) - (8.0 / 5.0) * k31 * np.real(a31)
+        )
+        s_yzz = (1.0 / 5.0) * k11 * np.imag(a11) + (8.0 / 5.0) * k31 * np.imag(a31)
+
+        # --- m=2 term (off-diagonal xy plane) ---
+        s_xyz = -k32 * np.imag(a32)  # pure ℓ=3, m=2
+
+        # --- m=1/3 terms (in-plane, involve a11, a31, a33) ---
+        s_xxx = (  # ℓ=1 + ℓ=3 m=1 + ℓ=3 m=3
+            -(3.0 / 5.0) * k11 * np.real(a11)
+            + (6.0 / 5.0) * k31 * np.real(a31)
+            - 2.0 * k33 * np.real(a33)
+        )
+        s_yyy = (
+            (3.0 / 5.0) * k11 * np.imag(a11)
+            - (6.0 / 5.0) * k31 * np.imag(a31)
+            - 2.0 * k33 * np.imag(a33)
+        )
+        s_xxy = (
+            (1.0 / 5.0) * k11 * np.imag(a11)
+            - (2.0 / 5.0) * k31 * np.imag(a31)
+            + 2.0 * k33 * np.imag(a33)
+        )
+        s_xyy = (
+            -(1.0 / 5.0) * k11 * np.real(a11)
+            + (2.0 / 5.0) * k31 * np.real(a31)
+            + 2.0 * k33 * np.real(a33)
+        )
+
+        s_ten = np.zeros((3, 3, 3), dtype=np.float64)
+        s_ten[0, 0, 0] = s_xxx
+        s_ten[0, 0, 1] = s_ten[0, 1, 0] = s_ten[1, 0, 0] = s_xxy
+        s_ten[0, 0, 2] = s_ten[0, 2, 0] = s_ten[2, 0, 0] = s_xxz
+        s_ten[0, 1, 1] = s_ten[1, 0, 1] = s_ten[1, 1, 0] = s_xyy
+        s_ten[0, 1, 2] = s_ten[0, 2, 1] = s_ten[1, 0, 2] = s_xyz
+        s_ten[1, 2, 0] = s_ten[2, 0, 1] = s_ten[2, 1, 0] = s_xyz
+        s_ten[0, 2, 2] = s_ten[2, 0, 2] = s_ten[2, 2, 0] = s_xzz
+        s_ten[1, 1, 1] = s_yyy
+        s_ten[1, 1, 2] = s_ten[1, 2, 1] = s_ten[2, 1, 1] = s_yyz
+        s_ten[1, 2, 2] = s_ten[2, 1, 2] = s_ten[2, 2, 1] = s_yzz
+        s_ten[2, 2, 2] = s_zzz
+
+        return cls(s_vec=s_vec, s_mat=s_mat, s_ten=s_ten)
 
 
 @njit
@@ -381,197 +562,6 @@ def compute_dipole_for_one_sample_convolved(
             return t_cmb_k * (dipole + q_x * quadrupole + r_x * octupole)
 
 
-def _scalar_beam_alm_from_input(beam_alm: SphericalHarmonics) -> SphericalHarmonics:
-    """Return a scalar (nstokes=1) beam alm object from user input."""
-    if not isinstance(beam_alm, SphericalHarmonics):
-        raise TypeError("beam_alm must be a SphericalHarmonics instance")
-
-    if beam_alm.nfreqs is not None:
-        raise ValueError(
-            "beam alms must be single-frequency (nfreqs=None) for dipole beam convolution"
-        )
-
-    if beam_alm.nstokes == 1:
-        return beam_alm
-
-    if beam_alm.nstokes == 3:
-        # Use the temperature component for scalar beam convolution.
-        return SphericalHarmonics(
-            values=np.ascontiguousarray(beam_alm.values[0:1]),
-            lmax=beam_alm.lmax,
-            mmax=beam_alm.mmax,
-            units=beam_alm.units,
-            coordinates=beam_alm.coordinates,
-        )
-
-    raise ValueError(f"beam alms must have nstokes=1 or 3, got {beam_alm.nstokes}")
-
-
-def compute_s_params_from_beam_alm(
-    beam_alm: SphericalHarmonics,
-) -> BeamSParams:
-    r"""Compute S-parameters from full-4π beam harmonic coefficients.
-
-    The beam alms must be in the beam frame with the boresight centred
-    on the north pole. It should be normalised so that its integral over
-    the sphere equals unity:
-
-    .. math:: \sum_p B_p \cdot \frac{4\pi}{N_\mathrm{pix}} = 1
-
-    Parameters
-    ----------
-    beam_alm:
-        :class:`SphericalHarmonics` object containing beam alms ``B_{\ell m}``.
-        If a polarized object (``nstokes=3``) is provided, only the
-        temperature component is used.
-
-    Returns
-    -------
-    BeamSParams
-        A :class:`BeamSParams` instance with ``s_vec`` (shape 3),
-        ``s_mat`` (shape 3×3), and ``s_ten`` (shape 3×3×3) computed as
-
-        .. math::
-
-           S_i     &= \int B(\hat n)\, \hat n_i\, d\Omega \\
-           S_{ij}  &= \int B(\hat n)\, \hat n_i\, \hat n_j\, d\Omega \\
-           S_{ijk} &= \int B(\hat n)\, \hat n_i\, \hat n_j\, \hat n_k\, d\Omega
-
-        using exact harmonic identities (up to :math:`\ell=3` modes),
-        without synthesizing a HEALPix map.
-    """
-
-    alm = _scalar_beam_alm_from_input(beam_alm)
-
-    a00 = alm.get_coeff(0, 0)
-
-    a10 = alm.get_coeff(1, 0)
-    a11 = alm.get_coeff(1, 1)
-
-    a20: int | float | complex = alm.get_coeff(2, 0)
-    a21 = alm.get_coeff(2, 1)
-    a22: int | float | complex = alm.get_coeff(2, 2)
-
-    a30: int | float | complex = alm.get_coeff(3, 0)
-    a31 = alm.get_coeff(3, 1)
-    a32: int | float | complex = alm.get_coeff(3, 2)
-    a33: int | float | complex = alm.get_coeff(3, 3)
-
-    # For real beam maps and m>=0 storage:
-    # ∫B Y_{l,-m} dΩ = (-1)^m a_{lm},  ∫B Y_{lm} dΩ = a_{lm}^*.
-    norm = np.sqrt(4.0 * np.pi) * np.conj(a00)
-
-    sx = -np.sqrt(8.0 * np.pi / 3.0) * np.real(a11)
-    sy = np.sqrt(8.0 * np.pi / 3.0) * np.imag(a11)
-    sz = np.sqrt(4.0 * np.pi / 3.0) * np.real(np.conj(a10))
-    s_vec = np.array([sx, sy, sz], dtype=np.float64)
-
-    i_zz = norm / 3.0 + (2.0 / 3.0) * np.sqrt(4.0 * np.pi / 5.0) * np.conj(a20)
-    i_xx_minus_yy = np.sqrt(8.0 * np.pi / 15.0) * (np.conj(a22) + a22)
-    i_xy2 = 1j * np.sqrt(8.0 * np.pi / 15.0) * (a22 - np.conj(a22))
-    i_xz = np.sqrt(2.0 * np.pi / 15.0) * (-a21 - np.conj(a21))
-    i_yz = 1j * np.sqrt(2.0 * np.pi / 15.0) * (-a21 + np.conj(a21))
-
-    i_xx_plus_yy = norm - i_zz
-    i_xx = 0.5 * (i_xx_plus_yy + i_xx_minus_yy)
-    i_yy = 0.5 * (i_xx_plus_yy - i_xx_minus_yy)
-    i_xy = 0.5 * i_xy2
-
-    s_mat = np.array(
-        [
-            [np.real(i_xx), np.real(i_xy), np.real(i_xz)],
-            [np.real(i_xy), np.real(i_yy), np.real(i_yz)],
-            [np.real(i_xz), np.real(i_yz), np.real(i_zz)],
-        ],
-        dtype=np.float64,
-    )
-
-    # --- Octupole moments S_{ijk} = ∫ B n_i n_j n_k dΩ  (i,j,k ∈ {x,y,z}) ---
-    # Cubic monomials decompose as  n_i n_j n_k = (ℓ=1 trace part) + (ℓ=3 traceless part),
-    # so only ℓ=1 and ℓ=3 alms contribute.  Expanding each monomial in spherical harmonics
-    # and using  S_{ijk} = Σ_{ℓm} a_{ℓm} ∫ n_i n_j n_k Y_{ℓm} dΩ  (convention a = ∫ B Y dΩ)
-    # yields a linear combination of a_{1m} and a_{3m} coefficients.
-    #
-    # Normalisation constants derived from the standard relations
-    #   n_z             =  k10 · Re(Y_{10}*)            k10 = sqrt(4π/3)
-    #   n_x + i n_y     = -k11 · Y_{11}*                k11 = sqrt(8π/3)
-    #   Y_{3m} ∝ n^3 traceless pieces:
-    #     m=0  (5n_z³ − 3n_z)      /2    k30 = sqrt(  π/ 7)
-    #     m=1  (5n_z² − 1)(n_x±in_y)/... k31 = sqrt(  π/21)
-    #     m=2  n_z(n_x ± in_y)²         k32 = sqrt(8π/105)
-    #     m=3  (n_x ± in_y)³             k33 = sqrt(  π/35)
-    k10 = np.sqrt(4.0 * np.pi / 3.0)
-    k11 = np.sqrt(8.0 * np.pi / 3.0)
-    k30 = np.sqrt(np.pi / 7.0)
-    k31 = np.sqrt(np.pi / 21.0)
-    k32 = np.sqrt(8.0 * np.pi / 105.0)
-    k33 = np.sqrt(np.pi / 35.0)
-
-    # Each formula has an ℓ=1 part (from the trace: n_i n_j n_k = δ_{ij}n_k/5 + ...)
-    # and an ℓ=3 part (the symmetric traceless remainder).
-    # Consistency check: S_{xxx}+S_{xyy}+S_{xzz} = S_x, and cyclic permutations.
-
-    # --- m=0/1 terms (real n_z axis, involve a10, a30, a31) ---
-    s_zzz = (  # ℓ=1: (3/5)n_z;  ℓ=3: (2/5)P_3(n_z)
-        (3.0 / 5.0) * k10 * np.real(np.conj(a10))
-        + (4.0 / 5.0) * k30 * np.real(np.conj(a30))
-    )
-    s_xxz = (  # S_{xxz} = S_{yyz} ± (a32 term)
-        (1.0 / 5.0) * k10 * np.real(np.conj(a10))
-        - (2.0 / 5.0) * k30 * np.real(np.conj(a30))
-        + k32 * np.real(a32)
-    )
-    s_yyz = (
-        (1.0 / 5.0) * k10 * np.real(np.conj(a10))
-        - (2.0 / 5.0) * k30 * np.real(np.conj(a30))
-        - k32 * np.real(a32)
-    )
-    s_xzz = (  # ℓ=1 and ℓ=3 m=1 contribute
-        -(1.0 / 5.0) * k11 * np.real(a11) - (8.0 / 5.0) * k31 * np.real(a31)
-    )
-    s_yzz = (1.0 / 5.0) * k11 * np.imag(a11) + (8.0 / 5.0) * k31 * np.imag(a31)
-
-    # --- m=2 term (off-diagonal xy plane) ---
-    s_xyz = -k32 * np.imag(a32)  # pure ℓ=3, m=2
-
-    # --- m=1/3 terms (in-plane, involve a11, a31, a33) ---
-    s_xxx = (  # ℓ=1 + ℓ=3 m=1 + ℓ=3 m=3
-        -(3.0 / 5.0) * k11 * np.real(a11)
-        + (6.0 / 5.0) * k31 * np.real(a31)
-        - 2.0 * k33 * np.real(a33)
-    )
-    s_yyy = (
-        (3.0 / 5.0) * k11 * np.imag(a11)
-        - (6.0 / 5.0) * k31 * np.imag(a31)
-        - 2.0 * k33 * np.imag(a33)
-    )
-    s_xxy = (
-        (1.0 / 5.0) * k11 * np.imag(a11)
-        - (2.0 / 5.0) * k31 * np.imag(a31)
-        + 2.0 * k33 * np.imag(a33)
-    )
-    s_xyy = (
-        -(1.0 / 5.0) * k11 * np.real(a11)
-        + (2.0 / 5.0) * k31 * np.real(a31)
-        + 2.0 * k33 * np.real(a33)
-    )
-
-    s_ten = np.zeros((3, 3, 3), dtype=np.float64)
-    s_ten[0, 0, 0] = s_xxx
-    s_ten[0, 0, 1] = s_ten[0, 1, 0] = s_ten[1, 0, 0] = s_xxy
-    s_ten[0, 0, 2] = s_ten[0, 2, 0] = s_ten[2, 0, 0] = s_xxz
-    s_ten[0, 1, 1] = s_ten[1, 0, 1] = s_ten[1, 1, 0] = s_xyy
-    s_ten[0, 1, 2] = s_ten[0, 2, 1] = s_ten[1, 0, 2] = s_xyz
-    s_ten[1, 2, 0] = s_ten[2, 0, 1] = s_ten[2, 1, 0] = s_xyz
-    s_ten[0, 2, 2] = s_ten[2, 0, 2] = s_ten[2, 2, 0] = s_xzz
-    s_ten[1, 1, 1] = s_yyy
-    s_ten[1, 1, 2] = s_ten[1, 2, 1] = s_ten[2, 1, 1] = s_yyz
-    s_ten[1, 2, 2] = s_ten[2, 1, 2] = s_ten[2, 2, 1] = s_yzz
-    s_ten[2, 2, 2] = s_zzz
-
-    return BeamSParams(s_vec=s_vec, s_mat=s_mat, s_ten=s_ten)
-
-
 @njit(parallel=True)
 def add_dipole_for_one_detector(
     tod_det,
@@ -703,24 +693,23 @@ def add_dipole(
     frequency_ghz: np.ndarray,  # e.g. central frequency of channel
     dipole_type: DipoleType,
     pointings_dtype=np.float64,
-    apply_convolution: bool = False,
-    beam_alms: (SphericalHarmonics | dict[str, SphericalHarmonics] | None) = None,
+    s_params: (BeamSParams | dict[str, BeamSParams] | None) = None,
 ):
     """Add the CMB dipole contribution to time-ordered data (TOD).
 
     This array-oriented helper operates on one TOD matrix containing all
-    detectors for one observation. The standard path evaluates the selected
-    :class:`DipoleType` along the detector boresight. If
-    ``apply_convolution=True``, the routine first derives beam S-parameters
-    from the supplied beam harmonics and then evaluates the moment-expanded
-    full-4π beam convolution.
+    detectors for one observation. By default it evaluates the selected
+    :class:`DipoleType` along the detector boresight (pencil beam). If
+    ``s_params`` is supplied, it instead evaluates the moment-expanded
+    full-4π beam convolution, contracting the beam S-parameters with the
+    velocity in the beam frame.
 
     Parameters
     ----------
     tod:
         2-D time-ordered data array for all detectors (shape ``(n_det, n_samples)``).
     pointings:
-        Pointing matrices. If ``apply_convolution`` is true, the matrix must
+        Pointing matrices. If ``s_params`` is given, the matrix must
         include the ``psi`` column (shape ``(n_det, n_samples, 3)``).
         Otherwise, only ``theta`` and ``phi`` are used (shape
         ``(n_det, n_samples, 2)`` or more).
@@ -731,21 +720,19 @@ def add_dipole(
     frequency_ghz:
         1-D array with frequency in GHz for each detector.
     dipole_type:
-        DipoleType enum specifying the Doppler shift approximation.
-        When ``apply_convolution=True``, all polynomial-expansion models
-        are supported: ``LINEAR``, ``QUADRATIC_EXACT``, ``CUBIC_EXACT``,
-        ``QUADRATIC_FROM_LIN_T``, and ``CUBIC_FROM_LIN_T``. The total
-        formulae ``TOTAL_EXACT`` and ``TOTAL_FROM_LIN_T`` are not
-        supported in the moment-expanded convolution path.
+        DipoleType enum specifying the Doppler shift approximation. When
+        ``s_params`` is given (beam convolution), the polynomial-expansion
+        models are supported (``LINEAR``, ``QUADRATIC_EXACT``, ``CUBIC_EXACT``,
+        ``QUADRATIC_FROM_LIN_T``, ``CUBIC_FROM_LIN_T``); the total formulae
+        ``TOTAL_EXACT`` and ``TOTAL_FROM_LIN_T`` are not.
     pointings_dtype:
         Data type for pointings if generated on the fly.
-    apply_convolution:
-        If true, use beam-convolved dipole with provided ``beam_alms``.
-        If false, use the standard pencil-beam dipole calculation.
-    beam_alms:
-        Spherical harmonics of the beam(s). Required when apply_convolution=True.
-        Can be a single SphericalHarmonics object (for all detectors) or a
-        dictionary keyed by detector index strings (``"0"``, ``"1"``, ...).
+    s_params:
+        Beam S-parameters (:class:`BeamSParams`). When given, the dipole is
+        beam-convolved by moment expansion. Pass a single :class:`BeamSParams`
+        to use the same beam for all detectors, or a dictionary keyed by
+        detector index strings (``"0"``, ``"1"``, ...) for per-detector beams.
+        If ``None`` (default), the pencil-beam dipole is computed.
     """
 
     if type(pointings) is np.ndarray:
@@ -753,11 +740,29 @@ def add_dipole(
 
     assert tod.shape[1] == velocity.shape[0]
 
+    if s_params is not None and dipole_type in (
+        DipoleType.TOTAL_EXACT,
+        DipoleType.TOTAL_FROM_LIN_T,
+    ):
+        raise ValueError(
+            f"dipole_type={dipole_type.name} is not supported under beam "
+            "convolution. Use LINEAR, QUADRATIC_FROM_LIN_T or CUBIC_FROM_LIN_T."
+        )
+
     for detector_idx in range(tod.shape[0]):
         nu_hz = frequency_ghz[detector_idx] * 1e9  # freq in GHz
 
-        if apply_convolution and beam_alms is not None:
-            # Get pointings with ψ column for convolution
+        if s_params is not None:
+            # Beam-convolved (moment-expansion) path: needs the ψ column.
+            if isinstance(s_params, dict):
+                sp = s_params.get(str(detector_idx))
+                if sp is None:
+                    raise ValueError(
+                        f"s_params dictionary missing key for detector {detector_idx}"
+                    )
+            else:
+                sp = s_params
+
             if type(pointings) is np.ndarray:
                 theta_phi_psi_det = pointings[detector_idx, :, :]
             else:
@@ -765,42 +770,17 @@ def add_dipole(
                     detector_idx, pointings_dtype=pointings_dtype
                 )[0][:, 0:3]
 
-            # Get beam_alms for this detector
-            if isinstance(beam_alms, dict):
-                beam_alm_det = beam_alms.get(str(detector_idx))
-                if beam_alm_det is None:
-                    raise ValueError(
-                        f"beam_alms dictionary missing key for detector {detector_idx}"
-                    )
-            else:
-                beam_alm_det = beam_alms
-
-            # Compute convolution coefficients based on dipole type
-            if dipole_type in (
-                DipoleType.LINEAR,
-                DipoleType.QUADRATIC_EXACT,
-                DipoleType.CUBIC_EXACT,
-                DipoleType.QUADRATIC_FROM_LIN_T,
-                DipoleType.CUBIC_FROM_LIN_T,
-            ):
-                s_params = compute_s_params_from_beam_alm(beam_alm_det)
-                add_dipole_for_one_detector_convolved(
-                    tod_det=tod[detector_idx],
-                    theta_phi_psi_det=theta_phi_psi_det,
-                    velocity=velocity,
-                    t_cmb_k=t_cmb_k,
-                    nu_hz=nu_hz,
-                    dipole_type=dipole_type,
-                    s_vec=s_params.s_vec,
-                    s_mat=s_params.s_mat,
-                    s_ten=s_params.s_ten,
-                )
-            else:
-                raise ValueError(
-                    f"dipole_type={dipole_type.name} does not support apply_convolution=True. "
-                    "Supported types: LINEAR, QUADRATIC_EXACT, CUBIC_EXACT, "
-                    "QUADRATIC_FROM_LIN_T, CUBIC_FROM_LIN_T."
-                )
+            add_dipole_for_one_detector_convolved(
+                tod_det=tod[detector_idx],
+                theta_phi_psi_det=theta_phi_psi_det,
+                velocity=velocity,
+                t_cmb_k=t_cmb_k,
+                nu_hz=nu_hz,
+                dipole_type=dipole_type,
+                s_vec=sp.s_vec,
+                s_mat=sp.s_mat,
+                s_ten=sp.s_ten,
+            )
         else:
             # Standard (non-convolved) dipole calculation
             if type(pointings) is np.ndarray:
@@ -917,20 +897,32 @@ def add_dipole_to_observations(
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
         tod = getattr(cur_obs, component)
 
-        # Determine beam_alms to use
-        # 1. Use provided beam_alms if given
-        # 2. Otherwise, try to get from observation if apply_convolution=True
-        cur_beam_alms = beam_alms
-        if apply_convolution and beam_alms is None:
-            try:
-                cur_beam_alms = cur_obs.blms
-            except AttributeError:
-                msg = (
-                    "apply_convolution=True but beam_alms is None and observation "
-                    "has no 'blms' attribute. Provide beam_alms explicitly or store "
-                    "them in the observation (e.g., using get_gauss_beam_alms)."
-                )
-                raise AttributeError(msg)
+        # Resolve the beam S-parameters when convolution is requested.
+        # 1. Use the explicitly provided beam_alms if given.
+        # 2. Otherwise fall back to the observation's stored blms.
+        # When apply_convolution is False, any stored/passed beam is ignored
+        # and the pencil-beam dipole is computed.
+        cur_s_params = None
+        if apply_convolution:
+            cur_beam_alms = beam_alms
+            if cur_beam_alms is None:
+                try:
+                    cur_beam_alms = cur_obs.blms
+                except AttributeError:
+                    msg = (
+                        "apply_convolution=True but beam_alms is None and observation "
+                        "has no 'blms' attribute. Provide beam_alms explicitly or store "
+                        "them in the observation (e.g., using get_gauss_beam_alms)."
+                    )
+                    raise AttributeError(msg)
+
+            if isinstance(cur_beam_alms, dict):
+                cur_s_params = {
+                    key: BeamSParams.from_beam_alm(alm)
+                    for key, alm in cur_beam_alms.items()
+                }
+            else:
+                cur_s_params = BeamSParams.from_beam_alm(cur_beam_alms)
 
         # Alas, this allocates memory for the velocity vector! At the moment it is the
         # simplest implementation, but in the future we might want to inline the
@@ -955,6 +947,5 @@ def add_dipole_to_observations(
             frequency_ghz=frequency_ghz_arr,
             dipole_type=dipole_type,
             pointings_dtype=pointings_dtype,
-            apply_convolution=apply_convolution,
-            beam_alms=cur_beam_alms,
+            s_params=cur_s_params,
         )
