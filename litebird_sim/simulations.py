@@ -65,7 +65,7 @@ from .mpi import MPI_COMM_GRID, MPI_COMM_WORLD, MPI_ENABLED
 from .noise import add_noise_to_observations
 from .non_linearity import NonLinParams, apply_quadratic_nonlin_to_observations
 from .observations import Observation, TodDescription
-from .pointings_in_obs import (
+from .observation_utilities import (
     precompute_pointings,
     prepare_pointings,
 )

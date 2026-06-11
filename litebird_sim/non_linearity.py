@@ -2,7 +2,7 @@ import numpy as np
 from dataclasses import dataclass
 
 from .observations import Observation
-from .seeding import regenerate_or_check_detector_generators
+from .observation_utilities import for_each_observation
 
 
 @dataclass
@@ -175,24 +175,14 @@ def apply_quadratic_nonlin_to_observations(
     if nl_params is None:
         nl_params = NonLinParams()
 
-    if isinstance(observations, Observation):
-        obs_list = [observations]
-    elif isinstance(observations, list):
-        obs_list = observations
-    else:
-        raise TypeError(
-            "The parameter `observations` must be an `Observation` or a list of `Observation`."
-        )
-    dets_random = regenerate_or_check_detector_generators(
-        observations=obs_list,
+    # iterate through each observation
+    for cur_obs, tod, dets_random in for_each_observation(
+        observations,
+        component,
         user_seed=user_seed,
         dets_random=dets_random,
-    )
-
-    # iterate through each observation
-    for cur_obs in obs_list:
-        tod = getattr(cur_obs, component)
-
+        requires_rng=True,
+    ):
         apply_quadratic_nonlin(
             tod=tod,
             nl_params=nl_params,

@@ -3,8 +3,7 @@ import scipy as sp
 from numba import njit
 from ducc0.misc import OofaNoise
 
-from .observations import Observation
-from .seeding import regenerate_or_check_detector_generators
+from .observation_utilities import for_each_observation
 
 
 # --- TRANSFER FUNCTIONS (MODELS) ---
@@ -855,17 +854,6 @@ def add_noise_to_observations(
     if noise_type not in ["white", "one_over_f", "correlated"]:
         raise ValueError("Unknown noise type " + noise_type)
 
-    if isinstance(observations, Observation):
-        obs_list = [observations]
-    else:
-        obs_list = observations
-
-    dets_random = regenerate_or_check_detector_generators(
-        observations=obs_list,
-        user_seed=user_seed,
-        dets_random=dets_random,
-    )
-
     if noise_type == "correlated":
         if correlation is None:
             raise ValueError(
@@ -876,7 +864,13 @@ def add_noise_to_observations(
         common_mode_type = correlation.get("common_mode_type", "one_over_f")
         group_by = correlation.get("group_by", None)
 
-        for cur_obs in obs_list:
+        for cur_obs, tod, dets_random in for_each_observation(
+            observations,
+            component,
+            user_seed=user_seed,
+            dets_random=dets_random,
+            requires_rng=True,
+        ):
             if corr_matrix is not None:
                 groups = None
             elif "groups" in correlation:
@@ -884,7 +878,7 @@ def add_noise_to_observations(
             else:
                 groups = _build_detector_groups(cur_obs, group_by)
             add_correlated_noise(
-                tod=getattr(cur_obs, component),
+                tod=tod,
                 sampling_rate_hz=cur_obs.sampling_rate_hz,
                 net_ukrts=cur_obs.net_ukrts,
                 fknee_mhz=getattr(cur_obs, "fknee_mhz"),
@@ -901,9 +895,15 @@ def add_noise_to_observations(
             )
         return
 
-    for cur_obs in obs_list:
+    for cur_obs, tod, dets_random in for_each_observation(
+        observations,
+        component,
+        user_seed=user_seed,
+        dets_random=dets_random,
+        requires_rng=True,
+    ):
         add_noise(
-            tod=getattr(cur_obs, component),
+            tod=tod,
             noise_type=noise_type,
             sampling_rate_hz=cur_obs.sampling_rate_hz,
             net_ukrts=cur_obs.net_ukrts * scale,

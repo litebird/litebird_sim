@@ -9,7 +9,7 @@ from .coordinates import CoordinateSystem
 from .hwp import HWP
 from .mueller_convolver import MuellerConvolver
 from .observations import Observation
-from .pointings_in_obs import (
+from .observation_utilities import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
     _get_pointings_array,

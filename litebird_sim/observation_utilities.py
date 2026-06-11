@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 import astropy.time
 import numpy as np
@@ -11,6 +11,7 @@ from .detectors import InstrumentInfo
 from .hwp import HWP
 from .observations import Observation
 from .scanning import RotQuaternion
+from .seeding import regenerate_or_check_detector_generators
 
 
 def prepare_pointings(
@@ -419,3 +420,124 @@ def _get_pointings_and_pol_angles_det(
     )
 
     return pointings_det, pol_angle
+
+
+# ---------------------------------------------------------------------------
+# Shared driver for the systematic-effect modules
+#
+# Every module that injects an effect into the time-ordered data (noise, gain
+# drift, non-linearity, HWP differential emission, the CMB dipole, …) used to
+# re-implement the same preamble before getting to its own physics: coerce the
+# ``observations`` argument into a list, optionally build one RNG per detector
+# for the current MPI rank, then loop pulling ``getattr(obs, component)`` to
+# find the TOD array to modify.  That preamble is identical across the effects,
+# so it lives here once.  An effect module now writes only the part that
+# differs — which detector parameters it reads and which kernel it calls.
+# ---------------------------------------------------------------------------
+
+
+def normalize_observations(
+    observations: Observation | list[Observation],
+) -> list[Observation]:
+    """Coerce *observations* into a list of :class:`.Observation`.
+
+    A single :class:`.Observation` is wrapped in a one-element list; a list is
+    copied (so callers may mutate the result without touching their input).
+    Anything else raises :class:`TypeError`.
+    """
+    if isinstance(observations, Observation):
+        return [observations]
+    if isinstance(observations, list):
+        return list(observations)
+    raise TypeError(
+        "The parameter `observations` must be an `Observation` or a list of "
+        "`Observation`."
+    )
+
+
+def for_each_observation(
+    observations: Observation | list[Observation],
+    component: str = "tod",
+    *,
+    user_seed: int | None = None,
+    dets_random: list[np.random.Generator] | None = None,
+    requires_rng: bool = False,
+) -> Iterator[tuple[Observation, np.ndarray, list[np.random.Generator] | None]]:
+    """Iterate over observations, yielding ``(obs, tod, dets_random)``.
+
+    This is the common driver for the systematic-effect modules.  It performs
+    the bookkeeping every effect shares:
+
+    - normalizes *observations* into a list
+      (see :func:`normalize_observations`);
+    - if *requires_rng* is ``True``, resolves one RNG per detector for the
+      current MPI rank via
+      :func:`.regenerate_or_check_detector_generators` and yields the same list
+      on every iteration;
+    - yields ``getattr(cur_obs, component)`` so the caller does not repeat the
+      attribute indirection.
+
+    Parameters
+    ----------
+    observations : Observation or list of Observation
+        The observation(s) to iterate over.
+    component : str, optional
+        Name of the TOD attribute to fetch from each observation.  Defaults to
+        ``"tod"``.
+    user_seed : int, optional
+        Master seed used to build the per-detector RNGs when *dets_random* is
+        not supplied.  Only consulted when *requires_rng* is ``True``.
+    dets_random : list of numpy.random.Generator, optional
+        Pre-built per-detector RNGs.  Only consulted when *requires_rng* is
+        ``True``.
+    requires_rng : bool, optional
+        Whether the effect is stochastic.  When ``True`` exactly one of
+        *user_seed* or *dets_random* must be provided.  When ``False`` (the
+        default) no RNGs are built and ``None`` is yielded in their place.
+
+    Yields
+    ------
+    tuple
+        ``(cur_obs, tod, dets_random)`` for each observation.  ``dets_random``
+        is the resolved list of generators when *requires_rng* is ``True``,
+        otherwise ``None``.  The same ``dets_random`` object is yielded on every
+        iteration.
+    """
+    obs_list = normalize_observations(observations)
+
+    if requires_rng:
+        dets_random = regenerate_or_check_detector_generators(
+            observations=obs_list,
+            user_seed=user_seed,
+            dets_random=dets_random,
+        )
+    else:
+        dets_random = None
+
+    for cur_obs in obs_list:
+        yield cur_obs, getattr(cur_obs, component), dets_random
+
+
+def for_each_observation_with_pointings(
+    observations: Observation | list[Observation],
+    pointings: np.ndarray | list[np.ndarray] | None,
+    component: str = "tod",
+) -> Iterator[tuple[Observation, np.ndarray, np.ndarray]]:
+    """Iterate over observations paired with their pointing matrices.
+
+    The pointing-aware counterpart of :func:`for_each_observation`, for effects
+    that need a pointing matrix per observation (e.g. the CMB dipole).  It uses
+    :func:`_normalize_observations_and_pointings`, so a single observation may
+    be paired with a single pointing array, or a list with a list.  When
+    *pointings* is ``None`` the pointing matrix is taken from each observation.
+
+    Yields
+    ------
+    tuple
+        ``(cur_obs, tod, cur_ptg)`` for each observation, where ``cur_ptg`` is
+        either a pointing array or the observation's ``get_pointings`` callable
+        (matching the behaviour of the underlying normalizer).
+    """
+    obs_list, ptg_list = _normalize_observations_and_pointings(observations, pointings)
+    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
+        yield cur_obs, getattr(cur_obs, component), cur_ptg

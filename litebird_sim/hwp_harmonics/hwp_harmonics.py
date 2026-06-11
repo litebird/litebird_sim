@@ -21,7 +21,7 @@ from ..hwp_non_ideal import HWPFormalism, NonIdealHWP
 from ..input_sky import SkyGenerationParams
 from ..maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
 from ..observations import Observation
-from ..pointings_in_obs import (
+from ..observation_utilities import (
     _get_pointings_array,
 )
 from ..constants import NUM_THREADS_ENVVAR

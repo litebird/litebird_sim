@@ -5,6 +5,7 @@ import numpy as np
 
 from .observations import Observation
 from .spacecraft import SpacecraftPositionAndVelocity
+from .observation_utilities import for_each_observation_with_pointings
 
 # Updated imports to match the new constants.py structure
 from .constants import C_LIGHT_KM_OVER_S, H_OVER_K_B, T_CMB_K
@@ -243,43 +244,14 @@ def add_dipole_to_observations(
     in one or more `Observation` objects.
     """
 
-    if pointings is None:
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix[:, :, 0:2]]
-            else:
-                ptg_list = [observations.get_pointings]
-        else:
-            obs_list = observations
-            ptg_list = []
-            for ob in observations:
-                if hasattr(ob, "pointing_matrix"):
-                    ptg_list.append(ob.pointing_matrix[:, :, 0:2])
-                else:
-                    ptg_list.append(ob.get_pointings)
-    else:
-        if isinstance(observations, Observation):
-            assert isinstance(pointings, np.ndarray), (
-                "You must pass a list of observations *and* a list "
-                + "of pointing matrices to add_dipole_to_observations"
-            )
-            obs_list = [observations]
-            ptg_list = [pointings[:, :, 0:2]]
-        else:
-            assert isinstance(pointings, list), (
-                "When you pass a list of observations to add_dipole_to_observations"
-                + ", you must do the same for `pointings`"
-            )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
-            )
-            obs_list = observations
-            ptg_list = [point[:, :, 0:2] for point in pointings]
-
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
-        tod = getattr(cur_obs, component)
+    for cur_obs, tod, cur_ptg in for_each_observation_with_pointings(
+        observations, pointings, component
+    ):
+        # The dipole only needs the (theta, phi) columns of the pointing matrix.
+        # Callables (lazy pointings) are forwarded untouched, matching the
+        # behaviour of the underlying normalizer.
+        if isinstance(cur_ptg, np.ndarray):
+            cur_ptg = cur_ptg[:, :, 0:2]
 
         # Alas, this allocates memory for the velocity vector! At the moment it is the
         # simplest implementation, but in the future we might want to inline the

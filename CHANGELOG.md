@@ -1,5 +1,7 @@
 # HEAD
 
+-   Extract a shared driver for the systematic-effect modules (`for_each_observation`, `for_each_observation_with_pointings`, `normalize_observations`) and rename `pointings_in_obs.py` to `observation_utilities.py`, which now collects all the helpers that operate on a collection of `Observation` objects. Noise, gain drift, non-linearity, HWP differential emission and the CMB dipole now share one place for observation normalization, per-detector RNG resolution and TOD-component indirection instead of re-implementing it each. No change to public effect interfaces.
+
 -   Implement the ability to produce the h‑maps defined in McAllum et al. 2021b [#473](https://github.com/litebird/litebird_sim/pull/473)
 
 -   **Breaking change**: Stop supporting NumPy 1.x and move to NumPy 2.x. Add support for Python 3.14 [#519](https://github.com/litebird/litebird_sim/pull/519)

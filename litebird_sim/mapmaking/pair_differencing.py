@@ -21,7 +21,7 @@ from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
-from litebird_sim.pointings_in_obs import (
+from litebird_sim.observation_utilities import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
