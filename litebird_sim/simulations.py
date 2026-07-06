@@ -2781,6 +2781,7 @@ class Simulation:
             nside=nside,
             observations=self.observations,
             components=components,
+            hwp=self.hwp,
             pointings_flag=pointing_flag,
             inv_noise_cov_operator=inv_noise_cov_operator,
             threshold=threshold,
