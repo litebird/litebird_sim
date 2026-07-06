@@ -106,21 +106,22 @@ def set_band_params_for_one_detector(
         bandcenter_ghz=bandcenter_ghz, bandwidth_ghz=bandwidth_ghz
     )
 
-    # bpi : bandpass profile * intensity conversion
-    # if no bandpass, only apply the frequency dependent
-    # T to I conversion
+    #
+    # For now, if there is no bandpass, this function will return
+    # a simple array of ones, because unit conversions are being done
+    # at the input map level. This is left in here as a placeholder
+    # for future developments, in which the term to multiply to
+    # the bandpass can be further developed.
+    #
+    bpi = np.ones_like(det_params.freq_ghz)
     if not bandpass:
-        bpi = _dBodTth(det_params.freq_ghz)
+        return (det_params, bpi)
     else:
         band_params.freq_ghz, bandpass_prof = bandpass_profile(
             band_params.freq_ghz, bandpass, include_beam_throughput
         )
-        bpi = _dBodTth(det_params.freq_ghz) * bandpass_prof
-
-    # Normalize the band
-    bpi /= np.trapezoid(bpi, det_params.freq_ghz)
-
-    return (det_params, bpi)
+        bpi *= bandpass_prof
+        return (det_params, bpi)
 
 
 def fill_tod_with_hwp_harmonics(

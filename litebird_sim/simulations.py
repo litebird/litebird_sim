@@ -46,17 +46,17 @@ from .imo.imo import Imo
 from .input_sky import SkyGenerationParams, SkyGenerator
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
-    HMapsResult,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
+    HMapsResult,
     PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
-    make_h_maps,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
+    make_h_maps,
     make_pair_differenced_map,
     save_destriper_results,
 )
@@ -2785,6 +2785,7 @@ class Simulation:
             nside=nside,
             observations=self.observations,
             components=components,
+            hwp=self.hwp,
             pointings_flag=pointing_flag,
             inv_noise_cov_operator=inv_noise_cov_operator,
             threshold=threshold,
