@@ -14,7 +14,7 @@ from ..bandpass_template_module import bandpass_profile
 from ..constants import NUM_THREADS_ENVVAR
 from ..coordinates import CoordinateSystem
 from ..hwp_non_ideal import HWPFormalism, NonIdealHWP
-from ..input_sky import SkyGenerationParams
+from ..input_sky import SkyInput
 from ..maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
 from ..observations import Observation
 from ..pointings_in_obs import (
@@ -127,13 +127,7 @@ def fill_tod_with_hwp_harmonics(
     hwp: NonIdealHWP,
     observation: Observation,
     tod: np.ndarray,
-    maps: (
-        HealpixMap
-        | dict[str, HealpixMap | SkyGenerationParams]
-        | SphericalHarmonics
-        | dict[str, SphericalHarmonics | SkyGenerationParams]
-        | None
-    ) = None,
+    maps: SkyInput | None = None,
     pointings: np.ndarray | None = None,
     hwp_angle: np.ndarray | None = None,
     save_tod: bool = True,

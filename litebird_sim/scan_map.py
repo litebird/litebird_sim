@@ -9,7 +9,7 @@ from .coordinates import CoordinateSystem
 from .hwp import HWP, IdealHWP
 from .hwp_harmonics.hwp_harmonics import fill_tod_with_hwp_harmonics
 from .hwp_non_ideal import NonIdealHWP
-from .input_sky import SkyGenerationParams
+from .input_sky import SkyInput
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
 from .observations import Observation
 from .pointings_in_obs import (
@@ -112,12 +112,7 @@ def scan_map_generic_hwp_for_one_detector(
 def scan_map(
     tod,
     pointings,
-    maps: (
-        HealpixMap
-        | dict[str, HealpixMap | SkyGenerationParams]
-        | SphericalHarmonics
-        | dict[str, SphericalHarmonics | SkyGenerationParams]
-    ),
+    maps: SkyInput,
     pol_angle_detectors: np.ndarray | None = None,
     pol_eff_detectors: np.ndarray | None = None,
     hwp: HWP | None = None,
@@ -361,13 +356,7 @@ def scan_map(
 
 def scan_map_in_observations(
     observations: Observation | list[Observation],
-    maps: (
-        HealpixMap
-        | dict[str, HealpixMap | SkyGenerationParams]
-        | SphericalHarmonics
-        | dict[str, SphericalHarmonics | SkyGenerationParams]
-        | None
-    ) = None,
+    maps: SkyInput | None = None,
     pointings: np.ndarray | list[np.ndarray] | None = None,
     hwp: HWP | None = None,
     component: str = "tod",
