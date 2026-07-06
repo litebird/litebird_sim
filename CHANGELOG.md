@@ -1,5 +1,7 @@
 # HEAD
 
+-   Make `litebird_sim/version.py` the single source of truth for the package version; `pyproject.toml` and `docs/source/conf.py` now read from it [#537](https://github.com/litebird/litebird_sim/pull/537)
+
 -   Add conversion from Temperature to Spectral Radiance units for the non linearity factor [#524](https://github.com/litebird/litebird_sim/pull/524)
 
 -   Implement the ability to produce the h‑maps defined in McAllum et al. 2021b [#473](https://github.com/litebird/litebird_sim/pull/473)
