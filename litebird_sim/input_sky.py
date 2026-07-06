@@ -205,6 +205,15 @@ class SkyGenerationParams:
         self.sun_direction_galactic = sun_direction_galactic
 
 
+# Sky maps stored on an Observation and accepted by the scanning routines.
+SkyInput = (
+    HealpixMap
+    | SphericalHarmonics
+    | dict[str, HealpixMap | SphericalHarmonics | SkyGenerationParams]
+    | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
+)
+
+
 # --- Main Class ---
 
 
@@ -720,14 +729,7 @@ class SkyGenerator:
     # Execute
     # ------------------------------------------------------------------
 
-    def execute(
-        self,
-    ) -> (
-        HealpixMap
-        | SphericalHarmonics
-        | dict[str, HealpixMap | SphericalHarmonics | SkyGenerationParams]
-        | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
-    ):
+    def execute(self) -> SkyInput:
         """
         Executes the generation pipeline.
 
