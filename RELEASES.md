@@ -1,46 +1,30 @@
 # How to prepare a new release
 
--   Update the version number in the following files:
+Building, uploading to PyPI and generating the release email are handled
+automatically by the `Upload to PyPI` workflow (`.github/workflows/publish.yml`),
+which runs whenever a GitHub Release is published. The manual steps are therefore
+just the version bump and the creation of the Release itself.
 
-    -   `pyproject.toml`
+-   Update the version number. The version lives in a single place,
+    `litebird_sim/version.py` (`__version__`); `pyproject.toml` and
+    `docs/source/conf.py` read it from there, so this is the only file to edit.
 
-    -   `litebird_sim/version.py`
-
-    -   `docs/source/conf.py`
-
-    -   `CHANGELOG.md` (be sure to leave an empty `HEAD` title at the
-        top);
+-   Update `CHANGELOG.md`: rename the top `HEAD` heading to the new version
+    number and leave a fresh empty `HEAD` heading above it.
 
     Commit all the changes to `master`.
 
 -   If the supported versions for Python changed, be sure to change
     the chapter “Installation” in the documentation.
 
--   Build the release:
+-   On GitHub, open <https://github.com/litebird/litebird_sim/releases> and
+    draft a new Release. Create a new tag `vX.Y.Z` targeting `master`, paste the
+    relevant `CHANGELOG.md` section as the release notes, and publish it.
 
-    ```
-    uv build
-    ```
+-   Publishing the Release triggers the `Upload to PyPI` workflow, which builds
+    the package and uploads it to PyPI via trusted publishing (no token needed).
+    Check the workflow run to confirm it succeeded.
 
--   Upload the package to PyPI:
-
-    ```
-    uv publish
-    ```
-
--   Create a new tag and push it to GitHub:
-
-    ```
-    git tag -a vX.Y.Z -m "Version X.Y.Z"
-    git push origin vX.Y.Z
-    ```
-
--   Open the page https://github.com/litebird/litebird_sim/releases and create a new release from the tag you have just created.
-
--   Use the script `prepare_release_email.py` to automatically produce the text of an email containing the release notes:
-
-    ```
-    $ python3 prepare_release_email.py | xclip -selection clipboard
-    ```
-
-    and send this text to the LiteBIRD JSGs.
+-   The same workflow runs `bin/prepare_release_email.py` and uploads the result
+    as a `release-email` artifact. Download it from the workflow run and send its
+    contents to the LiteBIRD JSGs.
