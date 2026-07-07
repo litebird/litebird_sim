@@ -54,7 +54,8 @@ t -= t[0]  # Make `t` start from zero
 # the second one shows a zoom over the very first points of the TOD.
 _, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 12))
 
-# Make a plot of the TOD using all the dipole types
+# Make a plot of the TOD using all the dipole types. Beam convolution is
+# controlled by the apply_convolution keyword, not by a separate DipoleType.
 for type_idx, dipole_type in enumerate(lbs.DipoleType):
     obs.tod[0][:] = 0  # Reset the TOD
     lbs.add_dipole_to_observations(obs, pos_vel, dipole_type=dipole_type)

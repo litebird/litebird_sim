@@ -241,3 +241,198 @@ def test_dipole_list_of_obs(tmp_path):
         pos_and_vel=pos_vel,
         frequency_ghz=np.array([100.0]),
     )
+
+
+def test_dipole_convolved_through_observations(tmp_path):
+    """add_dipole_to_observations must build S-parameters and convolve.
+
+    Exercises the wrapper convolution path (apply_convolution=True), which
+    computes BeamSParams.from_beam_alm internally. Checks that:
+      * a single beam and a per-detector dict ({"A": beam}) give the same TOD;
+      * the convolved TOD differs from the pencil-beam TOD.
+    """
+    sim = lbs.Simulation(
+        base_path=tmp_path / "simulation_dir",
+        start_time=Time("2020-01-01T00:00:00"),
+        duration_s=100.0,
+        random_seed=12345,
+    )
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(name="A", sampling_rate_hz=1, bandcenter_ghz=100.0)
+        ],
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785_398_163_397_448_3,
+            precession_rate_hz=8.664_850_513_998_931e-05,
+            spin_rate_hz=0.000_833_333_333_333_333_4,
+            start_time=sim.start_time,
+        ),
+        delta_time_s=60,
+    )
+    sim.set_instrument(
+        lbs.InstrumentInfo(
+            boresight_rotangle_rad=0.0,
+            spin_boresight_angle_rad=0.872_664_625_997_164_8,
+            spin_rotangle_rad=3.141_592_653_589_793,
+        )
+    )
+    lbs.prepare_pointings(
+        sim.observations, sim.instrument, sim.spin2ecliptic_quats, hwp=None
+    )
+    lbs.precompute_pointings(sim.observations)
+
+    orbit = lbs.SpacecraftOrbit(sim.start_time)
+    pos_vel = lbs.spacecraft_pos_and_vel(
+        orbit, observations=sim.observations, delta_time_s=10.0
+    )
+
+    beam_alm = lbs.gauss_beam_to_alm(
+        lmax=32, mmax=32, fwhm_rad=np.deg2rad(30.0), psi_pol_rad=None
+    )
+
+    obs = sim.observations[0]
+
+    def run(**kwargs):
+        obs.tod[0][:] = 0.0
+        lbs.add_dipole_to_observations(
+            observations=sim.observations,
+            pos_and_vel=pos_vel,
+            dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
+            **kwargs,
+        )
+        return obs.tod[0].copy()
+
+    tod_pencil = run()
+    tod_single = run(apply_convolution=True, beam_alms=beam_alm)
+    tod_dict = run(apply_convolution=True, beam_alms={"A": beam_alm})
+
+    # Single beam and per-detector dict must agree exactly.
+    np.testing.assert_allclose(tod_single, tod_dict, rtol=1e-12, atol=1e-12)
+    # Convolution with a wide beam must change the signal.
+    assert not np.allclose(tod_single, tod_pencil)
+
+
+def test_compute_s_params_from_beam_alm():
+    """BeamSParams.from_beam_alm must work with beam alms only."""
+    beam_alm = lbs.gauss_beam_to_alm(
+        lmax=128,
+        mmax=128,
+        fwhm_rad=np.deg2rad(1.0),
+        psi_pol_rad=None,
+    )
+
+    s_params = lbs.BeamSParams.from_beam_alm(beam_alm)
+
+    assert s_params.s_vec.shape == (3,)
+    assert s_params.s_mat.shape == (3, 3)
+    np.testing.assert_allclose(s_params.s_mat, s_params.s_mat.T, atol=1e-12)
+
+
+def test_dipole_convolved():
+    """A pencil-beam S-parameter set must reproduce QUADRATIC_FROM_LIN_T.
+
+    When the S-parameters correspond to a perfect pencil beam aligned with the
+    boresight (S_vec = ẑ, S_mat = diag(0,0,1)), Eq. (C.5) of the NPIPE paper
+    reduces to T₀ [β·n̂₀ + q(x) (β·n̂₀)²], which is identical to
+    DipoleType.QUADRATIC_FROM_LIN_T evaluated at the same pointing.
+    """
+    # Same pointings and velocity used in test_dipole_models
+    pointings = np.deg2rad(
+        np.array(
+            [
+                [
+                    [0, 0, 0],  # north pole
+                    [90, 0, 0],  # equator, φ = 0
+                    [180, 0, 0],  # south pole
+                ]
+            ]
+        )
+    )
+    velocity = 299_792.458 * np.array(
+        [[0.1, 0.0, 0.0], [0.1, 0.0, 0.0], [0.1, 0.0, 0.0]]
+    )
+
+    # Pencil-beam S-parameters: delta function at the boresight (ẑ in beam frame)
+    s_params = lbs.BeamSParams(
+        s_vec=np.array([0.0, 0.0, 1.0]),
+        s_mat=np.diag([0.0, 0.0, 1.0]),
+    )
+
+    tod_quad = np.zeros((1, 3))
+    lbs.add_dipole(
+        tod_quad,
+        pointings,
+        velocity,
+        t_cmb_k=1.0,
+        frequency_ghz=[100],
+        dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
+    )
+
+    tod_conv = np.zeros((1, 3))
+    lbs.add_dipole(
+        tod_conv,
+        pointings,
+        velocity,
+        t_cmb_k=1.0,
+        frequency_ghz=[100],
+        dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
+        s_params=s_params,
+    )
+
+    np.testing.assert_allclose(tod_conv, tod_quad, rtol=1e-12, atol=1e-12)
+
+
+def test_dipole_convolved_beam_suppression():
+    """Isotropic beam must suppress the dipole to zero and reduce the quadrupole.
+
+    For a uniform isotropic beam S_vec = 0, so the dipole term vanishes.
+    The quadrupole contracts to T₀ q(x) S_ii β_i β_i = T₀ q(x) β² / 3,
+    i.e. only the monopole contribution survives, which is independent of pointing.
+    """
+    pointings = np.deg2rad(
+        np.array(
+            [
+                [
+                    [90, 0, 0],  # equator, φ = 0
+                    [90, 90, 0],  # equator, φ = 90°
+                    [90, 180, 0],  # equator, φ = 180°
+                ]
+            ]
+        )
+    )
+    velocity = 299_792.458 * np.array(
+        [[0.1, 0.0, 0.0], [0.1, 0.0, 0.0], [0.1, 0.0, 0.0]]
+    )
+
+    # Isotropic beam: S_vec = 0, S_mat = I/3
+    s_params = lbs.BeamSParams(
+        s_vec=np.zeros(3),
+        s_mat=np.eye(3) / 3.0,
+    )
+
+    tod_conv = np.zeros((1, 3))
+    lbs.add_dipole(
+        tod_conv,
+        pointings,
+        velocity,
+        t_cmb_k=1.0,
+        frequency_ghz=[100],
+        dipole_type=lbs.DipoleType.QUADRATIC_FROM_LIN_T,
+        s_params=s_params,
+    )
+
+    # All samples should give the same value: T₀ q(x) β² / 3
+    # (a pointing-independent monopole-like term)
+    assert np.allclose(tod_conv[0], tod_conv[0, 0]), (
+        "Isotropic beam should give a pointing-independent result"
+    )
+
+    # The value should equal T₀ * q(x) * β² / 3
+    frequency_hz = 100e9
+    x = lbs.H_OVER_K_B * frequency_hz / 1.0  # t_cmb_k = 1.0
+    q_x = 0.5 * x * (np.exp(x) + 1) / (np.exp(x) - 1)
+    beta_sq = 0.1**2
+    expected = q_x * beta_sq / 3.0
+    np.testing.assert_allclose(tod_conv[0, 0], expected, rtol=1e-10)

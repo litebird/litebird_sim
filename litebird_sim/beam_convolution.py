@@ -209,8 +209,8 @@ def add_convolved_sky(
     beam_alms: SphericalHarmonics | dict[str, SphericalHarmonics],
     hwp_angle: np.ndarray | None = None,
     mueller_hwp: np.ndarray | None = None,
-    input_sky_names: str | None = None,
-    input_beam_names: str | None = None,
+    input_sky_names: list[str] | str | None = None,
+    input_beam_names: list[str] | str | None = None,
     convolution_params: BeamConvolutionParameters | None = None,
     pointings_dtype=np.float64,
     nside_centering: int | None = None,
@@ -239,9 +239,9 @@ def add_convolved_sky(
         convolution is used.
     mueller_hwp : np.ndarray or None, default=None
         Mueller matrices of the HWP. If None, the classic 4π convolution is used.
-    input_sky_names : str or None, default=None
+    input_sky_names : list[str] or str or None, default=None
         Names of the sky maps to use for each detector. If None, all detectors use the same sky.
-    input_beam_names : str or None, default=None
+    input_beam_names : list[str] or str or None, default=None
         Names of the beam maps to use for each detector. If None, all detectors use the same beam.
     convolution_params : BeamConvolutionParameters, optional
         Parameters controlling the convolution, such as resolution and precision. If None,
@@ -277,6 +277,11 @@ def add_convolved_sky(
         assert tod.shape[0] == mueller_hwp.shape[0]
 
     n_detectors = tod.shape[0]
+
+    if isinstance(input_sky_names, str):
+        input_sky_names = [input_sky_names] * n_detectors
+    if isinstance(input_beam_names, str):
+        input_beam_names = [input_beam_names] * n_detectors
 
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
