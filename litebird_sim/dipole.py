@@ -753,7 +753,7 @@ def add_dipole(
         raise ValueError(
             f"dipole_type={dipole_type.name} is not supported under beam "
             "convolution. Use LINEAR, QUADRATIC_FROM_LIN_T or CUBIC_FROM_LIN_T."
-        )        
+        )
 
     if s_params is not None:
         if isinstance(s_params, dict):
@@ -958,7 +958,9 @@ def add_dipole_to_observations(
                     for key, alm in beam_alms_dict.items()
                 }
             else:
-                assert isinstance(cur_beam_alms, SphericalHarmonics), "Invalid blms format."
+                assert isinstance(cur_beam_alms, SphericalHarmonics), (
+                    "Invalid blms format."
+                )
                 input_detector_names = None
                 cur_s_params = BeamSParams.from_beam_alm(cur_beam_alms)
 
@@ -986,5 +988,5 @@ def add_dipole_to_observations(
             dipole_type=dipole_type,
             pointings_dtype=pointings_dtype,
             input_detector_names=input_detector_names,
-            s_params=cur_s_params,            
+            s_params=cur_s_params,
         )
