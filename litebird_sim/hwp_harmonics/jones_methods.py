@@ -243,7 +243,6 @@ def compute_signal_for_one_detector(
             dtype=np.complex128,
         )
 
-        # print("jones", jones)
         mueller_hwp = JonesToMueller(jones)
         mII, mIQ, mIU, mQI, mQQ, mQU, mUI, mUQ, mUU = hwp_to_fp_frame(
             alpha, mueller_hwp
