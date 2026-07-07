@@ -13,8 +13,7 @@ from .detectors import DetectorInfo, InstrumentInfo
 from .distribute import distribute_detector_blocks, distribute_evenly
 from .hwp import HWP, IdealHWP
 from .hwp_non_ideal import HWPFormalism, NonIdealHWP
-from .input_sky import SkyGenerationParams
-from .maps_and_harmonics import HealpixMap, SphericalHarmonics
+from .input_sky import SkyInput
 from .mpi import MPI_COMM_GRID, _SerialMpiCommunicator
 from .pointings import DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB, PointingProvider
 from .scanning import RotQuaternion
@@ -170,13 +169,7 @@ class Observation:
     local_flags: npt.NDArray | None
 
     # Dynamic attributes set by scanning
-    sky: (
-        HealpixMap
-        | dict[str, HealpixMap | SkyGenerationParams]
-        | SphericalHarmonics
-        | dict[str, SphericalHarmonics | SkyGenerationParams]
-        | None
-    )
+    sky: SkyInput | None
 
     def __init__(
         self,

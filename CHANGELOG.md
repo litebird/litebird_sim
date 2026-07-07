@@ -2,6 +2,12 @@
 
 -   Capability of appling beam convolution to dipole signal [#527](https://github.com/litebird/litebird_sim/pull/527)
 
+-   Pin `ty` and mute its Dependabot updates, fix latent type errors it flagged, repair the broken Tests badge in the README, and add a missing MPI barrier that fixes a flaky HDF5 read in `test_issue314` [#536](https://github.com/litebird/litebird_sim/pull/536)
+
+-   Make `litebird_sim/version.py` the single source of truth for the package version; `pyproject.toml` and `docs/source/conf.py` now read from it [#537](https://github.com/litebird/litebird_sim/pull/537)
+
+-   Add conversion from Temperature to Spectral Radiance units for the non linearity factor [#524](https://github.com/litebird/litebird_sim/pull/524)
+
 -   Implement the ability to produce the h‑maps defined in McAllum et al. 2021b [#473](https://github.com/litebird/litebird_sim/pull/473)
 
 -   **Breaking change**: Stop supporting NumPy 1.x and move to NumPy 2.x. Add support for Python 3.14 [#519](https://github.com/litebird/litebird_sim/pull/519)
