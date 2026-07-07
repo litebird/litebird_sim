@@ -455,6 +455,25 @@ def normalize_observations(
     )
 
 
+def _get_tod_component(obs: Observation, component: str) -> np.ndarray:
+    """Fetch the named TOD component from *obs*, failing fast on a bad name.
+
+    Effect modules pass ``component`` as a plain string.  A typo would otherwise
+    reach ``getattr`` and blow up one iteration into the loop, after RNG streams
+    are already built, with a bare ``AttributeError``.  Check up front instead
+    and raise with the observation's registered TOD names (``obs.tod_list``) as
+    a hint.  Any existing attribute is accepted, not only registered TODs, so
+    callers that stash a scratch component on the observation keep working.
+    """
+    if not hasattr(obs, component):
+        registered = [td.name for td in obs.tod_list]
+        raise ValueError(
+            f"'{component}' is not an attribute of this observation; "
+            f"registered TOD components are {registered}."
+        )
+    return getattr(obs, component)
+
+
 def for_each_observation(
     observations: Observation | list[Observation],
     component: str = "tod",
@@ -474,8 +493,9 @@ def for_each_observation(
       current MPI rank via
       :func:`.regenerate_or_check_detector_generators` and yields the same list
       on every iteration;
-    - yields ``getattr(cur_obs, component)`` so the caller does not repeat the
-      attribute indirection.
+    - yields the ``component`` TOD array (validated against
+      ``obs.tod_list``) so the caller does not repeat the attribute
+      indirection.
 
     Parameters
     ----------
@@ -515,7 +535,7 @@ def for_each_observation(
         dets_random = None
 
     for cur_obs in obs_list:
-        yield cur_obs, getattr(cur_obs, component), dets_random
+        yield cur_obs, _get_tod_component(cur_obs, component), dets_random
 
 
 def for_each_observation_with_pointings(
@@ -540,4 +560,4 @@ def for_each_observation_with_pointings(
     """
     obs_list, ptg_list = _normalize_observations_and_pointings(observations, pointings)
     for cur_obs, cur_ptg in zip(obs_list, ptg_list):
-        yield cur_obs, getattr(cur_obs, component), cur_ptg
+        yield cur_obs, _get_tod_component(cur_obs, component), cur_ptg

@@ -77,6 +77,12 @@ def test_for_each_observation_respects_component():
         assert tod is cur_obs.custom_tod
 
 
+def test_for_each_observation_rejects_unknown_component():
+    sim, _ = _make_two_observations()
+    with pytest.raises(ValueError, match="registered TOD components"):
+        list(lbs.for_each_observation(sim.observations, component="toed"))
+
+
 def test_for_each_observation_resolves_dets_random_once():
     sim, dets = _make_two_observations()
     hierarchy = lbs.RNGHierarchy(12345, comm_size=1, num_detectors_per_rank=len(dets))
