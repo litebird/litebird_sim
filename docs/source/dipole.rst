@@ -327,7 +327,9 @@ keyed by detector index strings (``"0"``, ``"1"``, ...). The
 observation-oriented :func:`.add_dipole_to_observations` instead takes
 beam harmonics directly: set ``apply_convolution=True`` and pass
 ``beam_alms`` (or store them on the observation's ``blms`` attribute),
-and it computes the S-parameters per detector for you.
+and it computes the S-parameters per detector for you. If ``beam_alms``
+is a dictionary, its keys must be detector *or* channel names (not
+index strings), consistent with :func:`.add_convolved_sky`.
 
 The following plot compares the ordinary
 ``DipoleType.QUADRATIC_FROM_LIN_T`` dipole with the same model after

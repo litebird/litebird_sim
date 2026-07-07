@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from enum import IntEnum
+from typing import cast
 
 from numba import njit, prange
 import numpy as np
@@ -695,6 +696,7 @@ def add_dipole(
     frequency_ghz: np.ndarray,  # e.g. central frequency of channel
     dipole_type: DipoleType,
     pointings_dtype=np.float64,
+    input_detector_names: list[str] | str | None = None,
     s_params: (BeamSParams | dict[str, BeamSParams] | None) = None,
 ):
     """Add the CMB dipole contribution to time-ordered data (TOD).
@@ -737,6 +739,8 @@ def add_dipole(
         If ``None`` (default), the pencil-beam dipole is computed.
     """
 
+    n_detectors = tod.shape[0]
+
     if type(pointings) is np.ndarray:
         assert tod.shape == pointings.shape[0:2]
 
@@ -749,20 +753,36 @@ def add_dipole(
         raise ValueError(
             f"dipole_type={dipole_type.name} is not supported under beam "
             "convolution. Use LINEAR, QUADRATIC_FROM_LIN_T or CUBIC_FROM_LIN_T."
-        )
+        )        
 
-    for detector_idx in range(tod.shape[0]):
+    if s_params is not None:
+        if isinstance(s_params, dict):
+            assert len(s_params.values()) == n_detectors
+            assert all(isinstance(v, BeamSParams) for v in s_params.values())
+
+            assert isinstance(input_detector_names, list)
+            assert len(input_detector_names) == n_detectors
+            assert all(isinstance(v, str) for v in input_detector_names)
+        else:
+            assert isinstance(s_params, BeamSParams)
+
+    for detector_idx in range(n_detectors):
         nu_hz = frequency_ghz[detector_idx] * 1e9  # freq in GHz
 
         if s_params is not None:
             # Beam-convolved (moment-expansion) path: needs the ψ column.
             if isinstance(s_params, dict):
-                sp = s_params.get(str(detector_idx))
+                assert all(isinstance(v, BeamSParams) for v in s_params.values())
+
+                s_params_dict = cast(dict[str, BeamSParams], s_params)
+                det_names = cast(list[str], input_detector_names)
+                sp = s_params_dict.get(det_names[detector_idx])
                 if sp is None:
                     raise ValueError(
                         f"s_params dictionary missing key for detector {detector_idx}"
                     )
             else:
+                assert isinstance(s_params, BeamSParams)
                 sp = s_params
 
             if type(pointings) is np.ndarray:
@@ -855,8 +875,9 @@ def add_dipole_to_observations(
         If True, apply beam convolution using the provided or observed beam_alms.
     beam_alms : SphericalHarmonics | dict[str, SphericalHarmonics] | None, default=None
         Beam harmonic coefficients. If None and apply_convolution=True,
-        attempts to retrieve from observation.blms. Dictionaries are forwarded
-        to :func:`add_dipole`, which indexes them by detector index strings.
+        attempts to retrieve from observation.blms. If a dictionary, its
+        keys should correspond to detector or channel names (consistent
+        with :func:`.add_convolved_sky`).
     """
     # For convolved types we keep the full (θ, φ, ψ) columns; otherwise strip to (θ, φ).
     ptg_cols = slice(None) if apply_convolution else slice(0, 2)
@@ -905,6 +926,7 @@ def add_dipole_to_observations(
         # When apply_convolution is False, any stored/passed beam is ignored
         # and the pencil-beam dipole is computed.
         cur_s_params = None
+        input_detector_names = None
         if apply_convolution:
             cur_beam_alms = beam_alms
             if cur_beam_alms is None:
@@ -919,11 +941,25 @@ def add_dipole_to_observations(
                     raise AttributeError(msg)
 
             if isinstance(cur_beam_alms, dict):
+                input_detector_names = (
+                    list(cur_obs.name)
+                    if all(k in cur_beam_alms for k in cur_obs.name)
+                    else list(cur_obs.channel)
+                    if all(k in cur_beam_alms for k in cur_obs.channel)
+                    else None
+                )
+                if input_detector_names is None:
+                    raise ValueError(
+                        "Beam blms dictionary keys do not match detector/channel names."
+                    )
+                beam_alms_dict = cast(dict[str, SphericalHarmonics], cur_beam_alms)
                 cur_s_params = {
                     key: BeamSParams.from_beam_alm(alm)
-                    for key, alm in cur_beam_alms.items()
+                    for key, alm in beam_alms_dict.items()
                 }
             else:
+                assert isinstance(cur_beam_alms, SphericalHarmonics), "Invalid blms format."
+                input_detector_names = None
                 cur_s_params = BeamSParams.from_beam_alm(cur_beam_alms)
 
         # Alas, this allocates memory for the velocity vector! At the moment it is the
@@ -949,5 +985,6 @@ def add_dipole_to_observations(
             frequency_ghz=frequency_ghz_arr,
             dipole_type=dipole_type,
             pointings_dtype=pointings_dtype,
-            s_params=cur_s_params,
+            input_detector_names=input_detector_names,
+            s_params=cur_s_params,            
         )

@@ -248,7 +248,7 @@ def test_dipole_convolved_through_observations(tmp_path):
 
     Exercises the wrapper convolution path (apply_convolution=True), which
     computes BeamSParams.from_beam_alm internally. Checks that:
-      * a single beam and a per-detector dict ({"0": beam}) give the same TOD;
+      * a single beam and a per-detector dict ({"A": beam}) give the same TOD;
       * the convolved TOD differs from the pencil-beam TOD.
     """
     sim = lbs.Simulation(
@@ -306,7 +306,7 @@ def test_dipole_convolved_through_observations(tmp_path):
 
     tod_pencil = run()
     tod_single = run(apply_convolution=True, beam_alms=beam_alm)
-    tod_dict = run(apply_convolution=True, beam_alms={"0": beam_alm})
+    tod_dict = run(apply_convolution=True, beam_alms={"A": beam_alm})
 
     # Single beam and per-detector dict must agree exactly.
     np.testing.assert_allclose(tod_single, tod_dict, rtol=1e-12, atol=1e-12)
