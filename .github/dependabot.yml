@@ -66,3 +66,5 @@ updates:
           - "rich"
           - "jinja2"
           - "markdown*"
+    ignore:
+      - dependency-name: "ty"

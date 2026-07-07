@@ -588,6 +588,9 @@ def test_issue314(tmp_path):
         write_full_pointings=False,
     )
 
+    if lbs.MPI_ENABLED:
+        lbs.MPI_COMM_WORLD.barrier()
+
     observations = lbs.read_list_of_observations(
         file_name_list=tmp_path.glob("*.h5"),
     )

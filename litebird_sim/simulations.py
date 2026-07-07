@@ -43,7 +43,7 @@ from .healpix import write_healpix_map_to_file
 from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
-from .input_sky import SkyGenerationParams, SkyGenerator
+from .input_sky import SkyGenerationParams, SkyGenerator, SkyInput
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
     BinnerResult,
@@ -1768,13 +1768,7 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: (
-            HealpixMap
-            | dict[str, HealpixMap | SkyGenerationParams]
-            | SphericalHarmonics
-            | dict[str, SphericalHarmonics | SkyGenerationParams]
-            | None
-        ) = None,
+        maps: SkyInput | None = None,
         component: str = "tod",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
@@ -1972,10 +1966,7 @@ class Simulation:
 
         if store_in_observation:
             for obs in self.observations:
-                obs.sky: (
-                    dict[str, HealpixMap | SphericalHarmonics]
-                    | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
-                ) = sky
+                obs.sky = sky
 
         return sky
 
