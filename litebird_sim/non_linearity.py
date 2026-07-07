@@ -2,9 +2,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .hwp_harmonics.hwp_harmonics import _dBodTth
 from .observations import Observation
 from .seeding import regenerate_or_check_detector_generators
+from .units import Units, UnitUtils
 
 
 @dataclass
@@ -63,7 +63,7 @@ def apply_quadratic_nonlin_for_one_detector(
     det_bandwidth_ghz: np.float64 | None = None,
     nl_params: NonLinParams | None = None,
     random: np.random.Generator | None = None,
-    conv_K_to_SR: bool = False,
+    conv_K_CMB_to_MJy_over_sr: bool = False,
 ):
     """This function applies the quadratic non-linearity on the TOD corresponding to
     only one detector.
@@ -79,7 +79,7 @@ def apply_quadratic_nonlin_for_one_detector(
         random (np.random.Generator, optional): A random number generator.
           Defaults to None.
 
-        conv_K_to_SR (bool, optional): Flag for temperature to spectral radiance
+        conv_K_CMB_to_MJy_over_sr (bool, optional): Flag for temperature to spectral radiance
             units conversion. Defaults to False.
 
         det_freq_ghz (np.float64, optional): Detector central frequency in GHz.
@@ -100,25 +100,19 @@ def apply_quadratic_nonlin_for_one_detector(
         scale=nl_params.sampling_gaussian_scale,
     )
 
-    if conv_K_to_SR:
-        import pysm3.units as u
-
+    if conv_K_CMB_to_MJy_over_sr:
         assert det_bandcenter_ghz is not None and det_bandwidth_ghz is not None, (
-            "You should pass det_bandcenter_ghz and det_bandwidth_ghz when conv_K_to_SR is set to True."
+            "You should pass det_bandcenter_ghz and det_bandwidth_ghz when conv_K_CMB_to_MJy_over_sr is set to True."
         )
 
-        g_inv = (1 / g_nonlin) * u.K_CMB
-        gn2 = (
-            g_inv.to(
-                u.MJy / u.sr,
-                equivalencies=u.cmb_equivalencies(det_bandcenter_ghz * u.GHz),
-            )
-            * det_bandwidth_ghz
-            * 1e9
+        conv_factor = UnitUtils.get_conversion_factor(
+            Units.K_CMB, Units.MJy_over_sr, det_bandcenter_ghz
         )
+
+        g_nonlin = 1 / conv_factor * g_nonlin
 
     for i in range(len(tod_det)):
-        tod_det[i] += (1 / gn2) * tod_det[i] ** 2
+        tod_det[i] += g_nonlin * tod_det[i] ** 2
 
 
 def apply_quadratic_nonlin(
@@ -127,7 +121,7 @@ def apply_quadratic_nonlin(
     bandwidth_ghz: np.ndarray,
     nl_params: NonLinParams | None = None,
     dets_random: list[np.random.Generator] | None = None,
-    conv_K_to_SR: bool = False,
+    conv_K_CMB_to_MJy_over_sr: bool = False,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -142,7 +136,7 @@ def apply_quadratic_nonlin(
             tod_det=tod[detector_idx],
             nl_params=nl_params,
             random=dets_random[detector_idx],
-            conv_K_to_SR=conv_K_to_SR,
+            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
             det_bandcenter_ghz=bandcenter_ghz[detector_idx],
             det_bandwidth_ghz=bandwidth_ghz[detector_idx],
         )
@@ -153,7 +147,7 @@ def apply_quadratic_nonlin_to_observations(
     nl_params: NonLinParams | None = None,
     component: str = "tod",
     user_seed: int | None = None,
-    conv_K_to_SR: bool = False,
+    conv_K_CMB_to_MJy_over_sr: bool = False,
 ):
     """
     Apply a quadratic nonlinearity to some time-ordered data
@@ -188,7 +182,7 @@ def apply_quadratic_nonlin_to_observations(
             Base seed to build the RNG hierarchy and generate samples of the detector non-linearity factor,
             independently of the MPI distribution across detectors and time.
             The user is required to set this parameter.
-    conv_K_to_SR (bool, optional): Flag for temperature to spectral radiance
+    conv_K_CMB_to_MJy_over_sr (bool, optional): Flag for temperature to spectral radiance
         units conversion. Defaults to False.
 
     Raises
@@ -232,7 +226,7 @@ def apply_quadratic_nonlin_to_observations(
             tod=tod,
             nl_params=nl_params,
             dets_random=dets_random,
-            conv_K_to_SR=conv_K_to_SR,
+            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
             bandcenter_ghz=bandcenter_ghz,
             bandwidth_ghz=bandwidth_ghz,
         )

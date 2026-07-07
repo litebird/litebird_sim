@@ -243,9 +243,8 @@ def compute_signal_for_one_detector(
             dtype=np.complex128,
         )
 
+        # print("jones", jones)
         mueller_hwp = JonesToMueller(jones)
-        # normalize to the gain
-        # mueller_hwp /= mueller_hwp[0, 0]
         mII, mIQ, mIU, mQI, mQQ, mQU, mUI, mUQ, mUU = hwp_to_fp_frame(
             alpha, mueller_hwp
         )
@@ -338,7 +337,6 @@ def integrate_inband_signal_for_one_detector(
             jones_nu[1, 1] = -1 + deltas[nu, 1, 1]
 
             mueller_hwp_nu = JonesToMueller(jones_nu)
-            # mueller_hwp_nu /= mueller_hwp_nu[0, 0]
             (
                 mII[nu],
                 mIQ[nu],

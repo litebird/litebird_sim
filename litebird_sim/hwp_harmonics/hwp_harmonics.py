@@ -592,6 +592,10 @@ def fill_tod_with_hwp_harmonics(
                     amplitude_2f_k=amplitude_2f_k[idet],
                 )
 
+                # normalize to the bandwidth after integration
+                if len(cur_det_params.freq_ghz) > 1:
+                    tod_det /= bandwidth_ghz[idet] * 1e9
+
             else:
                 if hwp.calculus is HWPFormalism.MUELLER:
                     if mueller_phases is None:

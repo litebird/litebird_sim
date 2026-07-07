@@ -2099,14 +2099,14 @@ class Simulation:
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
-        conv_K_to_SR: bool = False,
+        conv_K_CMB_to_MJy_over_sr: bool = False,
     ):
         """A method to apply non-linearity to the observation.
 
         This is a wrapper around
         :func:`.apply_quadratic_nonlin_to_observations()` that
         applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained for each detector, independently of the MPI distribution across detectors and time. Setting the `user_seed` argument is required for this.
-        conv_K_to_SR (bool, optional) is a flag for temperature to spectral radiance
+        conv_K_CMB_to_MJy_over_sr (bool, optional) is a flag for temperature to spectral radiance
         units conversion. Defaults to False.
         """
 
@@ -2122,7 +2122,7 @@ class Simulation:
             nl_params=nl_params,
             user_seed=user_seed,
             component=component,
-            conv_K_to_SR=conv_K_to_SR,
+            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2139,7 +2139,7 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 g=g,
-                conv_K_to_SR=conv_K_to_SR,
+                conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
             )
 
     @_profile
