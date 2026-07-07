@@ -103,6 +103,59 @@ def test_beam_convolution_strict_types(
         lbs.add_convolved_sky(**arguments)
 
 
+def test_beam_convolution_scalar_name_broadcast():
+    """A scalar `input_sky_names`/`input_beam_names` must broadcast to all detectors."""
+    rng = np.random.default_rng(42)
+
+    num_of_samples = 50
+    num_of_detectors = 3
+    pointings = rng.uniform(
+        low=0.0, high=np.pi, size=(num_of_detectors, num_of_samples, 3)
+    )
+
+    lmax = 10
+    mmax_sky = 10
+    mmax_beam = mmax_sky - 4
+    sky_alm = lbs.SphericalHarmonics(
+        values=rng.random((3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax_sky))),
+        lmax=lmax,
+        mmax=mmax_sky,
+    )
+    beam_alm = lbs.SphericalHarmonics(
+        values=rng.random(
+            (3, SphericalHarmonics.num_of_alm_from_lmax(lmax, mmax_beam))
+        ),
+        lmax=lmax,
+        mmax=mmax_beam,
+    )
+
+    convolution_params = lbs.BeamConvolutionParameters(
+        lmax=lmax, mmax=mmax_beam, strict_typing=False
+    )
+
+    tod_direct = np.zeros((num_of_detectors, num_of_samples))
+    lbs.add_convolved_sky(
+        tod=tod_direct,
+        pointings=pointings,
+        sky_alms=sky_alm,
+        beam_alms=beam_alm,
+        convolution_params=convolution_params,
+    )
+
+    tod_scalar = np.zeros((num_of_detectors, num_of_samples))
+    lbs.add_convolved_sky(
+        tod=tod_scalar,
+        pointings=pointings,
+        sky_alms={"only": sky_alm},
+        beam_alms={"only": beam_alm},
+        input_sky_names="only",
+        input_beam_names="only",
+        convolution_params=convolution_params,
+    )
+
+    np.testing.assert_allclose(tod_scalar, tod_direct, rtol=1e-12, atol=1e-12)
+
+
 def test_beam_convolution():
     start_time = 0
     time_span_s = 3600

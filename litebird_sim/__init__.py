@@ -59,7 +59,12 @@ from .detectors import (
     InstrumentInfo,
     detector_list_from_parameters,
 )
-from .dipole import add_dipole, add_dipole_to_observations, DipoleType
+from .dipole import (
+    add_dipole,
+    add_dipole_to_observations,
+    BeamSParams,
+    DipoleType,
+)
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import (
     GainDriftType,
@@ -395,6 +400,7 @@ __all__ = [
     # dipole.py
     "add_dipole",
     "add_dipole_to_observations",
+    "BeamSParams",
     "DipoleType",
     # coordinates.py
     "DEFAULT_COORDINATE_SYSTEM",

@@ -43,7 +43,7 @@ from .healpix import write_healpix_map_to_file
 from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
-from .input_sky import SkyGenerationParams, SkyGenerator
+from .input_sky import SkyGenerationParams, SkyGenerator, SkyInput
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
     HMapsResult,
@@ -1768,13 +1768,7 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: (
-            HealpixMap
-            | dict[str, HealpixMap | SkyGenerationParams]
-            | SphericalHarmonics
-            | dict[str, SphericalHarmonics | SkyGenerationParams]
-            | None
-        ) = None,
+        maps: SkyInput | None = None,
         component: str = "tod",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
@@ -1972,10 +1966,7 @@ class Simulation:
 
         if store_in_observation:
             for obs in self.observations:
-                obs.sky: (
-                    dict[str, HealpixMap | SphericalHarmonics]
-                    | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
-                ) = sky
+                obs.sky = sky
 
         return sky
 
@@ -2100,6 +2091,7 @@ class Simulation:
         component: str = "tod",
         append_to_report: bool = False,
         rng_hierarchy: RNGHierarchy | None = None,
+        conv_K_to_SR: bool = False,
     ):
         """A method to apply non-linearity to the observation.
 
@@ -2107,6 +2099,9 @@ class Simulation:
         :func:`.apply_quadratic_nonlin_to_observations()` that
         applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained from the detector-level layer. As default it uses
         the `dets_random` field of a :class:`.Simulation` object for this.
+
+        conv_K_to_SR (bool, optional) is a flag for temperature to spectral radiance
+        units conversion. Defaults to False.
         """
         if rng_hierarchy is None:
             rng_hierarchy = self.rng_hierarchy
@@ -2122,6 +2117,7 @@ class Simulation:
             user_seed=user_seed,
             component=component,
             dets_random=dets_random,
+            conv_K_to_SR=conv_K_to_SR,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2138,6 +2134,7 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 g=g,
+                conv_K_to_SR=conv_K_to_SR,
             )
 
     @_profile

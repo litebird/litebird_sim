@@ -505,7 +505,11 @@ class InstrumentInfo:
     boresight_rotangle_rad: float = 0.0
     spin_boresight_angle_rad: float = 0.0
     spin_rotangle_rad: float = 0.0
-    bore2spin_quat = np.array([0.0, 0.0, 0.0, 1.0])
+    bore2spin_quat: np.ndarray | RotQuaternion = field(
+        init=False,
+        compare=False,
+        default_factory=lambda: np.array([0.0, 0.0, 0.0, 1.0]),
+    )
     hwp_rpm: float = 0.0
     number_of_channels: int = 0
     channel_names: list[str] = field(default_factory=list)
