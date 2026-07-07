@@ -7,7 +7,7 @@
 - Quadratic Non Linearity was NOT applied to the detectors.
 {% endif %}
 
-{% if conv_K_to_SR -%}
+{% if conv_K_CMB_to_MJy_over_sr -%}
 - Non-Linearity g factor was converted from temperature to spectral radiance units. 
 {% else %}
 - Non-Linearity g factor was used in temperature units.
