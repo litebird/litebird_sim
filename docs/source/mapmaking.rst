@@ -24,7 +24,7 @@ The framework provides the following solutions:
    uncorrelated noise is present in the timelines.
 
 2. A *pair-differencing* map-maker that solves for Q/U only by
-  differencing T/B detector pairs on the same wafer pixel.
+   differencing T/B detector pairs on the same wafer pixel.
 
 3. A *destriper*, i.e., a more advanced map-maker that can remove the
    effect of correlated instrumental noise from the timelines before

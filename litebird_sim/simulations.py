@@ -2142,7 +2142,8 @@ class Simulation:
         component: str = "tod",
         append_to_report: bool = True,
         engine: str = "fft",
-        model: str = "standard",
+        model: str = "toast",
+        correlation: dict | None = None,
     ):
         """Adds noise to tods.
 
@@ -2151,6 +2152,43 @@ class Simulation:
         :meth:`.set_instrument` and :meth:`.set_detectors`.
         Random number generators are obtained from the detector-level layer. As default it uses
         the `dets_random` field of a :class:`.Simulation` object for this.
+
+        Parameters
+        ----------
+        rng_hierarchy : RNGHierarchy or None, optional
+            RNG hierarchy to use. Defaults to ``self.rng_hierarchy``.
+        user_seed : int or None, optional
+            Alternative integer seed (ignored when ``rng_hierarchy`` is given).
+        noise_type : str, optional
+            ``"white"``, ``"one_over_f"`` (default), or ``"correlated"``.
+        component : str, optional
+            TOD attribute to add noise to. Defaults to ``"tod"``.
+        append_to_report : bool, optional
+            Whether to append a noise section to the simulation report.
+        engine : str, optional
+            Noise-generation engine (``"fft"`` or ``"ducc"``). Defaults to
+            ``"fft"``.
+        model : str, optional
+            PSD model (``"toast"`` or ``"keshner"``). Defaults to ``"toast"``.
+        correlation : dict or None, optional
+            Required when ``noise_type="correlated"``.  Supported keys:
+
+            * ``"corr_matrix"`` *(ndarray)*: full :math:`(n_{det}, n_{det})`
+              symmetric positive-semi-definite correlation matrix.  When
+              present, the Cholesky mixing model is used and ``"group_by"`` /
+              ``"groups"`` / ``"rho"`` / ``"common_mode_type"`` are ignored.
+              The diagonal should be 1 (unit variance before per-detector
+              sigma scaling).
+            * ``"group_by"`` *(str or None)*: name of a per-detector attribute
+              on each observation (e.g. ``"wafer"``).  ``None`` puts all
+              detectors in one group.  Used only when ``"corr_matrix"`` is
+              absent.
+            * ``"groups"`` *(array-like)*: explicit integer group-label array
+              (takes precedence over ``"group_by"``).
+            * ``"rho"`` *(float or array-like)*: fraction of variance in the
+              common mode, in [0, 1].  Defaults to 0.25.
+            * ``"common_mode_type"`` *(str)*: PSD shape of the common-mode
+              stream, ``"one_over_f"`` (default) or ``"white"``.
         """
 
         if rng_hierarchy is None:
@@ -2167,6 +2205,7 @@ class Simulation:
             component=component,
             engine=engine,
             model=model,
+            correlation=correlation,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

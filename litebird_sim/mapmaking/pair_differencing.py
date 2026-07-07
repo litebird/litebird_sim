@@ -380,15 +380,15 @@ def make_pair_differenced_map(
             They are required to have the following attributes as arrays
 
             * `pointings`: the pointing information (in radians) for each tod
-               sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
-               with ``N_d`` number of detectors and ``N_t`` number of
-               samples in the TOD.
-                        * any attribute listed in `components` (by default, `tod`) and
-                            containing the TOD(s) to be differenced and binned together.
+              sample. It must be a tensor with shape ``(N_d, N_t, 3)``,
+              with ``N_d`` number of detectors and ``N_t`` number of
+              samples in the TOD.
+            * any attribute listed in `components` (by default, `tod`) and
+              containing the TOD(s) to be differenced and binned together.
 
-                        The local detector set is required to be arranged in T/B pairs sharing
-                        the same wafer and focal-plane pixel. The map-maker differences the TOD
-                        of each pair and solves only for the Q/U Stokes components.
+            The local detector set is required to be arranged in T/B pairs sharing
+            the same wafer and focal-plane pixel. The map-maker differences the TOD
+            of each pair and solves only for the Q/U Stokes components.
 
             If the observations are distributed over some communicator(s), they
             must share the same group processes.

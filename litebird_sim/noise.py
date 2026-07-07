@@ -115,6 +115,65 @@ def add_white_noise(data, sigma: float, random):
     data += random.normal(0, sigma, data.shape)
 
 
+def _synthesize_one_over_f_stream(
+    n_samples: int,
+    fknee_mhz: float,
+    fmin_hz: float,
+    alpha: float,
+    sigma: float,
+    sampling_rate_hz: float,
+    random,
+    engine: str = "fft",
+    model: str = "toast",
+):
+    """
+    Generate and return a 1D 1/f noise array with the requested PSD.
+
+    This is an internal helper used by :func:`add_correlated_noise` to produce
+    a noise stream that can be scaled and combined before being added to the TOD.
+    It delegates to :func:`add_one_over_f_noise` on a temporary buffer.
+
+    Parameters
+    ----------
+    n_samples : int
+        Number of time samples to generate.
+    fknee_mhz : float
+        The knee frequency in mHz.
+    fmin_hz : float
+        The minimum frequency in Hz below which the spectrum flattens.
+    alpha : float
+        The spectral slope (e.g., 1.0 for pink noise).
+    sigma : float
+        The white noise standard deviation (RMS) per sample.
+    sampling_rate_hz : float
+        The sampling rate of the data in Hz.
+    random : numpy.random.Generator
+        The random number generator instance.
+    engine : str, optional
+        Computation engine (``"fft"`` or ``"ducc"``). Defaults to ``"fft"``.
+    model : str, optional
+        Physical PSD model (``"toast"`` or ``"keshner"``). Defaults to ``"toast"``.
+
+    Returns
+    -------
+    numpy.ndarray
+        1D noise array of length ``n_samples``.
+    """
+    stream = np.zeros(n_samples)
+    add_one_over_f_noise(
+        stream,
+        fknee_mhz,
+        fmin_hz,
+        alpha,
+        sigma,
+        sampling_rate_hz,
+        random,
+        engine=engine,
+        model=model,
+    )
+    return stream
+
+
 def add_one_over_f_noise(
     data,
     fknee_mhz: float,
@@ -249,6 +308,352 @@ def rescale_noise(net_ukrts: float, sampling_rate_hz: float, scale: float):
     return net_ukrts * np.sqrt(sampling_rate_hz) * scale / 1e6
 
 
+def _get_param_value(param, idx):
+    """Extract a detector-specific scalar from a scalar or a per-detector array."""
+    if np.ndim(param) > 0:
+        return param[idx]
+    return param
+
+
+# --- CORRELATED NOISE ---
+
+
+def _normalize_rho(rho, n_detectors):
+    """
+    Validate and broadcast the correlation coefficient *rho*.
+
+    Parameters
+    ----------
+    rho : float or array-like
+        Fraction of variance in the common mode.  Must be in [0, 1].
+        A scalar is broadcast to all detectors; an array must have length
+        ``n_detectors``.
+
+    n_detectors : int
+        Number of detectors.
+
+    Returns
+    -------
+    numpy.ndarray
+        1-D array of length ``n_detectors`` with per-detector rho values.
+
+    Raises
+    ------
+    ValueError
+        If any value is outside [0, 1] or if the array length is wrong.
+    """
+    rho = np.asarray(rho, dtype=float)
+    if rho.ndim == 0:
+        rho = np.full(n_detectors, float(rho))
+    if rho.shape != (n_detectors,):
+        raise ValueError(
+            f"rho must be a scalar or a 1-D array of length {n_detectors}, "
+            f"got shape {rho.shape}."
+        )
+    if np.any((rho < 0) | (rho > 1)):
+        raise ValueError("All rho values must be in [0, 1].")
+    return rho
+
+
+def _validate_grouping(n_detectors, groups):
+    """
+    Validate the group label array and return it as a numpy array of ints.
+
+    Parameters
+    ----------
+    n_detectors : int
+        Expected number of detectors.
+    groups : array-like
+        1-D array of integer group labels with length ``n_detectors``.
+
+    Returns
+    -------
+    numpy.ndarray
+        Integer array of length ``n_detectors``.
+
+    Raises
+    ------
+    ValueError
+        If the array has the wrong length.
+    """
+    groups = np.asarray(groups, dtype=int)
+    if groups.shape != (n_detectors,):
+        raise ValueError(
+            f"groups must be a 1-D array of length {n_detectors}, "
+            f"got shape {groups.shape}."
+        )
+    return groups
+
+
+def _spawn_group_rngs_from_detectors(dets_random, groups):
+    """
+    Derive one deterministic RNG per group from the detector RNGs.
+
+    The seed for group *g* is obtained by XOR-ing the bit-state integers of all
+    detectors belonging to that group.  This is reproducible regardless of the
+    order in which detector generators were initialised.
+
+    Parameters
+    ----------
+    dets_random : list of numpy.random.Generator
+        One RNG per detector.
+    groups : numpy.ndarray
+        Integer group-label array (length = number of detectors).
+
+    Returns
+    -------
+    dict
+        Mapping ``{group_label: numpy.random.Generator}``.
+    """
+    seeds = {}
+    for idet, grp in enumerate(groups):
+        # Extract the 128-bit state of the PCG generator as an integer
+        state_int = int(dets_random[idet].bit_generator.state["state"]["state"])
+        seeds[grp] = seeds.get(grp, 0) ^ state_int
+
+    return {grp: np.random.default_rng(seed) for grp, seed in seeds.items()}
+
+
+def _build_detector_groups(obs, grouping):
+    """
+    Build an integer group-label array from a grouping specification.
+
+    Parameters
+    ----------
+    obs : :class:`.Observation`
+        The observation whose detectors are to be grouped.
+    grouping : None, str, or array-like
+        Grouping specification:
+
+        * ``None``: all detectors belong to group 0 (single shared stream).
+        * ``str``: name of a per-detector attribute on *obs* (e.g.
+          ``"wafer"``).  The unique values are mapped to consecutive
+          integers starting from 0.
+        * array-like: explicit integer group labels, one per detector.
+
+    Returns
+    -------
+    numpy.ndarray
+        Integer group-label array of length ``n_detectors``.
+    """
+    n_det = obs.n_detectors
+    if grouping is None:
+        return np.zeros(n_det, dtype=int)
+    if isinstance(grouping, str):
+        labels = getattr(obs, grouping)
+        unique = {v: i for i, v in enumerate(dict.fromkeys(labels))}
+        return np.array([unique[v] for v in labels], dtype=int)
+    return _validate_grouping(n_det, grouping)
+
+
+def add_correlated_noise(
+    tod,
+    sampling_rate_hz,
+    net_ukrts,
+    fknee_mhz,
+    fmin_hz,
+    alpha,
+    dets_random,
+    groups=None,
+    rho=0.25,
+    scale=1.0,
+    engine="fft",
+    model="toast",
+    common_mode_type="one_over_f",
+    corr_matrix=None,
+):
+    """
+    Add correlated noise to a TOD.
+
+    Two correlation models are supported, selected by which parameter is
+    provided:
+
+    **Cholesky model** (``corr_matrix`` is given)
+        A full :math:`n_{det} \\times n_{det}` correlation matrix
+        :math:`\\mathbf{R}` is factored as :math:`\\mathbf{R} = \\mathbf{L}
+        \\mathbf{L}^T` via Cholesky decomposition.  Then :math:`n_{det}`
+        independent unit-variance noise streams :math:`z_j(t)` are generated
+        (each with the PSD of detector *j*) and mixed:
+
+        .. math::
+
+           n_i(t) = \\sigma_i \\sum_j L_{ij}\\,z_j(t)
+
+        This supports arbitrary positive-semi-definite correlation structures.
+
+    **Common-mode model** (``groups`` is given, default)
+        Each detector *i* in group *g* receives:
+
+        .. math::
+
+           n_i(t) = \\sqrt{\\rho_i}\\,c_g(t) + \\sqrt{1 - \\rho_i}\\,u_i(t)
+
+        where :math:`c_g(t)` is a shared stream for the whole group and
+        :math:`u_i(t)` is a detector-unique stream.  This is a rank-1
+        approximation within each group.
+
+    Parameters
+    ----------
+    tod : ndarray, shape (n_detectors, n_samples)
+        Time-ordered data array, modified **in-place**.
+    sampling_rate_hz : float
+        Sampling rate in Hz.
+    net_ukrts : float or array-like
+        Noise Equivalent Temperature in μK√s.  Scalar or per-detector array.
+    fknee_mhz : float or array-like
+        Knee frequency in mHz.  Scalar or per-detector array.
+    fmin_hz : float or array-like
+        Minimum frequency in Hz.  Scalar or per-detector array.
+    alpha : float or array-like
+        Spectral slope.  Scalar or per-detector array.
+    dets_random : list of numpy.random.Generator
+        One RNG per detector.
+    groups : array-like of int or None, optional
+        Integer group labels, length ``n_detectors``.  Used only by the
+        common-mode model.  Required when ``corr_matrix`` is ``None``.
+    rho : float or array-like, optional
+        Fraction of variance in the common mode.  Must be in [0, 1].
+        Used only by the common-mode model.  Defaults to 0.25.
+    scale : float, optional
+        Multiplicative factor applied to NET before unit conversion.
+        Defaults to 1.0.
+    engine : str, optional
+        Noise-generation engine (``"fft"`` or ``"ducc"``).  Defaults to
+        ``"fft"``.
+    model : str, optional
+        PSD model (``"toast"`` or ``"keshner"``).  Defaults to ``"toast"``.
+    common_mode_type : str, optional
+        PSD shape for the common-mode stream: ``"one_over_f"`` (default) or
+        ``"white"``.  Used only by the common-mode model.
+    corr_matrix : array-like of shape (n_detectors, n_detectors) or None, optional
+        Symmetric positive-semi-definite correlation matrix.  When provided,
+        the Cholesky model is used and ``groups`` / ``rho`` /
+        ``common_mode_type`` are ignored.  The diagonal should be 1 (unit
+        variance before per-detector sigma scaling).
+
+    Raises
+    ------
+    ValueError
+        If ``corr_matrix`` is provided but is not square, not the right size,
+        or not positive-semi-definite.
+    ValueError
+        If ``corr_matrix`` is ``None`` and ``groups`` is also ``None``.
+    ValueError
+        If ``common_mode_type`` is not recognised (common-mode path).
+    """
+    n_det, n_samp = tod.shape
+    sigma = rescale_noise(net_ukrts, sampling_rate_hz, scale)
+
+    # --- Cholesky path ---
+    if corr_matrix is not None:
+        R = np.asarray(corr_matrix, dtype=float)
+        if R.shape != (n_det, n_det):
+            raise ValueError(
+                f"corr_matrix must be a ({n_det}, {n_det}) matrix, got shape {R.shape}."
+            )
+        try:
+            L = np.linalg.cholesky(R)
+        except np.linalg.LinAlgError:
+            raise ValueError(
+                "corr_matrix is not positive-definite. "
+                "Ensure it is a valid correlation matrix (symmetric, PSD, "
+                "unit diagonal). A small diagonal regularisation may help: "
+                "R + eps * np.eye(n) where eps ~ 1e-10."
+            )
+        # Generate n_det independent unit-variance noise streams
+        unit_streams = np.zeros((n_det, n_samp))
+        for j in range(n_det):
+            fknee_j = _get_param_value(fknee_mhz, j)
+            fmin_j = _get_param_value(fmin_hz, j)
+            alpha_j = _get_param_value(alpha, j)
+            unit_streams[j] = _synthesize_one_over_f_stream(
+                n_samp,
+                fknee_j,
+                fmin_j,
+                alpha_j,
+                1.0,
+                sampling_rate_hz,
+                dets_random[j],
+                engine=engine,
+                model=model,
+            )
+        # Mix streams: n_i = sigma_i * sum_j L[i,j] * z_j
+        mixed = L @ unit_streams  # shape (n_det, n_samp)
+        for i in range(n_det):
+            sigma_i = _get_param_value(sigma, i)
+            tod[i] += sigma_i * mixed[i]
+        return
+
+    # --- Common-mode path ---
+    if groups is None:
+        raise ValueError(
+            "Either 'corr_matrix' or 'groups' must be provided to add_correlated_noise."
+        )
+    groups = _validate_grouping(n_det, groups)
+    rho_arr = _normalize_rho(rho, n_det)
+
+    # One deterministic RNG per group (for the common-mode streams)
+    group_rngs = _spawn_group_rngs_from_detectors(dets_random, groups)
+
+    # Pre-generate common-mode streams (one per unique group)
+    common_streams = {}
+    for grp, grp_rng in group_rngs.items():
+        # Use the NET/spectral parameters of the *first* detector in this group
+        idet0 = int(np.where(groups == grp)[0][0])
+        sigma_g = _get_param_value(sigma, idet0)
+        fknee_g = _get_param_value(fknee_mhz, idet0)
+        fmin_g = _get_param_value(fmin_hz, idet0)
+        alpha_g = _get_param_value(alpha, idet0)
+
+        if common_mode_type == "one_over_f":
+            common_streams[grp] = _synthesize_one_over_f_stream(
+                n_samp,
+                fknee_g,
+                fmin_g,
+                alpha_g,
+                sigma_g,
+                sampling_rate_hz,
+                grp_rng,
+                engine=engine,
+                model=model,
+            )
+        elif common_mode_type == "white":
+            stream = np.zeros(n_samp)
+            add_white_noise(stream, sigma_g, grp_rng)
+            common_streams[grp] = stream
+        else:
+            raise ValueError(
+                f"Unknown common_mode_type '{common_mode_type}'. "
+                "Choose 'one_over_f' or 'white'."
+            )
+
+    # Add common + unique streams to each detector
+    for idet in range(n_det):
+        rho_i = rho_arr[idet]
+        sigma_i = _get_param_value(sigma, idet)
+        fknee_i = _get_param_value(fknee_mhz, idet)
+        fmin_i = _get_param_value(fmin_hz, idet)
+        alpha_i = _get_param_value(alpha, idet)
+        grp = groups[idet]
+
+        # Unique stream
+        unique_stream = _synthesize_one_over_f_stream(
+            n_samp,
+            fknee_i,
+            fmin_i,
+            alpha_i,
+            sigma_i,
+            sampling_rate_hz,
+            dets_random[idet],
+            engine=engine,
+            model=model,
+        )
+
+        tod[idet] += (
+            np.sqrt(rho_i) * common_streams[grp] + np.sqrt(1.0 - rho_i) * unique_stream
+        )
+
+
 def add_noise(
     tod,
     noise_type,
@@ -261,9 +666,10 @@ def add_noise(
     scale=1.0,
     engine="fft",
     model="toast",
+    correlation=None,
 ):
     """
-    Adds noise (white or 1/f) to a TOD array for a specific detector.
+    Adds noise to a TOD array for all detectors.
 
     This function handles the correct broadcasting if `net_ukrts`, `fknee_mhz`, etc.,
     are arrays (indicating multiple detectors) while the `tod` is processed
@@ -274,7 +680,8 @@ def add_noise(
     tod : ndarray
         The Time-Ordered Data array of shape (n_detectors, n_samples).
     noise_type : str
-        The type of noise to add: ``"white"`` or ``"one_over_f"``.
+        The type of noise to add: ``"white"``, ``"one_over_f"``, or
+        ``"correlated"``.
     sampling_rate_hz : float
         Sampling rate in Hz.
     net_ukrts : float or array-like
@@ -293,7 +700,40 @@ def add_noise(
         Computation engine (``"fft"`` or ``"ducc"``). Defaults to ``"fft"``.
     model : str, optional
         Physical noise model (``"toast"`` or ``"keshner"``). Defaults to ``"toast"``.
+    correlation : dict or None, optional
+        Required when ``noise_type="correlated"``.  Supported keys:
+
+        * ``"corr_matrix"`` *(ndarray)*: full :math:`(n_{det}, n_{det})`
+          correlation matrix.  When present, the Cholesky model is used and
+          ``"groups"`` / ``"rho"`` / ``"common_mode_type"`` are ignored.
+        * ``"groups"`` *(array-like)*: integer group labels (one per detector).
+          Required when ``"corr_matrix"`` is absent.
+        * ``"rho"`` *(float or array-like)*: fraction of variance in the
+          common mode, in [0, 1].  Defaults to 0.25.
+        * ``"common_mode_type"`` *(str)*: PSD shape of the common-mode stream:
+          ``"one_over_f"`` (default) or ``"white"``.
     """
+    if noise_type == "correlated":
+        if correlation is None:
+            raise ValueError("noise_type='correlated' requires a 'correlation' dict.")
+        add_correlated_noise(
+            tod=tod,
+            sampling_rate_hz=sampling_rate_hz,
+            net_ukrts=net_ukrts,
+            fknee_mhz=fknee_mhz,
+            fmin_hz=fmin_hz,
+            alpha=alpha,
+            dets_random=dets_random,
+            groups=correlation.get("groups"),
+            rho=correlation.get("rho", 0.25),
+            scale=scale,
+            engine=engine,
+            model=model,
+            common_mode_type=correlation.get("common_mode_type", "one_over_f"),
+            corr_matrix=correlation.get("corr_matrix"),
+        )
+        return
+
     sigma = rescale_noise(net_ukrts, sampling_rate_hz, scale)
 
     # Helper function to extract scalar parameters for the i-th detector
@@ -324,6 +764,8 @@ def add_noise(
                 engine=engine,
                 model=model,
             )
+        else:
+            raise ValueError(f"Unknown noise type '{noise_type}'.")
 
 
 def add_noise_to_observations(
@@ -335,9 +777,10 @@ def add_noise_to_observations(
     component="tod",
     engine="fft",
     model="toast",
+    correlation=None,
 ):
     """
-    Adds instrumental noise (white or 1/f) to a list of Observations.
+    Adds instrumental noise (white, 1/f, or correlated) to a list of Observations.
 
     This is the high-level interface for noise simulation. It iterates over
     detectors and observations, handling random number generator initialization
@@ -352,8 +795,10 @@ def add_noise_to_observations(
         The type of noise to generate. Options are:
 
         * ``"white"``: Uncorrelated Gaussian noise based on NET.
-        * ``"one_over_f"``: Correlated noise characterized by
-          knee frequency and spectral index.
+        * ``"one_over_f"``: 1/f noise characterised by knee frequency and
+          spectral index.
+        * ``"correlated"``: Common-mode + detector-unique 1/f noise.  Requires
+          the ``correlation`` argument.
     user_seed : int, optional
         A master integer seed used to initialize the random number generators
         if ``dets_random`` is not provided. If ``None`` and ``dets_random``
@@ -383,15 +828,31 @@ def add_noise_to_observations(
 
         * ``"toast"``: :math:`P(f) \\propto (f^\\alpha + f_{knee}^\\alpha) / (f^\\alpha + f_{min}^\\alpha)`
         * ``"keshner"``: :math:`P(f) \\propto ((f^2 + f_{knee}^2) / (f^2 + f_{min}^2))^{\\alpha/2}`
+    correlation : dict or None, optional
+        Required when ``noise_type="correlated"``.  Supported keys:
 
-    Raises
-    ------
-    ValueError
-        If ``noise_type`` is not recognized.
-    ValueError
-        If the ``ducc`` engine is requested with the ``toast`` model.
+        * ``"group_by"`` *(str or None)*: name of a per-detector attribute on
+          each :class:`.Observation` (e.g. ``"wafer"``).  Detectors with the
+          same value share a common-mode stream.  ``None`` (default) puts all
+          detectors in one group.
+        * ``"groups"`` *(array-like)*: explicit integer group-label array.
+          Takes precedence over ``"group_by"`` when present.
+        * ``"corr_matrix"`` *(ndarray)*: full :math:`(n_{det}, n_{det})`
+          correlation matrix.  When present, the Cholesky model is used and
+          ``"group_by"`` / ``"groups"`` / ``"rho"`` / ``"common_mode_type"``
+          are ignored.
+        * ``"group_by"`` *(str or None)*: name of a per-detector attribute on
+          each :class:`.Observation` (e.g. ``"wafer"``).  Detectors with the
+          same value share a common-mode stream.  ``None`` (default) puts all
+          detectors in one group.  Used only when ``"corr_matrix"`` is absent.
+        * ``"groups"`` *(array-like)*: explicit integer group-label array.
+          Takes precedence over ``"group_by"`` when present.
+        * ``"rho"`` *(float or array-like)*: fraction of variance in the
+          common mode.  Must be in [0, 1]. Defaults to 0.25.
+        * ``"common_mode_type"`` *(str)*: PSD shape of the common-mode stream:
+          ``"one_over_f"`` (default) or ``"white"``.
     """
-    if noise_type not in ["white", "one_over_f"]:
+    if noise_type not in ["white", "one_over_f", "correlated"]:
         raise ValueError("Unknown noise type " + noise_type)
 
     if isinstance(observations, Observation):
@@ -405,6 +866,41 @@ def add_noise_to_observations(
         user_seed=user_seed,
         dets_random=dets_random,
     )
+
+    if noise_type == "correlated":
+        if correlation is None:
+            raise ValueError(
+                "noise_type='correlated' requires the 'correlation' argument."
+            )
+        corr_matrix = correlation.get("corr_matrix")
+        rho = correlation.get("rho", 0.25)
+        common_mode_type = correlation.get("common_mode_type", "one_over_f")
+        group_by = correlation.get("group_by", None)
+
+        for cur_obs in obs_list:
+            if corr_matrix is not None:
+                groups = None
+            elif "groups" in correlation:
+                groups = _validate_grouping(cur_obs.n_detectors, correlation["groups"])
+            else:
+                groups = _build_detector_groups(cur_obs, group_by)
+            add_correlated_noise(
+                tod=getattr(cur_obs, component),
+                sampling_rate_hz=cur_obs.sampling_rate_hz,
+                net_ukrts=cur_obs.net_ukrts,
+                fknee_mhz=getattr(cur_obs, "fknee_mhz"),
+                fmin_hz=getattr(cur_obs, "fmin_hz"),
+                alpha=getattr(cur_obs, "alpha"),
+                dets_random=dets_random,
+                groups=groups,
+                rho=rho,
+                scale=scale,
+                engine=engine,
+                model=model,
+                common_mode_type=common_mode_type,
+                corr_matrix=corr_matrix,
+            )
+        return
 
     for cur_obs in obs_list:
         add_noise(

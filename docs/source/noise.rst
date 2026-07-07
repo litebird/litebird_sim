@@ -223,6 +223,159 @@ Again, to generate noise with custom parameters, we can either use the low-level
     timeline.
 
 
+Correlated noise
+----------------
+
+Real detector arrays are often affected by noise that is partially
+correlated across detectors — for example through a common thermal
+bath, shared readout electronics, or optical leakage.  The function
+:func:`.add_correlated_noise` (and its high-level wrapper
+:func:`.add_noise_to_observations`) supports two models for
+inter-detector correlations.
+
+Common-mode model
+^^^^^^^^^^^^^^^^^
+
+Each detector :math:`i` belonging to group :math:`g` receives:
+
+.. math::
+
+    n_i(t) = \sqrt{\rho_i}\,c_g(t) + \sqrt{1 - \rho_i}\,u_i(t)
+
+where :math:`c_g(t)` is a shared noise stream for the whole group and
+:math:`u_i(t)` is a detector-unique stream.  The parameter
+:math:`\rho_i \in [0, 1]` controls the fraction of variance contributed
+by the common mode: :math:`\rho_i = 0` gives fully independent detectors
+while :math:`\rho_i = 1` makes all detectors in a group identical.
+
+Detectors are assigned to groups via the ``group_by`` key (name of a
+per-detector attribute, e.g. ``"wafer"``) or an explicit integer label
+array passed as ``groups``.
+
+.. testcode::
+
+   import litebird_sim as lbs
+   import numpy as np
+
+   sim = lbs.Simulation(
+       base_path='./output',
+       start_time=0,
+       duration_s=100,
+       random_seed=12345,
+   )
+
+   # Two detectors with identical noise parameters
+   dets = [
+       lbs.DetectorInfo(name="det_A", net_ukrts=50, sampling_rate_hz=10,
+                        alpha=1.0, fknee_mhz=10, fmin_hz=0.001),
+       lbs.DetectorInfo(name="det_B", net_ukrts=50, sampling_rate_hz=10,
+                        alpha=1.0, fknee_mhz=10, fmin_hz=0.001),
+   ]
+
+   obs = sim.create_observations(detectors=dets)
+
+   # Both detectors share the same common-mode stream (rho=0.5 means
+   # half of the variance is common, half is independent).
+   lbs.noise.add_noise_to_observations(
+       obs,
+       noise_type='correlated',
+       dets_random=sim.dets_random,
+       correlation={
+           "groups": [0, 0],   # both detectors in group 0
+           "rho": 0.5,
+       },
+   )
+
+   print("det_A sample:", f"{obs[0].tod[0][0]:.3e}")
+   print("det_B sample:", f"{obs[0].tod[1][0]:.3e}")
+
+.. testoutput::
+
+   det_A sample: ...
+   det_B sample: ...
+
+When detectors should be grouped by a named attribute (e.g. focal-plane
+wafer), pass ``group_by="wafer"`` instead of an explicit array.  All
+detectors that share the same value of the attribute will receive the
+same common-mode stream.
+
+Cholesky model
+^^^^^^^^^^^^^^
+
+For a richer correlation structure, you can specify a full
+:math:`n_{det} \times n_{det}` correlation matrix :math:`\mathbf{R}`.
+The function performs a Cholesky decomposition
+:math:`\mathbf{R} = \mathbf{L}\mathbf{L}^T`, generates :math:`n_{det}`
+independent unit-variance noise streams :math:`z_j(t)` (one per detector,
+each with the correct 1/f PSD), and mixes them:
+
+.. math::
+
+    n_i(t) = \sigma_i \sum_j L_{ij}\,z_j(t)
+
+This allows arbitrary positive-semi-definite correlation structures,
+including block-diagonal layouts and continuously varying off-diagonal
+elements.
+
+.. testcode::
+
+   import litebird_sim as lbs
+   import numpy as np
+
+   sim = lbs.Simulation(
+       base_path='./output',
+       start_time=0,
+       duration_s=100,
+       random_seed=12345,
+   )
+
+   dets = [
+       lbs.DetectorInfo(name=f"det_{i}", net_ukrts=50, sampling_rate_hz=10,
+                        alpha=1.0, fknee_mhz=10, fmin_hz=0.001)
+       for i in range(3)
+   ]
+
+   obs = sim.create_observations(detectors=dets)
+
+   # Define a correlation matrix: strong correlation between det_0/det_1,
+   # det_2 is weakly correlated with the others.
+   R = np.array([
+       [1.0, 0.9, 0.1],
+       [0.9, 1.0, 0.1],
+       [0.1, 0.1, 1.0],
+   ])
+
+   lbs.noise.add_noise_to_observations(
+       obs,
+       noise_type='correlated',
+       dets_random=sim.dets_random,
+       correlation={"corr_matrix": R},
+   )
+
+   print("det_0 sample:", f"{obs[0].tod[0][0]:.3e}")
+   print("det_1 sample:", f"{obs[0].tod[1][0]:.3e}")
+   print("det_2 sample:", f"{obs[0].tod[2][0]:.3e}")
+
+.. testoutput::
+
+   det_0 sample: ...
+   det_1 sample: ...
+   det_2 sample: ...
+
+.. note::
+
+    The matrix :math:`\mathbf{R}` must be symmetric and
+    positive-semi-definite (PSD).  If the Cholesky decomposition fails
+    because the matrix is numerically singular, add a small diagonal
+    regularisation before passing it::
+
+        R += 1e-10 * np.eye(n)
+
+    The diagonal of :math:`\mathbf{R}` should be 1 (unit variance);
+    per-detector scaling is handled automatically by the NET values
+    stored in the observation.
+
+
 Methods of the Simulation class
 -------------------------------
 
