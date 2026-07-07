@@ -29,7 +29,7 @@ To simulate a quadratic non-linearity, one can use the method of
 :class:`.Simulation` class
 :meth:`.Simulation.apply_quadratic_nonlin()`, or any of the low-level
 functions: :func:`.apply_quadratic_nonlin_to_observations()`,
-:func:`.apply_quadratic_nonlin_for_one_detector()`. 
+:func:`.apply_quadratic_nonlin_for_one_detector()`.
 
 The examples below skip the simulation and observation creation for brevity.
 If needed, the implementation for those parts is explained in other sections of the docs.
@@ -49,20 +49,20 @@ If needed, the implementation for those parts is explained in other sections of 
    )
 
    sim.prepare_pointings()
-   
+
    (... fill your TOD scanning a map, or add dipole, noise, etc...)
-   
-   # Define nonlinearity amplitude distribution for the detectors, in 1/K units. 
+
+   # Define nonlinearity amplitude distribution for the detectors, in 1/K units.
    # The value is randomized for each detector, using either a user-provided seed or a list of
    # pre-initialized RNGs.
-   
+
    nl_params = lbs.NonLinParams(sampling_gaussian_loc=-1.0, sampling_gaussian_scale=0.01)
 
-   # Applying nonlinearity using the `Simulation` class method
+   # Applying nonlinearity using the `Simulation` class method with a required user seed
    # By default, it modifies the ``Observation.tod``. If you want to apply it to some
    # other field of the :class:`.Observation` class, use `component`
 
-   sim.apply_quadratic_nonlin(nl_params = nl_params)
+   sim.apply_quadratic_nonlin(nl_params = nl_params, user_seed = 1234)
 
 
 .. _nl-api-reference:
