@@ -1,5 +1,7 @@
 # HEAD
 
+-   Refactor RNGHierarchy to enable tying the random number generators to detectors, remove unused bandpass normalization, use units.py methods to perform conversions between temperature and flux, automatically normalize band integrated tod to the bandwidth. [#523](https://github.com/litebird/litebird_sim/pull/523)
+  
 -   Capability of appling beam convolution to dipole signal [#527](https://github.com/litebird/litebird_sim/pull/527)
 
 -   Pin `ty` and mute its Dependabot updates, fix latent type errors it flagged, repair the broken Tests badge in the README, and add a missing MPI barrier that fixes a flaky HDF5 read in `test_issue314` [#536](https://github.com/litebird/litebird_sim/pull/536)

@@ -1,18 +1,32 @@
 from copy import deepcopy
-import numpy as np
+
 import litebird_sim as lbs
+import numpy as np
+import pytest
 from astropy.time import Time
+from litebird_sim.units import Units, UnitUtils
 
 
-def test_add_quadratic_nonlinearity():
+@pytest.mark.parametrize(
+    "conv_K_CMB_to_MJy_over_sr",
+    [
+        False,
+        True,
+    ],
+)
+def test_add_quadratic_nonlinearity(conv_K_CMB_to_MJy_over_sr):
     # Test function to check consistency of wrappers and low level functions
     start_time = Time("2025-02-02T00:00:00")
     mission_time_days = 1
     sampling_hz = 1
 
     dets = [
-        lbs.DetectorInfo(name="det_A", sampling_rate_hz=sampling_hz),
-        lbs.DetectorInfo(name="det_B", sampling_rate_hz=sampling_hz),
+        lbs.DetectorInfo(
+            name="det_A", sampling_rate_hz=sampling_hz, bandcenter_ghz=100
+        ),
+        lbs.DetectorInfo(
+            name="det_B", sampling_rate_hz=sampling_hz, bandcenter_ghz=100
+        ),
     ]
 
     nl_params = lbs.NonLinParams(sampling_gaussian_loc=0.0, sampling_gaussian_scale=0.1)
@@ -39,23 +53,22 @@ def test_add_quadratic_nonlinearity():
     sim.apply_quadratic_nonlin(
         nl_params=nl_params,
         component="nl_2_self",
+        user_seed=random_seed,
+        conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
     )
 
     # Applying non-linearity on the given TOD component of an `Observation` object
-    RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
-    )
-    dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     lbs.apply_quadratic_nonlin_to_observations(
         observations=sim.observations,
         nl_params=nl_params,
         component="nl_2_obs",
-        dets_random=dets_random,
+        user_seed=random_seed,
+        conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
     )
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
     RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
+        random_seed, comm=lbs.MPI_COMM_WORLD, num_detectors_per_rank=len(dets)
     )
     dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
@@ -63,6 +76,9 @@ def test_add_quadratic_nonlinearity():
             tod_det=tod,
             nl_params=nl_params,
             random=dets_random[idx],
+            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
+            det_bandcenter_ghz=dets[0].bandcenter_ghz,
+            det_bandwidth_ghz=dets[0].bandwidth_ghz,
         )
 
     # Check if the three non-linear tods are equal
@@ -76,7 +92,7 @@ def test_add_quadratic_nonlinearity():
 
     # Check if non-linearity is applied correctly
     RNG_hierarchy = lbs.RNGHierarchy(
-        random_seed, comm_size=1, num_detectors_per_rank=len(dets)
+        random_seed, comm=lbs.MPI_COMM_WORLD, num_detectors_per_rank=len(dets)
     )
     dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     sim.observations[0].tod_origin = np.ones_like(sim.observations[0].tod)
@@ -87,6 +103,14 @@ def test_add_quadratic_nonlinearity():
         )
 
         _tod = deepcopy(sim.observations[0].tod_origin[idx])
+
+        if conv_K_CMB_to_MJy_over_sr:
+            conv_factor = UnitUtils.get_conversion_factor(
+                Units.K_CMB, Units.MJy_over_sr, dets[0].bandcenter_ghz
+            )
+
+            g_one_over_k = (1 / conv_factor) * g_one_over_k
+
         for i in range(len(_tod)):
             _tod[i] += g_one_over_k * _tod[i] ** 2
 
