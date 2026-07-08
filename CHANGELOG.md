@@ -2,6 +2,18 @@
 
 -   Extract a shared driver for the systematic-effect modules (`for_each_observation`, `for_each_observation_with_pointings`, `normalize_observations`) and rename `pointings_in_obs.py` to `observation_utilities.py`, which now collects all the helpers that operate on a collection of `Observation` objects. Noise, gain drift, non-linearity, HWP differential emission and the CMB dipole now share one place for observation normalization, per-detector RNG resolution and TOD-component indirection instead of re-implementing it each. No change to public effect interfaces.
 
+# Version 0.17.0
+
+-   Refactor RNGHierarchy to enable tying the random number generators to detectors, remove unused bandpass normalization, use units.py methods to perform conversions between temperature and flux, automatically normalize band integrated tod to the bandwidth. [#523](https://github.com/litebird/litebird_sim/pull/523)
+  
+-   Capability of appling beam convolution to dipole signal [#527](https://github.com/litebird/litebird_sim/pull/527)
+
+-   Pin `ty` and mute its Dependabot updates, fix latent type errors it flagged, repair the broken Tests badge in the README, and add a missing MPI barrier that fixes a flaky HDF5 read in `test_issue314` [#536](https://github.com/litebird/litebird_sim/pull/536)
+
+-   Make `litebird_sim/version.py` the single source of truth for the package version; `pyproject.toml` and `docs/source/conf.py` now read from it [#537](https://github.com/litebird/litebird_sim/pull/537)
+
+-   Add conversion from Temperature to Spectral Radiance units for the non linearity factor [#524](https://github.com/litebird/litebird_sim/pull/524)
+
 -   Implement the ability to produce the h‑maps defined in McAllum et al. 2021b [#473](https://github.com/litebird/litebird_sim/pull/473)
 
 -   **Breaking change**: Stop supporting NumPy 1.x and move to NumPy 2.x. Add support for Python 3.14 [#519](https://github.com/litebird/litebird_sim/pull/519)
@@ -40,6 +52,8 @@
 -   Add automatic type-checking with ty [#481](https://github.com/litebird/litebird_sim/pull/481)
 
 -   Stop using sphinxcontrib-asciinema [#478](https://github.com/litebird/litebird_sim/pull/478)
+
+# Version 0.16.1
 
 -   TODs handling improved [#472](https://github.com/litebird/litebird_sim/pull/472)
 

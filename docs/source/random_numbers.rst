@@ -157,11 +157,28 @@ Once the :class:`.RNGHierarchy` is instanciated and RNGs are created, it is suff
     generators_of_first_rank = rng_hierarchy.get_detector_level_generators_on_rank(rank)
 
     indeces = (1, 2)
-    generetor_second_rank_third_det = rng_hierarchy.get_generator(indeces)
+    generator_second_rank_third_det = rng_hierarchy.get_generator(indeces)
 
 Furthermore, :meth:`.RNGHierarchy.add_extra_layer` allows you to define a new level of the hierarchy from the current leaf layer.
 
 Finally, the :meth:`.RNGHierarchy.regenerate_or_check_detector_generators` allows you to quickly regenerate a set of new detector-level generators, or to check the validity of the existing one. This is useful if you passes a random seed specific for each systematics. This needs a list of :class:`.Observation` to work.
+
+
+Passing communicators to RNGHierarchy
+============================
+
+RNGHierarchy accepts an MPI communicator object via the comm argument. When a
+communicator is provided, the class infers the communicator size and rank from it
+internally. This allows creating RNG hierarchies that are consistent across ranks
+of a supplied sub-communicator (for example, time-block or detector-block communicators).
+
+Passing a communicator is useful for example when you want RNGs that are identical for a given
+detector across different global ranks, when sampling random numbers for values that are
+detector-specific, such as non-linearities. When TODs are distributed such
+that the same detector appears on multiple global ranks in different time blocks,
+creating the RNGHierarchy with a time-block communicator will produce the same
+detector-level RNGs on each rank in that time-block communicator, ensuring, for example, that
+the random non linearity factor sampled for a given detector is identical across those ranks.
 
 Saving and loading
 ------------------

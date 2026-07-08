@@ -1,6 +1,6 @@
 [project]
 name = "litebird_sim"
-version = "0.16.0"
+dynamic = ["version"]
 description = "Simulation tools for the LiteBIRD experiment"
 authors = [
     {name = "Tomasi Maurizio", email = "maurizio.tomasi@unimi.it"},
@@ -96,6 +96,9 @@ relative_files = true
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "litebird_sim/version.py"
 
 [tool.ty.src]
 exclude = [

@@ -1,4 +1,5 @@
 from enum import Enum
+
 import pysm3.units as u  # Wraps astropy.units
 
 
@@ -22,6 +23,7 @@ class Units(str, Enum):
     Jy_over_sr = "Jy/sr"  # Valid string representation for Astropy/PySM
     ADU = "ADU"
     Pure = "dimensionless"
+    GHz = "GHz"
 
 
 # --- 2. The Functional Manager ---
@@ -138,6 +140,10 @@ class UnitUtils:
         # Define CMB equivalencies (required for T_RJ <-> T_CMB <-> Flux)
         eq = []
         if freq_ghz is not None:
+            assert freq_ghz > 0.0, (
+                "freq_ghz must be bigger than zero in order to get conversion factors between temperature and flux."
+            )
+
             eq = u.cmb_equivalencies(freq_ghz * getattr(u, "GHz"))
 
         # We rely on Astropy to handle the physics.

@@ -481,6 +481,7 @@ def for_each_observation(
     user_seed: int | None = None,
     dets_random: list[np.random.Generator] | None = None,
     requires_rng: bool = False,
+    comm=None,
 ) -> Iterator[tuple[Observation, np.ndarray, list[np.random.Generator] | None]]:
     """Iterate over observations, yielding ``(obs, tod, dets_random)``.
 
@@ -514,6 +515,10 @@ def for_each_observation(
         Whether the effect is stochastic.  When ``True`` exactly one of
         *user_seed* or *dets_random* must be provided.  When ``False`` (the
         default) no RNGs are built and ``None`` is yielded in their place.
+    comm : optional
+        MPI communicator forwarded to
+        :func:`.regenerate_or_check_detector_generators`.  Only consulted
+        when *requires_rng* is ``True``.
 
     Yields
     ------
@@ -528,6 +533,7 @@ def for_each_observation(
     if requires_rng:
         dets_random = regenerate_or_check_detector_generators(
             observations=obs_list,
+            comm=comm,
             user_seed=user_seed,
             dets_random=dets_random,
         )

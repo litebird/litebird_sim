@@ -1,6 +1,11 @@
 # This file is created by ASDF
 .tool-versions
 
+# Editor / AI tooling
+.claude/
+.vscode/
+CLAUDE.md
+
 # PyCharm-related stuff
 .idea/
 
@@ -144,3 +149,6 @@ singularity/*.img
 
 # The documentation converted to any format should not be committed
 docs/build/
+
+# Claude Code stuff
+/.claude

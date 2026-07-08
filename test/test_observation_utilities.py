@@ -85,7 +85,7 @@ def test_for_each_observation_rejects_unknown_component():
 
 def test_for_each_observation_resolves_dets_random_once():
     sim, dets = _make_two_observations()
-    hierarchy = lbs.RNGHierarchy(12345, comm_size=1, num_detectors_per_rank=len(dets))
+    hierarchy = lbs.RNGHierarchy(12345, num_detectors_per_rank=len(dets))
     dets_random = hierarchy.get_detector_level_generators_on_rank(0)
 
     seen = [

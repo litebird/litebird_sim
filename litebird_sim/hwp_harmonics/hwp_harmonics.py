@@ -1,30 +1,34 @@
+import logging
+import os
+
 import numpy as np
 import numpy.typing as npt
 from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from ducc0.healpix import Healpix_Base
 from numba import njit
-import os
-import logging
 
 from litebird_sim.hwp_jones_parameters import HWPJonesParams
-from .jones_methods import (
-    compute_signal_for_one_detector as compute_signal_for_one_detector_jones,
-    integrate_inband_signal_for_one_detector as integrate_inband_signal_for_one_detector_jones,
-)
-from .mueller_methods import (
-    compute_signal_for_one_detector as compute_signal_for_one_detector_mueller,
-)
+
 from ..bandpass_template_module import bandpass_profile
+from ..constants import NUM_THREADS_ENVVAR
 from ..coordinates import CoordinateSystem
 from ..hwp_non_ideal import HWPFormalism, NonIdealHWP
-from ..input_sky import SkyGenerationParams
+from ..input_sky import SkyInput
 from ..maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
 from ..observations import Observation
 from ..observation_utilities import (
     _get_pointings_array,
 )
-from ..constants import NUM_THREADS_ENVVAR
+from .jones_methods import (
+    compute_signal_for_one_detector as compute_signal_for_one_detector_jones,
+)
+from .jones_methods import (
+    integrate_inband_signal_for_one_detector as integrate_inband_signal_for_one_detector_jones,
+)
+from .mueller_methods import (
+    compute_signal_for_one_detector as compute_signal_for_one_detector_mueller,
+)
 
 COND_THRESHOLD = 1e10
 
@@ -34,11 +38,11 @@ h = getattr(const, "h").value  # Planck constant in J s
 Tcmb0 = getattr(cosmo, "Tcmb0").value  # CMB temperature today in K
 
 
-def _dBodTrj(nu: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def _dBodTrj(nu: npt.NDArray[np.float64] | np.float64):
     return 2 * k_B * nu * nu * 1e18 / c / c
 
 
-def _dBodTth(nu: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+def _dBodTth(nu: npt.NDArray[np.float64] | np.float64):
     x = h * nu * 1e9 / k_B / Tcmb0
     ex = np.exp(x)
     exm1 = ex - 1.0e0
@@ -102,34 +106,29 @@ def set_band_params_for_one_detector(
         bandcenter_ghz=bandcenter_ghz, bandwidth_ghz=bandwidth_ghz
     )
 
-    # bpi : bandpass profile * intensity conversion
-    # if no bandpass, only apply the frequency dependent
-    # T to I conversion
+    #
+    # For now, if there is no bandpass, this function will return
+    # a simple array of ones, because unit conversions are being done
+    # at the input map level. This is left in here as a placeholder
+    # for future developments, in which the term to multiply to
+    # the bandpass can be further developed.
+    #
+    bpi = np.ones_like(det_params.freq_ghz)
     if not bandpass:
-        bpi = _dBodTth(det_params.freq_ghz)
+        return (det_params, bpi)
     else:
         band_params.freq_ghz, bandpass_prof = bandpass_profile(
             band_params.freq_ghz, bandpass, include_beam_throughput
         )
-        bpi = _dBodTth(det_params.freq_ghz) * bandpass_prof
-
-    # Normalize the band
-    bpi /= np.trapezoid(bpi, det_params.freq_ghz)
-
-    return (det_params, bpi)
+        bpi *= bandpass_prof
+        return (det_params, bpi)
 
 
 def fill_tod_with_hwp_harmonics(
     hwp: NonIdealHWP,
     observation: Observation,
     tod: np.ndarray,
-    maps: (
-        HealpixMap
-        | dict[str, HealpixMap | SkyGenerationParams]
-        | SphericalHarmonics
-        | dict[str, SphericalHarmonics | SkyGenerationParams]
-        | None
-    ) = None,
+    maps: SkyInput | None = None,
     pointings: np.ndarray | None = None,
     hwp_angle: np.ndarray | None = None,
     save_tod: bool = True,
@@ -586,6 +585,10 @@ def fill_tod_with_hwp_harmonics(
                     add_2f_hwpss=add_2f_hwpss,
                     amplitude_2f_k=amplitude_2f_k[idet],
                 )
+
+                # normalize to the bandwidth after integration
+                if len(cur_det_params.freq_ghz) > 1:
+                    tod_det /= bandwidth_ghz[idet] * 1e9
 
             else:
                 if hwp.calculus is HWPFormalism.MUELLER:

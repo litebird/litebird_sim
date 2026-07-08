@@ -43,20 +43,20 @@ from .healpix import write_healpix_map_to_file
 from .hwp import HWP
 from .hwp_diff_emiss import add_2f_to_observations
 from .imo.imo import Imo
-from .input_sky import SkyGenerationParams, SkyGenerator
+from .input_sky import SkyGenerationParams, SkyGenerator, SkyInput
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
-    HMapsResult,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
+    HMapsResult,
     PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
-    make_h_maps,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
+    make_h_maps,
     make_pair_differenced_map,
     save_destriper_results,
 )
@@ -541,7 +541,7 @@ class Simulation:
           the user-provided `random_seed`, but can be invoked again to
           reseed the simulation at any point.
         """
-        self.rng_hierarchy = RNGHierarchy(random_seed)
+        self.rng_hierarchy = RNGHierarchy(random_seed, self.mpi_comm)
         self.rng_hierarchy.build_mpi_layer(self.mpi_comm.size)
 
         self.random = self.rng_hierarchy.get_generator(self.mpi_comm.rank)
@@ -1768,13 +1768,7 @@ class Simulation:
     @_profile
     def fill_tods(
         self,
-        maps: (
-            HealpixMap
-            | dict[str, HealpixMap | SkyGenerationParams]
-            | SphericalHarmonics
-            | dict[str, SphericalHarmonics | SkyGenerationParams]
-            | None
-        ) = None,
+        maps: SkyInput | None = None,
         component: str = "tod",
         pointings_dtype=np.float64,
         append_to_report: bool = True,
@@ -1972,10 +1966,7 @@ class Simulation:
 
         if store_in_observation:
             for obs in self.observations:
-                obs.sky: (
-                    dict[str, HealpixMap | SphericalHarmonics]
-                    | dict[str, dict[str, HealpixMap | SphericalHarmonics]]
-                ) = sky
+                obs.sky = sky
 
         return sky
 
@@ -2099,20 +2090,21 @@ class Simulation:
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
-        rng_hierarchy: RNGHierarchy | None = None,
+        conv_K_CMB_to_MJy_over_sr: bool = False,
     ):
         """A method to apply non-linearity to the observation.
 
         This is a wrapper around
         :func:`.apply_quadratic_nonlin_to_observations()` that
-        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained from the detector-level layer. As default it uses
-        the `dets_random` field of a :class:`.Simulation` object for this.
+        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained for each detector, independently of the MPI distribution across detectors and time. Setting the `user_seed` argument is required for this.
+        conv_K_CMB_to_MJy_over_sr (bool, optional) is a flag for temperature to spectral radiance
+        units conversion. Defaults to False.
         """
-        if rng_hierarchy is None:
-            rng_hierarchy = self.rng_hierarchy
-        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
-            self.mpi_comm.rank
+
+        assert user_seed is not None, (
+            "user_seed must be given in apply_quadratic_nonlin."
         )
+
         if nl_params is None:
             nl_params = NonLinParams()
 
@@ -2121,7 +2113,7 @@ class Simulation:
             nl_params=nl_params,
             user_seed=user_seed,
             component=component,
-            dets_random=dets_random,
+            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2138,6 +2130,7 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 g=g,
+                conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
             )
 
     @_profile
@@ -2818,6 +2811,7 @@ class Simulation:
             nside=nside,
             observations=self.observations,
             components=components,
+            hwp=self.hwp,
             pointings_flag=pointing_flag,
             inv_noise_cov_operator=inv_noise_cov_operator,
             threshold=threshold,
