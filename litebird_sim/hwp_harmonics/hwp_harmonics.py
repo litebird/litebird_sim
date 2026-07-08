@@ -16,10 +16,13 @@ from ..coordinates import CoordinateSystem
 from ..hwp_non_ideal import HWPFormalism, NonIdealHWP
 from ..input_sky import SkyInput
 from ..maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
+from ..non_linearity import NonLinParams
 from ..observations import Observation
 from ..pointings_in_obs import (
     _get_pointings_array,
 )
+from ..seeding import regenerate_or_check_detector_generators
+from ..units import UnitUtils
 from .jones_methods import (
     compute_signal_for_one_detector as compute_signal_for_one_detector_jones,
 )
@@ -134,7 +137,8 @@ def fill_tod_with_hwp_harmonics(
     save_tod: bool = True,
     input_names: list[str] | None = None,
     pointings_dtype=np.float64,
-    apply_non_linearity: bool = False,
+    apply_non_linearity_on_the_fly: bool = False,
+    nl_params: NonLinParams | None = None,
     add_2f_hwpss: bool = False,
     mueller_phases: dict[str, np.ndarray] | None = None,
     integrate_in_band: bool = False,
@@ -187,7 +191,7 @@ def fill_tod_with_hwp_harmonics(
             within ``fill_tod``, this is the dtype for
             pointings and tod (default: np.float32).
 
-        apply_non_linearity (bool) : applies the coupling of the non-linearity
+        apply_non_linearity_on_the_fly (bool) : applies the coupling of the non-linearity
             systematics with hwp_sys
 
         add_2f_hwpss (bool) : adds the 2f hwpss signal to the TOD
@@ -319,7 +323,6 @@ def fill_tod_with_hwp_harmonics(
 
         # use getattr to avoid ty errors for dynamically
         # generated cur_obs class attributes
-        g_one_over_k = getattr(cur_obs, "g_one_over_k")
         amplitude_2f_k = getattr(cur_obs, "amplitude_2f_k")
         pol_angle_rad = getattr(cur_obs, "pol_angle_rad")
         pointing_theta_phi_psi_deg = getattr(cur_obs, "pointing_theta_phi_psi_deg")
@@ -340,10 +343,43 @@ def fill_tod_with_hwp_harmonics(
             else:
                 band_params = hwp.jones_parameters
 
+        if apply_non_linearity_on_the_fly:
+            assert nl_params is not None, (
+                "nl_params must be given when Applying detector non linearity."
+            )
+
+            dets_random = regenerate_or_check_detector_generators(
+                observations=obs_list,
+                comm=cur_obs.comm_time_block,
+                user_seed=nl_params.user_seed,
+            )
+
         for idet in range(cur_obs.n_detectors):
+            target_unit_det = cur_obs.tod_list[idx_obs].units
+            print("target unit", target_unit_det)
+
+            if apply_non_linearity_on_the_fly:
+                g_nonlin_det = dets_random[idet].normal(
+                    loc=nl_params.sampling_gaussian_loc,
+                    scale=nl_params.sampling_gaussian_scale,
+                )
+
+                if nl_params.units != target_unit_det:
+                    conv_factor_nl = UnitUtils.get_conversion_factor(
+                        nl_params.units,
+                        target_unit_det,
+                        bandcenter_ghz[idet],
+                    )
+                    g_nonlin_det *= conv_factor_nl
+                    if integrate_in_band:
+                        g_nonlin_det *= bandwidth_ghz[idet] * 1e9
+            else:
+                g_nonlin_det = None
+
             # ----------------------------------------------------------
             # Select per-detector sky object
             # ----------------------------------------------------------
+
             if isinstance(maps, dict):
                 if input_names is None:
                     raise ValueError(
@@ -580,8 +616,7 @@ def fill_tod_with_hwp_harmonics(
                     xi=xi,
                     cos2Xi2Phi=cos2Xi2Phi,
                     sin2Xi2Phi=sin2Xi2Phi,
-                    apply_non_linearity=apply_non_linearity,
-                    g_one_over_k=g_one_over_k[idet],
+                    g_nonlin_det=g_nonlin_det,
                     add_2f_hwpss=add_2f_hwpss,
                     amplitude_2f_k=amplitude_2f_k[idet],
                 )
@@ -610,8 +645,7 @@ def fill_tod_with_hwp_harmonics(
                         sin2Xi2Phi=sin2Xi2Phi,
                         phi=phi,
                         xi=xi,
-                        apply_non_linearity=apply_non_linearity,
-                        g_one_over_k=g_one_over_k[idet],
+                        g_nonlin_det=g_nonlin_det,
                         add_2f_hwpss=add_2f_hwpss,
                         amplitude_2f_k=amplitude_2f_k[idet],
                         phases_2f=mueller_phases["2f"],
@@ -641,8 +675,7 @@ def fill_tod_with_hwp_harmonics(
                         sin2Xi2Phi=sin2Xi2Phi,
                         phi=phi,
                         xi=xi,
-                        apply_non_linearity=apply_non_linearity,
-                        g_one_over_k=g_one_over_k[idet],
+                        g_nonlin_det=g_nonlin_det,
                         add_2f_hwpss=add_2f_hwpss,
                         amplitude_2f_k=amplitude_2f_k[idet],
                     )

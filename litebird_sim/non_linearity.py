@@ -17,53 +17,41 @@ class NonLinParams:
         - ``sampling_gaussian_scale`` (`float`): Standard deviation of the Gaussian
           distribution.
 
+        - ``user_seed`` (`int` or None) : Base seed to build the RNG hierarchy and
+            generate samples of the detector non-linearity factor, independently of
+            the MPI distribution across detectors and time. By setting it to
+            `None`, the generation of random numbers will not be reproducible.
+
+        - ``units`` (`Units`): units of the sampled non linearity value. Must be one
+            of the pysm3/astropy units accepted by the lbs.Units module.
+
     """
 
     # Parameters for sampling distribution
     sampling_gaussian_loc: float = 0.0
     sampling_gaussian_scale: float = 0.1
+    user_seed: int | None = None
+    units: Units = Units.K_CMB
 
 
 def apply_quadratic_nonlin_for_one_sample(
     data,
-    det_name: str | None = None,
-    nl_params: NonLinParams | None = None,
-    g_one_over_k: float | None = None,
-    random: np.random.Generator | None = None,
+    g_nonlin: float | None = None,
+    conv_factor_nl: float = 1.0,
 ):
-    assert random is not None, (
-        "You should pass a random number generator which implements the `normal` method."
-    )
+    assert g_nonlin is not None, "Either `g_nonlin` or `det_name` must be provided."
 
-    if nl_params is None:
-        nl_params = NonLinParams()
+    g_nonlin = (1 / conv_factor_nl) * g_nonlin
 
-    # If g_one_over_k is not provided, we must use det_name to generate it
-    # Having a non-random g_one_over_k is useful to avoid over-complications in the hwp_sys module
-    if g_one_over_k is None:
-        if det_name is None:
-            raise ValueError("Either `g_one_over_k` or `det_name` must be provided.")
-
-        if not isinstance(det_name, str):
-            raise TypeError(
-                "`det_name` must be a string when `g_one_over_k` is not provided."
-            )
-
-        g_one_over_k = random.normal(
-            loc=nl_params.sampling_gaussian_loc,
-            scale=nl_params.sampling_gaussian_scale,
-        )
-
-    return data + g_one_over_k * data**2
+    return data + g_nonlin * data**2
 
 
 def apply_quadratic_nonlin_for_one_detector(
     tod_det,
-    det_bandcenter_ghz: np.float64 | None = None,
-    det_bandwidth_ghz: np.float64 | None = None,
+    tod_units: Units,
+    bandcenter_ghz_det: float,
     nl_params: NonLinParams | None = None,
     random: np.random.Generator | None = None,
-    conv_K_CMB_to_MJy_over_sr: bool = False,
 ):
     """This function applies the quadratic non-linearity on the TOD corresponding to
     only one detector.
@@ -79,37 +67,29 @@ def apply_quadratic_nonlin_for_one_detector(
         random (np.random.Generator, optional): A random number generator.
           Defaults to None.
 
-        conv_K_CMB_to_MJy_over_sr (bool, optional): Flag for temperature to spectral radiance
-            units conversion. Defaults to False.
 
-        det_freq_ghz (np.float64, optional): Detector central frequency in GHz.
-            Used in the K to SR conversion. Defaults to None.
-
-        det_bandwidth_ghz (np.float64, optional): Detector bandwidth in GHz.
-            Used in the K to SR conversion. Defaults to None.
 
     """
     assert random is not None, (
         "You should pass a random number generator which implements the `normal` method."
     )
-    if nl_params is None:
-        nl_params = NonLinParams()
+    assert nl_params is not None, "You should pass a NonLinParams object."
 
     g_nonlin = random.normal(
         loc=nl_params.sampling_gaussian_loc,
         scale=nl_params.sampling_gaussian_scale,
     )
 
-    if conv_K_CMB_to_MJy_over_sr:
-        assert det_bandcenter_ghz is not None and det_bandwidth_ghz is not None, (
-            "You should pass det_bandcenter_ghz and det_bandwidth_ghz when conv_K_CMB_to_MJy_over_sr is set to True."
+    if nl_params.units != tod_units:
+        conv_factor_nl = UnitUtils.get_conversion_factor(
+            nl_params.units,
+            tod_units,
+            bandcenter_ghz_det,
         )
+    else:
+        conv_factor_nl = 1
 
-        conv_factor = UnitUtils.get_conversion_factor(
-            Units.K_CMB, Units.MJy_over_sr, det_bandcenter_ghz
-        )
-
-        g_nonlin = 1 / conv_factor * g_nonlin
+    g_nonlin = (1 / conv_factor_nl) * g_nonlin
 
     for i in range(len(tod_det)):
         tod_det[i] += g_nonlin * tod_det[i] ** 2
@@ -117,11 +97,10 @@ def apply_quadratic_nonlin_for_one_detector(
 
 def apply_quadratic_nonlin(
     tod: np.ndarray,
+    tod_units: Units,
     bandcenter_ghz: np.ndarray,
-    bandwidth_ghz: np.ndarray,
     nl_params: NonLinParams | None = None,
     dets_random: list[np.random.Generator] | None = None,
-    conv_K_CMB_to_MJy_over_sr: bool = False,
 ):
     """Apply a quadratic nonlinearity to some time-ordered data
 
@@ -134,11 +113,10 @@ def apply_quadratic_nonlin(
     for detector_idx in range(tod.shape[0]):
         apply_quadratic_nonlin_for_one_detector(
             tod_det=tod[detector_idx],
+            tod_units=tod_units,
+            bandcenter_ghz_det=bandcenter_ghz[detector_idx],
             nl_params=nl_params,
             random=dets_random[detector_idx],
-            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
-            det_bandcenter_ghz=bandcenter_ghz[detector_idx],
-            det_bandwidth_ghz=bandwidth_ghz[detector_idx],
         )
 
 
@@ -146,8 +124,6 @@ def apply_quadratic_nonlin_to_observations(
     observations: Observation | list[Observation],
     nl_params: NonLinParams | None = None,
     component: str = "tod",
-    user_seed: int | None = None,
-    conv_K_CMB_to_MJy_over_sr: bool = False,
 ):
     """
     Apply a quadratic nonlinearity to some time-ordered data
@@ -167,7 +143,7 @@ def apply_quadratic_nonlin_to_observations(
 
         # Ask `apply_quadratic_nonlin_to_observations` to store the nonlinear TOD
         # in `observations.nl_tod`
-        apply_quadratic_nonlin_to_observations(sim.observations, component="nl_tod", user_seed=1234)
+        apply_quadratic_nonlin_to_observations(sim.observations, component="nl_tod")
 
     Parameters
     ----------
@@ -178,26 +154,14 @@ def apply_quadratic_nonlin_to_observations(
         provided, a default configuration is used.
     component : str, optional
         Name of the TOD attribute to modify. Defaults to `"tod"`.
-    user_seed : int or None
-            Base seed to build the RNG hierarchy and generate samples of the detector non-linearity factor,
-            independently of the MPI distribution across detectors and time.
-            The user is required to set this parameter.
-    conv_K_CMB_to_MJy_over_sr (bool, optional): Flag for temperature to spectral radiance
-        units conversion. Defaults to False.
 
     Raises
     ------
     TypeError
         If `observations` is neither an `Observation` nor a list of them.
-    ValueError
-        If `user_seed` is not provided.
     AssertionError
         If the number of random generators does not match the number of detectors.
     """
-
-    assert user_seed is not None, (
-        "user_seed must be given in apply_quadratic_nonlin_to_observations."
-    )
 
     if nl_params is None:
         nl_params = NonLinParams()
@@ -210,6 +174,13 @@ def apply_quadratic_nonlin_to_observations(
         raise TypeError(
             "The parameter `observations` must be an `Observation` or a list of `Observation`."
         )
+
+    user_seed = (
+        nl_params.user_seed
+        if nl_params.user_seed is not None
+        else np.random.randint(1000)
+    )
+
     dets_random = regenerate_or_check_detector_generators(
         observations=obs_list,
         comm=obs_list[0].comm_time_block,
@@ -217,16 +188,15 @@ def apply_quadratic_nonlin_to_observations(
     )
 
     # iterate through each observation
-    for cur_obs in obs_list:
+    for obs_idx, cur_obs in enumerate(obs_list):
         tod = getattr(cur_obs, component)
+        tod_units = cur_obs.tod_list[obs_idx].units
         bandcenter_ghz = getattr(cur_obs, "bandcenter_ghz")
-        bandwidth_ghz = getattr(cur_obs, "bandwidth_ghz")
 
         apply_quadratic_nonlin(
             tod=tod,
+            tod_units=tod_units,
             nl_params=nl_params,
             dets_random=dets_random,
-            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
             bandcenter_ghz=bandcenter_ghz,
-            bandwidth_ghz=bandwidth_ghz,
         )

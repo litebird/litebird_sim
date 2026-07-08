@@ -410,6 +410,8 @@ class Simulation:
 
         self.tod_list: list[TodDescription] = []
 
+        self.tod_units_list: list[Units] = []
+
         if imo:
             self.imo = imo
         else:
@@ -1114,6 +1116,7 @@ class Simulation:
         n_blocks_time: int = 1,
         root: int = 0,
         tod_dtype: Any | None = None,
+        tod_units: Units | None = None,
         tods: list[TodDescription] = [
             TodDescription(
                 name="tod",
@@ -1302,18 +1305,20 @@ class Simulation:
 
         cur_time = self.start_time
 
-        if not tod_dtype:
+        if not tod_dtype and not tod_units:
             self.tod_list = tods
         else:
             self.tod_list = [
                 TodDescription(
                     name=x.name,
-                    units=x.units,
-                    dtype=tod_dtype,
+                    units=tod_units or x.units,
+                    dtype=tod_dtype or x.dtype,
                     description=x.description,
                 )
                 for x in tods
             ]
+
+        self.tod_units_list = [tod.units for tod in self.tod_list]
 
         for cur_obs_idx in range(num_of_obs_per_detector):
             nsamples = samples_per_obs[cur_obs_idx].num_of_elements
@@ -2090,15 +2095,12 @@ class Simulation:
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
-        conv_K_CMB_to_MJy_over_sr: bool = False,
     ):
         """A method to apply non-linearity to the observation.
 
         This is a wrapper around
         :func:`.apply_quadratic_nonlin_to_observations()` that
         applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained for each detector, independently of the MPI distribution across detectors and time. Setting the `user_seed` argument is required for this.
-        conv_K_CMB_to_MJy_over_sr (bool, optional) is a flag for temperature to spectral radiance
-        units conversion. Defaults to False.
         """
 
         assert user_seed is not None, (
@@ -2111,9 +2113,7 @@ class Simulation:
         apply_quadratic_nonlin_to_observations(
             observations=self.observations,
             nl_params=nl_params,
-            user_seed=user_seed,
             component=component,
-            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2130,7 +2130,6 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 g=g,
-                conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
             )
 
     @_profile

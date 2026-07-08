@@ -1,9 +1,9 @@
-import numpy as np
-from numpy.typing import DTypeLike
-from numba import njit, prange
 import logging
 
+import numpy as np
 from ducc0.healpix import Healpix_Base
+from numba import njit, prange
+from numpy.typing import DTypeLike
 
 from .coordinates import CoordinateSystem
 from .hwp import HWP, IdealHWP
@@ -18,7 +18,6 @@ from .pointings_in_obs import (
     _get_pol_angle,
     _normalize_observations_and_pointings,
 )
-
 from .utilities import resolve_nthreads
 
 
@@ -362,7 +361,7 @@ def scan_map_in_observations(
     component: str = "tod",
     pointings_dtype: DTypeLike = np.float64,
     save_tod: bool = True,
-    apply_non_linearity: bool = False,
+    apply_non_linearity_on_the_fly: bool = False,
     add_2f_hwpss: bool = False,
     mueller_phases: dict | None = None,
     integrate_in_band: bool = False,
@@ -430,7 +429,7 @@ def scan_map_in_observations(
         Data type for pointings generated on the fly. If the pointing is passed or
         already precomputed this parameter is ineffective. Default is `np.float64`.
 
-    apply_non_linearity : bool, optional
+    apply_non_linearity_on_the_fly : bool, optional
         (For the harmonics expansion case) applies the coupling of the
         non-linearity systematics with `hwp_sys`.
 
@@ -531,7 +530,7 @@ def scan_map_in_observations(
                 pointings_dtype=pointings_dtype,
                 save_tod=save_tod,
                 input_names=input_names,
-                apply_non_linearity=apply_non_linearity,
+                apply_non_linearity_on_the_fly=apply_non_linearity_on_the_fly,
                 add_2f_hwpss=add_2f_hwpss,
                 mueller_phases=mueller_phases,
                 integrate_in_band=integrate_in_band,
