@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_grasp2alm_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.3">coverage.py v7.14.3</a>,
-            created at 2026-07-06 08:42 +0000
+            created at 2026-07-08 07:44 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -640,22 +640,23 @@
     <p class="mis mis2 show_mis"><span class="n"><a id="t558" href="#t558">558</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t559" href="#t559">559</a></span><span class="t">    <span class="nam">dets_random</span> <span class="op">=</span> <span class="nam">regenerate_or_check_detector_generators</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t560" href="#t560">560</a></span><span class="t">        <span class="nam">observations</span><span class="op">=</span><span class="nam">obs_list</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t561" href="#t561">561</a></span><span class="t">        <span class="nam">user_seed</span><span class="op">=</span><span class="nam">user_seed</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t562" href="#t562">562</a></span><span class="t">        <span class="nam">dets_random</span><span class="op">=</span><span class="nam">dets_random</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t563" href="#t563">563</a></span><span class="t">    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t564" href="#t564">564</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t565" href="#t565">565</a></span><span class="t">    <span class="key">for</span> <span class="nam">cur_obs</span> <span class="key">in</span> <span class="nam">obs_list</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t566" href="#t566">566</a></span><span class="t">        <span class="nam">tod</span> <span class="op">=</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">cur_obs</span><span class="op">,</span> <span class="nam">component</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t567" href="#t567">567</a></span><span class="t">        <span class="nam">sampling_freq_hz</span> <span class="op">=</span> <span class="nam">cur_obs</span><span class="op">.</span><span class="nam">sampling_rate_hz</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t568" href="#t568">568</a></span><span class="t">        <span class="nam">focalplane_attr</span> <span class="op">=</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">cur_obs</span><span class="op">,</span> <span class="nam">drift_params</span><span class="op">.</span><span class="nam">focalplane_group</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t569" href="#t569">569</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t570" href="#t570">570</a></span><span class="t">        <span class="nam">apply_gaindrift_to_tod</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t571" href="#t571">571</a></span><span class="t">            <span class="nam">tod</span><span class="op">=</span><span class="nam">tod</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t572" href="#t572">572</a></span><span class="t">            <span class="nam">sampling_freq_hz</span><span class="op">=</span><span class="nam">sampling_freq_hz</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t573" href="#t573">573</a></span><span class="t">            <span class="nam">drift_params</span><span class="op">=</span><span class="nam">drift_params</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t574" href="#t574">574</a></span><span class="t">            <span class="nam">focalplane_attr</span><span class="op">=</span><span class="nam">focalplane_attr</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t575" href="#t575">575</a></span><span class="t">            <span class="nam">dets_random</span><span class="op">=</span><span class="nam">dets_random</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t576" href="#t576">576</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t561" href="#t561">561</a></span><span class="t">        <span class="nam">comm</span><span class="op">=</span><span class="key">None</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t562" href="#t562">562</a></span><span class="t">        <span class="nam">user_seed</span><span class="op">=</span><span class="nam">user_seed</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t563" href="#t563">563</a></span><span class="t">        <span class="nam">dets_random</span><span class="op">=</span><span class="nam">dets_random</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t564" href="#t564">564</a></span><span class="t">    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t565" href="#t565">565</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t566" href="#t566">566</a></span><span class="t">    <span class="key">for</span> <span class="nam">cur_obs</span> <span class="key">in</span> <span class="nam">obs_list</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t567" href="#t567">567</a></span><span class="t">        <span class="nam">tod</span> <span class="op">=</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">cur_obs</span><span class="op">,</span> <span class="nam">component</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t568" href="#t568">568</a></span><span class="t">        <span class="nam">sampling_freq_hz</span> <span class="op">=</span> <span class="nam">cur_obs</span><span class="op">.</span><span class="nam">sampling_rate_hz</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t569" href="#t569">569</a></span><span class="t">        <span class="nam">focalplane_attr</span> <span class="op">=</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">cur_obs</span><span class="op">,</span> <span class="nam">drift_params</span><span class="op">.</span><span class="nam">focalplane_group</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t570" href="#t570">570</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t571" href="#t571">571</a></span><span class="t">        <span class="nam">apply_gaindrift_to_tod</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t572" href="#t572">572</a></span><span class="t">            <span class="nam">tod</span><span class="op">=</span><span class="nam">tod</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t573" href="#t573">573</a></span><span class="t">            <span class="nam">sampling_freq_hz</span><span class="op">=</span><span class="nam">sampling_freq_hz</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t574" href="#t574">574</a></span><span class="t">            <span class="nam">drift_params</span><span class="op">=</span><span class="nam">drift_params</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t575" href="#t575">575</a></span><span class="t">            <span class="nam">focalplane_attr</span><span class="op">=</span><span class="nam">focalplane_attr</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t576" href="#t576">576</a></span><span class="t">            <span class="nam">dets_random</span><span class="op">=</span><span class="nam">dets_random</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t577" href="#t577">577</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -665,7 +666,7 @@
             <a class="nav" href="z_e8833be62395df53_grasp2alm_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.14.3">coverage.py v7.14.3</a>,
-            created at 2026-07-06 08:42 +0000
+            created at 2026-07-08 07:44 +0000
         </p>
     </div>
 </footer>
