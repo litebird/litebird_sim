@@ -1,20 +1,22 @@
 from copy import deepcopy
 
-import litebird_sim as lbs
 import numpy as np
 import pytest
 from astropy.time import Time
+
+import litebird_sim as lbs
+from litebird_sim.observations import TodDescription
 from litebird_sim.units import Units, UnitUtils
 
 
 @pytest.mark.parametrize(
-    "conv_K_CMB_to_MJy_over_sr",
+    "automatic_unit_conversion",
     [
         False,
         True,
     ],
 )
-def test_add_quadratic_nonlinearity(conv_K_CMB_to_MJy_over_sr):
+def test_add_quadratic_nonlinearity(automatic_unit_conversion):
     # Test function to check consistency of wrappers and low level functions
     start_time = Time("2025-02-02T00:00:00")
     mission_time_days = 1
@@ -29,9 +31,15 @@ def test_add_quadratic_nonlinearity(conv_K_CMB_to_MJy_over_sr):
         ),
     ]
 
-    nl_params = lbs.NonLinParams(sampling_gaussian_loc=0.0, sampling_gaussian_scale=0.1)
-
     random_seed = 12345
+
+    nl_params = lbs.NonLinParams(
+        sampling_gaussian_loc=0.0,
+        sampling_gaussian_scale=0.1,
+        user_seed=random_seed,
+        units=Units.K_CMB,
+    )
+
     sim = lbs.Simulation(
         base_path="nonlin_example",
         start_time=start_time,
@@ -39,10 +47,27 @@ def test_add_quadratic_nonlinearity(conv_K_CMB_to_MJy_over_sr):
         random_seed=random_seed,
     )
 
-    sim.create_observations(
-        detectors=dets,
-        split_list_over_processes=False,
-    )
+    if automatic_unit_conversion:
+        custom_tod = TodDescription(
+            name="tod",
+            units=Units.MJy_over_sr,
+            dtype=np.float32,
+            description="custom tod",
+        )
+        sim.create_observations(
+            detectors=dets,
+            split_list_over_processes=False,
+            tods=[custom_tod],
+        )
+
+    else:
+        sim.create_observations(
+            detectors=dets,
+            split_list_over_processes=False,
+        )
+
+    if automatic_unit_conversion:
+        assert nl_params.units != sim.tod_list[0].units, "error"
 
     # Creating fiducial TODs
     sim.observations[0].nl_2_self = np.ones_like(sim.observations[0].tod)
@@ -54,7 +79,6 @@ def test_add_quadratic_nonlinearity(conv_K_CMB_to_MJy_over_sr):
         nl_params=nl_params,
         component="nl_2_self",
         user_seed=random_seed,
-        conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
     )
 
     # Applying non-linearity on the given TOD component of an `Observation` object
@@ -62,8 +86,6 @@ def test_add_quadratic_nonlinearity(conv_K_CMB_to_MJy_over_sr):
         observations=sim.observations,
         nl_params=nl_params,
         component="nl_2_obs",
-        user_seed=random_seed,
-        conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
     )
 
     # Applying non-linearity on the TOD arrays of the individual detectors.
@@ -76,9 +98,8 @@ def test_add_quadratic_nonlinearity(conv_K_CMB_to_MJy_over_sr):
             tod_det=tod,
             nl_params=nl_params,
             random=dets_random[idx],
-            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
-            det_bandcenter_ghz=dets[0].bandcenter_ghz,
-            det_bandwidth_ghz=dets[0].bandwidth_ghz,
+            tod_units=sim.observations[0].tod_list[0].units,
+            bandcenter_ghz_det=dets[0].bandcenter_ghz,
         )
 
     # Check if the three non-linear tods are equal
@@ -97,22 +118,26 @@ def test_add_quadratic_nonlinearity(conv_K_CMB_to_MJy_over_sr):
     dets_random = RNG_hierarchy.get_detector_level_generators_on_rank(0)
     sim.observations[0].tod_origin = np.ones_like(sim.observations[0].tod)
     for idx, tod in enumerate(sim.observations[0].nl_2_det):
-        g_one_over_k = dets_random[idx].normal(
+        g_nonlin = dets_random[idx].normal(
             loc=nl_params.sampling_gaussian_loc,
             scale=nl_params.sampling_gaussian_scale,
         )
 
         _tod = deepcopy(sim.observations[0].tod_origin[idx])
 
-        if conv_K_CMB_to_MJy_over_sr:
-            conv_factor = UnitUtils.get_conversion_factor(
-                Units.K_CMB, Units.MJy_over_sr, dets[0].bandcenter_ghz
+        if nl_params.units != sim.observations[0].tod_list[0].units:
+            conv_factor_nl = UnitUtils.get_conversion_factor(
+                nl_params.units,
+                sim.observations[0].tod_list[0].units,
+                dets[idx].bandcenter_ghz,
             )
+        else:
+            conv_factor_nl = 1
 
-            g_one_over_k = (1 / conv_factor) * g_one_over_k
+        g_nonlin = (1 / conv_factor_nl) * g_nonlin
 
         for i in range(len(_tod)):
-            _tod[i] += g_one_over_k * _tod[i] ** 2
+            _tod[i] += g_nonlin * _tod[i] ** 2
 
         np.testing.assert_array_equal(
             sim.observations[0].nl_2_self[idx],
