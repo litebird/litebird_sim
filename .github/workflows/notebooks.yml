@@ -16,7 +16,7 @@ jobs:
             mpi: mpich
             python: "3.10"
 
-    # Only run tests if there is no [skipnb] or [skip nb] in the commit message
+    # Only run notebook tests if there is no [skipnb] or [skip nb] in the commit message
     if: |
       !startsWith(github.event.head_commit.message, '[skip nb]') &&
       !startsWith(github.event.head_commit.message, '[skipnb]')
