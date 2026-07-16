@@ -1,3 +1,4 @@
+import logging
 import os
 
 import numpy as np
@@ -6,7 +7,7 @@ from astropy import constants as const
 from astropy.cosmology import Planck18 as cosmo
 from ducc0.healpix import Healpix_Base
 from numba import njit
-import healpy as hp
+
 from litebird_sim.hwp_jones_parameters import HWPJonesParams
 
 from ..bandpass_template_module import bandpass_profile
@@ -370,21 +371,15 @@ def fill_tod_with_hwp_harmonics(
                 cur_hwp_angle = hwp_angle_list[idx_obs]
 
             # ----------------------------------------------------------
-            # Rotate input map to ecliptic coordinates
+            # Determine coordinate system from the object
             # ----------------------------------------------------------
-
-            coordinates = CoordinateSystem.Ecliptic
-            r = hp.Rotator(coord=["G", "E"])
-            pixmap = maps_det.values
-            if pixmap.ndim == 3:
-                pixmap = np.array(
-                    [
-                        [r.rotate_map_alms(m) for m in pixmap[freq]]  # type: ignore[not-subscriptable]
-                        for freq in range(pixmap.shape[0])
-                    ]
+            coordinates = getattr(maps_det, "coordinates", None)
+            if coordinates is None:
+                logging.warning(
+                    "scan_map: maps_det.coordinates is None — assuming "
+                    "CoordinateSystem.Galactic"
                 )
-            else:
-                pixmap = np.array([r.rotate_map_alms(m) for m in pixmap])  # type: ignore[not-iterable]
+                coordinates = CoordinateSystem.Galactic
 
             # ----------------------------------------------------------
             # Get pointings in the correct coordinate system
@@ -428,7 +423,7 @@ def fill_tod_with_hwp_harmonics(
             # REAL SPACE (HealpixMap)
             # ----------------------------------------------------------
             if isinstance(maps_det, HealpixMap):
-                # (nstokes, Npix)
+                pixmap = maps_det.values  # (nstokes, Npix)
                 scheme = "NESTED" if maps_det.nest else "RING"
                 hpx = Healpix_Base(maps_det.nside, scheme)
 

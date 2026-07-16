@@ -189,21 +189,21 @@ def _rotate_coordinates_and_orientation_e2g_for_one_sample(
             np.cos(theta_ecl_rad) * np.cos(phi_ecl_rad),
             np.cos(theta_ecl_rad) * np.sin(phi_ecl_rad),
             -np.sin(theta_ecl_rad),
-        ]
+        ], dtype=np.float64,
     )
 
     # East direction: dr/dφ (points toward increasing φ)
-    east_ecl = np.array([-np.sin(phi_ecl_rad), np.cos(phi_ecl_rad), 0])
+    east_ecl = np.array([-np.sin(phi_ecl_rad), np.cos(phi_ecl_rad), 0], dtype=np.float64,)
 
     # Rotate to get north and east directions in galactic coordinates
-    north_gal = ECL_TO_GAL_ROT_MATRIX @ north_ecl.astype(np.float64)
-    east_gal = ECL_TO_GAL_ROT_MATRIX @ east_ecl.astype(np.float64)
+    north_gal = ECL_TO_GAL_ROT_MATRIX @ north_ecl
+    east_gal = ECL_TO_GAL_ROT_MATRIX @ east_ecl
 
     # Get orientation vector in the ecliptic frame
     ref_ecl = np.cos(psi_ecl_rad) * north_ecl + np.sin(psi_ecl_rad) * east_ecl
 
     # Rotate it to the galactic frame
-    ref_gal = ECL_TO_GAL_ROT_MATRIX @ ref_ecl.astype(np.float64)
+    ref_gal = ECL_TO_GAL_ROT_MATRIX @ ref_ecl
 
     # Extract the angle
     psi_gal_rad = np.arctan2(np.dot(ref_gal, east_gal), np.dot(ref_gal, north_gal))
