@@ -11,9 +11,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         mpi: ["none"]
         python: ["3.10", "3.14"]
-        exclude:
-          - os: macos-latest
-            python: "3.10"
 
     # Only run notebook tests if there is no [skipnb] or [skip nb] in the commit message
     if: |
