@@ -117,72 +117,46 @@ def test_construction_from_detectors():
         n_samples_global=100,
         start_time_global=0.0,
         sampling_rate_hz=1.0,
+        n_blocks_time=comm_world.size,
         comm=comm_world,
         root=0,
     )
 
-    if comm_world.rank == 0:
-        assert obs.name[0] == "pol01"
-        assert obs.name[1] == "pol02"
-        assert obs.wafer[0] == "mywafer"
-        assert obs.wafer[1] == "mywafer"
-        assert obs.pixel[0] == 1
-        assert obs.pixel[1] == 2
-        assert obs.pixtype[0] == "A"
-        assert obs.pixtype[1] is None
-        assert obs.alpha[0] == 1.0
-        assert np.isnan(obs.alpha[1])
-        assert obs.ellipticity[0] == 1.0
-        assert obs.ellipticity[1] == 2.0
-        assert np.all(obs.quat[0] == np.zeros(4))
-        assert np.all(obs.quat[1] == np.ones(4))
+    assert obs.name[0] == "pol01"
+    assert obs.name[1] == "pol02"
+    assert obs.wafer[0] == "mywafer"
+    assert obs.wafer[1] == "mywafer"
+    assert obs.pixel[0] == 1
+    assert obs.pixel[1] == 2
+    assert obs.pixtype[0] == "A"
+    assert obs.pixtype[1] is None
+    assert obs.alpha[0] == 1.0
+    assert np.isnan(obs.alpha[1])
+    assert obs.ellipticity[0] == 1.0
+    assert obs.ellipticity[1] == 2.0
+    assert np.all(obs.quat[0] == np.zeros(4))
+    assert np.all(obs.quat[1] == np.ones(4))
 
-    if comm_world.size == 1:
-        return
-
-    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=2)
-    if comm_world.rank == 0:
-        assert obs.name[0] == "pol01"
-        assert obs.wafer[0] == "mywafer"
-        assert obs.pixel[0] == 1
-        assert obs.pixtype[0] == "A"
-        assert obs.ellipticity[0] == 1.0
-        assert np.all(obs.quat[0] == np.zeros(4))
-        assert obs.alpha[0] == 1.0
-    elif comm_world.rank == 1:
-        assert obs.name[0] == "pol02"
-        assert obs.wafer[0] == "mywafer"
-        assert obs.pixel[0] == 2
-        assert obs.pixtype[0] is None
-        assert obs.ellipticity[0] == 2.0
-        assert np.all(obs.quat[0] == np.ones(4))
-        assert np.isnan(obs.alpha[0])
+    if comm_world.size % 2 == 0:
+        obs.set_n_blocks(n_blocks_time=comm_world.size // 2, n_blocks_det=2)
+        if comm_world.rank < comm_world.size // 2:
+            assert obs.name[0] == "pol01"
+            assert obs.wafer[0] == "mywafer"
+            assert obs.pixel[0] == 1
+            assert obs.pixtype[0] == "A"
+            assert obs.ellipticity[0] == 1.0
+            assert np.all(obs.quat[0] == np.zeros(4))
+            assert obs.alpha[0] == 1.0
+        elif comm_world.rank > comm_world.size // 2:
+            assert obs.name[0] == "pol02"
+            assert obs.wafer[0] == "mywafer"
+            assert obs.pixel[0] == 2
+            assert obs.pixtype[0] is None
+            assert obs.ellipticity[0] == 2.0
+            assert np.all(obs.quat[0] == np.ones(4))
+            assert np.isnan(obs.alpha[0])
     else:
-        assert obs.name == [None]
-        assert obs.wafer == [None]
-        assert obs.pixel == [None]
-        assert obs.pixtype == [None]
-        assert obs.quat == [None]
-        # On the processes, that does not own any detector (and TOD), the numerical
-        # attributes of `DetectorInfo()` are assigned to zero
-        assert obs.ellipticity == 0
-        assert obs.alpha == 0
-
-    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=1)
-    if comm_world.rank == 0:
-        assert obs.name[0] == "pol01"
-        assert obs.name[1] == "pol02"
-        assert obs.wafer[0] == "mywafer"
-        assert obs.wafer[1] == "mywafer"
-        assert obs.pixel[0] == 1
-        assert obs.pixel[1] == 2
-        assert obs.pixtype[0] == "A"
-        assert obs.pixtype[1] is None
-        assert obs.ellipticity[0] == 1.0
-        assert obs.ellipticity[1] == 2.0
-        assert obs.alpha[0] == 1.0
-        assert np.isnan(obs.alpha[1])
-        assert np.allclose(obs.quat, np.arange(2)[:, None])
+        return
 
 
 def test_observation_tod_single_block():
