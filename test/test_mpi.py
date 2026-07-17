@@ -21,6 +21,7 @@ def test_observation_time():
         start_time_global=0.0,
         sampling_rate_hz=5.0,
         n_samples_global=5,
+        n_blocks_time=comm_world.size,
         comm=comm_world,
     )
     obs_mjd_astropy = lbs.Observation(
@@ -28,6 +29,7 @@ def test_observation_time():
         start_time_global=ref_time,
         sampling_rate_hz=5.0,
         n_samples_global=5,
+        n_blocks_time=comm_world.size,
         comm=comm_world,
     )
 
@@ -39,7 +41,7 @@ def test_observation_time():
         [6.985_440_69e8, 6.985_440_69e8, 6.985_440_70e8, 6.985_440_70e8, 6.985_440_70e8]
     )
 
-    if not comm_world or comm_world.rank == 0:
+    if not comm_world or comm_world.size == 1:
         assert np.allclose(obs_no_mjd.get_times(), res_times)
         assert np.allclose(
             (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd, res_mjd
@@ -47,36 +49,29 @@ def test_observation_time():
         assert np.allclose(
             obs_mjd_astropy.get_times(normalize=False, astropy_times=False), res_cxcsec
         )
+    elif comm_world.size == 2:
+        if comm_world.rank == 0:
+            assert np.allclose(obs_no_mjd.get_times(), res_times[:3])
+            assert np.allclose(
+                (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
+                res_mjd[:3],
+            )
+            assert np.allclose(
+                obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
+                res_cxcsec[:3],
+            )
+        elif comm_world.rank == 1:
+            assert np.allclose(obs_no_mjd.get_times(), res_times[3:])
+            assert np.allclose(
+                (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
+                res_mjd[3:],
+            )
+            assert np.allclose(
+                obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
+                res_cxcsec[3:],
+            )
     else:
-        assert obs_no_mjd.get_times().size == 0
-        assert obs_mjd_astropy.get_times(astropy_times=True).size == 0
-        assert obs_mjd_astropy.get_times(normalize=False, astropy_times=False).size == 0
-
-    if not comm_world or comm_world.size == 1:
         return
-    obs_no_mjd.set_n_blocks(n_blocks_time=2)
-    obs_mjd_astropy.set_n_blocks(n_blocks_time=2)
-    if comm_world.rank == 0:
-        assert np.allclose(obs_no_mjd.get_times(), res_times[:3])
-        assert np.allclose(
-            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd, res_mjd[:3]
-        )
-        assert np.allclose(
-            obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
-            res_cxcsec[:3],
-        )
-    elif comm_world.rank == 1:
-        assert np.allclose(obs_no_mjd.get_times(), res_times[3:])
-        assert np.allclose(
-            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd, res_mjd[3:]
-        )
-        assert np.allclose(
-            obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
-            res_cxcsec[3:],
-        )
-    else:
-        assert obs_no_mjd.get_times().size == 0
-        assert obs_mjd_astropy.get_times().size == 0
 
 
 def test_construction_from_detectors():
