@@ -170,6 +170,7 @@ def test_observation_tod_single_block():
             comm=comm_world,
         )
     except ValueError:
+        assert comm_world.size != 1
         return
 
     assert obs.tod.shape == (3, 9)
@@ -188,16 +189,13 @@ def test_observation_tod_two_block_time():
             comm=comm_world,
         )
     except ValueError:
-        # Not enough processes to split the TOD, constructor expected to rise
-        if comm_world.size < 2:
-            return
+        assert comm_world.size != 2
+        return
 
     if comm_world.rank == 0:
         assert obs.tod.shape == (3, 5)
     elif comm_world.rank == 1:
         assert obs.tod.shape == (3, 4)
-    else:
-        assert obs.tod.shape == (0, 0)
 
 
 def test_observation_tod_two_block_det():
