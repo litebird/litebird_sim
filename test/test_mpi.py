@@ -184,41 +184,30 @@ def test_construction_from_detectors():
             assert np.isnan(obs.alpha[0])
 
 
-def test_observation_tod_single_block():
+def test_observation_tod_time_blocks():
     comm_world = lbs.MPI_COMM_WORLD
-    try:
-        obs = lbs.Observation(
-            detectors=3,
-            n_samples_global=9,
-            start_time_global=0.0,
-            sampling_rate_hz=1.0,
-            comm=comm_world,
-        )
-    except ValueError:
-        pytest.skip("This test requires exactly 1 MPI process")
+    comm_size = comm_world.size
+    comm_rank = comm_world.rank
+    if comm_size > 4:
+        pytest.skip("This test requires at most 9 MPI processes")
 
-    assert obs.tod.shape == (3, 9)
+    nsamples_global = 9
+    obs = lbs.Observation(
+        detectors=3,
+        n_samples_global=nsamples_global,
+        start_time_global=0.0,
+        sampling_rate_hz=1.0,
+        n_blocks_time=comm_world.size,
+        comm=comm_world,
+    )
+
+    remainder = nsamples_global % comm_size
+    if comm_rank < remainder:
+        assert obs.tod.shape == (3, nsamples_global // comm_size + 1)
+    else:
+        assert obs.tod.shape == (3, nsamples_global // comm_size)
+
     assert obs.tod.dtype == np.float32
-
-
-def test_observation_tod_two_block_time():
-    comm_world = lbs.MPI_COMM_WORLD
-    try:
-        obs = lbs.Observation(
-            detectors=3,
-            n_samples_global=9,
-            start_time_global=0.0,
-            sampling_rate_hz=1.0,
-            n_blocks_time=2,
-            comm=comm_world,
-        )
-    except ValueError:
-        pytest.skip("This test requires exactly 2 MPI processes")
-
-    if comm_world.rank == 0:
-        assert obs.tod.shape == (3, 5)
-    elif comm_world.rank == 1:
-        assert obs.tod.shape == (3, 4)
 
 
 def test_observation_tod_two_block_det():
