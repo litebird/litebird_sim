@@ -184,6 +184,59 @@ def test_construction_from_detectors():
             assert np.isnan(obs.alpha[0])
 
 
+def test_observation_invalid_n_blocks():
+    comm_world = lbs.MPI_COMM_WORLD
+
+    # more blocks than the number of samples
+    with pytest.raises(ValueError):
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=comm_world.size - 1,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=comm_world.size,
+            n_blocks_det=1,
+            comm=comm_world,
+        )
+
+    # more blocks than the number of detectors
+    with pytest.raises(ValueError):
+        obs = lbs.Observation(
+            detectors=comm_world.size - 1,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=1,
+            n_blocks_det=comm_world.size,
+            comm=comm_world,
+        )
+
+    # more blocks than the number of MPI processes
+    with pytest.raises(ValueError):
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=comm_world.size,
+            n_blocks_det=2,
+            comm=comm_world,
+        )
+
+    # when set_n_blocks is called with more blocks than the number of MPI processes
+    with pytest.raises(ValueError):
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=comm_world.size,
+            n_blocks_det=1,
+            comm=comm_world,
+        )
+        obs.set_n_blocks(n_blocks_time=comm_world.size, n_blocks_det=2)
+
+
 def test_observation_tod_time_blocks():
     comm_world = lbs.MPI_COMM_WORLD
     comm_size = comm_world.size
@@ -673,8 +726,3 @@ def test_nullify_mpi(mpi_tmp_path):
 
 if __name__ == "__main__":
     pytest.main([f"{__file__}"])
-
-
-### Cases1 more blocks than number of samples
-# case where detector block ends up with no detector
-# catch exception for set_n_blocks whenever the comm_size condition is violated
