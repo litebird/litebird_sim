@@ -38,6 +38,9 @@ def mpi_tmp_path():
 
 def test_observation_time():
     comm_world = lbs.MPI_COMM_WORLD
+    if comm_world.size > 2:
+        pytest.skip("This test is only supported with 1 or 2 MPI processes")
+
     ref_time = astrotime.Time("2020-02-20", format="iso")
 
     obs_no_mjd = lbs.Observation(
@@ -94,12 +97,12 @@ def test_observation_time():
                 obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
                 res_cxcsec[3:],
             )
-    else:
-        return
 
 
 def test_construction_from_detectors():
     comm_world = lbs.MPI_COMM_WORLD
+    if comm_world.size % 2 != 0:
+        pytest.skip("This test requires the number of MPI processes to be even")
 
     det1 = dict(
         name="pol01",
@@ -179,8 +182,6 @@ def test_construction_from_detectors():
             assert obs.ellipticity[0] == 2.0
             assert np.all(obs.quat[0] == np.ones(4))
             assert np.isnan(obs.alpha[0])
-    else:
-        return
 
 
 def test_observation_tod_single_block():
@@ -194,8 +195,7 @@ def test_observation_tod_single_block():
             comm=comm_world,
         )
     except ValueError:
-        assert comm_world.size != 1
-        return
+        pytest.skip("This test requires exactly 1 MPI process")
 
     assert obs.tod.shape == (3, 9)
     assert obs.tod.dtype == np.float32
@@ -213,8 +213,7 @@ def test_observation_tod_two_block_time():
             comm=comm_world,
         )
     except ValueError:
-        assert comm_world.size != 2
-        return
+        pytest.skip("This test requires exactly 2 MPI processes")
 
     if comm_world.rank == 0:
         assert obs.tod.shape == (3, 5)
@@ -234,8 +233,7 @@ def test_observation_tod_two_block_det():
             comm=comm_world,
         )
     except ValueError:
-        assert comm_world.size != 2
-        return
+        pytest.skip("This test requires exactly 2 MPI processes")
 
     if comm_world.rank == 0:
         assert obs.tod.shape == (2, 9)
@@ -245,6 +243,8 @@ def test_observation_tod_two_block_det():
 
 def test_observation_tod_set_blocks():
     comm_world = lbs.MPI_COMM_WORLD
+    if comm_world.size not in [2, 3, 4, 6]:
+        pytest.skip("This test requires 2, 3, 4, or 6 MPI processes")
 
     def assert_det_info():
         assert np.all(
@@ -432,9 +432,6 @@ def test_observation_tod_set_blocks():
             assert np.all(obs.tod == ref_tod[:, 8:])
         assert_det_info()
 
-    else:
-        return
-
 
 def test_write_hdf5_mpi(mpi_tmp_path):
     start_time = 0
@@ -555,7 +552,7 @@ def test_issue314(mpi_tmp_path):
     if MPI_COMM_WORLD.size != 2:
         # This test is meant to be executed with 2 MPI tasks, as
         # `__write_complex_observation` creates 2 observations
-        return
+        pytest.skip("This test is meant to be executed with exactly 2 MPI tasks")
 
     rank = lbs.MPI_COMM_WORLD.rank
 
