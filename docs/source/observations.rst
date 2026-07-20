@@ -341,15 +341,9 @@ and ``n_blocks_det = 4``.
 
 To distribute the TODs across
 ``n_blocks_det`` :math:`\times` ``n_blocks_time`` :math:`=\, N`
-MPI ranks, it is necessary that the script is executed with at least
-:math:`N` MPI processes. There is, however, no upper limit on the
-number of MPI processes to be used. When the number of MPI processes
-is higher than :math:`N`, it leaves all the MPI processes with
-``rank`` :math:`\geq N` with no detector (and TOD). In many cases, it
-is useful to identify the unused ranks so that they can be avoided
-while performing some computations. The :class:`.Observation` class
-makes this happen by making a sub-communicator containing only the
-processes that contain a non-zero number of detectors (and TODs).
+MPI ranks, it is necessary that the script is executed with exactly
+:math:`N` MPI processes. When the number of MPI processes
+is not equal to :math:`N`, the code produces an error.
 
 However, once the detectors and TODs are distributed across several
 processes, it is not trivial to find out all the ranks that contain
@@ -359,57 +353,29 @@ corresponding to the same time interval. To solve this issue, :class:`.Observati
 class provides the MPI sub-communicators corresponding to different
 groups of MPI processes.
 
-The three sub-communicators provided by the framework - each generated
+The two sub-communicators provided by the framework - each generated
 by splitting the global MPI communicator - are listed below. The
 process ranks in the sub-communicators are based on the order of their
 global ranks:
 
-- **Grid communicator**: Once the number of detector blocks and the
-  number of time blocks are available, the Observation class splits the
-  global communicator into a grid communicator and a null communicator.
-  Grid communicator consist all the mpi processes whose rank is less
-  than :math:`N`. The null communicator contains all other MPI
-  processes. On the MPI processes with global rank less than
-  :math:`N`, the global variable ``MPI_COMM_GRID.COMM_OBS_GRID``
-  points to the grid communicator. On other MPI processes, it points
-  to the null MPI communicator (``MPI_COMM_GRID.COMM_NULL`` which is
-  same as ``mpi4py.MPI.COMM_NULL``). In the example below, the
-  processes with global rank from 0 to 7 belong to the grid
-  sub-communicator. Since the processes with rank 8 and 9 are unused,
-  they are excluded from the grid communicator.
-
-  .. image:: ./images/grid_communicator.png
-
-  Note that, to exclude the MPI processes belonging to the null
-  communicator from the computations, one should enclose the
-  computations under an if condition comparing
-  ``MPI_COMM_GRID.COMM_OBS_GRID`` against ``MPI_COMM_GRID.COMM_NULL``:
-
-  ::
-
-    if MPI_COMM_GRID.COMM_OBS_GRID != MPI_COMM_GRID.COMM_NULL:
-        # proceed with the following computations when
-        # MPI_COMM_GRID.COMM_OBS_GRID is not null
-        ...
-
 - **Detector-block communicator**: The detector-block communicator is
-  made by splitting the grid communicator into ``n_blocks_det``
+  made by splitting the global communicator into ``n_blocks_det``
   sub-communicators, such that each sub-communicator contains the
   processes where TODs of the same set of detectors reside. This
   sub-communicator can be accessed with ``comm_det_blocks`` attribute
   of the :class:`.Observation` class. In the following example, the
-  grid communicator is split into 4 detector-block communicators
+  global communicator is split into 4 detector-block communicators
   containing the processes with global rank 0-1, 2-3, 4-5, and 6-7
   respectively.
 
   .. image:: ./images/detector_block_communicator.png
 
 - **Time-block communicator**: The time-block communicator is made by
-  splitting the grid communicator into ``n_blocks_time``
+  splitting the global communicator into ``n_blocks_time``
   sub-communicators, such that each sub-communicator contains the
   processes where TOD chunks of same time interval reside. This
   sub-communicator can be accessed with ``comm_time_block`` attribute
-  of the :class:`.Observation` class. In the example below, the grid
+  of the :class:`.Observation` class. In the example below, the global
   communicator is split into 2 time-block communicators containing the
   processes with global rank 0-2-4-6 and 1-3-5-7 respectively.
 
