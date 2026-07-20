@@ -1,15 +1,39 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
 from pathlib import Path
-from sys import stderr
 from tempfile import TemporaryDirectory
-from typing import Callable
 
 import astropy.time as astrotime
 import numpy as np
+import pytest
 
 import litebird_sim as lbs
 from litebird_sim import MPI_COMM_WORLD
+
+
+@pytest.fixture
+def mpi_tmp_path():
+    if not lbs.MPI_ENABLED:
+        with TemporaryDirectory() as tmp_dir:
+            yield Path(tmp_dir)
+        return
+
+    # It's critical that all MPI processes use the same output directory
+    comm = lbs.MPI_COMM_WORLD
+    if comm.rank == 0:
+        tmp_dir = TemporaryDirectory()
+        tmp_path = tmp_dir.name
+        comm.bcast(tmp_path, root=0)
+    else:
+        tmp_dir = None
+        tmp_path = comm.bcast(None, root=0)
+
+    # https://docs.pytest.org/en/stable/how-to/fixtures.html#yield-fixtures-recommended
+    yield Path(tmp_path)
+
+    comm.barrier()
+    if tmp_dir:
+        tmp_dir.cleanup()
 
 
 def test_observation_time():
@@ -412,13 +436,13 @@ def test_observation_tod_set_blocks():
         return
 
 
-def test_write_hdf5_mpi(tmp_path):
+def test_write_hdf5_mpi(mpi_tmp_path):
     start_time = 0
     time_span_s = 60
     sampling_hz = 10
 
     sim = lbs.Simulation(
-        base_path=tmp_path,
+        base_path=mpi_tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
         random_seed=12345,
@@ -523,7 +547,7 @@ def test_simulation_random():
         assert state3["state"]["state"] != state4["state"]["state"]
 
 
-def test_issue314(tmp_path):
+def test_issue314(mpi_tmp_path):
     """Check if issue 314 is solved
 
     See https://github.com/litebird/litebird_sim/issues/314
@@ -535,7 +559,7 @@ def test_issue314(tmp_path):
 
     rank = lbs.MPI_COMM_WORLD.rank
 
-    tmp_path = Path(tmp_path)
+    tmp_path = mpi_tmp_path
 
     start_time = 0
     time_span_s = 60
@@ -626,49 +650,13 @@ def test_issue314(tmp_path):
     sim.flush()
 
 
-def __run_test_in_same_folder(test_fn: Callable) -> None:
-    if not lbs.MPI_ENABLED:
-        return
-
-    # It's critical that all MPI processes use the same output directory
-    if lbs.MPI_COMM_WORLD.rank == 0:
-        tmp_dir = TemporaryDirectory()
-        tmp_path = tmp_dir.name
-        lbs.MPI_COMM_WORLD.bcast(tmp_path, root=0)
-    else:
-        tmp_dir = None
-        tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
-
-    failure = False
-    try:
-        test_fn(tmp_path)
-    except Exception:
-        failure = True
-
-        from traceback import format_exc
-
-        print(
-            "MPI process #{rank} failed with exception: {exc}".format(
-                rank=lbs.MPI_COMM_WORLD.rank,
-                exc=format_exc(),
-            ),
-            file=stderr,
-        )
-
-    if tmp_dir:
-        tmp_dir.cleanup()
-
-    if failure:
-        lbs.MPI_COMM_WORLD.Abort(1)
-
-
-def test_nullify_mpi(tmp_path):
+def test_nullify_mpi(mpi_tmp_path):
     start_time = 0
     time_span_s = 2
     sampling_hz = 12
 
     sim = lbs.Simulation(
-        base_path=tmp_path,
+        base_path=mpi_tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
         random_seed=12345,
@@ -698,28 +686,9 @@ def test_nullify_mpi(tmp_path):
 
 
 if __name__ == "__main__":
-    test_functions = [
-        test_observation_time,
-        test_construction_from_detectors,
-        test_observation_tod_single_block,
-        test_observation_tod_two_block_time,
-        test_observation_tod_two_block_det,
-        test_observation_tod_set_blocks,
-        test_simulation_random,
-    ]
+    pytest.main([f"{__file__}"])
 
-    for cur_test_fn in test_functions:
-        if MPI_COMM_WORLD.rank == 0:
-            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
-        cur_test_fn()
 
-    same_folder_test_functions = [
-        test_write_hdf5_mpi,
-        test_issue314,
-        test_nullify_mpi,
-    ]
-
-    for cur_test_fn in same_folder_test_functions:
-        if MPI_COMM_WORLD.rank == 0:
-            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
-        __run_test_in_same_folder(cur_test_fn)
+### Cases1 more blocks than number of samples
+# case where detector block ends up with no detector
+# catch exception for set_n_blocks whenever the comm_size condition is violated
