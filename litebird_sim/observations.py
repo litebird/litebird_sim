@@ -293,12 +293,8 @@ class Observation:
             self._n_blocks_det, self._n_blocks_time
         )
         if self.comm:
-            if self.comm.rank < self._n_blocks_time * self._n_blocks_det:
-                start = start[self.comm.rank % self._n_blocks_time]
-                num = num[self.comm.rank % self._n_blocks_time]
-            else:
-                start = 0
-                num = 0
+            start = start[self.comm.rank % self._n_blocks_time]
+            num = num[self.comm.rank % self._n_blocks_time]
         else:
             start = start[0]
             num = num[0]
@@ -487,7 +483,7 @@ class Observation:
         elif n_blocks_time > self.n_samples_global:
             raise ValueError(
                 "You can not have more time blocks than time samples "
-                f"({n_blocks_time} > {self.n_blocks_time})"
+                f"({n_blocks_time} > {self.n_samples_global})"
             )
         elif self.comm.size != n_blocks_det * n_blocks_time:
             raise ValueError(
