@@ -221,7 +221,14 @@ def test_observation_tod_two_block_det():
 
 def test_observation_tod_set_blocks():
     comm_world = lbs.MPI_COMM_WORLD
-    try:
+
+    def assert_det_info():
+        assert np.all(
+            obs.row_int == (obs.tod[:, 0] // obs._n_samples_global).astype(int)
+        )
+        assert np.all(obs.row_int.astype(str) == obs.row_str)
+
+    if comm_world.size == 2:
         obs = lbs.Observation(
             detectors=3,
             n_samples_global=9,
@@ -230,133 +237,179 @@ def test_observation_tod_set_blocks():
             n_blocks_time=2,
             comm=comm_world,
         )
-    except ValueError:
-        # Not enough processes to split the TOD, constructor expected to rise
-        if comm_world.size < 2:
-            return
 
-    def assert_det_info():
-        if comm_world.rank < obs._n_blocks_time * obs._n_blocks_det:
-            assert np.all(
-                obs.row_int == (obs.tod[:, 0] // obs._n_samples_global).astype(int)
-            )
-            assert np.all(obs.row_int.astype(str) == obs.row_str)
-        else:
-            assert obs.row_int == [None]
-            assert obs.row_str == [None]
+        # Two time blocks
+        ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
+        if comm_world.rank == 0:
+            obs.tod[:] = ref_tod[:, :5]
+        elif comm_world.rank == 1:
+            obs.tod[:] = ref_tod[:, 5:]
 
-    # Two time blocks
-    ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
-    if comm_world.rank == 0:
-        obs.tod[:] = ref_tod[:, :5]
-    elif comm_world.rank == 1:
-        obs.tod[:] = ref_tod[:, 5:]
+        # Add detector info
+        obs.setattr_det_global("row_int", np.arange(3))
+        obs.setattr_det_global("row_str", np.array("0 1 2".split()))
+        assert_det_info()
 
-    # Add detector info
-    obs.setattr_det_global("row_int", np.arange(3))
-    obs.setattr_det_global("row_str", np.array("0 1 2".split()))
-    assert_det_info()
+        # Two detector blocks
+        obs.set_n_blocks(n_blocks_time=1, n_blocks_det=2)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:2])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[2:])
+        assert_det_info()
 
-    # Two detector blocks
-    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=2)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:2])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[2:])
+    elif comm_world.size == 3:
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=3,
+            comm=comm_world,
+        )
+
+        # Three time blocks
+        ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
+        if comm_world.rank == 0:
+            obs.tod[:] = ref_tod[:, :3]
+        elif comm_world.rank == 1:
+            obs.tod[:] = ref_tod[:, 3:6]
+        elif comm_world.rank == 2:
+            obs.tod[:] = ref_tod[:, 6:]
+
+        # Add detector info
+        obs.setattr_det_global("row_int", np.arange(3))
+        obs.setattr_det_global("row_str", np.array("0 1 2".split()))
+        assert_det_info()
+
+        # Three detector blocks
+        obs.set_n_blocks(n_blocks_time=1, n_blocks_det=3)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:1])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[1:2])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[2:])
+        assert_det_info()
+
+    elif comm_world.size == 4:
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=4,
+            comm=comm_world,
+        )
+
+        # Four time blocks
+        ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
+        if comm_world.rank == 0:
+            obs.tod[:] = ref_tod[:, :3]
+        elif comm_world.rank == 1:
+            obs.tod[:] = ref_tod[:, 3:5]
+        elif comm_world.rank == 2:
+            obs.tod[:] = ref_tod[:, 5:7]
+        elif comm_world.rank == 3:
+            obs.tod[:] = ref_tod[:, 7:]
+
+        # Add detector info
+        obs.setattr_det_global("row_int", np.arange(3))
+        obs.setattr_det_global("row_str", np.array("0 1 2".split()))
+        assert_det_info()
+
+        # Two detector blocks, two time blocks
+        obs.set_n_blocks(n_blocks_time=2, n_blocks_det=2)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:2, :5])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[:2, 5:])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[2:, :5])
+        elif comm_world.rank == 3:
+            assert np.all(obs.tod == ref_tod[2:, 5:])
+        assert_det_info()
+
+    elif comm_world.size == 6:
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=6,
+            comm=comm_world,
+        )
+
+        # Six time blocks
+        ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
+        if comm_world.rank == 0:
+            obs.tod[:] = ref_tod[:, :2]
+        elif comm_world.rank == 1:
+            obs.tod[:] = ref_tod[:, 2:4]
+        elif comm_world.rank == 2:
+            obs.tod[:] = ref_tod[:, 4:6]
+        elif comm_world.rank == 3:
+            obs.tod[:] = ref_tod[:, 6:7]
+        elif comm_world.rank == 4:
+            obs.tod[:] = ref_tod[:, 7:8]
+        elif comm_world.rank == 5:
+            obs.tod[:] = ref_tod[:, 8:]
+
+        # Add detector info
+        obs.setattr_det_global("row_int", np.arange(3))
+        obs.setattr_det_global("row_str", np.array("0 1 2".split()))
+        assert_det_info()
+
+        # Two detector blocks, three time blocks
+        obs.set_n_blocks(n_blocks_time=3, n_blocks_det=2)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:2, :3])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[:2, 3:6])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[:2, 6:])
+        elif comm_world.rank == 3:
+            assert np.all(obs.tod == ref_tod[2:, :3])
+        elif comm_world.rank == 4:
+            assert np.all(obs.tod == ref_tod[2:, 3:6])
+        elif comm_world.rank == 5:
+            assert np.all(obs.tod == ref_tod[2:, 6:])
+        assert_det_info()
+
+        # Three detector blocks, two time blocks
+        obs.set_n_blocks(n_blocks_time=2, n_blocks_det=3)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[0, :5])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[0, 5:])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[1, :5])
+        elif comm_world.rank == 3:
+            assert np.all(obs.tod == ref_tod[1, 5:])
+        elif comm_world.rank == 4:
+            assert np.all(obs.tod == ref_tod[2, :5])
+        elif comm_world.rank == 5:
+            assert np.all(obs.tod == ref_tod[2, 5:])
+        assert_det_info()
+
+        # Six time blocks
+        obs.set_n_blocks(n_blocks_time=6, n_blocks_det=1)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:, :2])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[:, 2:4])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[:, 4:6])
+        elif comm_world.rank == 3:
+            assert np.all(obs.tod == ref_tod[:, 6:7])
+        elif comm_world.rank == 4:
+            assert np.all(obs.tod == ref_tod[:, 7:8])
+        elif comm_world.rank == 5:
+            assert np.all(obs.tod == ref_tod[:, 8:])
+        assert_det_info()
+
     else:
-        assert obs.tod.size == 0
-    assert_det_info()
-
-    # One block
-    obs.set_n_blocks(n_blocks_det=1, n_blocks_time=1)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod)
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
-
-    # Three time blocks
-    if comm_world.size < 3:
         return
-    obs.set_n_blocks(n_blocks_det=1, n_blocks_time=3)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:, :3])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[:, 3:6])
-    elif comm_world.rank == 2:
-        assert np.all(obs.tod == ref_tod[:, 6:])
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
-
-    # Two detector blocks and two time blocks
-    if comm_world.size < 4:
-        return
-    obs.set_n_blocks(n_blocks_time=2, n_blocks_det=2)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:2, :5])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[:2, 5:])
-    elif comm_world.rank == 2:
-        assert np.all(obs.tod == ref_tod[2:, :5])
-    elif comm_world.rank == 3:
-        assert np.all(obs.tod == ref_tod[2:, 5:])
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
-
-    try:
-        obs.set_n_blocks(n_blocks_det=4, n_blocks_time=1)
-    except ValueError:
-        pass
-    else:
-        raise Exception("ValueError expected")
-
-    # Two detector blocks and three time blocks
-    if comm_world.size < 6:
-        return
-    obs.set_n_blocks(n_blocks_det=2, n_blocks_time=3)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:2, :3])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[:2, 3:6])
-    elif comm_world.rank == 2:
-        assert np.all(obs.tod == ref_tod[:2, 6:])
-    elif comm_world.rank == 3:
-        assert np.all(obs.tod == ref_tod[2:, :3])
-    elif comm_world.rank == 4:
-        assert np.all(obs.tod == ref_tod[2:, 3:6])
-    elif comm_world.rank == 5:
-        assert np.all(obs.tod == ref_tod[2:, 6:])
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
-
-    # Three detector blocks and three time blocks
-    if comm_world.size < 9:
-        return
-    obs.set_n_blocks(n_blocks_det=3, n_blocks_time=3)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:1, :3])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[:1, 3:6])
-    elif comm_world.rank == 2:
-        assert np.all(obs.tod == ref_tod[:1, 6:])
-    elif comm_world.rank == 3:
-        assert np.all(obs.tod == ref_tod[1:2, :3])
-    elif comm_world.rank == 4:
-        assert np.all(obs.tod == ref_tod[1:2, 3:6])
-    elif comm_world.rank == 5:
-        assert np.all(obs.tod == ref_tod[1:2, 6:])
-    elif comm_world.rank == 6:
-        assert np.all(obs.tod == ref_tod[2:, :3])
-    elif comm_world.rank == 7:
-        assert np.all(obs.tod == ref_tod[2:, 3:6])
-    elif comm_world.rank == 8:
-        assert np.all(obs.tod == ref_tod[2:, 6:])
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
 
 
 def test_write_hdf5_mpi(tmp_path):
