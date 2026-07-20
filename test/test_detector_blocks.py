@@ -121,6 +121,9 @@ def test_rng_generators_with_detector_blocks():
     comm = lbs.MPI_COMM_WORLD
     size = comm.size
 
+    if size not in [1, 2, 4]:
+        pytest.skip("This test requires 1, 2, or 4 MPI processes")
+
     ### Mission parameters
     telescope = "MFT"
     channel = "M1-195"
