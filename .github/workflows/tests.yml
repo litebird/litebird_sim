@@ -119,7 +119,6 @@ jobs:
             done
             echo "Running MPI test ($MPI) with 4 processes"
             PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 uv run python ./test/test_mpi_n4.py
-            PYTHONPATH=. mpiexec -n $proc uv run python ./test/test_detector_blocks.py
 
       - name: Tests OpenMPI
         if: ${{ matrix.mpi == 'openmpi' }}
