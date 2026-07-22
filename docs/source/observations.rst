@@ -204,7 +204,11 @@ If a valid ``det_blocks_attributes`` argument is passed to the :class:`.Observat
 class, the arguments ``n_blocks_det`` and ``n_blocks_time`` are ignored. Since the
 ``det_blocks_attributes`` creates the detector blocks dynamically, the
 ``n_blocks_time`` is computed during runtime using the size of MPI communicator and
-the number of detector blocks (``n_blocks_time = comm.size // n_blocks_det``).
+the number of detector blocks (``n_blocks_time = comm.size / n_blocks_det``). 
+As such, since both time and detector blocks are distributed among the 
+grid of available MPI processes, the size of MPI communicator must be an 
+integral multiple of ``n_blocks_det`` which is however, determined 
+dynamically during runtime.
 
 The detector blocks made in this way can be accessed with
 ``Observation.detector_blocks``. It is a dictionary object that has the tuple of
@@ -289,7 +293,7 @@ detectors axis and time axis is divided depending on the size of MPI communicato
 
 **Case 1**
 
-*Size of global MPI communicator = 3*, ``det_blocks_attributes=["channel"]``
+*Size of global MPI communicator = 2*, ``det_blocks_attributes=["channel"]``
 
 .. image:: ./images/detector_groups_case1.png
 
@@ -301,7 +305,7 @@ detectors axis and time axis is divided depending on the size of MPI communicato
 
 **Case 3**
 
-*Size of global MPI communicator = 10*, ``det_blocks_attributes=["channel", "wafer"]``
+*Size of global MPI communicator = 8*, ``det_blocks_attributes=["channel", "wafer"]``
 
 .. image:: ./images/detector_groups_case3.png
 
@@ -336,7 +340,7 @@ used by the script. The other MPI communicators defined in the
 simulation framework are the partitions of global MPI communicator and
 they contain the MPI processes that have certain properties as we
 explain below. For all the examples in this sub-section, we consider
-the distribution of TODs across 10 MPI processes with ``n_blocks_time = 2``
+the distribution of TODs across 8 MPI processes with ``n_blocks_time = 2``
 and ``n_blocks_det = 4``.
 
 To distribute the TODs across
