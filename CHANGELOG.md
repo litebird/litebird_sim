@@ -1,5 +1,7 @@
 # HEAD
 
+-   Stop supporting unused MPI processes and drop `MPI_COMM_GRID` class and its attributes. Now throwing an error when `comm_size != n_blocks_det * n_blocks_time`. It fixes [#364](https://github.com/litebird/litebird_sim/issues/364), while incorporating selective changes from [#372](https://github.com/litebird/litebird_sim/pull/372) and [#427](https://github.com/litebird/litebird_sim/pull/427). Reference PR: [#539](https://github.com/litebird/litebird_sim/pull/539).
+
 -   Pin `ty` and mute its Dependabot updates, fix latent type errors it flagged, repair the broken Tests badge in the README, and add a missing MPI barrier that fixes a flaky HDF5 read in `test_issue314` [#536](https://github.com/litebird/litebird_sim/pull/536)
 
 -   Make `litebird_sim/version.py` the single source of truth for the package version; `pyproject.toml` and `docs/source/conf.py` now read from it [#537](https://github.com/litebird/litebird_sim/pull/537)
