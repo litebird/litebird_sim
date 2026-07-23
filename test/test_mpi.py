@@ -4,7 +4,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import astropy.time as astrotime
-import numpy as np
 import pytest
 
 import litebird_sim as lbs
