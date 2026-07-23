@@ -8,7 +8,7 @@ import subprocess
 
 def main(argv):
     if len(argv) <= 1:
-        arguments = ["python"]
+        arguments = ["ipython"]
     else:
         arguments = argv[1:]
 
