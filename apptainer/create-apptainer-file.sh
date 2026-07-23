@@ -51,10 +51,10 @@ m4 \
     -DUBUNTU_VERSION="$ubuntu_version" \
     -DBRANCH="$branch" \
     $mpi_lib $mpi_lib_name $poetry_mpi \
-    Singularity.m4 > Singularity
+    Apptainer.m4 > Apptainer
 
 cat <<EOF
-File "Singularity" has been created. Now build an image using the command
+File "Apptainer" has been created. Now build an image using the command
 
-    singularity build --fakeroot litebird_sim.img Singularity
+    apptainer build --fakeroot litebird_sim.img Apptainer
 EOF

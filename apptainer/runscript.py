@@ -2,13 +2,13 @@
 
 import subprocess
 
-"""This script is started automatically by the Singularity container.
+"""This script is started automatically by the Apptainer container.
 """
 
 
 def main(argv):
     if len(argv) <= 1:
-        arguments = ["ipython"]
+        arguments = ["python"]
     else:
         arguments = argv[1:]
 
