@@ -1,11 +1,11 @@
 from io import StringIO
 
-import numpy as np
-
 import litebird_sim as lbs
+import numpy as np
 from litebird_sim import HWPJonesParams
 from litebird_sim.input_sky import SkyGenerator
 from litebird_sim.scan_map import scan_map_in_observations
+from litebird_sim.units import Units
 
 
 def test_hwp_band_integration():
@@ -94,7 +94,7 @@ def test_hwp_band_integration():
         apply_beam=True,
         bandpass_integration=False,
         nside=nside,
-        units="K_CMB",
+        units=Units.MJy_over_sr,
     )
 
     gen_sky_0 = lbs.SkyGenerator(

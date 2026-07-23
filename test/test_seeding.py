@@ -289,24 +289,29 @@ def test_detector_generators_regeneration(tmp_path):
     with pytest.raises(ValueError):
         _ = lbs.regenerate_or_check_detector_generators(
             observations=sim.observations,
+            comm=None,
             user_seed=None,
             dets_random=None,
         )
     with pytest.raises(AssertionError):
         _ = lbs.regenerate_or_check_detector_generators(
             observations=sim.observations,
+            comm=None,
             user_seed=None,
             dets_random=[sim.dets_random[0], sim.dets_random[1]],
         )
     # `user_seed` takes priority over the generators of the `Simulation``
     regenerated_dets_random = lbs.regenerate_or_check_detector_generators(
         observations=sim.observations,
+        comm=None,
         user_seed=987654321,
         dets_random=sim.dets_random,
     )
 
     rng_hierarchy = lbs.RNGHierarchy(
-        987654321, comm_size=1, num_detectors_per_rank=sim.observations[0].n_detectors
+        987654321,
+        comm=lbs.MPI_COMM_WORLD,
+        num_detectors_per_rank=sim.observations[0].n_detectors,
     )
     fresh_dets_random = rng_hierarchy.get_detector_level_generators_on_rank(0)
 

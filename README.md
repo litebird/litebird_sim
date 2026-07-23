@@ -164,10 +164,31 @@ LiteBIRD Simulation Team - litebird_pipe@db.ipmu.jp
 Project Link: [https://github.com/litebird/litebird_sim](https://github.com/litebird/litebird_sim)
 
 
-
 ## How to cite this code
 
-TODO!
+If you use the LiteBIRD Simulation Framework in your work, please cite:
+
+> M. Tomasi *et al.* (LiteBIRD Collaboration), "A simulation framework for the
+> LiteBIRD instruments," *JCAP* **11** (2025) 040.
+> doi:[10.1088/1475-7516/2025/11/040](https://doi.org/10.1088/1475-7516/2025/11/040),
+> arXiv:[2507.04918](https://arxiv.org/abs/2507.04918).
+
+BibTeX:
+
+```bibtex
+@article{Tomasi:2025:litebird_sim,
+  author  = {Tomasi, M. and {LiteBIRD Collaboration}},
+  title   = {A simulation framework for the LiteBIRD instruments},
+  journal = {JCAP},
+  volume  = {11},
+  year    = {2025},
+  pages   = {040},
+  doi     = {10.1088/1475-7516/2025/11/040},
+  eprint  = {2507.04918},
+  archivePrefix = {arXiv},
+  primaryClass  = {astro-ph.IM}
+}
+```
 
 
 <!-- MARKDOWN LINKS & IMAGES -->

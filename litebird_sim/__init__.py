@@ -59,7 +59,12 @@ from .detectors import (
     InstrumentInfo,
     detector_list_from_parameters,
 )
-from .dipole import add_dipole, add_dipole_to_observations, DipoleType
+from .dipole import (
+    add_dipole,
+    add_dipole_to_observations,
+    BeamSParams,
+    DipoleType,
+)
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import (
     GainDriftType,
@@ -132,6 +137,7 @@ from .noise import (
     add_white_noise,
     add_one_over_f_noise,
     add_noise,
+    add_correlated_noise,
     add_noise_to_observations,
 )
 from .non_linearity import (
@@ -385,6 +391,7 @@ __all__ = [
     "add_white_noise",
     "add_one_over_f_noise",
     "add_noise",
+    "add_correlated_noise",
     "add_noise_to_observations",
     # scan_map.py
     "scan_map",
@@ -392,6 +399,7 @@ __all__ = [
     # dipole.py
     "add_dipole",
     "add_dipole_to_observations",
+    "BeamSParams",
     "DipoleType",
     # coordinates.py
     "DEFAULT_COORDINATE_SYSTEM",

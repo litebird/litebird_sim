@@ -46,17 +46,17 @@ from .imo.imo import Imo
 from .input_sky import SkyGenerationParams, SkyGenerator, SkyInput
 from .io import read_list_of_observations, write_list_of_observations
 from .mapmaking import (
-    HMapsResult,
     BinnerResult,
     DestriperParameters,
     DestriperResult,
+    HMapsResult,
     PairDifferencingResult,
     check_valid_splits,
     destriper_log_callback,
-    make_h_maps,
     make_binned_map,
     make_brahmap_gls_map,
     make_destriped_map,
+    make_h_maps,
     make_pair_differenced_map,
     save_destriper_results,
 )
@@ -541,7 +541,7 @@ class Simulation:
           the user-provided `random_seed`, but can be invoked again to
           reseed the simulation at any point.
         """
-        self.rng_hierarchy = RNGHierarchy(random_seed)
+        self.rng_hierarchy = RNGHierarchy(random_seed, self.mpi_comm)
         self.rng_hierarchy.build_mpi_layer(self.mpi_comm.size)
 
         self.random = self.rng_hierarchy.get_generator(self.mpi_comm.rank)
@@ -2086,24 +2086,21 @@ class Simulation:
         user_seed: int | None = None,
         component: str = "tod",
         append_to_report: bool = False,
-        rng_hierarchy: RNGHierarchy | None = None,
-        conv_K_to_SR: bool = False,
+        conv_K_CMB_to_MJy_over_sr: bool = False,
     ):
         """A method to apply non-linearity to the observation.
 
         This is a wrapper around
         :func:`.apply_quadratic_nonlin_to_observations()` that
-        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained from the detector-level layer. As default it uses
-        the `dets_random` field of a :class:`.Simulation` object for this.
-
-        conv_K_to_SR (bool, optional) is a flag for temperature to spectral radiance
+        applies non-linearity to a list of :class:`.Observation` instance. Random number generators are obtained for each detector, independently of the MPI distribution across detectors and time. Setting the `user_seed` argument is required for this.
+        conv_K_CMB_to_MJy_over_sr (bool, optional) is a flag for temperature to spectral radiance
         units conversion. Defaults to False.
         """
-        if rng_hierarchy is None:
-            rng_hierarchy = self.rng_hierarchy
-        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
-            self.mpi_comm.rank
+
+        assert user_seed is not None, (
+            "user_seed must be given in apply_quadratic_nonlin."
         )
+
         if nl_params is None:
             nl_params = NonLinParams()
 
@@ -2112,8 +2109,7 @@ class Simulation:
             nl_params=nl_params,
             user_seed=user_seed,
             component=component,
-            dets_random=dets_random,
-            conv_K_to_SR=conv_K_to_SR,
+            conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2130,7 +2126,7 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 g=g,
-                conv_K_to_SR=conv_K_to_SR,
+                conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
             )
 
     @_profile
@@ -2142,7 +2138,8 @@ class Simulation:
         component: str = "tod",
         append_to_report: bool = True,
         engine: str = "fft",
-        model: str = "standard",
+        model: str = "toast",
+        correlation: dict | None = None,
     ):
         """Adds noise to tods.
 
@@ -2151,6 +2148,43 @@ class Simulation:
         :meth:`.set_instrument` and :meth:`.set_detectors`.
         Random number generators are obtained from the detector-level layer. As default it uses
         the `dets_random` field of a :class:`.Simulation` object for this.
+
+        Parameters
+        ----------
+        rng_hierarchy : RNGHierarchy or None, optional
+            RNG hierarchy to use. Defaults to ``self.rng_hierarchy``.
+        user_seed : int or None, optional
+            Alternative integer seed (ignored when ``rng_hierarchy`` is given).
+        noise_type : str, optional
+            ``"white"``, ``"one_over_f"`` (default), or ``"correlated"``.
+        component : str, optional
+            TOD attribute to add noise to. Defaults to ``"tod"``.
+        append_to_report : bool, optional
+            Whether to append a noise section to the simulation report.
+        engine : str, optional
+            Noise-generation engine (``"fft"`` or ``"ducc"``). Defaults to
+            ``"fft"``.
+        model : str, optional
+            PSD model (``"toast"`` or ``"keshner"``). Defaults to ``"toast"``.
+        correlation : dict or None, optional
+            Required when ``noise_type="correlated"``.  Supported keys:
+
+            * ``"corr_matrix"`` *(ndarray)*: full :math:`(n_{det}, n_{det})`
+              symmetric positive-semi-definite correlation matrix.  When
+              present, the Cholesky mixing model is used and ``"group_by"`` /
+              ``"groups"`` / ``"rho"`` / ``"common_mode_type"`` are ignored.
+              The diagonal should be 1 (unit variance before per-detector
+              sigma scaling).
+            * ``"group_by"`` *(str or None)*: name of a per-detector attribute
+              on each observation (e.g. ``"wafer"``).  ``None`` puts all
+              detectors in one group.  Used only when ``"corr_matrix"`` is
+              absent.
+            * ``"groups"`` *(array-like)*: explicit integer group-label array
+              (takes precedence over ``"group_by"``).
+            * ``"rho"`` *(float or array-like)*: fraction of variance in the
+              common mode, in [0, 1].  Defaults to 0.25.
+            * ``"common_mode_type"`` *(str)*: PSD shape of the common-mode
+              stream, ``"one_over_f"`` (default) or ``"white"``.
         """
 
         if rng_hierarchy is None:
@@ -2167,6 +2201,7 @@ class Simulation:
             component=component,
             engine=engine,
             model=model,
+            correlation=correlation,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2772,6 +2807,7 @@ class Simulation:
             nside=nside,
             observations=self.observations,
             components=components,
+            hwp=self.hwp,
             pointings_flag=pointing_flag,
             inv_noise_cov_operator=inv_noise_cov_operator,
             threshold=threshold,
