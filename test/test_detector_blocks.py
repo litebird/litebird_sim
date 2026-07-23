@@ -3,6 +3,8 @@ import numpy as np
 import pytest
 import litebird_sim as lbs
 
+from contextlib import nullcontext
+
 # data for testing detector blocks and MPI sub-communicators
 sampling_freq_Hz = 1
 dets = [
@@ -52,7 +54,7 @@ def test_detector_blocks(dets=dets, sampling_freq_Hz=sampling_freq_Hz):
     duration_s = 100
     nobs_per_det = 3
 
-    if comm.size > 4:
+    if comm.size % 4 == 0:
         det_blocks_attribute = ["channel", "wafer"]
     else:
         det_blocks_attribute = ["channel"]
@@ -64,18 +66,27 @@ def test_detector_blocks(dets=dets, sampling_freq_Hz=sampling_freq_Hz):
         mpi_comm=comm,
     )
 
-    sim.create_observations(
-        detectors=dets,
-        split_list_over_processes=False,
-        num_of_obs_per_detector=nobs_per_det,
-        det_blocks_attributes=det_blocks_attribute,
-    )
+    # This translates to:
+    # if comm_size is odd and is greater than 1, use pytest.raises() context,
+    # else don't use any context
+    condition = True if comm.size % 2 != 0 and comm.size != 1 else False
+    expectation = pytest.raises(ValueError) if condition else nullcontext()
+
+    with expectation:
+        sim.create_observations(
+            detectors=dets,
+            split_list_over_processes=False,
+            num_of_obs_per_detector=nobs_per_det,
+            det_blocks_attributes=det_blocks_attribute,
+        )
+
+    if condition:
+        pytest.skip("The detectors can't be distributed to an odd number of processes")
 
     tod_len_per_det_per_proc = 0
     for obs in sim.observations:
         tod_shape = obs.tod.shape
 
-        n_blocks_det = obs.n_blocks_det
         n_blocks_time = obs.n_blocks_time
         tod_len_per_det_per_proc += obs.tod.shape[1]
 
@@ -94,22 +105,24 @@ def test_detector_blocks(dets=dets, sampling_freq_Hz=sampling_freq_Hz):
             np.testing.assert_equal(obs.name.shape[0], tod_shape[0])
 
     # Testing if the distribution of samples along the time axis is consistent
-    if comm.rank < n_blocks_det * n_blocks_time:
-        arr = [
-            span.num_of_elements
-            for span in lbs.distribute.distribute_evenly(
-                duration_s * sampling_freq_Hz, n_blocks_time * nobs_per_det
-            )
-        ]
+    arr = [
+        span.num_of_elements
+        for span in lbs.distribute.distribute_evenly(
+            duration_s * sampling_freq_Hz, n_blocks_time * nobs_per_det
+        )
+    ]
 
-        start_idx = (comm.rank % n_blocks_time) * nobs_per_det
-        stop_idx = start_idx + nobs_per_det
-        np.testing.assert_equal(sum(arr[start_idx:stop_idx]), tod_len_per_det_per_proc)
+    start_idx = (comm.rank % n_blocks_time) * nobs_per_det
+    stop_idx = start_idx + nobs_per_det
+    np.testing.assert_equal(sum(arr[start_idx:stop_idx]), tod_len_per_det_per_proc)
 
 
 def test_rng_generators_with_detector_blocks():
     comm = lbs.MPI_COMM_WORLD
     size = comm.size
+
+    if size not in [1, 2, 4]:
+        pytest.skip("This test requires 1, 2, or 4 MPI processes")
 
     ### Mission parameters
     telescope = "MFT"
@@ -192,10 +205,10 @@ def test_mpi_subcommunicators(dets=dets):
     comm = lbs.MPI_COMM_WORLD
 
     start_time = 456
-    duration_s = 100
+    duration_s = 50
     nobs_per_det = 3
 
-    if comm.size > 4:
+    if comm.size % 4 == 0:
         det_blocks_attribute = ["channel", "wafer"]
     else:
         det_blocks_attribute = ["channel"]
@@ -207,38 +220,32 @@ def test_mpi_subcommunicators(dets=dets):
         mpi_comm=comm,
     )
 
-    sim.create_observations(
-        detectors=dets,
-        split_list_over_processes=False,
-        num_of_obs_per_detector=nobs_per_det,
-        det_blocks_attributes=det_blocks_attribute,
-    )
+    # This translates to:
+    # if comm_size is odd and is greater than 1, use pytest.raises() context,
+    # else don't use any context
+    condition = True if comm.size % 2 != 0 and comm.size != 1 else False
+    expectation = pytest.raises(ValueError) if condition else nullcontext()
 
-    if lbs.MPI_COMM_GRID.COMM_OBS_GRID != lbs.MPI_COMM_GRID.COMM_NULL:
-        # since unused MPI processes stay at the end of global,
-        # communicator, the rank of the used processes in
-        # `MPI_COMM_GRID.COMM_OBS_GRID` must be same as their rank in
-        # global communicator
-        np.testing.assert_equal(lbs.MPI_COMM_GRID.COMM_OBS_GRID.rank, comm.rank)
+    with expectation:
+        sim.create_observations(
+            detectors=dets,
+            split_list_over_processes=False,
+            num_of_obs_per_detector=nobs_per_det,
+            det_blocks_attributes=det_blocks_attribute,
+        )
 
-        for obs in sim.observations:
-            # comm_det_block.rank + comm_time_block.rank * n_block_time
-            # must be equal to the global communicator rank for the
-            # used processes. It follows from the way split colors
-            # were defined.
-            np.testing.assert_equal(
-                obs.comm_det_block.rank + obs.comm_time_block.rank * obs.n_blocks_time,
-                comm.rank,
-            )
-    else:
-        for obs in sim.observations:
-            # the global rank of the unused MPI processes must be larger than the number of used processes.
-            assert comm.rank > (obs.n_blocks_det * obs.n_blocks_time - 1)
+    if condition:
+        pytest.skip("The detectors can't be distributed to an odd number of processes")
 
-            # The block communicators on the unused MPI processes must
-            # be the NULL communicators
-            np.testing.assert_equal(obs.comm_det_block, lbs.MPI_COMM_GRID.COMM_NULL)
-            np.testing.assert_equal(obs.comm_time_block, lbs.MPI_COMM_GRID.COMM_NULL)
+    for obs in sim.observations:
+        # comm_det_block.rank + comm_time_block.rank * n_block_time
+        # must be equal to the global communicator rank for the
+        # used processes. It follows from the way split colors
+        # were defined.
+        np.testing.assert_equal(
+            obs.comm_det_block.rank + obs.comm_time_block.rank * obs.n_blocks_time,
+            comm.rank,
+        )
 
 
 if __name__ == "__main__":

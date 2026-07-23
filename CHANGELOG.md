@@ -1,5 +1,7 @@
 # HEAD
 
+-   Stop supporting unused MPI processes and drop `MPI_COMM_GRID` class and its attributes. Now throwing an error when `comm_size != n_blocks_det * n_blocks_time`. It fixes [#364](https://github.com/litebird/litebird_sim/issues/364), while incorporating selective changes from [#372](https://github.com/litebird/litebird_sim/pull/372) and [#427](https://github.com/litebird/litebird_sim/pull/427). Reference PR: [#539](https://github.com/litebird/litebird_sim/pull/539).
+
 # Version 0.17.0
 
 -   Refactor RNGHierarchy to enable tying the random number generators to detectors, remove unused bandpass normalization, use units.py methods to perform conversions between temperature and flux, automatically normalize band integrated tod to the bandwidth. [#523](https://github.com/litebird/litebird_sim/pull/523)
