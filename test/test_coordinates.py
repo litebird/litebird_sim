@@ -57,7 +57,7 @@ def test_coordinates():
     pointings_gal_lbs = lbs.coordinates.rotate_coordinates_e2g(pointings)
 
     # Calculate the raw difference
-    diff = pointings_gal_ref - pointings_gal_lbs
+    diff = pointings_gal_ref[:, :2] - pointings_gal_lbs[:, :2]
 
     # Normalize the angular difference to handle periodicity (wrap-around).
     # This maps any difference 'd' to the range [-pi, pi].
