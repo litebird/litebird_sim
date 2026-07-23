@@ -1,6 +1,7 @@
 # HEAD
-
 -   Extract a shared driver for the systematic-effect modules (`for_each_observation`, `for_each_observation_with_pointings`, `normalize_observations`) and rename `pointings_in_obs.py` to `observation_utilities.py`, which now collects all the helpers that operate on a collection of `Observation` objects. Noise, gain drift, non-linearity, HWP differential emission and the CMB dipole now share one place for observation normalization, per-detector RNG resolution and TOD-component indirection instead of re-implementing it each. No change to public effect interfaces.
+
+-   Stop supporting unused MPI processes and drop `MPI_COMM_GRID` class and its attributes. Now throwing an error when `comm_size != n_blocks_det * n_blocks_time`. It fixes [#364](https://github.com/litebird/litebird_sim/issues/364), while incorporating selective changes from [#372](https://github.com/litebird/litebird_sim/pull/372) and [#427](https://github.com/litebird/litebird_sim/pull/427). Reference PR: [#539](https://github.com/litebird/litebird_sim/pull/539).
 
 # Version 0.17.0
 

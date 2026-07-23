@@ -131,7 +131,7 @@ from .maps_and_harmonics import (
     read_cls_from_fits,
     lin_comb_cls,
 )
-from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION, MPI_COMM_GRID
+from .mpi import MPI_COMM_WORLD, MPI_ENABLED, MPI_CONFIGURATION
 from .mueller_convolver import MuellerConvolver
 from .noise import (
     add_white_noise,
@@ -316,7 +316,6 @@ __all__ = [
     "MPI_COMM_WORLD",
     "MPI_ENABLED",
     "MPI_CONFIGURATION",
-    "MPI_COMM_GRID",
     # mueller_convolver.py
     "MuellerConvolver",
     # observations.py
