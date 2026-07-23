@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from .observations import Observation
-from .seeding import regenerate_or_check_detector_generators
+from .observation_utilities import for_each_observation, normalize_observations
 from .units import Units, UnitUtils
 
 
@@ -202,23 +202,16 @@ def apply_quadratic_nonlin_to_observations(
     if nl_params is None:
         nl_params = NonLinParams()
 
-    if isinstance(observations, Observation):
-        obs_list = [observations]
-    elif isinstance(observations, list):
-        obs_list = observations
-    else:
-        raise TypeError(
-            "The parameter `observations` must be an `Observation` or a list of `Observation`."
-        )
-    dets_random = regenerate_or_check_detector_generators(
-        observations=obs_list,
-        comm=obs_list[0].comm_time_block,
-        user_seed=user_seed,
-    )
+    obs_list = normalize_observations(observations)
 
     # iterate through each observation
-    for cur_obs in obs_list:
-        tod = getattr(cur_obs, component)
+    for cur_obs, tod, dets_random in for_each_observation(
+        obs_list,
+        component,
+        user_seed=user_seed,
+        requires_rng=True,
+        comm=obs_list[0].comm_time_block,
+    ):
         bandcenter_ghz = getattr(cur_obs, "bandcenter_ghz")
         bandwidth_ghz = getattr(cur_obs, "bandwidth_ghz")
 

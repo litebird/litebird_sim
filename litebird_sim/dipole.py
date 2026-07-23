@@ -8,6 +8,7 @@ import numpy as np
 from .maps_and_harmonics import SphericalHarmonics
 from .observations import Observation
 from .spacecraft import SpacecraftPositionAndVelocity
+from .observation_utilities import for_each_observation_with_pointings
 
 # Updated imports to match the new constants.py structure
 from .constants import C_LIGHT_KM_OVER_S, H_OVER_K_B, T_CMB_K
@@ -882,43 +883,14 @@ def add_dipole_to_observations(
     # For convolved types we keep the full (θ, φ, ψ) columns; otherwise strip to (θ, φ).
     ptg_cols = slice(None) if apply_convolution else slice(0, 2)
 
-    if pointings is None:
-        if isinstance(observations, Observation):
-            obs_list = [observations]
-            if hasattr(observations, "pointing_matrix"):
-                ptg_list = [observations.pointing_matrix[:, :, ptg_cols]]
-            else:
-                ptg_list = [observations.get_pointings]
-        else:
-            obs_list = observations
-            ptg_list = []
-            for ob in observations:
-                if hasattr(ob, "pointing_matrix"):
-                    ptg_list.append(ob.pointing_matrix[:, :, ptg_cols])
-                else:
-                    ptg_list.append(ob.get_pointings)
-    else:
-        if isinstance(observations, Observation):
-            assert isinstance(pointings, np.ndarray), (
-                "You must pass a list of observations *and* a list "
-                + "of pointing matrices to add_dipole_to_observations"
-            )
-            obs_list = [observations]
-            ptg_list = [pointings[:, :, ptg_cols]]
-        else:
-            assert isinstance(pointings, list), (
-                "When you pass a list of observations to add_dipole_to_observations"
-                + ", you must do the same for `pointings`"
-            )
-            assert len(observations) == len(pointings), (
-                f"The list of observations has {len(observations)} elements, but "
-                + f"the list of pointings has {len(pointings)} elements"
-            )
-            obs_list = observations
-            ptg_list = [point[:, :, ptg_cols] for point in pointings]
-
-    for cur_obs, cur_ptg in zip(obs_list, ptg_list):
-        tod = getattr(cur_obs, component)
+    for cur_obs, tod, cur_ptg in for_each_observation_with_pointings(
+        observations, pointings, component
+    ):
+        # Callables (lazy pointings) are forwarded untouched, matching the
+        # behaviour of the underlying normalizer. Convolved calculations need
+        # the psi column too, hence ptg_cols rather than a hardcoded 0:2.
+        if isinstance(cur_ptg, np.ndarray):
+            cur_ptg = cur_ptg[:, :, ptg_cols]
 
         # Resolve the beam S-parameters when convolution is requested.
         # 1. Use the explicitly provided beam_alms if given.
