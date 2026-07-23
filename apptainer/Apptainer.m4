@@ -76,12 +76,6 @@ From: ubuntu:UBUNTU_VERSION
     # Install a few handy packages
     uv pip install jupyterlab tqdm rich pudb ipython
 
-    # Install BrahMap
-    git clone --recursive https://github.com/anand-avinash/BrahMap.git
-    cd BrahMap
-    uv pip install .
-    cd ..
-
     echo "Regenerating the documentation..."
     uv run sh bin/refresh_docs.sh
 
