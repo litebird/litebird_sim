@@ -1,10 +1,10 @@
 # Build this using the command
 #
-#     singularity build --fakeroot litebird_sim.img Singularity
+#     apptainer build --fakeroot litebird_sim.img Apptainer
 #
 # Run the container using the command
 #
-#     singularity run -H /tmp/$HOME ./litebird_sim.img COMMAND...
+#     Apptainer run -H /tmp/$HOME ./litebird_sim.img COMMAND...
 #
 # where COMMAND... can be one of the following:
 #
@@ -55,7 +55,24 @@ From: ubuntu:UBUNTU_VERSION
 
     apt-get update
     DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
-    apt-get install -y build-essential curl git python3 python3-dev python3-pip python3-venv MPI_LIB
+    apt-get install -y build-essential curl git python3 python3-dev python3-pip python3-venv
+
+    # install MPI binaries
+    echo MPI_LIB_NAME
+    case MPI_LIB_NAME in
+        OpenMPI)
+            echo "Installing OpenMPI..."
+            apt-get install -y openmpi-bin libopenmpi-dev
+            ;;
+        MPICH)
+            echo "Installing MPICH..."
+            apt-get install -y mpich libmpich-dev
+            ;;
+        None)
+            echo "Skipping MPI installation. BrahMap will also not be installed as it is dependent on MPI binaries."
+            ;;
+        *)
+    esac
 
     # Configure pip
     export PIP_DISABLE_PIP_VERSION_CHECK=on
@@ -71,10 +88,20 @@ From: ubuntu:UBUNTU_VERSION
     cd /opt/litebird_sim
 
     # Create environment with dependencies (including optional dependencies)
-    uv sync --extra docs --extra dev --extra mpi --locked
+    if [[ MPI_LIB_NAME == OpenMPI || MPI_LIB_NAME == MPICH ]]; then
+        uv sync --extra docs --extra dev --extra mpi --locked
+    else
+        uv sync --extra docs --extra dev --locked
+    fi
 
     # Install a few handy packages
     uv pip install jupyterlab tqdm rich pudb ipython
+
+    # Install BrahMap
+    # Only installs if openmpi or mpich are present in the container
+    if [[ MPI_LIB_NAME == OpenMPI || MPI_LIB_NAME == MPICH ]]; then
+        pip install git+https://github.com/anand-avinash/BrahMap.git
+    fi
 
     echo "Regenerating the documentation..."
     uv run sh bin/refresh_docs.sh

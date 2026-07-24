@@ -26,21 +26,18 @@ case "$mpi_library" in
     openmpi)
         mpi_lib='-DMPI_LIB=openmpi-bin'
         mpi_lib_name='-DMPI_LIB_NAME=OpenMPI'
-        poetry_mpi='-DPOETRY_MPI=--extras=mpi'
         ;;
-    
+
     mpich)
         mpi_lib='-DMPI_LIB=mpich'
         mpi_lib_name='-DMPI_LIB_NAME=MPICH'
-        poetry_mpi='-DPOETRY_MPI=--extras=mpi'
         ;;
 
     none)
         mpi_lib='-DMPI_LIB'
-        mpi_lib_name=""
-        poetry_mpi='-DPOETRY_MPI'
+        mpi_lib_name="-DMPI_LIB_NAME=None"
         ;;
-    
+
     *)
         echo "Unknown MPI library \"$mpi_library\""
         exit 1
@@ -50,7 +47,7 @@ esac
 m4 \
     -DUBUNTU_VERSION="$ubuntu_version" \
     -DBRANCH="$branch" \
-    $mpi_lib $mpi_lib_name $poetry_mpi \
+    $mpi_lib $mpi_lib_name \
     Apptainer.m4 > Apptainer
 
 cat <<EOF
