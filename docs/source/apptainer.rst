@@ -86,8 +86,8 @@ Enter the directory ``litebird_sim/apptainer`` and run the script
 ``create-apptainer-file.sh``. It takes the following arguments:
 
 - The version number of the Ubuntu Linux distribution to use. Some
-    possible choices are ``22.04``, ``24.04``, …; you should use the
-    most recent LTS release, which is currently ``24.04``.
+    possible choices are ``24.04``, ``26.04``, …; you should use the
+    most recent LTS release, which is currently ``26.04``.
 
 - A flag telling which version of MPI to install. Possible choices
   are:
