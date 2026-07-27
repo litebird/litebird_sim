@@ -48,12 +48,13 @@ From: ubuntu:UBUNTU_VERSION
     export XDG_CONFIG_HOME=/opt
     export XDG_CACHE_HOME=/tmp
     export MPLCONFIGDIR=/tmp/matplotlib
+    export PYSM_LOCAL_DATA=/root/pysm3-data
 
 
 %runscript
     export MPLCONFIGDIR=/tmp/matplotlib
     export PATH="/opt/litebird_sim/.venv/bin:$PATH"
-    exec "$@"
+    exec python3 /opt/runscript.py "$@"
 
 %post
 
@@ -130,3 +131,8 @@ From: ubuntu:UBUNTU_VERSION
     gcc --version
     uv --version
     uv run python -c "import litebird_sim as lbs; print('Litebird_sim version: ', lbs.__version__)"
+
+%test
+    export PATH="/root/.local/bin:$PATH"
+    export PYSM_LOCAL_DATA=/root/pysm3-data
+    (cd /opt/litebird_sim && uv run python -m pytest)
