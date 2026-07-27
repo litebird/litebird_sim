@@ -46,10 +46,14 @@ From: ubuntu:UBUNTU_VERSION
     export LC_ALL=C
     export LC_NUMERIC=en_GB.UTF-8
     export XDG_CONFIG_HOME=/opt
-    export XDG_CACHE_HOME=/opt
+    export XDG_CACHE_HOME=/tmp
+    export MPLCONFIGDIR=/tmp/matplotlib
+
 
 %runscript
-    exec python3 /opt/runscript.py "$@"
+    export MPLCONFIGDIR=/tmp/matplotlib
+    export PATH="/opt/litebird_sim/.venv/bin:$PATH"
+    exec "$@"
 
 %post
 
@@ -58,7 +62,6 @@ From: ubuntu:UBUNTU_VERSION
     apt-get install -y build-essential curl git python3 python3-dev python3-pip python3-venv
 
     # install MPI binaries
-    echo MPI_LIB_NAME
     case MPI_LIB_NAME in
         OpenMPI)
             echo "Installing OpenMPI..."
@@ -95,13 +98,22 @@ From: ubuntu:UBUNTU_VERSION
     fi
 
     # Install a few handy packages
-    uv pip install jupyterlab tqdm rich pudb ipython
+    uv pip install jupyterlab tqdm rich pudb
 
     # Install BrahMap
     # Only installs if openmpi or mpich are present in the container
     if [[ MPI_LIB_NAME == OpenMPI || MPI_LIB_NAME == MPICH ]]; then
         pip install git+https://github.com/anand-avinash/BrahMap.git
     fi
+
+    # Define default IMo location for tests
+    mkdir -p $HOME/.config/litebird_imo
+    printf '[[repositories]]\nlocation = "%s/test/mock_imo/"\nname = "Mock IMO"\n' "$(pwd)" > "$HOME/.config/litebird_imo/imo.toml"
+
+    #Cache pysm3 files for tests
+    echo "Caching pysm3 data..."
+    export PYSM_LOCAL_DATA=/root/pysm3-data
+    git clone --depth 1 https://github.com/galsci/pysm-data $PYSM_LOCAL_DATA
 
     echo "Regenerating the documentation..."
     uv run sh bin/refresh_docs.sh
@@ -118,6 +130,3 @@ From: ubuntu:UBUNTU_VERSION
     gcc --version
     uv --version
     uv run python -c "import litebird_sim as lbs; print('Litebird_sim version: ', lbs.__version__)"
-
-%test
-    (cd /opt/litebird_sim && uv run python -m pytest)
