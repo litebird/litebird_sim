@@ -49,6 +49,7 @@ From: ubuntu:UBUNTU_VERSION
     export XDG_CACHE_HOME=/tmp
     export MPLCONFIGDIR=/tmp/matplotlib
     export PYSM_LOCAL_DATA=/root/pysm3-data
+    export PATH="/opt/litebird_sim/.venv/bin:$PATH"
 
 
 %runscript
