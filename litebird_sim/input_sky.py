@@ -100,7 +100,7 @@ def _get_cmb_unit_conversion(
         # Value_Unit = Value_K_CMB * C
         # Therefore: C_target converts K_CMB -> Target
         factor_to_target = pysm3.bandpass_unit_conversion(
-            freqs, weights, target_astropy
+            freqs, weights, target_astropy, origin_astropy
         )
 
         if origin_unit == Units.K_CMB:
