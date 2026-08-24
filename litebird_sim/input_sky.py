@@ -152,7 +152,7 @@ class SkyGenerationParams:
         make_dipole: bool = False,
         return_components: bool = False,
         # CMB Specifics
-        # Assume input power spectrum in uK^2
+        # cmb_ps_file must point to a FITS file with power spectra in uK_CMB^2
         cmb_ps_file: str | Path | None = None,
         seed_cmb: int | None = None,
         cmb_r: float = 0.0,
