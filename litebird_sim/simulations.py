@@ -71,7 +71,8 @@ from .pointings_in_obs import (
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
-from .scanning import ScanningStrategy, SpinningScanningStrategy
+from .scanning import ScanningStrategy, SharedRotQuaternion, SpinningScanningStrategy
+from .shared_memory import SharedMemoryManager
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .units import Units
@@ -1558,6 +1559,104 @@ class Simulation:
             time_span_s=self.duration_s,
             delta_time_s=delta_time_s,
         )
+        quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
+
+        num_of_obs = len(self.observations)
+        if append_to_report and MPI_ENABLED:
+            num_of_obs = self.mpi_comm.allreduce(num_of_obs)
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_quaternions.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                num_of_obs=num_of_obs,
+                num_of_mpi_processes=MPI_COMM_WORLD.size,
+                delta_time_s=delta_time_s,
+                quat_memory_size_bytes=quat_memory_size_bytes,
+            )
+
+    def set_scanning_strategy_shmem(
+        self,
+        scanning_strategy: ScanningStrategy | None = None,
+        imo_url: str | None = None,
+        delta_time_s: float = 60.0,
+        append_to_report: bool = True,
+    ):
+        """
+        Works identically to `set_scanning_strategy`, but uses MPI shared memory
+        to allocate the spin2ecliptic quaternions only once per physical node.
+        """
+        assert not (scanning_strategy and imo_url), (
+            "you must either specify scanning_strategy or imo_url (but not"
+            "the two together) when calling Simulation.set_shared_scanning_strategy"
+        )
+
+        if not scanning_strategy:
+            if not imo_url:
+                imo_url = "/releases/v1.0/satellite/scanning_parameters/"
+            scanning_strategy = SpinningScanningStrategy.from_imo(
+                imo=self.imo, url=imo_url
+            )
+
+        try:
+            import mpi4py  # noqa
+        except ImportError:
+            raise RuntimeError(
+                "`mpi4py` is required to set MPI shared memory scanning strategy."
+            )
+
+        shared_manager = SharedMemoryManager(base_comm=self.mpi_comm)
+
+        # Only the node root computes the array to avoid redundant allocations on other ranks
+        if shared_manager.node_rank == shared_manager.node_root:
+            local_spin2ecl = scanning_strategy.generate_spin2ecl_quaternions(
+                start_time=self.start_time,
+                time_span_s=self.duration_s,
+                delta_time_s=delta_time_s,
+            )
+            n_samples = local_spin2ecl.quats.shape[0]
+            dtype = local_spin2ecl.quats.dtype
+        else:
+            n_samples = 0
+            dtype = np.float64
+
+        n_samples = shared_manager.node_comm.bcast(
+            n_samples, root=shared_manager.node_root
+        )
+        dtype = shared_manager.node_comm.bcast(dtype, root=shared_manager.node_root)
+
+        flat_array, _ = shared_manager.alloc_shared_node(
+            size=n_samples * 4,
+            dtype=dtype,
+        )
+        shared_quats_view = flat_array.reshape(n_samples, 4)
+
+        if shared_manager.node_rank == shared_manager.node_root:
+            shared_quats_view[:] = local_spin2ecl.quats
+            start_time_val = local_spin2ecl.start_time
+            sampling_rate_hz = local_spin2ecl.sampling_rate_hz
+        else:
+            start_time_val = 0.0
+            sampling_rate_hz = 0.0
+
+        shared_manager.fence_comm_all(shared_manager.node_comm)
+
+        start_time_val = shared_manager.node_comm.bcast(
+            start_time_val, root=shared_manager.node_root
+        )
+        sampling_rate_hz = shared_manager.node_comm.bcast(
+            sampling_rate_hz, root=shared_manager.node_root
+        )
+
+        self.spin2ecliptic_quats = SharedRotQuaternion(
+            quats=shared_quats_view,
+            start_time=start_time_val,
+            sampling_rate_hz=sampling_rate_hz,
+        )
+        self.shmem_manager = shared_manager
+
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
         num_of_obs = len(self.observations)
