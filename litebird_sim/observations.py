@@ -15,9 +15,11 @@ from .hwp_non_ideal import HWPFormalism, NonIdealHWP
 from .input_sky import SkyInput
 from .mpi import _SerialMpiCommunicator
 from .pointings import DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB, PointingProvider
-from .scanning import RotQuaternion
+from .scanning import RotQuaternion, SharedRotQuaternion
 from .units import Units
 from .utilities import resolve_nthreads
+from .quaternions import normalize_quaternions
+from .shared_memory import SharedMemoryManager
 
 
 @dataclass
@@ -977,6 +979,81 @@ class Observation:
             assert self.no_mueller_hwp() or self.no_jones_hwp(), (
                 "Some detectors have been initialized with a mueller_hwp or jones_hwp,"
                 "but no HWP object has been passed to prepare_pointings."
+            )
+            self.has_hwp = False
+        else:
+            self.hwp = hwp
+            self.has_hwp = True
+
+    def prepare_pointings_shmem(
+        self,
+        instrument: InstrumentInfo,
+        spin2ecliptic_quats: RotQuaternion,
+        hwp: HWP | None = None,
+        maximum_internal_buffer_mem_mb: float = DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB,
+    ) -> None:
+        """Prepare quaternion-based pointing and HWP information using MPI shared memory.
+
+        This functions similarly to `prepare_pointings` but uses the provided
+        `SharedMemoryManager` to allocate the underlying pointing quaternion arrays
+        in node-shared memory, optimizing the global memory usage.
+        """
+
+        assert (maximum_internal_buffer_mem_mb > 0) or (
+            maximum_internal_buffer_mem_mb == -1
+        ), (
+            "Invalid value for maximum_internal_buffer_mem_mb ({val}), it must either be -1 or a positive number".format(
+                val=maximum_internal_buffer_mem_mb
+            )
+        )
+
+        if not hasattr(self.comm_time_block, "Split_type"):
+            raise RuntimeError(
+                "MPI is required for shared memory pointings, but the current time block communicator is not a valid MPI communicator."
+            )
+
+        self.shared_memory_manager = SharedMemoryManager(base_comm=self.comm_time_block)
+
+        n_quats = spin2ecliptic_quats.quats.shape[0]
+        dtype = spin2ecliptic_quats.quats.dtype
+
+        # Allocate flat 1D array on node shared memory
+        flat_array, _ = self.shared_memory_manager.alloc_shared_node(
+            size=n_quats * 4,
+            dtype=dtype,
+        )
+
+        # Create a 2D view
+        shared_quats_view = flat_array.reshape(n_quats, 4)
+
+        # Only the node root computes the multiplication and fills the array
+        if self.shared_memory_manager.node_rank == self.shared_memory_manager.node_root:
+            shared_quats_view[:] = spin2ecliptic_quats * instrument.bore2spin_quat.quats
+            normalize_quaternions(shared_quats_view)
+
+        # Synchronize all ranks on this node
+        self.shared_memory_manager.fence_comm_all(self.shared_memory_manager.node_comm)
+
+        # Wrap into SharedRotQuaternion (which does not normalize)
+        shared_rot_quat = SharedRotQuaternion(
+            quats=shared_quats_view,
+            start_time=spin2ecliptic_quats.start_time,
+            sampling_rate_hz=spin2ecliptic_quats.sampling_rate_hz,
+        )
+
+        pointing_provider = PointingProvider(
+            bore2ecliptic_quats=shared_rot_quat,
+            hwp=hwp,
+            maximum_internal_buffer_mem_mb=maximum_internal_buffer_mem_mb,
+        )
+
+        self.pointing_provider = pointing_provider
+
+        # If the hwp object is passed and is not initialised in the observations, it gets applied to all detectors
+        if hwp is None:
+            assert self.no_mueller_hwp() or self.no_jones_hwp(), (
+                "Some detectors have been initialized with a mueller_hwp or jones_hwp,"
+                "but no HWP object has been passed to prepare_shared_pointings."
             )
             self.has_hwp = False
         else:
