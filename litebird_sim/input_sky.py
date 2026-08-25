@@ -649,7 +649,7 @@ class SkyGenerator:
         npix = hpx.npix()
 
         vec = dh.ang2vec(np.array([[lat, lon]]))[0]
-        pix_vecs = hpx.pix2vec(np.arange(npix))
+        pix_vecs = hpx.pix2vec(np.arange(npix), nthreads=self.params.nthreads)
 
         dipole_map_val = np.zeros((3, npix))
         dipole_map_val[0] = np.dot(pix_vecs, vec) * amp
