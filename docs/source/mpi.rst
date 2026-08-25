@@ -40,10 +40,23 @@ you can either set the environment variable ``OMP_NUM_THREADS``
 to the number of CPUs to use, or use two parameters in
 the constructor of the class :class:`.Simulation`:
 
-- `numba_num_of_threads`: this is the number of CPUs that Numba will
+- `numba_threads`: this is the number of CPUs that Numba will
   use for parallel calculations. The parameter defaults to ``None``,
-  which means that Numba will check how many CPUs are available and will
-  use all of them.
+  in which case it is resolved once, following this order of precedence:
+
+  1. the value of `numba_threads` itself, if you passed one explicitly
+     (or if it was set in a TOML parameter file, see below);
+  2. the environment variable ``NUMBA_NUM_THREADS``, if set;
+  3. the environment variable ``OMP_NUM_THREADS``, if set;
+  4. the number of hardware threads available to the process.
+
+  This is the same resolution order used for the ``nthreads`` parameters
+  accepted by the low-level `ducc0 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_-based
+  functions of the framework (spherical harmonic transforms, beam
+  convolution, map scanning, ...) — see :ref:`nthreads_ducc0` below. Using
+  ``NUMBA_NUM_THREADS`` instead of ``OMP_NUM_THREADS`` lets you give Numba a
+  different thread count than ducc0, if you ever need to; leaving
+  ``NUMBA_NUM_THREADS`` unset makes the two agree by default.
 
 - `numba_threading_layer`: this parameter is a string that specifies
   which threading library should be used by Numba. The value depends
@@ -71,7 +84,7 @@ These parameters can be passed through a TOML parameter file (see
    # This is file "my_conf.toml"
    [simulation]
    random_seed = 12345
-   numba_num_of_threads = 32
+   numba_threads = 32
    numba_threading_layer = "tbb"
 
 Both ``tbb`` and ``omp`` require that the relevant library be available on
@@ -85,6 +98,41 @@ of running a command like the following:
    # is configured; the following commands are just examples.
    $ module load tbb     # Intel Threading Building Blocks
    $ module load openmp  # OpenMP
+
+
+.. _nthreads_ducc0:
+
+Threads and ducc0
+~~~~~~~~~~~~~~~~~~
+
+Besides Numba, most of the computationally-heavy, low-level functions of
+the framework (spherical harmonic transforms in
+:mod:`litebird_sim.maps_and_harmonics`, beam convolution, map scanning, the
+map-makers, ...) delegate their parallel work to the
+`ducc0 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_ library through an
+``nthreads`` parameter. Every such function defaults to ``nthreads=None``,
+which is resolved through :func:`litebird_sim.resolve_nthreads` using the
+same precedence as ``OMP_NUM_THREADS`` for Numba above (explicit value,
+then ``OMP_NUM_THREADS``, then the number of hardware threads available to
+the process). The values used by the current process, resolved once when
+``litebird_sim`` is imported, are exposed as :data:`litebird_sim.NUM_THREADS`
+(for ducc0) and :data:`litebird_sim.NUMBA_NUM_THREADS` (for Numba).
+
+.. warning::
+   When running under MPI with multiple ranks per node, leaving
+   ``OMP_NUM_THREADS`` unset lets *every* rank try to use *all* the
+   hardware threads on the node at once, which causes contention rather
+   than speedup. Set ``OMP_NUM_THREADS`` (and, if you need Numba to use a
+   different value, ``NUMBA_NUM_THREADS``) to a sensible per-rank share
+   before launching your job, e.g. for 8 MPI ranks on a 64-core node:
+
+   .. code-block:: sh
+
+      $ export OMP_NUM_THREADS=8
+      $ mpirun -n 8 python3 my_script.py
+
+You can always override the resolved value for a single call by passing an
+explicit ``nthreads`` argument to the function you are calling.
 
 
 MPI
