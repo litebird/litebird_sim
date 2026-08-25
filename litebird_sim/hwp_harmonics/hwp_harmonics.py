@@ -1,5 +1,4 @@
 import logging
-import os
 
 import numpy as np
 import numpy.typing as npt
@@ -11,7 +10,6 @@ from numba import njit
 from litebird_sim.hwp_jones_parameters import HWPJonesParams
 
 from ..bandpass_template_module import bandpass_profile
-from ..constants import NUM_THREADS_ENVVAR
 from ..coordinates import CoordinateSystem
 from ..hwp_non_ideal import HWPFormalism, NonIdealHWP
 from ..input_sky import SkyInput
@@ -20,6 +18,7 @@ from ..observations import Observation
 from ..pointings_in_obs import (
     _get_pointings_array,
 )
+from ..utilities import resolve_nthreads
 from .jones_methods import (
     compute_signal_for_one_detector as compute_signal_for_one_detector_jones,
 )
@@ -228,9 +227,7 @@ def fill_tod_with_hwp_harmonics(
             )
     assert maps is not None, "You need to pass input maps to fill_tod."
 
-    # Set number of threads
-    if nthreads is None:
-        nthreads = int(os.environ.get(NUM_THREADS_ENVVAR, 0))
+    nthreads = resolve_nthreads(nthreads)
 
     if pointings is None:
         if hwp_angle is not None:
@@ -390,6 +387,7 @@ def fill_tod_with_hwp_harmonics(
                 hwp_angle=cur_hwp_angle,
                 output_coordinate_system=coordinates,
                 pointings_dtype=pointings_dtype,
+                nthreads=nthreads,
             )
 
             tod_det = tod[idet, :]

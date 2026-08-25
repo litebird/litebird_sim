@@ -25,6 +25,7 @@ from .maps_and_harmonics import (
     synthesize_alm,
 )
 from .units import Units, UnitUtils
+from .utilities import resolve_nthreads
 
 # --- Utility Functions ---
 
@@ -158,7 +159,7 @@ class SkyGenerationParams:
         # Bandpass
         bandpass_integration: bool = False,
         # Parallelism
-        nthreads: int = 0,  # 0 usually means "use all available" in ducc0
+        nthreads: int | None = None,  # None: resolved via resolve_nthreads()
         # Components to generate
         make_cmb: bool = True,
         make_fg: bool = False,
@@ -191,7 +192,7 @@ class SkyGenerationParams:
         self.bandpass_integration = bandpass_integration
         self.maxiter = maxiter
         self.epsilon = epsilon
-        self.nthreads = nthreads
+        self.nthreads = resolve_nthreads(nthreads)
         self.make_cmb = make_cmb
         self.make_fg = make_fg
         self.make_dipole = make_dipole

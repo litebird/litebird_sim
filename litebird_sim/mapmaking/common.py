@@ -161,6 +161,7 @@ def _compute_pixel_indices(
             hwp_angle=hwp_angle,
             output_coordinate_system=output_coordinate_system,
             pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
         )
         if hmap_generation:
             polang_all[idet] = curr_pointings_det[:, 2]

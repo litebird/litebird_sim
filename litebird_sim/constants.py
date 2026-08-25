@@ -2,9 +2,13 @@ import numpy as np
 from astropy.constants import c as c_light
 from astropy.constants import h, k_B
 
-# Name of the environment variable used in the convolution
+# Environment variables used to size ducc0's and Numba's thread pools.
+# NUMBA_NUM_THREADS_ENVVAR takes precedence over NUM_THREADS_ENVVAR when
+# resolving the number of threads for Numba, so the two runtimes can be
+# sized independently if needed (see resolve_nthreads/resolve_numba_nthreads
+# in utilities.py).
 NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
-NUMBA_NUM_THREADS_ENVVAR = "OMP_NUM_THREADS"
+NUMBA_NUM_THREADS_ENVVAR = "NUMBA_NUM_THREADS"
 
 ARCMIN_TO_RAD = np.pi / 180 / 60
 

@@ -11,6 +11,7 @@ from .detectors import InstrumentInfo
 from .hwp import HWP
 from .observations import Observation
 from .scanning import RotQuaternion
+from .utilities import resolve_nthreads
 
 
 def prepare_pointings(
@@ -228,7 +229,7 @@ def _get_pointings_array(
     output_coordinate_system: CoordinateSystem,
     nside_centering: int | None = None,
     pointings_dtype=np.float64,
-    nthreads: int = 0,
+    nthreads: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray | None]:
     """Compute the pointings (θ, φ) and HWP angle for a given detector.
 
@@ -247,9 +248,9 @@ def _get_pointings_array(
         If provided, the pointings will be aligned to the center of the HEALPix pixel.
     pointings_dtype : np.dtype, optional
         Data type for computed pointings and angles. Default is `np.float64`.
-    nthreads : int, optional
+    nthreads : int or None, optional
         Number of threads to use for HEALPix operations when centering pointings.
-        Default is 0 (use all available threads).
+        If None, resolved via :func:`.resolve_nthreads`.
 
     Returns
     -------
@@ -259,6 +260,8 @@ def _get_pointings_array(
                         N_cols is typically 2 ([θ, φ]) or 3 ([θ, φ, ψ]).
           - `hwp_angle` is either the provided array or the one computed by the callable.
     """
+    nthreads = resolve_nthreads(nthreads)
+
     if isinstance(pointings, np.ndarray):
         curr_pointings_det = pointings[detector_idx, :, :]
         computed_hwp_angle = None
