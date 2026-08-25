@@ -68,6 +68,7 @@ from .observations import Observation, TodDescription
 from .pointings_in_obs import (
     precompute_pointings,
     prepare_pointings,
+    prepare_pointings_shmem,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
@@ -1709,21 +1710,11 @@ class Simulation:
             obs.set_hwp(hwp)
 
     @_profile
-    def prepare_pointings(
+    def _prepare_pointings(
         self,
+        use_shmem: bool = False,
         append_to_report: bool = True,
     ):
-        """Trigger the computation of the quaternions needed to compute pointings.
-
-        This method must be called after having set the scanning strategy, the
-        instrument, the HWP, and the list of detectors to simulate through calls to
-        :meth:`.set_instrument` and :meth:`.add_detector`. A set of observations must
-        have been created using the method :meth:`.create_observations`.
-
-        It combines the quaternions of the spacecraft, of the instrument, and of the detectors
-        and prepares a number of data structures that will be used by the method
-        :meth:`.Observation.get_pointings` to determine the pointing angles and the HWP angle.
-        """
         assert self.observations, (
             "You must call Simulation.create_observations() "
             "before calling Simulation.prepare_pointings"
@@ -1737,12 +1728,20 @@ class Simulation:
             "before calling Simulation.prepare_pointings"
         )
 
-        prepare_pointings(
-            observations=self.observations,
-            instrument=self.instrument,
-            spin2ecliptic_quats=self.spin2ecliptic_quats,
-            hwp=self.hwp,
-        )
+        if not use_shmem:
+            prepare_pointings(
+                observations=self.observations,
+                instrument=self.instrument,
+                spin2ecliptic_quats=self.spin2ecliptic_quats,
+                hwp=self.hwp,
+            )
+        else:
+            prepare_pointings_shmem(
+                observations=self.observations,
+                instrument=self.instrument,
+                spin2ecliptic_quats=self.spin2ecliptic_quats,
+                hwp=self.hwp,
+            )
 
         pointing_provider = self.observations[0].pointing_provider
 
@@ -1763,6 +1762,44 @@ class Simulation:
                 num_of_mpi_processes=MPI_COMM_WORLD.size,
                 memory_occupation=int(memory_occupation),
             )
+
+    @_profile
+    def prepare_pointings(
+        self,
+        append_to_report: bool = True,
+    ):
+        """Trigger the computation of the quaternions needed to compute pointings.
+
+        This method must be called after having set the scanning strategy, the
+        instrument, the HWP, and the list of detectors to simulate through calls to
+        :meth:`.set_instrument` and :meth:`.add_detector`. A set of observations must
+        have been created using the method :meth:`.create_observations`.
+
+        It combines the quaternions of the spacecraft, of the instrument, and of the detectors
+        and prepares a number of data structures that will be used by the method
+        :meth:`.Observation.get_pointings` to determine the pointing angles and the HWP angle.
+        """
+        self._prepare_pointings(
+            use_shmem=False,
+            append_to_report=append_to_report,
+        )
+
+    @_profile
+    def prepare_pointings_shmem(
+        self,
+        append_to_report: bool = True,
+    ):
+        """Trigger the computation of the quaternions needed to compute pointings,
+        using MPI shared memory.
+
+        This functions identically to `prepare_pointings`, but coordinates memory
+        allocation across MPI ranks on the same physical node,
+        optimizing the global memory usage.
+        """
+        self._prepare_pointings(
+            use_shmem=True,
+            append_to_report=append_to_report,
+        )
 
     def precompute_pointings(self, pointings_dtype=np.float64) -> None:
         """Compute all the pointings for all observations and save them
