@@ -1028,7 +1028,13 @@ class Observation:
 
         # Only the node root computes the multiplication and fills the array
         if self.shared_memory_manager.node_rank == self.shared_memory_manager.node_root:
-            shared_quats_view[:] = spin2ecliptic_quats * instrument.bore2spin_quat.quats
+            from .quaternions import multiply_quaternions_list_x_one
+
+            multiply_quaternions_list_x_one(
+                spin2ecliptic_quats.quats,
+                instrument.bore2spin_quat.quats[0],
+                shared_quats_view,
+            )
             normalize_quaternions(shared_quats_view)
 
         # Synchronize all ranks on this node
@@ -1347,7 +1353,7 @@ class Observation:
         self.comm_det_block = _SerialMpiCommunicator()
         self.comm_time_block = _SerialMpiCommunicator()
 
-        if self.comm and self.comm.size > 1:
+        if hasattr(self.comm, "Split"):
             det_color = self.comm.rank // self.n_blocks_time
             time_color = self.comm.rank % self.n_blocks_time
             self.comm_det_block = self.comm.Split(det_color)
