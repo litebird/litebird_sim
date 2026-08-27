@@ -848,7 +848,7 @@ API reference
     :undoc-members:
     :show-inheritance:
 
-.. automodule:: litebird_sim.pointings_in_obs
+.. automodule:: litebird_sim.observation_utilities
     :members:
     :undoc-members:
     :show-inheritance:

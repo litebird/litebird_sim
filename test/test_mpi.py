@@ -729,8 +729,8 @@ def test_non_linearity_seeding():
     different MPI tasks share the same detector in different time samples
     """
 
-    if lbs.MPI_COMM_WORLD.size < 2:
-        return
+    if lbs.MPI_COMM_WORLD.size != 2:
+        pytest.skip("This test requires exactly 2 MPI processes")
 
     rank = lbs.MPI_COMM_WORLD.rank
 

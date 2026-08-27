@@ -158,6 +158,9 @@ class Observation:
 
     # Dynamic attributes set by beam synthesis
     name: list
+    channel: list
+    bandcenter_ghz: npt.NDArray
+    bandwidth_ghz: npt.NDArray
     fwhm_arcmin: npt.NDArray
     ellipticity: npt.NDArray
     psi_rad: npt.NDArray
