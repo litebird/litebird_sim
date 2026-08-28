@@ -636,6 +636,50 @@ class RotQuaternion:
         return np.allclose(self.quats, other.quats)
 
 
+class SharedRotQuaternion(RotQuaternion):
+    """A version of RotQuaternion that wraps an existing shared-memory NumPy array.
+
+    This class is used to avoid copying or modifying (normalizing) the underlying
+    array, as that is expected to be handled explicitly by the
+    node root process of the shared memory communicator.
+    """
+
+    def __init__(
+        self,
+        quats: npt.NDArray,
+        start_time: float | astropy.time.Time | None = None,
+        sampling_rate_hz: float | None = None,
+    ):
+        """
+        Create a new instance of a time-dependent quaternion
+
+        If both `start_time` and `sampling_freq_hz` are ``None``, the quaternion
+        is assumed to be constant in time.
+
+        :param quats: Either a 4-element NumPy array, or another instance
+            of :class:`TimeDependentQuaternion`
+        :param start_time: the start time, either a floating point number
+            or an ``astropy.time.Time`` object
+        :param sampling_rate_hz: the sampling frequency
+        """
+        # Directly use the provided array without reshaping or copying
+        self.quats = quats
+
+        if self.quats.shape[0] > 1:
+            assert start_time is not None, (
+                "You must specify start_time if the quaternion is not constant"
+            )
+            assert sampling_rate_hz is not None, (
+                "You must specify sampling_rate_hz if the quaternion is not constant"
+            )
+
+        self.start_time = start_time
+        self.sampling_rate_hz = sampling_rate_hz
+
+        # We DO NOT normalize quaternions here.
+        # The node root is expected to normalize them after writing to shared memory.
+
+
 # This is an Abstract Base Class (ABC)
 class ScanningStrategy(ABC):
     """A class that simulate a scanning strategy
