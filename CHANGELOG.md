@@ -2,6 +2,8 @@
 
 -   Introduced MPI shared-memory allocator for pointing quaternions (`SharedMemoryManager`) to drastically reduce memory usage and prevent OOM issues on multi-core HPC nodes (like [#489](https://github.com/litebird/litebird_sim/issues/489)). Added `Simulation.set_scanning_strategy_shmem()` and `Simulation.prepare_pointings_shmem()` to leverage this functionality.
 
+-   Fix wrong output units when `bandpass_integration=True` in `input_sky` (CMB and dipole were off by a large factor because `pysm3.bandpass_unit_conversion` wasn't told the input unit), remove the resulting dead code path, and document that `cmb_ps_file` spectra are expected in $\mu K_{CMB}^2$. Fixes [#548](https://github.com/litebird/litebird_sim/issues/548). Reference PR: [#549](https://github.com/litebird/litebird_sim/pull/549).
+
 -   Stop supporting unused MPI processes and drop `MPI_COMM_GRID` class and its attributes. Now throwing an error when `comm_size != n_blocks_det * n_blocks_time`. It fixes [#364](https://github.com/litebird/litebird_sim/issues/364), while incorporating selective changes from [#372](https://github.com/litebird/litebird_sim/pull/372) and [#427](https://github.com/litebird/litebird_sim/pull/427). Reference PR: [#539](https://github.com/litebird/litebird_sim/pull/539).
 
 # Version 0.17.0

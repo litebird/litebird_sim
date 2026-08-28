@@ -1,5 +1,3 @@
-# -*- encoding: utf-8 -*-
-
 from pathlib import Path
 
 import healpy as hp
@@ -8,9 +6,9 @@ import numpy.testing as npt
 import pytest
 
 import litebird_sim as lbs
-from litebird_sim.input_sky import SkyGenerator, SkyGenerationParams
 from litebird_sim.bandpasses import BandPassInfo
 from litebird_sim.detectors import FreqChannelInfo
+from litebird_sim.input_sky import SkyGenerationParams, SkyGenerator
 
 
 def test_input_sky_basic():
@@ -396,3 +394,62 @@ def test_foregrounds_consistency_channel_vs_frequency(output_type):
         input_maps_freq.values[0],
         decimal=5,
     )
+
+
+def test_bandpass_integration_units_basic():
+    """
+    Tests band integration yields the correct output units
+    (see https://github.com/litebird/litebird_sim/pull/549)
+    """
+
+    mock_channel = FreqChannelInfo(
+        channel="mock",
+        bandcenter_ghz=140.0,
+        bandwidth_ghz=42.0,
+        fwhm_arcmin=30.8,
+    )
+
+    band = BandPassInfo(
+        bandcenter_ghz=140.0,
+        bandwidth_ghz=42.0,
+    )
+
+    mock_channel.band = band
+
+    params_with_bandpass_int = SkyGenerationParams(
+        nside=16,
+        units="uK_CMB",
+        lmax=47,
+        make_cmb=True,
+        seed_cmb=38198,
+        make_fg=False,
+        make_dipole=False,
+        bandpass_integration=True,
+        apply_beam=True,
+        output_type="map",
+    )
+
+    params_without_bandpass_int = SkyGenerationParams(
+        nside=16,
+        units="uK_CMB",
+        lmax=47,
+        make_cmb=True,
+        seed_cmb=38198,
+        make_fg=False,
+        make_dipole=False,
+        bandpass_integration=False,
+        apply_beam=True,
+        output_type="map",
+    )
+
+    sky_gen_with_bp_int = SkyGenerator(
+        parameters=params_with_bandpass_int, channels=[mock_channel]
+    )
+    sky_gen_without_bp_int = SkyGenerator(
+        parameters=params_without_bandpass_int, channels=[mock_channel]
+    )
+
+    output_with_bp_int = sky_gen_with_bp_int.execute()["mock"].values
+    output_without_bp_int = sky_gen_without_bp_int.execute()["mock"].values
+
+    npt.assert_allclose(output_with_bp_int, output_without_bp_int, atol=1e-12)
