@@ -1,20 +1,18 @@
 import os
 
-import ducc0.misc
-
 from .constants import NUM_THREADS_ENVVAR, NUMBA_NUM_THREADS_ENVVAR
-
-
-def _hardware_threads() -> int:
-    """Number of threads available to this process (affinity-aware on Linux)."""
-
-    return ducc0.misc.available_hardware_threads()
 
 
 def _compute_nthreads() -> int:
     if NUM_THREADS_ENVVAR in os.environ:
         return int(os.environ[NUM_THREADS_ENVVAR])
-    return _hardware_threads()
+    # No explicit thread count was requested. Default to a single thread
+    # rather than every hardware thread available to the process: MPI/OpenMP
+    # jobs are expected to set NUM_THREADS_ENVVAR (OMP_NUM_THREADS) per rank,
+    # so this fallback only matters for un-configured runs (e.g. a laptop),
+    # where using every core by default would otherwise silently starve
+    # other processes on the machine.
+    return 1
 
 
 def _compute_numba_nthreads() -> int:
@@ -37,7 +35,7 @@ def resolve_nthreads(nthreads: int | None) -> int:
     If ``nthreads`` is given explicitly, return it unchanged. Otherwise
     return :data:`NUM_THREADS`, which was resolved once at import time from
     :data:`.constants.NUM_THREADS_ENVVAR` (``OMP_NUM_THREADS``), falling back
-    to the number of hardware threads available to this process.
+    to ``1`` if the environment variable is not set.
     """
 
     if nthreads is not None:

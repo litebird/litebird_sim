@@ -30,15 +30,19 @@ Some parts of the LiteBIRD Simulation Framework are able to
 exploit multiple cores because several of its modules rely on
 the `Numba <https://numba.pydata.org/>`_ library.
 
-If you are running your code on your multi-core laptop, you do not
-have to do anything fancy in order to use all the CPUs on your machine:
-in its default configuration, the Framework should be able to take
-advantage all the available CPU cores.
-
-However, if you want to tune the way the Framework uses the CPUs,
-you can either set the environment variable ``OMP_NUM_THREADS``
-to the number of CPUs to use, or use two parameters in
-the constructor of the class :class:`.Simulation`:
+To use more than one CPU, you must explicitly tell the Framework how
+many to use, either by setting the environment variable
+``OMP_NUM_THREADS`` to the number of CPUs to use, or by using two
+parameters in the constructor of the class :class:`.Simulation`.
+The Framework does **not** default to using every CPU core available
+on the machine: doing so would be unsafe under MPI, where several
+ranks typically share a node and would otherwise all try to grab every
+core at once. Leaving thread counts unconfigured makes the Framework
+run single-threaded, both for Numba and for ducc0 (see
+:ref:`nthreads_ducc0` below); this is a safe default, but it means
+that on a single-user laptop or workstation you *do* need to set
+``OMP_NUM_THREADS`` (or the equivalent parameters below) yourself if
+you want to take advantage of all the available cores.
 
 - `numba_threads`: this is the number of CPUs that Numba will
   use for parallel calculations. The parameter defaults to ``None``,
@@ -48,7 +52,7 @@ the constructor of the class :class:`.Simulation`:
      (or if it was set in a TOML parameter file, see below);
   2. the environment variable ``NUMBA_NUM_THREADS``, if set;
   3. the environment variable ``OMP_NUM_THREADS``, if set;
-  4. the number of hardware threads available to the process.
+  4. ``1``, if none of the above is set.
 
   This is the same resolution order used for the ``nthreads`` parameters
   accepted by the low-level `ducc0 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_-based
@@ -112,24 +116,25 @@ map-makers, ...) delegate their parallel work to the
 `ducc0 <https://gitlab.mpcdf.mpg.de/mtr/ducc>`_ library through an
 ``nthreads`` parameter. Every such function defaults to ``nthreads=None``,
 which is resolved through :func:`litebird_sim.resolve_nthreads` using the
-same precedence as ``OMP_NUM_THREADS`` for Numba above (explicit value,
-then ``OMP_NUM_THREADS``, then the number of hardware threads available to
-the process). The values used by the current process, resolved once when
-``litebird_sim`` is imported, are exposed as :data:`litebird_sim.NUM_THREADS`
-(for ducc0) and :data:`litebird_sim.NUMBA_NUM_THREADS` (for Numba).
+same precedence as ``OMP_NUM_THREADS`` for Numba above: explicit value,
+then ``OMP_NUM_THREADS``, then ``1``. The values used by the current
+process, resolved once when ``litebird_sim`` is imported, are exposed as
+:data:`litebird_sim.NUM_THREADS` (for ducc0) and
+:data:`litebird_sim.NUMBA_NUM_THREADS` (for Numba).
 
-.. warning::
-   When running under MPI with multiple ranks per node, leaving
-   ``OMP_NUM_THREADS`` unset lets *every* rank try to use *all* the
-   hardware threads on the node at once, which causes contention rather
-   than speedup. Set ``OMP_NUM_THREADS`` (and, if you need Numba to use a
-   different value, ``NUMBA_NUM_THREADS``) to a sensible per-rank share
-   before launching your job, e.g. for 8 MPI ranks on a 64-core node:
+This ``1``-thread fallback is deliberately conservative: it keeps both
+serial and MPI runs safe by default (no risk of a rank grabbing every
+core on a shared node), at the cost of not using extra cores unless you
+ask for them. If you want multithreaded ducc0/Numba execution — whether
+on a laptop or per MPI rank on a cluster — set ``OMP_NUM_THREADS`` (and,
+if needed, ``NUMBA_NUM_THREADS``) to the number of cores you want to use
+before launching your job, e.g. for 8 MPI ranks on a 64-core node, using
+8 threads per rank:
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      $ export OMP_NUM_THREADS=8
-      $ mpirun -n 8 python3 my_script.py
+   $ export OMP_NUM_THREADS=8
+   $ mpirun -n 8 python3 my_script.py
 
 You can always override the resolved value for a single call by passing an
 explicit ``nthreads`` argument to the function you are calling.
