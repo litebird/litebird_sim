@@ -33,7 +33,7 @@ from .beam_convolution import (
     add_convolved_sky_to_observations,
 )
 from .beam_synthesis import generate_gauss_beam_alms
-from .constants import NUMBA_NUM_THREADS_ENVVAR
+from .constants import NUMBA_NUM_THREADS_ENVVAR  # noqa: F401  (re-exported)
 from .coordinates import CoordinateSystem
 from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
@@ -75,6 +75,7 @@ from .scanning import ScanningStrategy, SpinningScanningStrategy
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .units import Units
+from .utilities import resolve_numba_nthreads
 from .version import (
     __author__ as litebird_sim_author,
 )
@@ -415,9 +416,10 @@ class Simulation:
         else:
             self.imo = Imo()
 
-        if not numba_threads and NUMBA_NUM_THREADS_ENVVAR in os.environ:
-            numba_threads = int(os.environ[NUMBA_NUM_THREADS_ENVVAR])
-
+        # Resolved below, after _init_missing_params() has had a chance to
+        # fill this in from a parameter file: explicit argument takes
+        # precedence, then the parameter file, then resolve_numba_nthreads()
+        # (NUMBA_NUM_THREADS/OMP_NUM_THREADS/hardware default).
         self.numba_threads = numba_threads
         self.numba_threading_layer = numba_threading_layer
 
@@ -442,8 +444,8 @@ class Simulation:
 
         self._init_missing_params()
 
-        if self.numba_threads:
-            numba.set_num_threads(self.numba_threads)
+        self.numba_threads = resolve_numba_nthreads(self.numba_threads)
+        numba.set_num_threads(self.numba_threads)
 
         if self.numba_threading_layer:
             numba.config.THREADING_LAYER = self.numba_threading_layer  # type: ignore[attr-defined]

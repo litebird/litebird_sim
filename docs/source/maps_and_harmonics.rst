@@ -107,8 +107,13 @@ These functions handle the complexity of spin-0 (Temperature) vs spin-2 (Polariz
 * :func:`~litebird_sim.maps_and_harmonics.compute_dl`: Compute $D_{\ell} = \ell(\ell+1)C_{\ell}/(2\pi)$ spectra
 
 .. tip::
-   All transform functions accept a ``nthreads`` argument. 
-   Setting ``nthreads=0`` (default) uses all available hardware threads, which is optimal for standalone scripts but should be adjusted when running inside an MPI environment.
+   All transform functions accept an ``nthreads`` argument, which defaults to ``None``.
+   When left unset, the number of threads is resolved automatically (see :ref:`nthreads_ducc0`):
+   it honours the ``OMP_NUM_THREADS`` environment variable if set, and otherwise falls back
+   to ``1`` thread. This makes the default safe to use both in standalone scripts and inside
+   an MPI environment, but it also means you need to set ``OMP_NUM_THREADS`` yourself if you
+   want these functions to use more than one core. Pass an explicit ``nthreads`` to override
+   this for a single call.
 
 .. note::
    All transform functions support multi-frequency data. When operating on multi-frequency objects, transforms are applied independently to each frequency, and the output maintains the multi-frequency structure.
