@@ -1,18 +1,46 @@
 # -*- encoding: utf-8 -*-
 # NOTE: all the following tests should be valid also in a serial execution
 from pathlib import Path
-from sys import stderr
 from tempfile import TemporaryDirectory
-from typing import Callable
 
 import astropy.time as astrotime
+import pytest
+
 import litebird_sim as lbs
 import numpy as np
 from litebird_sim import MPI_COMM_WORLD
 
 
+@pytest.fixture
+def mpi_tmp_path():
+    if not lbs.MPI_ENABLED:
+        with TemporaryDirectory() as tmp_dir:
+            yield Path(tmp_dir)
+        return
+
+    # It's critical that all MPI processes use the same output directory
+    comm = lbs.MPI_COMM_WORLD
+    if comm.rank == 0:
+        tmp_dir = TemporaryDirectory()
+        tmp_path = tmp_dir.name
+        comm.bcast(tmp_path, root=0)
+    else:
+        tmp_dir = None
+        tmp_path = comm.bcast(None, root=0)
+
+    # https://docs.pytest.org/en/stable/how-to/fixtures.html#yield-fixtures-recommended
+    yield Path(tmp_path)
+
+    comm.barrier()
+    if tmp_dir:
+        tmp_dir.cleanup()
+
+
 def test_observation_time():
     comm_world = lbs.MPI_COMM_WORLD
+    if comm_world.size > 2:
+        pytest.skip("This test is only supported with 1 or 2 MPI processes")
+
     ref_time = astrotime.Time("2020-02-20", format="iso")
 
     obs_no_mjd = lbs.Observation(
@@ -20,6 +48,7 @@ def test_observation_time():
         start_time_global=0.0,
         sampling_rate_hz=5.0,
         n_samples_global=5,
+        n_blocks_time=comm_world.size,
         comm=comm_world,
     )
     obs_mjd_astropy = lbs.Observation(
@@ -27,6 +56,7 @@ def test_observation_time():
         start_time_global=ref_time,
         sampling_rate_hz=5.0,
         n_samples_global=5,
+        n_blocks_time=comm_world.size,
         comm=comm_world,
     )
 
@@ -38,7 +68,7 @@ def test_observation_time():
         [6.985_440_69e8, 6.985_440_69e8, 6.985_440_70e8, 6.985_440_70e8, 6.985_440_70e8]
     )
 
-    if not comm_world or comm_world.rank == 0:
+    if not comm_world or comm_world.size == 1:
         assert np.allclose(obs_no_mjd.get_times(), res_times)
         assert np.allclose(
             (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd, res_mjd
@@ -46,40 +76,33 @@ def test_observation_time():
         assert np.allclose(
             obs_mjd_astropy.get_times(normalize=False, astropy_times=False), res_cxcsec
         )
-    else:
-        assert obs_no_mjd.get_times().size == 0
-        assert obs_mjd_astropy.get_times(astropy_times=True).size == 0
-        assert obs_mjd_astropy.get_times(normalize=False, astropy_times=False).size == 0
-
-    if not comm_world or comm_world.size == 1:
-        return
-    obs_no_mjd.set_n_blocks(n_blocks_time=2)
-    obs_mjd_astropy.set_n_blocks(n_blocks_time=2)
-    if comm_world.rank == 0:
-        assert np.allclose(obs_no_mjd.get_times(), res_times[:3])
-        assert np.allclose(
-            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd, res_mjd[:3]
-        )
-        assert np.allclose(
-            obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
-            res_cxcsec[:3],
-        )
-    elif comm_world.rank == 1:
-        assert np.allclose(obs_no_mjd.get_times(), res_times[3:])
-        assert np.allclose(
-            (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd, res_mjd[3:]
-        )
-        assert np.allclose(
-            obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
-            res_cxcsec[3:],
-        )
-    else:
-        assert obs_no_mjd.get_times().size == 0
-        assert obs_mjd_astropy.get_times().size == 0
+    elif comm_world.size == 2:
+        if comm_world.rank == 0:
+            assert np.allclose(obs_no_mjd.get_times(), res_times[:3])
+            assert np.allclose(
+                (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
+                res_mjd[:3],
+            )
+            assert np.allclose(
+                obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
+                res_cxcsec[:3],
+            )
+        elif comm_world.rank == 1:
+            assert np.allclose(obs_no_mjd.get_times(), res_times[3:])
+            assert np.allclose(
+                (obs_mjd_astropy.get_times(astropy_times=True) - ref_time).jd,
+                res_mjd[3:],
+            )
+            assert np.allclose(
+                obs_mjd_astropy.get_times(normalize=False, astropy_times=False),
+                res_cxcsec[3:],
+            )
 
 
 def test_construction_from_detectors():
     comm_world = lbs.MPI_COMM_WORLD
+    if comm_world.size % 2 != 0:
+        pytest.skip("This test requires the number of MPI processes to be even")
 
     det1 = dict(
         name="pol01",
@@ -121,113 +144,123 @@ def test_construction_from_detectors():
         n_samples_global=100,
         start_time_global=0.0,
         sampling_rate_hz=1.0,
+        n_blocks_time=comm_world.size,
         comm=comm_world,
         root=0,
     )
 
-    if comm_world.rank == 0:
-        assert obs.name[0] == "pol01"
-        assert obs.name[1] == "pol02"
-        assert obs.wafer[0] == "mywafer"
-        assert obs.wafer[1] == "mywafer"
-        assert obs.pixel[0] == 1
-        assert obs.pixel[1] == 2
-        assert obs.pixtype[0] == "A"
-        assert obs.pixtype[1] is None
-        assert obs.alpha[0] == 1.0
-        assert np.isnan(obs.alpha[1])
-        assert obs.ellipticity[0] == 1.0
-        assert obs.ellipticity[1] == 2.0
-        assert np.all(obs.quat[0] == np.zeros(4))
-        assert np.all(obs.quat[1] == np.ones(4))
+    assert obs.name[0] == "pol01"
+    assert obs.name[1] == "pol02"
+    assert obs.wafer[0] == "mywafer"
+    assert obs.wafer[1] == "mywafer"
+    assert obs.pixel[0] == 1
+    assert obs.pixel[1] == 2
+    assert obs.pixtype[0] == "A"
+    assert obs.pixtype[1] is None
+    assert obs.alpha[0] == 1.0
+    assert np.isnan(obs.alpha[1])
+    assert obs.ellipticity[0] == 1.0
+    assert obs.ellipticity[1] == 2.0
+    assert np.all(obs.quat[0] == np.zeros(4))
+    assert np.all(obs.quat[1] == np.ones(4))
 
-    if comm_world.size == 1:
-        return
-
-    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=2)
-    if comm_world.rank == 0:
-        assert obs.name[0] == "pol01"
-        assert obs.wafer[0] == "mywafer"
-        assert obs.pixel[0] == 1
-        assert obs.pixtype[0] == "A"
-        assert obs.ellipticity[0] == 1.0
-        assert np.all(obs.quat[0] == np.zeros(4))
-        assert obs.alpha[0] == 1.0
-    elif comm_world.rank == 1:
-        assert obs.name[0] == "pol02"
-        assert obs.wafer[0] == "mywafer"
-        assert obs.pixel[0] == 2
-        assert obs.pixtype[0] is None
-        assert obs.ellipticity[0] == 2.0
-        assert np.all(obs.quat[0] == np.ones(4))
-        assert np.isnan(obs.alpha[0])
-    else:
-        assert obs.name == [None]
-        assert obs.wafer == [None]
-        assert obs.pixel == [None]
-        assert obs.pixtype == [None]
-        assert obs.quat == [None]
-        # On the processes, that does not own any detector (and TOD), the numerical
-        # attributes of `DetectorInfo()` are assigned to zero
-        assert obs.ellipticity == 0
-        assert obs.alpha == 0
-
-    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=1)
-    if comm_world.rank == 0:
-        assert obs.name[0] == "pol01"
-        assert obs.name[1] == "pol02"
-        assert obs.wafer[0] == "mywafer"
-        assert obs.wafer[1] == "mywafer"
-        assert obs.pixel[0] == 1
-        assert obs.pixel[1] == 2
-        assert obs.pixtype[0] == "A"
-        assert obs.pixtype[1] is None
-        assert obs.ellipticity[0] == 1.0
-        assert obs.ellipticity[1] == 2.0
-        assert obs.alpha[0] == 1.0
-        assert np.isnan(obs.alpha[1])
-        assert np.allclose(obs.quat, np.arange(2)[:, None])
+    if comm_world.size % 2 == 0:
+        obs.set_n_blocks(n_blocks_time=comm_world.size // 2, n_blocks_det=2)
+        if comm_world.rank < comm_world.size // 2:
+            assert obs.name[0] == "pol01"
+            assert obs.wafer[0] == "mywafer"
+            assert obs.pixel[0] == 1
+            assert obs.pixtype[0] == "A"
+            assert obs.ellipticity[0] == 1.0
+            assert np.all(obs.quat[0] == np.zeros(4))
+            assert obs.alpha[0] == 1.0
+        elif comm_world.rank > comm_world.size // 2:
+            assert obs.name[0] == "pol02"
+            assert obs.wafer[0] == "mywafer"
+            assert obs.pixel[0] == 2
+            assert obs.pixtype[0] is None
+            assert obs.ellipticity[0] == 2.0
+            assert np.all(obs.quat[0] == np.ones(4))
+            assert np.isnan(obs.alpha[0])
 
 
-def test_observation_tod_single_block():
+def test_observation_invalid_n_blocks():
     comm_world = lbs.MPI_COMM_WORLD
-    obs = lbs.Observation(
-        detectors=3,
-        n_samples_global=9,
-        start_time_global=0.0,
-        sampling_rate_hz=1.0,
-        comm=comm_world,
-    )
 
-    if comm_world.rank == 0:
-        assert obs.tod.shape == (3, 9)
-        assert obs.tod.dtype == np.float32
-    else:
-        assert obs.tod.shape == (0, 0)
+    # more blocks than the number of samples
+    with pytest.raises(ValueError):
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=comm_world.size - 1,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=comm_world.size,
+            n_blocks_det=1,
+            comm=comm_world,
+        )
 
+    # more blocks than the number of detectors
+    with pytest.raises(ValueError):
+        obs = lbs.Observation(
+            detectors=comm_world.size - 1,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=1,
+            n_blocks_det=comm_world.size,
+            comm=comm_world,
+        )
 
-def test_observation_tod_two_block_time():
-    comm_world = lbs.MPI_COMM_WORLD
-    try:
+    # more blocks than the number of MPI processes
+    with pytest.raises(ValueError):
         obs = lbs.Observation(
             detectors=3,
             n_samples_global=9,
             start_time_global=0.0,
             sampling_rate_hz=1.0,
-            n_blocks_time=2,
+            n_blocks_time=comm_world.size,
+            n_blocks_det=2,
             comm=comm_world,
         )
-    except ValueError:
-        # Not enough processes to split the TOD, constructor expected to rise
-        if comm_world.size < 2:
-            return
 
-    if comm_world.rank == 0:
-        assert obs.tod.shape == (3, 5)
-    elif comm_world.rank == 1:
-        assert obs.tod.shape == (3, 4)
+    # when set_n_blocks is called with more blocks than the number of MPI processes
+    with pytest.raises(ValueError):
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=comm_world.size,
+            n_blocks_det=1,
+            comm=comm_world,
+        )
+        obs.set_n_blocks(n_blocks_time=comm_world.size, n_blocks_det=2)
+
+
+def test_observation_tod_time_blocks():
+    comm_world = lbs.MPI_COMM_WORLD
+    comm_size = comm_world.size
+    comm_rank = comm_world.rank
+    if comm_size > 4:
+        pytest.skip("This test requires at most 9 MPI processes")
+
+    nsamples_global = 9
+    obs = lbs.Observation(
+        detectors=3,
+        n_samples_global=nsamples_global,
+        start_time_global=0.0,
+        sampling_rate_hz=1.0,
+        n_blocks_time=comm_world.size,
+        comm=comm_world,
+    )
+
+    remainder = nsamples_global % comm_size
+    if comm_rank < remainder:
+        assert obs.tod.shape == (3, nsamples_global // comm_size + 1)
     else:
-        assert obs.tod.shape == (0, 0)
+        assert obs.tod.shape == (3, nsamples_global // comm_size)
+
+    assert obs.tod.dtype == np.float32
 
 
 def test_observation_tod_two_block_det():
@@ -242,21 +275,26 @@ def test_observation_tod_two_block_det():
             comm=comm_world,
         )
     except ValueError:
-        # Not enough processes to split the TOD, constructor expected to rise
-        if comm_world.size < 2:
-            return
+        pytest.skip("This test requires exactly 2 MPI processes")
 
     if comm_world.rank == 0:
         assert obs.tod.shape == (2, 9)
     elif comm_world.rank == 1:
         assert obs.tod.shape == (1, 9)
-    else:
-        assert obs.tod.shape == (0, 0)
 
 
 def test_observation_tod_set_blocks():
     comm_world = lbs.MPI_COMM_WORLD
-    try:
+    if comm_world.size not in [2, 3, 4, 6]:
+        pytest.skip("This test requires 2, 3, 4, or 6 MPI processes")
+
+    def assert_det_info():
+        assert np.all(
+            obs.row_int == (obs.tod[:, 0] // obs._n_samples_global).astype(int)
+        )
+        assert np.all(obs.row_int.astype(str) == obs.row_str)
+
+    if comm_world.size == 2:
         obs = lbs.Observation(
             detectors=3,
             n_samples_global=9,
@@ -265,142 +303,185 @@ def test_observation_tod_set_blocks():
             n_blocks_time=2,
             comm=comm_world,
         )
-    except ValueError:
-        # Not enough processes to split the TOD, constructor expected to rise
-        if comm_world.size < 2:
-            return
 
-    def assert_det_info():
-        if comm_world.rank < obs._n_blocks_time * obs._n_blocks_det:
-            assert np.all(
-                obs.row_int == (obs.tod[:, 0] // obs._n_samples_global).astype(int)
-            )
-            assert np.all(obs.row_int.astype(str) == obs.row_str)
-        else:
-            assert obs.row_int == [None]
-            assert obs.row_str == [None]
+        # Two time blocks
+        ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
+        if comm_world.rank == 0:
+            obs.tod[:] = ref_tod[:, :5]
+        elif comm_world.rank == 1:
+            obs.tod[:] = ref_tod[:, 5:]
 
-    # Two time blocks
-    ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
-    if comm_world.rank == 0:
-        obs.tod[:] = ref_tod[:, :5]
-    elif comm_world.rank == 1:
-        obs.tod[:] = ref_tod[:, 5:]
+        # Add detector info
+        obs.setattr_det_global("row_int", np.arange(3))
+        obs.setattr_det_global("row_str", np.array("0 1 2".split()))
+        assert_det_info()
 
-    # Add detector info
-    obs.setattr_det_global("row_int", np.arange(3))
-    obs.setattr_det_global("row_str", np.array("0 1 2".split()))
-    assert_det_info()
+        # Two detector blocks
+        obs.set_n_blocks(n_blocks_time=1, n_blocks_det=2)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:2])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[2:])
+        assert_det_info()
 
-    # Two detector blocks
-    obs.set_n_blocks(n_blocks_time=1, n_blocks_det=2)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:2])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[2:])
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
+    elif comm_world.size == 3:
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=3,
+            comm=comm_world,
+        )
 
-    # One block
-    obs.set_n_blocks(n_blocks_det=1, n_blocks_time=1)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod)
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
+        # Three time blocks
+        ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
+        if comm_world.rank == 0:
+            obs.tod[:] = ref_tod[:, :3]
+        elif comm_world.rank == 1:
+            obs.tod[:] = ref_tod[:, 3:6]
+        elif comm_world.rank == 2:
+            obs.tod[:] = ref_tod[:, 6:]
 
-    # Three time blocks
-    if comm_world.size < 3:
-        return
-    obs.set_n_blocks(n_blocks_det=1, n_blocks_time=3)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:, :3])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[:, 3:6])
-    elif comm_world.rank == 2:
-        assert np.all(obs.tod == ref_tod[:, 6:])
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
+        # Add detector info
+        obs.setattr_det_global("row_int", np.arange(3))
+        obs.setattr_det_global("row_str", np.array("0 1 2".split()))
+        assert_det_info()
 
-    # Two detector blocks and two time blocks
-    if comm_world.size < 4:
-        return
-    obs.set_n_blocks(n_blocks_time=2, n_blocks_det=2)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:2, :5])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[:2, 5:])
-    elif comm_world.rank == 2:
-        assert np.all(obs.tod == ref_tod[2:, :5])
-    elif comm_world.rank == 3:
-        assert np.all(obs.tod == ref_tod[2:, 5:])
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
+        # Three detector blocks
+        obs.set_n_blocks(n_blocks_time=1, n_blocks_det=3)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:1])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[1:2])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[2:])
+        assert_det_info()
 
-    try:
-        obs.set_n_blocks(n_blocks_det=4, n_blocks_time=1)
-    except ValueError:
-        pass
-    else:
-        raise Exception("ValueError expected")
+    elif comm_world.size == 4:
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=4,
+            comm=comm_world,
+        )
 
-    # Two detector blocks and three time blocks
-    if comm_world.size < 6:
-        return
-    obs.set_n_blocks(n_blocks_det=2, n_blocks_time=3)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:2, :3])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[:2, 3:6])
-    elif comm_world.rank == 2:
-        assert np.all(obs.tod == ref_tod[:2, 6:])
-    elif comm_world.rank == 3:
-        assert np.all(obs.tod == ref_tod[2:, :3])
-    elif comm_world.rank == 4:
-        assert np.all(obs.tod == ref_tod[2:, 3:6])
-    elif comm_world.rank == 5:
-        assert np.all(obs.tod == ref_tod[2:, 6:])
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
+        # Four time blocks
+        ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
+        if comm_world.rank == 0:
+            obs.tod[:] = ref_tod[:, :3]
+        elif comm_world.rank == 1:
+            obs.tod[:] = ref_tod[:, 3:5]
+        elif comm_world.rank == 2:
+            obs.tod[:] = ref_tod[:, 5:7]
+        elif comm_world.rank == 3:
+            obs.tod[:] = ref_tod[:, 7:]
 
-    # Three detector blocks and three time blocks
-    if comm_world.size < 9:
-        return
-    obs.set_n_blocks(n_blocks_det=3, n_blocks_time=3)
-    if comm_world.rank == 0:
-        assert np.all(obs.tod == ref_tod[:1, :3])
-    elif comm_world.rank == 1:
-        assert np.all(obs.tod == ref_tod[:1, 3:6])
-    elif comm_world.rank == 2:
-        assert np.all(obs.tod == ref_tod[:1, 6:])
-    elif comm_world.rank == 3:
-        assert np.all(obs.tod == ref_tod[1:2, :3])
-    elif comm_world.rank == 4:
-        assert np.all(obs.tod == ref_tod[1:2, 3:6])
-    elif comm_world.rank == 5:
-        assert np.all(obs.tod == ref_tod[1:2, 6:])
-    elif comm_world.rank == 6:
-        assert np.all(obs.tod == ref_tod[2:, :3])
-    elif comm_world.rank == 7:
-        assert np.all(obs.tod == ref_tod[2:, 3:6])
-    elif comm_world.rank == 8:
-        assert np.all(obs.tod == ref_tod[2:, 6:])
-    else:
-        assert obs.tod.size == 0
-    assert_det_info()
+        # Add detector info
+        obs.setattr_det_global("row_int", np.arange(3))
+        obs.setattr_det_global("row_str", np.array("0 1 2".split()))
+        assert_det_info()
+
+        # Two detector blocks, two time blocks
+        obs.set_n_blocks(n_blocks_time=2, n_blocks_det=2)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:2, :5])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[:2, 5:])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[2:, :5])
+        elif comm_world.rank == 3:
+            assert np.all(obs.tod == ref_tod[2:, 5:])
+        assert_det_info()
+
+    elif comm_world.size == 6:
+        obs = lbs.Observation(
+            detectors=3,
+            n_samples_global=9,
+            start_time_global=0.0,
+            sampling_rate_hz=1.0,
+            n_blocks_time=6,
+            comm=comm_world,
+        )
+
+        # Six time blocks
+        ref_tod = np.arange(27, dtype=np.float32).reshape(3, 9)
+        if comm_world.rank == 0:
+            obs.tod[:] = ref_tod[:, :2]
+        elif comm_world.rank == 1:
+            obs.tod[:] = ref_tod[:, 2:4]
+        elif comm_world.rank == 2:
+            obs.tod[:] = ref_tod[:, 4:6]
+        elif comm_world.rank == 3:
+            obs.tod[:] = ref_tod[:, 6:7]
+        elif comm_world.rank == 4:
+            obs.tod[:] = ref_tod[:, 7:8]
+        elif comm_world.rank == 5:
+            obs.tod[:] = ref_tod[:, 8:]
+
+        # Add detector info
+        obs.setattr_det_global("row_int", np.arange(3))
+        obs.setattr_det_global("row_str", np.array("0 1 2".split()))
+        assert_det_info()
+
+        # Two detector blocks, three time blocks
+        obs.set_n_blocks(n_blocks_time=3, n_blocks_det=2)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:2, :3])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[:2, 3:6])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[:2, 6:])
+        elif comm_world.rank == 3:
+            assert np.all(obs.tod == ref_tod[2:, :3])
+        elif comm_world.rank == 4:
+            assert np.all(obs.tod == ref_tod[2:, 3:6])
+        elif comm_world.rank == 5:
+            assert np.all(obs.tod == ref_tod[2:, 6:])
+        assert_det_info()
+
+        # Three detector blocks, two time blocks
+        obs.set_n_blocks(n_blocks_time=2, n_blocks_det=3)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[0, :5])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[0, 5:])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[1, :5])
+        elif comm_world.rank == 3:
+            assert np.all(obs.tod == ref_tod[1, 5:])
+        elif comm_world.rank == 4:
+            assert np.all(obs.tod == ref_tod[2, :5])
+        elif comm_world.rank == 5:
+            assert np.all(obs.tod == ref_tod[2, 5:])
+        assert_det_info()
+
+        # Six time blocks
+        obs.set_n_blocks(n_blocks_time=6, n_blocks_det=1)
+        if comm_world.rank == 0:
+            assert np.all(obs.tod == ref_tod[:, :2])
+        elif comm_world.rank == 1:
+            assert np.all(obs.tod == ref_tod[:, 2:4])
+        elif comm_world.rank == 2:
+            assert np.all(obs.tod == ref_tod[:, 4:6])
+        elif comm_world.rank == 3:
+            assert np.all(obs.tod == ref_tod[:, 6:7])
+        elif comm_world.rank == 4:
+            assert np.all(obs.tod == ref_tod[:, 7:8])
+        elif comm_world.rank == 5:
+            assert np.all(obs.tod == ref_tod[:, 8:])
+        assert_det_info()
 
 
-def test_write_hdf5_mpi(tmp_path):
+def test_write_hdf5_mpi(mpi_tmp_path):
     start_time = 0
     time_span_s = 60
     sampling_hz = 10
 
     sim = lbs.Simulation(
-        base_path=tmp_path,
+        base_path=mpi_tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
         random_seed=12345,
@@ -505,7 +586,7 @@ def test_simulation_random():
         assert state3["state"]["state"] != state4["state"]["state"]
 
 
-def test_issue314(tmp_path):
+def test_issue314(mpi_tmp_path):
     """Check if issue 314 is solved
 
     See https://github.com/litebird/litebird_sim/issues/314
@@ -513,11 +594,11 @@ def test_issue314(tmp_path):
     if MPI_COMM_WORLD.size != 2:
         # This test is meant to be executed with 2 MPI tasks, as
         # `__write_complex_observation` creates 2 observations
-        return
+        pytest.skip("This test is meant to be executed with exactly 2 MPI tasks")
 
     rank = lbs.MPI_COMM_WORLD.rank
 
-    tmp_path = Path(tmp_path)
+    tmp_path = mpi_tmp_path
 
     start_time = 0
     time_span_s = 60
@@ -608,49 +689,13 @@ def test_issue314(tmp_path):
     sim.flush()
 
 
-def __run_test_in_same_folder(test_fn: Callable) -> None:
-    if not lbs.MPI_ENABLED:
-        return
-
-    # It's critical that all MPI processes use the same output directory
-    if lbs.MPI_COMM_WORLD.rank == 0:
-        tmp_dir = TemporaryDirectory()
-        tmp_path = tmp_dir.name
-        lbs.MPI_COMM_WORLD.bcast(tmp_path, root=0)
-    else:
-        tmp_dir = None
-        tmp_path = lbs.MPI_COMM_WORLD.bcast(None, root=0)
-
-    failure = False
-    try:
-        test_fn(tmp_path)
-    except Exception:
-        failure = True
-
-        from traceback import format_exc
-
-        print(
-            "MPI process #{rank} failed with exception: {exc}".format(
-                rank=lbs.MPI_COMM_WORLD.rank,
-                exc=format_exc(),
-            ),
-            file=stderr,
-        )
-
-    if tmp_dir:
-        tmp_dir.cleanup()
-
-    if failure:
-        lbs.MPI_COMM_WORLD.Abort(1)
-
-
-def test_nullify_mpi(tmp_path):
+def test_nullify_mpi(mpi_tmp_path):
     start_time = 0
     time_span_s = 2
     sampling_hz = 12
 
     sim = lbs.Simulation(
-        base_path=tmp_path,
+        base_path=mpi_tmp_path,
         start_time=start_time,
         duration_s=time_span_s,
         random_seed=12345,
@@ -736,29 +781,4 @@ def test_non_linearity_seeding():
 
 
 if __name__ == "__main__":
-    test_functions = [
-        test_observation_time,
-        test_construction_from_detectors,
-        test_observation_tod_single_block,
-        test_observation_tod_two_block_time,
-        test_observation_tod_two_block_det,
-        test_observation_tod_set_blocks,
-        test_simulation_random,
-        test_non_linearity_seeding,
-    ]
-
-    for cur_test_fn in test_functions:
-        if MPI_COMM_WORLD.rank == 0:
-            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
-        cur_test_fn()
-
-    same_folder_test_functions = [
-        test_write_hdf5_mpi,
-        test_issue314,
-        test_nullify_mpi,
-    ]
-
-    for cur_test_fn in same_folder_test_functions:
-        if MPI_COMM_WORLD.rank == 0:
-            print("Running test function {}".format(str(cur_test_fn)), file=stderr)
-        __run_test_in_same_folder(cur_test_fn)
+    pytest.main([f"{__file__}"])

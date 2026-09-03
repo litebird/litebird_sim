@@ -96,26 +96,13 @@ def _get_cmb_unit_conversion(
         freqs = getattr(bandpass, "freqs_ghz")[nonzero] * getattr(u, "GHz")
         weights = getattr(bandpass, "weights")[nonzero]
 
-        # pysm3.bandpass_unit_conversion calculates the factor C such that:
-        # Value_Unit = Value_K_CMB * C
-        # Therefore: C_target converts K_CMB -> Target
+        # pysm3.bandpass_unit_conversion(freqs, weights, output_unit, input_unit)
+        # already returns the full origin_unit -> target_unit factor for any
+        # origin_unit, so no extra ratio step is needed here.
         factor_to_target = pysm3.bandpass_unit_conversion(
-            freqs, weights, target_astropy
+            freqs, weights, target_astropy, origin_astropy
         )
-
-        if origin_unit == Units.K_CMB:
-            return factor_to_target.value
-
-        # If origin is not K_CMB, we calculate the factor for the origin unit
-        # and take the ratio.
-        # Value_Target = Value_K_CMB * C_target
-        # Value_Origin = Value_K_CMB * C_origin  =>  Value_K_CMB = Value_Origin / C_origin
-        # Value_Target = (Value_Origin / C_origin) * C_target
-        # Factor = C_target / C_origin
-        factor_to_origin = pysm3.bandpass_unit_conversion(
-            freqs, weights, origin_astropy
-        )
-        return (factor_to_target / factor_to_origin).value
+        return factor_to_target.value
 
     else:
         # Monochromatic conversion using Astropy equivalencies
@@ -165,7 +152,7 @@ class SkyGenerationParams:
         make_dipole: bool = False,
         return_components: bool = False,
         # CMB Specifics
-        # Assume input power spectrum in uK^2
+        # cmb_ps_file must point to a FITS file with power spectra in uK_CMB^2
         cmb_ps_file: str | Path | None = None,
         seed_cmb: int | None = None,
         cmb_r: float = 0.0,

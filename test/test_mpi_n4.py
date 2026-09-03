@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import litebird_sim as lbs
 from litebird_sim import mpi
@@ -15,6 +16,8 @@ def test_hwp_sys_mpi():
     sim = lbs.Simulation(start_time=start_time, duration_s=time_span_s, random_seed=0)
 
     comm = sim.mpi_comm
+    if comm.size not in [1, 4]:
+        pytest.skip("This test requires exactly 2 MPI processes")
 
     channelinfo = lbs.FreqChannelInfo(
         bandcenter_ghz=140.0,
