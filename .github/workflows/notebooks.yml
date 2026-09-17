@@ -33,6 +33,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
+          save-cache: false
           prune-cache: false
           cache-dependency-glob: |
             pyproject.toml
