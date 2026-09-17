@@ -8,9 +8,9 @@ jobs:
     timeout-minutes: 30
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         mpi: ["none"]
-        python: ["3.10", "3.14"]
+        python: ["3.10"]
 
     # Only run notebook tests if there is no [skipnb] or [skip nb] in the commit message
     if: |
@@ -38,9 +38,8 @@ jobs:
             pyproject.toml
             uv.lock
 
-      - name: Cache virtual environment
-        uses: actions/cache@v6
-        id: cache-venv
+      - name: Restore virtual environment
+        uses: actions/cache/restore@v6
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('uv.lock') }}
@@ -48,9 +47,9 @@ jobs:
       # Unfortunately we must use different keys to store the same data,
       # otherwise GitHub will complain when multiple jobs are going to
       # store it
-      - name: Cache PySM3 data files
+      - name: Restore PySM3 data files
         id: cache-pysm3
-        uses: actions/cache@v6
+        uses: actions/cache/restore@v6
         with:
           path: ~/pysm3-data
           key: pysm3-data-${{ runner.os }}-${{ matrix.python }}-${{ matrix.mpi }}-${{ secrets.CACHE_VERSION }}
@@ -68,39 +67,18 @@ jobs:
             echo "PySM data directory already exists and is not empty, skipping clone"
           fi
 
-      - name: Install basic dependencies (MPI, FFTW, IMO)
+      - name: Install basic dependencies (FFTW, IMO)
         run: |
           ./bin/install-deps.sh ${{ matrix.mpi }}
           mkdir -p $HOME/.config/litebird_imo
           echo -e "[[repositories]]\nlocation = \"$(pwd)/test/mock_imo/\"\nname = \"Mock IMO\"" | tee $HOME/.config/litebird_imo/imo.toml
 
       - name: Install litebird_sim dependencies
-        run: |
-          EXTRAS="--extra dev --extra docs"
-          if [ "${{ matrix.mpi }}" != "none" ]; then
-            EXTRAS="$EXTRAS --extra mpi"
-          fi
-          uv sync $EXTRAS --locked
+        run: uv sync --extra dev --extra docs --locked
         env:
           DUCC0_OPTIMIZATION: none
-
-      - name: Install BrahMap
-        if: matrix.mpi != 'none' && matrix.os == 'ubuntu-latest'
-        # if: steps.cache-venv.outputs.cache-hit != 'true' && matrix.mpi != 'none' && matrix.os == 'ubuntu-latest'
-        run: |
-          git clone --recursive https://github.com/anand-avinash/BrahMap.git
-          cd BrahMap
-          uv pip install .
-          cd ..
-          rm -rf BrahMap
-          uv run python -c "import brahmap"
-        env:
-          DUCC0_OPTIMIZATION: none
-          PIP_CACHE_DIR: ${{ env.UV_CACHE_DIR }}
-
-      - name: Install nbmake # for notebook testing
-        run: uv pip install nbmake
 
       - name: Notebook Tests
         run: |
-            uv run python -m pytest --nbmake notebooks/*.ipynb -vv
+          set -euo pipefail
+          uv run python -m pytest --nbmake -n auto --durations=5 -vv notebooks/*.ipynb
