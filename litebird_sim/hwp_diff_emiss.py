@@ -5,7 +5,8 @@ from numba import njit, prange
 
 from .hwp import HWP
 from .observations import Observation
-from .pointings_in_obs import _get_hwp_angle
+from .observation_utilities import _get_hwp_angle
+from .observation_utilities import for_each_observation
 
 
 # We calculate the additive signal coming from hwp harmonics.
@@ -83,13 +84,8 @@ def add_2f_to_observations(
             # in `observations.hwp_2f_tod`
             add_2f_to_observations(sim.observations, component="hwp_2f_tod")
     """
-    if isinstance(observations, Observation):
-        obs_list = [observations]
-    else:
-        obs_list = observations
-
     # iterate through each observation
-    for cur_obs in obs_list:
+    for cur_obs, tod, _ in for_each_observation(observations, component):
         if amplitude_2f_k is None:
             amplitude_2f_k = getattr(cur_obs, "amplitude_2f_k", None)
         assert amplitude_2f_k is not None, (
@@ -104,7 +100,7 @@ def add_2f_to_observations(
         hwp_angle = _get_hwp_angle(obs=cur_obs, hwp=hwp, pointing_dtype=pointings_dtype)
 
         add_2f(
-            tod=getattr(cur_obs, component),
+            tod=tod,
             hwp_angle=hwp_angle,
             pol_angle_rad=cur_obs.pol_angle_rad,
             amplitude_2f_k=amplitude_2f_k,
