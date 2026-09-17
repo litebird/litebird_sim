@@ -149,6 +149,10 @@ singularity/*.img
 
 # The documentation converted to any format should not be committed
 docs/build/
+# Written by the doctests in docs/source/tutorial.rst
+docs/tut02/
+# Notebooks copied in by docs/source/conf.py
+docs/source/tutorials/
 
 # Claude Code stuff
 /.claude
