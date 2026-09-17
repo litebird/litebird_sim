@@ -51,7 +51,7 @@ def add_convolved_sky_to_one_detector(
     mueller_matrix,
     hwp_angle,
     convolution_params: BeamConvolutionParameters | None = None,
-    nthreads: int = 0,
+    nthreads: int | None = None,
 ):
     """
     Convolve given sky alms with a detector beam alms and add the result to the TOD of a single detector.
@@ -74,9 +74,10 @@ def add_convolved_sky_to_one_detector(
     convolution_params : BeamConvolutionParameters, optional
         Parameters controlling the convolution, such as resolution and precision. If None,
         reasonable defaults are chosen based on the sky and beam properties.
-    nthreads : int, default=0
-        Number of threads to use for convolution. If set to 0, all available CPU cores
-        will be used.
+    nthreads : int or None, default=None
+        Number of threads to use for convolution. If None, resolved via
+        :func:`.resolve_nthreads` (``OMP_NUM_THREADS``, or all available
+        threads if unset).
 
     Raises
     ------
@@ -95,6 +96,8 @@ def add_convolved_sky_to_one_detector(
       Users should ensure types are coherent to avoid even temporary memory overhead.
     - The function modifies `tod_det` in place by adding the convolved signal.
     """
+
+    nthreads = resolve_nthreads(nthreads)
 
     if not convolution_params:
         sky_lmax = sky_alms_det.lmax
@@ -214,7 +217,7 @@ def add_convolved_sky(
     convolution_params: BeamConvolutionParameters | None = None,
     pointings_dtype=np.float64,
     nside_centering: int | None = None,
-    nthreads: int = 0,
+    nthreads: int | None = None,
 ):
     """
     Convolve a set of sky maps with detector beams and add the resulting signals to the
@@ -253,9 +256,10 @@ def add_convolved_sky(
     nside_centering : int, default=None
         If set, shifts the detector pointings to the centers of the corresponding HEALPix pixels
         at the given NSIDE resolution. If None, no centering is applied.
-    nthreads : int, default=0
+    nthreads : int or None, default=None
         Number of threads to use for convolution and in case for HEALPix operations.
-        If set to 0, all available CPU cores will be used.
+        If None, resolved via :func:`.resolve_nthreads` (``OMP_NUM_THREADS``, or all
+        available threads if unset).
 
     Raises
     ------
@@ -272,6 +276,8 @@ def add_convolved_sky(
       of the `tod` array.
     - The function modifies `tod` in place by adding the convolved signals for all detectors.
     """
+
+    nthreads = resolve_nthreads(nthreads)
 
     if mueller_hwp is not None:
         assert tod.shape[0] == mueller_hwp.shape[0]
@@ -327,6 +333,7 @@ def add_convolved_sky(
             output_coordinate_system=coordinates,
             nside_centering=nside_centering,
             pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
         )
 
         # FIXME: Fix this at some point, ducc wants phi 0 -> 2pi

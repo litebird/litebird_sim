@@ -42,6 +42,12 @@ from .constants import (
     EARTH_L2_DISTANCE_KM,
     NUM_THREADS_ENVVAR,
 )
+from .utilities import (
+    NUM_THREADS,
+    NUMBA_NUM_THREADS,
+    resolve_nthreads,
+    resolve_numba_nthreads,
+)
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,
@@ -253,6 +259,11 @@ __all__ = [
     "SOLAR_VELOCITY_GAL_LON_RAD",
     "EARTH_L2_DISTANCE_KM",
     "NUM_THREADS_ENVVAR",
+    # utilities.py
+    "NUM_THREADS",
+    "NUMBA_NUM_THREADS",
+    "resolve_nthreads",
+    "resolve_numba_nthreads",
     # units.py
     "Units",
     "UnitUtils",

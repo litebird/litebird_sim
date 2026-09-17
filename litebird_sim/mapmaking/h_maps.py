@@ -18,6 +18,7 @@ from litebird_sim.pointings_in_obs import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
+from litebird_sim.utilities import resolve_nthreads
 
 from .common import (
     _build_mask_detector_split,
@@ -240,6 +241,7 @@ def make_h_maps(
     pointings_dtype=np.float64,
     save_to_file: bool = True,
     output_directory: str = "./h_n_maps",
+    nthreads: int | None = None,
 ) -> HMapsResult:
     """Generate complex harmonic maps :math:`h_{n,m}` from observations.
 
@@ -269,9 +271,14 @@ def make_h_maps(
     :type save_to_file: bool
     :param output_directory: Output directory for generated HDF5 files.
     :type output_directory: str
+    :param nthreads: Number of threads to use for ducc0 calls. If None,
+        resolved via :func:`.resolve_nthreads`.
+    :type nthreads: int | None
     :returns: Result container with all computed maps and metadata.
     :rtype: HnMapResult
     """
+
+    nthreads = resolve_nthreads(nthreads)
 
     assert (
         n_m_couples.shape[1] == 2
@@ -331,6 +338,7 @@ def make_h_maps(
                 output_coordinate_system=output_coordinate_system,
                 pointings_dtype=pointings_dtype,
                 hmap_generation=True,
+                nthreads=nthreads,
             )
             log.info(
                 f"Pixel indices and angles for detector {all_dets_list[idet]} computed, now building nobs matrices"
