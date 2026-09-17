@@ -58,12 +58,7 @@ jobs:
 
       - name: Download PySM3 data files
         if: steps.cache-pysm3.outputs.cache-hit != 'true'
-        run: |
-          if [ ! -d "$PYSM_LOCAL_DATA" ] || [ -z "$(ls -A "$PYSM_LOCAL_DATA" 2>/dev/null)" ]; then
-            git clone --depth 1 https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
-          else
-            echo "PySM data directory already exists and is not empty, skipping clone"
-          fi
+        run: git clone --depth 1 https://github.com/galsci/pysm-data "$PYSM_LOCAL_DATA"
 
       - name: Install basic dependencies (FFTW, IMO)
         run: |
@@ -77,6 +72,4 @@ jobs:
           DUCC0_OPTIMIZATION: none
 
       - name: Notebook Tests
-        run: |
-          set -euo pipefail
-          uv run python -m pytest --nbmake -n auto --durations=5 -vv notebooks/*.ipynb
+        run: uv run python -m pytest --nbmake -n auto --durations=5 -vv notebooks/*.ipynb
