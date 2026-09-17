@@ -152,3 +152,5 @@ docs/build/
 
 # Claude Code stuff
 /.claude
+
+docs/source/tutorials/
