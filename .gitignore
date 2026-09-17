@@ -149,6 +149,8 @@ singularity/*.img
 
 # The documentation converted to any format should not be committed
 docs/build/
+# Written by the doctests in docs/source/tutorial.rst
+docs/tut02/
 
 # Claude Code stuff
 /.claude
