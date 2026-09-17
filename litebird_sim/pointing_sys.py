@@ -19,44 +19,73 @@ from .quaternions import (
 from .scanning import RotQuaternion
 from .simulations import Simulation
 
+from typing import Union
 
-def get_detector_orientation(detector: DetectorInfo):
-    # TODO: This function depends on the detector name format.
-    # In the IMo-v2, it is confirmed to be worked.
-    # We need to think of a robust way to get the orientation.
-    """This function returns the orientation of the detector in the focal plane.
 
-    Args:
-        detector (:class:`.DetectorInfo`): The detector to get the orientation.
+def get_detector_orientation(detector: DetectorInfo) -> float:
     """
+    Calculates and returns the detector orientation in the focal plane.
 
+    Parameters
+    ----------
+    detector : DetectorInfo
+        Detector instance containing the geometric properties
+        (telescope, pol, orient, pol_angle_rad).
+
+    Returns
+    -------
+    float
+        Orientation angle of the detector in the focal plane, in radians.
+    """
     telescope = detector.name.split("_")[0]
-    assert detector.orient is not None
-    if telescope == "000" or telescope == "002":  # LFT and HFT
+
+    # 1. For LMHFT
+    # If the legacy textual parameter is missing, the correct structural
+    # rotation angle is extracted directly from pol_angle_rad.
+    if detector.orient is None:
+        return float(detector.pol_angle_rad)
+
+    # 2. Legacy Handling for LFT and HFT
+    if telescope in ("000", "002", "LFT", "HFT"):
         orient_angle = 0.0
         handiness = ""
-        if telescope == "LFT":
-            handiness = detector.name.split("_")[3][1]
+
+        try:
+            if telescope == "LFT":
+                handiness = detector.name.split("_")[3][1]
+        except IndexError:
+            pass
+
         if detector.orient == "Q":
-            if detector.pol == "T":
-                orient_angle = 0.0
-            else:
-                orient_angle = np.pi / 2
+            orient_angle = 0.0 if detector.pol == "T" else np.pi / 2.0
         else:
-            if detector.pol == "T":
-                orient_angle = np.pi / 4
-            else:
-                orient_angle = np.pi / 4 + np.pi / 2
+            orient_angle = (
+                (np.pi / 4.0) if detector.pol == "T" else (np.pi / 4.0 + np.pi / 2.0)
+            )
+
         if handiness == "B":
             orient_angle = -orient_angle
+
         return orient_angle
-    else:  # MFT
-        orient_angle = np.deg2rad(float(detector.orient))
-        handiness = detector.name.split("_")[3][-1]
+
+    # 3. Legacy Handling for MFT
+    else:
+        try:
+            orient_angle = np.deg2rad(float(detector.orient))
+        except (TypeError, ValueError):
+            orient_angle = float(detector.pol_angle_rad)
+
+        try:
+            handiness = detector.name.split("_")[3][-1]
+        except IndexError:
+            handiness = ""
+
         if detector.pol == "B":
-            orient_angle += np.pi / 2
+            orient_angle += np.pi / 2.0
+
         if handiness == "B":
             orient_angle = -orient_angle
+
     return orient_angle
 
 
@@ -435,87 +464,98 @@ class HWPCoord:
         self.tilt_phase_rad = 0.0
 
     @staticmethod
-    def get_wedgeHWP_pointing_shift_angle(wedge_angle: float, refractive_index: float):
+    def get_wedgeHWP_pointing_shift_angle(
+        wedge_angle: Union[float, np.ndarray], refractive_index: float
+    ) -> Union[float, np.ndarray]:
         """Calculate the pointing angle shift due to the wedged HWP.
         It assumes that the HWP has same refractive index between its ordinary
         and extraordinary optic axes.
 
         Args:
-            wedge_angle (`float`): angle of the wedge HWP in radian.
+            wedge_angle (float | np.ndarray): Angle of the wedge HWP in radians.
+                Can be a scalar value or an array of values for time-dependent profiles.
 
-            refractive_index (`float`): refractive index of the HWP.
+            refractive_index (float): Refractive index of the HWP.
 
         Returns:
-            `float`, the pointing angle shift due to the wedged HWP.
+            float | np.ndarray: The pointing angle shift due to the wedged HWP.
         """
         return (refractive_index - 1.0) * wedge_angle
 
     def add_hwp_rot_disturb(
         self,
-        tilt_angle_rad: float,
+        wedge_angle: Union[float, np.ndarray],
         ang_speed_radpsec: float,
-        tilt_phase_rad=0.0,
+        tilt_phase_rad: float = 0.0,
     ):
-        """Add a circular pointing disturbance synchrinized with the HWP to detectors in the focal plane.
-
-        After the systematics injection, the pointings will be rotated around an
-        expected pointing direction far from a angular distance of `self.tilt_angle_rad`.
-        The pointing rotation frequency is determined by `self.ang_speed_radpsec`.
+        """
+        Apply a synchronized HWP pointing disturbance using either a scalar tilt angle
+        or an arbitrary time-dependent array.
 
         Args:
-            tilt_angle_rad (`float`): The tilted pointing angle from the expected pointing direction.
+            wedge_angle (float | np.ndarray): Tilt angle (in radians).
+                - If float: applied as a constant value for all samples.
+                - If np.ndarray: time-dependent profile; must match the number of samples.
+            ang_speed_radpsec (float): HWP rotation speed [rad/s].
+            tilt_phase_rad (float): Initial phase of the wedge [rad].
 
-            ang_speed_radpsec (`float`): The angular speed of the pointing circular disturbance.
-
-            tilt_phase_rad (`float`): Angle at which the gradient direction of HWP's wedge.
+        Raises:
+            ValueError: If the array length does not match the simulation samples.
         """
-        self.ang_speed_radpsec = ang_speed_radpsec
-        self.tilt_angle_rad = tilt_angle_rad
-        self.tilt_phase_rad = tilt_phase_rad
-
+        # 1. Retrieve temporal context
         _start_time = self.obs.start_time - self.obs.start_time_global
         _delta_time = self.obs.get_delta_time()
-        assert self.sim.spin2ecliptic_quats is not None
-        n_samples = self.sim.spin2ecliptic_quats.quats.shape[0]
-        pointing_rot_angles = np.empty(n_samples)
 
+        # Retrieve number of samples from the simulation
+        n_samples = self.sim.spin2ecliptic_quats.quats.shape[0]
+
+        # 2. Handle time format
         if isinstance(_start_time, astropy.time.TimeDelta):
-            assert isinstance(_delta_time, astropy.time.TimeDelta)
             start_time_s = _start_time.to("s").value
             delta_time_s = _delta_time.to("s").value
         else:
             start_time_s = _start_time
             delta_time_s = _delta_time
 
+        # 3. Calculate HWP angle (Theta_HWP)
+        pointing_rot_angles = np.empty(n_samples, dtype=np.float64)
         _get_ideal_hwp_angle(
             output_buffer=pointing_rot_angles,
             start_time_s=start_time_s,
             delta_time_s=delta_time_s,
-            start_angle_rad=getattr(self.sim.hwp, "start_angle_rad"),
-            ang_speed_radpsec=self.ang_speed_radpsec,
+            start_angle_rad=getattr(self.sim.hwp, "start_angle_rad", 0.0),
+            ang_speed_radpsec=ang_speed_radpsec,
         )
-        # Set initial phase of pointing disturbance
-        pointing_rot_angles += self.tilt_phase_rad
+        pointing_rot_angles += tilt_phase_rad
 
-        # It decompose a pointing rotation around z-axis in forcal plane reference france to
-        # a simple harmonic oscillation around x- and y-axis.
+        # 4. Calculate disturbance components (Optimized)
+        # If wedge_angle is a float, NumPy broadcasting is used (fast path)
+        # If it is an array, element-wise operation is performed
+        if isinstance(wedge_angle, np.ndarray):
+            if wedge_angle.size != n_samples:
+                raise ValueError(
+                    f"wedge_angle size ({wedge_angle.size}) != n_samples ({n_samples})"
+                )
+
+        tilt_x = wedge_angle * np.cos(pointing_rot_angles)
+        tilt_y = wedge_angle * np.sin(pointing_rot_angles)
+
+        # 5. Generate quaternions
         rotational_quats_x = RotQuaternion(
             start_time=self.start_time,
             sampling_rate_hz=self.sampling_rate_hz,
-            quats=quat_rotation_x_brdcast(
-                self.tilt_angle_rad * np.cos(pointing_rot_angles)
-            ),
+            quats=quat_rotation_x_brdcast(tilt_x),
         )
         rotational_quats_y = RotQuaternion(
             start_time=self.start_time,
             sampling_rate_hz=self.sampling_rate_hz,
-            quats=quat_rotation_y_brdcast(
-                self.tilt_angle_rad * np.sin(pointing_rot_angles)
-            ),
+            quats=quat_rotation_y_brdcast(tilt_y),
         )
-        # generate quaternions it makes rotational disturbance to pointings around z-axis
+
+        # Combine rotations
         disturb_quats = rotational_quats_x * rotational_quats_y
-        # multiply them to obs.quat
+
+        # 6. Apply to detectors
         for idx in self.obs.det_idx:
             left_multiply_syst_quats(
                 self.obs.quat[idx],
