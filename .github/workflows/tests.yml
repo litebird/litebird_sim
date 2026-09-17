@@ -116,6 +116,7 @@ jobs:
               echo "Running MPI test ($MPI) with $proc processes"
               PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_mpi.py
               PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_detector_blocks.py
+              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_shared_memory_pointings.py
             done
             echo "Running MPI test ($MPI) with 4 processes"
             PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 uv run python -m pytest ./test/test_mpi_n4.py
@@ -131,6 +132,7 @@ jobs:
               echo "Running MPI test ($MPI) with $proc processes"
               PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_mpi.py
               PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_detector_blocks.py
+              PYTHONPATH=. mpiexec -n $proc uv run python -m pytest ./test/test_shared_memory_pointings.py
             done
             echo "Running MPI test ($MPI) with 4 processes"
             PYTHONPATH=. mpiexec --map-by :OVERSUBSCRIBE -n 4 uv run python -m pytest ./test/test_mpi_n4.py

@@ -65,6 +65,29 @@ def prepare_pointings(
         )
 
 
+def prepare_pointings_shmem(
+    observations: Observation | list[Observation],
+    instrument: InstrumentInfo,
+    spin2ecliptic_quats: RotQuaternion,
+    hwp: HWP | None = None,
+) -> None:
+    """Initialize pointing and HWP information using MPI shared memory.
+
+    This acts just like `prepare_pointings`, but relies on `SharedMemoryManager`
+    to allocate the underlying pointing quaternion arrays into MPI node-shared
+    memory, thereby preventing redundant memory allocation on multi-core nodes.
+    """
+    if isinstance(observations, Observation):
+        obs_list = [observations]
+    else:
+        obs_list = observations
+
+    for cur_obs in obs_list:
+        cur_obs.prepare_pointings_shmem(
+            instrument=instrument, spin2ecliptic_quats=spin2ecliptic_quats, hwp=hwp
+        )
+
+
 def precompute_pointings(
     observations: Observation | list[Observation],
     pointings_dtype=np.float64,
