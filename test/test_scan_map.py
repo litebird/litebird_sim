@@ -433,7 +433,7 @@ def test_scan_map_algebras():
         pointings, _ = obs.get_pointings(idet)
         pixind = hpx.ang2pix(pointings[:, 0:2])
         # Note: calling internal method _get_hwp_angle
-        hwp_angle = lbs.pointings_in_obs._get_hwp_angle(obs, hwp_new)
+        hwp_angle = lbs.observation_utilities._get_hwp_angle(obs, hwp_new)
         angle = 2 * pointings[:, 2] - 2 * obs.pol_angle_rad[idet] + 4 * hwp_angle
         tod[idet, :] = (
             maps[0, pixind]
@@ -462,7 +462,7 @@ def test_scan_map_algebras():
     for idet in range(obs.n_detectors):
         pointings = obs.pointing_matrix[idet]
         pixind = hpx.ang2pix(pointings[:, 0:2])
-        hwp_angle = lbs.pointings_in_obs._get_hwp_angle(obs, hwp_new)
+        hwp_angle = lbs.observation_utilities._get_hwp_angle(obs, hwp_new)
         angle = 2 * pointings[:, 2] - 2 * obs.pol_angle_rad[idet] + 4 * hwp_angle
         tod[idet, :] = (
             maps[0, pixind]

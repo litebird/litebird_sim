@@ -2,7 +2,7 @@ import numpy as np
 from astropy.time import Time
 
 import litebird_sim as lbs
-from litebird_sim.pointings_in_obs import _get_hwp_angle
+from litebird_sim.observation_utilities import _get_hwp_angle
 
 
 def test_add_2f():
