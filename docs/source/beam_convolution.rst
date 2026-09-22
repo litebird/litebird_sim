@@ -392,8 +392,7 @@ For a single-task execution, refer to the following example:
     sim.convolve_sky(sky_alms=alms,
                      beam_alms=blms,
                      convolution_params=Convparams,
-                     pointings_dtype=np.float32,
-                     nthreads = 0)
+                     pointings_dtype=np.float32)
 
 
 API reference
