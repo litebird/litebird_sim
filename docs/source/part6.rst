@@ -8,3 +8,4 @@ simulation, from setting up the instrument to producing maps.
    :maxdepth: 1
 
    tutorial.rst
+   notebooks.rst

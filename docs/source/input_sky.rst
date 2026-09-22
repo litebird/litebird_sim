@@ -123,7 +123,7 @@ The :class:`~litebird_sim.input_sky.SkyGenerationParams` class controls every as
     * ``make_cmb`` (bool): Enable/Disable CMB generation.
     * ``seed_cmb`` (int): Random seed for the Gaussian realization.
     * ``cmb_r`` (float): Tensor-to-scalar ratio for the simulation.
-    * ``cmb_ps_file`` (Path, optional): Path to a FITS file containing input power spectra ($C_\ell$). If None, defaults to Planck 2018 best-fit.
+    * ``cmb_ps_file`` (Path, optional): Path to a FITS file containing input power spectra ($C_\ell$, in $\mu K_{CMB}^2$). If None, defaults to Planck 2018 best-fit.
 
 **Foreground Settings**
     * ``make_fg`` (bool): Enable/Disable foreground generation.

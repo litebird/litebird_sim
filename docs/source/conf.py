@@ -11,11 +11,18 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
 import os
+import shutil
 import sys
 from pathlib import Path
 
 sys.path.insert(0, os.path.abspath(os.path.join("..", "..")))
 sys.path.append(str(Path("_ext").resolve()))
+
+_notebook_src = Path(__file__).parent.parent.parent / "notebooks"
+_notebook_dst = Path(__file__).parent / "tutorials"
+_notebook_dst.mkdir(exist_ok=True)
+for _nb in _notebook_src.glob("*.ipynb"):
+    shutil.copy2(_nb, _notebook_dst / _nb.name)
 
 # -- Project information -----------------------------------------------------
 
@@ -40,7 +47,10 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinxcontrib.contentui",
     "matplotlib.sphinxext.plot_directive",
+    "myst_nb",
 ]
+
+nb_execution_mode = "off"
 
 bibtex_bibfiles = ["refs.bib"]
 

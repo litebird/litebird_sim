@@ -6,9 +6,10 @@ Tutorial
 This section contains a short tutorial that describes how to get ready
 to use the framework. It assumes that you have already installed the
 ``litebird_sim`` framework; refer to :ref:`installation_procedure`.
-For a nice and exhaustive example on how to use the framework in the 
-LiteBIRD case see the `example notebook <https://github.com/litebird
-/litebird_sim/blob/master/notebooks/litebird_sim_example.ipynb>`_.
+For a nice and exhaustive example on how to use the framework in the
+LiteBIRD case see :doc:`the example notebook
+<tutorials/litebird_sim_example>`, and :ref:`tutorial_notebooks` for the
+other notebooks shipped with the framework.
 
 A «Hello world» example
 -----------------------
