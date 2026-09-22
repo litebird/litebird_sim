@@ -6,7 +6,7 @@ Installation
 LBS can be used on Linux or Mac OS X machines. Windows is supported
 only through `Windows Subsystem for Linux
 <https://learn.microsoft.com/en-us/windows/wsl/>`_. You must have
-Python 3.10 at least to use the framework; on some systems, you must
+Python 3.11 at least to use the framework; on some systems, you must
 ensure to have the Python development libraries, otherwise some
 package dependencies might not be installed correctly. (For instance,
 on Fedora Linux you must install the package ``python3-devel`` with
