@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/gaindrifts.py: 90%</title>
+    <title>Coverage for litebird_sim/gaindrifts.py: 91%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_dd2e7eb5.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim<span class="sep">/</span>gaindrifts.py</b>:
-            <span class="pc_cov">90%</span>
+            <span class="pc_cov">91%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -54,9 +54,9 @@
             </div>
         </aside>
         <h2>
-            <span class="text">121 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">109<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">12<span class="text"> missing</span></button>
+            <span class="text">114 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">104<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">10<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_grasp2alm_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
-            created at 2026-09-17 12:53 +0000
+            created at 2026-09-22 09:20 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -87,7 +87,7 @@
     <p class="run"><span class="n"><a id="t5" href="#t5">5</a></span><span class="t"><span class="key">import</span> <span class="nam">numpy</span> <span class="key">as</span> <span class="nam">np</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t6" href="#t6">6</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t7" href="#t7">7</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="nam">observations</span> <span class="key">import</span> <span class="nam">Observation</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="nam">seeding</span> <span class="key">import</span> <span class="nam">regenerate_or_check_detector_generators</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t8" href="#t8">8</a></span><span class="t"><span class="key">from</span> <span class="op">.</span><span class="nam">observation_utilities</span> <span class="key">import</span> <span class="nam">for_each_observation</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t9" href="#t9">9</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t10" href="#t10">10</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t11" href="#t11">11</a></span><span class="t"><span class="key">class</span> <span class="nam">GainDriftType</span><span class="op">(</span><span class="nam">IntEnum</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
@@ -630,33 +630,23 @@
     <p class="run"><span class="n"><a id="t548" href="#t548">548</a></span><span class="t">    <span class="key">if</span> <span class="nam">drift_params</span> <span class="key">is</span> <span class="key">None</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t549" href="#t549">549</a></span><span class="t">        <span class="nam">drift_params</span> <span class="op">=</span> <span class="nam">GainDriftParams</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t550" href="#t550">550</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t551" href="#t551">551</a></span><span class="t">    <span class="key">if</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">observations</span><span class="op">,</span> <span class="nam">Observation</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t552" href="#t552">552</a></span><span class="t">        <span class="nam">obs_list</span> <span class="op">=</span> <span class="op">[</span><span class="nam">observations</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t553" href="#t553">553</a></span><span class="t">    <span class="key">elif</span> <span class="nam">isinstance</span><span class="op">(</span><span class="nam">observations</span><span class="op">,</span> <span class="nam">list</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t554" href="#t554">554</a></span><span class="t">        <span class="nam">obs_list</span> <span class="op">=</span> <span class="nam">observations</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t555" href="#t555">555</a></span><span class="t">    <span class="key">else</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t556" href="#t556">556</a></span><span class="t">        <span class="key">raise</span> <span class="nam">TypeError</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t557" href="#t557">557</a></span><span class="t">            <span class="str">&quot;The parameter `observations` must be an `Observation` or a list of `Observation`.&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis mis2 show_mis"><span class="n"><a id="t558" href="#t558">558</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t559" href="#t559">559</a></span><span class="t">    <span class="nam">dets_random</span> <span class="op">=</span> <span class="nam">regenerate_or_check_detector_generators</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t560" href="#t560">560</a></span><span class="t">        <span class="nam">observations</span><span class="op">=</span><span class="nam">obs_list</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t561" href="#t561">561</a></span><span class="t">        <span class="nam">comm</span><span class="op">=</span><span class="key">None</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t562" href="#t562">562</a></span><span class="t">        <span class="nam">user_seed</span><span class="op">=</span><span class="nam">user_seed</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t563" href="#t563">563</a></span><span class="t">        <span class="nam">dets_random</span><span class="op">=</span><span class="nam">dets_random</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t564" href="#t564">564</a></span><span class="t">    <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t565" href="#t565">565</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t566" href="#t566">566</a></span><span class="t">    <span class="key">for</span> <span class="nam">cur_obs</span> <span class="key">in</span> <span class="nam">obs_list</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t567" href="#t567">567</a></span><span class="t">        <span class="nam">tod</span> <span class="op">=</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">cur_obs</span><span class="op">,</span> <span class="nam">component</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t568" href="#t568">568</a></span><span class="t">        <span class="nam">sampling_freq_hz</span> <span class="op">=</span> <span class="nam">cur_obs</span><span class="op">.</span><span class="nam">sampling_rate_hz</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t569" href="#t569">569</a></span><span class="t">        <span class="nam">focalplane_attr</span> <span class="op">=</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">cur_obs</span><span class="op">,</span> <span class="nam">drift_params</span><span class="op">.</span><span class="nam">focalplane_group</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="pln"><span class="n"><a id="t570" href="#t570">570</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t571" href="#t571">571</a></span><span class="t">        <span class="nam">apply_gaindrift_to_tod</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t572" href="#t572">572</a></span><span class="t">            <span class="nam">tod</span><span class="op">=</span><span class="nam">tod</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t573" href="#t573">573</a></span><span class="t">            <span class="nam">sampling_freq_hz</span><span class="op">=</span><span class="nam">sampling_freq_hz</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t574" href="#t574">574</a></span><span class="t">            <span class="nam">drift_params</span><span class="op">=</span><span class="nam">drift_params</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t575" href="#t575">575</a></span><span class="t">            <span class="nam">focalplane_attr</span><span class="op">=</span><span class="nam">focalplane_attr</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t576" href="#t576">576</a></span><span class="t">            <span class="nam">dets_random</span><span class="op">=</span><span class="nam">dets_random</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t577" href="#t577">577</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t551" href="#t551">551</a></span><span class="t">    <span class="key">for</span> <span class="nam">cur_obs</span><span class="op">,</span> <span class="nam">tod</span><span class="op">,</span> <span class="nam">dets_random</span> <span class="key">in</span> <span class="nam">for_each_observation</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t552" href="#t552">552</a></span><span class="t">        <span class="nam">observations</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t553" href="#t553">553</a></span><span class="t">        <span class="nam">component</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t554" href="#t554">554</a></span><span class="t">        <span class="nam">user_seed</span><span class="op">=</span><span class="nam">user_seed</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t555" href="#t555">555</a></span><span class="t">        <span class="nam">dets_random</span><span class="op">=</span><span class="nam">dets_random</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t556" href="#t556">556</a></span><span class="t">        <span class="nam">requires_rng</span><span class="op">=</span><span class="key">True</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t557" href="#t557">557</a></span><span class="t">    <span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t558" href="#t558">558</a></span><span class="t">        <span class="nam">sampling_freq_hz</span> <span class="op">=</span> <span class="nam">cur_obs</span><span class="op">.</span><span class="nam">sampling_rate_hz</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t559" href="#t559">559</a></span><span class="t">        <span class="nam">focalplane_attr</span> <span class="op">=</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">cur_obs</span><span class="op">,</span> <span class="nam">drift_params</span><span class="op">.</span><span class="nam">focalplane_group</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t560" href="#t560">560</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t561" href="#t561">561</a></span><span class="t">        <span class="nam">apply_gaindrift_to_tod</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t562" href="#t562">562</a></span><span class="t">            <span class="nam">tod</span><span class="op">=</span><span class="nam">tod</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t563" href="#t563">563</a></span><span class="t">            <span class="nam">sampling_freq_hz</span><span class="op">=</span><span class="nam">sampling_freq_hz</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t564" href="#t564">564</a></span><span class="t">            <span class="nam">drift_params</span><span class="op">=</span><span class="nam">drift_params</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t565" href="#t565">565</a></span><span class="t">            <span class="nam">focalplane_attr</span><span class="op">=</span><span class="nam">focalplane_attr</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t566" href="#t566">566</a></span><span class="t">            <span class="nam">dets_random</span><span class="op">=</span><span class="nam">dets_random</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run run2"><span class="n"><a id="t567" href="#t567">567</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -666,7 +656,7 @@
             <a class="nav" href="z_e8833be62395df53_grasp2alm_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.15.4">coverage.py v7.15.4</a>,
-            created at 2026-09-17 12:53 +0000
+            created at 2026-09-22 09:20 +0000
         </p>
     </div>
 </footer>
