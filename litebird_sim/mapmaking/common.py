@@ -9,7 +9,7 @@ from numba import njit
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.observations import Observation
-from litebird_sim.pointings_in_obs import _get_pointings_array, _get_pol_angle
+from litebird_sim.observation_utilities import _get_pointings_array, _get_pol_angle
 
 # The threshold on the conditioning number used to determine if a pixel
 # was really “seen” or not

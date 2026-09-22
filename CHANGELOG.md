@@ -1,5 +1,7 @@
 # HEAD
 
+-   Extract a shared driver for the systematic-effect modules (`for_each_observation`, `for_each_observation_with_pointings`, `normalize_observations`) and rename `pointings_in_obs.py` to `observation_utilities.py`, which now collects all the helpers that operate on a collection of `Observation` objects. Noise, gain drift, non-linearity, HWP differential emission and the CMB dipole now share one place for observation normalization, per-detector RNG resolution and TOD-component indirection instead of re-implementing it each. No change to public effect interfaces. Reference PR: [#538](https://github.com/litebird/litebird_sim/pull/538).
+
 -   Fix wrong output units when `bandpass_integration=True` in `input_sky` (CMB and dipole were off by a large factor because `pysm3.bandpass_unit_conversion` wasn't told the input unit), remove the resulting dead code path, and document that `cmb_ps_file` spectra are expected in $\mu K_{CMB}^2$. Fixes [#548](https://github.com/litebird/litebird_sim/issues/548). Reference PR: [#549](https://github.com/litebird/litebird_sim/pull/549).
 
 -   Stop supporting unused MPI processes and drop `MPI_COMM_GRID` class and its attributes. Now throwing an error when `comm_size != n_blocks_det * n_blocks_time`. It fixes [#364](https://github.com/litebird/litebird_sim/issues/364), while incorporating selective changes from [#372](https://github.com/litebird/litebird_sim/pull/372) and [#427](https://github.com/litebird/litebird_sim/pull/427). Reference PR: [#539](https://github.com/litebird/litebird_sim/pull/539).
