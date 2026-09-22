@@ -553,7 +553,7 @@ def for_each_observation_with_pointings(
 
     The pointing-aware counterpart of :func:`for_each_observation`, for effects
     that need a pointing matrix per observation (e.g. the CMB dipole).  It uses
-    :func:`_normalize_observations_and_pointings`, so a single observation may
+    ``_normalize_observations_and_pointings``, so a single observation may
     be paired with a single pointing array, or a list with a list.  When
     *pointings* is ``None`` the pointing matrix is taken from each observation.
 
