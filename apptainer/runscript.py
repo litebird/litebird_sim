@@ -2,7 +2,7 @@
 
 import subprocess
 
-"""This script is started automatically by the Singularity container.
+"""This script is started automatically by the Apptainer container.
 """
 
 
