@@ -77,6 +77,40 @@ def test_input_sky_basic():
         npt.assert_allclose(generated_map, map_ref, atol=1e-3, rtol=1e-3)
 
 
+def test_input_sky_extragalactic():
+    """
+    Checks that PySM3's extra-galactic presets (CIB, tSZ, kSZ, radio
+    galaxies) can be used as ``fg_models`` short codes, exactly like the
+    galactic foreground presets.
+    """
+    mock_channel = FreqChannelInfo(
+        channel="mock",
+        bandcenter_ghz=140.0,
+        bandwidth_ghz=42.0,
+        fwhm_arcmin=30.8,
+    )
+
+    params = SkyGenerationParams(
+        nside=16,
+        units="uK_CMB",
+        lmax=47,
+        make_cmb=False,
+        make_dipole=False,
+        make_fg=True,
+        fg_models=["cib1", "tsz1", "ksz1", "rg1"],
+        bandpass_integration=False,
+        apply_beam=True,
+        output_type="map",
+    )
+
+    sky_gen = SkyGenerator(parameters=params, channels=[mock_channel])
+    output = sky_gen.execute()
+
+    assert "mock" in output
+    generated_map = output["mock"].values
+    assert np.all(np.isfinite(generated_map))
+
+
 def test_sky_generation_from_imo():
     """
     Tests integration with IMO-derived channels.
