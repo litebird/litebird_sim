@@ -1,6 +1,6 @@
 # HEAD
 
--   Document the extra-galactic PySM3 presets already usable through `fg_models` (`cib1`, `tsz1`–`tsz4`, `ksz1`–`ksz3`/`ksz5`/`ksz6`, `rg1`–`rg3`: CIB, thermal/kinetic SZ, radio galaxies from WebSky/Agora/HalfDome/FLAMINGO) and add test coverage exercising them in `input_sky.py`, since they were documented but untested.
+-   Document the extra-galactic PySM3 presets already usable through `fg_models` (`cib1`, `tsz1`–`tsz4`, `ksz1`–`ksz3`/`ksz5`/`ksz6`, `rg1`–`rg3`: CIB, thermal/kinetic SZ, radio galaxies from WebSky/Agora/HalfDome/FLAMINGO) and add test coverage exercising them in `input_sky.py`, since they were documented but untested. The new test is skipped in CI (`CI=true`) because it downloads multi-GB WebSky templates not covered by the existing PySM3-data cache step, exceeding the 30-minute job budget; run it locally when touching extra-galactic preset handling.
 
 -   Fix the `Notebook Tests` workflow failing whenever the PySM3 data cache is restored through a key prefix instead of an exact match: the directory is populated but `cache-hit` stays `false`, so the clone ran against a non-empty target and exited 128. This kept every Dependabot PR red and would recur for everybody on the next `CACHE_VERSION` rotation. Reference PR: [#554](https://github.com/litebird/litebird_sim/pull/554).
 

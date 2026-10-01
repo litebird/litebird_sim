@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import healpy as hp
@@ -77,6 +78,14 @@ def test_input_sky_basic():
         npt.assert_allclose(generated_map, map_ref, atol=1e-3, rtol=1e-3)
 
 
+@pytest.mark.skipif(
+    os.environ.get("CI") == "true",
+    # ponytail: WebSky templates aren't covered by the pysm-data cache CI
+    # restores, so the first download alone exceeds the 30-minute CI job
+    # budget. Run this locally after changing extra-galactic preset
+    # handling; promote to CI once the templates are cached there too.
+    reason="downloads multi-GB WebSky templates, too slow for CI",
+)
 def test_input_sky_extragalactic():
     """
     Checks that PySM3's extra-galactic presets (CIB, tSZ, kSZ, radio
