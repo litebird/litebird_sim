@@ -1,6 +1,6 @@
 # HEAD
 
--   Fix `interpolate_alm` (and therefore `scan_map`/`fill_tods` with `SphericalHarmonics` input) crashing with a ducc0 "phi out of range" assertion when the alms are not in Galactic coordinates: longitudes are now wrapped into [0, 2π) before calling `ducc0.sht.synthesis_general`.
+-   Fix `interpolate_alm` (and therefore `scan_map`/`fill_tods` with `SphericalHarmonics` input) crashing with a ducc0 "phi out of range" assertion when the alms are not in Galactic coordinates: longitudes are now wrapped into [0, 2π) before calling `ducc0.sht.synthesis_general`. Reference PR: [#563](https://github.com/litebird/litebird_sim/pull/563).
 
 -   Fix the `Notebook Tests` workflow failing whenever the PySM3 data cache is restored through a key prefix instead of an exact match: the directory is populated but `cache-hit` stays `false`, so the clone ran against a non-empty target and exited 128. This kept every Dependabot PR red and would recur for everybody on the next `CACHE_VERSION` rotation. Reference PR: [#554](https://github.com/litebird/litebird_sim/pull/554).
 
