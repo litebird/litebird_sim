@@ -27,19 +27,31 @@ def _slice_quaternions(
     be shared among processes).
     """
 
-    if quats.start_time is None or quats.quats.shape[0] < 2:
+    quats_start_time = quats.start_time
+    sampling_rate_hz = quats.sampling_rate_hz
+    if (
+        quats_start_time is None
+        or sampling_rate_hz is None
+        or quats.quats.shape[0] < 2
+    ):
         return quats
 
-    if isinstance(quats.start_time, astropy.time.Time):
-        time_skip_s = (start_time - quats.start_time).to("s").value
+    if isinstance(quats_start_time, astropy.time.Time):
+        assert isinstance(start_time, astropy.time.Time), (
+            "quats.start_time is an astropy.time.Time object, so start_time must also be one."
+        )
+        time_skip_s = (start_time - quats_start_time).to("s").value
     else:
-        time_skip_s = start_time - quats.start_time
+        assert isinstance(start_time, (int, float)), (
+            "quats.start_time is a float, so start_time must also be a float."
+        )
+        time_skip_s = start_time - quats_start_time
 
     num_of_quats = quats.quats.shape[0]
-    first_idx = max(0, int(np.floor(time_skip_s * quats.sampling_rate_hz)) - 1)
+    first_idx = max(0, int(np.floor(time_skip_s * sampling_rate_hz)) - 1)
     last_idx = min(
         num_of_quats,
-        int(np.ceil((time_skip_s + time_span_s) * quats.sampling_rate_hz)) + 2,
+        int(np.ceil((time_skip_s + time_span_s) * sampling_rate_hz)) + 2,
     )
 
     # Make sure we always return at least two quaternions, as `slerp` needs them
@@ -50,18 +62,18 @@ def _slice_quaternions(
     if first_idx == 0 and last_idx == num_of_quats:
         return quats
 
-    offset_s = first_idx / quats.sampling_rate_hz
-    if isinstance(quats.start_time, astropy.time.Time):
-        new_start_time = quats.start_time + astropy.time.TimeDelta(
+    offset_s = first_idx / sampling_rate_hz
+    if isinstance(quats_start_time, astropy.time.Time):
+        new_start_time = quats_start_time + astropy.time.TimeDelta(
             offset_s, format="sec"
         )
     else:
-        new_start_time = quats.start_time + offset_s
+        new_start_time = quats_start_time + offset_s
 
     return RotQuaternion(
         quats=quats.quats[first_idx:last_idx].copy(),
         start_time=new_start_time,
-        sampling_rate_hz=quats.sampling_rate_hz,
+        sampling_rate_hz=sampling_rate_hz,
     )
 
 
