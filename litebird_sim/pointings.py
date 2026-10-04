@@ -29,11 +29,7 @@ def _slice_quaternions(
 
     quats_start_time = quats.start_time
     sampling_rate_hz = quats.sampling_rate_hz
-    if (
-        quats_start_time is None
-        or sampling_rate_hz is None
-        or quats.quats.shape[0] < 2
-    ):
+    if quats_start_time is None or sampling_rate_hz is None or quats.quats.shape[0] < 2:
         return quats
 
     if isinstance(quats_start_time, astropy.time.Time):
