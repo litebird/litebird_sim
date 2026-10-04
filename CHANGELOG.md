@@ -1,6 +1,6 @@
 # HEAD
 
--   Make the on-the-fly pointing computation independent of the length of the simulation: `PointingProvider.get_pointings` now multiplies and slerps only the boresight (and detector) quaternions covering the requested samples instead of the arrays for the whole simulation. With one observation per day, the cost of each call previously grew linearly with the simulation length (quadratically overall); binning one year of data is now as fast per sample as binning one month.
+-   Make the on-the-fly pointing computation independent of the length of the simulation: `PointingProvider.get_pointings` now multiplies and slerps only the boresight (and detector) quaternions covering the requested samples instead of the arrays for the whole simulation. With one observation per day, the cost of each call previously grew linearly with the simulation length (quadratically overall); binning one year of data is now as fast per sample as binning one month. Reference PR: [#562](https://github.com/litebird/litebird_sim/pull/562).
 
 -   Fix the `Notebook Tests` workflow failing whenever the PySM3 data cache is restored through a key prefix instead of an exact match: the directory is populated but `cache-hit` stays `false`, so the clone ran against a non-empty target and exited 128. This kept every Dependabot PR red and would recur for everybody on the next `CACHE_VERSION` rotation. Reference PR: [#554](https://github.com/litebird/litebird_sim/pull/554).
 
