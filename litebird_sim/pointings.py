@@ -11,6 +11,60 @@ from .scanning import (
 DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB = 256.0
 
 
+def _slice_quaternions(
+    quats: RotQuaternion,
+    start_time: int | float | astropy.time.Time,
+    time_span_s: float,
+) -> RotQuaternion:
+    """Return the subset of a time-dependent quaternion that covers a time interval
+
+    The result contains the quaternions needed to interpolate (slerp) in the range
+    from `start_time` to `start_time + time_span_s`, plus one quaternion of margin on
+    each side. Constant quaternions are returned unchanged.
+
+    The slice is copied, so that the normalization done by the constructor of
+    :class:`.RotQuaternion` never writes into the original array (which might
+    be shared among processes).
+    """
+
+    if quats.start_time is None or quats.quats.shape[0] < 2:
+        return quats
+
+    if isinstance(quats.start_time, astropy.time.Time):
+        time_skip_s = (start_time - quats.start_time).to("s").value
+    else:
+        time_skip_s = start_time - quats.start_time
+
+    num_of_quats = quats.quats.shape[0]
+    first_idx = max(0, int(np.floor(time_skip_s * quats.sampling_rate_hz)) - 1)
+    last_idx = min(
+        num_of_quats,
+        int(np.ceil((time_skip_s + time_span_s) * quats.sampling_rate_hz)) + 2,
+    )
+
+    # Make sure we always return at least two quaternions, as `slerp` needs them
+    if last_idx - first_idx < 2:
+        first_idx = max(0, min(first_idx, num_of_quats - 2))
+        last_idx = first_idx + 2
+
+    if first_idx == 0 and last_idx == num_of_quats:
+        return quats
+
+    offset_s = first_idx / quats.sampling_rate_hz
+    if isinstance(quats.start_time, astropy.time.Time):
+        new_start_time = quats.start_time + astropy.time.TimeDelta(
+            offset_s, format="sec"
+        )
+    else:
+        new_start_time = quats.start_time + offset_s
+
+    return RotQuaternion(
+        quats=quats.quats[first_idx:last_idx].copy(),
+        start_time=new_start_time,
+        sampling_rate_hz=quats.sampling_rate_hz,
+    )
+
+
 class PointingProvider:
     """Provides detector pointing angles and HWP angles based on scanning geometry.
 
@@ -184,10 +238,21 @@ class PointingProvider:
 
         block_lengths = self._optimal_block_lengths(total_nsamples=nsamples)
 
-        det_to_ecliptic_quats = self.bore2ecliptic_quats * detector_quat
         cur_time = start_time
         start_sample = 0
         for cur_block_length in block_lengths:
+            # Only multiply and slerp the quaternions that cover this block: using
+            # the arrays for the whole simulation would make the cost of each call
+            # grow with the length of the simulation
+            det_to_ecliptic_quats = _slice_quaternions(
+                self.bore2ecliptic_quats,
+                start_time=cur_time,
+                time_span_s=cur_block_length / sampling_rate_hz,
+            ) * _slice_quaternions(
+                detector_quat,
+                start_time=cur_time,
+                time_span_s=cur_block_length / sampling_rate_hz,
+            )
             cur_quaternions = det_to_ecliptic_quats.slerp(
                 start_time=cur_time,
                 sampling_rate_hz=sampling_rate_hz,
