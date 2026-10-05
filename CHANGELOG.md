@@ -1,5 +1,7 @@
 # HEAD
 
+-   Document the extra-galactic PySM3 presets already usable through `fg_models` (`cib1`, `tsz1`–`tsz4`, `ksz1`–`ksz3`/`ksz5`/`ksz6`, `rg1`–`rg3`: CIB, thermal/kinetic SZ, radio galaxies from WebSky/Agora/HalfDome/FLAMINGO), which were missing from `input_sky.rst`. Reference PR: [#560](https://github.com/litebird/litebird_sim/pull/560).
+
 -   Fix `interpolate_alm` (and therefore `scan_map`/`fill_tods` with `SphericalHarmonics` input) crashing with a ducc0 "phi out of range" assertion when the alms are not in Galactic coordinates: longitudes are now wrapped into [0, 2π) before calling `ducc0.sht.synthesis_general`. Reference PR: [#563](https://github.com/litebird/litebird_sim/pull/563).
 
 -   Fix the `Notebook Tests` workflow failing whenever the PySM3 data cache is restored through a key prefix instead of an exact match: the directory is populated but `cache-hit` stays `false`, so the clone ran against a non-empty target and exited 128. This kept every Dependabot PR red and would recur for everybody on the next `CACHE_VERSION` rotation. Reference PR: [#554](https://github.com/litebird/litebird_sim/pull/554).
