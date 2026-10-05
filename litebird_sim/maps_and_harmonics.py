@@ -2399,7 +2399,9 @@ def interpolate_alm(
     locations : ndarray, shape (N, 2)
         Target positions on the sphere, in radians.
         ``locations[:, 0]`` = colatitude ``theta`` (0 .. π),
-        ``locations[:, 1]`` = longitude ``phi`` (0 .. 2π).
+        ``locations[:, 1]`` = longitude ``phi``. Any value is accepted;
+        it is wrapped into ``[0, 2π)`` before being passed to
+        :func:`ducc0.sht.synthesis_general`, which requires that range.
 
     epsilon : float, optional
         Desired accuracy passed to :func:`synthesis_general`.
@@ -2436,6 +2438,21 @@ def interpolate_alm(
             f"`locations` must have shape (N, 2) [theta, phi]; got {loc.shape!r}"
         )
     N = loc.shape[0]
+
+    # `ducc0.sht.synthesis_general` requires phi in [0, 2*pi). Pointings in
+    # Galactic coordinates already satisfy this (`rotate_coordinates_e2g`
+    # returns phi in [0, 2*pi)), but pointings left in Ecliptic (or any other
+    # frame) typically have phi in [-pi, pi] and would make it crash with a
+    # "phi out of range" assertion. Wrap into range on a copy: `np.asarray`
+    # above may have returned the caller's own array unchanged.
+    phi = loc[:, 1]
+    if np.any((phi < 0.0) | (phi >= 2.0 * np.pi)):
+        loc = loc.copy()
+        phi = loc[:, 1]
+        np.mod(phi, 2.0 * np.pi, out=phi)
+        # `np.mod` of a tiny negative number (e.g. -1e-17) can round to
+        # exactly 2*pi; fold that back into range.
+        phi[phi >= 2.0 * np.pi] = 0.0
 
     # Choose epsilon if not given, respecting ducc constraints
     dtype = alm.dtype if alm.ndim == 2 else alm.dtype
