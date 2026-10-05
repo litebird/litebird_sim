@@ -883,6 +883,50 @@ def test_multifreq_interpolate_alm():
     assert U_single.shape == (N,)
 
 
+def test_interpolate_alm_wraps_phi_out_of_range():
+    """`interpolate_alm` must accept phi outside [0, 2*pi) and not mutate
+    the caller's `locations` array (ducc0's synthesis_general requires
+    phi in [0, 2*pi), but pointings e.g. in Ecliptic coordinates can have
+    phi in [-pi, pi])."""
+    from litebird_sim import interpolate_alm
+
+    lmax = 64
+    nalm = SphericalHarmonics.num_of_alm_from_lmax(lmax)
+
+    rng = np.random.default_rng(42)
+    values = (
+        rng.standard_normal((3, nalm)) + 1j * rng.standard_normal((3, nalm))
+    ).astype(np.complex128)
+    sh = SphericalHarmonics(values, lmax=lmax)
+
+    N = 20
+    theta = rng.uniform(0, np.pi, N)
+    phi = rng.uniform(0, 2 * np.pi, N)
+    locations = np.column_stack([theta, phi])
+
+    T_ref, Q_ref, U_ref = interpolate_alm(sh, locations)
+
+    for offset in (-2 * np.pi, 2 * np.pi):
+        shifted_locations = np.column_stack([theta, phi + offset])
+        shifted_locations_copy = shifted_locations.copy()
+
+        T, Q, U = interpolate_alm(sh, shifted_locations)
+
+        npt.assert_allclose(T, T_ref, atol=1e-12)
+        npt.assert_allclose(Q, Q_ref, atol=1e-12)
+        npt.assert_allclose(U, U_ref, atol=1e-12)
+
+        # The caller's array must not be modified
+        npt.assert_array_equal(shifted_locations, shifted_locations_copy)
+
+    # A tiny negative phi (e.g. due to floating-point rounding) must not
+    # make `np.mod` wrap it to exactly 2*pi, which would still be out of
+    # range for ducc0
+    edge_case_locations = np.array([[np.pi / 2, -1e-17]])
+    T, Q, U = interpolate_alm(sh, edge_case_locations)
+    assert np.all(np.isfinite([T, Q, U]))
+
+
 def test_multifreq_pixelize_estimate_roundtrip():
     """Test pixelize_alm and estimate_alm with multi-frequency data."""
     from litebird_sim import pixelize_alm, estimate_alm
