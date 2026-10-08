@@ -50,8 +50,9 @@ if _enable_mpi in [True, None]:
     try:
         import mpi4py
         from mpi4py import MPI
+        from mpi4py.util import pkl5
 
-        MPI_COMM_WORLD = MPI.COMM_WORLD
+        MPI_COMM_WORLD = pkl5.Intracomm(MPI.COMM_WORLD)
         MPI_ENABLED = True
         MPI_CONFIGURATION = mpi4py.get_config()
     except ImportError:
