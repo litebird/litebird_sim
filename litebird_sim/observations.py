@@ -154,6 +154,7 @@ class Observation:
 
     # Dynamic attributes set by mapmaker
     net_ukrts: int | float | npt.NDArray
+    pol_efficiency: npt.NDArray
     wafer: str | None
 
     # Dynamic attributes set by beam synthesis

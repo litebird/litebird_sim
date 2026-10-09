@@ -32,6 +32,7 @@ def test_accumulate_map_and_info():
 
     info = np.zeros((2, 3, 3))
     weights = np.ones(1)
+    pol_eff = np.ones(1)
 
     # Simulate the presence of *two* components in the TOD
     # (e.g., the CMB and the Galaxy)
@@ -45,10 +46,26 @@ def test_accumulate_map_and_info():
 
     # Now add both components to the TOD
     mapping._accumulate_samples_and_build_nobs_matrix(
-        first_tod, pix, psi, weights, d_mask, t_mask, info, additional_component=False
+        first_tod,
+        pix,
+        psi,
+        weights,
+        pol_eff,
+        d_mask,
+        t_mask,
+        info,
+        additional_component=False,
     )
     mapping._accumulate_samples_and_build_nobs_matrix(
-        second_tod, pix, psi, weights, d_mask, t_mask, info, additional_component=True
+        second_tod,
+        pix,
+        psi,
+        weights,
+        pol_eff,
+        d_mask,
+        t_mask,
+        info,
+        additional_component=True,
     )
 
     assert np.allclose(res_info, info)

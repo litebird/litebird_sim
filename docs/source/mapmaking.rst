@@ -279,12 +279,14 @@ value of the Stokes parameter.
 Once we have the matrices :math:`P`, :math:`C_w`, and :math:`M`,
 determining the value of the three Stokes parameters I, Q, U for
 each pixel is trivial. The signal :math:`s` measured by a detector
-is a function of :math:`I`, :math:`Q`, :math:`U`, and the
-polarization angle :math:`\psi`:
+is a function of :math:`I`, :math:`Q`, :math:`U`, the
+polarization angle :math:`\psi`, and the polarization efficiency
+:math:`\gamma` of the detector (the field ``pol_efficiency`` of
+:class:`.DetectorInfo`):
 
 .. math::
 
-   s = I + Q \cos2\psi + U\sin2\psi
+   s = I + \gamma\,(Q \cos2\psi + U\sin2\psi)
 
 and thus we can exploit the redundancy of the measurements per
 each pixel (remember: at least three measurements per pixel with
@@ -365,11 +367,12 @@ the map-maker differences the timelines (T - B) and solves a 2x2 system
 for Q and U in each sky pixel.
 
 If :math:`\psi_T` and :math:`\psi_B` are the effective polarization angles
-for the two detectors in the pair, the model used in map-making is
+and :math:`\gamma_T` and :math:`\gamma_B` the polarization efficiencies
+of the two detectors in the pair, the model used in map-making is
 
 .. math::
 
-   d_T - d_B = Q\,[\cos(2\psi_T) - \cos(2\psi_B)] + U\,[\sin(2\psi_T) - \sin(2\psi_B)].
+   d_T - d_B = Q\,[\gamma_T\cos(2\psi_T) - \gamma_B\cos(2\psi_B)] + U\,[\gamma_T\sin(2\psi_T) - \gamma_B\sin(2\psi_B)].
 
 The pair weight is the average of the detector weights:
 
