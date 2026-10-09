@@ -37,6 +37,8 @@ def make_sanepic_gls_map(
     components: str | list[str] = "tod",
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     chunk_s: float = 3600.0,
+    pad_s: float = 0.0,
+    pad_fill: str = "zeros",
     pol: bool = True,
     preconditioner: str = "block",
     min_pol_rcond: float = 1e-2,
@@ -68,6 +70,11 @@ def make_sanepic_gls_map(
         Coordinate system of the output map, by default Galactic
     chunk_s : float, optional
         Duration of the chunks on which N^-1 is applied, by default 3600 s
+    pad_s : float, optional
+        Padding added to both sides of each chunk to avoid the FFT
+        wrap-around (seconds), by default 0 (no padding)
+    pad_fill : str, optional
+        "zeros" (default) or "extrapolate"
     pol : bool, optional
         If True (default) solve for I, Q, U, otherwise for I only
     preconditioner : str, optional
@@ -140,6 +147,8 @@ def make_sanepic_gls_map(
         nside,
         coordinates=_COORDINATES[output_coordinate_system],
         chunk_s=chunk_s,
+        pad_s=pad_s,
+        pad_fill=pad_fill,
         pol=pol,
         preconditioner=preconditioner,
         min_pol_rcond=min_pol_rcond,
