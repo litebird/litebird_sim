@@ -21,6 +21,8 @@ from litebird_sim.observation_utilities import (
     _normalize_observations_and_pointings,
 )
 
+from litebird_sim.utilities import resolve_nthreads
+
 from .common import get_pol_efficiency
 
 if TYPE_CHECKING:
@@ -45,6 +47,7 @@ def make_sanepic_gls_map(
     tol: float = 1e-12,
     maxiter: int = 2000,
     pointings_dtype=np.float64,
+    nthreads: int | None = None,
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -88,6 +91,8 @@ def make_sanepic_gls_map(
         Maximum number of PCG iterations, by default 2000
     pointings_dtype : dtype, optional
         dtype used to compute pointings on the fly, by default `np.float64`
+    nthreads : int, optional
+        Threads per process; by default resolved with :func:`.resolve_nthreads`
 
     Returns
     -------
@@ -155,4 +160,5 @@ def make_sanepic_gls_map(
         tol=tol,
         maxiter=maxiter,
         comm=comm,
+        nthreads=resolve_nthreads(nthreads),
     )
