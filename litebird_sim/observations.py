@@ -1279,3 +1279,54 @@ class Observation:
             time_color = self.comm.rank % self.n_blocks_time
             self.comm_det_block = self.comm.Split(det_color)
             self.comm_time_block = self.comm.Split(time_color)
+
+    def get_hitmap(
+        self,
+        nside: int,
+        detector_idx: int | list[int] | str = "all",
+        nest: bool = False,
+        nthreads: int | None = None,
+    ) -> npt.NDArray:
+        """Build a Healpix hit-count map for the observation.
+
+        This method uses the pointings to obtain a map containing information on
+        the number of times each pixel is observed.
+
+        Args:
+            nside (int):
+                Resolution of the returned Healpix map.
+            detector_idx (int, list[int] or str):
+                Same as in get_pointings method above: specifies which detectors should be
+                included in the computation. Use ``"all"`` to ask for the pointings of *all*
+                the detectors in this Observation; if you just want a subset of them, pass
+                a list with their zero-based index; if you just want the pointings for one
+                detector, you can pass an integer.
+            nest (bool):
+                Sets the Healpix ordering to NESTED instead of RING. Default: False (RING).
+            nthreads: (int):
+                The number of threads to use for ducc0's Healpix computations. If None,
+                it is automatically obtained from NUM_THREADS_ENVVAR environment variable.
+
+        Returns:
+            np.ndarray:
+                The Healpix map as a numpy array.
+
+        Raises:
+            AssertionError:
+                If `prepare_pointings()` has not been called.
+
+        """
+
+        assert self.pointing_provider is not None, (
+            "You must initialize pointings; use Simulation.prepare_pointings()"
+        )
+
+        pointings, _ = self.get_pointings(detector_idx)
+
+        hpx = Healpix_Base(nside, "RING" if not nest else "NEST")
+
+        pixels = hpx.ang2pix(pointings[:, :, 0:2], nthreads=resolve_nthreads(nthreads))
+
+        # minlength below is the number of healpix pixels corresponding to the nside
+        # calculated explicitly since ducc0 doesn't include healpy's nside2npix method.
+        return np.bincount(pixels.flatten(), minlength=12 * nside**2)

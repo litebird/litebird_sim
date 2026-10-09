@@ -3016,3 +3016,39 @@ class Simulation:
                 figures=[],
                 **dictionary,
             )
+
+    @_profile
+    def get_hitmaps(
+        self,
+        nside: int,
+        nest: bool = False,
+        nthreads: int | None = None,
+    ):
+        """
+        Get the Healpix hit-count maps for all observations.
+
+        Args:
+            nside (int):
+                Resolution of the returned Healpix map.
+            nest (bool):
+                Sets the Healpix ordering to NESTED instead of RING. Default: False (RING).
+            nthreads: (int):
+                The number of threads to use for ducc0's Healpix computations. If None,
+                it is automatically obtained from NUM_THREADS_ENVVAR environment variable.
+
+        Returns:
+            np.ndarray:
+                a numpy array of Healpix maps.
+        """
+
+        assert self.observations, (
+            "You must call Simulation.create_observations() "
+            "before calling Simulation.get_hitmaps"
+        )
+
+        hitmaps = np.empty((len(self.observations), 12 * nside**2), dtype=np.int64)
+
+        for i, cur_obs in enumerate(self.observations):
+            hitmaps[i] = cur_obs.get_hitmap(nside=nside, nest=nest, nthreads=nthreads)
+
+        return np.array(hitmaps)
