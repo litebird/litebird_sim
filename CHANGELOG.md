@@ -1,5 +1,7 @@
 # HEAD
 
+-   Add an interface to the [pysanepic](https://github.com/litebird/pysanepic) GLS map-maker with 1/f noise: `make_sanepic_gls_map` and `Simulation.make_sanepic_gls_map` (optional dependency). Reference PR: [#568](https://github.com/litebird/litebird_sim/pull/568).
+
 -   Fix the map-makers ignoring the polarization efficiency γ (`DetectorInfo.pol_efficiency`): the binner, the destriper and the pair-differencing map-maker now use the pointing model `(1, γ cos2ψ, γ sin2ψ)`, consistently with the scanning code. BrahMap does not support γ yet: `make_brahmap_gls_map` now logs a warning when γ ≠ 1. Reference PR: [#567](https://github.com/litebird/litebird_sim/pull/567).
 
 -   Make the on-the-fly pointing computation independent of the length of the simulation: `PointingProvider.get_pointings` now multiplies and slerps only the boresight (and detector) quaternions covering the requested samples instead of the arrays for the whole simulation. With one observation per day, the cost of each call previously grew linearly with the simulation length (quadratically overall); binning one year of data is now as fast per sample as binning one month. Reference PR: [#562](https://github.com/litebird/litebird_sim/pull/562).
