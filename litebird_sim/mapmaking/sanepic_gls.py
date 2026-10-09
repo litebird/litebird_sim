@@ -38,6 +38,8 @@ def make_sanepic_gls_map(
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
     chunk_s: float = 3600.0,
     pol: bool = True,
+    preconditioner: str = "block",
+    min_pol_rcond: float = 1e-2,
     tol: float = 1e-12,
     maxiter: int = 2000,
     pointings_dtype=np.float64,
@@ -68,6 +70,11 @@ def make_sanepic_gls_map(
         Duration of the chunks on which N^-1 is applied, by default 3600 s
     pol : bool, optional
         If True (default) solve for I, Q, U, otherwise for I only
+    preconditioner : str, optional
+        "block" (default, 3×3 I/Q/U block per pixel) or "jacobi" (original SANEPIC)
+    min_pol_rcond : float, optional
+        Q/U are solved only where the polarization-angle coverage gives a
+        reciprocal condition number >= this value, by default 1e-2
     tol : float, optional
         PCG stops when |r|²/|b|² < tol, by default 1e-12
     maxiter : int, optional
@@ -134,6 +141,8 @@ def make_sanepic_gls_map(
         coordinates=_COORDINATES[output_coordinate_system],
         chunk_s=chunk_s,
         pol=pol,
+        preconditioner=preconditioner,
+        min_pol_rcond=min_pol_rcond,
         tol=tol,
         maxiter=maxiter,
         comm=comm,
