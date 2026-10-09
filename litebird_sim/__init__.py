@@ -3,6 +3,7 @@ import numba
 from litebird_sim.mapmaking import (
     make_binned_map,
     make_brahmap_gls_map,
+    make_sanepic_gls_map,
     check_valid_splits,
     BinnerResult,
     make_destriped_map,
@@ -387,6 +388,7 @@ __all__ = [
     # mapmaking
     "make_binned_map",
     "make_brahmap_gls_map",
+    "make_sanepic_gls_map",
     "check_valid_splits",
     "BinnerResult",
     "make_destriped_map",

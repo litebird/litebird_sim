@@ -42,6 +42,9 @@ The framework provides the following solutions:
    (To use this, you must ensure that the package is installed, thus
    see `BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.)
 
+6. An interface to the `pysanepic <https://github.com/litebird/pysanepic>`_
+   GLS mapmaker, which models 1/f noise (requires the package ``pysanepic``).
+
 In this chapter, we assume you have already created the timelines
 to be used as input to the destriper. Here is a sample code
 that creates a simple timeline containing white noise for two
@@ -790,6 +793,25 @@ function with `litebird_sim` data:
 output maps can be accessed from this object with `gls_result.GLS_maps`.
 For further details refer to
 `BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.
+
+
+pysanepic GLS mapmaker
+----------------------
+
+If `pysanepic <https://github.com/litebird/pysanepic>`_ is installed,
+:func:`.make_sanepic_gls_map` (or :meth:`.Simulation.make_sanepic_gls_map`)
+computes GLS maps accounting for 1/f noise (SANEPIC algorithm). The noise
+covariance of each detector is built from the same parameters used to
+simulate the noise (``net_ukrts``, ``fknee_mhz``, ``alpha``, ``fmin_hz``) and
+applied in Fourier space on chunks of ``chunk_s`` seconds; HWP and
+polarization efficiency are taken into account:
+
+.. code-block:: python
+
+  result = sim.make_sanepic_gls_map(nside=nside, chunk_s=3600.0)
+  result.maps        # I, Q, U (healpy.UNSEEN where not solved)
+  result.hit_map
+  result.converged, result.iterations
 
 
 High level interface and data-splits
