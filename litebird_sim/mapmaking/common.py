@@ -121,6 +121,22 @@ def get_map_making_weights(
     return weights
 
 
+def get_pol_efficiency(observations: Observation) -> npt.NDArray:
+    """Return a NumPy array with the polarization efficiency γ of each detector
+
+    The number of elements in the result is equal to `observations.n_detectors`.
+    If `observations` has no ``pol_efficiency`` attribute, γ = 1 is assumed.
+    """
+
+    try:
+        return np.broadcast_to(
+            np.asarray(observations.pol_efficiency, dtype=np.float64),
+            (observations.n_detectors,),
+        )
+    except AttributeError:
+        return np.ones(observations.n_detectors)
+
+
 def _compute_pixel_indices(
     hpx: Healpix_Base,
     pointings: npt.NDArray | Callable,
