@@ -26,24 +26,6 @@ class SharedMemoryManager:
     node_root : int, optional
         The designated root rank within the node-level shared memory
         communicator. By default `0`
-
-    Attributes
-    ----------
-    base_comm : Intracomm
-        The base MPI communicator
-    node_comm : Intracomm
-        The node-level shared-memory MPI communicator
-    node_rank : int
-        The process rank within the node-level communicator
-    node_size : int
-        The total number of processes on the current node
-    node_root : int
-        The root rank on the current node communicator
-    list_windows : dict[int, list[MPI.Win]]
-        Tracks allocated shared-memory MPI windows mapped by communicator handle
-    list_arrays : dict[int, list[npt.NDArray]]
-        Tracks allocated shared-memory NumPy array views mapped by
-        communicator handle
     """
 
     def __init__(

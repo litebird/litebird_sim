@@ -58,6 +58,11 @@ rotation that evolves with time, starting from ``t = 0`` and lasting
 Rotation quaternions can be multiplied together; however, they must refer
 to the same starting time and have the same sampling frequency.
 
+The class :class:`.SharedRotQuaternion` behaves like
+:class:`.RotQuaternion`, but its quaternions are stored in MPI shared
+memory and are shared among all the MPI processes running on the same
+node. See Section :ref:`shared-memory`.
+
 
 Python functions for quaternions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
