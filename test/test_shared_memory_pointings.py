@@ -107,3 +107,12 @@ def test_shared_memory_windows_freed_at_exit(tmp_path):
 
     manager._free_at_exit()
     assert not manager.list_windows
+
+
+def test_shared_rot_quaternion_constant():
+    # A constant quaternion with shape (4,) must be reshaped to (1, 4) without copying it
+    quat = np.array([0.0, 0.0, 0.0, 1.0])
+    shared_quat = SharedRotQuaternion(quats=quat)
+
+    assert shared_quat.quats.shape == (1, 4)
+    assert np.shares_memory(shared_quat.quats, quat)

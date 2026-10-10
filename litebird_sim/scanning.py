@@ -657,13 +657,15 @@ class SharedRotQuaternion(RotQuaternion):
         normalized: this must be done by the node root before calling
         this constructor.
 
-        :param quats: a ``(N, 4)`` NumPy array in shared memory
+        :param quats: a ``(N, 4)`` (or ``(4,)``) NumPy array in shared memory
         :param start_time: the start time, either a floating point number
             or an ``astropy.time.Time`` object; required if ``N > 1``
         :param sampling_rate_hz: the sampling frequency; required if ``N > 1``
         """
-        # Directly use the provided array without reshaping or copying
-        self.quats = quats
+        # Make sure that `quats` is a 2D array with shape (N, 4), like in
+        # RotQuaternion: reshaping a contiguous array returns a view, so the
+        # memory is still the shared one
+        self.quats = quats.reshape(-1, 4)
 
         if self.quats.shape[0] > 1:
             assert start_time is not None, (
@@ -676,8 +678,9 @@ class SharedRotQuaternion(RotQuaternion):
         self.start_time = start_time
         self.sampling_rate_hz = sampling_rate_hz
 
-        # We DO NOT normalize quaternions here.
-        # The node root is expected to normalize them after writing to shared memory.
+        # Unlike RotQuaternion, do not normalize the quaternions: the array is
+        # read-only on all the processes but the node root, which writes
+        # quaternions that are already normalized
 
 
 # This is an Abstract Base Class (ABC)

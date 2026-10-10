@@ -13,14 +13,11 @@ if MPI_ENABLED or TYPE_CHECKING:
 
 
 class SharedMemoryManager:
-    """Manages MPI shared-memory communicators, window allocations, and tree
-    group reductions.
+    """Manages MPI shared-memory communicators and window allocations
 
     This manager splits a base MPI communicator into a node-level
     shared-memory communicator and allocates MPI window-backed shared NumPy
-    arrays. It also splits the node-level communicator into a tree group
-    sub-communicators to orchestrate sequential accumulations and group-wise
-    reductions within each node.
+    arrays. The windows are freed when the interpreter exits.
 
     Parameters
     ----------
@@ -168,89 +165,6 @@ class SharedMemoryManager:
             comm_root=self.node_root,
         )
 
-    def alloc_shared_zeros_comm(
-        self,
-        size: int,
-        dtype: npt.DTypeLike,
-        comm: "Intracomm",
-        comm_root: int = 0,
-    ):
-        """Allocates a shared-memory MPI window-backed 1D NumPy array for a
-        communicator, initialized to zeros.
-        """
-        array, win = self.alloc_shared_comm(
-            size=size,
-            dtype=dtype,
-            comm=comm,
-            comm_root=comm_root,
-        )
-
-        if comm.rank == comm_root:
-            array[:] = 0
-
-        return array, win
-
-    def alloc_shared_zeros_node(
-        self,
-        size: int,
-        dtype: npt.DTypeLike,
-    ):
-        """Allocates a shared-memory MPI window-backed 1D NumPy array for the
-        node-level communicator, initialized to zeros.
-        """
-        return self.alloc_shared_zeros_comm(
-            size=size,
-            dtype=dtype,
-            comm=self.node_comm,
-            comm_root=self.node_root,
-        )
-
-    def alloc_shared_ones_comm(
-        self,
-        size: int,
-        dtype: npt.DTypeLike,
-        comm: "Intracomm",
-        comm_root: int = 0,
-    ):
-        """Allocates a shared-memory MPI window-backed 1D NumPy array for a
-        communicator, initialized to ones.
-        """
-        array, win = self.alloc_shared_comm(
-            size=size,
-            dtype=dtype,
-            comm=comm,
-            comm_root=comm_root,
-        )
-
-        if comm.rank == comm_root:
-            array[:] = 1
-
-        return array, win
-
-    def alloc_shared_ones_node(
-        self,
-        size: int,
-        dtype: npt.DTypeLike,
-    ):
-        """Allocates a shared-memory MPI window-backed 1D NumPy array for the
-        node-level communicator, initialized to ones.
-        """
-        return self.alloc_shared_ones_comm(
-            size=size,
-            dtype=dtype,
-            comm=self.node_comm,
-            comm_root=self.node_root,
-        )
-
-    def fence_comm_all(self, comm: "Intracomm", assertion: int = 0) -> None:
-        """Call MPI.Win.Fence on all windows allocated on the given
-        communicator.
-        """
-        handle = comm.handle
-        if handle in self._list_windows:
-            for win in self._list_windows[handle]:
-                win.Fence(assertion)
-
     def free_shared_arrays_all(self) -> None:
         """Frees all allocated shared-memory MPI windows and clears manager
         state.
@@ -260,30 +174,3 @@ class SharedMemoryManager:
                 win.Free()
         self._list_windows = {}
         self._list_arrays = {}
-
-    def free_shared_arrays_comm(self, comm: "Intracomm") -> None:
-        """Frees all shared-memory MPI windows allocated for a specific
-        communicator.
-        """
-        handle = comm.handle
-        if handle in self._list_windows:
-            for win in self._list_windows[handle]:
-                win.Free()
-            del self._list_windows[handle]
-        if handle in self._list_arrays:
-            del self._list_arrays[handle]
-
-    def free_shared_array(self, comm: "Intracomm", win: "MPI.Win") -> None:
-        """Frees a specific shared-memory MPI window and removes its associated
-        array view and window from the manager's tracking lists.
-        """
-        handle = comm.handle
-        if handle in self._list_windows and win in self._list_windows[handle]:
-            idx = self._list_windows[handle].index(win)
-            win.Free()
-            self._list_windows[handle].pop(idx)
-            self._list_arrays[handle].pop(idx)
-            if not self._list_windows[handle]:
-                del self._list_windows[handle]
-            if not self._list_arrays[handle]:
-                del self._list_arrays[handle]
