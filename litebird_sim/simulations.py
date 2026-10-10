@@ -14,6 +14,7 @@ from uuid import uuid4
 
 if TYPE_CHECKING:
     import brahmap
+    import pysanepic
 
 import astropy.time
 import astropy.units
@@ -55,6 +56,7 @@ from .mapmaking import (
     destriper_log_callback,
     make_binned_map,
     make_brahmap_gls_map,
+    make_sanepic_gls_map,
     make_destriped_map,
     make_h_maps,
     make_pair_differenced_map,
@@ -2836,6 +2838,47 @@ class Simulation:
             )
 
         return brahmap_result
+
+    @_profile
+    def make_sanepic_gls_map(
+        self,
+        nside: int,
+        components: str | list[str] = "tod",
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        params: "pysanepic.GLSParameters | None" = None,
+        pointings_dtype=np.float64,
+        nthreads: int | None = None,
+        append_to_report: bool = True,
+    ) -> "pysanepic.MapResult":
+        """Wrapper to the GLS map-maker of pysanepic (1/f noise).
+
+        For details, see the low-level interface in :func:`litebird_sim.mapmaking.sanepic_gls`.
+        """
+        result = make_sanepic_gls_map(
+            nside=nside,
+            observations=self.observations,
+            hwp=self.hwp,
+            components=components,
+            output_coordinate_system=output_coordinate_system,
+            params=params,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            import pysanepic  # noqa
+
+            template_file_path = get_template_file_path("report_sanepic.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_text=markdown_template,
+                sanepic_version=getattr(pysanepic, "__version__", "unknown"),
+                params=params or pysanepic.GLSParameters(),
+                result=result,
+            )
+
+        return result
 
     @_profile
     def write_observations(
