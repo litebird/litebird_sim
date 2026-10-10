@@ -31,6 +31,14 @@ if TYPE_CHECKING:
 _COORDINATES = {CoordinateSystem.Galactic: "G", CoordinateSystem.Ecliptic: "E"}
 
 
+def _sum_components(obs, components, det_idx):
+    """TOD of one detector summed over `components`, without a copy if there is one."""
+    tod = getattr(obs, components[0])[det_idx]
+    for c in components[1:]:
+        tod = tod + getattr(obs, c)[det_idx]
+    return tod
+
+
 def make_sanepic_gls_map(
     nside: int,
     observations,
@@ -115,22 +123,23 @@ def make_sanepic_gls_map(
         observations=observations, pointings=pointings
     )
 
-    data = []
-    for obs, cur_ptg in zip(obs_list, ptg_list):
-        hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
-        gamma = get_pol_efficiency(obs)
-        net = np.broadcast_to(obs.net_ukrts, (obs.n_detectors,))
-        for det_idx in range(obs.n_detectors):
-            ptg_det, hwp_angle = _get_pointings_array(
-                detector_idx=det_idx,
-                pointings=cur_ptg,
-                hwp_angle=hwp_angle,
-                output_coordinate_system=output_coordinate_system,
-                pointings_dtype=pointings_dtype,
-            )
-            data.append(
-                pysanepic.DetectorData(
-                    tod=sum(getattr(obs, c)[det_idx] for c in components),
+    def detector_data():
+        # a generator: pointings are computed for one detector at a time, and
+        # pysanepic keeps only pixels and angles (no copy of the TODs)
+        for obs, cur_ptg in zip(obs_list, ptg_list):
+            hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
+            gamma = get_pol_efficiency(obs)
+            net = np.broadcast_to(obs.net_ukrts, (obs.n_detectors,))
+            for det_idx in range(obs.n_detectors):
+                ptg_det, hwp_angle = _get_pointings_array(
+                    detector_idx=det_idx,
+                    pointings=cur_ptg,
+                    hwp_angle=hwp_angle,
+                    output_coordinate_system=output_coordinate_system,
+                    pointings_dtype=pointings_dtype,
+                )
+                yield pysanepic.DetectorData(
+                    tod=_sum_components(obs, components, det_idx),
                     theta=ptg_det[:, 0],
                     phi=ptg_det[:, 1],
                     psi=ptg_det[:, 2],
@@ -144,11 +153,10 @@ def make_sanepic_gls_map(
                     pol_angle_rad=obs.pol_angle_rad[det_idx],
                     pol_efficiency=gamma[det_idx],
                 )
-            )
 
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
     return pysanepic.make_maps(
-        data,
+        detector_data(),
         nside,
         coordinates=_COORDINATES[output_coordinate_system],
         chunk_s=chunk_s,
