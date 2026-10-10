@@ -651,16 +651,16 @@ class SharedRotQuaternion(RotQuaternion):
         sampling_rate_hz: float | None = None,
     ):
         """
-        Create a new instance of a time-dependent quaternion
+        Wrap a shared-memory array of quaternions into a :class:`RotQuaternion`
 
-        If both `start_time` and `sampling_freq_hz` are ``None``, the quaternion
-        is assumed to be constant in time.
+        Unlike :class:`RotQuaternion`, the array is neither copied nor
+        normalized: this must be done by the node root before calling
+        this constructor.
 
-        :param quats: Either a 4-element NumPy array, or another instance
-            of :class:`TimeDependentQuaternion`
+        :param quats: a ``(N, 4)`` NumPy array in shared memory
         :param start_time: the start time, either a floating point number
-            or an ``astropy.time.Time`` object
-        :param sampling_rate_hz: the sampling frequency
+            or an ``astropy.time.Time`` object; required if ``N > 1``
+        :param sampling_rate_hz: the sampling frequency; required if ``N > 1``
         """
         # Directly use the provided array without reshaping or copying
         self.quats = quats

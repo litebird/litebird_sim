@@ -1,6 +1,6 @@
 # HEAD
 
--   Introduced MPI shared-memory allocator for pointing quaternions (`SharedMemoryManager`) to drastically reduce memory usage and prevent OOM issues on multi-core HPC nodes (like [#489](https://github.com/litebird/litebird_sim/issues/489)). Added `Simulation.set_scanning_strategy_shmem()` and `Simulation.prepare_pointings_shmem()` to leverage this functionality.
+-   Introduced MPI shared-memory allocator for pointing quaternions (`SharedMemoryManager`) to drastically reduce memory usage and prevent OOM issues on multi-core HPC nodes (like [#489](https://github.com/litebird/litebird_sim/issues/489)). Added `Simulation.set_scanning_strategy_shmem()`, `Simulation.prepare_pointings_shmem()` and `Observation.prepare_pointings_shmem()` to leverage this functionality. Reference PR: [#551](https://github.com/litebird/litebird_sim/pull/551).
 
 -   Fix the map-makers ignoring the polarization efficiency γ (`DetectorInfo.pol_efficiency`): the binner, the destriper and the pair-differencing map-maker now use the pointing model `(1, γ cos2ψ, γ sin2ψ)`, consistently with the scanning code. BrahMap does not support γ yet: `make_brahmap_gls_map` now logs a warning when γ ≠ 1. Reference PR: [#567](https://github.com/litebird/litebird_sim/pull/567).
 

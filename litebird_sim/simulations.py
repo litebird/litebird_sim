@@ -1592,8 +1592,8 @@ class Simulation:
         to allocate the spin2ecliptic quaternions only once per physical node.
         """
         assert not (scanning_strategy and imo_url), (
-            "you must either specify scanning_strategy or imo_url (but not"
-            "the two together) when calling Simulation.set_shared_scanning_strategy"
+            "you must either specify scanning_strategy or imo_url (but not "
+            "the two together) when calling Simulation.set_scanning_strategy_shmem"
         )
 
         if not scanning_strategy:

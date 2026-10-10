@@ -1065,8 +1065,8 @@ class Observation:
         # If the hwp object is passed and is not initialised in the observations, it gets applied to all detectors
         if hwp is None:
             assert self.no_mueller_hwp() or self.no_jones_hwp(), (
-                "Some detectors have been initialized with a mueller_hwp or jones_hwp,"
-                "but no HWP object has been passed to prepare_shared_pointings."
+                "Some detectors have been initialized with a mueller_hwp or jones_hwp, "
+                "but no HWP object has been passed to prepare_pointings_shmem."
             )
             self.has_hwp = False
         else:

@@ -172,7 +172,7 @@ class SharedMemoryManager:
             comm_root=comm_root,
         )
 
-        if comm.rank == 0:
+        if comm.rank == comm_root:
             array[:] = 0
 
         return array, win
@@ -209,7 +209,7 @@ class SharedMemoryManager:
             comm_root=comm_root,
         )
 
-        if comm.rank == 0:
+        if comm.rank == comm_root:
             array[:] = 1
 
         return array, win
