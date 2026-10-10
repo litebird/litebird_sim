@@ -42,6 +42,12 @@ from .constants import (
     EARTH_L2_DISTANCE_KM,
     NUM_THREADS_ENVVAR,
 )
+from .utilities import (
+    NUM_THREADS,
+    NUMBA_NUM_THREADS,
+    resolve_nthreads,
+    resolve_numba_nthreads,
+)
 from .coordinates import (
     DEFAULT_COORDINATE_SYSTEM,
     DEFAULT_TIME_SCALE,
@@ -146,6 +152,14 @@ from .non_linearity import (
     apply_quadratic_nonlin_to_observations,
 )
 from .observations import Observation, TodDescription
+from .observation_utilities import (
+    normalize_observations,
+    for_each_observation,
+    for_each_observation_with_pointings,
+    prepare_pointings,
+    precompute_pointings,
+    apply_hwp_to_obs,
+)
 from .pointing_sys import (
     get_detector_orientation,
     FocalplaneCoord,
@@ -154,11 +168,6 @@ from .pointing_sys import (
 )
 from .pointings import (
     PointingProvider,
-)
-from .pointings_in_obs import (
-    prepare_pointings,
-    precompute_pointings,
-    apply_hwp_to_obs,
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .quaternions import (
@@ -253,6 +262,11 @@ __all__ = [
     "SOLAR_VELOCITY_GAL_LON_RAD",
     "EARTH_L2_DISTANCE_KM",
     "NUM_THREADS_ENVVAR",
+    # utilities.py
+    "NUM_THREADS",
+    "NUMBA_NUM_THREADS",
+    "resolve_nthreads",
+    "resolve_numba_nthreads",
     # units.py
     "Units",
     "UnitUtils",
@@ -363,7 +377,10 @@ __all__ = [
     "RNGHierarchy",
     # pointings.py
     "PointingProvider",
-    # pointings_in_obs.py
+    # observation_utilities.py
+    "normalize_observations",
+    "for_each_observation",
+    "for_each_observation_with_pointings",
     "prepare_pointings",
     "precompute_pointings",
     "apply_hwp_to_obs",

@@ -21,7 +21,7 @@ from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
-from litebird_sim.pointings_in_obs import (
+from litebird_sim.observation_utilities import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
@@ -36,6 +36,7 @@ from .common import (
     _check_valid_splits,
     _compute_pixel_indices,
     get_map_making_weights,
+    get_pol_efficiency,
 )
 
 
@@ -97,6 +98,7 @@ def _accumulate_samples_and_build_nobs_matrix(
     pix: npt.NDArray,
     psi: npt.NDArray,
     weights: npt.NDArray,
+    pol_eff: npt.NDArray,
     d_mask: npt.NDArray,
     t_mask: npt.NDArray,
     nobs_matrix: npt.NDArray,
@@ -112,7 +114,9 @@ def _accumulate_samples_and_build_nobs_matrix(
     #    tells if this part must be calculated (``False``) or not
     # 2. The lower triangle contains the weighted sum of I/Q/U, i.e.,
     #
-    #       (I + Q·cos(2ψ) + U·sin(2ψ)) / σ²
+    #       (I + γ·Q·cos(2ψ) + γ·U·sin(2ψ)) / σ²
+    #
+    #    where γ is the polarization efficiency of the detector
 
     assert tod.shape == pix.shape == psi.shape
 
@@ -126,13 +130,14 @@ def _accumulate_samples_and_build_nobs_matrix(
 
         inv_sigma = 1.0 / np.sqrt(weights[idet])
         inv_sigma2 = inv_sigma * inv_sigma
+        gamma_over_sigma = pol_eff[idet] * inv_sigma
 
         if not additional_component:
             # Fill the upper triangle
             for cur_pix_idx, cur_psi, cur_t_mask in zip(pix[idet], psi[idet], t_mask):
                 if cur_t_mask:
-                    cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
-                    sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+                    cos_over_sigma = np.cos(2 * cur_psi) * gamma_over_sigma
+                    sin_over_sigma = np.sin(2 * cur_psi) * gamma_over_sigma
                     info_pix = nobs_matrix[cur_pix_idx]
 
                     # Upper triangle
@@ -148,8 +153,8 @@ def _accumulate_samples_and_build_nobs_matrix(
             tod[idet, :], pix[idet, :], psi[idet, :], t_mask
         ):
             if cur_t_mask:
-                cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
-                sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+                cos_over_sigma = np.cos(2 * cur_psi) * gamma_over_sigma
+                sin_over_sigma = np.sin(2 * cur_psi) * gamma_over_sigma
                 info_pix = nobs_matrix[cur_pix_idx]
 
                 info_pix[1, 0] += cur_sample * inv_sigma2
@@ -212,6 +217,7 @@ def _build_nobs_matrix(
         zip(obs_list, ptg_list, dm_list, tm_list)
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
+        cur_pol_eff = get_pol_efficiency(cur_obs)
 
         # Determine the HWP angle to use:
         # - If an external HWP object is provided, compute the angle from it
@@ -243,6 +249,7 @@ def _build_nobs_matrix(
                 pixidx_all,
                 polang_all,
                 cur_weights,
+                cur_pol_eff,
                 cur_d_mask,
                 cur_t_mask,
                 nobs_matrix,

@@ -12,6 +12,7 @@ from astropy.io import fits
 
 from .coordinates import ECL_TO_GAL_EULER, GAL_TO_ECL_EULER, CoordinateSystem
 from .units import Units
+from .utilities import resolve_nthreads
 
 # ======================================================================
 # SphericalHarmonics
@@ -2369,7 +2370,7 @@ def interpolate_alm(
     locations: np.ndarray,
     *,
     epsilon: float | None = None,
-    nthreads: int = 0,
+    nthreads: int | None = None,
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""Interpolate spherical-harmonic coefficients at arbitrary positions
     using :func:`ducc0.sht.synthesis_general`.
@@ -2398,7 +2399,9 @@ def interpolate_alm(
     locations : ndarray, shape (N, 2)
         Target positions on the sphere, in radians.
         ``locations[:, 0]`` = colatitude ``theta`` (0 .. π),
-        ``locations[:, 1]`` = longitude ``phi`` (0 .. 2π).
+        ``locations[:, 1]`` = longitude ``phi``. Any value is accepted;
+        it is wrapped into ``[0, 2π)`` before being passed to
+        :func:`ducc0.sht.synthesis_general`, which requires that range.
 
     epsilon : float, optional
         Desired accuracy passed to :func:`synthesis_general`.
@@ -2407,9 +2410,9 @@ def interpolate_alm(
         * complex64  → ``1e-6``
         * complex128 → ``1e-13``
 
-    nthreads : int, optional
-        Number of threads for ducc. If 0 (default), ducc uses the
-        number of hardware threads.
+    nthreads : int or None, optional
+        Number of threads for ducc. If None, resolved via
+        :func:`.resolve_nthreads`.
 
     Returns
     -------
@@ -2426,6 +2429,8 @@ def interpolate_alm(
         If the input shapes are inconsistent or ``nstokes`` is not 1 or 3.
     """
 
+    nthreads = resolve_nthreads(nthreads)
+
     alm = np.asarray(alms.values)
     loc = np.asarray(locations, dtype=np.float64)
     if loc.ndim != 2 or loc.shape[1] != 2:
@@ -2433,6 +2438,21 @@ def interpolate_alm(
             f"`locations` must have shape (N, 2) [theta, phi]; got {loc.shape!r}"
         )
     N = loc.shape[0]
+
+    # `ducc0.sht.synthesis_general` requires phi in [0, 2*pi). Pointings in
+    # Galactic coordinates already satisfy this (`rotate_coordinates_e2g`
+    # returns phi in [0, 2*pi)), but pointings left in Ecliptic (or any other
+    # frame) typically have phi in [-pi, pi] and would make it crash with a
+    # "phi out of range" assertion. Wrap into range on a copy: `np.asarray`
+    # above may have returned the caller's own array unchanged.
+    phi = loc[:, 1]
+    if np.any((phi < 0.0) | (phi >= 2.0 * np.pi)):
+        loc = loc.copy()
+        phi = loc[:, 1]
+        np.mod(phi, 2.0 * np.pi, out=phi)
+        # `np.mod` of a tiny negative number (e.g. -1e-17) can round to
+        # exactly 2*pi; fold that back into range.
+        phi[phi >= 2.0 * np.pi] = 0.0
 
     # Choose epsilon if not given, respecting ducc constraints
     dtype = alm.dtype if alm.ndim == 2 else alm.dtype
@@ -2531,7 +2551,7 @@ def pixelize_alm(
     nest: bool = False,
     lmax: int | None = None,
     mmax: int | None = None,
-    nthreads: int = 0,
+    nthreads: int | None = None,
 ) -> "HealpixMap":
     r"""
     Convert spherical harmonics coefficients to a HEALPix map using
@@ -2584,9 +2604,9 @@ def pixelize_alm(
         ``lmax``/``mmax`` is requested than what is stored in ``alms``,
         the coefficient array is truncated accordingly.
 
-    nthreads : int, optional
-        Number of threads passed to ducc. If zero (default), ducc chooses
-        the number of threads.
+    nthreads : int or None, optional
+        Number of threads passed to ducc. If None, resolved via
+        :func:`.resolve_nthreads`.
 
     Returns
     -------
@@ -2605,6 +2625,8 @@ def pixelize_alm(
         or if requested ``lmax``/``mmax`` are inconsistent with the
         available coefficients.
     """
+    nthreads = resolve_nthreads(nthreads)
+
     # --- basic checks / effective lmax, mmax -------------------------------
     if alms.nstokes not in (1, 3):
         raise ValueError(
@@ -2732,7 +2754,7 @@ def estimate_alm(
     mmax: int | None = None,
     maxiter: int | None = None,
     epsilon: float | None = None,
-    nthreads: int = 0,
+    nthreads: int | None = None,
 ) -> SphericalHarmonics:
     r"""
     Estimate spherical harmonic coefficients ($a_{\ell m}$) from a HEALPix map.
@@ -2802,9 +2824,9 @@ def estimate_alm(
         * ``complex64`` output  -> ``1e-6``
         * ``complex128`` output -> ``1e-13``
 
-    nthreads : int, optional
-        Number of threads passed to ducc. If zero (default), ducc chooses
-        the number of threads.
+    nthreads : int or None, optional
+        Number of threads passed to ducc. If None, resolved via
+        :func:`.resolve_nthreads`.
 
     Returns
     -------
@@ -2826,6 +2848,8 @@ def estimate_alm(
         If the HealpixMap object has unsupported ``nstokes``,
         or if requested ``lmax``/``mmax`` are inconsistent.
     """
+    nthreads = resolve_nthreads(nthreads)
+
     # --- validate maxiter ---------------------------------------------------
     if maxiter is not None:
         if not isinstance(maxiter, int):
@@ -3028,7 +3052,7 @@ def rotate_alm(
     phi: float | None = None,
     mmax_out: int | None = None,
     inplace: bool = False,
-    nthreads: int = 0,
+    nthreads: int | None = None,
 ) -> SphericalHarmonics:
     """
     Rotate spherical harmonic coefficients using ducc0.
@@ -3055,8 +3079,9 @@ def rotate_alm(
         If True, modifies the input `alms` object in place.
         Note: In-place rotation is only possible if `mmax_out` is equal to
         `alms.mmax` (output size must match input size).
-    nthreads : int, optional, keyword-only
-        Number of threads to use for the rotation. Default is 0 (use all available).
+    nthreads : int or None, optional, keyword-only
+        Number of threads to use for the rotation. If None, resolved via
+        :func:`.resolve_nthreads`.
 
     Returns
     -------
@@ -3070,6 +3095,8 @@ def rotate_alm(
         - If `mmax_out` > `alms.lmax`.
         - If `inplace=True` is requested but `mmax_out` differs from `alms.mmax`.
     """
+
+    nthreads = resolve_nthreads(nthreads)
 
     # 1. Retrieve Geometry from Input
     lmax_in = alms.lmax

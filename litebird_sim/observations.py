@@ -156,10 +156,14 @@ class Observation:
 
     # Dynamic attributes set by mapmaker
     net_ukrts: int | float | npt.NDArray
+    pol_efficiency: npt.NDArray
     wafer: str | None
 
     # Dynamic attributes set by beam synthesis
     name: list
+    channel: list
+    bandcenter_ghz: npt.NDArray
+    bandwidth_ghz: npt.NDArray
     fwhm_arcmin: npt.NDArray
     ellipticity: npt.NDArray
     psi_rad: npt.NDArray
@@ -1012,6 +1016,9 @@ class Observation:
                 "MPI is required for shared memory pointings, but the current time block communicator is not a valid MPI communicator."
             )
 
+        from mpi4py.MPI import Intracomm
+
+        assert isinstance(self.comm_time_block, Intracomm)
         self.shared_memory_manager = SharedMemoryManager(base_comm=self.comm_time_block)
 
         n_quats = spin2ecliptic_quats.quats.shape[0]

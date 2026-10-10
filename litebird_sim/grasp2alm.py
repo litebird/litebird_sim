@@ -71,6 +71,7 @@ class BeamHealpixMap:
         mmax: int,
         epsilon=1e-8,
         max_num_of_iterations=20,
+        nthreads: int | None = None,
     ) -> np.ndarray:
         """Converts the beam map to spherical harmonic coefficients.
 
@@ -79,6 +80,8 @@ class BeamHealpixMap:
             mmax (`int`): Maximum m value for the spherical harmonic expansion.
             epsilon (`float`): Precision of the result
             max_num_of_iterations (`int`): Maximum number of iterations
+            nthreads (`int` or `None`): Number of threads to use. If None,
+                resolved via :func:`.resolve_nthreads`.
 
         Returns:
             `numpy.ndarray`: The spherical harmonic coefficients, as a (3, N) array.
@@ -87,6 +90,8 @@ class BeamHealpixMap:
             AssertionError: If ``lmax`` is greater than 3*``nside``-1 or if ``mmax`` is greater than ``lmax``.
 
         """
+
+        nthreads = resolve_nthreads(nthreads)
 
         if not self.map.shape[0] <= 3:
             raise ValueError(
@@ -105,7 +110,7 @@ class BeamHealpixMap:
             lmax=lmax,
             mmax=mmax,
             spin=0,
-            nthreads=0,
+            nthreads=nthreads,
             maxiter=max_num_of_iterations,
             epsilon=epsilon,
             **geom,
@@ -123,7 +128,7 @@ class BeamHealpixMap:
             lmax=lmax,
             mmax=mmax,
             spin=2,
-            nthreads=0,
+            nthreads=nthreads,
             maxiter=max_num_of_iterations,
             epsilon=epsilon,
             **geom,

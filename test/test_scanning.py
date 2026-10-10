@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from astropy.time import Time
+import astropy.units as u
 import numpy as np
 import litebird_sim as lbs
 from litebird_sim import IdealHWP
@@ -589,3 +590,64 @@ def test_chunked_pointing_generation():
 
     # ψ
     np.testing.assert_allclose(pointing_buf[:, 2], 0, atol=1e-15)
+
+
+@pytest.mark.parametrize("use_astropy_time", [False, True])
+def test_pointings_use_only_the_needed_quaternions(use_astropy_time):
+    # The pointings computed by PointingProvider on a short window far from the
+    # beginning of a long simulation must match the slerp done on the
+    # quaternions of the whole simulation
+    start_time_global = Time("2030-01-01T00:00:00") if use_astropy_time else 0.0
+    duration_s = 30 * 86400.0
+    sstr = lbs.SpinningScanningStrategy(
+        spin_sun_angle_rad=np.deg2rad(45.0),
+        precession_rate_hz=1.0 / (192.348 * 60),
+        spin_rate_hz=0.05 / 60,
+    )
+    spin2ecl = sstr.generate_spin2ecl_quaternions(
+        start_time=start_time_global, time_span_s=duration_s, delta_time_s=60.0
+    )
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50.0))
+    bore2ecl = spin2ecl * lbs.RotQuaternion(instr.bore2spin_quat)
+    det_quat = lbs.RotQuaternion(quats=np.array([0.0, np.sin(0.05), 0.0, np.cos(0.05)]))
+
+    # Small internal buffer, so that the window is split in several blocks
+    pp = lbs.PointingProvider(
+        bore2ecliptic_quats=bore2ecl,
+        maximum_internal_buffer_mem_mb=(32 * 1000) / (1024 * 1024),
+    )
+
+    sampling_rate_hz = 5.0
+    nsamples = 3600
+    offset_s = 20 * 86400.0 + 1234.5
+    if use_astropy_time:
+        start_time = start_time_global + offset_s * u.s
+    else:
+        start_time = start_time_global + offset_s
+
+    pointings, _ = pp.get_pointings(
+        detector_quat=det_quat,
+        start_time=start_time,
+        start_time_global=start_time_global,
+        sampling_rate_hz=sampling_rate_hz,
+        nsamples=nsamples,
+    )
+
+    full_quats = (bore2ecl * det_quat).slerp(
+        start_time=start_time, sampling_rate_hz=sampling_rate_hz, nsamples=nsamples
+    )
+    expected = np.empty((nsamples, 3))
+    lbs.scanning.all_compute_pointing_and_orientation(
+        result_matrix=expected, quat_matrix=full_quats
+    )
+
+    # Only the quaternions around the window (60 s apart) must be used
+    sliced = lbs.pointings._slice_quaternions(
+        bore2ecl, start_time=start_time, time_span_s=nsamples / sampling_rate_hz
+    )
+    assert sliced.quats.shape[0] <= nsamples / sampling_rate_hz / 60.0 + 4
+
+    np.testing.assert_allclose(pointings[:, 0], expected[:, 0], atol=1e-9)
+    for col in (1, 2):
+        diff = (pointings[:, col] - expected[:, col] + np.pi) % (2 * np.pi) - np.pi
+        np.testing.assert_allclose(diff, 0.0, atol=1e-9)

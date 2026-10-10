@@ -148,8 +148,8 @@ Examples
 -------------
 
 Examples can be seen in the notebooks:
-    1 - `Performing a simulation with explicit HWP harmonics expansion <https://github.com/litebird/litebird_sim/blob/master/notebooks/litebird_sim_hwp_harmonics_example.ipynb>`_
-    2 - `Performing band integration with a Jones Matrix <https://github.com/litebird/litebird_sim/blob/master/notebooks/litebird_sim_hwp_band_integration.ipynb>`_
+    1 - :doc:`Performing a simulation with explicit HWP harmonics expansion <tutorials/litebird_sim_hwp_harmonics_example>`
+    2 - :doc:`Performing band integration with a Jones Matrix <tutorials/litebird_sim_hwp_band_integration>`
 
 
 

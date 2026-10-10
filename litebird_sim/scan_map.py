@@ -12,7 +12,7 @@ from .hwp_non_ideal import NonIdealHWP
 from .input_sky import SkyInput
 from .maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
 from .observations import Observation
-from .pointings_in_obs import (
+from .observation_utilities import (
     _get_hwp_angle,
     _get_pointings_array,
     _get_pol_angle,
@@ -121,7 +121,7 @@ def scan_map(
     input_names: str | None = None,
     interpolation: str | None = "",
     pointings_dtype=np.float64,
-    nthreads: int = 0,
+    nthreads: int | None = None,
 ):
     """
     Scan a sky map and fill time-ordered data (TOD) based on detector observations.
@@ -190,9 +190,9 @@ def scan_map(
     pointings_dtype : dtype, optional
         Data type for pointings generated on the fly.
 
-    nthreads : int, default=0
-        Number of threads to use for convolution. If set to 0, all available CPU cores
-        will be used.
+    nthreads : int or None, default=None
+        Number of threads to use for convolution. If None, resolved via
+        :func:`.resolve_nthreads`.
 
     Raises
     ------
@@ -209,6 +209,8 @@ def scan_map(
     - This function is crucial for simulating realistic observations in CMB and astrophysical
       experiments.
     """
+
+    nthreads = resolve_nthreads(nthreads)
 
     n_detectors = tod.shape[0]
 
@@ -262,6 +264,7 @@ def scan_map(
             hwp_angle=hwp_angle,
             output_coordinate_system=coordinates,
             pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
         )
 
         # ----------------------------------------------------------

@@ -15,7 +15,7 @@ from .coordinates import CoordinateSystem
 from .hwp import HWP
 from .mapmaking import ExternalDestriperParameters
 from .observations import Observation
-from .pointings_in_obs import _get_pointings_and_pol_angles_det
+from .observation_utilities import _get_pointings_and_pol_angles_det
 from .simulations import MpiDistributionDescr, Simulation
 
 

@@ -21,7 +21,7 @@ from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
-from litebird_sim.pointings_in_obs import (
+from litebird_sim.observation_utilities import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
@@ -36,6 +36,7 @@ from .common import (
     _check_valid_splits,
     _compute_pixel_indices,
     get_map_making_weights,
+    get_pol_efficiency,
 )
 
 
@@ -100,6 +101,8 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
     psi_b: npt.NDArray,
     weight_t: float,
     weight_b: float,
+    pol_eff_t: float,
+    pol_eff_b: float,
     t_mask: npt.NDArray,
     nobs_matrix: npt.NDArray,
     rhs: npt.NDArray,
@@ -110,8 +113,9 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
     #
     # For a T/B pair, the differenced TOD is modeled as
     #
-    #   d_T - d_B = Q·(cos(2ψ_T) - cos(2ψ_B)) + U·(sin(2ψ_T) - sin(2ψ_B))
+    #   d_T - d_B = Q·(γ_T·cos(2ψ_T) - γ_B·cos(2ψ_B)) + U·(γ_T·sin(2ψ_T) - γ_B·sin(2ψ_B))
     #
+    # where γ is the polarization efficiency of each detector.
     # The pair weight is defined as the average of the two detector weights
     # ψ is the proper sum of the detector polarization angle and the HWP angle (if present)
 
@@ -133,8 +137,12 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
             pix_t, psi_t, psi_b, t_mask
         ):
             if cur_t_mask:
-                pair_cos = np.cos(2 * cur_psi_t) - np.cos(2 * cur_psi_b)
-                pair_sin = np.sin(2 * cur_psi_t) - np.sin(2 * cur_psi_b)
+                pair_cos = pol_eff_t * np.cos(2 * cur_psi_t) - pol_eff_b * np.cos(
+                    2 * cur_psi_b
+                )
+                pair_sin = pol_eff_t * np.sin(2 * cur_psi_t) - pol_eff_b * np.sin(
+                    2 * cur_psi_b
+                )
                 info_pix = nobs_matrix[cur_pix_idx]
 
                 info_pix[0, 0] += pair_cos * pair_cos * inv_sigma2
@@ -152,8 +160,12 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
     ) in zip(tod_t, tod_b, pix_t, psi_t, psi_b, t_mask):
         if cur_t_mask:
             pair_sample = cur_sample_t - cur_sample_b
-            pair_cos = np.cos(2 * cur_psi_t) - np.cos(2 * cur_psi_b)
-            pair_sin = np.sin(2 * cur_psi_t) - np.sin(2 * cur_psi_b)
+            pair_cos = pol_eff_t * np.cos(2 * cur_psi_t) - pol_eff_b * np.cos(
+                2 * cur_psi_b
+            )
+            pair_sin = pol_eff_t * np.sin(2 * cur_psi_t) - pol_eff_b * np.sin(
+                2 * cur_psi_b
+            )
             rhs_pix = rhs[cur_pix_idx]
 
             rhs_pix[0] += pair_sample * pair_cos * inv_sigma2
@@ -182,6 +194,7 @@ def _build_nobs_matrix(
         zip(obs_list, ptg_list, dm_list, tm_list)
     ):
         cur_weights = get_map_making_weights(cur_obs, check=True)
+        cur_pol_eff = get_pol_efficiency(cur_obs)
 
         # Determine the HWP angle to use:
         # - If an external HWP object is provided, compute the angle from it
@@ -230,6 +243,8 @@ def _build_nobs_matrix(
                     polang_all[b_idx],
                     cur_weights[t_idx],
                     cur_weights[b_idx],
+                    cur_pol_eff[t_idx],
+                    cur_pol_eff[b_idx],
                     cur_t_mask,
                     nobs_matrix,
                     rhs,

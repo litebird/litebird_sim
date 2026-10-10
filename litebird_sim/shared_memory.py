@@ -128,7 +128,7 @@ class SharedMemoryManager:
         )
         buf, _ = win.Shared_query(rank=comm_root)
         # np.ndarray provides the view, it doesn't owns the memory
-        array = np.ndarray(shape=size, dtype=dtype, buffer=buf)
+        array = np.ndarray(shape=size, dtype=dtype, buffer=cast(memoryview, buf))
 
         handle = comm.handle
         if handle not in self._list_windows:
