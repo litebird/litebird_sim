@@ -5,6 +5,7 @@ import logging as log
 import os
 import subprocess
 from collections import namedtuple
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -71,7 +72,13 @@ from .observation_utilities import (
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
-from .scanning import ScanningStrategy, SpinningScanningStrategy
+from .scanning import (
+    RotQuaternion,
+    ScanningStrategy,
+    SharedRotQuaternion,
+    SpinningScanningStrategy,
+)
+from .shared_memory import SharedMemoryManager
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .units import Units
@@ -404,6 +411,9 @@ class Simulation:
         self.hwp: HWP | None = None
 
         self.spin2ecliptic_quats = None
+
+        # Created on demand by the methods that accept `shared_memory=True`
+        self._shared_memory_manager: SharedMemoryManager | None = None
 
         self.description = description
 
@@ -1505,6 +1515,7 @@ class Simulation:
         imo_url: None | str = None,
         delta_time_s: float = 60.0,
         append_to_report: bool = True,
+        shared_memory: bool = False,
     ):
         """Simulate the motion of the spacecraft in free space
 
@@ -1540,6 +1551,10 @@ class Simulation:
         in the report saved by the :class:`.Simulation` object. This will
         be done only if the process has rank #0.
 
+        If `shared_memory` is ``True``, the quaternions are computed once per
+        computing node and kept in MPI shared memory, which all the MPI
+        processes running on that node read. This requires MPI.
+
         """
         assert not (scanning_strategy and imo_url), (
             "you must either specify scanning_strategy or imo_url (but not"
@@ -1554,12 +1569,20 @@ class Simulation:
                 imo=self.imo, url=imo_url
             )
 
-        # TODO: if MPI is enabled, we should probably parallelize this call
-        self.spin2ecliptic_quats = scanning_strategy.generate_spin2ecl_quaternions(
-            start_time=self.start_time,
-            time_span_s=self.duration_s,
-            delta_time_s=delta_time_s,
-        )
+        def generate_quaternions() -> RotQuaternion:
+            return scanning_strategy.generate_spin2ecl_quaternions(
+                start_time=self.start_time,
+                time_span_s=self.duration_s,
+                delta_time_s=delta_time_s,
+            )
+
+        if shared_memory:
+            self.spin2ecliptic_quats = self._share_quaternions_in_node(
+                generate_quaternions
+            )
+        else:
+            # TODO: if MPI is enabled, we should probably parallelize this call
+            self.spin2ecliptic_quats = generate_quaternions()
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
         num_of_obs = len(self.observations)
@@ -1577,6 +1600,62 @@ class Simulation:
                 delta_time_s=delta_time_s,
                 quat_memory_size_bytes=quat_memory_size_bytes,
             )
+
+    def _share_quaternions_in_node(
+        self, compute: Callable[[], RotQuaternion]
+    ) -> SharedRotQuaternion:
+        """Compute quaternions once per node and share them in MPI shared memory
+
+        Only the root process of each node calls `compute`; the result is
+        copied into a MPI shared-memory window, which the other processes
+        running on the same node can only read.
+        """
+        if self._shared_memory_manager is None:
+            if not MPI_ENABLED:
+                raise RuntimeError(
+                    "shared_memory=True requires MPI, but MPI is not enabled "
+                    "(mpi4py is not installed or LITEBIRD_SIM_MPI is set to 0)"
+                )
+
+            from mpi4py.MPI import Intracomm
+
+            assert isinstance(self.mpi_comm, Intracomm)
+            self._shared_memory_manager = SharedMemoryManager(base_comm=self.mpi_comm)
+
+        manager = self._shared_memory_manager
+        is_node_root = manager.node_rank == manager.node_root
+
+        quats = compute() if is_node_root else None
+        shape, dtype, start_time, sampling_rate_hz = manager.node_comm.bcast(
+            (
+                quats.quats.shape,
+                quats.quats.dtype,
+                quats.start_time,
+                quats.sampling_rate_hz,
+            )
+            if quats is not None
+            else None,
+            root=manager.node_root,
+        )
+
+        flat_array, win = manager.alloc_shared_node(
+            size=int(np.prod(shape)), dtype=dtype
+        )
+        shared_quats = flat_array.reshape(shape)
+
+        win.Fence()
+        if quats is not None:
+            shared_quats[:] = quats.quats
+        win.Fence()
+
+        if not is_node_root:
+            shared_quats.flags.writeable = False
+
+        return SharedRotQuaternion(
+            quats=shared_quats,
+            start_time=start_time,
+            sampling_rate_hz=sampling_rate_hz,
+        )
 
     def set_instrument(self, instrument: InstrumentInfo):
         """Set the instrument to be used in the simulation.
@@ -1615,6 +1694,7 @@ class Simulation:
     def prepare_pointings(
         self,
         append_to_report: bool = True,
+        shared_memory: bool = False,
     ):
         """Trigger the computation of the quaternions needed to compute pointings.
 
@@ -1626,6 +1706,11 @@ class Simulation:
         It combines the quaternions of the spacecraft, of the instrument, and of the detectors
         and prepares a number of data structures that will be used by the method
         :meth:`.Observation.get_pointings` to determine the pointing angles and the HWP angle.
+
+        The boresight quaternions are the same for all the observations, which
+        share one copy of them. If `shared_memory` is ``True``, this copy is
+        computed once per computing node and kept in MPI shared memory, which
+        all the MPI processes running on that node read. This requires MPI.
         """
         assert self.observations, (
             "You must call Simulation.create_observations() "
@@ -1640,16 +1725,35 @@ class Simulation:
             "before calling Simulation.prepare_pointings"
         )
 
-        prepare_pointings(
-            observations=self.observations,
-            instrument=self.instrument,
-            spin2ecliptic_quats=self.spin2ecliptic_quats,
-            hwp=self.hwp,
-        )
+        if shared_memory:
+            instrument = self.instrument
+            spin2ecliptic_quats = self.spin2ecliptic_quats
+            bore2ecliptic_quats = self._share_quaternions_in_node(
+                lambda: spin2ecliptic_quats * instrument.bore2spin_quat
+            )
+            for cur_obs in self.observations:
+                cur_obs._set_pointing_provider(
+                    bore2ecliptic_quats=bore2ecliptic_quats, hwp=self.hwp
+                )
+        else:
+            prepare_pointings(
+                observations=self.observations,
+                instrument=self.instrument,
+                spin2ecliptic_quats=self.spin2ecliptic_quats,
+                hwp=self.hwp,
+            )
 
         pointing_provider = self.observations[0].pointing_provider
 
+        # One copy of the quaternions per MPI process, or per node with shared memory
         memory_occupation = pointing_provider.bore2ecliptic_quats.quats.nbytes
+        if shared_memory:
+            assert self._shared_memory_manager is not None
+            if (
+                self._shared_memory_manager.node_rank
+                != self._shared_memory_manager.node_root
+            ):
+                memory_occupation = 0
         num_of_obs = len(self.observations)
         if append_to_report and MPI_ENABLED:
             memory_occupation = self.mpi_comm.allreduce(memory_occupation)

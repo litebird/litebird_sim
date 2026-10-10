@@ -362,7 +362,10 @@ When using MPI, the relatively small size in memory of the quaternions
 (the thick black lines in the figure) enables the framework to keep
 a duplicate of the list in all the MPI processes. This is unlike
 what happens with the data in TODs (the thin gray lines), which are
-split in several blocks inside the :class:`.Observation` class.
+split in several blocks inside the :class:`.Observation` class. If
+these duplicates take too much memory (e.g., because ``delta_time_s``
+is small), you can keep only one copy per computing node in MPI shared
+memory: see Section :ref:`shared-memory`.
 
 .. note::
 
@@ -432,6 +435,125 @@ or with the methods of the :class:`.Simulation`::
     sim.create_observations(detectors=[det])
     sim.prepare_pointings()
     sim.precompute_pointings(pointings_dtype=np.float64)
+
+
+.. _shared-memory:
+
+Saving memory for pointing quaternions
+--------------------------------------
+
+As explained above, the framework does not store the pointing
+direction of every sample, but a list of quaternions sampled at a
+lower rate (one every ``delta_time_s`` seconds, as
+specified in :meth:`.Simulation.set_scanning_strategy`), which are
+interpolated on the fly when pointings are needed. These quaternions
+always span the *whole* simulation, and their size is
+
+.. math::
+
+   32\,\text{bytes} \times \left(\frac{\text{duration}}{\Delta t} + 1\right),
+
+which is ~17 MB for one year and :math:`\Delta t = 60\,\mathrm{s}` (the
+default), but ~1 GB for :math:`\Delta t = 1\,\mathrm{s}`.
+
+Two lists of quaternions are kept in memory:
+
+- The spin-axis-to-Ecliptic quaternions, computed by
+  :meth:`.Simulation.set_scanning_strategy` and stored in the field
+  ``spin2ecliptic_quats`` of the :class:`.Simulation` object;
+
+- The boresight-to-Ecliptic quaternions, computed by
+  :meth:`.Simulation.prepare_pointings` (or :func:`.prepare_pointings`)
+  and used by the :class:`.PointingProvider` of every
+  :class:`.Observation`.
+
+The boresight quaternions are the same for every observation, so
+:meth:`.Simulation.prepare_pointings` computes them once and all the
+observations share the same copy. (Calling
+:meth:`.Observation.prepare_pointings` on each observation instead
+creates one copy per observation, which can take a lot of memory if
+you split the simulation in many observations: with one observation
+per day, a one-year simulation would need ~6 GB per MPI process.)
+
+When using MPI, every MPI process keeps its own copy of the two lists.
+If you run many MPI processes on the same computing node, these copies
+are identical and can add up to a significant amount of memory, when
+``delta_time_s`` is small or the simulation is long. In this case, you
+can ask the framework to keep only one copy per node in *MPI shared
+memory*.
+
+
+Using MPI shared memory
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Both :meth:`.Simulation.set_scanning_strategy` and
+:meth:`.Simulation.prepare_pointings` accept the parameter
+``shared_memory``::
+
+    import litebird_sim as lbs
+
+    sim = lbs.Simulation(...)
+    sim.set_scanning_strategy(..., delta_time_s=1.0, shared_memory=True)
+    sim.set_instrument(...)
+    sim.create_observations(...)
+    sim.prepare_pointings(shared_memory=True)
+
+With ``shared_memory=True``, the framework groups the MPI processes in
+:attr:`.Simulation.mpi_comm` running on the same node. Within each node,
+only one process (the *node root*) computes the quaternions and writes
+them into a MPI shared-memory window; all the other processes on the
+node read them from there. The result is wrapped in a
+:class:`.SharedRotQuaternion` object, which behaves like a
+:class:`.RotQuaternion`. The pointings are identical to the ones
+computed without shared memory.
+
+Here are a few things to keep in mind:
+
+- MPI must be enabled (see Section :ref:`using_mpi`): if it is
+  not, the two methods raise a ``RuntimeError``.
+
+- The two methods are *collective*: all the MPI processes in
+  :attr:`.Simulation.mpi_comm` must call them. This is already what
+  happens in a typical script, and it works with any value of the
+  parameter ``split_list_over_processes`` of
+  :meth:`.Simulation.create_observations` and with any layout of the
+  detector and time blocks.
+
+- On every process but the node root, the shared quaternions are
+  read-only: modifying them raises an exception.
+
+- With ``prepare_pointings(shared_memory=True)``, the boresight
+  quaternions of the whole node are computed from the
+  ``spin2ecliptic_quats`` of the node root. Do not use it if these
+  quaternions differ among the MPI processes, for instance because you
+  injected pointing systematics (see :ref:`pointing_sys`) in a way that
+  depends on the process.
+
+- The shared-memory windows are freed automatically when the Python
+  interpreter exits, before MPI is finalized. (MPI requires this, and
+  some MPI implementations hang at exit otherwise.)
+
+As an example, here is the memory used after
+:meth:`.Simulation.prepare_pointings` by a one-year simulation with one
+observation per day, running on one node of Galileo100 with 16 MPI
+processes (the numbers include ~5 GB used by the Python interpreter and
+the libraries):
+
+========================  =====================  =========================
+``delta_time_s``          ``shared_memory``      Memory used by the node
+========================  =====================  =========================
+10 s                      ``False``              13.6 GB
+10 s                      ``True``               5.8 GB
+========================  =====================  =========================
+
+Note that shared memory does not make the computation faster: the
+node root must still compute all the quaternions.
+
+
+The allocation of the shared memory is implemented by the class
+:class:`.SharedMemoryManager`, which you can use to share other arrays
+among the MPI processes running on the same node: see Section
+:ref:`mpi-shared-memory`.
 
 
 How the boresight is specified

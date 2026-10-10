@@ -959,6 +959,24 @@ class Observation:
             internal :class:`.PointingProvider`.
         """
 
+        self._set_pointing_provider(
+            bore2ecliptic_quats=spin2ecliptic_quats * instrument.bore2spin_quat,
+            hwp=hwp,
+            maximum_internal_buffer_mem_mb=maximum_internal_buffer_mem_mb,
+        )
+
+    def _set_pointing_provider(
+        self,
+        bore2ecliptic_quats: RotQuaternion,
+        hwp: HWP | None = None,
+        maximum_internal_buffer_mem_mb: float = DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB,
+    ) -> None:
+        """Build the :class:`.PointingProvider` from the boresight-to-Ecliptic quaternions
+
+        The quaternions are used as they are, without copying them: several
+        observations can thus share the same :class:`.RotQuaternion` object.
+        """
+
         assert (maximum_internal_buffer_mem_mb > 0) or (
             maximum_internal_buffer_mem_mb == -1
         ), (
@@ -967,7 +985,6 @@ class Observation:
             )
         )
 
-        bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
         pointing_provider = PointingProvider(
             bore2ecliptic_quats=bore2ecliptic_quats,
             hwp=hwp,
@@ -1274,7 +1291,7 @@ class Observation:
         self.comm_det_block = _SerialMpiCommunicator()
         self.comm_time_block = _SerialMpiCommunicator()
 
-        if self.comm and self.comm.size > 1:
+        if hasattr(self.comm, "Split"):
             det_color = self.comm.rank // self.n_blocks_time
             time_color = self.comm.rank % self.n_blocks_time
             self.comm_det_block = self.comm.Split(det_color)

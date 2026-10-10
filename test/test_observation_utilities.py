@@ -137,3 +137,35 @@ def test_for_each_observation_with_pointings_pairs_lists():
     ):
         assert cur_obs is exp_obs
         assert cur_ptg is exp_ptg
+
+
+def test_prepare_pointings_shares_boresight_quaternions():
+    """All the observations must share one copy of the boresight quaternions (#489)"""
+    sim = lbs.Simulation(start_time=0.0, duration_s=3600.0, random_seed=12345)
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.radians(45),
+            spin_rate_hz=1 / 600,
+            precession_rate_hz=1 / 6000,
+        ),
+        delta_time_s=60.0,
+    )
+    instr = lbs.InstrumentInfo(spin_boresight_angle_rad=np.radians(50))
+    sim.set_instrument(instr)
+    det = lbs.DetectorInfo(name="det", sampling_rate_hz=1.0)
+    sim.create_observations(detectors=[det], num_of_obs_per_detector=4)
+
+    sim.prepare_pointings(append_to_report=False)
+
+    first_quats = sim.observations[0].pointing_provider.bore2ecliptic_quats
+    for cur_obs in sim.observations[1:]:
+        assert cur_obs.pointing_provider.bore2ecliptic_quats is first_quats
+
+    # Sharing the quaternions must not change the pointings
+    for cur_obs in sim.observations:
+        shared_pointings, _ = cur_obs.get_pointings()
+        cur_obs.prepare_pointings(
+            instrument=instr, spin2ecliptic_quats=sim.spin2ecliptic_quats
+        )
+        own_pointings, _ = cur_obs.get_pointings()
+        np.testing.assert_array_equal(shared_pointings, own_pointings)
