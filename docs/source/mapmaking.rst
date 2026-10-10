@@ -803,12 +803,16 @@ If `pysanepic <https://github.com/litebird/pysanepic>`_ is installed,
 computes GLS maps accounting for 1/f noise (SANEPIC algorithm). The noise
 covariance of each detector is built from the same parameters used to
 simulate the noise (``net_ukrts``, ``fknee_mhz``, ``alpha``, ``fmin_hz``) and
-applied in Fourier space on chunks of ``chunk_s`` seconds; HWP and
+applied in Fourier space on chunks of ``params.chunk_s`` seconds; HWP and
 polarization efficiency are taken into account:
 
 .. code-block:: python
 
-  result = sim.make_sanepic_gls_map(nside=nside, chunk_s=3600.0)
+  from pysanepic import GLSParameters
+
+  result = sim.make_sanepic_gls_map(
+      nside=nside, params=GLSParameters(chunk_s=3600.0)
+  )
   result.maps        # I, Q, U (healpy.UNSEEN where not solved)
   result.hit_map
   result.converged, result.iterations

@@ -10,7 +10,9 @@ import pytest
 
 import litebird_sim as lbs
 
-pytest.importorskip(modname="pysanepic", reason="Couldn't import 'pysanepic' module")
+pysanepic = pytest.importorskip(
+    modname="pysanepic", reason="Couldn't import 'pysanepic' module"
+)
 
 
 def test_import_error():
@@ -76,7 +78,9 @@ def test_sanepic_noiseless_matches_binner():
         sim.fill_tods()
 
         binned = sim.make_binned_map(nside=nside).binned_map
-        result = sim.make_sanepic_gls_map(nside=nside, chunk_s=1700.0)
+        result = sim.make_sanepic_gls_map(
+            nside=nside, params=pysanepic.GLSParameters(chunk_s=1700.0)
+        )
 
     assert result.converged
     good = (

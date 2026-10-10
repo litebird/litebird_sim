@@ -46,14 +46,7 @@ def make_sanepic_gls_map(
     hwp: HWP | None = None,
     components: str | list[str] = "tod",
     output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
-    chunk_s: float = 3600.0,
-    pad_s: float = 0.0,
-    pad_fill: str = "zeros",
-    pol: bool = True,
-    preconditioner: str = "block",
-    min_pol_rcond: float = 1e-2,
-    tol: float = 1e-12,
-    maxiter: int = 2000,
+    params: "pysanepic.GLSParameters | None" = None,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
 ) -> "pysanepic.MapResult":
@@ -63,7 +56,7 @@ def make_sanepic_gls_map(
     The noise covariance of each detector is modelled from the same
     parameters used by :func:`.add_noise_to_observations` (``net_ukrts``,
     ``fknee_mhz``, ``alpha``, ``fmin_hz``) and applied in Fourier space on
-    chunks of ``chunk_s`` seconds.
+    chunks of ``params.chunk_s`` seconds.
 
     Parameters
     ----------
@@ -79,24 +72,10 @@ def make_sanepic_gls_map(
         TOD components summed before map-making, by default "tod"
     output_coordinate_system : CoordinateSystem, optional
         Coordinate system of the output map, by default Galactic
-    chunk_s : float, optional
-        Duration of the chunks on which N^-1 is applied, by default 3600 s
-    pad_s : float, optional
-        Padding added to both sides of each chunk to avoid the FFT
-        wrap-around (seconds), by default 0 (no padding)
-    pad_fill : str, optional
-        "zeros" (default) or "extrapolate"
-    pol : bool, optional
-        If True (default) solve for I, Q, U, otherwise for I only
-    preconditioner : str, optional
-        "block" (default, 3×3 I/Q/U block per pixel) or "jacobi" (original SANEPIC)
-    min_pol_rcond : float, optional
-        Q/U are solved only where the polarization-angle coverage gives a
-        reciprocal condition number >= this value, by default 1e-2
-    tol : float, optional
-        PCG stops when |r|²/|b|² < tol, by default 1e-12
-    maxiter : int, optional
-        Maximum number of PCG iterations, by default 2000
+    params : pysanepic.GLSParameters, optional
+        Settings of the map-maker (chunk length, padding, preconditioner, PCG
+        threshold, ...); by default ``pysanepic.GLSParameters()``. See the
+        pysanepic documentation for the fields.
     pointings_dtype : dtype, optional
         dtype used to compute pointings on the fly, by default `np.float64`
     nthreads : int, optional
@@ -159,14 +138,7 @@ def make_sanepic_gls_map(
         detector_data(),
         nside,
         coordinates=_COORDINATES[output_coordinate_system],
-        chunk_s=chunk_s,
-        pad_s=pad_s,
-        pad_fill=pad_fill,
-        pol=pol,
-        preconditioner=preconditioner,
-        min_pol_rcond=min_pol_rcond,
-        tol=tol,
-        maxiter=maxiter,
+        params=params,
         comm=comm,
         nthreads=resolve_nthreads(nthreads),
     )
