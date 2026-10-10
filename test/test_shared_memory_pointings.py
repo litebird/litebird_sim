@@ -94,3 +94,16 @@ def test_shared_prepare_pointings(tmp_path, split_list_over_processes):
         pointings_std, _ = obs_std.get_pointings()
         pointings_shared, _ = obs_shared.get_pointings()
         np.testing.assert_array_equal(pointings_std, pointings_shared)
+
+
+def test_shared_memory_windows_freed_at_exit(tmp_path):
+    # MPI windows must be freed before MPI_Finalize, otherwise some MPI
+    # implementations (e.g., Intel MPI) hang when the interpreter exits
+    sim = _make_simulation(tmp_path, "simulation_exit")
+    _set_scanning_strategy(sim, shared_memory=True)
+
+    manager = sim._shared_memory_manager
+    assert manager.list_windows
+
+    manager._free_at_exit()
+    assert not manager.list_windows

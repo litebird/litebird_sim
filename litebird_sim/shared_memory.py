@@ -1,3 +1,4 @@
+import atexit
 from typing import TYPE_CHECKING, cast
 import numpy as np
 import numpy.typing as npt
@@ -70,6 +71,15 @@ class SharedMemoryManager:
         # List of MPI shared memory windows
         self._list_windows: dict[int, list[MPI.Win]] = {}
         self._list_arrays: dict[int, list[npt.NDArray]] = {}
+
+        # MPI requires the windows to be freed before MPI_Finalize, which mpi4py
+        # calls when the interpreter exits: otherwise, some MPI implementations
+        # (e.g., Intel MPI) hang at exit
+        atexit.register(self._free_at_exit)
+
+    def _free_at_exit(self) -> None:
+        if not MPI.Is_finalized():
+            self.free_shared_arrays_all()
 
     @property
     def base_comm(self) -> "Intracomm":
