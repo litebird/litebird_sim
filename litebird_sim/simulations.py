@@ -1603,11 +1603,10 @@ class Simulation:
                 imo=self.imo, url=imo_url
             )
 
-        try:
-            import mpi4py  # noqa
-        except ImportError:
+        if not MPI_ENABLED:
             raise RuntimeError(
-                "`mpi4py` is required to set MPI shared memory scanning strategy."
+                "Simulation.set_scanning_strategy_shmem requires MPI, but MPI is not "
+                "enabled (mpi4py is not installed or LITEBIRD_SIM_MPI is set to 0)"
             )
 
         from mpi4py.MPI import Intracomm

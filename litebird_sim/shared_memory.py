@@ -1,12 +1,14 @@
-from typing import cast
+from typing import TYPE_CHECKING, cast
 import numpy as np
 import numpy.typing as npt
 
-try:
+from .mpi import MPI_ENABLED
+
+# Import mpi4py only if MPI is enabled: importing `mpi4py.MPI` initializes MPI,
+# which must not happen when the user sets LITEBIRD_SIM_MPI=0
+if MPI_ENABLED or TYPE_CHECKING:
     from mpi4py import MPI
     from mpi4py.MPI import Intracomm
-except ImportError:
-    pass
 
 
 class SharedMemoryManager:
@@ -51,9 +53,10 @@ class SharedMemoryManager:
         base_comm: "Intracomm",
         node_root: int = 0,
     ) -> None:
-        if "MPI" not in globals():
-            raise ImportError(
-                "mpi4py is not installed or enabled, but shared memory allocation was requested."
+        if not MPI_ENABLED:
+            raise RuntimeError(
+                "Shared memory allocation requires MPI, but MPI is not enabled "
+                "(mpi4py is not installed or LITEBIRD_SIM_MPI is set to 0)"
             )
 
         self._base_comm = base_comm
