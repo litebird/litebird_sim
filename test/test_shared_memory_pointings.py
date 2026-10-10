@@ -1,8 +1,8 @@
 import numpy as np
+import pytest
 
 import litebird_sim as lbs
-from litebird_sim.scanning import RotQuaternion, SharedRotQuaternion
-import pytest
+from litebird_sim.scanning import SharedRotQuaternion
 
 pytest.importorskip(
     modname="mpi4py",
@@ -11,129 +11,86 @@ pytest.importorskip(
 from mpi4py import MPI  # noqa: E402
 
 
+def _make_simulation(tmp_path, name):
+    sim = lbs.Simulation(
+        base_path=tmp_path / name,
+        start_time=0.0,
+        duration_s=100.0,
+        random_seed=12345,
+        mpi_comm=MPI.COMM_WORLD,
+    )
+    sim.set_instrument(
+        lbs.InstrumentInfo(name="test_inst", spin_boresight_angle_rad=np.deg2rad(50.0))
+    )
+    return sim
+
+
+def _set_scanning_strategy(sim, shared_memory):
+    sim.set_scanning_strategy(
+        scanning_strategy=lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45.0),
+            spin_rate_hz=1.0 / 60.0,
+            precession_rate_hz=1.0 / 600.0,
+        ),
+        delta_time_s=1.0,
+        append_to_report=False,
+        shared_memory=shared_memory,
+    )
+
+
+def _check_read_only_on_non_root(sim, quats):
+    manager = sim._shared_memory_manager
+    if manager.node_rank != manager.node_root:
+        assert not quats.flags.writeable
+
+
 def test_shared_scanning_strategy(tmp_path):
+    sim_std = _make_simulation(tmp_path, "simulation_std")
+    sim_shared = _make_simulation(tmp_path, "simulation_shared")
 
-    # Create two simulations
-    sim_std = lbs.Simulation(
-        base_path=tmp_path / "simulation_std",
-        start_time=0.0,
-        duration_s=10.0,
-        random_seed=12345,
-        mpi_comm=MPI.COMM_WORLD,
-    )
+    _set_scanning_strategy(sim_std, shared_memory=False)
+    _set_scanning_strategy(sim_shared, shared_memory=True)
 
-    sim_shared = lbs.Simulation(
-        base_path=tmp_path / "simulation_shared",
-        start_time=0.0,
-        duration_s=10.0,
-        random_seed=12345,
-        mpi_comm=MPI.COMM_WORLD,
-    )
-
-    # dummy scanning strategy class
-    class DummyScanningStrategy(lbs.ScanningStrategy):
-        def generate_spin2ecl_quaternions(self, start_time, time_span_s, delta_time_s):
-            n_samples = int(np.ceil(time_span_s / delta_time_s))
-            quats = np.random.randn(n_samples, 4)
-            quats /= np.linalg.norm(quats, axis=1)[:, np.newaxis]
-            return RotQuaternion(
-                quats, start_time=start_time, sampling_rate_hz=1.0 / delta_time_s
-            )
-
-    scanning_strategy = DummyScanningStrategy()
-
-    # We set a random seed here so the two instances generate the same quaternions
-    np.random.seed(123)
-    sim_std.set_scanning_strategy(
-        scanning_strategy=scanning_strategy, delta_time_s=1.0, append_to_report=False
-    )
-
-    np.random.seed(123)
-    sim_shared.set_scanning_strategy_shmem(
-        scanning_strategy=scanning_strategy, delta_time_s=1.0, append_to_report=False
-    )
-
-    q_std = sim_std.spin2ecliptic_quats.quats
-    q_shared = sim_shared.spin2ecliptic_quats.quats
-
-    np.testing.assert_allclose(q_std, q_shared)
     assert isinstance(sim_shared.spin2ecliptic_quats, SharedRotQuaternion)
+    np.testing.assert_array_equal(
+        sim_std.spin2ecliptic_quats.quats, sim_shared.spin2ecliptic_quats.quats
+    )
+    _check_read_only_on_non_root(sim_shared, sim_shared.spin2ecliptic_quats.quats)
 
 
-def test_shmem_bore2ecliptic_quats(tmp_path):
+@pytest.mark.parametrize("split_list_over_processes", [True, False])
+def test_shared_prepare_pointings(tmp_path, split_list_over_processes):
     comm_size = MPI.COMM_WORLD.size
+    sims = []
+    for name, shared_memory in [("std", False), ("shared", True)]:
+        sim = _make_simulation(tmp_path, f"simulation_{name}")
+        _set_scanning_strategy(sim, shared_memory=shared_memory)
+        sim.create_observations(
+            detectors=[
+                lbs.DetectorInfo("det1", sampling_rate_hz=10.0),
+                lbs.DetectorInfo("det2", sampling_rate_hz=10.0),
+            ],
+            # With `split_list_over_processes=True`, every process must get
+            # at least one observation; otherwise, the observations are split
+            # in time blocks among the processes
+            num_of_obs_per_detector=2 * comm_size if split_list_over_processes else 2,
+            n_blocks_time=1 if split_list_over_processes else comm_size,
+            split_list_over_processes=split_list_over_processes,
+        )
+        sim.prepare_pointings(append_to_report=False, shared_memory=shared_memory)
+        sims.append(sim)
 
-    # Create two simulations
-    sim_std = lbs.Simulation(
-        base_path=tmp_path / "simulation_std",
-        start_time=0.0,
-        duration_s=10.0,
-        random_seed=12345,
-        mpi_comm=MPI.COMM_WORLD,
-    )
+    sim_std, sim_shared = sims
 
-    sim_shared = lbs.Simulation(
-        base_path=tmp_path / "simulation_shared",
-        start_time=0.0,
-        duration_s=10.0,
-        random_seed=12345,
-        mpi_comm=MPI.COMM_WORLD,
-    )
+    # All the observations share the same copy of the boresight quaternions
+    bore2ecl = sim_shared.observations[0].pointing_provider.bore2ecliptic_quats
+    assert isinstance(bore2ecl, SharedRotQuaternion)
+    for cur_obs in sim_shared.observations:
+        assert cur_obs.pointing_provider.bore2ecliptic_quats is bore2ecl
+    _check_read_only_on_non_root(sim_shared, bore2ecl.quats)
 
-    # Add an instrument
-    instrument = lbs.InstrumentInfo(
-        name="test_inst",
-        spin_boresight_angle_rad=np.deg2rad(50.0),
-    )
-    sim_std.set_instrument(instrument)
-    sim_shared.set_instrument(instrument)
-
-    # Create observations (this handles comm_time_block and comm_det_block properly)
-    det1 = lbs.DetectorInfo("det1", sampling_rate_hz=10.0)
-    det2 = lbs.DetectorInfo("det2", sampling_rate_hz=10.0)
-
-    # n_blocks_det * n_blocks_time must equal comm.size
-    sim_std.create_observations(
-        detectors=[det1, det2],
-        n_blocks_time=comm_size // 2 if comm_size % 2 == 0 else comm_size,
-        n_blocks_det=2 if comm_size % 2 == 0 else 1,
-        split_list_over_processes=False,
-    )
-    sim_shared.create_observations(
-        detectors=[det1, det2],
-        n_blocks_time=comm_size // 2 if comm_size % 2 == 0 else comm_size,
-        n_blocks_det=2 if comm_size % 2 == 0 else 1,
-        split_list_over_processes=False,
-    )
-
-    # Fake spin2ecliptic quaternions
-    n_samples = sim_std.observations[0].n_samples_global
-    if sim_std.mpi_comm.rank == 0:
-        quats = np.random.randn(n_samples, 4)
-        quats /= np.linalg.norm(quats, axis=1)[:, np.newaxis]
-    else:
-        quats = np.empty((n_samples, 4), dtype=np.float64)
-    sim_std.mpi_comm.Bcast(quats, root=0)
-    spin2ecliptic_quats = RotQuaternion(quats, start_time=0.0, sampling_rate_hz=10.0)
-
-    # Standard pointings preparation
-    sim_std.observations[0].prepare_pointings(
-        instrument=sim_std.instrument, spin2ecliptic_quats=spin2ecliptic_quats
-    )
-
-    # Shared memory pointings preparation
-    sim_shared.observations[0].prepare_pointings_shmem(
-        instrument=sim_shared.instrument, spin2ecliptic_quats=spin2ecliptic_quats
-    )
-
-    # Check if the outputs are identical
-    q_std = sim_std.observations[0].pointing_provider.bore2ecliptic_quats.quats
-    q_shared = sim_shared.observations[0].pointing_provider.bore2ecliptic_quats.quats
-
-    np.testing.assert_allclose(q_std, q_shared)
-
-    # Ensure that it is indeed a SharedRotQuaternion
-    assert isinstance(
-        sim_shared.observations[0].pointing_provider.bore2ecliptic_quats,
-        SharedRotQuaternion,
-    )
+    # Shared memory must not change the pointings
+    for obs_std, obs_shared in zip(sim_std.observations, sim_shared.observations):
+        pointings_std, _ = obs_std.get_pointings()
+        pointings_shared, _ = obs_shared.get_pointings()
+        np.testing.assert_array_equal(pointings_std, pointings_shared)
