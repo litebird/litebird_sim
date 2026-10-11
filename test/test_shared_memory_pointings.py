@@ -116,3 +116,17 @@ def test_shared_rot_quaternion_constant():
 
     assert shared_quat.quats.shape == (1, 4)
     assert np.shares_memory(shared_quat.quats, quat)
+
+
+def test_shared_memory_warns_on_repeated_calls(tmp_path, caplog):
+    # Every call allocates a new window, and the old one is not freed
+    sim = _make_simulation(tmp_path, "simulation_repeated")
+    _set_scanning_strategy(sim, shared_memory=True)
+    assert "already called" not in caplog.text
+
+    _set_scanning_strategy(sim, shared_memory=True)
+    manager = sim._shared_memory_manager
+    if manager.node_rank == manager.node_root:
+        assert "set_scanning_strategy(shared_memory=True) was already called" in (
+            caplog.text
+        )

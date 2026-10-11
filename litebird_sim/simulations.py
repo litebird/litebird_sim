@@ -414,6 +414,9 @@ class Simulation:
 
         # Created on demand by the methods that accept `shared_memory=True`
         self._shared_memory_manager: SharedMemoryManager | None = None
+        # Names of the methods that allocated shared memory, to warn when
+        # a second call leaves the previous window allocated
+        self._shared_memory_callers: set[str] = set()
 
         self.description = description
 
@@ -1578,7 +1581,7 @@ class Simulation:
 
         if shared_memory:
             self.spin2ecliptic_quats = self._share_quaternions_in_node(
-                generate_quaternions
+                generate_quaternions, caller="set_scanning_strategy"
             )
         else:
             # TODO: if MPI is enabled, we should probably parallelize this call
@@ -1602,7 +1605,7 @@ class Simulation:
             )
 
     def _share_quaternions_in_node(
-        self, compute: Callable[[], RotQuaternion]
+        self, compute: Callable[[], RotQuaternion], caller: str
     ) -> SharedRotQuaternion:
         """Compute quaternions once per node and share them in MPI shared memory
 
@@ -1624,6 +1627,15 @@ class Simulation:
 
         manager = self._shared_memory_manager
         is_node_root = manager.node_rank == manager.node_root
+
+        if caller in self._shared_memory_callers and is_node_root:
+            log.warning(
+                "Simulation.%s(shared_memory=True) was already called: the "
+                "shared memory allocated by the previous call will not be "
+                "freed until the program ends",
+                caller,
+            )
+        self._shared_memory_callers.add(caller)
 
         quats = compute() if is_node_root else None
         shape, dtype, start_time, sampling_rate_hz = manager.node_comm.bcast(
@@ -1729,7 +1741,8 @@ class Simulation:
             instrument = self.instrument
             spin2ecliptic_quats = self.spin2ecliptic_quats
             bore2ecliptic_quats = self._share_quaternions_in_node(
-                lambda: spin2ecliptic_quats * instrument.bore2spin_quat
+                lambda: spin2ecliptic_quats * instrument.bore2spin_quat,
+                caller="prepare_pointings",
             )
             for cur_obs in self.observations:
                 cur_obs._set_pointing_provider(

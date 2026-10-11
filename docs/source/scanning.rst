@@ -531,7 +531,13 @@ Here are a few things to keep in mind:
 
 - The shared-memory windows are freed automatically when the Python
   interpreter exits, before MPI is finalized. (MPI requires this, and
-  some MPI implementations hang at exit otherwise.)
+  some MPI implementations hang at exit otherwise.) This means that
+  every call with ``shared_memory=True`` allocates a new window, and
+  the old ones are *not* released when you call the same method again
+  (e.g., to change the scanning strategy in a loop): they stay in
+  memory until the end of the program, and the framework logs a
+  warning. If you need to recompute the
+  quaternions many times, use ``shared_memory=False``.
 
 As an example, here is the memory used after
 :meth:`.Simulation.prepare_pointings` by a one-year simulation with one
