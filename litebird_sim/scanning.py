@@ -636,6 +636,53 @@ class RotQuaternion:
         return np.allclose(self.quats, other.quats)
 
 
+class SharedRotQuaternion(RotQuaternion):
+    """A version of RotQuaternion that wraps an existing shared-memory NumPy array.
+
+    This class is used to avoid copying or modifying (normalizing) the underlying
+    array, as that is expected to be handled explicitly by the
+    node root process of the shared memory communicator.
+    """
+
+    def __init__(
+        self,
+        quats: npt.NDArray,
+        start_time: float | astropy.time.Time | None = None,
+        sampling_rate_hz: float | None = None,
+    ):
+        """
+        Wrap a shared-memory array of quaternions into a :class:`RotQuaternion`
+
+        Unlike :class:`RotQuaternion`, the array is neither copied nor
+        normalized: this must be done by the node root before calling
+        this constructor.
+
+        :param quats: a ``(N, 4)`` (or ``(4,)``) NumPy array in shared memory
+        :param start_time: the start time, either a floating point number
+            or an ``astropy.time.Time`` object; required if ``N > 1``
+        :param sampling_rate_hz: the sampling frequency; required if ``N > 1``
+        """
+        # Make sure that `quats` is a 2D array with shape (N, 4), like in
+        # RotQuaternion: reshaping a contiguous array returns a view, so the
+        # memory is still the shared one
+        self.quats = quats.reshape(-1, 4)
+
+        if self.quats.shape[0] > 1:
+            assert start_time is not None, (
+                "You must specify start_time if the quaternion is not constant"
+            )
+            assert sampling_rate_hz is not None, (
+                "You must specify sampling_rate_hz if the quaternion is not constant"
+            )
+
+        self.start_time = start_time
+        self.sampling_rate_hz = sampling_rate_hz
+
+        # Unlike RotQuaternion, do not normalize the quaternions: the array is
+        # read-only on all the processes but the node root, which writes
+        # quaternions that are already normalized
+
+
 # This is an Abstract Base Class (ABC)
 class ScanningStrategy(ABC):
     """A class that simulate a scanning strategy
