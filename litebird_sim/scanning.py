@@ -30,6 +30,10 @@ from .quaternions import (
 
 YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * getattr(u, "year")).to(u.s).value
 
+# Step of the grid where the Sun-Earth angle is computed using the
+# ephemerides before interpolating it; the error is ~1e-4 arcsec
+SUN_EARTH_ANGLE_GRID_S = 3600.0
+
 
 @njit
 def _clip_sincos(x):
@@ -390,6 +394,30 @@ def calculate_sun_earth_angles_rad(time_vector):
         return np.arctan2(coord.y.value, coord.x.value)
     else:
         return YEARLY_OMEGA_SPIN_HZ * time_vector
+
+
+def interpolate_sun_earth_angles_rad(
+    start_time: astropy.time.Time,
+    time_s: npt.ArrayLike,
+    grid_step_s: float = SUN_EARTH_ANGLE_GRID_S,
+):
+    """Compute the angle between the x axis and the Earth by interpolation
+
+    This function returns the same angles as
+    :func:`.calculate_sun_earth_angles_rad`, but it queries the
+    ephemerides only on a grid with step `grid_step_s` and linearly
+    interpolates the result at the times ``start_time + time_s``
+    (`time_s` is measured in seconds). As the angle changes by ~1° per
+    day, this is much faster than building an ``astropy.time.Time``
+    object for every sample, and the error is negligible.
+
+    The angles are unwrapped, so they are not limited to [-π, π].
+    """
+    time_s = np.asarray(time_s)
+    grid_s = np.arange(time_s[0], time_s[-1] + grid_step_s, grid_step_s)
+    grid_time = start_time + astropy.time.TimeDelta(grid_s, format="sec", scale="tdb")
+    grid_angles_rad = np.unwrap(calculate_sun_earth_angles_rad(grid_time))
+    return np.interp(time_s, grid_s, grid_angles_rad)
 
 
 class RotQuaternion:
@@ -932,13 +960,12 @@ class SpinningScanningStrategy(ScanningStrategy):
         )
 
         spin2ecliptic_quats = np.empty((num_of_quaternions, 4))
-        time, time_s = ScanningStrategy.get_times(
-            start_time=start_time,
-            delta_time_s=delta_time_s,
-            num_of_quaternions=num_of_quaternions,
-        )
-
-        sun_earth_angles_rad = calculate_sun_earth_angles_rad(time)
+        if isinstance(start_time, astropy.time.Time):
+            time_s = np.arange(num_of_quaternions) * delta_time_s
+            sun_earth_angles_rad = interpolate_sun_earth_angles_rad(start_time, time_s)
+        else:
+            time_s = start_time + np.arange(num_of_quaternions) * delta_time_s
+            sun_earth_angles_rad = calculate_sun_earth_angles_rad(time_s)
 
         self.all_spin_to_ecliptic(
             result_matrix=spin2ecliptic_quats,

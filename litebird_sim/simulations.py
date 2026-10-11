@@ -1518,7 +1518,7 @@ class Simulation:
         self,
         scanning_strategy: None | ScanningStrategy = None,
         imo_url: None | str = None,
-        delta_time_s: float = 60.0,
+        delta_time_s: float = 2.0,
         append_to_report: bool = True,
         shared_memory: bool = False,
     ):
@@ -1549,7 +1549,10 @@ class Simulation:
         The parameter `delta_time_s` specifies how often should
         quaternions be computed; see
         :meth:`.ScanningStrategy.set_scanning_strategy` for
-        more information.
+        more information. The quaternions are interpolated with slerp,
+        whose error grows as ``spin_rate * precession_rate * delta_time_s**2``:
+        with the default of 2 s, it is ~1 arcsec at 0.3 rpm. Use a smaller
+        value if you need more accuracy or faster spin rates.
 
         If the parameter `append_to_report` is set to ``True`` (the
         default), some information about the pointings will be included
@@ -1586,7 +1589,6 @@ class Simulation:
                 generate_quaternions, caller="set_scanning_strategy"
             )
         else:
-            # TODO: if MPI is enabled, we should probably parallelize this call
             self.spin2ecliptic_quats = generate_quaternions()
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
