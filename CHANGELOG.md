@@ -1,6 +1,6 @@
 # HEAD
 
--   Fix the map-makers allocating one byte per sample for *all* the observations at once with the default `time_split="full"`: the time masks are now read-only views that take no memory. In a 3-year simulation with one 75 Hz detector per MPI process and one observation per day, the binner used ~7 GB more per process (~70 GB per node). Other time splits still allocate their masks.
+-   Fix the map-makers allocating one byte per sample for *all* the observations at once with the default `time_split="full"`: the time masks are now read-only views that take no memory. In a 3-year simulation with one 75 Hz detector per MPI process and one observation per day, the binner used ~7 GB more per process (~70 GB per node). Other time splits still allocate their masks. Reference PR: [#571](https://github.com/litebird/litebird_sim/pull/571).
 
 -   Change the default of `delta_time_s` in `Simulation.set_scanning_strategy` from 60 s to 2 s: with a spin rate of 0.3 rpm, 60 s means one quaternion every 108° of spin, and the slerp interpolation gave pointing errors up to ~17 arcmin; with 2 s the error is ~1 arcsec. **Behavior change**: the spin-to-Ecliptic quaternions take 30× more memory (~1.5 GB for three years); pass `delta_time_s` explicitly to restore the old behavior. Reference issue: [#569](https://github.com/litebird/litebird_sim/issues/569). Reference PR: [#570](https://github.com/litebird/litebird_sim/pull/570).
 
