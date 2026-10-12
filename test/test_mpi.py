@@ -782,3 +782,22 @@ def test_non_linearity_seeding():
 
 if __name__ == "__main__":
     pytest.main([f"{__file__}"])
+
+
+def test_mpi_disabled_does_not_import_mpi4py():
+    # With LITEBIRD_SIM_MPI=0, importing litebird_sim must not initialize MPI:
+    # importing `mpi4py.MPI` calls MPI_Init, which hangs outside `srun` on some
+    # clusters (e.g., Intel MPI)
+    import os
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, litebird_sim; sys.exit('mpi4py.MPI' in sys.modules)",
+        ],
+        env={**os.environ, "LITEBIRD_SIM_MPI": "0"},
+    )
+    assert result.returncode == 0

@@ -222,10 +222,67 @@ can be inspected and printed to the terminal. See Section :ref:`simulations`
 for more information about this.
 
 
+.. _mpi-shared-memory:
+
+Sharing memory among processes on the same node
+-----------------------------------------------
+
+MPI processes running on the same computing node can share memory
+through *shared-memory windows*. The framework uses this to keep only
+one copy per node of the pointing quaternions (see Section
+:ref:`shared-memory`), but you can use the same machinery to share any
+array that is identical among the processes.
+
+This is implemented by the class :class:`.SharedMemoryManager`, which
+requires MPI to be enabled. Its constructor splits a MPI communicator
+into node-level communicators (field ``node_comm``); the method :meth:`.SharedMemoryManager.alloc_shared_node` allocates a
+1D NumPy array in a shared-memory window of the node communicator, and
+returns the array together with the window, an instance of
+``mpi4py.MPI.Win``.
+
+The array is allocated by the node root, and the other processes get a
+view on the same memory. Accesses to the window must be synchronized
+using ``Win.Fence``: call it once before the node root writes the
+data, and once after, before the other processes read them::
+
+    import numpy as np
+    import litebird_sim as lbs
+    from litebird_sim.shared_memory import SharedMemoryManager
+
+    manager = SharedMemoryManager(base_comm=lbs.MPI_COMM_WORLD)
+
+    array, win = manager.alloc_shared_node(size=1_000_000, dtype=np.float64)
+
+    win.Fence()
+    if manager.node_rank == manager.node_root:
+        array[:] = np.random.default_rng(1234).normal(size=array.size)
+    win.Fence()
+
+    # Now every process on the node can read `array`
+    print(f"Process {lbs.MPI_COMM_WORLD.rank}: mean = {array.mean():.4f}")
+
+If you need to allocate a shared array on a communicator other than
+the node one, use :meth:`.SharedMemoryManager.alloc_shared_comm`, which
+accepts the communicator and the rank of the process that owns the
+memory. Note that all the processes of the communicator must be on the
+same node.
+
+All the windows allocated by a :class:`.SharedMemoryManager` are freed
+when the interpreter exits, or when you call
+:meth:`.SharedMemoryManager.free_shared_arrays_all`. Once a window has
+been freed, the arrays pointing to its memory must not be used any
+longer.
+
+
 API reference
 -------------
 
 .. automodule:: litebird_sim.mpi
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+.. automodule:: litebird_sim.shared_memory
     :members:
     :undoc-members:
     :show-inheritance:

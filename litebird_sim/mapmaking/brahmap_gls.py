@@ -3,12 +3,15 @@ GLS Map-maker using BrahMap for Litebird_sim
 This function provides a consistent interface with other mapmaking routines.
 """
 
+import logging
 from typing import Any, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 
 from litebird_sim.hwp import HWP
+
+from .common import get_pol_efficiency
 
 if TYPE_CHECKING:
     import brahmap
@@ -120,6 +123,15 @@ def make_brahmap_gls_map(
             "as `litebird_sim`. Refer to "
             "https://anand-avinash.github.io/BrahMap/overview/installation/ "
             "for the installation instruction"
+        )
+
+    obs_list = observations if isinstance(observations, list) else [observations]
+    if any(np.any(get_pol_efficiency(cur_obs) != 1.0) for cur_obs in obs_list):
+        # ponytail: warn only, the pointing matrix is built inside BrahMap;
+        # remove once BrahMap supports the polarization efficiency
+        logging.warning(
+            "BrahMap does not model the polarization efficiency γ: "
+            "the Q/U maps will be biased by a factor γ for detectors with γ ≠ 1"
         )
 
     if gls_params is None:
