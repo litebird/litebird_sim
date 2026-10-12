@@ -2971,7 +2971,7 @@ class Simulation:
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
 
-        For details, see the low-level interface in :func:`litebird_sim.mapmaking.sanepic_gls`.
+        For details, see the low-level interface :func:`.make_sanepic_gls_map`.
         """
         result = make_sanepic_gls_map(
             nside=nside,
