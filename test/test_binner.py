@@ -268,7 +268,7 @@ def test_hwp_offset_angle():
     assert np.allclose(cl_mod, cl_rot[1], rtol=1e-8, atol=1e-4)
 
 
-def test_full_time_mask_takes_no_memory():
+def test_build_mask_time_split():
     # With time_split="full", the masks must not allocate one byte per sample for
     # all the observations at once (~7 GB per process for 3 years at 75 Hz)
     from litebird_sim.mapmaking.common import _build_mask_time_split
@@ -284,3 +284,15 @@ def test_full_time_mask_takes_no_memory():
         assert mask.shape == (obs.n_samples,)
         assert mask.all()
         assert mask.strides == (0,)  # a view on a single value
+
+    # The other splits still return real boolean masks
+    n = sim.observations[0].n_samples
+    expected = {
+        "odd": np.arange(n) % 2 == 0,
+        "even": np.arange(n) % 2 == 1,
+        "first_half": np.arange(n) < n // 2,
+        "second_half": np.arange(n) >= n // 2,
+    }
+    for split, ref in expected.items():
+        for mask in _build_mask_time_split(split, sim.observations):
+            np.testing.assert_array_equal(mask, ref)
