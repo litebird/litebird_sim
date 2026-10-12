@@ -42,6 +42,9 @@ The framework provides the following solutions:
    (To use this, you must ensure that the package is installed, thus
    see `BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.)
 
+6. An interface to the `pysanepic <https://github.com/litebird/pysanepic>`_
+   GLS mapmaker, which models 1/f noise (requires the package ``pysanepic``).
+
 In this chapter, we assume you have already created the timelines
 to be used as input to the destriper. Here is a sample code
 that creates a simple timeline containing white noise for two
@@ -790,6 +793,118 @@ function with `litebird_sim` data:
 output maps can be accessed from this object with `gls_result.GLS_maps`.
 For further details refer to
 `BrahMap documentation <https://anand-avinash.github.io/BrahMap/>`.
+
+
+pysanepic GLS mapmaker
+----------------------
+
+`pysanepic <https://github.com/litebird/pysanepic>`_ is a standalone Python
+port of the SANEPIC GLS map-maker. If it is installed (see
+:ref:`install-dependencies`), :func:`.make_sanepic_gls_map` (or
+:meth:`.Simulation.make_sanepic_gls_map`) computes GLS maps accounting for
+1/f noise: it solves :math:`(P^T N^{-1} P)\, m = P^T N^{-1} d` with a
+preconditioned conjugate gradient (PCG).
+
+The inverse noise covariance :math:`N^{-1}` of each detector is built from
+the same parameters used to simulate the noise (``net_ukrts``,
+``fknee_mhz``, ``alpha``, ``fmin_hz``) and is applied in Fourier space on
+chunks of ``params.chunk_s`` seconds; noise correlations between different
+chunks and between different detectors are neglected. The HWP angle and
+the polarization efficiency of the detectors are taken into account:
+
+.. code-block:: python
+
+  from pysanepic import GLSParameters
+
+  result = sim.make_sanepic_gls_map(
+      nside=nside,
+      params=GLSParameters(chunk_s=86400.0, tol=1e-8),
+  )
+  result.maps        # I, Q, U (healpy.UNSEEN where not solved)
+  result.hit_map
+  result.converged, result.iterations
+
+The low-level function works on a list of observations and accepts the
+same arguments as the other map-makers to select the TOD components and
+the pointings:
+
+.. code-block:: python
+
+  result = lbs.make_sanepic_gls_map(
+      nside=nside,
+      observations=sim.observations,
+      hwp=sim.hwp,
+      components=["tod", "noise"],   # summed before map-making
+  )
+
+The settings of the map-maker are collected in a
+``pysanepic.GLSParameters`` object, which litebird_sim passes unchanged
+to pysanepic:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 65
+
+   * - Field
+     - Default
+     - Meaning
+   * - ``chunk_s``
+     - 3600
+     - :math:`N^{-1}` is applied independently on chunks of this
+       duration [s]. Since :func:`.add_noise_to_observations` generates
+       the noise of each :class:`.Observation` independently, chunks as
+       long as the observations are the natural choice.
+   * - ``pad_s``, ``pad_fill``
+     - 0, ``"zeros"``
+     - Extend each chunk on both sides before the FFT (SANEPIC's
+       "inpaint"), to reduce the effects of its wrap-around; useful only
+       with a steep 1/f noise.
+   * - ``pol``
+     - ``True``
+     - Solve for I/Q/U (``True``) or I only.
+   * - ``preconditioner``
+     - ``"block"``
+     - ``"block"``: the inverse of the 3×3 I/Q/U block of each pixel;
+       ``"jacobi"``: the original SANEPIC choice.
+   * - ``min_pol_rcond``
+     - 0.01
+     - Q and U are solved only in pixels whose coverage in polarization
+       angles is good enough to separate them.
+   * - ``tol``, ``maxiter``
+     - 1e-12, 2000
+     - The PCG stops when :math:`|r|^2/|b|^2` is below ``tol``.
+   * - ``angle_dtype``
+     - ``np.float32``
+     - Storage of :math:`\gamma\cos 2\psi` and :math:`\gamma\sin 2\psi`.
+
+A few practical notes:
+
+- **MPI**: every MPI process must call the function. Each process uses
+  the detectors and the time spans of its own observations, and at the end
+  every process holds the full maps. Pointings are computed on the fly
+  (unless they are stored in the observations) for one detector at a
+  time.
+- **Threads**: by default each process uses the number of threads
+  returned by :func:`.resolve_nthreads`, i.e., ``OMP_NUM_THREADS``; use
+  the number of cores of a node divided by the number of MPI processes
+  running on it.
+- **Memory**: besides the TOD, pysanepic needs about 12 bytes per
+  sample (the pixel index and the two polarization weights) plus a few
+  maps per thread.
+- **Tolerance**: the default ``tol=1e-12`` is the one of SANEPIC. In a
+  test with 16 detectors and 7 days of data, ``tol=1e-8`` needed 10
+  iterations instead of 28, and the maps differed from the default ones
+  by less than 1% of their difference from a binned map.
+- Data splits are not supported yet: to make maps of a subset of the
+  data, pass only the relevant observations to
+  :func:`.make_sanepic_gls_map`.
+
+If ``append_to_report`` is ``True`` (the default),
+:meth:`.Simulation.make_sanepic_gls_map` adds the settings and the
+convergence of the PCG to the report. More details on the algorithm, and
+on how to use pysanepic without litebird_sim, are in the `pysanepic
+documentation <https://github.com/litebird/pysanepic#readme>`_ and its
+example notebooks.
 
 
 High level interface and data-splits
