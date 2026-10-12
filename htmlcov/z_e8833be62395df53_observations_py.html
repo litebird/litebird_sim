@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/observations.py: 65%</title>
+    <title>Coverage for litebird_sim/observations.py: 64%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_15cffcd0.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim<span class="sep">/</span>observations.py</b>:
-            <span class="pc_cov">65%</span>
+            <span class="pc_cov">64%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">364 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">237<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">127<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">233<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">131<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_plot_fp_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-12 04:15 +0000
+            created at 2026-10-12 04:43 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -1374,10 +1374,10 @@
     <p class="run"><span class="n"><a id="t1292" href="#t1292">1292</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">comm_time_block</span> <span class="op">=</span> <span class="nam">_SerialMpiCommunicator</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t1293" href="#t1293">1293</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t1294" href="#t1294">1294</a></span><span class="t">        <span class="key">if</span> <span class="nam">hasattr</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">comm</span><span class="op">,</span> <span class="str">&quot;Split&quot;</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1295" href="#t1295">1295</a></span><span class="t">            <span class="nam">det_color</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">comm</span><span class="op">.</span><span class="nam">rank</span> <span class="op">//</span> <span class="nam">self</span><span class="op">.</span><span class="nam">n_blocks_time</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1296" href="#t1296">1296</a></span><span class="t">            <span class="nam">time_color</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">comm</span><span class="op">.</span><span class="nam">rank</span> <span class="op">%</span> <span class="nam">self</span><span class="op">.</span><span class="nam">n_blocks_time</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1297" href="#t1297">1297</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">comm_det_block</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">comm</span><span class="op">.</span><span class="nam">Split</span><span class="op">(</span><span class="nam">det_color</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t1298" href="#t1298">1298</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">comm_time_block</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">comm</span><span class="op">.</span><span class="nam">Split</span><span class="op">(</span><span class="nam">time_color</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1295" href="#t1295">1295</a></span><span class="t">            <span class="nam">det_color</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">comm</span><span class="op">.</span><span class="nam">rank</span> <span class="op">//</span> <span class="nam">self</span><span class="op">.</span><span class="nam">n_blocks_time</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1296" href="#t1296">1296</a></span><span class="t">            <span class="nam">time_color</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">comm</span><span class="op">.</span><span class="nam">rank</span> <span class="op">%</span> <span class="nam">self</span><span class="op">.</span><span class="nam">n_blocks_time</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1297" href="#t1297">1297</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">comm_det_block</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">comm</span><span class="op">.</span><span class="nam">Split</span><span class="op">(</span><span class="nam">det_color</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t1298" href="#t1298">1298</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">comm_time_block</span> <span class="op">=</span> <span class="nam">self</span><span class="op">.</span><span class="nam">comm</span><span class="op">.</span><span class="nam">Split</span><span class="op">(</span><span class="nam">time_color</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -1387,7 +1387,7 @@
             <a class="nav" href="z_e8833be62395df53_plot_fp_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-12 04:15 +0000
+            created at 2026-10-12 04:43 +0000
         </p>
     </div>
 </footer>
