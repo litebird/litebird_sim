@@ -1,5 +1,7 @@
 # HEAD
 
+-   Use Pickle Protocol 5 wrapper around MPI communicator around MPI.COMM_WORLD to avoid errors when broadcasting of large objects. Reference PR: [#565](https://github.com/litebird/litebird_sim/pull/565).
+
 -   Add `Observation.get_hitmap` and `Simulation.get_hitmap`, which return the number of samples falling in each Healpix pixel without running a map-maker. The pointings are computed one detector at a time, the map is in Galactic coordinates by default (like the map-makers), and `Simulation.get_hitmap` sums over all the observations and MPI processes. Reference PR: [#564](https://github.com/litebird/litebird_sim/pull/564).
 
 -   `make_sanepic_gls_map` computes the HEALPix pixels (int32) itself and passes them to pysanepic as a `pysanepic.Pointing`; it needs pysanepic 0.1.0 or later. Reference PR: [#572](https://github.com/litebird/litebird_sim/pull/572).
