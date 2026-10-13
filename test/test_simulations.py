@@ -494,6 +494,28 @@ def test_smart_pointings_consistency_with_hwp(tmp_path):
             assert hwp_angle.shape == (obs.n_samples,)
 
 
+def test_smart_pointings_skip_hwp_angle(tmp_path):
+    # The HWP angle does not depend on the detector, so it can be skipped
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=True, store_full_pointings=False
+    )
+    obs = sim.observations[0]
+
+    ref_pointings, ref_hwp = obs.get_pointings("all")
+    for det_idx in range(obs.n_detectors):
+        pointings, hwp_angle = obs.get_pointings(det_idx, compute_hwp_angle=False)
+        assert hwp_angle is None
+        np.testing.assert_array_equal(pointings, ref_pointings[det_idx])
+
+        # Computing it once per detector gives the same angle as "all"
+        _, hwp_angle = obs.get_pointings(det_idx)
+        np.testing.assert_array_equal(hwp_angle, ref_hwp)
+
+    pointings, hwp_angle = obs.get_pointings("all", compute_hwp_angle=False)
+    assert hwp_angle is None
+    np.testing.assert_array_equal(pointings, ref_pointings)
+
+
 def test_smart_pointings_consistency_without_hwp(tmp_path):
     sim = _configure_simulation_for_pointings(
         tmp_path, include_hwp=False, store_full_pointings=False

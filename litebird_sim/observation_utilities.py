@@ -269,8 +269,11 @@ def _get_pointings_array(
         curr_pointings_det = pointings[detector_idx, :, :]
         computed_hwp_angle = None
     else:
+        # Do not recompute the HWP angle for each detector if the caller has it
         curr_pointings_det, computed_hwp_angle = pointings(
-            detector_idx, pointings_dtype=pointings_dtype
+            detector_idx,
+            pointings_dtype=pointings_dtype,
+            compute_hwp_angle=hwp_angle is None,
         )
 
     if output_coordinate_system == CoordinateSystem.Galactic:

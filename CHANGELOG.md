@@ -1,5 +1,9 @@
 # HEAD
 
+-   Speed up the binner: the 3×3 matrices of each pixel are now inverted analytically, and LAPACK is used only for the eigenvalues that decide whether a pixel is observed well enough. Solving the map-making equation at nside 512 takes 0.35 s instead of 2 s (the cost grows 4× for every doubling of nside); the pixels marked as unseen are the same, and the maps agree within roundoff. Reference PR: [#N](https://github.com/litebird/litebird_sim/pull/N).
+
+-   Compute the HWP angle once per observation instead of once per detector in the map-makers, `scan_map` and the other functions computing the pointings on the fly (~25% less time spent on pointings). `Observation.get_pointings` and `PointingProvider.get_pointings` have a new parameter `compute_hwp_angle` (default `True`) to skip it. Reference PR: [#N](https://github.com/litebird/litebird_sim/pull/N).
+
 -   Use Pickle Protocol 5 wrapper around MPI communicator around MPI.COMM_WORLD to avoid errors when broadcasting of large objects. Reference PR: [#565](https://github.com/litebird/litebird_sim/pull/565).
 
 -   Add `Observation.get_hitmap` and `Simulation.get_hitmap`, which return the number of samples falling in each Healpix pixel without running a map-maker. The pointings are computed one detector at a time, the map is in Galactic coordinates by default (like the map-makers), and `Simulation.get_hitmap` sums over all the observations and MPI processes. Reference PR: [#564](https://github.com/litebird/litebird_sim/pull/564).

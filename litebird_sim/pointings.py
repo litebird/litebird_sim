@@ -168,6 +168,7 @@ class PointingProvider:
         pointing_buffer: npt.NDArray | None = None,
         hwp_buffer: npt.NDArray | None = None,
         pointings_dtype=np.float64,
+        compute_hwp_angle: bool = True,
     ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the time-dependent pointing angles and (optionally) HWP angles for a detector.
 
@@ -206,6 +207,10 @@ class PointingProvider:
                 Data type to use when allocating `pointing_buffer` or `hwp_buffer`
                 (defaults to `np.float64`). If pre-allocated buffers are passed,
                 their data types are preserved.
+            compute_hwp_angle (bool, optional):
+                If False, skip the HWP angle and return ``None`` in its place.
+                The angle does not depend on the detector, so callers looping
+                over many detectors can compute it only once (default: True).
 
         Returns:
             tuple[np.ndarray, np.ndarray | None]:
@@ -229,7 +234,9 @@ class PointingProvider:
             )
             start_time_s = start_time - start_time_global
 
-        if self.hwp is not None:
+        # The HWP angle does not depend on the detector: callers looping over the
+        # detectors of an observation should compute it only once
+        if self.hwp is not None and compute_hwp_angle:
             if hwp_buffer is None:
                 hwp_buffer = np.empty(nsamples, dtype=pointings_dtype)
 
