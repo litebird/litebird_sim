@@ -1,4 +1,5 @@
 import os
+import sys
 
 
 def _check_if_enable_mpi():
@@ -60,3 +61,23 @@ if _enable_mpi in [True, None]:
             raise  # If MPI was explicitly requested, re-raise the exception
         else:
             pass  # Ignore the error
+
+
+# An unhandled exception in one process leaves the others waiting in their next
+# MPI call (including the collective free of shared-memory windows at exit),
+# and the job hangs until the wall-time limit, see
+# <https://mpi4py.readthedocs.io/en/stable/mpi4py.run.html#exceptions-and-deadlocks>.
+# This hook (taken from BrahMap, <https://stackoverflow.com/a/34313363>) prints
+# the traceback and aborts the whole job, like `python -m mpi4py` does
+_sys_excepthook = sys.excepthook
+
+
+def _mpi_excepthook(exctype, value, traceback):
+    sys.stderr.write(f"\n*** Exception raised by MPI rank {MPI_COMM_WORLD.rank} ***\n")
+    _sys_excepthook(exctype, value, traceback)
+    sys.stderr.flush()
+    MPI_COMM_WORLD.Abort(1)
+
+
+if MPI_ENABLED and MPI_COMM_WORLD.size > 1:
+    sys.excepthook = _mpi_excepthook

@@ -831,3 +831,16 @@ def test_mpi_disabled_does_not_import_mpi4py():
         env={**os.environ, "LITEBIRD_SIM_MPI": "0"},
     )
     assert result.returncode == 0
+
+
+def test_mpi_excepthook():
+    # With more than one process, an unhandled exception must abort the job
+    # instead of leaving the other processes hanging
+    import sys
+
+    from litebird_sim.mpi import _mpi_excepthook
+
+    if lbs.MPI_ENABLED and MPI_COMM_WORLD.size > 1:
+        assert sys.excepthook is _mpi_excepthook
+    else:
+        assert sys.excepthook is not _mpi_excepthook
