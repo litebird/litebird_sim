@@ -1,5 +1,7 @@
 # HEAD
 
+-   Use Pickle Protocol 5 wrapper around MPI communicator around MPI.COMM_WORLD to avoid errors when broadcasting of large objects. Reference PR: [#565](https://github.com/litebird/litebird_sim/pull/565).
+
 -   Make the on-the-fly pointing computation independent of the length of the simulation: `PointingProvider.get_pointings` now multiplies and slerps only the boresight (and detector) quaternions covering the requested samples instead of the arrays for the whole simulation. With one observation per day, the cost of each call previously grew linearly with the simulation length (quadratically overall); binning one year of data is now as fast per sample as binning one month. Reference PR: [#562](https://github.com/litebird/litebird_sim/pull/562).
 
 -   Document the extra-galactic PySM3 presets already usable through `fg_models` (`cib1`, `tsz1`–`tsz4`, `ksz1`–`ksz3`/`ksz5`/`ksz6`, `rg1`–`rg3`: CIB, thermal/kinetic SZ, radio galaxies from WebSky/Agora/HalfDome/FLAMINGO), which were missing from `input_sky.rst`. Reference PR: [#560](https://github.com/litebird/litebird_sim/pull/560).
