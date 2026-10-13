@@ -27,6 +27,7 @@ from .common import (
     _compute_pixel_indices,
     COND_THRESHOLD,
     get_map_making_weights,
+    get_pol_efficiency,
     cholesky,
     solve_cholesky,
     estimate_cond_number,
@@ -365,6 +366,7 @@ def _accumulate_nobs_matrix(
     pix_idx: npt.NDArray,  # Shape: (Ndet, 1)
     psi_angle_rad: npt.NDArray,  # Shape: (Ndet, 1)
     weights: npt.NDArray,  # Shape: (N_det,)
+    pol_eff: npt.NDArray,  # Shape: (N_det,)
     d_mask: npt.NDArray,
     t_mask: npt.NDArray,
     nobs_matrix: npt.NDArray,  # Shape: (N_pix, 6)
@@ -390,14 +392,15 @@ def _accumulate_nobs_matrix(
 
         inv_sigma = 1.0 / np.sqrt(weights[det_idx])
         inv_sigma2 = inv_sigma * inv_sigma
+        gamma_over_sigma = pol_eff[det_idx] * inv_sigma
 
         # Fill the lower triangle of M_i only for i = 1…N_pix
         for cur_pix_idx, cur_psi, cur_t_mask in zip(
             pix_idx[det_idx], psi_angle_rad[det_idx], t_mask
         ):
             if cur_t_mask:
-                cos_over_sigma = np.cos(2 * cur_psi) * inv_sigma
-                sin_over_sigma = np.sin(2 * cur_psi) * inv_sigma
+                cos_over_sigma = np.cos(2 * cur_psi) * gamma_over_sigma
+                sin_over_sigma = np.sin(2 * cur_psi) * gamma_over_sigma
                 cur_matrix = nobs_matrix[cur_pix_idx]
 
                 cur_matrix[0] += inv_sigma2
@@ -495,6 +498,7 @@ def _build_nobs_matrix(
             pix_idx=cur_obs.destriper_pixel_idx,
             psi_angle_rad=cur_obs.destriper_pol_angle_rad,
             weights=cur_obs.destriper_weights,
+            pol_eff=get_pol_efficiency(cur_obs),
             nobs_matrix=nobs_matrix,
             d_mask=cur_d_mask,
             t_mask=cur_t_mask,
@@ -538,13 +542,17 @@ def _step_over_baseline(baseline_idx, samples_in_this_baseline, baseline_length)
 
 @njit
 def _sum_map_contribution_from_one_sample(
-    pol_angle_rad: float, sample: float, weight: float, dest_array: npt.NDArray
+    pol_angle_rad: float,
+    pol_eff: float,
+    sample: float,
+    weight: float,
+    dest_array: npt.NDArray,
 ) -> None:
     "This code implements Eqq. (18)–(20)"
 
     dest_array[0] += sample / weight
-    dest_array[1] += sample * np.cos(2 * pol_angle_rad) / weight
-    dest_array[2] += sample * np.sin(2 * pol_angle_rad) / weight
+    dest_array[1] += sample * pol_eff * np.cos(2 * pol_angle_rad) / weight
+    dest_array[2] += sample * pol_eff * np.sin(2 * pol_angle_rad) / weight
 
 
 @njit
@@ -555,6 +563,7 @@ def _update_sum_map_with_tod(
     pol_angle_rad: npt.NDArray,
     pixel_idx: npt.NDArray,
     weights: npt.NDArray,
+    pol_eff: npt.NDArray,
     d_mask: npt.NDArray,
     t_mask: npt.NDArray,
     baseline_lengths: npt.NDArray,  # Number of samples per baseline
@@ -588,6 +597,7 @@ def _update_sum_map_with_tod(
             cur_pix = pixel_idx[det_idx, sample_idx]
             _sum_map_contribution_from_one_sample(
                 pol_angle_rad=pol_angle_rad[det_idx, sample_idx],
+                pol_eff=pol_eff[det_idx],
                 sample=tod[det_idx, sample_idx],
                 dest_array=sky_map[:, cur_pix],
                 weight=cur_weight,
@@ -606,6 +616,7 @@ def _update_sum_map_with_baseline(
     pol_angle_rad: npt.NDArray,
     pixel_idx: npt.NDArray,
     weights: npt.NDArray,
+    pol_eff: npt.NDArray,
     d_mask: npt.NDArray,
     t_mask: npt.NDArray,
     baselines: npt.NDArray,  # Value of each baseline
@@ -639,6 +650,7 @@ def _update_sum_map_with_baseline(
             cur_pix = pixel_idx[det_idx, sample_idx]
             _sum_map_contribution_from_one_sample(
                 pol_angle_rad=pol_angle_rad[det_idx, sample_idx],
+                pol_eff=pol_eff[det_idx],
                 sample=baselines[det_idx, baseline_idx],
                 dest_array=sky_map[:, cur_pix],
                 weight=cur_weight,
@@ -731,6 +743,7 @@ def _compute_binned_map(
                 pol_angle_rad=cur_obs.destriper_pol_angle_rad,
                 pixel_idx=cur_obs.destriper_pixel_idx,
                 weights=cur_obs.destriper_weights,
+                pol_eff=get_pol_efficiency(cur_obs),
                 d_mask=cur_d_mask,
                 t_mask=cur_t_mask,
                 baseline_lengths=cur_baseline_lengths,
@@ -743,6 +756,7 @@ def _compute_binned_map(
                 pol_angle_rad=cur_obs.destriper_pol_angle_rad,
                 pixel_idx=cur_obs.destriper_pixel_idx,
                 weights=cur_obs.destriper_weights,
+                pol_eff=get_pol_efficiency(cur_obs),
                 d_mask=cur_d_mask,
                 t_mask=cur_t_mask,
                 baselines=cur_baselines,
@@ -763,13 +777,15 @@ def _compute_binned_map(
 
 @njit
 def estimate_sample_from_map(
-    cur_pixel: int, cur_psi: float, sky_map: npt.NDArray
+    cur_pixel: int, cur_psi: float, cur_pol_eff: float, sky_map: npt.NDArray
 ) -> float:
     cur_i = sky_map[0, cur_pixel]
     cur_q = sky_map[1, cur_pixel]
     cur_u = sky_map[2, cur_pixel]
 
-    return cur_i + cur_q * np.cos(2 * cur_psi) + cur_u * np.sin(2 * cur_psi)
+    return cur_i + cur_pol_eff * (
+        cur_q * np.cos(2 * cur_psi) + cur_u * np.sin(2 * cur_psi)
+    )
 
 
 @njit
@@ -778,6 +794,7 @@ def _compute_tod_sums_for_one_component(
     tod: npt.NDArray,
     pixel_idx: npt.NDArray,
     psi_angle_rad: npt.NDArray,
+    pol_eff: npt.NDArray,
     sky_map: npt.NDArray,
     d_mask: npt.NDArray,
     t_mask: npt.NDArray,
@@ -791,6 +808,7 @@ def _compute_tod_sums_for_one_component(
     :param tod: The vector `y` (a NumPy array with N_samp elements)
     :param pixel_idx: A NumPy array of N_samp Healpix indexes
     :param psi_angle_rad: Values of the polarization angles (N_samp elements)
+    :param pol_eff: The polarization efficiency of each detector (N_det elements)
     :param sky_map: The sky map used to compute operator Z
     :param baseline_length: Array of N_base integers (the number
         of samples per baseline)
@@ -817,6 +835,7 @@ def _compute_tod_sums_for_one_component(
             map_value = estimate_sample_from_map(
                 cur_pixel=det_pixel_idx[sample_idx],
                 cur_psi=det_psi_angle_rad[sample_idx],
+                cur_pol_eff=pol_eff[det_idx],
                 sky_map=sky_map,
             )
             value_to_add = (tod[det_idx, sample_idx] - map_value) / cur_weight
@@ -833,6 +852,7 @@ def _compute_baseline_sums_for_one_component(
     weights: npt.NDArray,
     pixel_idx: npt.NDArray,
     psi_angle_rad: npt.NDArray,
+    pol_eff: npt.NDArray,
     sky_map: npt.NDArray,
     d_mask: npt.NDArray,
     t_mask: npt.NDArray,
@@ -846,6 +866,7 @@ def _compute_baseline_sums_for_one_component(
     :param weights: The detector weights (array of N_det elements)
     :param pixel_idx: A NumPy array of N_samp Healpix indexes
     :param psi_angle_rad: Values of the polarization angles (N_samp elements)
+    :param pol_eff: The polarization efficiency of each detector (N_det elements)
     :param sky_map: The sky map used to compute operator Z
     :param baselines: Array of N_base numbers (the value of each baseline)
     :param baseline_length: Array of N_base integers (the number
@@ -873,6 +894,7 @@ def _compute_baseline_sums_for_one_component(
             map_value = estimate_sample_from_map(
                 cur_pixel=det_pixel_idx[sample_idx],
                 cur_psi=det_psi_angle_rad[sample_idx],
+                cur_pol_eff=pol_eff[det_idx],
                 sky_map=sky_map,
             )
             cur_value = (baselines[det_idx, baseline_idx] - map_value) / cur_weight
@@ -953,6 +975,7 @@ def _compute_baseline_sums(
                 weights=cur_obs.destriper_weights,
                 pixel_idx=cur_obs.destriper_pixel_idx,
                 psi_angle_rad=cur_obs.destriper_pol_angle_rad,
+                pol_eff=get_pol_efficiency(cur_obs),
                 sky_map=sky_map,
                 d_mask=cur_d_mask,
                 t_mask=cur_t_mask,
@@ -967,6 +990,7 @@ def _compute_baseline_sums(
                 tod=getattr(cur_obs, component),
                 pixel_idx=cur_obs.destriper_pixel_idx,
                 psi_angle_rad=cur_obs.destriper_pol_angle_rad,
+                pol_eff=get_pol_efficiency(cur_obs),
                 sky_map=sky_map,
                 d_mask=cur_d_mask,
                 t_mask=cur_t_mask,

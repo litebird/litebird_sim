@@ -34,7 +34,10 @@ def test_hwp_sys_mpi():
         spin_rate_hz=0.05 / 60.0,
     )
 
-    sim.set_scanning_strategy(append_to_report=False, scanning_strategy=scan_strat)
+    # Expected TODs were computed with one quaternion per minute
+    sim.set_scanning_strategy(
+        append_to_report=False, scanning_strategy=scan_strat, delta_time_s=60.0
+    )
 
     instr = lbs.InstrumentInfo(
         name="LFT",

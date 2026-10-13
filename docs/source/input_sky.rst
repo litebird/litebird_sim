@@ -201,7 +201,14 @@ Below is a summary of the available model codes:
 **Extra-Galactic Sources**
     * ``cib1``: Cosmic Infrared Background (WebSky 0.4).
     * ``tsz1``: Thermal Sunyaev–Zeldovich effect (WebSky 0.4).
+    * ``tsz2``: Thermal SZ from Agora simulations (BAHAMAS).
+    * ``tsz3``: Thermal SZ from Agora simulations (lensed).
+    * ``tsz4``: Thermal SZ from the Half Dome 0.1 simulation.
     * ``ksz1``: Kinetic Sunyaev–Zeldovich effect (WebSky 0.4).
+    * ``ksz2``: Kinetic SZ from Agora simulations (BAHAMAS).
+    * ``ksz3``: Kinetic SZ from Agora simulations (lensed).
+    * ``ksz5``: Kinetic SZ from FLAMINGO simulations (fiducial feedback).
+    * ``ksz6``: Kinetic SZ from FLAMINGO simulations (strong feedback).
     * ``rg1``, ``rg2``, ``rg3``: Radio Galaxies (WebSky 0.4) including brightest and background sources.
 
 Coordinate Systems and Units

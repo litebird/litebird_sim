@@ -30,6 +30,10 @@ from .quaternions import (
 
 YEARLY_OMEGA_SPIN_HZ = 2 * np.pi / (1.0 * getattr(u, "year")).to(u.s).value
 
+# Step of the grid where the Sun-Earth angle is computed using the
+# ephemerides before interpolating it; the error is ~1e-4 arcsec
+SUN_EARTH_ANGLE_GRID_S = 3600.0
+
 
 @njit
 def _clip_sincos(x):
@@ -392,6 +396,30 @@ def calculate_sun_earth_angles_rad(time_vector):
         return YEARLY_OMEGA_SPIN_HZ * time_vector
 
 
+def interpolate_sun_earth_angles_rad(
+    start_time: astropy.time.Time,
+    time_s: npt.ArrayLike,
+    grid_step_s: float = SUN_EARTH_ANGLE_GRID_S,
+):
+    """Compute the angle between the x axis and the Earth by interpolation
+
+    This function returns the same angles as
+    :func:`.calculate_sun_earth_angles_rad`, but it queries the
+    ephemerides only on a grid with step `grid_step_s` and linearly
+    interpolates the result at the times ``start_time + time_s``
+    (`time_s` is measured in seconds). As the angle changes by ~1° per
+    day, this is much faster than building an ``astropy.time.Time``
+    object for every sample, and the error is negligible.
+
+    The angles are unwrapped, so they are not limited to [-π, π].
+    """
+    time_s = np.asarray(time_s)
+    grid_s = np.arange(time_s[0], time_s[-1] + grid_step_s, grid_step_s)
+    grid_time = start_time + astropy.time.TimeDelta(grid_s, format="sec", scale="tdb")
+    grid_angles_rad = np.unwrap(calculate_sun_earth_angles_rad(grid_time))
+    return np.interp(time_s, grid_s, grid_angles_rad)
+
+
 class RotQuaternion:
     """A matrix of quaternions sampled uniformly over time that encode rotations
 
@@ -634,6 +662,53 @@ class RotQuaternion:
             return False
 
         return np.allclose(self.quats, other.quats)
+
+
+class SharedRotQuaternion(RotQuaternion):
+    """A version of RotQuaternion that wraps an existing shared-memory NumPy array.
+
+    This class is used to avoid copying or modifying (normalizing) the underlying
+    array, as that is expected to be handled explicitly by the
+    node root process of the shared memory communicator.
+    """
+
+    def __init__(
+        self,
+        quats: npt.NDArray,
+        start_time: float | astropy.time.Time | None = None,
+        sampling_rate_hz: float | None = None,
+    ):
+        """
+        Wrap a shared-memory array of quaternions into a :class:`RotQuaternion`
+
+        Unlike :class:`RotQuaternion`, the array is neither copied nor
+        normalized: this must be done by the node root before calling
+        this constructor.
+
+        :param quats: a ``(N, 4)`` (or ``(4,)``) NumPy array in shared memory
+        :param start_time: the start time, either a floating point number
+            or an ``astropy.time.Time`` object; required if ``N > 1``
+        :param sampling_rate_hz: the sampling frequency; required if ``N > 1``
+        """
+        # Make sure that `quats` is a 2D array with shape (N, 4), like in
+        # RotQuaternion: reshaping a contiguous array returns a view, so the
+        # memory is still the shared one
+        self.quats = quats.reshape(-1, 4)
+
+        if self.quats.shape[0] > 1:
+            assert start_time is not None, (
+                "You must specify start_time if the quaternion is not constant"
+            )
+            assert sampling_rate_hz is not None, (
+                "You must specify sampling_rate_hz if the quaternion is not constant"
+            )
+
+        self.start_time = start_time
+        self.sampling_rate_hz = sampling_rate_hz
+
+        # Unlike RotQuaternion, do not normalize the quaternions: the array is
+        # read-only on all the processes but the node root, which writes
+        # quaternions that are already normalized
 
 
 # This is an Abstract Base Class (ABC)
@@ -885,13 +960,12 @@ class SpinningScanningStrategy(ScanningStrategy):
         )
 
         spin2ecliptic_quats = np.empty((num_of_quaternions, 4))
-        time, time_s = ScanningStrategy.get_times(
-            start_time=start_time,
-            delta_time_s=delta_time_s,
-            num_of_quaternions=num_of_quaternions,
-        )
-
-        sun_earth_angles_rad = calculate_sun_earth_angles_rad(time)
+        if isinstance(start_time, astropy.time.Time):
+            time_s = np.arange(num_of_quaternions) * delta_time_s
+            sun_earth_angles_rad = interpolate_sun_earth_angles_rad(start_time, time_s)
+        else:
+            time_s = start_time + np.arange(num_of_quaternions) * delta_time_s
+            sun_earth_angles_rad = calculate_sun_earth_angles_rad(time_s)
 
         self.all_spin_to_ecliptic(
             result_matrix=spin2ecliptic_quats,

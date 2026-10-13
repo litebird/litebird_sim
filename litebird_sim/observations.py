@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
-from .coordinates import DEFAULT_TIME_SCALE
+from .coordinates import DEFAULT_TIME_SCALE, CoordinateSystem, rotate_coordinates_e2g
 from .detectors import InstrumentInfo
 from .distribute import distribute_detector_blocks, distribute_evenly
 from .hwp import HWP, IdealHWP
@@ -154,6 +154,7 @@ class Observation:
 
     # Dynamic attributes set by mapmaker
     net_ukrts: int | float | npt.NDArray
+    pol_efficiency: npt.NDArray
     wafer: str | None
 
     # Dynamic attributes set by beam synthesis
@@ -958,6 +959,24 @@ class Observation:
             internal :class:`.PointingProvider`.
         """
 
+        self._set_pointing_provider(
+            bore2ecliptic_quats=spin2ecliptic_quats * instrument.bore2spin_quat,
+            hwp=hwp,
+            maximum_internal_buffer_mem_mb=maximum_internal_buffer_mem_mb,
+        )
+
+    def _set_pointing_provider(
+        self,
+        bore2ecliptic_quats: RotQuaternion,
+        hwp: HWP | None = None,
+        maximum_internal_buffer_mem_mb: float = DEFAULT_INTERNAL_BUFFER_SIZE_FOR_POINTINGS_MB,
+    ) -> None:
+        """Build the :class:`.PointingProvider` from the boresight-to-Ecliptic quaternions
+
+        The quaternions are used as they are, without copying them: several
+        observations can thus share the same :class:`.RotQuaternion` object.
+        """
+
         assert (maximum_internal_buffer_mem_mb > 0) or (
             maximum_internal_buffer_mem_mb == -1
         ), (
@@ -966,7 +985,6 @@ class Observation:
             )
         )
 
-        bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
         pointing_provider = PointingProvider(
             bore2ecliptic_quats=bore2ecliptic_quats,
             hwp=hwp,
@@ -1273,8 +1291,73 @@ class Observation:
         self.comm_det_block = _SerialMpiCommunicator()
         self.comm_time_block = _SerialMpiCommunicator()
 
-        if self.comm and self.comm.size > 1:
+        if hasattr(self.comm, "Split"):
             det_color = self.comm.rank // self.n_blocks_time
             time_color = self.comm.rank % self.n_blocks_time
             self.comm_det_block = self.comm.Split(det_color)
             self.comm_time_block = self.comm.Split(time_color)
+
+    def get_hitmap(
+        self,
+        nside: int,
+        detector_idx: int | list[int] | str = "all",
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        nest: bool = False,
+        nthreads: int | None = None,
+    ) -> npt.NDArray:
+        """Build a Healpix hit-count map for the observation.
+
+        This method uses the pointings to obtain a map containing the number of
+        samples falling in each pixel. The pointings are computed one detector at a
+        time, so the memory needed is that of a single detector.
+
+        Args:
+            nside (int):
+                Resolution of the returned Healpix map.
+            detector_idx (int, list[int] or str):
+                Same as in :meth:`.get_pointings`: specifies which detectors should be
+                included in the computation. Use ``"all"`` to include *all* the
+                detectors in this Observation; if you just want a subset of them, pass
+                a list with their zero-based index, or an integer for one detector.
+            output_coordinate_system (:class:`.CoordinateSystem`):
+                Coordinate system of the map; the default (Galactic) is the same as
+                the map-makers.
+            nest (bool):
+                Sets the Healpix ordering to NESTED instead of RING. Default: False (RING).
+            nthreads: (int):
+                The number of threads to use for ducc0's Healpix computations. If None,
+                it is automatically obtained from NUM_THREADS_ENVVAR environment variable.
+
+        Returns:
+            np.ndarray:
+                The Healpix map as a numpy array of integers.
+
+        Raises:
+            AssertionError:
+                If `prepare_pointings()` has not been called.
+
+        """
+
+        assert self.pointing_provider is not None, (
+            "You must initialize pointings; use Simulation.prepare_pointings()"
+        )
+
+        if isinstance(detector_idx, str):
+            assert detector_idx == "all", f"Invalid detector_idx {detector_idx!r}"
+            det_indices = range(self.n_detectors)
+        elif isinstance(detector_idx, int):
+            det_indices = [detector_idx]
+        else:
+            det_indices = detector_idx
+
+        hpx = Healpix_Base(nside, "RING" if not nest else "NEST")
+        nthreads = resolve_nthreads(nthreads)
+        hitmap = np.zeros(hpx.npix(), dtype=np.int64)
+        for det_idx in det_indices:
+            pointings, _ = self.get_pointings(det_idx)
+            if output_coordinate_system == CoordinateSystem.Galactic:
+                pointings = rotate_coordinates_e2g(pointings)
+            pixels = hpx.ang2pix(pointings[:, 0:2], nthreads=nthreads)
+            hitmap += np.bincount(pixels, minlength=hitmap.size)
+
+        return hitmap

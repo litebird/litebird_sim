@@ -780,5 +780,54 @@ def test_non_linearity_seeding():
         np.testing.assert_equal(tods[0], tods[1])
 
 
+def test_simulation_get_hitmap():
+    # The hit map must count the samples of all the observations of all the
+    # MPI processes
+    sim = lbs.Simulation(
+        start_time=0.0,
+        duration_s=600.0,
+        random_seed=1,
+        mpi_comm=lbs.MPI_COMM_WORLD,
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45),
+            precession_rate_hz=1 / 3600 / 3.2,
+            spin_rate_hz=0.05 / 60,
+        )
+    )
+    sim.set_instrument(lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50)))
+    dets = [lbs.DetectorInfo(name=n, sampling_rate_hz=1.0) for n in ("a", "b")]
+    # At least one observation per process, as `prepare_pointings` needs it
+    sim.create_observations(
+        detectors=dets, num_of_obs_per_detector=2 * lbs.MPI_COMM_WORLD.size
+    )
+    sim.prepare_pointings()
+
+    hitmap = sim.get_hitmap(nside=16)
+
+    # Each process only holds some of the samples: the total proves the reduction
+    assert hitmap.sum() == len(dets) * 600
+
+
 if __name__ == "__main__":
     pytest.main([f"{__file__}"])
+
+
+def test_mpi_disabled_does_not_import_mpi4py():
+    # With LITEBIRD_SIM_MPI=0, importing litebird_sim must not initialize MPI:
+    # importing `mpi4py.MPI` calls MPI_Init, which hangs outside `srun` on some
+    # clusters (e.g., Intel MPI)
+    import os
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, litebird_sim; sys.exit('mpi4py.MPI' in sys.modules)",
+        ],
+        env={**os.environ, "LITEBIRD_SIM_MPI": "0"},
+    )
+    assert result.returncode == 0

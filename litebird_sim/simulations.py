@@ -5,6 +5,7 @@ import logging as log
 import os
 import subprocess
 from collections import namedtuple
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,7 @@ from uuid import uuid4
 
 if TYPE_CHECKING:
     import brahmap
+    import pysanepic
 
 import astropy.time
 import astropy.units
@@ -55,6 +57,7 @@ from .mapmaking import (
     destriper_log_callback,
     make_binned_map,
     make_brahmap_gls_map,
+    make_sanepic_gls_map,
     make_destriped_map,
     make_h_maps,
     make_pair_differenced_map,
@@ -71,7 +74,13 @@ from .observation_utilities import (
 )
 from .profiler import TimeProfiler, profile_list_to_speedscope
 from .scan_map import scan_map_in_observations
-from .scanning import ScanningStrategy, SpinningScanningStrategy
+from .scanning import (
+    RotQuaternion,
+    ScanningStrategy,
+    SharedRotQuaternion,
+    SpinningScanningStrategy,
+)
+from .shared_memory import SharedMemoryManager
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
 from .units import Units
@@ -404,6 +413,12 @@ class Simulation:
         self.hwp: HWP | None = None
 
         self.spin2ecliptic_quats = None
+
+        # Created on demand by the methods that accept `shared_memory=True`
+        self._shared_memory_manager: SharedMemoryManager | None = None
+        # Names of the methods that allocated shared memory, to warn when
+        # a second call leaves the previous window allocated
+        self._shared_memory_callers: set[str] = set()
 
         self.description = description
 
@@ -1503,8 +1518,9 @@ class Simulation:
         self,
         scanning_strategy: None | ScanningStrategy = None,
         imo_url: None | str = None,
-        delta_time_s: float = 60.0,
+        delta_time_s: float = 2.0,
         append_to_report: bool = True,
+        shared_memory: bool = False,
     ):
         """Simulate the motion of the spacecraft in free space
 
@@ -1533,12 +1549,19 @@ class Simulation:
         The parameter `delta_time_s` specifies how often should
         quaternions be computed; see
         :meth:`.ScanningStrategy.set_scanning_strategy` for
-        more information.
+        more information. The quaternions are interpolated with slerp,
+        whose error grows as ``spin_rate * precession_rate * delta_time_s**2``:
+        with the default of 2 s, it is ~1 arcsec at 0.3 rpm. Use a smaller
+        value if you need more accuracy or faster spin rates.
 
         If the parameter `append_to_report` is set to ``True`` (the
         default), some information about the pointings will be included
         in the report saved by the :class:`.Simulation` object. This will
         be done only if the process has rank #0.
+
+        If `shared_memory` is ``True``, the quaternions are computed once per
+        computing node and kept in MPI shared memory, which all the MPI
+        processes running on that node read. This requires MPI.
 
         """
         assert not (scanning_strategy and imo_url), (
@@ -1554,12 +1577,19 @@ class Simulation:
                 imo=self.imo, url=imo_url
             )
 
-        # TODO: if MPI is enabled, we should probably parallelize this call
-        self.spin2ecliptic_quats = scanning_strategy.generate_spin2ecl_quaternions(
-            start_time=self.start_time,
-            time_span_s=self.duration_s,
-            delta_time_s=delta_time_s,
-        )
+        def generate_quaternions() -> RotQuaternion:
+            return scanning_strategy.generate_spin2ecl_quaternions(
+                start_time=self.start_time,
+                time_span_s=self.duration_s,
+                delta_time_s=delta_time_s,
+            )
+
+        if shared_memory:
+            self.spin2ecliptic_quats = self._share_quaternions_in_node(
+                generate_quaternions, caller="set_scanning_strategy"
+            )
+        else:
+            self.spin2ecliptic_quats = generate_quaternions()
         quat_memory_size_bytes = self.spin2ecliptic_quats.nbytes()
 
         num_of_obs = len(self.observations)
@@ -1577,6 +1607,71 @@ class Simulation:
                 delta_time_s=delta_time_s,
                 quat_memory_size_bytes=quat_memory_size_bytes,
             )
+
+    def _share_quaternions_in_node(
+        self, compute: Callable[[], RotQuaternion], caller: str
+    ) -> SharedRotQuaternion:
+        """Compute quaternions once per node and share them in MPI shared memory
+
+        Only the root process of each node calls `compute`; the result is
+        copied into a MPI shared-memory window, which the other processes
+        running on the same node can only read.
+        """
+        if self._shared_memory_manager is None:
+            if not MPI_ENABLED:
+                raise RuntimeError(
+                    "shared_memory=True requires MPI, but MPI is not enabled "
+                    "(mpi4py is not installed or LITEBIRD_SIM_MPI is set to 0)"
+                )
+
+            from mpi4py.MPI import Intracomm
+
+            assert isinstance(self.mpi_comm, Intracomm)
+            self._shared_memory_manager = SharedMemoryManager(base_comm=self.mpi_comm)
+
+        manager = self._shared_memory_manager
+        is_node_root = manager.node_rank == manager.node_root
+
+        if caller in self._shared_memory_callers and is_node_root:
+            log.warning(
+                "Simulation.%s(shared_memory=True) was already called: the "
+                "shared memory allocated by the previous call will not be "
+                "freed until the program ends",
+                caller,
+            )
+        self._shared_memory_callers.add(caller)
+
+        quats = compute() if is_node_root else None
+        shape, dtype, start_time, sampling_rate_hz = manager.node_comm.bcast(
+            (
+                quats.quats.shape,
+                quats.quats.dtype,
+                quats.start_time,
+                quats.sampling_rate_hz,
+            )
+            if quats is not None
+            else None,
+            root=manager.node_root,
+        )
+
+        flat_array, win = manager.alloc_shared_node(
+            size=int(np.prod(shape)), dtype=dtype
+        )
+        shared_quats = flat_array.reshape(shape)
+
+        win.Fence()
+        if quats is not None:
+            shared_quats[:] = quats.quats
+        win.Fence()
+
+        if not is_node_root:
+            shared_quats.flags.writeable = False
+
+        return SharedRotQuaternion(
+            quats=shared_quats,
+            start_time=start_time,
+            sampling_rate_hz=sampling_rate_hz,
+        )
 
     def set_instrument(self, instrument: InstrumentInfo):
         """Set the instrument to be used in the simulation.
@@ -1615,6 +1710,7 @@ class Simulation:
     def prepare_pointings(
         self,
         append_to_report: bool = True,
+        shared_memory: bool = False,
     ):
         """Trigger the computation of the quaternions needed to compute pointings.
 
@@ -1626,6 +1722,11 @@ class Simulation:
         It combines the quaternions of the spacecraft, of the instrument, and of the detectors
         and prepares a number of data structures that will be used by the method
         :meth:`.Observation.get_pointings` to determine the pointing angles and the HWP angle.
+
+        The boresight quaternions are the same for all the observations, which
+        share one copy of them. If `shared_memory` is ``True``, this copy is
+        computed once per computing node and kept in MPI shared memory, which
+        all the MPI processes running on that node read. This requires MPI.
         """
         assert self.observations, (
             "You must call Simulation.create_observations() "
@@ -1640,16 +1741,36 @@ class Simulation:
             "before calling Simulation.prepare_pointings"
         )
 
-        prepare_pointings(
-            observations=self.observations,
-            instrument=self.instrument,
-            spin2ecliptic_quats=self.spin2ecliptic_quats,
-            hwp=self.hwp,
-        )
+        if shared_memory:
+            instrument = self.instrument
+            spin2ecliptic_quats = self.spin2ecliptic_quats
+            bore2ecliptic_quats = self._share_quaternions_in_node(
+                lambda: spin2ecliptic_quats * instrument.bore2spin_quat,
+                caller="prepare_pointings",
+            )
+            for cur_obs in self.observations:
+                cur_obs._set_pointing_provider(
+                    bore2ecliptic_quats=bore2ecliptic_quats, hwp=self.hwp
+                )
+        else:
+            prepare_pointings(
+                observations=self.observations,
+                instrument=self.instrument,
+                spin2ecliptic_quats=self.spin2ecliptic_quats,
+                hwp=self.hwp,
+            )
 
         pointing_provider = self.observations[0].pointing_provider
 
+        # One copy of the quaternions per MPI process, or per node with shared memory
         memory_occupation = pointing_provider.bore2ecliptic_quats.quats.nbytes
+        if shared_memory:
+            assert self._shared_memory_manager is not None
+            if (
+                self._shared_memory_manager.node_rank
+                != self._shared_memory_manager.node_root
+            ):
+                memory_occupation = 0
         num_of_obs = len(self.observations)
         if append_to_report and MPI_ENABLED:
             memory_occupation = self.mpi_comm.allreduce(memory_occupation)
@@ -2838,6 +2959,47 @@ class Simulation:
         return brahmap_result
 
     @_profile
+    def make_sanepic_gls_map(
+        self,
+        nside: int,
+        components: str | list[str] = "tod",
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        params: "pysanepic.GLSParameters | None" = None,
+        pointings_dtype=np.float64,
+        nthreads: int | None = None,
+        append_to_report: bool = True,
+    ) -> "pysanepic.MapResult":
+        """Wrapper to the GLS map-maker of pysanepic (1/f noise).
+
+        For details, see the low-level interface :func:`.make_sanepic_gls_map`.
+        """
+        result = make_sanepic_gls_map(
+            nside=nside,
+            observations=self.observations,
+            hwp=self.hwp,
+            components=components,
+            output_coordinate_system=output_coordinate_system,
+            params=params,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            import pysanepic  # noqa
+
+            template_file_path = get_template_file_path("report_sanepic.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_text=markdown_template,
+                sanepic_version=getattr(pysanepic, "__version__", "unknown"),
+                params=params or pysanepic.GLSParameters(),
+                result=result,
+            )
+
+        return result
+
+    @_profile
     def write_observations(
         self,
         subdir_name: None | str = "tod",
@@ -3016,3 +3178,53 @@ class Simulation:
                 figures=[],
                 **dictionary,
             )
+
+    @_profile
+    def get_hitmap(
+        self,
+        nside: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        nest: bool = False,
+        nthreads: int | None = None,
+    ) -> np.ndarray:
+        """
+        Get the Healpix hit-count map of all the observations and detectors.
+
+        The map counts the samples of all the observations of all the MPI
+        processes, so every process must call this method and gets the same map.
+        Use :meth:`.Observation.get_hitmap` for the map of one observation.
+
+        Args:
+            nside (int):
+                Resolution of the returned Healpix map.
+            output_coordinate_system (:class:`.CoordinateSystem`):
+                Coordinate system of the map; the default (Galactic) is the same as
+                the map-makers.
+            nest (bool):
+                Sets the Healpix ordering to NESTED instead of RING. Default: False (RING).
+            nthreads: (int):
+                The number of threads to use for ducc0's Healpix computations. If None,
+                it is automatically obtained from NUM_THREADS_ENVVAR environment variable.
+
+        Returns:
+            np.ndarray:
+                The Healpix map as a numpy array of integers.
+        """
+
+        # Start from an empty map: with MPI, some processes might have no
+        # observations, but they must take part in the reduction anyway
+        hitmap = np.zeros(HealpixMap.nside_to_npix(nside), dtype=np.int64)
+        for cur_obs in self.observations:
+            hitmap += cur_obs.get_hitmap(
+                nside=nside,
+                output_coordinate_system=output_coordinate_system,
+                nest=nest,
+                nthreads=nthreads,
+            )
+
+        if MPI_ENABLED:
+            from .mpi import MPI
+
+            self.mpi_comm.Allreduce(MPI.IN_PLACE, hitmap, MPI.SUM)
+
+        return hitmap
