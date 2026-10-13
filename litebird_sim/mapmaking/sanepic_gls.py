@@ -2,15 +2,16 @@
 GLS map-maker with correlated (1/f) noise using pysanepic
 
 pysanepic does not depend on litebird_sim: this module converts the
-observations into `pysanepic.DetectorData` (pointings, HWP angle, TOD and the
-1/f noise parameters used to simulate the noise) and calls
-`pysanepic.make_maps`.
+observations into `pysanepic.DetectorData` (HEALPix pixels computed here,
+orientation, HWP angle, TOD and the 1/f noise parameters used to simulate the
+noise) and calls `pysanepic.make_maps`.
 """
 
 from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
+from ducc0.healpix import Healpix_Base
 
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
@@ -94,6 +95,11 @@ def make_sanepic_gls_map(
             "Could not import `pysanepic`. Make sure that the package "
             "`pysanepic` is installed in the same environment as `litebird_sim`"
         )
+    if not hasattr(pysanepic, "Pointing"):
+        raise ImportError(
+            f"pysanepic {pysanepic.__version__} is too old: version 0.1.0 or "
+            "later is needed"
+        )
 
     if isinstance(components, str):
         components = [components]
@@ -102,9 +108,14 @@ def make_sanepic_gls_map(
         observations=observations, pointings=pointings
     )
 
+    nthreads = resolve_nthreads(nthreads)
+    coordinates = _COORDINATES[output_coordinate_system]
+    hpx = Healpix_Base(nside, "RING")
+
     def detector_data():
-        # a generator: pointings are computed for one detector at a time, and
-        # pysanepic keeps only pixels and angles (no copy of the TODs)
+        # a generator: pointings are computed for one detector at a time and
+        # turned into int32 pixels here, with the same pixelization as the other
+        # map-makers; pysanepic keeps only pixels and angles (no copy of the TODs)
         for obs, cur_ptg in zip(obs_list, ptg_list):
             hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
             gamma = get_pol_efficiency(obs)
@@ -116,14 +127,19 @@ def make_sanepic_gls_map(
                     hwp_angle=hwp_angle,
                     output_coordinate_system=output_coordinate_system,
                     pointings_dtype=pointings_dtype,
+                    nthreads=nthreads,
                 )
+                pointing = pysanepic.Pointing(
+                    pix=hpx.ang2pix(ptg_det[:, :2], nthreads=nthreads).astype(np.int32),
+                    nside=nside,
+                    psi=ptg_det[:, 2],
+                    coordinates=coordinates,
+                )
+                del ptg_det
                 yield pysanepic.DetectorData(
                     tod=_sum_components(obs, components, det_idx),
-                    theta=ptg_det[:, 0],
-                    phi=ptg_det[:, 1],
-                    psi=ptg_det[:, 2],
+                    pointing=pointing,
                     hwp_angle=hwp_angle,
-                    coordinates=_COORDINATES[output_coordinate_system],
                     sampling_rate_hz=obs.sampling_rate_hz,
                     net_ukrts=net[det_idx],
                     fknee_hz=obs.fknee_mhz[det_idx] / 1e3,
@@ -137,8 +153,8 @@ def make_sanepic_gls_map(
     return pysanepic.make_maps(
         detector_data(),
         nside,
-        coordinates=_COORDINATES[output_coordinate_system],
+        coordinates=coordinates,
         params=params,
         comm=comm,
-        nthreads=resolve_nthreads(nthreads),
+        nthreads=nthreads,
     )
