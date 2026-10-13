@@ -1,8 +1,8 @@
 # HEAD
 
--   Speed up the binner: the 3×3 matrices of each pixel are now inverted analytically, and LAPACK is used only for the eigenvalues that decide whether a pixel is observed well enough. Solving the map-making equation at nside 512 takes 0.35 s instead of 2 s (the cost grows 4× for every doubling of nside); the pixels marked as unseen are the same, and the maps agree within roundoff. Reference PR: [#N](https://github.com/litebird/litebird_sim/pull/N).
+-   Speed up the binner: the 3×3 matrices of each pixel are now inverted analytically, and LAPACK is used only for the eigenvalues that decide whether a pixel is observed well enough. Solving the map-making equation at nside 512 takes 0.35 s instead of 2 s (the cost grows 4× for every doubling of nside); the pixels marked as unseen are the same, and the maps agree within roundoff. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
 
--   Compute the HWP angle once per observation instead of once per detector in the map-makers, `scan_map` and the other functions computing the pointings on the fly (~25% less time spent on pointings). `Observation.get_pointings` and `PointingProvider.get_pointings` have a new parameter `compute_hwp_angle` (default `True`) to skip it. Reference PR: [#N](https://github.com/litebird/litebird_sim/pull/N).
+-   Compute the HWP angle once per observation instead of once per detector in the map-makers, `scan_map` and the other functions computing the pointings on the fly (~25% less time spent on pointings). `Observation.get_pointings` and `PointingProvider.get_pointings` have a new parameter `compute_hwp_angle` (default `True`) to skip it. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
 
 -   Use Pickle Protocol 5 wrapper around MPI communicator around MPI.COMM_WORLD to avoid errors when broadcasting of large objects. Reference PR: [#565](https://github.com/litebird/litebird_sim/pull/565).
 
