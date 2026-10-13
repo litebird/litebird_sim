@@ -83,8 +83,8 @@ def _solve_binning(nobs_matrix, atd):
     # - `atd`: (N_p, 3)
     #
     # The 3×3 matrices are inverted analytically (adjugate over determinant),
-    # and LAPACK is only used for the eigenvalues: calling it three times per
-    # pixel (cond, solve, inv) was ~5× slower
+    # and `np.linalg.eigvalsh` is only used for the eigenvalues: calling
+    # `np.linalg` three times per pixel (cond, solve, inv) was ~5× slower
     npix = atd.shape[0]
 
     for ipix in prange(npix):  # type: ignore[not-iterable]
