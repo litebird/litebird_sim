@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 import astropy.units as u
 import numpy as np
 import litebird_sim as lbs
@@ -61,6 +61,20 @@ def test_calculate_sun_earth_angles_rad():
     assert np.allclose(
         lbs.calculate_sun_earth_angles_rad(time), -1.570_796_364_387_955_7
     )
+
+
+def test_interpolate_sun_earth_angles_rad():
+    # Two days at 60 s around the March equinox, when the angle crosses ±π
+    start_time = Time("2020-03-19T00:00:00")
+    time_s = np.arange(0.0, 2 * 86400.0, 60.0)
+    exact = lbs.calculate_sun_earth_angles_rad(
+        start_time + TimeDelta(time_s, format="sec", scale="tdb")
+    )
+    assert exact.max() - exact.min() > np.pi  # the wrap really happens
+
+    approx = lbs.interpolate_sun_earth_angles_rad(start_time, time_s)
+    error_rad = np.abs(np.angle(np.exp(1j * (approx - exact))))
+    assert np.rad2deg(error_rad.max()) * 3600 < 1e-3
 
 
 def create_fake_detector(

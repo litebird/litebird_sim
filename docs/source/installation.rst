@@ -184,6 +184,15 @@ LBS offers 3 optional dependencies:
    ``brahmap`` dependency. See the section on :ref:`mapmaking` for details on using
    BrahMap with LBS.
 
+In addition, the interface to the `pysanepic
+<https://github.com/litebird/pysanepic>`_ GLS map-maker (see the section on
+:ref:`mapmaking`) requires the package ``pysanepic``, which is not part of the
+optional dependencies above. Install it in the same environment as LBS:
+
+.. code-block:: text
+
+    pip install git+https://github.com/litebird/pysanepic
+
 .. _maximize-performance:
 
 Maximize the performance

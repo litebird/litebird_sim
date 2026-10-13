@@ -61,10 +61,12 @@ def prepare_pointings(
     else:
         obs_list = observations
 
+    # The boresight quaternions span the whole mission and are the same for
+    # every observation: compute them once and share them, instead of keeping
+    # one copy per observation (see issue #489)
+    bore2ecliptic_quats = spin2ecliptic_quats * instrument.bore2spin_quat
     for cur_obs in obs_list:
-        cur_obs.prepare_pointings(
-            instrument=instrument, spin2ecliptic_quats=spin2ecliptic_quats, hwp=hwp
-        )
+        cur_obs._set_pointing_provider(bore2ecliptic_quats=bore2ecliptic_quats, hwp=hwp)
 
 
 def precompute_pointings(
