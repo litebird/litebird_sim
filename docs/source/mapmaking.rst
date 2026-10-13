@@ -875,7 +875,7 @@ to pysanepic:
      - The PCG stops when :math:`|r|^2/|b|^2` is below ``tol``.
    * - ``angle_dtype``
      - ``np.float32``
-     - Storage of :math:`\gamma\cos 2\psi` and :math:`\gamma\sin 2\psi`.
+     - Storage of twice the polarization angle (float32: error ~1e-7 rad).
 
 A few practical notes:
 
@@ -888,9 +888,14 @@ A few practical notes:
   returned by :func:`.resolve_nthreads`, i.e., ``OMP_NUM_THREADS``; use
   the number of cores of a node divided by the number of MPI processes
   running on it.
-- **Memory**: besides the TOD, pysanepic needs about 12 bytes per
-  sample (the pixel index and the two polarization weights) plus a few
-  maps per thread.
+- **Pixels**: litebird_sim computes the HEALPix pixel of each sample
+  (int32, ``RING`` ordering, in ``output_coordinate_system``), with the
+  same pixelization as the other map-makers, and passes it to pysanepic
+  as a ``pysanepic.Pointing`` together with the orientation ψ; this
+  needs pysanepic 0.1.0 or later.
+- **Memory**: besides the TOD, pysanepic needs about 8 bytes per sample
+  (the pixel index and twice the polarization angle) plus a few maps per
+  thread.
 - **Tolerance**: the default ``tol=1e-12`` is the one of SANEPIC. In a
   test with 16 detectors and 7 days of data, ``tol=1e-8`` needed 10
   iterations instead of 28, and the maps differed from the default ones
