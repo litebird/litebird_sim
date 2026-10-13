@@ -30,11 +30,11 @@ from litebird_sim.maps_and_harmonics import HealpixMap
 from ..utilities import resolve_nthreads
 
 from .common import (
-    COND_THRESHOLD,
     _build_mask_detector_split,
     _build_mask_time_split,
     _check_valid_splits,
     _compute_pixel_indices,
+    _is_well_conditioned,
     get_map_making_weights,
     get_pol_efficiency,
 )
@@ -101,12 +101,7 @@ def _solve_binning(nobs_matrix, atd):
         c22 = a00 * a11 - a10 * a10
         det = a00 * c00 + a10 * c10 + a20 * c20
 
-        # The matrices are symmetric and positive semi-definite, so the condition
-        # number is the ratio between the largest and the smallest eigenvalue.
-        # Closed formulas for the eigenvalues lose too much precision on the
-        # smallest one when the matrix is singular (e.g., 1–2 hits per pixel)
-        eigvals = np.linalg.eigvalsh(m)
-        if not (eigvals[2] < COND_THRESHOLD * eigvals[0]):
+        if not _is_well_conditioned(m):
             m.fill(hp.UNSEEN)
             atd[ipix].fill(hp.UNSEEN)
             continue

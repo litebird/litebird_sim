@@ -97,3 +97,26 @@ def test_estimate_cond_number():
 
         if found:
             np.testing.assert_almost_equal(actual=cond, desired=np.linalg.cond(A))
+
+
+def test_is_well_conditioned():
+    # Singular matrices (1-2 hits per pixel) must be rejected whatever the
+    # scale of the weights; estimate_cond_number accepts some of them
+    from litebird_sim.mapmaking.common import _is_well_conditioned
+
+    def nobs_matrix(psi_list, weight):
+        vecs = [np.array([1, np.cos(2 * psi), np.sin(2 * psi)]) for psi in psi_list]
+        return weight * sum(np.outer(v, v) for v in vecs)
+
+    rng = np.random.default_rng(1)
+    for weight in (1e-8, 1.0, 1e8):
+        for num_of_hits in (1, 2):
+            for _ in range(200):
+                m = nobs_matrix(rng.uniform(0, np.pi, num_of_hits), weight)
+                assert not _is_well_conditioned(m)
+
+        # Three well-separated angles give a good matrix
+        assert _is_well_conditioned(
+            nobs_matrix([0.0, np.pi / 3, 2 * np.pi / 3], weight)
+        )
+        assert not _is_well_conditioned(np.zeros((3, 3)))

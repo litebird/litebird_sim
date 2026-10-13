@@ -539,6 +539,11 @@ Here are a few things to keep in mind:
   warning. If you need to recompute the
   quaternions many times, use ``shared_memory=False``.
 
+- If one MPI process fails while the others keep running, freeing the
+  windows at exit can make the job hang: launch your script with
+  ``mpirun ... python -m mpi4py my_script.py`` so that the job is
+  aborted instead (see :ref:`mpi-shared-memory`).
+
 As an example, here is the memory used after
 :meth:`.Simulation.prepare_pointings` by a one-year simulation with one
 observation per day, running on one node of Galileo100 with 16 MPI

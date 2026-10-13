@@ -1,5 +1,9 @@
 # HEAD
 
+-   Fix the destriper possibly accepting singular pixels (e.g., with 1–2 hits) and producing wrong values there: the closed formula used to estimate the condition number loses precision on the smallest eigenvalue, and the check worked only thanks to an absolute threshold that depends on the units of the detector NETs (with weights of order 1, ~25% of the singular pixels were accepted). The destriper and the binner now share a check based on the eigenvalues computed by LAPACK, which does not depend on the scale. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
+
+-   Document that MPI scripts, especially those using shared memory, should be run with `python -m mpi4py`, so that an exception in one process aborts the job instead of making it hang. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
+
 -   Fix `Observation.get_pointings` ignoring `nside_centering` when the detector is passed as an integer index (it worked only with a list or `"all"`). The map-makers and the beam convolution were not affected, as they center the pointings themselves. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
 
 -   Speed up the binner: the 3×3 matrices of each pixel are now inverted analytically, and LAPACK is used only for the eigenvalues that decide whether a pixel is observed well enough. Solving the map-making equation at nside 512 takes 0.35 s instead of 2 s (the cost grows 4× for every doubling of nside); the pixels marked as unseen are the same, and the maps agree within roundoff. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
