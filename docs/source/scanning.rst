@@ -638,6 +638,31 @@ visualize the position of these pointings on a Healpix map::
 .. image:: images/scanning-strategy-example.png
 
 
+Hit maps
+--------
+
+A hit map counts how many samples fall in each pixel of a Healpix map.
+You do not need to compute it by hand as in the example above, nor to
+run a map-maker: :meth:`.Observation.get_hitmap` returns the hit map of
+one observation, and :meth:`.Simulation.get_hitmap` the one of the
+whole simulation::
+
+   sim.prepare_pointings()
+
+   # Sum over all the detectors and observations; with MPI, every
+   # process must call this method, and they all get the same map
+   hitmap = sim.get_hitmap(nside=64)
+
+   # Only the first detector of the first local observation
+   hitmap_det0 = sim.observations[0].get_hitmap(nside=64, detector_idx=0)
+
+The maps are in Galactic coordinates by default, like the ones produced
+by the map-makers (see :ref:`mapmaking`); pass
+``output_coordinate_system=lbs.CoordinateSystem.Ecliptic`` to get them in
+Ecliptic coordinates. The pointings are computed one detector at a time,
+so the memory needed is that of a single detector.
+
+
 Custom scanning strategies
 --------------------------
 
