@@ -25,12 +25,11 @@ from ..utilities import resolve_nthreads
 
 from .common import (
     _compute_pixel_indices,
-    COND_THRESHOLD,
+    _is_well_conditioned,
     get_map_making_weights,
     get_pol_efficiency,
     cholesky,
     solve_cholesky,
-    estimate_cond_number,
     _build_mask_detector_split,
     _build_mask_time_split,
 )
@@ -422,15 +421,10 @@ def _nobs_matrix_to_cholesky(
 
     for pixel_idx in prange(nobs_matrix.shape[0]):  # type: ignore[not-iterable]
         cur_nobs_matrix = nobs_matrix[pixel_idx]
-        (cond_number, flag) = estimate_cond_number(
-            a00=cur_nobs_matrix[0],
-            a10=cur_nobs_matrix[1],
-            a11=cur_nobs_matrix[2],
-            a20=cur_nobs_matrix[3],
-            a21=cur_nobs_matrix[4],
-            a22=cur_nobs_matrix[5],
+        a00, a10, a11, a20, a21, a22 = cur_nobs_matrix
+        dest_valid_pixel[pixel_idx] = _is_well_conditioned(
+            np.array([[a00, a10, a20], [a10, a11, a21], [a20, a21, a22]])
         )
-        dest_valid_pixel[pixel_idx] = flag and (cond_number < COND_THRESHOLD)
         if dest_valid_pixel[pixel_idx]:
             cholesky(
                 a00=cur_nobs_matrix[0],

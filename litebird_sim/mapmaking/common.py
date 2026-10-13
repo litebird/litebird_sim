@@ -380,6 +380,21 @@ def solve_cholesky(
 
 
 @njit
+def _is_well_conditioned(matrix: npt.NDArray) -> bool:
+    """Tell if a symmetric positive semi-definite 3×3 matrix can be inverted
+
+    The condition number is the ratio between the largest and the smallest
+    eigenvalue, which are computed with ``np.linalg.eigvalsh``. Closed
+    formulas like the one in :func:`.estimate_cond_number` lose too much
+    precision on the smallest eigenvalue when the matrix is singular (e.g.,
+    1–2 hits per pixel), and the test does not depend on the scale of the
+    matrix (i.e., on the units of the detector weights).
+    """
+    eigvals = np.linalg.eigvalsh(matrix)
+    return bool(eigvals[2] < COND_THRESHOLD * eigvals[0])
+
+
+@njit
 def estimate_cond_number(
     a00: float,
     a10: float,

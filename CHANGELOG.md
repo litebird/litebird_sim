@@ -1,5 +1,13 @@
 # HEAD
 
+-   Fix the destriper possibly accepting singular pixels (e.g., with 1–2 hits) and producing wrong values there: the closed formula used to estimate the condition number loses precision on the smallest eigenvalue, and the check worked only thanks to an absolute threshold that depends on the units of the detector NETs (with weights of order 1, ~25% of the singular pixels were accepted). The destriper and the binner now share a check based on the eigenvalues computed by `np.linalg.eigvalsh`, which does not depend on the scale. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
+
+-   Fix `Observation.get_pointings` ignoring `nside_centering` when the detector is passed as an integer index (it worked only with a list or `"all"`). The map-makers and the beam convolution were not affected, as they center the pointings themselves. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
+
+-   Speed up the binner: the 3×3 matrices of each pixel are now inverted analytically, and `np.linalg.eigvalsh` is used only for the eigenvalues that decide whether a pixel is observed well enough. Solving the map-making equation at nside 512 takes 0.35 s instead of 2 s (the cost grows 4× for every doubling of nside); the pixels marked as unseen are the same, and the maps agree within roundoff. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
+
+-   Compute the HWP angle once per observation instead of once per detector in the map-makers, `scan_map` and the other functions computing the pointings on the fly (~25% less time spent on pointings). `Observation.get_pointings` and `PointingProvider.get_pointings` have a new parameter `compute_hwp_angle` (default `True`) to skip it. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).
+
 -   **Breaking change**: Stop supporting Python 3.10, which reaches end of life in October 2026; the minimum is now Python 3.11. Besides the end-of-life date, 3.10 was forcing a split dependency stack: `numpy` had to be pinned to `>=2.2.6,<2.3` on 3.10 against `>=2.4.1` elsewhere, and the lock carried eleven packages at two or three versions at once, including `astropy` 6.1.7 alongside 8.0.1. The stack now resolves to a single version almost everywhere, and the `exceptiongroup` backport is no longer needed since `ExceptionGroup` is in the standard library from 3.11. Reference PR: [#555](https://github.com/litebird/litebird_sim/pull/555).
 
 -   Use Pickle Protocol 5 wrapper around MPI communicator around MPI.COMM_WORLD to avoid errors when broadcasting of large objects. Reference PR: [#565](https://github.com/litebird/litebird_sim/pull/565).

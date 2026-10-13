@@ -20,6 +20,20 @@ from .units import Units
 from .utilities import resolve_nthreads
 
 
+def _center_pointings(
+    pointings: npt.NDArray, nside_centering: int | None, nthreads: int | None
+) -> None:
+    """Move (θ, φ) in place to the center of their Healpix pixel, if requested"""
+    if nside_centering is None:
+        return
+
+    nthreads = resolve_nthreads(nthreads)
+    hpx = Healpix_Base(nside_centering, "RING")
+    pointings[..., 0:2] = hpx.pix2ang(
+        hpx.ang2pix(pointings[..., 0:2], nthreads=nthreads), nthreads=nthreads
+    )
+
+
 @dataclass
 class TodDescription:
     """
@@ -1012,6 +1026,7 @@ class Observation:
         pointings_dtype=np.float64,
         nside_centering: int | None = None,
         nthreads: int | None = None,
+        compute_hwp_angle: bool = True,
     ) -> tuple[npt.NDArray, npt.NDArray | None]:
         """Compute the pointings for one or more detectors in this observation
 
@@ -1057,6 +1072,10 @@ class Observation:
         nside_centering to the nside of an HEALPix map.
         The HWP angle is always a vector with shape ``(N_samples,)``, as it does
         not depend on the list of detectors.
+        As it does not depend on the detectors, you can pass
+        ``compute_hwp_angle=False`` to skip its computation when you already have
+        it (e.g., in a loop over the detectors); in this case, the HWP angle
+        returned is ``None``.
 
         The return value is allocated internally by the method. If you instead want to
         pass a pre-allocated structure, you can use the `pointing_buffer` and
@@ -1076,7 +1095,7 @@ class Observation:
                 "Detector quaternions have not been initialized."
             )
 
-            return self.pointing_provider.get_pointings(
+            pointing_buffer, hwp_buffer = self.pointing_provider.get_pointings(
                 detector_quat=self.quat[detector_idx],
                 start_time=self.start_time,
                 start_time_global=self.start_time_global,
@@ -1085,7 +1104,10 @@ class Observation:
                 pointing_buffer=pointing_buffer,
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
+                compute_hwp_angle=compute_hwp_angle,
             )
+            _center_pointings(pointing_buffer, nside_centering, nthreads)
+            return pointing_buffer, hwp_buffer
 
         # More complex case: we need all the detectors
         if isinstance(detector_idx, str):
@@ -1098,6 +1120,7 @@ class Observation:
                 hwp_buffer=hwp_buffer,
                 pointings_dtype=pointings_dtype,
                 nside_centering=nside_centering,
+                compute_hwp_angle=compute_hwp_angle,
             )
 
         # Most complex case: an explicit list (or NumPy array) of detectors
@@ -1114,7 +1137,7 @@ class Observation:
             pointing_buffer = np.empty(expected_shape, dtype=pointings_dtype)
 
         expected_shape = (self.n_samples,)
-        if self.pointing_provider.has_hwp():
+        if self.pointing_provider.has_hwp() and compute_hwp_angle:
             if hwp_buffer is not None:
                 assert hwp_buffer.shape == expected_shape, (
                     "hwp_buffer has a wrong shape, it is {actual} but should be {expected}".format(
@@ -1146,18 +1169,11 @@ class Observation:
                 abs_det_idx,
                 pointing_buffer=pointing_buffer[rel_det_idx, :, :],
                 hwp_buffer=hwp_buffer,
-                nside_centering=nside_centering,
+                # The HWP angle is the same for all the detectors
+                compute_hwp_angle=(hwp_buffer is not None) and (rel_det_idx == 0),
             )
 
-        if isinstance(nside_centering, int):
-            nthreads = resolve_nthreads(nthreads)
-
-            hpx = Healpix_Base(nside_centering, "RING")
-            # Apply centering on the first two columns (θ, φ)
-            pointing_buffer[:, :, 0:2] = hpx.pix2ang(
-                hpx.ang2pix(pointing_buffer[:, :, 0:2], nthreads=nthreads),
-                nthreads=nthreads,
-            )
+        _center_pointings(pointing_buffer, nside_centering, nthreads)
 
         return pointing_buffer, hwp_buffer
 
@@ -1354,7 +1370,7 @@ class Observation:
         nthreads = resolve_nthreads(nthreads)
         hitmap = np.zeros(hpx.npix(), dtype=np.int64)
         for det_idx in det_indices:
-            pointings, _ = self.get_pointings(det_idx)
+            pointings, _ = self.get_pointings(det_idx, compute_hwp_angle=False)
             if output_coordinate_system == CoordinateSystem.Galactic:
                 pointings = rotate_coordinates_e2g(pointings)
             pixels = hpx.ang2pix(pointings[:, 0:2], nthreads=nthreads)

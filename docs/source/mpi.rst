@@ -273,6 +273,22 @@ when the interpreter exits, or when you call
 been freed, the arrays pointing to its memory must not be used any
 longer.
 
+Freeing a window is a *collective* operation: all the processes of
+the node must take part in it. If one process stops because of an
+unhandled exception while the others keep running, it waits at exit
+for the other processes, which in turn wait for it in their next MPI
+call. This is a `known issue of mpi4py
+<https://mpi4py.readthedocs.io/en/stable/mpi4py.run.html#exceptions-and-deadlocks>`_
+that can happen in any MPI script, even without shared memory, and the
+job hangs until it hits the wall-time limit.
+
+To avoid this, when MPI is enabled and there is more than one process,
+the framework installs an exception hook (``sys.excepthook``): an
+unhandled exception in any process prints its traceback and calls
+``MPI_Abort``, which terminates the whole job immediately. Launching
+your scripts through mpi4py has the same effect::
+
+    mpirun -n 16 python -m mpi4py my_script.py
 
 API reference
 -------------
