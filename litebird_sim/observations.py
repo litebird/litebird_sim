@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
-from .coordinates import DEFAULT_TIME_SCALE
+from .coordinates import DEFAULT_TIME_SCALE, CoordinateSystem, rotate_coordinates_e2g
 from .detectors import InstrumentInfo
 from .distribute import distribute_detector_blocks, distribute_evenly
 from .hwp import HWP, IdealHWP
@@ -1301,23 +1301,27 @@ class Observation:
         self,
         nside: int,
         detector_idx: int | list[int] | str = "all",
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         nest: bool = False,
         nthreads: int | None = None,
     ) -> npt.NDArray:
         """Build a Healpix hit-count map for the observation.
 
-        This method uses the pointings to obtain a map containing information on
-        the number of times each pixel is observed.
+        This method uses the pointings to obtain a map containing the number of
+        samples falling in each pixel. The pointings are computed one detector at a
+        time, so the memory needed is that of a single detector.
 
         Args:
             nside (int):
                 Resolution of the returned Healpix map.
             detector_idx (int, list[int] or str):
-                Same as in get_pointings method above: specifies which detectors should be
-                included in the computation. Use ``"all"`` to ask for the pointings of *all*
-                the detectors in this Observation; if you just want a subset of them, pass
-                a list with their zero-based index; if you just want the pointings for one
-                detector, you can pass an integer.
+                Same as in :meth:`.get_pointings`: specifies which detectors should be
+                included in the computation. Use ``"all"`` to include *all* the
+                detectors in this Observation; if you just want a subset of them, pass
+                a list with their zero-based index, or an integer for one detector.
+            output_coordinate_system (:class:`.CoordinateSystem`):
+                Coordinate system of the map; the default (Galactic) is the same as
+                the map-makers.
             nest (bool):
                 Sets the Healpix ordering to NESTED instead of RING. Default: False (RING).
             nthreads: (int):
@@ -1326,7 +1330,7 @@ class Observation:
 
         Returns:
             np.ndarray:
-                The Healpix map as a numpy array.
+                The Healpix map as a numpy array of integers.
 
         Raises:
             AssertionError:
@@ -1338,12 +1342,19 @@ class Observation:
             "You must initialize pointings; use Simulation.prepare_pointings()"
         )
 
-        pointings, _ = self.get_pointings(detector_idx)
+        if detector_idx == "all":
+            detector_idx = range(self.n_detectors)
+        elif isinstance(detector_idx, int):
+            detector_idx = [detector_idx]
 
         hpx = Healpix_Base(nside, "RING" if not nest else "NEST")
+        nthreads = resolve_nthreads(nthreads)
+        hitmap = np.zeros(hpx.npix(), dtype=np.int64)
+        for det_idx in detector_idx:
+            pointings, _ = self.get_pointings(det_idx)
+            if output_coordinate_system == CoordinateSystem.Galactic:
+                pointings = rotate_coordinates_e2g(pointings)
+            pixels = hpx.ang2pix(pointings[:, 0:2], nthreads=nthreads)
+            hitmap += np.bincount(pixels, minlength=hitmap.size)
 
-        pixels = hpx.ang2pix(pointings[:, :, 0:2], nthreads=resolve_nthreads(nthreads))
-
-        # minlength below is the number of healpix pixels corresponding to the nside
-        # calculated explicitly since ducc0 doesn't include healpy's nside2npix method.
-        return np.bincount(pixels.flatten(), minlength=12 * nside**2)
+        return hitmap

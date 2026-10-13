@@ -3180,18 +3180,26 @@ class Simulation:
             )
 
     @_profile
-    def get_hitmaps(
+    def get_hitmap(
         self,
         nside: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
         nest: bool = False,
         nthreads: int | None = None,
-    ):
+    ) -> np.ndarray:
         """
-        Get the Healpix hit-count maps for all observations.
+        Get the Healpix hit-count map of all the observations and detectors.
+
+        The map counts the samples of all the observations of all the MPI
+        processes, so every process must call this method and gets the same map.
+        Use :meth:`.Observation.get_hitmap` for the map of one observation.
 
         Args:
             nside (int):
                 Resolution of the returned Healpix map.
+            output_coordinate_system (:class:`.CoordinateSystem`):
+                Coordinate system of the map; the default (Galactic) is the same as
+                the map-makers.
             nest (bool):
                 Sets the Healpix ordering to NESTED instead of RING. Default: False (RING).
             nthreads: (int):
@@ -3200,17 +3208,23 @@ class Simulation:
 
         Returns:
             np.ndarray:
-                a numpy array of Healpix maps.
+                The Healpix map as a numpy array of integers.
         """
 
-        assert self.observations, (
-            "You must call Simulation.create_observations() "
-            "before calling Simulation.get_hitmaps"
-        )
+        # Start from an empty map: with MPI, some processes might have no
+        # observations, but they must take part in the reduction anyway
+        hitmap = np.zeros(HealpixMap.nside_to_npix(nside), dtype=np.int64)
+        for cur_obs in self.observations:
+            hitmap += cur_obs.get_hitmap(
+                nside=nside,
+                output_coordinate_system=output_coordinate_system,
+                nest=nest,
+                nthreads=nthreads,
+            )
 
-        hitmaps = np.empty((len(self.observations), 12 * nside**2), dtype=np.int64)
+        if MPI_ENABLED:
+            from .mpi import MPI
 
-        for i, cur_obs in enumerate(self.observations):
-            hitmaps[i] = cur_obs.get_hitmap(nside=nside, nest=nest, nthreads=nthreads)
+            self.mpi_comm.Allreduce(MPI.IN_PLACE, hitmap, MPI.SUM)
 
-        return np.array(hitmaps)
+        return hitmap
