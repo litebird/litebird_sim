@@ -1,5 +1,7 @@
 # HEAD
 
+-   `make_sanepic_gls_map` computes the HEALPix pixels (int32) itself and passes them to pysanepic as a `pysanepic.Pointing`; it needs pysanepic 0.1.0 or later. Reference PR: [#572](https://github.com/litebird/litebird_sim/pull/572).
+
 -   Fix the map-makers allocating one byte per sample for *all* the observations at once with the default `time_split="full"`: the time masks are now read-only views that take no memory. In a 3-year simulation with one 75 Hz detector per MPI process and one observation per day, the binner used ~7 GB more per process (~70 GB per node). Other time splits still allocate their masks. Reference PR: [#571](https://github.com/litebird/litebird_sim/pull/571).
 
 -   Add an interface to the [pysanepic](https://github.com/litebird/pysanepic) GLS map-maker with 1/f noise: `make_sanepic_gls_map` and `Simulation.make_sanepic_gls_map` (optional dependency); the map-maker settings are passed as a `pysanepic.GLSParameters` object. Reference PR: [#568](https://github.com/litebird/litebird_sim/pull/568).
