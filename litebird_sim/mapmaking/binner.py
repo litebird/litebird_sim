@@ -78,18 +78,50 @@ def _solve_binning(nobs_matrix, atd):
     # each 3×3 matrix in nobs_matrix[idx, :, :] will be the *inverse*.
 
     # Expected shape:
-    # - `nobs_matrix`: (N_p, 3, 3) is an array of N_p 3×3 matrices, where
+    # - `nobs_matrix`: (N_p, 3, 3) is an array of N_p symmetric 3×3 matrices, where
     #   N_p is the number of pixels in the map
     # - `atd`: (N_p, 3)
+    #
+    # The 3×3 matrices are inverted analytically (adjugate over determinant),
+    # and LAPACK is only used for the eigenvalues: calling it three times per
+    # pixel (cond, solve, inv) was ~5× slower
     npix = atd.shape[0]
 
     for ipix in prange(npix):  # type: ignore[not-iterable]
-        if np.linalg.cond(nobs_matrix[ipix]) < COND_THRESHOLD:
-            atd[ipix] = np.linalg.solve(nobs_matrix[ipix], atd[ipix])
-            nobs_matrix[ipix] = np.linalg.inv(nobs_matrix[ipix])
-        else:
-            nobs_matrix[ipix].fill(hp.UNSEEN)
+        m = nobs_matrix[ipix]
+        a00, a10, a11 = m[0, 0], m[1, 0], m[1, 1]
+        a20, a21, a22 = m[2, 0], m[2, 1], m[2, 2]
+
+        # Cofactors of the symmetric matrix
+        c00 = a11 * a22 - a21 * a21
+        c10 = a20 * a21 - a10 * a22
+        c20 = a10 * a21 - a20 * a11
+        c11 = a00 * a22 - a20 * a20
+        c21 = a10 * a20 - a00 * a21
+        c22 = a00 * a11 - a10 * a10
+        det = a00 * c00 + a10 * c10 + a20 * c20
+
+        # The matrices are symmetric and positive semi-definite, so the condition
+        # number is the ratio between the largest and the smallest eigenvalue.
+        # Closed formulas for the eigenvalues lose too much precision on the
+        # smallest one when the matrix is singular (e.g., 1–2 hits per pixel)
+        eigvals = np.linalg.eigvalsh(m)
+        if not (eigvals[2] < COND_THRESHOLD * eigvals[0]):
+            m.fill(hp.UNSEEN)
             atd[ipix].fill(hp.UNSEEN)
+            continue
+
+        inv_det = 1.0 / det
+        m[0, 0] = c00 * inv_det
+        m[1, 1] = c11 * inv_det
+        m[2, 2] = c22 * inv_det
+        m[0, 1] = m[1, 0] = c10 * inv_det
+        m[0, 2] = m[2, 0] = c20 * inv_det
+        m[1, 2] = m[2, 1] = c21 * inv_det
+
+        b0, b1, b2 = atd[ipix, 0], atd[ipix, 1], atd[ipix, 2]
+        for i in range(3):
+            atd[ipix, i] = m[i, 0] * b0 + m[i, 1] * b1 + m[i, 2] * b2
 
 
 @njit
