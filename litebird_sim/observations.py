@@ -1342,15 +1342,18 @@ class Observation:
             "You must initialize pointings; use Simulation.prepare_pointings()"
         )
 
-        if detector_idx == "all":
-            detector_idx = range(self.n_detectors)
+        if isinstance(detector_idx, str):
+            assert detector_idx == "all", f"Invalid detector_idx {detector_idx!r}"
+            det_indices = range(self.n_detectors)
         elif isinstance(detector_idx, int):
-            detector_idx = [detector_idx]
+            det_indices = [detector_idx]
+        else:
+            det_indices = detector_idx
 
         hpx = Healpix_Base(nside, "RING" if not nest else "NEST")
         nthreads = resolve_nthreads(nthreads)
         hitmap = np.zeros(hpx.npix(), dtype=np.int64)
-        for det_idx in detector_idx:
+        for det_idx in det_indices:
             pointings, _ = self.get_pointings(det_idx)
             if output_coordinate_system == CoordinateSystem.Galactic:
                 pointings = rotate_coordinates_e2g(pointings)
