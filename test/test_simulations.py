@@ -9,6 +9,7 @@ from uuid import UUID
 
 import astropy
 import litebird_sim as lbs
+import healpy as hp
 import numpy as np
 import pytest
 from ducc0.healpix import Healpix_Base
@@ -514,6 +515,28 @@ def test_smart_pointings_skip_hwp_angle(tmp_path):
     pointings, hwp_angle = obs.get_pointings("all", compute_hwp_angle=False)
     assert hwp_angle is None
     np.testing.assert_array_equal(pointings, ref_pointings)
+
+
+def test_smart_pointings_nside_centering(tmp_path):
+    # Centering must work also when asking for one detector by index
+    sim = _configure_simulation_for_pointings(
+        tmp_path, include_hwp=False, store_full_pointings=False
+    )
+    obs = sim.observations[0]
+    nside = 16
+
+    raw, _ = obs.get_pointings("all")
+    all_centered, _ = obs.get_pointings("all", nside_centering=nside)
+    for det_idx in range(obs.n_detectors):
+        centered, _ = obs.get_pointings(det_idx, nside_centering=nside)
+        np.testing.assert_array_equal(centered, all_centered[det_idx])
+
+        theta, phi = hp.pix2ang(
+            nside, hp.ang2pix(nside, raw[det_idx, :, 0], raw[det_idx, :, 1])
+        )
+        np.testing.assert_allclose(centered[:, 0], theta)
+        np.testing.assert_allclose(centered[:, 1], phi)
+        np.testing.assert_array_equal(centered[:, 2], raw[det_idx, :, 2])
 
 
 def test_smart_pointings_consistency_without_hwp(tmp_path):

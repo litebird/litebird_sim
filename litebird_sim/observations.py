@@ -20,6 +20,20 @@ from .units import Units
 from .utilities import resolve_nthreads
 
 
+def _center_pointings(
+    pointings: npt.NDArray, nside_centering: int | None, nthreads: int | None
+) -> None:
+    """Move (θ, φ) in place to the center of their Healpix pixel, if requested"""
+    if nside_centering is None:
+        return
+
+    nthreads = resolve_nthreads(nthreads)
+    hpx = Healpix_Base(nside_centering, "RING")
+    pointings[..., 0:2] = hpx.pix2ang(
+        hpx.ang2pix(pointings[..., 0:2], nthreads=nthreads), nthreads=nthreads
+    )
+
+
 @dataclass
 class TodDescription:
     """
@@ -1081,7 +1095,7 @@ class Observation:
                 "Detector quaternions have not been initialized."
             )
 
-            return self.pointing_provider.get_pointings(
+            pointing_buffer, hwp_buffer = self.pointing_provider.get_pointings(
                 detector_quat=self.quat[detector_idx],
                 start_time=self.start_time,
                 start_time_global=self.start_time_global,
@@ -1092,6 +1106,8 @@ class Observation:
                 pointings_dtype=pointings_dtype,
                 compute_hwp_angle=compute_hwp_angle,
             )
+            _center_pointings(pointing_buffer, nside_centering, nthreads)
+            return pointing_buffer, hwp_buffer
 
         # More complex case: we need all the detectors
         if isinstance(detector_idx, str):
@@ -1153,20 +1169,11 @@ class Observation:
                 abs_det_idx,
                 pointing_buffer=pointing_buffer[rel_det_idx, :, :],
                 hwp_buffer=hwp_buffer,
-                nside_centering=nside_centering,
                 # The HWP angle is the same for all the detectors
                 compute_hwp_angle=(hwp_buffer is not None) and (rel_det_idx == 0),
             )
 
-        if isinstance(nside_centering, int):
-            nthreads = resolve_nthreads(nthreads)
-
-            hpx = Healpix_Base(nside_centering, "RING")
-            # Apply centering on the first two columns (θ, φ)
-            pointing_buffer[:, :, 0:2] = hpx.pix2ang(
-                hpx.ang2pix(pointing_buffer[:, :, 0:2], nthreads=nthreads),
-                nthreads=nthreads,
-            )
+        _center_pointings(pointing_buffer, nside_centering, nthreads)
 
         return pointing_buffer, hwp_buffer
 
