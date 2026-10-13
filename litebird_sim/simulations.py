@@ -3178,3 +3178,53 @@ class Simulation:
                 figures=[],
                 **dictionary,
             )
+
+    @_profile
+    def get_hitmap(
+        self,
+        nside: int,
+        output_coordinate_system: CoordinateSystem = CoordinateSystem.Galactic,
+        nest: bool = False,
+        nthreads: int | None = None,
+    ) -> np.ndarray:
+        """
+        Get the Healpix hit-count map of all the observations and detectors.
+
+        The map counts the samples of all the observations of all the MPI
+        processes, so every process must call this method and gets the same map.
+        Use :meth:`.Observation.get_hitmap` for the map of one observation.
+
+        Args:
+            nside (int):
+                Resolution of the returned Healpix map.
+            output_coordinate_system (:class:`.CoordinateSystem`):
+                Coordinate system of the map; the default (Galactic) is the same as
+                the map-makers.
+            nest (bool):
+                Sets the Healpix ordering to NESTED instead of RING. Default: False (RING).
+            nthreads: (int):
+                The number of threads to use for ducc0's Healpix computations. If None,
+                it is automatically obtained from NUM_THREADS_ENVVAR environment variable.
+
+        Returns:
+            np.ndarray:
+                The Healpix map as a numpy array of integers.
+        """
+
+        # Start from an empty map: with MPI, some processes might have no
+        # observations, but they must take part in the reduction anyway
+        hitmap = np.zeros(HealpixMap.nside_to_npix(nside), dtype=np.int64)
+        for cur_obs in self.observations:
+            hitmap += cur_obs.get_hitmap(
+                nside=nside,
+                output_coordinate_system=output_coordinate_system,
+                nest=nest,
+                nthreads=nthreads,
+            )
+
+        if MPI_ENABLED:
+            from .mpi import MPI
+
+            self.mpi_comm.Allreduce(MPI.IN_PLACE, hitmap, MPI.SUM)
+
+        return hitmap
