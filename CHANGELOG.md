@@ -1,5 +1,7 @@
 # HEAD
 
+-   `make_sanepic_gls_map` has a `noise_model` argument (`"toast"`, the default, or `"keshner"`) to model the 1/f spectrum with the same shape used to simulate the noise (`"keshner"` is the one generated with `engine="ducc"`). Before, pysanepic always used the toast shape. `"keshner"` needs pysanepic 0.3.0 or later.
+
 # Version 0.18.0
 
 -   Fix the destriper possibly accepting singular pixels (e.g., with 1–2 hits) and producing wrong values there: the closed formula used to estimate the condition number loses precision on the smallest eigenvalue, and the check worked only thanks to an absolute threshold that depends on the units of the detector NETs (with weights of order 1, ~25% of the singular pixels were accepted). The destriper and the binner now share a check based on the eigenvalues computed by `np.linalg.eigvalsh`, which does not depend on the scale. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).

@@ -809,7 +809,12 @@ The inverse noise covariance :math:`N^{-1}` of each detector is built from
 the same parameters used to simulate the noise (``net_ukrts``,
 ``fknee_mhz``, ``alpha``, ``fmin_hz``) and is applied in Fourier space on
 chunks of ``params.chunk_s`` seconds; noise correlations between different
-chunks and between different detectors are neglected. The HWP angle and
+chunks and between different detectors are neglected. Pass the spectral
+shape used to simulate the noise as ``noise_model``: ``"toast"`` (the
+default of :func:`.add_noise_to_observations`) or ``"keshner"``, the one
+generated with ``engine="ducc"`` (it needs pysanepic 0.3.0 or later). With
+:math:`\alpha = 1` the two differ by up to a factor :math:`\sqrt{2}` near
+:math:`f_\text{knee}`, so a wrong choice gives a slightly noisier map. The HWP angle and
 the polarization efficiency of the detectors are taken into account:
 
 .. code-block:: python

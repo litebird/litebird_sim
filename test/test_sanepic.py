@@ -93,3 +93,34 @@ def test_sanepic_noiseless_matches_binner():
     scale = np.abs(binned[0][good]).max()
     for i in range(3):
         assert np.abs(result.maps[i][good] - binned[i][good]).max() < 1e-5 * scale
+
+
+def test_sanepic_noise_model(monkeypatch):
+    # The noise model reaches pysanepic.DetectorData; unknown models are rejected
+    import dataclasses
+
+    if "noise_model" not in {
+        f.name for f in dataclasses.fields(pysanepic.DetectorData)
+    }:
+        pytest.skip("pysanepic without noise_model")
+    seen = []
+
+    def fake_make_maps(data, *args, **kwargs):
+        seen.extend(d.noise_model for d in data)
+
+    monkeypatch.setattr(pysanepic, "make_maps", fake_make_maps)
+    sim = lbs.Simulation(start_time=0, duration_s=100.0, random_seed=1)
+    sim.set_instrument(lbs.InstrumentInfo(name="instr"))
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="d", sampling_rate_hz=1.0, net_ukrts=50.0)]
+    )
+    sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.785, 0.0, 0.01))
+    sim.prepare_pointings()
+    lbs.make_sanepic_gls_map(
+        nside=8, observations=sim.observations, noise_model="keshner"
+    )
+    assert seen == ["keshner"]
+    with pytest.raises(ValueError, match="Unknown noise model"):
+        lbs.make_sanepic_gls_map(
+            nside=8, observations=sim.observations, noise_model="x"
+        )

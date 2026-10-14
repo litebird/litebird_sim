@@ -7,6 +7,7 @@ orientation, HWP angle, TOD and the 1/f noise parameters used to simulate the
 noise) and calls `pysanepic.make_maps`.
 """
 
+import dataclasses
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -50,14 +51,16 @@ def make_sanepic_gls_map(
     params: "pysanepic.GLSParameters | None" = None,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
+    noise_model: str = "toast",
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
 
     The noise covariance of each detector is modelled from the same
     parameters used by :func:`.add_noise_to_observations` (``net_ukrts``,
-    ``fknee_mhz``, ``alpha``, ``fmin_hz``) and applied in Fourier space on
-    chunks of ``params.chunk_s`` seconds.
+    ``fknee_mhz``, ``alpha``, ``fmin_hz``) and the same spectral shape
+    (``noise_model``), and applied in Fourier space on chunks of
+    ``params.chunk_s`` seconds.
 
     Parameters
     ----------
@@ -81,6 +84,12 @@ def make_sanepic_gls_map(
         dtype used to compute pointings on the fly, by default `np.float64`
     nthreads : int, optional
         Threads per process; by default resolved with :func:`.resolve_nthreads`
+    noise_model : str, optional
+        Shape of the 1/f spectrum, as the ``model`` argument of
+        :func:`.add_noise_to_observations`: ``"toast"`` (default) or
+        ``"keshner"`` (the one generated with ``engine="ducc"``). Use the
+        model the noise was simulated with; ``"keshner"`` needs pysanepic
+        0.3.0 or later.
 
     Returns
     -------
@@ -100,6 +109,21 @@ def make_sanepic_gls_map(
             f"pysanepic {pysanepic.__version__} is too old: version 0.1.0 or "
             "later is needed"
         )
+
+    if noise_model not in ("toast", "keshner"):
+        raise ValueError(
+            f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
+        )
+    # older pysanepic versions have only the toast model
+    has_model = "noise_model" in {
+        f.name for f in dataclasses.fields(pysanepic.DetectorData)
+    }
+    if noise_model != "toast" and not has_model:
+        raise ImportError(
+            f"pysanepic {pysanepic.__version__} has only the 'toast' noise model: "
+            "version 0.3.0 or later is needed for 'keshner'"
+        )
+    model_kwargs = {"noise_model": noise_model} if has_model else {}
 
     if isinstance(components, str):
         components = [components]
@@ -147,6 +171,7 @@ def make_sanepic_gls_map(
                     fmin_hz=obs.fmin_hz[det_idx],
                     pol_angle_rad=obs.pol_angle_rad[det_idx],
                     pol_efficiency=gamma[det_idx],
+                    **model_kwargs,
                 )
 
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
