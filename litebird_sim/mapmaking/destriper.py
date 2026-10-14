@@ -1331,6 +1331,9 @@ def _run_destriper(
 
     if use_preconditioner:
         _apply_preconditioner(precond, z)
+    # Search direction p (z is the preconditioned residual M⁻¹·r)
+    p = [np.copy(z_k) for z_k in z]
+    bytes_in_temporary_buffers += _compute_num_of_bytes_in_list(p)
     k = 0
 
     old_r_dot = _mpi_dot(z, r)
@@ -1360,14 +1363,14 @@ def _run_destriper(
             hit_map=hit_map,
             dm_list=dm_list,
             tm_list=tm_list,
-            baselines_list=z,
+            baselines_list=p,
             baseline_lengths_list=baseline_lengths_list,
             result=Ax,
         )
-        α = old_r_dot / _mpi_dot(z, Ax)
+        α = old_r_dot / _mpi_dot(p, Ax)
 
-        for x_k, z_k in zip(x, z):
-            x_k += α * z_k
+        for x_k, p_k in zip(x, p):
+            x_k += α * p_k
 
         for new_r_k, r_k, Ax_k in zip(new_r, r, Ax):
             new_r_k[:] = r_k - α * Ax_k
@@ -1391,17 +1394,18 @@ def _run_destriper(
             converged = True
             break
 
-        for z_k, r_k in zip(z, r):
-            z_k[:] = r_k[:]
+        # z = M⁻¹·r_{k+1}, β = r_{k+1}·z_{k+1} / r_k·z_k, p = z + β·p
+        for z_k, new_r_k in zip(z, new_r):
+            z_k[:] = new_r_k
         if use_preconditioner:
             _apply_preconditioner(precond, z)
 
         new_r_dot = _mpi_dot(new_r, z)
-        for z_k, r_k, new_r_k in zip(z, r, new_r):
-            z_k[:] = new_r_k + (new_r_dot / old_r_dot) * z_k
+        for p_k, z_k in zip(p, z):
+            p_k[:] = z_k + (new_r_dot / old_r_dot) * p_k
 
         old_r_dot = new_r_dot
-        r = new_r
+        r, new_r = new_r, r
 
     # Redo the binned and destriped map with the best solution found so far
 
