@@ -838,7 +838,24 @@ later):
   result = sim.make_sanepic_gls_map(nside=nside, params=params, noise=noise)
 
 With ``fit="toast"`` or ``fit="keshner"`` the spectra are fitted with a 1/f
-model instead of being tabulated. The HWP angle and
+model instead of being tabulated.
+
+Noise correlated between detectors, simulated with the common-mode model of
+:func:`.add_noise_to_observations` (``noise_type="correlated"``), is modelled
+by passing the same ``correlation`` dictionary to the map-maker: the
+detectors of each group of an observation become a ``pysanepic.DetectorGroup``
+with one common mode (this needs pysanepic 0.4.0 or later; the
+``corr_matrix`` model is not supported):
+
+.. code-block:: python
+
+  correlation = {"group_by": "wafer", "rho": 0.5}
+  sim.add_noise(noise_type="correlated", correlation=correlation)
+  result = sim.make_sanepic_gls_map(nside=nside, params=params, correlation=correlation)
+
+Correlations exist only between detectors of the same :class:`.Observation`:
+keep the correlated detectors together (e.g. ``n_blocks_det=1``) and
+distribute the observations over the processes. The HWP angle and
 the polarization efficiency of the detectors are taken into account:
 
 .. code-block:: python

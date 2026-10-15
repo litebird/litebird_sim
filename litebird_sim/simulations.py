@@ -3113,6 +3113,7 @@ class Simulation:
         noise_model: str = "toast",
         flags: str | list[str] | None = None,
         noise: dict | None = None,
+        correlation: dict | None = None,
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
@@ -3131,6 +3132,7 @@ class Simulation:
             noise_model=noise_model,
             flags=flags,
             noise=noise,
+            correlation=correlation,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

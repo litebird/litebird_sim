@@ -17,6 +17,11 @@ from ducc0.healpix import Healpix_Base
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
 from litebird_sim.mpi import MPI_COMM_WORLD, MPI_ENABLED
+from litebird_sim.noise import (
+    _build_detector_groups,
+    _normalize_rho,
+    _validate_grouping,
+)
 from litebird_sim.observation_utilities import (
     _get_hwp_angle,
     _get_pointings_array,
@@ -82,12 +87,15 @@ def _detector_data(
     noise_model,
     flag_names,
     noise,
+    correlation=None,
 ):
     """pysanepic.DetectorData for each detector of each observation, as a
     generator: pointings are computed for one detector at a time and turned
     into int32 pixels here, with the same pixelization as the other
     map-makers; pysanepic keeps only pixels and angles (no copy of the TODs).
-    The noise is `noise[name]` if given, else the 1/f model of the detector."""
+    The noise is `noise[name]` if given, else the 1/f model of the detector.
+    With `correlation` (the common-mode model of add_noise), the detectors of
+    each group of an observation are yielded as one pysanepic.DetectorGroup."""
     coordinates = _COORDINATES[output_coordinate_system]
     hpx = Healpix_Base(nside, "RING")
     # DetectorData.name, used to average noise spectra, is in pysanepic >= 0.4.0
@@ -96,6 +104,29 @@ def _detector_data(
         hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
         gamma = get_pol_efficiency(obs)
         net = np.broadcast_to(obs.net_ukrts, (obs.n_detectors,))
+        if correlation is not None:
+            yield from _detector_groups(
+                pysanepic,
+                obs,
+                correlation,
+                noise_model,
+                net,
+                _detector_data(
+                    pysanepic,
+                    [obs],
+                    [cur_ptg],
+                    hwp,
+                    nside,
+                    components,
+                    output_coordinate_system,
+                    pointings_dtype,
+                    nthreads,
+                    noise_model,
+                    flag_names,
+                    noise,
+                ),
+            )
+            continue
         for det_idx in range(obs.n_detectors):
             name = str(obs.name[det_idx])
             ptg_det, hwp_angle = _get_pointings_array(
@@ -136,6 +167,54 @@ def _detector_data(
             )
 
 
+def _detector_groups(pysanepic, obs, correlation, noise_model, net, data):
+    """DetectorGroups of one observation for the common-mode model of
+    add_noise: detector i of group g has n_i = sqrt(rho_i) c_g + sqrt(1 -
+    rho_i) u_i, with u_i its own noise and c_g a stream with the noise
+    parameters of the first detector of the group (1/f or white)."""
+    if correlation.get("corr_matrix") is not None:
+        raise ValueError(
+            "make_sanepic_gls_map supports the common-mode correlation model, not corr_matrix"
+        )
+    if "groups" in correlation:
+        groups = _validate_grouping(obs.n_detectors, correlation["groups"])
+    else:
+        groups = _build_detector_groups(obs, correlation.get("group_by"))
+    rho = _normalize_rho(correlation.get("rho", 0.25), obs.n_detectors)
+    if np.any(rho >= 1):
+        raise ValueError("rho = 1 (no own noise) is not supported by pysanepic")
+    common = correlation.get("common_mode_type", "one_over_f")
+    data = list(data)  # this observation only
+    for g in dict.fromkeys(groups):
+        members = np.flatnonzero(groups == g)
+        i0 = members[0]
+        if common == "white":
+            mode = pysanepic.OneOverFNoise(net_ukrts=net[i0])
+        else:
+            mode = pysanepic.OneOverFNoise(
+                net_ukrts=net[i0],
+                fknee_hz=obs.fknee_mhz[i0] / 1e3,
+                alpha=obs.alpha[i0],
+                fmin_hz=obs.fmin_hz[i0],
+                model=noise_model,
+            )
+        dets = []
+        for i in members:
+            own = data[i].noise
+            dets.append(
+                dataclasses.replace(
+                    data[i],
+                    noise=dataclasses.replace(
+                        own, net_ukrts=own.net_ukrts * np.sqrt(1 - rho[i])
+                    ),
+                )
+            )
+        yield pysanepic.DetectorGroup(
+            detectors=dets,
+            modes=[pysanepic.CommonMode(coupling=np.sqrt(rho[members]), noise=mode)],
+        )
+
+
 def make_sanepic_gls_map(
     nside: int,
     observations,
@@ -149,6 +228,7 @@ def make_sanepic_gls_map(
     noise_model: str = "toast",
     flags: str | list[str] | None = None,
     noise: dict | None = None,
+    correlation: dict | None = None,
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -197,6 +277,15 @@ def make_sanepic_gls_map(
         Noise of the detectors, ``{detector name: pysanepic noise object}``,
         e.g. the spectra estimated by :func:`.estimate_sanepic_noise`; the
         detectors not in it use their 1/f parameters and ``noise_model``.
+    correlation : dict, optional
+        Noise correlated between detectors, with the common-mode model and
+        the keys of :func:`.add_noise_to_observations` (``"group_by"`` or
+        ``"groups"``, ``"rho"``, ``"common_mode_type"``): the detectors of
+        each group of an observation are a ``pysanepic.DetectorGroup`` with
+        one common mode. Correlations exist only between the detectors of
+        the same observation: keep them together (e.g. ``n_blocks_det=1``
+        and observations distributed over the processes). Needs pysanepic
+        0.4.0 or later; not compatible with ``noise``.
 
     Returns
     -------
@@ -205,6 +294,10 @@ def make_sanepic_gls_map(
         and the PCG convergence information
     """
     pysanepic = _import_pysanepic()
+    if correlation is not None:
+        pysanepic = _import_pysanepic("DetectorGroup", "0.4.0")
+        if noise is not None:
+            raise ValueError("correlation and noise cannot be used together")
     if noise_model not in ("toast", "keshner"):
         raise ValueError(
             f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
@@ -229,6 +322,7 @@ def make_sanepic_gls_map(
         noise_model,
         flag_names,
         noise,
+        correlation,
     )
 
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
