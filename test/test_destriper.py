@@ -844,7 +844,9 @@ def test_full_destriper(tmp_path):
     destriper_params_noise = lbs.DestriperParameters(
         output_coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
         samples_per_baseline=100,  # ν_samp = 1 Hz ⇒ the baseline is 100 s
-        iter_max=10,
+        # the threshold is relative: 1e-6 takes ~40 steps here (with an absolute
+        # threshold the initial residual, 8e-7, was already below it)
+        iter_max=100,
         threshold=1e-6,
     )
 
@@ -1182,3 +1184,14 @@ def test_destriper_removes_pure_offsets(tmp_path):
     binned_rms = np.std(result.binned_map[:, seen])
     destriped_rms = np.std(result.destriped_map[:, seen])
     assert destriped_rms < 1e-6 * binned_rms
+
+    # the default threshold is relative: it also removes the offsets
+    result = sim.make_destriped_map(
+        nside=nside,
+        params=lbs.DestriperParameters(
+            samples_per_baseline=samples_per_baseline, iter_max=500
+        ),
+        append_to_report=False,
+    )
+    assert result.converged is True
+    assert np.std(result.destriped_map[:, seen]) < 1e-4 * binned_rms

@@ -247,10 +247,10 @@ class DestriperParameters:
       be done.
     - ``iter_max`` (integer): maximum number of iterations for the
       Conjugate Gradient
-    - ``threshold`` (float): minimum value of the discrepancy between
-      the estimated baselines and the baselines deduced by the
-      destriped map. The lower this value, the better the map
-      produced by the destriper
+    - ``threshold`` (float): the iterations stop when the stopping factor
+      (the maximum absolute residual of the baselines) is below
+      ``threshold`` times its initial value. The lower this value, the
+      better the map produced by the destriper
     - ``use_preconditioner`` (Boolean): if ``True``, use the preconditioned
       conjugate gradient algorithm. If ``False`` do not use the
       preconditioner. (The latter is probably useful only to debug the
@@ -312,7 +312,7 @@ class DestriperResult:
       algorithm was able to converge to the correct solution.
     - ``converged``: a Boolean flag telling whether the destriper
       was able to achieve the desired accuracy (the value of
-      ``params.threshold``).
+      ``params.threshold``, relative to the initial stopping factor).
     - ``elapsed_time_s``: the elapsed time spent by the function
       :func:`.make_destriped_map`.
     - ``bytes_in_temporary_buffers``: the number of bytes allocated
@@ -1339,6 +1339,9 @@ def _run_destriper(
     old_r_dot = _mpi_dot(z, r)
 
     history_of_stopping_factors: list[float] = [_get_stopping_factor(r)]
+    # the threshold is relative to the initial residual, whose scale depends on
+    # the data (units, noise level, baseline length)
+    absolute_threshold = threshold * history_of_stopping_factors[0]
     if callback:
         callback(
             stopping_factor=history_of_stopping_factors[-1],
@@ -1354,6 +1357,9 @@ def _run_destriper(
             break
         if recycle_baselines:
             converged = f"Recycled baselines with 'converged = {recycled_convergence}' were used!"
+            break
+        if history_of_stopping_factors[0] == 0.0:  # x is already the solution
+            converged = True
             break
 
         compute_Ax(
@@ -1390,7 +1396,7 @@ def _run_destriper(
                 **callback_kwargs,
             )
 
-        if cur_stopping_factor < threshold:
+        if cur_stopping_factor < absolute_threshold:
             converged = True
             break
 
