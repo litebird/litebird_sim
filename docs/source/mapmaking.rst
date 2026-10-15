@@ -814,7 +814,15 @@ shape used to simulate the noise as ``noise_model``: ``"toast"`` (the
 default of :func:`.add_noise_to_observations`) or ``"keshner"``, the one
 generated with ``engine="ducc"`` (it needs pysanepic 0.3.0 or later). With
 :math:`\alpha = 1` the two differ by up to a factor :math:`\sqrt{2}` near
-:math:`f_\text{knee}`, so a wrong choice gives a slightly noisier map. The HWP angle and
+:math:`f_\text{knee}`, so a wrong choice gives a slightly noisier map.
+
+Flagged samples are excluded with ``flags``, the names of the
+:class:`.Observation` attributes that hold them (per detector, like
+``"local_flags"``, or common to all detectors, like ``"global_flags"``;
+nonzero means excluded). pysanepic fits them with unknowns of their own, so
+that the maps are the exact GLS solution without them; long gaps split the
+chunks (``flag_method`` and ``split_gap_s`` in ``GLSParameters``). This needs
+pysanepic 0.3.0 or later. The HWP angle and
 the polarization efficiency of the detectors are taken into account:
 
 .. code-block:: python

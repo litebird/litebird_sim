@@ -41,6 +41,18 @@ def _sum_components(obs, components, det_idx):
     return tod
 
 
+def _detector_flags(obs, names, det_idx):
+    """{"flags": boolean flags of one detector}, True where any of the `names`
+    attributes (per detector or common to all) is nonzero; {} without names."""
+    if not names:
+        return {}
+    out = np.zeros(obs.n_samples, dtype=bool)
+    for name in names:
+        f = np.asarray(getattr(obs, name))
+        out |= (f[det_idx] if f.ndim == 2 else f) != 0
+    return {"flags": out}
+
+
 def make_sanepic_gls_map(
     nside: int,
     observations,
@@ -52,6 +64,7 @@ def make_sanepic_gls_map(
     pointings_dtype=np.float64,
     nthreads: int | None = None,
     noise_model: str = "toast",
+    flags: str | list[str] | None = None,
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -90,6 +103,13 @@ def make_sanepic_gls_map(
         ``"keshner"`` (the one generated with ``engine="ducc"``). Use the
         model the noise was simulated with; ``"keshner"`` needs pysanepic
         0.3.0 or later.
+    flags : str | list[str], optional
+        Names of the :class:`.Observation` attributes holding flags, either
+        per detector ``(n_detectors, n_samples)`` (e.g. ``"local_flags"``) or
+        common to all detectors ``(n_samples,)`` (e.g. ``"global_flags"``):
+        samples with a nonzero flag in any of them are excluded from the maps
+        (see ``flag_method`` and ``split_gap_s`` in ``pysanepic.GLSParameters``).
+        By default no sample is excluded. Needs pysanepic 0.3.0 or later.
 
     Returns
     -------
@@ -114,16 +134,20 @@ def make_sanepic_gls_map(
         raise ValueError(
             f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
         )
-    # older pysanepic versions have only the toast model
-    has_model = "noise_model" in {
-        f.name for f in dataclasses.fields(pysanepic.DetectorData)
-    }
-    if noise_model != "toast" and not has_model:
+    # older pysanepic versions have only the toast model and no flags
+    fields = {f.name for f in dataclasses.fields(pysanepic.DetectorData)}
+    if noise_model != "toast" and "noise_model" not in fields:
         raise ImportError(
             f"pysanepic {pysanepic.__version__} has only the 'toast' noise model: "
             "version 0.3.0 or later is needed for 'keshner'"
         )
-    model_kwargs = {"noise_model": noise_model} if has_model else {}
+    flag_names = [flags] if isinstance(flags, str) else list(flags or [])
+    if flag_names and "flags" not in fields:
+        raise ImportError(
+            f"pysanepic {pysanepic.__version__} has no flags: "
+            "version 0.3.0 or later is needed"
+        )
+    extra = {"noise_model": noise_model} if "noise_model" in fields else {}
 
     if isinstance(components, str):
         components = [components]
@@ -171,7 +195,8 @@ def make_sanepic_gls_map(
                     fmin_hz=obs.fmin_hz[det_idx],
                     pol_angle_rad=obs.pol_angle_rad[det_idx],
                     pol_efficiency=gamma[det_idx],
-                    **model_kwargs,
+                    **extra,
+                    **_detector_flags(obs, flag_names, det_idx),
                 )
 
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None

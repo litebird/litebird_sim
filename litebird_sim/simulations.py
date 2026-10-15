@@ -2968,6 +2968,7 @@ class Simulation:
         pointings_dtype=np.float64,
         nthreads: int | None = None,
         noise_model: str = "toast",
+        flags: str | list[str] | None = None,
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
@@ -2984,6 +2985,7 @@ class Simulation:
             pointings_dtype=pointings_dtype,
             nthreads=nthreads,
             noise_model=noise_model,
+            flags=flags,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
