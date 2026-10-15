@@ -823,7 +823,22 @@ Flagged samples are excluded with ``flags``, the names of the
 ``"local_flags"``, or common to all detectors, like ``"global_flags"``;
 nonzero means excluded). pysanepic fits them with unknowns of their own, so
 that the maps are the exact GLS solution without them; long gaps split the
-chunks (``flag_method`` and ``split_gap_s`` in ``GLSParameters``). The HWP angle and
+chunks (``flag_method`` and ``split_gap_s`` in ``GLSParameters``).
+
+When the noise spectra are not known, :func:`.estimate_sanepic_noise` (or
+:meth:`.Simulation.estimate_sanepic_noise`) estimates them from the residual
+of a first map, averaging over all the observations of each detector, and
+the result is passed back to the map-maker (this needs pysanepic 0.4.0 or
+later):
+
+.. code-block:: python
+
+  first = sim.make_sanepic_gls_map(nside=nside, params=params)
+  noise = sim.estimate_sanepic_noise(first)  # {detector name: spectrum}
+  result = sim.make_sanepic_gls_map(nside=nside, params=params, noise=noise)
+
+With ``fit="toast"`` or ``fit="keshner"`` the spectra are fitted with a 1/f
+model instead of being tabulated. The HWP angle and
 the polarization efficiency of the detectors are taken into account:
 
 .. code-block:: python

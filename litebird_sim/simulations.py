@@ -59,6 +59,7 @@ from .mapmaking import (
     make_binned_map,
     make_brahmap_gls_map,
     make_sanepic_gls_map,
+    estimate_sanepic_noise,
     make_destriped_map,
     make_h_maps,
     make_pair_differenced_map,
@@ -3111,6 +3112,7 @@ class Simulation:
         nthreads: int | None = None,
         noise_model: str = "toast",
         flags: str | list[str] | None = None,
+        noise: dict | None = None,
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
@@ -3128,6 +3130,7 @@ class Simulation:
             nthreads=nthreads,
             noise_model=noise_model,
             flags=flags,
+            noise=noise,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -3144,6 +3147,35 @@ class Simulation:
             )
 
         return result
+
+    @_profile
+    def estimate_sanepic_noise(
+        self,
+        result: "pysanepic.MapResult",
+        components: str | list[str] = "tod",
+        flags: str | list[str] | None = None,
+        chunk_s: float = 86400.0,
+        nbins: int = 60,
+        fit: str | None = None,
+        pointings_dtype=np.float64,
+        nthreads: int | None = None,
+    ) -> dict:
+        """Noise spectra of the detectors from the residual of a pysanepic map.
+
+        For details, see the low-level interface :func:`.estimate_sanepic_noise`.
+        """
+        return estimate_sanepic_noise(
+            result=result,
+            observations=self.observations,
+            hwp=self.hwp,
+            components=components,
+            flags=flags,
+            chunk_s=chunk_s,
+            nbins=nbins,
+            fit=fit,
+            pointings_dtype=pointings_dtype,
+            nthreads=nthreads,
+        )
 
     @_profile
     def write_observations(
