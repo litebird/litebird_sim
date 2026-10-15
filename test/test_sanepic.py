@@ -93,3 +93,58 @@ def test_sanepic_noiseless_matches_binner():
     scale = np.abs(binned[0][good]).max()
     for i in range(3):
         assert np.abs(result.maps[i][good] - binned[i][good]).max() < 1e-5 * scale
+
+
+def test_sanepic_noise_model(monkeypatch):
+    # The noise model reaches pysanepic.DetectorData; unknown models are rejected
+    seen = []
+
+    def fake_make_maps(data, *args, **kwargs):
+        seen.extend(d.noise.model for d in data)
+
+    monkeypatch.setattr(pysanepic, "make_maps", fake_make_maps)
+    sim = lbs.Simulation(start_time=0, duration_s=100.0, random_seed=1)
+    sim.set_instrument(lbs.InstrumentInfo(name="instr"))
+    sim.create_observations(
+        detectors=[lbs.DetectorInfo(name="d", sampling_rate_hz=1.0, net_ukrts=50.0)]
+    )
+    sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.785, 0.0, 0.01))
+    sim.prepare_pointings()
+    lbs.make_sanepic_gls_map(
+        nside=8, observations=sim.observations, noise_model="keshner"
+    )
+    assert seen == ["keshner"]
+    with pytest.raises(ValueError, match="Unknown noise model"):
+        lbs.make_sanepic_gls_map(
+            nside=8, observations=sim.observations, noise_model="x"
+        )
+
+
+def test_sanepic_flags(monkeypatch):
+    # Per-detector and common flags are combined and passed to pysanepic
+    seen = []
+    monkeypatch.setattr(
+        pysanepic, "make_maps", lambda data, *a, **k: seen.extend(d.flags for d in data)
+    )
+    sim = lbs.Simulation(start_time=0, duration_s=10.0, random_seed=1)
+    sim.set_instrument(lbs.InstrumentInfo(name="instr"))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(name=n, sampling_rate_hz=1.0, net_ukrts=50.0)
+            for n in ("a", "b")
+        ]
+    )
+    sim.set_scanning_strategy(lbs.SpinningScanningStrategy(0.785, 0.0, 0.01))
+    sim.prepare_pointings()
+    obs = sim.observations[0]
+    obs.local_flags = np.zeros((2, obs.n_samples), dtype=np.uint16)
+    obs.local_flags[1, 3] = 4
+    obs.global_flags = np.zeros(obs.n_samples, dtype=np.uint8)
+    obs.global_flags[7] = 1
+    lbs.make_sanepic_gls_map(
+        nside=8, observations=sim.observations, flags=["local_flags", "global_flags"]
+    )
+    assert [list(np.flatnonzero(f)) for f in seen] == [[7], [3, 7]]
+    seen.clear()
+    lbs.make_sanepic_gls_map(nside=8, observations=sim.observations)
+    assert seen == [None, None]
