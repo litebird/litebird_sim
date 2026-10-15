@@ -191,7 +191,7 @@ optional dependencies above. Install it in the same environment as LBS:
 
 .. code-block:: text
 
-    pip install git+https://github.com/litebird/pysanepic
+    pip install "pysanepic>=0.3.0"
 
 .. _maximize-performance:
 
