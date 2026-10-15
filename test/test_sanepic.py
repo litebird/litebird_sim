@@ -97,16 +97,10 @@ def test_sanepic_noiseless_matches_binner():
 
 def test_sanepic_noise_model(monkeypatch):
     # The noise model reaches pysanepic.DetectorData; unknown models are rejected
-    import dataclasses
-
-    if "noise_model" not in {
-        f.name for f in dataclasses.fields(pysanepic.DetectorData)
-    }:
-        pytest.skip("pysanepic without noise_model")
     seen = []
 
     def fake_make_maps(data, *args, **kwargs):
-        seen.extend(d.noise_model for d in data)
+        seen.extend(d.noise.model for d in data)
 
     monkeypatch.setattr(pysanepic, "make_maps", fake_make_maps)
     sim = lbs.Simulation(start_time=0, duration_s=100.0, random_seed=1)
@@ -128,10 +122,6 @@ def test_sanepic_noise_model(monkeypatch):
 
 def test_sanepic_flags(monkeypatch):
     # Per-detector and common flags are combined and passed to pysanepic
-    import dataclasses
-
-    if "flags" not in {f.name for f in dataclasses.fields(pysanepic.DetectorData)}:
-        pytest.skip("pysanepic without flags")
     seen = []
     monkeypatch.setattr(
         pysanepic, "make_maps", lambda data, *a, **k: seen.extend(d.flags for d in data)

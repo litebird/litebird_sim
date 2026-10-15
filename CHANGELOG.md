@@ -1,8 +1,10 @@
 # HEAD
 
--   `make_sanepic_gls_map` has a `noise_model` argument (`"toast"`, the default, or `"keshner"`) to model the 1/f spectrum with the same shape used to simulate the noise (`"keshner"` is the one generated with `engine="ducc"`). Before, pysanepic always used the toast shape. `"keshner"` needs pysanepic 0.3.0 or later.
+-   **Breaking change**: `make_sanepic_gls_map` needs pysanepic 0.3.0 or later, which describes the noise of each detector with a `pysanepic.OneOverFNoise` object.
 
--   `make_sanepic_gls_map` has a `flags` argument: the names of the `Observation` attributes holding flags, per detector (e.g. `"local_flags"`) or common to all detectors (e.g. `"global_flags"`). Samples with a nonzero flag are excluded from the maps by pysanepic, which fits them with unknowns of their own (the exact GLS without them). Needs pysanepic 0.3.0 or later.
+-   `make_sanepic_gls_map` has a `noise_model` argument (`"toast"`, the default, or `"keshner"`) to model the 1/f spectrum with the same shape used to simulate the noise (`"keshner"` is the one generated with `engine="ducc"`). Before, pysanepic always used the toast shape.
+
+-   `make_sanepic_gls_map` has a `flags` argument: the names of the `Observation` attributes holding flags, per detector (e.g. `"local_flags"`) or common to all detectors (e.g. `"global_flags"`). Samples with a nonzero flag are excluded from the maps by pysanepic, which fits them with unknowns of their own (the exact GLS without them).
 
 # Version 0.18.0
 

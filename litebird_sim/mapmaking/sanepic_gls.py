@@ -7,7 +7,6 @@ orientation, HWP angle, TOD and the 1/f noise parameters used to simulate the
 noise) and calls `pysanepic.make_maps`.
 """
 
-import dataclasses
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -42,15 +41,15 @@ def _sum_components(obs, components, det_idx):
 
 
 def _detector_flags(obs, names, det_idx):
-    """{"flags": boolean flags of one detector}, True where any of the `names`
-    attributes (per detector or common to all) is nonzero; {} without names."""
+    """Boolean flags of one detector, True where any of the `names` attributes
+    (per detector or common to all) is nonzero; None without names."""
     if not names:
-        return {}
+        return None
     out = np.zeros(obs.n_samples, dtype=bool)
     for name in names:
         f = np.asarray(getattr(obs, name))
         out |= (f[det_idx] if f.ndim == 2 else f) != 0
-    return {"flags": out}
+    return out
 
 
 def make_sanepic_gls_map(
@@ -101,15 +100,14 @@ def make_sanepic_gls_map(
         Shape of the 1/f spectrum, as the ``model`` argument of
         :func:`.add_noise_to_observations`: ``"toast"`` (default) or
         ``"keshner"`` (the one generated with ``engine="ducc"``). Use the
-        model the noise was simulated with; ``"keshner"`` needs pysanepic
-        0.3.0 or later.
+        model the noise was simulated with.
     flags : str | list[str], optional
         Names of the :class:`.Observation` attributes holding flags, either
         per detector ``(n_detectors, n_samples)`` (e.g. ``"local_flags"``) or
         common to all detectors ``(n_samples,)`` (e.g. ``"global_flags"``):
         samples with a nonzero flag in any of them are excluded from the maps
         (see ``flag_method`` and ``split_gap_s`` in ``pysanepic.GLSParameters``).
-        By default no sample is excluded. Needs pysanepic 0.3.0 or later.
+        By default no sample is excluded.
 
     Returns
     -------
@@ -124,9 +122,9 @@ def make_sanepic_gls_map(
             "Could not import `pysanepic`. Make sure that the package "
             "`pysanepic` is installed in the same environment as `litebird_sim`"
         )
-    if not hasattr(pysanepic, "Pointing"):
+    if not hasattr(pysanepic, "OneOverFNoise"):
         raise ImportError(
-            f"pysanepic {pysanepic.__version__} is too old: version 0.1.0 or "
+            f"pysanepic {pysanepic.__version__} is too old: version 0.3.0 or "
             "later is needed"
         )
 
@@ -134,20 +132,7 @@ def make_sanepic_gls_map(
         raise ValueError(
             f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
         )
-    # older pysanepic versions have only the toast model and no flags
-    fields = {f.name for f in dataclasses.fields(pysanepic.DetectorData)}
-    if noise_model != "toast" and "noise_model" not in fields:
-        raise ImportError(
-            f"pysanepic {pysanepic.__version__} has only the 'toast' noise model: "
-            "version 0.3.0 or later is needed for 'keshner'"
-        )
     flag_names = [flags] if isinstance(flags, str) else list(flags or [])
-    if flag_names and "flags" not in fields:
-        raise ImportError(
-            f"pysanepic {pysanepic.__version__} has no flags: "
-            "version 0.3.0 or later is needed"
-        )
-    extra = {"noise_model": noise_model} if "noise_model" in fields else {}
 
     if isinstance(components, str):
         components = [components]
@@ -189,14 +174,16 @@ def make_sanepic_gls_map(
                     pointing=pointing,
                     hwp_angle=hwp_angle,
                     sampling_rate_hz=obs.sampling_rate_hz,
-                    net_ukrts=net[det_idx],
-                    fknee_hz=obs.fknee_mhz[det_idx] / 1e3,
-                    alpha=obs.alpha[det_idx],
-                    fmin_hz=obs.fmin_hz[det_idx],
+                    noise=pysanepic.OneOverFNoise(
+                        net_ukrts=net[det_idx],
+                        fknee_hz=obs.fknee_mhz[det_idx] / 1e3,
+                        alpha=obs.alpha[det_idx],
+                        fmin_hz=obs.fmin_hz[det_idx],
+                        model=noise_model,
+                    ),
                     pol_angle_rad=obs.pol_angle_rad[det_idx],
                     pol_efficiency=gamma[det_idx],
-                    **extra,
-                    **_detector_flags(obs, flag_names, det_idx),
+                    flags=_detector_flags(obs, flag_names, det_idx),
                 )
 
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
