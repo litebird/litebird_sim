@@ -1356,6 +1356,9 @@ class Simulation:
             cur_time += time_span
 
         if split_list_over_processes:
+            if self.mpi_comm.size > 1:
+                for cur_obs in observations:
+                    cur_obs.list_comm = self.mpi_comm
             self.distribute_workload(observations)
         else:
             self.observations = observations

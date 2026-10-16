@@ -622,3 +622,34 @@ def _validate_time_splits(observations, time_splits, valid_time_splits):
                 if requested_years > max_years:
                     msg = f"Time split '{ts}' not possible for observation with a duration of {round(duration / t_year_sec, 1)} years!"
                     raise AssertionError(msg)
+
+
+def _get_reduction_comm(obs_list: list[Observation]):
+    """The MPI communicator over which a map-maker must sum the contributions
+    of `obs_list`, or None for a serial call.
+
+    Observations distributed over the processes (``obs.comm``) are summed over
+    their communicator; whole observations spread over the processes by
+    :meth:`.Simulation.create_observations` with
+    ``split_list_over_processes=True`` (``obs.comm`` is None) are summed over
+    the communicator of the list (``obs.list_comm``).
+    """
+    from litebird_sim import mpi
+
+    if not mpi.MPI_ENABLED:
+        return None
+    from litebird_sim.mpi import MPI
+
+    comms = [
+        obs.list_comm if getattr(obs, "list_comm", None) is not None else obs.comm
+        for obs in obs_list
+    ]
+    if all(c is None for c in comms):
+        return None
+    if any(c is None for c in comms) or not all(
+        MPI.Comm.Compare(comms[i], comms[i + 1]) < 2 for i in range(len(comms) - 1)
+    ):
+        raise NotImplementedError(
+            "All observations must be distributed over the same MPI groups"
+        )
+    return comms[0]

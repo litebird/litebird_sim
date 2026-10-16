@@ -810,6 +810,41 @@ def test_simulation_get_hitmap():
     assert hitmap.sum() == len(dets) * 600
 
 
+def test_binner_split_list_over_processes():
+    # With split_list_over_processes=True each observation is local to one
+    # process: the binner must still sum all of them. The inverse covariance
+    # of the binned map depends only on the pointings, so it must be the same
+    # as with the observations distributed over the processes
+    size = lbs.MPI_COMM_WORLD.size
+    invnpp = []
+    for split in (True, False):
+        sim = lbs.Simulation(
+            start_time=0.0, duration_s=600.0, random_seed=1, mpi_comm=lbs.MPI_COMM_WORLD
+        )
+        sim.set_scanning_strategy(
+            lbs.SpinningScanningStrategy(
+                spin_sun_angle_rad=np.deg2rad(45),
+                precession_rate_hz=1 / 3600 / 3.2,
+                spin_rate_hz=0.05 / 60,
+            )
+        )
+        sim.set_instrument(lbs.InstrumentInfo(spin_boresight_angle_rad=np.deg2rad(50)))
+        dets = [
+            lbs.DetectorInfo(name=n, sampling_rate_hz=1.0, net_ukrts=50.0)
+            for n in ("a", "b")
+        ]
+        # At least one observation per process, as `prepare_pointings` needs it
+        sim.create_observations(
+            detectors=dets,
+            num_of_obs_per_detector=2 * size,
+            split_list_over_processes=split,
+            n_blocks_time=1 if split else size,
+        )
+        sim.prepare_pointings()
+        invnpp.append(sim.make_binned_map(nside=8).invnpp)
+    assert np.allclose(invnpp[0], invnpp[1])
+
+
 if __name__ == "__main__":
     pytest.main([f"{__file__}"])
 

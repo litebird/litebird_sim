@@ -213,6 +213,11 @@ class Observation:
             ]
 
         self.comm = comm
+        # Communicator over which the *list* of observations is distributed
+        # (set by Simulation.create_observations with
+        # split_list_over_processes=True, when each observation is local to
+        # one process): map-makers sum their contributions over it
+        self.list_comm = None
         self.start_time_global = start_time_global
         self._n_samples_global = n_samples_global
 
