@@ -95,7 +95,8 @@ def _detector_data(
     map-makers; pysanepic keeps only pixels and angles (no copy of the TODs).
     The noise is `noise[name]` if given, else the 1/f model of the detector.
     With `correlation` (the common-mode model of add_noise), the detectors of
-    each group of an observation are yielded as one pysanepic.DetectorGroup."""
+    each group of an observation are yielded as one pysanepic.DetectorGroup,
+    with the common modes `noise[names of the group]` if `noise` is given."""
     coordinates = _COORDINATES[output_coordinate_system]
     hpx = Healpix_Base(nside, "RING")
     # DetectorData.name, used to average noise spectra, is in pysanepic >= 0.4.0
@@ -111,6 +112,7 @@ def _detector_data(
                 correlation,
                 noise_model,
                 net,
+                noise,
                 _detector_data(
                     pysanepic,
                     [obs],
@@ -167,11 +169,13 @@ def _detector_data(
             )
 
 
-def _detector_groups(pysanepic, obs, correlation, noise_model, net, data):
+def _detector_groups(pysanepic, obs, correlation, noise_model, net, noise, data):
     """DetectorGroups of one observation for the common-mode model of
     add_noise: detector i of group g has n_i = sqrt(rho_i) c_g + sqrt(1 -
     rho_i) u_i, with u_i its own noise and c_g a stream with the noise
-    parameters of the first detector of the group (1/f or white)."""
+    parameters of the first detector of the group (1/f or white). With
+    `noise` (from estimate_sanepic_noise with `correlation`), the own noise
+    of each detector and the modes of each group are taken from it."""
     if correlation.get("corr_matrix") is not None:
         raise ValueError(
             "make_sanepic_gls_map supports the common-mode correlation model, not corr_matrix"
@@ -181,12 +185,23 @@ def _detector_groups(pysanepic, obs, correlation, noise_model, net, data):
     else:
         groups = _build_detector_groups(obs, correlation.get("group_by"))
     rho = _normalize_rho(correlation.get("rho", 0.25), obs.n_detectors)
-    if np.any(rho >= 1):
+    if noise is None and np.any(rho >= 1):
         raise ValueError("rho = 1 (no own noise) is not supported by pysanepic")
     common = correlation.get("common_mode_type", "one_over_f")
     data = list(data)  # this observation only
     for g in dict.fromkeys(groups):
         members = np.flatnonzero(groups == g)
+        if noise is not None:
+            names = tuple(str(obs.name[i]) for i in members)
+            if names not in noise:
+                raise ValueError(
+                    f"noise has no common modes for the group {names}: "
+                    "estimate them with estimate_sanepic_noise(correlation=...)"
+                )
+            yield pysanepic.DetectorGroup(
+                detectors=[data[i] for i in members], modes=noise[names]
+            )
+            continue
         i0 = members[0]
         if common == "white":
             mode = pysanepic.OneOverFNoise(net_ukrts=net[i0])
@@ -277,6 +292,9 @@ def make_sanepic_gls_map(
         Noise of the detectors, ``{detector name: pysanepic noise object}``,
         e.g. the spectra estimated by :func:`.estimate_sanepic_noise`; the
         detectors not in it use their 1/f parameters and ``noise_model``.
+        With ``correlation``, it must also have the common modes of each
+        group, under the tuple of the names of its detectors, as returned
+        by :func:`.estimate_sanepic_noise` with the same ``correlation``.
     correlation : dict, optional
         Noise correlated between detectors, with the common-mode model and
         the keys of :func:`.add_noise_to_observations` (``"group_by"`` or
@@ -284,8 +302,9 @@ def make_sanepic_gls_map(
         each group of an observation are a ``pysanepic.DetectorGroup`` with
         one common mode. Correlations exist only between the detectors of
         the same observation: keep them together (e.g. ``n_blocks_det=1``
-        and observations distributed over the processes). Needs pysanepic
-        0.4.0 or later; not compatible with ``noise``.
+        and observations distributed over the processes). The modes are
+        those of the model of :func:`.add_noise_to_observations`, or the
+        estimated ones in ``noise``. Needs pysanepic 0.4.0 or later.
 
     Returns
     -------
@@ -296,8 +315,6 @@ def make_sanepic_gls_map(
     pysanepic = _import_pysanepic()
     if correlation is not None:
         pysanepic = _import_pysanepic("DetectorGroup", "0.4.0")
-        if noise is not None:
-            raise ValueError("correlation and noise cannot be used together")
     if noise_model not in ("toast", "keshner"):
         raise ValueError(
             f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
@@ -348,6 +365,8 @@ def estimate_sanepic_noise(
     fit: str | None = None,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
+    correlation: dict | None = None,
+    n_modes: int = 1,
 ) -> dict:
     """
     Noise spectrum of each detector from the residual of a pysanepic map.
@@ -362,8 +381,28 @@ def estimate_sanepic_noise(
     with `fit` (``"toast"`` or ``"keshner"``) a fitted
     ``pysanepic.OneOverFNoise``; pass it to :func:`.make_sanepic_gls_map` as
     ``noise``. Needs pysanepic 0.4.0 or later.
+
+    With `correlation` (the groups of the common-mode model of
+    :func:`.add_noise_to_observations`, see :func:`.make_sanepic_gls_map`),
+    the cross-spectra of the detectors of each group are averaged over the
+    observations and fitted with `n_modes` common modes plus the own noise
+    of each detector: the result has the own noise under each name and the
+    list of ``pysanepic.CommonMode`` under the tuple of the names of the
+    group. Pass it to :func:`.make_sanepic_gls_map` with the same
+    `correlation`. The parameters of the model (``rho``, the spectrum of
+    the mode) are not used.
     """
     pysanepic = _import_pysanepic("estimate_noise", "0.4.0")
+    extra = {}
+    if correlation is not None:
+        import inspect
+
+        if "n_modes" not in inspect.signature(pysanepic.estimate_noise).parameters:
+            raise ImportError(
+                f"pysanepic {pysanepic.__version__} is too old to estimate common "
+                "modes: version 0.4.0 or later is needed"
+            )
+        extra["n_modes"] = n_modes
     if isinstance(components, str):
         components = [components]
     obs_list, ptg_list = _normalize_observations_and_pointings(
@@ -384,6 +423,7 @@ def estimate_sanepic_noise(
         "toast",  # not used: only the residual matters here
         [flags] if isinstance(flags, str) else list(flags or []),
         None,
+        correlation,
     )
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
     return pysanepic.estimate_noise(
@@ -394,4 +434,5 @@ def estimate_sanepic_noise(
         fit=fit,
         comm=comm,
         nthreads=nthreads,
+        **extra,
     )

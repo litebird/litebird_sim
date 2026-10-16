@@ -1,5 +1,6 @@
 """Test GLS mapmaking with pysanepic"""
 
+import inspect
 import tempfile
 from unittest import mock
 
@@ -224,6 +225,7 @@ def test_sanepic_correlated_noise():
     sim.add_noise(noise_type="correlated", correlation=correlation)
     params = pysanepic.GLSParameters(chunk_s=43200.0, tol=1e-10)
     rms = {}
+    results = {}
     for label, corr in (("independent", None), ("correlated", correlation)):
         r = sim.make_sanepic_gls_map(
             nside=8, params=params, correlation=corr, append_to_report=False
@@ -231,7 +233,32 @@ def test_sanepic_correlated_noise():
         assert r.converged
         seen = r.maps[1] != hp.UNSEEN
         rms[label] = np.std(r.maps[1:, seen])
+        results[label] = r
     assert rms["correlated"] < 0.8 * rms["independent"]
+
+    # the common mode estimated from the residual of the first map
+    if "n_modes" in inspect.signature(pysanepic.estimate_noise).parameters:
+        est = sim.estimate_sanepic_noise(
+            results["independent"], chunk_s=43200.0, nbins=20, correlation=correlation
+        )
+        (mode,) = est[("a", "b", "c", "d")]
+        assert np.allclose(mode.coupling, 1.0, atol=0.05)  # same rho for all
+        r = sim.make_sanepic_gls_map(
+            nside=8,
+            params=params,
+            noise=est,
+            correlation=correlation,
+            append_to_report=False,
+        )
+        seen = r.maps[1] != hp.UNSEEN
+        assert np.std(r.maps[1:, seen]) < 1.05 * rms["correlated"]
+        with pytest.raises(ValueError, match="no common modes"):
+            sim.make_sanepic_gls_map(
+                nside=8,
+                params=params,
+                noise={"a": est["a"]},
+                correlation=correlation,
+            )
     with pytest.raises(ValueError, match="corr_matrix"):
         sim.make_sanepic_gls_map(
             nside=8, params=params, correlation={"corr_matrix": np.eye(4)}

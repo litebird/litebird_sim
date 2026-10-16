@@ -3161,6 +3161,8 @@ class Simulation:
         fit: str | None = None,
         pointings_dtype=np.float64,
         nthreads: int | None = None,
+        correlation: dict | None = None,
+        n_modes: int = 1,
     ) -> dict:
         """Noise spectra of the detectors from the residual of a pysanepic map.
 
@@ -3177,6 +3179,8 @@ class Simulation:
             fit=fit,
             pointings_dtype=pointings_dtype,
             nthreads=nthreads,
+            correlation=correlation,
+            n_modes=n_modes,
         )
 
     @_profile
