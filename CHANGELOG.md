@@ -1,5 +1,9 @@
 # HEAD
 
+-   Fix the binner and the pair-differencing map-maker with `split_list_over_processes=True`: each observation is local to one process (`comm=None`) and they treated the call as serial, so every process got the map of its own observations only (the destriper was not affected). Observations now keep the communicator of the distributed list in `list_comm`, set by `Simulation.create_observations`, and the map-makers sum over it. Reference PR: [#576](https://github.com/litebird/litebird_sim/pull/576).
+
+-   `Simulation.describe_mpi_layout()` returns a compact summary of the MPI distribution (processes, nodes, threads, blocks, and per process the observations, detectors, samples, length of the time blocks and TOD memory, with warnings for processes without data and unbalanced workloads); `create_observations` writes it to the log. Reference PR: [#576](https://github.com/litebird/litebird_sim/pull/576).
+
 -   **Breaking change**: `make_sanepic_gls_map` needs pysanepic 0.3.0 or later, which describes the noise of each detector with a `pysanepic.OneOverFNoise` object. Reference PR: [#574](https://github.com/litebird/litebird_sim/pull/574).
 
 -   `make_sanepic_gls_map` has a `noise_model` argument (`"toast"`, the default, or `"keshner"`) to model the 1/f spectrum with the same shape used to simulate the noise (`"keshner"` is the one generated with `engine="ducc"`). Before, pysanepic always used the toast shape. Reference PR: [#574](https://github.com/litebird/litebird_sim/pull/574).

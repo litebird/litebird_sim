@@ -17,7 +17,6 @@ import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 
-from litebird_sim import mpi
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.hwp import HWP
 from litebird_sim.observations import Observation
@@ -30,6 +29,7 @@ from litebird_sim.maps_and_harmonics import HealpixMap
 from ..utilities import resolve_nthreads
 
 from .common import (
+    _get_reduction_comm,
     _build_mask_detector_split,
     _build_mask_time_split,
     _check_valid_splits,
@@ -286,23 +286,11 @@ def _build_nobs_matrix(
         del pixidx_all, polang_all
 
     assert obs_list, "No observations provided"
-    if mpi.MPI_ENABLED:
+    comm = _get_reduction_comm(obs_list)
+    if comm is not None:
         from litebird_sim.mpi import MPI
-    if all([obs.comm is None for obs in obs_list]) or not mpi.MPI_ENABLED:
-        # Serial call
-        pass
-    elif all(
-        [
-            MPI.Comm.Compare(obs_list[i].comm, obs_list[i + 1].comm) < 2
-            for i in range(len(obs_list) - 1)
-        ]
-    ):
-        obs_list[0].comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
 
-    else:
-        raise NotImplementedError(
-            "All observations must be distributed over the same MPI groups"
-        )
+        comm.Allreduce(MPI.IN_PLACE, nobs_matrix, MPI.SUM)
 
     return nobs_matrix
 
