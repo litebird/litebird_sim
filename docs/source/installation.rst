@@ -191,7 +191,11 @@ optional dependencies above. Install it in the same environment as LBS:
 
 .. code-block:: text
 
-    pip install "pysanepic>=0.3.0"
+    pip install "pysanepic>=0.4.0"
+
+Version 0.3.0 is enough for the GLS maps; the estimation of the noise
+(:func:`.estimate_sanepic_noise`) and the correlated noise (``correlation``)
+need 0.4.0.
 
 .. _maximize-performance:
 
