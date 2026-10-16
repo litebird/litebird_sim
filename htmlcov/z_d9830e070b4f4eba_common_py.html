@@ -54,9 +54,9 @@
             </div>
         </aside>
         <h2>
-            <span class="text">261 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">110<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">151<span class="text"> missing</span></button>
+            <span class="text">273 statements &nbsp;</span>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">114<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">159<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_d9830e070b4f4eba_destriper_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-16 01:12 +0000
+            created at 2026-10-16 23:47 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -704,6 +704,38 @@
     <p class="mis show_mis"><span class="n"><a id="t622" href="#t622">622</a></span><span class="t">                <span class="key">if</span> <span class="nam">requested_years</span> <span class="op">&gt;</span> <span class="nam">max_years</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t623" href="#t623">623</a></span><span class="t">                    <span class="nam">msg</span> <span class="op">=</span> <span class="fst">f&quot;</span><span class="fst">Time split &#x27;</span><span class="op">{</span><span class="nam">ts</span><span class="op">}</span><span class="fst">&#x27; not possible for observation with a duration of </span><span class="op">{</span><span class="nam">round</span><span class="op">(</span><span class="nam">duration</span> <span class="op">/</span> <span class="nam">t_year_sec</span><span class="op">,</span> <span class="num">1</span><span class="op">)</span><span class="op">}</span><span class="fst"> years!</span><span class="fst">&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t624" href="#t624">624</a></span><span class="t">                    <span class="key">raise</span> <span class="nam">AssertionError</span><span class="op">(</span><span class="nam">msg</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t625" href="#t625">625</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t626" href="#t626">626</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t627" href="#t627">627</a></span><span class="t"><span class="key">def</span> <span class="nam">_get_reduction_comm</span><span class="op">(</span><span class="nam">obs_list</span><span class="op">:</span> <span class="nam">list</span><span class="op">[</span><span class="nam">Observation</span><span class="op">]</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t628" href="#t628">628</a></span><span class="t">    <span class="str">&quot;&quot;&quot;The MPI communicator over which a map-maker must sum the contributions</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t629" href="#t629">629</a></span><span class="t"><span class="str">    of `obs_list`, or None for a serial call.</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t630" href="#t630">630</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t631" href="#t631">631</a></span><span class="t"><span class="str">    Observations distributed over the processes (``obs.comm``) are summed over</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t632" href="#t632">632</a></span><span class="t"><span class="str">    their communicator; whole observations spread over the processes by</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t633" href="#t633">633</a></span><span class="t"><span class="str">    :meth:`.Simulation.create_observations` with</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t634" href="#t634">634</a></span><span class="t"><span class="str">    ``split_list_over_processes=True`` (``obs.comm`` is None) are summed over</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t635" href="#t635">635</a></span><span class="t"><span class="str">    the communicator of the list (``obs.list_comm``).</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t636" href="#t636">636</a></span><span class="t"><span class="str">    &quot;&quot;&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t637" href="#t637">637</a></span><span class="t">    <span class="key">from</span> <span class="nam">litebird_sim</span> <span class="key">import</span> <span class="nam">mpi</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t638" href="#t638">638</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t639" href="#t639">639</a></span><span class="t">    <span class="key">if</span> <span class="key">not</span> <span class="nam">mpi</span><span class="op">.</span><span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t640" href="#t640">640</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t641" href="#t641">641</a></span><span class="t">    <span class="key">from</span> <span class="nam">litebird_sim</span><span class="op">.</span><span class="nam">mpi</span> <span class="key">import</span> <span class="nam">MPI</span>&nbsp;</span><span class="r"></span></p>
+    <p class="pln"><span class="n"><a id="t642" href="#t642">642</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t643" href="#t643">643</a></span><span class="t">    <span class="nam">comms</span> <span class="op">=</span> <span class="op">[</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t644" href="#t644">644</a></span><span class="t">        <span class="nam">obs</span><span class="op">.</span><span class="nam">list_comm</span> <span class="key">if</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">obs</span><span class="op">,</span> <span class="str">&quot;list_comm&quot;</span><span class="op">,</span> <span class="key">None</span><span class="op">)</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span> <span class="key">else</span> <span class="nam">obs</span><span class="op">.</span><span class="nam">comm</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t645" href="#t645">645</a></span><span class="t">        <span class="key">for</span> <span class="nam">obs</span> <span class="key">in</span> <span class="nam">obs_list</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t646" href="#t646">646</a></span><span class="t">    <span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t647" href="#t647">647</a></span><span class="t">    <span class="key">if</span> <span class="nam">all</span><span class="op">(</span><span class="nam">c</span> <span class="key">is</span> <span class="key">None</span> <span class="key">for</span> <span class="nam">c</span> <span class="key">in</span> <span class="nam">comms</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t648" href="#t648">648</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t649" href="#t649">649</a></span><span class="t">    <span class="nam">valid</span> <span class="op">=</span> <span class="op">[</span><span class="nam">c</span> <span class="key">for</span> <span class="nam">c</span> <span class="key">in</span> <span class="nam">comms</span> <span class="key">if</span> <span class="nam">c</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t650" href="#t650">650</a></span><span class="t">    <span class="key">if</span> <span class="nam">len</span><span class="op">(</span><span class="nam">valid</span><span class="op">)</span> <span class="op">&lt;</span> <span class="nam">len</span><span class="op">(</span><span class="nam">comms</span><span class="op">)</span> <span class="key">or</span> <span class="key">not</span> <span class="nam">all</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t651" href="#t651">651</a></span><span class="t">        <span class="nam">MPI</span><span class="op">.</span><span class="nam">Comm</span><span class="op">.</span><span class="nam">Compare</span><span class="op">(</span><span class="nam">valid</span><span class="op">[</span><span class="nam">i</span><span class="op">]</span><span class="op">,</span> <span class="nam">valid</span><span class="op">[</span><span class="nam">i</span> <span class="op">+</span> <span class="num">1</span><span class="op">]</span><span class="op">)</span> <span class="op">&lt;</span> <span class="num">2</span> <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">range</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">valid</span><span class="op">)</span> <span class="op">-</span> <span class="num">1</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t652" href="#t652">652</a></span><span class="t">    <span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t653" href="#t653">653</a></span><span class="t">        <span class="key">raise</span> <span class="nam">NotImplementedError</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t654" href="#t654">654</a></span><span class="t">            <span class="str">&quot;All observations must be distributed over the same MPI groups&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t655" href="#t655">655</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t656" href="#t656">656</a></span><span class="t">    <span class="key">return</span> <span class="nam">valid</span><span class="op">[</span><span class="num">0</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -713,7 +745,7 @@
             <a class="nav" href="z_d9830e070b4f4eba_destriper_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-16 01:12 +0000
+            created at 2026-10-16 23:47 +0000
         </p>
     </div>
 </footer>
