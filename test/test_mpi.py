@@ -845,6 +845,29 @@ def test_binner_split_list_over_processes():
     assert np.allclose(invnpp[0], invnpp[1])
 
 
+def test_describe_mpi_layout():
+    # A compact summary of the distribution, consistent on every process
+    size = lbs.MPI_COMM_WORLD.size
+    sim = lbs.Simulation(
+        start_time=0.0,
+        duration_s=400.0 * size,
+        random_seed=1,
+        mpi_comm=lbs.MPI_COMM_WORLD,
+    )
+    sim.set_instrument(lbs.InstrumentInfo(name="instr"))
+    dets = [lbs.DetectorInfo(name=n, sampling_rate_hz=1.0) for n in ("a", "b")]
+    sim.create_observations(
+        detectors=dets, num_of_obs_per_detector=2 * size, split_list_over_processes=True
+    )
+    text = sim.describe_mpi_layout()
+    assert f"{size} process" in text
+    assert f"Observations: {2 * size} in total" in text
+    if size > 1:
+        assert "split_list_over_processes=True" in text
+    assert "warnings: none" in text
+    assert lbs.MPI_COMM_WORLD.allgather(text) == [text] * size
+
+
 if __name__ == "__main__":
     pytest.main([f"{__file__}"])
 

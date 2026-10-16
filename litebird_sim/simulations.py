@@ -2,6 +2,7 @@ import functools
 import importlib.resources
 import json
 import logging as log
+from collections import Counter
 import os
 import subprocess
 from collections import namedtuple
@@ -1363,7 +1364,123 @@ class Simulation:
         else:
             self.observations = observations
 
+        layout = self.describe_mpi_layout()
+        if self.mpi_comm.rank == 0:
+            log.info("%s", layout)
+
         return observations
+
+    def describe_mpi_layout(self) -> str:
+        """A compact summary of how the observations are distributed.
+
+        It reports the MPI processes, the nodes and the threads, how each
+        observation is cut in blocks, and per process (min and max) the number
+        of observations, detectors and samples, the length of the time blocks
+        and the memory of the TODs, with warnings for processes without data
+        and unbalanced workloads. :meth:`.create_observations` writes it to
+        the log; see :meth:`.describe_mpi_distribution` for every observation
+        of every process. It must be called by all the MPI processes; the
+        text is meaningful on every process.
+        """
+        import os
+        import socket
+
+        obs_list = self.observations or []
+        local = {
+            "host": socket.gethostname(),
+            "threads": numba.get_num_threads(),
+            "omp": os.environ.get("OMP_NUM_THREADS"),
+            "n_obs": len(obs_list),
+            "n_det": [obs.n_detectors for obs in obs_list],
+            "durations_s": [obs.n_samples / obs.sampling_rate_hz for obs in obs_list],
+            "samples": sum(obs.n_samples * obs.n_detectors for obs in obs_list),
+            "tod_bytes": sum(
+                getattr(obs, cur_tod.name).nbytes
+                for obs in obs_list
+                for cur_tod in self.tod_list
+                if getattr(obs, cur_tod.name, None) is not None
+            ),
+            "blocks": sorted(
+                {(obs.n_blocks_det, obs.n_blocks_time) for obs in obs_list}
+            ),
+            "split_list": any(obs.list_comm is not None for obs in obs_list),
+        }
+        if self.mpi_comm and MPI_ENABLED and self.mpi_comm.size > 1:
+            procs = self.mpi_comm.allgather(local)
+        else:
+            procs = [local]
+
+        nprocs = len(procs)
+        per_node = Counter(p["host"] for p in procs)
+        counts = Counter(per_node.values())
+        if len(counts) == 1:
+            node_text = f"{next(iter(counts))} per node"
+        else:
+            node_text = "; ".join(
+                f"{n} per node on {k} node{'s' if k > 1 else ''}"
+                for n, k in sorted(counts.items(), reverse=True)
+            )
+        threads = sorted({p["threads"] for p in procs})
+        omp = sorted({str(p["omp"]) for p in procs})
+        split = any(p["split_list"] for p in procs)
+        n_obs_total = (
+            sum(p["n_obs"] for p in procs) if split else max(p["n_obs"] for p in procs)
+        )
+        blocks = sorted({b for p in procs for b in p["blocks"]})
+
+        def minmax(values, fmt="{}"):
+            values = list(values)
+            if not values:
+                return "-", "-"
+            return fmt.format(min(values)), fmt.format(max(values))
+
+        def gb(x):
+            return f"{x / 1024**3:.1f} GB" if x >= 1024**3 else f"{x / 1024**2:.1f} MB"
+
+        rows = [
+            ("observations", minmax(p["n_obs"] for p in procs)),
+            ("detectors per observation", minmax(n for p in procs for n in p["n_det"])),
+            (
+                "time per block [s]",
+                minmax((d for p in procs for d in p["durations_s"]), "{:.0f}"),
+            ),
+            ("samples (all detectors)", minmax(p["samples"] for p in procs)),
+            (
+                "TOD memory",
+                (
+                    gb(min(p["tod_bytes"] for p in procs)),
+                    gb(max(p["tod_bytes"] for p in procs)),
+                ),
+            ),
+        ]
+        lines = [
+            f"MPI layout: {nprocs} process{'es' if nprocs > 1 else ''} on "
+            f"{len(per_node)} node{'s' if len(per_node) > 1 else ''} ({node_text}), "
+            f"{'/'.join(map(str, threads))} Numba threads per process "
+            f"(OMP_NUM_THREADS={'/'.join(omp)})",
+            f"Observations: {n_obs_total} in total, "
+            + (
+                "on one process"
+                if nprocs == 1
+                else "each one whole on a process (split_list_over_processes=True)"
+                if split
+                else "each one distributed over all the processes in "
+                + ", ".join(f"{d} detector x {t} time blocks" for d, t in blocks)
+            ),
+            f"{'per process':28s}{'min':>14s}{'max':>14s}",
+        ]
+        lines += [f"  {name:26s}{lo:>14s}{hi:>14s}" for name, (lo, hi) in rows]
+        warnings = []
+        empty = sum(p["n_obs"] == 0 for p in procs)
+        if empty:
+            warnings.append(f"{empty} process(es) without observations")
+        samples = [p["samples"] for p in procs]
+        if max(samples) > 0 and min(samples) < 0.9 * max(samples):
+            warnings.append(
+                f"unbalanced samples: from {min(samples)} to {max(samples)} per process"
+            )
+        lines.append("warnings: " + ("; ".join(warnings) if warnings else "none"))
+        return "\n".join(lines)
 
     def get_tod_names(self) -> list[str]:
         return [x.name for x in self.tod_list]
