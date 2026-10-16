@@ -623,9 +623,11 @@ The convergence of the Conjugated Gradient can be controlled by the
 following fields in the :class:`.DestriperParameters` class:
 
 - ``iter_max``: the maximum number of iterations, i.e., the upper limit for :math:`n`.
-- ``threshold``: the value to be reached by the :math:`L_\infty` norm when
-  applied to the residuals :math:`r^{(n)}`: if the norm is smaller than ``threshold``,
-  then the CG algorithm stops.
+- ``threshold``: the CG algorithm stops when the :math:`L_\infty` norm of
+  the residuals :math:`r^{(n)}` is smaller than ``threshold`` times the norm of
+  the initial residuals :math:`r^{(0)}`. The threshold is relative because the
+  scale of the residuals depends on the data (units, noise level, length of the
+  baselines).
 - ``samples_per_baseline``: this can either be an integer, in which case it will
   be used for *all* the baselines, or a list of 1D arrays, each containing the
   length of each baseline for each observation passed through the parameter

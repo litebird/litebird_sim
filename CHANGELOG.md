@@ -6,6 +6,8 @@
 
 -   `make_sanepic_gls_map` has a `flags` argument: the names of the `Observation` attributes holding flags, per detector (e.g. `"local_flags"`) or common to all detectors (e.g. `"global_flags"`). Samples with a nonzero flag are excluded from the maps by pysanepic, which fits them with unknowns of their own (the exact GLS without them). Reference PR: [#574](https://github.com/litebird/litebird_sim/pull/574).
 
+-   Fix the conjugate gradient of the destriper, which did not converge (the search direction was overwritten at every step): with the default threshold it stopped after 1–2 steps, giving destriped maps almost equal to the binned ones, and with lower thresholds it diverged. **Breaking change**: `DestriperParameters.threshold` is now relative to the initial residual (the default, 1e-7, is unchanged), since the scale of the residuals depends on the data. Reference PR: [#575](https://github.com/litebird/litebird_sim/pull/575).
+
 # Version 0.18.0
 
 -   Fix the destriper possibly accepting singular pixels (e.g., with 1–2 hits) and producing wrong values there: the closed formula used to estimate the condition number loses precision on the smallest eigenvalue, and the check worked only thanks to an absolute threshold that depends on the units of the detector NETs (with weights of order 1, ~25% of the singular pixels were accepted). The destriper and the binner now share a check based on the eigenvalues computed by `np.linalg.eigvalsh`, which does not depend on the scale. Reference PR: [#573](https://github.com/litebird/litebird_sim/pull/573).

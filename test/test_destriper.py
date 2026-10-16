@@ -844,7 +844,9 @@ def test_full_destriper(tmp_path):
     destriper_params_noise = lbs.DestriperParameters(
         output_coordinate_system=lbs.coordinates.CoordinateSystem.Galactic,
         samples_per_baseline=100,  # ν_samp = 1 Hz ⇒ the baseline is 100 s
-        iter_max=10,
+        # the threshold is relative: 1e-6 takes ~40 steps here (with an absolute
+        # threshold the initial residual, 8e-7, was already below it)
+        iter_max=100,
         threshold=1e-6,
     )
 
@@ -1129,3 +1131,67 @@ def test_save_baselines_for_many_detectors(tmp_path):
         output_folder=Path(tmp_path) / "test_errors_dimension",
         results=destriper_result,
     )
+
+
+def test_destriper_removes_pure_offsets(tmp_path):
+    """A TOD made only of one offset per baseline is removed exactly once the CG
+    converges: a regression test for the PCG update of the search direction."""
+    sim = lbs.Simulation(
+        base_path=tmp_path, start_time=0, duration_s=6 * 3600, random_seed=1
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=np.deg2rad(45),
+            precession_rate_hz=1 / 3600,
+            spin_rate_hz=1 / 60,
+        ),
+        delta_time_s=10,
+    )
+    sim.set_instrument(
+        lbs.InstrumentInfo(name="instr", spin_boresight_angle_rad=np.deg2rad(50))
+    )
+    dets = [
+        lbs.DetectorInfo(
+            name=f"det{angle}",
+            sampling_rate_hz=10.0,
+            pol_angle_rad=np.deg2rad(angle),
+            net_ukrts=50.0,
+        )
+        for angle in (0, 90, 45, 135)
+    ]
+    sim.create_observations(detectors=dets, num_of_obs_per_detector=2)
+    sim.prepare_pointings()
+
+    samples_per_baseline = 100
+    rng = np.random.default_rng(0)
+    for obs in sim.observations:
+        num_of_baselines = -(-obs.n_samples // samples_per_baseline)
+        offsets = rng.normal(0, 1e-4, (obs.n_detectors, num_of_baselines))
+        obs.tod[:] = np.repeat(offsets, samples_per_baseline, axis=1)[
+            :, : obs.n_samples
+        ]
+
+    nside = 16
+    result = sim.make_destriped_map(
+        nside=nside,
+        params=lbs.DestriperParameters(
+            samples_per_baseline=samples_per_baseline, iter_max=500, threshold=1e-14
+        ),
+        append_to_report=False,
+    )
+    assert result.converged is True
+    seen = result.hit_map > 0
+    binned_rms = np.std(result.binned_map[:, seen])
+    destriped_rms = np.std(result.destriped_map[:, seen])
+    assert destriped_rms < 1e-6 * binned_rms
+
+    # the default threshold is relative: it also removes the offsets
+    result = sim.make_destriped_map(
+        nside=nside,
+        params=lbs.DestriperParameters(
+            samples_per_baseline=samples_per_baseline, iter_max=500
+        ),
+        append_to_report=False,
+    )
+    assert result.converged is True
+    assert np.std(result.destriped_map[:, seen]) < 1e-4 * binned_rms
