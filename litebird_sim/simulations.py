@@ -1478,7 +1478,8 @@ class Simulation:
             + (
                 "on one process"
                 if nprocs == 1
-                else "each one whole on a process (split_list_over_processes=True)"
+                else "each observation assigned entirely to one process "
+                "(split_list_over_processes=True)"
                 if split
                 else "each one distributed over all the processes in "
                 + ", ".join(f"{d} detector x {t} time blocks" for d, t in blocks)
@@ -1494,6 +1495,11 @@ class Simulation:
         if max(samples) > 0 and min(samples) < 0.9 * max(samples):
             warnings.append(
                 f"unbalanced samples: from {min(samples)} to {max(samples)} per process"
+                + (
+                    f" (observations per process: {','.join(str(p.n_obs) for p in procs)})"
+                    if split
+                    else ""
+                )
             )
         lines.append("warnings: " + ("; ".join(warnings) if warnings else "none"))
         return "\n".join(lines)
