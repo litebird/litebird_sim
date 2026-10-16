@@ -646,10 +646,11 @@ def _get_reduction_comm(obs_list: list[Observation]):
     ]
     if all(c is None for c in comms):
         return None
-    if any(c is None for c in comms) or not all(
-        MPI.Comm.Compare(comms[i], comms[i + 1]) < 2 for i in range(len(comms) - 1)
+    valid = [c for c in comms if c is not None]
+    if len(valid) < len(comms) or not all(
+        MPI.Comm.Compare(valid[i], valid[i + 1]) < 2 for i in range(len(valid) - 1)
     ):
         raise NotImplementedError(
             "All observations must be distributed over the same MPI groups"
         )
-    return comms[0]
+    return valid[0]

@@ -219,6 +219,22 @@ class MpiProcessDescr:
 
 
 @dataclass
+class _ProcessLayout:
+    """What one MPI process holds, for :meth:`.Simulation.describe_mpi_layout`."""
+
+    host: str
+    threads: int
+    omp: str
+    n_obs: int
+    n_det: list[int]
+    durations_s: list[float]
+    samples: int
+    tod_bytes: int
+    blocks: list[tuple[int, int]]
+    split_list: bool
+
+
+@dataclass
 class MpiDistributionDescr:
     """A class that describes how observations are distributed among MPI processes
 
@@ -1386,32 +1402,32 @@ class Simulation:
         import socket
 
         obs_list = self.observations or []
-        local = {
-            "host": socket.gethostname(),
-            "threads": numba.get_num_threads(),
-            "omp": os.environ.get("OMP_NUM_THREADS"),
-            "n_obs": len(obs_list),
-            "n_det": [obs.n_detectors for obs in obs_list],
-            "durations_s": [obs.n_samples / obs.sampling_rate_hz for obs in obs_list],
-            "samples": sum(obs.n_samples * obs.n_detectors for obs in obs_list),
-            "tod_bytes": sum(
-                getattr(obs, cur_tod.name).nbytes
+        local = _ProcessLayout(
+            host=socket.gethostname(),
+            threads=numba.get_num_threads(),
+            omp=str(os.environ.get("OMP_NUM_THREADS")),
+            n_obs=len(obs_list),
+            n_det=[int(obs.n_detectors) for obs in obs_list],
+            durations_s=[obs.n_samples / obs.sampling_rate_hz for obs in obs_list],
+            samples=sum(int(obs.n_samples) * int(obs.n_detectors) for obs in obs_list),
+            tod_bytes=sum(
+                int(getattr(obs, cur_tod.name).nbytes)
                 for obs in obs_list
                 for cur_tod in self.tod_list
                 if getattr(obs, cur_tod.name, None) is not None
             ),
-            "blocks": sorted(
-                {(obs.n_blocks_det, obs.n_blocks_time) for obs in obs_list}
+            blocks=sorted(
+                {(int(obs.n_blocks_det), int(obs.n_blocks_time)) for obs in obs_list}
             ),
-            "split_list": any(obs.list_comm is not None for obs in obs_list),
-        }
+            split_list=any(obs.list_comm is not None for obs in obs_list),
+        )
         if self.mpi_comm and MPI_ENABLED and self.mpi_comm.size > 1:
             procs = self.mpi_comm.allgather(local)
         else:
             procs = [local]
 
         nprocs = len(procs)
-        per_node = Counter(p["host"] for p in procs)
+        per_node = Counter(p.host for p in procs)
         counts = Counter(per_node.values())
         if len(counts) == 1:
             node_text = f"{next(iter(counts))} per node"
@@ -1420,13 +1436,13 @@ class Simulation:
                 f"{n} per node on {k} node{'s' if k > 1 else ''}"
                 for n, k in sorted(counts.items(), reverse=True)
             )
-        threads = sorted({p["threads"] for p in procs})
-        omp = sorted({str(p["omp"]) for p in procs})
-        split = any(p["split_list"] for p in procs)
+        threads = sorted({p.threads for p in procs})
+        omp = sorted({str(p.omp) for p in procs})
+        split = any(p.split_list for p in procs)
         n_obs_total = (
-            sum(p["n_obs"] for p in procs) if split else max(p["n_obs"] for p in procs)
+            sum(p.n_obs for p in procs) if split else max(p.n_obs for p in procs)
         )
-        blocks = sorted({b for p in procs for b in p["blocks"]})
+        blocks = sorted({b for p in procs for b in p.blocks})
 
         def minmax(values, fmt="{}"):
             values = list(values)
@@ -1438,18 +1454,18 @@ class Simulation:
             return f"{x / 1024**3:.1f} GB" if x >= 1024**3 else f"{x / 1024**2:.1f} MB"
 
         rows = [
-            ("observations", minmax(p["n_obs"] for p in procs)),
-            ("detectors per observation", minmax(n for p in procs for n in p["n_det"])),
+            ("observations", minmax(p.n_obs for p in procs)),
+            ("detectors per observation", minmax(n for p in procs for n in p.n_det)),
             (
                 "time per block [s]",
-                minmax((d for p in procs for d in p["durations_s"]), "{:.0f}"),
+                minmax((d for p in procs for d in p.durations_s), "{:.0f}"),
             ),
-            ("samples (all detectors)", minmax(p["samples"] for p in procs)),
+            ("samples (all detectors)", minmax(p.samples for p in procs)),
             (
                 "TOD memory",
                 (
-                    gb(min(p["tod_bytes"] for p in procs)),
-                    gb(max(p["tod_bytes"] for p in procs)),
+                    gb(min(p.tod_bytes for p in procs)),
+                    gb(max(p.tod_bytes for p in procs)),
                 ),
             ),
         ]
@@ -1471,10 +1487,10 @@ class Simulation:
         ]
         lines += [f"  {name:26s}{lo:>14s}{hi:>14s}" for name, (lo, hi) in rows]
         warnings = []
-        empty = sum(p["n_obs"] == 0 for p in procs)
+        empty = sum(p.n_obs == 0 for p in procs)
         if empty:
             warnings.append(f"{empty} process(es) without observations")
-        samples = [p["samples"] for p in procs]
+        samples = [p.samples for p in procs]
         if max(samples) > 0 and min(samples) < 0.9 * max(samples):
             warnings.append(
                 f"unbalanced samples: from {min(samples)} to {max(samples)} per process"

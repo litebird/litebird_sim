@@ -865,7 +865,8 @@ def test_describe_mpi_layout():
     if size > 1:
         assert "split_list_over_processes=True" in text
     assert "warnings: none" in text
-    assert lbs.MPI_COMM_WORLD.allgather(text) == [text] * size
+    if lbs.MPI_ENABLED:
+        assert lbs.MPI_COMM_WORLD.allgather(text) == [text] * size
 
 
 if __name__ == "__main__":
