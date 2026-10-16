@@ -152,6 +152,17 @@ class Observation:
         Rank of the process receiving the detector list when
         ``detectors`` is a list of dictionaries; otherwise ignored.
 
+    Attributes
+    ----------
+    list_comm : MPI communicator or None
+        Communicator over which the *list* of observations is distributed,
+        ``None`` by default. :meth:`.Simulation.create_observations` sets it
+        to the communicator of the simulation when
+        ``split_list_over_processes=True`` (each observation is then whole on
+        one process, and ``comm`` is ``None``), so that the map-makers sum
+        the contributions of all the processes; there is no need to set it
+        by hand.
+
     """
 
     # Dynamic attributes set via setattr_det_global/setattr_det
@@ -213,11 +224,7 @@ class Observation:
             ]
 
         self.comm = comm
-        # Communicator over which the *list* of observations is distributed
-        # (set by Simulation.create_observations with
-        # split_list_over_processes=True, when each observation is local to
-        # one process): map-makers sum their contributions over it
-        self.list_comm = None
+        self.list_comm = None  # see the class docstring
         self.start_time_global = start_time_global
         self._n_samples_global = n_samples_global
 
