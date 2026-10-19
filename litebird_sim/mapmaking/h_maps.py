@@ -8,7 +8,7 @@ import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
-
+from astropy.time import TimeDelta
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
 from litebird_sim.hwp import HWP
@@ -326,6 +326,8 @@ def make_h_maps(
             # print(np.shape(hwp_angle))
             # print(f"size of hwp array: {hwp_angle.nbytes}")
             duration_s = cur_obs.get_time_span()
+            if isinstance(duration_s, TimeDelta):
+                duration_s = duration_s.to_value('sec')
             assert isinstance(duration_s, float)
             sampling_rate = cur_obs.sampling_rate_hz
             pixidx, polang = _compute_pixel_indices_single_detector(
