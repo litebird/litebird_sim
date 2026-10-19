@@ -9,6 +9,7 @@ import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 from numba import njit, prange
 from astropy.time import TimeDelta
+
 from litebird_sim.coordinates import CoordinateSystem
 from litebird_sim.healpix import UNSEEN_PIXEL_VALUE
 from litebird_sim.hwp import HWP
