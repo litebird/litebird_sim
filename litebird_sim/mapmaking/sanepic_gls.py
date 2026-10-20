@@ -4,21 +4,17 @@ GLS map-maker with correlated (1/f) noise using pysanepic
 pysanepic does not depend on litebird_sim: this module converts the
 observations into `pysanepic.DetectorData` (HEALPix pixels computed here,
 orientation, HWP angle, TOD and the 1/f noise parameters used to simulate the
-noise) and calls `pysanepic.make_maps`. With calibration, the dipole of each
-sample is computed here, with the dipole module of litebird_sim.
+noise) and calls `pysanepic.make_maps`.
 """
 
 import dataclasses
 from typing import TYPE_CHECKING
 
-import healpy as hp
 import numpy as np
 import numpy.typing as npt
 from ducc0.healpix import Healpix_Base
 
-from litebird_sim.constants import T_CMB_K
 from litebird_sim.coordinates import CoordinateSystem
-from litebird_sim.dipole import DipoleType, add_dipole_for_one_detector
 from litebird_sim.hwp import HWP
 from litebird_sim.mpi import MPI_COMM_WORLD, MPI_ENABLED
 from litebird_sim.noise import (
@@ -32,7 +28,6 @@ from litebird_sim.observation_utilities import (
     _normalize_observations_and_pointings,
 )
 
-from litebird_sim.spacecraft import SpacecraftPositionAndVelocity
 from litebird_sim.utilities import resolve_nthreads
 
 from .common import get_pol_efficiency
@@ -63,17 +58,10 @@ def _detector_flags(obs, names, det_idx):
     return out
 
 
-def _velocity_rotation(output_coordinate_system):
-    """Matrix rotating Ecliptic vectors (the spacecraft velocity) to the output
-    coordinates: the dipole depends only on n·v."""
-    if output_coordinate_system == CoordinateSystem.Ecliptic:
-        return np.eye(3)
-    return hp.Rotator(coord=["E", "G"]).mat
-
-
 def _sky_array(x):
-    """A sky model or template for pysanepic: an array (maps, or alm with
-    mmax = lmax), from an array or a SphericalHarmonics."""
+    """A sky model or template for pysanepic (which does not depend on
+    litebird_sim): an array of maps, or of alm with mmax = lmax, from an array
+    or a SphericalHarmonics."""
     if hasattr(x, "lmax") and hasattr(x, "values"):
         if x.mmax != x.lmax:
             raise ValueError("pysanepic needs alm with mmax = lmax")
@@ -81,29 +69,6 @@ def _sky_array(x):
             raise ValueError("pysanepic needs alm at one frequency")
         return np.asarray(x.values)
     return np.asarray(x)
-
-
-def _solar_dipole_map(nside, output_coordinate_system, pos_and_vel, dipole_type, nu_hz):
-    """The solar dipole at the pixel centres (RING), with the formula of
-    `dipole_type` for the velocity of the Sun alone."""
-    orbit = pos_and_vel.orbit
-    npix = 12 * nside * nside
-    theta, phi = hp.pix2ang(nside, np.arange(npix))
-    v = (
-        np.asarray(orbit.solar_velocity_ecl_xyz_km_s)
-        @ _velocity_rotation(output_coordinate_system).T
-    )
-    out = np.zeros(npix)
-    if orbit.solar_velocity_km_s > 0:
-        add_dipole_for_one_detector(
-            out,
-            np.stack([theta, phi], axis=1),
-            np.tile(v, (npix, 1)),
-            T_CMB_K,
-            nu_hz,
-            dipole_type,
-        )
-    return out
 
 
 def _import_pysanepic(feature: str = "OneOverFNoise", version: str = "0.3.0"):
@@ -136,8 +101,7 @@ def _detector_data(
     flag_names,
     noise,
     correlation=None,
-    pos_and_vel=None,
-    dipole_type=DipoleType.TOTAL_FROM_LIN_T,
+    dipole_component=None,
     angles=False,
 ):
     """pysanepic.DetectorData for each detector of each observation, as a
@@ -145,32 +109,20 @@ def _detector_data(
     into int32 pixels here, with the same pixelization as the other
     map-makers (or, with `angles`, passed as angles in the output
     coordinates, for sky models given as alm); pysanepic keeps only pixels
-    and angles (no copy of the TODs). With `pos_and_vel`, the dipole of each
-    sample is computed (`dipole_type`, frequency `bandcenter_ghz`) and passed
-    as DetectorData.dipole.
+    and angles (no copy of the TODs). With `dipole_component`, that TOD
+    component is DetectorData.dipole (for calibration).
     The noise is `noise[name]` if given, else the 1/f model of the detector.
     With `correlation` (the common-mode model of add_noise), the detectors of
     each group of an observation are yielded as one pysanepic.DetectorGroup,
     with the common modes `noise[names of the group]` if `noise` is given."""
     coordinates = _COORDINATES[output_coordinate_system]
     hpx = Healpix_Base(nside, "RING")
-    rot = _velocity_rotation(output_coordinate_system)
     # DetectorData.name, used to average noise spectra, is in pysanepic >= 0.4.0
     named = "name" in {f.name for f in dataclasses.fields(pysanepic.DetectorData)}
     for obs, cur_ptg in zip(obs_list, ptg_list):
         hwp_angle = _get_hwp_angle(obs=obs, hwp=hwp, pointing_dtype=pointings_dtype)
         gamma = get_pol_efficiency(obs)
         net = np.broadcast_to(obs.net_ukrts, (obs.n_detectors,))
-        if pos_and_vel is not None:
-            velocity = (
-                pos_and_vel.compute_velocities(
-                    time0=obs.start_time,
-                    delta_time_s=obs.get_delta_time().value,
-                    num_of_samples=obs.n_samples,
-                )
-                @ rot.T
-            )
-            nu_ghz = np.broadcast_to(obs.bandcenter_ghz, (obs.n_detectors,))
         if correlation is not None:
             yield from _detector_groups(
                 pysanepic,
@@ -192,8 +144,7 @@ def _detector_data(
                     noise_model,
                     flag_names,
                     noise,
-                    pos_and_vel=pos_and_vel,
-                    dipole_type=dipole_type,
+                    dipole_component=dipole_component,
                     angles=angles,
                 ),
             )
@@ -222,18 +173,10 @@ def _detector_data(
                     psi=ptg_det[:, 2],
                     coordinates=coordinates,
                 )
-            extra = {"name": name} if named else {}
-            if pos_and_vel is not None:
-                extra["dipole"] = np.zeros(obs.n_samples)
-                add_dipole_for_one_detector(
-                    extra["dipole"],
-                    np.ascontiguousarray(ptg_det[:, :2]),
-                    velocity,
-                    T_CMB_K,
-                    nu_ghz[det_idx] * 1e9,
-                    dipole_type,
-                )
             del ptg_det
+            extra = {"name": name} if named else {}
+            if dipole_component is not None:
+                extra["dipole"] = getattr(obs, dipole_component)[det_idx]
             if noise is not None and name in noise:
                 det_noise = noise[name]
             else:
@@ -333,9 +276,7 @@ def make_sanepic_gls_map(
     noise: dict | None = None,
     correlation: dict | None = None,
     calibration: "pysanepic.CalibrationParameters | None" = None,
-    pos_and_vel: SpacecraftPositionAndVelocity | None = None,
-    dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
-    solar_dipole: str = "subtract",
+    dipole_component: str | None = None,
     sky_model=None,
     bandpass_templates: dict | None = None,
 ) -> "pysanepic.MapResult":
@@ -401,28 +342,23 @@ def make_sanepic_gls_map(
         estimated ones in ``noise``. Needs pysanepic 0.4.0 or later.
     calibration : pysanepic.CalibrationParameters, optional
         Fit one gain per detector and period (``gain_period_s``) together with
-        the maps, using the dipole as calibrator (see the pysanepic
-        documentation): the dipole of each sample is computed here from
-        `pos_and_vel`, with `dipole_type` and the ``bandcenter_ghz`` of each
-        detector, and subtracted from the calibrated TOD. The gains are in
-        ``MapResult.gains``, one array per detector and observation of this
-        process. The dipole is kept in memory for all the detectors (8 bytes
-        per sample). Needs pysanepic 0.5.0 or later.
-    pos_and_vel : SpacecraftPositionAndVelocity, optional
-        Position and velocity of the spacecraft (e.g. ``sim.pos_and_vel``),
-        needed with `calibration`. Its velocity includes the solar one if the
-        orbit has ``solar_velocity_km_s > 0``: the orbital dipole sets the
-        absolute calibration, so it must be there.
-    dipole_type : DipoleType, optional
-        Formula of the dipole, as in :func:`.add_dipole_to_observations`
-        (use the one the data were simulated with); by default
-        ``TOTAL_FROM_LIN_T``.
-    solar_dipole : str, optional
-        With `calibration`: ``"subtract"`` (default) leaves the maps without
-        the dipole; ``"keep"`` adds the solar dipole back to the I map, as
-        computed at the pixel centres (the orbital dipole and the small
-        solar-orbital cross terms stay subtracted). The calibration uses the
-        whole dipole in both cases.
+        the maps, using the dipole in `dipole_component` as calibrator (see the
+        pysanepic documentation). The gains are in ``MapResult.gains``, one
+        array per detector and observation of this process. Needs pysanepic
+        0.5.0 or later.
+    dipole_component : str, optional
+        With `calibration`, the TOD component holding the dipole of each
+        sample, e.g. filled by :meth:`.Simulation.add_dipole` with
+        ``component="dipole"`` and the settings used for the data. It is
+        subtracted from the calibrated TOD and must contain the orbital
+        dipole, which sets the absolute calibration. To keep the solar dipole
+        in the maps, put only the orbital dipole in it (an orbit with
+        ``solar_velocity_km_s=0``) and the solar dipole in `sky_model`, as alm:
+        its gradient within a pixel would otherwise leak through the 1/f
+        weights. With a non-linear `dipole_type` the dipole of the total
+        velocity is not the sum of the two: the difference (quadratic terms of
+        the solar dipole and solar-orbital cross terms, a few uK) is not
+        modelled.
     sky_model : np.ndarray or SphericalHarmonics, optional
         A model of the whole sky (I or I/Q/U in K, in the output coordinates,
         e.g. CMB + foregrounds at the frequency of the channel), as maps at
@@ -441,8 +377,8 @@ def make_sanepic_gls_map(
     -------
     pysanepic.MapResult
         Output maps (``maps``, ``hp.UNSEEN`` where not solved), ``hit_map``,
-        the PCG convergence information, and with calibration and bandpass
-        templates ``gains`` and ``bandpass``
+        the PCG convergence information, and ``gains`` and ``bandpass`` with
+        calibration and bandpass templates
     """
     pysanepic = _import_pysanepic()
     if correlation is not None:
@@ -450,11 +386,9 @@ def make_sanepic_gls_map(
     extra = {}
     if calibration is not None:
         pysanepic = _import_pysanepic("CalibrationParameters", "0.5.0")
-        if pos_and_vel is None:
-            raise ValueError("calibration needs pos_and_vel (e.g. sim.pos_and_vel)")
-        if solar_dipole not in ("subtract", "keep"):
+        if dipole_component is None:
             raise ValueError(
-                f"Unknown solar_dipole '{solar_dipole}': use 'subtract' or 'keep'"
+                "calibration needs dipole_component, the TOD component with the dipole"
             )
         extra["calibration"] = calibration
     if sky_model is not None:
@@ -497,13 +431,12 @@ def make_sanepic_gls_map(
         flag_names,
         noise,
         correlation,
-        pos_and_vel=pos_and_vel if calibration is not None else None,
-        dipole_type=dipole_type,
+        dipole_component=dipole_component if calibration is not None else None,
         angles=angles,
     )
 
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
-    result = pysanepic.make_maps(
+    return pysanepic.make_maps(
         data,
         nside,
         coordinates=_COORDINATES[output_coordinate_system],
@@ -512,15 +445,6 @@ def make_sanepic_gls_map(
         nthreads=nthreads,
         **extra,
     )
-    if calibration is not None and solar_dipole == "keep":
-        nu = [np.mean(obs.bandcenter_ghz) for obs in obs_list]
-        if comm is not None:
-            nu = [x for part in comm.allgather(nu) for x in part]
-        seen = result.maps[0] != hp.UNSEEN
-        result.maps[0][seen] += _solar_dipole_map(
-            nside, output_coordinate_system, pos_and_vel, dipole_type, np.mean(nu) * 1e9
-        )[seen]
-    return result
 
 
 def estimate_sanepic_noise(
