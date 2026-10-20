@@ -1,5 +1,6 @@
 """Test GLS mapmaking with pysanepic"""
 
+import inspect
 import tempfile
 from unittest import mock
 
@@ -148,3 +149,117 @@ def test_sanepic_flags(monkeypatch):
     seen.clear()
     lbs.make_sanepic_gls_map(nside=8, observations=sim.observations)
     assert seen == [None, None]
+
+
+def test_sanepic_noise_estimation():
+    # Spectra estimated from the residual of a first map, per detector name,
+    # and passed back to make_sanepic_gls_map
+    if not hasattr(pysanepic, "estimate_noise"):
+        pytest.skip("pysanepic without estimate_noise")
+    sim = lbs.Simulation(start_time=0, duration_s=86400.0, random_seed=2)
+    sim.set_instrument(lbs.InstrumentInfo(name="instr", spin_boresight_angle_rad=0.87))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name=n,
+                sampling_rate_hz=2.0,
+                net_ukrts=50.0,
+                fknee_mhz=50.0,
+                alpha=1.0,
+                fmin_hz=1e-5,
+                pol_angle_rad=a,
+            )
+            for n, a in (("a", 0.0), ("b", np.pi / 4), ("c", np.pi / 8))
+        ],
+        num_of_obs_per_detector=2,
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(0.785, 1 / 3600 / 3.2, 0.05 / 60),
+        delta_time_s=60,
+    )
+    sim.prepare_pointings()
+    sim.add_noise(noise_type="one_over_f")
+    params = pysanepic.GLSParameters(chunk_s=43200.0, tol=1e-8)
+    first = sim.make_sanepic_gls_map(nside=8, params=params, append_to_report=False)
+    noise = sim.estimate_sanepic_noise(first, chunk_s=43200.0, nbins=20)
+    assert sorted(noise) == ["a", "b", "c"]
+    sigma = 50.0 * np.sqrt(2.0) * 1e-6
+    for est in noise.values():
+        # high frequencies: the white level 2 sigma^2 / fs
+        high = est.freqs_hz > 0.5
+        assert abs(np.mean(est.psd[high]) / (2 * sigma**2 / 2.0) - 1) < 0.1
+    second = sim.make_sanepic_gls_map(
+        nside=8, params=params, noise=noise, append_to_report=False
+    )
+    assert second.converged
+
+
+def test_sanepic_correlated_noise():
+    # Common-mode noise simulated by add_noise(noise_type="correlated"): the
+    # map with the same model of the correlation is less noisy than ignoring it
+    if not hasattr(pysanepic, "DetectorGroup"):
+        pytest.skip("pysanepic without DetectorGroup")
+    sim = lbs.Simulation(start_time=0, duration_s=86400.0, random_seed=3)
+    sim.set_instrument(lbs.InstrumentInfo(name="instr", spin_boresight_angle_rad=0.87))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name=n,
+                sampling_rate_hz=2.0,
+                net_ukrts=50.0,
+                fknee_mhz=100.0,
+                alpha=1.5,
+                fmin_hz=1e-4,
+                pol_angle_rad=a,
+            )
+            for n, a in (("a", 0.0), ("b", np.pi / 4), ("c", np.pi / 8), ("d", 0.3))
+        ],
+        num_of_obs_per_detector=2,
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(0.785, 1 / 3600 / 3.2, 0.05 / 60),
+        delta_time_s=60,
+    )
+    sim.prepare_pointings()
+    correlation = {"groups": [0, 0, 0, 0], "rho": 0.8}
+    sim.add_noise(noise_type="correlated", correlation=correlation)
+    params = pysanepic.GLSParameters(chunk_s=43200.0, tol=1e-10)
+    rms = {}
+    results = {}
+    for label, corr in (("independent", None), ("correlated", correlation)):
+        r = sim.make_sanepic_gls_map(
+            nside=8, params=params, correlation=corr, append_to_report=False
+        )
+        assert r.converged
+        seen = r.maps[1] != hp.UNSEEN
+        rms[label] = np.std(r.maps[1:, seen])
+        results[label] = r
+    assert rms["correlated"] < 0.8 * rms["independent"]
+
+    # the common mode estimated from the residual of the first map
+    if "n_modes" in inspect.signature(pysanepic.estimate_noise).parameters:
+        est = sim.estimate_sanepic_noise(
+            results["independent"], chunk_s=43200.0, nbins=20, correlation=correlation
+        )
+        (mode,) = est[("a", "b", "c", "d")]
+        assert np.allclose(mode.coupling, 1.0, atol=0.05)  # same rho for all
+        r = sim.make_sanepic_gls_map(
+            nside=8,
+            params=params,
+            noise=est,
+            correlation=correlation,
+            append_to_report=False,
+        )
+        seen = r.maps[1] != hp.UNSEEN
+        assert np.std(r.maps[1:, seen]) < 1.05 * rms["correlated"]
+        with pytest.raises(ValueError, match="no common modes"):
+            sim.make_sanepic_gls_map(
+                nside=8,
+                params=params,
+                noise={"a": est["a"]},
+                correlation=correlation,
+            )
+    with pytest.raises(ValueError, match="corr_matrix"):
+        sim.make_sanepic_gls_map(
+            nside=8, params=params, correlation={"corr_matrix": np.eye(4)}
+        )

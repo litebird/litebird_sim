@@ -1,5 +1,11 @@
 # HEAD
 
+-   `estimate_sanepic_noise` has `correlation` and `n_modes` arguments: the cross-spectra of the detectors of each group of the common-mode model are fitted with `n_modes` common modes plus the own noise of each detector, and `make_sanepic_gls_map` uses the result when it is passed as `noise` together with the same `correlation`. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).
+
+-   `make_sanepic_gls_map` has a `correlation` argument, with the keys of the common-mode model of `add_noise_to_observations`: the detectors of each group of an observation are passed to pysanepic as a `DetectorGroup` with one common mode, so that the GLS maps account for the correlated noise. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).
+
+-   `estimate_sanepic_noise` (and `Simulation.estimate_sanepic_noise`) estimates the noise spectrum of each detector from the residual of a first pysanepic map, and `make_sanepic_gls_map` accepts the result as `noise` (`{detector name: spectrum}`). Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).
+
 -   Fix the binner and the pair-differencing map-maker with `split_list_over_processes=True`: each observation is local to one process (`comm=None`) and they treated the call as serial, so every process got the map of its own observations only (the destriper was not affected). Observations now keep the communicator of the distributed list in `list_comm`, set by `Simulation.create_observations`, and the map-makers sum over it. Reference PR: [#576](https://github.com/litebird/litebird_sim/pull/576).
 
 -   `Simulation.describe_mpi_layout()` returns a compact summary of the MPI distribution (processes, nodes, threads, blocks, and per process the observations, detectors, samples, length of the time blocks and TOD memory, with warnings for processes without data and unbalanced workloads); `create_observations` writes it to the log. Reference PR: [#576](https://github.com/litebird/litebird_sim/pull/576).

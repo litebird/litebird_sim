@@ -823,7 +823,57 @@ Flagged samples are excluded with ``flags``, the names of the
 ``"local_flags"``, or common to all detectors, like ``"global_flags"``;
 nonzero means excluded). pysanepic fits them with unknowns of their own, so
 that the maps are the exact GLS solution without them; long gaps split the
-chunks (``flag_method`` and ``split_gap_s`` in ``GLSParameters``). The HWP angle and
+chunks (``flag_method`` and ``split_gap_s`` in ``GLSParameters``).
+
+When the noise spectra are not known, :func:`.estimate_sanepic_noise` (or
+:meth:`.Simulation.estimate_sanepic_noise`) estimates them from the residual
+of a first map, averaging over all the observations of each detector, and
+the result is passed back to the map-maker (this needs pysanepic 0.4.0 or
+later):
+
+.. code-block:: python
+
+  first = sim.make_sanepic_gls_map(nside=nside, params=params)
+  noise = sim.estimate_sanepic_noise(first)  # {detector name: spectrum}
+  result = sim.make_sanepic_gls_map(nside=nside, params=params, noise=noise)
+
+With ``fit="toast"`` or ``fit="keshner"`` the spectra are fitted with a 1/f
+model instead of being tabulated.
+
+Noise correlated between detectors, simulated with the common-mode model of
+:func:`.add_noise_to_observations` (``noise_type="correlated"``), is modelled
+by passing the same ``correlation`` dictionary to the map-maker: the
+detectors of each group of an observation become a ``pysanepic.DetectorGroup``
+with one common mode (this needs pysanepic 0.4.0 or later; the
+``corr_matrix`` model is not supported):
+
+.. code-block:: python
+
+  correlation = {"group_by": "wafer", "rho": 0.5}
+  sim.add_noise(noise_type="correlated", correlation=correlation)
+  result = sim.make_sanepic_gls_map(nside=nside, params=params, correlation=correlation)
+
+The common modes can also be estimated from the data instead of taken from
+the model: :func:`.estimate_sanepic_noise` with the same ``correlation``
+averages the cross-spectra of the residuals of the detectors of each group
+over the observations and fits them with ``n_modes`` common modes (default
+1) plus the own noise of each detector, so that only the groups are used
+from ``correlation`` (not ``rho`` nor the spectrum of the mode). Common modes
+slow down the PCG: ``GLSParameters(coarse_nside=1)`` brings the iterations
+back to those of uncorrelated noise.
+
+.. code-block:: python
+
+  params = GLSParameters(chunk_s=86400.0, tol=1e-10, coarse_nside=1)
+  first = sim.make_sanepic_gls_map(nside=nside, params=params)  # correlation ignored
+  noise = sim.estimate_sanepic_noise(first, correlation=correlation)
+  result = sim.make_sanepic_gls_map(
+      nside=nside, params=params, noise=noise, correlation=correlation
+  )
+
+Correlations exist only between detectors of the same :class:`.Observation`:
+keep the correlated detectors together (e.g. ``n_blocks_det=1``) and
+distribute the observations over the processes. The HWP angle and
 the polarization efficiency of the detectors are taken into account:
 
 .. code-block:: python
