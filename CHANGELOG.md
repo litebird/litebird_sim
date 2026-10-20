@@ -1,5 +1,7 @@
 # HEAD
 
+-   `make_sanepic_gls_map` (and `Simulation.make_sanepic_gls_map`) has `calibration` (a `pysanepic.CalibrationParameters`), `pos_and_vel`, `dipole_type` and `solar_dipole` arguments: pysanepic fits one gain per detector and period together with the maps, on the dipole of each sample, computed by litebird_sim from the velocity of the spacecraft (the orbital dipole sets the absolute calibration); `solar_dipole="keep"` adds the solar dipole back to the maps. It also passes `sky_model` (maps, or alm interpolated at the pointing: then the pointings are given to pysanepic as angles) and `bandpass_templates` (one amplitude per detector) to pysanepic. Needs pysanepic 0.5.0 or later.
+
 -   `estimate_sanepic_noise` has `correlation` and `n_modes` arguments: the cross-spectra of the detectors of each group of the common-mode model are fitted with `n_modes` common modes plus the own noise of each detector, and `make_sanepic_gls_map` uses the result when it is passed as `noise` together with the same `correlation`. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).
 
 -   `make_sanepic_gls_map` has a `correlation` argument, with the keys of the common-mode model of `add_noise_to_observations`: the detectors of each group of an observation are passed to pysanepic as a `DetectorGroup` with one common mode, so that the GLS maps account for the correlated noise. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).

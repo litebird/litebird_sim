@@ -873,7 +873,39 @@ back to those of uncorrelated noise.
 
 Correlations exist only between detectors of the same :class:`.Observation`:
 keep the correlated detectors together (e.g. ``n_blocks_det=1``) and
-distribute the observations over the processes. The HWP angle and
+distribute the observations over the processes.
+
+With ``calibration`` (a ``pysanepic.CalibrationParameters``), pysanepic fits
+one gain per detector and period together with the maps, using the dipole as
+calibrator. litebird_sim computes the dipole of each sample from the velocity
+of the spacecraft (``sim.pos_and_vel``, computed if missing), with
+``dipole_type`` and the ``bandcenter_ghz`` of each detector: use the same
+settings as :meth:`.Simulation.add_dipole`. The orbital dipole sets the
+absolute calibration. With ``solar_dipole="keep"`` the solar dipole is added
+back to the I map (``"subtract"``, the default, leaves the maps without the
+dipole). A ``sky_model`` (maps, or alm as ``SphericalHarmonics`` interpolated
+at the pointing, which removes the pixelization error of its structure below
+the pixel size) and ``bandpass_templates`` (one amplitude per detector, e.g.
+for the derivative of the foregrounds with respect to frequency) are passed
+to pysanepic. This needs pysanepic 0.5.0 or later; see the pysanepic
+documentation for the masks and the details.
+
+.. code-block:: python
+
+  from pysanepic import CalibrationParameters
+
+  result = sim.make_sanepic_gls_map(
+      nside=nside,
+      params=params,
+      calibration=CalibrationParameters(gain_period_s=3600.0, mask=galactic_mask),
+      sky_model=sky_alm,                              # CMB + foregrounds at the band centre
+      bandpass_templates={"fg_deriv1": dfg_dnu_alm},  # dF/dnu at the band centre
+  )
+  result.gains       # one array per detector and observation of this process
+  result.bandpass    # {"fg_deriv1": {detector name: shift of its band [GHz]}}
+
+The calibration keeps the dipole of all the detectors in memory (8 bytes per
+sample) and each iteration is a full GLS solve. The HWP angle and
 the polarization efficiency of the detectors are taken into account:
 
 .. code-block:: python

@@ -3114,12 +3114,21 @@ class Simulation:
         flags: str | list[str] | None = None,
         noise: dict | None = None,
         correlation: dict | None = None,
+        calibration: "pysanepic.CalibrationParameters | None" = None,
+        dipole_type: DipoleType = DipoleType.TOTAL_FROM_LIN_T,
+        solar_dipole: str = "subtract",
+        sky_model=None,
+        bandpass_templates: dict | None = None,
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
 
-        For details, see the low-level interface :func:`.make_sanepic_gls_map`.
+        With `calibration`, the velocity of the spacecraft is ``self.pos_and_vel``
+        (computed with :meth:`.compute_pos_and_vel` if missing). For details,
+        see the low-level interface :func:`.make_sanepic_gls_map`.
         """
+        if calibration is not None and not hasattr(self, "pos_and_vel"):
+            self.compute_pos_and_vel()
         result = make_sanepic_gls_map(
             nside=nside,
             observations=self.observations,
@@ -3133,6 +3142,12 @@ class Simulation:
             flags=flags,
             noise=noise,
             correlation=correlation,
+            calibration=calibration,
+            pos_and_vel=getattr(self, "pos_and_vel", None),
+            dipole_type=dipole_type,
+            solar_dipole=solar_dipole,
+            sky_model=sky_model,
+            bandpass_templates=bandpass_templates,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
