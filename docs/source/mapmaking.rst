@@ -903,6 +903,12 @@ the pysanepic documentation for the masks and the details.
   result.gains       # one array per detector and observation of this process
   result.bandpass    # {"fg_deriv1": {detector name: shift of its band [GHz]}}
 
+The bandpass amplitudes sum to zero over the detectors by default; with
+``bandpass_common=True`` (templates as alm) their common part is fitted too,
+which avoids biasing the absolute calibration when the mean band of the
+detectors is not at the frequency of ``sky_model`` (see the pysanepic
+documentation).
+
 To keep the solar dipole in the maps, put only the orbital dipole in the
 component (an orbit with ``solar_velocity_km_s=0``) and the solar dipole in
 ``sky_model`` as alm, so that its gradient within the pixels is modelled.

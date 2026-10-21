@@ -279,6 +279,7 @@ def make_sanepic_gls_map(
     dipole_component: str | None = None,
     sky_model=None,
     bandpass_templates: dict | None = None,
+    bandpass_common: bool = False,
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -372,6 +373,12 @@ def make_sanepic_gls_map(
         foregrounds in `sky_model`): one amplitude per template and detector,
         summing to zero over the detectors, fitted with the maps (and the
         gains); in ``MapResult.bandpass``. Needs pysanepic 0.5.0 or later.
+    bandpass_common : bool, optional
+        Fit also the common part of the bandpass templates (free amplitudes
+        instead of summing to zero): with calibration, a mean band of the
+        detectors away from the frequency of `sky_model` would otherwise bias
+        the absolute calibration. Needs the templates as alm; see the
+        pysanepic documentation for its limits. False by default.
 
     Returns
     -------
@@ -397,6 +404,8 @@ def make_sanepic_gls_map(
         extra["bandpass_templates"] = {
             k: _sky_array(v) for k, v in bandpass_templates.items()
         }
+    if bandpass_common:
+        extra["bandpass_common"] = True
     if ("sky_model" in extra or "bandpass_templates" in extra) and not hasattr(
         pysanepic.MapResult, "bandpass"
     ):

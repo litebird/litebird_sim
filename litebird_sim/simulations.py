@@ -3118,6 +3118,7 @@ class Simulation:
         dipole_component: str | None = None,
         sky_model=None,
         bandpass_templates: dict | None = None,
+        bandpass_common: bool = False,
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
@@ -3141,6 +3142,7 @@ class Simulation:
             dipole_component=dipole_component,
             sky_model=sky_model,
             bandpass_templates=bandpass_templates,
+            bandpass_common=bandpass_common,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
