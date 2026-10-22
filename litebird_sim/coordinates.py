@@ -4,6 +4,7 @@ import numpy as np
 from astropy.coordinates import BarycentricMeanEcliptic
 from astropy.coordinates import SkyCoord
 from numba import njit, prange
+from scipy.spatial.transform import Rotation
 
 """The coordinate system used by the framework"""
 DEFAULT_COORDINATE_SYSTEM = BarycentricMeanEcliptic()
@@ -61,6 +62,11 @@ GAL_TO_ECL_ROT_MATRIX = ECL_TO_GAL_ROT_MATRIX.T
 ECL_TO_GAL_EULER = _rotmat2euler_zyz(ECL_TO_GAL_ROT_MATRIX)
 GAL_TO_ECL_EULER = _rotmat2euler_zyz(GAL_TO_ECL_ROT_MATRIX)
 
+
+# Quaternion (x, y, z, w) of the rotation from Ecliptic to Galactic coordinates: multiplied
+# on the left of the boresight→Ecliptic quaternions, it gives pointings in Galactic
+# coordinates without rotating each sample with rotate_coordinates_e2g
+ECL_TO_GAL_QUAT = Rotation.from_matrix(ECL_TO_GAL_ROT_MATRIX).as_quat()
 
 NORTH_POLE_VEC = np.tensordot(ECL_TO_GAL_ROT_MATRIX, [0.0, 0.0, 1.0], axes=(1, 0))
 

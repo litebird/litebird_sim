@@ -266,18 +266,19 @@ def _get_pointings_array(
     nthreads = resolve_nthreads(nthreads)
 
     if isinstance(pointings, np.ndarray):
+        # Precomputed pointings are in Ecliptic coordinates
         curr_pointings_det = pointings[detector_idx, :, :]
         computed_hwp_angle = None
+        if output_coordinate_system == CoordinateSystem.Galactic:
+            curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
     else:
         # Do not recompute the HWP angle for each detector if the caller has it
         curr_pointings_det, computed_hwp_angle = pointings(
             detector_idx,
             pointings_dtype=pointings_dtype,
             compute_hwp_angle=hwp_angle is None,
+            output_coordinate_system=output_coordinate_system,
         )
-
-    if output_coordinate_system == CoordinateSystem.Galactic:
-        curr_pointings_det = rotate_coordinates_e2g(curr_pointings_det)
 
     if nside_centering is not None:
         hpx = Healpix_Base(nside_centering, "RING")
