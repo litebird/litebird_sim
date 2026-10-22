@@ -26,7 +26,7 @@ from litebird_sim.observation_utilities import (
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
-from ..utilities import resolve_nthreads
+from ..utilities import cos_sin, resolve_nthreads
 
 from .common import (
     _get_reduction_comm,
@@ -137,12 +137,10 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
             pix_t, psi_t, psi_b, t_mask
         ):
             if cur_t_mask:
-                pair_cos = pol_eff_t * np.cos(2 * cur_psi_t) - pol_eff_b * np.cos(
-                    2 * cur_psi_b
-                )
-                pair_sin = pol_eff_t * np.sin(2 * cur_psi_t) - pol_eff_b * np.sin(
-                    2 * cur_psi_b
-                )
+                cos_t, sin_t = cos_sin(2 * cur_psi_t)
+                cos_b, sin_b = cos_sin(2 * cur_psi_b)
+                pair_cos = pol_eff_t * cos_t - pol_eff_b * cos_b
+                pair_sin = pol_eff_t * sin_t - pol_eff_b * sin_b
                 info_pix = nobs_matrix[cur_pix_idx]
 
                 info_pix[0, 0] += pair_cos * pair_cos * inv_sigma2
@@ -160,12 +158,10 @@ def _accumulate_pair_differenced_samples_and_build_nobs_matrix(
     ) in zip(tod_t, tod_b, pix_t, psi_t, psi_b, t_mask):
         if cur_t_mask:
             pair_sample = cur_sample_t - cur_sample_b
-            pair_cos = pol_eff_t * np.cos(2 * cur_psi_t) - pol_eff_b * np.cos(
-                2 * cur_psi_b
-            )
-            pair_sin = pol_eff_t * np.sin(2 * cur_psi_t) - pol_eff_b * np.sin(
-                2 * cur_psi_b
-            )
+            cos_t, sin_t = cos_sin(2 * cur_psi_t)
+            cos_b, sin_b = cos_sin(2 * cur_psi_b)
+            pair_cos = pol_eff_t * cos_t - pol_eff_b * cos_b
+            pair_sin = pol_eff_t * sin_t - pol_eff_b * sin_b
             rhs_pix = rhs[cur_pix_idx]
 
             rhs_pix[0] += pair_sample * pair_cos * inv_sigma2

@@ -1,5 +1,7 @@
 # HEAD
 
+-   Faster `scan_map` and map-makers (binner, destriper, pair differencing, h-maps): cos 2ψ and sin 2ψ come from a table plus a Taylor series of the remainder (`litebird_sim.utilities.cos_sin`, as in pysanepic) instead of the scalar libm called by numba, and the binner computes them once per sample. On Galileo100 cos/sin are 5–9 times faster and the binner kernel ~3.7 times; on Apple M3 the binner is ~2.9 times faster and `scan_map` ~2.4 times. Results change at the 1e-15 level (1e-13 for angles of ~1000 rad).
+
 -   `estimate_sanepic_noise` has `correlation` and `n_modes` arguments: the cross-spectra of the detectors of each group of the common-mode model are fitted with `n_modes` common modes plus the own noise of each detector, and `make_sanepic_gls_map` uses the result when it is passed as `noise` together with the same `correlation`. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).
 
 -   `make_sanepic_gls_map` has a `correlation` argument, with the keys of the common-mode model of `add_noise_to_observations`: the detectors of each group of an observation are passed to pysanepic as a `DetectorGroup` with one common mode, so that the GLS maps account for the correlated noise. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).
