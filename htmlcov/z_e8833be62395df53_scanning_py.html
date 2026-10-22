@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/scanning.py: 82%</title>
+    <title>Coverage for litebird_sim/scanning.py: 79%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_15cffcd0.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim<span class="sep">/</span>scanning.py</b>:
-            <span class="pc_cov">82%</span>
+            <span class="pc_cov">79%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">207 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">170<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">37<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">164<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">43<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_e8833be62395df53_seeding_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-20 12:28 +0000
+            created at 2026-10-22 20:12 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -775,18 +775,18 @@
     <p class="pln"><span class="n"><a id="t693" href="#t693">693</a></span><span class="t">        <span class="com"># Make sure that `quats` is a 2D array with shape (N, 4), like in</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t694" href="#t694">694</a></span><span class="t">        <span class="com"># RotQuaternion: reshaping a contiguous array returns a view, so the</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t695" href="#t695">695</a></span><span class="t">        <span class="com"># memory is still the shared one</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t696" href="#t696">696</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">quats</span> <span class="op">=</span> <span class="nam">quats</span><span class="op">.</span><span class="nam">reshape</span><span class="op">(</span><span class="op">-</span><span class="num">1</span><span class="op">,</span> <span class="num">4</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t696" href="#t696">696</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">quats</span> <span class="op">=</span> <span class="nam">quats</span><span class="op">.</span><span class="nam">reshape</span><span class="op">(</span><span class="op">-</span><span class="num">1</span><span class="op">,</span> <span class="num">4</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t697" href="#t697">697</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t698" href="#t698">698</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">quats</span><span class="op">.</span><span class="nam">shape</span><span class="op">[</span><span class="num">0</span><span class="op">]</span> <span class="op">&gt;</span> <span class="num">1</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t699" href="#t699">699</a></span><span class="t">            <span class="key">assert</span> <span class="nam">start_time</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t700" href="#t700">700</a></span><span class="t">                <span class="str">&quot;You must specify start_time if the quaternion is not constant&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t701" href="#t701">701</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t702" href="#t702">702</a></span><span class="t">            <span class="key">assert</span> <span class="nam">sampling_rate_hz</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t703" href="#t703">703</a></span><span class="t">                <span class="str">&quot;You must specify sampling_rate_hz if the quaternion is not constant&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t704" href="#t704">704</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t698" href="#t698">698</a></span><span class="t">        <span class="key">if</span> <span class="nam">self</span><span class="op">.</span><span class="nam">quats</span><span class="op">.</span><span class="nam">shape</span><span class="op">[</span><span class="num">0</span><span class="op">]</span> <span class="op">&gt;</span> <span class="num">1</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t699" href="#t699">699</a></span><span class="t">            <span class="key">assert</span> <span class="nam">start_time</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t700" href="#t700">700</a></span><span class="t">                <span class="str">&quot;You must specify start_time if the quaternion is not constant&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t701" href="#t701">701</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t702" href="#t702">702</a></span><span class="t">            <span class="key">assert</span> <span class="nam">sampling_rate_hz</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">,</span> <span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t703" href="#t703">703</a></span><span class="t">                <span class="str">&quot;You must specify sampling_rate_hz if the quaternion is not constant&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t704" href="#t704">704</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t705" href="#t705">705</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t706" href="#t706">706</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">start_time</span> <span class="op">=</span> <span class="nam">start_time</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t707" href="#t707">707</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">sampling_rate_hz</span> <span class="op">=</span> <span class="nam">sampling_rate_hz</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t706" href="#t706">706</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">start_time</span> <span class="op">=</span> <span class="nam">start_time</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t707" href="#t707">707</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">sampling_rate_hz</span> <span class="op">=</span> <span class="nam">sampling_rate_hz</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t708" href="#t708">708</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t709" href="#t709">709</a></span><span class="t">        <span class="com"># Unlike RotQuaternion, do not normalize the quaternions: the array is</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t710" href="#t710">710</a></span><span class="t">        <span class="com"># read-only on all the processes but the node root, which writes</span>&nbsp;</span><span class="r"></span></p>
@@ -1188,7 +1188,7 @@
             <a class="nav" href="z_e8833be62395df53_seeding_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-20 12:28 +0000
+            created at 2026-10-22 20:12 +0000
         </p>
     </div>
 </footer>
