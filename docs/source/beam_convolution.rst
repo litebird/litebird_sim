@@ -99,22 +99,16 @@ as demonstrated in the following example:
         pointings_dtype=np.float32,
     )
 
-    for i in range(obs.n_samples):
-       value = np.round(obs.tod[0][i], 3)
-       print(f"{value:.3f}")
+    # Single precision and epsilon=1e-5: compare with a tolerance
+    expected = [
+        113.796, 116.185, 118.565, 120.937, 123.301,
+        125.655, 128.000, 130.335, 132.660, 134.974,
+    ]
+    print(np.allclose(obs.tod[0], expected, rtol=0, atol=0.01))
 
 .. testoutput::
 
-    113.796
-    116.185
-    118.565
-    120.937
-    123.301
-    125.655
-    128.000
-    130.335
-    132.660
-    134.974
+    True
 
 Input Data Format
 -----------------
