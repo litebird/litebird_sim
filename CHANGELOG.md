@@ -1,5 +1,7 @@
 # HEAD
 
+-   `Observation.get_pointings` and `PointingProvider.get_pointings` have an `output_coordinate_system` argument: Galactic pointings are computed rotating the quaternions (`ECL_TO_GAL_QUAT`) instead of each sample. The map-makers and `scan_map` use it when the pointings are computed on the fly (~40% faster pointings in Galactic coordinates); precomputed pointings are still rotated with `rotate_coordinates_e2g`. Reference PR: [#582](https://github.com/litebird/litebird_sim/pull/582).
+
 -   Faster `scan_map`, map-makers and `hwp_harmonics`: cos/sin from a table (`litebird_sim.utilities.cos_sin`, as in pysanepic), fewer trig calls per sample and no per-sample allocations in the Jones kernels. Kernels are 2–4 times faster (up to ~50–100 times for Jones); results change at the 1e-15 level. Reference PR: [#581](https://github.com/litebird/litebird_sim/pull/581).
 
 -   `estimate_sanepic_noise` has `correlation` and `n_modes` arguments: the cross-spectra of the detectors of each group of the common-mode model are fitted with `n_modes` common modes plus the own noise of each detector, and `make_sanepic_gls_map` uses the result when it is passed as `noise` together with the same `correlation`. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).

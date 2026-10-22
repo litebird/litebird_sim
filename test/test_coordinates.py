@@ -66,3 +66,12 @@ def test_coordinates():
 
     # Verify that the angular distance is effectively zero
     np.testing.assert_allclose(angular_diff, 0.0, rtol=1e-6, atol=1e-6)
+
+    # Galactic pointings computed rotating the quaternions must match the
+    # ones rotated afterwards with rotate_coordinates_e2g
+    pointings_gal_quat, _ = obs.get_pointings(
+        0, output_coordinate_system=lbs.CoordinateSystem.Galactic
+    )
+    diff = pointings_gal_quat - pointings_gal_lbs
+    angular_diff = np.arctan2(np.sin(diff), np.cos(diff))
+    np.testing.assert_allclose(angular_diff, 0.0, rtol=0, atol=1e-10)
