@@ -7,13 +7,14 @@ from .hwp import HWP
 from .observations import Observation
 from .observation_utilities import _get_hwp_angle
 from .observation_utilities import for_each_observation
+from .utilities import cos_sin
 
 
 # We calculate the additive signal coming from hwp harmonics.
 # here we calculate 2f directly.
 @njit
 def compute_2f_for_one_sample(angle_rad, offset_rad, amplitude_k):
-    return amplitude_k * np.cos(2 * (angle_rad - offset_rad))
+    return amplitude_k * cos_sin(2 * (angle_rad - offset_rad))[0]
 
 
 @njit(parallel=True)
