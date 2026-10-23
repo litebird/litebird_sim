@@ -26,7 +26,7 @@ from litebird_sim.observation_utilities import (
 )
 from litebird_sim.maps_and_harmonics import HealpixMap
 
-from ..utilities import resolve_nthreads
+from ..utilities import cos_sin, resolve_nthreads
 
 from .common import (
     _get_reduction_comm,
@@ -159,14 +159,17 @@ def _accumulate_samples_and_build_nobs_matrix(
         inv_sigma2 = inv_sigma * inv_sigma
         gamma_over_sigma = pol_eff[idet] * inv_sigma
 
-        if not additional_component:
-            # Fill the upper triangle
-            for cur_pix_idx, cur_psi, cur_t_mask in zip(pix[idet], psi[idet], t_mask):
-                if cur_t_mask:
-                    cos_over_sigma = np.cos(2 * cur_psi) * gamma_over_sigma
-                    sin_over_sigma = np.sin(2 * cur_psi) * gamma_over_sigma
-                    info_pix = nobs_matrix[cur_pix_idx]
+        # One pass for both triangles, so that cos/sin are computed once
+        for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
+            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
+        ):
+            if cur_t_mask:
+                cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
+                cos_over_sigma = cos_2psi * gamma_over_sigma
+                sin_over_sigma = sin_2psi * gamma_over_sigma
+                info_pix = nobs_matrix[cur_pix_idx]
 
+                if not additional_component:
                     # Upper triangle
                     info_pix[0, 0] += inv_sigma2
                     info_pix[0, 1] += inv_sigma * cos_over_sigma
@@ -175,15 +178,7 @@ def _accumulate_samples_and_build_nobs_matrix(
                     info_pix[1, 2] += sin_over_sigma * cos_over_sigma
                     info_pix[2, 2] += sin_over_sigma * sin_over_sigma
 
-        # Fill the lower triangle
-        for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
-            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
-        ):
-            if cur_t_mask:
-                cos_over_sigma = np.cos(2 * cur_psi) * gamma_over_sigma
-                sin_over_sigma = np.sin(2 * cur_psi) * gamma_over_sigma
-                info_pix = nobs_matrix[cur_pix_idx]
-
+                # Lower triangle
                 info_pix[1, 0] += cur_sample * inv_sigma2
                 info_pix[2, 0] += cur_sample * cos_over_sigma * inv_sigma
                 info_pix[2, 1] += cur_sample * sin_over_sigma * inv_sigma

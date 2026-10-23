@@ -24,7 +24,7 @@ from .observation_utilities import (
     _normalize_observations_and_pointings,
 )
 
-from .utilities import resolve_nthreads
+from .utilities import cos_sin, resolve_nthreads
 
 
 @njit
@@ -47,8 +47,7 @@ def vec_polarimeter(angle, gamma):
 
 @njit
 def rot_matrix(mat, angle):
-    ca = np.cos(2 * angle)
-    sa = np.sin(2 * angle)
+    ca, sa = cos_sin(2 * angle)
     mat[1, 1:3] = ca, sa
     mat[2, 1:3] = -sa, ca
 
@@ -64,12 +63,13 @@ def scan_map_for_one_detector(
     tod_det, input_T, input_Q, input_U, pol_angle_det, pol_eff_det
 ):
     for i in prange(len(tod_det)):  # type: ignore[not-iterable]
+        co, si = cos_sin(2 * pol_angle_det[i])
         tod_det[i] += compute_signal_for_one_sample(
             T=input_T[i],
             Q=input_Q[i],
             U=input_U[i],
-            co=np.cos(2 * pol_angle_det[i]),
-            si=np.sin(2 * pol_angle_det[i]),
+            co=co,
+            si=si,
             gamma=pol_eff_det,
         )
 
