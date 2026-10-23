@@ -290,7 +290,7 @@ def add_one_over_f_noise(
         raise ValueError(f"Unknown engine '{engine}'.")
 
 
-def rescale_noise(net_ukrts: float, sampling_rate_hz: float, scale: float):
+def rescale_noise(net_ukrts: float | np.ndarray, sampling_rate_hz: float, scale: float):
     """
     Converts NET [uK*sqrt(s)] to sigma per sample [K].
 
@@ -380,6 +380,7 @@ def _chunk_length_in_samples(
         if length != chunk_samples:
             raise ValueError(f"chunk_samples must be an integer, got {chunk_samples}")
     else:
+        assert chunk_duration_s is not None
         length = int(round(chunk_duration_s * sampling_rate_hz))
         if not np.isclose(
             length, chunk_duration_s * sampling_rate_hz, rtol=0, atol=1e-6
@@ -398,7 +399,7 @@ def _chunk_length_in_samples(
 def _add_chunked_noise(
     observations,
     noise_type: str,
-    seed: int,
+    seed: int | None,
     reference_time,
     chunk_samples: int | None = None,
     chunk_duration_s: float | None = None,

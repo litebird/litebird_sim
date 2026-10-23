@@ -2470,9 +2470,10 @@ class Simulation:
         """
 
         dets_random = None
+        seed = user_seed
         if chunk_samples is not None or chunk_duration_s is not None:
-            if user_seed is None:
-                user_seed = self.random_seed
+            if seed is None:
+                seed = self.random_seed
         else:
             if rng_hierarchy is None:
                 rng_hierarchy = self.rng_hierarchy
@@ -2484,7 +2485,7 @@ class Simulation:
             observations=self.observations,
             noise_type=noise_type,
             dets_random=dets_random,
-            user_seed=user_seed,
+            user_seed=seed,
             component=component,
             engine=engine,
             model=model,
