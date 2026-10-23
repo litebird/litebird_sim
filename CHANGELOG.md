@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fix: with `user_seed`, the noise and the gain drifts of the detectors with the same local index were identical on all the MPI processes; `for_each_observation` now builds the generators with the communicator of the observations. Reference issue: [#585](https://github.com/litebird/litebird_sim/issues/585).
+
 -   `scan_map` and `fill_tod_with_hwp_harmonics` interpolate double-precision alms with `epsilon=1e-7` instead of 1e-13 when the TOD is float32, which is far below its resolution: the interpolation of the alms is ~25% faster on Galileo100 (relative change of the TOD ~1e-8). Reference PR: [#583](https://github.com/litebird/litebird_sim/pull/583).
 
 -   `Observation.get_pointings` and `PointingProvider.get_pointings` have an `output_coordinate_system` argument: Galactic pointings are computed rotating the quaternions (`ECL_TO_GAL_QUAT`) instead of each sample. The map-makers and `scan_map` use it when the pointings are computed on the fly (~40% faster pointings in Galactic coordinates); precomputed pointings are still rotated with `rotate_coordinates_e2g`. Reference PR: [#582](https://github.com/litebird/litebird_sim/pull/582).
