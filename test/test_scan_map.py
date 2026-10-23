@@ -506,3 +506,45 @@ def test_scan_map_algebras():
         rtol=tolerance,
         atol=0.1,
     )
+
+
+def test_scan_map_alms_float32_tod():
+    # A float32 TOD interpolates double-precision alms with a lower accuracy
+    # (epsilon=1e-7 instead of 1e-13): the result must still agree with a
+    # float64 TOD to the precision of float32
+    rng = np.random.default_rng(1)
+    lmax = 64
+    nalm = lbs.SphericalHarmonics.num_of_alm_from_lmax(lmax, lmax)
+    alms = lbs.SphericalHarmonics(
+        values=rng.normal(size=(3, nalm)) + 1j * rng.normal(size=(3, nalm)),
+        lmax=lmax,
+        mmax=lmax,
+        coordinates=lbs.CoordinateSystem.Galactic,
+    )
+    n = 10_000
+    pointings = np.stack(
+        [
+            np.arccos(rng.uniform(-1, 1, n)),
+            rng.uniform(0, 2 * np.pi, n),
+            rng.uniform(-np.pi, np.pi, n),
+        ],
+        axis=-1,
+    )[np.newaxis]
+
+    tods = {}
+    for dtype in (np.float32, np.float64):
+        tods[dtype] = np.zeros((1, n), dtype=dtype)
+        lbs.scan_map(
+            tod=tods[dtype],
+            pointings=pointings,
+            maps=alms,
+            pol_angle_detectors=np.zeros(1),
+            pol_eff_detectors=np.ones(1),
+        )
+
+    np.testing.assert_allclose(
+        tods[np.float32],
+        tods[np.float64],
+        rtol=0,
+        atol=1e-6 * np.abs(tods[np.float64]).max(),
+    )
