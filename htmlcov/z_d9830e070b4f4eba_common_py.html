@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Coverage for litebird_sim/mapmaking/common.py: 44%</title>
+    <title>Coverage for litebird_sim/mapmaking/common.py: 42%</title>
     <link rel="icon" sizes="32x32" href="favicon_32_cb_c827f16f.png">
     <link rel="stylesheet" href="style_cb_4667309f.css" type="text/css">
     <script src="coverage_html_cb_15cffcd0.js" defer></script>
@@ -12,7 +12,7 @@
     <div class="content">
         <h1>
             <span class="text">Coverage for </span><b>litebird_sim<span class="sep">/</span>mapmaking<span class="sep">/</span>common.py</b>:
-            <span class="pc_cov">44%</span>
+            <span class="pc_cov">42%</span>
         </h1>
         <aside id="help_panel_wrapper">
             <input id="help_panel_state" type="checkbox">
@@ -55,8 +55,8 @@
         </aside>
         <h2>
             <span class="text">273 statements &nbsp;</span>
-            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">120<span class="text"> run</span></button>
-            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">153<span class="text"> missing</span></button>
+            <button type="button" class="run button_toggle_run" value="run" data-shortcut="r" title="Toggle lines run">114<span class="text"> run</span></button>
+            <button type="button" class="mis show_mis button_toggle_mis" value="mis" data-shortcut="m" title="Toggle lines missing">159<span class="text"> missing</span></button>
             <button type="button" class="exc show_exc button_toggle_exc" value="exc" data-shortcut="x" title="Toggle lines excluded">0<span class="text"> excluded</span></button>
         </h2>
         <p class="text">
@@ -65,7 +65,7 @@
             <a id="nextFileLink" class="nav" href="z_d9830e070b4f4eba_destriper_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-22 20:32 +0000
+            created at 2026-10-23 07:55 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -719,23 +719,23 @@
     <p class="run"><span class="n"><a id="t637" href="#t637">637</a></span><span class="t">    <span class="key">from</span> <span class="nam">litebird_sim</span> <span class="key">import</span> <span class="nam">mpi</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t638" href="#t638">638</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t639" href="#t639">639</a></span><span class="t">    <span class="key">if</span> <span class="key">not</span> <span class="nam">mpi</span><span class="op">.</span><span class="nam">MPI_ENABLED</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="mis show_mis"><span class="n"><a id="t640" href="#t640">640</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t641" href="#t641">641</a></span><span class="t">    <span class="key">from</span> <span class="nam">litebird_sim</span><span class="op">.</span><span class="nam">mpi</span> <span class="key">import</span> <span class="nam">MPI</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t640" href="#t640">640</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t641" href="#t641">641</a></span><span class="t">    <span class="key">from</span> <span class="nam">litebird_sim</span><span class="op">.</span><span class="nam">mpi</span> <span class="key">import</span> <span class="nam">MPI</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t642" href="#t642">642</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t643" href="#t643">643</a></span><span class="t">    <span class="nam">comms</span> <span class="op">=</span> <span class="op">[</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t644" href="#t644">644</a></span><span class="t">        <span class="nam">obs</span><span class="op">.</span><span class="nam">list_comm</span> <span class="key">if</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">obs</span><span class="op">,</span> <span class="str">&quot;list_comm&quot;</span><span class="op">,</span> <span class="key">None</span><span class="op">)</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span> <span class="key">else</span> <span class="nam">obs</span><span class="op">.</span><span class="nam">comm</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t645" href="#t645">645</a></span><span class="t">        <span class="key">for</span> <span class="nam">obs</span> <span class="key">in</span> <span class="nam">obs_list</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t646" href="#t646">646</a></span><span class="t">    <span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t647" href="#t647">647</a></span><span class="t">    <span class="key">if</span> <span class="nam">all</span><span class="op">(</span><span class="nam">c</span> <span class="key">is</span> <span class="key">None</span> <span class="key">for</span> <span class="nam">c</span> <span class="key">in</span> <span class="nam">comms</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t648" href="#t648">648</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t649" href="#t649">649</a></span><span class="t">    <span class="nam">valid</span> <span class="op">=</span> <span class="op">[</span><span class="nam">c</span> <span class="key">for</span> <span class="nam">c</span> <span class="key">in</span> <span class="nam">comms</span> <span class="key">if</span> <span class="nam">c</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t650" href="#t650">650</a></span><span class="t">    <span class="key">if</span> <span class="nam">len</span><span class="op">(</span><span class="nam">valid</span><span class="op">)</span> <span class="op">&lt;</span> <span class="nam">len</span><span class="op">(</span><span class="nam">comms</span><span class="op">)</span> <span class="key">or</span> <span class="key">not</span> <span class="nam">all</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t651" href="#t651">651</a></span><span class="t">        <span class="nam">MPI</span><span class="op">.</span><span class="nam">Comm</span><span class="op">.</span><span class="nam">Compare</span><span class="op">(</span><span class="nam">valid</span><span class="op">[</span><span class="nam">i</span><span class="op">]</span><span class="op">,</span> <span class="nam">valid</span><span class="op">[</span><span class="nam">i</span> <span class="op">+</span> <span class="num">1</span><span class="op">]</span><span class="op">)</span> <span class="op">&lt;</span> <span class="num">2</span> <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">range</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">valid</span><span class="op">)</span> <span class="op">-</span> <span class="num">1</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run run2"><span class="n"><a id="t652" href="#t652">652</a></span><span class="t">    <span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t643" href="#t643">643</a></span><span class="t">    <span class="nam">comms</span> <span class="op">=</span> <span class="op">[</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t644" href="#t644">644</a></span><span class="t">        <span class="nam">obs</span><span class="op">.</span><span class="nam">list_comm</span> <span class="key">if</span> <span class="nam">getattr</span><span class="op">(</span><span class="nam">obs</span><span class="op">,</span> <span class="str">&quot;list_comm&quot;</span><span class="op">,</span> <span class="key">None</span><span class="op">)</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span> <span class="key">else</span> <span class="nam">obs</span><span class="op">.</span><span class="nam">comm</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t645" href="#t645">645</a></span><span class="t">        <span class="key">for</span> <span class="nam">obs</span> <span class="key">in</span> <span class="nam">obs_list</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t646" href="#t646">646</a></span><span class="t">    <span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t647" href="#t647">647</a></span><span class="t">    <span class="key">if</span> <span class="nam">all</span><span class="op">(</span><span class="nam">c</span> <span class="key">is</span> <span class="key">None</span> <span class="key">for</span> <span class="nam">c</span> <span class="key">in</span> <span class="nam">comms</span><span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t648" href="#t648">648</a></span><span class="t">        <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t649" href="#t649">649</a></span><span class="t">    <span class="nam">valid</span> <span class="op">=</span> <span class="op">[</span><span class="nam">c</span> <span class="key">for</span> <span class="nam">c</span> <span class="key">in</span> <span class="nam">comms</span> <span class="key">if</span> <span class="nam">c</span> <span class="key">is</span> <span class="key">not</span> <span class="key">None</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t650" href="#t650">650</a></span><span class="t">    <span class="key">if</span> <span class="nam">len</span><span class="op">(</span><span class="nam">valid</span><span class="op">)</span> <span class="op">&lt;</span> <span class="nam">len</span><span class="op">(</span><span class="nam">comms</span><span class="op">)</span> <span class="key">or</span> <span class="key">not</span> <span class="nam">all</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t651" href="#t651">651</a></span><span class="t">        <span class="nam">MPI</span><span class="op">.</span><span class="nam">Comm</span><span class="op">.</span><span class="nam">Compare</span><span class="op">(</span><span class="nam">valid</span><span class="op">[</span><span class="nam">i</span><span class="op">]</span><span class="op">,</span> <span class="nam">valid</span><span class="op">[</span><span class="nam">i</span> <span class="op">+</span> <span class="num">1</span><span class="op">]</span><span class="op">)</span> <span class="op">&lt;</span> <span class="num">2</span> <span class="key">for</span> <span class="nam">i</span> <span class="key">in</span> <span class="nam">range</span><span class="op">(</span><span class="nam">len</span><span class="op">(</span><span class="nam">valid</span><span class="op">)</span> <span class="op">-</span> <span class="num">1</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis mis2 show_mis"><span class="n"><a id="t652" href="#t652">652</a></span><span class="t">    <span class="op">)</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis show_mis"><span class="n"><a id="t653" href="#t653">653</a></span><span class="t">        <span class="key">raise</span> <span class="nam">NotImplementedError</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t654" href="#t654">654</a></span><span class="t">            <span class="str">&quot;All observations must be distributed over the same MPI groups&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="mis mis2 show_mis"><span class="n"><a id="t655" href="#t655">655</a></span><span class="t">        <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t656" href="#t656">656</a></span><span class="t">    <span class="key">return</span> <span class="nam">valid</span><span class="op">[</span><span class="num">0</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="mis show_mis"><span class="n"><a id="t656" href="#t656">656</a></span><span class="t">    <span class="key">return</span> <span class="nam">valid</span><span class="op">[</span><span class="num">0</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
 </main>
 <footer>
     <div class="content">
@@ -745,7 +745,7 @@
             <a class="nav" href="z_d9830e070b4f4eba_destriper_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.2">coverage.py v7.16.2</a>,
-            created at 2026-10-22 20:32 +0000
+            created at 2026-10-23 07:55 +0000
         </p>
     </div>
 </footer>
