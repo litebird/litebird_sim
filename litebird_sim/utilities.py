@@ -1,5 +1,8 @@
 import os
 
+import numpy as np
+from numba import njit
+
 from .constants import NUM_THREADS_ENVVAR, NUMBA_NUM_THREADS_ENVVAR
 
 
@@ -56,3 +59,32 @@ def resolve_numba_nthreads(nthreads: int | None) -> int:
     if nthreads is not None:
         return nthreads
     return NUMBA_NUM_THREADS
+
+
+# cos and sin on a grid of [0, 2π), for cos_sin
+_TRIG_N = 4096
+_TRIG_STEP = 2 * np.pi / _TRIG_N
+_TRIG_COS = np.cos(np.arange(_TRIG_N) * _TRIG_STEP)
+_TRIG_SIN = np.sin(np.arange(_TRIG_N) * _TRIG_STEP)
+
+
+@njit(inline="always")
+def cos_sin(x: float) -> tuple[float, float]:
+    """Return ``(cos(x), sin(x))``, for use inside numba kernels.
+
+    The angle is reduced to [0, 2π), then cos and sin come from the grid
+    point below it and a Taylor series of the remainder (< 2π/4096), as in
+    pysanepic. Numba without SVML calls a scalar libm: this is ~5-9 times
+    faster on Galileo100, ~2 times on Apple M3. Accuracy is ~1e-16, plus
+    ~|x|·1e-16 from the range reduction.
+    """
+    x = x - 2 * np.pi * np.floor(x * (1 / (2 * np.pi)))
+    k = min(int(x * (1 / _TRIG_STEP)), _TRIG_N - 1)
+    d = x - k * _TRIG_STEP
+    d2 = d * d
+    cd = 1.0 - d2 * (0.5 - d2 / 24.0)
+    sd = d * (1.0 - d2 * (1.0 / 6.0 - d2 / 120.0))
+    return (
+        _TRIG_COS[k] * cd - _TRIG_SIN[k] * sd,
+        _TRIG_SIN[k] * cd + _TRIG_COS[k] * sd,
+    )

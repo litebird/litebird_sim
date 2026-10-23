@@ -19,7 +19,7 @@ from litebird_sim.observation_utilities import (
     _get_hwp_angle,
     _normalize_observations_and_pointings,
 )
-from litebird_sim.utilities import resolve_nthreads
+from litebird_sim.utilities import cos_sin, resolve_nthreads
 
 from .common import (
     _build_mask_detector_split,
@@ -168,8 +168,7 @@ def _accumulate_spin_terms_and_build_nobs_matrix(
         if cur_t_mask:
             info_pix = nobs_matrix[cur_pix_idx]
 
-            cos_n_m = np.cos(n * cur_psi + m * cur_hwp_angle)
-            sin_n_m = np.sin(n * cur_psi + m * cur_hwp_angle)
+            cos_n_m, sin_n_m = cos_sin(n * cur_psi + m * cur_hwp_angle)
             if (n, m) == (0, 0):
                 info_pix[0] = (
                     1  # if n=m=0 we compute the hit count, beceause it is useful to combine h maps later on
