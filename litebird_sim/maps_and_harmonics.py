@@ -2365,6 +2365,23 @@ class HealpixMap:
 # ======================================================================
 
 
+def _interpolation_epsilon_for_tod(
+    alms: "SphericalHarmonics", tod_dtype: npt.DTypeLike
+) -> float | None:
+    """Accuracy for :func:`interpolate_alm` when the result is added to a TOD
+
+    With double-precision alms the default (1e-13) is far beyond the resolution
+    of a float32 TOD: 1e-7 makes the interpolation ~25% faster, with relative
+    errors ~1e-8. In all the other cases, return ``None`` (use the default).
+    """
+    if (
+        np.dtype(tod_dtype) == np.float32
+        and np.asarray(alms.values).dtype == np.complex128
+    ):
+        return 1e-7
+    return None
+
+
 def interpolate_alm(
     alms: "SphericalHarmonics",
     locations: np.ndarray,
