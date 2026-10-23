@@ -850,14 +850,14 @@ def test_chunked_noise_invalid_arguments():
             "white",
             chunk_samples=8,
             chunk_duration_s=8.0,
-            chunk_seed=1,
+            user_seed=1,
             chunk_reference_time=0.0,
         )
 
     with pytest.raises(ValueError):
         # missing reference time
         lbs.add_noise_to_observations(
-            sim.observations, "white", chunk_samples=8, chunk_seed=1
+            sim.observations, "white", chunk_samples=8, user_seed=1
         )
 
     with pytest.raises(NotImplementedError):
@@ -865,7 +865,7 @@ def test_chunked_noise_invalid_arguments():
             sim.observations,
             "correlated",
             chunk_samples=8,
-            chunk_seed=1,
+            user_seed=1,
             chunk_reference_time=0.0,
             correlation={"rho": 0.5},
         )

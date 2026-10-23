@@ -901,8 +901,12 @@ def test_chunked_noise_does_not_depend_on_the_mpi_layout():
         sampling_rate_hz=1.0,
         tods=tods,
     )
-    lbs.add_chunked_noise_to_observations(
-        reference, "one_over_f", seed=42, reference_time=0.0, chunk_samples=chunk
+    lbs.add_noise_to_observations(
+        reference,
+        "one_over_f",
+        user_seed=42,
+        chunk_samples=chunk,
+        chunk_reference_time=0.0,
     )
     ref_tod = {name: reference.tod[i] for i, name in enumerate(reference.name)}
 

@@ -432,8 +432,8 @@ covariance is circulant. This matches the assumption of map-makers that apply
 
 Note that the realization differs from the one generated without chunks, even
 with the same seed, and that noise in chunks is not available yet for
-``noise_type="correlated"``. The low-level function is
-:func:`.add_chunked_noise_to_observations`.
+``noise_type="correlated"``. The same options are available in
+:func:`.add_noise_to_observations`.
 
 
 Methods of the Simulation class

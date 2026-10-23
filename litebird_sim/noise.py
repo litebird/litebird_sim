@@ -395,7 +395,7 @@ def _chunk_length_in_samples(
     return length
 
 
-def add_chunked_noise_to_observations(
+def _add_chunked_noise(
     observations,
     noise_type: str,
     seed: int,
@@ -974,7 +974,6 @@ def add_noise_to_observations(
     correlation=None,
     chunk_samples=None,
     chunk_duration_s=None,
-    chunk_seed=None,
     chunk_reference_time=None,
 ):
     """
@@ -1001,10 +1000,12 @@ def add_noise_to_observations(
         A master integer seed used to initialize the random number generators
         if ``dets_random`` is not provided. If ``None`` and ``dets_random``
         is also ``None``, the generators will be initialized unpredictably
-        (usually from the OS entropy source).
+        (usually from the OS entropy source). When generating noise in chunks
+        it is the seed of the chunks, and it is required.
     dets_random : list of numpy.random.Generator, optional
         A list of pre-initialized random number generators, one per detector.
-        If provided, ``user_seed`` is ignored. This allows for precise control
+        If provided, ``user_seed`` is ignored (except for noise in chunks,
+        which ignores ``dets_random``). This allows for precise control
         over the RNG state for reproducibility across different calls.
     scale : float, optional
         A multiplicative scaling factor applied to the noise level (NET).
@@ -1049,19 +1050,15 @@ def add_noise_to_observations(
           common mode.  Must be in [0, 1]. Defaults to 0.25.
         * ``"common_mode_type"`` *(str)*: PSD shape of the common-mode stream:
           ``"one_over_f"`` (default) or ``"white"``.
-        chunk_samples : int, optional
+    chunk_samples : int, optional
         If set (or if `chunk_duration_s` is set), generate the noise in chunks of
-        this many samples with :func:`add_chunked_noise_to_observations`, instead
-        of one realization per observation. The noise then depends only on the
+        this many samples, counted from `chunk_reference_time`, instead of one realization per observation. The noise then depends only on the
         seed, the detector names and the time, not on the length of the
         observations or on the MPI layout. Use a power of 2 with
         ``engine="fft"`` to get noise that is circulant in each chunk.
     chunk_duration_s : float, optional
         Same as `chunk_samples`, in seconds (it must be an integer number of
         samples).
-    chunk_seed : int, optional
-        Seed of the noise in chunks; if ``None``, `user_seed` is used.
-        `dets_random` is ignored when generating noise in chunks.
     chunk_reference_time : float or astropy.time.Time, optional
         Start of chunk 0 (usually the start time of the simulation). Required
         when generating noise in chunks.
@@ -1079,10 +1076,10 @@ def add_noise_to_observations(
                 "noise in chunks needs chunk_reference_time (e.g. the start time "
                 "of the simulation)"
             )
-        add_chunked_noise_to_observations(
+        _add_chunked_noise(
             observations=observations,
             noise_type=noise_type,
-            seed=chunk_seed if chunk_seed is not None else user_seed,
+            seed=user_seed,
             reference_time=chunk_reference_time,
             chunk_samples=chunk_samples,
             chunk_duration_s=chunk_duration_s,
