@@ -869,6 +869,68 @@ def test_describe_mpi_layout():
         assert lbs.MPI_COMM_WORLD.allgather(text) == [text] * size
 
 
+def test_chunked_noise_does_not_depend_on_the_mpi_layout():
+    # Noise generated in chunks must be the same whether the detectors or the
+    # time are split among the processes, and the same as in a serial run
+    from dataclasses import asdict
+
+    size = lbs.MPI_COMM_WORLD.size
+    n_samples, chunk = 1200, 64  # the time blocks do not end on chunk boundaries
+    dets = [
+        lbs.DetectorInfo(
+            name=f"det{i}",
+            sampling_rate_hz=1.0,
+            net_ukrts=50.0,
+            fknee_mhz=100.0,
+            fmin_hz=1e-3,
+            alpha=1.0,
+        )
+        for i in range(max(2, size) + 1)
+    ]
+    tods = [
+        lbs.TodDescription(
+            name="tod", dtype=np.float64, units=lbs.Units.K_CMB, description=""
+        )
+    ]
+
+    # Serial reference, computed by every process on its own
+    reference = lbs.Observation(
+        detectors=[asdict(d) for d in dets],
+        n_samples_global=n_samples,
+        start_time_global=0.0,
+        sampling_rate_hz=1.0,
+        tods=tods,
+    )
+    lbs.add_chunked_noise_to_observations(
+        reference, "one_over_f", seed=42, reference_time=0.0, chunk_samples=chunk
+    )
+    ref_tod = {name: reference.tod[i] for i, name in enumerate(reference.name)}
+
+    for n_blocks_det, n_blocks_time in ((size, 1), (1, size)):
+        sim = lbs.Simulation(
+            start_time=0.0,
+            duration_s=float(n_samples),
+            random_seed=42,
+            mpi_comm=lbs.MPI_COMM_WORLD,
+        )
+        sim.create_observations(
+            detectors=dets,
+            n_blocks_det=n_blocks_det,
+            n_blocks_time=n_blocks_time,
+            split_list_over_processes=False,
+            tods=tods,
+        )
+        sim.add_noise(
+            noise_type="one_over_f", chunk_samples=chunk, append_to_report=False
+        )
+        for obs in sim.observations:
+            first, n = obs.start_sample, obs.n_samples
+            for i, name in enumerate(obs.name):
+                np.testing.assert_array_equal(
+                    obs.tod[i], ref_tod[name][first : first + n]
+                )
+
+
 if __name__ == "__main__":
     pytest.main([f"{__file__}"])
 

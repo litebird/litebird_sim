@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 
+import astropy.time
 import numpy as np
 import pytest
 import scipy.signal
@@ -691,3 +692,187 @@ def test_simulation_add_noise_correlated_cholesky():
         correlation={"corr_matrix": R},
     )
     assert np.any(sim.observations[0].tod != 0)
+
+
+# --- NOISE IN CHUNKS ---
+
+
+def _chunk_noise_sim(
+    names,
+    n_obs,
+    duration_s=40.0,
+    sampling_hz=1.0,
+    start_time=0.0,
+    seed=1234,
+    fknee_mhz=200.0,
+):
+    sim = lbs.Simulation(start_time=start_time, duration_s=duration_s, random_seed=seed)
+    dets = [
+        lbs.DetectorInfo(
+            name=name,
+            sampling_rate_hz=sampling_hz,
+            net_ukrts=50.0,
+            fknee_mhz=fknee_mhz,
+            fmin_hz=1e-3,
+            alpha=1.0,
+        )
+        for name in names
+    ]
+    sim.create_observations(
+        detectors=dets,
+        num_of_obs_per_detector=n_obs,
+        tods=[
+            lbs.TodDescription(
+                name="tod", dtype=np.float64, units=lbs.Units.K_CMB, description=""
+            )
+        ],
+    )
+    return sim
+
+
+def _concatenated_tod(sim, det_name):
+    return np.concatenate(
+        [obs.tod[list(obs.name).index(det_name)] for obs in sim.observations]
+    )
+
+
+@pytest.mark.parametrize("noise_type", ["white", "one_over_f"])
+@pytest.mark.parametrize("n_obs", [2, 3, 5])
+def test_chunked_noise_does_not_depend_on_the_observations(noise_type, n_obs):
+    # 40 samples, chunks of 8: with 3 observations the boundaries fall in the
+    # middle of the chunks
+    reference = _chunk_noise_sim(["A", "B"], n_obs=1)
+    reference.add_noise(noise_type=noise_type, chunk_samples=8, append_to_report=False)
+
+    sim = _chunk_noise_sim(["A", "B"], n_obs=n_obs)
+    sim.add_noise(noise_type=noise_type, chunk_samples=8, append_to_report=False)
+
+    for name in ("A", "B"):
+        np.testing.assert_array_equal(
+            _concatenated_tod(sim, name), _concatenated_tod(reference, name)
+        )
+
+
+def test_chunked_noise_does_not_depend_on_the_set_of_detectors():
+    both = _chunk_noise_sim(["A", "B"], n_obs=2)
+    both.add_noise(noise_type="one_over_f", chunk_samples=8, append_to_report=False)
+
+    reversed_order = _chunk_noise_sim(["B", "A"], n_obs=2)
+    reversed_order.add_noise(
+        noise_type="one_over_f", chunk_samples=8, append_to_report=False
+    )
+
+    only_b = _chunk_noise_sim(["B"], n_obs=2)
+    only_b.add_noise(noise_type="one_over_f", chunk_samples=8, append_to_report=False)
+
+    for sim in (reversed_order, only_b):
+        np.testing.assert_array_equal(
+            _concatenated_tod(sim, "B"), _concatenated_tod(both, "B")
+        )
+    # Different detectors get different noise
+    assert not np.allclose(_concatenated_tod(both, "A"), _concatenated_tod(both, "B"))
+
+
+def test_chunked_noise_depends_on_the_seed_and_on_the_chunk():
+    sim1 = _chunk_noise_sim(["A"], n_obs=1, seed=1)
+    sim1.add_noise(noise_type="white", chunk_samples=8, append_to_report=False)
+    sim2 = _chunk_noise_sim(["A"], n_obs=1, seed=2)
+    sim2.add_noise(noise_type="white", chunk_samples=8, append_to_report=False)
+    tod1, tod2 = _concatenated_tod(sim1, "A"), _concatenated_tod(sim2, "A")
+    assert not np.allclose(tod1, tod2)
+
+    # The chunks of the same detector are different realizations
+    chunks = tod1.reshape(5, 8)
+    for i in range(1, 5):
+        assert not np.allclose(chunks[0], chunks[i])
+
+    # user_seed overrides the seed of the simulation
+    sim3 = _chunk_noise_sim(["A"], n_obs=1, seed=1)
+    sim3.add_noise(
+        noise_type="white", chunk_samples=8, user_seed=2, append_to_report=False
+    )
+    np.testing.assert_array_equal(_concatenated_tod(sim3, "A"), tod2)
+
+
+def test_chunked_noise_with_astropy_times():
+    start = astropy.time.Time("2032-04-01T00:00:00")
+    reference = _chunk_noise_sim(["A"], n_obs=1, start_time=start)
+    reference.add_noise(
+        noise_type="one_over_f", chunk_duration_s=8.0, append_to_report=False
+    )
+    sim = _chunk_noise_sim(["A"], n_obs=3, start_time=start)
+    sim.add_noise(noise_type="one_over_f", chunk_duration_s=8.0, append_to_report=False)
+    np.testing.assert_array_equal(
+        _concatenated_tod(sim, "A"), _concatenated_tod(reference, "A")
+    )
+
+
+def test_chunked_white_noise_level():
+    sim = _chunk_noise_sim(["A"], n_obs=1, duration_s=100_000.0)
+    sim.add_noise(noise_type="white", chunk_samples=1000, append_to_report=False)
+    sigma = lbs.noise.rescale_noise(50.0, 1.0, 1.0)
+    np.testing.assert_allclose(np.std(_concatenated_tod(sim, "A")), sigma, rtol=0.01)
+
+
+def test_chunked_noise_is_circulant_with_power_of_two_chunks():
+    # With engine="fft" and chunks of 2^n samples, each chunk is a periodic
+    # realization: the last and the first sample of a chunk are as correlated
+    # as two consecutive samples
+    length, n_chunks = 256, 400
+    sim = _chunk_noise_sim(
+        ["A"], n_obs=1, duration_s=float(length * n_chunks), fknee_mhz=200.0
+    )
+    sim.add_noise(
+        noise_type="one_over_f",
+        chunk_samples=length,
+        engine="fft",
+        model="keshner",
+        append_to_report=False,
+    )
+    chunks = _concatenated_tod(sim, "A").reshape(n_chunks, length)
+    chunks = chunks - chunks.mean(axis=1, keepdims=True)
+    lag1 = np.mean(chunks[:, 1:] * chunks[:, :-1]) / np.mean(chunks**2)
+    wrap = np.mean(chunks[:, -1] * chunks[:, 0]) / np.mean(chunks**2)
+    assert lag1 > 0.5
+    assert abs(wrap - lag1) < 0.1
+
+
+def test_chunked_noise_invalid_arguments():
+    sim = _chunk_noise_sim(["A"], n_obs=1, sampling_hz=3.0)
+
+    with pytest.raises(ValueError):
+        # 0.5 s is not an integer number of samples at 3 Hz
+        sim.add_noise(noise_type="white", chunk_duration_s=0.5, append_to_report=False)
+
+    with pytest.raises(ValueError):
+        lbs.add_noise_to_observations(
+            sim.observations,
+            "white",
+            chunk_samples=8,
+            chunk_duration_s=8.0,
+            chunk_seed=1,
+            chunk_reference_time=0.0,
+        )
+
+    with pytest.raises(ValueError):
+        # missing reference time
+        lbs.add_noise_to_observations(
+            sim.observations, "white", chunk_samples=8, chunk_seed=1
+        )
+
+    with pytest.raises(NotImplementedError):
+        lbs.add_noise_to_observations(
+            sim.observations,
+            "correlated",
+            chunk_samples=8,
+            chunk_seed=1,
+            chunk_reference_time=0.0,
+            correlation={"rho": 0.5},
+        )
+
+    no_seed = lbs.Simulation(start_time=0.0, duration_s=10.0, random_seed=None)
+    no_seed.create_observations(
+        detectors=[lbs.DetectorInfo(name="A", sampling_rate_hz=1.0, net_ukrts=1.0)]
+    )
+    with pytest.raises(ValueError):
+        no_seed.add_noise(noise_type="white", chunk_samples=8, append_to_report=False)

@@ -2406,6 +2406,8 @@ class Simulation:
         engine: str = "fft",
         model: str = "toast",
         correlation: dict | None = None,
+        chunk_samples: int | None = None,
+        chunk_duration_s: float | None = None,
     ):
         """Adds noise to tods.
 
@@ -2451,24 +2453,56 @@ class Simulation:
               common mode, in [0, 1].  Defaults to 0.25.
             * ``"common_mode_type"`` *(str)*: PSD shape of the common-mode
               stream, ``"one_over_f"`` (default) or ``"white"``.
+        chunk_samples : int or None, optional
+            If set, generate the noise in chunks of this many samples, counted
+            from the start of the simulation, instead of one realization per
+            observation (see :func:`.add_chunked_noise_to_observations`). The
+            noise then depends only on the seed, the detector names and the
+            time: it does not change with the length of the observations or with
+            the MPI layout. With ``engine="fft"`` and a power of 2, the noise is
+            circulant in each chunk. Not available for ``"correlated"`` noise.
+        chunk_duration_s : float or None, optional
+            Same as `chunk_samples`, in seconds (it must be an integer number of
+            samples). The seed of the chunks is `user_seed` or, if ``None``, the
+            ``random_seed`` of the simulation; `rng_hierarchy` is not used.
         """
 
-        if rng_hierarchy is None:
-            rng_hierarchy = self.rng_hierarchy
-        dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
-            self.mpi_comm.rank
-        )
+        if chunk_samples is not None or chunk_duration_s is not None:
+            chunk_seed = user_seed if user_seed is not None else self.random_seed
+            if not isinstance(chunk_seed, (int, np.integer)):
+                raise ValueError(
+                    "noise in chunks needs an integer seed: pass user_seed or "
+                    "create the Simulation with an integer random_seed"
+                )
+            add_noise_to_observations(
+                observations=self.observations,
+                noise_type=noise_type,
+                component=component,
+                engine=engine,
+                model=model,
+                correlation=correlation,
+                chunk_samples=chunk_samples,
+                chunk_duration_s=chunk_duration_s,
+                chunk_seed=int(chunk_seed),
+                chunk_reference_time=self.start_time,
+            )
+        else:
+            if rng_hierarchy is None:
+                rng_hierarchy = self.rng_hierarchy
+            dets_random = rng_hierarchy.get_detector_level_generators_on_rank(
+                self.mpi_comm.rank
+            )
 
-        add_noise_to_observations(
-            observations=self.observations,
-            noise_type=noise_type,
-            dets_random=dets_random,
-            user_seed=user_seed,
-            component=component,
-            engine=engine,
-            model=model,
-            correlation=correlation,
-        )
+            add_noise_to_observations(
+                observations=self.observations,
+                noise_type=noise_type,
+                dets_random=dets_random,
+                user_seed=user_seed,
+                component=component,
+                engine=engine,
+                model=model,
+                correlation=correlation,
+            )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
             template_file_path = get_template_file_path("report_noise.md")

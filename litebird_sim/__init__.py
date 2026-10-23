@@ -147,6 +147,7 @@ from .noise import (
     add_noise,
     add_correlated_noise,
     add_noise_to_observations,
+    add_chunked_noise_to_observations,
 )
 from .non_linearity import (
     NonLinParams,
@@ -416,6 +417,7 @@ __all__ = [
     "add_noise",
     "add_correlated_noise",
     "add_noise_to_observations",
+    "add_chunked_noise_to_observations",
     # scan_map.py
     "scan_map",
     "scan_map_in_observations",

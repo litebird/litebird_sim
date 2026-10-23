@@ -376,6 +376,66 @@ elements.
     stored in the observation.
 
 
+Noise in chunks of fixed length
+-------------------------------
+
+By default, :meth:`.Simulation.add_noise` generates one noise realization per
+:class:`.Observation` and per detector, drawing the random numbers from the
+generators of the detectors on each MPI process (see :ref:`random-numbers`).
+Therefore the length of the 1/f noise realizations is tied to the length of
+the observations, and the noise changes if you change the MPI layout or the
+way the simulation is split in observations.
+
+With the parameters ``chunk_samples`` or ``chunk_duration_s``, the noise is
+instead generated in *chunks* of fixed length, counted from the start of the
+simulation: chunk :math:`k` contains the samples from :math:`kL` to
+:math:`(k+1)L - 1`, where :math:`L` is the length of the chunks. Every detector
+gets an independent realization in every chunk, and each observation adds the
+part of the chunks it overlaps::
+
+    import litebird_sim as lbs
+
+    sim = lbs.Simulation(start_time=0.0, duration_s=365 * 86400.0, random_seed=1234)
+    ...
+    # Ten observations per year, but 1/f noise in chunks of one day
+    sim.create_observations(detectors=dets, num_of_obs_per_detector=10)
+    sim.add_noise(noise_type="one_over_f", chunk_duration_s=86400.0)
+
+The random generator of each chunk is derived from the seed (``user_seed`` or,
+if it is ``None``, the ``random_seed`` of the simulation), the *name* of the
+detector and the index of the chunk, with :func:`.chunk_generator`. As a
+consequence, the noise is the same
+
+- whatever the length of the observations, even when their boundaries fall in
+  the middle of a chunk;
+- whatever the MPI layout (``n_blocks_det``, ``n_blocks_time``, number of
+  processes);
+- whatever the set of detectors being simulated: a detector gets the same noise
+  if you simulate it alone or together with others.
+
+This makes it possible to choose the length of the observations to optimize
+memory and speed (fewer and longer observations are usually faster), while
+keeping the noise chunks short.
+
+With ``engine="fft"`` and chunks whose length is a power of 2 (use
+``chunk_samples``), the noise is exactly periodic in each chunk, i.e., its
+covariance is circulant. This matches the assumption of map-makers that apply
+:math:`N^{-1}` in Fourier space chunk by chunk::
+
+    # Circulant 1/f noise in chunks of 2^25 samples (~5.2 days at 75 Hz)
+    sim.add_noise(
+        noise_type="one_over_f",
+        chunk_samples=2**25,
+        engine="fft",
+        model="keshner",
+    )
+
+Note that the realization differs from the one generated without chunks, even
+with the same seed, and that noise in chunks is not available yet for
+``noise_type="correlated"``. The low-level function is
+:func:`.add_chunked_noise_to_observations`.
+
+
 Methods of the Simulation class
 -------------------------------
 
