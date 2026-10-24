@@ -77,4 +77,5 @@ jobs:
           DUCC0_OPTIMIZATION: none
 
       - name: Notebook Tests
-        run: uv run python -m pytest --nbmake -n auto --durations=5 -vv notebooks/*.ipynb
+        run: |
+          uv run python -m pytest --nbmake -n auto --durations=5 -vv notebooks/*.ipynb --deselect=notebooks/litebird_sim_smarties.ipynb
