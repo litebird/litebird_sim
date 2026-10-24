@@ -77,11 +77,18 @@ from .distribute import distribute_evenly, distribute_optimally
 from .flags import (
     FLAG_DTYPE,
     FLAG_PLANET,
-    PLANETS,
     flag_planet,
     flag_planets_in_observations,
     get_global_flags,
     get_local_flags,
+)
+from .planets import (
+    PLANETS,
+    PLANET_RADII_KM,
+    PLANET_TEMPERATURES_K,
+    add_planets_to_observations,
+    planet_brightness_k_cmb,
+    planet_temperature_k,
 )
 from .gaindrifts import (
     GainDriftType,
@@ -456,11 +463,17 @@ __all__ = [
     # flags.py
     "FLAG_DTYPE",
     "FLAG_PLANET",
-    "PLANETS",
     "flag_planet",
     "flag_planets_in_observations",
     "get_local_flags",
     "get_global_flags",
+    # planets.py
+    "PLANETS",
+    "PLANET_RADII_KM",
+    "PLANET_TEMPERATURES_K",
+    "add_planets_to_observations",
+    "planet_brightness_k_cmb",
+    "planet_temperature_k",
     # gaindrifts.py
     "GainDriftType",
     "SamplingDist",

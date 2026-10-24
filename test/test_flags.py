@@ -4,7 +4,7 @@ import pytest
 from astropy.coordinates import GeocentricMeanEcliptic, get_body
 
 import litebird_sim as lbs
-from litebird_sim import flags as lbs_flags
+from litebird_sim import planets as lbs_planets
 
 START_TIME = astropy.time.Time("2032-04-01T00:00:00")
 
@@ -39,11 +39,11 @@ def test_planet_direction():
     pos_and_vel = lbs.spacecraft_pos_and_vel(
         orbit, start_time=START_TIME, time_span_s=86400.0
     )
-    grid_s, rel_pos = lbs_flags._planet_ephemeris(
+    grid_s, rel_pos = lbs_planets.planet_ephemeris(
         "neptune", pos_and_vel, START_TIME, 86400.0
     )
     times_s = np.array([0.0, 43200.0])
-    actual = lbs_flags._planet_directions(grid_s, rel_pos, times_s)
+    actual, _ = lbs_planets.planet_position(grid_s, rel_pos, times_s)
 
     coords = get_body(
         "neptune", START_TIME + astropy.time.TimeDelta(times_s, format="sec")
@@ -107,10 +107,10 @@ def test_flag_planets_matches_brute_force(tmp_path):
     times_s = np.arange(obs.n_samples) / obs.sampling_rate_hz
     radius_rad = np.deg2rad(radius_fwhm * obs.fwhm_arcmin / 60)
     for planet in lbs.PLANETS:
-        grid_s, rel_pos = lbs_flags._planet_ephemeris(
+        grid_s, rel_pos = lbs_planets.planet_ephemeris(
             planet, sim.pos_and_vel, obs.start_time, obs.n_samples / 5.0
         )
-        planet_dir = lbs_flags._planet_directions(grid_s, rel_pos, times_s)
+        planet_dir, _ = lbs_planets.planet_position(grid_s, rel_pos, times_s)
         assert (
             lbs.flag_planet(reference, pointings, planet_dir, radius_rad)
             == (num[planet])
@@ -129,7 +129,11 @@ def test_flag_planets_needs_astropy_times():
     sim.create_observations(
         detectors=[lbs.DetectorInfo(name="a", sampling_rate_hz=1.0, fwhm_arcmin=30.0)]
     )
-    with pytest.raises(ValueError, match="astropy"):
-        lbs.flag_planets_in_observations(sim.observations, pos_and_vel=None)
+    # With MPI, some processes have no observations to check
+    if sim.observations:
+        with pytest.raises(ValueError, match="astropy"):
+            lbs.flag_planets_in_observations(sim.observations, pos_and_vel=None)
     with pytest.raises(ValueError, match="astropy"):
         sim.flag_planets()
+    with pytest.raises(ValueError, match="astropy"):
+        sim.add_planets()

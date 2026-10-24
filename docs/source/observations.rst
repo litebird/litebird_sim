@@ -606,6 +606,8 @@ flagged samples for each planet and writes it in the report.
 To exclude these samples from the maps, pass ``flags="local_flags"`` to
 the map-makers (see :ref:`mapmaking`). The low-level functions are
 :func:`.flag_planets_in_observations` and :func:`.flag_planet`.
+The signal of the planets can be added to the TODs with
+:meth:`.Simulation.add_planets` (see :ref:`planets`).
 
 
 API reference

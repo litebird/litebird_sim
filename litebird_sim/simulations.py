@@ -40,7 +40,8 @@ from .constants import NUMBA_NUM_THREADS_ENVVAR  # noqa: F401  (re-exported)
 from .coordinates import CoordinateSystem
 from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
-from .flags import FLAG_PLANET, PLANETS, flag_planets_in_observations
+from .flags import FLAG_PLANET, flag_planets_in_observations
+from .planets import PLANETS, add_planets_to_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
 from .healpix import write_healpix_map_to_file
@@ -1978,6 +1979,45 @@ class Simulation:
             orbit=orbit, observations=self.observations, delta_time_s=delta_time_s
         )
 
+    def _prepare_for_planets(self):
+        # Planets need astropy times and the position of the spacecraft,
+        # computed as in add_dipole if missing
+        if not isinstance(self.start_time, astropy.time.Time):
+            raise ValueError("Planets need a start_time of type astropy.time.Time")
+        if not hasattr(self, "pos_and_vel"):
+            self.compute_pos_and_vel()
+
+    @_profile
+    def add_planets(
+        self,
+        planets: str | list[str] | tuple[str, ...] = PLANETS,
+        component: str = "tod",
+        append_to_report: bool = True,
+    ):
+        """Add the signal of the planets to the TODs
+
+        This is a wrapper for :func:`.add_planets_to_observations`; the
+        position of the spacecraft is computed with
+        :meth:`.compute_pos_and_vel` if needed. It must be called after
+        :meth:`.prepare_pointings`.
+        """
+        self._prepare_for_planets()
+        planets = [planets] if isinstance(planets, str) else list(planets)
+        add_planets_to_observations(
+            observations=self.observations,
+            pos_and_vel=self.pos_and_vel,
+            planets=planets,
+            component=component,
+        )
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_add_planets.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template, planets=", ".join(planets), component=component
+            )
+
     @_profile
     def flag_planets(
         self,
@@ -1994,13 +2034,7 @@ class Simulation:
         :meth:`.prepare_pointings`. Return the number of flagged samples for
         each planet, summed over all the MPI processes.
         """
-        if not isinstance(self.start_time, astropy.time.Time):
-            raise ValueError(
-                "Flagging planets needs a start_time of type astropy.time.Time"
-            )
-        if not hasattr(self, "pos_and_vel"):
-            self.compute_pos_and_vel()
-
+        self._prepare_for_planets()
         num_of_flagged = flag_planets_in_observations(
             observations=self.observations,
             pos_and_vel=self.pos_and_vel,
