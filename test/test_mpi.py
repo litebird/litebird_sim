@@ -475,6 +475,51 @@ def test_observation_tod_set_blocks():
         assert_det_info()
 
 
+def test_observation_flags_set_blocks():
+    # Flags must follow the samples of the TOD when the blocks change; the
+    # TOD encodes the global (detector, sample) indices of each element
+    comm_world = lbs.MPI_COMM_WORLD
+    n_dets, n_samples = 3, 9
+
+    obs = lbs.Observation(
+        detectors=n_dets,
+        n_samples_global=n_samples,
+        start_time_global=0.0,
+        sampling_rate_hz=1.0,
+        n_blocks_time=comm_world.size,
+        comm=comm_world,
+    )
+    ref_tod = np.arange(n_dets * n_samples, dtype=np.float32).reshape(n_dets, -1)
+    obs.tod[:] = ref_tod[:, obs.start_sample : obs.start_sample + obs.n_samples]
+
+    # Only process 0 writes the flags (the first n0 samples): the others
+    # must allocate them
+    n0 = comm_world.bcast(obs.n_samples)
+    if comm_world.rank == 0:
+        lbs.get_local_flags(obs)[:] = obs.tod % 7
+        lbs.get_global_flags(obs)[:] = np.arange(obs.n_samples) % 5
+
+    layouts = [
+        (n_det, comm_world.size // n_det)
+        for n_det in range(1, n_dets + 1)
+        if comm_world.size % n_det == 0
+    ]
+    layouts += layouts[::-1]
+    for n_blocks_det, n_blocks_time in layouts:
+        obs.set_n_blocks(n_blocks_det=n_blocks_det, n_blocks_time=n_blocks_time)
+
+        sample = obs.tod.astype(int) % n_samples
+        assert obs.local_flags.shape == obs.tod.shape
+        np.testing.assert_array_equal(
+            obs.local_flags, np.where(sample < n0, obs.tod % 7, 0)
+        )
+        assert obs.global_flags.shape == (obs.tod.shape[1],)
+        if obs.tod.size > 0:
+            np.testing.assert_array_equal(
+                obs.global_flags, np.where(sample[0] < n0, sample[0] % 5, 0)
+            )
+
+
 def test_write_hdf5_mpi(mpi_tmp_path):
     start_time = 0
     time_span_s = 60

@@ -23,15 +23,20 @@ FLAG_DTYPE = np.uint16
 FLAG_PLANET = 1 << 0
 
 
+def _local_shape(obs: Observation) -> tuple[int, int]:
+    # Same shape as the TODs, also when they are not allocated
+    return obs._get_tod_shape(obs.n_blocks_det, obs.n_blocks_time)
+
+
 def get_local_flags(obs: Observation) -> npt.NDArray:
     """Return ``obs.local_flags``, allocating it with zeros if it is ``None``"""
     if obs.local_flags is None:
-        obs.local_flags = np.zeros((obs.n_detectors, obs.n_samples), dtype=FLAG_DTYPE)
+        obs.local_flags = np.zeros(_local_shape(obs), dtype=FLAG_DTYPE)
     return obs.local_flags
 
 
 def get_global_flags(obs: Observation) -> npt.NDArray:
     """Return ``obs.global_flags``, allocating it with zeros if it is ``None``"""
     if obs.global_flags is None:
-        obs.global_flags = np.zeros(obs.n_samples, dtype=FLAG_DTYPE)
+        obs.global_flags = np.zeros(_local_shape(obs)[1], dtype=FLAG_DTYPE)
     return obs.global_flags
