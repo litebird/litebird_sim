@@ -96,6 +96,8 @@ meant to collect :math:`N` samples for :math:`n_d` detectors:
    containing flags that must be associated with *all* the detectors
    in the observation.
 
+   Both are ``None`` until somebody writes them (see below).
+
 Keep in mind that the general rule is that detector-specific
 attributes are collected in arrays. Thus, ``obs.calibration_factors``
 should be a 1-D array of :math:`n_d` elements (one per each detector).
@@ -132,7 +134,9 @@ changed at run-time.
 The coherence between the serial and parallel operations is achieved by
 distributing also the arrays of detector properties:
 each rank keeps in memory only an interval of ``calibration_factors`` or
-``wn_levels``, the same detector interval of ``tod``.
+``wn_levels``, the same detector interval of ``tod``. The flags
+``local_flags`` and ``global_flags`` follow the same blocks of ``tod``,
+also when they are changed with :meth:`.Observation.set_n_blocks`.
 
 The main advantage is that the example operations in the Serial section are
 achieved with the same lines of code.
@@ -578,11 +582,11 @@ API reference
 .. automodule:: litebird_sim.observations
     :members:
     :undoc-members:
+    :show-inheritance:
 
 .. automodule:: litebird_sim.flags
     :members:
     :undoc-members:
-    :show-inheritance:
 
 .. automodule:: litebird_sim.io
     :members:

@@ -17,9 +17,12 @@ import numpy.typing as npt
 
 from .observations import Observation
 
+#: dtype of ``Observation.local_flags`` and ``Observation.global_flags``
 FLAG_DTYPE = np.uint16
 
 # Bits of the flags, one per reason
+
+#: Sample close to a planet
 FLAG_PLANET = 1 << 0
 
 

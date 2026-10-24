@@ -848,7 +848,8 @@ generated with ``engine="ducc"``. With
 Flagged samples are excluded with ``flags``, the names of the
 :class:`.Observation` attributes that hold them (per detector, like
 ``"local_flags"``, or common to all detectors, like ``"global_flags"``;
-nonzero means excluded). pysanepic fits them with unknowns of their own, so
+nonzero means excluded, or only the bits in ``flag_mask``, as in
+:func:`.make_binned_map`). pysanepic fits them with unknowns of their own, so
 that the maps are the exact GLS solution without them; long gaps split the
 chunks (``flag_method`` and ``split_gap_s`` in ``GLSParameters``).
 
