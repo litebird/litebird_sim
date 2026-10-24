@@ -575,6 +575,38 @@ samples are good: in this way, simulations that do not flag anything do
 not pay the memory of the flags. Use :func:`.get_local_flags` and
 :func:`.get_global_flags` to allocate them.
 
+Flagging planets
+^^^^^^^^^^^^^^^^
+
+:meth:`.Simulation.flag_planets` sets :data:`.FLAG_PLANET` in
+``local_flags`` for the samples closer than ``radius_fwhm`` times the
+FWHM of the detector to one of the planets visible from L2 (Mars,
+Jupiter, Saturn, Uranus, and Neptune, see :data:`.PLANETS`; Mercury and
+Venus are always too close to the Sun)::
+
+    sim.prepare_pointings()
+    num_of_flagged = sim.flag_planets(radius_fwhm=3.0)
+
+    # A larger radius for Jupiter, which is much brighter
+    sim.flag_planets(radius_fwhm={"mars": 3, "jupiter": 5, "saturn": 3,
+                                  "uranus": 3, "neptune": 3})
+
+The direction of the planets is computed from the position of the
+spacecraft (:meth:`.Simulation.compute_pos_and_vel`, called if needed),
+so that the parallax of the nearest planets (up to ~1° for Mars) is
+taken into account, and the ephemerides of AstroPy; the times of the
+simulation must therefore be ``astropy.time.Time`` objects, and the
+detectors must have ``fwhm_arcmin``. Planets are seen only for a tiny
+fraction of the time: to avoid computing all the pointings, the
+boresight is first sampled every second to find the segments of time in
+which some detector can be close to a planet, and the pointings of the
+detectors are computed only there. The method returns the number of
+flagged samples for each planet and writes it in the report.
+
+To exclude these samples from the maps, pass ``flags="local_flags"`` to
+the map-makers (see :ref:`mapmaking`). The low-level functions are
+:func:`.flag_planets_in_observations` and :func:`.flag_planet`.
+
 
 API reference
 -------------

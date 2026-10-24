@@ -40,6 +40,7 @@ from .constants import NUMBA_NUM_THREADS_ENVVAR  # noqa: F401  (re-exported)
 from .coordinates import CoordinateSystem
 from .detectors import UUID, DetectorInfo, FreqChannelInfo, InstrumentInfo
 from .dipole import DipoleType, add_dipole_to_observations
+from .flags import FLAG_PLANET, PLANETS, flag_planets_in_observations
 from .distribute import distribute_evenly, distribute_optimally
 from .gaindrifts import GainDriftParams, GainDriftType, apply_gaindrift_to_observations
 from .healpix import write_healpix_map_to_file
@@ -1976,6 +1977,62 @@ class Simulation:
         self.pos_and_vel = spacecraft_pos_and_vel(
             orbit=orbit, observations=self.observations, delta_time_s=delta_time_s
         )
+
+    @_profile
+    def flag_planets(
+        self,
+        planets: str | list[str] | tuple[str, ...] = PLANETS,
+        radius_fwhm: float | dict[str, float] = 3.0,
+        bit: int = FLAG_PLANET,
+        append_to_report: bool = True,
+    ) -> dict[str, int]:
+        """Flag the samples close to the planets in ``local_flags``
+
+        This is a wrapper for :func:`.flag_planets_in_observations`; the
+        position of the spacecraft is computed with
+        :meth:`.compute_pos_and_vel` if needed. It must be called after
+        :meth:`.prepare_pointings`. Return the number of flagged samples for
+        each planet, summed over all the MPI processes.
+        """
+        if not isinstance(self.start_time, astropy.time.Time):
+            raise ValueError(
+                "Flagging planets needs a start_time of type astropy.time.Time"
+            )
+        if not hasattr(self, "pos_and_vel"):
+            self.compute_pos_and_vel()
+
+        num_of_flagged = flag_planets_in_observations(
+            observations=self.observations,
+            pos_and_vel=self.pos_and_vel,
+            planets=planets,
+            radius_fwhm=radius_fwhm,
+            bit=bit,
+        )
+        num_of_samples = sum(
+            obs.n_detectors * obs.n_samples for obs in self.observations
+        )
+        if MPI_ENABLED:
+            num_of_flagged = {
+                planet: self.mpi_comm.allreduce(n)
+                for planet, n in num_of_flagged.items()
+            }
+            num_of_samples = self.mpi_comm.allreduce(num_of_samples)
+
+        if append_to_report and MPI_COMM_WORLD.rank == 0:
+            template_file_path = get_template_file_path("report_flag_planets.md")
+            with template_file_path.open("rt") as inpf:
+                markdown_template = "".join(inpf.readlines())
+            self.append_to_report(
+                markdown_template,
+                radius_fwhm=radius_fwhm,
+                bit=bit,
+                flagged=[
+                    (planet, n, 100.0 * n / max(num_of_samples, 1))
+                    for planet, n in num_of_flagged.items()
+                ],
+            )
+
+        return num_of_flagged
 
     @_profile
     def add_dipole(

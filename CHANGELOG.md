@@ -1,5 +1,7 @@
 # HEAD
 
+-   `Simulation.flag_planets` (and the low-level `flag_planets_in_observations` and `flag_planet`) sets `FLAG_PLANET` in `local_flags` for the samples closer than `radius_fwhm` times the FWHM of the detector to Mars, Jupiter, Saturn, Uranus, or Neptune, seen from the position of the spacecraft. The pointings of the detectors are computed only in the segments of time in which the boresight, sampled every second, is close to a planet. The number of flagged samples per planet is returned and written in the report.
+
 -   Flags are bitmasks of dtype `FLAG_DTYPE` (`uint16`), with one bit per reason (`FLAG_PLANET`, …) defined in the new module `flags.py`. `Observation.local_flags` and `Observation.global_flags` are `None` until somebody writes them (all samples good); `get_local_flags` and `get_global_flags` allocate them on the first write.
 
 -   `make_binned_map`, `make_destriped_map` and the corresponding methods of `Simulation` (also the `_splits` variants) have the arguments `flags` (names of the `Observation` attributes holding the flags, as in `make_sanepic_gls_map`) and `flag_mask` (bits that exclude a sample; any nonzero flag by default). Flagged samples are excluded from the maps and, in the destriper, from the estimation of the baselines. `make_sanepic_gls_map` and `estimate_sanepic_noise` have `flag_mask` too, and skip flags set to `None`.
