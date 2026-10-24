@@ -913,6 +913,14 @@ To keep the solar dipole in the maps, put only the orbital dipole in the
 component (an orbit with ``solar_velocity_km_s=0``) and the solar dipole in
 ``sky_model`` as alm, so that its gradient within the pixels is modelled.
 
+The pointings are computed in ``output_coordinate_system`` (as in the other
+map-makers) and passed to pysanepic, which then does not rotate them, as
+HEALPix pixels at ``nside`` or as angles (θ, φ, ψ), with ``pointing_form``:
+``"pixels"``, ``"angles"`` or ``"auto"`` (default), which passes the angles
+only when ``sky_model`` or a bandpass template is given as alm, since they
+are interpolated at the exact pointing. The maps are the same; the pixels
+keep less memory per detector.
+
 The calibration keeps all the detectors in memory and each iteration is a
 full GLS solve. The HWP angle and
 the polarization efficiency of the detectors are taken into account:

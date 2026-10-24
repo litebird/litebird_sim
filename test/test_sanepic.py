@@ -431,6 +431,17 @@ def test_sanepic_sky_model_and_bandpass():
         err = (r.maps - ref.maps)[:, seen]
         err[0] -= err[0].mean()
         assert np.abs(err).max() < 1e-6 * np.abs(sky).max()  # the PCG tolerance
+    # the pointings as angles give the same maps; alm need them
+    r = sim.make_sanepic_gls_map(
+        nside=8, params=params, pointing_form="angles", append_to_report=False
+    )
+    assert np.allclose(r.maps, ref.maps, rtol=0, atol=1e-6 * np.abs(sky).max())
+    with pytest.raises(ValueError, match="need the angles"):
+        sim.make_sanepic_gls_map(
+            nside=8, params=params, sky_model=zero, pointing_form="pixels"
+        )
+    with pytest.raises(ValueError, match="pointing_form"):
+        sim.make_sanepic_gls_map(nside=8, params=params, pointing_form="pix")
 
     fg = hp.smoothing(
         np.random.default_rng(9).normal(0, 3e-4, (3, 12 * 8**2)), fwhm=np.radians(15)

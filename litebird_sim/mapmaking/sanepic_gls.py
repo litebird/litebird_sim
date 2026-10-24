@@ -280,6 +280,7 @@ def make_sanepic_gls_map(
     sky_model=None,
     bandpass_templates: dict | None = None,
     bandpass_common: bool = False,
+    pointing_form: str = "auto",
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -379,6 +380,14 @@ def make_sanepic_gls_map(
         detectors away from the frequency of `sky_model` would otherwise bias
         the absolute calibration. Needs the templates as alm; see the
         pysanepic documentation for its limits. False by default.
+    pointing_form : str, optional
+        How the pointings are passed to pysanepic, always in
+        `output_coordinate_system`: ``"pixels"`` (HEALPix pixels at `nside`,
+        computed here as in the other map-makers), ``"angles"`` (θ, φ, ψ,
+        pixelized by pysanepic) or ``"auto"`` (default): angles if
+        `sky_model` or some bandpass template is given as alm, which are
+        interpolated at the pointing and need the angles, pixels otherwise.
+        The maps are the same; pixels keep less memory per detector.
 
     Returns
     -------
@@ -414,7 +423,18 @@ def make_sanepic_gls_map(
             "bandpass_templates: version 0.5.0 or later is needed"
         )
     models = [extra.get("sky_model"), *extra.get("bandpass_templates", {}).values()]
-    angles = any(m is not None and np.iscomplexobj(m) for m in models)
+    alm = any(m is not None and np.iscomplexobj(m) for m in models)
+    if pointing_form not in ("auto", "pixels", "angles"):
+        raise ValueError(
+            f"Unknown pointing_form '{pointing_form}': use 'auto', 'pixels' or 'angles'"
+        )
+    if pointing_form == "pixels" and alm:
+        raise ValueError(
+            "pointing_form='pixels' with sky_model or bandpass_templates as alm: "
+            "they are interpolated at the pointing and need the angles "
+            "(use 'angles' or 'auto', or pass them as maps)"
+        )
+    angles = pointing_form == "angles" or (pointing_form == "auto" and alm)
     if noise_model not in ("toast", "keshner"):
         raise ValueError(
             f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
