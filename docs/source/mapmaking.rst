@@ -873,7 +873,56 @@ back to those of uncorrelated noise.
 
 Correlations exist only between detectors of the same :class:`.Observation`:
 keep the correlated detectors together (e.g. ``n_blocks_det=1``) and
-distribute the observations over the processes. The HWP angle and
+distribute the observations over the processes.
+
+With ``calibration`` (a ``pysanepic.CalibrationParameters``), pysanepic fits
+one gain per detector and period together with the maps, using the dipole as
+calibrator. The dipole of each sample is read from a TOD component, e.g.
+filled by :meth:`.Simulation.add_dipole` with the settings used for the data;
+it is subtracted from the calibrated TOD, and its orbital part sets the
+absolute calibration. A ``sky_model`` (maps, or alm as ``SphericalHarmonics``
+interpolated at the pointing, which removes the pixelization error of its
+structure below the pixel size) and ``bandpass_templates`` (one amplitude per
+detector, e.g. for the derivative of the foregrounds with respect to
+frequency) are passed to pysanepic. This needs pysanepic 0.5.0 or later; see
+the pysanepic documentation for the masks and the details.
+
+.. code-block:: python
+
+  from pysanepic import CalibrationParameters
+
+  sim.add_dipole(component="dipole")  # a TOD component created with create_observations
+  result = sim.make_sanepic_gls_map(
+      nside=nside,
+      params=params,
+      calibration=CalibrationParameters(gain_period_s=3600.0, mask=galactic_mask),
+      dipole_component="dipole",
+      sky_model=sky_alm,                              # CMB + foregrounds at the band centre
+      bandpass_templates={"fg_deriv1": dfg_dnu_alm},  # dF/dnu at the band centre
+  )
+  result.gains       # one array per detector and observation of this process
+  result.bandpass    # {"fg_deriv1": {detector name: shift of its band [GHz]}}
+
+The bandpass amplitudes sum to zero over the detectors by default; with
+``bandpass_common=True`` (templates as alm) their common part is fitted too,
+which avoids biasing the absolute calibration when the mean band of the
+detectors is not at the frequency of ``sky_model`` (see the pysanepic
+documentation).
+
+To keep the solar dipole in the maps, put only the orbital dipole in the
+component (an orbit with ``solar_velocity_km_s=0``) and the solar dipole in
+``sky_model`` as alm, so that its gradient within the pixels is modelled.
+
+The pointings are computed in ``output_coordinate_system`` (as in the other
+map-makers) and passed to pysanepic, which then does not rotate them, as
+HEALPix pixels at ``nside`` or as angles (θ, φ, ψ), with ``pointing_form``:
+``"pixels"``, ``"angles"`` or ``"auto"`` (default), which passes the angles
+only when ``sky_model`` or a bandpass template is given as alm, since they
+are interpolated at the exact pointing. The maps are the same; the pixels
+keep less memory per detector.
+
+The calibration keeps all the detectors in memory and each iteration is a
+full GLS solve. The HWP angle and
 the polarization efficiency of the detectors are taken into account:
 
 .. code-block:: python
