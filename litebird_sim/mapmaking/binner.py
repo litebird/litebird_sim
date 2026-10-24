@@ -32,6 +32,7 @@ from .common import (
     _get_reduction_comm,
     _build_mask_detector_split,
     _build_mask_time_split,
+    _apply_flags_to_time_masks,
     _check_valid_splits,
     _compute_pixel_indices,
     _is_well_conditioned,
@@ -161,7 +162,7 @@ def _accumulate_samples_and_build_nobs_matrix(
 
         # One pass for both triangles, so that cos/sin are computed once
         for cur_sample, cur_pix_idx, cur_psi, cur_t_mask in zip(
-            tod[idet, :], pix[idet, :], psi[idet, :], t_mask
+            tod[idet, :], pix[idet, :], psi[idet, :], t_mask[idet, :]
         ):
             if cur_t_mask:
                 cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
@@ -299,6 +300,8 @@ def make_binned_map(
     components: str | list[str] = "tod",
     detector_split: str = "full",
     time_split: str = "full",
+    flags: str | list[str] | None = None,
+    flag_mask: int | None = None,
     pointings_dtype=np.float64,
     nthreads: int | None = None,
 ) -> BinnerResult:
@@ -333,6 +336,13 @@ def make_binned_map(
             :class:`.Observation` object
         detector_split (str): select the detector split to use in the map-making
         time_split (str): select the time split to use in the map-making.
+        flags (str or list[str]): names of the :class:`.Observation`
+            attributes holding the flags, either per detector (e.g.
+            ``"local_flags"``) or common to all the detectors (e.g.
+            ``"global_flags"``). Flagged samples are excluded from the map;
+            attributes set to None mean that all the samples are good
+        flag_mask (int): bits of the flags that exclude a sample (e.g.
+            ``FLAG_PLANET``). If None, any nonzero flag excludes it
         pointings_dtype(dtype): data type for pointings generated on the fly. If
             the pointing is passed or already precomputed this parameter is
             ineffective. Default is `np.float64`.
@@ -355,7 +365,9 @@ def make_binned_map(
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 
-    time_mask_list = _build_mask_time_split(time_split, obs_list)
+    time_mask_list = _apply_flags_to_time_masks(
+        _build_mask_time_split(time_split, obs_list), obs_list, flags, flag_mask
+    )
 
     # Set number of threads
     nthreads = resolve_nthreads(nthreads)

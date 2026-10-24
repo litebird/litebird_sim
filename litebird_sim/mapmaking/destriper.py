@@ -32,6 +32,7 @@ from .common import (
     solve_cholesky,
     _build_mask_detector_split,
     _build_mask_time_split,
+    _apply_flags_to_time_masks,
 )
 
 # The implementation of the destriping algorithm provided here is based on the paper
@@ -395,7 +396,7 @@ def _accumulate_nobs_matrix(
 
         # Fill the lower triangle of M_i only for i = 1…N_pix
         for cur_pix_idx, cur_psi, cur_t_mask in zip(
-            pix_idx[det_idx], psi_angle_rad[det_idx], t_mask
+            pix_idx[det_idx], psi_angle_rad[det_idx], t_mask[det_idx]
         ):
             if cur_t_mask:
                 cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
@@ -584,7 +585,7 @@ def _update_sum_map_with_tod(
         samples_in_this_baseline = 0
 
         for sample_idx in range(tod.shape[1]):
-            if not t_mask[sample_idx]:
+            if not t_mask[det_idx, sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_lengths
                 )
@@ -637,7 +638,7 @@ def _update_sum_map_with_baseline(
         samples_in_this_baseline = 0
 
         for sample_idx in range(pixel_idx.shape[1]):
-            if not t_mask[sample_idx]:
+            if not t_mask[det_idx, sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_lengths
                 )
@@ -821,7 +822,7 @@ def _compute_tod_sums_for_one_component(
         samples_in_this_baseline = 0
 
         for sample_idx in range(len(det_pixel_idx)):
-            if not t_mask[sample_idx]:
+            if not t_mask[det_idx, sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_length
                 )
@@ -880,7 +881,7 @@ def _compute_baseline_sums_for_one_component(
         samples_in_this_baseline = 0
 
         for sample_idx in range(len(det_pixel_idx)):
-            if not t_mask[sample_idx]:
+            if not t_mask[det_idx, sample_idx]:
                 (baseline_idx, samples_in_this_baseline) = _step_over_baseline(
                     baseline_idx, samples_in_this_baseline, baseline_length
                 )
@@ -1494,6 +1495,8 @@ def make_destriped_map(
     keep_pol_angle_rad: bool = False,
     detector_split: str = "full",
     time_split: str = "full",
+    flags: str | list[str] | None = None,
+    flag_mask: int | None = None,
     baselines_list: list[npt.NDArray] | None = None,
     recycled_convergence: bool = False,
     callback: Any = destriper_log_callback,
@@ -1585,6 +1588,13 @@ def make_destriped_map(
     :param keep_pol_angle_rad: same as `keep_weights`, but the
        field to be kept from the :class:`.Observation`
        classes is `destriper_pol_angle_rad`
+    :param flags: names of the :class:`.Observation` attributes holding
+       the flags, either per detector (e.g. ``"local_flags"``) or common
+       to all the detectors (e.g. ``"global_flags"``). Flagged samples are
+       excluded both from the maps and from the estimation of the
+       baselines; attributes set to None mean that all the samples are good
+    :param flag_mask: bits of the flags that exclude a sample (e.g.
+       ``FLAG_PLANET``). If None, any nonzero flag excludes it
     :param callback: a function that is called during each
        iteration of the CG routine. It is meant as a way to
        provide some visual feedback to the user. The default
@@ -1649,7 +1659,9 @@ def make_destriped_map(
 
     detector_mask_list = _build_mask_detector_split(detector_split, obs_list)
 
-    time_mask_list = _build_mask_time_split(time_split, obs_list)
+    time_mask_list = _apply_flags_to_time_masks(
+        _build_mask_time_split(time_split, obs_list), obs_list, flags, flag_mask
+    )
 
     nobs_matrix_cholesky = _build_nobs_matrix(
         hpx=hpx,

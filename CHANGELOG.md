@@ -2,6 +2,10 @@
 
 -   Flags are bitmasks of dtype `FLAG_DTYPE` (`uint16`), with one bit per reason (`FLAG_PLANET`, …) defined in the new module `flags.py`. `Observation.local_flags` and `Observation.global_flags` are `None` until somebody writes them (all samples good); `get_local_flags` and `get_global_flags` allocate them on the first write.
 
+-   `make_binned_map`, `make_destriped_map` and the corresponding methods of `Simulation` (also the `_splits` variants) have the arguments `flags` (names of the `Observation` attributes holding the flags, as in `make_sanepic_gls_map`) and `flag_mask` (bits that exclude a sample; any nonzero flag by default). Flagged samples are excluded from the maps and, in the destriper, from the estimation of the baselines. `make_sanepic_gls_map` and `estimate_sanepic_noise` have `flag_mask` too, and skip flags set to `None`.
+
+-   `Observation.set_n_blocks` redistributes `local_flags` and `global_flags` together with the TODs; before, they were left with the old layout. The MPI dtype of the TODs is derived from their NumPy dtype, so TODs of any numeric dtype can be redistributed.
+
 -   Fix the HDF5 I/O of the flags: `global_flags` were read back still RLE-compressed, and `local_flags` with runs longer than the maximum value of their dtype (65535 samples for `uint16`, ~1 hour at 19 Hz) could not be read. The RLE matrices are now saved as `int64`, and the flags are read as `FLAG_DTYPE`.
 
 -   `scan_map` and `fill_tod_with_hwp_harmonics` interpolate double-precision alms with `epsilon=1e-7` instead of 1e-13 when the TOD is float32, which is far below its resolution: the interpolation of the alms is ~25% faster on Galileo100 (relative change of the TOD ~1e-8). Reference PR: [#583](https://github.com/litebird/litebird_sim/pull/583).

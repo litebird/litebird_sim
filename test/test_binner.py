@@ -42,7 +42,7 @@ def test_accumulate_map_and_info():
     pix = np.expand_dims(pix, axis=0)
 
     d_mask = np.ones(1)
-    t_mask = np.ones(n_samples)
+    t_mask = np.ones((1, n_samples))
 
     # Now add both components to the TOD
     mapping._accumulate_samples_and_build_nobs_matrix(
