@@ -556,11 +556,30 @@ The framework encourages to store these flags in the fields
 ``local_flags`` and ``global_flags``: in this way, they can be saved
 correctly in HDF5 files by functions like :func:`.write_observations`.
 
+Flags are bitmasks of dtype :data:`.FLAG_DTYPE` (``uint16``): zero
+means a good sample, and each bit is a different reason why a sample is
+flagged (e.g. :data:`.FLAG_PLANET`). Modules set their own bit without
+touching the others, and consumers choose which reasons to exclude::
+
+    flags = lbs.get_local_flags(obs)  # Allocated on the first call
+    flags[0, 100:200] |= lbs.FLAG_PLANET
+
+    bad = (obs.local_flags & lbs.FLAG_PLANET) != 0
+
+Both fields are ``None`` until somebody writes them, meaning that all the
+samples are good: in this way, simulations that do not flag anything do
+not pay the memory of the flags. Use :func:`.get_local_flags` and
+:func:`.get_global_flags` to allocate them.
+
 
 API reference
 -------------
 
 .. automodule:: litebird_sim.observations
+    :members:
+    :undoc-members:
+
+.. automodule:: litebird_sim.flags
     :members:
     :undoc-members:
     :show-inheritance:

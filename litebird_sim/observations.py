@@ -193,8 +193,9 @@ class Observation:
     pol_angle_rad: npt.NDArray
     blms: dict | None
 
-    # Dynamic attributes set by io
+    # Flags of the samples, None until somebody writes them (see flags.py)
     local_flags: npt.NDArray | None
+    global_flags: npt.NDArray | None
 
     # Dynamic attributes set by scanning
     sky: SkyInput | None
@@ -279,6 +280,9 @@ class Observation:
                 )
             else:
                 setattr(self, cur_tod.name, None)
+
+        self.local_flags = None
+        self.global_flags = None
 
         self.setattr_det_global("det_idx", np.arange(self._n_detectors_global), root)
 

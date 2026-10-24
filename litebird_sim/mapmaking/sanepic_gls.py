@@ -48,12 +48,16 @@ def _sum_components(obs, components, det_idx):
 
 def _detector_flags(obs, names, det_idx):
     """Boolean flags of one detector, True where any of the `names` attributes
-    (per detector or common to all) is nonzero; None without names."""
+    (per detector or common to all) is nonzero; None without names. Attributes
+    set to None (flags never written) mean that all the samples are good."""
     if not names:
         return None
     out = np.zeros(obs.n_samples, dtype=bool)
     for name in names:
-        f = np.asarray(getattr(obs, name))
+        f = getattr(obs, name)
+        if f is None:
+            continue
+        f = np.asarray(f)
         out |= (f[det_idx] if f.ndim == 2 else f) != 0
     return out
 

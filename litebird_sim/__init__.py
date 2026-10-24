@@ -74,6 +74,7 @@ from .dipole import (
     DipoleType,
 )
 from .distribute import distribute_evenly, distribute_optimally
+from .flags import FLAG_DTYPE, FLAG_PLANET, get_global_flags, get_local_flags
 from .gaindrifts import (
     GainDriftType,
     SamplingDist,
@@ -444,6 +445,11 @@ __all__ = [
     "write_list_of_observations",
     "write_observations",
     "read_list_of_observations",
+    # flags.py
+    "FLAG_DTYPE",
+    "FLAG_PLANET",
+    "get_local_flags",
+    "get_global_flags",
     # gaindrifts.py
     "GainDriftType",
     "SamplingDist",
