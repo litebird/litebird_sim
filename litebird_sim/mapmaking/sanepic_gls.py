@@ -2,9 +2,10 @@
 GLS map-maker with correlated (1/f) noise using pysanepic
 
 pysanepic does not depend on litebird_sim: this module converts the
-observations into `pysanepic.DetectorData` (HEALPix pixels computed here,
-orientation, HWP angle, TOD and the 1/f noise parameters used to simulate the
-noise) and calls `pysanepic.make_maps`.
+observations into `pysanepic.DetectorData` (pointings in the output
+coordinates, as HEALPix pixels computed here or as angles, see
+`pointing_form`; orientation, HWP angle, TOD and the 1/f noise parameters
+used to simulate the noise) and calls `pysanepic.make_maps`.
 """
 
 import dataclasses
@@ -108,7 +109,7 @@ def _detector_data(
     generator: pointings are computed for one detector at a time and turned
     into int32 pixels here, with the same pixelization as the other
     map-makers (or, with `angles`, passed as angles in the output
-    coordinates, for sky models given as alm); pysanepic keeps only pixels
+    coordinates: pointing_form, needed by sky models given as alm); pysanepic keeps only pixels
     and angles (no copy of the TODs). With `dipole_component`, that TOD
     component is DetectorData.dipole (for calibration).
     The noise is `noise[name]` if given, else the 1/f model of the detector.
