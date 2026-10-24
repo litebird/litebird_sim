@@ -780,6 +780,29 @@ def test_non_linearity_seeding():
         np.testing.assert_equal(tods[0], tods[1])
 
 
+def test_noise_user_seed_differs_across_ranks():
+    """With user_seed, detectors on different MPI processes must not get the
+    same noise realization"""
+
+    comm = lbs.MPI_COMM_WORLD
+    if comm.size < 2:
+        pytest.skip("This test requires at least 2 MPI processes")
+
+    sim = lbs.Simulation(start_time=0.0, duration_s=100.0, random_seed=1, mpi_comm=comm)
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(name=f"d{i}", sampling_rate_hz=1.0, net_ukrts=1.0)
+            for i in range(comm.size)
+        ],
+        n_blocks_det=comm.size,
+        split_list_over_processes=False,
+    )
+    sim.add_noise(noise_type="white", user_seed=7, append_to_report=False)
+
+    tods = comm.allgather(sim.observations[0].tod[0].copy())
+    assert not np.allclose(tods[0], tods[1])
+
+
 def test_simulation_get_hitmap():
     # The hit map must count the samples of all the observations of all the
     # MPI processes

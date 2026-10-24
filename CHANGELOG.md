@@ -1,5 +1,7 @@
 # HEAD
 
+-   Fix: with `user_seed`, the noise and the gain drifts of the detectors with the same local index were identical on all the MPI processes; `for_each_observation` now builds the generators with the communicator of the observations. Reference issue: [#585](https://github.com/litebird/litebird_sim/issues/585).
+
 -   `make_sanepic_gls_map` (and `Simulation.make_sanepic_gls_map`) has `calibration` (a `pysanepic.CalibrationParameters`) and `dipole_component` arguments: pysanepic fits one gain per detector and period together with the maps, using as calibrator the dipole in that TOD component (e.g. filled by `add_dipole`; its orbital part sets the absolute calibration). It also passes `sky_model` (maps, or alm interpolated at the pointing: then the pointings are given to pysanepic as angles; `pointing_form` chooses between `"pixels"`, `"angles"` and `"auto"`, always in `output_coordinate_system`) and `bandpass_templates` (one amplitude per detector) to pysanepic. With `bandpass_common` the common part of the bandpass amplitudes is fitted too. Needs pysanepic 0.5.0 or later. Reference PR: [#580](https://github.com/litebird/litebird_sim/pull/580).
 
 -   `scan_map` and `fill_tod_with_hwp_harmonics` interpolate double-precision alms with `epsilon=1e-7` instead of 1e-13 when the TOD is float32, which is far below its resolution: the interpolation of the alms is ~25% faster on Galileo100 (relative change of the TOD ~1e-8). Reference PR: [#583](https://github.com/litebird/litebird_sim/pull/583).
