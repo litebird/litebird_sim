@@ -494,7 +494,7 @@ def test_observation_flags_set_blocks():
 
     # Only process 0 writes the flags (the first n0 samples): the others
     # must allocate them
-    n0 = comm_world.bcast(obs.n_samples)
+    n0 = comm_world.bcast(obs.n_samples) if lbs.MPI_ENABLED else obs.n_samples
     if comm_world.rank == 0:
         lbs.get_local_flags(obs)[:] = obs.tod % 7
         lbs.get_global_flags(obs)[:] = np.arange(obs.n_samples) % 5
