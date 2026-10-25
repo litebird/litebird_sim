@@ -153,6 +153,12 @@ from .non_linearity import (
     apply_quadratic_nonlin_for_one_detector,
     apply_quadratic_nonlin_to_observations,
 )
+from .time_constant import (
+    convolve_time_constant,
+    deconvolve_time_constant,
+    convolve_time_constant_in_observations,
+    deconvolve_time_constant_in_observations,
+)
 from .observations import Observation, TodDescription
 from .observation_utilities import (
     normalize_observations,
@@ -455,6 +461,11 @@ __all__ = [
     "NonLinParams",
     "apply_quadratic_nonlin_for_one_detector",
     "apply_quadratic_nonlin_to_observations",
+    # time_constant.py
+    "convolve_time_constant",
+    "deconvolve_time_constant",
+    "convolve_time_constant_in_observations",
+    "deconvolve_time_constant_in_observations",
     # pointing_sys.py
     "get_detector_orientation",
     "left_multiply_offset2det",
