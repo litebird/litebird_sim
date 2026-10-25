@@ -3,9 +3,10 @@
 The direction and distance of the planets are computed from the position of
 the spacecraft (see :class:`.SpacecraftPositionAndVelocity`), so that the
 parallax is taken into account. The emission is a table of whole-disc
-thermodynamic temperatures with respect to blank sky, i.e., with the CMB
-monopole occulted by the planet already subtracted, which is what enters a
-differential TOD.
+thermodynamic temperatures (in K, the temperature of a blackbody with the
+same brightness, i.e., B(ν, T) = I_ν) with respect to blank sky, i.e., with
+the CMB monopole occulted by the planet already subtracted, which is what
+enters a differential TOD.
 """
 
 from collections.abc import Iterator
@@ -16,12 +17,15 @@ import numpy.typing as npt
 from astropy.coordinates import ICRS, get_body_barycentric
 from numba import njit
 
+from .bandpasses import BandPassInfo
 from .constants import H_OVER_K_B, T_CMB_K
 from .coordinates import DEFAULT_COORDINATE_SYSTEM
+from .input_sky import _get_cmb_unit_conversion
 from .observations import Observation
 from .quaternions import all_rotate_z_vectors
 from .scanning import RotQuaternion
 from .spacecraft import SpacecraftPositionAndVelocity
+from .units import Units
 
 #: Planets that can enter the field of view from L2 (Mercury and Venus are
 #: always too close to the Sun)
@@ -45,7 +49,8 @@ def _rj_to_thermodynamic(t_rj_k, freq_ghz):
 
 
 # Whole-disc temperatures with respect to blank sky, as (frequencies in GHz,
-# thermodynamic temperatures in K):
+# thermodynamic temperatures in K, i.e., B(ν, T) = I_ν; neither K_CMB nor
+# K_RJ):
 #
 # - 100–857 GHz: Planck HFI, mean over the surveys (Table 4 of Planck
 #   intermediate results LII, A&A 607, A122, 2017, arXiv:1612.07151)
@@ -103,40 +108,51 @@ _PREFILTER_STEP_S = 1.0
 
 
 def planet_temperature_k(planet: str, freq_ghz) -> npt.NDArray:
-    """Thermodynamic temperature of `planet` with respect to blank sky
+    """Thermodynamic temperature of `planet` with respect to blank sky, in K
 
-    The values in :data:`PLANET_TEMPERATURES_K` are interpolated linearly in
+    This is the temperature of a blackbody with the same brightness as the
+    disc of the planet, B(ν, T) = I_ν: it is neither a K_CMB nor a K_RJ
+    temperature (see :func:`planet_brightness_k_cmb` for the former). The
+    values in :data:`PLANET_TEMPERATURES_K` are interpolated linearly in
     log ν, and kept constant outside the range of the measurements.
     """
     freqs, temperatures = PLANET_TEMPERATURES_K[planet]
     return np.interp(np.log(freq_ghz), np.log(freqs), temperatures)
 
 
-def planet_brightness_k_cmb(
-    planet: str, bandcenter_ghz: float, bandwidth_ghz: float, num_of_freqs: int = 101
-) -> float:
+def planet_brightness_k_cmb(planet: str, freqs_ghz, weights=None) -> float:
     """Temperature in K_CMB of a source that fills the beam with the
-    emission of `planet`, for a top-hat band
+    emission of `planet`
 
-    This is the ratio between the band integral of B(ν, T_planet(ν)) and
-    that of ∂B/∂T at the temperature of the CMB. The signal of the planet
-    at the centre of the beam is this value times Ω_planet / Ω_beam.
+    This is the ratio between the integrals of w(ν) B(ν, T_planet(ν)) and
+    w(ν) ∂B/∂T at the temperature of the CMB over the frequencies
+    `freqs_ghz`, with `weights` w(ν) in power units (uniform if ``None``),
+    as in PySM 3. With one frequency, the ratio is monochromatic. The
+    signal of the planet at the centre of the beam is this value times
+    Ω_planet / Ω_beam.
     """
-    freqs_hz = 1e9 * np.linspace(
-        bandcenter_ghz - bandwidth_ghz / 2,
-        bandcenter_ghz + bandwidth_ghz / 2,
-        num_of_freqs,
-    )
+    freqs_hz = 1e9 * np.atleast_1d(np.asarray(freqs_ghz, dtype=np.float64))
     x = H_OVER_K_B * freqs_hz
     x_planet = x / planet_temperature_k(planet, freqs_hz / 1e9)
     x_cmb = x / T_CMB_K
     # Both B(ν, T) and T ∂B/∂T are proportional to ν³ times these factors
     radiance = 1 / np.expm1(x_planet)
     d_radiance_dt = x_cmb * np.exp(x_cmb) / np.expm1(x_cmb) ** 2 / T_CMB_K
-    weights = freqs_hz**3
-    return np.trapezoid(weights * radiance, freqs_hz) / np.trapezoid(
-        weights * d_radiance_dt, freqs_hz
+    if len(freqs_hz) == 1:
+        return float(radiance[0] / d_radiance_dt[0])
+
+    w = freqs_hz**3 * (1.0 if weights is None else np.asarray(weights))
+    return np.trapezoid(w * radiance, freqs_hz) / np.trapezoid(
+        w * d_radiance_dt, freqs_hz
     )
+
+
+def _detector_bandpass(obs: Observation, det_idx: int) -> BandPassInfo:
+    # The bandpass of the detector (e.g., from the IMo), or a top-hat band
+    band = getattr(obs, "band", None)
+    if band is not None and band[det_idx] is not None:
+        return band[det_idx]
+    return BandPassInfo(obs.bandcenter_ghz[det_idx], obs.bandwidth_ghz[det_idx])
 
 
 def planet_solid_angle_sr(planet: str, distance_km) -> npt.NDArray:
@@ -324,19 +340,52 @@ _BEAM_TRUNCATION_FWHM = 3.0
 
 
 def planet_beam_parameters(
-    obs: Observation, planet: str
+    obs: Observation, planet: str, bandpass_integration: bool = False
 ) -> tuple[npt.NDArray, npt.NDArray]:
     """Return σ of the Gaussian beams and the signal at their centre per
-    steradian of `planet` (in K_CMB/sr) for each detector of `obs`"""
+    steradian of `planet` (in K_CMB/sr) for each detector of `obs`
+
+    With `bandpass_integration`, the emission is integrated over the
+    bandpass of each detector (``obs.band``, or a top-hat band from
+    ``bandcenter_ghz`` and ``bandwidth_ghz`` if missing); otherwise, it is
+    computed at ``bandcenter_ghz``, as in :class:`.SkyGenerationParams`.
+    """
     fwhm_rad = np.deg2rad(np.asarray(obs.fwhm_arcmin) / 60.0)
     sigma_rad = fwhm_rad / np.sqrt(8 * np.log(2))
-    brightness = np.array(
+    brightness = np.empty(obs.n_detectors)
+    for det_idx in range(obs.n_detectors):
+        if bandpass_integration:
+            band = _detector_bandpass(obs, det_idx)
+            brightness[det_idx] = planet_brightness_k_cmb(
+                planet, band.freqs_ghz, band.weights
+            )
+        else:
+            brightness[det_idx] = planet_brightness_k_cmb(
+                planet, obs.bandcenter_ghz[det_idx]
+            )
+    return sigma_rad, brightness / (2 * np.pi * sigma_rad**2)
+
+
+def _k_cmb_to_tod_units(
+    obs: Observation, component: str, bandpass_integration: bool
+) -> npt.NDArray:
+    # Factors converting K_CMB into the units of the TOD `component`, for
+    # each detector (K_CMB if the component is not in obs.tod_list)
+    units = next((t.units for t in obs.tod_list if t.name == component), Units.K_CMB)
+    if units == Units.K_CMB:
+        return np.ones(obs.n_detectors)
+    return np.array(
         [
-            planet_brightness_k_cmb(planet, center, width)
-            for center, width in zip(obs.bandcenter_ghz, obs.bandwidth_ghz)
+            _get_cmb_unit_conversion(
+                units,
+                Units.K_CMB,
+                freq_ghz=None if bandpass_integration else obs.bandcenter_ghz[i],
+                bandpass=_detector_bandpass(obs, i) if bandpass_integration else None,
+                band_integration=bandpass_integration,
+            )
+            for i in range(obs.n_detectors)
         ]
     )
-    return sigma_rad, brightness / (2 * np.pi * sigma_rad**2)
 
 
 @njit
@@ -378,13 +427,17 @@ def add_planets_to_observations(
     pos_and_vel: SpacecraftPositionAndVelocity,
     planets: str | list[str] | tuple[str, ...] = PLANETS,
     component: str = "tod",
+    bandpass_integration: bool = False,
 ) -> None:
     """Add the signal of the planets to the TODs
 
     The planets are unpolarized point sources with the temperatures in
-    :data:`PLANET_TEMPERATURES_K`, integrated over a top-hat band
-    (``bandcenter_ghz``, ``bandwidth_ghz``) and seen through circular
-    Gaussian beams (``fwhm_arcmin``), truncated at 3 FWHM. Their direction and
+    :data:`PLANET_TEMPERATURES_K`, seen through circular Gaussian beams
+    (``fwhm_arcmin``), truncated at 3 FWHM. Their emission is computed at
+    ``bandcenter_ghz`` or, with `bandpass_integration`, integrated over the
+    bandpass of each detector (see :func:`planet_beam_parameters`). The
+    signal is converted from K_CMB into the units of `component` declared
+    in ``obs.tod_list``. Their direction and
     solid angle are computed from the position of the spacecraft in
     `pos_and_vel`. As for :func:`.flag_planets_in_observations`, the pointings
     are computed only close to the planets, and the times of the
@@ -401,8 +454,12 @@ def add_planets_to_observations(
         tod = getattr(obs, component)
         fwhm_rad = np.deg2rad(np.asarray(obs.fwhm_arcmin) / 60.0)
         max_angle_rad = _BEAM_TRUNCATION_FWHM * fwhm_rad
+        to_tod_units = _k_cmb_to_tod_units(obs, component, bandpass_integration)
         for planet in planets:
-            sigma_rad, peak_per_sr = planet_beam_parameters(obs, planet)
+            sigma_rad, peak_per_sr = planet_beam_parameters(
+                obs, planet, bandpass_integration
+            )
+            peak_per_sr *= to_tod_units
             for start, stop, pointings, planet_dir, distance_km in iter_planet_segments(
                 obs, pos_and_vel, planet, max_angle_rad.max()
             ):

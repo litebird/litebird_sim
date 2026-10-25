@@ -613,6 +613,9 @@ and the band and beam of the detector::
     # Flag where planets are brighter than 1 µK
     sim.flag_planets(threshold_k_cmb=1e-6)
 
+The signal is computed as in :meth:`.Simulation.add_planets`, with the
+same ``bandpass_integration`` option.
+
 The default radius of 3 FWHM is where the Gaussian beam of
 :meth:`.Simulation.add_planets` is truncated, so that the flagged samples
 are exactly those where ``add_planets`` adds more than ``threshold_k_cmb``.

@@ -1992,6 +1992,7 @@ class Simulation:
         self,
         planets: str | list[str] | tuple[str, ...] = PLANETS,
         component: str = "tod",
+        bandpass_integration: bool = False,
         append_to_report: bool = True,
     ):
         """Add the signal of the planets to the TODs
@@ -2008,6 +2009,7 @@ class Simulation:
             pos_and_vel=self.pos_and_vel,
             planets=planets,
             component=component,
+            bandpass_integration=bandpass_integration,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:
@@ -2015,7 +2017,10 @@ class Simulation:
             with template_file_path.open("rt") as inpf:
                 markdown_template = "".join(inpf.readlines())
             self.append_to_report(
-                markdown_template, planets=", ".join(planets), component=component
+                markdown_template,
+                planets=", ".join(planets),
+                component=component,
+                bandpass_integration=bandpass_integration,
             )
 
     @_profile
@@ -2024,6 +2029,7 @@ class Simulation:
         planets: str | list[str] | tuple[str, ...] = PLANETS,
         radius_fwhm: float | dict[str, float] = 3.0,
         threshold_k_cmb: float | None = None,
+        bandpass_integration: bool = False,
         bit: int = FLAG_PLANET,
         append_to_report: bool = True,
     ) -> dict[str, int]:
@@ -2042,6 +2048,7 @@ class Simulation:
             planets=planets,
             radius_fwhm=radius_fwhm,
             threshold_k_cmb=threshold_k_cmb,
+            bandpass_integration=bandpass_integration,
             bit=bit,
         )
         num_of_samples = sum(

@@ -27,19 +27,32 @@ def test_planet_temperature():
 
 
 def test_planet_brightness():
-    # For a narrow band, B(ν, T) / (∂B/∂T at T_CMB)
-    freq_hz = 100e9
-    t = lbs.planet_temperature_k("mars", 100.0)
+    # Monochromatic: B(ν, T) / (∂B/∂T at T_CMB), away from the nodes of the
+    # table, where T(ν) has a kink
+    freq_hz = 120e9
+    t = lbs.planet_temperature_k("mars", 120.0)
     x = H_OVER_K_B * freq_hz
     x_cmb = x / T_CMB_K
     expected = (1 / np.expm1(x / t)) / (
         x_cmb * np.exp(x_cmb) / np.expm1(x_cmb) ** 2 / T_CMB_K
     )
-    actual = lbs.planet_brightness_k_cmb("mars", 100.0, 1e-3)
+    assert lbs.planet_brightness_k_cmb("mars", 120.0) == pytest.approx(expected)
+
+    # A narrow band gives the same value
+    narrow = np.linspace(119.999, 120.001, 11)
+    assert lbs.planet_brightness_k_cmb("mars", narrow) == pytest.approx(
+        expected, rel=1e-6
+    )
+
+    # The weights select the part of the band that counts, and their
+    # normalization does not matter
+    freqs = np.linspace(119.0, 121.0, 2001)
+    weights = np.exp(-(((freqs - 120.0) / 0.05) ** 2))
+    actual = lbs.planet_brightness_k_cmb("mars", freqs, 3 * weights)
     assert actual == pytest.approx(expected, rel=1e-6)
 
 
-def _make_sim(tmp_path, fwhm_arcmin):
+def _make_sim(tmp_path, fwhm_arcmin, tods=None):
     sim = lbs.Simulation(
         base_path=tmp_path, start_time=START_TIME, duration_s=6 * 3600.0, random_seed=1
     )
@@ -63,7 +76,8 @@ def _make_sim(tmp_path, fwhm_arcmin):
                 quat=quat(theta, phi),
             )
             for i, (theta, phi) in enumerate([(0, 0), (8, 0), (8, 120), (5, 240)])
-        ]
+        ],
+        **({"tods": tods} if tods else {}),
     )
     sim.set_scanning_strategy(
         lbs.SpinningScanningStrategy(
@@ -103,7 +117,7 @@ def test_add_planets(tmp_path):
     angle = np.arccos(np.clip(np.sum(vectors * planet_dir, axis=-1), -1, 1))
     sigma = np.deg2rad(fwhm_arcmin / 60) / np.sqrt(8 * np.log(2))
     peak = (
-        lbs.planet_brightness_k_cmb("jupiter", 140.0, 42.0)
+        lbs.planet_brightness_k_cmb("jupiter", 140.0)
         * lbs_planets.planet_solid_angle_sr("jupiter", distance_km)
         / (2 * np.pi * sigma**2)
     )
@@ -119,7 +133,7 @@ def test_jupiter_peak():
     sigma = np.deg2rad(0.5) / np.sqrt(8 * np.log(2))
     distance_km = 5.0 * 1.496e8
     peak = (
-        lbs.planet_brightness_k_cmb("jupiter", 140.0, 42.0)
+        lbs.planet_brightness_k_cmb("jupiter", 140.0)
         * lbs_planets.planet_solid_angle_sr("jupiter", distance_km)
         / (2 * np.pi * sigma**2)
     )
@@ -147,3 +161,45 @@ def test_flag_planets_with_threshold(tmp_path):
     obs.local_flags = None
     num = sim.flag_planets(planets="jupiter", threshold_k_cmb=1.0)
     assert num["jupiter"] == 0
+
+
+def test_add_planets_units_and_bandpass(tmp_path):
+    if lbs.MPI_COMM_WORLD.size > 1:
+        pytest.skip("This test uses one observation, which is not split over MPI")
+
+    tods = [
+        lbs.TodDescription(name=name, units=units, dtype=np.float64, description="")
+        for name, units in [
+            ("tod", lbs.Units.K_CMB),
+            ("tod_uk", lbs.Units.uK_CMB),
+            ("tod_band", lbs.Units.K_CMB),
+        ]
+    ]
+    sim = _make_sim(tmp_path, fwhm_arcmin=300.0, tods=tods)
+    for component in ("tod", "tod_uk"):
+        sim.add_planets(planets="jupiter", component=component)
+    sim.add_planets(planets="jupiter", component="tod_band", bandpass_integration=True)
+    obs = sim.observations[0]
+    assert np.any(obs.tod != 0)
+
+    # The signal is converted into the units of the component
+    np.testing.assert_allclose(obs.tod_uk, 1e6 * obs.tod, rtol=1e-10)
+
+    # Without a bandpass from the IMo, the band is a top-hat
+    band = lbs.BandPassInfo(140.0, 42.0)
+    ratio = lbs.planet_brightness_k_cmb(
+        "jupiter", band.freqs_ghz, band.weights
+    ) / lbs.planet_brightness_k_cmb("jupiter", 140.0)
+    assert ratio != pytest.approx(1.0, rel=1e-3)
+    np.testing.assert_allclose(obs.tod_band, ratio * obs.tod, rtol=1e-10)
+
+    # The bandpasses of the detectors (e.g., from the IMo) are used if present
+    cosine = lbs.BandPassInfo(140.0, 42.0, bandtype="top-hat-cosine")
+    obs.band = [cosine] * obs.n_detectors
+    _, peak = lbs_planets.planet_beam_parameters(obs, "jupiter", True)
+    _, peak_mono = lbs_planets.planet_beam_parameters(obs, "jupiter", False)
+    expected = lbs.planet_brightness_k_cmb(
+        "jupiter", cosine.freqs_ghz, cosine.weights
+    ) / lbs.planet_brightness_k_cmb("jupiter", 140.0)
+    np.testing.assert_allclose(peak / peak_mono, expected)
+    assert expected != pytest.approx(ratio, rel=1e-4)

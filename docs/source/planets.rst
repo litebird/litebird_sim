@@ -22,6 +22,7 @@ TODs::
     sim.prepare_pointings()
     sim.add_planets()  # All the planets in lbs.PLANETS
     sim.add_planets(planets=["jupiter", "saturn"], component="planets")
+    sim.add_planets(bandpass_integration=True)  # Integrate over the bands
 
 The planets are point sources for LiteBIRD's beams: the signal of a
 detector whose beam is centred at an angle :math:`\theta` from a planet is
@@ -37,10 +38,24 @@ where :math:`\hat B` is the beam normalized to 1 at its peak,
 of the disc of the planet at a distance :math:`R` from the spacecraft
 (:data:`.PLANET_RADII_KM`). :math:`T_\text{p}` (see
 :func:`.planet_brightness_k_cmb`) is the temperature in K\ :sub:`CMB` of a
-source that fills the beam with the emission of the planet: the band
-integral of the spectral radiance :math:`B(\nu, T_\text{planet}(\nu))`
-divided by that of :math:`\partial B / \partial T` at the temperature of the
-CMB, for a top-hat band (``bandcenter_ghz``, ``bandwidth_ghz``).
+source that fills the beam with the emission of the planet:
+
+.. math::
+
+   T_\text{p} = \frac{\int w(\nu)\,B(\nu, T_\text{planet}(\nu))\,d\nu}
+   {\int w(\nu)\,\left.\partial B / \partial T\right|_{T_\text{CMB}}\,d\nu},
+
+with the weights :math:`w(\nu)` of the bandpass in power units, as in PySM 3
+(see :ref:`input_sky`). By default, as in :class:`.SkyGenerationParams`, the
+ratio is monochromatic at ``bandcenter_ghz``; with
+``bandpass_integration=True``, it is integrated over the bandpass of each
+detector (e.g., from the IMo), or over a top-hat band built from
+``bandcenter_ghz`` and ``bandwidth_ghz`` if the detector has none. For
+LiteBIRD's bands, the two differ by ~1%.
+
+The signal is computed in K\ :sub:`CMB` and converted into the units of the
+TOD component declared in its :class:`.TodDescription` (e.g.,
+µK\ :sub:`CMB`), with the same bandpass integration.
 
 The direction and the distance of the planets are computed from the
 position of the spacecraft (:meth:`.Simulation.compute_pos_and_vel`,
@@ -56,7 +71,9 @@ Emission model
 --------------
 
 :data:`.PLANET_TEMPERATURES_K` contains whole-disc thermodynamic
-temperatures of the planets with respect to blank sky, i.e., with the CMB
+temperatures of the planets in K, i.e., the temperatures of blackbodies
+with the same brightness, :math:`B(\nu, T) = I_\nu` (neither
+K\ :sub:`CMB` nor K\ :sub:`RJ`), with respect to blank sky, i.e., with the CMB
 monopole occulted by the planet already subtracted, which is what enters
 a differential TOD. :func:`.planet_temperature_k` interpolates them
 linearly in :math:`\log\nu` and keeps them constant outside the range of
@@ -80,8 +97,8 @@ The model has known limitations, at the level of a few percent:
 - the HFI values of Saturn include its rings, whose contribution depends on
   their inclination, while the LFI values do not;
 - the beams are circular Gaussians with the FWHM of the detectors,
-  truncated at 3 FWHM, and the bands are top-hats. The radial profile of
-  the beams would give realistic sidelobes;
+  truncated at 3 FWHM. The radial profile of the beams, once in the IMo,
+  would give realistic sidelobes;
 - the planets are unpolarized (Planck limits the polarization of Mars to
   less than 2%).
 

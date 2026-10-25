@@ -85,6 +85,7 @@ def flag_planets_in_observations(
     planets: str | list[str] | tuple[str, ...] = PLANETS,
     radius_fwhm: float | dict[str, float] = 3.0,
     threshold_k_cmb: float | None = None,
+    bandpass_integration: bool = False,
     bit: int = FLAG_PLANET,
 ) -> dict[str, int]:
     """Flag the samples close to the planets
@@ -100,7 +101,8 @@ def flag_planets_in_observations(
     than `threshold_k_cmb` (in K_CMB) are flagged: the radius then depends on the
     planet, on the band and the beam of the detector, and on the distance
     of the planet, and planets fainter than `threshold_k_cmb` are not flagged.
-    The detectors must have ``bandcenter_ghz`` and ``bandwidth_ghz``.
+    The detectors must have ``bandcenter_ghz``; `bandpass_integration` is
+    the same as in :func:`.add_planets_to_observations`.
 
     The pointings of the detectors are computed only where some of them can
     see a planet: the boresight is first sampled every second to find the
@@ -123,7 +125,9 @@ def flag_planets_in_observations(
             k = radius_fwhm[planet] if isinstance(radius_fwhm, dict) else radius_fwhm
             radius_rad = k * fwhm_rad
             if threshold_k_cmb is not None:
-                sigma_rad, peak_per_sr = planet_beam_parameters(obs, planet)
+                sigma_rad, peak_per_sr = planet_beam_parameters(
+                    obs, planet, bandpass_integration
+                )
             for start, stop, pointings, planet_dir, distance_km in iter_planet_segments(
                 obs, pos_and_vel, planet, radius_rad.max()
             ):
