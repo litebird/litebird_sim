@@ -296,3 +296,68 @@ def test_gzip_compression_in_obs(tmp_path):
         use_mjd=False,
         gzip_compression=True,
     )
+
+
+def __test_write_sliced_pointing_provider(tmp_path, use_mjd: bool):
+    # Each file must contain only the boresight quaternions that cover its own
+    # observation, not the ones of the whole simulation
+    start_time = AstroTime("2021-01-01") if use_mjd else 0.0
+    sim = lbs.Simulation(
+        base_path=tmp_path,
+        start_time=start_time,
+        duration_s=3600.0,
+        random_seed=12345,
+    )
+    sim.set_scanning_strategy(
+        scanning_strategy=lbs.SpinningScanningStrategy(
+            spin_sun_angle_rad=0.785_398_163_397_448_3,
+            precession_rate_hz=8.664_850_513_998_931e-05,
+            spin_rate_hz=0.000_833_333_333_333_333_4,
+            start_time=start_time,
+        ),
+        delta_time_s=10.0,
+        append_to_report=False,
+    )
+    sim.set_instrument(
+        lbs.InstrumentInfo(
+            boresight_rotangle_rad=0.0,
+            spin_boresight_angle_rad=0.872_664_625_997_164_8,
+            spin_rotangle_rad=3.141_592_653_589_793,
+        )
+    )
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name="det",
+                sampling_rate_hz=1.0,
+                bandcenter_ghz=100.0,
+                quat=[0, 0, 0, 1],
+            )
+        ],
+        num_of_obs_per_detector=4,
+    )
+    sim.prepare_pointings(append_to_report=False)
+    expected = [obs.get_pointings(0)[0].copy() for obs in sim.observations]
+
+    file_list = sim.write_observations(subdir_name="", append_to_report=False)
+    assert len(file_list) == 4
+
+    for cur_file in file_list:
+        with h5py.File(cur_file, "r") as inpf:
+            # 900 s at one quaternion every 10 s, plus the margin for the slerp
+            assert inpf["pointing_provider_rot_quaternion"].shape[0] <= 94
+
+    observations = lbs.read_list_of_observations(
+        file_name_list=file_list, limit_mpi_rank=False
+    )
+    assert len(observations) == 4
+    for obs, ref in zip(observations, expected):
+        np.testing.assert_allclose(obs.get_pointings(0)[0], ref, atol=1e-10)
+
+
+def test_write_sliced_pointing_provider_mjd(tmp_path):
+    __test_write_sliced_pointing_provider(tmp_path, use_mjd=True)
+
+
+def test_write_sliced_pointing_provider_no_mjd(tmp_path):
+    __test_write_sliced_pointing_provider(tmp_path, use_mjd=False)
