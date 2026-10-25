@@ -171,6 +171,7 @@ class Observation:
     quat: list
     mueller_hwp: npt.NDArray
     tod: npt.NDArray
+    time_constant_ms: npt.NDArray
 
     # Dynamic attributes set by destriper
     destriper_weights: npt.NDArray | None

@@ -73,7 +73,7 @@ class DetectorInfo:
             net_ukrts, pol_sensitivity_ukarcmin, fknee_mhz, fmin_hz,
             alpha, pol, orient, quat, pol_angle_rad, pol_efficiency,
             mueller_hwp, mueller_hwp_solver, pointing_theta_phi_psi_deg,
-            pointing_u_v, g_one_over_k, amplitude_2f_k
+            pointing_u_v, g_one_over_k, amplitude_2f_k, time_constant_ms
 
         Quaternions can be specified as:
         - A list of 4 numbers (static rotation), or
@@ -155,6 +155,9 @@ class DetectorInfo:
 
         amplitude_2f_k (float): Amplitude of the 2f systematic signal component in Kelvin. Default is 0.0.
 
+        time_constant_ms (float): Time constant of the detector, in ms, used by
+            :func:`.convolve_time_constant_in_observations`. Default is 0.0 (no filtering).
+
     """
 
     name: str = ""
@@ -187,6 +190,7 @@ class DetectorInfo:
     pointing_u_v: None | np.ndarray = None
     g_one_over_k: float = 0.0
     amplitude_2f_k: float = 0.0
+    time_constant_ms: float = 0.0
     band: BandPassInfo | None = None
 
     def __post_init__(self):
@@ -247,6 +251,7 @@ class DetectorInfo:
         - ``pointing_u_v``
         - ``g_one_over_k``
         - ``amplitude_2f_k``
+        - ``time_constant_ms``
 
         """
         result = DetectorInfo()

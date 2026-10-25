@@ -85,6 +85,10 @@ from .scanning import (
 from .shared_memory import SharedMemoryManager
 from .seeding import RNGHierarchy
 from .spacecraft import SpacecraftOrbit, spacecraft_pos_and_vel
+from .time_constant import (
+    convolve_time_constant_in_observations,
+    deconvolve_time_constant_in_observations,
+)
 from .units import Units
 from .utilities import resolve_numba_nthreads
 from .version import (
@@ -2394,6 +2398,47 @@ class Simulation:
                 g=g,
                 conv_K_CMB_to_MJy_over_sr=conv_K_CMB_to_MJy_over_sr,
             )
+
+    @_profile
+    def convolve_time_constant(
+        self,
+        time_constant_ms: float | np.ndarray | None = None,
+        component: str = "tod",
+    ):
+        """Convolve the TOD of all the observations with the time constant of the
+        detectors
+
+        This is a wrapper around :func:`.convolve_time_constant_in_observations`.
+        If `time_constant_ms` is ``None``, the time constants are taken from the
+        ``time_constant_ms`` field of :class:`.DetectorInfo`. The order of the calls
+        is up to the user: only what is in `component` at the time of the call
+        is filtered.
+        """
+        convolve_time_constant_in_observations(
+            observations=self.observations,
+            time_constant_ms=time_constant_ms,
+            component=component,
+        )
+
+    @_profile
+    def deconvolve_time_constant(
+        self,
+        time_constant_ms: float | np.ndarray | None = None,
+        component: str = "tod",
+    ):
+        """Deconvolve the time constant of the detectors from the TOD of all the
+        observations
+
+        This is a wrapper around :func:`.deconvolve_time_constant_in_observations`.
+        Pass a `time_constant_ms` different from the one used in
+        :meth:`.convolve_time_constant` to simulate an error in the estimate of
+        the time constant.
+        """
+        deconvolve_time_constant_in_observations(
+            observations=self.observations,
+            time_constant_ms=time_constant_ms,
+            component=component,
+        )
 
     @_profile
     def add_noise(
