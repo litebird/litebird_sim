@@ -124,3 +124,26 @@ def test_jupiter_peak():
         / (2 * np.pi * sigma**2)
     )
     assert 0.01 < peak < 0.1
+
+
+def test_flag_planets_with_threshold(tmp_path):
+    if lbs.MPI_COMM_WORLD.size > 1:
+        pytest.skip("This test uses one observation, which is not split over MPI")
+
+    sim = _make_sim(tmp_path, fwhm_arcmin=300.0)
+    sim.add_planets(planets="jupiter")
+    obs = sim.observations[0]
+
+    # The flags are where the signal added by add_planets exceeds the threshold
+    threshold_k_cmb = 1e-2 * obs.tod.max()
+    num = sim.flag_planets(
+        planets="jupiter", threshold_k_cmb=threshold_k_cmb, append_to_report=False
+    )
+    bright = obs.tod > threshold_k_cmb
+    assert 0 < num["jupiter"] == bright.sum() < (obs.tod != 0).sum()
+    np.testing.assert_array_equal(obs.local_flags != 0, bright)
+
+    # Planets fainter than the threshold are not flagged
+    obs.local_flags = None
+    num = sim.flag_planets(planets="jupiter", threshold_k_cmb=1.0)
+    assert num["jupiter"] == 0

@@ -323,6 +323,22 @@ def iter_planet_segments(
 _BEAM_TRUNCATION_FWHM = 3.0
 
 
+def planet_beam_parameters(
+    obs: Observation, planet: str
+) -> tuple[npt.NDArray, npt.NDArray]:
+    """Return σ of the Gaussian beams and the signal at their centre per
+    steradian of `planet` (in K_CMB/sr) for each detector of `obs`"""
+    fwhm_rad = np.deg2rad(np.asarray(obs.fwhm_arcmin) / 60.0)
+    sigma_rad = fwhm_rad / np.sqrt(8 * np.log(2))
+    brightness = np.array(
+        [
+            planet_brightness_k_cmb(planet, center, width)
+            for center, width in zip(obs.bandcenter_ghz, obs.bandwidth_ghz)
+        ]
+    )
+    return sigma_rad, brightness / (2 * np.pi * sigma_rad**2)
+
+
 @njit
 def add_planet_signal(
     tod,
@@ -384,19 +400,9 @@ def add_planets_to_observations(
     for obs in obs_list:
         tod = getattr(obs, component)
         fwhm_rad = np.deg2rad(np.asarray(obs.fwhm_arcmin) / 60.0)
-        sigma_rad = fwhm_rad / np.sqrt(8 * np.log(2))
-        beam_solid_angle = 2 * np.pi * sigma_rad**2
         max_angle_rad = _BEAM_TRUNCATION_FWHM * fwhm_rad
         for planet in planets:
-            peak_per_sr = (
-                np.array(
-                    [
-                        planet_brightness_k_cmb(planet, center, width)
-                        for center, width in zip(obs.bandcenter_ghz, obs.bandwidth_ghz)
-                    ]
-                )
-                / beam_solid_angle
-            )
+            sigma_rad, peak_per_sr = planet_beam_parameters(obs, planet)
             for start, stop, pointings, planet_dir, distance_km in iter_planet_segments(
                 obs, pos_and_vel, planet, max_angle_rad.max()
             ):

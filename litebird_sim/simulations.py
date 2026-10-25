@@ -2023,6 +2023,7 @@ class Simulation:
         self,
         planets: str | list[str] | tuple[str, ...] = PLANETS,
         radius_fwhm: float | dict[str, float] = 3.0,
+        threshold_k_cmb: float | None = None,
         bit: int = FLAG_PLANET,
         append_to_report: bool = True,
     ) -> dict[str, int]:
@@ -2040,6 +2041,7 @@ class Simulation:
             pos_and_vel=self.pos_and_vel,
             planets=planets,
             radius_fwhm=radius_fwhm,
+            threshold_k_cmb=threshold_k_cmb,
             bit=bit,
         )
         num_of_samples = sum(
@@ -2059,6 +2061,7 @@ class Simulation:
             self.append_to_report(
                 markdown_template,
                 radius_fwhm=radius_fwhm,
+                threshold_k_cmb=threshold_k_cmb,
                 bit=bit,
                 flagged=[
                     (planet, n, 100.0 * n / max(num_of_samples, 1))

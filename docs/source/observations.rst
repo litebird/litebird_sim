@@ -603,6 +603,20 @@ which some detector can be close to a planet, and the pointings of the
 detectors are computed only there. The method returns the number of
 flagged samples for each planet and writes it in the report.
 
+A fixed radius treats Jupiter at 400 GHz (a peak of a few K) like Neptune
+at 40 GHz (a few tens of µK). With ``threshold_k_cmb``, only the samples
+within the radius where the signal of the planet predicted by the model
+of :ref:`planets` is larger than ``threshold_k_cmb`` (in K\ :sub:`CMB`) are
+flagged, so that the flagged region depends on the planet, its distance,
+and the band and beam of the detector::
+
+    # Flag where planets are brighter than 1 µK
+    sim.flag_planets(threshold_k_cmb=1e-6)
+
+The default radius of 3 FWHM is where the Gaussian beam of
+:meth:`.Simulation.add_planets` is truncated, so that the flagged samples
+are exactly those where ``add_planets`` adds more than ``threshold_k_cmb``.
+
 To exclude these samples from the maps, pass ``flags="local_flags"`` to
 the map-makers (see :ref:`mapmaking`). The low-level functions are
 :func:`.flag_planets_in_observations` and :func:`.flag_planet`.

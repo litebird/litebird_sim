@@ -20,8 +20,11 @@ from .observations import Observation
 from .planets import (
     PLANETS,
     _angle_to_planet,
+    add_planet_signal,
     check_observations_for_planets,
     iter_planet_segments,
+    planet_beam_parameters,
+    planet_solid_angle_sr,
 )
 from .spacecraft import SpacecraftPositionAndVelocity
 
@@ -81,6 +84,7 @@ def flag_planets_in_observations(
     pos_and_vel: SpacecraftPositionAndVelocity,
     planets: str | list[str] | tuple[str, ...] = PLANETS,
     radius_fwhm: float | dict[str, float] = 3.0,
+    threshold_k_cmb: float | None = None,
     bit: int = FLAG_PLANET,
 ) -> dict[str, int]:
     """Flag the samples close to the planets
@@ -90,6 +94,13 @@ def flag_planets_in_observations(
     one of the `planets`, seen from the position of the spacecraft in
     `pos_and_vel`. `radius_fwhm` can be a dictionary with the radius of each
     planet.
+
+    If `threshold_k_cmb` is given, only the samples within this radius where the
+    signal of the planet (see :func:`.add_planets_to_observations`) is larger
+    than `threshold_k_cmb` (in K_CMB) are flagged: the radius then depends on the
+    planet, on the band and the beam of the detector, and on the distance
+    of the planet, and planets fainter than `threshold_k_cmb` are not flagged.
+    The detectors must have ``bandcenter_ghz`` and ``bandwidth_ghz``.
 
     The pointings of the detectors are computed only where some of them can
     see a planet: the boresight is first sampled every second to find the
@@ -111,11 +122,29 @@ def flag_planets_in_observations(
         for planet in planets:
             k = radius_fwhm[planet] if isinstance(radius_fwhm, dict) else radius_fwhm
             radius_rad = k * fwhm_rad
-            for start, stop, pointings, planet_dir, _ in iter_planet_segments(
+            if threshold_k_cmb is not None:
+                sigma_rad, peak_per_sr = planet_beam_parameters(obs, planet)
+            for start, stop, pointings, planet_dir, distance_km in iter_planet_segments(
                 obs, pos_and_vel, planet, radius_rad.max()
             ):
-                num_of_flagged[planet] += flag_planet(
-                    flags[:, start:stop], pointings, planet_dir, radius_rad, bit
+                if threshold_k_cmb is None:
+                    num_of_flagged[planet] += flag_planet(
+                        flags[:, start:stop], pointings, planet_dir, radius_rad, bit
+                    )
+                    continue
+
+                signal = np.zeros((obs.n_detectors, stop - start))
+                add_planet_signal(
+                    signal,
+                    pointings,
+                    planet_dir,
+                    planet_solid_angle_sr(planet, distance_km),
+                    peak_per_sr,
+                    sigma_rad,
+                    radius_rad,
                 )
+                bright = signal > threshold_k_cmb
+                flags[:, start:stop][bright] |= bit
+                num_of_flagged[planet] += int(bright.sum())
 
     return num_of_flagged
