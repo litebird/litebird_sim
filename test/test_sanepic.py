@@ -270,3 +270,203 @@ def test_sanepic_correlated_noise():
         sim.make_sanepic_gls_map(
             nside=8, params=params, correlation={"corr_matrix": np.eye(4)}
         )
+
+
+def _calibration_sim(n_days=30, lmax=None):
+    """Noiseless: a sky at nside 8 (a map, or with `lmax` alm interpolated at
+    the pointing), 4 detectors at 0.05 Hz, n_days daily observations, with a
+    "dipole" TOD component; returns (sim, sky maps or alm)."""
+    sim = lbs.Simulation(
+        start_time=astropy.time.Time("2030-01-01T00:00:00"),
+        duration_s=n_days * 86400.0,
+        random_seed=5,
+    )
+    sim.set_instrument(lbs.InstrumentInfo(name="instr", spin_boresight_angle_rad=0.87))
+    sim.create_observations(
+        detectors=[
+            lbs.DetectorInfo(
+                name=n,
+                sampling_rate_hz=0.05,
+                net_ukrts=50.0,
+                fknee_mhz=0.5,
+                alpha=1.0,
+                fmin_hz=1e-5,
+                pol_angle_rad=a,
+                bandcenter_ghz=140.0,
+            )
+            for n, a in (("a", 0.0), ("b", np.pi / 4), ("c", np.pi / 8), ("d", 0.3))
+        ],
+        num_of_obs_per_detector=n_days,
+        tods=[
+            lbs.TodDescription(
+                name=c, dtype=np.float64, units=lbs.Units.K_CMB, description=c
+            )
+            for c in ("tod", "dipole")
+        ],
+    )
+    sim.set_scanning_strategy(
+        lbs.SpinningScanningStrategy(0.785, 1 / 3600 / 3.2, 0.05 / 60),
+        delta_time_s=60,
+    )
+    sim.prepare_pointings()
+    rng = np.random.default_rng(5)
+    sky = hp.smoothing(rng.normal(0, 1e-4, (3, 12 * 8**2)), fwhm=np.radians(10))
+    gal = lbs.CoordinateSystem.Galactic
+    if lmax is None:
+        maps = lbs.HealpixMap(sky, coordinates=gal)
+    else:
+        sky = np.array(hp.map2alm(sky, lmax=lmax))
+        maps = lbs.SphericalHarmonics(values=sky, lmax=lmax, coordinates=gal)
+    sim.fill_tods(maps=maps, append_to_report=False)
+    return sim, sky
+
+
+def _apply_gains(sim, seed=7):
+    """Multiply the TOD by a gain per detector and day; returns them."""
+    rng = np.random.default_rng(seed)
+    true = {}
+    for obs in sim.observations:
+        for i, name in enumerate(obs.name):
+            true[name, obs.start_time.jd] = 1 + 0.01 * rng.normal()
+            obs.tod[i] *= true[name, obs.start_time.jd]
+    return true
+
+
+def _check_gains(result, sim, true, tol):
+    k = 0
+    for obs in sim.observations:
+        for name in obs.name:
+            assert abs(result.gains[k][0] - true[name, obs.start_time.jd]) < tol
+            k += 1
+
+
+def test_sanepic_calibration():
+    # Gains changing every day, noiseless: recovered from the dipole in the
+    # "dipole" component (filled by add_dipole, as the data)
+    if not hasattr(pysanepic, "CalibrationParameters"):
+        pytest.skip("pysanepic without calibration")
+    sim, sky = _calibration_sim()
+    sim.add_dipole(append_to_report=False)
+    sim.add_dipole(component="dipole", append_to_report=False)
+    true = _apply_gains(sim)
+    params = pysanepic.GLSParameters(chunk_s=86400.0, tol=1e-20, min_pol_rcond=0.0)
+    cal = pysanepic.CalibrationParameters(gain_period_s=86400.0)
+    r = sim.make_sanepic_gls_map(
+        nside=8,
+        params=params,
+        calibration=cal,
+        dipole_component="dipole",
+        append_to_report=False,
+    )
+    _check_gains(r, sim, true, 1e-6)
+    seen = r.maps[1] != hp.UNSEEN
+    err = (r.maps - sky)[:, seen]
+    err[0] -= err[0].mean()  # I monopole unconstrained with 1/f weights
+    assert np.abs(err).max() < 1e-3 * np.abs(sky).max()
+    with pytest.raises(ValueError, match="dipole_component"):
+        sim.make_sanepic_gls_map(nside=8, calibration=cal, append_to_report=False)
+
+
+def test_sanepic_calibration_keep_solar_dipole():
+    # The solar dipole kept in the maps: only the orbital dipole in the
+    # component, the solar one in the sky model (alm); the maps are the sky
+    # plus the solar dipole
+    if not hasattr(pysanepic.MapResult, "bandpass"):
+        pytest.skip("pysanepic without sky_model")
+    sim, sky_alm = _calibration_sim(lmax=16)
+    # LINEAR: the dipole of solar + orbital velocity is exactly the sum of the two
+    linear = lbs.DipoleType.LINEAR
+    sim.add_dipole(dipole_type=linear, append_to_report=False)  # solar + orbital
+    orbital = lbs.spacecraft_pos_and_vel(
+        lbs.SpacecraftOrbit(sim.start_time, solar_velocity_km_s=0.0),
+        observations=sim.observations,
+        delta_time_s=86400.0,
+    )
+    lbs.add_dipole_to_observations(
+        sim.observations, orbital, dipole_type=linear, component="dipole"
+    )
+    true = _apply_gains(sim)
+    # the solar dipole (linear), from the Planck direction in Galactic coordinates
+    v = hp.ang2vec(
+        np.pi / 2 - lbs.constants.SOLAR_VELOCITY_GAL_LAT_RAD,
+        lbs.constants.SOLAR_VELOCITY_GAL_LON_RAD,
+    )
+    amp = (
+        lbs.constants.T_CMB_K
+        * lbs.constants.SOLAR_VELOCITY_KM_S
+        / lbs.constants.C_LIGHT_KM_OVER_S
+    )
+    solar_map = amp * (np.array(hp.pix2vec(64, np.arange(12 * 64**2))).T @ v)
+    solar_alm = np.zeros_like(sky_alm)
+    solar_alm[0] = hp.map2alm(solar_map, lmax=16, iter=3)
+    params = pysanepic.GLSParameters(chunk_s=86400.0, tol=1e-20, min_pol_rcond=0.0)
+    r = sim.make_sanepic_gls_map(
+        nside=8,
+        params=params,
+        calibration=pysanepic.CalibrationParameters(gain_period_s=86400.0),
+        dipole_component="dipole",
+        sky_model=sky_alm + solar_alm,
+        append_to_report=False,
+    )
+    _check_gains(r, sim, true, 1e-6)
+    # expected: the binned map of the signal (sky + solar dipole) of the samples
+    for obs in sim.observations:
+        for i, name in enumerate(obs.name):
+            obs.tod[i] = obs.tod[i] / true[name, obs.start_time.jd] - obs.dipole[i]
+    binned = sim.make_binned_map(nside=8).binned_map
+    seen = r.maps[1] != hp.UNSEEN
+    assert np.abs((r.maps - binned)[:, seen]).max() < 1e-6 * amp
+
+
+def test_sanepic_sky_model_and_bandpass():
+    # A sky model as zero alm (pointings passed as angles) or as the sky map
+    # leaves the maps unchanged; a foreground seen with a different amplitude
+    # by each detector is fitted with a bandpass template
+    if not hasattr(pysanepic.MapResult, "bandpass"):
+        pytest.skip("pysanepic without sky_model and bandpass_templates")
+    sim, sky = _calibration_sim(n_days=4)
+    params = pysanepic.GLSParameters(chunk_s=86400.0, tol=1e-20, min_pol_rcond=0.0)
+    ref = sim.make_sanepic_gls_map(nside=8, params=params, append_to_report=False)
+    seen = ref.maps[1] != hp.UNSEEN
+    zero = lbs.SphericalHarmonics(
+        values=np.zeros((3, hp.Alm.getsize(4)), complex), lmax=4
+    )
+    for model in (zero, sky):
+        r = sim.make_sanepic_gls_map(
+            nside=8, params=params, sky_model=model, append_to_report=False
+        )
+        err = (r.maps - ref.maps)[:, seen]
+        err[0] -= err[0].mean()
+        assert np.abs(err).max() < 1e-6 * np.abs(sky).max()  # the PCG tolerance
+    # the pointings as angles give the same maps; alm need them
+    r = sim.make_sanepic_gls_map(
+        nside=8, params=params, pointing_form="angles", append_to_report=False
+    )
+    assert np.allclose(r.maps, ref.maps, rtol=0, atol=1e-6 * np.abs(sky).max())
+    with pytest.raises(ValueError, match="need the angles"):
+        sim.make_sanepic_gls_map(
+            nside=8, params=params, sky_model=zero, pointing_form="pixels"
+        )
+    with pytest.raises(ValueError, match="pointing_form"):
+        sim.make_sanepic_gls_map(nside=8, params=params, pointing_form="pix")
+
+    fg = hp.smoothing(
+        np.random.default_rng(9).normal(0, 3e-4, (3, 12 * 8**2)), fwhm=np.radians(15)
+    )
+    amp = {"a": 0.04, "b": -0.01, "c": 0.02, "d": -0.03}
+    mean = np.mean(list(amp.values()))  # the common part goes into the map
+    for obs in sim.observations:
+        signal = obs.tod.copy()
+        obs.tod[:] = 0.0
+        lbs.scan_map_in_observations(
+            obs, maps=lbs.HealpixMap(fg, coordinates=lbs.CoordinateSystem.Galactic)
+        )
+        for i, name in enumerate(obs.name):
+            obs.tod[i] = signal[i] + (1 + amp[name]) * obs.tod[i]
+    r = sim.make_sanepic_gls_map(
+        nside=8, params=params, bandpass_templates={"fg": fg}, append_to_report=False
+    )
+    assert all(abs(r.bandpass["fg"][k] - (v - mean)) < 1e-6 for k, v in amp.items())
+    err = (r.maps - ref.maps - (1 + mean) * fg)[:, seen]
+    err[0] -= err[0].mean()
+    assert np.abs(err).max() < 1e-6 * np.abs(sky).max()

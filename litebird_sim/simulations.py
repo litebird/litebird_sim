@@ -3229,6 +3229,12 @@ class Simulation:
         flag_mask: int | None = None,
         noise: dict | None = None,
         correlation: dict | None = None,
+        calibration: "pysanepic.CalibrationParameters | None" = None,
+        dipole_component: str | None = None,
+        sky_model=None,
+        bandpass_templates: dict | None = None,
+        bandpass_common: bool = False,
+        pointing_form: str = "auto",
         append_to_report: bool = True,
     ) -> "pysanepic.MapResult":
         """Wrapper to the GLS map-maker of pysanepic (1/f noise).
@@ -3249,6 +3255,12 @@ class Simulation:
             flag_mask=flag_mask,
             noise=noise,
             correlation=correlation,
+            calibration=calibration,
+            dipole_component=dipole_component,
+            sky_model=sky_model,
+            bandpass_templates=bandpass_templates,
+            bandpass_common=bandpass_common,
+            pointing_form=pointing_form,
         )
 
         if append_to_report and MPI_COMM_WORLD.rank == 0:

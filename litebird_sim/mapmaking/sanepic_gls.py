@@ -2,9 +2,10 @@
 GLS map-maker with correlated (1/f) noise using pysanepic
 
 pysanepic does not depend on litebird_sim: this module converts the
-observations into `pysanepic.DetectorData` (HEALPix pixels computed here,
-orientation, HWP angle, TOD and the 1/f noise parameters used to simulate the
-noise) and calls `pysanepic.make_maps`.
+observations into `pysanepic.DetectorData` (pointings in the output
+coordinates, as HEALPix pixels computed here or as angles, see
+`pointing_form`; orientation, HWP angle, TOD and the 1/f noise parameters
+used to simulate the noise) and calls `pysanepic.make_maps`.
 """
 
 import dataclasses
@@ -64,6 +65,19 @@ def _detector_flags(obs, names, det_idx, flag_mask=None):
     return out
 
 
+def _sky_array(x):
+    """A sky model or template for pysanepic (which does not depend on
+    litebird_sim): an array of maps, or of alm with mmax = lmax, from an array
+    or a SphericalHarmonics."""
+    if hasattr(x, "lmax") and hasattr(x, "values"):
+        if x.mmax != x.lmax:
+            raise ValueError("pysanepic needs alm with mmax = lmax")
+        if getattr(x, "nfreqs", None) not in (None, 1):
+            raise ValueError("pysanepic needs alm at one frequency")
+        return np.asarray(x.values)
+    return np.asarray(x)
+
+
 def _import_pysanepic(feature: str = "OneOverFNoise", version: str = "0.3.0"):
     try:
         import pysanepic
@@ -95,11 +109,16 @@ def _detector_data(
     noise,
     correlation=None,
     flag_mask=None,
+    dipole_component=None,
+    angles=False,
 ):
     """pysanepic.DetectorData for each detector of each observation, as a
     generator: pointings are computed for one detector at a time and turned
     into int32 pixels here, with the same pixelization as the other
-    map-makers; pysanepic keeps only pixels and angles (no copy of the TODs).
+    map-makers (or, with `angles`, passed as angles in the output
+    coordinates: pointing_form, needed by sky models given as alm); pysanepic keeps only pixels
+    and angles (no copy of the TODs). With `dipole_component`, that TOD
+    component is DetectorData.dipole (for calibration).
     The noise is `noise[name]` if given, else the 1/f model of the detector.
     With `correlation` (the common-mode model of add_noise), the detectors of
     each group of an observation are yielded as one pysanepic.DetectorGroup,
@@ -134,6 +153,8 @@ def _detector_data(
                     flag_names,
                     noise,
                     flag_mask=flag_mask,
+                    dipole_component=dipole_component,
+                    angles=angles,
                 ),
             )
             continue
@@ -147,13 +168,24 @@ def _detector_data(
                 pointings_dtype=pointings_dtype,
                 nthreads=nthreads,
             )
-            pointing = pysanepic.Pointing(
-                pix=hpx.ang2pix(ptg_det[:, :2], nthreads=nthreads).astype(np.int32),
-                nside=nside,
-                psi=ptg_det[:, 2],
-                coordinates=coordinates,
-            )
+            if angles:
+                pointing = pysanepic.Pointing(
+                    theta=ptg_det[:, 0].copy(),
+                    phi=ptg_det[:, 1].copy(),
+                    psi=ptg_det[:, 2].copy(),
+                    coordinates=coordinates,
+                )
+            else:
+                pointing = pysanepic.Pointing(
+                    pix=hpx.ang2pix(ptg_det[:, :2], nthreads=nthreads).astype(np.int32),
+                    nside=nside,
+                    psi=ptg_det[:, 2],
+                    coordinates=coordinates,
+                )
             del ptg_det
+            extra = {"name": name} if named else {}
+            if dipole_component is not None:
+                extra["dipole"] = getattr(obs, dipole_component)[det_idx]
             if noise is not None and name in noise:
                 det_noise = noise[name]
             else:
@@ -173,7 +205,7 @@ def _detector_data(
                 pol_angle_rad=obs.pol_angle_rad[det_idx],
                 pol_efficiency=gamma[det_idx],
                 flags=_detector_flags(obs, flag_names, det_idx, flag_mask),
-                **({"name": name} if named else {}),
+                **extra,
             )
 
 
@@ -253,6 +285,12 @@ def make_sanepic_gls_map(
     flag_mask: int | None = None,
     noise: dict | None = None,
     correlation: dict | None = None,
+    calibration: "pysanepic.CalibrationParameters | None" = None,
+    dipole_component: str | None = None,
+    sky_model=None,
+    bandpass_templates: dict | None = None,
+    bandpass_common: bool = False,
+    pointing_form: str = "auto",
 ) -> "pysanepic.MapResult":
     """
     GLS map-maker with 1/f noise using pysanepic (SANEPIC algorithm).
@@ -317,16 +355,99 @@ def make_sanepic_gls_map(
         and observations distributed over the processes). The modes are
         those of the model of :func:`.add_noise_to_observations`, or the
         estimated ones in ``noise``. Needs pysanepic 0.4.0 or later.
+    calibration : pysanepic.CalibrationParameters, optional
+        Fit one gain per detector and period (``gain_period_s``) together with
+        the maps, using the dipole in `dipole_component` as calibrator (see the
+        pysanepic documentation). The gains are in ``MapResult.gains``, one
+        array per detector and observation of this process. Needs pysanepic
+        0.5.0 or later.
+    dipole_component : str, optional
+        With `calibration`, the TOD component holding the dipole of each
+        sample, e.g. filled by :meth:`.Simulation.add_dipole` with
+        ``component="dipole"`` and the settings used for the data. It is
+        subtracted from the calibrated TOD and must contain the orbital
+        dipole, which sets the absolute calibration. To keep the solar dipole
+        in the maps, put only the orbital dipole in it (an orbit with
+        ``solar_velocity_km_s=0``) and the solar dipole in `sky_model`, as alm:
+        its gradient within a pixel would otherwise leak through the 1/f
+        weights. With a non-linear `dipole_type` the dipole of the total
+        velocity is not the sum of the two: the difference (quadratic terms of
+        the solar dipole and solar-orbital cross terms, a few uK) is not
+        modelled.
+    sky_model : np.ndarray or SphericalHarmonics, optional
+        A model of the whole sky (I or I/Q/U in K, in the output coordinates,
+        e.g. CMB + foregrounds at the frequency of the channel), as maps at
+        `nside` or alm (mmax = lmax). Its TOD is subtracted and its binned map
+        put back: given as alm it is interpolated at the pointing, so its
+        structure below the pixel size does not leak through the 1/f weights.
+        Needs pysanepic 0.5.0 or later.
+    bandpass_templates : dict, optional
+        ``{name: template}``, maps or alm as `sky_model` (e.g. the derivative
+        of the foregrounds with respect to frequency, at the frequency of the
+        foregrounds in `sky_model`): one amplitude per template and detector,
+        summing to zero over the detectors, fitted with the maps (and the
+        gains); in ``MapResult.bandpass``. Needs pysanepic 0.5.0 or later.
+    bandpass_common : bool, optional
+        Fit also the common part of the bandpass templates (free amplitudes
+        instead of summing to zero): with calibration, a mean band of the
+        detectors away from the frequency of `sky_model` would otherwise bias
+        the absolute calibration. Needs the templates as alm; see the
+        pysanepic documentation for its limits. False by default.
+    pointing_form : str, optional
+        How the pointings are passed to pysanepic, always in
+        `output_coordinate_system`: ``"pixels"`` (HEALPix pixels at `nside`,
+        computed here as in the other map-makers), ``"angles"`` (θ, φ, ψ,
+        pixelized by pysanepic) or ``"auto"`` (default): angles if
+        `sky_model` or some bandpass template is given as alm, which are
+        interpolated at the pointing and need the angles, pixels otherwise.
+        The maps are the same; pixels keep less memory per detector.
 
     Returns
     -------
     pysanepic.MapResult
-        Output maps (``maps``, ``hp.UNSEEN`` where not solved), ``hit_map``
-        and the PCG convergence information
+        Output maps (``maps``, ``hp.UNSEEN`` where not solved), ``hit_map``,
+        the PCG convergence information, and ``gains`` and ``bandpass`` with
+        calibration and bandpass templates
     """
     pysanepic = _import_pysanepic()
     if correlation is not None:
         pysanepic = _import_pysanepic("DetectorGroup", "0.4.0")
+    extra = {}
+    if calibration is not None:
+        pysanepic = _import_pysanepic("CalibrationParameters", "0.5.0")
+        if dipole_component is None:
+            raise ValueError(
+                "calibration needs dipole_component, the TOD component with the dipole"
+            )
+        extra["calibration"] = calibration
+    if sky_model is not None:
+        extra["sky_model"] = _sky_array(sky_model)
+    if bandpass_templates:
+        extra["bandpass_templates"] = {
+            k: _sky_array(v) for k, v in bandpass_templates.items()
+        }
+    if bandpass_common:
+        extra["bandpass_common"] = True
+    if ("sky_model" in extra or "bandpass_templates" in extra) and not hasattr(
+        pysanepic.MapResult, "bandpass"
+    ):
+        raise ImportError(
+            f"pysanepic {pysanepic.__version__} is too old for sky_model and "
+            "bandpass_templates: version 0.5.0 or later is needed"
+        )
+    models = [extra.get("sky_model"), *extra.get("bandpass_templates", {}).values()]
+    alm = any(m is not None and np.iscomplexobj(m) for m in models)
+    if pointing_form not in ("auto", "pixels", "angles"):
+        raise ValueError(
+            f"Unknown pointing_form '{pointing_form}': use 'auto', 'pixels' or 'angles'"
+        )
+    if pointing_form == "pixels" and alm:
+        raise ValueError(
+            "pointing_form='pixels' with sky_model or bandpass_templates as alm: "
+            "they are interpolated at the pointing and need the angles "
+            "(use 'angles' or 'auto', or pass them as maps)"
+        )
+    angles = pointing_form == "angles" or (pointing_form == "auto" and alm)
     if noise_model not in ("toast", "keshner"):
         raise ValueError(
             f"Unknown noise model '{noise_model}': use 'toast' or 'keshner'"
@@ -353,6 +474,8 @@ def make_sanepic_gls_map(
         noise,
         correlation,
         flag_mask=flag_mask,
+        dipole_component=dipole_component if calibration is not None else None,
+        angles=angles,
     )
 
     comm = MPI_COMM_WORLD if MPI_ENABLED and MPI_COMM_WORLD.size > 1 else None
@@ -363,6 +486,7 @@ def make_sanepic_gls_map(
         params=params,
         comm=comm,
         nthreads=nthreads,
+        **extra,
     )
 
 
