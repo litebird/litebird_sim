@@ -1,5 +1,7 @@
 # HEAD
 
+-   Add a notebook to show an example of how to use litebird_sim h-maps with SMARTIES ([#579](https://github.com/litebird/litebird_sim/pull/579))
+
 -   `estimate_sanepic_noise` has `correlation` and `n_modes` arguments: the cross-spectra of the detectors of each group of the common-mode model are fitted with `n_modes` common modes plus the own noise of each detector, and `make_sanepic_gls_map` uses the result when it is passed as `noise` together with the same `correlation`. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).
 
 -   `make_sanepic_gls_map` has a `correlation` argument, with the keys of the common-mode model of `add_noise_to_observations`: the detectors of each group of an observation are passed to pysanepic as a `DetectorGroup` with one common mode, so that the GLS maps account for the correlated noise. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).
