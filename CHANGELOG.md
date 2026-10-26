@@ -1,6 +1,24 @@
 # HEAD
 
--   Add a notebook to show an example of how to use litebird_sim h-maps with SMARTIES ([#579](https://github.com/litebird/litebird_sim/pull/579))
+-   Add a notebook demonstrating how to use litebird_sim h-maps with SMARTIES [#579](https://github.com/litebird/litebird_sim/pull/579))
+
+-   **Breaking change**: the default `cheby_ripple_dB` of `BandPassInfo` is 0.2 dB instead of 3 dB, the same as in `bandpass_template_module.bandpass_profile` and `lowpass_chebyshev`: a ripple of 3 dB halves the transmission in band. The results of `BandPassInfo(bandtype="cheby")` without an explicit ripple change. The function `bandpass_template_module.beam_throughtput` is renamed `beam_throughput`. Reference PR: [#598](https://github.com/litebird/litebird_sim/pull/598).
+
+-   Fix the cosine tails of `BandPassInfo` with `bandtype="top-hat-cosine"`: they covered the whole frequency range, putting one third of the weight outside the band. Now they are `bandwidth_ghz / cosine_apo_length` long, so the bandpasses of this type change. Reference PR: [#593](https://github.com/litebird/litebird_sim/pull/593).
+
+-   litebird_sim requires ducc0 0.42.0 or later, also in `uv.lock` (multiarch wheels on x86_64, faster internal array operations, more accurate twiddle factors for shifted HEALPix rings and SHTs). Reference PR: [#591](https://github.com/litebird/litebird_sim/pull/591).
+
+-   `write_observations` saves in each file only the quaternions that cover its observation, instead of those of the whole simulation: in a one-year simulation with daily observations, each file is ~17 MB smaller. The start time of the quaternions is saved with nanosecond precision instead of being rounded to the millisecond (times in MJD format could not be read back). Reference PR: [#594](https://github.com/litebird/litebird_sim/pull/594).
+
+-   Fix the HWP angle of observations read from HDF5 files when they were split in time among MPI processes (`n_blocks_time > 1`): `write_observations` saves `start_time_global`, from which the HWP angle is computed, and `read_list_of_observations` uses it. Reference PR: [#597](https://github.com/litebird/litebird_sim/pull/597).
+
+-   `make_sanepic_gls_map` (and `Simulation.make_sanepic_gls_map`) has `calibration` (a `pysanepic.CalibrationParameters`) and `dipole_component` arguments: pysanepic fits one gain per detector and period together with the maps, using as calibrator the dipole in that TOD component (e.g. filled by `add_dipole`; its orbital part sets the absolute calibration). It also passes `sky_model` (maps, or alm interpolated at the pointing: then the pointings are given to pysanepic as angles; `pointing_form` chooses between `"pixels"`, `"angles"` and `"auto"`, always in `output_coordinate_system`) and `bandpass_templates` (one amplitude per detector) to pysanepic. With `bandpass_common` the common part of the bandpass amplitudes is fitted too. Needs pysanepic 0.5.0 or later. Reference PR: [#580](https://github.com/litebird/litebird_sim/pull/580).
+
+-   `scan_map` and `fill_tod_with_hwp_harmonics` interpolate double-precision alms with `epsilon=1e-7` instead of 1e-13 when the TOD is float32, which is far below its resolution: the interpolation of the alms is ~25% faster on Galileo100 (relative change of the TOD ~1e-8). Reference PR: [#583](https://github.com/litebird/litebird_sim/pull/583).
+
+-   `Observation.get_pointings` and `PointingProvider.get_pointings` have an `output_coordinate_system` argument: Galactic pointings are computed rotating the quaternions (`ECL_TO_GAL_QUAT`) instead of each sample. The map-makers and `scan_map` use it when the pointings are computed on the fly (~40% faster pointings in Galactic coordinates); precomputed pointings are still rotated with `rotate_coordinates_e2g`. Reference PR: [#582](https://github.com/litebird/litebird_sim/pull/582).
+
+-   Faster `scan_map`, map-makers and `hwp_harmonics`: cos/sin from a table (`litebird_sim.utilities.cos_sin`, as in pysanepic), fewer trig calls per sample and no per-sample allocations in the Jones kernels. Kernels are 2–4 times faster (up to ~50–100 times for Jones); results change at the 1e-15 level. Reference PR: [#581](https://github.com/litebird/litebird_sim/pull/581).
 
 -   `estimate_sanepic_noise` has `correlation` and `n_modes` arguments: the cross-spectra of the detectors of each group of the common-mode model are fitted with `n_modes` common modes plus the own noise of each detector, and `make_sanepic_gls_map` uses the result when it is passed as `noise` together with the same `correlation`. Needs pysanepic 0.4.0 or later. Reference PR: [#578](https://github.com/litebird/litebird_sim/pull/578).
 

@@ -21,7 +21,7 @@ from litebird_sim.observation_utilities import (
     _normalize_observations_and_pointings,
 )
 
-from ..utilities import resolve_nthreads
+from ..utilities import cos_sin, resolve_nthreads
 
 from .common import (
     _compute_pixel_indices,
@@ -398,8 +398,9 @@ def _accumulate_nobs_matrix(
             pix_idx[det_idx], psi_angle_rad[det_idx], t_mask
         ):
             if cur_t_mask:
-                cos_over_sigma = np.cos(2 * cur_psi) * gamma_over_sigma
-                sin_over_sigma = np.sin(2 * cur_psi) * gamma_over_sigma
+                cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
+                cos_over_sigma = cos_2psi * gamma_over_sigma
+                sin_over_sigma = sin_2psi * gamma_over_sigma
                 cur_matrix = nobs_matrix[cur_pix_idx]
 
                 cur_matrix[0] += inv_sigma2
@@ -544,9 +545,10 @@ def _sum_map_contribution_from_one_sample(
 ) -> None:
     "This code implements Eqq. (18)–(20)"
 
+    cos_2psi, sin_2psi = cos_sin(2 * pol_angle_rad)
     dest_array[0] += sample / weight
-    dest_array[1] += sample * pol_eff * np.cos(2 * pol_angle_rad) / weight
-    dest_array[2] += sample * pol_eff * np.sin(2 * pol_angle_rad) / weight
+    dest_array[1] += sample * pol_eff * cos_2psi / weight
+    dest_array[2] += sample * pol_eff * sin_2psi / weight
 
 
 @njit
@@ -777,9 +779,8 @@ def estimate_sample_from_map(
     cur_q = sky_map[1, cur_pixel]
     cur_u = sky_map[2, cur_pixel]
 
-    return cur_i + cur_pol_eff * (
-        cur_q * np.cos(2 * cur_psi) + cur_u * np.sin(2 * cur_psi)
-    )
+    cos_2psi, sin_2psi = cos_sin(2 * cur_psi)
+    return cur_i + cur_pol_eff * (cur_q * cos_2psi + cur_u * sin_2psi)
 
 
 @njit

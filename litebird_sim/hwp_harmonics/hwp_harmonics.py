@@ -13,7 +13,12 @@ from ..bandpass_template_module import bandpass_profile
 from ..coordinates import CoordinateSystem
 from ..hwp_non_ideal import HWPFormalism, NonIdealHWP
 from ..input_sky import SkyInput
-from ..maps_and_harmonics import HealpixMap, SphericalHarmonics, interpolate_alm
+from ..maps_and_harmonics import (
+    HealpixMap,
+    SphericalHarmonics,
+    _interpolation_epsilon_for_tod,
+    interpolate_alm,
+)
 from ..observations import Observation
 from ..observation_utilities import (
     _get_pointings_array,
@@ -473,6 +478,7 @@ def fill_tod_with_hwp_harmonics(
                 interp = interpolate_alm(
                     alms=maps_det,
                     locations=curr_pointings_det[:, 0:2],
+                    epsilon=_interpolation_epsilon_for_tod(maps_det, tod.dtype),
                     nthreads=nthreads,
                 )
 
