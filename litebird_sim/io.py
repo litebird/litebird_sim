@@ -303,9 +303,16 @@ def write_one_observation(
             cur_dataset.attrs["start_time"] = obs.start_time.to_value(
                 format="mjd", subfmt="bytes"
             )
+            # The HWP angle is computed from the time elapsed since
+            # `start_time_global`, which differs from `start_time` if the
+            # observation is split in time among several processes
+            cur_dataset.attrs["start_time_global"] = obs.start_time_global.to_value(
+                format="mjd", subfmt="bytes"
+            )
             cur_dataset.attrs["mjd_time"] = True
         else:
             cur_dataset.attrs["start_time"] = obs.start_time
+            cur_dataset.attrs["start_time_global"] = obs.start_time_global
             cur_dataset.attrs["mjd_time"] = False
 
         cur_dataset.attrs["sampling_rate_hz"] = obs.sampling_rate_hz
@@ -660,10 +667,15 @@ def read_one_observation(
             )
             hdf5_tod = inpf[cur_field_name]
 
+            # Files written by older versions do not have `start_time_global`
+            start_time_global = hdf5_tod.attrs.get(
+                "start_time_global", hdf5_tod.attrs["start_time"]
+            )
             if hdf5_tod.attrs["mjd_time"]:
                 start_time = astropy.time.Time(
                     hdf5_tod.attrs["start_time"], format="mjd"
                 )
+                start_time_global = astropy.time.Time(start_time_global, format="mjd")
             else:
                 start_time = hdf5_tod.attrs["start_time"]
 
@@ -711,6 +723,9 @@ def read_one_observation(
                     comm=None if limit_mpi_rank else MPI_COMM_WORLD,
                     tods=tod_full_fields,
                 )
+                # The observation contains only the samples in this file, but
+                # its start time must still be referred to the original one
+                result.start_time_global = start_time_global
                 result.det_idx = np.array(json.loads(inpf.attrs["det_idx"]))
                 # Copy the TOD in the newly created observation
                 result.__setattr__(cur_field_name, hdf5_tod.astype(tod_dtype)[:])
