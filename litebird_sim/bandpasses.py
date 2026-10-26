@@ -194,17 +194,14 @@ class BandPassInfo:
         """
 
         apolength = self.bandwidth_ghz / self.cosine_apo_length
-        f_above = self.bandcenter_ghz * (1 + self.bandwidth_ghz / 2 + apolength)
-        f_below = self.bandcenter_ghz * (1 - self.bandwidth_ghz / 2 - apolength)
+        f_above = self.f1 + apolength
+        f_below = self.f0 - apolength
+
         mask_above = np.ma.masked_inside(self.freqs_ghz, self.f1, f_above).mask
-
-        x_ab = np.linspace(self.f1, f_above, self.freqs_ghz[mask_above].size)
-
-        self.weights[mask_above] = _apod(x_ab, self.f1, f_above)
+        self.weights[mask_above] = _apod(self.freqs_ghz[mask_above], self.f1, f_above)
 
         mask_below = np.ma.masked_inside(self.freqs_ghz, f_below, self.f0).mask
-        x_bel = np.linspace(f_below, self.f0, self.freqs_ghz[mask_below].size)
-        self.weights[mask_below] = _apod(x_bel, self.f0, f_below)
+        self.weights[mask_below] = _apod(self.freqs_ghz[mask_below], self.f0, f_below)
 
     # Chebyshev profile bandpass
     def _get_chebyshev_bandpass(self, normalize=False):

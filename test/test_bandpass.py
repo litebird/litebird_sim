@@ -64,6 +64,24 @@ def test_bpass_apodization():
     test.assertAlmostEqual(Bcheby.get_normalization(), 1)
 
 
+def test_bpass_cosine_tails():
+    # The tails start at the edges and are bandwidth / cosine_apo_length long
+    B = BandPassInfo(
+        bandcenter_ghz=140.0,
+        bandwidth_ghz=42.0,
+        nsamples_inband=1000,
+        bandtype="top-hat-cosine",
+    )
+    apolength = B.bandwidth_ghz / B.cosine_apo_length
+    f, w = B.freqs_ghz, B.weights
+
+    assert np.all(w[(f < B.f0 - apolength) | (f > B.f1 + apolength)] == 0.0)
+    assert np.all(w[(f >= B.f0) & (f <= B.f1)] == 1.0)
+
+    tail = (f > B.f1) & (f < B.f1 + apolength)
+    assert np.allclose(w[tail], (1 + np.cos((f[tail] - B.f1) / apolength * np.pi)) / 2)
+
+
 def test_bpass_resampling():
     test = unittest.TestCase()
 
