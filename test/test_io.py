@@ -298,7 +298,9 @@ def test_gzip_compression_in_obs(tmp_path):
     )
 
 
-def __test_write_sliced_pointing_provider(tmp_path, use_mjd: bool):
+def __test_write_sliced_pointing_provider(
+    tmp_path, use_mjd: bool, delta_time_s: float = 10.0
+):
     # Each file must contain only the boresight quaternions that cover its own
     # observation, not the ones of the whole simulation
     start_time = AstroTime("2021-01-01") if use_mjd else 0.0
@@ -315,7 +317,7 @@ def __test_write_sliced_pointing_provider(tmp_path, use_mjd: bool):
             spin_rate_hz=0.000_833_333_333_333_333_4,
             start_time=start_time,
         ),
-        delta_time_s=10.0,
+        delta_time_s=delta_time_s,
         append_to_report=False,
     )
     sim.set_instrument(
@@ -344,8 +346,11 @@ def __test_write_sliced_pointing_provider(tmp_path, use_mjd: bool):
 
     for cur_file in file_list:
         with h5py.File(cur_file, "r") as inpf:
-            # 900 s at one quaternion every 10 s, plus the margin for the slerp
-            assert inpf["pointing_provider_rot_quaternion"].shape[0] <= 94
+            # 900 s of quaternions, plus the margin for the slerp
+            assert (
+                inpf["pointing_provider_rot_quaternion"].shape[0]
+                <= 900.0 / delta_time_s + 4
+            )
 
     observations = lbs.read_list_of_observations(
         file_name_list=file_list, limit_mpi_rank=False
@@ -361,3 +366,31 @@ def test_write_sliced_pointing_provider_mjd(tmp_path):
 
 def test_write_sliced_pointing_provider_no_mjd(tmp_path):
     __test_write_sliced_pointing_provider(tmp_path, use_mjd=False)
+
+
+def test_write_sliced_pointing_provider_fractional_delta_time(tmp_path):
+    # The start of each slice is not a round number of milliseconds
+    __test_write_sliced_pointing_provider(tmp_path, use_mjd=True, delta_time_s=1 / 3)
+
+
+def test_rot_quaternion_start_time_roundtrip(tmp_path):
+    # The start time must be saved with full precision, whatever its format
+    for start_time in [
+        AstroTime("2021-01-01T01:19:59.333333333"),
+        AstroTime(59215.123456789, format="mjd"),
+    ]:
+        quats = lbs.RotQuaternion(
+            quats=np.array([[0.0, 0.0, 0.0, 1.0], [0.0, 0.0, 0.0, 1.0]]),
+            start_time=start_time,
+            sampling_rate_hz=3.0,
+        )
+        with h5py.File(tmp_path / "quats.h5", "w") as outf:
+            lbs.io.write_rot_quaternion_to_hdf5(
+                output_file=outf, rot_matrix=quats, field_name="q", compression=None
+            )
+        with h5py.File(tmp_path / "quats.h5", "r") as inpf:
+            result = lbs.io.read_rot_quaternion_from_hdf5(
+                input_file=inpf, field_name="q"
+            )
+
+        assert abs((result.start_time - start_time).to("s").value) < 1e-8

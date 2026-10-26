@@ -85,7 +85,12 @@ def write_rot_quaternion_to_hdf5(
 
     if rot_matrix.start_time is not None:
         if isinstance(rot_matrix.start_time, astropy.time.Time):
-            start_time = str(rot_matrix.start_time)
+            # Save the time with nanosecond precision: `str()` rounds it to the
+            # millisecond (the start of a slice of quaternions is not always a
+            # round number), and it would not be readable if the format is MJD
+            full_precision_time = rot_matrix.start_time.copy()
+            full_precision_time.precision = 9
+            start_time = full_precision_time.isot
         else:
             start_time = float(rot_matrix.start_time)
 
